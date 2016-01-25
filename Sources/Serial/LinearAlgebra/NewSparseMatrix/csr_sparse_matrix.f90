@@ -14,7 +14,8 @@ private
 
 
     type, extends(base_sparse_matrix_t) :: csr_sparse_matrix_t
-        integer(ip), private       :: nnz = 0                     !< Number of non zeros
+    private
+        integer(ip)                :: nnz = 0                     !< Number of non zeros
         integer(ip), allocatable   :: irp(:)                      !< Row pointers
         integer(ip), allocatable   :: ja(:)                       !< Column indices        
         real(rp),    allocatable   :: val(:)                      !< Values

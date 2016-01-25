@@ -137,9 +137,10 @@ contains
         check(a%get_sign()                == b%get_sign())
         check(a%is_by_rows()             .eqv. b%is_by_rows())
         check(a%get_state()               == b%get_state())
-        check(a%get_nnz()+1               == b%irp(a%get_num_rows()+1))
-        check(a%ja(a%get_nnz())           == b%ja(b%get_nnz()))
-        check(allocated(a%val)           .eqv. allocated(b%val))
+! private components
+!        check(a%get_nnz()+1               == b%irp(a%get_num_rows()+1))
+!        check(a%ja(a%get_nnz())           == b%ja(b%get_nnz()))
+!        check(allocated(a%val)           .eqv. allocated(b%val))
 
     end subroutine compare_coo_csr_matrix
 
