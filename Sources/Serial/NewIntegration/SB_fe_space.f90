@@ -110,12 +110,12 @@ module SB_fe_space_names
      type(p_SB_finite_element_t)            :: neighbour_fe(2)
      type(p_face_integrator_t), allocatable :: face_integrator(:)
    contains
-     procedure, non_overridable :: create                  => finite_face_create
-     procedure, non_overridable :: update_face_integration => finite_face_update_face_integration
-     procedure                  :: free                    => finite_face_free
-     procedure, non_overridable :: get_face_map            => finite_face_get_face_map
-     procedure, non_overridable :: get_face_quadrature     => finite_face_get_face_quadrature
-     procedure, non_overridable :: get_face_integrator     => finite_face_get_face_integrator
+     procedure, non_overridable :: create              => finite_face_create
+     procedure, non_overridable :: update_integration  => finite_face_update_integration
+     procedure, non_overridable :: free                => finite_face_free
+     procedure, non_overridable :: get_face_map        => finite_face_get_face_map
+     procedure, non_overridable :: get_face_quadrature => finite_face_get_face_quadrature
+     procedure, non_overridable :: get_face_integrator => finite_face_get_face_integrator
   end type finite_face_t
 
   public :: finite_face_t

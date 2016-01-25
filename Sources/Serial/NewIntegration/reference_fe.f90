@@ -182,7 +182,6 @@ module reference_fe_names
      procedure :: permute_nodes_per_vef => reference_fe_permute_nodes_per_vef
      procedure :: free  => reference_fe_free
      procedure :: print => reference_fe_print
-     procedure :: number_vefs_of_dimension  => reference_fe_number_vefs_of_dimension
 
      ! Set number_dimensions, order, continuity, field_type, number_field_components
      procedure :: set_common_data => reference_fe_set_common_data
@@ -196,6 +195,7 @@ module reference_fe_names
      procedure :: get_number_field_components => reference_fe_get_number_field_components
      procedure :: get_number_vefs => reference_fe_get_number_vefs
      procedure :: get_number_nodes => reference_fe_get_number_nodes
+     procedure :: get_number_vefs_of_dimension  => reference_fe_get_number_vefs_of_dimension
      procedure :: get_number_vefs_dimension => reference_fe_get_number_vefs_dimension
      procedure :: get_interior_nodes_vef  => reference_fe_get_interior_nodes_vef
      procedure :: get_nodes_vef  =>     reference_fe_get_nodes_vef
@@ -205,6 +205,7 @@ module reference_fe_names
      procedure :: get_interior_node_vef => reference_fe_get_interior_node_vef
      procedure :: get_number_nodes_vef => reference_fe_get_number_nodes_vef
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
+     procedure :: get_number_corners_vef => reference_fe_get_number_corners_vef
      procedure :: get_orientation => reference_fe_get_orientation
   end type reference_fe_t
 
@@ -510,7 +511,7 @@ public :: face_interpolation_t
 
 type face_integrator_t
    private
-   type(face_interpolation_t) :: interpolation(2)
+   type(face_interpolation_t) :: face_interpolation(2)
    type(fe_map_t)             :: face_map
    type(fe_map_t)             :: fe_map(2)
    type(SB_quadrature_t)      :: quadrature
@@ -518,9 +519,8 @@ type face_integrator_t
    real(rp)     , allocatable :: coordinates(:,:)
    type(list_t)               :: elem_to_face_enumeration(2)
  contains
-   procedure, non_overridable :: initialize        => face_integrator_initialize
-   procedure, non_overridable :: initialize_boundary                                              &
-        &                                          => face_integrator_initialize_boundary
+   procedure, non_overridable :: create            => face_integrator_create
+   procedure, non_overridable :: create_boundary   => face_integrator_create_boundary
    procedure, non_overridable :: update            => face_integrator_update
    procedure, non_overridable :: free              => face_integrator_free
    procedure, non_overridable :: compute_characteristic_length                                    &

@@ -45,7 +45,6 @@ subroutine fe_map_create_on_faces(this,quadrature,reference_fe_geometry,elem_to_
 
   integer(ip) :: number_dimensions
   integer(ip) :: number_evaluation_points
-  type(SB_quadrature_t) :: face_quadrature
 
   call this%free()
   number_dimensions        = reference_fe_geometry%number_dimensions

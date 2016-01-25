@@ -247,7 +247,7 @@ contains
        facevec = 0.0_rp
 
        face => fe_space%get_finite_face(iface)
-       call face%update_face_integration()
+       call face%update_integration()
        ngaus = quad%get_number_evaluation_points()
        do i =1,2
           fe_face(i)%p => fe_space%get_finite_element_from_face(iface,i)

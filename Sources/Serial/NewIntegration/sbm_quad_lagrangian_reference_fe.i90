@@ -167,8 +167,8 @@ subroutine quad_lagrangian_reference_fe_create_face_local_interpolation ( this, 
   ! I am assuming the geometric aproximation of the face can be linear
   ! this might need to be modified in the future
   number_dimensions_face   = this%number_dimensions - 1
-  number_nodes_face_scalar = 2**number_dimensions_face
-  face_order = 1
+  number_nodes_face_scalar = (this%order+1)**number_dimensions_face
+  face_order = this%order
 
   ! Allocate the arrays of the interpolation
   call interpolation%create( number_dimensions_face, number_nodes_face_scalar, &

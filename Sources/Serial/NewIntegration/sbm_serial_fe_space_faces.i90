@@ -22,14 +22,17 @@ subroutine create_face_array (this)
   do i  = 1, this%number_fe_spaces
      allocate( this%face_integrator(i)%p, stat = istat )
      check(istat == 0)
-     call this%face_integrator(i)%p%initialize(this%reference_fe_phy_list(i)%p,                   &
-          &                                  this%reference_fe_phy_list(i)%p)
+     call this%face_integrator(i)%p%create(this%reference_fe_phy_list(i)%p,                   &
+          &                                this%reference_fe_phy_list(i)%p,                   &
+          &                                this%reference_fe_geo_list(1)%p,                   &
+          &                                this%reference_fe_geo_list(1)%p)
   end do
   do i  = this%number_fe_spaces+1, 2*this%number_fe_spaces
      j = i - this%number_fe_spaces
      allocate( this%face_integrator(i)%p, stat = istat )
      check(istat == 0)
-     call this%face_integrator(i)%p%initialize_boundary(this%reference_fe_phy_list(j)%p)
+     call this%face_integrator(i)%p%create_boundary(this%reference_fe_phy_list(j)%p,          &
+          &                                         this%reference_fe_geo_list(1)%p)
   end do
   ! Allocate the array of faces
   allocate (this%face_array(number_total_faces), stat = istat )
