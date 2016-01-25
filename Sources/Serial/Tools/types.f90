@@ -108,40 +108,23 @@ module types_names
 
 
   type i1p_t
-     integer(ip), pointer :: l(:) => NULL()
+     integer(ip), pointer :: p(:) => NULL()
   end type i1p_t
   type i2p_t
-     integer(ip), pointer :: l(:,:) => NULL()
+     integer(ip), pointer :: p(:,:) => NULL()
   end type i2p_t
   type i3p_t
-     integer(ip), pointer :: l(:,:,:) => NULL()
+     integer(ip), pointer :: p(:,:,:) => NULL()
   end type i3p_t
   type r1p_t
-     real(rp),    pointer :: a(:) => NULL()
+     real(rp),    pointer :: p(:) => NULL()
   end type r1p_t
   type r2p_t
-     real(rp),    pointer :: a(:,:) => NULL()
+     real(rp),    pointer :: p(:,:) => NULL()
   end type r2p_t
   type r3p_t
-     real(rp),    pointer :: a(:,:,:) => NULL()
+     real(rp),    pointer :: p(:,:,:) => NULL()
   end type r3p_t
-
-  type list_t
-     integer(ip) :: n
-     integer(ip), allocatable :: p(:) 
-     integer(ip), allocatable :: l(:) 
-  end type list_t
-
-  type list_2d_t
-     integer(ip) :: n1
-     integer(ip) :: n2
-     integer(ip), allocatable :: p(:) 
-     integer(ip), allocatable :: l(:,:) 
-  end type list_2d_t
-
-  type list_pointer_t
-     type(list_t)          , pointer :: p => NULL()
-  end type list_pointer_t
 
   ! Frequently used mathematical constants:
   real(rp),    parameter :: pi    = 3.141592653589793238462643383279502884197_rp
@@ -168,44 +151,5 @@ module types_names
      end subroutine runend
   end interface
 
-  ! Functions
-  public :: print_list, print_list_2d
-
-contains
-
-  subroutine print_list( lunou, list )
-    implicit none
-    integer(ip)      , intent(in) :: lunou
-    type(list_t)    , intent(in) :: list
-
-    integer(ip) :: i
-
-    write(lunou,*) '****PRINT LIST****'
-    write(lunou,*) 'size total list:',list%n
-    do i = 1,list%n
-       write(lunou,*) 'l(',i,')',list%l(list%p(i):list%p(i+1)-1)
-    end do
-    write(lunou,*) '****END PRINT LIST****'
-
-  end subroutine print_list
-
-  subroutine print_list_2d( lunou, list2 )
-    implicit none
-    integer(ip)      , intent(in) :: lunou
-    type(list_2d_t)    , intent(in) :: list2
-
-    integer(ip) :: i,j
-
-    write(lunou,*) '****PRINT LIST_2D****'
-    write(lunou,*) 'size total list:',list2%n1
-    write(lunou,*) 'size components:',list2%n2
-    do j = 1,list2%n2
-       do i = 1,list2%n1
-          write(lunou,*) 'l(',i,',',j,')',list2%l(list2%p(i):list2%p(i+1)-1,j)
-       end do
-    end do
-    write(lunou,*) '****END PRINT LIST_2D****'
-
-  end subroutine print_list_2d
-
 end module types_names
+		

@@ -53,32 +53,42 @@ module triangulation_names
      type(elem_topology_t), pointer :: p => NULL()      
   end type p_elem_topology_t
 
+  type face_topology_t
+     integer(ip) :: neighbour_elems_id(2) = -1
+     integer(ip) :: relative_face(2)      = -1
+     integer(ip) :: right_elem_subface    = -1
+  end type face_topology_t
+
   type vef_topology_t
-     integer(ip)               :: border     = -1       ! Border local id of this vef (only for faces)
+     integer(ip)               :: border           = -1 ! Border local id of this vef, only for faces
      integer(ip)               :: dimension             ! Vef dimension (SBmod)
      integer(ip)               :: num_elems_around = -1 ! Number of elements around vef 
      integer(ip), allocatable  :: elems_around(:)       ! List of elements around vef 
   end type vef_topology_t
 
   type triangulation_t
-     integer(ip) :: state          =  triangulation_not_created  
-     integer(ip) :: num_vefs    = -1  ! number of vefs (vertices, edges, and faces) 
-     integer(ip) :: num_elems      = -1  ! number of elements
-     integer(ip) :: num_dims       = -1  ! number of dimensions
-     integer(ip) :: elem_array_len = -1  ! length that the elements array is allocated for. 
-     type(elem_topology_t), allocatable    :: elems(:) ! array of elements in the mesh.
+     integer(ip) :: state                 =  triangulation_not_created  
+     integer(ip) :: num_vefs              = -1  ! number of vefs (vertices, edges, and faces) 
+     integer(ip) :: num_elems             = -1  ! number of elements
+     integer(ip) :: num_dims              = -1  ! number of dimensions
+     integer(ip) :: elem_array_len        = -1  ! length that the elements array is allocated for. 
+     integer(ip) :: number_interior_faces = -1
+     integer(ip) :: number_boundary_faces = -1
+     type(elem_topology_t), allocatable :: elems(:) ! array of elements in the mesh.
+     type(face_topology_t), allocatable :: faces(:) ! Array of faces, allocated only if needed
      type(vef_topology_t) , allocatable :: vefs(:) ! array of vefs in the mesh.
-     type (position_hash_table_t)          :: pos_elem_info  ! Topological info hash table (SBmod)
-     type (reference_element_t)               :: reference_elements(max_elinf) ! List of topological info's
-     integer(ip)                         :: num_boundary_faces ! Number of faces in the boundary 
-     integer(ip), allocatable            :: lst_boundary_faces(:) ! List of faces LIDs in the boundary
+     type (position_hash_table_t)       :: pos_elem_info  ! Topological info hash table (SBmod)
+     type (reference_element_t)         :: reference_elements(max_elinf) ! List of topological info's
+     integer(ip)                        :: num_boundary_faces ! Number of faces in the boundary 
+     integer(ip), allocatable           :: lst_boundary_faces(:) ! List of faces LIDs in the boundary
   end type triangulation_t
 
   ! Types
-  public :: triangulation_t, elem_topology_t, p_elem_topology_t
+  public :: triangulation_t, elem_topology_t, p_elem_topology_t, face_topology_t
 
   ! Main Subroutines 
-  public :: triangulation_create, triangulation_free, triangulation_to_dual, triangulation_print, element_print
+  public :: triangulation_create, triangulation_free, triangulation_to_dual, triangulation_print
+  public :: element_print, triangulation_construct_faces
 
   ! Auxiliary Subroutines (should only be used by modules that have control over type(triangulation_t))
   public :: free_elem_topology, free_vef_topology, put_topology_element_triangulation, local_id_from_vertices
@@ -116,6 +126,174 @@ contains
 
   end subroutine triangulation_create
 
+  !==================================================================================================
+  subroutine triangulation_construct_faces(trian)
+    implicit none
+    type(triangulation_t), intent(inout) :: trian
+
+    integer(ip), allocatable :: elem_face_map(:,:)
+    integer(ip)              :: max_number_faces_x_elem
+
+    ! Initialize the Map that will assign a face id to each element face
+    max_number_faces_x_elem = 2**trian%num_dims
+    call memalloc( trian%num_elems,max_number_faces_x_elem,elem_face_map,__FILE__,__LINE__)
+    elem_face_map = -1
+
+    ! Count the number of faces
+    call count_faces(trian,elem_face_map)
+
+    ! Fill the values in the face array
+    call fill_faces(trian,elem_face_map)
+
+    ! Free the auxiliar array
+    call memfree(elem_face_map,__FILE__,__LINE__)
+  end subroutine triangulation_construct_faces
+  
+  !==================================================================================================
+  subroutine count_faces(trian,elem_face_map)
+    implicit none
+    type(triangulation_t), target, intent(inout) :: trian
+    integer(ip)                  , intent(inout) :: elem_face_map(:,:)
+
+    integer(ip)                        :: face_dimensions, local_face_id
+    integer(ip)                        :: elem_id,local_vef_id, local_1st_face_id, global_vef_id
+    integer(ip)          , allocatable :: touched_vefs(:)
+    integer(ip)                        :: number_vefs_dimension(5)
+    type(elem_topology_t)    , pointer :: elem
+    type(vef_topology_t)     , pointer :: vef
+    type(reference_element_t), pointer :: reference_elem
+
+    face_dimensions         = trian%num_dims - 1
+
+    ! Initialize the array of the vefs that will store the id of face that will correspond to
+    ! each vef
+    call memalloc( trian%num_vefs,touched_vefs,__FILE__,__LINE__)
+    touched_vefs = -1
+
+    ! Initialize the counters
+    trian%number_interior_faces = 0
+    trian%number_boundary_faces = 0
+
+    ! Iterate over the elements
+    do elem_id = 1, trian%num_elems
+       ! Get the reference element
+       elem => trian%elems(elem_id)
+       reference_elem => elem%geo_reference_element
+
+       ! Get the pointer to the first face
+       local_1st_face_id = reference_elem%nvef_dim(face_dimensions+1)
+
+       ! Iterate over the local faces
+       do local_vef_id = local_1st_face_id, elem%num_vefs
+          ! Number the local faces
+          local_face_id = local_vef_id-local_1st_face_id+1
+
+          ! Take the corresponding vef
+          global_vef_id = elem%vefs(local_vef_id) 
+          vef => trian%vefs(global_vef_id)
+          assert(vef%dimension == face_dimensions)
+          
+          ! If it is an interior face then
+          if (vef%num_elems_around == 2 ) then
+             
+             if (touched_vefs(global_vef_id) == -1) then
+                ! Add the left neighbour element information
+                trian%number_interior_faces = trian%number_interior_faces + 1
+                elem_face_map(elem_id,local_face_id) = trian%number_interior_faces
+                touched_vefs(global_vef_id) = trian%number_interior_faces
+             else
+                ! Add the right  neighbour element information
+                elem_face_map(elem_id,local_face_id) = touched_vefs(global_vef_id)
+             end if
+          end if
+       end do
+    end do
+
+    call memfree(touched_vefs,__FILE__,__LINE__)
+
+    ! Iterate over the elements to get the boundary faces
+    do elem_id = 1, trian%num_elems
+       ! Get the reference element
+       elem => trian%elems(elem_id)
+       reference_elem => elem%geo_reference_element
+
+       ! Get the pointer to the first face
+       local_1st_face_id = reference_elem%nvef_dim(face_dimensions+1)
+
+       ! Iterate over the local faces
+       do local_vef_id =  local_1st_face_id, elem%num_vefs
+          ! Number the local faces
+          local_face_id = local_vef_id-local_1st_face_id+1
+
+          ! Take the corresponding vef
+          vef => trian%vefs(elem%vefs(local_vef_id))
+          assert(vef%dimension == face_dimensions)
+          assert(vef%num_elems_around == 1 .or. vef%num_elems_around ==2) 
+          
+          ! If not filled
+          if (elem_face_map(elem_id,local_face_id) == -1) then
+             ! If it is a boundary face 
+             if (vef%num_elems_around == 1 ) then
+                ! Add the neighbour element information
+                trian%number_boundary_faces = trian%number_boundary_faces + 1
+                elem_face_map(elem_id,local_face_id) = trian%number_interior_faces +                &
+                     &                                 trian%number_boundary_faces
+             end if
+          end if
+       end do
+    end do
+
+  end subroutine count_faces
+ 
+  !==================================================================================================
+  subroutine fill_faces(trian,elem_face_map)
+    implicit none
+    type(triangulation_t), target, intent(inout) :: trian
+    integer(ip)                  , intent(inout) :: elem_face_map(:,:)
+
+    integer(ip)                        :: elem_id, face_id, local_vef_id, local_1st_face_id
+    integer(ip)                        :: istat, local_face_id
+    type(elem_topology_t)    , pointer :: elem
+    type(reference_element_t), pointer :: reference_elem
+    type(face_topology_t)    , pointer :: face
+
+    ! Allocate the face array
+    allocate(trian%faces(trian%number_interior_faces+trian%number_boundary_faces),stat=istat)
+    check(istat==0)
+
+    ! Loop over the elements
+    do elem_id = 1,trian%num_elems
+       ! Get the reference element
+       elem => trian%elems(elem_id)
+       reference_elem => elem%geo_reference_element
+
+       ! Get the pointer to the first face
+       local_1st_face_id = reference_elem%nvef_dim(trian%num_dims)
+
+       ! Iterate over the local faces
+       do local_vef_id = local_1st_face_id, elem%num_vefs
+          ! Number the local faces
+          local_face_id = local_vef_id-local_1st_face_id+1
+
+          ! Get the corresponding face
+          face_id = elem_face_map(elem_id,local_face_id)
+          face => trian%faces(face_id)
+
+          if (face%neighbour_elems_id(1) == -1 ) then 
+             ! If empty, fill the left neighbour element info
+             face%neighbour_elems_id(1)  = elem_id
+             face%relative_face(1)       = local_face_id
+          else
+             ! If not, fill the right neighbour element info
+             assert(face%neighbour_elems_id(2) == -1 )
+             face%neighbour_elems_id(2)  = elem_id
+             face%relative_face(2)       = local_face_id
+             face%right_elem_subface     = 0
+          end if
+       end do
+    end do
+
+  end subroutine fill_faces
   !=============================================================================
   subroutine triangulation_free(trian)
     implicit none

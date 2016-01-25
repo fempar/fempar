@@ -222,7 +222,7 @@ end module command_line_parameters_names
 !****************************************************************************************************
 !****************************************************************************************************
 
-program test_cdr
+program test_reference_fe
   use serial_names
   use prob_names
   use lib_vtk_io_interface_names
@@ -260,7 +260,6 @@ program test_cdr
   class(array_t)              , pointer :: array
   type(serial_scalar_array_t) , pointer :: my_array
   type(serial_scalar_array_t) , target  :: feunk
-  type(SB_fe_affine_operator_t)            :: fe_affine_operator_error
   class(vector_t)         , allocatable, target   :: vector, initial_solution
 
   class(vector_t) , pointer :: x, y
@@ -294,22 +293,12 @@ program test_cdr
   character(len=:), allocatable :: group
 
   ! SB
-  class(reference_fe_t), pointer :: reference_fe
-  type(SB_quadrature_t) :: quadrature
-  type(SB_interpolation_t) :: interpolation
-  !type(SB_simple_finite_element_t) :: finite_element
-  type(SB_volume_integrator_t) :: volume_integrator
   type(SB_serial_fe_space_t) :: fe_space
   type(poisson_discrete_integration_t) :: poisson_integration
   type(vector_laplacian_discrete_integration_t) :: vector_laplacian_integration
   type(SB_fe_affine_operator_t)            :: fe_affine_operator
   type(p_reference_fe_t) :: reference_fe_array_two(2)
   type(p_reference_fe_t) :: reference_fe_array_one(1)
-  !type(SB_serial_fe_space_t) :: fe_space_array(2)
-  !type(SB_serial_fe_space_t) :: fe_space_serial
-
-  type(face_quadrature_t) :: face_quadrature
-  real(rp), allocatable :: shape_function(:), shape_gradient(:,:)
 
   integer(ip) :: problem_id
 
@@ -333,138 +322,89 @@ program test_cdr
   ! Read conditions 
   call conditions_read (dir_path, prefix, f_mesh%npoin, f_cond)
 
-
-
-  ! Construc triangulation
+  ! Construct triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
-
-  !f_cond%code = 0
-  !f_cond%valu = 0.0_rp
-  !call triangulation_print(6,f_trian)
-
-  !write (*,*) 'Boundary conditions ncode,ncond: ', f_cond%ncode,f_cond%ncond
-  !write (*,*) 'Boundary conditions code: ', f_cond%code
-  !write (*,*) 'Boundary conditions values: ', f_cond%valu
-
-  ! UNIT TEST * reference_fe.f90 *
-  !reference_fe => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-  !     order = 1, field_type = "scalar", continuity = .true. )
-  !call reference_fe%print()
-
-
-  ! UNIT TEST * SB_quadrature.f90 *
-  !call reference_fe%create_quadrature( quadrature )
-  !call quadrature%print()
-
-  ! UNIT TEST * SB_interpolation.f90 *
-
-  !write (*,*) 'HERE BEFORE'
-
-  !call reference_fe%create_interpolation( quadrature, interpolation, compute_hessian = .false. )
-  !write (*,*) 'HERE AFTER'
-  !call interpolation%print()
-
-  !call triangulation_print( 6, f_trian ) 
-
-  ! UNIT TEST * integrator.f90 *
-  !call volume_integrator%create( reference_fe, reference_fe  ) 
-  !call volume_integrator%set_integration()
-  !call volume_integrator%update( f_trian%elems(1)%coordinates )
-  !call volume_integrator%print()
-  !check(.false.)
-
-  !call memalloc ( reference_fe%get_number_field_components(),  shape_function, __FILE__, __LINE__ )
-  !do i = 1,reference_fe%get_number_nodes()
-  !write (*,*) 'volume_integrator%get_value( i, 1 )',i
-  !call volume_integrator%get_value( shape_function, i, 1 )
-  !write (*,*) 'shape function', shape_function
-  !end do
-
-  !call memalloc ( reference_fe%get_number_dimensions(), reference_fe%get_number_field_components(),  &
-  !     shape_gradient, __FILE__, __LINE__ )
-  !do i = 1,reference_fe%get_number_nodes()
-  !write (*,*) 'volume_integrator%get_value( i, 1 )',i
-  !call volume_integrator%get_gradient( shape_gradient, i, 1 )
-  !write (*,*) 'shape gradient', shape_gradient
-  !end do
-
-  ! UNIT TEST * SB_finite_element.f90 *
-  !call finite_element%create( reference_fe, reference_fe, volume_integrator, f_trian%elems(1), 1 )
-  !call finite_element%print()
-
-  ! UNIT TEST * integrator.f90 *
-  !write(*,*) 'CALL FE SPACE XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-  !call fe_space_serial%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-  !     order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
-  !call fe_space_array(1)%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-  !     order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
-  !call fe_space_array(2)%create( f_trian, topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-  !     order = 1, boundary_conditions = f_cond, field_type = "vector" , continuity = .true. )
-
-
-  problem_id = 0
+  problem_id = 1
   if ( problem_id == 1) then
      ! Composite case
-     reference_fe_array_two(1)%p => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-          order = 1, field_type = "scalar", continuity = .true. )
-     reference_fe_array_two(2)%p => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-          order = 1, field_type = "vector", continuity = .true. )
-     call fe_space%create( triangulation = f_trian, reference_fe_array = reference_fe_array_two, &
-          boundary_conditions = f_cond, blocks = (/1,2/), &
-          blocks_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)), &
-          topology = "quad", fe_type = "Lagrangian", number_dimensions = 2)
+     reference_fe_array_two(1) = make_reference_fe ( topology = "quad", &
+                                                     fe_type = "Lagrangian", &
+                                                     number_dimensions = 2, &
+                                                     order = 1, &
+                                                     field_type = "scalar", &
+                                                     continuity = .true. )
+     
+     reference_fe_array_two(2) = make_reference_fe ( topology = "quad", &
+                                                     fe_type = "Lagrangian", &
+                                                     number_dimensions = 2, &
+                                                     order = 1, & 
+                                                     field_type = "vector", &
+                                                     continuity = .true. )
+     
+     call fe_space%create( triangulation = f_trian, &
+                           boundary_conditions = f_cond, &
+                           reference_fe_phy = reference_fe_array_two, &
+                           reference_fe_geo_topology = "quad", &
+                           reference_fe_geo_type = "Lagrangian", &
+                           !field_blocks = (/1,1/), &
+                           !field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
+                           field_blocks = (/1,2/), &
+                           field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
+     
      call fe_space%fill_dof_info() 
-     call fe_affine_operator%create ( (/.true.,.true./), (/.true.,.true./), (/1,1/), f_trian, fe_space, vector_laplacian_integration )
-     ! End composite case
-     !matrix => fe_affine_operator%get_matrix()
-     !select type ( matrix )
-     !   class is ( serial_block_matrix_t )
-     !   my_matrix => matrix%get_block(1,1)
-     !   call my_matrix%print_matrix_market(6)
-     !end select
+     
+     call fe_affine_operator%create ( 'CSR', &
+                                      (/.true.,.true./), &
+                                      (/.true.,.true./), &
+                                      (/positive_definite,positive_definite/),&
+                                     !(/.true./), &
+                                     !(/.true./), &
+                                     !(/positive_definite/), &
+                                     f_trian, &
+                                     fe_space, &
+                                     vector_laplacian_integration )
   else 
+       
      ! Simple case
-     reference_fe_array_one(1)%p => start_reference_fe ( topology = "quad", fe_type = "Lagrangian", number_dimensions = 2, &
-          order = 3, field_type = "scalar", continuity = .true. )
-     call fe_space%create( triangulation = f_trian, reference_fe_array = reference_fe_array_one, &
-          boundary_conditions = f_cond, blocks = (/1/), &
-          blocks_coupling = reshape((/.true./),(/1,1/)), &
-          topology = "quad", fe_type = "Lagrangian", number_dimensions = 2)
+     reference_fe_array_one(1) =  make_reference_fe ( topology = "quad", &
+                                                      fe_type = "Lagrangian", &
+                                                      number_dimensions = 2, &
+                                                      order = 1, &
+                                                      field_type = "scalar", &
+                                                      continuity = .true. )
+     
+     call fe_space%create( triangulation = f_trian, &
+                           boundary_conditions = f_cond, &
+                           reference_fe_phy = reference_fe_array_one, &
+                           reference_fe_geo_topology = "quad", &
+                           reference_fe_geo_type = "Lagrangian" )
      call fe_space%fill_dof_info() 
-     ! WRITE FE SPACE
-     !call fe_space%print()
-     !check ( 0 == 1) 
-     call fe_affine_operator%create ( (/.true./), (/.true./), (/1/), f_trian, fe_space, poisson_integration )
-     ! End simple case
-     array => fe_affine_operator%get_array()
-     select type ( array )
-        class is ( serial_scalar_array_t )
-        call array%print_matrix_market(6)
-     end select
-     matrix => fe_affine_operator%get_matrix()
-     select type ( matrix )
-        class is ( serial_scalar_matrix_t )
-        call matrix%print_matrix_market(6)
-     end select
+
+     call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
+                                     diagonal_blocks_symmetric_storage=(/.true./), &
+                                     diagonal_blocks_symmetric=(/.true./), &
+                                     diagonal_blocks_sign=(/positive_definite/), &
+                                     triangulation=f_trian, &
+                                     fe_space=fe_space, &
+                                     discrete_integration=poisson_integration )
   end if
-
-
-
+  
+  call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
+		call fe_affine_operator%free_in_stages(free_numerical_setup)
+  call fe_affine_operator%numerical_setup()
+  
+  matrix => fe_affine_operator%get_matrix()
+  select type(matrix)
+    class is (sparse_matrix_t)
+      call matrix%print_matrix_market(6)
+  end select
+  
 
-
-  ! matrix => fe_affine_operator%get_matrix()
-  ! select type ( matrix )
-  !    class is ( serial_block_matrix_t )
-  !    my_matrix => matrix%get_block(1,1)
-  !    call my_matrix%print(6)
-  ! end select
-
-
+  
   fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
   call fe_affine_operator_range_vector_space%create_vector(vector)
-
   fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
 
   ! Create linear solver, set operators and solve linear system
@@ -473,8 +413,6 @@ program test_cdr
   call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
   call linear_solver%solve(vector)
   call linear_solver%free() 
-
-
 
   ! ppars%type = pardiso_mkl_prec
   ! call SB_preconditioner_create(fe_affine_operator,feprec,ppars)
@@ -501,15 +439,11 @@ program test_cdr
      class default
      check(.false.) 
   end select
-
-  !call memfree ( shape_function, __FILE__, __LINE__ )
-  !call memfree ( shape_gradient, __FILE__, __LINE__ )
-  !call fe_affine_operator%free()
-  !call volume_integrator%free()
-  !call reference_fe%free()
-  !call quadrature%free()
-
-  !call fe_space%free()
+  
+		call vector%free()
+		deallocate(vector)
+  call fe_affine_operator%free()
+  call fe_space%free()
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
@@ -549,4 +483,4 @@ contains
   end subroutine read_flap_cli_test_cdr
   !==================================================================================================
 
-end program test_cdr
+end program test_reference_fe

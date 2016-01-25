@@ -28,6 +28,7 @@
 module par_uniform_refinement_names
   ! Serial modules
   use types_names
+  use list_types_names
   use memor_names
   use migratory_element_names
   use triangulation_names
@@ -458,8 +459,7 @@ contains
 
        call memfree (ptr_num_subelems_per_part, __FILE__, __LINE__ )
        call memfree (old2new_vefs, __FILE__, __LINE__)
-       call memfree (subelems_around_vertices%p, __FILE__, __LINE__)
-       call memfree (subelems_around_vertices%l, __FILE__, __LINE__)
+       call subelems_around_vertices%free()
        call memfree (subelem_vertices, __FILE__, __LINE__)
     end if
 
@@ -518,9 +518,7 @@ contains
        subelem_vertices(:,8) = (/10,7,6,9/)
     end if
 
-    subelems_around_vertices%n = num_vertices_per_elem
-    call memalloc ( subelems_around_vertices%n+1, subelems_around_vertices%p, __FILE__, __LINE__ )
-    subelems_around_vertices%p = 0
+    call subelems_around_vertices%create(num_vertices_per_elem)
     do ielem=1, num_subelems
        do ivertex=1, num_vertices_per_subelem
           subelems_around_vertices%p(subelem_vertices(ivertex,ielem)+1) = &
@@ -534,7 +532,7 @@ contains
             subelems_around_vertices%p(ivertex)
     end do
 
-    call memalloc ( subelems_around_vertices%p(num_vertices_per_elem+1)-1, subelems_around_vertices%l, __FILE__, __LINE__ )
+    call subelems_around_vertices%allocate_list_from_pointer()
     do ielem=1, num_subelems
        do ivertex=1, num_vertices_per_subelem
           subelems_around_vertices%l(subelems_around_vertices%p(subelem_vertices(ivertex,ielem))) = ielem

@@ -1,335 +1,123 @@
-
-! subroutine volume_integrator_compute_value_trial( this, node, gp )
-!   implicit none
-!   class(SB_volume_integrator_t), intent(inout) :: this
-!   integer(ip), intent(in)  :: node, gp
-
-!   call this%reference_fe%get_value( this%shape_value_trial, this%interpolation_o_map, node, gp )
-
-! end subroutine volume_integrator_compute_value_trial
-
-! subroutine volume_integrator_compute_gradient_trial( this, node, gp )
-!   implicit none
-!   class(SB_volume_integrator_t), intent(inout) :: this 
-!   integer(ip), intent(in)  :: node, gp
-
-!   call this%reference_fe%get_gradient( this%shape_gradient_trial, this%interpolation_o_map, node, gp )
-
-! end subroutine volume_integrator_compute_gradient_trial
-
-subroutine volume_integrator_compute_value_test( this )
-  implicit none
-  class(SB_volume_integrator_t), intent(inout) :: this
-  class(field_type_t), pointer :: array_entry
-  integer(ip) :: inode, igp
-  real(rp), pointer :: value(:,:)
-
-  do inode = 1, this%reference_fe%number_nodes
-     do igp = 1, this%quadrature%number_integration_points
-        value => this%shape_value_test%get_value(inode,igp)
-        call this%reference_fe%get_value( value, this%interpolation_o_map, inode, igp )
-     end do
-  end do
-  !call this%shape_value_test%print()
-
-end subroutine volume_integrator_compute_value_test
-
-subroutine volume_integrator_compute_gradient_test( this )
-  implicit none
-  class(SB_volume_integrator_t), intent(inout) :: this 
-  class(field_type_t), pointer :: array_entry
-  integer(ip) :: inode, igp
-  real(rp), pointer :: value(:,:)
-
-  do inode = 1, this%reference_fe%number_nodes
-     do igp = 1, this%quadrature%number_integration_points
-        value => this%shape_gradient_test%get_value(inode,igp)
-        call this%reference_fe%get_gradient( value, this%interpolation_o_map, inode, igp )
-     end do
-  end do
-  !call this%shape_gradient_test%print()
-
-end subroutine volume_integrator_compute_gradient_test
-
-! subroutine volume_integrator_create( this, reference_fe, reference_fe_geometry, max_order )
-!   implicit none
-!   ! Parameters
-!   class(SB_volume_integrator_t), intent(out) :: this
-!   class(reference_fe_t), target, intent(in) :: reference_fe
-!   class(reference_fe_t), target, intent(in) :: reference_fe_geometry    
-!   integer(ip), optional, intent(in)  :: max_order
-
-!   integer(ip) :: ndime,ngaus
-!   ! Create quadrature
-!   this%reference_fe => reference_fe
-!   this%fe_map%reference_fe_geometry => reference_fe_geometry
-
-! end subroutine volume_integrator_create
-
-subroutine volume_integrator_create( this, reference_fe, quadrature )
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!fe_map_t type procedures
+subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
-  class(SB_volume_integrator_t), intent(out) :: this
-  class(reference_fe_t), target, intent(in) :: reference_fe  
-  class(SB_quadrature_t), target, intent(in) :: quadrature
+  class(fe_map_t)      , intent(inout) :: this
+  type(SB_quadrature_t), intent(in)    :: quadrature
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
-  integer(ip) :: ndime,ngaus
-  ! Create quadrature
-  this%reference_fe => reference_fe
-  this%quadrature => quadrature
+  integer(ip) :: number_dimensions
+  integer(ip) :: number_evaluation_points
 
-end subroutine volume_integrator_create
+  call this%free()
+  number_dimensions        = reference_fe_geometry%number_dimensions
+  number_evaluation_points = quadrature%number_evaluation_points
 
-subroutine fe_map_create( this, reference_fe_geometry, quadrature )
-  implicit none
-  ! Parameters
-  class(fe_map_t), intent(out) :: this
-  class(reference_fe_t), target, intent(in) :: reference_fe_geometry  
-  class(SB_quadrature_t), target, intent(in) :: quadrature  
+  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation_geometry )
 
-  integer(ip) :: ndime,ngaus
-  ! Create quadrature
-		this%quadrature => quadrature
-  this%reference_fe_geometry => reference_fe_geometry
+  call memalloc(number_dimensions, &
+                number_dimensions, &
+                number_evaluation_points, &
+                this%jacobian,__FILE__,__LINE__)
 
+  call memalloc(number_dimensions, &
+                number_dimensions, &
+                number_evaluation_points, &
+                this%inv_jacobian,__FILE__,__LINE__)
+
+  call memalloc(number_evaluation_points, &
+                this%det_jacobian,__FILE__,__LINE__)
+
+  call memalloc(number_dimensions, &
+                number_evaluation_points, &
+                this%coordinates_points,__FILE__,__LINE__)
 end subroutine fe_map_create
 
-subroutine volume_integrator_free( this )
-  implicit none
-  ! Parameters
-  class(SB_volume_integrator_t), intent(inout) :: this
-
-  call this%quadrature%free()
-  call this%interpolation%free()
-  !call this%fe_map%interpolation_geometry%free()
-  call this%interpolation_o_map%free()
-  !call this%fe_map%free()
-
-  nullify(this%reference_fe)
-  !nullify(this%fe_map%reference_fe_geometry)
-
-end subroutine volume_integrator_free
-
-subroutine volume_integrator_set_integration( this )
-  implicit none
-  ! Parameters
-  class(SB_volume_integrator_t), intent(inout) :: this   
-  !integer(ip), optional, intent(in)  :: max_order
-
-  integer(ip) :: ndime,ngaus
-  ! Create quadrature
-
-  !call this%reference_fe%create_quadrature( this%quadrature, max_order )
-
-  call this%reference_fe%create_interpolation( this%quadrature, this%interpolation )
-
-  call this%interpolation_o_map%copy(from = this%interpolation)
-
-  ndime = this%reference_fe%number_dimensions
-
-  if( allocated( this%interpolation%hessian ) ) then
-     call memalloc(ndime,ndime,ndime,this%interpolation%number_evaluation_points, &
-          & this%fe_map%d2sdx,  __FILE__,__LINE__)
-  end if
-
-
-  call this%shape_value_test%start( this%reference_fe%field_type, this%reference_fe%field_components, &
-       this%quadrature%number_integration_points, this%reference_fe%number_nodes )
-  call this%shape_value_trial%start( this%reference_fe%field_type, this%reference_fe%field_components, &
-       this%quadrature%number_integration_points, this%reference_fe%number_nodes )
-  
-  call this%shape_gradient_test%start( gradient_field_type(this%reference_fe%field_type), &
-       this%reference_fe%field_components, &
-       this%quadrature%number_integration_points, this%reference_fe%number_nodes )
-  call this%shape_gradient_trial%start( gradient_field_type(this%reference_fe%field_type), &
-       this%reference_fe%field_components, &
-       this%quadrature%number_integration_points, this%reference_fe%number_nodes )
-
-  call this%compute_value_test()
-  !call this%shape_value_test%print()
-  call this%compute_gradient_test()
-  !call this%shape_gradient_test%print()
-
-end subroutine volume_integrator_set_integration
-
-subroutine set_fe_map( this )
-  implicit none
-  ! Parameters
-  class(fe_map_t), intent(inout) :: this   
-  !integer(ip), optional, intent(in)  :: max_order
-
-  integer(ip) :: ndime,ngaus
-  ! Create quadrature
-
-  !call this%reference_fe%create_quadrature( this%quadrature, max_order )
-
-  call this%reference_fe_geometry%create_interpolation( this%quadrature, this%interpolation_geometry )
-
-  ndime = this%reference_fe_geometry%number_dimensions
-  ngaus = this%quadrature%number_integration_points
-
-  call memalloc(ndime,ndime,ngaus,this%jacobian,__FILE__,__LINE__)
-  call memalloc(ndime,ndime,ngaus,this%inv_jacobian,__FILE__,__LINE__)
-  call memalloc(ngaus,this%det_jacobian,__FILE__,__LINE__)   
-  call memalloc(ndime,ngaus,this%coordinates_points,__FILE__,__LINE__)
-
-end subroutine set_fe_map
-
-subroutine volume_integrator_update(this, fe_map)
-  implicit none
-  ! Parameters
-  class(SB_volume_integrator_t), intent(inout) :: this
-  type(fe_map_t), intent(in) :: fe_map
-  ! Define fe map  by interpolation
-  !call fe_map%update( )
-  ! Obtain physical interpolation
-  call femap_apply_to_interp( fe_map, this%interpolation, this%interpolation_o_map )
-
-  call this%compute_gradient_test()
-end subroutine volume_integrator_update
 !==================================================================================================
-
-subroutine volume_integrator_print( this )
+subroutine fe_map_create_on_faces(this,quadrature,reference_fe_geometry,elem_to_face_enumeration )
   implicit none
-  class(SB_volume_integrator_t), intent(inout) :: this
+  ! Parameters
+  class(fe_map_t)      , intent(inout) :: this
+  type(SB_quadrature_t), intent(in)    :: quadrature
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
+  type(list_t), optional, intent(in)    :: elem_to_face_enumeration
 
-  write(*,*) 'PRINT VOLUME INTEGRATOR: '
-  write(*,*) '%%%%%%%%%%%%%%%% quadrature: %%%%%%%%%%%%%%%%'
-  call this%quadrature%print()
-  write(*,*) '%%%%%%%%%%%%%%%% reference_fe: %%%%%%%%%%%%%%%%'
-  call this%reference_fe%print()
-  write(*,*) '%%%%%%%%%%%%%%%% interpolation: %%%%%%%%%%%%%%%%'
-  call this%interpolation%print()
-  write(*,*) '%%%%%%%%%%%%%%%% reference_fe_geometry: %%%%%%%%%%%%%%%%'
-  call this%fe_map%reference_fe_geometry%print()
-  write(*,*) '%%%%%%%%%%%%%%%% interpolation_geometry: %%%%%%%%%%%%%%%%'
-  call this%fe_map%interpolation_geometry%print()
-  write(*,*) '%%%%%%%%%%%%%%%% interpolation_o_map: %%%%%%%%%%%%%%%%'
-  call this%interpolation_o_map%print()
-  write(*,*) '%%%%%%%%%%%%%%%% shape functions: %%%%%%%%%%%%%%%%'
-  call this%shape_value_test%print()
-  write(*,*) '%%%%%%%%%%%%%%%% shape functions: %%%%%%%%%%%%%%%%'
-  call this%shape_gradient_test%print()
+  integer(ip) :: number_dimensions
+  integer(ip) :: number_evaluation_points
+  type(SB_quadrature_t) :: face_quadrature
 
-  !write(*,*) '%%%%%%%%%%%%%%%% jacobian: %%%%%%%%%%%%%%%%', this%fe_map%jacobian
-  !write(*,*) '%%%%%%%%%%%%%%%% inverse jacobian: %%%%%%%%%%%%%%%%',this%fe_map%inv_jacobian
-  !write(*,*) '%%%%%%%%%%%%%%%% determinant jacobian: %%%%%%%%%%%%%%%%',this%fe_map%det_jacobian
-  !if ( allocated( this%interpolation%hessian ) ) then 
-  !   write(*,*) '%%%%%%%%%%%%%%%% second derivatives: %%%%%%%%%%%%%%%%',this%fe_map%d2sdx
-  !end if
-  !write(*,*) '%%%%%%%%%%%%%%%% coordinates points: %%%%%%%%%%%%%%%%',this%fe_map%coordinates_points
+  call this%free()
+  number_dimensions        = reference_fe_geometry%number_dimensions
+  number_evaluation_points = quadrature%number_evaluation_points
 
-end subroutine volume_integrator_print
+  call reference_fe_geometry%create_face_interpolation(1,quadrature, this%interpolation_geometry, &
+       &                                                elem_to_face_enumeration )
 
-subroutine fe_map_print( this )
+  call memalloc(number_dimensions, &
+                number_dimensions, &
+                number_evaluation_points, &
+                this%jacobian,__FILE__,__LINE__)
+
+  call memalloc(number_dimensions, &
+                number_dimensions, &
+                number_evaluation_points, &
+                this%inv_jacobian,__FILE__,__LINE__)
+
+  call memalloc(number_evaluation_points, &
+                this%det_jacobian,__FILE__,__LINE__)
+
+  call memalloc(number_dimensions, &
+                number_evaluation_points, &
+                this%coordinates_points,__FILE__,__LINE__)
+end subroutine fe_map_create_on_faces
+
+!==================================================================================================
+subroutine fe_map_face_map_create(this,quadrature,reference_fe_geometry )
   implicit none
-  class(fe_map_t) :: this
-  integer(ip) :: i,j,k
-  call this%interpolation_geometry%print()
-  write(*,*) '%%%%%%%%%%%%%%%% JACOBIAN: %%%%%%%%%%%%%%%%'
-  do i = 1, size(this%jacobian,3)
-     write(*,*) '%%%%%%%%%%%%%%%% Gauss point: ',i
-     do j = 1, size(this%jacobian,1)
-        do k = 1, size(this%jacobian,2)
-           write(*,*) '%%%% (',j,',',k,') = ', this%jacobian(j,k,i)
-        end do
-     end do
-  end do
-  !write(*,*) '%%%%%%%%%%%%%%%% inverse jacobian: %%%%%%%%%%%%%%%%',this%inv_jacobian
-  !write(*,*) '%%%%%%%%%%%%%%%% determinant jacobian: %%%%%%%%%%%%%%%%',this%det_jacobian
-  !if ( allocated( this%interpolation%hessian ) ) then 
-  !   write(*,*) '%%%%%%%%%%%%%%%% second derivatives: %%%%%%%%%%%%%%%%',this%d2sdx
-  !end if
-  !write(*,*) '%%%%%%%%%%%%%%%% coordinates points: %%%%%%%%%%%%%%%%',this%coordinates_points
-end subroutine fe_map_print
+  ! Parameters
+  class(fe_map_t)       , intent(inout) :: this
+  type(SB_quadrature_t) , intent(in)    :: quadrature
+  class(reference_fe_t) , intent(in)    :: reference_fe_geometry
 
+  integer(ip) :: number_dimensions, number_face_dimensions
+  integer(ip) :: number_evaluation_points
 
+  call this%free()
+  number_dimensions        = reference_fe_geometry%number_dimensions
+  number_evaluation_points = quadrature%number_evaluation_points
+  number_face_dimensions   = reference_fe_geometry%number_dimensions - 1
 
+  call reference_fe_geometry%create_face_local_interpolation                                      &
+       &                ( quadrature, this%interpolation_geometry)
 
+  call memalloc(number_dimensions, &
+                number_face_dimensions, &
+                number_evaluation_points, &
+                this%jacobian,__FILE__,__LINE__)
 
-  function volume_integrator_get_reference_fe ( this )
-    implicit none
-    class(SB_volume_integrator_t), target, intent(in) :: this
-    class(reference_fe_t), pointer :: volume_integrator_get_reference_fe
-    volume_integrator_get_reference_fe => this%reference_fe
-  end function volume_integrator_get_reference_fe
+  call memalloc(number_evaluation_points, &
+       this%det_jacobian,__FILE__,__LINE__)
 
-  function volume_integrator_get_quadrature ( this )
-    implicit none
-    class(SB_volume_integrator_t), target, intent(in) :: this
-    type(SB_quadrature_t), pointer :: volume_integrator_get_quadrature
-    volume_integrator_get_quadrature => this%quadrature
-  end function volume_integrator_get_quadrature
+  call memalloc(number_dimensions, &
+                number_evaluation_points, &
+                this%coordinates_points,__FILE__,__LINE__)
 
-  function volume_integrator_get_interpolation ( this )
-    implicit none
-    class(SB_volume_integrator_t), target, intent(in) :: this
-    type(SB_interpolation_t), pointer :: volume_integrator_get_interpolation
-    volume_integrator_get_interpolation => this%interpolation
-  end function volume_integrator_get_interpolation
+  call memalloc(number_dimensions, &
+                number_evaluation_points, &
+                this%outside_normals,__FILE__,__LINE__)
+end subroutine fe_map_face_map_create
 
-  function volume_integrator_get_fe_map ( this )
-    implicit none
-    class(SB_volume_integrator_t), target, intent(in) :: this
-    type(fe_map_t), pointer :: volume_integrator_get_fe_map
-    volume_integrator_get_fe_map => this%fe_map
-  end function volume_integrator_get_fe_map
-
-  function volume_integrator_get_gradients ( this )
-    implicit none
-    class(SB_volume_integrator_t), target, intent(in) :: this
-    type(shape_values_t), pointer :: volume_integrator_get_gradients
-    volume_integrator_get_gradients => this%shape_gradient_test
-  end function volume_integrator_get_gradients
-
-  function volume_integrator_get_values ( this )
-    implicit none
-    class(SB_volume_integrator_t), target, intent(in) :: this
-    type(shape_values_t), pointer :: volume_integrator_get_values
-    volume_integrator_get_values => this%shape_value_test
-  end function volume_integrator_get_values
-
-
-  subroutine fe_map_free( this )
-    implicit none
-    class(fe_map_t), intent(inout) :: this
-
-    ! How is allocation managed?
-    ! Memfree case
-    if(allocated(this%jacobian)) call memfree(this%jacobian,__FILE__,__LINE__)
-    if(allocated(this%inv_jacobian)) call memfree(this%inv_jacobian,__FILE__,__LINE__)
-    if(allocated(this%det_jacobian)) call memfree(this%det_jacobian,__FILE__,__LINE__)
-    if(allocated(this%d2sdx)) call memfree(this%d2sdx,__FILE__,__LINE__)
-    if(allocated(this%coordinates_points)) call memfree(this%coordinates_points,__FILE__,__LINE__)
-
-    ! Deallocate case
-    !  if(allocated(this%jacobian)) call deallocate(this%jacobian)
-    !  if(allocated(inv_jacobian)) call deallocate(this%inv_jacobian)
-    !  if(allocated(this%det_jacobian)) call deallocate(this%det_jacobian)
-    !  if(allocated(this%d2sdx)) call deallocate(this%d2sdx)
-    !  if(allocated(this%coordinates_points)) call deallocate(this%coordinates_points)
-
-  end subroutine fe_map_free
-
-
-  function fe_map_get_det_jacobian ( this, i )
-    implicit none
-    class(fe_map_t), target, intent(in) :: this
-    integer(ip) :: i
-    real(rp) :: fe_map_get_det_jacobian
-    fe_map_get_det_jacobian = this%det_jacobian(i)
-  end function fe_map_get_det_jacobian
-
-  !==============================================================================
-  subroutine fe_map_update( this, elcod ) !int,elcod,map )
+  !==================================================================================================
+  subroutine fe_map_update( this, quadrature, cell_coordinates )
     !-----------------------------------------------------------------------
     ! A map obtained from the (usually isoparametric) interpolation of the geometry
     !-----------------------------------------------------------------------
     implicit none    
-    real(rp)           , intent(in)    :: elcod(:,:)
-    !type(SB_interpolation_t), intent(in)    :: int
-    !    real(rp)           , intent(inout) :: hnatu
-    class(fe_map_t)        , intent(inout) :: this
+    class(fe_map_t)      , intent(inout) :: this
+    type(SB_quadrature_t), intent(in)    :: quadrature
+    real(rp)             , intent(in)    :: cell_coordinates(:,:)
+    
     ! Locals
     real(rp), allocatable :: wmat1(:,:,:)
     real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
@@ -344,24 +132,9 @@ end subroutine fe_map_print
        khes = .true.
     end if
 
-    ! ! Check and get data from int
-    ! assert(int%kder==1)
     ndime = this%interpolation_geometry%number_dimensions
-    !nnode = int%number_shape_functions
     nnode = size(this%interpolation_geometry%shape_functions,1)
     nlocs = this%interpolation_geometry%number_evaluation_points
-
-    ! ! Check elcod
-    ! assert(ndime==size(elcod,dim=1))
-    ! assert(nnode==size(elcod,dim=2))
-
-    ! ! Check map allocation (jainv, detjm and hleng
-    ! ! are assumed to be allocated if jacob is)
-    ! assert(ndime==size(map%jacob,dim=1))
-    ! assert(nlocs==size(map%jacob,dim=3))
-
-    ! Jacobian and its inverse
-    ! write(*,*) 'elcod: ',elcod
 
     do ilocs=1,nlocs
        ! Matmul is not thread safe
@@ -371,7 +144,7 @@ end subroutine fe_map_print
           do jdime=1,ndime
              do idime=1,ndime
                 this%jacobian(idime,jdime,ilocs) = this%jacobian(idime,jdime,ilocs) &
-                     + elcod(idime,inode)*this%interpolation_geometry%shape_derivatives(jdime,inode,ilocs)
+                     + cell_coordinates(idime,inode)*this%interpolation_geometry%shape_derivatives(jdime,inode,ilocs)
              end do
           end do
        end do
@@ -385,14 +158,13 @@ end subroutine fe_map_print
        do inode=1,nnode
           do idime=1,ndime
              this%coordinates_points(idime,ilocs) = this%coordinates_points(idime,ilocs) &
-                  + elcod(idime,inode)*this%interpolation_geometry%shape_functions(inode,ilocs)
+                  + cell_coordinates(idime,inode)*this%interpolation_geometry%shape_functions(inode,ilocs)
           end do
        end do
     end do
 
     ! ! Second derivatives of the map
     if( khes ) then
-
        ntens=this%interpolation_geometry%number_entries_symmetric_tensor
        ! Check that second derivativesof the map have been allocated.
        assert(ndime==size(this%d2sdx,dim=1))
@@ -402,9 +174,7 @@ end subroutine fe_map_print
        call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
        call memalloc(ntens,wvec1,__FILE__,__LINE__)
 
-
        do ilocs=1,nlocs
-
           ! Transforms the array HESSI to a symmetric matrix WMAT1
           do inode=1,nnode
              do itens = 1, ntens
@@ -433,23 +203,383 @@ end subroutine fe_map_print
                          this%d2sdx(kdime,idime,jdime,ilocs) =    &
                               & this%d2sdx(kdime,idime,jdime,ilocs) &
                               & - this%inv_jacobian(kdime,ldime,ilocs)     &
-                              &   * wmat2(idime,jdime,inode) * this%quadrature%coordinates(ldime,inode)
+                              &   * wmat2(idime,jdime,inode) * quadrature%coordinates(ldime,inode)
                       end do
                    end do
                 end do
              end do
           end do
-
        end do
-
        call memfree(wmat1,__FILE__,__LINE__)
        call memfree(wmat2,__FILE__,__LINE__)
-
     end if
-
-
   end subroutine fe_map_update
 
+  !==================================================================================================
+  subroutine fe_map_update_on_faces( this, local_face_id, quadrature, cell_coordinates,             &
+       &                             elem_to_face_enumeration )
+    !-----------------------------------------------------------------------
+    ! A map obtained from the (usually isoparametric) interpolation of the geometry
+    !-----------------------------------------------------------------------
+    implicit none    
+    class(fe_map_t)      , intent(inout) :: this
+    integer(ip)          , intent(in)    :: local_face_id
+    type(SB_quadrature_t), intent(in)    :: quadrature
+    real(rp)             , intent(in)    :: cell_coordinates(:,:)
+    type(list_t), optional, intent(in)   :: elem_to_face_enumeration
+    
+    ! Locals
+    real(rp), allocatable :: wmat1(:,:,:)
+    real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
+    real(rp)    :: hnatu
+    real(rp)    :: enor0,h_tem
+    integer(ip) :: ndime,nnode,nlocs,ntens,e2f_enum_p
+    integer(ip) :: ilocs,jlocs,idime,jdime,kdime,ldime,inode,itens
+    logical     :: khes
+
+    khes = .false.
+    if ( allocated( this%interpolation_geometry%hessian ) ) then 
+       khes = .true.
+    end if
+
+    ndime = this%interpolation_geometry%number_dimensions
+    nnode = size(this%interpolation_geometry%shape_functions,1)
+    nlocs = quadrature%number_evaluation_points
+    e2f_enum_p = elem_to_face_enumeration%p(local_face_id) - 1
+
+    do ilocs=1,nlocs
+       jlocs =  elem_to_face_enumeration%l(e2f_enum_p + ilocs)
+       ! Matmul is not thread safe
+       !map%jacob(:,:,ilocs)=matmul(elcod,transpose(int%deriv(:,:,ilocs)))
+       this%jacobian(:,:,ilocs)=0.0_rp
+       do inode=1,nnode
+          do jdime=1,ndime
+             do idime=1,ndime
+                this%jacobian(idime,jdime,ilocs) = this%jacobian(idime,jdime,ilocs) &
+                     + cell_coordinates(idime,inode)*this%interpolation_geometry%shape_derivatives(jdime,inode,jlocs)
+             end do
+          end do
+       end do
+       ! J^(-t)
+       call invmtx(this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs),ndime)
+    end do
+
+    ! Evaluation (Gauss) point coordinates
+    do ilocs=1,nlocs
+       jlocs =  elem_to_face_enumeration%l(e2f_enum_p + ilocs)
+       this%coordinates_points(:,ilocs)=0.0_rp
+       do inode=1,nnode
+          do idime=1,ndime
+             this%coordinates_points(idime,ilocs) = this%coordinates_points(idime,ilocs) &
+                  + cell_coordinates(idime,inode)*this%interpolation_geometry%shape_functions(inode,jlocs)
+          end do
+       end do
+    end do
+  end subroutine fe_map_update_on_faces
+
+!==================================================================================================
+subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature,   &
+     &                             face_coordinates)
+  implicit none    
+  class(fe_map_t)      , intent(inout) :: this
+  integer(ip)          , intent(in)    :: local_face_id
+  class(reference_fe_t), intent(in)    :: reference_fe
+  type(SB_quadrature_t), intent(in)    :: quadrature
+  real(rp)             , intent(in)    :: face_coordinates(:,:)
+  
+  integer(ip) :: evaluation_point_id, node_id, idime, jdime, local_vef_id,  reorientation_factor
+  integer(ip) :: number_face_dimensions, number_elem_dimensions, orientation_face
+  
+  number_face_dimensions = this%interpolation_geometry%number_dimensions
+  number_elem_dimensions = reference_fe%number_dimensions
+  local_vef_id = reference_fe%number_vefs_dimension(number_elem_dimensions) + local_face_id - 1
+  orientation_face  = reference_fe%orientation%a(local_vef_id)
+  reorientation_factor = (-1)**orientation_face
+  ! Initialize values
+  this%coordinates_points = 0.0_rp
+  this%jacobian           = 0.0_rp
+  do evaluation_point_id = 1, quadrature%number_evaluation_points
+     do node_id = 1, this%interpolation_geometry%number_shape_functions
+        ! Updating the coordinates
+        this%coordinates_points(:,evaluation_point_id) =                                          &
+             & this%coordinates_points(:,evaluation_point_id) + face_coordinates(:,node_id) *     &
+             & this%interpolation_geometry%shape_functions(node_id,evaluation_point_id)
+
+        ! Updating the Jacobian Matrix
+        do jdime=1, number_face_dimensions
+             do idime = 1, number_elem_dimensions
+                this%jacobian(idime,jdime,evaluation_point_id) =                                  &
+                     &  this%jacobian(idime,jdime,evaluation_point_id) +                          &
+                     &  face_coordinates(idime,node_id) *                                         &
+                     &  this%interpolation_geometry%shape_derivatives(jdime,node_id,evaluation_point_id)
+             end do
+          end do
+     end do
+     
+     ! Compute outside normals (using the jacobian Matrix)
+     if ( number_elem_dimensions == 1) then
+        this%outside_normals(1,evaluation_point_id) = -1.0_rp**(real(local_face_id))
+     elseif ( number_elem_dimensions == 2) then
+        this%outside_normals (1,evaluation_point_id) = this%jacobian(2,1,evaluation_point_id)
+        this%outside_normals (2,evaluation_point_id) = - this%jacobian(1,1,evaluation_point_id)
+     elseif ( number_elem_dimensions == 3) then
+        call vecpro(this%jacobian(:,1,evaluation_point_id),this%jacobian(:,2,evaluation_point_id),&
+             &                    this%outside_normals(:,evaluation_point_id),3)
+     end if
+
+     ! Compute the measure of the face (= norm of the outside normal)
+     this%det_jacobian(evaluation_point_id) =                                                     &
+          &                         sqrt(dot_product(this%outside_normals(:,evaluation_point_id), &
+          &                                          this%outside_normals(:,evaluation_point_id)))
+
+     ! Normalize the normal vector and make it point in the correct direction
+     this%outside_normals (:,evaluation_point_id) = this%outside_normals (:,evaluation_point_id) *&
+          &                      real(reorientation_factor)/this%det_jacobian(evaluation_point_id) 
+     
+  end do
+end subroutine fe_map_face_map_update
+
+!==================================================================================================
+subroutine fe_map_free( this )
+  implicit none
+  class(fe_map_t), intent(inout) :: this
+  if(allocated(this%jacobian)) call memfree(this%jacobian,__FILE__,__LINE__)
+  if(allocated(this%inv_jacobian)) call memfree(this%inv_jacobian,__FILE__,__LINE__)
+  if(allocated(this%det_jacobian)) call memfree(this%det_jacobian,__FILE__,__LINE__)
+  if(allocated(this%d2sdx)) call memfree(this%d2sdx,__FILE__,__LINE__)
+  if(allocated(this%coordinates_points)) call memfree(this%coordinates_points,__FILE__,__LINE__)
+  if(allocated(this%outside_normals)) call memfree(this%outside_normals,__FILE__,__LINE__)
+  call this%interpolation_geometry%free()
+end subroutine fe_map_free
+
+subroutine fe_map_print( this )
+  implicit none
+  class(fe_map_t) :: this
+  integer(ip) :: i,j,k
+  call this%interpolation_geometry%print()
+  write(*,*) '%%%%%%%%%%%%%%%% JACOBIAN: %%%%%%%%%%%%%%%%'
+  do i = 1, size(this%jacobian,3)
+     write(*,*) '%%%%%%%%%%%%%%%% Gauss point: ',i
+     do j = 1, size(this%jacobian,1)
+        do k = 1, size(this%jacobian,2)
+           write(*,*) '%%%% (',j,',',k,') = ', this%jacobian(j,k,i)
+        end do
+     end do
+  end do
+end subroutine fe_map_print
+
+function fe_map_get_det_jacobian ( this, i )
+  implicit none
+  class(fe_map_t), intent(in) :: this
+  integer(ip)    , intent(in) :: i
+  real(rp) :: fe_map_get_det_jacobian
+  fe_map_get_det_jacobian = this%det_jacobian(i)
+end function fe_map_get_det_jacobian
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! p_fe_map_t type procedures
+subroutine p_fe_map_allocate( this )
+  implicit none
+  class(p_fe_map_t), intent(inout) :: this
+  allocate(this%p)
+end subroutine p_fe_map_allocate
+
+subroutine p_fe_map_free( this )
+  implicit none
+  class(p_fe_map_t), intent(inout) :: this
+  call this%p%free()
+  deallocate(this%p)
+end subroutine p_fe_map_free
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! volume_integrator_t type procedures
+subroutine volume_integrator_create( this, quadrature, reference_fe )
+  implicit none
+  ! Parameters
+  class(SB_volume_integrator_t), intent(inout) :: this 
+  type(SB_quadrature_t)        ,  intent(in)   :: quadrature
+  class(reference_fe_t), target,  intent(in)   :: reference_fe  
+
+  call this%free()
+  
+  this%number_evaluation_points = quadrature%number_evaluation_points
+  this%number_shape_functions   = reference_fe%number_nodes
+  this%reference_fe             => reference_fe
+  
+  call reference_fe%create_interpolation( quadrature, this%interpolation )
+  call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
+end subroutine volume_integrator_create
+
+subroutine volume_integrator_update(this, reference_fe, fe_map)
+  implicit none
+  ! Parameters
+  class(SB_volume_integrator_t), intent(inout) :: this
+  class(reference_fe_t)        , intent(in)    :: reference_fe
+  type(fe_map_t)               , intent(in)    :: fe_map
+  call femap_apply_to_interp( fe_map, this%interpolation, this%interpolation_o_map )
+end subroutine volume_integrator_update
+
+subroutine volume_integrator_free( this )
+  implicit none
+  class(SB_volume_integrator_t), intent(inout) :: this
+  call this%interpolation%free()
+  call this%interpolation_o_map%free()
+  nullify(this%reference_fe)
+  this%number_evaluation_points = 0
+  this%number_shape_functions = 0
+end subroutine volume_integrator_free
+
+!==================================================================================================
+subroutine volume_integrator_print( this )
+  implicit none
+  class(SB_volume_integrator_t), intent(in) :: this
+  write(*,*) 'PRINT VOLUME INTEGRATOR: '
+  write(*,*) '%%%%%%%%%%%%%%%% interpolation: %%%%%%%%%%%%%%%%'
+  call this%interpolation%print()
+  write(*,*) '%%%%%%%%%%%%%%%% interpolation_o_map: %%%%%%%%%%%%%%%%'
+  call this%interpolation_o_map%print()
+end subroutine volume_integrator_print
+
+subroutine volume_integrator_get_value_scalar (this, ishape, qpoint, scalar_field)
+  implicit none
+  class(SB_volume_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  real(rp)                     , intent(out) :: scalar_field
+  assert( this%reference_fe%field_type == field_type_scalar )
+  call this%reference_fe%get_value(this%interpolation_o_map,ishape,qpoint,scalar_field)
+end subroutine volume_integrator_get_value_scalar
+
+subroutine volume_integrator_get_value_vector (this, ishape, qpoint, vector_field)
+  implicit none
+  class(SB_volume_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(vector_field_t)         , intent(out)   :: vector_field
+  assert( this%reference_fe%field_type == field_type_vector )
+  call this%reference_fe%get_value(this%interpolation_o_map,ishape,qpoint,vector_field)
+end subroutine volume_integrator_get_value_vector
+
+subroutine volume_integrator_get_value_tensor (this, ishape, qpoint, tensor_field)
+  implicit none
+  class(SB_volume_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(tensor_field_t)         , intent(out)   :: tensor_field
+  assert( this%reference_fe%field_type == field_type_tensor )
+end subroutine volume_integrator_get_value_tensor
+
+subroutine volume_integrator_get_value_symmetric_tensor (this, ishape, qpoint, symmetric_tensor_field)
+  implicit none
+  class(SB_volume_integrator_t)  , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: ishape
+  integer(ip)                    , intent(in)    :: qpoint
+  type(symmetric_tensor_field_t) , intent(out)   :: symmetric_tensor_field
+  assert( this%reference_fe%field_type == field_type_tensor )
+end subroutine volume_integrator_get_value_symmetric_tensor
+
+subroutine volume_integrator_get_gradient_scalar (this, ishape, qpoint, vector_field)
+  implicit none
+  class(SB_volume_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(vector_field_t)         , intent(out)   :: vector_field
+  assert( this%reference_fe%field_type == field_type_scalar )
+  call this%reference_fe%get_gradient(this%interpolation_o_map,ishape,qpoint,vector_field)
+end subroutine volume_integrator_get_gradient_scalar
+
+subroutine volume_integrator_get_gradient_vector (this, ishape, qpoint, tensor_field)
+  implicit none
+  class(SB_volume_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(tensor_field_t)         , intent(out)   :: tensor_field
+  assert( this%reference_fe%field_type == field_type_vector )
+  call this%reference_fe%get_gradient(this%interpolation_o_map,ishape,qpoint,tensor_field)
+end subroutine volume_integrator_get_gradient_vector
+
+subroutine volume_integrator_get_symmetric_gradient_vector (this, ishape, qpoint, tensor_field)
+  implicit none
+  class(SB_volume_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(vector_field_t)         , intent(out)   :: tensor_field
+  assert( this%reference_fe%field_type == field_type_vector )  
+end subroutine volume_integrator_get_symmetric_gradient_vector
+
+subroutine volume_integrator_get_divergence_vector (this, ishape, qpoint, scalar_field)
+  implicit none
+  class(SB_volume_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  real(rp)                     , intent(out)   :: scalar_field
+  assert( this%reference_fe%field_type == field_type_vector ) 
+end subroutine volume_integrator_get_divergence_vector
+
+subroutine volume_integrator_get_divergence_tensor (this, ishape, qpoint, vector_field)
+  implicit none
+  class(SB_volume_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(vector_field_t)         , intent(out)   :: vector_field
+  assert( this%reference_fe%field_type == field_type_tensor .or. this%reference_fe%field_type == field_type_symmetric_tensor  ) 
+end subroutine volume_integrator_get_divergence_tensor
+
+subroutine volume_integrator_get_curl_vector (this, ishape, qpoint, vector_field)
+  implicit none
+  class(SB_volume_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(vector_field_t)         , intent(out)   :: vector_field
+  assert( this%reference_fe%field_type == field_type_vector ) 
+end subroutine volume_integrator_get_curl_vector
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! p_volume_integrator_t type procedures
+subroutine p_volume_integrator_allocate( this )
+  implicit none
+  class(SB_p_volume_integrator_t), intent(inout) :: this
+		allocate(this%p)
+end subroutine p_volume_integrator_allocate
+
+subroutine p_volume_integrator_free( this )
+  implicit none
+  class(SB_p_volume_integrator_t), intent(inout) :: this
+  call this%p%free()
+		deallocate(this%p)
+end subroutine p_volume_integrator_free
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!Auxiliar routines
+subroutine vecpro(v1,v2,v3,n)
+  !-----------------------------------------------------------------------
+  !
+  ! Two and three-dimensional vectorial product of two vectors  v3 = v1 x v2.
+  ! The same pointer as for v1 or v2 may be used for v3. If N = 2, it is
+  !  assumed that v1 = (0,0,v1_3) and v2 = (v2_1,v2_2,0).      
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  integer(ip), intent(in)  :: n
+  real(rp),    intent(in)  :: v2(n),v1(3)
+  real(rp),    intent(out) :: v3(n)
+  real(rp)                 :: c1,c2,c3
+
+  if(n==2) then
+     c1=-v1(3)*v2(2)
+     c2= v1(3)*v2(1)
+     v3(1)=c1
+     v3(2)=c2
+  else if(n==3) then
+     c1=v1(2)*v2(3)-v1(3)*v2(2)
+     c2=v1(3)*v2(1)-v1(1)*v2(3)
+     c3=v1(1)*v2(2)-v1(2)*v2(1)
+     v3(1)=c1
+     v3(2)=c2
+     v3(3)=c3
+  end if
+
+end subroutine vecpro
 
   subroutine invmtx(a,b,deter,nsize)
     !-----------------------------------------------------------------------
@@ -559,7 +689,6 @@ end subroutine fe_map_print
     case default
        b=a
        call invert(b,nsize,nsize)
-
     end select
 
   end subroutine invmtx
@@ -661,8 +790,8 @@ end subroutine fe_map_print
   !==============================================================================
   subroutine femap_apply_to_interp(map,ref,phy)
     implicit none
+    type(fe_map_t)          , intent(in)    :: map
     type(SB_interpolation_t), intent(in)    :: ref
-    type(fe_map_t)        , intent(in)    :: map
     type(SB_interpolation_t), intent(inout) :: phy
     real(rp), allocatable :: wmat1(:,:,:)
     real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
@@ -683,7 +812,7 @@ end subroutine fe_map_print
     nnode = size(ref%shape_functions,1)
 
     ! Shape functions do not change
-    ! phy%shape = ref%shape ! SB. not needed
+    phy%shape_functions = ref%shape_functions 
 
     ! First derivatives do
     !if(phy%kder==1) then
@@ -707,12 +836,9 @@ end subroutine fe_map_print
     !       + (d N / d s_k) (d^2 s_k / d x_i d x_j) 
     !
     if( khes ) then
-
        call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
        call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
-
        do ilocs=1,nlocs
-
           if( khes ) then
              ! Transforms the array HESSI to a symmetric matrix WMAT1
              do inode=1,nnode
@@ -727,7 +853,6 @@ end subroutine fe_map_print
                      &        ndime,ndime)
              end do
           end if
-
           if( khes ) then
              ! Add second cartesian derivatives of the map times 
              ! first derivatives of shape functions
@@ -751,14 +876,10 @@ end subroutine fe_map_print
              end do
              call matove(wmat2(1,1,inode),wvec1,ndime,ntens)
           end do
-
        end do
-
        call memfree(wmat1,__FILE__,__LINE__)
        call memfree(wmat2,__FILE__,__LINE__)
-
     end if
-
   end subroutine femap_apply_to_interp
 
 

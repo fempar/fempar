@@ -1,15 +1,26 @@
-subroutine update_integration( this, n )
+subroutine update_integration( this )
   implicit none
-  ! Parameters
   class(SB_finite_element_t), intent(inout) :: this 
-  integer(ip), intent(in) :: n
   integer(ip) :: i
-  call this%fe_map%update( this%cell%coordinates)
-  do i = 1, n
-     call this%volume_integrator(i)%p%update( this%fe_map )
+  call this%fe_map%update( this%quadrature, this%cell%coordinates )
+  do i = 1, this%number_fe_spaces
+     call this%volume_integrator(i)%p%update( this%reference_fe_phy(i)%p, this%fe_map )
   end do
 end subroutine update_integration
 
+function get_number_nodes ( this )
+  implicit none
+  class(SB_finite_element_t), intent(in) :: this
+  integer(ip)                            :: get_number_nodes
+  get_number_nodes = this%number_nodes
+end function get_number_nodes
+
+function get_fe_map ( this )
+  implicit none
+  class(SB_finite_element_t), target, intent(in)  :: this
+  type(fe_map_t)                        , pointer :: get_fe_map
+  get_fe_map => this%fe_map
+end function get_fe_map
 
 function get_quadrature ( this )
   implicit none
@@ -18,37 +29,13 @@ function get_quadrature ( this )
   get_quadrature => this%quadrature
 end function get_quadrature
 
-function get_volume_integrator ( this )
+function get_volume_integrator ( this, i )
   implicit none
   class(SB_finite_element_t), target, intent(in)  :: this
-  type(SB_p_volume_integrator_t), pointer :: get_volume_integrator(:)
-  get_volume_integrator => this%volume_integrator
+  integer(ip)                       , intent(in)  :: i
+  type(SB_volume_integrator_t)      , pointer     :: get_volume_integrator
+  get_volume_integrator => this%volume_integrator(i)%p
 end function get_volume_integrator
-
-function get_fe_map ( this )
-  implicit none
-  class(SB_finite_element_t), target, intent(in)  :: this
-  type(fe_map_t), pointer :: get_fe_map
-  get_fe_map => this%fe_map
-end function get_fe_map
-
-subroutine get_number_nodes_field ( this, number_nodes, n )
-  implicit none
-  class(SB_finite_element_t), intent(in) :: this
-  integer(ip), intent(in)                :: n
-  integer(ip), intent(inout)             :: number_nodes(:)
-  integer(ip) :: i
-  do i = 1, n
-     number_nodes(i) = this%reference_fe(i)%p%get_number_nodes()
-  end do
-end subroutine get_number_nodes_field
-
-function get_number_nodes ( this )
-  implicit none
-  class(SB_finite_element_t), intent(in) :: this
-  integer(ip)                 :: get_number_nodes
-  get_number_nodes = this%number_nodes
-end function get_number_nodes
 
 function get_elem2dof( this )
   implicit none
@@ -71,3 +58,12 @@ function get_bc_value( this )
   get_bc_value => this%bc_value
 end function get_bc_value
 
+subroutine get_number_nodes_per_field ( this, number_nodes )
+  implicit none
+  class(SB_finite_element_t), intent(in)  :: this
+  integer(ip)               , intent(out) :: number_nodes(this%number_fe_spaces)
+  integer(ip) :: i
+  do i = 1, this%number_fe_spaces
+     number_nodes(i) = this%reference_fe_phy(i)%p%get_number_nodes()
+  end do
+end subroutine get_number_nodes_per_field
