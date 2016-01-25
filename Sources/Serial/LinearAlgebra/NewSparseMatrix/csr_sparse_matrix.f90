@@ -119,7 +119,7 @@ contains
         logical,                    intent(in)    :: is_symmetric
         integer(ip),                intent(in)    :: sign
     !-----------------------------------------------------------------
-        assert(this%is_state_start())
+        assert(this%get_state() == SPARSE_MATRIX_STATE_START )
         if(symmetric_storage) then
             assert(is_symmetric)
         endif
