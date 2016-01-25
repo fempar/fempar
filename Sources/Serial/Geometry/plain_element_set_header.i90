@@ -27,6 +27,22 @@
      procedure :: set_last   => plain_iterator_set_last
   end type plain_template_element_iterator_t
 
+  ! This iterator permits to iterate on a subset 
+  type, extends(plain_template_element_iterator_t) :: plain_template_element_subset_iterator_t
+     private
+     integer(ip)           :: list_size=0
+     integer(ip), pointer  :: list(:)
+   contains
+     ! procedure :: begin      => plain_iterator_begin
+     ! procedure :: next       => plain_iterator_next
+     ! procedure :: create_id  => plain_iterator_create_id
+     ! procedure :: free_id    => plain_iterator_free_id
+     ! procedure :: get        => plain_iterator_get
+     procedure :: finished   => plain_subset_iterator_finished
+     procedure :: current    => plain_subset_iterator_current
+     procedure :: get_id     => plain_subset_iterator_get_id
+  end type plain_template_element_subset_iterator_t
+
   type, extends(template_element_set_t) :: plain_template_element_set_t
      private
      integer(ip)                            :: num_elements= -1  ! Number of elements in the set
@@ -36,4 +52,7 @@
      procedure :: free   => free_plain_set
      procedure :: create_iterator => create_plain_iterator
      procedure :: free_iterator   => free_plain_iterator
+     procedure :: create_subset_iterator => create_plain_subset_iterator
+     procedure :: free_subset_iterator   => free_plain_subset_iterator
+     procedure :: get_elements
   end type plain_template_element_set_t

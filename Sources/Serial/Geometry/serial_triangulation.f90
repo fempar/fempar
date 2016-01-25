@@ -41,8 +41,9 @@ module serial_triangulation_names
   type, extends(JP_triangulation_t) :: serial_triangulation_t
      private
    contains
-     procedure :: create => serial_triangulation_create
-     procedure :: free   => serial_triangulation_free
+     procedure :: create  => serial_triangulation_create
+     procedure :: free    => serial_triangulation_free
+     procedure :: to_dual => serial_triangulation_to_dual
      !procedure :: create_element_iterator
      !procedure :: free_element_iterator
   end type serial_triangulation_t
@@ -65,7 +66,7 @@ contains
     call trian%element_set%create(size,element_mold)
 
     ! Mother class function (not type bounded by standard restriction)
-    !call JP_triangulation_create(trian,size)
+    !call JP_triangulation_create(trian)
     call trian%JP_triangulation_t%create(size)
 
   end subroutine serial_triangulation_create

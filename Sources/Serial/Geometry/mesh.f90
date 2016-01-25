@@ -57,7 +57,7 @@ module mesh_names
   public :: mesh_t
 
   ! Functions
-  public :: mesh_to_dual, mesh_free
+  public :: mesh_to_dual, mesh_free, mesh_copy
   public :: mesh_print
 
   ! Constants
@@ -227,7 +227,32 @@ contains
 
   end subroutine mesh_free
 
+  !===============================================================================================
+  subroutine mesh_copy(msh_old,msh_new)
+    implicit none
+    type(mesh_t), intent(in)    :: msh_old
+    type(mesh_t), intent(inout) :: msh_new
+
+    msh_new%ndime = msh_old%ndime
+    msh_new%npoin = msh_old%npoin
+    msh_new%nelem = msh_old%nelem
+    msh_new%nnode = msh_old%nnode
+    
+    call memalloc(msh_new%nelem+1,msh_new%pnods,__FILE__,__LINE__)
+    msh_new%pnods = msh_old%pnods
+
+    call memalloc(msh_new%pnods(msh_new%nelem+1),msh_new%lnods,__FILE__,__LINE__)
+    msh_new%lnods = msh_old%lnods
+
+    if (allocated(msh_old%coord)) then
+       call memalloc(msh_new%ndime,msh_new%npoin,msh_new%coord,__FILE__,__LINE__)
+       msh_new%coord = msh_old%coord
+    end if
+
+  end subroutine mesh_copy
   
+  !===============================================================================================
+ 
   subroutine mesh_print(mesh, ounit)
      implicit none
      type(mesh_t), intent(in)          :: mesh

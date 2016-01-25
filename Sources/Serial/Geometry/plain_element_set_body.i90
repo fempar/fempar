@@ -34,6 +34,13 @@
   end subroutine free_plain_set
 
   !=============================================================================
+  function get_elements(this) result(p)
+    implicit none
+    class(plain_template_element_set_t), target, intent(inout)  :: this
+    class(template_element_t)          , pointer :: p(:)
+    p => this%elements
+  end function get_elements
+  !=============================================================================
   !=============================================================================
   !=============================================================================
   !=============================================================================
@@ -138,3 +145,60 @@
     assert( id%get_index() <= this%plain_template_element_set%num_elements )
     p => this%plain_template_element_set%elements(id%get_index())
   end function plain_iterator_get
+
+  !=============================================================================
+  !=============================================================================
+  !=============================================================================
+  !=============================================================================
+  subroutine create_plain_subset_iterator(this,list,iterator)
+    implicit none
+    class(plain_template_element_set_t), target     , intent(in)  :: this
+    integer(ip)                        , target      , intent(in) :: list(1)
+    class(plain_template_element_subset_iterator_t) , allocatable, intent(out) :: iterator
+    integer(ip) :: istat
+
+    istat = size(list)
+
+    allocate(plain_template_element_subset_iterator_t :: iterator, stat=istat)
+    check(istat==0)
+    select type(iterator)
+    class is(plain_template_element_subset_iterator_t)
+       iterator%plain_template_element_set => this
+       iterator%list_size = istat
+       iterator%list => list
+    end select
+  end subroutine create_plain_subset_iterator
+  !=============================================================================
+  subroutine free_plain_subset_iterator(this,iterator)
+    implicit none
+    class(plain_template_element_set_t)            , intent(in)    :: this
+    class(plain_template_element_subset_iterator_t), allocatable, intent(inout) :: iterator
+    ! No internal memory for this simple iterator.
+    deallocate(iterator)
+  end subroutine free_plain_subset_iterator
+
+  !=============================================================================
+  !=============================================================================
+  !=============================================================================
+  !=============================================================================
+  function plain_subset_iterator_finished(this) result(res)
+    implicit none
+    class(plain_template_element_subset_iterator_t), intent(inout) :: this
+    logical :: res
+    res = ( this%ielem > this%list_size )
+  end function plain_subset_iterator_finished
+  !=============================================================================
+  function plain_subset_iterator_current (this) result(p)
+    implicit none
+    class(plain_template_element_subset_iterator_t), intent(inout) :: this
+    class(template_element_t)               , pointer       :: p
+    assert( this%ielem <= this%list_size )
+    p => this%plain_template_element_set%elements( this%list(this%ielem) )
+  end function plain_subset_iterator_current
+  !=============================================================================
+  subroutine plain_subset_iterator_get_id(this,res)
+    implicit none
+    class(plain_template_element_subset_iterator_t), intent(in)    :: this
+    class(element_id_t)                     , intent(inout) :: res
+    call res%set_index( this%list(this%ielem) )
+  end subroutine plain_subset_iterator_get_id

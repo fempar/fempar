@@ -39,7 +39,7 @@ module JP_element_topology_names
 
   ! Explicit control of element states is NOT implemented
   ! for this class (because it requires an integer).
-  ! Conceptually we consider the following diagram
+  ! Conceptually we consider the following diagram:
   !
   ! --------------------------------------------------------
   ! Input State      | Action               | Output State 
@@ -61,6 +61,7 @@ module JP_element_topology_names
      procedure :: create => element_topology_create
      procedure :: free   => element_topology_free
      procedure :: assign => element_topology_assign
+     procedure :: fill   => element_topology_fill
      procedure :: print  => element_topology_print
   end type JP_element_topology_t
 
@@ -101,7 +102,7 @@ contains
     class(JP_element_topology_t), intent(inout) :: this
     integer(ip), intent(in) :: num_vefs, num_dims, num_nodes
     integer(ip), intent(in) :: vefs(num_vefs)
-    real(rp)   , intent(in) :: coordinates(num_dims,num_nodes)
+    real(rp)   , intent(in) :: coordinates(:,:)
 
     this%num_vefs = num_vefs
     call memalloc( this%num_vefs, this%vefs, __FILE__, __LINE__)
@@ -157,7 +158,7 @@ contains
  !=============================================================================
   subroutine local_id_from_vertices( e, nd, list, no, lid ) ! (SBmod)
     implicit none
-    type(JP_element_topology_t), intent(in) :: e
+    class(JP_element_topology_t), intent(in) :: e
     integer(ip), intent(in)  :: nd, list(:), no
     integer(ip), intent(out) :: lid
     ! Locals

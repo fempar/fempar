@@ -29,29 +29,32 @@
 module mypart_names
   use serial_names
   implicit none
-  
+#include "debug.i90" 
+
   type, extends(migratory_element_t) :: mypart_t
      integer(ip) :: mypart
    contains
      procedure :: size   => mypart_size
      procedure :: pack   => mypart_pack
      procedure :: unpack => mypart_unpack
+     procedure :: assign => mypart_assign
+     procedure :: free => mypart_free
   end type mypart_t
 
 contains
 
-  subroutine mypart_size (my, n)
+  subroutine mypart_size (this, n)
     implicit none
-    class(mypart_t), intent(in)  :: my
+    class(mypart_t), intent(in)  :: this
     integer(ip)    , intent(out) :: n
     ! Locals
     integer(ieep) :: mold(1)
     n  = size(transfer(1_ip ,mold))
   end subroutine mypart_size
   
-  subroutine mypart_pack (my, n, buffer)
+  subroutine mypart_pack (this, n, buffer)
     implicit none
-    class(mypart_t), intent(in)   :: my
+    class(mypart_t), intent(in)   :: this
     integer(ip)    , intent(in)   :: n
     integer(ieep)  , intent(out)  :: buffer(n)
     
@@ -64,12 +67,12 @@ contains
         
     start = 1
     end   = start + size_of_ip -1
-    buffer(start:end) = transfer(my%mypart,mold)
+    buffer(start:end) = transfer(this%mypart,mold)
   end subroutine mypart_pack
     
-  subroutine mypart_unpack(my, n, buffer)
+  subroutine mypart_unpack(this, n, buffer)
     implicit none
-    class(mypart_t) , intent(inout)  :: my
+    class(mypart_t) , intent(inout)  :: this
     integer(ip)     , intent(in)     :: n
     integer(ieep)   , intent(in)     :: buffer(n)
         
@@ -82,8 +85,26 @@ contains
     
     start = 1
     end   = start + size_of_ip -1
-    my%mypart  = transfer(buffer(start:end), my%mypart)
+    this%mypart  = transfer(buffer(start:end), this%mypart)
   end subroutine mypart_unpack 
+
+  subroutine mypart_free(this)
+    implicit none
+    class(mypart_t), intent(inout) :: this
+  end subroutine mypart_free
+  subroutine mypart_assign(this, that)
+    implicit none
+    class(mypart_t), intent(inout) :: this
+    class(migratory_element_t), intent(in)    :: that
+    select type(that)
+    class is(mypart_t)
+       this = that
+    class default
+       write(*,*) 'Error calling mypart_t assignment'
+       write(*,*) 'cannot assign object of another class'
+       check(.false.)
+    end select
+  end subroutine mypart_assign
 
 end module mypart_names
 
@@ -98,7 +119,6 @@ program par_test_cdr_unstructured
   use mypart_names
   
   implicit none
-#include "debug.i90" 
   ! Our data
   type(par_context_t)       :: w_context, p_context, q_context, p_p_context, p_q_context, b_context
   type(par_environment_t)   :: p_env

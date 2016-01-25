@@ -40,9 +40,9 @@ module migratory_element_names
      !procedure (size_interface)  , deferred :: size
      !procedure (pack_interface)  , deferred :: pack
      !procedure (unpack_interface), deferred :: unpack
-     procedure  :: size
-     procedure  :: pack
-     procedure  :: unpack
+     procedure  :: size   => migratory_element_size
+     procedure  :: pack   => migratory_element_pack
+     procedure  :: unpack => migratory_element_unpack
      procedure (free_interface)  , deferred :: free
      procedure (assignment_interface), deferred :: assign
      !procedure :: get_id    => get_migratory_element_id
@@ -84,10 +84,12 @@ module migratory_element_names
   ! Plain set and iterator
   !=============================================================================
 
-#define  plain_template_element_set_t      plain_migratory_element_set_t
-#define  plain_template_element_iterator_t plain_migratory_element_iterator_t
+#define  plain_template_element_set_t             plain_migratory_element_set_t
+#define  plain_template_element_iterator_t        plain_migratory_element_iterator_t
+#define  plain_template_element_subset_iterator_t plain_migratory_element_subset_iterator_t
 #include "plain_element_set_header.i90"
    public :: plain_migratory_element_set_t, plain_migratory_element_iterator_t
+   public :: plain_migratory_element_subset_iterator_t
 
   !=============================================================================
   ! Hash based set and iterator
@@ -102,7 +104,7 @@ module migratory_element_names
 contains
   !=============================================================================
   !=============================================================================
-  subroutine size(this,n)
+  subroutine migratory_element_size(this,n)
     implicit none
     class(migratory_element_t), intent(in)  :: this
     integer(ip)               , intent(out) :: n
@@ -110,9 +112,9 @@ contains
     write(*,*) 'Function size() of migratory_element_t is not implemented'
     write(*,*) 'It must be implemented in any derived class that invokes it'
     check(.false.)
-  end subroutine size
+  end subroutine migratory_element_size
   
-  subroutine pack(this,n,buffer)
+  subroutine migratory_element_pack(this,n,buffer)
     implicit none
     class(migratory_element_t), intent(in)  :: this
     integer(ip)               , intent(in)  :: n
@@ -121,9 +123,9 @@ contains
     write(*,*) 'Function pack() of migratory_element_t is not implemented'
     write(*,*) 'It must be implemented in any derived class that invokes it'
     check(.false.)
-  end subroutine pack
+  end subroutine migratory_element_pack
   
-  subroutine unpack(this,n,buffer)
+  subroutine migratory_element_unpack(this,n,buffer)
     implicit none
     class(migratory_element_t), intent(inout) :: this
     integer(ip)               , intent(in)    :: n
@@ -131,7 +133,7 @@ contains
     write(*,*) 'Function unpack() of migratory_element_t is not implemented'
     write(*,*) 'It must be implemented in any derived class that invokes it'
     check(.false.)
-  end subroutine unpack
+  end subroutine migratory_element_unpack
   
   !=============================================================================
   !=============================================================================

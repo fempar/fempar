@@ -152,14 +152,13 @@ contains
   !=============================================================================
   subroutine JP_triangulation_create(trian,size)
     implicit none
-    integer(ip)              , intent(in)    :: size
     class(JP_triangulation_t), intent(inout) :: trian
+    integer(ip)              , intent(in)    :: size
 
     integer(ip) :: istat
     class(JP_element_topology_t), pointer :: elem
 
     trian%num_vefs = -1
-    trian%num_elems = -1
     trian%num_dims = -1 
 
     ! Create iterator using the virtual function
@@ -169,14 +168,9 @@ contains
     call trian%element_iterator%begin()
     do while(.not.trian%element_iterator%finished())
        elem => downcast_to_element_topology( trian%element_iterator%current() )
-       call elem%create ! (id_mold)
+       call elem%create
        call trian%element_iterator%next()
     end do
-
-    ! Initialize all of the element structs (hard coded, old stuff)
-    !do ielem = 1, trian%elem_array_len
-    !   call initialize_elem_topology(trian%elems(ielem))
-    !end do
 
     ! Initialization of element fixed info parameters (SBmod)
     call trian%pos_elem_info%init(ht_length)

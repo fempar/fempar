@@ -73,10 +73,12 @@
 
   type, abstract :: template_element_set_t
    contains
-     procedure(create_set_interface)     , deferred :: create
-     procedure(free_set_interface)       , deferred :: free
-     procedure(create_iterator_interface), deferred :: create_iterator
-     procedure(free_iterator_interface)  , deferred :: free_iterator
+     procedure(create_set_interface)            , deferred :: create
+     procedure(free_set_interface)              , deferred :: free
+     procedure(create_iterator_interface)       , deferred :: create_iterator
+     procedure(free_iterator_interface)         , deferred :: free_iterator
+     !procedure(create_subset_iterator_interface), deferred :: create_subset_iterator
+     !procedure(free_subset_iterator_interface)  , deferred :: free_subset_iterator
   end type template_element_set_t
 
   ! Abstract interfaces
@@ -105,4 +107,16 @@
        class(template_element_set_t)                  , intent(in)    :: this
        class(template_element_iterator_t), allocatable, intent(inout) :: iterator
      end subroutine free_iterator_interface
+     ! subroutine create_subset_iterator_interface(this,iterator)
+     !   import :: template_element_set_t, template_element_iterator_t
+     !   implicit none
+     !   class(template_element_set_t)     , target     , intent(in)  :: this
+     !   class(template_element_iterator_t), allocatable, intent(out) :: iterator
+     ! end subroutine create_subset_iterator_interface
+     ! subroutine free_subset_iterator_interface(this,iterator)
+     !   import :: template_element_set_t, template_element_iterator_t
+     !   implicit none
+     !   class(template_element_set_t)                  , intent(in)    :: this
+     !   class(template_element_iterator_t), allocatable, intent(inout) :: iterator
+     ! end subroutine free_subset_iterator_interface
   end interface

@@ -43,17 +43,21 @@ module par_element_topology_names
   private
 
   type, extends(JP_element_topology_t) :: par_element_topology_t
-     integer(ip)  :: interface  = -1           ! The boundary number ieboun (if this element is a interface element)
+     !integer(ip)  :: interface  = -1           ! The boundary number ieboun (if this element is a interface element)
+     integer(ip)  :: interface  = -1
      integer(ip)  :: mypart     = -1           ! To which part this element is mapped to ?
      integer(igp) :: globalID   = -1           ! Global ID of this element
                                                ! Local ID is given by the element_set
      integer(igp), allocatable :: vefs_GIDs(:) ! List of the GIDs of the vefs that make up this element
    contains
-     procedure :: size   => par_element_topology_size
-     procedure :: pack   => par_element_topology_pack
-     procedure :: unpack => par_element_topology_unpack
-     procedure :: free   => par_element_topology_free
-     procedure :: assign => par_element_topology_assignment
+     procedure :: size     => par_element_topology_size
+     procedure :: pack     => par_element_topology_pack
+     procedure :: unpack   => par_element_topology_unpack
+     procedure :: free     => par_element_topology_free
+     procedure :: assign   => par_element_topology_assignment
+     procedure :: add_data => par_element_topology_fill
+     !procedure :: is_interface => par_element_topology_is_interface, par_element_topology_set_interface
+     !procedure :: set_interface => par_element_topology_set_interface
   end type par_element_topology_t
 
   ! Types
@@ -64,13 +68,29 @@ module par_element_topology_names
 contains
 
   !=============================================================================
+  ! function par_element_topology_is_interface(this) result(is_interface)
+  !   implicit none
+  !   class(par_element_topology_t), intent(in) :: this
+  !   logical :: is_interface
+  !   is_interface = this%interface
+  ! end function par_element_topology_is_interface
+
+  ! !=============================================================================
+  ! subroutine par_element_topology_set_interface(this,is_interface)
+  !   implicit none
+  !   class(par_element_topology_t), intent(inout) :: this
+  !   logical                      , intent(in)    :: is_interface
+  !   this%interface   = is_interface
+  ! end subroutine par_element_topology_set_interface
+
+  !=============================================================================
   subroutine par_element_topology_create(this)
     implicit none
     class(par_element_topology_t), intent(inout) :: this
 
     call this%JP_element_topology_t%create()
     assert(.not.allocated(this%vefs_GIDs))
-    this%interface   = -1
+    this%interface   = .false.
     this%mypart      = -1
     this%globalID    = -1
   end subroutine par_element_topology_create
@@ -84,7 +104,7 @@ contains
     if (allocated(this%vefs_GIDs)) then
        call memfree(this%vefs_GIDs, __FILE__, __LINE__)
     end if
-    this%interface = -1
+    this%interface = .false.
     this%mypart = -1 
   end subroutine par_element_topology_free
   
@@ -92,18 +112,19 @@ contains
   ! This function assumes that the data in element_topology has already been
   ! filled calling this%JP_element_topology_t%fill so it can be used separately.
   ! 
-  ! subroutine par_element_topology_fill( this, my_part, intfc, vef_GIDs)
-  !   implicit none
-  !   class(par_element_topology_t), intent(inout) :: this
-  !   integer(ip), intent(in) :: my_part, intfc
-  !   integer(igp), intent(in) :: vef_GIDs(this%num_vefs)
+  subroutine par_element_topology_fill( this, globalID, mypart, vefs_GIDs)
+    implicit none
+    class(par_element_topology_t), intent(inout) :: this
+    integer(igp), intent(in) :: globalID
+    integer(ip) , intent(in) :: mypart
+    integer(igp), intent(in) :: vefs_GIDs(:)
 
-  !   call memalloc( this%num_vefs, this%vef_GIDs, __FILE__, __LINE__)
-  !   this%vef_GIDs  = vef_GIDs
-  !   this%interface = intfc
-  !   this%my_part   = my_part
+    call memalloc( this%num_vefs, this%vefs_GIDs, __FILE__, __LINE__)
+    this%vefs_GIDs  = vefs_GIDs(1:this%num_vefs)
+    this%mypart    = mypart
+    this%globalID  = globalID
 
-  ! end subroutine par_element_topology_fill
+  end subroutine par_element_topology_fill
 
   !=============================================================================
   subroutine par_element_topology_assignment(this,that)

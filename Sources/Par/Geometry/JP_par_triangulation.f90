@@ -60,6 +60,7 @@ module JP_par_triangulation_names
      integer(ip)                             :: num_ghost   = -1    ! number of ghost elements (remote neighbors)
      class(migratory_element_iterator_t), allocatable :: local_elements_iterator
      class(migratory_element_iterator_t), allocatable :: ghost_elements_iterator
+     class(migratory_element_iterator_t), allocatable :: boundary_elements_iterator
      integer(ip)                             :: num_itfc_vefs = -1  ! Number of vefs in the interface among subdomains
      integer(ip), allocatable                :: lst_itfc_vefs(:)    ! List of vefs local IDs in the interface among subdomains 
      integer(ip)                             :: num_itfc_elems= -1  ! Number of elements in the interface
@@ -76,6 +77,7 @@ module JP_par_triangulation_names
      procedure :: free    => JP_par_triangulation_free
      procedure :: create_local_elements_iterator
      procedure :: create_ghost_elements_iterator
+     !procedure :: create_boundary_elements_iterator
      !procedure :: print   => JP_par_triangulation_print
      !procedure :: create_element_iterator
      !procedure :: free_element_iterator
@@ -114,10 +116,38 @@ contains
     end select
   end subroutine create_ghost_elements_iterator
   !=============================================================================
+  ! Iterator over boundary elements
+  ! subroutine create_boundary_elements_iterator(this)
+  !   implicit none
+  !   class(JP_par_triangulation_t), intent(inout)  :: this
+  !   call this%element_set%create_iterator(this%boundary_elements_iterator)
+  !   select type(iterator => this%boundary_elements_iterator)
+  !   class is(plain_migratory_element_subset_iterator_t)
+  !      call this%element_set%create_subset_iterator(iterator,this%lst_itfc_elems)
+  !   end select
+  ! end subroutine create_boundary_elements_iterator
+  !=============================================================================
   !
   ! The previous functions should overwritten in par_adaptive_triangulation...
   !
   !=============================================================================
+  subroutine JP_par_triangulation_create(trian, size)
+    implicit none
+    class(JP_par_triangulation_t), intent(inout) :: trian
+
+    integer(ip)                  , intent(in)    :: size
+    ! Concrete types to select element and element_id in the set
+    type(par_element_topology_t) :: element_mold
+
+    ! Allocate and create element_set
+    allocate(plain_migratory_element_set_t :: trian%element_set)
+    call trian%element_set%create(size,element_mold)
+
+    ! Mother class function (not type bounded by standard restriction)
+    !call JP_triangulation_create(trian)
+    call trian%JP_triangulation_t%create(size)
+
+  end subroutine JP_par_triangulation_create
 
   !=============================================================================
   subroutine JP_par_triangulation_free(trian)
@@ -149,7 +179,8 @@ contains
     end if
 
     ! Mother class function (not type bounded by standard restriction)
-    call JP_triangulation_free(trian)
+    !call JP_triangulation_free(trian)
+    call trian%JP_triangulation_t%free()
 
     ! Deallocate the element structure array and nullify environment
     call trian%element_set%free()
@@ -186,10 +217,9 @@ contains
     class is(par_vef_topology_t)
 
        ! Assign global ID for all local vefs looping on local elements
+       call trian%create_local_elements_iterator()
        associate( element_iterator =>  trian%local_elements_iterator)
-         
-         call trian%create_local_elements_iterator()
-         
+
          call element_iterator%begin()
          do while(.not.element_iterator%finished())
             elem => downcast_to_par_element_topology( element_iterator%current() )
@@ -207,9 +237,8 @@ contains
 
        ! Count and list interface vefs looping over ghost elements 
        ! (all the interface vefs are there!!!)
+       call trian%create_ghost_elements_iterator()
        associate( element_iterator =>  trian%ghost_elements_iterator)
-         
-         call trian%create_ghost_elements_iterator()
          
          trian%num_itfc_vefs = 0
          call element_iterator%begin()

@@ -39,7 +39,7 @@ module generate_vefs_mesh_conditions_names
   private
 
   ! Functions
-  public ::  generate_vefs_mesh_conditions
+  public ::  generate_vefs_mesh_conditions, generate_efs
 
 contains
 
@@ -59,6 +59,27 @@ contains
 
   end subroutine refcoord2
 
+  !==================================================================================================
+  subroutine generate_efs(msh,cnd)
+    implicit none
+    type(mesh_t)                , intent(inout)    :: msh
+    type(conditions_t), optional, intent(inout)    :: cnd
+    type(mesh_t)       :: tmsh
+    type(conditions_t) :: tcnd
+
+    if (present(cnd)) then
+       call generate_vefs_mesh_conditions(msh, tmsh, cnd, tcnd)
+       call conditions_free( cnd )
+       call conditions_copy( tcnd, cnd )
+       call conditions_free( tcnd )
+    else
+       call generate_vefs_mesh_conditions(msh, tmsh)
+    end if
+    call mesh_free(msh)
+    call mesh_copy(tmsh,msh)
+
+   end subroutine generate_efs
+  
   !==================================================================================================
   subroutine generate_vefs_mesh_conditions(gmsh,omsh,gcnd,ocnd)
     implicit none
