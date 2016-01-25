@@ -45,6 +45,7 @@ implicit none
 
     call sparse_matrix%convert('CSR')
 
+    call sparse_matrix%split_2x2_symbolic(num_row=3, num_col=3, A_II=A_II, A_IG=A_IG, A_GG=A_GG)
     call sparse_matrix%split_2x2_numeric(num_row=3, num_col=3, A_II=A_II, A_IG=A_IG, A_GG=A_GG)
 
     print*, '--------------------------------------------'

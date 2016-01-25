@@ -732,43 +732,24 @@ contains
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         assert (.not. present(A_GI) .or. (.not. this%get_symmetric_storage()) )
-        assert(.not. allocated(A_II%State))
-        assert(.not. allocated(A_IG%State))
-        assert(.not. allocated(A_GG%State))
 
         if(present(A_GI)) then
-            assert(.not. allocated(A_GI%State))
-            allocate(A_GI%State, mold=this%State)
+            if(.not. allocated(A_GI%State)) allocate(A_GI%State, mold=this%State)
         endif
 
-        allocate(A_II%State, mold=this%State)
-        allocate(A_IG%State, mold=this%State)
-        allocate(A_GG%State, mold=this%State)
+        if(.not. allocated(A_II%State)) allocate(A_II%State, mold=this%State)
+        if(.not. allocated(A_IG%State)) allocate(A_IG%State, mold=this%State)
+        if(.not. allocated(A_GG%State)) allocate(A_GG%State, mold=this%State)
 
-        nz = this%get_nnz()
-        if(num_row == num_col) then
-            sign = this%get_sign()
-            symmetric = this%is_symmetric()
-            symmetric_storage = this%get_symmetric_storage()
-            call A_II%State%create(num_row, symmetric_storage, symmetric, sign, nz)                     ! Symmetric
-            call A_IG%State%create(num_row,this%get_num_cols()-num_col, nz)                             ! Non symmetric
-            if(present(A_GI)) call A_GI%State%create(this%get_num_rows()-num_row, num_col, nz)          ! Non symmetric
-            call A_GG%State%create(this%get_num_rows()-num_row, symmetric_storage, symmetric, sign, nz) ! Symmetric
+        if(present(A_GI)) then
+            call this%State%split_2x2_numeric(num_row, num_col, A_II%State, A_IG%State, A_GI%State, A_GG%State)
+            call A_GI%create_vector_spaces()
         else
-            call A_II%State%create(num_row, num_col, nz)
-            call A_IG%State%create(num_row,this%get_num_cols()-num_col, nz)
-            if(present(A_GI)) call A_GI%State%create(this%get_num_rows()-num_row, num_col, nz)
-            call A_GG%State%create(this%get_num_rows()-num_row, this%get_num_cols()-num_col, nz)
+            call this%State%split_2x2_numeric(num_row, num_col, A_II=A_II%State, A_IG=A_IG%State, A_GG=A_GG%State)
         endif
         call A_II%create_vector_spaces()
         call A_IG%create_vector_spaces()
         call A_GG%create_vector_spaces()
-        if(present(A_GI)) then
-            call A_GI%create_vector_spaces()
-            call this%State%split_2x2_numeric(num_row, num_col, A_II%State, A_IG%State, A_GI%State, A_GG%State)
-        else
-            call this%State%split_2x2_numeric(num_row, num_col, A_II=A_II%State, A_IG=A_IG%State, A_GG=A_GG%State)
-        endif
     end subroutine sparse_matrix_split_2x2_numeric
 
 
@@ -785,10 +766,6 @@ contains
         type(sparse_matrix_t),           intent(inout) :: A_IG
         type(sparse_matrix_t), optional, intent(inout) :: A_GI
         type(sparse_matrix_t),           intent(inout) :: A_GG
-        logical                                        :: symmetric
-        logical                                        :: symmetric_storage
-        integer(ip)                                    :: sign
-        integer(ip)                                    :: nz
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         assert (.not. present(A_GI) .or. (.not. this%get_symmetric_storage()) )
@@ -805,30 +782,15 @@ contains
         allocate(A_IG%State, mold=this%State)
         allocate(A_GG%State, mold=this%State)
 
-        nz = this%get_nnz()
-        if(num_row == num_col) then
-            sign = this%get_sign()
-            symmetric = this%is_symmetric()
-            symmetric_storage = this%get_symmetric_storage()
-            call A_II%State%create(num_row, symmetric_storage, symmetric, sign, nz)                     ! Symmetric
-            call A_IG%State%create(num_row,this%get_num_cols()-num_col, nz)                             ! Non symmetric
-            if(present(A_GI)) call A_GI%State%create(this%get_num_rows()-num_row, num_col, nz)          ! Non symmetric
-            call A_GG%State%create(this%get_num_rows()-num_row, symmetric_storage, symmetric, sign, nz) ! Symmetric
+        if(present(A_GI)) then
+            call this%State%split_2x2_symbolic(num_row, num_col, A_II%State, A_IG%State, A_GI%State, A_GG%State)
+            call A_GI%create_vector_spaces()
         else
-            call A_II%State%create(num_row, num_col, nz)
-            call A_IG%State%create(num_row,this%get_num_cols()-num_col, nz)
-            if(present(A_GI)) call A_GI%State%create(this%get_num_rows()-num_row, num_col, nz)
-            call A_GG%State%create(this%get_num_rows()-num_row, this%get_num_cols()-num_col, nz)
+            call this%State%split_2x2_symbolic(num_row, num_col, A_II=A_II%State, A_IG=A_IG%State, A_GG=A_GG%State)
         endif
         call A_II%create_vector_spaces()
         call A_IG%create_vector_spaces()
         call A_GG%create_vector_spaces()
-        if(present(A_GI)) then
-            call A_GI%create_vector_spaces()
-            call this%State%split_2x2_symbolic(num_row, num_col, A_II%State, A_IG%State, A_GI%State, A_GG%State)
-        else
-            call this%State%split_2x2_symbolic(num_row, num_col, A_II=A_II%State, A_IG=A_IG%State, A_GG=A_GG%State)
-        endif
     end subroutine sparse_matrix_split_2x2_symbolic
 
 
