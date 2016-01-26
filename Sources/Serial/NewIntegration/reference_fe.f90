@@ -412,9 +412,11 @@ type fe_map_t
 contains
   procedure, non_overridable :: create           => fe_map_create
   procedure, non_overridable :: create_on_faces  => fe_map_create_on_faces
+  procedure, non_overridable :: create_on_face   => fe_map_create_on_face
   procedure, non_overridable :: face_map_create  => fe_map_face_map_create
   procedure, non_overridable :: update           => fe_map_update
   procedure, non_overridable :: update_on_faces  => fe_map_update_on_faces
+  procedure, non_overridable :: update_on_face   => fe_map_update_on_face
   procedure, non_overridable :: face_map_update  => fe_map_face_map_update
   procedure, non_overridable :: free             => fe_map_free
   procedure, non_overridable :: print            => fe_map_print
@@ -490,6 +492,19 @@ public :: SB_volume_integrator_t, SB_p_volume_integrator_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+type face_map_t
+   private
+   integer(ip)                 :: number_faces = 0
+   integer(ip)                 :: active_face_id
+   type(fe_map_t), allocatable :: fe_map(:)
+ contains
+    procedure :: create => face_map_create
+    procedure :: update => face_map_update
+    procedure :: free   => face_map_free
+end type face_map_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 type face_interpolation_t
   private
   integer(ip)                           :: number_shape_functions
@@ -513,11 +528,12 @@ type face_integrator_t
    private
    type(face_interpolation_t) :: face_interpolation(2)
    type(fe_map_t)             :: face_map
-   type(fe_map_t)             :: fe_map(2)
+   type(face_map_t)           :: fe_maps(2)
+   !type(fe_map_t)             :: fe_map(2)
    type(SB_quadrature_t)      :: quadrature
    type(p_reference_fe_t)     :: reference_fe(2)
    real(rp)     , allocatable :: coordinates(:,:)
-   type(list_t)               :: elem_to_face_enumeration(2)
+   !type(list_t)               :: elem_to_face_enumeration(2)
  contains
    procedure, non_overridable :: create            => face_integrator_create
    procedure, non_overridable :: create_boundary   => face_integrator_create_boundary

@@ -527,7 +527,7 @@ contains
     call fe_space%create_face_array()
     call fe_space%fill_dof_info() 
 
-    call vector_dG_CDR_integration%set_problem( viscosity = 1.0_rp, C_IP = 10.0_rp, xi = 0.0_Rp)
+     call vector_dG_CDR_integration%set_problem( viscosity = 1.0_rp, C_IP = 10.0_rp, xi = 0.0_Rp)
     ! Create the operator
     diagonal_blocks_symmetric_storage = .false.
     diagonal_blocks_symmetric         = .false.
@@ -537,25 +537,25 @@ contains
          &                          fe_space, vector_dG_CDR_integration)
     call fe_affine_operator%symbolic_setup()
     call fe_affine_operator%numerical_setup()
-!!$    matrix => fe_affine_operator%get_matrix()
-!!$     select type(matrix)
-!!$     class is(block_sparse_matrix_t)
-!!$        !my_matrix => matrix
-!!$        do i = 1,1! matrix%nblocks
-!!$           write(*,*) i,i,'+++++++++++++++++++++++++++++++'
-!!$           write(*,*) __FILE__,__LINE__
-!!$           my_matrix => matrix%blocks(i,i)%sparse_matrix
-!!$           write(*,*) __FILE__,__LINE__
-!!$           call my_matrix%print_matrix_market(6)
-!!$           write(*,*) __FILE__,__LINE__
-!!$        end do
-!!$     class default
-!!$        check(.false.)
-!!$     end select
-!!$
-!!$    fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-!!$    call fe_affine_operator_range_vector_space%create_vector(vector)
-!!$    fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+    matrix => fe_affine_operator%get_matrix()
+     select type(matrix)
+     class is(block_sparse_matrix_t)
+        !my_matrix => matrix
+        do i = 1,1! matrix%nblocks
+           write(*,*) i,i,'+++++++++++++++++++++++++++++++'
+           write(*,*) __FILE__,__LINE__
+           my_matrix => matrix%blocks(i,i)%sparse_matrix
+           write(*,*) __FILE__,__LINE__
+           call my_matrix%print_matrix_market(6)
+           write(*,*) __FILE__,__LINE__
+        end do
+     class default
+        check(.false.)
+     end select
+
+     !fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+     !call fe_affine_operator_range_vector_space%create_vector(vector)
+     !fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
 
     !call fe_space%print()
     !call reference_fe_array_two(1)%free
