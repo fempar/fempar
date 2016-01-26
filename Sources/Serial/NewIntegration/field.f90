@@ -50,11 +50,10 @@ module field_names
     module procedure double_contract_tensor_tensor
   end interface
   
-  public :: scalar_field_t,vector_field_t, tensor_field_t, symmetric_tensor_field_t 
+  !public :: scalar_field_t (not actually needed, used real(rp) instead)
+  public :: vector_field_t, tensor_field_t, symmetric_tensor_field_t 
   public :: operator(*)
   public :: double_contract
-  ! public :: scalar_field_t (not actually needed, used real(rp) instead)
-
 contains
 
   subroutine scalar_field_init(this,value)

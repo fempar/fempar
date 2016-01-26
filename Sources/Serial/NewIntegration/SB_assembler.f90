@@ -41,14 +41,14 @@ module SB_assembler_names
   end type SB_assembler_t
 
   abstract interface
-     subroutine assembly_interface( this, & 
-          number_fe_spaces, &
-          number_nodes, &
-          elem2dof, &
-          field_blocks, &
-          field_coupling, &
-          elmat, &
-          elvec )
+     subroutine assembly_interface( this,             & 
+          &                         number_fe_spaces, &
+          &                         number_nodes,     &
+          &                         elem2dof,         &
+          &                         field_blocks,     &
+          &                         field_coupling,   &
+          &                         elmat,            &
+          &                         elvec )
        import :: SB_assembler_t, rp, ip, i1p_t
        implicit none
        class(SB_assembler_t) , intent(inout) :: this

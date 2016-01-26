@@ -291,14 +291,14 @@ module reference_fe_names
 
      subroutine get_value_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,        &
           &                                 scalar_field )
-       import :: reference_fe_t, SB_interpolation_t, ip, scalar_field_t
+       import :: reference_fe_t, SB_interpolation_t, ip, rp
        implicit none
        class(reference_fe_t)   , intent(in)  :: this 
        type(SB_interpolation_t), intent(in)  :: actual_cell_interpolation 
        integer(ip)             , intent(in)  :: ishape
        integer(ip)             , intent(in)  :: qpoint
-       !real(rp)                , intent(out) :: scalar_field
-       type(scalar_field_t)    , intent(out) :: scalar_field
+       real(rp)                , intent(out) :: scalar_field
+       !type(scalar_field_t)    , intent(out) :: scalar_field
      end subroutine get_value_scalar_interface
      
      subroutine get_value_vector_interface( this, actual_cell_interpolation, ishape, qpoint,        &
