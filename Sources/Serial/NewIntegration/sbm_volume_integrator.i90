@@ -72,43 +72,6 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
 end subroutine fe_map_create_on_face
 
 !==================================================================================================
-subroutine fe_map_create_on_faces(this,quadrature,reference_fe_geometry,elem_to_face_enumeration )
-  implicit none
-  ! Parameters
-  class(fe_map_t)      , intent(inout) :: this
-  type(SB_quadrature_t), intent(in)    :: quadrature
-  class(reference_fe_t), intent(in)    :: reference_fe_geometry
-  type(list_t), optional, intent(in)    :: elem_to_face_enumeration
-
-  integer(ip) :: number_dimensions
-  integer(ip) :: number_evaluation_points
-
-  call this%free()
-  number_dimensions        = reference_fe_geometry%number_dimensions
-  number_evaluation_points = quadrature%number_evaluation_points
-
-  call reference_fe_geometry%create_face_interpolation(1,quadrature, this%interpolation_geometry, &
-       &                                                elem_to_face_enumeration )
-
-  call memalloc(number_dimensions, &
-                number_dimensions, &
-                number_evaluation_points, &
-                this%jacobian,__FILE__,__LINE__)
-
-  call memalloc(number_dimensions, &
-                number_dimensions, &
-                number_evaluation_points, &
-                this%inv_jacobian,__FILE__,__LINE__)
-
-  call memalloc(number_evaluation_points, &
-                this%det_jacobian,__FILE__,__LINE__)
-
-  call memalloc(number_dimensions, &
-                number_evaluation_points, &
-                this%coordinates_points,__FILE__,__LINE__)
-end subroutine fe_map_create_on_faces
-
-!==================================================================================================
 subroutine fe_map_face_map_create(this,quadrature,reference_fe_geometry )
   implicit none
   ! Parameters
@@ -250,70 +213,6 @@ end subroutine fe_map_face_map_create
        call memfree(wmat2,__FILE__,__LINE__)
     end if
   end subroutine fe_map_update
-
-  !==================================================================================================
-  subroutine fe_map_update_on_faces( this, local_face_id, quadrature, cell_coordinates,             &
-       &                             elem_to_face_enumeration )
-    !-----------------------------------------------------------------------
-    ! A map obtained from the (usually isoparametric) interpolation of the geometry
-    !-----------------------------------------------------------------------
-    implicit none    
-    class(fe_map_t)      , intent(inout) :: this
-    integer(ip)          , intent(in)    :: local_face_id
-    type(SB_quadrature_t), intent(in)    :: quadrature
-    real(rp)             , intent(in)    :: cell_coordinates(:,:)
-    type(list_t), optional, intent(in)   :: elem_to_face_enumeration
-    
-    ! Locals
-    real(rp), allocatable :: wmat1(:,:,:)
-    real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
-    real(rp)    :: hnatu
-    real(rp)    :: enor0,h_tem
-    integer(ip) :: ndime,nnode,nlocs,ntens,e2f_enum_p
-    integer(ip) :: ilocs,jlocs,idime,jdime,kdime,ldime,inode,itens
-    logical     :: khes
-
-    khes = .false.
-    if ( allocated( this%interpolation_geometry%hessian ) ) then 
-       khes = .true.
-    end if
-
-    ndime = this%interpolation_geometry%number_dimensions
-    nnode = size(this%interpolation_geometry%shape_functions,1)
-    nlocs = quadrature%number_evaluation_points
-
-    e2f_enum_p = elem_to_face_enumeration%p(local_face_id) - 1
-
-    do ilocs=1,nlocs
-       jlocs =  elem_to_face_enumeration%l(e2f_enum_p + ilocs)
-       ! Matmul is not thread safe
-       !map%jacob(:,:,ilocs)=matmul(elcod,transpose(int%deriv(:,:,ilocs)))
-       this%jacobian(:,:,ilocs)=0.0_rp
-       do inode=1,nnode
-          do jdime=1,ndime
-             do idime=1,ndime
-                this%jacobian(idime,jdime,ilocs) = this%jacobian(idime,jdime,ilocs) &
-                     + cell_coordinates(idime,inode)*this%interpolation_geometry%shape_derivatives(jdime,inode,jlocs)
-             end do
-          end do
-       end do
-       ! J^(-t)
-       call invmtx(this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs),ndime)
-    end do
-
-    ! Evaluation (Gauss) point coordinates
-    do ilocs=1,nlocs
-       jlocs =  elem_to_face_enumeration%l(e2f_enum_p + ilocs)
-       this%coordinates_points(:,ilocs)=0.0_rp
-       do inode=1,nnode
-          do idime=1,ndime
-             this%coordinates_points(idime,ilocs) = this%coordinates_points(idime,ilocs) &
-                  + cell_coordinates(idime,inode)*this%interpolation_geometry%shape_functions(inode,jlocs)
-          end do
-       end do
-    end do
-  end subroutine fe_map_update_on_faces
-
 
   !==================================================================================================
   subroutine fe_map_update_on_face( this, quadrature, cell_coordinates)

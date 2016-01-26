@@ -165,16 +165,9 @@ subroutine face_integrator_create(this,left_reference_fe,right_reference_fe,left
     
   do i = 1, 2
      call this%face_interpolation(i)%create(this%quadrature,this%reference_fe(i)%p)
-!!$     call create_elem_to_face_enumeration( this%reference_fe(i)%p,this%quadrature,                &
-!!$          &                               this%elem_to_face_enumeration(i))
   end do
   call this%fe_maps(1)%create(this%quadrature,left_geo_reference_fe)
   call this%fe_maps(2)%create(this%quadrature,right_geo_reference_fe)
-!!$  call this%fe_map(1)%create_on_faces(this%quadrature,left_geo_reference_fe,                      &
-!!$       &                              this%elem_to_face_enumeration(1))
-!!$  call this%fe_map(2)%create_on_faces(this%quadrature,right_geo_reference_fe,                     &
-!!$       &                              this%elem_to_face_enumeration(2))
-
 end subroutine face_integrator_create
 
 !==================================================================================================
@@ -215,10 +208,6 @@ subroutine face_integrator_create_boundary(this,left_reference_fe,left_geo_refer
        &        this%coordinates,__FILE__,__LINE__)
   i = 1
   call this%face_interpolation(i)%create(this%quadrature,this%reference_fe(i)%p)
-!!$  call create_elem_to_face_enumeration( this%reference_fe(i)%p,this%quadrature,                &
-!!$       &                               this%elem_to_face_enumeration(i))
-!!$  call this%fe_map(i)%create_on_faces(this%quadrature,left_geo_reference_fe,                   &
-!!$       &                              this%elem_to_face_enumeration(i))
   call this%fe_maps(1)%create(this%quadrature,left_geo_reference_fe)
 end subroutine face_integrator_create_boundary
 
@@ -235,8 +224,6 @@ subroutine face_integrator_free(this)
   do i=1,2
      this%reference_fe(i)%p => NULL()
      call this%face_interpolation(i)%free()
-     !call this%elem_to_face_enumeration(i)%free()
-     !call this%fe_map(i)%free()
      call this%fe_maps(i)%free()
   end do
 
@@ -308,12 +295,6 @@ subroutine face_integrator_update(this,local_face_id,left_reference_fe_geo,left_
   ! Update the face_map
   call this%face_map%face_map_update(local_face_id(1),left_reference_fe_geo,this%quadrature,      &
        &                              this%coordinates)
-
-
-!!$  call this%fe_map(1)%update_on_faces(local_face_id(1),this%quadrature,left_neighbour_coordinates,&
-!!$       &                              this%elem_to_face_enumeration(1))
-!!$  call this%fe_map(2)%update_on_faces(local_face_id(2),this%quadrature,right_neighbour_coordinates,&
-!!$       &                              this%elem_to_face_enumeration(2))
 
   call this%fe_maps(1)%update(local_face_id(1),this%quadrature,left_neighbour_coordinates)
   call this%fe_maps(2)%update(local_face_id(2),this%quadrature,right_neighbour_coordinates)
@@ -399,31 +380,3 @@ subroutine face_integrator_get_outside_normals (this, qpoint, outside_normal)
   end do
 end subroutine face_integrator_get_outside_normals
 
-!!$!=================================================================================================
-!!$subroutine create_elem_to_face_enumeration (reference_fe,face_quadrature,elem_to_face_enumeration)
-!!$  implicit none 
-!!$  class(reference_fe_t), intent(in)    :: reference_fe 
-!!$  type(SB_quadrature_t), intent(in)    :: face_quadrature
-!!$  type(list_t)         , intent(inout) :: elem_to_face_enumeration
-!!$  
-!!$  integer(ip) :: igaus,i
-!!$  integer(ip) :: iface,face_dimensions, number_faces
-!!$
-!!$  face_dimensions = reference_fe%number_dimensions - 1
-!!$  number_faces = reference_fe%get_number_vefs_of_dimension(face_dimensions)
-!!$
-!!$  ! Create the elem_to_face_enumeration array
-!!$  call elem_to_face_enumeration%create(number_faces)
-!!$  do iface = 1, number_faces+1
-!!$     elem_to_face_enumeration%p(iface) = face_quadrature%number_evaluation_points *    &
-!!$          &                                      (iface-1) + 1
-!!$  end do
-!!$  call elem_to_face_enumeration%allocate_list_from_pointer()
-!!$  i = 1
-!!$  do iface = 1, number_faces
-!!$     do igaus = 1, face_quadrature% number_evaluation_points
-!!$        elem_to_face_enumeration%l(elem_to_face_enumeration%p(iface) + igaus - 1) = i
-!!$        i = i + 1
-!!$     end do
-!!$  end do  
-!!$end subroutine create_elem_to_face_enumeration

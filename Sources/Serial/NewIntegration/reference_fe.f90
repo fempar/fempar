@@ -346,7 +346,6 @@ module reference_fe_names
        import :: reference_fe_t, rp, ip
        implicit none 
        class(reference_fe_t), intent(in) :: this 
-       !type(fe_map_t)       , intent(in) :: fe_map
        real(rp)             , intent(in) :: inverse_h(this%number_dimensions)
        integer(ip)          , intent(in) :: igaus
        real(rp)  :: compute_characteristic_length_interface 
@@ -411,11 +410,9 @@ type fe_map_t
   type(SB_interpolation_t) :: interpolation_geometry    
 contains
   procedure, non_overridable :: create           => fe_map_create
-  procedure, non_overridable :: create_on_faces  => fe_map_create_on_faces
   procedure, non_overridable :: create_on_face   => fe_map_create_on_face
   procedure, non_overridable :: face_map_create  => fe_map_face_map_create
   procedure, non_overridable :: update           => fe_map_update
-  procedure, non_overridable :: update_on_faces  => fe_map_update_on_faces
   procedure, non_overridable :: update_on_face   => fe_map_update_on_face
   procedure, non_overridable :: face_map_update  => fe_map_face_map_update
   procedure, non_overridable :: free             => fe_map_free
