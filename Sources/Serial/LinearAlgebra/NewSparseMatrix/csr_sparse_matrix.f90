@@ -952,19 +952,21 @@ contains
         integer(ip)                                        :: total_cols
         integer(ip)                                        :: total_rows
         integer(ip)                                        :: sign
+        integer(ip)                                        :: state
         logical                                            :: symmetric
         logical                                            :: symmetric_storage
     !-----------------------------------------------------------------
         ! Check state
         assert(.not. this%is_symbolic()) 
-        assert(A_II%get_state() == A_IG%get_state() .and.  A_II%get_state() == A_GG%get_state())
+        state = A_II%get_state() 
+        assert(state == A_IG%get_state() .and.  state == A_GG%get_state())
         if(present(A_GI)) then
-            assert(A_GI%get_state() == A_II%get_state())
+            assert(state == A_II%get_state())
         endif
-        assert(A_II%get_state() == SPARSE_MATRIX_STATE_START .or. A_II%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC)
+        assert(state == SPARSE_MATRIX_STATE_START .or. state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC)
 
 
-        if(A_II%get_state() == SPARSE_MATRIX_STATE_START) then
+        if(state == SPARSE_MATRIX_STATE_START) then
             ! Get properties from THIS sparse matrix
             total_rows = this%get_num_rows(); total_cols = this%get_num_cols(); sign = this%get_sign()
             symmetric = this%is_symmetric(); symmetric_storage = this%get_symmetric_storage()
@@ -987,12 +989,10 @@ contains
             endif
             call A_GG%allocate_numeric(nz);     A_GG%irp(1) = 1
         else
-            nz = this%irp(num_row+1)-1  ! nnz after num_row
-            call A_II%allocate_values_body(nz)
-            call A_IG%allocate_values_body(nz)
-            nz = this%nnz - nz          ! nnz after num_row
-            if(present(A_GI)) call A_GI%allocate_values_body(nz)
-            call A_GG%allocate_values_body  (nz)
+            call A_II%allocate_values_body(A_II%nnz)
+            call A_IG%allocate_values_body(A_IG%nnz)
+            if(present(A_GI)) call A_GI%allocate_values_body(A_GI%nnz)
+            call A_GG%allocate_values_body(A_GG%nnz)
         endif
 
         ! Loop (1:num_row) to get A_II and A_IG 
@@ -1010,7 +1010,7 @@ contains
                 A_XX_lbound = A_II%irp(i); A_XX_ubound = A_II%irp(i)+nz-1
                 this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
                 ! Assign columns
-                if(A_II%get_state() == SPARSE_MATRIX_STATE_START) then
+                if(state == SPARSE_MATRIX_STATE_START) then
                     A_II%irp(i+1)                     = A_XX_ubound+1
                     A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
                     A_II%nnz = A_II%nnz + nz
@@ -1027,7 +1027,7 @@ contains
                 A_XX_lbound = A_IG%irp(i);           A_XX_ubound = A_IG%irp(i)+nz-1
                 this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
                 ! Assign columns
-                if(A_IG%get_state() == SPARSE_MATRIX_STATE_START) then
+                if(state == SPARSE_MATRIX_STATE_START) then
                     A_IG%irp(i+1)                     = A_XX_ubound+1
                     A_IG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
                     A_IG%nnz = A_IG%nnz + nz
@@ -1038,9 +1038,11 @@ contains
             endif
         enddo
         call memrealloc(A_II%nnz, A_II%ja,   __FILE__, __LINE__)
-        call memrealloc(A_II%nnz, A_II%val,  __FILE__, __LINE__)
         call memrealloc(A_IG%nnz, A_IG%ja,   __FILE__, __LINE__)
-        call memrealloc(A_IG%nnz, A_IG%val,  __FILE__, __LINE__)
+        if(state == SPARSE_MATRIX_STATE_START) then
+            call memrealloc(A_II%nnz, A_II%val,  __FILE__, __LINE__)
+            call memrealloc(A_IG%nnz, A_IG%val,  __FILE__, __LINE__)
+        endif
         ! Loop (num_row:this%num_rows) to get A_GI and A_GG
         do i=num_row+1, this%get_num_rows()
             nz_offset = 0
@@ -1057,7 +1059,7 @@ contains
                     A_XX_lbound = A_GI%irp(i-num_row); A_XX_ubound = A_GI%irp(i-num_row)+nz-1
                     this_lbound = this%irp(i);         this_ubound = this%irp(i)+nz-1
                     ! Assign columns
-                    if(A_GI%get_state() == SPARSE_MATRIX_STATE_START) then
+                    if(state == SPARSE_MATRIX_STATE_START) then
                         A_GI%irp(i-num_row+1)             = A_XX_ubound+1
                         A_GI%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)
                         A_GI%nnz = A_GI%nnz + nz
@@ -1075,7 +1077,7 @@ contains
                 A_XX_lbound = A_GG%irp(i-num_row);   A_XX_ubound = A_GG%irp(i-num_row)+nz-1
                 this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
                 ! Assign columns
-                if(A_GG%get_state() == SPARSE_MATRIX_STATE_START) then
+                if(state == SPARSE_MATRIX_STATE_START) then
                     A_GG%irp(i-num_row+1)             = A_XX_ubound+1
                     A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
                     A_GG%nnz = A_GG%nnz + nz
@@ -1087,10 +1089,10 @@ contains
         enddo
         if(present(A_GI)) then
             call memrealloc(A_GI%nnz, A_GI%ja,   __FILE__, __LINE__)
-            call memrealloc(A_GI%nnz, A_GI%val,  __FILE__, __LINE__)
+            if(state == SPARSE_MATRIX_STATE_START) call memrealloc(A_GI%nnz, A_GI%val,  __FILE__, __LINE__)
         endif
         call memrealloc(A_GG%nnz, A_GG%ja,   __FILE__, __LINE__)
-        call memrealloc(A_GG%nnz, A_GG%val,  __FILE__, __LINE__)
+        if(state == SPARSE_MATRIX_STATE_START)  call memrealloc(A_GG%nnz, A_GG%val,  __FILE__, __LINE__)
 
         call A_II%set_state_assembled()
         call A_IG%set_state_assembled()
@@ -1168,15 +1170,17 @@ contains
         integer(ip)                                        :: total_cols
         integer(ip)                                        :: total_rows
         integer(ip)                                        :: sign
+        integer(ip)                                        :: state
         logical                                            :: symmetric
         logical                                            :: symmetric_storage
     !-----------------------------------------------------------------
         ! Check state
-        assert(A_II%get_state() == A_IG%get_state() .and.  A_II%get_state() == A_GG%get_state())
+        state = A_II%get_state()
+        assert( state == A_IG%get_state() .and. state== A_GG%get_state())
         if(present(A_GI)) then
-            assert(A_GI%get_state() == A_II%get_state())
+            assert(A_GI%get_state() == state)
         endif
-        assert(A_II%get_state() == SPARSE_MATRIX_STATE_START)
+        assert(state == SPARSE_MATRIX_STATE_START)
 
         ! Get properties from this sparse matrix
         total_rows = this%get_num_rows(); total_cols = this%get_num_cols(); sign = this%get_sign()
@@ -1186,7 +1190,7 @@ contains
         call A_II%set_properties(num_row, num_col, symmetric_storage, symmetric, sign)                          ! Symmetric
         call A_IG%set_properties(num_row,total_cols-num_col, .false., .false., SPARSE_MATRIX_SIGN_UNKNOWN)      ! Non symmetric
         if(present(A_GI)) then
-            assert(A_GI%get_state() == SPARSE_MATRIX_STATE_START)
+            assert(state == SPARSE_MATRIX_STATE_START)
             call A_GI%set_properties(total_rows-num_row, num_col, .false., .false., SPARSE_MATRIX_SIGN_UNKNOWN) ! Non symmetric
         endif
         call A_GG%set_properties(total_rows-num_row, total_cols-num_col, symmetric_storage, symmetric, sign)    ! Symmetric
