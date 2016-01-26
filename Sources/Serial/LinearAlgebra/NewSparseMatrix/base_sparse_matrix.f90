@@ -120,6 +120,8 @@ module base_sparse_matrix_names
         procedure(base_sparse_matrix_update_values_by_row_body), public, deferred :: update_values_by_row_body
         procedure(base_sparse_matrix_update_values_by_col_body), public, deferred :: update_values_by_col_body
         procedure(base_sparse_matrix_update_value_body),         public, deferred :: update_value_body
+        procedure(base_sparse_matrix_split_2x2_symbolic),        public, deferred :: split_2x2_symbolic
+        procedure(base_sparse_matrix_split_2x2_numeric),         public, deferred :: split_2x2_numeric
         procedure(base_sparse_matrix_print_matrix_market_body),  public, deferred :: print_matrix_market_body
         procedure(base_sparse_matrix_free_coords),               public, deferred :: free_coords
         procedure(base_sparse_matrix_free_val),                  public, deferred :: free_val
@@ -308,6 +310,8 @@ module base_sparse_matrix_names
         procedure, public :: update_values_by_row_body               => coo_sparse_matrix_update_values_by_row_body
         procedure, public :: update_values_by_col_body               => coo_sparse_matrix_update_values_by_col_body
         procedure, public :: update_value_body                       => coo_sparse_matrix_update_value_body
+        procedure, public :: split_2x2_symbolic                      => coo_sparse_matrix_split_2x2_symbolic
+        procedure, public :: split_2x2_numeric                       => coo_sparse_matrix_split_2x2_numeric
         procedure, public :: is_by_rows                              => coo_sparse_matrix_is_by_rows
         procedure, public :: is_by_cols                              => coo_sparse_matrix_is_by_cols
         procedure, public :: set_nnz                                 => coo_sparse_matrix_set_nnz
@@ -584,6 +588,30 @@ module base_sparse_matrix_names
             integer(ip),                 intent(in)    :: ja
             real(rp),                    intent(in)    :: val(nz)
         end subroutine base_sparse_matrix_update_values_by_col_body
+
+        subroutine base_sparse_matrix_split_2x2_symbolic(this, num_row, num_col, A_II, A_IG, A_GI, A_GG) 
+            import base_sparse_matrix_t
+            import ip
+            class(base_sparse_matrix_t),           intent(in)    :: this
+            integer(ip),                           intent(in)    :: num_row
+            integer(ip),                           intent(in)    :: num_col
+            class(base_sparse_matrix_t),           intent(inout) :: A_II
+            class(base_sparse_matrix_t),           intent(inout) :: A_IG
+            class(base_sparse_matrix_t), optional, intent(inout) :: A_GI
+            class(base_sparse_matrix_t),           intent(inout) :: A_GG
+        end subroutine base_sparse_matrix_split_2x2_symbolic
+
+        subroutine base_sparse_matrix_split_2x2_numeric(this, num_row, num_col, A_II, A_IG, A_GI, A_GG) 
+            import base_sparse_matrix_t
+            import ip
+            class(base_sparse_matrix_t),           intent(in)    :: this
+            integer(ip),                           intent(in)    :: num_row
+            integer(ip),                           intent(in)    :: num_col
+            class(base_sparse_matrix_t),           intent(inout) :: A_II
+            class(base_sparse_matrix_t),           intent(inout) :: A_IG
+            class(base_sparse_matrix_t), optional, intent(inout) :: A_GI
+            class(base_sparse_matrix_t),           intent(inout) :: A_GG
+        end subroutine base_sparse_matrix_split_2x2_numeric
 
         subroutine base_sparse_matrix_free_coords(this)
             import base_sparse_matrix_t
@@ -3194,13 +3222,21 @@ contains
         logical,     optional,      intent(in)     :: by_cols
         logical                                    :: by_rows 
     !-----------------------------------------------------------------
-        assert(this%state > SPARSE_MATRIX_STATE_CREATED)
-        
-        if(this%nnz == 0) return
-        
+        assert(this%state >= SPARSE_MATRIX_STATE_CREATED)
+               
         by_rows     = .true.
 
         if(present(by_cols)) by_rows = .not. by_cols
+
+        if(this%nnz == 0) then
+            if(by_rows) then
+                this%sort_status = COO_SPARSE_MATRIX_SORTED_BY_ROWS
+            else
+                this%sort_status = COO_SPARSE_MATRIX_SORTED_BY_COLS
+            endif
+            call this%set_state_assembled()
+            return
+        endif
 
         if(this%is_symbolic()) then
             call sort_and_compress_symbolic(this, .not. by_rows)
@@ -4074,6 +4110,136 @@ contains
         end subroutine reorder_coords
 
     end subroutine coo_sparse_matrix_sort_and_compress
+
+
+    subroutine coo_sparse_matrix_split_2x2_numeric(this, num_row, num_col, A_II, A_IG, A_GI, A_GG) 
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2
+    !< A = [A_II A_IG]
+    !<     [A_GI A_GG]
+    !<
+    !< this routine computes A_II, A_IG, A_GI and A_GG given the global 
+    !< matrix A. Note that A_II, A_IG, A_GI and A_GG are all optional.
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),            intent(in)    :: this
+        integer(ip),                           intent(in)    :: num_row
+        integer(ip),                           intent(in)    :: num_col
+        class(base_sparse_matrix_t),           intent(inout) :: A_II
+        class(base_sparse_matrix_t),           intent(inout) :: A_IG
+        class(base_sparse_matrix_t), optional, intent(inout) :: A_GI
+        class(base_sparse_matrix_t),           intent(inout) :: A_GG
+        integer(ip)                                          :: i
+        integer(ip)                                          :: nz
+        integer(ip)                                          :: total_cols
+        integer(ip)                                          :: total_rows
+    !-----------------------------------------------------------------
+        assert(this%get_symmetric_storage() .eqv. A_II%get_symmetric_storage()) 
+        assert(this%get_symmetric_storage() .eqv. A_GG%get_symmetric_storage())
+        total_rows = this%get_num_rows()
+        total_cols = this%get_num_cols()
+        assert((A_II%get_num_rows()==num_row) .and. (A_II%get_num_cols()==num_col))
+        assert((A_IG%get_num_rows()==num_row) .and. (A_IG%get_num_cols()==total_cols-num_col))
+        assert((A_GG%get_num_rows()==total_rows-num_row) .and. (A_GG%get_num_cols()==total_cols-num_col))
+        if(present(A_GI)) then
+            assert((A_GI%get_num_rows()==this%get_num_rows()-num_row) .and. (A_GI%get_num_cols()==num_col))
+        endif
+
+        ! algorithm for split_2x2 a non sorted COO matrix. Not tested yet!
+        ! TODO: algorithm for split_2x2 a sorted by rows COO matrix
+        ! TODO: algorithm for split_2x2 a sorted by cols COO matrix
+        if(this%is_symbolic()) then
+            call this%split_2x2_symbolic(num_row, num_col, A_II, A_IG, A_GI, A_GG)
+        else
+            do i=1, this%get_nnz()
+                if(this%ia(i)<=num_row) then
+                    if(this%ja(i)<=num_col) then
+                        call A_II%insert(ia  = this%ia(i),   &
+                                         ja  = this%ja(i),   &
+                                         val = this%val(i),  &
+                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                    else
+                        call A_IG%insert(ia  = this%ia(i),         &
+                                         ja  = this%ja(i)-num_col, &
+                                         val = this%val(i),        &
+                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                    endif
+                else
+                    if(this%ja(i)<=num_col) then
+                        if(present(A_GI)) call A_GI%insert(ia  = this%ia(i)-num_row, &
+                                                           ja  = this%ja(i),         &
+                                                           imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                    else
+                        call A_GG%insert(ia  = this%ia(i)-num_row, &
+                                         ja  = this%ja(i)-num_col, &
+                                         val = this%val(i),        &
+                                         imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                    endif
+                endif
+            enddo
+        endif
+    end subroutine coo_sparse_matrix_split_2x2_numeric
+
+
+
+    subroutine coo_sparse_matrix_split_2x2_symbolic(this, num_row, num_col, A_II, A_IG, A_GI, A_GG) 
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2
+    !< A = [A_II A_IG]
+    !<     [A_GI A_GG]
+    !<
+    !< this routine computes A_II, A_IG, A_GI and A_GG given the global 
+    !< matrix A. Note that A_II, A_IG, A_GI and A_GG are all optional.
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),            intent(in)    :: this
+        integer(ip),                           intent(in)    :: num_row
+        integer(ip),                           intent(in)    :: num_col
+        class(base_sparse_matrix_t),           intent(inout) :: A_II
+        class(base_sparse_matrix_t),           intent(inout) :: A_IG
+        class(base_sparse_matrix_t), optional, intent(inout) :: A_GI
+        class(base_sparse_matrix_t),           intent(inout) :: A_GG
+        integer(ip)                                          :: i
+        integer(ip)                                          :: nz
+        integer(ip)                                          :: total_cols
+        integer(ip)                                          :: total_rows
+    !-----------------------------------------------------------------
+        assert(this%get_symmetric_storage() .eqv. A_II%get_symmetric_storage()) 
+        assert(this%get_symmetric_storage() .eqv. A_GG%get_symmetric_storage())
+        total_rows = this%get_num_rows()
+        total_cols = this%get_num_cols()
+        assert((A_II%get_num_rows()==num_row) .and. (A_II%get_num_cols()==num_col))
+        assert((A_IG%get_num_rows()==num_row) .and. (A_IG%get_num_cols()==total_cols-num_col))
+        assert((A_GG%get_num_rows()==total_rows-num_row) .and. (A_GG%get_num_cols()==total_cols-num_col))
+        if(present(A_GI)) then
+            assert((A_GI%get_num_rows()==this%get_num_rows()-num_row) .and. (A_GI%get_num_cols()==num_col))
+        endif
+
+        ! algorithm for split_2x2 a non sorted COO matrix. Not tested yet!
+        ! TODO: algorithm for split_2x2 a sorted by rows COO matrix
+        ! TODO: algorithm for split_2x2 a sorted by cols COO matrix
+        do i=1, this%get_nnz()
+            if(this%ia(i)<=num_row) then
+                if(this%ja(i)<=num_col) then
+                    call A_II%insert(ia  = this%ia(i),   &
+                                     ja  = this%ja(i),   &
+                                     imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                else
+                    call A_IG%insert(ia  = this%ia(i),         &
+                                     ja  = this%ja(i)-num_col, &
+                                     imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                endif
+            else
+                if(this%ja(i)<=num_col) then
+                    if(present(A_GI)) call A_GI%insert(ia  = this%ia(i)-num_row, &
+                                                       ja  = this%ja(i),         &
+                                                       imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                else
+                    call A_GG%insert(ia  = this%ia(i)-num_row, &
+                                     ja  = this%ja(i)-num_col, &
+                                     imin = 1, imax = num_row, jmin = 1, jmax = num_col)
+                endif
+            endif
+        enddo
+    end subroutine coo_sparse_matrix_split_2x2_symbolic
 
 
     subroutine coo_sparse_matrix_copy_to_coo(this, to)
