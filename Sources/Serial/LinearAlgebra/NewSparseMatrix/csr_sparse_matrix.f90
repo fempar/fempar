@@ -518,7 +518,6 @@ contains
             call memalloc(max(7*this%get_num_rows(), 7*this%get_num_cols(), 1), this%ja,  __FILE__, __LINE__)
         endif
         call memalloc(this%get_num_rows()+1, this%irp,  __FILE__, __LINE__)
-        this%irp = 1
     end subroutine csr_sparse_matrix_allocate_symbolic
 
 
@@ -529,13 +528,7 @@ contains
         class(csr_sparse_matrix_t), intent(inout) :: this
         integer(ip), optional,       intent(in)   :: nz
     !-----------------------------------------------------------------
-        if(present(nz)) then
-            call memalloc(nz, this%ja,  __FILE__, __LINE__)
-        else
-            call memalloc(max(7*this%get_num_rows(), 7*this%get_num_cols(), 1), this%ja,  __FILE__, __LINE__)
-        endif
-        call memalloc(this%get_num_rows()+1, this%irp,  __FILE__, __LINE__)
-        this%irp = 1
+        call this%allocate_symbolic(nz)
         call this%allocate_values_body(nz)
     end subroutine csr_sparse_matrix_allocate_numeric
 
@@ -986,11 +979,13 @@ contains
     
             ! Allocate irp, ja and val arrays of all submatrices
             nz = this%irp(num_row+1)-1  ! nnz after num_row
-            call A_II%allocate_numeric(nz)
-            call A_IG%allocate_numeric(nz)
+            call A_II%allocate_numeric(nz);     A_II%irp(1) = 1
+            call A_IG%allocate_numeric(nz);     A_IG%irp(1) = 1
             nz = this%nnz - nz          ! nnz after num_row
-            if(present(A_GI)) call A_GI%allocate_numeric(nz)
-            call A_GG%allocate_numeric(nz)
+            if(present(A_GI)) then
+                call A_GI%allocate_numeric(nz); A_GI%irp(1) = 1
+            endif
+            call A_GG%allocate_numeric(nz);     A_GG%irp(1) = 1
         else
             nz = this%irp(num_row+1)-1  ! nnz after num_row
             call A_II%allocate_values_body(nz)
@@ -1021,7 +1016,10 @@ contains
                     A_II%nnz = A_II%nnz + nz
                 endif
                 A_II%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
+            else
+                A_II%irp(i+1) = A_II%irp(i)
             endif
+
             ! Number of nnz of A_IG in row i
             nz = this%irp(i+1)-this%irp(i)-nz_offset 
             if(nz>0) then
@@ -1035,6 +1033,8 @@ contains
                     A_IG%nnz = A_IG%nnz + nz
                 endif
                 A_IG%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
+            else
+                A_IG%irp(i+1) = A_IG%irp(i)
             endif
         enddo
         call memrealloc(A_II%nnz, A_II%ja,   __FILE__, __LINE__)
@@ -1051,18 +1051,23 @@ contains
             enddo
             ! Number of nnz of A_GI in row i-num_row
             nz = nz_offset 
-            if(nz>0 .and. present(A_GI)) then
-                ! Calculate bounds
-                A_XX_lbound = A_GI%irp(i-num_row); A_XX_ubound = A_GI%irp(i-num_row)+nz-1
-                this_lbound = this%irp(i);         this_ubound = this%irp(i)+nz-1
-                ! Assign columns
-                if(A_GI%get_state() == SPARSE_MATRIX_STATE_START) then
-                    A_GI%irp(i-num_row+1)             = A_XX_ubound+1
-                    A_GI%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)
-                    A_GI%nnz = A_GI%nnz + nz
+            if(present(A_GI)) then
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_GI%irp(i-num_row); A_XX_ubound = A_GI%irp(i-num_row)+nz-1
+                    this_lbound = this%irp(i);         this_ubound = this%irp(i)+nz-1
+                    ! Assign columns
+                    if(A_GI%get_state() == SPARSE_MATRIX_STATE_START) then
+                        A_GI%irp(i-num_row+1)             = A_XX_ubound+1
+                        A_GI%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)
+                        A_GI%nnz = A_GI%nnz + nz
+                    endif
+                    A_GI%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
+                else
+                    A_GI%irp(i-num_row+1) = A_GI%irp(i-num_row)
                 endif
-                A_GI%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
             endif
+
             ! Number of nnz of A_GG in row i-num_row
             nz = this%irp(i+1)-this%irp(i)-nz_offset 
             if(nz>0) then
@@ -1076,6 +1081,8 @@ contains
                     A_GG%nnz = A_GG%nnz + nz
                 endif
                 A_GG%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
+            else
+                A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
             endif
         enddo
         if(present(A_GI)) then
@@ -1186,11 +1193,13 @@ contains
 
         ! Allocate irp, ja and val arrays of all submatrices
         nz = this%irp(num_row+1)-1  ! nnz after num_row
-        call A_II%allocate_symbolic(nz)
-        call A_IG%allocate_symbolic(nz)
+        call A_II%allocate_symbolic(nz);     A_II%irp(1) = 1
+        call A_IG%allocate_symbolic(nz);     A_IG%irp(1) = 1
         nz = this%nnz - nz          ! nnz after num_row
-        if(present(A_GI)) call A_GI%allocate_symbolic(nz)
-        call A_GG%allocate_symbolic(nz)
+        if(present(A_GI)) then
+            call A_GI%allocate_symbolic(nz); A_GI%irp(1) = 1
+        endif
+        call A_GG%allocate_symbolic(nz);     A_GG%irp(1) = 1
 
         ! Loop (1:num_row) to get A_II and A_IG 
         do i=1, num_row
@@ -1210,6 +1219,8 @@ contains
                 A_II%irp(i+1)                     = A_XX_ubound+1
                 A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
                 A_II%nnz = A_II%nnz + nz
+            else
+                A_II%irp(i+1) = A_II%irp(i)
             endif
             ! Number of nnz of A_IG in row i
             nz = this%irp(i+1)-this%irp(i)-nz_offset 
@@ -1221,6 +1232,8 @@ contains
                 A_IG%irp(i+1)                     = A_XX_ubound+1
                 A_IG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
                 A_IG%nnz = A_IG%nnz + nz
+            else
+                A_IG%irp(i+1) = A_IG%irp(i)
             endif
         enddo
         call memrealloc(A_II%nnz, A_II%ja, __FILE__, __LINE__)
@@ -1235,15 +1248,20 @@ contains
             enddo
             ! Number of nnz of A_GI in row i-num_row
             nz = nz_offset 
-            if(nz>0 .and. present(A_GI)) then
-                ! Calculate bounds
-                A_XX_lbound = A_GI%irp(i-num_row); A_XX_ubound = A_GI%irp(i-num_row)+nz-1
-                this_lbound = this%irp(i);         this_ubound = this%irp(i)+nz-1
-                ! Assign columns
-                A_GI%irp(i-num_row+1)             = A_XX_ubound+1
-                A_GI%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)
-                A_GI%nnz = A_GI%nnz + nz
+            if(present(A_GI)) then
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_GI%irp(i-num_row); A_XX_ubound = A_GI%irp(i-num_row)+nz-1
+                    this_lbound = this%irp(i);         this_ubound = this%irp(i)+nz-1
+                    ! Assign columns
+                    A_GI%irp(i-num_row+1)             = A_XX_ubound+1
+                    A_GI%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)
+                    A_GI%nnz = A_GI%nnz + nz
+                else
+                    A_GI%irp(i-num_row+1) = A_GI%irp(i-num_row)
+                endif
             endif
+
             ! Number of nnz of A_GG in row i-num_row
             nz = this%irp(i+1)-this%irp(i)-nz_offset 
             if(nz>0) then
@@ -1254,6 +1272,8 @@ contains
                 A_GG%irp(i-num_row+1)             = A_XX_ubound+1
                 A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
                 A_GG%nnz = A_GG%nnz + nz
+            else
+                A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
             endif
         enddo
         if(present(A_GI)) call memrealloc(A_GI%nnz, A_GI%ja, __FILE__, __LINE__)
