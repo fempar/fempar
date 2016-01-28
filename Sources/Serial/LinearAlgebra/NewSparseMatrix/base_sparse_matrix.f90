@@ -15,13 +15,13 @@ module base_sparse_matrix_names
   !---------------------------------------------------------------------
 
   ! States
-  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_START              = 0
-  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_CREATED            = 1
-  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_SYMBOLIC     = 2
-  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC      = 3
-  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC = 4
-  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_ASSEMBLED          = 5
-  integer(ip), public, parameter :: SPARSE_MATRIX_STATE_UPDATE             = 6
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_START              = 0
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_CREATED            = 1
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_BUILD_SYMBOLIC     = 2
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC      = 3
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC = 4
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_ASSEMBLED          = 5
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_UPDATE             = 6
 
   !-----------------------------------------------------------------
   ! State transition diagram for type(base_sparse_matrix_t)
@@ -122,6 +122,7 @@ module base_sparse_matrix_names
         procedure(base_sparse_matrix_update_value_body),         public, deferred :: update_value_body
         procedure(base_sparse_matrix_split_2x2_symbolic),        public, deferred :: split_2x2_symbolic
         procedure(base_sparse_matrix_split_2x2_numeric),         public, deferred :: split_2x2_numeric
+        procedure(base_sparse_matrix_expand_matrix_numeric),     public, deferred :: expand_matrix_numeric
         procedure(base_sparse_matrix_print_matrix_market_body),  public, deferred :: print_matrix_market_body
         procedure(base_sparse_matrix_free_coords),               public, deferred :: free_coords
         procedure(base_sparse_matrix_free_val),                  public, deferred :: free_val
@@ -195,6 +196,13 @@ module base_sparse_matrix_names
         procedure, public :: set_state_assembled              => base_sparse_matrix_set_state_assembled
         procedure, public :: set_state_assembled_symbolic     => base_sparse_matrix_set_state_assembled_symbolic
         procedure, public :: set_state_update                 => base_sparse_matrix_set_state_update
+        procedure, public :: state_is_start                   => base_sparse_matrix_state_is_start
+        procedure, public :: state_is_created                 => base_sparse_matrix_state_is_created
+        procedure, public :: state_is_build_symbolic          => base_sparse_matrix_state_is_build_symbolic
+        procedure, public :: state_is_build_numeric           => base_sparse_matrix_state_is_build_numeric
+        procedure, public :: state_is_assembled               => base_sparse_matrix_state_is_assembled
+        procedure, public :: state_is_assembled_symbolic      => base_sparse_matrix_state_is_assembled_symbolic
+        procedure, public :: state_is_update                  => base_sparse_matrix_state_is_update
         procedure, public :: get_state                        => base_sparse_matrix_get_state
         procedure, public :: allocate_coords                  => base_sparse_matrix_allocate_coords
         procedure, public :: allocate_values                  => base_sparse_matrix_allocate_values
@@ -312,6 +320,7 @@ module base_sparse_matrix_names
         procedure, public :: update_value_body                       => coo_sparse_matrix_update_value_body
         procedure, public :: split_2x2_symbolic                      => coo_sparse_matrix_split_2x2_symbolic
         procedure, public :: split_2x2_numeric                       => coo_sparse_matrix_split_2x2_numeric
+        procedure, public :: expand_matrix_numeric                   => coo_sparse_matrix_expand_matrix_numeric
         procedure, public :: is_by_rows                              => coo_sparse_matrix_is_by_rows
         procedure, public :: is_by_cols                              => coo_sparse_matrix_is_by_cols
         procedure, public :: set_nnz                                 => coo_sparse_matrix_set_nnz
@@ -613,6 +622,19 @@ module base_sparse_matrix_names
             class(base_sparse_matrix_t),           intent(inout) :: A_GG
         end subroutine base_sparse_matrix_split_2x2_numeric
 
+        subroutine base_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
+            import base_sparse_matrix_t
+            import ip
+            class(base_sparse_matrix_t),     intent(in)    :: this
+            integer,                         intent(in)    :: C_T_num_cols
+            integer,                         intent(in)    :: C_T_nz
+            integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
+            integer(ip),                     intent(in)    :: C_T_ja(C_T_nz)
+            integer(ip),                     intent(in)    :: I_nz
+            integer(ip),                     intent(in)    :: I_ia(I_nz)
+            integer(ip),                     intent(in)    :: I_ja(I_nz)
+        end subroutine base_sparse_matrix_expand_matrix_numeric
+
         subroutine base_sparse_matrix_free_coords(this)
             import base_sparse_matrix_t
             class(base_sparse_matrix_t),  intent(inout) :: this
@@ -759,8 +781,85 @@ contains
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        this%state = SPARSE_MATRIX_STATE_update
+        this%state = SPARSE_MATRIX_STATE_UPDATE
     end subroutine base_sparse_matrix_set_state_update
+
+
+    function base_sparse_matrix_state_is_start(this) result(state_start)
+    !-----------------------------------------------------------------
+    !< Check if the matrix state is SPARSE_MATRIX_STATE_START
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        logical                                 :: state_start
+    !-----------------------------------------------------------------
+        state_start = (this%state == SPARSE_MATRIX_STATE_START)
+    end function base_sparse_matrix_state_is_start
+
+
+    function base_sparse_matrix_state_is_created(this) result(state_created)
+    !-----------------------------------------------------------------
+    !< Check if the matrix state is SPARSE_MATRIX_STATE_CREATED
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        logical                                 :: state_created
+    !-----------------------------------------------------------------
+        state_created = (this%state == SPARSE_MATRIX_STATE_CREATED)
+    end function base_sparse_matrix_state_is_created
+
+
+    function base_sparse_matrix_state_is_build_symbolic(this) result(state_build_symbolic)
+    !-----------------------------------------------------------------
+    !< Check if the matrix state is SPARSE_MATRIX_STATE_CREATED
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        logical                                 :: state_build_symbolic
+    !-----------------------------------------------------------------
+        state_build_symbolic = (this%state == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
+    end function base_sparse_matrix_state_is_build_symbolic
+
+
+    function base_sparse_matrix_state_is_build_numeric(this) result(state_build_numeric)
+    !-----------------------------------------------------------------
+    !< Check if the matrix state is SPARSE_MATRIX_STATE_CREATED
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        logical                                 :: state_build_numeric
+    !-----------------------------------------------------------------
+        state_build_numeric = (this%state == SPARSE_MATRIX_STATE_BUILD_NUMERIC)
+    end function base_sparse_matrix_state_is_build_numeric
+
+
+    function base_sparse_matrix_state_is_assembled_symbolic(this) result(state_assembled_symbolic)
+    !-----------------------------------------------------------------
+    !< check if the matrix state is SPARSE_MATRIX_STATE_ASSEMBLED
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        logical                                 :: state_assembled_symbolic
+    !-----------------------------------------------------------------
+        state_assembled_symbolic = (this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC)
+    end function base_sparse_matrix_state_is_assembled_symbolic
+
+
+    function base_sparse_matrix_state_is_assembled(this) result(state_assembled)
+    !-----------------------------------------------------------------
+    !< Check if the matrix state is SPARSE_MATRIX_STATE_ASSEMBLED
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        logical                                 :: state_assembled
+    !-----------------------------------------------------------------
+        state_assembled = (this%state == SPARSE_MATRIX_STATE_ASSEMBLED)
+    end function base_sparse_matrix_state_is_assembled
+
+
+    function base_sparse_matrix_state_is_update(this) result(state_update)
+    !-----------------------------------------------------------------
+    !< Check if the matrix state is SPARSE_MATRIX_STATE_UPDATE
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        logical                                 :: state_update
+    !-----------------------------------------------------------------
+        state_update = (this%state == SPARSE_MATRIX_STATE_UPDATE)
+    end function base_sparse_matrix_state_is_update
 
 
     function base_sparse_matrix_get_state(this) result(state)
@@ -4240,6 +4339,25 @@ contains
             endif
         enddo
     end subroutine coo_sparse_matrix_split_2x2_symbolic
+
+
+    subroutine coo_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< A = [A C_T]
+    !<     [C  I ]
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),      intent(in)    :: this
+        integer,                         intent(in)    :: C_T_num_cols
+        integer,                         intent(in)    :: C_T_nz
+        integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
+        integer(ip),                     intent(in)    :: C_T_ja(C_T_nz)
+        integer,                         intent(in)    :: I_nz
+        integer(ip),                     intent(in)    :: I_ia(I_nz)
+        integer(ip),                     intent(in)    :: I_ja(I_nz)
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine coo_sparse_matrix_expand_matrix_numeric
 
 
     subroutine coo_sparse_matrix_copy_to_coo(this, to)

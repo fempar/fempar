@@ -16,20 +16,20 @@ implicit none
 ! NUMERIC
 !------------------------------------------------------------------
 
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix%state_is_start())
 
     call coo_matrix%create(num_rows_and_cols=5,             &
                            symmetric_storage=.true.,        &
                            is_symmetric=.true.,             &
                            sign=SPARSE_MATRIX_SIGN_UNKNOWN, &
                            nz=12)
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_CREATED)
+    check(coo_matrix%state_is_created())
 
     call coo_matrix%insert(nz=12,                                          &
                            ia=(/1,2,3,4,5,1,6,1,2,3,4,5/),                 &
                            ja=(/1,2,3,4,5,6,1,5,4,3,2,1/),                 &
                            val=(/1.,2.,3.,4.,5.,99.,99.,5.,4.,3.,2.,1./))
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_BUILD_NUMERIC)
+    check(coo_matrix%state_is_build_numeric())
 
     call coo_matrix%print( 6 )
 
@@ -43,7 +43,7 @@ implicit none
 
     call coo_matrix%free()
 
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix%state_is_start())
 
 !------------------------------------------------------------------
 ! SYMBOLIC
@@ -54,12 +54,12 @@ implicit none
                            is_symmetric=.true.,             &
                            sign=SPARSE_MATRIX_SIGN_UNKNOWN, &
                            nz=12)
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_CREATED)
+    check(coo_matrix%state_is_created())
 
     call coo_matrix%insert(nz=12,                                 &
                            ia=(/1,2,3,4,5,1,6,1,2,3,4,5/),        &
                            ja=(/1,2,3,4,5,6,1,5,4,3,2,1/))
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
+    check(coo_matrix%state_is_build_symbolic())
 
     call coo_matrix%print( 6 )
 
@@ -73,7 +73,7 @@ implicit none
 
     call coo_matrix%free()
 
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix%state_is_start())
 
 
     call memstatus()

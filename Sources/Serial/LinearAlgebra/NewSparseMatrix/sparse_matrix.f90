@@ -91,6 +91,7 @@ private
                                                                            sparse_matrix_convert_base_sparse_matrix_mold
         procedure,                  public :: split_2x2_numeric         => sparse_matrix_split_2x2_numeric
         procedure,                  public :: split_2x2_symbolic        => sparse_matrix_split_2x2_symbolic
+        procedure,                  public :: expand_matrix_numeric     => sparse_matrix_expand_matrix_numeric
         procedure,                  public :: free                      => sparse_matrix_free
         procedure,                  public :: apply                     => sparse_matrix_apply
         procedure, non_overridable, public :: print                     => sparse_matrix_print
@@ -792,6 +793,25 @@ contains
         call A_IG%create_vector_spaces()
         call A_GG%create_vector_spaces()
     end subroutine sparse_matrix_split_2x2_symbolic
+
+
+    subroutine sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< A = [A C_T]
+    !<     [C  I ]
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t),          intent(in)    :: this
+        integer,                         intent(in)    :: C_T_num_cols
+        integer,                         intent(in)    :: C_T_nz
+        integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
+        integer(ip),                     intent(in)    :: C_T_ja(C_T_nz)
+        integer,                         intent(in)    :: I_nz
+        integer(ip),                     intent(in)    :: I_ia(I_nz)
+        integer(ip),                     intent(in)    :: I_ja(I_nz)
+    !-----------------------------------------------------------------
+        call this%State%expand_matrix_numeric(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
+    end subroutine sparse_matrix_expand_matrix_numeric
 
 
     subroutine sparse_matrix_apply(op,x,y) 

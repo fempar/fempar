@@ -52,6 +52,7 @@ private
         procedure, public :: split_2x2_numeric                       => csr_sparse_matrix_split_2x2_numeric
         procedure         :: split_2x2_symbolic_body                 => csr_sparse_matrix_split_2x2_symbolic_body
         procedure         :: split_2x2_numeric_body                  => csr_sparse_matrix_split_2x2_numeric_body
+        procedure, public :: expand_matrix_numeric                       => csr_sparse_matrix_expand_matrix_numeric
         procedure, public :: free_coords                             => csr_sparse_matrix_free_coords
         procedure, public :: free_val                                => csr_sparse_matrix_free_val
         procedure, public :: apply_body                              => csr_sparse_matrix_apply_body
@@ -119,7 +120,7 @@ contains
         logical,                    intent(in)    :: is_symmetric
         integer(ip),                intent(in)    :: sign
     !-----------------------------------------------------------------
-        assert(this%get_state() == SPARSE_MATRIX_STATE_START )
+        assert(this%state_is_start() )
         if(symmetric_storage) then
             assert(is_symmetric)
         endif
@@ -953,20 +954,22 @@ contains
         integer(ip)                                        :: total_rows
         integer(ip)                                        :: sign
         integer(ip)                                        :: state
+        logical                                            :: is_start_state
         logical                                            :: symmetric
         logical                                            :: symmetric_storage
     !-----------------------------------------------------------------
         ! Check state
         assert(.not. this%is_symbolic()) 
         state = A_II%get_state() 
+        is_start_state = A_II%state_is_start() 
         assert(state == A_IG%get_state() .and.  state == A_GG%get_state())
         if(present(A_GI)) then
             assert(state == A_II%get_state())
         endif
-        assert(state == SPARSE_MATRIX_STATE_START .or. state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC)
+        assert(is_start_state  .or. A_II%state_is_assembled_symbolic())
 
 
-        if(state == SPARSE_MATRIX_STATE_START) then
+        if(is_start_state) then
             ! Get properties from THIS sparse matrix
             total_rows = this%get_num_rows(); total_cols = this%get_num_cols(); sign = this%get_sign()
             symmetric = this%is_symmetric(); symmetric_storage = this%get_symmetric_storage()
@@ -1010,7 +1013,7 @@ contains
                 A_XX_lbound = A_II%irp(i); A_XX_ubound = A_II%irp(i)+nz-1
                 this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
                 ! Assign columns
-                if(state == SPARSE_MATRIX_STATE_START) then
+                if(is_start_state) then
                     A_II%irp(i+1)                     = A_XX_ubound+1
                     A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
                     A_II%nnz = A_II%nnz + nz
@@ -1027,7 +1030,7 @@ contains
                 A_XX_lbound = A_IG%irp(i);           A_XX_ubound = A_IG%irp(i)+nz-1
                 this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
                 ! Assign columns
-                if(state == SPARSE_MATRIX_STATE_START) then
+                if(is_start_state) then
                     A_IG%irp(i+1)                     = A_XX_ubound+1
                     A_IG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
                     A_IG%nnz = A_IG%nnz + nz
@@ -1039,7 +1042,7 @@ contains
         enddo
         call memrealloc(A_II%nnz, A_II%ja,   __FILE__, __LINE__)
         call memrealloc(A_IG%nnz, A_IG%ja,   __FILE__, __LINE__)
-        if(state == SPARSE_MATRIX_STATE_START) then
+        if(is_start_state) then
             call memrealloc(A_II%nnz, A_II%val,  __FILE__, __LINE__)
             call memrealloc(A_IG%nnz, A_IG%val,  __FILE__, __LINE__)
         endif
@@ -1059,7 +1062,7 @@ contains
                     A_XX_lbound = A_GI%irp(i-num_row); A_XX_ubound = A_GI%irp(i-num_row)+nz-1
                     this_lbound = this%irp(i);         this_ubound = this%irp(i)+nz-1
                     ! Assign columns
-                    if(state == SPARSE_MATRIX_STATE_START) then
+                    if(is_start_state) then
                         A_GI%irp(i-num_row+1)             = A_XX_ubound+1
                         A_GI%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)
                         A_GI%nnz = A_GI%nnz + nz
@@ -1077,7 +1080,7 @@ contains
                 A_XX_lbound = A_GG%irp(i-num_row);   A_XX_ubound = A_GG%irp(i-num_row)+nz-1
                 this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
                 ! Assign columns
-                if(state == SPARSE_MATRIX_STATE_START) then
+                if(is_start_state) then
                     A_GG%irp(i-num_row+1)             = A_XX_ubound+1
                     A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
                     A_GG%nnz = A_GG%nnz + nz
@@ -1089,10 +1092,10 @@ contains
         enddo
         if(present(A_GI)) then
             call memrealloc(A_GI%nnz, A_GI%ja,   __FILE__, __LINE__)
-            if(state == SPARSE_MATRIX_STATE_START) call memrealloc(A_GI%nnz, A_GI%val,  __FILE__, __LINE__)
+            if(is_start_state) call memrealloc(A_GI%nnz, A_GI%val,  __FILE__, __LINE__)
         endif
         call memrealloc(A_GG%nnz, A_GG%ja,   __FILE__, __LINE__)
-        if(state == SPARSE_MATRIX_STATE_START)  call memrealloc(A_GG%nnz, A_GG%val,  __FILE__, __LINE__)
+        if(is_start_state)  call memrealloc(A_GG%nnz, A_GG%val,  __FILE__, __LINE__)
 
         call A_II%set_state_assembled()
         call A_IG%set_state_assembled()
@@ -1171,16 +1174,15 @@ contains
         integer(ip)                                        :: total_rows
         integer(ip)                                        :: sign
         integer(ip)                                        :: state
+        logical                                            :: is_start_state
         logical                                            :: symmetric
         logical                                            :: symmetric_storage
     !-----------------------------------------------------------------
         ! Check state
         state = A_II%get_state()
+        is_start_state = A_II%state_is_start()
         assert( state == A_IG%get_state() .and. state== A_GG%get_state())
-        if(present(A_GI)) then
-            assert(A_GI%get_state() == state)
-        endif
-        assert(state == SPARSE_MATRIX_STATE_START)
+        assert(is_start_state)
 
         ! Get properties from this sparse matrix
         total_rows = this%get_num_rows(); total_cols = this%get_num_cols(); sign = this%get_sign()
@@ -1190,7 +1192,7 @@ contains
         call A_II%set_properties(num_row, num_col, symmetric_storage, symmetric, sign)                          ! Symmetric
         call A_IG%set_properties(num_row,total_cols-num_col, .false., .false., SPARSE_MATRIX_SIGN_UNKNOWN)      ! Non symmetric
         if(present(A_GI)) then
-            assert(state == SPARSE_MATRIX_STATE_START)
+            assert(A_GI%get_state() == state)
             call A_GI%set_properties(total_rows-num_row, num_col, .false., .false., SPARSE_MATRIX_SIGN_UNKNOWN) ! Non symmetric
         endif
         call A_GG%set_properties(total_rows-num_row, total_cols-num_col, symmetric_storage, symmetric, sign)    ! Symmetric
@@ -1288,6 +1290,25 @@ contains
         if(present(A_GI)) call A_GI%set_state_assembled_symbolic()
         call A_GG%set_state_assembled_symbolic()
     end subroutine csr_sparse_matrix_split_2x2_symbolic_body
+
+
+    subroutine csr_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< A = [A C_T]
+    !<     [C  I ]
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),          intent(in)    :: this
+        integer,                         intent(in)    :: C_T_num_cols
+        integer,                         intent(in)    :: C_T_nz
+        integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
+        integer(ip),                     intent(in)    :: C_T_ja(C_T_nz)
+        integer,                         intent(in)    :: I_nz
+        integer(ip),                     intent(in)    :: I_ia(I_nz)
+        integer(ip),                     intent(in)    :: I_ja(I_nz)
+    !-----------------------------------------------------------------
+        assert(this%state_is_assembled())
+    end subroutine csr_sparse_matrix_expand_matrix_numeric
 
 
     subroutine csr_sparse_matrix_free_coords(this)
