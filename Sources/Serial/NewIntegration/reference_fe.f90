@@ -533,7 +533,6 @@ type face_integrator_t
    !type(list_t)               :: elem_to_face_enumeration(2)
  contains
    procedure, non_overridable :: create            => face_integrator_create
-   procedure, non_overridable :: create_boundary   => face_integrator_create_boundary
    procedure, non_overridable :: update            => face_integrator_update
    procedure, non_overridable :: free              => face_integrator_free
    procedure, non_overridable :: compute_characteristic_length                                    &

@@ -379,6 +379,7 @@ function fe_map_compute_h ( this, igaus, number_dimensions )
 
   integer(ip) :: idime, jdime
 
+  fe_map_compute_h = 0.0_rp
   do idime = 1, number_dimensions
      do jdime = 1, number_dimensions
         fe_map_compute_h(idime) = fe_map_compute_h(idime) + this%inv_jacobian(idime,jdime,igaus)**2.0_rp

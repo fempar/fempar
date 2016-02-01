@@ -9,6 +9,7 @@ subroutine create_face_array (this)
   type(face_topology_t), pointer :: face_topology
   type(finite_face_t)  , pointer :: face
 
+  class(reference_fe_t), pointer :: null_reference_fe_p
   ! Get the variables from the triangulation
   ! AH: Once we have the iterator and more intrincated triangulations, this will be not simply
   ! taking the raw values but only the active faces or the ones we are interested in
@@ -27,12 +28,13 @@ subroutine create_face_array (this)
           &                                this%reference_fe_geo_list(1)%p,                   &
           &                                this%reference_fe_geo_list(1)%p)
   end do
+  null_reference_fe_p => NULL()
   do i  = this%number_fe_spaces+1, 2*this%number_fe_spaces
      j = i - this%number_fe_spaces
      allocate( this%face_integrator(i)%p, stat = istat )
-     check(istat == 0)
-     call this%face_integrator(i)%p%create_boundary(this%reference_fe_phy_list(j)%p,          &
-          &                                         this%reference_fe_geo_list(1)%p)
+     check(istat == 0)     
+     call this%face_integrator(i)%p%create(this%reference_fe_phy_list(j)%p, null_reference_fe_p,  &
+          &                                this%reference_fe_geo_list(1)%p, null_reference_fe_p)
   end do
   ! Allocate the array of faces
   allocate (this%face_array(number_total_faces), stat = istat )
@@ -71,11 +73,10 @@ subroutine create_face_array (this)
      local_neigh_elem_id = 2
      face%neighbour_fe(local_neigh_elem_id)%p => NULL()
 
+     call face%create(this%number_fe_spaces)
      ! Assign the face integrator pointers 
      ! AH: notice that now they are pointing to the integrator corresponding to an interior face. 
      ! (This should be improved when we are able to construct the integrators on the fly)
-     allocate(face%face_integrator(this%number_fe_spaces),stat = istat)
-     check(istat == 0)
      do i = 1,  this%number_fe_spaces
         face%face_integrator(i)%p => this%face_integrator(this%number_fe_spaces+i)%p
      end do

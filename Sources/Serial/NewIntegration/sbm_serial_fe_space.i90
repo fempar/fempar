@@ -372,6 +372,13 @@ function get_number_interior_faces ( this )
   get_number_interior_faces = this%triangulation%number_interior_faces
 end function get_number_interior_faces
 
+function get_number_boundary_faces ( this )
+  implicit none
+  class(SB_serial_fe_space_t), intent(in) :: this
+  integer(ip)                 :: get_number_boundary_faces
+  get_number_boundary_faces = this%triangulation%number_boundary_faces
+end function get_number_boundary_faces
+
 function get_number_fe_spaces( this)
   implicit none
   class(SB_serial_fe_space_t), intent(in) :: this 

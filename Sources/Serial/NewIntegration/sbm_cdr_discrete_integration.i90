@@ -153,7 +153,7 @@ contains
     integer(ip)             , allocatable :: number_nodes_per_field(:)
 
     integer(ip)  :: igaus,inode,jnode,ioffset,joffset,ngaus
-    real(rp)     :: factor, h_length
+    real(rp)     :: factor, h_length, bcvalue
 
     real(rp)             :: shape_test_scalar, shape_trial_scalar
     type(vector_field_t) :: grad_test_scalar, grad_trial_scalar
@@ -165,7 +165,7 @@ contains
     integer(ip), pointer :: field_blocks(:)
     logical    , pointer :: field_coupling(:,:)
 
-    integer(ip)          :: ielem, iface, number_nodes, ineigh, jneigh
+    integer(ip)          :: ielem, iface, number_nodes, ineigh, jneigh, number_neighbours
     type(i1p_t), pointer :: elem2dof(:),test_elem2dof(:),trial_elem2dof(:)
     type(i1p_t), pointer :: bc_code(:)
     type(r1p_t), pointer :: bc_value(:)
@@ -242,32 +242,33 @@ contains
     write(*,*) __FILE__,__LINE__,2*number_nodes
     do iface = 1, fe_space%get_number_interior_faces()
 
-       write(*,*) __FILE__,__LINE__,iface,'------------------'
        facemat = 0.0_rp
        facevec = 0.0_rp
 
        face => fe_space%get_finite_face(iface)
+       number_neighbours = face%number_neighbours()
+       write(*,*) __FILE__,__LINE__,iface,'------------------'
        call face%update_integration()
        ngaus = quad%get_number_evaluation_points()
-       do i =1,2
+       do i =1,number_neighbours
           fe_face(i)%p => fe_space%get_finite_element_from_face(iface,i)
           !length(i) = fe_face(i)%p%compute_characteristic_length()
        end do
-       j =1
+       j = 1
        face_int => face%get_face_integrator(j)
        fe_map => face%get_face_map(j)
        quad   => face%get_face_quadrature(j)
        ngaus = quad%get_number_evaluation_points()
        do igaus = 1, ngaus
           call face_int%get_outside_normals(igaus,outside_normal)
-          h_length = face_int%compute_characteristic_length(igaus)
+          h_length = face_int%compute_characteristic_length(igaus,number_neighbours)
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
-          do ineigh = 1, 2
+          do ineigh = 1, number_neighbours
              do inode = 1, number_nodes_per_field(j)
                 !ioffset = number_nodes_per_field(j)*(ineigh-1) + inode
                 call face_int%get_value(inode,igaus,ineigh,shape_trial_scalar)
                 call face_int%get_gradient(inode,igaus,ineigh,grad_trial_scalar)
-                do jneigh = 1, 2
+                do jneigh = 1, number_neighbours
                    do jnode = 1, number_nodes_per_field(j)
                       !joffset = number_nodes_per_field(j)*(jneigh-1) + jnode
                       call face_int%get_value(jnode,igaus,jneigh,shape_test_scalar)
@@ -285,9 +286,9 @@ contains
              end do
           end do
        end do
-       do ineigh = 1, 2
+       do ineigh = 1, number_neighbours
           test_elem2dof => fe_face(ineigh)%p%get_elem2dof()
-          do jneigh = 1, 2
+          do jneigh = 1, number_neighbours
              trial_elem2dof => fe_face(jneigh)%p%get_elem2dof()
              call assembler%face_assembly(number_fe_spaces,number_nodes_per_field, number_nodes_per_field,&
                   &                  test_elem2dof,trial_elem2dof,field_blocks,field_coupling,       &
@@ -295,10 +296,57 @@ contains
           end do
        end do
     end do
-!!$    do inode = 1, 2*number_nodes_per_field(j)
-!!$       write(*,*) inode, '-------'
-!!$       write(*,*) elmat(1:8,inode)
-!!$    end do
+
+    do iface = fe_space%get_number_interior_faces() + 1, fe_space%get_number_interior_faces() +   &
+         &                                               fe_space%get_number_boundary_faces()
+
+       facemat = 0.0_rp
+       facevec = 0.0_rp
+
+       face => fe_space%get_finite_face(iface)
+       number_neighbours = face%number_neighbours()
+       write(*,*) __FILE__,__LINE__,iface,'------------------'
+       call face%update_integration()
+       ngaus = quad%get_number_evaluation_points()
+       do i =1,number_neighbours
+          fe_face(i)%p => fe_space%get_finite_element_from_face(iface,i)
+       end do
+       j = 1
+       face_int => face%get_face_integrator(j)
+       fe_map => face%get_face_map(j)
+       quad   => face%get_face_quadrature(j)
+       ngaus = quad%get_number_evaluation_points()
+       do igaus = 1, ngaus
+          call face_int%get_outside_normals(igaus,outside_normal)
+          h_length = face_int%compute_characteristic_length(igaus,number_neighbours)
+          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          do ineigh = 1, number_neighbours
+             do inode = 1, number_nodes_per_field(j)
+                call face_int%get_value(inode,igaus,ineigh,shape_trial_scalar)
+                call face_int%get_gradient(inode,igaus,ineigh,grad_trial_scalar)
+                do jneigh = 1, number_neighbours
+                   do jnode = 1, number_nodes_per_field(j)
+                      call face_int%get_value(jnode,igaus,jneigh,shape_test_scalar)
+                      call face_int%get_gradient(jnode,igaus,jneigh,grad_test_scalar)
+                      facemat(inode,jnode,ineigh,jneigh) = facemat(inode,jnode,ineigh,jneigh) +     &
+                           &  factor * this%viscosity *   &
+                           &  (-grad_test_scalar*outside_normal(ineigh)*shape_trial_scalar - &
+                           &   grad_trial_scalar*outside_normal(jneigh)*shape_test_scalar  + &
+                           &   this%c_IP / h_length * shape_test_scalar*shape_trial_scalar)
+                   end do
+                end do
+                bcvalue = 1.0_rp
+                facevec(inode,ineigh) = facevec(inode,ineigh) + factor * this%viscosity *           &
+                     &                  (bcvalue * grad_trial_scalar*outside_normal(jneigh) +       &
+                     &                  this%c_IP/h_length * bcvalue * shape_trial_scalar )
+             end do
+          end do
+       end do
+    end do
+    ! do inode = 1, 2*number_nodes_per_field(j)
+    !    write(*,*) inode, '-------'
+    !    write(*,*) elmat(1:8,inode)
+    ! end do
 
     call memfree ( facemat, __FILE__, __LINE__ )
     call memfree ( facevec, __FILE__, __LINE__ )
