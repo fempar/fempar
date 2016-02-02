@@ -801,7 +801,7 @@ contains
     !< A = [A C_T]
     !<     [C  I ]
     !-----------------------------------------------------------------
-        class(sparse_matrix_t),          intent(in)    :: this
+        class(sparse_matrix_t),          intent(inout) :: this
         integer,                         intent(in)    :: C_T_num_cols
         integer,                         intent(in)    :: C_T_nz
         integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)

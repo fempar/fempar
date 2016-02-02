@@ -968,7 +968,6 @@ contains
         endif
         assert(is_start_state  .or. A_II%state_is_assembled_symbolic())
 
-
         if(is_start_state) then
             ! Get properties from THIS sparse matrix
             total_rows = this%get_num_rows(); total_cols = this%get_num_cols(); sign = this%get_sign()
@@ -1298,7 +1297,7 @@ contains
     !< A = [A C_T]
     !<     [C  I ]
     !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t),          intent(in)    :: this
+        class(csr_sparse_matrix_t),      intent(inout) :: this
         integer,                         intent(in)    :: C_T_num_cols
         integer,                         intent(in)    :: C_T_nz
         integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
@@ -1306,8 +1305,157 @@ contains
         integer,                         intent(in)    :: I_nz
         integer(ip),                     intent(in)    :: I_ia(I_nz)
         integer(ip),                     intent(in)    :: I_ja(I_nz)
+        integer                                        :: i, j
+        integer                                        :: initial_num_rows
+        integer                                        :: initial_num_cols
+        integer                                        :: previous_ia
+        integer                                        :: previous_ja
+        integer                                        :: nz_per_row
+        integer                                        :: nz_offset
+        integer                                        :: current_row
+        integer                                        :: next_row
+        integer                                        :: next_row_start_col
+        integer                                        :: current_row_start_col
+        integer                                        :: C_irp(C_T_num_cols)
+        integer                                        :: I_irp(C_T_num_cols)
+        integer                                        :: nz_per_row_counter(C_T_num_cols)
+        logical                                        :: sorted
+        logical                                        :: symmetric_storage
     !-----------------------------------------------------------------
         assert(this%state_is_assembled())
+        if(C_T_num_cols < 1) return
+
+        initial_num_rows = this%get_num_rows()
+        initial_num_cols = this%get_num_cols()
+        symmetric_storage = this%get_symmetric_storage()
+        ! Check if (C_T) ia and ja arrays are sorted by rows
+        ! It also counts number or colums per row for C matrix
+        C_irp = 0
+        sorted = .true.
+        previous_ia = 0
+        previous_ja = 0
+        do i=1, C_T_nz
+            if(previous_ia /= C_T_ia(i)) previous_ja = 0
+            if((C_T_ia(i)>initial_num_rows) .or. (C_T_ja(i)>C_T_num_cols) .or. &
+               (previous_ia>C_T_ia(i)) .or. (previous_ja>=C_T_ja(i))) then
+                sorted = .false.
+                exit
+            endif
+            previous_ia = C_T_ia(i)
+            previous_ja = C_T_ja(i)
+            if(symmetric_storage) cycle
+            C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1
+        enddo
+        check(sorted)
+        ! Check if (I) ia and ja arrays are sorted by rows
+        ! It also counts number or colums per row for I matrix
+        I_irp = 0
+        previous_ia = 0
+        previous_ja = 0
+        do i=1, I_nz
+            if(previous_ia /= I_ia(i)) previous_ja = 0
+            if((previous_ia>I_ia(i)) .or. (previous_ja>=I_ja(i))) then
+                sorted = .false.
+                exit
+            endif
+            previous_ia = I_ia(i)
+            previous_ja = I_ja(i)
+            if(symmetric_storage .and. I_ia(i)>I_ja(i)) cycle
+            I_irp(I_ia(i)) = I_irp(I_ia(i)) + 1
+        enddo
+        check(sorted)
+
+        ! Realloc this%irp with the new number of rows and this%ja with the new number of nnz
+        call memrealloc(initial_num_rows+C_T_num_cols+1, this%irp, __FILE__, __LINE__)
+        call memrealloc(this%nnz+C_T_nz+sum(C_irp)+sum(I_irp), this%ja, __FILE__, __LINE__)
+        call memrealloc(this%nnz+C_T_nz+sum(C_irp)+sum(I_irp), this%val, __FILE__, __LINE__)
+
+        ! Loop to expand with C_T matrix (Add columns to existing rows)
+        nz_per_row = 0
+        do i=1,C_T_nz
+            nz_per_row = nz_per_row + 1
+            if(i==C_T_nz) then
+                nz_offset     = i-nz_per_row
+                next_row     = C_T_ia(i)+1
+                current_row_start_col = this%irp(next_row)
+                this%ja(current_row_start_col+i:this%nnz+i) = this%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
+                this%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
+                this%irp(next_row:) = this%irp(next_row:)+i
+                nz_per_row = 0
+            else if(C_T_ia(i) /= C_T_ia(i+1)) then
+                nz_offset     = i-nz_per_row
+                next_row     = C_T_ia(i)+1
+                current_row_start_col = this%irp(next_row)
+                current_row = C_T_ia(i+1)
+                this%ja(current_row_start_col+i:this%nnz+i) = this%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
+                this%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
+                this%irp(next_row:current_row) = this%irp(next_row:current_row)+i
+                nz_per_row = 0
+            endif
+        enddo
+        this%nnz = this%nnz + C_T_nz
+
+        ! Loop to expand with C  and I matrices (Append new rows)
+        nz_per_row_counter = 0
+        do i=1,C_T_num_cols
+            current_row = initial_num_rows+i+1
+            if(symmetric_storage) then
+                ! If symmetric_storage, only upper triangle of I matrix will be appended
+                nz_per_row = I_irp(i)
+                j = binary_search(i,I_nz,I_ia) ! Search the row i in I_ia
+                if(j>1) then ! Rewind if row was founded and is not the first index
+                    do while (j>2 .and. I_ia(j-1)==i)
+                        j = j-1
+                    enddo
+                endif
+                if(j/=-1) then
+                    do while (I_ia(j)==i)
+                        if(I_ja(j)>=I_ia(j)) then
+                            this%ja(this%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
+                            nz_per_row_counter(i) = nz_per_row_counter(i) + 1
+                        endif
+                        j = j+1
+                        if(j>I_nz) exit
+                    enddo
+                endif
+            else
+                ! If not symmetric_storage, both, C and I matrix will be appended
+                nz_per_row = C_irp(i)
+                ! C_T_ja are the rows of C
+                ! C_T_ia are the cols of C
+                do j=1,C_T_nz
+                    if(C_T_ja(j)==i) then
+                        this%ja(this%irp(current_row-1)+nz_per_row_counter(i)) = C_T_ia(j)
+                        nz_per_row_counter(i) = nz_per_row_counter(i) + 1
+                        if(nz_per_row_counter(i)>=nz_per_row) exit
+                    endif
+                enddo
+                nz_per_row = nz_per_row + I_irp(i)
+                j = binary_search(i,I_nz,I_ia) ! Search the row i in I_ia
+                if(j>1) then ! Rewind if row was founded and is not the first index
+                    do while (j>2 .and. I_ia(j-1)==i)
+                        j = j-1
+                    enddo
+                endif
+                if(j>=1) then
+                    do while (I_ia(j)==i)
+                        this%ja(this%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
+                        nz_per_row_counter(i) = nz_per_row_counter(i) + 1
+                        j = j+1
+                        if(j>I_nz .or. nz_per_row_counter(i)>=nz_per_row) exit
+                    enddo
+                endif
+            endif
+            this%irp(current_row) = this%irp(current_row-1)+nz_per_row_counter(i)
+            nz_per_row = 0
+        enddo
+
+        ! Update matrix properties
+        this%nnz = this%nnz + sum(nz_per_row_counter)
+        this%irp(initial_num_rows+C_T_num_cols+1) = this%nnz+1
+        call this%set_num_rows(initial_num_rows+C_T_num_cols)
+        call this%set_num_cols(initial_num_cols+C_T_num_cols)
+
     end subroutine csr_sparse_matrix_expand_matrix_numeric
 
 

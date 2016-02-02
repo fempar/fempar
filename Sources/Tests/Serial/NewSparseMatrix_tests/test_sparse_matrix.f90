@@ -1,4 +1,4 @@
-program test_coo_append
+program test_sparse_matrix
 
 USE types_names
 USE memor_names

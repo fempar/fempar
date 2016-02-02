@@ -127,6 +127,7 @@ implicit none
 
     call A_II%Free()
     call A_IG%Free()
+    call A_IG%Free()
     call A_GG%Free()
 
     call sparse_matrix%free_in_stages(free_clean)

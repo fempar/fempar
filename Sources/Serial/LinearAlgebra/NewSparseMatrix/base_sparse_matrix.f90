@@ -625,7 +625,7 @@ module base_sparse_matrix_names
         subroutine base_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
             import base_sparse_matrix_t
             import ip
-            class(base_sparse_matrix_t),     intent(in)    :: this
+            class(base_sparse_matrix_t),     intent(inout) :: this
             integer,                         intent(in)    :: C_T_num_cols
             integer,                         intent(in)    :: C_T_nz
             integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
@@ -4347,7 +4347,7 @@ contains
     !< A = [A C_T]
     !<     [C  I ]
     !-----------------------------------------------------------------
-        class(coo_sparse_matrix_t),      intent(in)    :: this
+        class(coo_sparse_matrix_t),      intent(inout) :: this
         integer,                         intent(in)    :: C_T_num_cols
         integer,                         intent(in)    :: C_T_nz
         integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
