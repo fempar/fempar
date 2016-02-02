@@ -123,6 +123,7 @@ module base_sparse_matrix_names
         procedure(base_sparse_matrix_split_2x2_symbolic),        public, deferred :: split_2x2_symbolic
         procedure(base_sparse_matrix_split_2x2_numeric),         public, deferred :: split_2x2_numeric
         procedure(base_sparse_matrix_expand_matrix_numeric),     public, deferred :: expand_matrix_numeric
+        procedure(base_sparse_matrix_expand_matrix_symbolic),    public, deferred :: expand_matrix_symbolic
         procedure(base_sparse_matrix_print_matrix_market_body),  public, deferred :: print_matrix_market_body
         procedure(base_sparse_matrix_free_coords),               public, deferred :: free_coords
         procedure(base_sparse_matrix_free_val),                  public, deferred :: free_val
@@ -321,6 +322,7 @@ module base_sparse_matrix_names
         procedure, public :: split_2x2_symbolic                      => coo_sparse_matrix_split_2x2_symbolic
         procedure, public :: split_2x2_numeric                       => coo_sparse_matrix_split_2x2_numeric
         procedure, public :: expand_matrix_numeric                   => coo_sparse_matrix_expand_matrix_numeric
+        procedure, public :: expand_matrix_symbolic                  => coo_sparse_matrix_expand_matrix_symbolic
         procedure, public :: is_by_rows                              => coo_sparse_matrix_is_by_rows
         procedure, public :: is_by_cols                              => coo_sparse_matrix_is_by_cols
         procedure, public :: set_nnz                                 => coo_sparse_matrix_set_nnz
@@ -622,7 +624,23 @@ module base_sparse_matrix_names
             class(base_sparse_matrix_t),           intent(inout) :: A_GG
         end subroutine base_sparse_matrix_split_2x2_numeric
 
-        subroutine base_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
+        subroutine base_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val)
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t),     intent(inout) :: this
+            integer,                         intent(in)    :: C_T_num_cols
+            integer,                         intent(in)    :: C_T_nz
+            integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
+            integer(ip),                     intent(in)    :: C_T_ja(C_T_nz)
+            real(rp),                        intent(in)    :: C_T_val(C_T_nz)
+            integer(ip),                     intent(in)    :: I_nz
+            integer(ip),                     intent(in)    :: I_ia(I_nz)
+            integer(ip),                     intent(in)    :: I_ja(I_nz)
+            real(rp),                        intent(in)    :: I_val(C_T_nz)
+        end subroutine base_sparse_matrix_expand_matrix_numeric
+
+        subroutine base_sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
             import base_sparse_matrix_t
             import ip
             class(base_sparse_matrix_t),     intent(inout) :: this
@@ -633,7 +651,7 @@ module base_sparse_matrix_names
             integer(ip),                     intent(in)    :: I_nz
             integer(ip),                     intent(in)    :: I_ia(I_nz)
             integer(ip),                     intent(in)    :: I_ja(I_nz)
-        end subroutine base_sparse_matrix_expand_matrix_numeric
+        end subroutine base_sparse_matrix_expand_matrix_symbolic
 
         subroutine base_sparse_matrix_free_coords(this)
             import base_sparse_matrix_t
@@ -4341,7 +4359,28 @@ contains
     end subroutine coo_sparse_matrix_split_2x2_symbolic
 
 
-    subroutine coo_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
+    subroutine coo_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< A = [A C_T]
+    !<     [C  I ]
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),      intent(inout) :: this
+        integer,                         intent(in)    :: C_T_num_cols
+        integer,                         intent(in)    :: C_T_nz
+        integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
+        integer(ip),                     intent(in)    :: C_T_ja(C_T_nz)
+        real(rp),                        intent(in)    :: C_T_val(C_T_nz)
+        integer,                         intent(in)    :: I_nz
+        integer(ip),                     intent(in)    :: I_ia(I_nz)
+        integer(ip),                     intent(in)    :: I_ja(I_nz)
+        real(rp),                        intent(in)    :: I_val(C_T_nz)
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine coo_sparse_matrix_expand_matrix_numeric
+
+
+    subroutine coo_sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
@@ -4357,7 +4396,7 @@ contains
         integer(ip),                     intent(in)    :: I_ja(I_nz)
     !-----------------------------------------------------------------
         check(.false.)
-    end subroutine coo_sparse_matrix_expand_matrix_numeric
+    end subroutine coo_sparse_matrix_expand_matrix_symbolic
 
 
     subroutine coo_sparse_matrix_copy_to_coo(this, to)
