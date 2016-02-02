@@ -796,13 +796,13 @@ contains
     end subroutine sparse_matrix_split_2x2_symbolic
 
 
-    subroutine sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val)
+    subroutine sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
     !<     [C  I ]
     !-----------------------------------------------------------------
-        class(sparse_matrix_t),          intent(inout) :: this
+        class(sparse_matrix_t),          intent(in)    :: this
         integer,                         intent(in)    :: C_T_num_cols
         integer,                         intent(in)    :: C_T_nz
         integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
@@ -812,12 +812,17 @@ contains
         integer(ip),                     intent(in)    :: I_ia(I_nz)
         integer(ip),                     intent(in)    :: I_ja(I_nz)
         real(rp),                        intent(in)    :: I_val(C_T_nz)
+        class(sparse_matrix_t),          intent(inout) :: to
     !-----------------------------------------------------------------
-        call this%State%expand_matrix_numeric(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val)
+        assert(allocated(this%State))
+        if(.not. allocated(to%State)) allocate(to%State, mold=this%State)
+
+        call this%State%expand_matrix_numeric(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to%State)
+        call to%create_vector_spaces()
     end subroutine sparse_matrix_expand_matrix_numeric
 
 
-    subroutine sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
+    subroutine sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
@@ -831,8 +836,13 @@ contains
         integer,                         intent(in)    :: I_nz
         integer(ip),                     intent(in)    :: I_ia(I_nz)
         integer(ip),                     intent(in)    :: I_ja(I_nz)
+        class(sparse_matrix_t),          intent(inout) :: to
     !-----------------------------------------------------------------
-        call this%State%expand_matrix_symbolic(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
+        assert(allocated(this%State))
+        if(.not. allocated(to%State)) allocate(to%State, mold=this%State)
+
+        call this%State%expand_matrix_symbolic(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to%State)
+        call to%create_vector_spaces()
     end subroutine sparse_matrix_expand_matrix_symbolic
 
 

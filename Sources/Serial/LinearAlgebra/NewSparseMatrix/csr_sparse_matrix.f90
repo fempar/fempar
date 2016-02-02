@@ -54,6 +54,8 @@ private
         procedure         :: split_2x2_numeric_body                  => csr_sparse_matrix_split_2x2_numeric_body
         procedure, public :: expand_matrix_numeric                   => csr_sparse_matrix_expand_matrix_numeric
         procedure, public :: expand_matrix_symbolic                  => csr_sparse_matrix_expand_matrix_symbolic
+        procedure         :: expand_matrix_numeric_body              => csr_sparse_matrix_expand_matrix_numeric_body
+        procedure         :: expand_matrix_symbolic_body             => csr_sparse_matrix_expand_matrix_symbolic_body
         procedure, public :: free_coords                             => csr_sparse_matrix_free_coords
         procedure, public :: free_val                                => csr_sparse_matrix_free_val
         procedure, public :: apply_body                              => csr_sparse_matrix_apply_body
@@ -1292,13 +1294,13 @@ contains
     end subroutine csr_sparse_matrix_split_2x2_symbolic_body
 
 
-    subroutine csr_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val)
+    subroutine csr_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
     !<     [C  I ]
     !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t),      intent(inout) :: this
+        class(csr_sparse_matrix_t),      intent(in)    :: this
         integer,                         intent(in)    :: C_T_num_cols
         integer,                         intent(in)    :: C_T_nz
         integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
@@ -1308,6 +1310,34 @@ contains
         integer(ip),                     intent(in)    :: I_ia(I_nz)
         integer(ip),                     intent(in)    :: I_ja(I_nz)
         real(rp),                        intent(in)    :: I_val(C_T_nz)
+        class(base_sparse_matrix_t),     intent(inout) :: to
+    !-----------------------------------------------------------------
+        select type (to)
+            type is (csr_sparse_matrix_t)
+                call this%expand_matrix_numeric_body(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
+            class DEFAULT
+                check(.false.)
+        end select
+    end subroutine csr_sparse_matrix_expand_matrix_numeric
+
+
+    subroutine csr_sparse_matrix_expand_matrix_numeric_body(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< A = [A C_T]
+    !<     [C  I ]
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),      intent(in)    :: this
+        integer,                         intent(in)    :: C_T_num_cols
+        integer,                         intent(in)    :: C_T_nz
+        integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
+        integer(ip),                     intent(in)    :: C_T_ja(C_T_nz)
+        real(rp),                        intent(in)    :: C_T_val(C_T_nz)
+        integer,                         intent(in)    :: I_nz
+        integer(ip),                     intent(in)    :: I_ia(I_nz)
+        integer(ip),                     intent(in)    :: I_ja(I_nz)
+        real(rp),                        intent(in)    :: I_val(C_T_nz)
+        class(csr_sparse_matrix_t),      intent(inout) :: to
         integer                                        :: i, j
         integer                                        :: initial_num_rows
         integer                                        :: initial_num_cols
@@ -1326,6 +1356,7 @@ contains
         logical                                        :: symmetric_storage
     !-----------------------------------------------------------------
         assert(this%state_is_assembled())
+        assert(to%state_is_start())
         if(C_T_num_cols < 1) return
 
         initial_num_rows = this%get_num_rows()
@@ -1368,10 +1399,21 @@ contains
         enddo
         check(sorted)
 
-        ! Realloc this%irp with the new number of rows and this%ja with the new number of nnz
-        call memrealloc(initial_num_rows+C_T_num_cols+1, this%irp, __FILE__, __LINE__)
-        call memrealloc(this%nnz+C_T_nz+sum(C_irp)+sum(I_irp), this%ja, __FILE__, __LINE__)
-        call memrealloc(this%nnz+C_T_nz+sum(C_irp)+sum(I_irp), this%val, __FILE__, __LINE__)
+        ! Set properties to the expanded matrix
+        call to%set_properties(num_rows = initial_num_rows+C_T_num_cols, &
+                               num_cols = initial_num_cols+C_T_num_cols, &
+                               symmetric_storage = symmetric_storage,    &
+                               is_symmetric = this%is_symmetric(),           &
+                               sign = SPARSE_MATRIX_SIGN_INDEFINITE)
+
+        ! Realloc to%irp with the new number of rows and to%ja with the new number of nnz
+        call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
+        call memalloc(this%nnz+C_T_nz+sum(C_irp)+sum(I_irp), to%ja, __FILE__, __LINE__)
+        call memalloc(this%nnz+C_T_nz+sum(C_irp)+sum(I_irp), to%val, __FILE__, __LINE__)
+
+        to%irp(:initial_num_rows+1) = this%irp(:initial_num_rows+1)
+        to%ja(:this%nnz) = this%ja(:this%nnz)
+        to%val(:this%nnz) = this%val(:this%nnz)
 
         ! Loop to expand with C_T matrix (Add columns to existing rows)
         nz_per_row = 0
@@ -1380,27 +1422,27 @@ contains
             if(i==C_T_nz) then
                 nz_offset     = i-nz_per_row
                 next_row     = C_T_ia(i)+1
-                current_row_start_col = this%irp(next_row)
-                this%ja(current_row_start_col+i:this%nnz+i) = this%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
-                this%val(current_row_start_col+i:this%nnz+i) = this%val(current_row_start_col+nz_offset:this%nnz+nz_offset)
-                this%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
-                this%val(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_val(nz_offset+1:i)
-                this%irp(next_row:) = this%irp(next_row:)+i
+                current_row_start_col = to%irp(next_row)
+                to%ja(current_row_start_col+i:this%nnz+i) = to%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
+                to%val(current_row_start_col+i:this%nnz+i) = to%val(current_row_start_col+nz_offset:this%nnz+nz_offset)
+                to%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
+                to%val(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_val(nz_offset+1:i)
+                to%irp(next_row:) = to%irp(next_row:)+i
                 nz_per_row = 0
             else if(C_T_ia(i) /= C_T_ia(i+1)) then
                 nz_offset     = i-nz_per_row
                 next_row     = C_T_ia(i)+1
-                current_row_start_col = this%irp(next_row)
+                current_row_start_col = to%irp(next_row)
                 current_row = C_T_ia(i+1)
-                this%ja(current_row_start_col+i:this%nnz+i) = this%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
-                this%val(current_row_start_col+i:this%nnz+i) = this%val(current_row_start_col+nz_offset:this%nnz+nz_offset)
-                this%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
-                this%val(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_val(nz_offset+1:i)
-                this%irp(next_row:current_row) = this%irp(next_row:current_row)+i
+                to%ja(current_row_start_col+i:this%nnz+i) = to%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
+                to%val(current_row_start_col+i:this%nnz+i) = to%val(current_row_start_col+nz_offset:this%nnz+nz_offset)
+                to%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
+                to%val(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_val(nz_offset+1:i)
+                to%irp(next_row:current_row) = to%irp(next_row:current_row)+i
                 nz_per_row = 0
             endif
         enddo
-        this%nnz = this%nnz + C_T_nz
+        to%nnz = this%nnz + C_T_nz
 
         ! Loop to expand with C  and I matrices (Append new rows)
         nz_per_row_counter = 0
@@ -1418,8 +1460,8 @@ contains
                 if(j/=-1) then
                     do while (I_ia(j)==i)
                         if(I_ja(j)>=I_ia(j)) then
-                            this%ja(this%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
-                            this%val(this%irp(current_row-1)+nz_per_row_counter(i)) = I_val(j)
+                            to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
+                            to%val(to%irp(current_row-1)+nz_per_row_counter(i)) = I_val(j)
                             nz_per_row_counter(i) = nz_per_row_counter(i) + 1
                         endif
                         j = j+1
@@ -1433,8 +1475,8 @@ contains
                 ! C_T_ia are the cols of C
                 do j=1,C_T_nz
                     if(C_T_ja(j)==i) then
-                        this%ja(this%irp(current_row-1)+nz_per_row_counter(i)) = C_T_ia(j)
-                        this%val(this%irp(current_row-1)+nz_per_row_counter(i)) = C_T_val(j)
+                        to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = C_T_ia(j)
+                        to%val(to%irp(current_row-1)+nz_per_row_counter(i)) = C_T_val(j)
                         nz_per_row_counter(i) = nz_per_row_counter(i) + 1
                         if(nz_per_row_counter(i)>=nz_per_row) exit
                     endif
@@ -1448,34 +1490,34 @@ contains
                 endif
                 if(j>=1) then
                     do while (I_ia(j)==i)
-                        this%ja(this%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
-                        this%val(this%irp(current_row-1)+nz_per_row_counter(i)) = I_val(j)
+                        to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
+                        to%val(to%irp(current_row-1)+nz_per_row_counter(i)) = I_val(j)
                         nz_per_row_counter(i) = nz_per_row_counter(i) + 1
                         j = j+1
                         if(j>I_nz .or. nz_per_row_counter(i)>=nz_per_row) exit
                     enddo
                 endif
             endif
-            this%irp(current_row) = this%irp(current_row-1)+nz_per_row_counter(i)
+            to%irp(current_row) = to%irp(current_row-1)+nz_per_row_counter(i)
             nz_per_row = 0
         enddo
 
         ! Update matrix properties
-        this%nnz = this%nnz + sum(nz_per_row_counter)
-        this%irp(initial_num_rows+C_T_num_cols+1) = this%nnz+1
-        call this%set_num_rows(initial_num_rows+C_T_num_cols)
-        call this%set_num_cols(initial_num_cols+C_T_num_cols)
+        to%nnz = to%nnz + sum(nz_per_row_counter)
+        to%irp(initial_num_rows+C_T_num_cols+1) = to%nnz+1
+        call to%set_num_rows(initial_num_rows+C_T_num_cols)
+        call to%set_num_cols(initial_num_cols+C_T_num_cols)
+        call to%set_state_assembled()
+    end subroutine csr_sparse_matrix_expand_matrix_numeric_body
 
-    end subroutine csr_sparse_matrix_expand_matrix_numeric
 
-
-    subroutine csr_sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja)
+    subroutine csr_sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
     !<     [C  I ]
     !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t),      intent(inout) :: this
+        class(csr_sparse_matrix_t),      intent(in)    :: this
         integer,                         intent(in)    :: C_T_num_cols
         integer,                         intent(in)    :: C_T_nz
         integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
@@ -1483,6 +1525,32 @@ contains
         integer,                         intent(in)    :: I_nz
         integer(ip),                     intent(in)    :: I_ia(I_nz)
         integer(ip),                     intent(in)    :: I_ja(I_nz)
+        class(base_sparse_matrix_t),     intent(inout) :: to
+    !-----------------------------------------------------------------
+        select type (to)
+            type is (csr_sparse_matrix_t)
+                call this%expand_matrix_symbolic_body(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
+            class DEFAULT
+                check(.false.)
+        end select
+    end subroutine csr_sparse_matrix_expand_matrix_symbolic
+
+
+    subroutine csr_sparse_matrix_expand_matrix_symbolic_body(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< A = [A C_T]
+    !<     [C  I ]
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),      intent(in)    :: this
+        integer,                         intent(in)    :: C_T_num_cols
+        integer,                         intent(in)    :: C_T_nz
+        integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
+        integer(ip),                     intent(in)    :: C_T_ja(C_T_nz)
+        integer,                         intent(in)    :: I_nz
+        integer(ip),                     intent(in)    :: I_ia(I_nz)
+        integer(ip),                     intent(in)    :: I_ja(I_nz)
+        class(csr_sparse_matrix_t),      intent(inout) :: to
         integer                                        :: i, j
         integer                                        :: initial_num_rows
         integer                                        :: initial_num_cols
@@ -1500,7 +1568,8 @@ contains
         logical                                        :: sorted
         logical                                        :: symmetric_storage
     !-----------------------------------------------------------------
-        assert(this%state_is_assembled_symbolic())
+        assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
+        assert(to%state_is_start())
         if(C_T_num_cols < 1) return
 
         initial_num_rows = this%get_num_rows()
@@ -1543,9 +1612,19 @@ contains
         enddo
         check(sorted)
 
-        ! Realloc this%irp with the new number of rows and this%ja with the new number of nnz
-        call memrealloc(initial_num_rows+C_T_num_cols+1, this%irp, __FILE__, __LINE__)
-        call memrealloc(this%nnz+C_T_nz+sum(C_irp)+sum(I_irp), this%ja, __FILE__, __LINE__)
+        ! Set properties to the expanded matrix
+        call to%set_properties(num_rows = initial_num_rows+C_T_num_cols, &
+                               num_cols = initial_num_cols+C_T_num_cols, &
+                               symmetric_storage = symmetric_storage,    &
+                               is_symmetric = this%is_symmetric(),           &
+                               sign = SPARSE_MATRIX_SIGN_INDEFINITE)
+
+        ! Realloc to%irp with the new number of rows and to%ja with the new number of nnz
+        call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
+        call memalloc(this%nnz+C_T_nz+sum(C_irp)+sum(I_irp), to%ja, __FILE__, __LINE__)
+
+        to%irp(:initial_num_rows+1) = this%irp(:initial_num_rows+1)
+        to%ja(:this%nnz) = this%ja(:this%nnz)
 
         ! Loop to expand with C_T matrix (Add columns to existing rows)
         nz_per_row = 0
@@ -1554,23 +1633,23 @@ contains
             if(i==C_T_nz) then
                 nz_offset     = i-nz_per_row
                 next_row     = C_T_ia(i)+1
-                current_row_start_col = this%irp(next_row)
-                this%ja(current_row_start_col+i:this%nnz+i) = this%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
-                this%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
-                this%irp(next_row:) = this%irp(next_row:)+i
+                current_row_start_col = to%irp(next_row)
+                to%ja(current_row_start_col+i:this%nnz+i) = to%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
+                to%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
+                to%irp(next_row:) = to%irp(next_row:)+i
                 nz_per_row = 0
             else if(C_T_ia(i) /= C_T_ia(i+1)) then
                 nz_offset     = i-nz_per_row
                 next_row     = C_T_ia(i)+1
-                current_row_start_col = this%irp(next_row)
+                current_row_start_col = to%irp(next_row)
                 current_row = C_T_ia(i+1)
-                this%ja(current_row_start_col+i:this%nnz+i) = this%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
-                this%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
-                this%irp(next_row:current_row) = this%irp(next_row:current_row)+i
+                to%ja(current_row_start_col+i:this%nnz+i) = to%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
+                to%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
+                to%irp(next_row:current_row) = to%irp(next_row:current_row)+i
                 nz_per_row = 0
             endif
         enddo
-        this%nnz = this%nnz + C_T_nz
+        to%nnz = this%nnz + C_T_nz
 
         ! Loop to expand with C  and I matrices (Append new rows)
         nz_per_row_counter = 0
@@ -1588,7 +1667,7 @@ contains
                 if(j/=-1) then
                     do while (I_ia(j)==i)
                         if(I_ja(j)>=I_ia(j)) then
-                            this%ja(this%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
+                            to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
                             nz_per_row_counter(i) = nz_per_row_counter(i) + 1
                         endif
                         j = j+1
@@ -1602,7 +1681,7 @@ contains
                 ! C_T_ia are the cols of C
                 do j=1,C_T_nz
                     if(C_T_ja(j)==i) then
-                        this%ja(this%irp(current_row-1)+nz_per_row_counter(i)) = C_T_ia(j)
+                        to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = C_T_ia(j)
                         nz_per_row_counter(i) = nz_per_row_counter(i) + 1
                         if(nz_per_row_counter(i)>=nz_per_row) exit
                     endif
@@ -1616,24 +1695,24 @@ contains
                 endif
                 if(j>=1) then
                     do while (I_ia(j)==i)
-                        this%ja(this%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
+                        to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
                         nz_per_row_counter(i) = nz_per_row_counter(i) + 1
                         j = j+1
                         if(j>I_nz .or. nz_per_row_counter(i)>=nz_per_row) exit
                     enddo
                 endif
             endif
-            this%irp(current_row) = this%irp(current_row-1)+nz_per_row_counter(i)
+            to%irp(current_row) = to%irp(current_row-1)+nz_per_row_counter(i)
             nz_per_row = 0
         enddo
 
         ! Update matrix properties
-        this%nnz = this%nnz + sum(nz_per_row_counter)
-        this%irp(initial_num_rows+C_T_num_cols+1) = this%nnz+1
-        call this%set_num_rows(initial_num_rows+C_T_num_cols)
-        call this%set_num_cols(initial_num_cols+C_T_num_cols)
-
-    end subroutine csr_sparse_matrix_expand_matrix_symbolic
+        to%nnz = to%nnz + sum(nz_per_row_counter)
+        to%irp(initial_num_rows+C_T_num_cols+1) = to%nnz+1
+        call to%set_num_rows(initial_num_rows+C_T_num_cols)
+        call to%set_num_cols(initial_num_cols+C_T_num_cols)
+        call to%set_state_assembled_symbolic()
+    end subroutine csr_sparse_matrix_expand_matrix_symbolic_body
 
 
     subroutine csr_sparse_matrix_free_coords(this)
