@@ -1343,15 +1343,19 @@ contains
         integer                                        :: initial_num_cols
         integer                                        :: previous_ia
         integer                                        :: previous_ja
+        integer                                        :: new_nz
         integer                                        :: nz_per_row
+        integer                                        :: current_nz_per_row
         integer                                        :: nz_offset
+        integer                                        :: last_visited_row
         integer                                        :: current_row
         integer                                        :: next_row
-        integer                                        :: next_row_start_col
-        integer                                        :: current_row_start_col
+        integer                                        :: next_row_offset
+        integer                                        :: last_visited_row_offset
         integer                                        :: C_irp(C_T_num_cols)
         integer                                        :: I_irp(C_T_num_cols)
         integer                                        :: nz_per_row_counter(C_T_num_cols)
+        integer                                        :: nz_counter
         logical                                        :: sorted
         logical                                        :: symmetric_storage
     !-----------------------------------------------------------------
@@ -1362,8 +1366,10 @@ contains
         initial_num_rows = this%get_num_rows()
         initial_num_cols = this%get_num_cols()
         symmetric_storage = this%get_symmetric_storage()
-        ! Check if (C_T) ia and ja arrays are sorted by rows
-        ! It also counts number or colums per row for C matrix
+    !-----------------------------------------------------------------
+    ! Check if (C_T) ia and ja arrays are sorted by rows
+    ! It also counts number or colums per row for C matrix
+    !-----------------------------------------------------------------
         C_irp = 0
         sorted = .true.
         previous_ia = 0
@@ -1381,8 +1387,10 @@ contains
             C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1
         enddo
         check(sorted)
-        ! Check if (I) ia and ja arrays are sorted by rows
-        ! It also counts number or colums per row for I matrix
+    !-----------------------------------------------------------------
+    ! Check if (I) ia and ja arrays are sorted by rows
+    ! It also counts number or colums per row for I matrix
+    !-----------------------------------------------------------------
         I_irp = 0
         previous_ia = 0
         previous_ja = 0
@@ -1398,53 +1406,77 @@ contains
             I_irp(I_ia(i)) = I_irp(I_ia(i)) + 1
         enddo
         check(sorted)
-
-        ! Set properties to the expanded matrix
+    !-----------------------------------------------------------------
+    ! Set properties to the expanded matrix
+    !-----------------------------------------------------------------
         call to%set_properties(num_rows = initial_num_rows+C_T_num_cols, &
                                num_cols = initial_num_cols+C_T_num_cols, &
                                symmetric_storage = symmetric_storage,    &
                                is_symmetric = this%is_symmetric(),           &
                                sign = SPARSE_MATRIX_SIGN_INDEFINITE)
-
-        ! Realloc to%irp with the new number of rows and to%ja with the new number of nnz
+    !-----------------------------------------------------------------
+    ! Realloc to%irp with the new number of rows and to%ja with the new number of nnz
+    !-----------------------------------------------------------------
+        new_nz=this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
         call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
-        call memalloc(this%nnz+C_T_nz+sum(C_irp)+sum(I_irp), to%ja, __FILE__, __LINE__)
-        call memalloc(this%nnz+C_T_nz+sum(C_irp)+sum(I_irp), to%val, __FILE__, __LINE__)
+        call memalloc(new_nz, to%ja, __FILE__, __LINE__)
+        call memalloc(new_nz, to%val, __FILE__, __LINE__)
 
-        to%irp(:initial_num_rows+1) = this%irp(:initial_num_rows+1)
-        to%ja(:this%nnz) = this%ja(:this%nnz)
-        to%val(:this%nnz) = this%val(:this%nnz)
+    !-----------------------------------------------------------------
+    ! Expand  C_T matrix (Add columns to existing rows)
+    !-----------------------------------------------------------------
+        ! Initialize irp
+        to%irp(:initial_num_rows) = this%irp(:initial_num_rows)
 
-        ! Loop to expand with C_T matrix (Add columns to existing rows)
+        ! If the current_row of C_T is different to 1: Copy the original ja from 1:current_row_offset
+        nz_counter = 0
+        current_row = C_T_ia(1)
+        if(current_row/=1) then
+            nz_counter = this%irp(current_row)-this%irp(1)
+            to%ja(1:nz_counter) = this%ja(this%irp(1):this%irp(current_row)-1)
+            to%val(1:nz_counter) = this%val(this%irp(1):this%irp(current_row)-1)
+        endif
+        last_visited_row = current_row
+
+        ! Loop over C_T to expand the matrix
         nz_per_row = 0
+        current_nz_per_row = 0
         do i=1,C_T_nz
-            nz_per_row = nz_per_row + 1
-            if(i==C_T_nz) then
-                nz_offset     = i-nz_per_row
-                next_row     = C_T_ia(i)+1
-                current_row_start_col = to%irp(next_row)
-                to%ja(current_row_start_col+i:this%nnz+i) = to%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
-                to%val(current_row_start_col+i:this%nnz+i) = to%val(current_row_start_col+nz_offset:this%nnz+nz_offset)
-                to%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
-                to%val(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_val(nz_offset+1:i)
-                to%irp(next_row:) = to%irp(next_row:)+i
-                nz_per_row = 0
-            else if(C_T_ia(i) /= C_T_ia(i+1)) then
-                nz_offset     = i-nz_per_row
-                next_row     = C_T_ia(i)+1
-                current_row_start_col = to%irp(next_row)
-                current_row = C_T_ia(i+1)
-                to%ja(current_row_start_col+i:this%nnz+i) = to%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
-                to%val(current_row_start_col+i:this%nnz+i) = to%val(current_row_start_col+nz_offset:this%nnz+nz_offset)
-                to%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
-                to%val(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_val(nz_offset+1:i)
-                to%irp(next_row:current_row) = to%irp(next_row:current_row)+i
-                nz_per_row = 0
+            nz_per_row = nz_per_row+1
+            if(i/=C_T_nz) then
+                if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
             endif
-        enddo
-        to%nnz = this%nnz + C_T_nz
 
-        ! Loop to expand with C  and I matrices (Append new rows)
+            current_row             = C_T_ia(i)                                           ! current row or C_T
+            next_row                = current_row+1                                       ! next row of C_T
+            last_visited_row_offset = this%irp(last_visited_row)                          ! ja offset for the last visited row of C_T
+            next_row_offset         = this%irp(next_row)                                  ! ja offset for the next row of C_T 
+            current_nz_per_row      = next_row_offset-last_visited_row_offset             ! Number of nnz per row before expanding the matrix
+            ! Append new existing into the current row of the expanded matrix
+            to%ja(nz_counter+1:nz_counter+current_nz_per_row) = this%ja(last_visited_row_offset:next_row_offset-1)
+            to%val(nz_counter+1:nz_counter+current_nz_per_row) = this%val(last_visited_row_offset:next_row_offset-1)
+            nz_counter = nz_counter+current_nz_per_row
+            ! Append new columns into the current row of the expanded matrix
+            to%ja(nz_counter+1:nz_counter+nz_per_row) = C_T_ja(i-nz_per_row+1:i) + initial_num_cols
+            to%val(nz_counter+1:nz_counter+nz_per_row) = C_T_val(i-nz_per_row+1:i)
+            nz_counter = nz_counter + nz_per_row
+            ! Add the new nnz to irp
+            to%irp(next_row:initial_num_rows) = to%irp(next_row:initial_num_rows) + nz_per_row
+            nz_per_row = 0
+            last_visited_row  = next_row
+        enddo
+
+        to%nnz = this%nnz + C_T_nz
+        ! If the last visited row is not the last row append the rest of the ja values
+        if(last_visited_row/=initial_num_rows+1) then
+            to%ja(nz_counter+1:to%nnz) = this%ja(this%irp(last_visited_row):this%irp(initial_num_rows+1)-1)
+            to%val(nz_counter+1:to%nnz) = this%val(this%irp(last_visited_row):this%irp(initial_num_rows+1)-1)
+        endif
+        to%irp(initial_num_rows+1) = to%nnz+1
+
+    !-----------------------------------------------------------------
+    ! Loop to expand with C  and I matrices (Append new rows)
+    !-----------------------------------------------------------------        
         nz_per_row_counter = 0
         do i=1,C_T_num_cols
             current_row = initial_num_rows+i+1
@@ -1501,8 +1533,9 @@ contains
             to%irp(current_row) = to%irp(current_row-1)+nz_per_row_counter(i)
             nz_per_row = 0
         enddo
-
-        ! Update matrix properties
+    !-----------------------------------------------------------------    
+    ! Update matrix properties
+    !-----------------------------------------------------------------    
         to%nnz = to%nnz + sum(nz_per_row_counter)
         to%irp(initial_num_rows+C_T_num_cols+1) = to%nnz+1
         call to%set_num_rows(initial_num_rows+C_T_num_cols)
@@ -1556,15 +1589,19 @@ contains
         integer                                        :: initial_num_cols
         integer                                        :: previous_ia
         integer                                        :: previous_ja
+        integer                                        :: new_nz
         integer                                        :: nz_per_row
+        integer                                        :: current_nz_per_row
         integer                                        :: nz_offset
+        integer                                        :: last_visited_row
         integer                                        :: current_row
         integer                                        :: next_row
-        integer                                        :: next_row_start_col
-        integer                                        :: current_row_start_col
+        integer                                        :: next_row_offset
+        integer                                        :: last_visited_row_offset
         integer                                        :: C_irp(C_T_num_cols)
         integer                                        :: I_irp(C_T_num_cols)
         integer                                        :: nz_per_row_counter(C_T_num_cols)
+        integer                                        :: nz_counter
         logical                                        :: sorted
         logical                                        :: symmetric_storage
     !-----------------------------------------------------------------
@@ -1575,8 +1612,10 @@ contains
         initial_num_rows = this%get_num_rows()
         initial_num_cols = this%get_num_cols()
         symmetric_storage = this%get_symmetric_storage()
-        ! Check if (C_T) ia and ja arrays are sorted by rows
-        ! It also counts number or colums per row for C matrix
+    !-----------------------------------------------------------------
+    ! Check if (C_T) ia and ja arrays are sorted by rows
+    ! It also counts number or colums per row for C matrix
+    !-----------------------------------------------------------------
         C_irp = 0
         sorted = .true.
         previous_ia = 0
@@ -1594,8 +1633,10 @@ contains
             C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1
         enddo
         check(sorted)
-        ! Check if (I) ia and ja arrays are sorted by rows
-        ! It also counts number or colums per row for I matrix
+    !-----------------------------------------------------------------
+    ! Check if (I) ia and ja arrays are sorted by rows
+    ! It also counts number or colums per row for I matrix
+    !-----------------------------------------------------------------
         I_irp = 0
         previous_ia = 0
         previous_ja = 0
@@ -1611,47 +1652,73 @@ contains
             I_irp(I_ia(i)) = I_irp(I_ia(i)) + 1
         enddo
         check(sorted)
-
-        ! Set properties to the expanded matrix
+    !-----------------------------------------------------------------
+    ! Set properties to the expanded matrix
+    !-----------------------------------------------------------------
         call to%set_properties(num_rows = initial_num_rows+C_T_num_cols, &
                                num_cols = initial_num_cols+C_T_num_cols, &
                                symmetric_storage = symmetric_storage,    &
                                is_symmetric = this%is_symmetric(),           &
                                sign = SPARSE_MATRIX_SIGN_INDEFINITE)
-
-        ! Realloc to%irp with the new number of rows and to%ja with the new number of nnz
+    !-----------------------------------------------------------------
+    ! Realloc to%irp with the new number of rows and to%ja with the new number of nnz
+    !-----------------------------------------------------------------
+        new_nz=this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
         call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
-        call memalloc(this%nnz+C_T_nz+sum(C_irp)+sum(I_irp), to%ja, __FILE__, __LINE__)
+        call memalloc(new_nz, to%ja, __FILE__, __LINE__)
 
-        to%irp(:initial_num_rows+1) = this%irp(:initial_num_rows+1)
-        to%ja(:this%nnz) = this%ja(:this%nnz)
+    !-----------------------------------------------------------------
+    ! Expand  C_T matrix (Add columns to existing rows)
+    !-----------------------------------------------------------------
+        ! Initialize irp
+        to%irp(:initial_num_rows) = this%irp(:initial_num_rows)
 
-        ! Loop to expand with C_T matrix (Add columns to existing rows)
+        ! If the current_row of C_T is different to 1: Copy the original ja from 1:current_row_offset
+        nz_counter = 0
+        current_row = C_T_ia(1)
+        if(current_row/=1) then
+            nz_counter = this%irp(current_row)-this%irp(1)
+            to%ja(1:nz_counter) = this%ja(this%irp(1):this%irp(current_row)-1)
+        endif
+        last_visited_row = current_row
+
+        ! Loop over C_T to expand the matrix
         nz_per_row = 0
+        current_nz_per_row = 0
         do i=1,C_T_nz
-            nz_per_row = nz_per_row + 1
-            if(i==C_T_nz) then
-                nz_offset     = i-nz_per_row
-                next_row     = C_T_ia(i)+1
-                current_row_start_col = to%irp(next_row)
-                to%ja(current_row_start_col+i:this%nnz+i) = to%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
-                to%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
-                to%irp(next_row:) = to%irp(next_row:)+i
-                nz_per_row = 0
-            else if(C_T_ia(i) /= C_T_ia(i+1)) then
-                nz_offset     = i-nz_per_row
-                next_row     = C_T_ia(i)+1
-                current_row_start_col = to%irp(next_row)
-                current_row = C_T_ia(i+1)
-                to%ja(current_row_start_col+i:this%nnz+i) = to%ja(current_row_start_col+nz_offset:this%nnz+nz_offset)
-                to%ja(current_row_start_col+nz_offset:current_row_start_col+i-1) = C_T_ja(nz_offset+1:i) + initial_num_cols
-                to%irp(next_row:current_row) = to%irp(next_row:current_row)+i
-                nz_per_row = 0
+            nz_per_row = nz_per_row+1
+            if(i/=C_T_nz) then
+                if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
             endif
-        enddo
-        to%nnz = this%nnz + C_T_nz
 
-        ! Loop to expand with C  and I matrices (Append new rows)
+            current_row             = C_T_ia(i)                                           ! current row or C_T
+            next_row                = current_row+1                                       ! next row of C_T
+            last_visited_row_offset = this%irp(last_visited_row)                          ! ja offset for the last visited row of C_T
+            next_row_offset         = this%irp(next_row)                                  ! ja offset for the next row of C_T 
+            current_nz_per_row      = next_row_offset-last_visited_row_offset             ! Number of nnz per row before expanding the matrix
+            ! Append new existing into the current row of the expanded matrix
+            to%ja(nz_counter+1:nz_counter+current_nz_per_row) = this%ja(last_visited_row_offset:next_row_offset-1)
+            nz_counter = nz_counter+current_nz_per_row
+            ! Append new columns into the current row of the expanded matrix
+            to%ja(nz_counter+1:nz_counter+nz_per_row) = C_T_ja(i-nz_per_row+1:i) + initial_num_cols
+            nz_counter = nz_counter + nz_per_row
+            ! Add the new nnz to irp
+            to%irp(next_row:initial_num_rows) = to%irp(next_row:initial_num_rows) + nz_per_row
+            nz_per_row = 0
+            last_visited_row  = next_row
+        enddo
+
+        to%nnz = this%nnz + C_T_nz
+        ! If the last visited row is not the last row append the rest of the ja values
+        if(last_visited_row/=initial_num_rows+1) then
+            to%ja(nz_counter+1:to%nnz) = this%ja(this%irp(last_visited_row):this%irp(initial_num_rows+1)-1)
+        endif
+        to%irp(initial_num_rows+1) = to%nnz+1
+
+
+    !-----------------------------------------------------------------
+    ! Loop to expand with C  and I matrices (Append new rows)
+    !-----------------------------------------------------------------
         nz_per_row_counter = 0
         do i=1,C_T_num_cols
             current_row = initial_num_rows+i+1
@@ -1706,7 +1773,9 @@ contains
             nz_per_row = 0
         enddo
 
-        ! Update matrix properties
+    !-----------------------------------------------------------------
+    ! Update matrix properties
+    !-----------------------------------------------------------------
         to%nnz = to%nnz + sum(nz_per_row_counter)
         to%irp(initial_num_rows+C_T_num_cols+1) = to%nnz+1
         call to%set_num_rows(initial_num_rows+C_T_num_cols)
