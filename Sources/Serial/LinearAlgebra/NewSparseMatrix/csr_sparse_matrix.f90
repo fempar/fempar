@@ -25,7 +25,6 @@ private
         procedure, public :: is_by_cols                              => csr_sparse_matrix_is_by_cols
         procedure, public :: set_nnz                                 => csr_sparse_matrix_set_nnz
         procedure, public :: get_nnz                                 => csr_sparse_matrix_get_nnz
-        procedure, public :: set_properties                          => csr_sparse_matrix_set_properties
         procedure, public :: copy_to_coo                             => csr_sparse_matrix_copy_to_coo
         procedure, public :: copy_from_coo                           => csr_sparse_matrix_copy_from_coo
         procedure, public :: move_to_coo                             => csr_sparse_matrix_move_to_coo
@@ -110,29 +109,6 @@ contains
     !-----------------------------------------------------------------
         is_by_cols = .false.
     end function csr_sparse_matrix_is_by_cols
-
-
-    subroutine csr_sparse_matrix_set_properties(this,num_rows, num_cols,symmetric_storage,is_symmetric,sign)
-    !-----------------------------------------------------------------
-    !< Set the properties and size of a square matrix
-    !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t), intent(inout) :: this
-        integer(ip),                intent(in)    :: num_rows
-        integer(ip),                intent(in)    :: num_cols
-        logical,                    intent(in)    :: symmetric_storage
-        logical,                    intent(in)    :: is_symmetric
-        integer(ip),                intent(in)    :: sign
-    !-----------------------------------------------------------------
-        assert(this%state_is_start() )
-        if(symmetric_storage) then
-            assert(is_symmetric)
-        endif
-        call this%set_symmetric_storage(symmetric_storage)
-        call this%set_symmetry(is_symmetric)
-        call this%set_sign(sign)
-        call this%set_num_rows(num_rows)
-        call this%set_num_cols(num_cols)
-    end subroutine csr_sparse_matrix_set_properties
 
 
     subroutine csr_sparse_matrix_copy_to_coo(this, to)
@@ -977,12 +953,16 @@ contains
             symmetric = this%is_symmetric(); symmetric_storage = this%get_symmetric_storage()
     
             ! Set properties to all submatrices
-            call A_II%set_properties(num_row, num_col, symmetric_storage, symmetric, sign)                          ! Symmetric
-            call A_IG%set_properties(num_row,total_cols-num_col, .false., .false., SPARSE_MATRIX_SIGN_UNKNOWN)      ! Non symmetric
+            call A_II%set_properties(symmetric_storage, symmetric, sign)               ! Symmetric
+            call A_II%set_num_rows(num_row); call A_II%set_num_cols(num_col)
+            call A_IG%set_properties(.false., .false., SPARSE_MATRIX_SIGN_UNKNOWN)     ! Non symmetric
+            call A_IG%set_num_rows(num_row); call A_IG%set_num_cols(total_cols-num_col)
             if(present(A_GI)) then
-                call A_GI%set_properties(total_rows-num_row, num_col, .false., .false., SPARSE_MATRIX_SIGN_UNKNOWN) ! Non symmetric
+                call A_GI%set_properties(.false., .false., SPARSE_MATRIX_SIGN_UNKNOWN) ! Non symmetric
+                call A_GI%set_num_rows(total_rows-num_row); call A_GI%set_num_cols(num_col)
             endif
-            call A_GG%set_properties(total_rows-num_row, total_cols-num_col, symmetric_storage, symmetric, sign)    ! Symmetric
+            call A_GG%set_properties(symmetric_storage, symmetric, sign)               ! Symmetric
+            call A_GG%set_num_rows(total_rows-num_row); call A_GG%set_num_cols(total_cols-num_col)
     
             ! Allocate irp, ja and val arrays of all submatrices
             nz = this%irp(num_row+1)-1  ! nnz after num_row
@@ -1191,13 +1171,16 @@ contains
         symmetric = this%is_symmetric(); symmetric_storage = this%get_symmetric_storage()
 
         ! Set properties to all submatrices
-        call A_II%set_properties(num_row, num_col, symmetric_storage, symmetric, sign)                          ! Symmetric
-        call A_IG%set_properties(num_row,total_cols-num_col, .false., .false., SPARSE_MATRIX_SIGN_UNKNOWN)      ! Non symmetric
+        call A_II%set_properties(symmetric_storage, symmetric, sign)               ! Symmetric
+        call A_II%set_num_rows(num_row); call A_II%set_num_cols(num_col)
+        call A_IG%set_properties(.false., .false., SPARSE_MATRIX_SIGN_UNKNOWN)     ! Non symmetric
+        call A_IG%set_num_rows(num_row); call A_IG%set_num_cols(total_cols-num_col)
         if(present(A_GI)) then
-            assert(A_GI%get_state() == state)
-            call A_GI%set_properties(total_rows-num_row, num_col, .false., .false., SPARSE_MATRIX_SIGN_UNKNOWN) ! Non symmetric
+            call A_GI%set_properties(.false., .false., SPARSE_MATRIX_SIGN_UNKNOWN) ! Non symmetric
+            call A_GI%set_num_rows(total_rows-num_row); call A_GI%set_num_cols(num_col)
         endif
-        call A_GG%set_properties(total_rows-num_row, total_cols-num_col, symmetric_storage, symmetric, sign)    ! Symmetric
+        call A_GG%set_properties(symmetric_storage, symmetric, sign)               ! Symmetric
+        call A_GG%set_num_rows(total_rows-num_row); call A_GG%set_num_cols(total_cols-num_col)
 
         ! Allocate irp, ja and val arrays of all submatrices
         nz = this%irp(num_row+1)-1  ! nnz after num_row
@@ -1426,11 +1409,10 @@ contains
     !-----------------------------------------------------------------
     ! Set properties to the expanded matrix
     !-----------------------------------------------------------------
-        call to%set_properties(num_rows = initial_num_rows+C_T_num_cols, &
-                               num_cols = initial_num_cols+C_T_num_cols, &
-                               symmetric_storage = symmetric_storage,    &
-                               is_symmetric = this%is_symmetric(),           &
+        call to%set_properties(symmetric_storage = symmetric_storage,    &
+                               is_symmetric = this%is_symmetric(),       &
                                sign = SPARSE_MATRIX_SIGN_INDEFINITE)
+
     !-----------------------------------------------------------------
     ! Realloc to%irp with the new number of rows and to%ja with the new number of nnz
     !-----------------------------------------------------------------
@@ -1690,11 +1672,10 @@ contains
     !-----------------------------------------------------------------
     ! Set properties to the expanded matrix
     !-----------------------------------------------------------------
-        call to%set_properties(num_rows = initial_num_rows+C_T_num_cols, &
-                               num_cols = initial_num_cols+C_T_num_cols, &
-                               symmetric_storage = symmetric_storage,    &
-                               is_symmetric = this%is_symmetric(),           &
+        call to%set_properties(symmetric_storage = symmetric_storage,    &
+                               is_symmetric = this%is_symmetric(),       &
                                sign = SPARSE_MATRIX_SIGN_INDEFINITE)
+
     !-----------------------------------------------------------------
     ! Realloc to%irp with the new number of rows and to%ja with the new number of nnz
     !-----------------------------------------------------------------
