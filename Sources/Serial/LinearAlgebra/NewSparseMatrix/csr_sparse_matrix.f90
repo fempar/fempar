@@ -1323,9 +1323,25 @@ contains
 
     subroutine csr_sparse_matrix_expand_matrix_numeric_body(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
     !-----------------------------------------------------------------
-    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO format
     !< A = [A C_T]
     !<     [C  I ]
+    !< Some considerations:
+    !<  - C = transpose(C_T)
+    !<  - I is a square matrix
+    !<  - THIS (input) sparse matrix must be in ASSEMBLED state
+    !<  - TO (output) sparse matrix must be in START state
+    !<  - C_T coordinate arrays (C_T_ia, C_T_ja and C_T_val) must 
+    !<    have the same size (C_T_nz)
+    !<  - I coordinate arrays (I_ia, I_ja and I_val) must 
+    !<    have the same size (I_nz)
+    !<  - Row index arrays (X_ia) must be in ascendent order
+    !<  - Column index arrays (X_ja) must be in ascendent order for 
+    !<    each row
+    !<  - For each C_T row index (C_T_ia): 1<=C_T_ia(i)<=this%get_num_rows()
+    !<  - For each C_T column index (C_T_ja): 1<=C_T_ja(i)<=C_T_num_cols
+    !<  - For each I row and column index (I_ia and I_ja): 
+    !<    1<=I_ia(i) and I_ia(i)<=C_T_num_cols
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t),      intent(in)    :: this
         integer,                         intent(in)    :: C_T_num_cols
@@ -1336,7 +1352,7 @@ contains
         integer,                         intent(in)    :: I_nz
         integer(ip),                     intent(in)    :: I_ia(I_nz)
         integer(ip),                     intent(in)    :: I_ja(I_nz)
-        real(rp),                        intent(in)    :: I_val(C_T_nz)
+        real(rp),                        intent(in)    :: I_val(I_nz)
         class(csr_sparse_matrix_t),      intent(inout) :: to
         integer                                        :: i, j
         integer                                        :: initial_num_rows
@@ -1372,7 +1388,7 @@ contains
     !-----------------------------------------------------------------
         C_irp = 0
         sorted = .true.
-        previous_ia = 0
+        previous_ia = 1
         previous_ja = 0
         do i=1, C_T_nz
             if(previous_ia /= C_T_ia(i)) previous_ja = 0
@@ -1392,11 +1408,12 @@ contains
     ! It also counts number or colums per row for I matrix
     !-----------------------------------------------------------------
         I_irp = 0
-        previous_ia = 0
+        previous_ia = 1
         previous_ja = 0
         do i=1, I_nz
             if(previous_ia /= I_ia(i)) previous_ja = 0
-            if((previous_ia>I_ia(i)) .or. (previous_ja>=I_ja(i))) then
+            if((I_ia(i)>C_T_num_cols) .or. (I_ja(i)>C_T_num_cols) .or. &
+               (previous_ia>I_ia(i)) .or. (previous_ja>=I_ja(i))) then
                 sorted = .false.
                 exit
             endif
@@ -1574,6 +1591,23 @@ contains
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
     !<     [C  I ]
+    !< Some considerations:
+    !<  - C = transpose(C_T)
+    !<  - I is a square matrix
+    !<  - THIS (input sparse matrix must be in ASSEMBLED or 
+    !<    ASSEMBLED_SYMBOLIC state
+    !<  - TO (output) sparse matrix must be in START state
+    !<  - C_T coordinate arrays (C_T_ia, C_T_ja and C_T_val) must 
+    !<    have the same size (C_T_nz)
+    !<  - I coordinate arrays (I_ia, I_ja and I_val) must 
+    !<    have the same size (I_nz)
+    !<  - Row index arrays (X_ia) must be in ascendent order
+    !<  - Column index arrays (X_ja) must be in ascendent order for 
+    !<    each row
+    !<  - For each C_T row index (C_T_ia): 1<=C_T_ia(i)<=this%get_num_rows()
+    !<  - For each C_T column index (C_T_ja): 1<=C_T_ja(i)<=C_T_num_cols
+    !<  - For each I row and column index (I_ia and I_ja): 
+    !<    1<=I_ia(i) and I_ia(i)<=C_T_num_cols
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t),      intent(in)    :: this
         integer,                         intent(in)    :: C_T_num_cols
@@ -1618,7 +1652,7 @@ contains
     !-----------------------------------------------------------------
         C_irp = 0
         sorted = .true.
-        previous_ia = 0
+        previous_ia = 1
         previous_ja = 0
         do i=1, C_T_nz
             if(previous_ia /= C_T_ia(i)) previous_ja = 0
@@ -1638,11 +1672,12 @@ contains
     ! It also counts number or colums per row for I matrix
     !-----------------------------------------------------------------
         I_irp = 0
-        previous_ia = 0
+        previous_ia = 1
         previous_ja = 0
         do i=1, I_nz
             if(previous_ia /= I_ia(i)) previous_ja = 0
-            if((previous_ia>I_ia(i)) .or. (previous_ja>=I_ja(i))) then
+            if((I_ia(i)>C_T_num_cols) .or. (I_ja(i)>C_T_num_cols) .or. &
+               (previous_ia>I_ia(i)) .or. (previous_ja>=I_ja(i))) then
                 sorted = .false.
                 exit
             endif
