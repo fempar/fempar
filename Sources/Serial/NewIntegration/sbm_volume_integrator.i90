@@ -212,64 +212,8 @@ end subroutine fe_map_face_map_create
        call memfree(wmat1,__FILE__,__LINE__)
        call memfree(wmat2,__FILE__,__LINE__)
     end if
+
   end subroutine fe_map_update
-
-  !==================================================================================================
-  subroutine fe_map_update_on_face( this, quadrature, cell_coordinates)
-    !-----------------------------------------------------------------------
-    ! A map obtained from the (usually isoparametric) interpolation of the geometry
-    !-----------------------------------------------------------------------
-    implicit none    
-    class(fe_map_t)      , intent(inout) :: this
-    type(SB_quadrature_t), intent(in)    :: quadrature
-    real(rp)             , intent(in)    :: cell_coordinates(:,:)
-    
-    ! Locals
-    real(rp), allocatable :: wmat1(:,:,:)
-    real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
-    real(rp)    :: hnatu
-    real(rp)    :: enor0,h_tem
-    integer(ip) :: ndime,nnode,nlocs,ntens
-    integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens
-    logical     :: khes
-
-    khes = .false.
-    if ( allocated( this%interpolation_geometry%hessian ) ) then 
-       khes = .true.
-    end if
-
-    ndime = this%interpolation_geometry%number_dimensions
-    nnode = size(this%interpolation_geometry%shape_functions,1)
-    nlocs = quadrature%number_evaluation_points
-
-    do ilocs=1,nlocs
-       ! Matmul is not thread safe
-       !map%jacob(:,:,ilocs)=matmul(elcod,transpose(int%deriv(:,:,ilocs)))
-       this%jacobian(:,:,ilocs)=0.0_rp
-       do inode=1,nnode
-          do jdime=1,ndime
-             do idime=1,ndime
-                this%jacobian(idime,jdime,ilocs) = this%jacobian(idime,jdime,ilocs)               &
-                     &                            + cell_coordinates(idime,inode) *               &
-                     &            this%interpolation_geometry%shape_derivatives(jdime,inode,ilocs)
-             end do
-          end do
-       end do
-       ! J^(-t)
-       call invmtx(this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs),ndime)
-    end do
-
-    ! Evaluation (Gauss) point coordinates
-    do ilocs=1,nlocs
-       this%coordinates_points(:,ilocs)=0.0_rp
-       do inode=1,nnode
-          do idime=1,ndime
-             this%coordinates_points(idime,ilocs) = this%coordinates_points(idime,ilocs) &
-                  + cell_coordinates(idime,inode)*this%interpolation_geometry%shape_functions(inode,ilocs)
-          end do
-       end do
-    end do
-  end subroutine fe_map_update_on_face
 
 !==================================================================================================
 subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature,   &
@@ -375,7 +319,7 @@ function fe_map_compute_h ( this, igaus, number_dimensions )
   class(fe_map_t), intent(in) :: this
   integer(ip)    , intent(in) :: igaus
   integer(ip)    , intent(in) :: number_dimensions
-  real(rp) :: fe_map_compute_h(number_dimensions)
+  real(rp)                    :: fe_map_compute_h(3)
 
   integer(ip) :: idime, jdime
 
@@ -460,7 +404,6 @@ subroutine volume_integrator_get_value_scalar (this, ishape, qpoint, scalar_fiel
   integer(ip)                  , intent(in)    :: ishape
   integer(ip)                  , intent(in)    :: qpoint
   real(rp)                     , intent(out)   :: scalar_field
-  !type(scalar_field_t)         , intent(out)   :: scalar_field
   assert( this%reference_fe%field_type == field_type_scalar )
   call this%reference_fe%get_value(this%interpolation_o_map,ishape,qpoint,scalar_field)
 end subroutine volume_integrator_get_value_scalar

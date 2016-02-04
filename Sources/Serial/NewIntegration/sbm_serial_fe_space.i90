@@ -394,14 +394,6 @@ function get_finite_element( this, i )
   get_finite_element => this%fe_array(i)
 end function get_finite_element
 
-function get_finite_element_from_face( this, iface, local_neighbour_elem )
-  implicit none
-  class(SB_serial_fe_space_t), target, intent(in) :: this
-  integer(ip) , intent(in) :: iface, local_neighbour_elem
-  type(SB_finite_element_t), pointer :: get_finite_element_from_face
-  get_finite_element_from_face => this%face_array(iface)%neighbour_fe(local_neighbour_elem)%p
-end function get_finite_element_from_face
-
 function get_finite_face( this, i )
   implicit none
   class(SB_serial_fe_space_t), target, intent(in) :: this

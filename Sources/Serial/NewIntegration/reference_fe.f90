@@ -234,17 +234,6 @@ module reference_fe_names
        integer(ip), optional, intent(in)    :: max_order
      end subroutine create_quadrature_interface
  
-     ! subroutine create_quadrature_on_faces_interface ( this, face_quadrature, quadrature,           &
-     !      elem_to_face_enumeration, max_order )
-     !   import :: reference_fe_t, SB_quadrature_t, list_t, ip
-     !   implicit none 
-     !   class(reference_fe_t), intent(in)    :: this
-     !   type(SB_quadrature_t), intent(in)    :: face_quadrature
-     !   type(SB_quadrature_t), intent(inout) :: quadrature
-     !   type(list_t)         , intent(inout) :: elem_to_face_enumeration
-     !   integer(ip), optional, intent(in)    :: max_order
-     ! end subroutine create_quadrature_on_faces_interface
-
      subroutine create_face_quadrature_interface ( this, quadrature, max_order  )
        import :: reference_fe_t, SB_quadrature_t, ip
        implicit none
@@ -271,14 +260,13 @@ module reference_fe_names
      end subroutine create_face_local_interpolation_interface
 
      subroutine create_face_interpolation_interface ( this, local_face_id , local_quadrature,       &
-          &                                           face_interpolation,elem_to_face_enumeration)
-       import :: reference_fe_t, ip, SB_quadrature_t, SB_interpolation_t, list_t
+          &                                           face_interpolation)
+       import :: reference_fe_t, ip, SB_quadrature_t, SB_interpolation_t
        implicit none 
        class(reference_fe_t)     , intent(in)    :: this
        integer(ip)               , intent(in)    :: local_face_id
        type(SB_quadrature_t)     , intent(in)    :: local_quadrature
        type(SB_interpolation_t)  , intent(inout) :: face_interpolation
-       type(list_t)    , optional, intent(in)    :: elem_to_face_enumeration
      end subroutine create_face_interpolation_interface
      
      function get_bc_component_node_interface( this, node )
@@ -298,7 +286,6 @@ module reference_fe_names
        integer(ip)             , intent(in)  :: ishape
        integer(ip)             , intent(in)  :: qpoint
        real(rp)                , intent(out) :: scalar_field
-       !type(scalar_field_t)    , intent(out) :: scalar_field
      end subroutine get_value_scalar_interface
      
      subroutine get_value_vector_interface( this, actual_cell_interpolation, ishape, qpoint,        &
@@ -342,14 +329,6 @@ module reference_fe_names
        integer(ip), intent(inout) :: o2n(:)
      end subroutine permute_order_vef_interface
 
-     function compute_characteristic_length_interface( this, inverse_h, igaus )
-       import :: reference_fe_t, rp, ip
-       implicit none 
-       class(reference_fe_t), intent(in) :: this 
-       real(rp)             , intent(in) :: inverse_h(this%number_dimensions)
-       integer(ip)          , intent(in) :: igaus
-       real(rp)  :: compute_characteristic_length_interface 
-     end function compute_characteristic_length_interface
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -413,7 +392,6 @@ contains
   procedure, non_overridable :: create_on_face   => fe_map_create_on_face
   procedure, non_overridable :: face_map_create  => fe_map_face_map_create
   procedure, non_overridable :: update           => fe_map_update
-  procedure, non_overridable :: update_on_face   => fe_map_update_on_face
   procedure, non_overridable :: face_map_update  => fe_map_face_map_update
   procedure, non_overridable :: free             => fe_map_free
   procedure, non_overridable :: print            => fe_map_print
@@ -430,6 +408,17 @@ end type p_fe_map_t
 
 public :: fe_map_t, p_fe_map_t
 
+
+abstract interface
+   function compute_characteristic_length_interface( this, fe_map, igaus)
+     import :: reference_fe_t, fe_map_t, ip, rp
+     implicit none 
+     class(reference_fe_t), intent(in) :: this 
+     type(fe_map_t)       , intent(in) :: fe_map
+     integer(ip)          , intent(in) :: igaus
+     real(rp)  :: compute_characteristic_length_interface 
+   end function compute_characteristic_length_interface
+end interface
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 type SB_volume_integrator_t 
@@ -526,11 +515,9 @@ type face_integrator_t
    type(face_interpolation_t) :: face_interpolation(2)
    type(fe_map_t)             :: face_map
    type(face_map_t)           :: fe_maps(2)
-   !type(fe_map_t)             :: fe_map(2)
    type(SB_quadrature_t)      :: quadrature
    type(p_reference_fe_t)     :: reference_fe(2)
    real(rp)     , allocatable :: coordinates(:,:)
-   !type(list_t)               :: elem_to_face_enumeration(2)
  contains
    procedure, non_overridable :: create            => face_integrator_create
    procedure, non_overridable :: update            => face_integrator_update

@@ -24,12 +24,10 @@ subroutine finite_face_update_integration( this )
      if (this%is_boundary()) then
         call this%face_integrator(i)%p%update(this%face_topology%relative_face,                   &
              &                           this%neighbour_fe(1)%p%reference_fe_geo,                 &
-             &                           this%neighbour_fe(1)%p%reference_fe_phy(i)%p,            &
              &                           this%neighbour_fe(1)%p%cell%coordinates)
      else
         call this%face_integrator(i)%p%update(this%face_topology%relative_face,                   &
              &                           this%neighbour_fe(1)%p%reference_fe_geo,                 &
-             &                           this%neighbour_fe(1)%p%reference_fe_phy(i)%p,            &
              &                           this%neighbour_fe(1)%p%cell%coordinates,                 &
              &                           this%neighbour_fe(2)%p%cell%coordinates)
      end if
@@ -71,6 +69,15 @@ function finite_face_number_neighbours(this)
      finite_face_number_neighbours = 2
   end if
 end function finite_face_number_neighbours
+
+!==================================================================================================
+function finite_face_get_elem2dof(this,i)
+  implicit none
+  class(finite_face_t), target, intent(in) :: this
+  integer(ip)                 , intent(in) :: i
+  type(i1p_t)                    , pointer :: finite_face_get_elem2dof(:)
+  finite_face_get_elem2dof => this%neighbour_fe(i)%p%get_elem2dof()
+end function finite_face_get_elem2dof
 
 !==================================================================================================
 function finite_face_get_face_map(this,i)

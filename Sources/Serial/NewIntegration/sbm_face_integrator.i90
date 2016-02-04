@@ -33,7 +33,7 @@ subroutine face_map_update( this, local_face_id, quadrature, cell_coordinates)
   real(rp)             , intent(in)    :: cell_coordinates(:,:)
 
   this%active_face_id = local_face_id
-  call this%fe_map(local_face_id)%update_on_face(quadrature, cell_coordinates)
+  call this%fe_map(local_face_id)%update(quadrature, cell_coordinates)
 
 end subroutine face_map_update
 
@@ -137,7 +137,6 @@ subroutine face_integrator_create(this,left_reference_fe,right_reference_fe,left
   integer(ip)        , optional , intent(in)    :: max_order
 
   integer(ip)           :: number_nodes_face, number_nodes_face_scalar, aux_vef_dimension(5)
-  type(SB_quadrature_t) :: quadrature_on_faces
 
   call this%free()
 
@@ -191,24 +190,19 @@ subroutine face_integrator_free(this)
 end subroutine face_integrator_free
 
 !==================================================================================================
-subroutine face_integrator_update(this,local_face_id,left_reference_fe_geo,left_reference_fe_phy, &
+subroutine face_integrator_update(this,local_face_id,left_reference_fe_geo,                       &
      &                            left_neighbour_coordinates,right_neighbour_coordinates)
   implicit none
   ! Parameters
   class(face_integrator_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: local_face_id(2)
   class(reference_fe_t)   , intent(in)    :: left_reference_fe_geo
-  class(reference_fe_t)   , intent(in)    :: left_reference_fe_phy
   real(rp)                , intent(in)    :: left_neighbour_coordinates(:,:)
   real(rp)      , optional, intent(in)    :: right_neighbour_coordinates(:,:)
-  !class(elem_topology_t)  , intent(in)    :: left_neighbour_topology
 
-  integer(ip) :: i,aux_vef_dimension(5), local_vef_id
-  integer(ip) :: number_corners_face_geo, local_element_corner
-  !integer(ip) :: number_nodes_face_geo, local_element_node
-  integer(ip) :: idime, coord_element_node, number_nodes_face_scalar,face_node_scalar
+  integer(ip)           :: i,aux_vef_dimension(5), local_vef_id
+  integer(ip)           :: number_corners_face_geo, local_element_corner
   type(list_t), pointer :: corners_vef
-  !type(list_t), pointer :: nodes_vef
 
   ! This is using corners_vef and assuming that the geometrical reference element is linear.
   aux_vef_dimension = left_reference_fe_geo%get_number_vefs_dimension()
@@ -236,17 +230,17 @@ end subroutine face_integrator_update
 
 !=================================================================================================
 function face_integrator_compute_characteristic_length(this,igaus, number_neighbours)
+  implicit none
   class(face_integrator_t), target, intent(in) :: this
   integer(ip)                     , intent(in) :: igaus, number_neighbours
   real(rp) :: face_integrator_compute_characteristic_length
 
-  real(rp)    :: inverse_h(this%reference_fe(1)%p%number_dimensions), h(number_neighbours)
+  real(rp)    :: inverse_h(3), h(number_neighbours)
   integer(ip) :: i
   type(fe_map_t), pointer :: fe_map
   do i = 1, number_neighbours
      fe_map => this%fe_maps(i)%fe_map(this%fe_maps(i)%active_face_id)
-     inverse_h = fe_map%compute_h(igaus,this%reference_fe(i)%p%number_dimensions)
-     h(i) = this%reference_fe(i)%p%compute_characteristic_length(inverse_h, igaus)
+     h(i) = this%reference_fe(i)%p%compute_characteristic_length(fe_map, igaus)
   end do
   face_integrator_compute_characteristic_length = minval(h)
      
@@ -254,6 +248,7 @@ end function face_integrator_compute_characteristic_length
 
 !=================================================================================================
 function face_integrator_get_face_map(this)
+  implicit none
   class(face_integrator_t), target, intent(in) :: this
   type(fe_map_t)          , pointer            :: face_integrator_get_face_map
   face_integrator_get_face_map => this%face_map
@@ -261,6 +256,7 @@ end function face_integrator_get_face_map
 
 !=================================================================================================
 function face_integrator_get_face_quadrature(this)
+  implicit none
   class(face_integrator_t), target, intent(in) :: this
   type(SB_quadrature_t)   , pointer            :: face_integrator_get_face_quadrature
   face_integrator_get_face_quadrature => this%quadrature

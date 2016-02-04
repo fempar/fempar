@@ -143,7 +143,6 @@ contains
     class(SB_assembler_t)                      , intent(inout) :: assembler
 
     type(SB_finite_element_t)   , pointer :: fe
-    type(p_SB_finite_element_t)           :: fe_face(2)
     type(finite_face_t)         , pointer :: face
     type(SB_volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
     type(face_integrator_t)     , pointer :: face_int
@@ -249,11 +248,7 @@ contains
        number_neighbours = face%number_neighbours()
        write(*,*) __FILE__,__LINE__,iface,'------------------'
        call face%update_integration()
-       ngaus = quad%get_number_evaluation_points()
-       do i =1,number_neighbours
-          fe_face(i)%p => fe_space%get_finite_element_from_face(iface,i)
-          !length(i) = fe_face(i)%p%compute_characteristic_length()
-       end do
+      
        j = 1
        face_int => face%get_face_integrator(j)
        fe_map => face%get_face_map(j)
@@ -274,7 +269,6 @@ contains
                       call face_int%get_value(jnode,igaus,jneigh,shape_test_scalar)
                       call face_int%get_gradient(jnode,igaus,jneigh,grad_test_scalar)
                       !- mu*({{grad u}}[[v]] + (1-xi)*[[u]]{{grad v}} ) + C*mu*p^2/h * [[u]] [[v]]
-                      !elmat(ioffset,joffset,ineigh,jneigh) = elmat(ioffset,joffset) + factor * this%viscosity *   &
                       facemat(inode,jnode,ineigh,jneigh) = facemat(inode,jnode,ineigh,jneigh) +     &
                            &  factor * this%viscosity *   &
                            &  (-0.5_rp*grad_test_scalar*outside_normal(ineigh)*shape_trial_scalar - &
@@ -287,9 +281,9 @@ contains
           end do
        end do
        do ineigh = 1, number_neighbours
-          test_elem2dof => fe_face(ineigh)%p%get_elem2dof()
+          test_elem2dof => face%get_elem2dof(ineigh)
           do jneigh = 1, number_neighbours
-             trial_elem2dof => fe_face(jneigh)%p%get_elem2dof()
+             trial_elem2dof => face%get_elem2dof(ineigh)
              call assembler%face_assembly(number_fe_spaces,number_nodes_per_field, number_nodes_per_field,&
                   &                  test_elem2dof,trial_elem2dof,field_blocks,field_coupling,       &
                   &                  facemat(:,:,ineigh,jneigh), facevec(:,ineigh) )   
@@ -308,9 +302,6 @@ contains
        write(*,*) __FILE__,__LINE__,iface,'------------------'
        call face%update_integration()
        ngaus = quad%get_number_evaluation_points()
-       do i =1,number_neighbours
-          fe_face(i)%p => fe_space%get_finite_element_from_face(iface,i)
-       end do
        j = 1
        face_int => face%get_face_integrator(j)
        fe_map => face%get_face_map(j)
