@@ -58,21 +58,6 @@ module reference_fe_names
   ! Types
   public :: SB_quadrature_t, SB_p_quadrature_t
 
-  type face_quadrature_t
-     private
-     integer(ip)           :: number_dimensions                ! Space dimension of the element
-     integer(ip)           :: number_integration_points_x_face ! Integration points in each face
-     integer(ip)           :: number_faces_x_element           ! #faces in each element
-     real(rp), allocatable :: coordinates(:,:,:)               ! coordinates of the integration points
-   contains
-     ! Check sbm_face_quadrature for the definition of the subroutines
-     procedure, non_overridable :: create => face_quadrature_create
-     procedure, non_overridable :: free   => face_quadrature_free
-     procedure, non_overridable :: print  => face_quadrature_print
-  end type face_quadrature_t
-
-  public :: face_quadrature_t
-
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type SB_interpolation_t
      private
@@ -550,8 +535,6 @@ contains
   ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
 #include "sbm_quadrature.i90"
-
-#include "sbm_face_quadrature.i90"
 
 #include "sbm_interpolation.i90"
 
