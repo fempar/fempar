@@ -122,7 +122,10 @@ module base_sparse_matrix_names
         procedure(base_sparse_matrix_update_value_body),         public, deferred :: update_value_body
         procedure(base_sparse_matrix_split_2x2_symbolic),        public, deferred :: split_2x2_symbolic
         procedure(base_sparse_matrix_split_2x2_numeric),         public, deferred :: split_2x2_numeric
-        procedure(base_sparse_matrix_permute_and_split_2x2_symbolic), public, deferred :: permute_and_split_2x2_symbolic
+        procedure(base_sparse_matrix_permute_and_split_2x2_numeric),           &
+                                                                 public, deferred :: permute_and_split_2x2_numeric
+        procedure(base_sparse_matrix_permute_and_split_2x2_symbolic),          &
+                                                                 public, deferred :: permute_and_split_2x2_symbolic
         procedure(base_sparse_matrix_expand_matrix_numeric),     public, deferred :: expand_matrix_numeric
         procedure(base_sparse_matrix_expand_matrix_symbolic),    public, deferred :: expand_matrix_symbolic
         procedure(base_sparse_matrix_print_matrix_market_body),  public, deferred :: print_matrix_market_body
@@ -322,6 +325,7 @@ module base_sparse_matrix_names
         procedure, public :: update_value_body                       => coo_sparse_matrix_update_value_body
         procedure, public :: split_2x2_symbolic                      => coo_sparse_matrix_split_2x2_symbolic
         procedure, public :: split_2x2_numeric                       => coo_sparse_matrix_split_2x2_numeric
+        procedure, public :: permute_and_split_2x2_numeric           => coo_sparse_matrix_permute_and_split_2x2_numeric
         procedure, public :: permute_and_split_2x2_symbolic          => coo_sparse_matrix_permute_and_split_2x2_symbolic
         procedure, public :: expand_matrix_numeric                   => coo_sparse_matrix_expand_matrix_numeric
         procedure, public :: expand_matrix_symbolic                  => coo_sparse_matrix_expand_matrix_symbolic
@@ -626,10 +630,24 @@ module base_sparse_matrix_names
             class(base_sparse_matrix_t),           intent(inout) :: A_GG
         end subroutine base_sparse_matrix_split_2x2_numeric
 
-        subroutine base_sparse_matrix_permute_and_split_2x2_symbolic(this, num_row, num_col, perm, iperm, A_RR) 
+        subroutine base_sparse_matrix_permute_and_split_2x2_numeric(this, num_row, num_col, perm, iperm, A_CC, A_CR, A_RC, A_RR) 
             import base_sparse_matrix_t
             import ip
             import rp
+            class(base_sparse_matrix_t),           intent(in)    :: this
+            integer(ip),                           intent(in)    :: num_row
+            integer(ip),                           intent(in)    :: num_col
+            integer(ip),                           intent(in)    :: perm(:)
+            integer(ip),                           intent(in)    :: iperm(:)
+            real(rp),    allocatable,              intent(out)   :: A_CC(:,:)
+            real(rp),    allocatable,              intent(out)   :: A_CR(:,:)
+            real(rp),    allocatable,              intent(out)   :: A_RC(:,:)
+            class(base_sparse_matrix_t),           intent(inout) :: A_RR
+        end subroutine base_sparse_matrix_permute_and_split_2x2_numeric
+
+        subroutine base_sparse_matrix_permute_and_split_2x2_symbolic(this, num_row, num_col, perm, iperm, A_RR) 
+            import base_sparse_matrix_t
+            import ip
             class(base_sparse_matrix_t),           intent(in)    :: this
             integer(ip),                           intent(in)    :: num_row
             integer(ip),                           intent(in)    :: num_col
@@ -721,6 +739,7 @@ public :: sum_value
 public :: binary_search
 public :: mergesort_link_list
 public :: reorder_ip_rp_from_link_list
+public :: reorder_ip_from_link_list
 
 
 contains
@@ -4183,6 +4202,27 @@ contains
     end subroutine coo_sparse_matrix_split_2x2_symbolic
 
 
+    subroutine coo_sparse_matrix_permute_and_split_2x2_numeric(this, num_row, num_col, perm, iperm, A_CC, A_CR, A_RC, A_RR) 
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2 and permute some given column and row index
+    !< 
+    !< A = [A_CC A_RC]
+    !<     [A_CR A_RR]
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),            intent(in)    :: this
+        integer(ip),                           intent(in)    :: num_row
+        integer(ip),                           intent(in)    :: num_col
+        integer(ip),                           intent(in)    :: perm(:)
+        integer(ip),                           intent(in)    :: iperm(:)
+        real(rp),    allocatable,              intent(out)   :: A_CC(:,:)
+        real(rp),    allocatable,              intent(out)   :: A_CR(:,:)
+        real(rp),    allocatable,              intent(out)   :: A_RC(:,:)
+        class(base_sparse_matrix_t),           intent(inout) :: A_RR
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine coo_sparse_matrix_permute_and_split_2x2_numeric
+
+
     subroutine coo_sparse_matrix_permute_and_split_2x2_symbolic(this, num_row, num_col, perm, iperm, A_RR) 
     !-----------------------------------------------------------------
     !< Split matrix in 2x2 and permute some given column and row index
@@ -4796,6 +4836,40 @@ contains
         return
     end subroutine reorder_symbolic_coo_from_link_list
     
+
+    subroutine reorder_ip_from_link_list(n,i1,iaux)
+    !-------------------------------------------------------------
+    !  Reorder (an) input vector(s) based on a list sort output.
+    !  Based on: D. E. Knuth: The Art of Computer Programming
+    !            vol. 3: Sorting and Searching, Addison Wesley, 1973
+    !            ex. 5.2.12
+    !-------------------------------------------------------------
+        use types_names
+        integer(ip), intent(in)    :: n
+        integer(ip), intent(inout) :: i1(*)
+        integer(ip), intent(inout) :: iaux(0:*) 
+        integer(ip) :: lswap, lp, k, isw1
+    !-------------------------------------------------------------
+        lp = iaux(0)
+        k  = 1
+        do 
+            if ((lp == 0).or.(k>n)) exit
+            do 
+                if (lp >= k) exit
+                lp = iaux(lp)
+            end do
+            isw1     = i1(lp)
+            i1(lp)   = i1(k)
+            i1(k)    = isw1
+            lswap    = iaux(lp)
+            iaux(lp) = iaux(k)
+            iaux(k)  = lp
+            lp = lswap 
+            k  = k + 1
+        enddo
+        return
+    end subroutine reorder_ip_from_link_list
+
     
     subroutine reorder_ip_rp_from_link_list(n,x,i1,iaux)
     !-------------------------------------------------------------
