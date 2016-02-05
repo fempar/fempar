@@ -353,31 +353,28 @@ module reference_fe_names
        integer(ip), intent(inout) :: o2n(:)
      end subroutine permute_order_vef_interface
 
+     function compute_characteristic_length_interface( this, fe_map, igaus)
+       import :: reference_fe_t, fe_map_t, ip, rp
+       implicit none 
+       class(reference_fe_t), intent(in) :: this 
+       type(fe_map_t)       , intent(in) :: fe_map
+       integer(ip)          , intent(in) :: igaus
+       real(rp)  :: compute_characteristic_length_interface 
+     end function compute_characteristic_length_interface
+
+     subroutine update_interpolation_interface ( this, fe_map, interpolation_reference_cell,    &
+          &                            interpolation_real_cell )
+       import :: reference_fe_t, fe_map_t, SB_interpolation_t
+       implicit none 
+       class(reference_fe_t)    , intent(in)    :: this 
+       type(fe_map_t)           , intent(in)    :: fe_map
+       type(SB_interpolation_t) , intent(in)    :: interpolation_reference_cell
+       type(SB_interpolation_t) , intent(inout) :: interpolation_real_cell
+     end subroutine update_interpolation_interface
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-
-abstract interface
-   function compute_characteristic_length_interface( this, fe_map, igaus)
-     import :: reference_fe_t, fe_map_t, ip, rp
-     implicit none 
-     class(reference_fe_t), intent(in) :: this 
-     type(fe_map_t)       , intent(in) :: fe_map
-     integer(ip)          , intent(in) :: igaus
-     real(rp)  :: compute_characteristic_length_interface 
-   end function compute_characteristic_length_interface
-      
-   subroutine update_interpolation_interface ( this, fe_map, interpolation_reference_cell,    &
-        &                            interpolation_real_cell )
-     import :: reference_fe_t, fe_map_t, SB_interpolation_t
-     implicit none 
-     class(reference_fe_t)    , intent(in)    :: this 
-     type(fe_map_t)           , intent(in)    :: fe_map
-     type(SB_interpolation_t) , intent(in)    :: interpolation_reference_cell
-     type(SB_interpolation_t) , intent(inout) :: interpolation_real_cell
-   end subroutine update_interpolation_interface
-end interface
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

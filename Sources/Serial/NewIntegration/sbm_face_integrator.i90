@@ -235,15 +235,19 @@ function face_integrator_compute_characteristic_length(this,igaus, number_neighb
   integer(ip)                     , intent(in) :: igaus, number_neighbours
   real(rp) :: face_integrator_compute_characteristic_length
 
-  real(rp)    :: inverse_h(3), h(number_neighbours)
+  real(rp)    :: inverse_h(3), h(2)
   integer(ip) :: i
   type(fe_map_t), pointer :: fe_map
-  do i = 1, number_neighbours
+  
+  fe_map => this%fe_maps(1)%fe_map(this%fe_maps(1)%active_face_id)
+  h(1) = this%reference_fe(1)%p%compute_characteristic_length(fe_map, igaus)
+  face_integrator_compute_characteristic_length = h(1)
+  do i = 2, number_neighbours
      fe_map => this%fe_maps(i)%fe_map(this%fe_maps(i)%active_face_id)
      h(i) = this%reference_fe(i)%p%compute_characteristic_length(fe_map, igaus)
+     face_integrator_compute_characteristic_length =                                              &
+          &       min(face_integrator_compute_characteristic_length, h(i))
   end do
-  face_integrator_compute_characteristic_length = minval(h)
-     
 end function face_integrator_compute_characteristic_length
 
 !=================================================================================================
