@@ -86,6 +86,44 @@ module reference_fe_names
 
   public :: SB_interpolation_t
 
+ !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type fe_map_t
+     private
+     ! Map's Jacobian (number_dimensions,number_dimensions,number_evaluation_points)
+     real(rp), allocatable    :: jacobian(:,:,:)    
+     ! Map's Jacobian inverse (number_dimensions,number_dimensions,number_evaluation_points)       
+     real(rp), allocatable    :: inv_jacobian(:,:,:)     
+     ! Map's Jacobian det (number_evaluation_points)  
+     real(rp), allocatable    :: det_jacobian(:)  
+     ! Map's 2nd derivatives (number_dime,number_dime,number_dime,number_evaluation_points)         
+     real(rp), allocatable    :: d2sdx(:,:,:,:)     
+     ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)       
+     real(rp), allocatable    :: coordinates_points(:,:)  
+     ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
+     real(rp), allocatable    :: normals(:,:)  
+     ! Geometry interpolation_t in the reference element domain    
+     type(SB_interpolation_t) :: interpolation_geometry    
+   contains
+     procedure, non_overridable :: create           => fe_map_create
+     procedure, non_overridable :: create_on_face   => fe_map_create_on_face
+     procedure, non_overridable :: face_map_create  => fe_map_face_map_create
+     procedure, non_overridable :: update           => fe_map_update
+     procedure, non_overridable :: face_map_update  => fe_map_face_map_update
+     procedure, non_overridable :: free             => fe_map_free
+     procedure, non_overridable :: print            => fe_map_print
+     procedure, non_overridable :: get_det_jacobian => fe_map_get_det_jacobian
+     procedure, non_overridable :: compute_h        => fe_map_compute_h
+  end type fe_map_t
+
+  type p_fe_map_t
+     class(fe_map_t), pointer :: p => NULL()   
+   contains
+     procedure :: allocate => p_fe_map_allocate
+     procedure :: free     => p_fe_map_free
+  end type p_fe_map_t
+
+  public :: fe_map_t, p_fe_map_t
+
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -319,44 +357,6 @@ module reference_fe_names
 
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-
-type fe_map_t
-  private
-  ! Map's Jacobian (number_dimensions,number_dimensions,number_evaluation_points)
-  real(rp), allocatable    :: jacobian(:,:,:)    
-  ! Map's Jacobian inverse (number_dimensions,number_dimensions,number_evaluation_points)       
-  real(rp), allocatable    :: inv_jacobian(:,:,:)     
-  ! Map's Jacobian det (number_evaluation_points)  
-  real(rp), allocatable    :: det_jacobian(:)  
-  ! Map's 2nd derivatives (number_dime,number_dime,number_dime,number_evaluation_points)         
-  real(rp), allocatable    :: d2sdx(:,:,:,:)     
-  ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)       
-  real(rp), allocatable    :: coordinates_points(:,:)  
-  ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
-  real(rp), allocatable    :: normals(:,:)  
-  ! Geometry interpolation_t in the reference element domain    
-  type(SB_interpolation_t) :: interpolation_geometry    
-contains
-  procedure, non_overridable :: create           => fe_map_create
-  procedure, non_overridable :: create_on_face   => fe_map_create_on_face
-  procedure, non_overridable :: face_map_create  => fe_map_face_map_create
-  procedure, non_overridable :: update           => fe_map_update
-  procedure, non_overridable :: face_map_update  => fe_map_face_map_update
-  procedure, non_overridable :: free             => fe_map_free
-  procedure, non_overridable :: print            => fe_map_print
-  procedure, non_overridable :: get_det_jacobian => fe_map_get_det_jacobian
-  procedure, non_overridable :: compute_h        => fe_map_compute_h
-end type fe_map_t
-
-type p_fe_map_t
-  class(fe_map_t), pointer :: p => NULL()   
-contains
-  procedure :: allocate => p_fe_map_allocate
-  procedure :: free     => p_fe_map_free
-end type p_fe_map_t
-
-public :: fe_map_t, p_fe_map_t
-
 
 abstract interface
    function compute_characteristic_length_interface( this, fe_map, igaus)

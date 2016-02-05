@@ -238,8 +238,7 @@ contains
     call memalloc ( number_nodes, number_nodes,2,2,facemat, __FILE__, __LINE__ )
     call memalloc ( number_nodes, 2,facevec, __FILE__, __LINE__ )
 
-    call fe_space%initialize_face_integration()
-    write(*,*) __FILE__,__LINE__,2*number_nodes
+    !call fe_space%initialize_face_integration()
     do iface = 1, fe_space%get_number_interior_faces()
 
        facemat = 0.0_rp
