@@ -157,7 +157,7 @@ contains
     real(rp)             :: shape_test_scalar, shape_trial_scalar
     type(vector_field_t) :: grad_test_scalar, grad_trial_scalar
     type(tensor_field_t) :: grad_test_vector, grad_trial_vector
-    type(vector_field_t) :: outside_normal(2)
+    type(vector_field_t) :: normal(2)
     
     integer(ip)          :: i, j, number_fe_spaces
 
@@ -238,6 +238,7 @@ contains
     call memalloc ( number_nodes, number_nodes,2,2,facemat, __FILE__, __LINE__ )
     call memalloc ( number_nodes, 2,facevec, __FILE__, __LINE__ )
 
+    call fe_space%initialize_face_integration()
     write(*,*) __FILE__,__LINE__,2*number_nodes
     do iface = 1, fe_space%get_number_interior_faces()
 
@@ -255,7 +256,7 @@ contains
        quad   => face%get_face_quadrature(j)
        ngaus = quad%get_number_evaluation_points()
        do igaus = 1, ngaus
-          call face_int%get_outside_normals(igaus,outside_normal)
+          call face_int%get_normals(igaus,normal)
           h_length = face_int%compute_characteristic_length(igaus,number_neighbours)
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
           do ineigh = 1, number_neighbours
@@ -271,10 +272,10 @@ contains
                       !- mu*({{grad u}}[[v]] + (1-xi)*[[u]]{{grad v}} ) + C*mu*p^2/h * [[u]] [[v]]
                       facemat(inode,jnode,ineigh,jneigh) = facemat(inode,jnode,ineigh,jneigh) +     &
                            &  factor * this%viscosity *   &
-                           &  (-0.5_rp*grad_test_scalar*outside_normal(ineigh)*shape_trial_scalar - &
-                           &   0.5_rp*grad_trial_scalar*outside_normal(jneigh)*shape_test_scalar  + &
+                           &  (-0.5_rp*grad_test_scalar*normal(ineigh)*shape_trial_scalar - &
+                           &   0.5_rp*grad_trial_scalar*normal(jneigh)*shape_test_scalar  + &
                            &   this%c_IP / h_length * shape_test_scalar*shape_trial_scalar *        &
-                           &   outside_normal(ineigh)*outside_normal(jneigh))
+                           &   normal(ineigh)*normal(jneigh))
                    end do
                 end do
              end do
@@ -283,7 +284,7 @@ contains
        do ineigh = 1, number_neighbours
           test_elem2dof => face%get_elem2dof(ineigh)
           do jneigh = 1, number_neighbours
-             trial_elem2dof => face%get_elem2dof(ineigh)
+             trial_elem2dof => face%get_elem2dof(jneigh)
              call assembler%face_assembly(number_fe_spaces,number_nodes_per_field, number_nodes_per_field,&
                   &                  test_elem2dof,trial_elem2dof,field_blocks,field_coupling,       &
                   &                  facemat(:,:,ineigh,jneigh), facevec(:,ineigh) )   
@@ -308,7 +309,7 @@ contains
        quad   => face%get_face_quadrature(j)
        ngaus = quad%get_number_evaluation_points()
        do igaus = 1, ngaus
-          call face_int%get_outside_normals(igaus,outside_normal)
+          call face_int%get_normals(igaus,normal)
           h_length = face_int%compute_characteristic_length(igaus,number_neighbours)
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
           do ineigh = 1, number_neighbours
@@ -321,14 +322,14 @@ contains
                       call face_int%get_gradient(jnode,igaus,jneigh,grad_test_scalar)
                       facemat(inode,jnode,ineigh,jneigh) = facemat(inode,jnode,ineigh,jneigh) +     &
                            &  factor * this%viscosity *   &
-                           &  (-grad_test_scalar*outside_normal(ineigh)*shape_trial_scalar - &
-                           &   grad_trial_scalar*outside_normal(jneigh)*shape_test_scalar  + &
+                           &  (-grad_test_scalar*normal(ineigh)*shape_trial_scalar - &
+                           &   grad_trial_scalar*normal(jneigh)*shape_test_scalar  + &
                            &   this%c_IP / h_length * shape_test_scalar*shape_trial_scalar)
                    end do
                 end do
                 bcvalue = 1.0_rp
                 facevec(inode,ineigh) = facevec(inode,ineigh) + factor * this%viscosity *           &
-                     &                  (bcvalue * grad_trial_scalar*outside_normal(jneigh) +       &
+                     &                  (bcvalue * grad_trial_scalar*normal(jneigh) +       &
                      &                  this%c_IP/h_length * bcvalue * shape_trial_scalar )
              end do
           end do

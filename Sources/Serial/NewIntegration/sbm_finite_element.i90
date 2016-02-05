@@ -1,10 +1,15 @@
 subroutine update_integration( this )
   implicit none
   class(SB_finite_element_t), intent(inout) :: this 
-  integer(ip) :: i
+  integer(ip)                      :: i
+  type(SB_interpolation_t), pointer:: interpolation_reference_cell, interpolation_real_cell
   call this%fe_map%update( this%quadrature, this%cell%coordinates )
   do i = 1, this%number_fe_spaces
-     call this%volume_integrator(i)%p%update( this%reference_fe_phy(i)%p, this%fe_map )
+     interpolation_reference_cell => this%volume_integrator(i)%p%get_interpolation_reference_cell()
+     interpolation_real_cell => this%volume_integrator(i)%p%get_interpolation_real_cell()
+     call this%reference_fe_phy(i)%p%update_interpolation(this%fe_map,                            &
+          &                                               interpolation_reference_cell,           &
+          &                                               interpolation_real_cell)
   end do
 end subroutine update_integration
 

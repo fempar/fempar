@@ -133,7 +133,8 @@ module reference_fe_names
      procedure(create_interpolation_interface)          , deferred :: create_interpolation 
      procedure(create_face_interpolation_interface)     , deferred :: create_face_interpolation
      procedure(create_face_local_interpolation_interface),deferred :: create_face_local_interpolation
-     procedure(get_bc_component_node_interface) , deferred :: get_bc_component_node
+     procedure(update_interpolation_interface)          , deferred :: update_interpolation
+     procedure(get_bc_component_node_interface)         , deferred :: get_bc_component_node
      
      procedure(get_value_scalar_interface)           , deferred :: get_value_scalar
      procedure(get_value_vector_interface)           , deferred :: get_value_vector
@@ -253,7 +254,7 @@ module reference_fe_names
        type(SB_quadrature_t)     , intent(in)    :: local_quadrature
        type(SB_interpolation_t)  , intent(inout) :: face_interpolation
      end subroutine create_face_interpolation_interface
-     
+ 
      function get_bc_component_node_interface( this, node )
        import :: reference_fe_t, ip
        implicit none
@@ -319,43 +320,6 @@ module reference_fe_names
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
 
-  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type, extends(reference_fe_t) :: quad_lagrangian_reference_fe_t
-     private
-     integer(ip)              :: number_nodes_scalar
-     integer(ip), allocatable :: node_component_array(:,:)
-   contains 
-     ! Deferred TBP implementors
-     procedure :: create                    => quad_lagrangian_reference_fe_create
-     procedure :: create_quadrature         => quad_lagrangian_reference_fe_create_quadrature
-     !procedure :: create_quadrature_on_faces                                                           &
-     !     &                           => quad_lagrangian_reference_fe_create_quadrature_on_faces
-     procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
-     procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
-     procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
-     procedure :: create_face_local_interpolation                                                      &
-          &                          => quad_lagrangian_reference_fe_create_face_local_interpolation
-
-     procedure :: get_bc_component_node     => quad_lagrangian_reference_fe_get_bc_component_node
-     procedure :: permute_order_vef         => quad_lagrangian_reference_fe_permute_order_vef
-
-     procedure :: get_value_scalar          => quad_lagrangian_reference_fe_get_value_scalar
-     procedure :: get_value_vector          => quad_lagrangian_reference_fe_get_value_vector
-     procedure :: get_gradient_scalar       => quad_lagrangian_reference_fe_get_gradient_scalar
-     procedure :: get_gradient_vector       => quad_lagrangian_reference_fe_get_gradient_vector
-
-
-     ! Concrete TBPs of this derived data type
-     procedure :: fill                      => quad_lagrangian_reference_fe_fill
-     procedure :: free                      => quad_lagrangian_reference_fe_free
-
-     procedure :: compute_characteristic_length &
-          &                          => quad_lagrangian_reference_fe_compute_characteristic_length
-  end type quad_lagrangian_reference_fe_t
-  
-  public :: quad_lagrangian_reference_fe_t
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 type fe_map_t
   private
   ! Map's Jacobian (number_dimensions,number_dimensions,number_evaluation_points)
@@ -369,7 +333,7 @@ type fe_map_t
   ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)       
   real(rp), allocatable    :: coordinates_points(:,:)  
   ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
-  real(rp), allocatable    :: outside_normals(:,:)  
+  real(rp), allocatable    :: normals(:,:)  
   ! Geometry interpolation_t in the reference element domain    
   type(SB_interpolation_t) :: interpolation_geometry    
 contains
@@ -403,7 +367,57 @@ abstract interface
      integer(ip)          , intent(in) :: igaus
      real(rp)  :: compute_characteristic_length_interface 
    end function compute_characteristic_length_interface
+      
+   subroutine update_interpolation_interface ( this, fe_map, interpolation_reference_cell,    &
+        &                            interpolation_real_cell )
+     import :: reference_fe_t, fe_map_t, SB_interpolation_t
+     implicit none 
+     class(reference_fe_t)    , intent(in)    :: this 
+     type(fe_map_t)           , intent(in)    :: fe_map
+     type(SB_interpolation_t) , intent(in)    :: interpolation_reference_cell
+     type(SB_interpolation_t) , intent(inout) :: interpolation_real_cell
+   end subroutine update_interpolation_interface
 end interface
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type, extends(reference_fe_t) :: quad_lagrangian_reference_fe_t
+     private
+     integer(ip)              :: number_nodes_scalar
+     integer(ip), allocatable :: node_component_array(:,:)
+   contains 
+     ! Deferred TBP implementors
+     procedure :: create                    => quad_lagrangian_reference_fe_create
+     procedure :: create_quadrature         => quad_lagrangian_reference_fe_create_quadrature
+     !procedure :: create_quadrature_on_faces                                                           &
+     !     &                           => quad_lagrangian_reference_fe_create_quadrature_on_faces
+     procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
+     procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
+     procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
+     procedure :: create_face_local_interpolation                                                      &
+          &                          => quad_lagrangian_reference_fe_create_face_local_interpolation
+     procedure :: update_interpolation      => quad_lagrangian_reference_fe_update_interpolation
+
+     procedure :: get_bc_component_node     => quad_lagrangian_reference_fe_get_bc_component_node
+     procedure :: permute_order_vef         => quad_lagrangian_reference_fe_permute_order_vef
+
+     procedure :: get_value_scalar          => quad_lagrangian_reference_fe_get_value_scalar
+     procedure :: get_value_vector          => quad_lagrangian_reference_fe_get_value_vector
+     procedure :: get_gradient_scalar       => quad_lagrangian_reference_fe_get_gradient_scalar
+     procedure :: get_gradient_vector       => quad_lagrangian_reference_fe_get_gradient_vector
+
+
+     ! Concrete TBPs of this derived data type
+     procedure :: fill                      => quad_lagrangian_reference_fe_fill
+     procedure :: free                      => quad_lagrangian_reference_fe_free
+
+     procedure :: compute_characteristic_length &
+          &                          => quad_lagrangian_reference_fe_compute_characteristic_length
+  end type quad_lagrangian_reference_fe_t
+  
+  public :: quad_lagrangian_reference_fe_t
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 type SB_volume_integrator_t 
@@ -416,10 +430,15 @@ type SB_volume_integrator_t
 contains
 
   procedure, non_overridable :: create => volume_integrator_create
-  procedure, non_overridable :: update => volume_integrator_update
   procedure, non_overridable :: free   => volume_integrator_free
   procedure, non_overridable :: print  => volume_integrator_print
   
+  procedure, non_overridable :: get_interpolation_reference_cell =>                                 &
+       &                                   volume_integrator_print_get_interpolation_reference_cell
+  procedure, non_overridable :: get_interpolation_real_cell =>                                 &
+       &                                   volume_integrator_print_get_interpolation_real_cell
+
+
   procedure, non_overridable, private :: get_value_scalar           => volume_integrator_get_value_scalar
   procedure, non_overridable, private :: get_value_vector           => volume_integrator_get_value_vector
   procedure, non_overridable, private :: get_value_tensor           => volume_integrator_get_value_tensor
@@ -517,8 +536,8 @@ type face_integrator_t
    procedure, non_overridable :: get_gradient_scalar                                              &
         &                                          => face_integrator_get_gradient_scalar
    generic :: get_gradient => get_gradient_scalar
-   procedure, non_overridable :: get_outside_normals                                              &
-        &                                          => face_integrator_get_outside_normals
+   procedure, non_overridable :: get_normals                                              &
+        &                                          => face_integrator_get_normals
 end type face_integrator_t
 
 type p_face_integrator_t

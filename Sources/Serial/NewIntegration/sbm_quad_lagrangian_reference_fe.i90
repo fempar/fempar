@@ -126,6 +126,18 @@ subroutine quad_lagrangian_reference_fe_create_face_local_interpolation ( this, 
 
 end subroutine quad_lagrangian_reference_fe_create_face_local_interpolation
 
+subroutine quad_lagrangian_reference_fe_update_interpolation( this, fe_map, interpolation_reference_cell,    &
+     &                            interpolation_real_cell )
+  implicit none 
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(fe_map_t)                        , intent(in)    :: fe_map
+  type(SB_interpolation_t)              , intent(in)    :: interpolation_reference_cell
+  type(SB_interpolation_t)              , intent(inout) :: interpolation_real_cell
+
+  call femap_apply_to_interp( fe_map, interpolation_reference_cell,interpolation_real_cell )
+  
+end subroutine quad_lagrangian_reference_fe_update_interpolation
+
 function quad_lagrangian_reference_fe_get_bc_component_node( this, node )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in) :: this 
@@ -1772,3 +1784,125 @@ subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
   end do
 
 end subroutine face_shapen
+!==============================================================================
+  subroutine femap_apply_to_interp(map,ref,phy)
+    implicit none
+    type(fe_map_t)          , intent(in)    :: map
+    type(SB_interpolation_t), intent(in)    :: ref
+    type(SB_interpolation_t), intent(inout) :: phy
+    real(rp), allocatable :: wmat1(:,:,:)
+    real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
+    integer(ip) :: ndime,nnode,nlocs,ntens
+    integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens
+    logical :: khes
+
+
+    khes = .false.
+    if ( allocated( ref%hessian ) ) then 
+       khes = .true.
+    end if
+
+    ndime = ref%number_dimensions
+    ntens = ref%number_entries_symmetric_tensor
+    nlocs = ref%number_evaluation_points
+    !nnode = ref%number_shape_functions
+    nnode = size(ref%shape_functions,1)
+
+    ! Shape functions do not change
+    phy%shape_functions = ref%shape_functions 
+
+    ! First derivatives do
+    !if(phy%kder==1) then
+    phy%shape_derivatives=0.0_rp
+    do ilocs=1,phy%number_evaluation_points
+       do inode=1,size(phy%shape_functions,1)!phy%number_shape_functions
+          do idime=1,ndime
+             do jdime=1,ndime
+                phy%shape_derivatives(idime,inode,ilocs) = phy%shape_derivatives(idime,inode,ilocs) &
+                     + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(jdime,inode,ilocs)
+             end do
+          end do
+       end do
+    end do
+    !end if
+
+    ! Second derivatives are
+    !
+    !    d^2 N / d x_i d x_j
+    !       = (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j)
+    !       + (d N / d s_k) (d^2 s_k / d x_i d x_j) 
+    !
+    if( khes ) then
+       call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
+       call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
+       do ilocs=1,nlocs
+          if( khes ) then
+             ! Transforms the array HESSI to a symmetric matrix WMAT1
+             do inode=1,nnode
+                do itens = 1, ntens
+                   wvec1(itens) = ref%hessian(itens,inode,ilocs)
+                end do
+                call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
+             end do
+             ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
+             do inode=1,nnode
+                call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
+                     &        ndime,ndime)
+             end do
+          end if
+          if( khes ) then
+             ! Add second cartesian derivatives of the map times 
+             ! first derivatives of shape functions
+             do inode=1,nnode
+                do idime=1,ndime
+                   do jdime=1,ndime
+                      do kdime=1,ndime
+                         wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
+                              & + ref%shape_derivatives(kdime,inode,ilocs) &
+                              &   * map%d2sdx(kdime,idime,jdime,ilocs)
+                      end do
+                   end do
+                end do
+             end do
+          end if
+
+          ! Writes the Hessian matrix as an array
+          do inode=1,nnode
+             do itens = 1, ntens
+                wvec1(itens) = phy%hessian(itens,inode,ilocs)
+             end do
+             call matove(wmat2(1,1,inode),wvec1,ndime,ntens)
+          end do
+       end do
+       call memfree(wmat1,__FILE__,__LINE__)
+       call memfree(wmat2,__FILE__,__LINE__)
+    end if
+  end subroutine femap_apply_to_interp
+
+
+  !-----------------------------------------------------------------------
+  subroutine matove(xmatr,vecto,ndime,ntens)
+    !-----------------------------------------------------------------------
+    !                                      
+    ! This routine stores a symmetric matrix XMATR into a vector VECTO
+    !
+    !-----------------------------------------------------------------------
+    implicit none
+    integer(ip), intent(in)  :: ndime,ntens
+    real(rp)   , intent(in)  :: xmatr(ndime,ndime)
+    real(rp)   , intent(out) :: vecto(ntens)
+
+    if(ndime.eq.2) then
+       vecto(1)=xmatr(1,1)
+       vecto(3)=xmatr(1,2)
+       vecto(2)=xmatr(2,2)
+    else
+       vecto(1)=xmatr(1,1)
+       vecto(4)=xmatr(1,2)
+       vecto(2)=xmatr(2,2)
+       vecto(5)=xmatr(1,3)
+       vecto(6)=xmatr(2,3)
+       vecto(3)=xmatr(3,3)
+    end if
+
+  end subroutine matove

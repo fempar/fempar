@@ -291,18 +291,18 @@ subroutine face_integrator_get_gradient_scalar (this, ishape, qpoint, ineigh, ve
 end subroutine face_integrator_get_gradient_scalar
 
 !=================================================================================================
-subroutine face_integrator_get_outside_normals (this, qpoint, outside_normal)
+subroutine face_integrator_get_normals (this, qpoint, normal)
   implicit none
   class(face_integrator_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: qpoint
-  type(vector_field_t)    , intent(out)   :: outside_normal(2)
+  type(vector_field_t)    , intent(out)   :: normal(2)
 
   integer(ip) :: idime
-  call outside_normal(1)%init(0.0_rp)
-  call outside_normal(2)%init(0.0_rp)
+  call normal(1)%init(0.0_rp)
+  call normal(2)%init(0.0_rp)
   do idime = 1, this%reference_fe(1)%p%number_dimensions
-     call outside_normal(1)%set(idime,this%face_map%outside_normals(idime,qpoint))
-     call outside_normal(2)%set(idime,- this%face_map%outside_normals(idime,qpoint))
+     call normal(1)%set(idime,this%face_map%normals(idime,qpoint))
+     call normal(2)%set(idime,- this%face_map%normals(idime,qpoint))
   end do
-end subroutine face_integrator_get_outside_normals
+end subroutine face_integrator_get_normals
 

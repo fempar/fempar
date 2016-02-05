@@ -104,7 +104,7 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geometry )
 
   call memalloc(number_dimensions, &
                 number_evaluation_points, &
-                this%outside_normals,__FILE__,__LINE__)
+                this%normals,__FILE__,__LINE__)
 end subroutine fe_map_face_map_create
 
   !==================================================================================================
@@ -256,22 +256,22 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature,   
      
      ! Compute outside normals (using the jacobian Matrix)
      if ( number_elem_dimensions == 1) then
-        this%outside_normals(1,evaluation_point_id) = -1.0_rp**(real(local_face_id))
+        this%normals(1,evaluation_point_id) = -1.0_rp**(real(local_face_id))
      elseif ( number_elem_dimensions == 2) then
-        this%outside_normals (1,evaluation_point_id) = this%jacobian(2,1,evaluation_point_id)
-        this%outside_normals (2,evaluation_point_id) = - this%jacobian(1,1,evaluation_point_id)
+        this%normals (1,evaluation_point_id) = this%jacobian(2,1,evaluation_point_id)
+        this%normals (2,evaluation_point_id) = - this%jacobian(1,1,evaluation_point_id)
      elseif ( number_elem_dimensions == 3) then
         call vecpro(this%jacobian(:,1,evaluation_point_id),this%jacobian(:,2,evaluation_point_id),&
-             &                    this%outside_normals(:,evaluation_point_id),3)
+             &                    this%normals(:,evaluation_point_id),3)
      end if
 
      ! Compute the measure of the face (= norm of the outside normal)
      this%det_jacobian(evaluation_point_id) =                                                     &
-          &                         sqrt(dot_product(this%outside_normals(:,evaluation_point_id), &
-          &                                          this%outside_normals(:,evaluation_point_id)))
+          &                         sqrt(dot_product(this%normals(:,evaluation_point_id), &
+          &                                          this%normals(:,evaluation_point_id)))
 
      ! Normalize the normal vector and make it point in the correct direction
-     this%outside_normals (:,evaluation_point_id) = this%outside_normals (:,evaluation_point_id) *&
+     this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *&
           &                      real(reorientation_factor)/this%det_jacobian(evaluation_point_id) 
      
   end do
@@ -286,7 +286,7 @@ subroutine fe_map_free( this )
   if(allocated(this%det_jacobian)) call memfree(this%det_jacobian,__FILE__,__LINE__)
   if(allocated(this%d2sdx)) call memfree(this%d2sdx,__FILE__,__LINE__)
   if(allocated(this%coordinates_points)) call memfree(this%coordinates_points,__FILE__,__LINE__)
-  if(allocated(this%outside_normals)) call memfree(this%outside_normals,__FILE__,__LINE__)
+  if(allocated(this%normals)) call memfree(this%normals,__FILE__,__LINE__)
   call this%interpolation_geometry%free()
 end subroutine fe_map_free
 
@@ -368,15 +368,6 @@ subroutine volume_integrator_create( this, quadrature, reference_fe )
   call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
 end subroutine volume_integrator_create
 
-subroutine volume_integrator_update(this, reference_fe, fe_map)
-  implicit none
-  ! Parameters
-  class(SB_volume_integrator_t), intent(inout) :: this
-  class(reference_fe_t)        , intent(in)    :: reference_fe
-  type(fe_map_t)               , intent(in)    :: fe_map
-  call femap_apply_to_interp( fe_map, this%interpolation, this%interpolation_o_map )
-end subroutine volume_integrator_update
-
 subroutine volume_integrator_free( this )
   implicit none
   class(SB_volume_integrator_t), intent(inout) :: this
@@ -398,6 +389,25 @@ subroutine volume_integrator_print( this )
   call this%interpolation_o_map%print()
 end subroutine volume_integrator_print
 
+!==================================================================================================
+function volume_integrator_print_get_interpolation_reference_cell(this)
+  implicit none
+  class(SB_volume_integrator_t), target, intent(in):: this
+  type(SB_interpolation_t), pointer ::  volume_integrator_print_get_interpolation_reference_cell
+
+  volume_integrator_print_get_interpolation_reference_cell => this%interpolation
+end function volume_integrator_print_get_interpolation_reference_cell
+
+!==================================================================================================
+function volume_integrator_print_get_interpolation_real_cell(this)
+  implicit none
+  class(SB_volume_integrator_t), target, intent(in) :: this
+  type(SB_interpolation_t), pointer ::  volume_integrator_print_get_interpolation_real_cell
+
+  volume_integrator_print_get_interpolation_real_cell => this%interpolation_o_map
+end function volume_integrator_print_get_interpolation_real_cell
+
+!==================================================================================================
 subroutine volume_integrator_get_value_scalar (this, ishape, qpoint, scalar_field)
   implicit none
   class(SB_volume_integrator_t), intent(in)    :: this
@@ -742,128 +752,3 @@ end subroutine vecpro
     end do
 
   end subroutine btdbma
-
-  !==============================================================================
-  !
-  !==============================================================================
-  subroutine femap_apply_to_interp(map,ref,phy)
-    implicit none
-    type(fe_map_t)          , intent(in)    :: map
-    type(SB_interpolation_t), intent(in)    :: ref
-    type(SB_interpolation_t), intent(inout) :: phy
-    real(rp), allocatable :: wmat1(:,:,:)
-    real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
-    integer(ip) :: ndime,nnode,nlocs,ntens
-    integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens
-    logical :: khes
-
-
-    khes = .false.
-    if ( allocated( ref%hessian ) ) then 
-       khes = .true.
-    end if
-
-    ndime = ref%number_dimensions
-    ntens = ref%number_entries_symmetric_tensor
-    nlocs = ref%number_evaluation_points
-    !nnode = ref%number_shape_functions
-    nnode = size(ref%shape_functions,1)
-
-    ! Shape functions do not change
-    phy%shape_functions = ref%shape_functions 
-
-    ! First derivatives do
-    !if(phy%kder==1) then
-    phy%shape_derivatives=0.0_rp
-    do ilocs=1,phy%number_evaluation_points
-       do inode=1,size(phy%shape_functions,1)!phy%number_shape_functions
-          do idime=1,ndime
-             do jdime=1,ndime
-                phy%shape_derivatives(idime,inode,ilocs) = phy%shape_derivatives(idime,inode,ilocs) &
-                     + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(jdime,inode,ilocs)
-             end do
-          end do
-       end do
-    end do
-    !end if
-
-    ! Second derivatives are
-    !
-    !    d^2 N / d x_i d x_j
-    !       = (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j)
-    !       + (d N / d s_k) (d^2 s_k / d x_i d x_j) 
-    !
-    if( khes ) then
-       call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
-       call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
-       do ilocs=1,nlocs
-          if( khes ) then
-             ! Transforms the array HESSI to a symmetric matrix WMAT1
-             do inode=1,nnode
-                do itens = 1, ntens
-                   wvec1(itens) = ref%hessian(itens,inode,ilocs)
-                end do
-                call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
-             end do
-             ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
-             do inode=1,nnode
-                call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
-                     &        ndime,ndime)
-             end do
-          end if
-          if( khes ) then
-             ! Add second cartesian derivatives of the map times 
-             ! first derivatives of shape functions
-             do inode=1,nnode
-                do idime=1,ndime
-                   do jdime=1,ndime
-                      do kdime=1,ndime
-                         wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
-                              & + ref%shape_derivatives(kdime,inode,ilocs) &
-                              &   * map%d2sdx(kdime,idime,jdime,ilocs)
-                      end do
-                   end do
-                end do
-             end do
-          end if
-
-          ! Writes the Hessian matrix as an array
-          do inode=1,nnode
-             do itens = 1, ntens
-                wvec1(itens) = phy%hessian(itens,inode,ilocs)
-             end do
-             call matove(wmat2(1,1,inode),wvec1,ndime,ntens)
-          end do
-       end do
-       call memfree(wmat1,__FILE__,__LINE__)
-       call memfree(wmat2,__FILE__,__LINE__)
-    end if
-  end subroutine femap_apply_to_interp
-
-
-  !-----------------------------------------------------------------------
-  subroutine matove(xmatr,vecto,ndime,ntens)
-    !-----------------------------------------------------------------------
-    !                                      
-    ! This routine stores a symmetric matrix XMATR into a vector VECTO
-    !
-    !-----------------------------------------------------------------------
-    implicit none
-    integer(ip), intent(in)  :: ndime,ntens
-    real(rp)   , intent(in)  :: xmatr(ndime,ndime)
-    real(rp)   , intent(out) :: vecto(ntens)
-
-    if(ndime.eq.2) then
-       vecto(1)=xmatr(1,1)
-       vecto(3)=xmatr(1,2)
-       vecto(2)=xmatr(2,2)
-    else
-       vecto(1)=xmatr(1,1)
-       vecto(4)=xmatr(1,2)
-       vecto(2)=xmatr(2,2)
-       vecto(5)=xmatr(1,3)
-       vecto(6)=xmatr(2,3)
-       vecto(3)=xmatr(3,3)
-    end if
-
-  end subroutine matove
