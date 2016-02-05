@@ -91,6 +91,7 @@ private
                                                                            sparse_matrix_convert_base_sparse_matrix_mold
         procedure,                  public :: split_2x2_numeric         => sparse_matrix_split_2x2_numeric
         procedure,                  public :: split_2x2_symbolic        => sparse_matrix_split_2x2_symbolic
+        procedure,                  public :: permute_and_split_2x2_symbolic => sparse_matrix_permute_and_split_2x2_symbolic
         procedure,                  public :: expand_matrix_numeric     => sparse_matrix_expand_matrix_numeric
         procedure,                  public :: expand_matrix_symbolic    => sparse_matrix_expand_matrix_symbolic
         procedure,                  public :: free                      => sparse_matrix_free
@@ -794,6 +795,22 @@ contains
         call A_IG%create_vector_spaces()
         call A_GG%create_vector_spaces()
     end subroutine sparse_matrix_split_2x2_symbolic
+
+
+    subroutine sparse_matrix_permute_and_split_2x2_symbolic(this, num_row, num_col, perm, iperm, A_RR) 
+        class(sparse_matrix_t),           intent(in)    :: this
+        integer(ip),                      intent(in)    :: num_row
+        integer(ip),                      intent(in)    :: num_col
+        integer(ip),                      intent(in)    :: perm(:)
+        integer(ip),                      intent(in)    :: iperm(:)
+        class(sparse_matrix_t),           intent(inout) :: A_RR
+
+        assert(allocated(this%State))
+        assert(.not. allocated(A_RR%State))
+        allocate(A_RR%State, mold=this%State)
+        call this%State%permute_and_split_2x2_symbolic(num_row, num_col, perm, iperm, A_RR%State)
+        call A_RR%create_vector_spaces()
+    end subroutine sparse_matrix_permute_and_split_2x2_symbolic
 
 
     subroutine sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
