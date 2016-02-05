@@ -966,7 +966,7 @@ contains
         logical                                            :: symmetric_storage
     !-----------------------------------------------------------------
         ! Check state
-        assert(.not. this%is_symbolic()) 
+        assert(this%state_is_assembled()) 
         state = A_II%get_state() 
         is_start_state = A_II%state_is_start() 
         assert(state == A_IG%get_state() .and.  state == A_GG%get_state())
@@ -1185,6 +1185,7 @@ contains
         logical                                            :: symmetric_storage
     !-----------------------------------------------------------------
         ! Check state
+        assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic() ) 
         state = A_II%get_state()
         is_start_state = A_II%state_is_start()
         assert( state == A_IG%get_state() .and. state== A_GG%get_state())
@@ -1300,7 +1301,8 @@ contains
 
     subroutine csr_sparse_matrix_permute_and_split_2x2_numeric(this, num_row, num_col, perm, iperm, A_CC, A_CR, A_RC, A_RR)
     !-----------------------------------------------------------------
-    !< Split matrix in 2x2 and permute some given column and row index
+    !< Split matrix in 2x2 and permute some columns and rows 
+    !< given 2 permutation arrays (perm and iperm)
     !< 
     !< A = [A_CC A_RC]
     !<     [A_CR A_RR]
@@ -1329,7 +1331,8 @@ contains
 
     subroutine csr_sparse_matrix_permute_and_split_2x2_numeric_body(this, num_row, num_col, perm, iperm, A_CC, A_CR, A_RC, A_RR) 
     !-----------------------------------------------------------------
-    !< Split matrix in 2x2 and permute some given column and row index
+    !< Split matrix in 2x2 and permute some columns and rows 
+    !< given 2 permutation arrays (perm and iperm)
     !< 
     !< A = [A_CC A_RC]
     !<     [A_CR A_RR]
@@ -1376,11 +1379,13 @@ contains
         assert(size(perm) == perm_size)
         assert(size(iperm) == perm_size)
 
+        ! Allocate A_CC, A_CR and A_RC arrays
         call memalloc(perm_size+2, link_list, __FILE__, __LINE__)
         call memalloc(num_row, num_col, A_CC, __FILE__, __LINE__);                A_CC = 0._rp
         call memalloc(num_row, total_num_cols-num_col, A_CR, __FILE__, __LINE__); A_CR = 0._rp
         call memalloc(total_num_rows-num_row, num_col, A_RC, __FILE__, __LINE__); A_RC = 0._rp
 
+        ! Set properties and allocate A_RR sparse matrix
         symmetric = this%is_symmetric()
         symmetric_storage = this%get_symmetric_storage()
         sign= this%get_sign()
@@ -1389,6 +1394,7 @@ contains
         call A_RR%set_properties(A_RR_num_rows, A_RR_num_cols, symmetric_storage, symmetric, sign)
         call A_RR%allocate_numeric(this%get_nnz()); A_RR%irp = 0
 
+        ! Loop on permuted rows to fill A_CC and A_CR arrays
         A_RR%irp(1) = 1
         do permuted_row=1, num_row
             current_row = iperm(permuted_row)
@@ -1403,6 +1409,8 @@ contains
                 endif
             end do
         enddo
+
+        ! Loop on permuted rows to fill A_RC array and A_RR sparse matrix
         do permuted_row=num_row+1, total_num_rows
             current_row = iperm(permuted_row)
             current_row_offset = this%irp(current_row)
@@ -1419,6 +1427,7 @@ contains
                     nz_per_row = nz_per_row + 1
                 endif
             end do
+            ! Sort permuted columns of A_RR sparse matrix for each row
             if(nz_per_row>0) then
                 next_permuted_row_offset = permuted_row_offset+nz_per_row
                 call mergesort_link_list(nz_per_row,                         &
@@ -1435,6 +1444,7 @@ contains
         A_RR%nnz = A_RR%irp(A_RR_num_rows+1)-1
         call memfree(link_list, __FILE__, __LINE__)
 
+        ! Adjust A_RR columns and vals size to A_RR%nnz
         call memrealloc(A_RR%nnz, A_RR%ja, __FILE__, __LINE__)
         call memrealloc(A_RR%nnz, A_RR%val, __FILE__, __LINE__)
 
@@ -1444,13 +1454,15 @@ contains
 
     subroutine csr_sparse_matrix_permute_and_split_2x2_symbolic(this, num_row, num_col, perm, iperm, A_RR) 
     !-----------------------------------------------------------------
-    !< Split matrix in 2x2 and permute some given column and row index
+    !< Split matrix in 2x2 and permute some columns and rows
+    !< given 2 permutation arrays (perm and iperm)
     !< 
     !< A = [A_CC A_RC]
     !<     [A_CR A_RR]
     !<
-    !< this routine computes A_CC, A_RC, A_CR and A_RR given the global 
-    !< matrix A. Note that A_CC, A_RC, A_CR are dense and A_RR is sparse
+    !< this routine computes A_RR from the global matrix A
+    !< A_CC, ACR and A_RC sparsity pattern calculation is not
+    !< performed because they are dense matrices
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t),            intent(in)    :: this
         integer(ip),                           intent(in)    :: num_row
@@ -1470,13 +1482,15 @@ contains
 
     subroutine csr_sparse_matrix_permute_and_split_2x2_symbolic_body(this, num_row, num_col, perm, iperm, A_RR) 
     !-----------------------------------------------------------------
-    !< Split matrix in 2x2 and permute some given column and row index
+    !< Split matrix in 2x2 and permute some columns and rows
+    !< given 2 permutation arrays (perm and iperm)
     !< 
     !< A = [A_CC A_RC]
     !<     [A_CR A_RR]
     !<
-    !< this routine computes A_CC, A_RC, A_CR and A_RR given the global 
-    !< matrix A. Note that A_CC, A_RC, A_CR are dense and A_RR is sparse
+    !< this routine computes A_RR from the global matrix A
+    !< A_CC, ACR and A_RC sparsity pattern calculation is not
+    !< performed because they are dense matrices
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t),            intent(in)    :: this
         integer(ip),                           intent(in)    :: num_row
@@ -1519,12 +1533,14 @@ contains
 
         call memalloc(perm_size+2, link_list, __FILE__, __LINE__)
 
+        ! Set properties and allocate A_RR sparse matrix
         symmetric = this%is_symmetric()
         symmetric_storage = this%get_symmetric_storage()
         sign= this%get_sign()
         call A_RR%set_properties(A_RR_num_rows, A_RR_num_cols, symmetric_storage, symmetric, sign)
         call A_RR%allocate_symbolic(this%get_nnz()); A_RR%irp = 0
 
+        ! Loop on permuted rows to fill A_RR sparse matrix
         A_RR%irp(1) = 1
         do permuted_row=1, A_RR_num_rows
             current_row = iperm(permuted_row+num_row)
@@ -1539,19 +1555,23 @@ contains
                 A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
                 nz_per_row = nz_per_row + 1
             end do
-
-            next_permuted_row_offset = permuted_row_offset+nz_per_row
-            call mergesort_link_list(nz_per_row,                         &
-                A_RR%ja(permuted_row_offset:next_permuted_row_offset-1), &
-                link_list,                                               &
-                iret)
-            if(iret == 0) call reorder_ip_from_link_list(nz_per_row,   &
-                A_RR%ja(permuted_row_offset:next_permuted_row_offset-1),  &
-                link_list)
+            ! Sort permuted columns of A_RR sparse matrix for each row
+            if(nz_per_row>0) then
+                next_permuted_row_offset = permuted_row_offset+nz_per_row
+                call mergesort_link_list(nz_per_row,                         &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1), &
+                    link_list,                                               &
+                    iret)
+                if(iret == 0) call reorder_ip_from_link_list(nz_per_row,   &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1),  &
+                    link_list)
+            endif
             A_RR%irp(permuted_row+1) = permuted_row_offset+nz_per_row
         end do
         A_RR%nnz = A_RR%irp(A_RR_num_rows+1)-1
         call memfree(link_list, __FILE__, __LINE__)
+
+        ! Adjust A_RR columns size to A_RR%nnz
         call memrealloc(A_RR%nnz, A_RR%ja, __FILE__, __LINE__)
 
         call A_RR%set_state_assembled_symbolic()

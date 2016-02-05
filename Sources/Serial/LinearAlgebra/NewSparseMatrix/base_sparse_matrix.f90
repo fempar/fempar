@@ -4204,7 +4204,8 @@ contains
 
     subroutine coo_sparse_matrix_permute_and_split_2x2_numeric(this, num_row, num_col, perm, iperm, A_CC, A_CR, A_RC, A_RR) 
     !-----------------------------------------------------------------
-    !< Split matrix in 2x2 and permute some given column and row index
+    !< Split matrix in 2x2 and permute some columns and rows
+    !< given 2 permutation arrays (perm and iperm)
     !< 
     !< A = [A_CC A_RC]
     !<     [A_CR A_RR]
@@ -4225,10 +4226,15 @@ contains
 
     subroutine coo_sparse_matrix_permute_and_split_2x2_symbolic(this, num_row, num_col, perm, iperm, A_RR) 
     !-----------------------------------------------------------------
-    !< Split matrix in 2x2 and permute some given column and row index
+    !< Split matrix in 2x2 and permute some columns and rows
+    !< given 2 permutation arrays (perm and iperm)
     !< 
     !< A = [A_CC A_RC]
     !<     [A_CR A_RR]
+    !<
+    !< this routine computes A_RR from the global matrix A
+    !< A_CC, ACR and A_RC sparsity pattern calculation is not
+    !< performed because they are dense matrices
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t),            intent(in)    :: this
         integer(ip),                           intent(in)    :: num_row
