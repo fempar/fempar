@@ -1393,7 +1393,7 @@ contains
         if(A_RR%state_is_start()) then
             ! Set properties
             symmetric = this%is_symmetric()
-            A_RR_has_symmetric_storage = .false.!THIS_has_symmetric_storage
+            A_RR_has_symmetric_storage = THIS_has_symmetric_storage
             sign= this%get_sign()
             call A_RR%set_properties(A_RR_num_rows, A_RR_num_cols, A_RR_has_symmetric_storage, symmetric, sign)
         else
@@ -1417,10 +1417,14 @@ contains
                 permuted_col = perm(current_col)
                 if ( permuted_col <= num_col ) then
                     A_CC(permuted_row,permuted_col) = this%val(i)
-                    if(THIS_has_symmetric_storage) A_CC(permuted_col,permuted_row) = this%val(i)
+                    if(THIS_has_symmetric_storage .and. permuted_col<=num_row .and. &
+                            permuted_row<=num_col) &
+                            A_CC(permuted_col,permuted_row) = this%val(i)
                 else
                     A_CR(permuted_row,permuted_col-num_col) = this%val(i)
-                    if(THIS_has_symmetric_storage) A_RC(permuted_col-num_col,permuted_row) = this%val(i)
+                    if(THIS_has_symmetric_storage .and. permuted_col-num_col<=num_row .and. &
+                            permuted_row<=num_col) &
+                            A_RC(permuted_col-num_col,permuted_row) = this%val(i)
                 endif
             end do
         enddo
@@ -1453,7 +1457,9 @@ contains
                 permuted_col = perm(current_col)
                 if ( permuted_col <= num_col ) then
                     A_RC(permuted_row-num_row,permuted_col) = this%val(i)
-                    if(THIS_has_symmetric_storage) A_CR(permuted_col,permuted_row-num_row) = this%val(i)
+                    if(THIS_has_symmetric_storage .and. (permuted_col<num_row) .and. &
+                        (permuted_row-num_row<total_num_cols-num_col )) &
+                        A_CR(permuted_col,permuted_row-num_row) = this%val(i)
                 else
                     if (A_RR_has_symmetric_storage .and. permuted_row-num_col>permuted_col) cycle
                     A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col-num_col
@@ -1573,7 +1579,7 @@ contains
         if(A_RR%state_is_start()) then
             ! Set properties
             symmetric = this%is_symmetric()
-            A_RR_has_symmetric_storage = .true.!THIS_has_symmetric_storage
+            A_RR_has_symmetric_storage = THIS_has_symmetric_storage
             sign= this%get_sign()
             call A_RR%set_properties(A_RR_num_rows, A_RR_num_cols, A_RR_has_symmetric_storage, symmetric, sign)
         else
