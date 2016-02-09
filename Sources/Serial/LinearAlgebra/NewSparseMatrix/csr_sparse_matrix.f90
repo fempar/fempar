@@ -1422,7 +1422,7 @@ contains
                             A_CC(permuted_col,permuted_row) = this%val(i)
                 else
                     A_CR(permuted_row,permuted_col-num_col) = this%val(i)
-                    if(THIS_has_symmetric_storage .and. permuted_col-num_col<=num_row .and. &
+                    if(THIS_has_symmetric_storage .and. permuted_col>num_row .and. &
                             permuted_row<=num_col) &
                             A_RC(permuted_col-num_col,permuted_row) = this%val(i)
                 endif
