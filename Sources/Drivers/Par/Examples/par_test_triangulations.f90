@@ -55,8 +55,8 @@ contains
     class(par_test_triangulations_params_t), intent(inout) :: params
     ! IO parameters
     params%default_dir_path     = 'data/'
-    params%default_prefix       = 'square_4x4'
-    params%default_dir_path_out = 'output'
+    params%default_prefix       = 'square'
+    params%default_dir_path_out = 'output/'
   end subroutine par_test_triangulations_set_par_default_params
 
   !==================================================================================================
