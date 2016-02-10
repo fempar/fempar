@@ -1168,10 +1168,11 @@ contains
         type(csr_sparse_matrix_t),           intent(inout) :: A_IG
         type(csr_sparse_matrix_t), optional, intent(inout) :: A_GI
         type(csr_sparse_matrix_t),           intent(inout) :: A_GG
-        integer(ip)                                        :: i, j
+        integer(ip)                                        :: i, j, k
         integer(ip)                                        :: nz
         integer(ip)                                        :: row_index
         integer(ip)                                        :: nz_offset
+        integer(ip)                                        :: nz_ignored
         integer(ip)                                        :: A_XX_lbound
         integer(ip)                                        :: A_XX_ubound
         integer(ip)                                        :: this_lbound
@@ -1206,13 +1207,23 @@ contains
 
         ! Allocate irp, ja and val arrays of all submatrices
         nz = this%irp(num_row+1)-1  ! nnz after num_row
-        call A_II%allocate_symbolic(nz);     A_II%irp(1) = 1
+        if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
+            call A_II%allocate_symbolic(this%nnz)
+        else
+            call A_II%allocate_symbolic(nz)
+        endif
+        A_II%irp(1) = 1
         call A_IG%allocate_symbolic(nz);     A_IG%irp(1) = 1
         nz = this%nnz - nz          ! nnz after num_row
         if(present(A_GI)) then
             call A_GI%allocate_symbolic(nz); A_GI%irp(1) = 1
         endif
-        call A_GG%allocate_symbolic(nz);     A_GG%irp(1) = 1
+        if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
+            call A_GG%allocate_symbolic(this%nnz)
+        else
+            call A_GG%allocate_symbolic(nz)
+        endif
+        A_GG%irp(1) = 1
 
         ! Loop (1:num_row) to get A_II and A_IG 
         do i=1, num_row
@@ -1222,19 +1233,64 @@ contains
                 if(this%ja(j)> num_col) exit
                 nz_offset = nz_offset + 1
             enddo
+
             ! Number of nnz of A_II in row i
             nz = nz_offset 
-            if(nz>0) then
-                ! Calculate bounds
-                A_XX_lbound = A_II%irp(i); A_XX_ubound = A_II%irp(i)+nz-1
-                this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
-                ! Assign columns
-                A_II%irp(i+1)                     = A_XX_ubound+1
-                A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
-                A_II%nnz = A_II%nnz + nz
-            else
+            if(this%get_symmetric_storage() .eqv. A_II%get_symmetric_storage()) then
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_II%irp(i); A_XX_ubound = A_II%irp(i)+nz-1
+                    this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
+                    ! Assign columns
+                    A_II%irp(i+1)                     = A_XX_ubound+1
+                    A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
+                    A_II%nnz = A_II%nnz + nz
+                else
+                    A_II%irp(i+1) = A_II%irp(i)
+                endif
+
+            else if(.not. this%get_symmetric_storage() .and. A_II%get_symmetric_storage()) then
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_II%irp(i); A_XX_ubound = A_II%irp(i)+nz-1
+                    this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
+                    ! Ignore lower triangle entries
+                    nz_ignored = 0
+                    do j=this_lbound,this_ubound
+                        if(this%ja(j)>=i) exit
+                        nz_ignored = nz_ignored+1
+                    enddo
+                    ! Assign columns
+                    A_II%irp(i+1)                                = A_XX_ubound-nz_ignored+1
+                    A_II%ja (A_XX_lbound:A_XX_ubound-nz_ignored) = this%ja(this_lbound+nz_ignored:this_ubound)
+                    A_II%nnz = A_II%nnz - nz_ignored + nz
+                else
+                    A_II%irp(i+1) = A_II%irp(i)
+                endif
+
+            else if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
                 A_II%irp(i+1) = A_II%irp(i)
+                do j=1,i-1
+                    if(j>num_col) exit
+                    k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1))
+                    if(k==-1) cycle
+                    A_II%ja (A_II%irp(i+1)) = j
+                    A_II%irp(i+1)           = A_II%irp(i+1) + 1
+                enddo
+
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_II%irp(i+1); A_XX_ubound = A_II%irp(i+1)+nz-1
+                    this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
+                    ! Assign columns
+                    A_II%irp(i+1)                     = A_II%irp(i+1)+nz
+                    A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
+                    A_II%nnz = A_II%nnz + nz
+                endif
+                A_II%nnz = A_II%irp(i+1)-1
+
             endif
+
             ! Number of nnz of A_IG in row i
             nz = this%irp(i+1)-this%irp(i)-nz_offset 
             if(nz>0) then
@@ -1251,6 +1307,7 @@ contains
         enddo
         call memrealloc(A_II%nnz, A_II%ja, __FILE__, __LINE__)
         call memrealloc(A_IG%nnz, A_IG%ja, __FILE__, __LINE__)
+
         ! Loop (num_row:this%num_rows) to get A_GI and A_GG
         do i=num_row+1, this%get_num_rows()
             nz_offset = 0
@@ -1259,6 +1316,7 @@ contains
                 if(this%ja(j)> num_col) exit
                 nz_offset = nz_offset + 1
             enddo
+
             ! Number of nnz of A_GI in row i-num_row
             nz = nz_offset 
             if(present(A_GI)) then
@@ -1277,18 +1335,63 @@ contains
 
             ! Number of nnz of A_GG in row i-num_row
             nz = this%irp(i+1)-this%irp(i)-nz_offset 
-            if(nz>0) then
-                ! Calculate bounds
-                A_XX_lbound = A_GG%irp(i-num_row);   A_XX_ubound = A_GG%irp(i-num_row)+nz-1
-                this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
-                ! Assign columns
-                A_GG%irp(i-num_row+1)             = A_XX_ubound+1
-                A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
-                A_GG%nnz = A_GG%nnz + nz
-            else
+            if(this%get_symmetric_storage() .eqv. A_GG%get_symmetric_storage()) then
+                ! Number of nnz of A_GG in row i-num_row
+                nz = this%irp(i+1)-this%irp(i)-nz_offset 
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_GG%irp(i-num_row);   A_XX_ubound = A_GG%irp(i-num_row)+nz-1
+                    this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
+                    ! Assign columns
+                    A_GG%irp(i-num_row+1)             = A_XX_ubound+1
+                    A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
+                    A_GG%nnz = A_GG%nnz + nz
+                else
+                    A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
+                endif
+
+            else if(.not. this%get_symmetric_storage() .and. A_GG%get_symmetric_storage()) then
+
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_GG%irp(i-num_row);   A_XX_ubound = A_GG%irp(i-num_row)+nz-1
+                    this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
+                    ! Ignore lower triangle entries
+                    nz_ignored = 0
+                    do j=this_lbound,this_ubound
+                        if(this%ja(j)>=i) exit
+                        nz_ignored = nz_ignored+1
+                    enddo
+                    ! Assign columns
+                    A_GG%irp(i-num_row+1)             = A_XX_ubound-nz_ignored+1
+                    A_GG%ja (A_XX_lbound:A_XX_ubound-nz_ignored) = this%ja (this_lbound+nz_ignored:this_ubound)-num_col
+                    A_GG%nnz = A_GG%nnz - nz_ignored + nz
+                else
+                    A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
+                endif
+
+            else if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
                 A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
+                do j=max(num_row,num_col)+1,i-1
+                    k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1))
+                    if(k==-1) cycle           
+                    A_GG%ja(A_GG%irp(i-num_row+1)) = j-num_col
+                    A_GG%irp(i-num_row+1)          = A_GG%irp(i-num_row+1) + 1
+                enddo
+
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_GG%irp(i-num_row); A_XX_ubound = A_GG%irp(i-num_row)+nz-1
+                    this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i)+nz-1
+                    ! Assign columns
+                    A_GG%irp(i-num_row+1)             = A_GG%irp(i-num_row+1)+nz
+                    A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)-num_col
+                endif
+                A_GG%nnz = A_GG%irp(i-num_row+1)-1
             endif
         enddo
+
+
         if(present(A_GI)) call memrealloc(A_GI%nnz, A_GI%ja, __FILE__, __LINE__)
         call memrealloc(A_GG%nnz, A_GG%ja, __FILE__, __LINE__)
 
