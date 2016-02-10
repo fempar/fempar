@@ -3,9 +3,9 @@
 subroutine face_map_create( this, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
-  class(face_map_t)    , intent(inout) :: this
-  type(SB_quadrature_t), intent(in)    :: quadrature
-  class(reference_fe_t), intent(in)    :: reference_fe_geometry
+  class(fe_map_face_restriction_t), intent(inout) :: this
+  type(SB_quadrature_t)           , intent(in)    :: quadrature
+  class(reference_fe_t)           , intent(in)    :: reference_fe_geometry
 
   integer(ip)           :: face_dimensions,local_face_id, istat
 
@@ -27,10 +27,10 @@ end subroutine face_map_create
 subroutine face_map_update( this, local_face_id, quadrature, cell_coordinates)
   implicit none
   ! Parameters
-  class(face_map_t)    , intent(inout) :: this
-  integer(ip)          , intent(in)    :: local_face_id
-  type(SB_quadrature_t), intent(in)    :: quadrature
-  real(rp)             , intent(in)    :: cell_coordinates(:,:)
+  class(fe_map_face_restriction_t), intent(inout) :: this
+  integer(ip)                     , intent(in)    :: local_face_id
+  type(SB_quadrature_t)           , intent(in)    :: quadrature
+  real(rp)                        , intent(in)    :: cell_coordinates(:,:)
 
   this%active_face_id = local_face_id
   call this%fe_map(local_face_id)%update(quadrature, cell_coordinates)
@@ -41,7 +41,7 @@ end subroutine face_map_update
 subroutine face_map_free( this)
   implicit none
   ! Parameters
-  class(face_map_t), intent(inout) :: this
+  class(fe_map_face_restriction_t), intent(inout) :: this
 
   integer(ip) :: local_face_id , istat
 
@@ -63,7 +63,7 @@ end subroutine face_map_free
 subroutine face_interpolation_create(this, local_quadrature, reference_fe_phy)
   implicit none
   ! Parameters
-  class(face_interpolation_t)  , intent(inout) :: this
+  class(interpolation_face_restriction_t)  , intent(inout) :: this
   type(SB_quadrature_t)        ,  intent(in)   :: local_quadrature
   class(reference_fe_t), target, intent(in)    :: reference_fe_phy
 
@@ -94,7 +94,7 @@ end subroutine face_interpolation_create
 subroutine face_interpolation_update(this, local_face_id, fe_map)
   implicit none
   ! Parameters
-  class(face_interpolation_t)  , intent(inout) :: this
+  class(interpolation_face_restriction_t)  , intent(inout) :: this
   integer(ip)                  , intent(in)    :: local_face_id
   type(fe_map_t)               , intent(in)    :: fe_map
 
@@ -106,7 +106,7 @@ end subroutine face_interpolation_update
 subroutine face_interpolation_free(this)
   implicit none
   ! Parameters
-  class(face_interpolation_t)  , intent(inout) :: this
+  class(interpolation_face_restriction_t)  , intent(inout) :: this
 
   integer(ip) :: i, istat
 

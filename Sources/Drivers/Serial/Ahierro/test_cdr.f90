@@ -501,7 +501,7 @@ contains
     type(CDR_discrete_integration_t)              :: CDR_integration
     type(vector_space_t)    , pointer             :: fe_affine_operator_range_vector_space 
     class(vector_t)         , allocatable, target :: vector
-    type(face_interpolation_t)                    :: face_interpolation
+    type(interpolation_face_restriction_t)                    :: face_interpolation
 
     class(matrix_t), pointer :: matrix
     type(sparse_matrix_t), pointer :: my_matrix

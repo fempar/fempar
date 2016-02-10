@@ -479,7 +479,7 @@ public :: SB_volume_integrator_t, SB_p_volume_integrator_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-type face_map_t
+type fe_map_face_restriction_t
    private
    integer(ip)                 :: number_faces = 0
    integer(ip)                 :: active_face_id
@@ -488,11 +488,11 @@ type face_map_t
     procedure :: create => face_map_create
     procedure :: update => face_map_update
     procedure :: free   => face_map_free
-end type face_map_t
+end type fe_map_face_restriction_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-type face_interpolation_t
+type interpolation_face_restriction_t
   private
   integer(ip)                           :: number_shape_functions
   integer(ip)                           :: number_evaluation_points
@@ -504,18 +504,18 @@ contains
   procedure :: create => face_interpolation_create
   procedure :: update => face_interpolation_update
   procedure :: free   => face_interpolation_free
-end type face_interpolation_t
+end type interpolation_face_restriction_t
 
-public :: face_interpolation_t
+public :: interpolation_face_restriction_t
 
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 type face_integrator_t
    private
-   type(face_interpolation_t) :: face_interpolation(2)
+   type(interpolation_face_restriction_t) :: face_interpolation(2)
    type(fe_map_t)             :: face_map
-   type(face_map_t)           :: fe_maps(2)
+   type(fe_map_face_restriction_t)           :: fe_maps(2)
    type(SB_quadrature_t)      :: quadrature
    type(p_reference_fe_t)     :: reference_fe(2)
    real(rp)     , allocatable :: coordinates(:,:)
