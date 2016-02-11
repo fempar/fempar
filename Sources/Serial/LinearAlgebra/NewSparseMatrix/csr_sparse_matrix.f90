@@ -51,6 +51,10 @@ private
         procedure, public :: split_2x2_numeric                       => csr_sparse_matrix_split_2x2_numeric
         procedure         :: split_2x2_symbolic_body                 => csr_sparse_matrix_split_2x2_symbolic_body
         procedure         :: split_2x2_numeric_body                  => csr_sparse_matrix_split_2x2_numeric_body
+        procedure, public :: permute_and_split_2x2_numeric           => csr_sparse_matrix_permute_and_split_2x2_numeric
+        procedure, public :: permute_and_split_2x2_symbolic          => csr_sparse_matrix_permute_and_split_2x2_symbolic
+        procedure         :: permute_and_split_2x2_symbolic_body     => csr_sparse_matrix_permute_and_split_2x2_symbolic_body
+        procedure         :: permute_and_split_2x2_numeric_body      => csr_sparse_matrix_permute_and_split_2x2_numeric_body
         procedure, public :: expand_matrix_numeric                   => csr_sparse_matrix_expand_matrix_numeric
         procedure, public :: expand_matrix_symbolic                  => csr_sparse_matrix_expand_matrix_symbolic
         procedure         :: expand_matrix_numeric_body              => csr_sparse_matrix_expand_matrix_numeric_body
@@ -938,7 +942,7 @@ contains
         logical                                            :: symmetric_storage
     !-----------------------------------------------------------------
         ! Check state
-        assert(.not. this%is_symbolic()) 
+        assert(this%state_is_assembled()) 
         state = A_II%get_state() 
         is_start_state = A_II%state_is_start() 
         assert(state == A_IG%get_state() .and.  state == A_GG%get_state())
@@ -1161,6 +1165,7 @@ contains
         logical                                            :: symmetric_storage
     !-----------------------------------------------------------------
         ! Check state
+        assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic() ) 
         state = A_II%get_state()
         is_start_state = A_II%state_is_start()
         assert( state == A_IG%get_state() .and. state== A_GG%get_state())
@@ -1275,6 +1280,355 @@ contains
         if(present(A_GI)) call A_GI%set_state_assembled_symbolic()
         call A_GG%set_state_assembled_symbolic()
     end subroutine csr_sparse_matrix_split_2x2_symbolic_body
+
+
+    subroutine csr_sparse_matrix_permute_and_split_2x2_numeric(this, num_row, num_col, perm, iperm, A_CC, A_CR, A_RC, A_RR)
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2 and permute some columns and rows 
+    !< given 2 permutation arrays (perm and iperm)
+    !< 
+    !< A = [A_CC A_RC]
+    !<     [A_CR A_RR]
+    !<
+    !< this routine computes A_CC, A_RC, A_CR and A_RR given the global 
+    !< matrix A. Note that A_CC, A_RC, A_CR are dense and A_RR is sparse
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),            intent(in)    :: this
+        integer(ip),                           intent(in)    :: num_row
+        integer(ip),                           intent(in)    :: num_col
+        integer(ip),                           intent(in)    :: perm(:)
+        integer(ip),                           intent(in)    :: iperm(:)
+        real(rp),    allocatable,              intent(out)   :: A_CC(:,:)
+        real(rp),    allocatable,              intent(out)   :: A_CR(:,:)
+        real(rp),    allocatable,              intent(out)   :: A_RC(:,:)
+        class(base_sparse_matrix_t),           intent(inout) :: A_RR
+    !-----------------------------------------------------------------
+        select type (A_RR)
+            type is (csr_sparse_matrix_t)
+                call this%permute_and_split_2x2_numeric_body(num_row, num_col, perm, iperm,  A_CC, A_CR, A_RC, A_RR)
+            class DEFAULT
+                check(.false.)
+        end select
+    end subroutine csr_sparse_matrix_permute_and_split_2x2_numeric
+
+
+    subroutine csr_sparse_matrix_permute_and_split_2x2_numeric_body(this, num_row, num_col, perm, iperm, A_CC, A_CR, A_RC, A_RR) 
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2 and permute some columns and rows 
+    !< given 2 permutation arrays (perm and iperm)
+    !< 
+    !< A = [A_CC A_RC]
+    !<     [A_CR A_RR]
+    !<
+    !< this routine computes A_CC, A_RC, A_CR and A_RR given the global 
+    !< matrix A. Note that A_CC, A_RC, A_CR are dense and A_RR is sparse
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),            intent(in)    :: this
+        integer(ip),                           intent(in)    :: num_row
+        integer(ip),                           intent(in)    :: num_col
+        integer(ip),                           intent(in)    :: perm(:)
+        integer(ip),                           intent(in)    :: iperm(:)
+        real(rp),    allocatable,              intent(out)   :: A_CC(:,:)
+        real(rp),    allocatable,              intent(out)   :: A_CR(:,:)
+        real(rp),    allocatable,              intent(out)   :: A_RC(:,:)
+        class(csr_sparse_matrix_t),            intent(inout) :: A_RR
+        logical                                              :: THIS_has_symmetric_storage
+        logical                                              :: A_RR_has_symmetric_storage
+        logical                                              :: symmetric
+        integer(ip)                                          :: sign
+        integer(ip)                                          :: total_num_rows
+        integer(ip)                                          :: total_num_cols
+        integer(ip)                                          :: A_RR_num_rows
+        integer(ip)                                          :: A_RR_num_cols
+        integer(ip)                                          :: perm_size
+        integer(ip)                                          :: current_row
+        integer(ip)                                          :: current_col
+        integer(ip)                                          :: current_row_offset
+        integer(ip)                                          :: permuted_row
+        integer(ip)                                          :: permuted_col
+        integer(ip)                                          :: permuted_row_offset
+        integer(ip)                                          :: next_permuted_row_offset
+        integer(ip)                                          :: nz_per_row
+        integer(ip), allocatable                             :: link_list(:)
+        integer(ip)                                          :: iret,i,j
+    !-----------------------------------------------------------------
+        assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
+        assert(A_RR%state_is_start())
+
+        total_num_rows = this%get_num_rows()
+        total_num_cols = this%get_num_cols()
+        assert(num_row>0 .and. num_row<total_num_rows .and. num_col>0 .and. num_col<total_num_cols)
+        perm_size = max(total_num_rows, total_num_cols)
+
+        assert(size(perm) == perm_size)
+        assert(size(iperm) == perm_size)
+
+        ! Allocate A_CC, A_CR and A_RC arrays
+        call memalloc(perm_size+2, link_list, __FILE__, __LINE__)
+        call memalloc(num_row, num_col, A_CC, __FILE__, __LINE__);                A_CC = 0._rp
+        call memalloc(num_row, total_num_cols-num_col, A_CR, __FILE__, __LINE__); A_CR = 0._rp
+        call memalloc(total_num_rows-num_row, num_col, A_RC, __FILE__, __LINE__); A_RC = 0._rp
+
+        A_RR_num_rows = total_num_rows-num_row
+        A_RR_num_cols = total_num_cols-num_col
+        THIS_has_symmetric_storage = this%get_symmetric_storage()
+
+        if(A_RR%state_is_start()) then
+            ! Set properties
+            symmetric = this%is_symmetric()
+            A_RR_has_symmetric_storage = THIS_has_symmetric_storage
+            sign= this%get_sign()
+            call A_RR%set_properties(A_RR_num_rows, A_RR_num_cols, A_RR_has_symmetric_storage, symmetric, sign)
+        else
+            A_RR_has_symmetric_storage = A_RR%get_symmetric_storage()
+        endif
+
+        if(.not. A_RR_has_symmetric_storage .and. THIS_has_symmetric_storage) then
+            call A_RR%allocate_numeric(this%get_nnz()*2)
+        else
+            call A_RR%allocate_numeric(this%get_nnz())
+        endif
+        A_RR%irp = 0
+
+        ! Loop on permuted rows to fill A_CC and A_CR arrays
+        A_RR%irp(1) = 1
+        do permuted_row=1, num_row
+            current_row = iperm(permuted_row)
+            current_row_offset = this%irp(current_row)
+            do i = current_row_offset, this%irp(current_row+1)-1
+                current_col = this%ja(i)
+                permuted_col = perm(current_col)
+                if ( permuted_col <= num_col ) then
+                    A_CC(permuted_row,permuted_col) = this%val(i)
+                    if(THIS_has_symmetric_storage .and. permuted_col<=num_row .and. &
+                            permuted_row<=num_col) &
+                            A_CC(permuted_col,permuted_row) = this%val(i)
+                else
+                    A_CR(permuted_row,permuted_col-num_col) = this%val(i)
+                    if(THIS_has_symmetric_storage .and. permuted_col>num_row .and. &
+                            permuted_row<=num_col) &
+                            A_RC(permuted_col-num_col,permuted_row) = this%val(i)
+                endif
+            end do
+        enddo
+
+        ! Loop on permuted rows to fill A_RC array and A_RR sparse matrix
+        do permuted_row=num_row+1, total_num_rows
+            current_row = iperm(permuted_row)
+            current_row_offset = this%irp(current_row)
+            nz_per_row = 0
+            permuted_row_offset = A_RR%irp(permuted_row-num_row)
+
+            ! If THIS_has_symmetric_storage transpose upper_triangle
+            if(THIS_has_symmetric_storage) then
+                do i=1, current_row-1
+                    permuted_col = perm(i)-num_col
+                    if(permuted_col>0 .and. ((.not. A_RR_has_symmetric_storage) .or. (permuted_col > permuted_row-num_row))) then
+                        ! For each one of the previous rows, check if the current row is in it's list of columns
+                        j = binary_search(current_row,this%irp(i+1)-this%irp(i),this%ja(this%irp(i):this%irp(i+1)-1))
+                        if(j==-1) cycle           
+                        A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
+                        A_RR%val(permuted_row_offset+nz_per_row) = this%val(this%irp(i)+j-1)
+                        nz_per_row = nz_per_row + 1
+                    endif
+                enddo
+            endif
+
+            ! Add permuted_cols to the permuted_row
+            do i = current_row_offset, this%irp(current_row+1)-1
+                current_col = this%ja(i)
+                permuted_col = perm(current_col)
+                if ( permuted_col <= num_col ) then
+                    A_RC(permuted_row-num_row,permuted_col) = this%val(i)
+                    if(THIS_has_symmetric_storage .and. (permuted_col<num_row) .and. &
+                        (permuted_row-num_row<total_num_cols-num_col )) &
+                        A_CR(permuted_col,permuted_row-num_row) = this%val(i)
+                else
+                    if (A_RR_has_symmetric_storage .and. permuted_row-num_col>permuted_col) cycle
+                    A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col-num_col
+                    A_RR%val(permuted_row_offset+nz_per_row) = this%val(i)
+                    nz_per_row = nz_per_row + 1
+                endif
+            end do
+
+            ! Sort permuted columns of A_RR sparse matrix for each row
+            if(nz_per_row>0) then
+                next_permuted_row_offset = permuted_row_offset+nz_per_row
+                call mergesort_link_list(nz_per_row,                         &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1), &
+                    link_list,                                               &
+                    iret)
+                if(iret == 0) call reorder_ip_rp_from_link_list(nz_per_row,   &
+                    A_RR%val(permuted_row_offset:next_permuted_row_offset-1), &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1),  &
+                    link_list)
+            endif
+            A_RR%irp(permuted_row-num_row+1) = permuted_row_offset+nz_per_row
+        end do
+        A_RR%nnz = A_RR%irp(A_RR_num_rows+1)-1
+        call memfree(link_list, __FILE__, __LINE__)
+
+        ! Adjust A_RR columns and vals size to A_RR%nnz
+        call memrealloc(A_RR%nnz, A_RR%ja, __FILE__, __LINE__)
+        call memrealloc(A_RR%nnz, A_RR%val, __FILE__, __LINE__)
+
+        call A_RR%set_state_assembled()
+    end subroutine csr_sparse_matrix_permute_and_split_2x2_numeric_body
+
+
+    subroutine csr_sparse_matrix_permute_and_split_2x2_symbolic(this, num_row, num_col, perm, iperm, A_RR) 
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2 and permute some columns and rows
+    !< given 2 permutation arrays (perm and iperm)
+    !< 
+    !< A = [A_CC A_RC]
+    !<     [A_CR A_RR]
+    !<
+    !< this routine computes A_RR from the global matrix A
+    !< A_CC, ACR and A_RC sparsity pattern calculation is not
+    !< performed because they are dense matrices
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),            intent(in)    :: this
+        integer(ip),                           intent(in)    :: num_row
+        integer(ip),                           intent(in)    :: num_col
+        integer(ip),                           intent(in)    :: perm(:)
+        integer(ip),                           intent(in)    :: iperm(:)
+        class(base_sparse_matrix_t),           intent(inout) :: A_RR
+    !-----------------------------------------------------------------
+        select type (A_RR)
+            type is (csr_sparse_matrix_t)
+                call this%permute_and_split_2x2_symbolic_body(num_row, num_col, perm, iperm, A_RR)
+            class DEFAULT
+                check(.false.)
+        end select
+    end subroutine csr_sparse_matrix_permute_and_split_2x2_symbolic
+
+
+    subroutine csr_sparse_matrix_permute_and_split_2x2_symbolic_body(this, num_row, num_col, perm, iperm, A_RR) 
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2 and permute some columns and rows
+    !< given 2 permutation arrays (perm and iperm)
+    !< 
+    !< A = [A_CC A_RC]
+    !<     [A_CR A_RR]
+    !<
+    !< this routine computes A_RR from the global matrix A
+    !< A_CC, ACR and A_RC sparsity pattern calculation is not
+    !< performed because they are dense matrices
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),            intent(in)    :: this
+        integer(ip),                           intent(in)    :: num_row
+        integer(ip),                           intent(in)    :: num_col
+        integer(ip),                           intent(in)    :: perm(:)
+        integer(ip),                           intent(in)    :: iperm(:)
+        class(csr_sparse_matrix_t),            intent(inout) :: A_RR
+        logical                                              :: THIS_has_symmetric_storage
+        logical                                              :: A_RR_has_symmetric_storage
+        logical                                              :: symmetric
+        integer(ip)                                          :: sign
+        integer(ip)                                          :: total_num_rows
+        integer(ip)                                          :: total_num_cols
+        integer(ip)                                          :: A_RR_num_rows
+        integer(ip)                                          :: A_RR_num_cols
+        integer(ip)                                          :: perm_size
+        integer(ip)                                          :: current_row
+        integer(ip)                                          :: current_col
+        integer(ip)                                          :: current_row_offset
+        integer(ip)                                          :: permuted_row
+        integer(ip)                                          :: permuted_col
+        integer(ip)                                          :: permuted_row_offset
+        integer(ip)                                          :: next_permuted_row_offset
+        integer(ip)                                          :: nz_per_row
+        integer(ip), allocatable                             :: link_list(:)
+        integer(ip)                                          :: iret,i,j
+    !-----------------------------------------------------------------
+        assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
+        assert(A_RR%state_is_start())
+
+        total_num_rows = this%get_num_rows()
+        total_num_cols = this%get_num_cols()
+        assert(num_row<total_num_rows .and. num_col<total_num_cols)
+        perm_size = max(total_num_rows, total_num_cols)
+
+        assert(size(perm) == perm_size)
+        assert(size(iperm) == perm_size)
+
+        A_RR_num_rows = total_num_rows-num_row
+        A_RR_num_cols = total_num_cols-num_col
+
+        call memalloc(perm_size+2, link_list, __FILE__, __LINE__)
+
+        THIS_has_symmetric_storage = this%get_symmetric_storage()
+        if(A_RR%state_is_start()) then
+            ! Set properties
+            symmetric = this%is_symmetric()
+            A_RR_has_symmetric_storage = THIS_has_symmetric_storage
+            sign= this%get_sign()
+            call A_RR%set_properties(A_RR_num_rows, A_RR_num_cols, A_RR_has_symmetric_storage, symmetric, sign)
+        else
+            A_RR_has_symmetric_storage = A_RR%get_symmetric_storage()
+        endif
+
+        if(.not. A_RR_has_symmetric_storage .and. THIS_has_symmetric_storage) then
+            call A_RR%allocate_symbolic(this%get_nnz()*2)
+        else
+            call A_RR%allocate_symbolic(this%get_nnz())
+        endif
+        A_RR%irp = 0
+
+        ! Loop on permuted rows to fill A_RR sparse matrix
+        A_RR%irp(1) = 1
+        do permuted_row=1, A_RR_num_rows
+            current_row = iperm(permuted_row+num_row)
+            current_row_offset = this%irp(current_row)
+            permuted_row_offset = A_RR%irp(permuted_row)
+            nz_per_row = 0
+
+            ! If THIS_has_symmetric_storage transpose upper_triangle
+            if(THIS_has_symmetric_storage) then
+                do i=1, current_row-1
+                    permuted_col = perm(i) - num_col
+                    if((.not. A_RR_has_symmetric_storage) .or. (permuted_col > permuted_row))then 
+                        ! For each one of the previous rows, check if the current row is in it's list of columns
+                        j = binary_search(current_row,this%irp(i+1)-this%irp(i),this%ja(this%irp(i):this%irp(i+1)-1))
+                        if(j==-1) cycle
+                        A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
+                        nz_per_row = nz_per_row + 1
+                    endif
+                enddo
+            endif
+
+            ! Add permuted_cols to the permuted_row
+            do i = current_row_offset, this%irp(current_row+1)-1
+                current_col = this%ja(i)
+                permuted_col = perm(current_col) - num_col
+                if (permuted_col<1 .or. (A_RR_has_symmetric_storage .and. permuted_row>permuted_col)) cycle
+                A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
+                nz_per_row = nz_per_row + 1
+            end do
+
+            ! Sort permuted columns of A_RR sparse matrix for each row
+            if(nz_per_row>0) then
+                next_permuted_row_offset = permuted_row_offset+nz_per_row
+                call mergesort_link_list(nz_per_row,                         &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1), &
+                    link_list,                                               &
+                    iret)
+                if(iret == 0) call reorder_ip_from_link_list(nz_per_row,   &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1),  &
+                    link_list)
+            endif
+            A_RR%irp(permuted_row+1) = permuted_row_offset+nz_per_row
+        end do
+        A_RR%nnz = A_RR%irp(A_RR_num_rows+1)-1
+
+        call memfree(link_list, __FILE__, __LINE__)
+
+        ! Adjust A_RR columns size to A_RR%nnz
+        call memrealloc(A_RR%nnz, A_RR%ja, __FILE__, __LINE__)
+
+        call A_RR%set_state_assembled_symbolic()
+    end subroutine csr_sparse_matrix_permute_and_split_2x2_symbolic_body
 
 
     subroutine csr_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
@@ -1451,7 +1805,7 @@ contains
             last_visited_row_offset = this%irp(last_visited_row)                          ! ja offset for the last visited row of C_T
             next_row_offset         = this%irp(next_row)                                  ! ja offset for the next row of C_T 
             current_nz_per_row      = next_row_offset-last_visited_row_offset             ! Number of nnz per row before expanding the matrix
-            ! Append new existing into the current row of the expanded matrix
+            ! Append existing columns into the current row of the expanded matrix
             to%ja(nz_counter+1:nz_counter+current_nz_per_row) = this%ja(last_visited_row_offset:next_row_offset-1)
             to%val(nz_counter+1:nz_counter+current_nz_per_row) = this%val(last_visited_row_offset:next_row_offset-1)
             nz_counter = nz_counter+current_nz_per_row
@@ -1712,7 +2066,7 @@ contains
             last_visited_row_offset = this%irp(last_visited_row)                          ! ja offset for the last visited row of C_T
             next_row_offset         = this%irp(next_row)                                  ! ja offset for the next row of C_T 
             current_nz_per_row      = next_row_offset-last_visited_row_offset             ! Number of nnz per row before expanding the matrix
-            ! Append new existing into the current row of the expanded matrix
+            ! Append existing columns into the current row of the expanded matrix
             to%ja(nz_counter+1:nz_counter+current_nz_per_row) = this%ja(last_visited_row_offset:next_row_offset-1)
             nz_counter = nz_counter+current_nz_per_row
             ! Append new columns into the current row of the expanded matrix

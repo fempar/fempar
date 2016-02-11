@@ -123,6 +123,10 @@ module base_sparse_matrix_names
         procedure(base_sparse_matrix_update_value_body),         public, deferred :: update_value_body
         procedure(base_sparse_matrix_split_2x2_symbolic),        public, deferred :: split_2x2_symbolic
         procedure(base_sparse_matrix_split_2x2_numeric),         public, deferred :: split_2x2_numeric
+        procedure(base_sparse_matrix_permute_and_split_2x2_numeric),           &
+                                                                 public, deferred :: permute_and_split_2x2_numeric
+        procedure(base_sparse_matrix_permute_and_split_2x2_symbolic),          &
+                                                                 public, deferred :: permute_and_split_2x2_symbolic
         procedure(base_sparse_matrix_expand_matrix_numeric),     public, deferred :: expand_matrix_numeric
         procedure(base_sparse_matrix_expand_matrix_symbolic),    public, deferred :: expand_matrix_symbolic
         procedure(base_sparse_matrix_print_matrix_market_body),  public, deferred :: print_matrix_market_body
@@ -325,6 +329,8 @@ module base_sparse_matrix_names
         procedure, public :: update_value_body                       => coo_sparse_matrix_update_value_body
         procedure, public :: split_2x2_symbolic                      => coo_sparse_matrix_split_2x2_symbolic
         procedure, public :: split_2x2_numeric                       => coo_sparse_matrix_split_2x2_numeric
+        procedure, public :: permute_and_split_2x2_numeric           => coo_sparse_matrix_permute_and_split_2x2_numeric
+        procedure, public :: permute_and_split_2x2_symbolic          => coo_sparse_matrix_permute_and_split_2x2_symbolic
         procedure, public :: expand_matrix_numeric                   => coo_sparse_matrix_expand_matrix_numeric
         procedure, public :: expand_matrix_symbolic                  => coo_sparse_matrix_expand_matrix_symbolic
         procedure, public :: is_by_rows                              => coo_sparse_matrix_is_by_rows
@@ -628,6 +634,32 @@ module base_sparse_matrix_names
             class(base_sparse_matrix_t),           intent(inout) :: A_GG
         end subroutine base_sparse_matrix_split_2x2_numeric
 
+        subroutine base_sparse_matrix_permute_and_split_2x2_numeric(this, num_row, num_col, perm, iperm, A_CC, A_CR, A_RC, A_RR) 
+            import base_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t),           intent(in)    :: this
+            integer(ip),                           intent(in)    :: num_row
+            integer(ip),                           intent(in)    :: num_col
+            integer(ip),                           intent(in)    :: perm(:)
+            integer(ip),                           intent(in)    :: iperm(:)
+            real(rp),    allocatable,              intent(out)   :: A_CC(:,:)
+            real(rp),    allocatable,              intent(out)   :: A_CR(:,:)
+            real(rp),    allocatable,              intent(out)   :: A_RC(:,:)
+            class(base_sparse_matrix_t),           intent(inout) :: A_RR
+        end subroutine base_sparse_matrix_permute_and_split_2x2_numeric
+
+        subroutine base_sparse_matrix_permute_and_split_2x2_symbolic(this, num_row, num_col, perm, iperm, A_RR) 
+            import base_sparse_matrix_t
+            import ip
+            class(base_sparse_matrix_t),           intent(in)    :: this
+            integer(ip),                           intent(in)    :: num_row
+            integer(ip),                           intent(in)    :: num_col
+            integer(ip),                           intent(in)    :: perm(:)
+            integer(ip),                           intent(in)    :: iperm(:)
+            class(base_sparse_matrix_t),           intent(inout) :: A_RR
+        end subroutine base_sparse_matrix_permute_and_split_2x2_symbolic
+
         subroutine base_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
             import base_sparse_matrix_t
             import ip
@@ -709,6 +741,9 @@ public :: duplicates_operation
 public :: assign_value
 public :: sum_value
 public :: binary_search
+public :: mergesort_link_list
+public :: reorder_ip_rp_from_link_list
+public :: reorder_ip_from_link_list
 
 
 contains
@@ -3478,8 +3513,8 @@ contains
                             imx = i + nzl - 1
                             if(nzl > 0)  then
                                 ! Sort the colums of a particular row
-                                call mergesort(nzl,this%ja(i:imx),ix2, iret)
-                                if(iret == 0) call reorder_coords(nzl, this%ia(i:imx), this%ja(i:imx), ix2)
+                                call mergesort_link_list(nzl,this%ja(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_symbolic_coo_from_link_list(nzl, this%ia(i:imx), this%ja(i:imx), ix2)
                                 k = k + 1
                                 this%ia(k)  = this%ia(i)
                                 this%ja(k)  = this%ja(i)
@@ -3527,8 +3562,8 @@ contains
 
                             if(nzl > 0) then
                                 ! Sort the colums of a particular row
-                                call mergesort(nzl,jas(i:imx),ix2, iret)
-                                if(iret == 0) call reorder_coords(nzl, ias(i:imx), jas(i:imx), ix2)
+                                call mergesort_link_list(nzl,jas(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_symbolic_coo_from_link_list(nzl, ias(i:imx), jas(i:imx), ix2)
                                 k = k + 1
                                 this%ia(k)  = ias(i)
                                 this%ja(k)  = jas(i)
@@ -3553,8 +3588,8 @@ contains
                 else
                 ! If there is'n enough memory space
                     ! Sort the rows
-                    call mergesort(nnz,this%ia, iaux, iret)
-                    if(iret == 0) call reorder_coords(nnz, this%ia, this%ja, iaux)
+                    call mergesort_link_list(nnz,this%ia, iaux, iret)
+                    if(iret == 0) call reorder_symbolic_coo_from_link_list(nnz, this%ia, this%ja, iaux)
                     i = 1
                     j = i
                     do while (i <= nnz)
@@ -3564,8 +3599,8 @@ contains
                         enddo
                         nzl = j - i
                         ! Sort the colums of a particular row
-                        call mergesort(nzl, this%ja(i:), iaux, iret)
-                        if(iret == 0) call reorder_coords(nzl, this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
+                        call mergesort_link_list(nzl, this%ja(i:), iaux, iret)
+                        if(iret == 0) call reorder_symbolic_coo_from_link_list(nzl, this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
                         i = j
                     enddo
 
@@ -3612,8 +3647,8 @@ contains
                             imx = i + nzl - 1
                             if(nzl > 0)  then
                                 ! Sort the rows of a particular columns
-                                call mergesort(nzl,this%ia(i:imx),ix2, iret)
-                                if(iret == 0) call reorder_coords(nzl, this%ia(i:imx), this%ja(i:imx), ix2)
+                                call mergesort_link_list(nzl,this%ia(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_symbolic_coo_from_link_list(nzl, this%ia(i:imx), this%ja(i:imx), ix2)
                                 k = k + 1
                                 this%ia(k)  = this%ia(i)
                                 this%ja(k)  = this%ja(i)
@@ -3661,8 +3696,8 @@ contains
 
                             if(nzl > 0) then
                                 ! Sort the rows of a particular column
-                                call mergesort(nzl,ias(i:imx),ix2, iret)
-                                if(iret == 0) call reorder_coords(nzl, ias(i:imx), jas(i:imx), ix2)
+                                call mergesort_link_list(nzl,ias(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_symbolic_coo_from_link_list(nzl, ias(i:imx), jas(i:imx), ix2)
                                 k = k + 1
                                 this%ia(k)  = ias(i)
                                 this%ja(k)  = jas(i)
@@ -3688,8 +3723,8 @@ contains
                 else
                 ! If there is'n enough memory space
                     ! Sort the columns
-                    call mergesort(nnz,this%ja, iaux, iret)
-                    if(iret == 0) call reorder_coords(nnz, this%ia, this%ja, iaux)
+                    call mergesort_link_list(nnz,this%ja, iaux, iret)
+                    if(iret == 0) call reorder_symbolic_coo_from_link_list(nnz, this%ia, this%ja, iaux)
                     i = 1
                     j = i
                     do while (i <= nnz)
@@ -3699,8 +3734,8 @@ contains
                         enddo
                         nzl = j - i
                         ! Sort the rows of a particular column
-                        call mergesort(nzl, this%ia(i:), iaux, iret)
-                        if(iret == 0) call reorder_coords(nzl, this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
+                        call mergesort_link_list(nzl, this%ia(i:), iaux, iret)
+                        if(iret == 0) call reorder_symbolic_coo_from_link_list(nzl, this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
                         i = j
                     enddo
 
@@ -3800,8 +3835,8 @@ contains
                             imx = i + nzl - 1
                             if(nzl > 0)  then
                                 ! Sort the colums of a particular row
-                                call mergesort(nzl,this%ja(i:imx),ix2, iret)
-                                if(iret == 0) call reorder_entries(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
+                                call mergesort_link_list(nzl,this%ja(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_numeric_coo_from_link_list(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
                                 ! If row/column index out of range ignore it
                                 if(i > imx) exit
                                 k = k + 1
@@ -3855,8 +3890,8 @@ contains
 
                             if(nzl > 0) then
                                 ! Sort the colums of a particular row
-                                call mergesort(nzl,jas(i:imx),ix2, iret)
-                                if(iret == 0) call reorder_entries(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
+                                call mergesort_link_list(nzl,jas(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_numeric_coo_from_link_list(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
                                 if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = ias(i)
@@ -3886,8 +3921,8 @@ contains
                 else
                 ! If there is'n enough memory space
                     ! Sort the rows
-                    call mergesort(nnz,this%ia, iaux, iret)
-                    if(iret == 0) call reorder_entries(nnz, this%val, this%ia, this%ja, iaux)
+                    call mergesort_link_list(nnz,this%ia, iaux, iret)
+                    if(iret == 0) call reorder_numeric_coo_from_link_list(nnz, this%val, this%ia, this%ja, iaux)
                     i = 1
                     j = i
                     do while (i <= nnz)
@@ -3897,8 +3932,8 @@ contains
                         enddo
                         nzl = j - i
                         ! Sort the colums of a particular row
-                        call mergesort(nzl, this%ja(i:), iaux, iret)
-                        if(iret == 0) call reorder_entries(nzl, this%val(i:i+nzl-1), this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
+                        call mergesort_link_list(nzl, this%ja(i:), iaux, iret)
+                        if(iret == 0) call reorder_numeric_coo_from_link_list(nzl, this%val(i:i+nzl-1), this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
                         i = j
                     enddo
 
@@ -3946,8 +3981,8 @@ contains
                             imx = i + nzl - 1
                             if(nzl > 0)  then
                                 ! Sort the rows of a particular columns
-                                call mergesort(nzl,this%ia(i:imx),ix2, iret)
-                                if(iret == 0) call reorder_entries(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
+                                call mergesort_link_list(nzl,this%ia(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_numeric_coo_from_link_list(nzl, this%val(i:imx), this%ia(i:imx), this%ja(i:imx), ix2)
                                 ! If row/column index out of range ignore it
                                 if(i > imx) exit
                                 k = k + 1
@@ -4001,8 +4036,8 @@ contains
 
                             if(nzl > 0) then
                                 ! Sort the rows of a particular column
-                                call mergesort(nzl,ias(i:imx),ix2, iret)
-                                if(iret == 0) call reorder_entries(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
+                                call mergesort_link_list(nzl,ias(i:imx),ix2, iret)
+                                if(iret == 0) call reorder_numeric_coo_from_link_list(nzl, vs(i:imx), ias(i:imx), jas(i:imx), ix2)
                                 if(i > imx) exit
                                 k = k + 1
                                 this%ia(k)  = ias(i)
@@ -4032,8 +4067,8 @@ contains
                 else
                 ! If there is'n enough memory space
                     ! Sort the columns
-                    call mergesort(nnz,this%ja, iaux, iret)
-                    if(iret == 0) call reorder_entries(nnz, this%val, this%ia, this%ja, iaux)
+                    call mergesort_link_list(nnz,this%ja, iaux, iret)
+                    if(iret == 0) call reorder_numeric_coo_from_link_list(nnz, this%val, this%ia, this%ja, iaux)
                     i = 1
                     j = i
                     do while (i <= nnz)
@@ -4043,8 +4078,8 @@ contains
                         enddo
                         nzl = j - i
                         ! Sort the rows of a particular column
-                        call mergesort(nzl, this%ia(i:), iaux, iret)
-                        if(iret == 0) call reorder_entries(nzl, this%val(i:i+nzl-1), this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
+                        call mergesort_link_list(nzl, this%ia(i:), iaux, iret)
+                        if(iret == 0) call reorder_numeric_coo_from_link_list(nzl, this%val(i:i+nzl-1), this%ia(i:i+nzl-1), this%ja(i:i+nzl-1), iaux)
                         i = j
                     enddo
 
@@ -4082,200 +4117,6 @@ contains
             call memrealloc(nnz, this%val, __FILE__, __LINE__)
 
         end subroutine sort_and_compress_numeric
-
-
-        subroutine mergesort(n,k,l,iret)
-        !-------------------------------------------------------------
-        !   This subroutine sorts an integer array into ascending order.
-        !
-        ! Arguments:
-        !   n    -  integer           Input: size of the array 
-        !   k    -  integer(*)        input: array of keys to be sorted
-        !   l    -  integer(0:n+1)   output: link list 
-        !   iret -  integer          output: 0 Normal termination
-        !                                    1 the array was already sorted 
-        !
-        ! REFERENCES  = (1) D. E. Knuth
-        !                   The Art of Computer Programming,
-        !                     vol.3: Sorting and Searching
-        !                   Addison-Wesley, 1973
-        !-------------------------------------------------------------
-            use types_names
-            integer(ip) :: n, iret
-            integer(ip) :: k(n),l(0:n+1)
-            integer(ip) :: p,q,s,t
-        !-------------------------------------------------------------
-            iret = 0
-            !  first step: we are preparing ordered sublists, exploiting
-            !  what order was already in the input data; negative links
-            !  mark the end of the sublists
-            l(0) = 1
-            t = n + 1
-            do  p = 1,n - 1
-                if (k(p) <= k(p+1)) then
-                    l(p) = p + 1
-                else
-                    l(t) = - (p+1)
-                    t = p
-                end if
-            end do
-            l(t) = 0
-            l(n) = 0
-            ! see if the input was already sorted
-            if (l(n+1) == 0) then
-                iret = 1
-                return 
-            else
-                l(n+1) = abs(l(n+1))
-            end if
-
-            mergepass: do 
-                ! otherwise, begin a pass through the list.
-                ! throughout all the subroutine we have:
-                !  p, q: pointing to the sublists being merged
-                !  s: pointing to the most recently processed record
-                !  t: pointing to the end of previously completed sublist
-                s = 0
-                t = n + 1
-                p = l(s)
-                q = l(t)
-                if (q == 0) exit mergepass
-
-                outer: do 
-
-                    if (k(p) > k(q)) then 
-                        l(s) = sign(q,l(s))
-                        s = q
-                        q = l(q)
-                        if (q > 0) then 
-                            do 
-                                if (k(p) <= k(q)) cycle outer
-                                s = q
-                                q = l(q)
-                                if (q <= 0) exit
-                            end do
-                        end if
-                        l(s) = p
-                        s = t
-                        do 
-                            t = p
-                            p = l(p)
-                            if (p <= 0) exit
-                        end do
-
-                    else 
-                        l(s) = sign(p,l(s))
-                        s = p
-                        p = l(p)
-                        if (p>0) then 
-                            do 
-                                if (k(p) > k(q)) cycle outer 
-                                s = p
-                                p = l(p)
-                                if (p <= 0) exit
-                            end do
-                        end if
-                        !  otherwise, one sublist ended, and we append to it the rest
-                        !  of the other one.
-                        l(s) = q
-                        s = t
-                        do 
-                            t = q
-                            q = l(q)
-                            if (q <= 0) exit
-                        end do
-                    end if
-
-                    p = -p
-                    q = -q
-                    if (q == 0) then
-                        l(s) = sign(p,l(s))
-                        l(t) = 0
-                        exit outer 
-                    end if
-                end do outer
-            end do mergepass
-
-        end subroutine mergesort
-
-
-        subroutine reorder_entries(n,x,i1,i2,iaux)
-        !-------------------------------------------------------------
-        !  Reorder (an) input vector(s) based on a list sort output.
-        !  Based on: D. E. Knuth: The Art of Computer Programming
-        !            vol. 3: Sorting and Searching, Addison Wesley, 1973
-        !            ex. 5.2.12
-        !-------------------------------------------------------------
-            use types_names
-            integer(ip), intent(in) :: n
-            integer(ip) :: iaux(0:*) 
-            real(rp)    :: x(*)
-            integer(ip) :: i1(*), i2(*)     
-            integer(ip) :: lswap, lp, k, isw1, isw2
-            real(rp)    :: swap
-        !-------------------------------------------------------------
-            lp = iaux(0)
-            k  = 1
-            do 
-                if ((lp == 0).or.(k>n)) exit
-                do 
-                    if (lp >= k) exit
-                    lp = iaux(lp)
-                end do
-                swap     = x(lp)
-                x(lp)    = x(k)
-                x(k)     = swap
-                isw1     = i1(lp)
-                i1(lp)   = i1(k)
-                i1(k)    = isw1
-                isw2     = i2(lp)
-                i2(lp)   = i2(k)
-                i2(k)    = isw2
-                lswap    = iaux(lp)
-                iaux(lp) = iaux(k)
-                iaux(k)  = lp
-                lp = lswap 
-                k  = k + 1
-            enddo
-            return
-        end subroutine reorder_entries
-
-
-        subroutine reorder_coords(n,i1,i2,iaux)
-        !-------------------------------------------------------------
-        !  Reorder (an) input vector(s) based on a list sort output.
-        !  Based on: D. E. Knuth: The Art of Computer Programming
-        !            vol. 3: Sorting and Searching, Addison Wesley, 1973
-        !            ex. 5.2.12
-        !-------------------------------------------------------------
-            use types_names
-            integer(ip), intent(in) :: n
-            integer(ip) :: iaux(0:*) 
-            integer(ip) :: i1(*), i2(*)     
-            integer(ip) :: lswap, lp, k, isw1, isw2
-        !-------------------------------------------------------------
-            lp = iaux(0)
-            k  = 1
-            do 
-                if ((lp == 0).or.(k>n)) exit
-                do 
-                    if (lp >= k) exit
-                    lp = iaux(lp)
-                end do
-                isw1     = i1(lp)
-                i1(lp)   = i1(k)
-                i1(k)    = isw1
-                isw2     = i2(lp)
-                i2(lp)   = i2(k)
-                i2(k)    = isw2
-                lswap    = iaux(lp)
-                iaux(lp) = iaux(k)
-                iaux(k)  = lp
-                lp = lswap 
-                k  = k + 1
-            enddo
-            return
-        end subroutine reorder_coords
 
     end subroutine coo_sparse_matrix_sort_and_compress
 
@@ -4408,6 +4249,51 @@ contains
             endif
         enddo
     end subroutine coo_sparse_matrix_split_2x2_symbolic
+
+
+    subroutine coo_sparse_matrix_permute_and_split_2x2_numeric(this, num_row, num_col, perm, iperm, A_CC, A_CR, A_RC, A_RR) 
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2 and permute some columns and rows
+    !< given 2 permutation arrays (perm and iperm)
+    !< 
+    !< A = [A_CC A_RC]
+    !<     [A_CR A_RR]
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),            intent(in)    :: this
+        integer(ip),                           intent(in)    :: num_row
+        integer(ip),                           intent(in)    :: num_col
+        integer(ip),                           intent(in)    :: perm(:)
+        integer(ip),                           intent(in)    :: iperm(:)
+        real(rp),    allocatable,              intent(out)   :: A_CC(:,:)
+        real(rp),    allocatable,              intent(out)   :: A_CR(:,:)
+        real(rp),    allocatable,              intent(out)   :: A_RC(:,:)
+        class(base_sparse_matrix_t),           intent(inout) :: A_RR
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine coo_sparse_matrix_permute_and_split_2x2_numeric
+
+
+    subroutine coo_sparse_matrix_permute_and_split_2x2_symbolic(this, num_row, num_col, perm, iperm, A_RR) 
+    !-----------------------------------------------------------------
+    !< Split matrix in 2x2 and permute some columns and rows
+    !< given 2 permutation arrays (perm and iperm)
+    !< 
+    !< A = [A_CC A_RC]
+    !<     [A_CR A_RR]
+    !<
+    !< this routine computes A_RR from the global matrix A
+    !< A_CC, ACR and A_RC sparsity pattern calculation is not
+    !< performed because they are dense matrices
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),            intent(in)    :: this
+        integer(ip),                           intent(in)    :: num_row
+        integer(ip),                           intent(in)    :: num_col
+        integer(ip),                           intent(in)    :: perm(:)
+        integer(ip),                           intent(in)    :: iperm(:)
+        class(base_sparse_matrix_t),           intent(inout) :: A_RR
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine coo_sparse_matrix_permute_and_split_2x2_symbolic
 
 
     subroutine coo_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
@@ -4807,5 +4693,276 @@ contains
         enddo
         return
     end function binary_search
+
+    subroutine mergesort_link_list(n,k,l,iret)
+    !-------------------------------------------------------------
+    !   This subroutine sorts an integer array into ascending order.
+    !
+    ! Arguments:
+    !   n    -  integer           Input: size of the array 
+    !   k    -  integer(*)        input: array of keys to be sorted
+    !   l    -  integer(0:n+1)   output: link list 
+    !   iret -  integer          output: 0 Normal termination
+    !                                    1 the array was already sorted 
+    !
+    ! REFERENCES  = (1) D. E. Knuth
+    !                   The Art of Computer Programming,
+    !                     vol.3: Sorting and Searching
+    !                   Addison-Wesley, 1973
+    !-------------------------------------------------------------
+        use types_names
+        integer(ip), intent(in)  :: n
+        integer(ip), intent(in)  :: k(n)
+        integer(ip), intent(out) :: l(0:n+1)
+        integer(ip), intent(out) :: iret
+        integer(ip)              :: p,q,s,t
+    !-------------------------------------------------------------
+        iret = 0
+        !  first step: we are preparing ordered sublists, exploiting
+        !  what order was already in the input data; negative links
+        !  mark the end of the sublists
+        l(0) = 1
+        t = n + 1
+        do  p = 1,n - 1
+        if (k(p) <= k(p+1)) then
+            l(p) = p + 1
+            else
+                l(t) = - (p+1)
+                t = p
+            end if
+        end do
+        l(t) = 0
+        l(n) = 0
+        ! see if the input was already sorted
+        if (l(n+1) == 0) then
+            iret = 1
+            return 
+        else
+            l(n+1) = abs(l(n+1))
+        end if
+
+        mergepass: do 
+            ! otherwise, begin a pass through the list.
+            ! throughout all the subroutine we have:
+            !  p, q: pointing to the sublists being merged
+            !  s: pointing to the most recently processed record
+            !  t: pointing to the end of previously completed sublist
+            s = 0
+            t = n + 1
+            p = l(s)
+            q = l(t)
+            if (q == 0) exit mergepass
+
+            outer: do 
+
+                if (k(p) > k(q)) then 
+                    l(s) = sign(q,l(s))
+                    s = q
+                    q = l(q)
+                    if (q > 0) then 
+                        do 
+                            if (k(p) <= k(q)) cycle outer
+                            s = q
+                            q = l(q)
+                            if (q <= 0) exit
+                        end do
+                    end if
+                    l(s) = p
+                    s = t
+                    do 
+                        t = p
+                        p = l(p)
+                        if (p <= 0) exit
+                    end do
+
+                else 
+                    l(s) = sign(p,l(s))
+                    s = p
+                    p = l(p)
+                    if (p>0) then 
+                        do 
+                            if (k(p) > k(q)) cycle outer 
+                            s = p
+                            p = l(p)
+                            if (p <= 0) exit
+                        end do
+                    end if
+                    !  otherwise, one sublist ended, and we append to it the rest
+                    !  of the other one.
+                    l(s) = q
+                    s = t
+                    do 
+                        t = q
+                        q = l(q)
+                        if (q <= 0) exit
+                    end do
+                end if
+
+                p = -p
+                q = -q
+                if (q == 0) then
+                    l(s) = sign(p,l(s))
+                    l(t) = 0
+                    exit outer 
+                end if
+            end do outer
+        end do mergepass
+
+    end subroutine mergesort_link_list
+
+
+    subroutine reorder_numeric_coo_from_link_list(n,x,i1,i2,iaux)
+    !-------------------------------------------------------------
+    !  Reorder (an) input vector(s) based on a list sort output.
+    !  Based on: D. E. Knuth: The Art of Computer Programming
+    !            vol. 3: Sorting and Searching, Addison Wesley, 1973
+    !            ex. 5.2.12
+    !-------------------------------------------------------------
+        use types_names
+        integer(ip), intent(in)    :: n
+        real(rp),    intent(inout) :: x(*)
+        integer(ip), intent(inout) :: i1(*)
+        integer(ip), intent(inout) :: i2(*)
+        integer(ip), intent(inout) :: iaux(0:*) 
+        integer(ip) :: lswap, lp, k, isw1, isw2
+        real(rp)    :: swap
+    !-------------------------------------------------------------
+        lp = iaux(0)
+        k  = 1
+        do 
+            if ((lp == 0).or.(k>n)) exit
+            do 
+                if (lp >= k) exit
+                lp = iaux(lp)
+            end do
+            swap     = x(lp)
+            x(lp)    = x(k)
+            x(k)     = swap
+            isw1     = i1(lp)
+            i1(lp)   = i1(k)
+            i1(k)    = isw1
+            isw2     = i2(lp)
+            i2(lp)   = i2(k)
+            i2(k)    = isw2
+            lswap    = iaux(lp)
+            iaux(lp) = iaux(k)
+            iaux(k)  = lp
+            lp = lswap 
+            k  = k + 1
+        enddo
+        return
+    end subroutine reorder_numeric_coo_from_link_list
+
+
+    subroutine reorder_symbolic_coo_from_link_list(n,i1,i2,iaux)
+    !-------------------------------------------------------------
+    !  Reorder (an) input vector(s) based on a list sort output.
+    !  Based on: D. E. Knuth: The Art of Computer Programming
+    !            vol. 3: Sorting and Searching, Addison Wesley, 1973
+    !            ex. 5.2.12
+    !-------------------------------------------------------------
+        use types_names
+        integer(ip), intent(in)    :: n
+        integer(ip), intent(inout) :: i1(*)
+        integer(ip), intent(inout) :: i2(*)
+        integer(ip), intent(inout) :: iaux(0:*) 
+        integer(ip) :: lswap, lp, k, isw1, isw2
+    !-------------------------------------------------------------
+        lp = iaux(0)
+        k  = 1
+        do 
+            if ((lp == 0).or.(k>n)) exit
+            do 
+                if (lp >= k) exit
+                lp = iaux(lp)
+            end do
+            isw1     = i1(lp)
+            i1(lp)   = i1(k)
+            i1(k)    = isw1
+            isw2     = i2(lp)
+            i2(lp)   = i2(k)
+            i2(k)    = isw2
+            lswap    = iaux(lp)
+            iaux(lp) = iaux(k)
+            iaux(k)  = lp
+            lp = lswap 
+            k  = k + 1
+        enddo
+        return
+    end subroutine reorder_symbolic_coo_from_link_list
+    
+
+    subroutine reorder_ip_from_link_list(n,i1,iaux)
+    !-------------------------------------------------------------
+    !  Reorder (an) input vector(s) based on a list sort output.
+    !  Based on: D. E. Knuth: The Art of Computer Programming
+    !            vol. 3: Sorting and Searching, Addison Wesley, 1973
+    !            ex. 5.2.12
+    !-------------------------------------------------------------
+        use types_names
+        integer(ip), intent(in)    :: n
+        integer(ip), intent(inout) :: i1(*)
+        integer(ip), intent(inout) :: iaux(0:*) 
+        integer(ip) :: lswap, lp, k, isw1
+    !-------------------------------------------------------------
+        lp = iaux(0)
+        k  = 1
+        do 
+            if ((lp == 0).or.(k>n)) exit
+            do 
+                if (lp >= k) exit
+                lp = iaux(lp)
+            end do
+            isw1     = i1(lp)
+            i1(lp)   = i1(k)
+            i1(k)    = isw1
+            lswap    = iaux(lp)
+            iaux(lp) = iaux(k)
+            iaux(k)  = lp
+            lp = lswap 
+            k  = k + 1
+        enddo
+        return
+    end subroutine reorder_ip_from_link_list
+
+    
+    subroutine reorder_ip_rp_from_link_list(n,x,i1,iaux)
+    !-------------------------------------------------------------
+    !  Reorder (an) input vector(s) based on a list sort output.
+    !  Based on: D. E. Knuth: The Art of Computer Programming
+    !            vol. 3: Sorting and Searching, Addison Wesley, 1973
+    !            ex. 5.2.12
+    !-------------------------------------------------------------
+        use types_names
+        integer(ip), intent(in)    :: n
+        real(rp),    intent(inout) :: x(*)
+        integer(ip), intent(inout) :: i1(*)
+        integer(ip), intent(inout) :: iaux(0:*) 
+        integer(ip) :: lswap, lp, k, isw1
+        real(rp)    :: swap
+    !-------------------------------------------------------------
+        lp = iaux(0)
+        k  = 1
+        do 
+            if ((lp == 0).or.(k>n)) exit
+            do 
+                if (lp >= k) exit
+                lp = iaux(lp)
+            end do
+            swap     = x(lp)
+            x(lp)    = x(k)
+            x(k)     = swap
+            isw1     = i1(lp)
+            i1(lp)   = i1(k)
+            i1(k)    = isw1
+            lswap    = iaux(lp)
+            iaux(lp) = iaux(k)
+            iaux(k)  = lp
+            lp = lswap 
+            k  = k + 1
+        enddo
+        return
+    end subroutine reorder_ip_rp_from_link_list
+
 
 end module base_sparse_matrix_names
