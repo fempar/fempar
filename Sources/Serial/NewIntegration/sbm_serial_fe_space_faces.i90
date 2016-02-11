@@ -5,11 +5,11 @@ subroutine create_face_array (this)
 
   integer(ip)                    :: face_id, i, j
   integer(ip)                    :: number_interior_faces, number_boundary_faces, number_total_faces
-  integer(ip)                    :: istat,  local_neigh_elem_id, neigh_elem_id
+  integer(ip)                    :: istat,  local_neigh_elem_id, neigh_elem_id, max_order
   type(face_topology_t), pointer :: face_topology
   type(finite_face_t)  , pointer :: face
 
-  class(reference_fe_t), pointer :: null_reference_fe_p
+  class(reference_fe_t), pointer :: null_reference_fe_p=> NULL()
   ! Get the variables from the triangulation
   ! AH: Once we have the iterator and more intrincated triangulations, this will be not simply
   ! taking the raw values but only the active faces or the ones we are interested in
@@ -17,6 +17,13 @@ subroutine create_face_array (this)
   number_boundary_faces = this%triangulation%number_boundary_faces
   number_total_faces    = number_interior_faces + number_boundary_faces
 
+  allocate( this%face_quadrature(1), stat=istat )
+  check(istat == 0)
+  allocate( this%face_map(2), stat=istat )
+  check(istat == 0)
+
+  max_order = 1
+ 
   ! Construct the face integrators
   allocate( this%face_integrator(2*this%number_fe_spaces), stat=istat )
   check (istat == 0)
@@ -28,6 +35,13 @@ subroutine create_face_array (this)
           &                                this%reference_fe_geo_list(1)%p,                   &
           &                                this%reference_fe_geo_list(1)%p)
   end do
+  ! Construct the quadrature and face_map
+  call this%reference_fe_phy_list(1)%p%create_face_quadrature(this%face_quadrature(1),max_order)
+  call this%face_map(1)%create(this%reference_fe_geo_list(1)%p,this%reference_fe_geo_list(1)%p,   &
+       &                       this%face_quadrature(1))
+  call this%face_map(2)%create(this%reference_fe_geo_list(1)%p,null_reference_fe_p,               &
+       &                       this%face_quadrature(1))
+
   null_reference_fe_p => NULL()
   do i  = this%number_fe_spaces+1, 2*this%number_fe_spaces
      j = i - this%number_fe_spaces
@@ -51,9 +65,11 @@ subroutine create_face_array (this)
         neigh_elem_id = face_topology%neighbour_elems_id(local_neigh_elem_id)
         face%neighbour_fe(local_neigh_elem_id)%p => this%fe_array(neigh_elem_id)
      end do
-
+     
      call face%create(this%number_fe_spaces)
      ! Assign the face integrator pointers
+     face%map        => this%face_map(1)
+     face%quadrature => this%face_quadrature(1)
      do i = 1,  this%number_fe_spaces
         face%face_integrator(i)%p => this%face_integrator(i)%p
      end do
@@ -74,6 +90,9 @@ subroutine create_face_array (this)
      face%neighbour_fe(local_neigh_elem_id)%p => NULL()
 
      call face%create(this%number_fe_spaces)
+     ! Assign the face integrator pointers
+     face%map        => this%face_map(2)
+     face%quadrature => this%face_quadrature(1)
      ! Assign the face integrator pointers 
      ! AH: notice that now they are pointing to the integrator corresponding to an interior face. 
      ! (This should be improved when we are able to construct the integrators on the fly)

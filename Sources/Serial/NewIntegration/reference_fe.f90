@@ -1,5 +1,6 @@
 module reference_fe_names
   use allocatable_array_ip1_names
+  use allocatable_array_rp2_names
   use field_names
   use types_names
   use list_types_names
@@ -50,9 +51,9 @@ module reference_fe_names
 
   type SB_p_quadrature_t
      type(SB_quadrature_t), pointer :: p => NULL()
-		contains
-		   procedure :: allocate => p_quadrature_allocate
-		   procedure :: free     => p_quadrature_free
+   contains
+     procedure :: allocate => p_quadrature_allocate
+     procedure :: free     => p_quadrature_free
   end type SB_p_quadrature_t
 
   ! Types
@@ -99,20 +100,26 @@ module reference_fe_names
      real(rp), allocatable    :: d2sdx(:,:,:,:)     
      ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)       
      real(rp), allocatable    :: coordinates_points(:,:)  
+     ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)  
+     type(allocatable_array_rp2_t)  :: coordinates_nodes    
+     !real(rp), allocatable    :: coordinates_nodes(:,:)  
      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
      real(rp), allocatable    :: normals(:,:)  
      ! Geometry interpolation_t in the reference element domain    
-     type(SB_interpolation_t) :: interpolation_geometry    
+     type(SB_interpolation_t) :: interpolation_geometry   
+     ! Characteristic length of the reference element
+     real(rp)                 :: reference_fe_characteristic_length
    contains
      procedure, non_overridable :: create           => fe_map_create
      procedure, non_overridable :: create_on_face   => fe_map_create_on_face
-     procedure, non_overridable :: face_map_create  => fe_map_face_map_create
+     procedure, non_overridable :: fe_map_face_restriction_create  => fe_map_face_map_create
      procedure, non_overridable :: update           => fe_map_update
-     procedure, non_overridable :: face_map_update  => fe_map_face_map_update
+     procedure, non_overridable :: fe_map_face_restriction_update  => fe_map_face_map_update
      procedure, non_overridable :: free             => fe_map_free
      procedure, non_overridable :: print            => fe_map_print
      procedure, non_overridable :: get_det_jacobian => fe_map_get_det_jacobian
      procedure, non_overridable :: compute_h        => fe_map_compute_h
+     procedure, non_overridable :: get_nodal_coordinates  => fe_map_get_nodal_coordinates
   end type fe_map_t
 
   type p_fe_map_t
@@ -422,8 +429,8 @@ type SB_volume_integrator_t
   integer(ip)                    :: number_shape_functions
   integer(ip)                    :: number_evaluation_points
   class(reference_fe_t), pointer :: reference_fe
-  type(SB_interpolation_t)       :: interpolation           ! Unknown interpolation_t in the reference element domain
-  type(SB_interpolation_t)       :: interpolation_o_map     ! Unknown interpolation_t in the physical element domain
+  type(SB_interpolation_t)       :: interpolation      ! Unknown interpolation_t in the reference element domain
+  type(SB_interpolation_t)       :: interpolation_o_map! Unknown interpolation_t in the physical element domain
 contains
 
   procedure, non_overridable :: create => volume_integrator_create
@@ -456,7 +463,7 @@ contains
   procedure, non_overridable, private :: get_divergence_vector => volume_integrator_get_divergence_vector
   procedure, non_overridable, private :: get_divergence_tensor => volume_integrator_get_divergence_tensor
   generic                             :: get_divergence => get_divergence_vector, &
-                                                           get_divergence_tensor                                                           
+                                                           get_divergence_tensor
   procedure, non_overridable, private :: get_curl_vector => volume_integrator_get_curl_vector
   generic                             :: get_curl => get_curl_vector
   
@@ -485,10 +492,24 @@ type fe_map_face_restriction_t
    integer(ip)                 :: active_face_id
    type(fe_map_t), allocatable :: fe_map(:)
  contains
-    procedure :: create => face_map_create
-    procedure :: update => face_map_update
-    procedure :: free   => face_map_free
+    procedure, non_overridable :: create => fe_map_face_restriction_create
+    procedure, non_overridable :: update => fe_map_face_restriction_update
+    procedure, non_overridable :: free   => fe_map_face_restriction_free
 end type fe_map_face_restriction_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+type face_map_t
+   private
+   type(fe_map_t)                  :: face_map
+   type(fe_map_face_restriction_t) :: fe_maps(2)
+ contains
+   procedure, non_overridable :: create => face_map_create
+   procedure, non_overridable :: free   => face_map_free
+   procedure, non_overridable :: get_face_coordinates  => face_map_get_face_coordinates
+end type face_map_t
+
+public :: face_map_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -501,9 +522,9 @@ type interpolation_face_restriction_t
   type(SB_interpolation_t)              :: interpolation_o_map
   class(reference_fe_t)       , pointer :: reference_fe
 contains
-  procedure :: create => face_interpolation_create
-  procedure :: update => face_interpolation_update
-  procedure :: free   => face_interpolation_free
+  procedure, non_overridable :: create => face_interpolation_create
+  procedure, non_overridable :: update => face_interpolation_update
+  procedure, non_overridable :: free   => face_interpolation_free
 end type interpolation_face_restriction_t
 
 public :: interpolation_face_restriction_t
@@ -514,11 +535,11 @@ public :: interpolation_face_restriction_t
 type face_integrator_t
    private
    type(interpolation_face_restriction_t) :: face_interpolation(2)
-   type(fe_map_t)             :: face_map
-   type(fe_map_face_restriction_t)           :: fe_maps(2)
-   type(SB_quadrature_t)      :: quadrature
-   type(p_reference_fe_t)     :: reference_fe(2)
-   real(rp)     , allocatable :: coordinates(:,:)
+   type(fe_map_t)                         :: face_map
+   type(fe_map_face_restriction_t)        :: fe_maps(2)
+   type(SB_quadrature_t)                  :: quadrature
+   type(p_reference_fe_t)                 :: reference_fe(2)
+   real(rp), allocatable                  :: coordinates(:,:)
  contains
    procedure, non_overridable :: create            => face_integrator_create
    procedure, non_overridable :: update            => face_integrator_update
@@ -533,8 +554,7 @@ type face_integrator_t
    procedure, non_overridable :: get_gradient_scalar                                              &
         &                                          => face_integrator_get_gradient_scalar
    generic :: get_gradient => get_gradient_scalar
-   procedure, non_overridable :: get_normals                                              &
-        &                                          => face_integrator_get_normals
+   procedure, non_overridable :: get_normals       => face_integrator_get_normals
 end type face_integrator_t
 
 type p_face_integrator_t

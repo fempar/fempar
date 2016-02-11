@@ -18,8 +18,16 @@ subroutine finite_face_update_integration( this )
   class(finite_face_t), intent(inout) :: this 
   integer(ip) :: i
   
+  type(allocatable_array_rp2_t), pointer:: face_coordinates
+
+  
   ! Here we should pass the %cell%geo_reference_element instead of %reference_fe_geo BUT it is still
   ! not pointing to a reference_FE_t type of data.
+  face_coordinates => this%map%get_face_coordinates()
+  call this%face_topology%get_coordinates(face_coordinates)
+  !call this%map%update(this%quadrature,this%get_coordinates())
+  !call this%face_topology%get_coordinates(this%coordinates)
+  
   do i = 1, this%number_fe_spaces
      if (this%is_boundary()) then
         call this%face_integrator(i)%p%update(this%face_topology%relative_face,                   &

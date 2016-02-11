@@ -108,6 +108,8 @@ module SB_fe_space_names
      integer(ip)                            :: number_fe_spaces
      type(face_topology_t)        , pointer :: face_topology
      type(p_SB_finite_element_t)            :: neighbour_fe(2)
+     type(face_map_t)         , pointer     :: map
+     type(SB_quadrature_t)    , pointer     :: quadrature
      type(p_face_integrator_t), allocatable :: face_integrator(:)
    contains
      procedure, non_overridable :: create              => finite_face_create
@@ -128,8 +130,10 @@ module SB_fe_space_names
      integer(ip)                                 :: number_fe_spaces   
      type(p_reference_fe_t)        , allocatable :: reference_fe_geo_list(:)
      type(p_fe_map_t)              , allocatable :: fe_map(:)
+     type(face_map_t)              , allocatable :: face_map(:)
      type(p_reference_fe_t)        , allocatable :: reference_fe_phy_list(:)
      type(SB_p_quadrature_t)       , allocatable :: quadrature(:)
+     type(SB_quadrature_t)         , allocatable :: face_quadrature(:)
      type(SB_p_volume_integrator_t), allocatable :: volume_integrator(:)
      type(p_face_integrator_t)     , allocatable :: face_integrator(:)
      

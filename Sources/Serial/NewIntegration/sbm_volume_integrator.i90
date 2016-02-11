@@ -32,6 +32,14 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   call memalloc(number_dimensions, &
                 number_evaluation_points, &
                 this%coordinates_points,__FILE__,__LINE__)
+
+  ! This is not correct, we need to know the number of corners
+  ! but at some point we might need this value to be number_of_shape_functions and is
+  ! going to be obtained from the interpolation
+  call this%coordinates_nodes%create(number_dimensions,number_evaluation_points)
+  !call memalloc(number_dimensions, &
+  !              number_evaluation_points, &
+  !              this%coordinates_nodes,__FILE__,__LINE__)
 end subroutine fe_map_create
 
 !==================================================================================================
@@ -69,6 +77,14 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   call memalloc(number_dimensions, &
                 number_evaluation_points, &
                 this%coordinates_points,__FILE__,__LINE__)
+
+  ! This is not correct, we need to know the number of corners
+  ! but at some point we might need this value to be number_of_shape_functions and is
+  ! going to be obtained from the interpolation
+  call this%coordinates_nodes%create(number_dimensions,number_evaluation_points)
+  !call memalloc(number_dimensions, &
+  !              number_evaluation_points, &
+  !              this%coordinates_nodes,__FILE__,__LINE__)
 end subroutine fe_map_create_on_face
 
 !==================================================================================================
@@ -105,6 +121,14 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geometry )
   call memalloc(number_dimensions, &
                 number_evaluation_points, &
                 this%normals,__FILE__,__LINE__)
+
+  ! This is not correct, we need to know the number of corners
+  ! but at some point we might need this value to be number_of_shape_functions and is
+  ! going to be obtained from the interpolation
+  call this%coordinates_nodes%create(number_dimensions,number_evaluation_points)
+  !call memalloc(number_dimensions, &
+  !              number_evaluation_points, &
+  !              this%coordinates_nodes,__FILE__,__LINE__)
 end subroutine fe_map_face_map_create
 
   !==================================================================================================
@@ -134,6 +158,8 @@ end subroutine fe_map_face_map_create
     ndime = this%interpolation_geometry%number_dimensions
     nnode = size(this%interpolation_geometry%shape_functions,1)
     nlocs = this%interpolation_geometry%number_evaluation_points
+
+    this%coordinates_nodes%a = cell_coordinates
 
     do ilocs=1,nlocs
        ! Matmul is not thread safe
@@ -233,6 +259,9 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature,   
   local_vef_id = reference_fe%number_vefs_dimension(number_elem_dimensions) + local_face_id - 1
   orientation_face  = reference_fe%orientation%a(local_vef_id)
   reorientation_factor = (-1)**orientation_face
+
+  this%coordinates_nodes%a = face_coordinates
+
   ! Initialize values
   this%coordinates_points = 0.0_rp
   this%jacobian           = 0.0_rp
@@ -286,6 +315,7 @@ subroutine fe_map_free( this )
   if(allocated(this%det_jacobian)) call memfree(this%det_jacobian,__FILE__,__LINE__)
   if(allocated(this%d2sdx)) call memfree(this%d2sdx,__FILE__,__LINE__)
   if(allocated(this%coordinates_points)) call memfree(this%coordinates_points,__FILE__,__LINE__)
+  call this%coordinates_nodes%free
   if(allocated(this%normals)) call memfree(this%normals,__FILE__,__LINE__)
   call this%interpolation_geometry%free()
 end subroutine fe_map_free
@@ -329,10 +359,19 @@ function fe_map_compute_h ( this, igaus, number_dimensions )
         fe_map_compute_h(idime) = fe_map_compute_h(idime) + this%inv_jacobian(idime,jdime,igaus)**2.0_rp
      end do
      fe_map_compute_h(idime) = sqrt(fe_map_compute_h(idime))
-  end do
-  
+  end do  
 
 end function fe_map_compute_h
+
+!==================================================================================================
+function fe_map_get_nodal_coordinates(this)
+  implicit none
+  class(fe_map_t)   , target, intent(in) :: this
+  type(allocatable_array_rp2_t), pointer :: fe_map_get_nodal_coordinates
+  
+  fe_map_get_nodal_coordinates => this%coordinates_nodes
+
+end function fe_map_get_nodal_coordinates
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_fe_map_t type procedures

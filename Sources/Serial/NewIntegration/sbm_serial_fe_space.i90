@@ -179,6 +179,10 @@ subroutine free( this )
      do i = 1, this%triangulation%number_interior_faces + this%triangulation%number_boundary_faces
         call this%face_array(i)%free()
      end do
+
+     call this%face_quadrature(1)%free()
+     call this%face_map(1)%free()
+     call this%face_map(2)%free()
   end if
   
   do iblock = 1, this%number_blocks
@@ -518,7 +522,7 @@ subroutine create_element_to_dof_and_ndofs( fe_space, init_dof, var )
   ! never appear in interior nodes in cG.
   !if ( ( .not. fe_space%static_condensation )  ) then
   do ielem = 1, fe_space%triangulation%num_elems
-     write(*,*) __FILE__,__LINE__,jelem,  .not. fe_space%fe_array(jelem)%reference_fe_phy(var)%p%get_continuity()
+     !write(*,*) __FILE__,__LINE__,jelem,  .not. fe_space%fe_array(jelem)%reference_fe_phy(var)%p%get_continuity()
      if ( .not. fe_space%fe_array(jelem)%reference_fe_phy(var)%p%get_continuity() ) then
         do iobje = 1, fe_space%triangulation%elems(ielem)%num_vefs+1
            do inode = 1, fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_number_interior_nodes_vef(iobje)

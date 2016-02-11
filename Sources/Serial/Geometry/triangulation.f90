@@ -30,6 +30,9 @@ module triangulation_names
   use memor_names
   use fe_space_types_names
   use hash_table_names  
+  use list_types_names
+  use reference_fe_names
+  use allocatable_array_rp2_names
   implicit none
 # include "debug.i90"
 
@@ -42,9 +45,11 @@ module triangulation_names
      integer(ip)               :: num_vefs = -1    ! Number of vefs
      integer(ip), allocatable  :: vefs(:)          ! List of Local IDs of the vefs (vertices, edges, faces) that make up this element
      type(reference_element_t), pointer :: geo_reference_element => NULL() ! Topological info of the geometry (SBmod)
-
+     class(reference_fe_t), pointer :: reference_fe_geo => NULL()
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: order
+   contains
+     procedure :: get_coordinates => elem_topology_get_coordinates
 
   end type elem_topology_t
 
@@ -53,9 +58,12 @@ module triangulation_names
   end type p_elem_topology_t
 
   type face_topology_t
-     integer(ip) :: neighbour_elems_id(2) = -1
-     integer(ip) :: relative_face(2)      = -1
-     integer(ip) :: right_elem_subface    = -1
+     integer(ip)             :: neighbour_elems_id(2) = -1
+     type(p_elem_topology_t) :: neighbour_elems(2)
+     integer(ip)             :: relative_face(2)      = -1
+     integer(ip)             :: right_elem_subface    = -1
+   contains
+     procedure :: get_coordinates => face_topology_get_coordinates
   end type face_topology_t
 
   type vef_topology_t
@@ -78,6 +86,7 @@ module triangulation_names
      type(vef_topology_t) , allocatable :: vefs(:) ! array of vefs in the mesh.
      type (position_hash_table_t)       :: pos_elem_info  ! Topological info hash table (SBmod)
      type (reference_element_t)         :: reference_elements(max_elinf) ! List of topological info's
+     type(p_reference_fe_t)             :: reference_fe(1)
      integer(ip)                        :: num_boundary_faces ! Number of faces in the boundary 
      integer(ip), allocatable           :: lst_boundary_faces(:) ! List of faces LIDs in the boundary
   end type triangulation_t
@@ -121,7 +130,6 @@ contains
 
     ! Initialization of element fixed info parameters (SBmod)
     call trian%pos_elem_info%init(ht_length)
-
 
   end subroutine triangulation_create
 
@@ -281,11 +289,13 @@ contains
           if (face%neighbour_elems_id(1) == -1 ) then 
              ! If empty, fill the left neighbour element info
              face%neighbour_elems_id(1)  = elem_id
+             face%neighbour_elems(1)%p   => trian%elems(elem_id)
              face%relative_face(1)       = local_face_id
           else
              ! If not, fill the right neighbour element info
              assert(face%neighbour_elems_id(2) == -1 )
              face%neighbour_elems_id(2)  = elem_id
+             face%neighbour_elems(2)%p   => trian%elems(elem_id)
              face%relative_face(2)       = local_face_id
              face%right_elem_subface     = 0
           end if
@@ -314,6 +324,7 @@ contains
        call reference_element_free (trian%reference_elements(iobj))
     end do
     call trian%pos_elem_info%free
+    call trian%reference_fe(1)%free
 
     trian%elem_array_len = -1 
     trian%num_vefs = -1
@@ -534,7 +545,7 @@ contains
             &                                     1,ndime)
     end if
     trian%elems(ielem)%geo_reference_element => trian%reference_elements(pos_elinf)
-
+    trian%elems(ielem)%reference_fe_geo => trian%reference_fe(1)%p
   end subroutine put_topology_element_triangulation
 
   subroutine local_id_from_vertices( e, nd, list, no, lid ) ! (SBmod)
@@ -634,5 +645,40 @@ contains
     write (lunou,*) 'order:', elem%order
 
   end subroutine element_print
+
+  subroutine elem_topology_get_coordinates(this, elem_topology_coordinates)
+    implicit none
+    ! Parameters
+    class(elem_topology_t), intent(in)    :: this
+    real(rp)              , intent(inout) :: elem_topology_coordinates(:,:)
+    
+    elem_topology_coordinates = this%coordinates
+  end subroutine elem_topology_get_coordinates
+
+  subroutine face_topology_get_coordinates(this, face_topology_coordinates)
+    implicit none
+    ! Parameters
+    class(face_topology_t), intent(in)    :: this
+    type(allocatable_array_rp2_t), intent(inout) :: face_topology_coordinates
+    
+    integer(ip)           :: i,aux_vef_dimension(5), local_vef_id
+    integer(ip)           :: number_corners_face_geo, local_element_corner
+    type(list_t)         , pointer :: corners_vef 
+    class(reference_fe_t), pointer :: left_reference_fe_geo
+
+    left_reference_fe_geo => this%neighbour_elems(1)%p%reference_fe_geo
+
+    ! This is using corners_vef and assuming that the geometrical reference element is linear.
+    aux_vef_dimension = left_reference_fe_geo%get_number_vefs_dimension()
+    number_corners_face_geo = left_reference_fe_geo%get_number_corners_vef                          &
+         &                  (aux_vef_dimension(left_reference_fe_geo%get_number_dimensions()))
+    local_vef_id = aux_vef_dimension(left_reference_fe_geo%get_number_dimensions()) +               &
+         &         this%relative_face(1) - 1
+    corners_vef => left_reference_fe_geo%get_corners_vef()
+    do i = 1, number_corners_face_geo
+       local_element_corner = corners_vef%l(corners_vef%p(local_vef_id) + i-1)
+       face_topology_coordinates%a(:,i) = this%neighbour_elems(1)%p%coordinates(:,local_element_corner)
+    end do
+  end subroutine face_topology_get_coordinates
 
 end module triangulation_names
