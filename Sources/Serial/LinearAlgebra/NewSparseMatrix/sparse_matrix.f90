@@ -714,7 +714,7 @@ contains
     end function sparse_matrix_get_default_sparse_matrix
 
 
-    subroutine sparse_matrix_split_2x2_numeric(this, num_row, num_col, A_II, A_IG, A_GI, A_GG)
+    subroutine sparse_matrix_split_2x2_numeric(this, num_row, num_col, A_II, A_IG, A_GI, A_GG, symmetric_storage, symmetric, sign)
     !-----------------------------------------------------------------
     !< Split matrix in a 2x2 submatrix
     !< A = [A_II A_IG]
@@ -727,10 +727,12 @@ contains
         type(sparse_matrix_t),           intent(inout) :: A_IG
         type(sparse_matrix_t), optional, intent(inout) :: A_GI
         type(sparse_matrix_t),           intent(inout) :: A_GG
-        logical                                        :: symmetric
-        logical                                        :: symmetric_storage
-        integer(ip)                                    :: sign
-        integer(ip)                                    :: nz
+        logical,               optional, intent(in)    :: symmetric_storage
+        logical,               optional, intent(in)    :: symmetric
+        integer(ip),           optional, intent(in)    :: sign
+        logical                                        :: symmetric_storage_aux
+        logical                                        :: symmetric_aux
+        integer(ip)                                    :: sign_aux
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         assert (.not. present(A_GI) .or. (.not. this%get_symmetric_storage()) )
@@ -743,7 +745,20 @@ contains
         if(.not. allocated(A_IG%State)) allocate(A_IG%State, mold=this%State)
         if(.not. allocated(A_GG%State)) allocate(A_GG%State, mold=this%State)
 
+        sign_aux = this%State%get_sign()
+        symmetric_aux = this%State%is_symmetric()
+        symmetric_storage_aux = this%State%get_symmetric_storage()
+
+        if(present(sign)) sign_aux = sign
+        if(present(symmetric)) symmetric_aux = symmetric
+        if(present(symmetric_storage)) symmetric_storage_aux = symmetric_storage
+
+        if(A_II%State%state_is_start()) call A_II%State%set_properties(symmetric_storage_aux, symmetric_aux, sign_aux)
+        if(A_IG%State%state_is_start()) call A_IG%State%set_properties(.false., .false., SPARSE_MATRIX_SIGN_UNKNOWN)
+        if(A_GG%State%state_is_start()) call A_GG%State%set_properties(symmetric_storage_aux, symmetric_aux, sign_aux)
+
         if(present(A_GI)) then
+            if(A_GI%State%state_is_start()) call A_GI%State%set_properties(.false., .false., SPARSE_MATRIX_SIGN_UNKNOWN)
             call this%State%split_2x2_numeric(num_row, num_col, A_II%State, A_IG%State, A_GI%State, A_GG%State)
             call A_GI%create_vector_spaces()
         else
@@ -755,7 +770,7 @@ contains
     end subroutine sparse_matrix_split_2x2_numeric
 
 
-    subroutine sparse_matrix_split_2x2_symbolic(this, num_row, num_col, A_II, A_IG, A_GI, A_GG)
+    subroutine sparse_matrix_split_2x2_symbolic(this, num_row, num_col, A_II, A_IG, A_GI, A_GG, symmetric_storage, symmetric, sign)
     !-----------------------------------------------------------------
     !< Split matrix in a 2x2 submatrix
     !< A = [A_II A_IG]
@@ -768,6 +783,12 @@ contains
         type(sparse_matrix_t),           intent(inout) :: A_IG
         type(sparse_matrix_t), optional, intent(inout) :: A_GI
         type(sparse_matrix_t),           intent(inout) :: A_GG
+        integer,               optional, intent(in)    :: sign
+        logical,               optional, intent(in)    :: symmetric
+        logical,               optional, intent(in)    :: symmetric_storage
+        integer                                        :: sign_aux
+        logical                                        :: symmetric_aux
+        logical                                        :: symmetric_storage_aux
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         assert (.not. present(A_GI) .or. (.not. this%get_symmetric_storage()) )
@@ -784,7 +805,20 @@ contains
         allocate(A_IG%State, mold=this%State)
         allocate(A_GG%State, mold=this%State)
 
+        sign_aux = this%State%get_sign()
+        symmetric_aux = this%State%is_symmetric()
+        symmetric_storage_aux = this%State%get_symmetric_storage()
+
+        if(present(sign)) sign_aux = sign
+        if(present(symmetric)) symmetric_aux = symmetric
+        if(present(symmetric_storage)) symmetric_storage_aux = symmetric_storage
+
+        call A_II%State%set_properties(symmetric_storage_aux, symmetric_aux, sign_aux)
+        call A_IG%State%set_properties(.false., .false., SPARSE_MATRIX_SIGN_UNKNOWN)
+        call A_GG%State%set_properties(symmetric_storage_aux, symmetric_aux, sign_aux)
+
         if(present(A_GI)) then
+            call A_GI%State%set_properties(.false., .false., SPARSE_MATRIX_SIGN_UNKNOWN)
             call this%State%split_2x2_symbolic(num_row, num_col, A_II%State, A_IG%State, A_GI%State, A_GG%State)
             call A_GI%create_vector_spaces()
         else
@@ -796,7 +830,7 @@ contains
     end subroutine sparse_matrix_split_2x2_symbolic
 
 
-    subroutine sparse_matrix_permute_and_split_2x2_numeric(this, num_row, num_col, perm, iperm, A_CC, A_CR, A_RC, A_RR) 
+    subroutine sparse_matrix_permute_and_split_2x2_numeric(this, num_row, num_col, perm, iperm, A_CC, A_CR, A_RC, A_RR, symmetric_storage, symmetric, sign) 
     !-----------------------------------------------------------------
     !< Split matrix in 2x2 and permute some columns and rows 
     !< given 2 permutation arrays (perm and iperm)
@@ -816,17 +850,33 @@ contains
         real(rp),    allocatable,         intent(out)   :: A_CR(:,:)
         real(rp),    allocatable,         intent(out)   :: A_RC(:,:)
         class(sparse_matrix_t),           intent(inout) :: A_RR
+        logical,                optional, intent(in)    :: symmetric_storage
+        logical,                optional, intent(in)    :: symmetric
+        integer(ip),            optional, intent(in)    :: sign
+        logical                                         :: symmetric_storage_aux
+        logical                                         :: symmetric_aux
+        integer(ip)                                     :: sign_aux
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         assert(.not. allocated(A_RR%State))
 
         allocate(A_RR%State, mold=this%State)
+
+        sign_aux = this%State%get_sign()
+        symmetric_aux = this%State%is_symmetric()
+        symmetric_storage_aux = this%State%get_symmetric_storage()
+
+        if(present(sign)) sign_aux = sign
+        if(present(symmetric)) symmetric_aux = symmetric
+        if(present(symmetric_storage)) symmetric_storage_aux = symmetric_storage
+
+        call A_RR%State%set_properties(symmetric_storage_aux, symmetric_aux, sign_aux)
         call this%State%permute_and_split_2x2_numeric(num_row, num_col, perm, iperm, A_CC, A_CR, A_RC, A_RR%State)
         call A_RR%create_vector_spaces()
     end subroutine sparse_matrix_permute_and_split_2x2_numeric
 
 
-    subroutine sparse_matrix_permute_and_split_2x2_symbolic(this, num_row, num_col, perm, iperm, A_RR) 
+    subroutine sparse_matrix_permute_and_split_2x2_symbolic(this, num_row, num_col, perm, iperm, A_RR, symmetric_storage, symmetric, sign) 
     !-----------------------------------------------------------------
     !< Split matrix in 2x2 and permute some columns and rows
     !< given 2 permutation arrays (perm and iperm)
@@ -844,17 +894,34 @@ contains
         integer(ip),                      intent(in)    :: perm(:)
         integer(ip),                      intent(in)    :: iperm(:)
         class(sparse_matrix_t),           intent(inout) :: A_RR
+        logical,                optional, intent(in)    :: symmetric_storage
+        logical,                optional, intent(in)    :: symmetric
+        integer(ip),            optional, intent(in)    :: sign
+        logical                                         :: symmetric_storage_aux
+        logical                                         :: symmetric_aux
+        integer(ip)                                     :: sign_aux
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         assert(.not. allocated(A_RR%State))
 
         allocate(A_RR%State, mold=this%State)
+
+        sign_aux = this%State%get_sign()
+        symmetric_aux = this%State%is_symmetric()
+        symmetric_storage_aux = this%State%get_symmetric_storage()
+
+        if(present(sign)) sign_aux = sign
+        if(present(symmetric)) symmetric_aux = symmetric
+        if(present(symmetric_storage)) symmetric_storage_aux = symmetric_storage
+
+        call A_RR%State%set_properties(symmetric_storage_aux, symmetric_aux, sign_aux)
+
         call this%State%permute_and_split_2x2_symbolic(num_row, num_col, perm, iperm, A_RR%State)
         call A_RR%create_vector_spaces()
     end subroutine sparse_matrix_permute_and_split_2x2_symbolic
 
 
-    subroutine sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
+    subroutine sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to, symmetric_storage, symmetric, sign)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
@@ -871,16 +938,34 @@ contains
         integer(ip),                     intent(in)    :: I_ja(I_nz)
         real(rp),                        intent(in)    :: I_val(C_T_nz)
         class(sparse_matrix_t),          intent(inout) :: to
+        logical,               optional, intent(in)    :: symmetric_storage
+        logical,               optional, intent(in)    :: symmetric
+        integer(ip),           optional, intent(in)    :: sign
+        logical                                        :: symmetric_storage_aux
+        logical                                        :: symmetric_aux
+        integer(ip)                                    :: sign_aux
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         if(.not. allocated(to%State)) allocate(to%State, mold=this%State)
+
+        if(to%State%state_is_start()) then
+            sign_aux = this%State%get_sign()
+            symmetric_aux = this%State%is_symmetric()
+            symmetric_storage_aux = this%State%get_symmetric_storage()
+
+            if(present(sign)) sign_aux = sign
+            if(present(symmetric)) symmetric_aux = symmetric
+            if(present(symmetric_storage)) symmetric_storage_aux = symmetric_storage
+
+            call to%State%set_properties(symmetric_storage_aux, symmetric_aux, sign_aux)
+        endif
 
         call this%State%expand_matrix_numeric(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to%State)
         call to%create_vector_spaces()
     end subroutine sparse_matrix_expand_matrix_numeric
 
 
-    subroutine sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
+    subroutine sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to, symmetric_storage, symmetric, sign)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
@@ -895,9 +980,26 @@ contains
         integer(ip),                     intent(in)    :: I_ia(I_nz)
         integer(ip),                     intent(in)    :: I_ja(I_nz)
         class(sparse_matrix_t),          intent(inout) :: to
+        logical,               optional, intent(in)    :: symmetric_storage
+        logical,               optional, intent(in)    :: symmetric
+        integer(ip),           optional, intent(in)    :: sign
+        logical                                        :: symmetric_storage_aux
+        logical                                        :: symmetric_aux
+        integer(ip)                                    :: sign_aux
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         if(.not. allocated(to%State)) allocate(to%State, mold=this%State)
+        assert(to%State%state_is_start())
+
+        sign_aux = this%State%get_sign()
+        symmetric_aux = this%State%is_symmetric()
+        symmetric_storage_aux = this%State%get_symmetric_storage()
+
+        if(present(sign)) sign_aux = sign
+        if(present(symmetric)) symmetric_aux = symmetric
+        if(present(symmetric_storage)) symmetric_storage_aux = symmetric_storage
+
+        call to%State%set_properties(symmetric_storage_aux, symmetric_aux, sign_aux)
 
         call this%State%expand_matrix_symbolic(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to%State)
         call to%create_vector_spaces()

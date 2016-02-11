@@ -25,7 +25,6 @@ private
         procedure, public :: is_by_cols                              => csr_sparse_matrix_is_by_cols
         procedure, public :: set_nnz                                 => csr_sparse_matrix_set_nnz
         procedure, public :: get_nnz                                 => csr_sparse_matrix_get_nnz
-        procedure, public :: set_properties                          => csr_sparse_matrix_set_properties
         procedure, public :: copy_to_coo                             => csr_sparse_matrix_copy_to_coo
         procedure, public :: copy_from_coo                           => csr_sparse_matrix_copy_from_coo
         procedure, public :: move_to_coo                             => csr_sparse_matrix_move_to_coo
@@ -114,29 +113,6 @@ contains
     !-----------------------------------------------------------------
         is_by_cols = .false.
     end function csr_sparse_matrix_is_by_cols
-
-
-    subroutine csr_sparse_matrix_set_properties(this,num_rows, num_cols,symmetric_storage,is_symmetric,sign)
-    !-----------------------------------------------------------------
-    !< Set the properties and size of a square matrix
-    !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t), intent(inout) :: this
-        integer(ip),                intent(in)    :: num_rows
-        integer(ip),                intent(in)    :: num_cols
-        logical,                    intent(in)    :: symmetric_storage
-        logical,                    intent(in)    :: is_symmetric
-        integer(ip),                intent(in)    :: sign
-    !-----------------------------------------------------------------
-        assert(this%state_is_start() )
-        if(symmetric_storage) then
-            assert(is_symmetric)
-        endif
-        call this%set_symmetric_storage(symmetric_storage)
-        call this%set_symmetry(is_symmetric)
-        call this%set_sign(sign)
-        call this%set_num_rows(num_rows)
-        call this%set_num_cols(num_cols)
-    end subroutine csr_sparse_matrix_set_properties
 
 
     subroutine csr_sparse_matrix_copy_to_coo(this, to)
@@ -961,32 +937,30 @@ contains
         integer(ip)                                        :: total_rows
         integer(ip)                                        :: sign
         integer(ip)                                        :: state
-        logical                                            :: is_start_state
-        logical                                            :: symmetric
-        logical                                            :: symmetric_storage
+        logical                                            :: is_properties_setted_state
     !-----------------------------------------------------------------
         ! Check state
         assert(this%state_is_assembled()) 
         state = A_II%get_state() 
-        is_start_state = A_II%state_is_start() 
+        is_properties_setted_state = A_II%state_is_properties_setted() 
         assert(state == A_IG%get_state() .and.  state == A_GG%get_state())
         if(present(A_GI)) then
             assert(state == A_II%get_state())
         endif
-        assert(is_start_state  .or. A_II%state_is_assembled_symbolic())
+        assert(is_properties_setted_state  .or. A_II%state_is_assembled_symbolic())
 
-        if(is_start_state) then
-            ! Get properties from THIS sparse matrix
-            total_rows = this%get_num_rows(); total_cols = this%get_num_cols(); sign = this%get_sign()
-            symmetric = this%is_symmetric(); symmetric_storage = this%get_symmetric_storage()
-    
+        total_rows = this%get_num_rows()
+        total_cols = this%get_num_cols()
+
+        if(is_properties_setted_state) then
             ! Set properties to all submatrices
-            call A_II%set_properties(num_row, num_col, symmetric_storage, symmetric, sign)                          ! Symmetric
-            call A_IG%set_properties(num_row,total_cols-num_col, .false., .false., SPARSE_MATRIX_SIGN_UNKNOWN)      ! Non symmetric
+            call A_II%set_num_rows(num_row); call A_II%set_num_cols(num_col)
+            call A_IG%set_num_rows(num_row); call A_IG%set_num_cols(total_cols-num_col)
             if(present(A_GI)) then
-                call A_GI%set_properties(total_rows-num_row, num_col, .false., .false., SPARSE_MATRIX_SIGN_UNKNOWN) ! Non symmetric
+                assert(A_GI%get_state() == state)
+                call A_GI%set_num_rows(total_rows-num_row); call A_GI%set_num_cols(num_col)
             endif
-            call A_GG%set_properties(total_rows-num_row, total_cols-num_col, symmetric_storage, symmetric, sign)    ! Symmetric
+            call A_GG%set_num_rows(total_rows-num_row); call A_GG%set_num_cols(total_cols-num_col)
     
             ! Allocate irp, ja and val arrays of all submatrices
             nz = this%irp(num_row+1)-1  ! nnz after num_row
@@ -1019,7 +993,7 @@ contains
                 A_XX_lbound = A_II%irp(i); A_XX_ubound = A_II%irp(i)+nz-1
                 this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
                 ! Assign columns
-                if(is_start_state) then
+                if(is_properties_setted_state) then
                     A_II%irp(i+1)                     = A_XX_ubound+1
                     A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
                     A_II%nnz = A_II%nnz + nz
@@ -1036,7 +1010,7 @@ contains
                 A_XX_lbound = A_IG%irp(i);           A_XX_ubound = A_IG%irp(i)+nz-1
                 this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
                 ! Assign columns
-                if(is_start_state) then
+                if(is_properties_setted_state) then
                     A_IG%irp(i+1)                     = A_XX_ubound+1
                     A_IG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
                     A_IG%nnz = A_IG%nnz + nz
@@ -1048,7 +1022,7 @@ contains
         enddo
         call memrealloc(A_II%nnz, A_II%ja,   __FILE__, __LINE__)
         call memrealloc(A_IG%nnz, A_IG%ja,   __FILE__, __LINE__)
-        if(is_start_state) then
+        if(is_properties_setted_state) then
             call memrealloc(A_II%nnz, A_II%val,  __FILE__, __LINE__)
             call memrealloc(A_IG%nnz, A_IG%val,  __FILE__, __LINE__)
         endif
@@ -1068,7 +1042,7 @@ contains
                     A_XX_lbound = A_GI%irp(i-num_row); A_XX_ubound = A_GI%irp(i-num_row)+nz-1
                     this_lbound = this%irp(i);         this_ubound = this%irp(i)+nz-1
                     ! Assign columns
-                    if(is_start_state) then
+                    if(is_properties_setted_state) then
                         A_GI%irp(i-num_row+1)             = A_XX_ubound+1
                         A_GI%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)
                         A_GI%nnz = A_GI%nnz + nz
@@ -1086,7 +1060,7 @@ contains
                 A_XX_lbound = A_GG%irp(i-num_row);   A_XX_ubound = A_GG%irp(i-num_row)+nz-1
                 this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
                 ! Assign columns
-                if(is_start_state) then
+                if(is_properties_setted_state) then
                     A_GG%irp(i-num_row+1)             = A_XX_ubound+1
                     A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
                     A_GG%nnz = A_GG%nnz + nz
@@ -1098,10 +1072,10 @@ contains
         enddo
         if(present(A_GI)) then
             call memrealloc(A_GI%nnz, A_GI%ja,   __FILE__, __LINE__)
-            if(is_start_state) call memrealloc(A_GI%nnz, A_GI%val,  __FILE__, __LINE__)
+            if(is_properties_setted_state) call memrealloc(A_GI%nnz, A_GI%val,  __FILE__, __LINE__)
         endif
         call memrealloc(A_GG%nnz, A_GG%ja,   __FILE__, __LINE__)
-        if(is_start_state)  call memrealloc(A_GG%nnz, A_GG%val,  __FILE__, __LINE__)
+        if(is_properties_setted_state)  call memrealloc(A_GG%nnz, A_GG%val,  __FILE__, __LINE__)
 
         call A_II%set_state_assembled()
         call A_IG%set_state_assembled()
@@ -1172,6 +1146,7 @@ contains
         integer(ip)                                        :: nz
         integer(ip)                                        :: row_index
         integer(ip)                                        :: nz_offset
+        integer(ip)                                        :: nz_ignored
         integer(ip)                                        :: A_XX_lbound
         integer(ip)                                        :: A_XX_ubound
         integer(ip)                                        :: this_lbound
@@ -1180,29 +1155,27 @@ contains
         integer(ip)                                        :: total_rows
         integer(ip)                                        :: sign
         integer(ip)                                        :: state
-        logical                                            :: is_start_state
+        logical                                            :: properties_are_setted
         logical                                            :: symmetric
         logical                                            :: symmetric_storage
     !-----------------------------------------------------------------
         ! Check state
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic() ) 
         state = A_II%get_state()
-        is_start_state = A_II%state_is_start()
+        properties_are_setted = A_II%state_is_properties_setted()
         assert( state == A_IG%get_state() .and. state== A_GG%get_state())
-        assert(is_start_state)
+        assert(properties_are_setted)
 
-        ! Get properties from this sparse matrix
-        total_rows = this%get_num_rows(); total_cols = this%get_num_cols(); sign = this%get_sign()
-        symmetric = this%is_symmetric(); symmetric_storage = this%get_symmetric_storage()
+        total_rows = this%get_num_rows()
+        total_cols = this%get_num_cols()
 
-        ! Set properties to all submatrices
-        call A_II%set_properties(num_row, num_col, symmetric_storage, symmetric, sign)                          ! Symmetric
-        call A_IG%set_properties(num_row,total_cols-num_col, .false., .false., SPARSE_MATRIX_SIGN_UNKNOWN)      ! Non symmetric
+        call A_II%set_num_rows(num_row); call A_II%set_num_cols(num_col)
+        call A_IG%set_num_rows(num_row); call A_IG%set_num_cols(total_cols-num_col)
         if(present(A_GI)) then
             assert(A_GI%get_state() == state)
-            call A_GI%set_properties(total_rows-num_row, num_col, .false., .false., SPARSE_MATRIX_SIGN_UNKNOWN) ! Non symmetric
+            call A_GI%set_num_rows(total_rows-num_row); call A_GI%set_num_cols(num_col)
         endif
-        call A_GG%set_properties(total_rows-num_row, total_cols-num_col, symmetric_storage, symmetric, sign)    ! Symmetric
+        call A_GG%set_num_rows(total_rows-num_row); call A_GG%set_num_cols(total_cols-num_col)
 
         ! Allocate irp, ja and val arrays of all submatrices
         nz = this%irp(num_row+1)-1  ! nnz after num_row
@@ -1471,7 +1444,7 @@ contains
         integer(ip)                                          :: iret,i,j
     !-----------------------------------------------------------------
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
-        assert(A_RR%state_is_start())
+        assert(A_RR%state_is_properties_setted())
 
         total_num_rows = this%get_num_rows()
         total_num_cols = this%get_num_cols()
@@ -1489,17 +1462,10 @@ contains
 
         A_RR_num_rows = total_num_rows-num_row
         A_RR_num_cols = total_num_cols-num_col
+        call A_RR%set_num_rows(A_RR_num_rows)
+        call A_RR%set_num_rows(A_RR_num_cols)
         THIS_has_symmetric_storage = this%get_symmetric_storage()
-
-        if(A_RR%state_is_start()) then
-            ! Set properties
-            symmetric = this%is_symmetric()
-            A_RR_has_symmetric_storage = THIS_has_symmetric_storage
-            sign= this%get_sign()
-            call A_RR%set_properties(A_RR_num_rows, A_RR_num_cols, A_RR_has_symmetric_storage, symmetric, sign)
-        else
-            A_RR_has_symmetric_storage = A_RR%get_symmetric_storage()
-        endif
+        A_RR_has_symmetric_storage = A_RR%get_symmetric_storage()
 
         if(.not. A_RR_has_symmetric_storage .and. THIS_has_symmetric_storage) then
             call A_RR%allocate_numeric(this%get_nnz()*2)
@@ -1642,8 +1608,6 @@ contains
         class(csr_sparse_matrix_t),            intent(inout) :: A_RR
         logical                                              :: THIS_has_symmetric_storage
         logical                                              :: A_RR_has_symmetric_storage
-        logical                                              :: symmetric
-        integer(ip)                                          :: sign
         integer(ip)                                          :: total_num_rows
         integer(ip)                                          :: total_num_cols
         integer(ip)                                          :: A_RR_num_rows
@@ -1661,7 +1625,7 @@ contains
         integer(ip)                                          :: iret,i,j
     !-----------------------------------------------------------------
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
-        assert(A_RR%state_is_start())
+        assert(A_RR%state_is_properties_setted())
 
         total_num_rows = this%get_num_rows()
         total_num_cols = this%get_num_cols()
@@ -1673,19 +1637,12 @@ contains
 
         A_RR_num_rows = total_num_rows-num_row
         A_RR_num_cols = total_num_cols-num_col
+        call A_RR%set_num_rows(A_RR_num_rows)
+        call A_RR%set_num_rows(A_RR_num_cols)
+        THIS_has_symmetric_storage = this%get_symmetric_storage()
+        A_RR_has_symmetric_storage = A_RR%get_symmetric_storage()
 
         call memalloc(perm_size+2, link_list, __FILE__, __LINE__)
-
-        THIS_has_symmetric_storage = this%get_symmetric_storage()
-        if(A_RR%state_is_start()) then
-            ! Set properties
-            symmetric = this%is_symmetric()
-            A_RR_has_symmetric_storage = THIS_has_symmetric_storage
-            sign= this%get_sign()
-            call A_RR%set_properties(A_RR_num_rows, A_RR_num_cols, A_RR_has_symmetric_storage, symmetric, sign)
-        else
-            A_RR_has_symmetric_storage = A_RR%get_symmetric_storage()
-        endif
 
         if(.not. A_RR_has_symmetric_storage .and. THIS_has_symmetric_storage) then
             call A_RR%allocate_symbolic(this%get_nnz()*2)
@@ -1831,7 +1788,7 @@ contains
         logical                                        :: symmetric_storage
     !-----------------------------------------------------------------
         assert(this%state_is_assembled())
-        assert(to%state_is_start())
+        assert(to%state_is_properties_setted())
         if(C_T_num_cols < 1) return
 
         initial_num_rows = this%get_num_rows()
@@ -1839,11 +1796,9 @@ contains
     !-----------------------------------------------------------------
     ! Set properties to the expanded matrix
     !-----------------------------------------------------------------
-        call to%set_properties(num_rows = initial_num_rows+C_T_num_cols, &
-                               num_cols = initial_num_cols+C_T_num_cols, &
-                               symmetric_storage = symmetric_storage,    &
-                               is_symmetric = this%is_symmetric(),       &
-                               sign = SPARSE_MATRIX_SIGN_INDEFINITE)
+
+        call to%set_num_rows(initial_num_rows+C_T_num_cols)
+        call to%set_num_cols(initial_num_cols+C_T_num_cols)
 		symmetric_storage = to%get_symmetric_storage()
 
     !-----------------------------------------------------------------
@@ -2259,7 +2214,7 @@ contains
         logical                                        :: symmetric_storage
     !-----------------------------------------------------------------
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
-        assert(to%state_is_start())
+        assert(to%state_is_properties_setted())
         if(C_T_num_cols < 1) return
 
         initial_num_rows = this%get_num_rows()
@@ -2268,11 +2223,8 @@ contains
     !-----------------------------------------------------------------
     ! Set properties to the expanded matrix
     !-----------------------------------------------------------------
-        call to%set_properties(num_rows = initial_num_rows+C_T_num_cols, &
-                               num_cols = initial_num_cols+C_T_num_cols, &
-                               symmetric_storage = symmetric_storage,    &
-                               is_symmetric = this%is_symmetric(),       &
-                               sign = SPARSE_MATRIX_SIGN_INDEFINITE)
+        call to%set_num_rows(initial_num_rows+C_T_num_cols)
+        call to%set_num_cols(initial_num_cols+C_T_num_cols)
 		symmetric_storage = to%get_symmetric_storage()
     !-----------------------------------------------------------------
     ! Check if (C_T) ia and ja arrays are sorted by rows
