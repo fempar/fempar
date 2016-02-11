@@ -925,10 +925,12 @@ contains
         type(csr_sparse_matrix_t),           intent(inout) :: A_IG
         type(csr_sparse_matrix_t), optional, intent(inout) :: A_GI
         type(csr_sparse_matrix_t),           intent(inout) :: A_GG
-        integer(ip)                                        :: i, j
+        integer(ip)                                        :: i, j, k
         integer(ip)                                        :: nz
+        integer(ip)                                        :: counter
         integer(ip)                                        :: row_index
         integer(ip)                                        :: nz_offset
+        integer(ip)                                        :: nz_ignored
         integer(ip)                                        :: A_XX_lbound
         integer(ip)                                        :: A_XX_ubound
         integer(ip)                                        :: this_lbound
@@ -986,21 +988,76 @@ contains
                 if(this%ja(j)> num_col) exit
                 nz_offset = nz_offset + 1
             enddo
+
             ! Number of nnz of A_II in row i
             nz = nz_offset 
-            if(nz>0) then
-                ! Calculate bounds
-                A_XX_lbound = A_II%irp(i); A_XX_ubound = A_II%irp(i)+nz-1
-                this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
-                ! Assign columns
-                if(is_properties_setted_state) then
-                    A_II%irp(i+1)                     = A_XX_ubound+1
-                    A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
-                    A_II%nnz = A_II%nnz + nz
+            if(this%get_symmetric_storage() .eqv. A_II%get_symmetric_storage()) then
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_II%irp(i); A_XX_ubound = A_II%irp(i)+nz-1
+                    this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
+                    ! Assign columns and values
+                    if(is_properties_setted_state) then
+                        A_II%irp(i+1)                     = A_XX_ubound+1
+                        A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
+                        A_II%nnz = A_II%nnz + nz
+                    endif
+                    A_II%val (A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
+                else
+                    A_II%irp(i+1) = A_II%irp(i)
                 endif
-                A_II%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
-            else
-                A_II%irp(i+1) = A_II%irp(i)
+
+            else if(.not. this%get_symmetric_storage() .and. A_II%get_symmetric_storage()) then
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_II%irp(i); A_XX_ubound = A_II%irp(i)+nz-1
+                    this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
+                    ! Ignore lower triangle entries
+                    nz_ignored = 0
+                    do j=this_lbound,this_ubound
+                        if(this%ja(j)>=i) exit
+                        nz_ignored = nz_ignored+1
+                    enddo
+                    ! Assign columns and values
+                    if(is_properties_setted_state) then
+                        A_II%irp(i+1)                                = A_XX_ubound-nz_ignored+1
+                        A_II%ja(A_XX_lbound:A_XX_ubound-nz_ignored) = this%ja(this_lbound+nz_ignored:this_ubound)
+                        A_II%nnz = A_II%nnz - nz_ignored + nz
+                    endif
+                    A_II%val(A_XX_lbound:A_XX_ubound-nz_ignored) = this%val(this_lbound+nz_ignored:this_ubound)
+                else
+                    A_II%irp(i+1) = A_II%irp(i)
+                endif
+
+            else if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
+                if(is_properties_setted_state) A_II%irp(i+1) = A_II%irp(i)
+                counter = 0
+                do j=1,i-1
+                    if(j>num_col) exit
+                    k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1))
+                    if(k==-1) cycle
+                    A_II%val(A_II%irp(i)+counter) = this%val(this%irp(j)+k-1)
+                    if(is_properties_setted_state) then
+                        A_II%ja (A_II%irp(i)+counter) = j
+                        A_II%irp(i+1)           = A_II%irp(i+1) + 1
+                    endif
+                    counter = counter + 1
+                enddo
+
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_II%irp(i)+counter; A_XX_ubound = A_II%irp(i)+counter+nz-1
+                    this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
+                    ! Assign columns and values
+                    if(is_properties_setted_state) then
+                        A_II%irp(i+1)                     = A_II%irp(i+1)+nz
+                        A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
+                        A_II%nnz = A_II%nnz + nz
+                    endif
+                    A_II%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
+                endif
+                if(is_properties_setted_state) A_II%nnz = A_II%irp(i+1)-1
+
             endif
 
             ! Number of nnz of A_IG in row i
@@ -1009,7 +1066,7 @@ contains
                 ! Calculate bounds
                 A_XX_lbound = A_IG%irp(i);           A_XX_ubound = A_IG%irp(i)+nz-1
                 this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
-                ! Assign columns
+                ! Assign columns and values
                 if(is_properties_setted_state) then
                     A_IG%irp(i+1)                     = A_XX_ubound+1
                     A_IG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
@@ -1020,9 +1077,9 @@ contains
                 A_IG%irp(i+1) = A_IG%irp(i)
             endif
         enddo
-        call memrealloc(A_II%nnz, A_II%ja,   __FILE__, __LINE__)
-        call memrealloc(A_IG%nnz, A_IG%ja,   __FILE__, __LINE__)
         if(is_properties_setted_state) then
+            call memrealloc(A_II%nnz, A_II%ja,   __FILE__, __LINE__)
+            call memrealloc(A_IG%nnz, A_IG%ja,   __FILE__, __LINE__)
             call memrealloc(A_II%nnz, A_II%val,  __FILE__, __LINE__)
             call memrealloc(A_IG%nnz, A_IG%val,  __FILE__, __LINE__)
         endif
@@ -1034,6 +1091,7 @@ contains
                 if(this%ja(j)> num_col) exit
                 nz_offset = nz_offset + 1
             enddo
+
             ! Number of nnz of A_GI in row i-num_row
             nz = nz_offset 
             if(present(A_GI)) then
@@ -1041,7 +1099,7 @@ contains
                     ! Calculate bounds
                     A_XX_lbound = A_GI%irp(i-num_row); A_XX_ubound = A_GI%irp(i-num_row)+nz-1
                     this_lbound = this%irp(i);         this_ubound = this%irp(i)+nz-1
-                    ! Assign columns
+                    ! Assign columns and values
                     if(is_properties_setted_state) then
                         A_GI%irp(i-num_row+1)             = A_XX_ubound+1
                         A_GI%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)
@@ -1055,27 +1113,83 @@ contains
 
             ! Number of nnz of A_GG in row i-num_row
             nz = this%irp(i+1)-this%irp(i)-nz_offset 
-            if(nz>0) then
-                ! Calculate bounds
-                A_XX_lbound = A_GG%irp(i-num_row);   A_XX_ubound = A_GG%irp(i-num_row)+nz-1
-                this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
-                ! Assign columns
-                if(is_properties_setted_state) then
-                    A_GG%irp(i-num_row+1)             = A_XX_ubound+1
-                    A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
-                    A_GG%nnz = A_GG%nnz + nz
+            if(this%get_symmetric_storage() .eqv. A_GG%get_symmetric_storage()) then
+                ! Number of nnz of A_GG in row i-num_row
+                nz = this%irp(i+1)-this%irp(i)-nz_offset 
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_GG%irp(i-num_row);   A_XX_ubound = A_GG%irp(i-num_row)+nz-1
+                    this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
+                    ! Assign columns and values
+                    if(is_properties_setted_state) then
+                        A_GG%irp(i-num_row+1)             = A_XX_ubound+1
+                        A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
+                        A_GG%nnz = A_GG%nnz + nz
+                    endif
+                    A_GG%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)-num_col
+                else
+                    if(is_properties_setted_state) A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
                 endif
-                A_GG%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
-            else
-                A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
+
+            else if(.not. this%get_symmetric_storage() .and. A_GG%get_symmetric_storage()) then
+
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_GG%irp(i-num_row);   A_XX_ubound = A_GG%irp(i-num_row)+nz-1
+                    this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
+                    ! Ignore lower triangle entries
+                    nz_ignored = 0
+                    do j=this_lbound,this_ubound
+                        if(this%ja(j)>=i) exit
+                        nz_ignored = nz_ignored+1
+                    enddo
+                    ! Assign columns and values
+                    if(is_properties_setted_state) then
+                        A_GG%irp(i-num_row+1)             = A_XX_ubound-nz_ignored+1
+                        A_GG%ja (A_XX_lbound:A_XX_ubound-nz_ignored) = this%ja (this_lbound+nz_ignored:this_ubound)-num_col
+                        A_GG%nnz = A_GG%nnz - nz_ignored + nz
+                    endif
+                    A_GG%val(A_XX_lbound:A_XX_ubound-nz_ignored) = this%val(this_lbound+nz_ignored:this_ubound)
+                else
+                    if(is_properties_setted_state) A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
+                endif
+
+            else if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
+                if(is_properties_setted_state) A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
+                counter = 0
+                do j=max(num_row,num_col)+1,i-1
+                    k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1))
+                    if(k==-1) cycle
+                    A_GG%val(A_GG%irp(i-num_row)+counter) = this%ja(this%irp(j)+j-1)
+                    if(is_properties_setted_state) then
+                        A_GG%ja(A_GG%irp(i-num_row)+counter) = j-num_col
+                        A_GG%irp(i-num_row+1)          = A_GG%irp(i-num_row+1) + 1  
+                    endif
+                    counter = counter + 1
+                enddo
+
+                if(nz>0) then
+                    ! Calculate bounds
+                    A_XX_lbound = A_GG%irp(i-num_row); A_XX_ubound = A_GG%irp(i-num_row)+nz-1
+                    this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i)+nz-1
+                    ! Assign columns aned values
+                    if(is_properties_setted_state) then
+                        A_GG%irp(i-num_row+1)             = A_GG%irp(i-num_row+1)+nz
+                        A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)-num_col
+                    endif
+                    A_GG%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
+                endif
+                if(is_properties_setted_state) A_GG%nnz = A_GG%irp(i-num_row+1)-1
             endif
         enddo
-        if(present(A_GI)) then
+        if(present(A_GI) .and. is_properties_setted_state) then
             call memrealloc(A_GI%nnz, A_GI%ja,   __FILE__, __LINE__)
-            if(is_properties_setted_state) call memrealloc(A_GI%nnz, A_GI%val,  __FILE__, __LINE__)
+            call memrealloc(A_GI%nnz, A_GI%val,  __FILE__, __LINE__)
         endif
-        call memrealloc(A_GG%nnz, A_GG%ja,   __FILE__, __LINE__)
-        if(is_properties_setted_state)  call memrealloc(A_GG%nnz, A_GG%val,  __FILE__, __LINE__)
+        if(is_properties_setted_state)  then
+            call memrealloc(A_GG%nnz, A_GG%ja,   __FILE__, __LINE__)
+            call memrealloc(A_GG%nnz, A_GG%val,  __FILE__, __LINE__)
+        endif
 
         call A_II%set_state_assembled()
         call A_IG%set_state_assembled()
@@ -1988,7 +2102,7 @@ contains
                     ! Transpose upper triangle
                     do j=1,i-1
                         k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1)) ! Search the col i in previous rows
-                        if(k/=1) then 
+                        if(k/=-1) then 
                             nz_counter = nz_counter+1
                             to%ja(nz_counter) = j
                             to%val(nz_counter) = this%val(this%irp(j)+k-1)
@@ -2019,10 +2133,10 @@ contains
                     ! Transpose upper triangle
                     do k=1,j-1
                         f = binary_search(j,this%irp(k+1)-this%irp(k),this%ja(this%irp(k):this%irp(k+1)-1)) ! Search the col j in previous rows
-                        if(f/=1) then 
+                        if(f/=-1) then 
                             nz_counter = nz_counter+1
                             to%ja(nz_counter) = k
-                            to%val(nz_counter) = this%ja(this%irp(k)+f-1)
+                            to%val(nz_counter) = this%val(this%irp(k)+f-1)
                         endif
                     enddo
                     ! Append existing columns into the current row of the expanded matrix
@@ -2049,7 +2163,7 @@ contains
                     ! Transpose upper triangle
                     do j=1,i-1
                         k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1)) ! Search the col i in previous rows
-                        if(k/=1) then 
+                        if(k/=-1) then 
                             nz_counter = nz_counter+1
                             to%ja(nz_counter) = j
                             to%val(nz_counter) = this%ja(this%irp(j)+k-1)
@@ -2402,7 +2516,7 @@ contains
                     ! Transpose upper triangle
                     do j=1,i-1
                         k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1)) ! Search the col i in previous rows
-                        if(k/=1) then 
+                        if(k/=-1) then 
                             nz_counter = nz_counter+1
                             to%ja(nz_counter) = j
                         endif
@@ -2431,7 +2545,7 @@ contains
                     ! Transpose upper triangle
                     do k=1,j-1
                         f = binary_search(j,this%irp(k+1)-this%irp(k),this%ja(this%irp(k):this%irp(k+1)-1)) ! Search the col j in previous rows
-                        if(f/=1) then 
+                        if(f/=-1) then 
                             nz_counter = nz_counter+1
                             to%ja(nz_counter) = k
                         endif
@@ -2458,7 +2572,7 @@ contains
                     ! Transpose upper triangle
                     do j=1,i-1
                         k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1)) ! Search the col i in previous rows
-                        if(k/=1) then 
+                        if(k/=-1) then 
                             nz_counter = nz_counter+1
                             to%ja(nz_counter) = j
                         endif
