@@ -25,7 +25,6 @@ private
     private
         class(base_sparse_matrix_t), allocatable :: State
     contains
-        procedure, non_overridable ::                                      sparse_matrix_set_properties
         procedure, non_overridable ::                                      sparse_matrix_create_square
         procedure, non_overridable ::                                      sparse_matrix_create_rectangular
         procedure, non_overridable ::                                      sparse_matrix_insert_bounded_coords
@@ -233,20 +232,6 @@ contains
         call range_vector%free()
         call domain_vector%free()
     end subroutine sparse_matrix_create_vector_spaces
-
-
-    subroutine sparse_matrix_set_properties(this, symmetric_storage, is_symmetric, sign)
-    !-----------------------------------------------------------------
-    !< Set the properties and size of a square matrix
-    !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(inout) :: this
-        logical,                intent(in)    :: symmetric_storage
-        logical,                intent(in)    :: is_symmetric
-        integer(ip),            intent(in)    :: sign
-    !-----------------------------------------------------------------
-        if(.not. allocated(this%State)) allocate(coo_sparse_matrix_t :: this%State)
-        call this%State%set_properties(symmetric_storage, is_symmetric, sign)
-    end subroutine sparse_matrix_set_properties
 
 
     subroutine sparse_matrix_create_square(this, num_rows_and_cols, symmetric_storage, is_symmetric, sign, nz)
