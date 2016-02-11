@@ -1172,7 +1172,6 @@ contains
         integer(ip)                                        :: nz
         integer(ip)                                        :: row_index
         integer(ip)                                        :: nz_offset
-        integer(ip)                                        :: nz_ignored
         integer(ip)                                        :: A_XX_lbound
         integer(ip)                                        :: A_XX_ubound
         integer(ip)                                        :: this_lbound
@@ -1390,7 +1389,6 @@ contains
                 A_GG%nnz = A_GG%irp(i-num_row+1)-1
             endif
         enddo
-
 
         if(present(A_GI)) call memrealloc(A_GI%nnz, A_GI%ja, __FILE__, __LINE__)
         call memrealloc(A_GG%nnz, A_GG%ja, __FILE__, __LINE__)
@@ -2111,7 +2109,6 @@ contains
             to%nnz = nz_counter
         endif
         to%irp(initial_num_rows+1) = to%nnz+1
-
 
     !-----------------------------------------------------------------
     ! Loop to expand with C  and I matrices (Append new rows)

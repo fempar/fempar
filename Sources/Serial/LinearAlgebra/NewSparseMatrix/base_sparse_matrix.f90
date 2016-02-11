@@ -16,12 +16,13 @@ module base_sparse_matrix_names
 
   ! States
   integer(ip), parameter :: SPARSE_MATRIX_STATE_START              = 0
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_CREATED            = 1
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_BUILD_SYMBOLIC     = 2
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC      = 3
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC = 4
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_ASSEMBLED          = 5
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_UPDATE             = 6
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_PROPERTIES_SETTED  = 1
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_CREATED            = 2
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_BUILD_SYMBOLIC     = 3
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC      = 4
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC = 5
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_ASSEMBLED          = 6
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_UPDATE             = 7
 
   !-----------------------------------------------------------------
   ! State transition diagram for type(base_sparse_matrix_t)
@@ -195,6 +196,7 @@ module base_sparse_matrix_names
         procedure, public :: is_symmetric                     => base_sparse_matrix_is_symmetric
         procedure, public :: set_state                        => base_sparse_matrix_set_state
         procedure, public :: set_state_start                  => base_sparse_matrix_set_state_start
+        procedure, public :: set_state_properties_setted      => base_sparse_matrix_set_state_properties_setted
         procedure, public :: set_state_created                => base_sparse_matrix_set_state_created
         procedure, public :: set_state_build_symbolic         => base_sparse_matrix_set_state_build_symbolic
         procedure, public :: set_state_build_numeric          => base_sparse_matrix_set_state_build_numeric
@@ -202,6 +204,7 @@ module base_sparse_matrix_names
         procedure, public :: set_state_assembled_symbolic     => base_sparse_matrix_set_state_assembled_symbolic
         procedure, public :: set_state_update                 => base_sparse_matrix_set_state_update
         procedure, public :: state_is_start                   => base_sparse_matrix_state_is_start
+        procedure, public :: state_is_properties_setted       => base_sparse_matrix_state_is_properties_setted
         procedure, public :: state_is_created                 => base_sparse_matrix_state_is_created
         procedure, public :: state_is_build_symbolic          => base_sparse_matrix_state_is_build_symbolic
         procedure, public :: state_is_build_numeric           => base_sparse_matrix_state_is_build_numeric
@@ -218,6 +221,7 @@ module base_sparse_matrix_names
         procedure, public :: free_clean                       => base_sparse_matrix_free_clean
         procedure, public :: free_symbolic                    => base_sparse_matrix_free_symbolic
         procedure, public :: free_numeric                     => base_sparse_matrix_free_numeric
+        procedure, public :: set_properties                   => base_sparse_matrix_set_properties
         generic,   public :: create                           => base_sparse_matrix_create_square, &
                                                                  base_sparse_matrix_create_rectangular
         generic,   public :: insert                           => insert_bounded_coords,              &
@@ -770,6 +774,17 @@ contains
     end subroutine base_sparse_matrix_set_state_start
 
 
+    subroutine base_sparse_matrix_set_state_properties_setted(this)
+    !-----------------------------------------------------------------
+    !< Set the matrix state to SPARSE_MATRIX_STATE_PROPERTIES_SETTED
+    !< The matrix can jump to this state after set_properties() calls
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        this%state = SPARSE_MATRIX_STATE_PROPERTIES_SETTED
+    end subroutine base_sparse_matrix_set_state_properties_setted
+
+
     subroutine base_sparse_matrix_set_state_created(this)
     !-----------------------------------------------------------------
     !< Set the matrix state to SPARSE_MATRIX_STATE_CREATED
@@ -849,6 +864,17 @@ contains
     !-----------------------------------------------------------------
         state_start = (this%state == SPARSE_MATRIX_STATE_START)
     end function base_sparse_matrix_state_is_start
+
+
+    function base_sparse_matrix_state_is_properties_setted(this) result(state_properties_setted)
+    !-----------------------------------------------------------------
+    !< Check if the matrix state is SPARSE_MATRIX_STATE_PROPERTIES_SETTED
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        logical                                 :: state_properties_setted
+    !-----------------------------------------------------------------
+        state_properties_setted = (this%state == SPARSE_MATRIX_STATE_PROPERTIES_SETTED)
+    end function base_sparse_matrix_state_is_properties_setted
 
 
     function base_sparse_matrix_state_is_created(this) result(state_created)
@@ -1086,6 +1112,27 @@ contains
     end function base_sparse_matrix_is_symbolic
 
 
+    subroutine base_sparse_matrix_set_properties(this,symmetric_storage,is_symmetric,sign)
+    !-----------------------------------------------------------------
+    !< Set the sign and symmetry properties of a sparse matrix
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        logical,                     intent(in)    :: symmetric_storage
+        logical,                     intent(in)    :: is_symmetric
+        integer(ip),                 intent(in)    :: sign
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_START)
+        assert(this%is_valid_sign(sign))
+        if(symmetric_storage) then
+            assert(is_symmetric)
+        endif
+        call this%set_symmetric_storage(symmetric_storage)
+        this%symmetric = is_symmetric
+        this%sign = sign
+        call this%set_state_properties_setted()
+    end subroutine base_sparse_matrix_set_properties
+
+
     subroutine base_sparse_matrix_create_square(this,num_rows_and_cols,symmetric_storage,is_symmetric,sign, nz)
     !-----------------------------------------------------------------
     !< Set the properties and size of a square matrix
@@ -1097,14 +1144,14 @@ contains
         integer(ip),                 intent(in)    :: sign
         integer(ip), optional,       intent(in)    :: nz
     !-----------------------------------------------------------------
-        assert(this%state == SPARSE_MATRIX_STATE_START)
+        assert(this%state == SPARSE_MATRIX_STATE_START .or. this%state == SPARSE_MATRIX_STATE_PROPERTIES_SETTED)
         assert(this%is_valid_sign(sign))
         if(symmetric_storage) then
             assert(is_symmetric)
         endif
         call this%set_symmetric_storage(symmetric_storage)
         this%symmetric = is_symmetric
-        this%sign = sign    
+        this%sign = sign
         this%num_rows = num_rows_and_cols
         this%num_cols = num_rows_and_cols
         call this%allocate_coords(nz)
@@ -1121,10 +1168,12 @@ contains
         integer(ip),                 intent(in)    :: num_cols
         integer(ip), optional,       intent(in)    :: nz
     !-----------------------------------------------------------------
-        assert(this%state == SPARSE_MATRIX_STATE_START)
-        call this%set_symmetric_storage(.false.)
-        this%symmetric = .false.
-        this%sign = SPARSE_MATRIX_SIGN_UNKNOWN
+        assert(this%state == SPARSE_MATRIX_STATE_START .or. this%state == SPARSE_MATRIX_STATE_PROPERTIES_SETTED)
+        if(.not. this%state_is_properties_setted()) then
+            call this%set_symmetric_storage(.false.)
+            this%symmetric = .false.
+            this%sign = SPARSE_MATRIX_SIGN_UNKNOWN
+        endif
         this%num_rows = num_rows
         this%num_cols = num_cols
         call this%allocate_coords(nz)
