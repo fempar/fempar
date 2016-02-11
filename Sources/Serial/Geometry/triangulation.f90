@@ -45,6 +45,8 @@ module triangulation_names
 
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: order
+					
+     integer(ip)               :: subset_id = 1
 
   end type elem_topology_t
 
@@ -601,6 +603,7 @@ contains
        write (lunou,*) 'vefs:', trian%elems(ielem)%vefs
        write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
        write (lunou,*) 'order:', trian%elems(ielem)%order
+       write (lunou,*) 'subset_id:', trian%elems(ielem)%subset_id
 
        !call reference_element_write ( trian%elems(ielem)%geo_reference_element )
 
@@ -632,7 +635,7 @@ contains
     write (lunou,*) 'vefs:', elem%vefs
     write (lunou,*) 'coordinates:', elem%coordinates
     write (lunou,*) 'order:', elem%order
-
+    write (lunou,*) 'subset_id:', elem%subset_id
   end subroutine element_print
 
 end module triangulation_names

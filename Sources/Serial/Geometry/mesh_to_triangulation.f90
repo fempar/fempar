@@ -33,6 +33,7 @@ module mesh_to_triangulation_names
   use fe_space_types_names
   use generate_vefs_mesh_conditions_names
   use conditions_names
+  use elem_to_subset_id_names
 
   implicit none
 # include "debug.i90"
@@ -52,30 +53,33 @@ contains
   ! number of elements in triangulation does not include ghost elements, only
   ! local elements
   !*********************************************************************************
-  subroutine mesh_to_triangulation (gmesh,trian,gcond)
+  subroutine mesh_to_triangulation (gmesh,trian,gcond,elem_to_subset_id)
     implicit none
     ! Parameters
-    type(mesh_t), intent(in)                       :: gmesh ! Geometry mesh
-    type(triangulation_t), intent(inout)           :: trian 
-    type(conditions_t), optional, intent(inout)    :: gcond
+    type(mesh_t), intent(in)                           :: gmesh ! Geometry mesh
+    type(triangulation_t), intent(inout)               :: trian 
+    type(conditions_t), optional, intent(inout)        :: gcond
+    type(elem_to_subset_id_t), optional, intent(inout) :: elem_to_subset_id
 
-    call mesh_to_triangulation_fill_elements( gmesh, trian, gcond = gcond )
+    call mesh_to_triangulation_fill_elements( gmesh, trian, gcond = gcond, &
+                                              elem_to_subset_id = elem_to_subset_id)
     call triangulation_to_dual ( trian )
 
   end subroutine mesh_to_triangulation
 
-subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcond)
+subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcond, elem_to_subset_id)
     implicit none
     ! Parameters
-    type(mesh_t), intent(in)                       :: gmesh ! Geometry mesh
-    type(triangulation_t), intent(inout)           :: trian 
-    integer(ip), optional, intent(in)                :: length_trian
-    type(conditions_t), optional, intent(inout)    :: gcond
+    type(mesh_t), intent(in)                           :: gmesh ! Geometry mesh
+    type(triangulation_t), intent(inout)               :: trian 
+    integer(ip), optional, intent(in)                  :: length_trian
+    type(conditions_t), optional, intent(inout)        :: gcond
+    type(elem_to_subset_id_t), optional, intent(inout) :: elem_to_subset_id
 
     ! Locals
     type(mesh_t)            :: tmesh ! Topological mesh
-    integer(ip)               :: istat, ielem, iobj
-    integer(ip)               :: count, g_node, inode, p, length_trian_
+    integer(ip)             :: istat, ielem, iobj
+    integer(ip)             :: count, g_node, inode, p, length_trian_
     type(conditions_t)      :: tcond
 
     assert(trian%state == triangulation_not_created .or. trian%state == triangulation_filled)
@@ -144,6 +148,11 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
        trian%elems(ielem)%order = get_order( trian%elems(ielem)%geo_reference_element%ftype, count, trian%num_dims )
     end do
 
+    if (present(elem_to_subset_id)) then
+       do ielem = 1, trian%num_elems
+          trian%elems(ielem)%subset_id = elem_to_subset_id%get_subset_id(ielem)
+       end do
+    end if
 
   end subroutine mesh_to_triangulation_fill_elements
 
