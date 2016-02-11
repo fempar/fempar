@@ -1562,7 +1562,7 @@ contains
         integer(ip)                                          :: iret,i,j
     !-----------------------------------------------------------------
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
-        assert(A_RR%state_is_properties_setted())
+        assert(A_RR%state_is_properties_setted() .or. A_RR%state_is_assembled_symbolic())
 
         total_num_rows = this%get_num_rows()
         total_num_cols = this%get_num_cols()
@@ -1580,16 +1580,20 @@ contains
 
         A_RR_num_rows = total_num_rows-num_row
         A_RR_num_cols = total_num_cols-num_col
-        call A_RR%set_num_rows(A_RR_num_rows)
-        call A_RR%set_num_rows(A_RR_num_cols)
         THIS_has_symmetric_storage = this%get_symmetric_storage()
         A_RR_has_symmetric_storage = A_RR%get_symmetric_storage()
-
-        if(.not. A_RR_has_symmetric_storage .and. THIS_has_symmetric_storage) then
-            call A_RR%allocate_numeric(this%get_nnz()*2)
+        if(A_RR%state_is_properties_setted()) then
+            call A_RR%set_num_rows(A_RR_num_rows)
+            call A_RR%set_num_rows(A_RR_num_cols)
+            if(.not. A_RR_has_symmetric_storage .and. THIS_has_symmetric_storage) then
+                call A_RR%allocate_numeric(this%get_nnz()*2)
+            else
+                call A_RR%allocate_numeric(this%get_nnz())
+            endif
         else
-            call A_RR%allocate_numeric(this%get_nnz())
+            call A_RR%allocate_values_body(A_RR%get_nnz())
         endif
+
         A_RR%irp = 0
 
         ! Loop on permuted rows to fill A_CC and A_CR arrays
@@ -1643,7 +1647,7 @@ contains
                 if ( permuted_col <= num_col ) then
                     A_RC(permuted_row-num_row,permuted_col) = this%val(i)
                     if(THIS_has_symmetric_storage .and. (permuted_col<num_row) .and. &
-                        (permuted_row-num_row<total_num_cols-num_col )) &
+                        (permuted_row>num_col)) &
                         A_CR(permuted_col,permuted_row-num_row) = this%val(i)
                 else
                     if (A_RR_has_symmetric_storage .and. permuted_row-num_col>permuted_col) cycle
