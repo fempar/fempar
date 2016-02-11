@@ -2982,6 +2982,7 @@ contains
                     ilr = ir
                     nc = i2-i1+1
                     ipaux = binary_search(ic,nc,this%ja(i1:i2))
+                    assert(ipaux>0) ! Entry not found
                     if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
                 end if
             end do
@@ -3012,6 +3013,7 @@ contains
                     ilc = ic
                     nr = i2-i1+1
                     ipaux = binary_search(ir,nc,this%ia(i1:i2))
+                    assert(ipaux>0) ! Entry not found
                     if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
                 end if
             end do
@@ -3061,9 +3063,8 @@ contains
             end do
             nc = i2-i1+1
             ipaux = binary_search(ja,nc,this%ja(i1:i2))
-            if (ipaux>0) then 
-                call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-            endif
+            assert(ipaux>0) ! Entry not found
+            if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
 
         elseif(this%is_by_rows()) then
             ! Not tested yet! 
@@ -3081,9 +3082,8 @@ contains
             end do
             nr = i2-i1+1
             ipaux = binary_search(ia,nc,this%ia(i1:i2))
-            if (ipaux>0) then 
-                call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
-            endif
+            assert(ipaux>0) ! Entry not found
+            if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
         endif
     end subroutine coo_sparse_matrix_update_bounded_value_body
 
@@ -3137,6 +3137,7 @@ contains
                     (this%symmetric_storage .and. ic>ia)) cycle
                 nc = i2-i1+1
                 ipaux = binary_search(ic,nc,this%ja(i1:i2))
+                assert(ipaux>0) ! Entry not found
                 if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
             end do
         elseif(this%is_by_cols()) then
@@ -3165,6 +3166,7 @@ contains
                 end if
                 nr = i2-i1+1
                 ipaux = binary_search(ia,nc,this%ia(i1:i2))
+                assert(ipaux>0) ! Entry not found
                 if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
             end do
         endif
@@ -3222,6 +3224,7 @@ contains
                 end if
                 nc = i2-i1+1
                 ipaux = binary_search(ja,nc,this%ja(i1:i2))
+                assert(ipaux>0) ! Entry not found
                 if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
             end do
         elseif(this%is_by_cols()) then
@@ -3248,6 +3251,7 @@ contains
                 if (ir<imin .or. ir>imax .or. ir<1 .or. ir>this%num_rows .or. &
                     (this%symmetric_storage .and. ja>ir)) cycle
                 nr = i2-i1+1
+                assert(ipaux>0) ! Entry not found
                 ipaux = binary_search(ir,nc,this%ia(i1:i2))
                 if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
             end do
