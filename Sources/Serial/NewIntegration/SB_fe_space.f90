@@ -106,7 +106,7 @@ module SB_fe_space_names
   type :: finite_face_t
      private
      integer(ip)                            :: number_fe_spaces
-     type(face_topology_t)        , pointer :: face_topology
+     type(face_topology_t)    , pointer     :: face_topology
      type(p_SB_finite_element_t)            :: neighbour_fe(2)
      type(face_map_t)         , pointer     :: map
      type(SB_quadrature_t)    , pointer     :: quadrature
@@ -118,8 +118,8 @@ module SB_fe_space_names
      procedure, non_overridable :: is_boundary         => finite_face_is_boundary
      procedure, non_overridable :: number_neighbours   => finite_face_number_neighbours
      procedure, non_overridable :: get_elem2dof        => finite_face_get_elem2dof
-     procedure, non_overridable :: get_face_map        => finite_face_get_face_map
-     procedure, non_overridable :: get_face_quadrature => finite_face_get_face_quadrature
+     procedure, non_overridable :: get_map             => finite_face_get_map
+     procedure, non_overridable :: get_quadrature      => finite_face_get_quadrature
      procedure, non_overridable :: get_face_integrator => finite_face_get_face_integrator
   end type finite_face_t
 

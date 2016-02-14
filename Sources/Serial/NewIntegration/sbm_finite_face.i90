@@ -17,29 +17,31 @@ subroutine finite_face_update_integration( this )
   implicit none
   class(finite_face_t), intent(inout) :: this 
   integer(ip) :: i
-  
-  type(allocatable_array_rp2_t), pointer:: face_coordinates
 
+  type(allocatable_array_rp2_t), pointer:: face_coordinates
   
-  ! Here we should pass the %cell%geo_reference_element instead of %reference_fe_geo BUT it is still
-  ! not pointing to a reference_FE_t type of data.
   face_coordinates => this%map%get_face_coordinates()
   call this%face_topology%get_coordinates(face_coordinates)
-  !call this%map%update(this%quadrature,this%get_coordinates())
-  !call this%face_topology%get_coordinates(this%coordinates)
-  
-  do i = 1, this%number_fe_spaces
-     if (this%is_boundary()) then
-        call this%face_integrator(i)%p%update(this%face_topology%relative_face,                   &
+
+  if (this%is_boundary()) then
+     call this%map%update(this%face_topology%relative_face,this%quadrature,                       &
              &                           this%neighbour_fe(1)%p%reference_fe_geo,                 &
              &                           this%neighbour_fe(1)%p%cell%coordinates)
-     else
-        call this%face_integrator(i)%p%update(this%face_topology%relative_face,                   &
+
+     do i = 1, this%number_fe_spaces
+        call this%face_integrator(i)%p%update(this%face_topology%relative_face,this%map)
+     end do
+  else
+     call this%map%update(this%face_topology%relative_face,this%quadrature,                       &
              &                           this%neighbour_fe(1)%p%reference_fe_geo,                 &
              &                           this%neighbour_fe(1)%p%cell%coordinates,                 &
              &                           this%neighbour_fe(2)%p%cell%coordinates)
-     end if
-  end do
+
+     do i = 1, this%number_fe_spaces
+        call this%face_integrator(i)%p%update(this%face_topology%relative_face,this%map)
+     end do
+  end if
+
 end subroutine finite_face_update_integration
 
 !==================================================================================================
@@ -88,22 +90,20 @@ function finite_face_get_elem2dof(this,i)
 end function finite_face_get_elem2dof
 
 !==================================================================================================
-function finite_face_get_face_map(this,i)
+function finite_face_get_map(this)
   implicit none
   class(finite_face_t), target, intent(in) :: this
-  integer(ip)                 , intent(in) :: i
-  type(fe_map_t)      , pointer            :: finite_face_get_face_map
-  finite_face_get_face_map => this%face_integrator(i)%p%get_face_map()
-end function finite_face_get_face_map
+  type(face_map_t)    , pointer            :: finite_face_get_map
+  finite_face_get_map => this%map
+end function finite_face_get_map
 
 !==================================================================================================
-function finite_face_get_face_quadrature(this,i)
+function finite_face_get_quadrature(this)
   implicit none
   class(finite_face_t), target, intent(in) :: this
-  integer(ip)                 , intent(in) :: i
-  type(SB_quadrature_t)       , pointer    :: finite_face_get_face_quadrature
-  finite_face_get_face_quadrature => this%face_integrator(i)%p%get_face_quadrature()
-end function finite_face_get_face_quadrature
+  type(SB_quadrature_t)       , pointer    :: finite_face_get_quadrature
+  finite_face_get_quadrature => this%quadrature
+end function finite_face_get_quadrature
 
 !==================================================================================================
 function finite_face_get_face_integrator(this,i)

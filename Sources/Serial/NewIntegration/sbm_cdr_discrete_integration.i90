@@ -148,6 +148,7 @@ contains
     type(face_integrator_t)     , pointer :: face_int
     real(rp)                , allocatable :: elmat(:,:), elvec(:), facemat(:,:,:,:), facevec(:,:)
     type(fe_map_t)              , pointer :: fe_map
+    type(face_map_t)            , pointer :: face_map
     type(SB_quadrature_t)       , pointer :: quad
     integer(ip)             , allocatable :: number_nodes_per_field(:)
 
@@ -249,15 +250,17 @@ contains
        write(*,*) __FILE__,__LINE__,iface,'------------------'
        call face%update_integration()
       
+       quad   => face%get_quadrature()
+       ngaus = quad%get_number_evaluation_points()
+       face_map => face%get_map()
+
        j = 1
        face_int => face%get_face_integrator(j)
-       fe_map => face%get_face_map(j)
-       quad   => face%get_face_quadrature(j)
-       ngaus = quad%get_number_evaluation_points()
+       
        do igaus = 1, ngaus
-          call face_int%get_normals(igaus,normal)
-          h_length = face_int%compute_characteristic_length(igaus,number_neighbours)
-          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          call face_map%get_normals(igaus,normal)
+          h_length = face_map%compute_characteristic_length(igaus,number_neighbours)
+          factor = face_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
           do ineigh = 1, number_neighbours
              do inode = 1, number_nodes_per_field(j)
                 !ioffset = number_nodes_per_field(j)*(ineigh-1) + inode
@@ -301,16 +304,18 @@ contains
        number_neighbours = face%number_neighbours()
        write(*,*) __FILE__,__LINE__,iface,'------------------'
        call face%update_integration()
+
+       face_map => face%get_map()
+       quad   => face%get_quadrature()
        ngaus = quad%get_number_evaluation_points()
+
        j = 1
        face_int => face%get_face_integrator(j)
-       fe_map => face%get_face_map(j)
-       quad   => face%get_face_quadrature(j)
-       ngaus = quad%get_number_evaluation_points()
+      
        do igaus = 1, ngaus
-          call face_int%get_normals(igaus,normal)
-          h_length = face_int%compute_characteristic_length(igaus,number_neighbours)
-          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          call face_map%get_normals(igaus,normal)
+          h_length = face_map%compute_characteristic_length(igaus,number_neighbours)
+          factor = face_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
           do ineigh = 1, number_neighbours
              do inode = 1, number_nodes_per_field(j)
                 call face_int%get_value(inode,igaus,ineigh,shape_trial_scalar)

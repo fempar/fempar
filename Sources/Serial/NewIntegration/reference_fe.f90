@@ -114,7 +114,10 @@ module reference_fe_names
      procedure, non_overridable :: create_on_face   => fe_map_create_on_face
      procedure, non_overridable :: fe_map_face_restriction_create  => fe_map_face_map_create
      procedure, non_overridable :: update           => fe_map_update
-     procedure, non_overridable :: fe_map_face_restriction_update  => fe_map_face_map_update
+     procedure, non_overridable :: update_face      => fe_map_update_face
+     procedure, non_overridable :: fe_map_face_map_update
+     procedure, non_overridable :: fe_map_face_map_update_without_coordinates
+     generic :: face_map_update  => fe_map_face_map_update, fe_map_face_map_update_without_coordinates
      procedure, non_overridable :: free             => fe_map_free
      procedure, non_overridable :: print            => fe_map_print
      procedure, non_overridable :: get_det_jacobian => fe_map_get_det_jacobian
@@ -207,7 +210,7 @@ module reference_fe_names
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
      procedure (permute_order_vef_interface)    , deferred :: permute_order_vef
-     procedure (compute_characteristic_length_interface) , deferred :: compute_characteristic_length
+     procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
 
      ! generic part of the subroutine above
      procedure :: permute_nodes_per_vef => reference_fe_permute_nodes_per_vef
@@ -360,14 +363,12 @@ module reference_fe_names
        integer(ip), intent(inout) :: o2n(:)
      end subroutine permute_order_vef_interface
 
-     function compute_characteristic_length_interface( this, fe_map, igaus)
-       import :: reference_fe_t, fe_map_t, ip, rp
+     function get_characteristic_length_interface( this)
+       import :: reference_fe_t, rp
        implicit none 
        class(reference_fe_t), intent(in) :: this 
-       type(fe_map_t)       , intent(in) :: fe_map
-       integer(ip)          , intent(in) :: igaus
-       real(rp)  :: compute_characteristic_length_interface 
-     end function compute_characteristic_length_interface
+       real(rp)  :: get_characteristic_length_interface 
+     end function get_characteristic_length_interface
 
      subroutine update_interpolation_interface ( this, fe_map, interpolation_reference_cell,    &
           &                            interpolation_real_cell )
@@ -415,9 +416,8 @@ module reference_fe_names
      ! Concrete TBPs of this derived data type
      procedure :: fill                      => quad_lagrangian_reference_fe_fill
      procedure :: free                      => quad_lagrangian_reference_fe_free
-
-     procedure :: compute_characteristic_length &
-          &                          => quad_lagrangian_reference_fe_compute_characteristic_length
+     procedure :: get_characteristic_length &
+          &                          => quad_lagrangian_reference_fe_get_characteristic_length
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t
@@ -455,8 +455,8 @@ contains
   procedure, non_overridable, private :: get_gradient_scalar => volume_integrator_get_gradient_scalar
   procedure, non_overridable, private :: get_gradient_vector => volume_integrator_get_gradient_vector
   generic                             :: get_gradient => get_gradient_scalar, &
-                                                         get_gradient_vector                                                       
-  
+                                                         get_gradient_vector 
+
   procedure, non_overridable, private :: get_symmetric_gradient_vector => volume_integrator_get_symmetric_gradient_vector
   generic                             :: get_symmetric_gradient => get_symmetric_gradient_vector
   
@@ -504,9 +504,15 @@ type face_map_t
    type(fe_map_t)                  :: face_map
    type(fe_map_face_restriction_t) :: fe_maps(2)
  contains
-   procedure, non_overridable :: create => face_map_create
-   procedure, non_overridable :: free   => face_map_free
-   procedure, non_overridable :: get_face_coordinates  => face_map_get_face_coordinates
+   procedure, non_overridable :: create               => face_map_create
+   procedure, non_overridable :: free                 => face_map_free
+   procedure, non_overridable :: update               => face_map_update
+   procedure, non_overridable :: compute_characteristic_length &
+        &                                             => face_map_compute_characteristic_length
+   procedure, non_overridable :: get_face_coordinates => face_map_get_face_coordinates
+   procedure, non_overridable :: get_neighbour_fe_map => face_map_get_neighbour_fe_map
+   procedure, non_overridable :: get_normals          => face_map_get_normals
+   procedure, non_overridable :: get_det_jacobian     => face_map_get_det_jacobian
 end type face_map_t
 
 public :: face_map_t
@@ -535,26 +541,19 @@ public :: interpolation_face_restriction_t
 type face_integrator_t
    private
    type(interpolation_face_restriction_t) :: face_interpolation(2)
-   type(fe_map_t)                         :: face_map
-   type(fe_map_face_restriction_t)        :: fe_maps(2)
-   type(SB_quadrature_t)                  :: quadrature
    type(p_reference_fe_t)                 :: reference_fe(2)
-   real(rp), allocatable                  :: coordinates(:,:)
+   !real(rp), allocatable                  :: coordinates(:,:)
  contains
    procedure, non_overridable :: create            => face_integrator_create
    procedure, non_overridable :: update            => face_integrator_update
    procedure, non_overridable :: free              => face_integrator_free
-   procedure, non_overridable :: compute_characteristic_length                                    &
-        &                                          => face_integrator_compute_characteristic_length
-   procedure, non_overridable :: get_face_map      => face_integrator_get_face_map
-   procedure, non_overridable :: get_face_quadrature                                              &
-        &                                          => face_integrator_get_face_quadrature
+   !procedure, non_overridable :: get_face_quadrature                                              &
+   !     &                                          => face_integrator_get_face_quadrature
    procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
    generic :: get_value => get_value_scalar
    procedure, non_overridable :: get_gradient_scalar                                              &
         &                                          => face_integrator_get_gradient_scalar
    generic :: get_gradient => get_gradient_scalar
-   procedure, non_overridable :: get_normals       => face_integrator_get_normals
 end type face_integrator_t
 
 type p_face_integrator_t

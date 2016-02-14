@@ -290,29 +290,13 @@ subroutine quad_lagrangian_reference_fe_free ( this )
   this%number_nodes_scalar = 0
 end subroutine quad_lagrangian_reference_fe_free
 
-function quad_lagrangian_reference_fe_compute_characteristic_length ( this, fe_map, igaus )
+function quad_lagrangian_reference_fe_get_characteristic_length ( this )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(in) :: this 
-  type(fe_map_t)                       , intent(in) :: fe_map
-  integer(ip)                          , intent(in) :: igaus
-  real(rp)  :: quad_lagrangian_reference_fe_compute_characteristic_length 
+  real(rp)  :: quad_lagrangian_reference_fe_get_characteristic_length 
 
-  real(rp) :: reference_elem_h,  volumetric_h, i
-  real(rp) :: inverse_h(3)
-
-  reference_elem_h = 2.0_rp
-
-  inverse_h = fe_map%compute_h(igaus,this%number_dimensions)
-
-  volumetric_h = inverse_h(1)
-  do i = 2, this%number_dimensions
-     volumetric_h = volumetric_h * inverse_h(i)
-  end do
-  volumetric_h = 1.0_rp / volumetric_h
-  volumetric_h =volumetric_h**(1.0_rp/real(this%number_dimensions))
-
-  quad_lagrangian_reference_fe_compute_characteristic_length =  reference_elem_h*volumetric_h
-end function quad_lagrangian_reference_fe_compute_characteristic_length
+  quad_lagrangian_reference_fe_get_characteristic_length =  2.0_rp
+end function quad_lagrangian_reference_fe_get_characteristic_length
 
 subroutine quad_lagrangian_reference_fe_fill_field_components (this)
   implicit none
