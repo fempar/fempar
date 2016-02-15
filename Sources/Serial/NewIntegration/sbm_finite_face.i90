@@ -25,18 +25,16 @@ subroutine finite_face_update_integration( this )
 
   if (this%is_boundary()) then
      call this%map%update(this%face_topology%relative_face,this%quadrature,                       &
-             &                           this%neighbour_fe(1)%p%reference_fe_geo,                 &
+             &                           this%neighbour_fe(1)%p%cell%reference_fe_geo,            &
              &                           this%neighbour_fe(1)%p%cell%coordinates)
-
      do i = 1, this%number_fe_spaces
         call this%face_integrator(i)%p%update(this%face_topology%relative_face,this%map)
      end do
   else
      call this%map%update(this%face_topology%relative_face,this%quadrature,                       &
-             &                           this%neighbour_fe(1)%p%reference_fe_geo,                 &
+             &                           this%neighbour_fe(1)%p%cell%reference_fe_geo,            &
              &                           this%neighbour_fe(1)%p%cell%coordinates,                 &
              &                           this%neighbour_fe(2)%p%cell%coordinates)
-
      do i = 1, this%number_fe_spaces
         call this%face_integrator(i)%p%update(this%face_topology%relative_face,this%map)
      end do

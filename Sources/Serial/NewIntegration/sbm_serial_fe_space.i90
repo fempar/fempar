@@ -68,7 +68,6 @@ subroutine create( this, &
      this%fe_array(i)%number_nodes = number_nodes
      this%fe_array(i)%number_fe_spaces = this%number_fe_spaces
 
-     this%fe_array(i)%reference_fe_geo => this%reference_fe_geo_list(1)%p
      this%fe_array(i)%quadrature => this%quadrature(1)%p
      this%fe_array(i)%fe_map => this%fe_map(1)%p
 
@@ -147,7 +146,6 @@ subroutine free( this )
      this%fe_array(i)%number_nodes = 0
      this%fe_array(i)%number_fe_spaces = 0
 
-     nullify(this%fe_array(i)%reference_fe_geo)
      nullify(this%fe_array(i)%quadrature)
      nullify(this%fe_array(i)%fe_map)
 
