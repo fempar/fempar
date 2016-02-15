@@ -231,6 +231,10 @@ contains
        call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks, &
             &                   field_coupling, elmat, elvec )      
     end do
+    do inode = 1, number_nodes_per_field(1)
+       write(*,*) inode, '+++++'
+       write(*,*) elmat(1:4,inode)
+    end do
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
 
