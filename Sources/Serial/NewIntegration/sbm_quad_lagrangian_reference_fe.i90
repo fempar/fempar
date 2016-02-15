@@ -126,16 +126,16 @@ subroutine quad_lagrangian_reference_fe_create_face_local_interpolation ( this, 
 
 end subroutine quad_lagrangian_reference_fe_create_face_local_interpolation
 
-subroutine quad_lagrangian_reference_fe_update_interpolation( this, fe_map, interpolation_reference_cell,    &
-     &                            interpolation_real_cell )
+subroutine quad_lagrangian_reference_fe_update_interpolation( this, fe_map,                       &
+     &                                                        interpolation_reference_cell,       &
+     &                                                        interpolation_real_cell )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(fe_map_t)                        , intent(in)    :: fe_map
-  type(SB_interpolation_t)              , intent(in)    :: interpolation_reference_cell
-  type(SB_interpolation_t)              , intent(inout) :: interpolation_real_cell
+  type(fe_map_t)                       , intent(in)    :: fe_map
+  type(SB_interpolation_t)             , intent(in)    :: interpolation_reference_cell
+  type(SB_interpolation_t)             , intent(inout) :: interpolation_real_cell
 
   call femap_apply_to_interp( fe_map, interpolation_reference_cell,interpolation_real_cell )
-  
 end subroutine quad_lagrangian_reference_fe_update_interpolation
 
 function quad_lagrangian_reference_fe_get_bc_component_node( this, node )

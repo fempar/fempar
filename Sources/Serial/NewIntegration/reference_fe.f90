@@ -435,12 +435,13 @@ contains
 
   procedure, non_overridable :: create => volume_integrator_create
   procedure, non_overridable :: free   => volume_integrator_free
+  procedure, non_overridable :: update   => volume_integrator_update
   procedure, non_overridable :: print  => volume_integrator_print
   
   procedure, non_overridable :: get_interpolation_reference_cell =>                                 &
-       &                                   volume_integrator_print_get_interpolation_reference_cell
+       &                                   volume_integrator_get_interpolation_reference_cell
   procedure, non_overridable :: get_interpolation_real_cell =>                                 &
-       &                                   volume_integrator_print_get_interpolation_real_cell
+       &                                   volume_integrator_get_interpolation_real_cell
 
 
   procedure, non_overridable, private :: get_value_scalar           => volume_integrator_get_value_scalar

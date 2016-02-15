@@ -626,6 +626,14 @@ subroutine volume_integrator_free( this )
 end subroutine volume_integrator_free
 
 !==================================================================================================
+subroutine volume_integrator_update( this, fe_map )
+  implicit none
+  class(SB_volume_integrator_t), intent(inout) :: this
+  type(fe_map_t)               , intent(in)    :: fe_map
+
+  call this%reference_fe%update_interpolation(fe_map, this%interpolation,this%interpolation_o_map)
+end subroutine volume_integrator_update
+!==================================================================================================
 subroutine volume_integrator_print( this )
   implicit none
   class(SB_volume_integrator_t), intent(in) :: this
@@ -637,22 +645,22 @@ subroutine volume_integrator_print( this )
 end subroutine volume_integrator_print
 
 !==================================================================================================
-function volume_integrator_print_get_interpolation_reference_cell(this)
+function volume_integrator_get_interpolation_reference_cell(this)
   implicit none
   class(SB_volume_integrator_t), target, intent(in):: this
-  type(SB_interpolation_t), pointer ::  volume_integrator_print_get_interpolation_reference_cell
+  type(SB_interpolation_t), pointer ::  volume_integrator_get_interpolation_reference_cell
 
-  volume_integrator_print_get_interpolation_reference_cell => this%interpolation
-end function volume_integrator_print_get_interpolation_reference_cell
+  volume_integrator_get_interpolation_reference_cell => this%interpolation
+end function volume_integrator_get_interpolation_reference_cell
 
 !==================================================================================================
-function volume_integrator_print_get_interpolation_real_cell(this)
+function volume_integrator_get_interpolation_real_cell(this)
   implicit none
   class(SB_volume_integrator_t), target, intent(in) :: this
-  type(SB_interpolation_t), pointer ::  volume_integrator_print_get_interpolation_real_cell
+  type(SB_interpolation_t), pointer ::  volume_integrator_get_interpolation_real_cell
 
-  volume_integrator_print_get_interpolation_real_cell => this%interpolation_o_map
-end function volume_integrator_print_get_interpolation_real_cell
+  volume_integrator_get_interpolation_real_cell => this%interpolation_o_map
+end function volume_integrator_get_interpolation_real_cell
 
 !==================================================================================================
 subroutine volume_integrator_get_value_scalar (this, ishape, qpoint, scalar_field)
