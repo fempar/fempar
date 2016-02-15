@@ -71,7 +71,6 @@ module SB_fe_space_names
      integer(ip)                                 :: number_fe_spaces
      
      type(elem_topology_t)         , pointer     :: cell 
-     !class(reference_fe_t)         , pointer     :: reference_fe_geo 
      type(fe_map_t)                , pointer     :: fe_map
      
      type(p_reference_fe_t)        , pointer     :: reference_fe_phy(:) 

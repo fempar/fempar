@@ -2,7 +2,12 @@ subroutine update_integration( this )
   implicit none
   class(SB_finite_element_t), intent(inout) :: this 
   integer(ip)                      :: i
-  call this%fe_map%update( this%quadrature, this%cell%coordinates )
+  real(rp), pointer :: coordinates(:,:)
+
+  coordinates => this%fe_map%get_coordinates()
+  call this%cell%get_coordinates(coordinates)
+
+  call this%fe_map%update( this%quadrature)!, this%cell%coordinates )
   do i = 1, this%number_fe_spaces
      call this%volume_integrator(i)%p%update(this%fe_map)
   end do

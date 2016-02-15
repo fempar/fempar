@@ -659,7 +659,7 @@ contains
     implicit none
     ! Parameters
     class(face_topology_t), intent(in)    :: this
-    type(allocatable_array_rp2_t), intent(inout) :: face_topology_coordinates
+    real(rp)              , intent(inout) :: face_topology_coordinates(:,:)
     
     integer(ip)           :: i,aux_vef_dimension(5), local_vef_id
     integer(ip)           :: number_corners_face_geo, local_element_corner
@@ -677,7 +677,7 @@ contains
     corners_vef => left_reference_fe_geo%get_corners_vef()
     do i = 1, number_corners_face_geo
        local_element_corner = corners_vef%l(corners_vef%p(local_vef_id) + i-1)
-       face_topology_coordinates%a(:,i) = this%neighbour_elems(1)%p%coordinates(:,local_element_corner)
+       face_topology_coordinates(:,i) = this%neighbour_elems(1)%p%coordinates(:,local_element_corner)
     end do
   end subroutine face_topology_get_coordinates
 

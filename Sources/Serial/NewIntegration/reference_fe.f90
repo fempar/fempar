@@ -118,9 +118,8 @@ module reference_fe_names
      real(rp), allocatable    :: d2sdx(:,:,:,:)     
      ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)       
      real(rp), allocatable    :: coordinates_points(:,:)  
-     ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)  
-     type(allocatable_array_rp2_t)  :: coordinates_nodes    
-     !real(rp), allocatable    :: coordinates_nodes(:,:)  
+     ! Coordinates of evaluation points (number_dimensions,number_corners)  
+     real(rp), allocatable    :: coordinates(:,:)  
      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
      real(rp), allocatable    :: normals(:,:)  
      ! Geometry interpolation_t in the reference element domain    
@@ -132,15 +131,12 @@ module reference_fe_names
      procedure, non_overridable :: create_on_face   => fe_map_create_on_face
      procedure, non_overridable :: fe_map_face_restriction_create  => fe_map_face_map_create
      procedure, non_overridable :: update           => fe_map_update
-     procedure, non_overridable :: update_face      => fe_map_update_face
-     procedure, non_overridable :: fe_map_face_map_update
-     procedure, non_overridable :: fe_map_face_map_update_without_coordinates
-     generic :: face_map_update  => fe_map_face_map_update, fe_map_face_map_update_without_coordinates
+     procedure, non_overridable :: face_map_update  => fe_map_face_map_update
      procedure, non_overridable :: free             => fe_map_free
      procedure, non_overridable :: print            => fe_map_print
      procedure, non_overridable :: get_det_jacobian => fe_map_get_det_jacobian
      procedure, non_overridable :: compute_h        => fe_map_compute_h
-     procedure, non_overridable :: get_nodal_coordinates  => fe_map_get_nodal_coordinates
+     procedure, non_overridable :: get_coordinates  => fe_map_get_coordinates
   end type fe_map_t
 
   type p_fe_map_t
@@ -163,6 +159,7 @@ module reference_fe_names
      procedure, non_overridable :: create => fe_map_face_restriction_create
      procedure, non_overridable :: update => fe_map_face_restriction_update
      procedure, non_overridable :: free   => fe_map_face_restriction_free
+     procedure, non_overridable :: get_coordinates => fe_map_face_restriction_get_coordinates
   end type fe_map_face_restriction_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -538,6 +535,8 @@ type face_map_t
    procedure, non_overridable :: compute_characteristic_length &
         &                                             => face_map_compute_characteristic_length
    procedure, non_overridable :: get_face_coordinates => face_map_get_face_coordinates
+   procedure, non_overridable :: get_coordinates_neighbour                                          &
+        &                                             => face_map_get_coordinates_neighbour
    procedure, non_overridable :: get_neighbour_fe_map => face_map_get_neighbour_fe_map
    procedure, non_overridable :: get_normals          => face_map_get_normals
    procedure, non_overridable :: get_det_jacobian     => face_map_get_det_jacobian
@@ -552,13 +551,10 @@ type face_integrator_t
    private
    type(interpolation_face_restriction_t) :: face_interpolation(2)
    type(p_reference_fe_t)                 :: reference_fe(2)
-   !real(rp), allocatable                  :: coordinates(:,:)
  contains
    procedure, non_overridable :: create            => face_integrator_create
    procedure, non_overridable :: update            => face_integrator_update
    procedure, non_overridable :: free              => face_integrator_free
-   !procedure, non_overridable :: get_face_quadrature                                              &
-   !     &                                          => face_integrator_get_face_quadrature
    procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
    generic :: get_value => get_value_scalar
    procedure, non_overridable :: get_gradient_scalar                                              &

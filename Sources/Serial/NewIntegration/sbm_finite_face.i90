@@ -19,22 +19,28 @@ subroutine finite_face_update_integration( this )
   integer(ip) :: i
 
   type(allocatable_array_rp2_t), pointer:: face_coordinates
-  
-  face_coordinates => this%map%get_face_coordinates()
-  call this%face_topology%get_coordinates(face_coordinates)
+  real(rp), pointer :: coords(:,:)
+
+  !face_coordinates => this%map%get_face_coordinates()
+  !call this%face_topology%get_coordinates(face_coordinates)
+
+  coords => this%map%get_face_coordinates()
+  call this%face_topology%get_coordinates(coords)
+
+  coords => this%map%get_coordinates_neighbour(1,this%face_topology%relative_face(1))
+  call this%neighbour_fe(1)%p%cell%get_coordinates(coords)
 
   if (this%is_boundary()) then
      call this%map%update(this%face_topology%relative_face,this%quadrature,                       &
-             &                           this%neighbour_fe(1)%p%cell%reference_fe_geo,            &
-             &                           this%neighbour_fe(1)%p%cell%coordinates)
+             &                           this%neighbour_fe(1)%p%cell%reference_fe_geo)
      do i = 1, this%number_fe_spaces
         call this%face_integrator(i)%p%update(this%face_topology%relative_face,this%map)
      end do
   else
+     coords => this%map%get_coordinates_neighbour(2,this%face_topology%relative_face(2))
+     call this%neighbour_fe(2)%p%cell%get_coordinates(coords)
      call this%map%update(this%face_topology%relative_face,this%quadrature,                       &
-             &                           this%neighbour_fe(1)%p%cell%reference_fe_geo,            &
-             &                           this%neighbour_fe(1)%p%cell%coordinates,                 &
-             &                           this%neighbour_fe(2)%p%cell%coordinates)
+             &                           this%neighbour_fe(1)%p%cell%reference_fe_geo)
      do i = 1, this%number_fe_spaces
         call this%face_integrator(i)%p%update(this%face_topology%relative_face,this%map)
      end do

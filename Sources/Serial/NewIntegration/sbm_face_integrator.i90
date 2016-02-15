@@ -24,16 +24,15 @@ subroutine fe_map_face_restriction_create( this, quadrature, reference_fe_geomet
 end subroutine fe_map_face_restriction_create
 
 !==================================================================================================
-subroutine fe_map_face_restriction_update( this, local_face_id, quadrature, cell_coordinates)
+subroutine fe_map_face_restriction_update( this, local_face_id, quadrature)
   implicit none
   ! Parameters
   class(fe_map_face_restriction_t), intent(inout) :: this
   integer(ip)                     , intent(in)    :: local_face_id
   type(SB_quadrature_t)           , intent(in)    :: quadrature
-  real(rp)                        , intent(in)    :: cell_coordinates(:,:)
 
   this%active_face_id = local_face_id
-  call this%fe_map(local_face_id)%update(quadrature, cell_coordinates)
+  call this%fe_map(local_face_id)%update(quadrature)
 
 end subroutine fe_map_face_restriction_update
 
@@ -57,6 +56,17 @@ subroutine fe_map_face_restriction_free( this)
   this%number_faces = 0
   this%active_face_id = 0
 end subroutine fe_map_face_restriction_free
+
+!==================================================================================================
+function fe_map_face_restriction_get_coordinates(this,local_face_id)
+  implicit none
+  ! Parameters
+  class(fe_map_face_restriction_t), intent(in) :: this
+  integer(ip)                     , intent(in) :: local_face_id
+  real(rp), pointer :: fe_map_face_restriction_get_coordinates(:,:)
+  
+  fe_map_face_restriction_get_coordinates => this%fe_map(local_face_id)%get_coordinates()
+end function fe_map_face_restriction_get_coordinates
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! face_map_t procedures
@@ -94,23 +104,19 @@ subroutine face_map_free(this)
 end subroutine face_map_free
 
 !==================================================================================================
-subroutine face_map_update(this,local_face_id,face_quadrature,left_reference_fe_geo,              &
-     &                     left_neighbour_coordinates,right_neighbour_coordinates)
+subroutine face_map_update(this,local_face_id,face_quadrature,left_reference_fe_geo)
   implicit none
   ! Parameters
-  class(face_map_t)      , intent(inout) :: this
-  integer(ip)            , intent(in)    :: local_face_id(2)
-  type(SB_quadrature_t)  , intent(in)    :: face_quadrature
-  class(reference_fe_t)   , intent(in)    :: left_reference_fe_geo
-  real(rp)                , intent(in)    :: left_neighbour_coordinates(:,:)
-  real(rp)      , optional, intent(in)    :: right_neighbour_coordinates(:,:)
+  class(face_map_t)    , intent(inout) :: this
+  integer(ip)          , intent(in)    :: local_face_id(2)
+  type(SB_quadrature_t), intent(in)    :: face_quadrature
+  class(reference_fe_t), intent(in)    :: left_reference_fe_geo
 
-  ! we are assuming that the face coordinates have been updated beforehand
   call this%face_map%face_map_update(local_face_id(1),left_reference_fe_geo,face_quadrature)
   
-  call this%fe_maps(1)%update(local_face_id(1),face_quadrature,left_neighbour_coordinates)
-  if (present(right_neighbour_coordinates)) then
-     call this%fe_maps(2)%update(local_face_id(2),face_quadrature,right_neighbour_coordinates)
+  call this%fe_maps(1)%update(local_face_id(1),face_quadrature)
+  if (local_face_id(2)>0) then
+     call this%fe_maps(2)%update(local_face_id(2),face_quadrature)
   end if
 end subroutine face_map_update
 
@@ -141,10 +147,22 @@ function face_map_get_face_coordinates(this)
   implicit none
   ! Parameters
   class(face_map_t), target, intent(in) :: this
-  type(allocatable_array_rp2_t), pointer :: face_map_get_face_coordinates
-
-  face_map_get_face_coordinates => this%face_map%get_nodal_coordinates()
+  real(rp), pointer :: face_map_get_face_coordinates(:,:)
+  
+  face_map_get_face_coordinates => this%face_map%get_coordinates()
 end function face_map_get_face_coordinates
+
+!==================================================================================================
+function face_map_get_coordinates_neighbour(this,neighbour_id,local_face_id)
+  implicit none
+  ! Parameters
+  class(face_map_t), target, intent(in) :: this
+  integer(ip)              , intent(in)    :: neighbour_id
+  integer(ip)              , intent(in)    :: local_face_id
+  real(rp), pointer :: face_map_get_coordinates_neighbour(:,:)
+  
+  face_map_get_coordinates_neighbour => this%fe_maps(neighbour_id)%get_coordinates(local_face_id)
+end function face_map_get_coordinates_neighbour
 
 !==================================================================================================
 function face_map_get_neighbour_fe_map(this,neighbour_elem)
