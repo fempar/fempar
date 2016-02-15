@@ -311,12 +311,14 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_vector( this, &
   type(SB_interpolation_t)             , intent(in)    :: actual_cell_interpolation 
   real(rp)                             , intent(in)    :: nodal_values(:)
   type(vector_field_t)                 , intent(inout) :: quadrature_points_values(:)
+  !integer(ip)                                          :: qpoint, inode, icomp, ishape
 
   !do qpoint = 1, actual_cell_interpolation%number_evaluation_points
-  !   quadrature_points_values(qpoint) = 0.0_rp
-  !   do ishape = 1, actual_cell_interpolation%number_shape_functions
-  !      quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
-  !      & actual_cell_interpolation%shape_functions(ishape,qpoint)*nodal_values(ishape)
+  !   call quadrature_points_values(qpoint)%init(0.0_rp)
+  !   do inode = 1, this%number_nodes
+  !      icomp  = this%node_component_array(ishape,1)
+  !      ishape = this%node_component_array(ishape,2)
+  !      call quadrature_points_values(q_point)%add(icomponent,interpolation%shape_functions(ishape_scalar,qpoint)*nodal_values(ishape))
   !   end do
   !end do
 
