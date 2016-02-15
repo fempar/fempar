@@ -119,7 +119,7 @@ implicit none
     call sparse_matrix%convert('CSR')
 
     call sparse_matrix%permute_and_split_2x2_symbolic(num_row=2, num_col=2, perm=perm, iperm=iperm, A_RR=A_RR)
-!    call sparse_matrix%permute_and_split_2x2_numeric(num_row=2, num_col=2, perm=perm, iperm=iperm, A_CC=A_CC, A_CR=A_CR, A_RC=A_RC, A_RR=A_RR)
+    call sparse_matrix%permute_and_split_2x2_numeric(num_row=2, num_col=2, perm=perm, iperm=iperm, A_CC=A_CC, A_CR=A_CR, A_RC=A_RC, A_RR=A_RR)
 
     print*, '--------------------------------------------'
     print*, ' Original matrix (SYMMETRIC STORAGE)'
@@ -144,9 +144,9 @@ implicit none
     call A_RR%print(6)
 
     call A_RR%Free()
-!    call memfree(A_CC, __FILE__, __LINE__)
-!    call memfree(A_CR, __FILE__, __LINE__)
-!    call memfree(A_RC, __FILE__, __LINE__)
+    call memfree(A_CC, __FILE__, __LINE__)
+    call memfree(A_CR, __FILE__, __LINE__)
+    call memfree(A_RC, __FILE__, __LINE__)
 
 !------------------------------------------------------------------
 ! SYMMETRIC STORAGE

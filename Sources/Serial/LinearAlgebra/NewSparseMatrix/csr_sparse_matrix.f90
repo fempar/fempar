@@ -1650,7 +1650,7 @@ contains
                         (permuted_row>num_col)) &
                         A_CR(permuted_col,permuted_row-num_row) = this%val(i)
                 else
-                    if (A_RR_has_symmetric_storage .and. permuted_row-num_col>permuted_col) cycle
+                    if (A_RR_has_symmetric_storage .and. permuted_row-num_row>permuted_col-num_col) cycle
                     A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col-num_col
                     A_RR%val(permuted_row_offset+nz_per_row) = this%val(i)
                     nz_per_row = nz_per_row + 1
