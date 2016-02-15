@@ -58,24 +58,25 @@ module par_block_array_names
      procedure :: create_and_allocate => par_block_array_create_blocks_container_and_allocate_blocks
      procedure :: allocate => par_block_array_create_blocks_allocate_blocks						  
 
-     procedure :: create_view => par_block_array_create_view
-     procedure :: weight => par_block_array_weight
-     procedure :: print => par_block_array_print
-     procedure :: get_block => par_block_array_get_block
-     procedure :: get_nblocks => par_block_array_get_nblocks
+     procedure :: create_view       => par_block_array_create_view
+     procedure :: weight            => par_block_array_weight
+     procedure :: print             => par_block_array_print
+     procedure :: get_block         => par_block_array_get_block
+     procedure :: get_nblocks       => par_block_array_get_nblocks
 
-     procedure :: dot   => par_block_array_dot
-     procedure :: local_dot   => par_block_array_local_dot
-     procedure :: copy  => par_block_array_copy
-     procedure :: init  => par_block_array_init
-     procedure :: scal  => par_block_array_scal
-     procedure :: axpby => par_block_array_axpby
-     procedure :: nrm2  => par_block_array_nrm2
-     procedure :: clone => par_block_array_clone
-     procedure :: comm  => par_block_array_comm
+     procedure :: dot               => par_block_array_dot
+     procedure :: local_dot         => par_block_array_local_dot
+     procedure :: copy              => par_block_array_copy
+     procedure :: init              => par_block_array_init
+     procedure :: scal              => par_block_array_scal
+     procedure :: axpby             => par_block_array_axpby
+     procedure :: nrm2              => par_block_array_nrm2
+     procedure :: clone             => par_block_array_clone
+     procedure :: comm              => par_block_array_comm
      procedure :: same_vector_space => par_block_array_same_vector_space
-     procedure :: free_in_stages  => par_block_array_free_in_stages
-					procedure :: get_number_blocks
+     procedure :: free_in_stages    => par_block_array_free_in_stages
+					procedure :: get_number_blocks => par_block_array_get_number_blocks
+     procedure :: extract_subvector => par_block_array_extract_subvector
   end type par_block_array_t
 
   ! Types
@@ -154,6 +155,7 @@ contains
     tvec%state = blocks_container_created
   end subroutine par_block_array_create_view
 
+  !=============================================================================
   subroutine par_block_array_weight ( p_vec )
     implicit none
     class(par_block_array_t), intent(inout) :: p_vec
@@ -164,6 +166,7 @@ contains
     end do
   end subroutine par_block_array_weight
 
+  !=============================================================================
   subroutine par_block_array_print (this,luout)
     implicit none
     class(par_block_array_t), intent(in) :: this
@@ -177,7 +180,8 @@ contains
        call this%blocks(ib)%print(luout)
     end do
   end subroutine par_block_array_print
-  
+
+  !=============================================================================
   function par_block_array_get_block (this,ib)
     implicit none
     ! Parameters
@@ -188,6 +192,7 @@ contains
     par_block_array_get_block => this%blocks(ib)
   end function par_block_array_get_block
 
+  !=============================================================================
   function par_block_array_get_nblocks (this)
     implicit none
     ! Parameters
@@ -426,36 +431,55 @@ contains
     !   DO NOTHING
     ! end if
   end subroutine par_block_array_free_in_stages
-  
- function par_block_array_same_vector_space(this,vector)
-   implicit none
-   class(par_block_array_t), intent(in) :: this
-   class(vector_t), intent(in) :: vector
-   logical :: par_block_array_same_vector_space
-   integer(ip) :: iblk
-   
-   par_block_array_same_vector_space = .false.
-   assert ( this%state == blocks_container_created )
-   select type(vector)
-   class is (par_block_array_t)
-     assert ( vector%state == blocks_container_created )
-     par_block_array_same_vector_space = (this%nblocks == vector%nblocks)
-     if ( par_block_array_same_vector_space ) then
-       do iblk=1, this%nblocks
-          par_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
-          if ( .not. par_block_array_same_vector_space ) then
-            exit
-          end if
-       end do
-     end if
-   end select
- end function par_block_array_same_vector_space
-	
- function get_number_blocks(this) result(res)
-   implicit none 
-   class(par_block_array_t), intent(in)   :: this
-   integer(ip) :: res
-   res = this%nblocks
- end function get_number_blocks
 
+  !=============================================================================
+  function par_block_array_same_vector_space(this,vector)
+    implicit none
+    class(par_block_array_t), intent(in) :: this
+    class(vector_t), intent(in) :: vector
+    logical :: par_block_array_same_vector_space
+    integer(ip) :: iblk
+    
+    par_block_array_same_vector_space = .false.
+    assert ( this%state == blocks_container_created )
+    select type(vector)
+    class is (par_block_array_t)
+      assert ( vector%state == blocks_container_created )
+      par_block_array_same_vector_space = (this%nblocks == vector%nblocks)
+      if ( par_block_array_same_vector_space ) then
+        do iblk=1, this%nblocks
+           par_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
+           if ( .not. par_block_array_same_vector_space ) then
+             exit
+           end if
+        end do
+      end if
+    end select
+  end function par_block_array_same_vector_space
+	
+  !=============================================================================
+  function par_block_array_get_number_blocks(this) result(res)
+    implicit none 
+    class(par_block_array_t), intent(in)   :: this
+    integer(ip) :: res
+    res = this%nblocks
+  end function par_block_array_get_number_blocks
+
+  !=============================================================================
+  subroutine par_block_array_extract_subvector( this, &
+                                              & iblock, &
+                                              & size_indices, &
+                                              & indices, &
+                                              & values )
+   implicit none
+   class(par_block_array_t), intent(in)    :: this 
+   integer(ip)             , intent(in)    :: iblock
+   integer(ip)             , intent(in)    :: size_indices
+   integer(ip)             , intent(in)    :: indices(size_indices)
+   real(rp)                , intent(inout) :: values(*)
+
+   assert( .false. )
+   
+  end subroutine par_block_array_extract_subvector
+ 
 end module par_block_array_names

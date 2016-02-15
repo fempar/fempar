@@ -53,22 +53,23 @@ module serial_block_array_names
                                      serial_block_array_create_blocks_container_and_blocks
      procedure          :: allocate => serial_block_array_allocate_blocks 								 
      
-     procedure :: create_view => serial_block_array_create_view
-     procedure :: print       => serial_block_array_print	
-     procedure :: get_block   => serial_block_array_get_block
-     procedure :: get_nblocks => serial_block_array_get_nblocks
+     procedure :: create_view       => serial_block_array_create_view
+     procedure :: print             => serial_block_array_print	
+     procedure :: get_block         => serial_block_array_get_block
+     procedure :: get_nblocks       => serial_block_array_get_nblocks
      
-     procedure :: dot  => serial_block_array_dot
-     procedure :: local_dot => serial_block_array_dot
-     procedure :: copy => serial_block_array_copy
-     procedure :: init => serial_block_array_init
-     procedure :: scal => serial_block_array_scal
-     procedure :: axpby => serial_block_array_axpby
-     procedure :: nrm2 => serial_block_array_nrm2
-     procedure :: clone => serial_block_array_clone
+     procedure :: dot               => serial_block_array_dot
+     procedure :: local_dot         => serial_block_array_dot
+     procedure :: copy              => serial_block_array_copy
+     procedure :: init              => serial_block_array_init
+     procedure :: scal              => serial_block_array_scal
+     procedure :: axpby             => serial_block_array_axpby
+     procedure :: nrm2              => serial_block_array_nrm2
+     procedure :: clone             => serial_block_array_clone
      procedure :: same_vector_space => serial_block_array_same_vector_space
-     procedure :: free_in_stages  => serial_block_array_free_in_stages
-     procedure :: get_number_blocks
+     procedure :: free_in_stages    => serial_block_array_free_in_stages
+     procedure :: get_number_blocks => serial_block_array_get_number_blocks
+     procedure :: extract_subvector => serial_block_array_extract_subvector
   end type serial_block_array_t
   
   ! Types
@@ -150,6 +151,7 @@ contains
     tvec%state = blocks_container_created
   end subroutine serial_block_array_create_view
 
+  !=============================================================================
   subroutine serial_block_array_print (this,luout)
     implicit none
     class(serial_block_array_t), intent(in) :: this
@@ -163,6 +165,7 @@ contains
     end do
   end subroutine serial_block_array_print
   
+  !=============================================================================
   function serial_block_array_get_block (this,ib)
     implicit none
     class(serial_block_array_t), target, intent(in) :: this
@@ -172,6 +175,7 @@ contains
     serial_block_array_get_block => this%blocks(ib)
   end function serial_block_array_get_block
 
+  !=============================================================================
   function serial_block_array_get_nblocks (this)
     implicit none
     ! Parameters
@@ -338,6 +342,7 @@ contains
     call op2%CleanTemp()
   end subroutine serial_block_array_clone
 
+  !=============================================================================
   subroutine serial_block_array_free_in_stages(this,action)
     implicit none
     class(serial_block_array_t), intent(inout) :: this
@@ -363,35 +368,62 @@ contains
     !   DO NOTHING
     ! end if
   end subroutine serial_block_array_free_in_stages
-  
- function serial_block_array_same_vector_space(this,vector)
-   implicit none
-   class(serial_block_array_t), intent(in) :: this
-   class(vector_t), intent(in) :: vector
-   logical :: serial_block_array_same_vector_space
-   integer(ip) :: iblk
-   assert ( this%state == blocks_container_created )
-   serial_block_array_same_vector_space = .false.
-   select type(vector)
-   class is (serial_block_array_t)
-     assert ( vector%state == blocks_container_created )
-     serial_block_array_same_vector_space = (this%nblocks == vector%nblocks)
-     if ( serial_block_array_same_vector_space ) then
-       do iblk=1, this%nblocks
-          serial_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
-          if ( .not. serial_block_array_same_vector_space ) then
-            exit
-          end if
-       end do
-     end if
-   end select
- end function serial_block_array_same_vector_space
+ 
+  !=============================================================================
+  function serial_block_array_same_vector_space(this,vector)
+    implicit none
+    class(serial_block_array_t), intent(in) :: this
+    class(vector_t), intent(in) :: vector
+    logical :: serial_block_array_same_vector_space
+    integer(ip) :: iblk
+    assert ( this%state == blocks_container_created )
+    serial_block_array_same_vector_space = .false.
+    select type(vector)
+    class is (serial_block_array_t)
+      assert ( vector%state == blocks_container_created )
+      serial_block_array_same_vector_space = (this%nblocks == vector%nblocks)
+      if ( serial_block_array_same_vector_space ) then
+        do iblk=1, this%nblocks
+           serial_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
+           if ( .not. serial_block_array_same_vector_space ) then
+             exit
+           end if
+        end do
+      end if
+    end select
+  end function serial_block_array_same_vector_space
 	
- function get_number_blocks(this) result(res)
-   implicit none 
-   class(serial_block_array_t), intent(in)   :: this
-   integer(ip) :: res
-   res = this%nblocks
- end function get_number_blocks
+  !=============================================================================
+  function serial_block_array_get_number_blocks(this) result(res)
+    implicit none 
+    class(serial_block_array_t), intent(in)   :: this
+    integer(ip) :: res
+    res = this%nblocks
+  end function serial_block_array_get_number_blocks
+  
+  !=============================================================================
+  subroutine serial_block_array_extract_subvector( this, &
+                                                 & iblock, &
+                                                 & size_indices, &
+                                                 & indices, &
+                                                 & values )
+    implicit none
+    class(serial_block_array_t), intent(in)    :: this 
+    integer(ip)                , intent(in)    :: iblock
+    integer(ip)                , intent(in)    :: size_indices
+    integer(ip)                , intent(in)    :: indices(size_indices)
+    real(rp)                   , intent(inout) :: values(*)
+    integer(ip)                                :: i
+
+    assert(this%blocks(iblock)%state == 2)
+    assert(iblock <= this%nblocks)
+    
+    do i=1, size_indices
+      assert ( indices(i) <= this%blocks(iblock)%size )
+      if ( indices(i) > 0 ) then
+        values(i) = this%blocks(iblock)%b(indices(i))
+      end if
+    end do 
+  end subroutine serial_block_array_extract_subvector
 
 end module serial_block_array_names
