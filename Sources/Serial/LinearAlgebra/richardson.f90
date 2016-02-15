@@ -215,7 +215,7 @@ contains
     implicit none
     class(environment_t), intent(in) :: environment
     class(base_linear_solver_t), pointer :: create_richardson
-    class(richardson_t), pointer :: richardson
+    type(richardson_t), pointer :: richardson
     allocate(richardson)
     call richardson%set_environment(environment)
     call richardson%set_name(richardson_name)

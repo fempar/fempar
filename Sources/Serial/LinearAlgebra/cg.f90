@@ -264,7 +264,7 @@ contains
     implicit none
     class(environment_t), intent(in) :: environment
     class(base_linear_solver_t), pointer :: create_cg
-    class(cg_t), pointer :: cg
+    type(cg_t), pointer :: cg
     allocate(cg)
     call cg%set_environment(environment)
     call cg%set_name(cg_name)

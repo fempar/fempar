@@ -32,6 +32,7 @@ module linear_solver_names
   ! Concrete modules
   use richardson_names
   use cg_names
+  use rgmres_names
   
   ! Abstract modules
   use vector_names
@@ -127,6 +128,7 @@ contains
      ! 3. Only create if this%state == environment_set or if base_linear_solver was freed in the block of code above
      !this%base_linear_solver => create_richardson(this%environment)
      this%base_linear_solver => create_cg(this%environment)
+     !this%base_linear_solver => create_rgmres(this%environment)
      assert ( this%base_linear_solver%get_state() == start )
      this%state = solver_type_set
    end subroutine linear_solver_set_type_from_pl
