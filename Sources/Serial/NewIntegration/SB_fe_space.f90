@@ -225,8 +225,8 @@ module SB_fe_space_names
    integer(ip) :: max_number_quadrature_points
    integer(ip) :: max_number_nodes            
    
-   type(vector_field_t), allocatable :: quadrature_points_values(:)
    real(rp)            , allocatable :: nodal_values(:)  
+   type(vector_field_t), allocatable :: quadrature_points_values(:)
 
   contains
      procedure, non_overridable :: create                               => fe_function_vector_create

@@ -85,8 +85,10 @@ subroutine update_scalar_values (this, vector_dof_values, fe_function_scalar)
   class(vector_t)           , intent(in)    :: vector_dof_values
   type(fe_function_scalar_t), intent(inout) :: fe_function_scalar
 
-  integer(ip)       :: fe_space_id, block_id, number_nodes_fe_space
   real(rp), pointer :: nodal_values(:)
+  real(rp), pointer :: quadrature_points_values(:)
+  
+  integer(ip)       :: fe_space_id, block_id, number_nodes_fe_space
 
   assert ( associated(this%field_blocks) )
 
@@ -107,8 +109,8 @@ subroutine update_scalar_values (this, vector_dof_values, fe_function_scalar)
   !                                         & this%elem2dof(fe_space_id)%p, &
   !                                         & nodal_values )
 
-  !call this%volume_integrator(fe_space_id)%evaluate_fe_function ( nodal_values, &
-  !                                          & fe_function_scalar%get_quadrature_points_values() )
+  call this%volume_integrator(fe_space_id)%p%evaluate_fe_function ( nodal_values, & 
+                                                                  & quadrature_points_values )
 end subroutine update_scalar_values
 
 subroutine update_vector_values (this, vector_dof_values, fe_function_vector)
@@ -117,8 +119,10 @@ subroutine update_vector_values (this, vector_dof_values, fe_function_vector)
   class(vector_t)           , intent(in)    :: vector_dof_values
   type(fe_function_vector_t), intent(inout) :: fe_function_vector
 
-  integer(ip)       :: fe_space_id, block_id, number_nodes_fe_space
-  real(rp), pointer :: nodal_values(:)
+  real(rp), pointer             :: nodal_values(:)
+  type(vector_field_t), pointer :: quadrature_points_values(:)
+  
+  integer(ip)                   :: fe_space_id, block_id, number_nodes_fe_space
 
   assert ( associated(this%field_blocks) )
 
@@ -130,6 +134,7 @@ subroutine update_vector_values (this, vector_dof_values, fe_function_vector)
 
   block_id     =  this%field_blocks(fe_space_id)
   nodal_values => fe_function_vector%get_nodal_values()
+  quadrature_points_values => fe_function_vector%get_quadrature_points_values()
 
   number_nodes_fe_space = this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
   nodal_values(1:number_nodes_fe_space) = this%bc_value(fe_space_id)%p(:)
@@ -139,8 +144,8 @@ subroutine update_vector_values (this, vector_dof_values, fe_function_vector)
   !                                         & this%elem2dof(fe_space_id)%p, &
   !                                         & nodal_values )
 
-  !call this%volume_integrator(fe_space_id)%evaluate_fe_function ( nodal_values, &
-  !                                          & fe_function_vector%get_quadrature_points_values() )
+  call this%volume_integrator(fe_space_id)%p%evaluate_fe_function ( nodal_values, & 
+                                                                  & quadrature_points_values )
 end subroutine update_vector_values
 
 subroutine update_tensor_values (this, vector_dof_values, fe_function_tensor)
@@ -149,8 +154,10 @@ subroutine update_tensor_values (this, vector_dof_values, fe_function_tensor)
   class(vector_t)           , intent(in)    :: vector_dof_values
   type(fe_function_tensor_t), intent(inout) :: fe_function_tensor
 
-  integer(ip)       :: fe_space_id, block_id, number_nodes_fe_space
-  real(rp), pointer :: nodal_values(:)
+  real(rp), pointer             :: nodal_values(:)
+  type(tensor_field_t), pointer :: quadrature_points_values(:)
+  
+  integer(ip)                   :: fe_space_id, block_id, number_nodes_fe_space
 
   assert ( associated(this%field_blocks) )
 
@@ -171,8 +178,8 @@ subroutine update_tensor_values (this, vector_dof_values, fe_function_tensor)
   !                                         & this%elem2dof(fe_space_id)%p, &
   !                                         & nodal_values )
 
-  !call this%volume_integrator(fe_space_id)%evaluate_fe_function ( nodal_values, &
-  !                                          & fe_function_tensor%get_quadrature_points_values() )
+  call this%volume_integrator(fe_space_id)%p%evaluate_fe_function ( nodal_values, & 
+                                                                  & quadrature_points_values )
 end subroutine update_tensor_values
 
 
