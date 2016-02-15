@@ -1810,7 +1810,7 @@ end subroutine face_shapen
     nnode = size(ref%shape_functions,1)
 
     ! Shape functions do not change
-    phy%shape_functions = ref%shape_functions 
+    !phy%shape_functions = ref%shape_functions 
 
     ! First derivatives do
     !if(phy%kder==1) then

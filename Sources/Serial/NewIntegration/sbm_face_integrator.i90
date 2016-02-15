@@ -215,19 +215,6 @@ subroutine interpolation_face_restriction_create(this, local_quadrature, referen
 
 end subroutine interpolation_face_restriction_create
 
-!!$!==================================================================================================
-!!$subroutine interpolation_face_restriction_update(this, local_face_id, fe_map)
-!!$  implicit none
-!!$  ! Parameters
-!!$  class(interpolation_face_restriction_t)  , intent(inout) :: this
-!!$  integer(ip)                  , intent(in)    :: local_face_id
-!!$  type(fe_map_t)               , intent(in)    :: fe_map
-!!$  
-!!$  this%active_face_id = local_face_id
-!!$  call femap_apply_to_interp(fe_map, this%interpolation(local_face_id),                  &
-!!$       &                     this%interpolation_o_map)
-!!$end subroutine interpolation_face_restriction_update
-
 !==================================================================================================
 subroutine interpolation_face_restriction_free(this)
   implicit none
@@ -296,12 +283,10 @@ subroutine face_integrator_update(this,local_face_id,face_map)
 
   call this%reference_fe(1)%p%update_interpolation_face(local_face_id(1),face_map%fe_maps(1),     &
        &                                                this%face_interpolation(1))
-  !call this%face_interpolation(1)%update(local_face_id(1),face_map%fe_maps(1)%fe_map(local_face_id(1)))
 
   if (local_face_id(2)>0) then
      call this%reference_fe(2)%p%update_interpolation_face(local_face_id(2),face_map%fe_maps(2),  &
        &                                                   this%face_interpolation(2))
-     !call this%face_interpolation(2)%update(local_face_id(2),face_map%fe_maps(2)%fe_map(local_face_id(2)))
   end if
 end subroutine face_integrator_update
 

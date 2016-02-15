@@ -294,6 +294,15 @@ contains
        end do
     end do
 
+    do inode = 1, number_nodes_per_field(j)
+       write(*,*) inode, '-------'
+       write(*,*) facemat(1:4,inode,1,1),  facemat(1:4,inode,2,1)
+    end do
+    do inode = 1, number_nodes_per_field(j)
+       write(*,*) number_nodes_per_field(j)+inode, '-------'
+       write(*,*) facemat(1:4,inode,1,2),  facemat(1:4,inode,2,2)
+    end do
+
     do iface = fe_space%get_number_interior_faces() + 1, fe_space%get_number_interior_faces() +   &
          &                                               fe_space%get_number_boundary_faces()
 
@@ -339,11 +348,7 @@ contains
           end do
        end do
     end do
-    ! do inode = 1, 2*number_nodes_per_field(j)
-    !    write(*,*) inode, '-------'
-    !    write(*,*) elmat(1:8,inode)
-    ! end do
-
+ 
     call memfree ( facemat, __FILE__, __LINE__ )
     call memfree ( facevec, __FILE__, __LINE__ )
     ! ----------------------------------------------------------------------------
