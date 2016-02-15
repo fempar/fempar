@@ -138,6 +138,23 @@ subroutine quad_lagrangian_reference_fe_update_interpolation( this, fe_map,     
   call femap_apply_to_interp( fe_map, interpolation_reference_cell,interpolation_real_cell )
 end subroutine quad_lagrangian_reference_fe_update_interpolation
 
+subroutine quad_lagrangian_reference_fe_update_interpolation_face( this,  local_face_id,          &
+     &                                                             fe_map_face_restriction,       &
+     &                                                             interpolation_face_restriction )
+  implicit none 
+  class(quad_lagrangian_reference_fe_t) , intent(in)    :: this 
+  integer(ip)                           , intent(in)    :: local_face_id
+  type(fe_map_face_restriction_t)       , intent(in)    :: fe_map_face_restriction
+  type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
+
+  interpolation_face_restriction%active_face_id = local_face_id
+
+  call this%update_interpolation(fe_map_face_restriction%fe_map(local_face_id),                   &
+       &                         interpolation_face_restriction%interpolation(local_face_id),     &
+       &                         interpolation_face_restriction%interpolation_o_map)
+
+end subroutine quad_lagrangian_reference_fe_update_interpolation_face
+
 function quad_lagrangian_reference_fe_get_bc_component_node( this, node )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in) :: this 

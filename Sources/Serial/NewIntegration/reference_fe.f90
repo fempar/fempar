@@ -86,6 +86,24 @@ module reference_fe_names
   end type SB_interpolation_t
 
   public :: SB_interpolation_t
+  
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+  type interpolation_face_restriction_t
+     private
+     integer(ip)                           :: number_shape_functions
+     integer(ip)                           :: number_evaluation_points
+     integer(ip)                           :: number_faces
+     integer(ip)                           :: active_face_id
+     type(SB_interpolation_t), allocatable :: interpolation(:)
+     type(SB_interpolation_t)              :: interpolation_o_map
+     class(reference_fe_t)       , pointer :: reference_fe
+   contains
+     procedure, non_overridable :: create => interpolation_face_restriction_create
+     procedure, non_overridable :: free   => interpolation_face_restriction_free
+  end type interpolation_face_restriction_t
+
+  public :: interpolation_face_restriction_t
 
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type fe_map_t
@@ -133,7 +151,19 @@ module reference_fe_names
   end type p_fe_map_t
 
   public :: fe_map_t, p_fe_map_t
-
+  
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+  type fe_map_face_restriction_t
+     private
+     integer(ip)                 :: number_faces = 0
+     integer(ip)                 :: active_face_id
+     type(fe_map_t), allocatable :: fe_map(:)
+   contains
+     procedure, non_overridable :: create => fe_map_face_restriction_create
+     procedure, non_overridable :: update => fe_map_face_restriction_update
+     procedure, non_overridable :: free   => fe_map_face_restriction_free
+  end type fe_map_face_restriction_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -182,6 +212,7 @@ module reference_fe_names
      procedure(create_face_interpolation_interface)     , deferred :: create_face_interpolation
      procedure(create_face_local_interpolation_interface),deferred :: create_face_local_interpolation
      procedure(update_interpolation_interface)          , deferred :: update_interpolation
+     procedure(update_interpolation_face_interface)     , deferred :: update_interpolation_face
      procedure(get_bc_component_node_interface)         , deferred :: get_bc_component_node
      
      procedure(get_value_scalar_interface)           , deferred :: get_value_scalar
@@ -370,7 +401,7 @@ module reference_fe_names
        real(rp)  :: get_characteristic_length_interface 
      end function get_characteristic_length_interface
 
-     subroutine update_interpolation_interface ( this, fe_map, interpolation_reference_cell,    &
+     subroutine update_interpolation_interface ( this, fe_map, interpolation_reference_cell,        &
           &                            interpolation_real_cell )
        import :: reference_fe_t, fe_map_t, SB_interpolation_t
        implicit none 
@@ -379,12 +410,21 @@ module reference_fe_names
        type(SB_interpolation_t) , intent(in)    :: interpolation_reference_cell
        type(SB_interpolation_t) , intent(inout) :: interpolation_real_cell
      end subroutine update_interpolation_interface
+
+     subroutine update_interpolation_face_interface ( this, local_face_id,fe_map_face_restriction,  &
+          &                                           interpolation_face_restriction)
+       import :: reference_fe_t, ip, fe_map_face_restriction_t,  interpolation_face_restriction_t
+       implicit none 
+       class(reference_fe_t)                 , intent(in)    :: this 
+       integer(ip)                           , intent(in)    :: local_face_id
+       type(fe_map_face_restriction_t)       , intent(in)    :: fe_map_face_restriction
+       type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
+     end subroutine update_interpolation_face_interface
+     
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(reference_fe_t) :: quad_lagrangian_reference_fe_t
@@ -403,7 +443,7 @@ module reference_fe_names
      procedure :: create_face_local_interpolation                                                      &
           &                          => quad_lagrangian_reference_fe_create_face_local_interpolation
      procedure :: update_interpolation      => quad_lagrangian_reference_fe_update_interpolation
-
+     procedure :: update_interpolation_face => quad_lagrangian_reference_fe_update_interpolation_face
      procedure :: get_bc_component_node     => quad_lagrangian_reference_fe_get_bc_component_node
      procedure :: permute_order_vef         => quad_lagrangian_reference_fe_permute_order_vef
 
@@ -487,19 +527,6 @@ public :: SB_volume_integrator_t, SB_p_volume_integrator_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-type fe_map_face_restriction_t
-   private
-   integer(ip)                 :: number_faces = 0
-   integer(ip)                 :: active_face_id
-   type(fe_map_t), allocatable :: fe_map(:)
- contains
-    procedure, non_overridable :: create => fe_map_face_restriction_create
-    procedure, non_overridable :: update => fe_map_face_restriction_update
-    procedure, non_overridable :: free   => fe_map_face_restriction_free
-end type fe_map_face_restriction_t
-
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 type face_map_t
    private
    type(fe_map_t)                  :: face_map
@@ -517,24 +544,6 @@ type face_map_t
 end type face_map_t
 
 public :: face_map_t
-
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-type interpolation_face_restriction_t
-  private
-  integer(ip)                           :: number_shape_functions
-  integer(ip)                           :: number_evaluation_points
-  integer(ip)                           :: number_faces
-  type(SB_interpolation_t), allocatable :: interpolation(:)
-  type(SB_interpolation_t)              :: interpolation_o_map
-  class(reference_fe_t)       , pointer :: reference_fe
-contains
-  procedure, non_overridable :: create => interpolation_face_restriction_create
-  procedure, non_overridable :: update => interpolation_face_restriction_update
-  procedure, non_overridable :: free   => interpolation_face_restriction_free
-end type interpolation_face_restriction_t
-
-public :: interpolation_face_restriction_t
 
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
