@@ -184,7 +184,7 @@ end function face_map_get_det_jacobian
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !face_interpolation_t type procedures
-subroutine face_interpolation_create(this, local_quadrature, reference_fe_phy)
+subroutine interpolation_face_restriction_create(this, local_quadrature, reference_fe_phy)
   implicit none
   ! Parameters
   class(interpolation_face_restriction_t)  , intent(inout) :: this
@@ -212,10 +212,10 @@ subroutine face_interpolation_create(this, local_quadrature, reference_fe_phy)
 
   call this%interpolation_o_map%copy(source_interpolation = this%interpolation(1))
 
-end subroutine face_interpolation_create
+end subroutine interpolation_face_restriction_create
 
 !==================================================================================================
-subroutine face_interpolation_update(this, local_face_id, fe_map)
+subroutine interpolation_face_restriction_update(this, local_face_id, fe_map)
   implicit none
   ! Parameters
   class(interpolation_face_restriction_t)  , intent(inout) :: this
@@ -224,10 +224,10 @@ subroutine face_interpolation_update(this, local_face_id, fe_map)
 
   call femap_apply_to_interp(fe_map, this%interpolation(local_face_id),                  &
        &                     this%interpolation_o_map)
-end subroutine face_interpolation_update
+end subroutine interpolation_face_restriction_update
 
 !==================================================================================================
-subroutine face_interpolation_free(this)
+subroutine interpolation_face_restriction_free(this)
   implicit none
   ! Parameters
   class(interpolation_face_restriction_t)  , intent(inout) :: this
@@ -247,7 +247,7 @@ subroutine face_interpolation_free(this)
   this%number_faces             = 0
 
   this%reference_fe => NULL()
-end subroutine face_interpolation_free
+end subroutine interpolation_face_restriction_free
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !face_integrator_t type procedures

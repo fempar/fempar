@@ -529,9 +529,9 @@ type interpolation_face_restriction_t
   type(SB_interpolation_t)              :: interpolation_o_map
   class(reference_fe_t)       , pointer :: reference_fe
 contains
-  procedure, non_overridable :: create => face_interpolation_create
-  procedure, non_overridable :: update => face_interpolation_update
-  procedure, non_overridable :: free   => face_interpolation_free
+  procedure, non_overridable :: create => interpolation_face_restriction_create
+  procedure, non_overridable :: update => interpolation_face_restriction_update
+  procedure, non_overridable :: free   => interpolation_face_restriction_free
 end type interpolation_face_restriction_t
 
 public :: interpolation_face_restriction_t
