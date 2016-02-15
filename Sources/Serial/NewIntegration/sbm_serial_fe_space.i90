@@ -75,6 +75,9 @@ subroutine create( this, &
      this%fe_array(i)%volume_integrator => this%volume_integrator
      this%fe_array(i)%reference_fe_phy => this%reference_fe_phy_list
 
+     this%fe_array(i)%number_blocks = this%number_blocks
+     this%fe_array(i)%field_blocks => this%field_blocks
+
      allocate( this%fe_array(i)%elem2dof(this%number_fe_spaces) )
      allocate( this%fe_array(i)%bc_code(this%number_fe_spaces) )
      allocate( this%fe_array(i)%bc_value(this%number_fe_spaces) )

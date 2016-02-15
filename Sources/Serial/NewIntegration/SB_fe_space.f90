@@ -31,6 +31,7 @@ module SB_fe_space_names
   use matrix_names
   use array_names
   use sparse_matrix_names
+  use vector_names
   use serial_scalar_array_names
   use block_sparse_matrix_names
   use serial_block_array_names
@@ -75,6 +76,9 @@ module SB_fe_space_names
      integer(ip)                                 :: number_nodes
      integer(ip)                                 :: number_fe_spaces
      
+     integer(ip)                                 :: number_blocks
+     integer(ip), pointer                        :: field_blocks(:)
+     
      type(elem_topology_t)         , pointer     :: cell 
      class(reference_fe_t)         , pointer     :: reference_fe_geo 
      type(fe_map_t)                , pointer     :: fe_map
@@ -101,6 +105,14 @@ module SB_fe_space_names
      procedure, non_overridable :: get_bc_value 
      procedure, non_overridable :: get_number_nodes_per_field 
      procedure, non_overridable :: get_subset_id 
+     
+     procedure, non_overridable, private :: update_scalar_values
+     procedure, non_overridable, private :: update_vector_values
+     procedure, non_overridable, private :: update_tensor_values
+     generic :: update_values => update_scalar_values, &
+                               & update_vector_values, &
+                               & update_tensor_values
+     
   end type SB_finite_element_t
 
   type :: p_SB_finite_element_t
@@ -166,6 +178,15 @@ module SB_fe_space_names
      procedure, non_overridable :: get_field_coupling
      procedure, non_overridable :: get_max_number_nodes
      procedure, non_overridable :: create_face_array
+     
+     procedure, private         :: create_fe_function_scalar
+     procedure, private         :: create_fe_function_vector
+     procedure, private         :: create_fe_function_tensor
+     
+     generic :: create_fe_function => create_fe_function_scalar, &
+                                    & create_fe_function_vector, &
+                                    & create_fe_function_tensor
+     
   end type SB_serial_fe_space_t
 
   public :: SB_serial_fe_space_t
@@ -184,7 +205,7 @@ module SB_fe_space_names
    real(rp), allocatable :: quadrature_points_values(:)
 
   contains
-     procedure, non_overridable :: create                      => fe_function_scalar_create
+     procedure, non_overridable :: create                               => fe_function_scalar_create
      procedure, non_overridable :: get_fe_space_id                      => fe_function_scalar_get_fe_space_id
      procedure, non_overridable :: get_nodal_values                     => fe_function_scalar_get_nodal_values
      procedure, non_overridable :: get_quadrature_points_values         => fe_function_scalar_get_quadrature_points_values
@@ -242,6 +263,8 @@ module SB_fe_space_names
      procedure, non_overridable :: free                                 => fe_function_tensor_free
   end type fe_function_tensor_t
   
+  public :: fe_function_scalar_t, fe_function_vector_t, fe_function_tensor_t
+  
 contains
 
   ! Includes with all the TBP and supporting subroutines for the types above.
@@ -254,6 +277,8 @@ contains
 #include "sbm_serial_fe_space.i90"
 
 #include "sbm_serial_fe_space_faces.i90"
+
+#include "sbm_serial_fe_space_fe_function.i90"
 
 #include "sbm_fe_function.i90"
 

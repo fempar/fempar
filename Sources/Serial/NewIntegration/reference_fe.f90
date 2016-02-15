@@ -188,6 +188,9 @@ module reference_fe_names
      procedure :: set_fe_type => reference_fe_set_fe_type
 
      ! Getters
+     procedure :: get_topology => reference_fe_get_topology
+     procedure :: get_fe_type => reference_fe_get_fe_type
+     procedure :: get_field_type => reference_fe_get_field_type
      procedure :: get_number_dimensions => reference_fe_get_number_dimensions
      procedure :: get_order => reference_fe_get_order
      procedure :: get_continuity => reference_fe_get_continuity
@@ -459,6 +462,13 @@ contains
   ! But note that in such a case we would require higher-to-2 rank tensors
   ! (i.e., type(tensor_field_t) is a rank-2 tensor)
   
+  !procedure, non_overridable, private :: volume_integrator_evaluate_fe_function_scalar
+  !procedure, non_overridable, private :: volume_integrator_evaluate_fe_function_vector
+  !procedure, non_overridable, private :: volume_integrator_evaluate_fe_function_tensor
+  !generic :: evaluate_fe_function => volume_integrator_evaluate_fe_function_scalar,
+  !                                   volume_integrator_evaluate_fe_function_vector,
+  !                                   volume_integrator_evaluate_fe_function_tensor
+
 end type SB_volume_integrator_t
 
 type SB_p_volume_integrator_t
