@@ -38,6 +38,7 @@ module SB_fe_space_names
   use SB_sparse_matrix_array_assembler_names
   use SB_block_sparse_matrix_array_assembler_names
   use types_names
+  use field_names
   use list_types_names
   use reference_fe_names
   use triangulation_names
@@ -64,6 +65,10 @@ module SB_fe_space_names
   !   of finite_element_t, the array of all possible reference_fe_t and volume_integrator_t
   !   in the FE space, the total number of DOFs and an array that provides the DOFs
   !   in a VEF.
+  ! * fe_function_scalar/vector/tensor_t: 3 different field-dependent objects that contain
+  !   two work arrays at the element level: The first stores the nodal values of the FE  
+  !   approximation from a global dof-vector. The second gives the values of the FE
+  !   approximation at the quadrature points.
 
   type :: SB_finite_element_t
      private 
@@ -164,7 +169,79 @@ module SB_fe_space_names
   end type SB_serial_fe_space_t
 
   public :: SB_serial_fe_space_t
+  
+  type fe_function_scalar_t
+   private
+   integer(ip) :: fe_space_id
+   
+   integer(ip) :: current_number_nodes 
+   integer(ip) :: current_number_quadrature_points 
+   
+   integer(ip) :: max_number_nodes  
+   integer(ip) :: max_number_quadrature_points          
+   
+   real(rp), allocatable :: nodal_values(:)  
+   real(rp), allocatable :: quadrature_points_values(:)
 
+  contains
+     procedure, non_overridable :: create                      => fe_function_scalar_create
+     procedure, non_overridable :: get_fe_space_id                      => fe_function_scalar_get_fe_space_id
+     procedure, non_overridable :: get_nodal_values                     => fe_function_scalar_get_nodal_values
+     procedure, non_overridable :: get_quadrature_points_values         => fe_function_scalar_get_quadrature_points_values
+     procedure, non_overridable :: get_value                            => fe_function_scalar_get_value
+     procedure, non_overridable :: set_current_number_nodes             => fe_function_scalar_set_current_number_nodes
+     procedure, non_overridable :: set_current_number_quadrature_points => fe_function_scalar_set_current_number_quadrature_points
+     procedure, non_overridable :: free                                 => fe_function_scalar_free
+  end type fe_function_scalar_t
+  
+  type fe_function_vector_t
+   private
+   integer(ip) :: fe_space_id
+   
+   integer(ip) :: current_number_quadrature_points 
+   integer(ip) :: current_number_nodes             
+   
+   integer(ip) :: max_number_quadrature_points
+   integer(ip) :: max_number_nodes            
+   
+   type(vector_field_t), allocatable :: quadrature_points_values(:)
+   real(rp)            , allocatable :: nodal_values(:)  
+
+  contains
+     procedure, non_overridable :: create                               => fe_function_vector_create
+     procedure, non_overridable :: get_fe_space_id                      => fe_function_vector_get_fe_space_id
+     procedure, non_overridable :: get_nodal_values                     => fe_function_vector_get_nodal_values      
+     procedure, non_overridable :: get_quadrature_points_values         => fe_function_vector_get_quadrature_points_values
+     procedure, non_overridable :: get_value                            => fe_function_vector_get_value
+     procedure, non_overridable :: set_current_number_nodes             => fe_function_vector_set_current_number_nodes
+     procedure, non_overridable :: set_current_number_quadrature_points => fe_function_vector_set_current_number_quadrature_points
+     procedure, non_overridable :: free                                 => fe_function_vector_free
+  end type fe_function_vector_t
+  
+  type fe_function_tensor_t
+   private
+   integer(ip) :: fe_space_id
+   
+   integer(ip) :: current_number_nodes   
+   integer(ip) :: current_number_quadrature_points           
+   
+   integer(ip) :: max_number_nodes    
+   integer(ip) :: max_number_quadrature_points        
+   
+   real(rp)            , allocatable :: nodal_values(:)
+   type(tensor_field_t), allocatable :: quadrature_points_values(:)
+   
+  contains
+     procedure, non_overridable :: create                               => fe_function_tensor_create
+     procedure, non_overridable :: get_fe_space_id                      => fe_function_tensor_get_fe_space_id
+     procedure, non_overridable :: get_nodal_values                     => fe_function_tensor_get_nodal_values  
+     procedure, non_overridable :: get_quadrature_points_values         => fe_function_tensor_get_quadrature_points_values          
+     procedure, non_overridable :: get_value                            => fe_function_tensor_get_value
+     procedure, non_overridable :: set_current_number_nodes             => fe_function_tensor_set_current_number_nodes
+     procedure, non_overridable :: set_current_number_quadrature_points => fe_function_tensor_set_current_number_quadrature_points
+     procedure, non_overridable :: free                                 => fe_function_tensor_free
+  end type fe_function_tensor_t
+  
 contains
 
   ! Includes with all the TBP and supporting subroutines for the types above.
@@ -177,5 +254,7 @@ contains
 #include "sbm_serial_fe_space.i90"
 
 #include "sbm_serial_fe_space_faces.i90"
+
+#include "sbm_fe_function.i90"
 
 end module SB_fe_space_names
