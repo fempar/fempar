@@ -3251,8 +3251,8 @@ contains
                 if (ir<imin .or. ir>imax .or. ir<1 .or. ir>this%num_rows .or. &
                     (this%symmetric_storage .and. ja>ir)) cycle
                 nr = i2-i1+1
-                assert(ipaux>0) ! Entry not found
                 ipaux = binary_search(ir,nc,this%ia(i1:i2))
+                assert(ipaux>0) ! Entry not found
                 if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
             end do
         endif
