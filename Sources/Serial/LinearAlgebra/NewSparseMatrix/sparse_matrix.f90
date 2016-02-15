@@ -95,6 +95,7 @@ private
         procedure,                  public :: permute_and_split_2x2_symbolic => sparse_matrix_permute_and_split_2x2_symbolic
         procedure,                  public :: expand_matrix_numeric          => sparse_matrix_expand_matrix_numeric
         procedure,                  public :: expand_matrix_symbolic         => sparse_matrix_expand_matrix_symbolic
+        procedure,                  public :: extract_diagonal               => sparse_matrix_extract_diagonal
         procedure,                  public :: free                           => sparse_matrix_free
         procedure,                  public :: apply                          => sparse_matrix_apply
         procedure, non_overridable, public :: print                          => sparse_matrix_print
@@ -1008,6 +1009,18 @@ contains
         call this%State%expand_matrix_symbolic(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to%State)
         call to%create_vector_spaces()
     end subroutine sparse_matrix_expand_matrix_symbolic
+
+
+    subroutine sparse_matrix_extract_diagonal(this, diagonal) 
+    !-----------------------------------------------------------------
+    !< Apply matrix vector product y=op*x
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(in)    :: this
+        real(rp), allocatable,  intent(inout) :: diagonal(:)
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%extract_diagonal(diagonal)
+    end subroutine sparse_matrix_extract_diagonal
 
 
     subroutine sparse_matrix_apply(op,x,y) 

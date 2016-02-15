@@ -59,6 +59,7 @@ private
         procedure, public :: expand_matrix_symbolic                  => csr_sparse_matrix_expand_matrix_symbolic
         procedure         :: expand_matrix_numeric_body              => csr_sparse_matrix_expand_matrix_numeric_body
         procedure         :: expand_matrix_symbolic_body             => csr_sparse_matrix_expand_matrix_symbolic_body
+        procedure, public :: extract_diagonal                        => csr_sparse_matrix_extract_diagonal
         procedure, public :: free_coords                             => csr_sparse_matrix_free_coords
         procedure, public :: free_val                                => csr_sparse_matrix_free_val
         procedure, public :: apply_body                              => csr_sparse_matrix_apply_body
@@ -2660,6 +2661,36 @@ contains
         call to%set_num_cols(initial_num_cols+C_T_num_cols)
         call to%set_state_assembled_symbolic()
     end subroutine csr_sparse_matrix_expand_matrix_symbolic_body
+
+
+    subroutine csr_sparse_matrix_extract_diagonal(this, diagonal)
+    !-----------------------------------------------------------------
+    !< Return the diagonal of a CSR sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(in)    :: this
+        real(rp),   allocatable,    intent(inout) :: diagonal(:)
+        integer(ip)                               :: diagonal_size
+        integer(ip)                               :: row
+        integer(ip)                               :: row_start_offset
+        integer(ip)                               :: row_end_offset
+        integer(ip)                               :: col_offset_in_row
+    !-----------------------------------------------------------------
+        assert(this%state_is_assembled())
+        if(allocated(diagonal)) deallocate(diagonal)
+        diagonal_size = min(this%get_num_rows(), this%get_num_cols())
+        allocate(diagonal(diagonal_size))
+
+        do row=1, diagonal_size
+            row_start_offset = this%irp(row)
+            row_end_offset = this%irp(row+1)-1
+            col_offset_in_row = binary_search(row,row_end_offset-row_start_offset+1,this%ja(row_start_offset:row_end_offset))
+            if (col_offset_in_row==-1) then
+                diagonal(row) = 0.0_rp
+            else
+                diagonal(row) = this%val(row_start_offset+col_offset_in_row-1)
+            endif
+        enddo
+    end subroutine csr_sparse_matrix_extract_diagonal
 
 
     subroutine csr_sparse_matrix_free_coords(this)

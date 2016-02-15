@@ -129,6 +129,7 @@ module base_sparse_matrix_names
                                                                  public, deferred :: permute_and_split_2x2_symbolic
         procedure(base_sparse_matrix_expand_matrix_numeric),     public, deferred :: expand_matrix_numeric
         procedure(base_sparse_matrix_expand_matrix_symbolic),    public, deferred :: expand_matrix_symbolic
+        procedure(base_sparse_matrix_extract_diagonal),          public, deferred :: extract_diagonal
         procedure(base_sparse_matrix_print_matrix_market_body),  public, deferred :: print_matrix_market_body
         procedure(base_sparse_matrix_free_coords),               public, deferred :: free_coords
         procedure(base_sparse_matrix_free_val),                  public, deferred :: free_val
@@ -333,6 +334,7 @@ module base_sparse_matrix_names
         procedure, public :: permute_and_split_2x2_symbolic          => coo_sparse_matrix_permute_and_split_2x2_symbolic
         procedure, public :: expand_matrix_numeric                   => coo_sparse_matrix_expand_matrix_numeric
         procedure, public :: expand_matrix_symbolic                  => coo_sparse_matrix_expand_matrix_symbolic
+        procedure, public :: extract_diagonal                        => coo_sparse_matrix_extract_diagonal
         procedure, public :: is_by_rows                              => coo_sparse_matrix_is_by_rows
         procedure, public :: is_by_cols                              => coo_sparse_matrix_is_by_cols
         procedure, public :: set_nnz                                 => coo_sparse_matrix_set_nnz
@@ -690,6 +692,13 @@ module base_sparse_matrix_names
             integer(ip),                     intent(in)    :: I_ja(I_nz)
             class(base_sparse_matrix_t),     intent(inout) :: to
         end subroutine base_sparse_matrix_expand_matrix_symbolic
+
+        subroutine base_sparse_matrix_extract_diagonal(this, diagonal)
+            import base_sparse_matrix_t
+            import  rp
+            class(base_sparse_matrix_t),  intent(in)    :: this
+            real(rp), allocatable,        intent(inout) :: diagonal(:)
+        end subroutine base_sparse_matrix_extract_diagonal
 
         subroutine base_sparse_matrix_free_coords(this)
             import base_sparse_matrix_t
@@ -4373,6 +4382,17 @@ contains
     !-----------------------------------------------------------------
         check(.false.)
     end subroutine coo_sparse_matrix_expand_matrix_symbolic
+
+
+    subroutine coo_sparse_matrix_extract_diagonal(this, diagonal)
+    !-----------------------------------------------------------------
+    !< Return the diagonal of a coo sparse matrix
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(in)    :: this
+        real(rp), allocatable,      intent(inout) :: diagonal(:)
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine coo_sparse_matrix_extract_diagonal
 
 
     subroutine coo_sparse_matrix_copy_to_coo(this, to)
