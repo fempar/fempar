@@ -1,6 +1,5 @@
 module reference_fe_names
   use allocatable_array_ip1_names
-  use allocatable_array_rp2_names
   use field_names
   use types_names
   use list_types_names
@@ -543,7 +542,6 @@ type face_map_t
 end type face_map_t
 
 public :: face_map_t
-
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

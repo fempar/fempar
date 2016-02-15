@@ -94,6 +94,7 @@ module SB_fe_space_names
      procedure, non_overridable :: get_bc_code 
      procedure, non_overridable :: get_bc_value 
      procedure, non_overridable :: get_number_nodes_per_field 
+     procedure, non_overridable :: get_subset_id 
   end type SB_finite_element_t
 
   type :: p_SB_finite_element_t

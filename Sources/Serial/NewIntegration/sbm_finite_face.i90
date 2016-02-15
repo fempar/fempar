@@ -18,11 +18,7 @@ subroutine finite_face_update_integration( this )
   class(finite_face_t), intent(inout) :: this 
   integer(ip) :: i
 
-  type(allocatable_array_rp2_t), pointer:: face_coordinates
   real(rp), pointer :: coords(:,:)
-
-  !face_coordinates => this%map%get_face_coordinates()
-  !call this%face_topology%get_coordinates(face_coordinates)
 
   coords => this%map%get_face_coordinates()
   call this%face_topology%get_coordinates(coords)

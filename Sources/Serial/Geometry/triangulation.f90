@@ -32,7 +32,6 @@ module triangulation_names
   use hash_table_names  
   use list_types_names
   use reference_fe_names
-  use allocatable_array_rp2_names
   implicit none
 # include "debug.i90"
 
@@ -48,6 +47,7 @@ module triangulation_names
      class(reference_fe_t), pointer :: reference_fe_geo => NULL()
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: order
+     integer(ip)               :: subset_id = 1
    contains
      procedure :: get_coordinates => elem_topology_get_coordinates
 
@@ -612,6 +612,7 @@ contains
        write (lunou,*) 'vefs:', trian%elems(ielem)%vefs
        write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
        write (lunou,*) 'order:', trian%elems(ielem)%order
+       write (lunou,*) 'subset_id:', trian%elems(ielem)%subset_id
 
        !call reference_element_write ( trian%elems(ielem)%geo_reference_element )
 
@@ -643,7 +644,7 @@ contains
     write (lunou,*) 'vefs:', elem%vefs
     write (lunou,*) 'coordinates:', elem%coordinates
     write (lunou,*) 'order:', elem%order
-
+    write (lunou,*) 'subset_id:', elem%subset_id
   end subroutine element_print
 
   subroutine elem_topology_get_coordinates(this, elem_topology_coordinates)

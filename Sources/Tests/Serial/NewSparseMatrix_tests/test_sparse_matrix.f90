@@ -24,6 +24,7 @@ implicit none
 !------------------------------------------------------------------
     ! Create: START=>CREATE
     call sparse_matrix%create(num_rows=5,num_cols=5)
+!    call sparse_matrix%create(5, .true., .true., SPARSE_MATRIX_SIGN_UNKNOWN )
     ! Append: CREATE=>BUILD_NUMERIC
 
     call sparse_matrix%insert(num_rows=4,     &
