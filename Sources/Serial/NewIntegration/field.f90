@@ -22,7 +22,7 @@ module field_names
    contains
      procedure, non_overridable :: init  => vector_field_init
      procedure, non_overridable :: set   => vector_field_set
-     procedure, non_overridable :: get_component => vector_field_get_component		
+     procedure, non_overridable :: get   => vector_field_get	
      procedure, non_overridable :: add   => vector_field_add
   end type vector_field_t
   
@@ -32,6 +32,8 @@ module field_names
    contains
      procedure, non_overridable :: init  => tensor_field_init
      procedure, non_overridable :: set   => tensor_field_set
+     procedure, non_overridable :: get   => tensor_field_get
+     procedure, non_overridable :: add   => tensor_field_add
   end type tensor_field_t
 
   type :: symmetric_tensor_field_t
@@ -43,7 +45,8 @@ module field_names
   end type symmetric_tensor_field_t
   
   interface operator(*)
-    module procedure single_contract_vector_vector, single_contract_tensor_vector, single_contract_vector_tensor
+    module procedure single_contract_vector_vector, single_contract_tensor_vector, &
+                     single_contract_vector_tensor, single_contract_tensor_tensor
     module procedure scal_left_vector, scal_right_vector, scal_left_tensor, scal_right_tensor
   end interface
   
@@ -87,13 +90,13 @@ contains
     this%value(i) = value
   end subroutine vector_field_set
   
-  function vector_field_get_component(this,i) result(value)
+  function vector_field_get(this,i) result(value)
     implicit none
     class(vector_field_t), intent(inout) :: this
     integer(ip)          , intent(in)    :: i
     real(rp)                             :: value
     value = this%value(i)
-  end function vector_field_get_component
+  end function vector_field_get
   
   subroutine vector_field_add(this,i,value)
     implicit none
@@ -118,6 +121,23 @@ contains
     real(rp)             , intent(in)    :: value
     this%value(i,j) = value
   end subroutine tensor_field_set
+  
+  function tensor_field_get(this,i,j) result(value)
+    implicit none
+    class(tensor_field_t), intent(inout) :: this
+    integer(ip)          , intent(in)    :: i
+    integer(ip)          , intent(in)    :: j
+    real(rp)                             :: value
+    value = this%value(i,j)
+  end function tensor_field_get
+  
+  subroutine tensor_field_add(this,i,j,value)
+    implicit none
+    class(tensor_field_t), intent(inout) :: this
+    integer(ip)          , intent(in)    :: i, j
+    real(rp)             , intent(in)    :: value
+    this%value(i,j) = this%value(i,j) + value
+  end subroutine tensor_field_add
 		
   subroutine symmetric_tensor_field_init(this,value)
     implicit none
@@ -175,6 +195,22 @@ contains
       end do
     end do
    end function single_contract_vector_tensor
+   
+   function single_contract_tensor_tensor(t1,t2) result(res)
+    implicit none
+    type(tensor_field_t), intent(in) :: t1
+    type(tensor_field_t), intent(in) :: t2
+    type(tensor_field_t)             :: res
+    integer(ip) :: i, j, k
+    res%value=0.0_rp
+    do i=1,dim
+      do k=1,dim
+        do j=1,dim
+          res%value(i,k) = res%value(i,k) + t1%value(i,j) * t2%value(j,k)
+        end do
+      end do
+    end do
+   end function single_contract_tensor_tensor
    
    function scal_left_vector(alpha,v) result(res)
     implicit none

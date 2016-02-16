@@ -64,8 +64,8 @@ contains
     type(fe_function_vector_t)            :: fe_unknown_vector
     type(vector_field_t)                  :: igaus_value_vector
     
-    real(rp)                              :: viscosity
-    !type(tensor_field_t)                  :: viscosity
+    real(rp)                              :: viscosity_scalar
+    type(tensor_field_t)                  :: viscosity_matrix
 
     class(vector_t), pointer              :: vector_dof_values
 				
@@ -118,23 +118,22 @@ contains
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
           
           call fe_unknown_scalar%get_value(igaus, igaus_value_scalar)
-          viscosity = this%interpolate_property(igaus_value_scalar)
+          viscosity_scalar = this%interpolate_property(igaus_value_scalar)
           
           do inode = 1, number_nodes_per_field(1)
              call vol_int_first_fe%get_gradient(inode,igaus,grad_trial_scalar)
              do jnode = 1, number_nodes_per_field(1)
                 call vol_int_first_fe%get_gradient(jnode,igaus,grad_test_scalar)
                 elmat(inode,jnode) = elmat(inode,jnode) + & 
-                                   & factor * viscosity * grad_test_scalar * grad_trial_scalar
+                   & factor * viscosity_scalar * grad_test_scalar * grad_trial_scalar
              end do
           end do
           
           call fe_unknown_vector%get_value(igaus, igaus_value_vector)
-          viscosity = this%interpolate_property(igaus_value_vector%get_component(1))
           
-          ! call viscosity%init(0.0_rp)
-          ! call viscosity%set(1,1,this%interpolate_property(igaus_value%get_component(1)))
-          ! call viscosity%set(2,2,this%interpolate_property(igaus_value%get_component(2)))
+          call viscosity_matrix%init(0.0_rp)
+          call viscosity_matrix%set(1,1,this%interpolate_property(igaus_value_vector%get(1)))
+          call viscosity_matrix%set(2,2,this%interpolate_property(igaus_value_vector%get(2)))
           
           do inode = 1, number_nodes_per_field(2)
              ioffset = number_nodes_per_field(1) + inode
@@ -143,8 +142,7 @@ contains
                 joffset = number_nodes_per_field(1) + jnode
                 call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_vector)
                 elmat(ioffset,joffset) = elmat(ioffset,joffset) + & 
-                   & factor * viscosity * double_contract(grad_test_vector,grad_trial_vector)
-                   ! factor * double_contract(grad_test_vector,viscosity * grad_trial_vector)
+                   & factor * double_contract(grad_test_vector,viscosity_matrix*grad_trial_vector)
              end do
           end do
           
