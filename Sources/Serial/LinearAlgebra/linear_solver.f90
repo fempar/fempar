@@ -69,6 +69,7 @@ module linear_solver_names
     procedure :: create                          => linear_solver_create
     procedure :: free                            => linear_solver_free
     procedure :: solve                           => linear_solver_solve
+    procedure :: print_convergence_history       => linear_solver_print_convergence_history
     procedure :: set_type_from_pl                => linear_solver_set_type_from_pl
     procedure :: set_parameters_from_pl          => linear_solver_set_parameters_from_pl
     procedure :: set_type_and_parameters_from_pl => linear_solver_set_type_and_parameters_from_pl
@@ -101,6 +102,14 @@ contains
      this%state = not_created
    end subroutine linear_solver_free
    
+   subroutine linear_solver_print_convergence_history ( this, file_path )
+     implicit none
+     class(linear_solver_t), intent(in) :: this
+     character(len=*)      , intent(in) :: file_path
+     assert ( this%state == solver_type_set )
+     call this%base_linear_solver%print_convergence_history(file_path)
+   end subroutine linear_solver_print_convergence_history
+   
    subroutine linear_solver_solve ( this, x )
      implicit none
      class(linear_solver_t), intent(inout) :: this
@@ -127,8 +136,8 @@ contains
      ! 2. Select Factory Method associated to val from "global" (and dynamically built) dictionary of Factory Methods
      ! 3. Only create if this%state == environment_set or if base_linear_solver was freed in the block of code above
      !this%base_linear_solver => create_richardson(this%environment)
-     this%base_linear_solver => create_cg(this%environment)
-     !this%base_linear_solver => create_rgmres(this%environment)
+     !this%base_linear_solver => create_cg(this%environment)
+     this%base_linear_solver => create_rgmres(this%environment)
      assert ( this%base_linear_solver%get_state() == start )
      this%state = solver_type_set
    end subroutine linear_solver_set_type_from_pl
