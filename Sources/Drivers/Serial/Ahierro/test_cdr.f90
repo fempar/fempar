@@ -485,6 +485,7 @@ contains
     use SB_fe_affine_operator_names
     use SB_preconditioner_names
     use vector_dG_CDR_discrete_integration_names
+    use block_sparse_matrix_names
 
     implicit none
 
@@ -496,12 +497,14 @@ contains
     type(p_reference_fe_t)                        :: reference_fe_array_two(2)
     type(p_reference_fe_t)                        :: reference_fe_array_one(1)
     type(SB_fe_affine_operator_t)                 :: fe_affine_operator
-    type(vector_dG_CDR_discrete_integration_t)       :: vector_dG_CDR_integration
+    type(vector_dG_CDR_discrete_integration_t)    :: vector_dG_CDR_integration
     type(CDR_discrete_integration_t)              :: CDR_integration
     type(vector_space_t)    , pointer             :: fe_affine_operator_range_vector_space 
     class(vector_t)         , allocatable, target :: vector
-    type(face_interpolation_t)                    :: face_interpolation
+    type(interpolation_face_restriction_t)                    :: face_interpolation
 
+    class(matrix_t), pointer :: matrix
+    type(sparse_matrix_t), pointer :: my_matrix
     logical                  :: diagonal_blocks_symmetric_storage(2)
     logical                  :: diagonal_blocks_symmetric(2)
     integer(ip)              :: diagonal_blocks_sign(2)
@@ -509,11 +512,11 @@ contains
     ! Composite case
     reference_fe_array_two(1) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
          &                      number_dimensions = 2, order = 1, field_type = "scalar",            &
-         &                      continuity = .true. )
+         &                      continuity = .false. )
 
     reference_fe_array_two(2) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
          &                      number_dimensions = 2, order = 1, field_type = "vector",            &
-         &                      continuity = .true. )
+         &                      continuity = .false. )
 
     call fe_space%create( triangulation = f_trian, boundary_conditions = f_cond,                    &
          &                reference_fe_phy = reference_fe_array_two,                                &
@@ -524,19 +527,35 @@ contains
     call fe_space%create_face_array()
     call fe_space%fill_dof_info() 
 
+     call vector_dG_CDR_integration%set_problem( viscosity = 1.0_rp, C_IP = 10.0_rp, xi = 0.0_Rp)
     ! Create the operator
-    diagonal_blocks_symmetric_storage = .true.
-    diagonal_blocks_symmetric         = .true.
+    diagonal_blocks_symmetric_storage = .false.
+    diagonal_blocks_symmetric         = .false.
     diagonal_blocks_sign              = positive_definite
     call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                       &
          &                          diagonal_blocks_symmetric,diagonal_blocks_sign, f_trian,        &
          &                          fe_space, vector_dG_CDR_integration)
     call fe_affine_operator%symbolic_setup()
     call fe_affine_operator%numerical_setup()
-!!$
-!!$    fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-!!$    call fe_affine_operator_range_vector_space%create_vector(vector)
-!!$    fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+!!$    matrix => fe_affine_operator%get_matrix()
+!!$     select type(matrix)
+!!$     class is(block_sparse_matrix_t)
+!!$        !my_matrix => matrix
+!!$        do i = 1,1! matrix%nblocks
+!!$           write(*,*) i,i,'+++++++++++++++++++++++++++++++'
+!!$           write(*,*) __FILE__,__LINE__
+!!$           my_matrix => matrix%blocks(i,i)%sparse_matrix
+!!$           write(*,*) __FILE__,__LINE__
+!!$           call my_matrix%print_matrix_market(6)
+!!$           write(*,*) __FILE__,__LINE__
+!!$        end do
+!!$     class default
+!!$        check(.false.)
+!!$     end select
+
+     !fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+     !call fe_affine_operator_range_vector_space%create_vector(vector)
+     !fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
 
     !call fe_space%print()
     !call reference_fe_array_two(1)%free
