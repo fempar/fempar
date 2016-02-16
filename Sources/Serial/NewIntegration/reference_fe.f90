@@ -96,7 +96,6 @@ module reference_fe_names
      integer(ip)                           :: active_face_id
      type(SB_interpolation_t), allocatable :: interpolation(:)
      type(SB_interpolation_t)              :: interpolation_o_map
-     class(reference_fe_t)       , pointer :: reference_fe
    contains
      procedure, non_overridable :: create => interpolation_face_restriction_create
      procedure, non_overridable :: free   => interpolation_face_restriction_free
@@ -547,7 +546,7 @@ public :: face_map_t
 
 type face_integrator_t
    private
-   type(interpolation_face_restriction_t) :: face_interpolation(2)
+   type(interpolation_face_restriction_t) :: interpolation_face_restriction(2)
    type(p_reference_fe_t)                 :: reference_fe(2)
  contains
    procedure, non_overridable :: create            => face_integrator_create
