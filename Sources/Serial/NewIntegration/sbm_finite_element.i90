@@ -79,11 +79,11 @@ end function get_subset_id
 ! Update methods for fe_function_scalar/vector/tensor_t
 !**************************************************************************************************
 
-subroutine update_scalar_values (this, vector_dof_values, fe_function_scalar)
+subroutine update_scalar_values (this, fe_function_scalar, vector_dof_values)
   implicit none
-  class(SB_finite_element_t), intent(in)    :: this
-  class(vector_t)           , intent(in)    :: vector_dof_values
-  type(fe_function_scalar_t), intent(inout) :: fe_function_scalar
+  class(SB_finite_element_t), intent(in)              :: this
+  type(fe_function_scalar_t), intent(inout)           :: fe_function_scalar
+  class(vector_t)           , intent(in)   , optional :: vector_dof_values
 
   real(rp), pointer :: nodal_values(:)
   real(rp), pointer :: quadrature_points_values(:)
@@ -98,26 +98,30 @@ subroutine update_scalar_values (this, vector_dof_values, fe_function_scalar)
   call fe_function_scalar%set_current_number_nodes(             &
                           & this%reference_fe_phy(fe_space_id)%p%get_number_nodes() )
 
-  block_id     =  this%field_blocks(fe_space_id)
-  nodal_values => fe_function_scalar%get_nodal_values()
-
+  block_id =  this%field_blocks(fe_space_id)
+  nodal_values             => fe_function_scalar%get_nodal_values()
+  quadrature_points_values => fe_function_scalar%get_quadrature_points_values()
+  
   number_nodes_fe_space = this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
   nodal_values(1:number_nodes_fe_space) = this%bc_value(fe_space_id)%p(:)
 
-  call vector_dof_values%extract_subvector ( block_id, &
-                                           & number_nodes_fe_space, &
-                                           & this%elem2dof(fe_space_id)%p, &
-                                           & nodal_values )
+  if(present(vector_dof_values)) then
+     call vector_dof_values%extract_subvector ( block_id, &
+                                              & number_nodes_fe_space, &
+                                              & this%elem2dof(fe_space_id)%p, &
+                                              & nodal_values )
+  end if
 
   call this%volume_integrator(fe_space_id)%p%evaluate_fe_function ( nodal_values, & 
                                                                   & quadrature_points_values )
+  
 end subroutine update_scalar_values
 
-subroutine update_vector_values (this, vector_dof_values, fe_function_vector)
+subroutine update_vector_values (this, fe_function_vector, vector_dof_values)
   implicit none
-  class(SB_finite_element_t), intent(in)    :: this
-  class(vector_t)           , intent(in)    :: vector_dof_values
-  type(fe_function_vector_t), intent(inout) :: fe_function_vector
+  class(SB_finite_element_t), intent(in)              :: this
+  type(fe_function_vector_t), intent(inout)           :: fe_function_vector
+  class(vector_t)           , intent(in)   , optional :: vector_dof_values
 
   real(rp), pointer             :: nodal_values(:)
   type(vector_field_t), pointer :: quadrature_points_values(:)
@@ -132,27 +136,29 @@ subroutine update_vector_values (this, vector_dof_values, fe_function_vector)
   call fe_function_vector%set_current_number_nodes(             &
                           & this%reference_fe_phy(fe_space_id)%p%get_number_nodes() )
 
-  block_id     =  this%field_blocks(fe_space_id)
-  nodal_values => fe_function_vector%get_nodal_values()
+  block_id =  this%field_blocks(fe_space_id)
+  nodal_values             => fe_function_vector%get_nodal_values()
   quadrature_points_values => fe_function_vector%get_quadrature_points_values()
 
   number_nodes_fe_space = this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
   nodal_values(1:number_nodes_fe_space) = this%bc_value(fe_space_id)%p(:)
 
-  call vector_dof_values%extract_subvector ( block_id, &
-                                           & number_nodes_fe_space, &
-                                           & this%elem2dof(fe_space_id)%p, &
-                                           & nodal_values )
+  if(present(vector_dof_values)) then
+     call vector_dof_values%extract_subvector ( block_id, &
+                                              & number_nodes_fe_space, &
+                                              & this%elem2dof(fe_space_id)%p, &
+                                              & nodal_values )
+  end if
 
   call this%volume_integrator(fe_space_id)%p%evaluate_fe_function ( nodal_values, & 
                                                                   & quadrature_points_values )
 end subroutine update_vector_values
 
-subroutine update_tensor_values (this, vector_dof_values, fe_function_tensor)
+subroutine update_tensor_values (this, fe_function_tensor, vector_dof_values)
   implicit none
-  class(SB_finite_element_t), intent(in)    :: this
-  class(vector_t)           , intent(in)    :: vector_dof_values
-  type(fe_function_tensor_t), intent(inout) :: fe_function_tensor
+  class(SB_finite_element_t), intent(in)              :: this
+  type(fe_function_tensor_t), intent(inout)           :: fe_function_tensor
+  class(vector_t)           , intent(in)   , optional :: vector_dof_values
 
   real(rp), pointer             :: nodal_values(:)
   type(tensor_field_t), pointer :: quadrature_points_values(:)
@@ -167,16 +173,19 @@ subroutine update_tensor_values (this, vector_dof_values, fe_function_tensor)
   call fe_function_tensor%set_current_number_nodes(             &
                           & this%reference_fe_phy(fe_space_id)%p%get_number_nodes() )
 
-  block_id     =  this%field_blocks(fe_space_id)
-  nodal_values => fe_function_tensor%get_nodal_values()
+  block_id =  this%field_blocks(fe_space_id)
+  nodal_values             => fe_function_tensor%get_nodal_values()
+  quadrature_points_values => fe_function_vector%get_quadrature_points_values()
 
   number_nodes_fe_space = this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
   nodal_values(1:number_nodes_fe_space) = this%bc_value(fe_space_id)%p(:)
 
-  call vector_dof_values%extract_subvector ( block_id, &
-                                           & number_nodes_fe_space, &
-                                           & this%elem2dof(fe_space_id)%p, &
-                                           & nodal_values )
+  if(present(vector_dof_values)) then
+     call vector_dof_values%extract_subvector ( block_id, &
+                                              & number_nodes_fe_space, &
+                                              & this%elem2dof(fe_space_id)%p, &
+                                              & nodal_values )
+  end if
 
   call this%volume_integrator(fe_space_id)%p%evaluate_fe_function ( nodal_values, & 
                                                                   & quadrature_points_values )

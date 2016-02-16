@@ -7,10 +7,10 @@
 
     assert ( fe_space_id >=1 .and. fe_space_id <= this%number_fe_spaces )
     assert ( this%reference_fe_phy_list(fe_space_id)%p%get_field_type() == field_type_scalar )
-
+    
     call fe_function_scalar%create( fe_space_id, &
-                                & this%quadrature(1)%p%get_number_evaluation_points(), &
-                                & this%reference_fe_phy_list(fe_space_id)%p%get_number_nodes() )
+                                & this%reference_fe_phy_list(fe_space_id)%p%get_number_nodes(), &
+                                & this%quadrature(1)%p%get_number_evaluation_points() )
  
     end subroutine create_fe_function_scalar
 
@@ -25,8 +25,8 @@
     assert ( this%reference_fe_phy_list(fe_space_id)%p%get_field_type() == field_type_vector )
 
     call fe_function_vector%create( fe_space_id, &
-                                & this%quadrature(1)%p%get_number_evaluation_points(), &
-                                & this%reference_fe_phy_list(fe_space_id)%p%get_number_nodes() )
+                                & this%reference_fe_phy_list(fe_space_id)%p%get_number_nodes(), &
+                                & this%quadrature(1)%p%get_number_evaluation_points() )
  
     end subroutine create_fe_function_vector
 
@@ -41,7 +41,7 @@
     assert ( this%reference_fe_phy_list(fe_space_id)%p%get_field_type() == field_type_tensor )
 
     call fe_function_tensor%create( fe_space_id, &
-                                & this%quadrature(1)%p%get_number_evaluation_points(), &
-                                & this%reference_fe_phy_list(fe_space_id)%p%get_number_nodes() )
+                                & this%reference_fe_phy_list(fe_space_id)%p%get_number_nodes(), &
+                                & this%quadrature(1)%p%get_number_evaluation_points() )
  
     end subroutine create_fe_function_tensor
