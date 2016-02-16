@@ -65,9 +65,13 @@ contains
     class(environment_t), target, intent(in)    :: environment
     integer(ip)                 , intent(in)    :: nvectors
     class(vector_t)             , intent(in)    :: mold
+    integer(ip) :: i
     
     this%nvectors = nvectors
     allocate (this%vectors(this%nvectors),mold=mold)
+    do i=1, this%nvectors
+      call this%vectors(i)%default_initialization()
+    end do
     this%environment => environment
   end subroutine multivector_create
   
