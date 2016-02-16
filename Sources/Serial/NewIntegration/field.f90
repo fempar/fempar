@@ -21,7 +21,8 @@ module field_names
      real(rp) :: value(dim)
    contains
      procedure, non_overridable :: init  => vector_field_init
-     procedure, non_overridable :: set   => vector_field_set		
+     procedure, non_overridable :: set   => vector_field_set
+     procedure, non_overridable :: get_component => vector_field_get_component		
      procedure, non_overridable :: add   => vector_field_add
   end type vector_field_t
   
@@ -85,6 +86,14 @@ contains
     real(rp)             , intent(in)    :: value
     this%value(i) = value
   end subroutine vector_field_set
+  
+  function vector_field_get_component(this,i) result(value)
+    implicit none
+    class(vector_field_t), intent(inout) :: this
+    integer(ip)          , intent(in)    :: i
+    real(rp)                             :: value
+    value = this%value(i)
+  end function vector_field_get_component
   
   subroutine vector_field_add(this,i,value)
     implicit none

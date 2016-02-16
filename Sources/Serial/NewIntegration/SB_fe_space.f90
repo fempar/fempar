@@ -195,8 +195,8 @@ module SB_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes 
-   integer(ip) :: current_number_quadrature_points 
+   integer(ip) :: current_number_nodes             ! Not used
+   integer(ip) :: current_number_quadrature_points ! Not used
    
    integer(ip) :: max_number_nodes  
    integer(ip) :: max_number_quadrature_points          
@@ -219,8 +219,8 @@ module SB_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_quadrature_points 
-   integer(ip) :: current_number_nodes             
+   integer(ip) :: current_number_nodes             ! Not used
+   integer(ip) :: current_number_quadrature_points ! Not used           
    
    integer(ip) :: max_number_quadrature_points
    integer(ip) :: max_number_nodes            
@@ -243,8 +243,8 @@ module SB_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes   
-   integer(ip) :: current_number_quadrature_points           
+   integer(ip) :: current_number_nodes             ! Not used
+   integer(ip) :: current_number_quadrature_points ! Not used        
    
    integer(ip) :: max_number_nodes    
    integer(ip) :: max_number_quadrature_points        

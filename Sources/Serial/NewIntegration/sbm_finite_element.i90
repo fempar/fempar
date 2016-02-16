@@ -98,7 +98,7 @@ subroutine update_scalar_values (this, fe_function_scalar, vector_dof_values)
   call fe_function_scalar%set_current_number_nodes(             &
                           & this%reference_fe_phy(fe_space_id)%p%get_number_nodes() )
 
-  block_id =  this%field_blocks(fe_space_id)
+  block_id = this%field_blocks(fe_space_id)
   nodal_values             => fe_function_scalar%get_nodal_values()
   quadrature_points_values => fe_function_scalar%get_quadrature_points_values()
   
@@ -136,7 +136,7 @@ subroutine update_vector_values (this, fe_function_vector, vector_dof_values)
   call fe_function_vector%set_current_number_nodes(             &
                           & this%reference_fe_phy(fe_space_id)%p%get_number_nodes() )
 
-  block_id =  this%field_blocks(fe_space_id)
+  block_id = this%field_blocks(fe_space_id)
   nodal_values             => fe_function_vector%get_nodal_values()
   quadrature_points_values => fe_function_vector%get_quadrature_points_values()
 
@@ -168,14 +168,14 @@ subroutine update_tensor_values (this, fe_function_tensor, vector_dof_values)
   assert ( associated(this%field_blocks) )
 
   fe_space_id = fe_function_tensor%get_fe_space_id()
-  call fe_function_tensor%set_current_number_quadrature_points( &
+  call fe_function_tensor%set_current_number_quadrature_points( & ! Set, but not used
                           & this%quadrature%get_number_evaluation_points() )
-  call fe_function_tensor%set_current_number_nodes(             &
+  call fe_function_tensor%set_current_number_nodes(             & ! Set, but not used
                           & this%reference_fe_phy(fe_space_id)%p%get_number_nodes() )
 
-  block_id =  this%field_blocks(fe_space_id)
+  block_id = this%field_blocks(fe_space_id)
   nodal_values             => fe_function_tensor%get_nodal_values()
-  quadrature_points_values => fe_function_vector%get_quadrature_points_values()
+  quadrature_points_values => fe_function_tensor%get_quadrature_points_values()
 
   number_nodes_fe_space = this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
   nodal_values(1:number_nodes_fe_space) = this%bc_value(fe_space_id)%p(:)
