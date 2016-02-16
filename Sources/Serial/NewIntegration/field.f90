@@ -22,6 +22,7 @@ module field_names
    contains
      procedure, non_overridable :: init  => vector_field_init
      procedure, non_overridable :: set   => vector_field_set		
+     procedure, non_overridable :: add   => vector_field_add
   end type vector_field_t
   
   type :: tensor_field_t
@@ -29,7 +30,7 @@ module field_names
      real(rp)  :: value(dim,dim)
    contains
      procedure, non_overridable :: init  => tensor_field_init
-     procedure, non_overridable :: set   => tensor_field_set					
+     procedure, non_overridable :: set   => tensor_field_set
   end type tensor_field_t
 
   type :: symmetric_tensor_field_t
@@ -84,6 +85,14 @@ contains
     real(rp)             , intent(in)    :: value
     this%value(i) = value
   end subroutine vector_field_set
+  
+  subroutine vector_field_add(this,i,value)
+    implicit none
+    class(vector_field_t), intent(inout) :: this
+    integer(ip)          , intent(in)    :: i
+    real(rp)             , intent(in)    :: value
+    this%value(i) = this%value(i) + value
+  end subroutine vector_field_add
 		
   subroutine tensor_field_init(this,value)
     implicit none
