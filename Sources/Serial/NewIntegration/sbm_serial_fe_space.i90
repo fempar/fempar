@@ -177,10 +177,14 @@ subroutine free( this )
      do i = 1, this%triangulation%number_interior_faces + this%triangulation%number_boundary_faces
         call this%face_array(i)%free()
      end do
+     deallocate(this%face_array)
 
      call this%face_quadrature(1)%free()
+      deallocate(this%face_quadrature)
+
      call this%face_map(1)%free()
      call this%face_map(2)%free()
+     deallocate(this%face_map)
   end if
   
   do iblock = 1, this%number_blocks

@@ -40,9 +40,7 @@ subroutine create_face_array (this)
      check(istat == 0)
      call this%face_integrator(i)%p%create(this%face_quadrature(1),                           &
           &                                this%reference_fe_phy_list(i)%p,                   &
-          &                                this%reference_fe_phy_list(i)%p)!,                   &
-!          &                                this%reference_fe_geo_list(1)%p,                   &
-!          &                                this%reference_fe_geo_list(1)%p)
+          &                                this%reference_fe_phy_list(i)%p)
   end do
   
   null_reference_fe_p => NULL()
@@ -51,8 +49,7 @@ subroutine create_face_array (this)
      allocate( this%face_integrator(i)%p, stat = istat )
      check(istat == 0)     
      call this%face_integrator(i)%p%create(this%face_quadrature(1),                               &
-          &                                this%reference_fe_phy_list(j)%p, null_reference_fe_p)!,  &
-!          &                                this%reference_fe_geo_list(1)%p, null_reference_fe_p)
+          &                                this%reference_fe_phy_list(j)%p, null_reference_fe_p)
   end do
 
   ! Allocate the array of faces

@@ -26,22 +26,16 @@ subroutine finite_face_update_integration( this )
   coords => this%map%get_coordinates_neighbour(1,this%face_topology%relative_face(1))
   call this%neighbour_fe(1)%p%cell%get_coordinates(coords)
 
-  if (this%is_boundary()) then
-     call this%map%update(this%face_topology%relative_face,this%quadrature,                       &
-             &                           this%neighbour_fe(1)%p%cell%reference_fe_geo)
-     do i = 1, this%number_fe_spaces
-        call this%face_integrator(i)%p%update(this%face_topology%relative_face,this%map)
-     end do
-  else
+  if (.not. this%is_boundary()) then
      coords => this%map%get_coordinates_neighbour(2,this%face_topology%relative_face(2))
      call this%neighbour_fe(2)%p%cell%get_coordinates(coords)
-     call this%map%update(this%face_topology%relative_face,this%quadrature,                       &
-             &                           this%neighbour_fe(1)%p%cell%reference_fe_geo)
-     do i = 1, this%number_fe_spaces
-        call this%face_integrator(i)%p%update(this%face_topology%relative_face,this%map)
-     end do
   end if
 
+  call this%map%update(this%face_topology%relative_face,this%quadrature,                       &
+       &                           this%neighbour_fe(1)%p%cell%reference_fe_geo)
+  do i = 1, this%number_fe_spaces
+     call this%face_integrator(i)%p%update(this%face_topology%relative_face,this%map)
+  end do
 end subroutine finite_face_update_integration
 
 !==================================================================================================
@@ -52,10 +46,13 @@ subroutine finite_face_free(this)
   integer(ip) :: i
 
   this%face_topology => NULL()
+  this%map           => NULL()
+  this%quadrature    => NULL()
   if (allocated(this%face_integrator)) deallocate (this%face_integrator)
   do i =1,2
      this%neighbour_fe(i)%p => NULL()
   end do
+  this%number_fe_spaces = 0
 end subroutine finite_face_free
 
 !==================================================================================================

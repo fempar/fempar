@@ -86,22 +86,22 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
 end subroutine fe_map_create_on_face
 
 !==================================================================================================
-subroutine fe_map_face_map_create(this,quadrature,reference_fe_geometry )
+subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
   implicit none
   ! Parameters
   class(fe_map_t)       , intent(inout) :: this
   type(SB_quadrature_t) , intent(in)    :: quadrature
-  class(reference_fe_t) , intent(in)    :: reference_fe_geometry
+  class(reference_fe_t) , intent(in)    :: reference_fe_geo
 
   integer(ip) :: number_dimensions, number_face_dimensions
-  integer(ip) :: number_evaluation_points, number_corners
+  integer(ip) :: number_evaluation_points, number_corners_face
 
   call this%free()
-  number_dimensions        = reference_fe_geometry%number_dimensions
+  number_dimensions        = reference_fe_geo%number_dimensions
   number_evaluation_points = quadrature%number_evaluation_points
-  number_face_dimensions   = reference_fe_geometry%number_dimensions - 1
+  number_face_dimensions   = reference_fe_geo%number_dimensions - 1
 
-  call reference_fe_geometry%create_face_local_interpolation                                      &
+  call reference_fe_geo%create_face_local_interpolation                                      &
        &                ( quadrature, this%interpolation_geometry)
   
   call memalloc(number_dimensions, &
@@ -120,16 +120,13 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geometry )
                 number_evaluation_points, &
                 this%normals,__FILE__,__LINE__)
 
-  ! This is not correct, we need to know the number of corners
-  ! but at some point we might need this value to be number_of_shape_functions and is
-  ! going to be obtained from the interpolation
-  ! It might be needed to extract the number_corners_vef
-  number_corners = number_evaluation_points
-  call memalloc(number_dimensions, &
-       &        number_corners,    &
+  number_corners_face = reference_fe_geo%get_number_corners_vef                              &
+       &  (reference_fe_geo%number_vefs_dimension(reference_fe_geo%get_number_dimensions()))
+  call memalloc(number_dimensions,      &
+       &        number_corners_face,    &
        &        this%coordinates,__FILE__,__LINE__)
 
-  this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
+  this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
 end subroutine fe_map_face_map_create
 
 !==================================================================================================

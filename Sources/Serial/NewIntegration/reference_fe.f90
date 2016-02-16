@@ -116,7 +116,7 @@ module reference_fe_names
      real(rp), allocatable    :: d2sdx(:,:,:,:)     
      ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)       
      real(rp), allocatable    :: coordinates_points(:,:)  
-     ! Coordinates of evaluation points (number_dimensions,number_corners)  
+     ! Coordinates of evaluation points (number_dimensions,number_corners of element/face)  
      real(rp), allocatable    :: coordinates(:,:)  
      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
      real(rp), allocatable    :: normals(:,:)  
@@ -127,7 +127,7 @@ module reference_fe_names
    contains
      procedure, non_overridable :: create           => fe_map_create
      procedure, non_overridable :: create_on_face   => fe_map_create_on_face
-     procedure, non_overridable :: fe_map_face_restriction_create  => fe_map_face_map_create
+     procedure, non_overridable :: fe_map_face_map_create  => fe_map_face_map_create
      procedure, non_overridable :: update           => fe_map_update
      procedure, non_overridable :: face_map_update  => fe_map_face_map_update
      procedure, non_overridable :: free             => fe_map_free
@@ -524,6 +524,7 @@ public :: SB_volume_integrator_t, SB_p_volume_integrator_t
 
 type face_map_t
    private
+   logical                         :: is_boundary
    type(fe_map_t)                  :: face_map
    type(fe_map_face_restriction_t) :: fe_maps(2)
  contains
@@ -546,6 +547,7 @@ public :: face_map_t
 
 type face_integrator_t
    private
+   logical                                :: is_boundary
    type(interpolation_face_restriction_t) :: interpolation_face_restriction(2)
    type(p_reference_fe_t)                 :: reference_fe(2)
  contains
