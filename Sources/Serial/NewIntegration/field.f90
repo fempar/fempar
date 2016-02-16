@@ -21,7 +21,7 @@ module field_names
      real(rp) :: value(dim)
    contains
      procedure, non_overridable :: init  => vector_field_init
-     procedure, non_overridable :: set   => vector_field_set		
+     procedure, non_overridable :: set   => vector_field_set	
   end type vector_field_t
   
   type :: tensor_field_t
