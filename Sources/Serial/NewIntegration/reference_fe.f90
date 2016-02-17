@@ -50,28 +50,13 @@ module reference_fe_names
 
   type SB_p_quadrature_t
      type(SB_quadrature_t), pointer :: p => NULL()
-		contains
-		   procedure :: allocate => p_quadrature_allocate
-		   procedure :: free     => p_quadrature_free
+   contains
+     procedure :: allocate => p_quadrature_allocate
+     procedure :: free     => p_quadrature_free
   end type SB_p_quadrature_t
 
   ! Types
   public :: SB_quadrature_t, SB_p_quadrature_t
-
-  type face_quadrature_t
-     private
-     integer(ip)           :: number_dimensions                ! Space dimension of the element
-     integer(ip)           :: number_integration_points_x_face ! Integration points in each face
-     integer(ip)           :: number_faces_x_element           ! #faces in each element
-     real(rp), allocatable :: coordinates(:,:,:)               ! coordinates of the integration points
-   contains
-     ! Check sbm_face_quadrature for the definition of the subroutines
-     procedure, non_overridable :: create => face_quadrature_create
-     procedure, non_overridable :: free   => face_quadrature_free
-     procedure, non_overridable :: print  => face_quadrature_print
-  end type face_quadrature_t
-
-  public :: face_quadrature_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type SB_interpolation_t
@@ -100,7 +85,80 @@ module reference_fe_names
   end type SB_interpolation_t
 
   public :: SB_interpolation_t
+  
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+  type interpolation_face_restriction_t
+     private
+     integer(ip)                           :: number_shape_functions
+     integer(ip)                           :: number_evaluation_points
+     integer(ip)                           :: number_faces
+     integer(ip)                           :: active_face_id
+     type(SB_interpolation_t), allocatable :: interpolation(:)
+     type(SB_interpolation_t)              :: interpolation_o_map
+   contains
+     procedure, non_overridable :: create => interpolation_face_restriction_create
+     procedure, non_overridable :: free   => interpolation_face_restriction_free
+  end type interpolation_face_restriction_t
 
+  public :: interpolation_face_restriction_t
+
+ !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type fe_map_t
+     private
+     ! Map's Jacobian (number_dimensions,number_dimensions,number_evaluation_points)
+     real(rp), allocatable    :: jacobian(:,:,:)    
+     ! Map's Jacobian inverse (number_dimensions,number_dimensions,number_evaluation_points)       
+     real(rp), allocatable    :: inv_jacobian(:,:,:)     
+     ! Map's Jacobian det (number_evaluation_points)  
+     real(rp), allocatable    :: det_jacobian(:)  
+     ! Map's 2nd derivatives (number_dime,number_dime,number_dime,number_evaluation_points)         
+     real(rp), allocatable    :: d2sdx(:,:,:,:)     
+     ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)       
+     real(rp), allocatable    :: coordinates_points(:,:)  
+     ! Coordinates of evaluation points (number_dimensions,number_corners of element/face)  
+     real(rp), allocatable    :: coordinates(:,:)  
+     ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
+     real(rp), allocatable    :: normals(:,:)  
+     ! Geometry interpolation_t in the reference element domain    
+     type(SB_interpolation_t) :: interpolation_geometry   
+     ! Characteristic length of the reference element
+     real(rp)                 :: reference_fe_characteristic_length
+   contains
+     procedure, non_overridable :: create           => fe_map_create
+     procedure, non_overridable :: create_on_face   => fe_map_create_on_face
+     procedure, non_overridable :: fe_map_face_map_create  => fe_map_face_map_create
+     procedure, non_overridable :: update           => fe_map_update
+     procedure, non_overridable :: face_map_update  => fe_map_face_map_update
+     procedure, non_overridable :: free             => fe_map_free
+     procedure, non_overridable :: print            => fe_map_print
+     procedure, non_overridable :: get_det_jacobian => fe_map_get_det_jacobian
+     procedure, non_overridable :: compute_h        => fe_map_compute_h
+     procedure, non_overridable :: get_coordinates  => fe_map_get_coordinates
+  end type fe_map_t
+
+  type p_fe_map_t
+     class(fe_map_t), pointer :: p => NULL()   
+   contains
+     procedure :: allocate => p_fe_map_allocate
+     procedure :: free     => p_fe_map_free
+  end type p_fe_map_t
+
+  public :: fe_map_t, p_fe_map_t
+  
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+  type fe_map_face_restriction_t
+     private
+     integer(ip)                 :: number_faces = 0
+     integer(ip)                 :: active_face_id
+     type(fe_map_t), allocatable :: fe_map(:)
+   contains
+     procedure, non_overridable :: create => fe_map_face_restriction_create
+     procedure, non_overridable :: update => fe_map_face_restriction_update
+     procedure, non_overridable :: free   => fe_map_face_restriction_free
+     procedure, non_overridable :: get_coordinates => fe_map_face_restriction_get_coordinates
+  end type fe_map_face_restriction_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -148,7 +206,9 @@ module reference_fe_names
      procedure(create_interpolation_interface)          , deferred :: create_interpolation 
      procedure(create_face_interpolation_interface)     , deferred :: create_face_interpolation
      procedure(create_face_local_interpolation_interface),deferred :: create_face_local_interpolation
-     procedure(get_bc_component_node_interface) , deferred :: get_bc_component_node
+     procedure(update_interpolation_interface)          , deferred :: update_interpolation
+     procedure(update_interpolation_face_interface)     , deferred :: update_interpolation_face
+     procedure(get_bc_component_node_interface)         , deferred :: get_bc_component_node
      
      procedure(get_value_scalar_interface)           , deferred :: get_value_scalar
      procedure(get_value_vector_interface)           , deferred :: get_value_vector
@@ -183,11 +243,12 @@ module reference_fe_names
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
      procedure (permute_order_vef_interface)    , deferred :: permute_order_vef
+     procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
+
      ! generic part of the subroutine above
      procedure :: permute_nodes_per_vef => reference_fe_permute_nodes_per_vef
      procedure :: free  => reference_fe_free
      procedure :: print => reference_fe_print
-     procedure :: number_vefs_of_dimension  => reference_fe_number_vefs_of_dimension
 
      ! Set number_dimensions, order, continuity, field_type, number_field_components
      procedure :: set_common_data => reference_fe_set_common_data
@@ -204,6 +265,7 @@ module reference_fe_names
      procedure :: get_number_field_components => reference_fe_get_number_field_components
      procedure :: get_number_vefs => reference_fe_get_number_vefs
      procedure :: get_number_nodes => reference_fe_get_number_nodes
+     procedure :: get_number_vefs_of_dimension  => reference_fe_get_number_vefs_of_dimension
      procedure :: get_number_vefs_dimension => reference_fe_get_number_vefs_dimension
      procedure :: get_interior_nodes_vef  => reference_fe_get_interior_nodes_vef
      procedure :: get_nodes_vef  =>     reference_fe_get_nodes_vef
@@ -213,6 +275,7 @@ module reference_fe_names
      procedure :: get_interior_node_vef => reference_fe_get_interior_node_vef
      procedure :: get_number_nodes_vef => reference_fe_get_number_nodes_vef
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
+     procedure :: get_number_corners_vef => reference_fe_get_number_corners_vef
      procedure :: get_orientation => reference_fe_get_orientation
   end type reference_fe_t
 
@@ -241,17 +304,6 @@ module reference_fe_names
        integer(ip), optional, intent(in)    :: max_order
      end subroutine create_quadrature_interface
  
-     ! subroutine create_quadrature_on_faces_interface ( this, face_quadrature, quadrature,           &
-     !      elem_to_face_enumeration, max_order )
-     !   import :: reference_fe_t, SB_quadrature_t, list_t, ip
-     !   implicit none 
-     !   class(reference_fe_t), intent(in)    :: this
-     !   type(SB_quadrature_t), intent(in)    :: face_quadrature
-     !   type(SB_quadrature_t), intent(inout) :: quadrature
-     !   type(list_t)         , intent(inout) :: elem_to_face_enumeration
-     !   integer(ip), optional, intent(in)    :: max_order
-     ! end subroutine create_quadrature_on_faces_interface
-
      subroutine create_face_quadrature_interface ( this, quadrature, max_order  )
        import :: reference_fe_t, SB_quadrature_t, ip
        implicit none
@@ -278,16 +330,15 @@ module reference_fe_names
      end subroutine create_face_local_interpolation_interface
 
      subroutine create_face_interpolation_interface ( this, local_face_id , local_quadrature,       &
-          &                                           face_interpolation,elem_to_face_enumeration)
-       import :: reference_fe_t, ip, SB_quadrature_t, SB_interpolation_t, list_t
+          &                                           face_interpolation)
+       import :: reference_fe_t, ip, SB_quadrature_t, SB_interpolation_t
        implicit none 
        class(reference_fe_t)     , intent(in)    :: this
        integer(ip)               , intent(in)    :: local_face_id
        type(SB_quadrature_t)     , intent(in)    :: local_quadrature
        type(SB_interpolation_t)  , intent(inout) :: face_interpolation
-       type(list_t)    , optional, intent(in)    :: elem_to_face_enumeration
      end subroutine create_face_interpolation_interface
-     
+ 
      function get_bc_component_node_interface( this, node )
        import :: reference_fe_t, ip
        implicit none
@@ -383,6 +434,34 @@ module reference_fe_names
        integer(ip), intent(in)    :: p,o,r,nd
        integer(ip), intent(inout) :: o2n(:)
      end subroutine permute_order_vef_interface
+
+     function get_characteristic_length_interface( this)
+       import :: reference_fe_t, rp
+       implicit none 
+       class(reference_fe_t), intent(in) :: this 
+       real(rp)  :: get_characteristic_length_interface 
+     end function get_characteristic_length_interface
+
+     subroutine update_interpolation_interface ( this, fe_map, interpolation_reference_cell,        &
+          &                            interpolation_real_cell )
+       import :: reference_fe_t, fe_map_t, SB_interpolation_t
+       implicit none 
+       class(reference_fe_t)    , intent(in)    :: this 
+       type(fe_map_t)           , intent(in)    :: fe_map
+       type(SB_interpolation_t) , intent(in)    :: interpolation_reference_cell
+       type(SB_interpolation_t) , intent(inout) :: interpolation_real_cell
+     end subroutine update_interpolation_interface
+
+     subroutine update_interpolation_face_interface ( this, local_face_id,fe_map_face_restriction,  &
+          &                                           interpolation_face_restriction)
+       import :: reference_fe_t, ip, fe_map_face_restriction_t,  interpolation_face_restriction_t
+       implicit none 
+       class(reference_fe_t)                 , intent(in)    :: this 
+       integer(ip)                           , intent(in)    :: local_face_id
+       type(fe_map_face_restriction_t)       , intent(in)    :: fe_map_face_restriction
+       type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
+     end subroutine update_interpolation_face_interface
+     
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -404,7 +483,8 @@ module reference_fe_names
      procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
      procedure :: create_face_local_interpolation                                                      &
           &                          => quad_lagrangian_reference_fe_create_face_local_interpolation
-
+     procedure :: update_interpolation      => quad_lagrangian_reference_fe_update_interpolation
+     procedure :: update_interpolation_face => quad_lagrangian_reference_fe_update_interpolation_face
      procedure :: get_bc_component_node     => quad_lagrangian_reference_fe_get_bc_component_node
      procedure :: permute_order_vef         => quad_lagrangian_reference_fe_permute_order_vef
 
@@ -420,47 +500,11 @@ module reference_fe_names
      ! Concrete TBPs of this derived data type
      procedure :: fill                      => quad_lagrangian_reference_fe_fill
      procedure :: free                      => quad_lagrangian_reference_fe_free
+     procedure :: get_characteristic_length &
+          &                          => quad_lagrangian_reference_fe_get_characteristic_length
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-type fe_map_t
-  private
-  ! Map's Jacobian (number_dimensions,number_dimensions,number_evaluation_points)
-  real(rp), allocatable    :: jacobian(:,:,:)    
-  ! Map's Jacobian inverse (number_dimensions,number_dimensions,number_evaluation_points)       
-  real(rp), allocatable    :: inv_jacobian(:,:,:)     
-  ! Map's Jacobian det (number_evaluation_points)  
-  real(rp), allocatable    :: det_jacobian(:)  
-  ! Map's 2nd derivatives (number_dime,number_dime,number_dime,number_evaluation_points)         
-  real(rp), allocatable    :: d2sdx(:,:,:,:)     
-  ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)       
-  real(rp), allocatable    :: coordinates_points(:,:)  
-  ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
-  real(rp), allocatable    :: outside_normals(:,:)  
-  ! Geometry interpolation_t in the reference element domain    
-  type(SB_interpolation_t) :: interpolation_geometry    
-contains
-  procedure, non_overridable :: create           => fe_map_create
-  procedure, non_overridable :: create_on_faces  => fe_map_create_on_faces
-  procedure, non_overridable :: face_map_create  => fe_map_face_map_create
-  procedure, non_overridable :: update           => fe_map_update
-  procedure, non_overridable :: update_on_faces  => fe_map_update_on_faces
-  procedure, non_overridable :: face_map_update  => fe_map_face_map_update
-  procedure, non_overridable :: free             => fe_map_free
-  procedure, non_overridable :: print            => fe_map_print
-  procedure, non_overridable :: get_det_jacobian => fe_map_get_det_jacobian
-end type fe_map_t
-
-type p_fe_map_t
-  class(fe_map_t), pointer :: p => NULL()   
-contains
-  procedure :: allocate => p_fe_map_allocate
-  procedure :: free     => p_fe_map_free
-end type p_fe_map_t
-
-public :: fe_map_t, p_fe_map_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -469,15 +513,21 @@ type SB_volume_integrator_t
   integer(ip)                    :: number_shape_functions
   integer(ip)                    :: number_evaluation_points
   class(reference_fe_t), pointer :: reference_fe
-  type(SB_interpolation_t)       :: interpolation           ! Unknown interpolation_t in the reference element domain
-  type(SB_interpolation_t)       :: interpolation_o_map     ! Unknown interpolation_t in the physical element domain
+  type(SB_interpolation_t)       :: interpolation      ! Unknown interpolation_t in the reference element domain
+  type(SB_interpolation_t)       :: interpolation_o_map! Unknown interpolation_t in the physical element domain
 contains
 
   procedure, non_overridable :: create => volume_integrator_create
-  procedure, non_overridable :: update => volume_integrator_update
   procedure, non_overridable :: free   => volume_integrator_free
+  procedure, non_overridable :: update => volume_integrator_update
   procedure, non_overridable :: print  => volume_integrator_print
   
+  procedure, non_overridable :: get_interpolation_reference_cell =>                                 &
+       &                                   volume_integrator_get_interpolation_reference_cell
+  procedure, non_overridable :: get_interpolation_real_cell =>                                 &
+       &                                   volume_integrator_get_interpolation_real_cell
+
+
   procedure, non_overridable, private :: get_value_scalar           => volume_integrator_get_value_scalar
   procedure, non_overridable, private :: get_value_vector           => volume_integrator_get_value_vector
   procedure, non_overridable, private :: get_value_tensor           => volume_integrator_get_value_tensor
@@ -490,15 +540,15 @@ contains
   procedure, non_overridable, private :: get_gradient_scalar => volume_integrator_get_gradient_scalar
   procedure, non_overridable, private :: get_gradient_vector => volume_integrator_get_gradient_vector
   generic                             :: get_gradient => get_gradient_scalar, &
-                                                         get_gradient_vector                                                       
-  
+                                                         get_gradient_vector 
+
   procedure, non_overridable, private :: get_symmetric_gradient_vector => volume_integrator_get_symmetric_gradient_vector
   generic                             :: get_symmetric_gradient => get_symmetric_gradient_vector
   
   procedure, non_overridable, private :: get_divergence_vector => volume_integrator_get_divergence_vector
   procedure, non_overridable, private :: get_divergence_tensor => volume_integrator_get_divergence_tensor
   generic                             :: get_divergence => get_divergence_vector, &
-                                                           get_divergence_tensor                                                           
+                                                           get_divergence_tensor
   procedure, non_overridable, private :: get_curl_vector => volume_integrator_get_curl_vector
   generic                             :: get_curl => get_curl_vector
   
@@ -528,39 +578,43 @@ public :: SB_volume_integrator_t, SB_p_volume_integrator_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-type face_interpolation_t
-  private
-  integer(ip)                           :: number_shape_functions
-  integer(ip)                           :: number_evaluation_points
-  integer(ip)                           :: number_faces
-  type(SB_interpolation_t), allocatable :: interpolation(:)
-  type(SB_interpolation_t)              :: interpolation_o_map
-  class(reference_fe_t)       , pointer :: reference_fe
-contains
-  procedure :: create => face_interpolation_create
-  procedure :: update => face_interpolation_update
-  procedure :: free   => face_interpolation_free
-end type face_interpolation_t
+type face_map_t
+   private
+   logical                         :: is_boundary
+   type(fe_map_t)                  :: face_map
+   type(fe_map_face_restriction_t) :: fe_maps(2)
+ contains
+   procedure, non_overridable :: create               => face_map_create
+   procedure, non_overridable :: free                 => face_map_free
+   procedure, non_overridable :: update               => face_map_update
+   procedure, non_overridable :: compute_characteristic_length &
+        &                                             => face_map_compute_characteristic_length
+   procedure, non_overridable :: get_face_coordinates => face_map_get_face_coordinates
+   procedure, non_overridable :: get_coordinates_neighbour                                          &
+        &                                             => face_map_get_coordinates_neighbour
+   procedure, non_overridable :: get_neighbour_fe_map => face_map_get_neighbour_fe_map
+   procedure, non_overridable :: get_normals          => face_map_get_normals
+   procedure, non_overridable :: get_det_jacobian     => face_map_get_det_jacobian
+end type face_map_t
 
-public :: face_interpolation_t
-
+public :: face_map_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 type face_integrator_t
    private
-   type(face_interpolation_t) :: interpolation(2)
-   type(fe_map_t)             :: face_map
-   type(fe_map_t)             :: fe_map(2)
-   type(SB_quadrature_t)      :: quadrature
-   type(p_reference_fe_t)     :: reference_fe(2)
-   real(rp)     , allocatable :: coordinates(:,:)
-   type(list_t)               :: elem_to_face_enumeration(2)
+   logical                                :: is_boundary
+   type(interpolation_face_restriction_t) :: interpolation_face_restriction(2)
+   type(p_reference_fe_t)                 :: reference_fe(2)
  contains
-  procedure, non_overridable :: initialize          => face_integrator_initialize
-  procedure, non_overridable :: initialize_boundary => face_integrator_initialize_boundary
-  procedure                  :: update              => face_integrator_update
-  procedure                  :: free                => face_integrator_free
+   procedure, non_overridable :: create            => face_integrator_create
+   procedure, non_overridable :: update            => face_integrator_update
+   procedure, non_overridable :: free              => face_integrator_free
+   procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
+   generic :: get_value => get_value_scalar
+   procedure, non_overridable :: get_gradient_scalar                                              &
+        &                                          => face_integrator_get_gradient_scalar
+   generic :: get_gradient => get_gradient_scalar
 end type face_integrator_t
 
 type p_face_integrator_t
@@ -577,8 +631,6 @@ contains
   ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
 #include "sbm_quadrature.i90"
-
-#include "sbm_face_quadrature.i90"
 
 #include "sbm_interpolation.i90"
 

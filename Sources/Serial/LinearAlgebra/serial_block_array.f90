@@ -39,6 +39,7 @@ module serial_block_array_names
   
   integer(ip), parameter :: not_created  = 0 
   integer(ip), parameter :: blocks_container_created = 1
+  integer(ip), parameter :: entries_ready = 2
  
   ! vector
   type, extends(array_t) :: serial_block_array_t
@@ -415,7 +416,7 @@ contains
     real(rp)                   , intent(inout) :: values(*)
     integer(ip)                                :: i
 
-    assert(this%blocks(iblock)%state == 2)
+    assert(this%blocks(iblock)%state == entries_ready)
     assert(iblock <= this%nblocks)
     
     do i=1, size_indices

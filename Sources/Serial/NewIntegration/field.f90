@@ -48,17 +48,17 @@ module field_names
     module procedure single_contract_vector_vector, single_contract_tensor_vector, &
                      single_contract_vector_tensor, single_contract_tensor_tensor
     module procedure scal_left_vector, scal_right_vector, scal_left_tensor, scal_right_tensor
+    module procedure scal_left_scalar, scal_right_scalar
   end interface
   
   interface double_contract
     module procedure double_contract_tensor_tensor
   end interface
   
+  !public :: scalar_field_t (not actually needed, used real(rp) instead)
   public :: vector_field_t, tensor_field_t, symmetric_tensor_field_t 
   public :: operator(*)
   public :: double_contract
-  ! public :: scalar_field_t (not actually needed, used real(rp) instead)
-
 contains
 
   subroutine scalar_field_init(this,value)
@@ -212,6 +212,22 @@ contains
     end do
    end function single_contract_tensor_tensor
    
+   function scal_left_scalar(alpha,v) result(res)
+    implicit none
+    real(rp)            , intent(in) :: alpha
+    type(scalar_field_t), intent(in) :: v
+    real(rp)                         :: res
+    res = alpha * v%value
+   end function scal_left_scalar
+   
+   function scal_right_scalar(v,alpha) result(res)
+    implicit none
+    type(scalar_field_t), intent(in) :: v
+    real(rp)            , intent(in) :: alpha
+    real(rp)                         :: res
+    res = alpha * v%value
+   end function scal_right_scalar
+
    function scal_left_vector(alpha,v) result(res)
     implicit none
     real(rp)            , intent(in) :: alpha

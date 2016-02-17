@@ -1,9 +1,215 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-!face_interpolation_t type procedures
-subroutine face_interpolation_create(this, local_quadrature, reference_fe_phy)
+!fe_map_face_restriction_t type procedures
+subroutine fe_map_face_restriction_create( this, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
-  class(face_interpolation_t)  , intent(inout) :: this
+  class(fe_map_face_restriction_t), intent(inout) :: this
+  type(SB_quadrature_t)           , intent(in)    :: quadrature
+  class(reference_fe_t)           , intent(in)    :: reference_fe_geometry
+
+  integer(ip)           :: face_dimensions,local_face_id, istat
+
+  call this%free()
+
+  face_dimensions = reference_fe_geometry%number_dimensions - 1
+  this%number_faces = reference_fe_geometry%get_number_vefs_of_dimension(face_dimensions)
+
+  allocate(this%fe_map(this%number_faces),stat = istat)
+  check(istat == 0)
+
+  do local_face_id = 1,  this%number_faces
+     call this%fe_map(local_face_id)%create_on_face(local_face_id,quadrature,reference_fe_geometry)
+  end do
+
+end subroutine fe_map_face_restriction_create
+
+!==================================================================================================
+subroutine fe_map_face_restriction_update( this, local_face_id, quadrature)
+  implicit none
+  ! Parameters
+  class(fe_map_face_restriction_t), intent(inout) :: this
+  integer(ip)                     , intent(in)    :: local_face_id
+  type(SB_quadrature_t)           , intent(in)    :: quadrature
+
+  this%active_face_id = local_face_id
+  call this%fe_map(local_face_id)%update(quadrature)
+
+end subroutine fe_map_face_restriction_update
+
+!==================================================================================================
+subroutine fe_map_face_restriction_free( this)
+  implicit none
+  ! Parameters
+  class(fe_map_face_restriction_t), intent(inout) :: this
+
+  integer(ip) :: local_face_id , istat
+
+  do local_face_id = 1, this%number_faces
+     call this%fe_map(local_face_id)%free()
+  end do
+
+  if (allocated(this%fe_map)) then
+     deallocate(this%fe_map,stat = istat)
+     check(istat == 0)
+  end if
+
+  this%number_faces = 0
+  this%active_face_id = 0
+end subroutine fe_map_face_restriction_free
+
+!==================================================================================================
+function fe_map_face_restriction_get_coordinates(this,local_face_id)
+  implicit none
+  ! Parameters
+  class(fe_map_face_restriction_t), intent(in) :: this
+  integer(ip)                     , intent(in) :: local_face_id
+  real(rp), pointer :: fe_map_face_restriction_get_coordinates(:,:)
+  
+  fe_map_face_restriction_get_coordinates => this%fe_map(local_face_id)%get_coordinates()
+end function fe_map_face_restriction_get_coordinates
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! face_map_t procedures
+subroutine face_map_create(this,left_geo_reference_fe,right_geo_reference_fe, quadrature )
+  implicit none
+  ! Parameters
+  class(face_map_t)             , intent(inout) :: this
+  class(reference_fe_t), pointer, intent(in)    :: left_geo_reference_fe, right_geo_reference_fe
+  type(SB_quadrature_t)         , intent(in)    :: quadrature
+
+  call this%free()
+
+  this%is_boundary = (.not. associated(right_geo_reference_fe))
+
+  call this%face_map%fe_map_face_map_create(quadrature,left_geo_reference_fe)
+  call this%fe_maps(1)%create(quadrature,left_geo_reference_fe)
+  if (associated(right_geo_reference_fe)) then
+     call this%fe_maps(2)%create(quadrature,right_geo_reference_fe)
+  end if
+end subroutine face_map_create
+
+!==================================================================================================
+subroutine face_map_free(this)
+  implicit none
+  ! Parameters
+  class(face_map_t)      , intent(inout) :: this
+
+  integer(ip) :: i
+
+  call this%face_map%free()
+
+  do i=1,2
+     call this%fe_maps(i)%free()
+  end do
+
+end subroutine face_map_free
+
+!==================================================================================================
+subroutine face_map_update(this,local_face_id,face_quadrature,left_reference_fe_geo)
+  implicit none
+  ! Parameters
+  class(face_map_t)    , intent(inout) :: this
+  integer(ip)          , intent(in)    :: local_face_id(2)
+  type(SB_quadrature_t), intent(in)    :: face_quadrature
+  class(reference_fe_t), intent(in)    :: left_reference_fe_geo
+
+  assert((local_face_id(2)<=0) == this%is_boundary)
+  call this%face_map%face_map_update(local_face_id(1),left_reference_fe_geo,face_quadrature)
+  
+  call this%fe_maps(1)%update(local_face_id(1),face_quadrature)
+  if (local_face_id(2)>0) then
+     call this%fe_maps(2)%update(local_face_id(2),face_quadrature)
+  end if
+end subroutine face_map_update
+
+!==================================================================================================
+function face_map_compute_characteristic_length(this,igaus, number_neighbours)
+  implicit none
+  class(face_map_t), target, intent(in) :: this
+  integer(ip)              , intent(in) :: igaus, number_neighbours
+  real(rp) :: face_map_compute_characteristic_length
+
+  real(rp)    :: h
+  integer(ip) :: i
+  type(fe_map_t), pointer :: fe_map
+  
+  fe_map => this%fe_maps(1)%fe_map(this%fe_maps(1)%active_face_id)
+  face_map_compute_characteristic_length = fe_map%compute_h(igaus)
+
+  if (.not. this%is_boundary) then
+     i = 2
+     fe_map => this%fe_maps(i)%fe_map(this%fe_maps(i)%active_face_id)
+     h = fe_map%compute_h(igaus) 
+     face_map_compute_characteristic_length = min(face_map_compute_characteristic_length, h)
+  end if
+
+end function face_map_compute_characteristic_length
+
+!==================================================================================================
+function face_map_get_face_coordinates(this)
+  implicit none
+  ! Parameters
+  class(face_map_t), target, intent(in) :: this
+  real(rp), pointer :: face_map_get_face_coordinates(:,:)
+  
+  face_map_get_face_coordinates => this%face_map%get_coordinates()
+end function face_map_get_face_coordinates
+
+!==================================================================================================
+function face_map_get_coordinates_neighbour(this,neighbour_id,local_face_id)
+  implicit none
+  ! Parameters
+  class(face_map_t), target, intent(in) :: this
+  integer(ip)              , intent(in)    :: neighbour_id
+  integer(ip)              , intent(in)    :: local_face_id
+  real(rp), pointer :: face_map_get_coordinates_neighbour(:,:)
+  assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_boundary)))
+  face_map_get_coordinates_neighbour => this%fe_maps(neighbour_id)%get_coordinates(local_face_id)
+end function face_map_get_coordinates_neighbour
+
+!==================================================================================================
+function face_map_get_neighbour_fe_map(this,neighbour_id)
+  implicit none
+  ! Parameters
+  class(face_map_t), target, intent(in) :: this
+  integer(ip)                           :: neighbour_id
+  type(fe_map_face_restriction_t), pointer :: face_map_get_neighbour_fe_map
+
+  assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_boundary)))
+  face_map_get_neighbour_fe_map => this%fe_maps(neighbour_id)
+end function face_map_get_neighbour_fe_map
+
+!=================================================================================================
+subroutine face_map_get_normals (this, qpoint, normal)
+  implicit none
+  class(face_map_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: qpoint
+  type(vector_field_t)    , intent(out)   :: normal(2)
+
+  integer(ip) :: idime
+  call normal(1)%init(0.0_rp)
+  call normal(2)%init(0.0_rp)
+  do idime = 1, size(this%face_map%normals,dim=1)
+     call normal(1)%set(idime,this%face_map%normals(idime,qpoint))
+     call normal(2)%set(idime,- this%face_map%normals(idime,qpoint))
+  end do
+end subroutine face_map_get_normals
+
+!=================================================================================================
+function face_map_get_det_jacobian ( this, i )
+  implicit none
+  class(face_map_t), intent(in) :: this
+  integer(ip)    , intent(in) :: i
+  real(rp) :: face_map_get_det_jacobian
+  face_map_get_det_jacobian = this%face_map%get_det_jacobian(i)
+end function face_map_get_det_jacobian
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!face_interpolation_t type procedures
+subroutine interpolation_face_restriction_create(this, local_quadrature, reference_fe_phy)
+  implicit none
+  ! Parameters
+  class(interpolation_face_restriction_t)  , intent(inout) :: this
   type(SB_quadrature_t)        ,  intent(in)   :: local_quadrature
   class(reference_fe_t), target, intent(in)    :: reference_fe_phy
 
@@ -11,12 +217,12 @@ subroutine face_interpolation_create(this, local_quadrature, reference_fe_phy)
   type(SB_quadrature_t) :: face_quadrature
 
   call this%free()
+  this%active_face_id = -1
 
   this%number_shape_functions   = reference_fe_phy%number_nodes
   this%number_evaluation_points = local_quadrature%number_evaluation_points
   face_dimensions               = reference_fe_phy%number_dimensions - 1
-  this%number_faces             = reference_fe_phy%number_vefs_of_dimension(face_dimensions)
-  this%reference_fe             => reference_fe_phy
+  this%number_faces             = reference_fe_phy%get_number_vefs_of_dimension(face_dimensions)
 
   allocate(this%interpolation(this%number_faces),stat = istat)
   check(istat == 0)
@@ -28,25 +234,13 @@ subroutine face_interpolation_create(this, local_quadrature, reference_fe_phy)
 
   call this%interpolation_o_map%copy(source_interpolation = this%interpolation(1))
 
-end subroutine face_interpolation_create
+end subroutine interpolation_face_restriction_create
 
 !==================================================================================================
-subroutine face_interpolation_update(this, local_face_id, fe_map)
+subroutine interpolation_face_restriction_free(this)
   implicit none
   ! Parameters
-  class(face_interpolation_t)  , intent(inout) :: this
-  integer(ip)                  , intent(in)    :: local_face_id
-  type(fe_map_t)               , intent(in)    :: fe_map
-
-  call femap_apply_to_interp(fe_map, this%interpolation(local_face_id),                  &
-       &                     this%interpolation_o_map)
-end subroutine face_interpolation_update
-
-!==================================================================================================
-subroutine face_interpolation_free(this)
-  implicit none
-  ! Parameters
-  class(face_interpolation_t)  , intent(inout) :: this
+  class(interpolation_face_restriction_t)  , intent(inout) :: this
 
   integer(ip) :: i, istat
 
@@ -62,94 +256,28 @@ subroutine face_interpolation_free(this)
   this%number_evaluation_points = 0
   this%number_faces             = 0
 
-  this%reference_fe => NULL()
-end subroutine face_interpolation_free
+end subroutine interpolation_face_restriction_free
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !face_integrator_t type procedures
-subroutine face_integrator_initialize(this,left_reference_fe, right_reference_fe, max_order )
+subroutine face_integrator_create(this,quadrature,left_reference_fe,right_reference_fe)
   implicit none
   ! Parameters
-  class(face_integrator_t)     , intent(inout) :: this
-  class(reference_fe_t), target, intent(in)    :: left_reference_fe, right_reference_fe
-  integer(ip)       , optional , intent(in)    :: max_order
-
-  integer(ip)           :: i, number_nodes_face, number_nodes_face_scalar, aux_vef_dimension(5)
-  type(SB_quadrature_t) :: quadrature_on_faces
+  class(face_integrator_t)      , intent(inout) :: this
+  type(SB_quadrature_t)         , intent(in)    :: quadrature
+  class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
 
   call this%free()
 
+  this%is_boundary = (.not. associated(right_reference_fe))
   this%reference_fe(1)%p => left_reference_fe
-  this%reference_fe(2)%p => right_reference_fe
+  call this%interpolation_face_restriction(1)%create(quadrature,this%reference_fe(1)%p)
 
-  ! AH: This quadrature is created using the left reference element but in a future I would
-  ! propose to define a reference element associated to face integration
-  ! (in case we want to use diferente volume and face integration)
-  call left_reference_fe%create_face_quadrature(this%quadrature, max_order)
-  call this%face_map%face_map_create(this%quadrature, this%reference_fe(1)%p)
-
-  ! Allocate the coordinates assuming the geometry and the interpolation are the same order
-  ! AH: This needs to be improved in the future and also the variable coordinates might need 
-  ! to be discussed at some point
-  ! If we agree in using such a structure, clearly this code should be encapsulated somehow
-  ! in reference_fe (the use of number_vef_dimension should not be explicited)
-  aux_vef_dimension = left_reference_fe%get_number_vefs_dimension()
-  number_nodes_face = left_reference_fe%get_number_nodes_vef(aux_vef_dimension(left_reference_fe%number_dimensions))
-  number_nodes_face_scalar = int(real(number_nodes_face)/real(left_reference_fe%number_field_components))
-  call memalloc(left_reference_fe%number_dimensions, number_nodes_face_scalar, this%coordinates,           &
-       &        __FILE__,__LINE__)
-    
-  do i = 1, 2
-     call this%interpolation(i)%create(this%quadrature,this%reference_fe(i)%p)
-     call create_elem_to_face_enumeration( this%reference_fe(i)%p,this%quadrature,                &
-          &                               this%elem_to_face_enumeration(i))
-     call this%fe_map(i)%create_on_faces(this%quadrature,this%reference_fe(i)%p,                  &
-          &                              this%elem_to_face_enumeration(i))
-  end do
-
-end subroutine face_integrator_initialize
-
-!==================================================================================================
-!face_integrator_t type procedures
-subroutine face_integrator_initialize_boundary(this,left_reference_fe, max_order )
-  implicit none
-  ! Parameters
-  class(face_integrator_t)     , intent(inout) :: this
-  class(reference_fe_t), target, intent(in)    :: left_reference_fe
-  integer(ip)       , optional , intent(in)    :: max_order
-
-  integer(ip)           :: i, number_nodes_face, number_nodes_face_scalar, aux_vef_dimension(5)
-  type(SB_quadrature_t) :: quadrature_on_faces
-
-  call this%free()
-
-  this%reference_fe(1)%p => left_reference_fe
-  this%reference_fe(2)%p => NULL()
-
-  ! AH: This quadrature is created using the left reference element but in a future I would
-  ! propose to define a reference element associated to face integration
-  ! (in case we want to use diferente volume and face integration)
-  call left_reference_fe%create_face_quadrature(this%quadrature, max_order)
-  call this%face_map%face_map_create(this%quadrature, this%reference_fe(1)%p)
-
-  ! Allocate the coordinates assuming the geometry and the interpolation are the same order
-  ! AH: This needs to be improved in the future and also the variable coordinates might need 
-  ! to be discussed at some point
-  ! If we agree in using such a structure, clearly this code should be encapsulated somehow
-  ! in reference_fe (the use of number_vef_dimension should not be explicited)
-  aux_vef_dimension = left_reference_fe%get_number_vefs_dimension()
-  number_nodes_face = left_reference_fe%get_number_nodes_vef(aux_vef_dimension(left_reference_fe%number_dimensions))
-  number_nodes_face_scalar = int(real(number_nodes_face)/real(left_reference_fe%number_field_components))
-  call memalloc(left_reference_fe%number_dimensions, number_nodes_face_scalar, this%coordinates,           &
-       &        __FILE__,__LINE__)
-  i = 1
-  call this%interpolation(i)%create(this%quadrature,this%reference_fe(i)%p)
-  call create_elem_to_face_enumeration( this%reference_fe(i)%p,this%quadrature,                &
-       &                               this%elem_to_face_enumeration(i))
-  call this%fe_map(i)%create_on_faces(this%quadrature,this%reference_fe(i)%p,                  &
-       &                              this%elem_to_face_enumeration(i))
-  
-end subroutine face_integrator_initialize_boundary
+  if (associated(right_reference_fe)) then
+     this%reference_fe(2)%p => right_reference_fe
+     call this%interpolation_face_restriction(2)%create(quadrature,this%reference_fe(2)%p)
+  end if
+end subroutine face_integrator_create
 
 !==================================================================================================
 subroutine face_integrator_free(this)
@@ -158,105 +286,59 @@ subroutine face_integrator_free(this)
   class(face_integrator_t)     , intent(inout) :: this
 
   integer(ip) :: i
-  call this%face_map%free()
-  call this%quadrature%free()
 
   do i=1,2
      this%reference_fe(i)%p => NULL()
-     call this%interpolation(i)%free()
-     call this%elem_to_face_enumeration(i)%free()
-     call this%fe_map(i)%free()
+     call this%interpolation_face_restriction(i)%free()
   end do
 
-  if(allocated(this%coordinates)) call memfree(this%coordinates,__FILE__,__LINE__)
 end subroutine face_integrator_free
 
 !==================================================================================================
-subroutine face_integrator_update(this,local_face_id,left_reference_fe_geo,left_reference_fe_phy, &
-     &                            left_neighbour_coordinates,right_neighbour_coordinates)
+subroutine face_integrator_update(this,local_face_id,face_map)
   implicit none
   ! Parameters
   class(face_integrator_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: local_face_id(2)
-  class(reference_fe_t)   , intent(in)    :: left_reference_fe_geo
-  class(reference_fe_t)   , intent(in)    :: left_reference_fe_phy
-  real(rp)                , intent(in)    :: left_neighbour_coordinates(:,:)
-  real(rp)                , intent(in)    :: right_neighbour_coordinates(:,:)
-  !class(elem_topology_t)  , intent(in)    :: left_neighbour_topology
+  type(face_map_t)        , intent(in)    :: face_map
 
-  integer(ip) :: i, number_nodes_face_geo, aux_vef_dimension(5), local_vef_id, local_element_node
-  integer(ip) :: idime, coord_element_node, number_nodes_face_scalar,face_node_scalar
-  type(list_t), pointer :: nodes_vef
+  call this%reference_fe(1)%p%update_interpolation_face(local_face_id(1),face_map%fe_maps(1),     &
+       &                                                this%interpolation_face_restriction(1))
 
-  ! Update the coordinates
-  aux_vef_dimension = left_reference_fe_geo%get_number_vefs_dimension()
-  number_nodes_face_geo = left_reference_fe_geo%get_number_nodes_vef                              &
-       &                  (aux_vef_dimension(left_reference_fe_geo%number_dimensions))
-  local_vef_id      = aux_vef_dimension(left_reference_fe_geo%number_dimensions)+local_face_id(1) - 1
-  number_nodes_face_scalar = int(real(number_nodes_face_geo)/real(left_reference_fe_geo%number_field_components))
-  nodes_vef => left_reference_fe_geo%get_nodes_vef()
-  do i = 1, number_nodes_face_geo
-     ! For the moment reference_fe_geo is of an abstract class, maybe we should consider to
-     ! implement it as assuming that is always quad_lagrangian
-     select type(left_reference_fe_geo)
-        class is(quad_lagrangian_reference_fe_t)
-        if (left_reference_fe_geo%number_field_components == left_reference_fe_geo%number_dimensions) then
-           ! This is clearly not a good code. It should be discussed which is the best way to go through this.
-           local_element_node = nodes_vef%l(nodes_vef%p(local_vef_id) + i-1)
-           idime = left_reference_fe_geo%node_component_array(local_element_node,2)
-           coord_element_node = left_reference_fe_geo%node_component_array(local_element_node,1)
-           face_node_scalar = i - (idime-1)*number_nodes_face_scalar
-           this%coordinates(idime,face_node_scalar) = left_neighbour_coordinates(idime,coord_element_node)
-        elseif (left_reference_fe_geo%number_field_components == left_reference_fe_geo%number_dimensions) then
-           local_element_node = nodes_vef%l(nodes_vef%p(local_vef_id) + i-1)
-           this%coordinates(:,i) = left_neighbour_coordinates(:,local_element_node)
-        else
-           assert(.false.)
-        end if
-
-     end select
-  end do
-
-  ! Update the face_map
-  call this%face_map%face_map_update(local_face_id(1),left_reference_fe_geo,this%quadrature,      &
-       &                              this%coordinates)
-
-
-  call this%fe_map(1)%update_on_faces(local_face_id(1),this%quadrature,left_neighbour_coordinates,&
-       &                              this%elem_to_face_enumeration(1))
-  call this%fe_map(2)%update_on_faces(local_face_id(2),this%quadrature,right_neighbour_coordinates,&
-       &                              this%elem_to_face_enumeration(2))
-
-  do i = 1, 2 
-     call this%interpolation(i)%update(local_face_id(i),this%fe_map(i))
-  end do
+  if (.not. this%is_boundary) then
+     call this%reference_fe(2)%p%update_interpolation_face(local_face_id(2),face_map%fe_maps(2),  &
+       &                                                   this%interpolation_face_restriction(2))
+  end if
 end subroutine face_integrator_update
 
 !==================================================================================================
-subroutine create_elem_to_face_enumeration (reference_fe,face_quadrature,elem_to_face_enumeration)
-  implicit none 
-  class(reference_fe_t), intent(in)    :: reference_fe 
-  type(SB_quadrature_t), intent(in)    :: face_quadrature
-  type(list_t)         , intent(inout) :: elem_to_face_enumeration
-  
-  integer(ip) :: igaus,i
-  integer(ip) :: iface,face_dimensions, number_faces
+subroutine face_integrator_get_value_scalar (this, ishape, qpoint, ineigh, scalar_field)
+  implicit none
+  class(face_integrator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: ishape
+  integer(ip)             , intent(in)    :: qpoint
+  integer(ip)             , intent(in)    :: ineigh
+  real(rp)                , intent(out)   :: scalar_field
 
-  face_dimensions = reference_fe%number_dimensions - 1
-  number_faces = reference_fe%number_vefs_of_dimension(face_dimensions)
+  integer(ip) :: active_face_id
+  assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
 
-  ! Create the elem_to_face_enumeration array
-  call elem_to_face_enumeration%create(number_faces)
-  do iface = 1, number_faces+1
-     elem_to_face_enumeration%p(iface) = face_quadrature%number_evaluation_points *    &
-          &                                      (iface-1) + 1
-  end do
-  call elem_to_face_enumeration%allocate_list_from_pointer()
-  i = 1
-  do iface = 1, number_faces
-     do igaus = 1, face_quadrature% number_evaluation_points
-        elem_to_face_enumeration%l(elem_to_face_enumeration%p(iface) + igaus - 1) = i
-        i = i + 1
-     end do
-  end do  
-end subroutine create_elem_to_face_enumeration
+  active_face_id = this%interpolation_face_restriction(ineigh)%active_face_id
+  scalar_field =  this%interpolation_face_restriction(ineigh)%interpolation(active_face_id)%                  &
+       &          shape_functions(ishape,qpoint)
+end subroutine face_integrator_get_value_scalar
+
+!=================================================================================================
+subroutine face_integrator_get_gradient_scalar (this, ishape, qpoint, ineigh, vector_field)
+  implicit none
+  class(face_integrator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: ishape
+  integer(ip)             , intent(in)    :: qpoint
+  integer(ip)             , intent(in)    :: ineigh
+  type(vector_field_t)    , intent(out)   :: vector_field
+  assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
+  assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
+  call this%reference_fe(ineigh)%p%get_gradient(this%interpolation_face_restriction(ineigh)%interpolation_o_map,   &
+       &                                            ishape,qpoint,vector_field)
+end subroutine face_integrator_get_gradient_scalar

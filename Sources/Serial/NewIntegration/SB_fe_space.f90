@@ -44,7 +44,7 @@ module SB_fe_space_names
   use reference_fe_names
   use triangulation_names
   use reference_fe_factory_names
-  use integration_tools_names
+  !use integration_tools_names
   use migratory_element_names
   use conditions_names
   use hash_table_names
@@ -80,7 +80,6 @@ module SB_fe_space_names
      integer(ip), pointer                        :: field_blocks(:)
      
      type(elem_topology_t)         , pointer     :: cell 
-     class(reference_fe_t)         , pointer     :: reference_fe_geo 
      type(fe_map_t)                , pointer     :: fe_map
      
      type(p_reference_fe_t)        , pointer     :: reference_fe_phy(:) 
@@ -124,13 +123,21 @@ module SB_fe_space_names
   type :: finite_face_t
      private
      integer(ip)                            :: number_fe_spaces
-     type(face_topology_t)        , pointer :: face_topology
+     type(face_topology_t)    , pointer     :: face_topology
      type(p_SB_finite_element_t)            :: neighbour_fe(2)
+     type(face_map_t)         , pointer     :: map
+     type(SB_quadrature_t)    , pointer     :: quadrature
      type(p_face_integrator_t), allocatable :: face_integrator(:)
    contains
-     procedure, non_overridable :: create                  => finite_face_create
-     procedure, non_overridable :: update_face_integration => finite_face_update_face_integration
-     procedure                  :: free                    => finite_face_free
+     procedure, non_overridable :: create              => finite_face_create
+     procedure, non_overridable :: update_integration  => finite_face_update_integration
+     procedure, non_overridable :: free                => finite_face_free
+     procedure, non_overridable :: is_boundary         => finite_face_is_boundary
+     procedure, non_overridable :: number_neighbours   => finite_face_number_neighbours
+     procedure, non_overridable :: get_elem2dof        => finite_face_get_elem2dof
+     procedure, non_overridable :: get_map             => finite_face_get_map
+     procedure, non_overridable :: get_quadrature      => finite_face_get_quadrature
+     procedure, non_overridable :: get_face_integrator => finite_face_get_face_integrator
   end type finite_face_t
 
   public :: finite_face_t
@@ -140,8 +147,10 @@ module SB_fe_space_names
      integer(ip)                                 :: number_fe_spaces   
      type(p_reference_fe_t)        , allocatable :: reference_fe_geo_list(:)
      type(p_fe_map_t)              , allocatable :: fe_map(:)
+     type(face_map_t)              , allocatable :: face_map(:)
      type(p_reference_fe_t)        , allocatable :: reference_fe_phy_list(:)
      type(SB_p_quadrature_t)       , allocatable :: quadrature(:)
+     type(SB_quadrature_t)         , allocatable :: face_quadrature(:)
      type(SB_p_volume_integrator_t), allocatable :: volume_integrator(:)
      type(p_face_integrator_t)     , allocatable :: face_integrator(:)
      
@@ -170,6 +179,7 @@ module SB_fe_space_names
      procedure, non_overridable :: symbolic_setup_assembler
      procedure, non_overridable :: get_number_elements
      procedure, non_overridable :: get_number_interior_faces
+     procedure, non_overridable :: get_number_boundary_faces
      procedure, non_overridable :: get_number_fe_spaces
      procedure, non_overridable :: get_finite_element
      procedure, non_overridable :: get_finite_face

@@ -33,6 +33,8 @@ module mesh_to_triangulation_names
   use fe_space_types_names
   use generate_vefs_mesh_conditions_names
   use conditions_names
+  use reference_fe_names
+  use reference_fe_factory_names
   use elem_to_subset_id_names
 
   implicit none
@@ -67,13 +69,15 @@ contains
 
   end subroutine mesh_to_triangulation
 
-subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcond, elem_to_subset_id)
+subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcond,reference_fe_geo, &
+     &                                           elem_to_subset_id)
     implicit none
     ! Parameters
-    type(mesh_t), intent(in)                           :: gmesh ! Geometry mesh
-    type(triangulation_t), intent(inout)               :: trian 
-    integer(ip), optional, intent(in)                  :: length_trian
-    type(conditions_t), optional, intent(inout)        :: gcond
+    type(mesh_t)                       , intent(in)    :: gmesh ! Geometry mesh
+    type(triangulation_t)              , intent(inout) :: trian 
+    integer(ip)              , optional, intent(in)    :: length_trian
+    type(conditions_t)       , optional, intent(inout) :: gcond
+    class(reference_fe_t)    , optional, intent(in)    :: reference_fe_geo 
     type(elem_to_subset_id_t), optional, intent(inout) :: elem_to_subset_id
 
     ! Locals
@@ -96,6 +100,11 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
     
     trian%num_elems = gmesh%nelem
     trian%num_dims  = gmesh%ndime
+
+    ! This will not be here in the future
+    trian%reference_fe(1) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",          &
+         &                                      number_dimensions = trian%num_dims, order = 1,      &
+         &                                      field_type = "vector",continuity = .true. )
 
 !!$     AFM: I think this is not really needed. trian%elems could already be
 !!$     allocated with sufficient size (see next if-end block)
