@@ -57,7 +57,7 @@ module base_linear_solver_names
   real    (rp), parameter :: default_rtol                       = 1.0e-06_rp
   real    (rp), parameter :: default_atol                       = 0.0_rp
   integer (ip), parameter :: default_output_frequency           = 1 
-  integer (ip), parameter :: default_max_num_iterations         = 1000
+  integer (ip), parameter :: default_max_num_iterations         = 100
   logical     , parameter :: default_track_convergence_history  = .false.
   
   integer(ip), parameter :: start               = 0  ! All parameters set with values, environment and name set

@@ -373,10 +373,12 @@ program test_reference_fe
 
 !  ===============================   ABSTRACT    SOLVE       ==================================
   ! call vector%init(0.0_rp)
-  ! sctrl%method = fgmres
+  ! sctrl%method = lfom
   ! sctrl%trace  = 1
   ! sctrl%track_conv_his = .true.
   ! sctrl%rtol = 1.0e-06_rp
+  ! sctrl%itmax = 100
+  ! sctrl%stopc = res_res
   ! call abstract_solve(matrix, .identity. fe_affine_operator , rhs, vector, sctrl, senv ) 
 
    select type(vector)

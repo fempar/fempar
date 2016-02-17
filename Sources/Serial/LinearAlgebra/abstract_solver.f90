@@ -1699,8 +1699,6 @@ use lapack77_interfaces_names
  
     assert(ctrl%stopc==res_res.or.ctrl%stopc==res_rhs)
 
-    
-
     call A%GuardTemp()
     call M%GuardTemp()
     call b%GuardTemp()
