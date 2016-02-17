@@ -34,6 +34,7 @@ module linear_solver_names
   use cg_names
   use rgmres_names
   use lgmres_names 
+  use fgmres_names
   
   ! Abstract modules
   use vector_names
@@ -136,10 +137,12 @@ contains
      ! 1. Get val associated to key="linear_solver_type" from type(ParameterList)
      ! 2. Select Factory Method associated to val from "global" (and dynamically built) dictionary of Factory Methods
      ! 3. Only create if this%state == environment_set or if base_linear_solver was freed in the block of code above
+  ! SELECT MANUALLY ITERATIVE LINEAR SOLVER TYPE: 
      !this%base_linear_solver => create_richardson(this%environment)
      !this%base_linear_solver => create_cg(this%environment)
-     this%base_linear_solver => create_rgmres(this%environment)
+     !this%base_linear_solver => create_rgmres(this%environment)
      !this%base_linear_solver => create_lgmres(this%environment)
+      this%base_linear_solver => create_fgmres(this%environment)
      assert ( this%base_linear_solver%get_state() == start )
      this%state = solver_type_set
    end subroutine linear_solver_set_type_from_pl

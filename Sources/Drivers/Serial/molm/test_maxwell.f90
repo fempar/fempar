@@ -368,12 +368,12 @@ program test_reference_fe
     call linear_solver%set_type_and_parameters_from_pl()
     call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
     call linear_solver%solve(vector)
-   ! call linear_solver%print_convergence_history('csic')
+    !call linear_solver%print_convergence_history('csic')
     call linear_solver%free() 
 
 !  ===============================   ABSTRACT    SOLVE       ==================================
   ! call vector%init(0.0_rp)
-  ! sctrl%method = lgmres
+  ! sctrl%method = fgmres
   ! sctrl%trace  = 1
   ! sctrl%track_conv_his = .true.
   ! sctrl%rtol = 1.0e-06_rp
