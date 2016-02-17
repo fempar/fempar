@@ -31,48 +31,6 @@ subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, ma
   call fill_quadrature( quadrature )
 end subroutine quad_lagrangian_reference_fe_create_quadrature
 
-! subroutine quad_lagrangian_reference_fe_create_quadrature_on_faces ( this, face_quadrature, quadrature,&
-!      &                                                       elem_to_face_enumeration, max_order )
-!   implicit none 
-!   class(quad_lagrangian_reference_fe_t), intent(in)    :: this  
-!   type(SB_quadrature_t)                , intent(in)    :: face_quadrature
-!   type(SB_quadrature_t)                , intent(inout) :: quadrature
-!   type(list_t)                         , intent(inout) :: elem_to_face_enumeration
-!   integer(ip)                , optional, intent(in)    :: max_order
-  
-!   integer(ip) :: ngaus, order, igaus,i
-!   integer(ip) :: iface,face_dimensions, number_faces
-
-!   order = this%order
-!   if ( present(max_order) ) then
-!      order = max_order
-!   else
-!      order = this%order
-!   end if
-!   face_dimensions = this%number_dimensions - 1
-!   number_faces = this%number_vefs_of_dimension(face_dimensions)
-!   ngaus = face_quadrature%number_evaluation_points * number_faces
-
-!   ! Create the elem_to_face_enumeration array
-!   call elem_to_face_enumeration%create(number_faces)
-!   do iface = 1, number_faces+1
-!      elem_to_face_enumeration%p(iface) = face_quadrature%number_evaluation_points *    &
-!           &                                      (iface-1) + 1
-!   end do
-!   call elem_to_face_enumeration%allocate_list_from_pointer()
-!   i = 1
-!   do iface = 1, number_faces
-!      do igaus = 1, face_quadrature% number_evaluation_points
-!         elem_to_face_enumeration%l(elem_to_face_enumeration%p(iface) + igaus - 1) = i
-!         i = i + 1
-!      end do
-!   end do
-
-!   call quadrature%create( this%number_dimensions, ngaus )
-!   call fill_quadrature_on_faces( quadrature, face_quadrature, elem_to_face_enumeration)
-  
-! end subroutine quad_lagrangian_reference_fe_create_quadrature_on_faces
-
 subroutine quad_lagrangian_reference_fe_create_face_quadrature ( this, quadrature, max_order )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this
@@ -120,34 +78,21 @@ end subroutine quad_lagrangian_reference_fe_create_interpolation
 ! integration points given by local_quadrature either on the face 'local_face_id' of the element or
 ! in all the faces of the element.
 subroutine quad_lagrangian_reference_fe_create_face_interpolation( this,local_face_id,            &
-     &                               local_quadrature,face_interpolation,elem_to_face_enumeration)
+     &                               local_quadrature,face_interpolation)
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
   integer(ip)                          , intent(in)    :: local_face_id
   type(SB_quadrature_t)                , intent(in)    :: local_quadrature
   type(SB_interpolation_t)             , intent(inout) :: face_interpolation
-  type(list_t)               , optional, intent(in)    :: elem_to_face_enumeration
 
   integer(ip) :: number_faces
+  
+  ! Allocate the arrays of the interpolation
+  call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar,              &
+       &                    local_quadrature%number_evaluation_points, 0 )
 
-  if (present(elem_to_face_enumeration)) then
-     
-     number_faces = elem_to_face_enumeration%n
-      ! Allocate the arrays of the interpolation
-     call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar,              &
-          &                         local_quadrature%number_evaluation_points*number_faces, 0 )
-
-     ! Fill the values of the shape functions
-     call face_interpolation_shape_fill (this,face_interpolation,local_quadrature,1,              &
-          &                              elem_to_face_enumeration)
-  else
-     ! Allocate the arrays of the interpolation
-     call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar,              &
-          &                    local_quadrature%number_evaluation_points, 0 )
-     
-     ! Fill the values of the shape functions
-     call face_interpolation_shape_fill (this,face_interpolation,local_quadrature,local_face_id)
-  end if
+  ! Fill the values of the shape functions
+  call face_interpolation_shape_fill (this,face_interpolation,local_quadrature,local_face_id)
 end subroutine quad_lagrangian_reference_fe_create_face_interpolation
 
 !==================================================================================================
@@ -167,8 +112,8 @@ subroutine quad_lagrangian_reference_fe_create_face_local_interpolation ( this, 
   ! I am assuming the geometric aproximation of the face can be linear
   ! this might need to be modified in the future
   number_dimensions_face   = this%number_dimensions - 1
-  number_nodes_face_scalar = 2**number_dimensions_face
-  face_order = 1
+  number_nodes_face_scalar = (this%order+1)**number_dimensions_face
+  face_order = this%order
 
   ! Allocate the arrays of the interpolation
   call interpolation%create( number_dimensions_face, number_nodes_face_scalar, &
@@ -180,6 +125,35 @@ subroutine quad_lagrangian_reference_fe_create_face_local_interpolation ( this, 
                            nlocs, 0, quadrature%coordinates )
 
 end subroutine quad_lagrangian_reference_fe_create_face_local_interpolation
+
+subroutine quad_lagrangian_reference_fe_update_interpolation( this, fe_map,                       &
+     &                                                        interpolation_reference_cell,       &
+     &                                                        interpolation_real_cell )
+  implicit none 
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(fe_map_t)                       , intent(in)    :: fe_map
+  type(SB_interpolation_t)             , intent(in)    :: interpolation_reference_cell
+  type(SB_interpolation_t)             , intent(inout) :: interpolation_real_cell
+
+  call femap_apply_to_interp( fe_map, interpolation_reference_cell,interpolation_real_cell )
+end subroutine quad_lagrangian_reference_fe_update_interpolation
+
+subroutine quad_lagrangian_reference_fe_update_interpolation_face( this,  local_face_id,          &
+     &                                                             fe_map_face_restriction,       &
+     &                                                             interpolation_face_restriction )
+  implicit none 
+  class(quad_lagrangian_reference_fe_t) , intent(in)    :: this 
+  integer(ip)                           , intent(in)    :: local_face_id
+  type(fe_map_face_restriction_t)       , intent(in)    :: fe_map_face_restriction
+  type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
+
+  interpolation_face_restriction%active_face_id = local_face_id
+
+  call this%update_interpolation(fe_map_face_restriction%fe_map(local_face_id),                   &
+       &                         interpolation_face_restriction%interpolation(local_face_id),     &
+       &                         interpolation_face_restriction%interpolation_o_map)
+
+end subroutine quad_lagrangian_reference_fe_update_interpolation_face
 
 function quad_lagrangian_reference_fe_get_bc_component_node( this, node )
   implicit none
@@ -332,6 +306,14 @@ subroutine quad_lagrangian_reference_fe_free ( this )
        call memfree(this%node_component_array,__FILE__,__LINE__)
   this%number_nodes_scalar = 0
 end subroutine quad_lagrangian_reference_fe_free
+
+function quad_lagrangian_reference_fe_get_characteristic_length ( this )
+  implicit none 
+  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
+  real(rp)  :: quad_lagrangian_reference_fe_get_characteristic_length 
+
+  quad_lagrangian_reference_fe_get_characteristic_length =  2.0_rp
+end function quad_lagrangian_reference_fe_get_characteristic_length
 
 subroutine quad_lagrangian_reference_fe_fill_field_components (this)
   implicit none
@@ -900,50 +882,6 @@ integer(ip) function fc(i)
      fc = fc*k
   end do
 end function fc
-
-!==================================================================================================
-subroutine fill_quadrature_on_faces (face_quadrature,local_quadrature,elem_to_face_enumeration)
-  implicit none 
-  class(SB_quadrature_t), intent(inout) :: face_quadrature
-  class(SB_quadrature_t), intent(in)    :: local_quadrature
-  type(list_t)          , intent(inout) :: elem_to_face_enumeration
-
-  integer(ip) :: ijk_face(face_quadrature%number_dimensions-1,elem_to_face_enumeration%n)
-  integer(ip) :: fixed_dimension_x_face(elem_to_face_enumeration%n)
-  real(rp)    :: fixed_value_x_face(elem_to_face_enumeration%n)
-  integer(ip) :: iface,idime,one_of_two_faces,jdime, p_dime, inode, fnode
-
-  p_dime = local_quadrature%number_evaluation_points
-
-  ! Set the directions in which the coordinates move within each face
-  iface = 1
-  do idime = face_quadrature%number_dimensions,  1, -1
-     do one_of_two_faces = 0, 1
-        fixed_dimension_x_face(iface) = idime
-        fixed_value_x_face(iface)     = 2.0_rp*real(one_of_two_faces) - 1.0_rp
-        p_dime = 1
-        do jdime = 1, face_quadrature%number_dimensions
-           if (jdime .ne. idime) then
-              ijk_face(p_dime,iface) = jdime
-              p_dime = p_dime + 1
-           end if
-        end do
-        iface = iface + 1
-     end do
-  end do
-
-  ! Set the coordinates of the quadrature
-  do iface = 1, elem_to_face_enumeration%n
-     do fnode = 1, local_quadrature%number_evaluation_points
-        inode = elem_to_face_enumeration%l(elem_to_face_enumeration%p(iface)+fnode-1)
-        face_quadrature%coordinates(fixed_dimension_x_face(iface),inode) =                  &
-             &                      fixed_value_x_face(iface)
-        face_quadrature%coordinates(ijk_face(:,iface),inode) =                              &
-             &                      local_quadrature%coordinates(:,fnode)
-     end do
-  end do
-
-end subroutine fill_quadrature_on_faces
 
 !-----------------------------------------------------------------------
 subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
@@ -1744,14 +1682,12 @@ subroutine permute_or_2d( o2n,p,o,r )
 end subroutine permute_or_2d
 
 !==================================================================================================
-subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadrature, local_face_id,&
-     &                                    elem_to_face_enumeration)
+subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadrature, local_face_id)
   implicit none
   type(quad_lagrangian_reference_fe_t), intent(in)    :: this
   type(SB_interpolation_t)            , intent(inout) :: face_interpolation
   type(SB_quadrature_t)               , intent(in)    :: local_quadrature
   integer(ip)                         , intent(in)    :: local_face_id
-  type(list_t)              , optional, intent(in)    :: elem_to_face_enumeration
 
   type(SB_interpolation_t) :: interp_1D_corners, local_interpolation
   type(SB_quadrature_t)    :: nodal_coordinates_1D
@@ -1775,8 +1711,7 @@ subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadratu
        &           local_interpolation%shape_functions,local_interpolation%shape_derivatives,  &
        &           interp_1D_corners%shape_functions,interp_1D_corners%shape_derivatives,      &
        &           face_interpolation%number_dimensions,order_of_approximation,                &
-       &           face_interpolation%number_evaluation_points,local_face_id,                  &
-       &           elem_to_face_enumeration)
+       &           face_interpolation%number_evaluation_points,local_face_id)
 
   call face_reference_fe%free()
   call reference_fe_1D%free
@@ -1787,7 +1722,7 @@ subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadratu
 end subroutine face_interpolation_shape_fill
 
 !==================================================================================================
-subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id,e2f)
+subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
   implicit none
   ! Parameters
   integer(ip)           , intent(in)  :: nd,p,ng, local_face_id
@@ -1795,7 +1730,6 @@ subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id,e2f)
   real(rp)              , intent(in)  :: sh1(p+1,2),dr1(1,p+1,2)
   real(rp)              , intent(out) :: shapf(   (p+1)**nd,ng)
   real(rp)              , intent(out) :: derif(nd,(p+1)**nd,ng)
-  type(list_t), optional, intent(in)  :: e2f
 
   ! Local variable
   integer(ip) :: ifc, id, j, ijk(nd), ij(nd-1), d, inode, jnode, ig, d2
@@ -1825,17 +1759,12 @@ subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id,e2f)
 
         do j = 1,2        ! 1 ---> -, 2 ---> +
            ifc = ifc + 1  ! face identifier
-
-           if (present(e2f)) then
-              ig0 = e2f%p(ifc) - 1
-              ign = e2f%p(ifc+1)-e2f%p(ifc)
+         
+           if (ifc == local_face_id) then
+              ig0 = 0
+              ign = ng
            else
-              if (ifc == local_face_id) then
-                 ig0 = 0
-                 ign = ng
-              else
-                 cycle
-              end if
+              cycle
            end if
            
            do ig = 1, ign  ! Loop over face Gauss Points    
@@ -1856,3 +1785,125 @@ subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id,e2f)
   end do
 
 end subroutine face_shapen
+!==============================================================================
+  subroutine femap_apply_to_interp(map,ref,phy)
+    implicit none
+    type(fe_map_t)          , intent(in)    :: map
+    type(SB_interpolation_t), intent(in)    :: ref
+    type(SB_interpolation_t), intent(inout) :: phy
+    real(rp), allocatable :: wmat1(:,:,:)
+    real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
+    integer(ip) :: ndime,nnode,nlocs,ntens
+    integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens
+    logical :: khes
+
+
+    khes = .false.
+    if ( allocated( ref%hessian ) ) then 
+       khes = .true.
+    end if
+
+    ndime = ref%number_dimensions
+    ntens = ref%number_entries_symmetric_tensor
+    nlocs = ref%number_evaluation_points
+    !nnode = ref%number_shape_functions
+    nnode = size(ref%shape_functions,1)
+
+    ! Shape functions do not change
+    !phy%shape_functions = ref%shape_functions 
+
+    ! First derivatives do
+    !if(phy%kder==1) then
+    phy%shape_derivatives=0.0_rp
+    do ilocs=1,phy%number_evaluation_points
+       do inode=1,size(phy%shape_functions,1)!phy%number_shape_functions
+          do idime=1,ndime
+             do jdime=1,ndime
+                phy%shape_derivatives(idime,inode,ilocs) = phy%shape_derivatives(idime,inode,ilocs) &
+                     + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(jdime,inode,ilocs)
+             end do
+          end do
+       end do
+    end do
+    !end if
+
+    ! Second derivatives are
+    !
+    !    d^2 N / d x_i d x_j
+    !       = (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j)
+    !       + (d N / d s_k) (d^2 s_k / d x_i d x_j) 
+    !
+    if( khes ) then
+       call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
+       call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
+       do ilocs=1,nlocs
+          if( khes ) then
+             ! Transforms the array HESSI to a symmetric matrix WMAT1
+             do inode=1,nnode
+                do itens = 1, ntens
+                   wvec1(itens) = ref%hessian(itens,inode,ilocs)
+                end do
+                call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
+             end do
+             ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
+             do inode=1,nnode
+                call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
+                     &        ndime,ndime)
+             end do
+          end if
+          if( khes ) then
+             ! Add second cartesian derivatives of the map times 
+             ! first derivatives of shape functions
+             do inode=1,nnode
+                do idime=1,ndime
+                   do jdime=1,ndime
+                      do kdime=1,ndime
+                         wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
+                              & + ref%shape_derivatives(kdime,inode,ilocs) &
+                              &   * map%d2sdx(kdime,idime,jdime,ilocs)
+                      end do
+                   end do
+                end do
+             end do
+          end if
+
+          ! Writes the Hessian matrix as an array
+          do inode=1,nnode
+             do itens = 1, ntens
+                wvec1(itens) = phy%hessian(itens,inode,ilocs)
+             end do
+             call matove(wmat2(1,1,inode),wvec1,ndime,ntens)
+          end do
+       end do
+       call memfree(wmat1,__FILE__,__LINE__)
+       call memfree(wmat2,__FILE__,__LINE__)
+    end if
+  end subroutine femap_apply_to_interp
+
+
+  !-----------------------------------------------------------------------
+  subroutine matove(xmatr,vecto,ndime,ntens)
+    !-----------------------------------------------------------------------
+    !                                      
+    ! This routine stores a symmetric matrix XMATR into a vector VECTO
+    !
+    !-----------------------------------------------------------------------
+    implicit none
+    integer(ip), intent(in)  :: ndime,ntens
+    real(rp)   , intent(in)  :: xmatr(ndime,ndime)
+    real(rp)   , intent(out) :: vecto(ntens)
+
+    if(ndime.eq.2) then
+       vecto(1)=xmatr(1,1)
+       vecto(3)=xmatr(1,2)
+       vecto(2)=xmatr(2,2)
+    else
+       vecto(1)=xmatr(1,1)
+       vecto(4)=xmatr(1,2)
+       vecto(2)=xmatr(2,2)
+       vecto(5)=xmatr(1,3)
+       vecto(6)=xmatr(2,3)
+       vecto(3)=xmatr(3,3)
+    end if
+
+  end subroutine matove

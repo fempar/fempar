@@ -68,7 +68,6 @@ subroutine create( this, &
      this%fe_array(i)%number_nodes = number_nodes
      this%fe_array(i)%number_fe_spaces = this%number_fe_spaces
 
-     this%fe_array(i)%reference_fe_geo => this%reference_fe_geo_list(1)%p
      this%fe_array(i)%quadrature => this%quadrature(1)%p
      this%fe_array(i)%fe_map => this%fe_map(1)%p
 
@@ -147,7 +146,6 @@ subroutine free( this )
      this%fe_array(i)%number_nodes = 0
      this%fe_array(i)%number_fe_spaces = 0
 
-     nullify(this%fe_array(i)%reference_fe_geo)
      nullify(this%fe_array(i)%quadrature)
      nullify(this%fe_array(i)%fe_map)
 
@@ -179,6 +177,14 @@ subroutine free( this )
      do i = 1, this%triangulation%number_interior_faces + this%triangulation%number_boundary_faces
         call this%face_array(i)%free()
      end do
+     deallocate(this%face_array)
+
+     call this%face_quadrature(1)%free()
+      deallocate(this%face_quadrature)
+
+     call this%face_map(1)%free()
+     call this%face_map(2)%free()
+     deallocate(this%face_map)
   end if
   
   do iblock = 1, this%number_blocks
@@ -372,6 +378,13 @@ function get_number_interior_faces ( this )
   get_number_interior_faces = this%triangulation%number_interior_faces
 end function get_number_interior_faces
 
+function get_number_boundary_faces ( this )
+  implicit none
+  class(SB_serial_fe_space_t), intent(in) :: this
+  integer(ip)                 :: get_number_boundary_faces
+  get_number_boundary_faces = this%triangulation%number_boundary_faces
+end function get_number_boundary_faces
+
 function get_number_fe_spaces( this)
   implicit none
   class(SB_serial_fe_space_t), intent(in) :: this 
@@ -383,10 +396,9 @@ function get_finite_element( this, i )
   implicit none
   class(SB_serial_fe_space_t), target, intent(in) :: this
   integer(ip) :: i
-  class(SB_finite_element_t), pointer :: get_finite_element
+  type(SB_finite_element_t), pointer :: get_finite_element
   get_finite_element => this%fe_array(i)
 end function get_finite_element
-
 
 function get_finite_face( this, i )
   implicit none
@@ -512,15 +524,26 @@ subroutine create_element_to_dof_and_ndofs( fe_space, init_dof, var )
   ! never appear in interior nodes in cG.
   !if ( ( .not. fe_space%static_condensation )  ) then
   do ielem = 1, fe_space%triangulation%num_elems
-     iobje = fe_space%triangulation%elems(ielem)%num_vefs+1
-     do inode = 1, fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_number_interior_nodes_vef(iobje)
-        !fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje), &
-        !  &     fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje+1)-1
-        l_node = fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_interior_node_vef(inode,iobje)
-        !l_node = fe_space%fe_array(ielem)%nodes_per_vef%p%l(inode)
-        init_dof = init_dof +1
-        fe_space%fe_array(ielem)%elem2dof(var)%p(l_node) = init_dof
-     end do
+     !write(*,*) __FILE__,__LINE__,jelem,  .not. fe_space%fe_array(jelem)%reference_fe_phy(var)%p%get_continuity()
+     if ( .not. fe_space%fe_array(jelem)%reference_fe_phy(var)%p%get_continuity() ) then
+        do iobje = 1, fe_space%triangulation%elems(ielem)%num_vefs+1
+           do inode = 1, fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_number_interior_nodes_vef(iobje)
+              l_node = fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_interior_node_vef(inode,iobje)
+              init_dof = init_dof + 1
+              fe_space%fe_array(ielem)%elem2dof(var)%p(l_node) = init_dof
+           end do
+        end do
+     else
+        iobje = fe_space%triangulation%elems(ielem)%num_vefs+1
+        do inode = 1, fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_number_interior_nodes_vef(iobje)
+           !fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje), &
+           !  &     fe_space%fe_array(ielem)%nodes_per_vef%p%p(iobje+1)-1
+           l_node = fe_space%fe_array(ielem)%reference_fe_phy(var)%p%get_interior_node_vef(inode,iobje)
+           !l_node = fe_space%fe_array(ielem)%nodes_per_vef%p%l(inode)
+           init_dof = init_dof +1
+           fe_space%fe_array(ielem)%elem2dof(var)%p(l_node) = init_dof
+        end do
+     end if
   end do
   !end if 
 

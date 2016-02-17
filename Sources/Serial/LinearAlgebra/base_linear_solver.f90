@@ -582,6 +582,7 @@ contains
       character(len=*)           , intent(in) :: file_path
       ! Locals
       integer(ip) :: luout
+      assert ( this%state == workspace_allocated )
       if (this%track_convergence_history) then
         luout = io_open ( file_path, 'write')
         call this%print_convergence_history_header(luout)
@@ -735,18 +736,18 @@ contains
       class(base_linear_solver_t), intent(inout) :: this
       if (this%track_convergence_history) then
          if ( allocated(this%error_estimate_history_convergence_test) ) then
-           if ( this%num_iterations /= size(this%error_estimate_history_convergence_test) ) then
-             call memrealloc(this%num_iterations, this%error_estimate_history_convergence_test, __FILE__, __LINE__)
+           if ( this%max_num_iterations /= size(this%error_estimate_history_convergence_test) ) then
+             call memrealloc(this%max_num_iterations, this%error_estimate_history_convergence_test, __FILE__, __LINE__)
            end if
          else
-             call memalloc(this%num_iterations, this%error_estimate_history_convergence_test, __FILE__, __LINE__)
+             call memalloc(this%max_num_iterations, this%error_estimate_history_convergence_test, __FILE__, __LINE__)
          end if
          if ( allocated(this%error_estimate_history_extra_convergence_test) ) then
            if ( this%num_iterations /= size(this%error_estimate_history_extra_convergence_test) ) then
-             call memrealloc(this%num_iterations, this%error_estimate_history_extra_convergence_test, __FILE__, __LINE__)
+             call memrealloc(this%max_num_iterations, this%error_estimate_history_extra_convergence_test, __FILE__, __LINE__)
            end if
          else
-             call memalloc(this%num_iterations, this%error_estimate_history_extra_convergence_test, __FILE__, __LINE__)
+             call memalloc(this%max_num_iterations, this%error_estimate_history_extra_convergence_test, __FILE__, __LINE__)
          end if
       end if
     end subroutine allocate_convergence_history

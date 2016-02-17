@@ -325,7 +325,7 @@ program test_reference_fe
   ! Construct triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
-  problem_id = 1
+  problem_id = 0
   if ( problem_id == 1) then
      ! Composite case
      reference_fe_array_two(1) = make_reference_fe ( topology = "quad", &

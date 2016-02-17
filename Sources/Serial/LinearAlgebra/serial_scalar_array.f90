@@ -133,7 +133,6 @@ contains
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
     assert ( this%state == created )
-    !write(*,*) 1/0.0_rp
     call memallocp(this%size,this%b,__FILE__,__LINE__)
     this%b    = 0.0_rp
     this%state = entries_ready
