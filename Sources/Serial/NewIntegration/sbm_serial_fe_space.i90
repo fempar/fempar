@@ -318,7 +318,7 @@ function create_assembler(this, &
 	blocks_coupling = .false.
 	do jfe_space=1,this%number_fe_spaces
 	   do ife_space=1,this%number_fe_spaces
-		 blocks_coupling(this%field_blocks(ife_space), this%field_blocks(jfe_space)) = & 			        this%field_coupling(ife_space,jfe_space)
+		 blocks_coupling(this%field_blocks(ife_space), this%field_blocks(jfe_space)) =  this%field_coupling(ife_space,jfe_space)
            end do
 	end do
 								
