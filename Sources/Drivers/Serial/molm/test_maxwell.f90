@@ -364,19 +364,20 @@ program test_reference_fe
   call fe_affine_operator_range_vector_space%create_vector(vector)
 
   ! Create linear solver, set operators and solve linear system
-   ! call linear_solver%create(senv)
-   ! call linear_solver%set_type_and_parameters_from_pl()
-   ! call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-   ! call linear_solver%solve(vector)
-   ! call linear_solver%free() 
+    call linear_solver%create(senv)
+    call linear_solver%set_type_and_parameters_from_pl()
+    call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+    call linear_solver%solve(vector)
+   ! call linear_solver%print_convergence_history('csic')
+    call linear_solver%free() 
 
 !  ===============================   ABSTRACT    SOLVE       ==================================
-  call vector%init(0.0_rp)
-  sctrl%method = lgmres
-  sctrl%trace  = 1
-  sctrl%track_conv_his = .true.
-  sctrl%rtol = 1.0e-06_rp
-  call abstract_solve(matrix, .identity. fe_affine_operator , rhs, vector, sctrl, senv ) 
+  ! call vector%init(0.0_rp)
+  ! sctrl%method = lgmres
+  ! sctrl%trace  = 1
+  ! sctrl%track_conv_his = .true.
+  ! sctrl%rtol = 1.0e-06_rp
+  ! call abstract_solve(matrix, .identity. fe_affine_operator , rhs, vector, sctrl, senv ) 
 
    select type(vector)
      class is(serial_block_array_t)

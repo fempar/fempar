@@ -773,7 +773,6 @@ end subroutine abstract_ipcg
 
        ! start iterations
        kloc = 0
-       kloc = 0
        inner: do while ( (.not.exit_loop) .and. &
             &            (ctrl%it < ctrl%itmax) .and. &
             &            (kloc < ctrl%dkrymax))
@@ -1106,6 +1105,7 @@ use blas77_interfaces_names
     if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
     end if
+
     ctrl%it = 0
   outer: do while ( (.not.exit_loop) .and. &
        &            (ctrl%it < ctrl%itmax))

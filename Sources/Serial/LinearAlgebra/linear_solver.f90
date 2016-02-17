@@ -33,6 +33,7 @@ module linear_solver_names
   use richardson_names
   use cg_names
   use rgmres_names
+  use lgmres_names 
   
   ! Abstract modules
   use vector_names
@@ -138,6 +139,7 @@ contains
      !this%base_linear_solver => create_richardson(this%environment)
      !this%base_linear_solver => create_cg(this%environment)
      this%base_linear_solver => create_rgmres(this%environment)
+     !this%base_linear_solver => create_lgmres(this%environment)
      assert ( this%base_linear_solver%get_state() == start )
      this%state = solver_type_set
    end subroutine linear_solver_set_type_from_pl

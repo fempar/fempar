@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module rgmres_names
+module lgmres_names
   use types_names
   use stdio_names
   use memor_names
@@ -42,7 +42,7 @@ module rgmres_names
 # include "debug.i90"
   private
   
-  character(len=*), parameter :: rgmres_name = 'RGMRES'
+  character(len=*), parameter :: lgmres_name = 'LGMRES'
   character(len=*), parameter :: ls_dkrymax                   = 'linear_solver_dkrymax'
   character(len=*), parameter :: ls_orthonorm_strat           = 'linear_solver_orthonorm_strat'
   character(len=*), parameter :: orthonorm_strat_icgsro       = 'ICGSRO' 
@@ -53,11 +53,11 @@ module rgmres_names
   integer (ip), parameter :: icgsro = 2 ! icgs: Iterative Classical Gram-Schmidt 
                                         !       (appropriate for distributed GMRES)
   
-  integer (ip)    , parameter :: default_rgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
+  integer (ip)    , parameter :: default_lgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
   integer (ip)    , parameter :: default_dkrymax           = 30
   integer (ip)    , parameter :: default_orthonorm_strat   = icgsro
   
-  type, extends(base_linear_solver_t) :: rgmres_t
+  type, extends(base_linear_solver_t) :: lgmres_t
      ! Parameters
      integer(ip)                    :: dkrymax
      integer(ip)                    :: orthonorm_strat
@@ -65,30 +65,33 @@ module rgmres_names
      ! Working space data members
      type(multivector_t)            :: bkry
      class(vector_t), allocatable   :: r, z  
-     real(rp)       , allocatable   :: hh(:,:), g(:), cs(:,:)
+     real(rp)       , allocatable   :: hh(:,:), g(:), cs(:,:), g_aux(:)
    contains
-     procedure          :: allocate_workspace            => rgmres_allocate_workspace
-     procedure          :: free_workspace                => rgmres_free_workspace
-     procedure          :: set_parameters_from_pl        => rgmres_set_parameters_from_pl
-     procedure          :: solve_body                    => rgmres_solve_body
-     procedure          :: supports_stopping_criteria    => rgmres_supports_stopping_criteria
-     procedure          :: get_default_stopping_criteria => rgmres_get_default_stopping_criteria
-  end type rgmres_t
+     procedure          :: allocate_workspace            => lgmres_allocate_workspace
+     procedure          :: free_workspace                => lgmres_free_workspace
+     procedure          :: set_parameters_from_pl        => lgmres_set_parameters_from_pl
+     procedure          :: solve_body                    => lgmres_solve_body
+     procedure          :: supports_stopping_criteria    => lgmres_supports_stopping_criteria
+     procedure          :: get_default_stopping_criteria => lgmres_get_default_stopping_criteria
+  end type lgmres_t
   
   ! Data types
-  public :: rgmres_t, create_rgmres
+  public :: lgmres_t, create_lgmres
   public :: ls_dkrymax, ls_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
   public :: default_dkrymax, default_orthonorm_strat
   public :: mgsro, icgsro
   public :: modified_gs_reorthonorm, iterative_gs_reorthonorm, apply_givens_rotation
   
 contains
-  subroutine rgmres_allocate_workspace(this)
+  subroutine lgmres_allocate_workspace(this)
     implicit none
-    class(rgmres_t), intent(inout) :: this
+    class(lgmres_t), intent(inout) :: this
     type(vector_space_t), pointer :: range
     type(dynamic_state_operator_t), pointer :: A, M
     class(environment_t), pointer :: environment
+    integer(ip)                   :: stopping_criteria
+
+    stopping_criteria = this%get_stopping_criteria()
     A => this%get_A()
     range  => A%get_range_vector_space()
     call range%create_vector(this%r)
@@ -100,27 +103,33 @@ contains
     call memalloc(this%dkrymax+1,this%dkrymax+1,this%hh,__FILE__,__LINE__)
     call memalloc(this%dkrymax+1,this%g,__FILE__,__LINE__)
     call memalloc(2,this%dkrymax+1,this%cs,__FILE__,__LINE__)
-  end subroutine rgmres_allocate_workspace
+      if ( stopping_criteria == res_res .or. stopping_criteria == res_rhs ) then
+       call memalloc(this%dkrymax+1,this%g_aux,__FILE__,__LINE__)
+    end if
+  end subroutine lgmres_allocate_workspace
   
-  subroutine rgmres_free_workspace(this)
+  subroutine lgmres_free_workspace(this)
     implicit none
-    class(rgmres_t), intent(inout) :: this
+    class(lgmres_t), intent(inout) :: this
     call this%r%free()
     call this%z%free()
     call this%bkry%free()
     call memfree(this%hh,__FILE__,__LINE__)
     call memfree(this%g,__FILE__,__LINE__)
     call memfree(this%cs,__FILE__,__LINE__)
-  end subroutine rgmres_free_workspace
+      if ( this%get_stopping_criteria() == res_res .or. res_rhs ) then 
+    call memfree(this%g_aux,__FILE__,__LINE__)
+      end if
+  end subroutine lgmres_free_workspace
 
-  subroutine rgmres_set_parameters_from_pl(this) 
+  subroutine lgmres_set_parameters_from_pl(this) 
    implicit none
-   class(rgmres_t), intent(inout) :: this
-  end subroutine rgmres_set_parameters_from_pl
+   class(lgmres_t), intent(inout) :: this
+  end subroutine lgmres_set_parameters_from_pl
   
-  subroutine rgmres_solve_body(this,x)
+  subroutine lgmres_solve_body(this,x)
     implicit none
-    class(rgmres_t)    , intent(inout) :: this
+    class(lgmres_t)    , intent(inout) :: this
     class(vector_t)    , intent(inout) :: x 
 
     ! Local variables to store a copy/reference of the corresponding member variables of base class
@@ -138,8 +147,8 @@ contains
     real(rp)   , pointer :: error_estimate_history_convergence_test(:)
     
     integer(ip)                :: ierrc
-    integer(ip)                :: kloc, i, j, k_hh, id
-    real(rp)                   :: res_norm, rhs_norm
+    integer(ip)                :: kloc, kloc_aux, i, j, k_hh, id
+    real(rp)                   :: res_norm, res_2_norm, rhs_norm
     real(rp)                   :: alpha, c, s
     integer                    :: me, np
     logical                    :: exit_loop
@@ -180,6 +189,16 @@ contains
 
     ! res_norm = ||r||_2
     res_norm = this%r%nrm2()
+
+    if ( stopping_criteria == res_res .or. stopping_criteria == res_rhs  ) then
+       res_2_norm = this%r%nrm2()
+    end if
+
+     ! z=inv(M)r
+    call M%apply(this%r,this%z)
+
+    ! Evaluate ||z||_2
+    res_norm = this%z%nrm2()
     
     if ( stopping_criteria == res_nrmgiven_rhs_nrmgiven ) then
         rhs_convergence_test = rtol * rhs_norm + atol
@@ -187,6 +206,12 @@ contains
     else if ( stopping_criteria == res_nrmgiven_res_nrmgiven ) then
         rhs_convergence_test = rtol * res_norm + atol
         error_estimate_convergence_test = res_norm
+    else if ( stopping_criteria == res_res ) then
+       rhs_convergence_test = rtol * res_2_norm + atol
+       error_estimate_convergence_test = res_2_norm
+    else if ( stopping_criteria == res_rhs ) then
+       rhs_convergence_test = rtol * rhs_norm + atol
+       error_estimate_convergence_test = res_2_norm
     end if
     
     exit_loop = (error_estimate_convergence_test <= rhs_convergence_test)
@@ -206,17 +231,20 @@ contains
 
           ! r = b-r
           call this%r%axpby(1.0_rp,b,-1.0_rp)
+           
+          ! z=inv(M)r
+          call M%apply(this%r,this%z)  
 
-          ! res_norm = ||r||_2
-          res_norm = this%r%nrm2()
-       end if
+          ! Evaluate ||z||_2
+          res_norm = this%z%nrm2()          
+         end if
 
-       ! Normalize residual direction (i.e., v_1 = r/||r||_2)
+       ! Normalize preconditioned residual direction (i.e., v_1 = z/||z||_2)
        bkryv => this%bkry%get(1)
        call bkryv%clone(x)
        if ( environment%am_i_fine_task() ) then 
           if (res_norm /= 0.0_rp) then
-             call bkryv%scal(1.0_rp/res_norm, this%r)
+             call bkryv%scal(1.0_rp/res_norm, this%z)
           end if
        end if
        ! residual in the krylov basis
@@ -231,12 +259,12 @@ contains
           kloc  = kloc  + 1
           num_iterations = num_iterations + 1
 
-          ! Generate new basis vector
+           ! Generate new basis vector
           bkryv => this%bkry%get(kloc)
-          call M%apply( bkryv, this%z )
+          call A%apply(bkryv,this%r)
           bkryv => this%bkry%get(kloc+1)
           call bkryv%clone(x)
-          call A%apply(this%z, bkryv)
+          call M%apply(this%r, bkryv)
 
           if ( environment%am_i_fine_task() ) then
              ! Orthogonalize
@@ -273,19 +301,77 @@ contains
              this%cs(1,kloc) = c
              this%cs(2,kloc) = s
 
-             ! Update residual vector 
-             ! (expressed in terms of the Krylov basis)
+             ! Update preconditioned residual vector 
+             ! (expressed in terms of the preconditioned Krylov basis)
              alpha = -s*this%g(kloc)
              this%g(kloc) = c*this%g(kloc)
              this%g(kloc+1) = alpha
 
              ! Error norm
              res_norm = abs(alpha)
-             error_estimate_convergence_test  = res_norm
+
+             if (stopping_criteria == res_res .or. stopping_criteria == res_rhs ) then
+                kloc_aux          = kloc 
+                this%g_aux(1:kloc_aux) = this%g(1:kloc_aux) 
+                if ( kloc_aux > 0 ) then
+                   ! Compute the solution
+                   ! If zero on the diagonal, 
+                   ! solve a reduced linear system
+                   do while ( kloc_aux > 0 ) ! .and. hh(kloc_aux,kloc_aux) == 0.0_rp  )
+                      if(this%hh(kloc_aux,kloc_aux) /= 0.0_rp) exit
+                      kloc_aux = kloc_aux - 1
+                   end do
+
+                   if ( kloc_aux <= 0 ) then
+                      write (luout,*) '** Warning: LGMRES: triangular system in GMRES has null rank'
+                      ! The coarse-grid task should exit 
+                      ! the outer-do loop. Send signal. 
+                      exit_loop = .true.
+                      call environment%bcast(exit_loop)
+                      call environment%bcast(exit_loop)
+                      exit outer ! Exit outer do loop     
+                   end if
+
+#ifdef ENABLE_BLAS       
+                   !N    !A  !LDA        !X !INCX
+                   call DTRSV ( 'U', 'N', 'N', kloc_aux, this%hh, this%dkrymax+1, this%g_aux, 1)
+#else
+                   ! Solve the system hh*y = g_aux
+                   ! Solution stored on g_aux itself
+                   do j = kloc_aux,1,-1
+                      this%g_aux(j) = this%g_aux(j)/this%hh(j,j)
+                      do i = j-1,1,-1
+                         this%g_aux(i) = this%g_aux(i) - this%hh(i,j) * this%g_aux(j)
+                      end do
+                   end do
+#endif
+
+                   ! Now g contains the solution in the krylov basis
+                   ! Compute the solution in the global space
+                   call this%z%copy(x)
+
+                   ! z <-z +  g_aux_1 * v_1 + g_aux_2 * v_2 + ... + g_aux_kloc_aux * v_kloc_aux
+                   call this%bkry%multiaxpy(kloc_aux, this%z, 1.0_rp, this%g_aux )
+                   
+                   ! r = Az
+                   call A%apply(this%z,this%r)
+
+                   ! r = b-r
+                   ! call generic_pxmy(b,r)
+                   call this%r%axpby(1.0_rp,b,-1.0_rp)
+
+                   res_2_norm = this%r%nrm2()
+                end if
+                error_estimate_convergence_test = res_2_norm
+             else
+                error_estimate_convergence_test = res_norm
+             end if
+
              if (track_convergence_history) then 
                 error_estimate_history_convergence_test(num_iterations) = error_estimate_convergence_test
              end if
           end if
+
           exit_loop = (error_estimate_convergence_test <= rhs_convergence_test) 
           ! Send converged to coarse-grid tasks
           call environment%bcast(exit_loop)
@@ -293,101 +379,107 @@ contains
           call this%print_convergence_history_new_line(luout)
        end do inner
 
-       if ( kloc > 0 ) then
-          if ( environment%am_i_fine_task() ) then
-             if ( ierrc == -2 ) then
-                write (luout,*) '** Warning: RGMRES: ortho failed due to abnormal numbers, no way to proceed'
-                ! The coarse-grid task should exit 
-                ! the outer-do loop. Send signal. 
-                exit_loop = .true.
-                call environment%bcast(exit_loop)
-                exit outer ! Exit main do-loop
-             end if
-
-             ! Compute the solution
-             ! If zero on the diagonal, 
-             ! solve a reduced linear system
-             do while ( kloc > 0 ) ! .and. hh(kloc,kloc) == 0.0_rp  )
-                if(this%hh(kloc,kloc) /= 0.0_rp) exit
-                kloc = kloc - 1
-             end do
-
-             if ( kloc <= 0 ) then
-                write (luout,*) '** Warning: RGMRES: triangular system in GMRES has null rank'
-                exit_loop = .true.
-                call environment%bcast(exit_loop)
-                exit outer ! Exit main do loop     
-             end if
-
-#ifdef ENABLE_BLAS       
-             !N    !A  !LDA        !X !INCX
-             call DTRSV ( 'U', 'N', 'N', kloc, this%hh, this%dkrymax+1, this%g, 1)
-#else
-             ! Solve the system hh*y = g
-             ! Solution stored on g itself
-             do j = kloc,1,-1
-                this%g(j) = this%g(j)/this%hh(j,j)
-                do i = j-1,1,-1
-                   this%g(i) = this%g(i) - this%hh(i,j) * this%g(j)
-                end do
-             end do
-#endif       
+       if ( environment%am_i_fine_task() ) then ! Am I a fine task ?
+          if ( ierrc == -2 ) then
+             write (luout,*) '** Warning: LGMRES: ortho failed due to abnormal numbers, no way to proceed'
+             ! The coarse-grid task should exit 
+             ! the outer-do loop. Send signal. 
+             exit_loop = .true.
+             call environment%bcast(exit_loop)
+             exit outer ! Exit outer do-loop
           end if
 
-          ! Now g contains the solution in the krylov basis
-          ! Compute the solution in the real space
-          call this%r%init(0.0_rp)
+          if ( stopping_criteria /= res_res .and. stopping_criteria /= res_rhs ) then
+             if ( kloc > 0 ) then
+                ! Compute the solution
+                ! If zero on the diagonal, 
+                ! solve a reduced linear system
+                do while ( kloc > 0 ) !.and. hh(kloc,kloc) == 0.0_rp  )
+                   if(this%hh(kloc,kloc) /= 0.0_rp) exit
+                   kloc = kloc - 1
+                end do
 
-          ! r <- g_1 * v_1 + g_2 * v_2 + ... + g_kloc * v_kloc
-          call this%bkry%multiaxpy(kloc, this%r, 1.0_rp, this%g)
+                if ( kloc <= 0 ) then
+                   write (luout,*) '** Warning: LGMRES: triangular system in GMRES has null rank'
+                   ! The coarse-grid task should exit 
+                   ! the outer-do loop. Send signal. 
+                   exit_loop = .true.
+                   call environment%bcast(exit_loop)
+                   exit outer ! Exit outer do loop     
+                end if
+                
+#ifdef ENABLE_BLAS       
+                !N    !A  !LDA        !X !INCX
+                call DTRSV ( 'U', 'N', 'N', kloc,this% hh, this%dkrymax+1, this%g, 1)
+#else
+                ! Solve the system hh*y = g
+                ! Solution stored on g itself
+                do j = kloc,1,-1
+                   this%g(j) = this%g(j)/this%hh(j,j)
+                   do i = j-1,1,-1
+                      this%g(i) = this%g(i) - this%hh(i,j) * this%g(j)
+                   end do
+                end do
+#endif
 
-          ! Solve Mz = r
-          call M%apply(this%r,this%z)
+                ! Now g contains the solution in the krylov basis
+                ! Compute the solution in the global space
+                call this%z%init(0.0_rp)
 
-          ! x <- x + z
-          call x%axpby(1.0_rp,this%z,1.0_rp)
-
-          exit_loop = (error_estimate_convergence_test <= rhs_convergence_test)
-          ! Send converged to coarse-grid tasks
-          call environment%bcast(exit_loop)
+                ! z <- z +  g_1 * v_1 + g_2 * v_2 + ... + g_kloc * v_kloc
+                call this%bkry%multiaxpy(kloc, this%z, 1.0_rp, this%g)
+                
+                ! x <- x + z 
+                call x%axpby(1.0_rp,this%z,1.0_rp)
+             endif
+          else
+             ! x <- z
+             call x%copy(this%z)
+          end if
        end if
+
+     exit_loop = (error_estimate_convergence_test <= rhs_convergence_test)
+       ! Send converged to coarse-grid tasks
+       call environment%bcast(exit_loop)
     end do outer
     did_converge = (error_estimate_convergence_test <= rhs_convergence_test)
     ! Send converged to coarse-grid tasks
     call environment%bcast(did_converge)
     call this%print_convergence_history_footer(luout)
-  end subroutine rgmres_solve_body
+  end subroutine lgmres_solve_body
 
-  function rgmres_supports_stopping_criteria(this,stopping_criteria)
+  function lgmres_supports_stopping_criteria(this,stopping_criteria)
     implicit none
-    class(rgmres_t), intent(in) :: this
+    class(lgmres_t), intent(in) :: this
     integer(ip), intent(in) :: stopping_criteria
-    logical :: rgmres_supports_stopping_criteria
-    rgmres_supports_stopping_criteria = ( stopping_criteria == res_nrmgiven_rhs_nrmgiven .or. &
-                                          stopping_criteria == res_nrmgiven_res_nrmgiven )
-  end function rgmres_supports_stopping_criteria
+    logical :: lgmres_supports_stopping_criteria
+    lgmres_supports_stopping_criteria = ( stopping_criteria == res_nrmgiven_rhs_nrmgiven .or. &
+                                          stopping_criteria == res_nrmgiven_res_nrmgiven .or. &
+                                          stopping_criteria == res_res                   .or. &
+                                          stopping_criteria == res_rhs  )
+  end function lgmres_supports_stopping_criteria
   
-  function rgmres_get_default_stopping_criteria(this)
+  function lgmres_get_default_stopping_criteria(this)
     implicit none
-    class(rgmres_t), intent(in) :: this
-    integer(ip) :: rgmres_get_default_stopping_criteria
-    rgmres_get_default_stopping_criteria = default_rgmres_stopping_criteria
-  end function rgmres_get_default_stopping_criteria
+    class(lgmres_t), intent(in) :: this
+    integer(ip) :: lgmres_get_default_stopping_criteria
+    lgmres_get_default_stopping_criteria = default_lgmres_stopping_criteria
+  end function lgmres_get_default_stopping_criteria
   
-  function create_rgmres(environment)
+  function create_lgmres(environment)
     implicit none
     class(environment_t), intent(in) :: environment
-    class(base_linear_solver_t), pointer :: create_rgmres
-    type(rgmres_t), pointer :: rgmres
-    allocate(rgmres)
-    call rgmres%set_environment(environment)
-    call rgmres%set_name(rgmres_name)
-    call rgmres%set_defaults()
-    rgmres%dkrymax = default_dkrymax
-    rgmres%orthonorm_strat = default_orthonorm_strat
-    call rgmres%set_state(start)
-    create_rgmres => rgmres
-  end function create_rgmres
+    class(base_linear_solver_t), pointer :: create_lgmres
+    type(lgmres_t), pointer :: lgmres
+    allocate(lgmres)
+    call lgmres%set_environment(environment)
+    call lgmres%set_name(lgmres_name)
+    call lgmres%set_defaults()
+    lgmres%dkrymax = default_dkrymax
+    lgmres%orthonorm_strat = default_orthonorm_strat
+    call lgmres%set_state(start)
+    create_lgmres => lgmres
+  end function create_lgmres
   
   
     !=============================================================================
@@ -602,4 +694,4 @@ contains
     y = rzero
   end subroutine apply_givens_rotation
   
-end module rgmres_names
+end module lgmres_names
