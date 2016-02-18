@@ -88,9 +88,7 @@ contains
     call fe_space%create_fe_function(1,fe_unknown_scalar)
     call fe_space%create_fe_function(2,fe_unknown_vector)
     
-    if(associated(this%dof_values)) then
-       vector_dof_values => this%dof_values
-    end if
+    vector_dof_values => this%dof_values
     
     do ielem = 1, fe_space%get_number_elements()
        elmat = 0.0_rp
@@ -106,13 +104,8 @@ contains
        bc_code           => fe%get_bc_code()
        bc_value          => fe%get_bc_value()
 						
-       if(associated(this%dof_values)) then
-          call fe%update_values(fe_unknown_scalar, vector_dof_values)
-          call fe%update_values(fe_unknown_vector, vector_dof_values)
-       else
-          call fe%update_values(fe_unknown_scalar)
-          call fe%update_values(fe_unknown_vector)
-       end if
+       call fe%update_values(fe_unknown_scalar, vector_dof_values)
+       call fe%update_values(fe_unknown_vector, vector_dof_values)
        
        do igaus = 1,ngaus
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)

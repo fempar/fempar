@@ -258,40 +258,26 @@ program test_heterogeneous_poisson
                                    triangulation=f_trian, &
                                    fe_space=fe_space, &
                                    discrete_integration=heterogeneous_poisson_integration )
-     
+  
+  fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+  call fe_affine_operator_range_vector_space%create_vector(dof_values)
+  heterogeneous_poisson_integration%dof_values => dof_values
+  call dof_values%init(0.0_rp)
+  call fe_affine_operator_range_vector_space%create_vector(residual)   
+  
   call fe_affine_operator%symbolic_setup()
-  call fe_affine_operator%numerical_setup()
-  call fe_affine_operator%free_in_stages(free_numerical_setup)
   call fe_affine_operator%numerical_setup()
   
   do  while (residual_nrm2 > tol .and. count <= max_number_iterations)
-  
-     if (count == 1) then
-        fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-        call fe_affine_operator_range_vector_space%create_vector(dof_values)
-        heterogeneous_poisson_integration%dof_values => dof_values
-        call fe_affine_operator_range_vector_space%create_vector(residual)
-     end if
-     fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
      
      ! Create linear solver, set operators and solve linear system
      call linear_solver%create(senv)
      call linear_solver%set_type_and_parameters_from_pl()
      call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     call linear_solver%set_initial_solution(dof_values)
      call linear_solver%solve(dof_values)
      call linear_solver%free()
      
-     call fe_affine_operator%free()
-     call fe_affine_operator%create (sparse_matrix_storage_format= 'CSR', &
-                                     diagonal_blocks_symmetric_storage=(/.true./), &
-                                     diagonal_blocks_symmetric=(/.true./), &
-                                     diagonal_blocks_sign=(/positive_definite/), &
-                                     triangulation=f_trian, &
-                                     fe_space=fe_space, &
-                                     discrete_integration=heterogeneous_poisson_integration )
-     
-     call fe_affine_operator%symbolic_setup()
-     call fe_affine_operator%numerical_setup()
      call fe_affine_operator%free_in_stages(free_numerical_setup)
      call fe_affine_operator%numerical_setup()
      

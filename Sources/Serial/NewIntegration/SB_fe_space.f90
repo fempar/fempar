@@ -134,6 +134,8 @@ module SB_fe_space_names
      procedure, non_overridable :: free                => finite_face_free
      procedure, non_overridable :: is_boundary         => finite_face_is_boundary
      procedure, non_overridable :: number_neighbours   => finite_face_number_neighbours
+     procedure, non_overridable :: get_bc_code         => finite_face_get_bc_code
+     procedure, non_overridable :: get_bc_value        => finite_face_get_bc_value
      procedure, non_overridable :: get_elem2dof        => finite_face_get_elem2dof
      procedure, non_overridable :: get_map             => finite_face_get_map
      procedure, non_overridable :: get_quadrature      => finite_face_get_quadrature
@@ -186,13 +188,15 @@ module SB_fe_space_names
      procedure, non_overridable :: get_number_blocks
      procedure, non_overridable :: get_field_blocks
      procedure, non_overridable :: get_field_coupling
-     procedure, non_overridable :: get_max_number_nodes
+     procedure, private         :: get_max_number_nodes_field
+     procedure, private         :: get_max_number_nodes_fe_space
+     generic :: get_max_number_nodes => get_max_number_nodes_field, &
+                                      & get_max_number_nodes_fe_space
+     procedure, non_overridable :: get_max_number_quadrature_points
      procedure, non_overridable :: create_face_array
-     
      procedure, private         :: create_fe_function_scalar
      procedure, private         :: create_fe_function_vector
      procedure, private         :: create_fe_function_tensor
-     
      generic :: create_fe_function => create_fe_function_scalar, &
                                     & create_fe_function_vector, &
                                     & create_fe_function_tensor
@@ -205,8 +209,8 @@ module SB_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes             ! Not used
-   integer(ip) :: current_number_quadrature_points ! Not used
+   integer(ip) :: current_number_nodes             ! Not being used
+   integer(ip) :: current_number_quadrature_points
    
    integer(ip) :: max_number_nodes  
    integer(ip) :: max_number_quadrature_points          
@@ -215,7 +219,7 @@ module SB_fe_space_names
    real(rp), allocatable :: quadrature_points_values(:)
 
   contains
-     procedure, non_overridable :: create                               => fe_function_scalar_create
+     procedure, non_overridable, private :: create                      => fe_function_scalar_create
      procedure, non_overridable :: get_fe_space_id                      => fe_function_scalar_get_fe_space_id
      procedure, non_overridable :: get_nodal_values                     => fe_function_scalar_get_nodal_values
      procedure, non_overridable :: get_quadrature_points_values         => fe_function_scalar_get_quadrature_points_values
@@ -229,8 +233,8 @@ module SB_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes             ! Not used
-   integer(ip) :: current_number_quadrature_points ! Not used           
+   integer(ip) :: current_number_nodes             ! Not being used
+   integer(ip) :: current_number_quadrature_points           
    
    integer(ip) :: max_number_quadrature_points
    integer(ip) :: max_number_nodes            
@@ -239,7 +243,7 @@ module SB_fe_space_names
    type(vector_field_t), allocatable :: quadrature_points_values(:)
 
   contains
-     procedure, non_overridable :: create                               => fe_function_vector_create
+     procedure, non_overridable, private :: create                      => fe_function_vector_create
      procedure, non_overridable :: get_fe_space_id                      => fe_function_vector_get_fe_space_id
      procedure, non_overridable :: get_nodal_values                     => fe_function_vector_get_nodal_values      
      procedure, non_overridable :: get_quadrature_points_values         => fe_function_vector_get_quadrature_points_values
@@ -253,8 +257,8 @@ module SB_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes             ! Not used
-   integer(ip) :: current_number_quadrature_points ! Not used        
+   integer(ip) :: current_number_nodes             ! Not being used
+   integer(ip) :: current_number_quadrature_points     
    
    integer(ip) :: max_number_nodes    
    integer(ip) :: max_number_quadrature_points        
@@ -263,7 +267,7 @@ module SB_fe_space_names
    type(tensor_field_t), allocatable :: quadrature_points_values(:)
    
   contains
-     procedure, non_overridable :: create                               => fe_function_tensor_create
+     procedure, non_overridable, private :: create                      => fe_function_tensor_create
      procedure, non_overridable :: get_fe_space_id                      => fe_function_tensor_get_fe_space_id
      procedure, non_overridable :: get_nodal_values                     => fe_function_tensor_get_nodal_values  
      procedure, non_overridable :: get_quadrature_points_values         => fe_function_tensor_get_quadrature_points_values          
