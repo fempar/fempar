@@ -35,14 +35,14 @@ module command_line_parameters_names
 
   type test_heterogeneous_poisson_params_t
      
-					! IO parameters
-					character(len=:), allocatable :: default_dir_path
+     ! IO parameters
+     character(len=:), allocatable :: default_dir_path
      character(len=:), allocatable :: default_prefix
      character(len=:), allocatable :: default_dir_path_out
 					
-					! Problem parameters
+     ! Problem parameters
      character(len=:), allocatable :: default_number_of_values
-					character(len=:), allocatable :: default_temperature_points
+     character(len=:), allocatable :: default_temperature_points
      character(len=:), allocatable :: default_conductivity_values
           
   end type test_heterogeneous_poisson_params_t
@@ -64,9 +64,9 @@ contains
     params%default_prefix       = 'UnitSquare_Heterogeneous'
     params%default_dir_path_out = 'output'
 
-				! Problem parameters
+    ! Problem parameters
     params%default_number_of_values = '2'
-				params%default_temperature_points = '0.0 100.0'
+    params%default_temperature_points = '0.0 100.0'
     params%default_conductivity_values = '1.0 2.0'
 				
   end subroutine set_default_params
@@ -93,15 +93,15 @@ contains
          &       required=.false.,act='store',def=trim(params%default_dir_path_out),error=error)
     check(error==0)
 
-				! Problem parameters
-	   call cli%add(group=trim(group),switch='--number_of_values',switch_ab='-nvalu',       &
+    ! Problem parameters
+    call cli%add(group=trim(group),switch='--number_of_values',switch_ab='-nvalu',       &
          &       help='Number of values',required=.false.,act='store',                   &
          &       def=trim(params%default_number_of_values),error=error)
-	   call cli%add(group=trim(group),switch='--temperature_points',switch_ab='-temps',     &
+    call cli%add(group=trim(group),switch='--temperature_points',switch_ab='-temps',     &
          &       help='Temperature points',required=.false.,act='store',nargs='*',       &
          &       def=trim(params%default_temperature_points),error=error)
     check(error==0)
-	   call cli%add(group=trim(group),switch='--conductivity_values',switch_ab='-conds',    &
+    call cli%add(group=trim(group),switch='--conductivity_values',switch_ab='-conds',    &
          &       help='Conductivity values',required=.false.,act='store',nargs='*',      &
          &       def=trim(params%default_conductivity_values),error=error)
     check(error==0)
@@ -128,7 +128,6 @@ program test_heterogeneous_poisson
   use reference_fe_factory_names
   use SB_fe_space_names
   use SB_discrete_integration_names
-		! EN
   use heterogeneous_poisson_discrete_integration_names
   use SB_fe_affine_operator_names
   use SB_preconditioner_names
@@ -137,11 +136,11 @@ program test_heterogeneous_poisson
 
   ! Our data
   type(mesh_t)                         :: f_mesh
-		type(conditions_t)                   :: f_cond
+  type(conditions_t)                   :: f_cond
   type(conditions_t)                   :: f_cond_tri
   type(triangulation_t)                :: f_trian
 		
-		class(vector_t), allocatable, target :: dof_values, residual ! dof-stored
+  class(vector_t), allocatable, target :: dof_values, residual ! dof-stored
 
   type(linear_solver_t)                :: linear_solver
   type(vector_space_t) , pointer       :: fe_affine_operator_range_vector_space
@@ -173,7 +172,7 @@ program test_heterogeneous_poisson
   real(rp)                             :: tol, residual_nrm2
   
   count = 1
-  max_number_iterations = 40
+  max_number_iterations = 30
   tol = 1.0e-03_rp
   residual_nrm2 = 1.0_rp
 
@@ -207,22 +206,20 @@ program test_heterogeneous_poisson
   f_cond_tri%valu(2,1:f_cond%ncond) = f_cond%valu(1,1:f_cond%ncond)
   f_cond_tri%code(3,1:f_cond%ncond) = f_cond%code(1,1:f_cond%ncond)
 		
-		! Read temperature - thermal conductivity mapping
-		call cli%get(group=trim(group), &
-															switch='-nvalu', &
-															val=heterogeneous_poisson_integration%nvalu, &
-															error=istat); check(istat==0)
-		call cli%get_varying(group=trim(group), &
-																							switch='-temps', &
-																							val=heterogeneous_poisson_integration%data_points, &
-																							error=istat); check(istat==0)
-		call cli%get_varying(group=trim(group), &
-																							switch='-conds', &
-																							val=heterogeneous_poisson_integration%property_values, &
-																							error=istat); check(istat==0) 
-		
-  
-  
+  ! Read temperature - thermal conductivity mapping
+  call cli%get(group=trim(group), &
+               switch='-nvalu', &
+               val=heterogeneous_poisson_integration%nvalu, &
+               error=istat); check(istat==0)
+  call cli%get_varying(group=trim(group), &
+                       switch='-temps', &
+                       val=heterogeneous_poisson_integration%data_points, &
+                       error=istat); check(istat==0)
+  call cli%get_varying(group=trim(group), &
+                       switch='-conds', &
+                       val=heterogeneous_poisson_integration%property_values, &
+                       error=istat); check(istat==0) 
+
   ! Construct triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond_tri )
   
@@ -249,7 +246,7 @@ program test_heterogeneous_poisson
                         field_blocks = (/1,2/), &
                         field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
 
-		call fe_space%fill_dof_info() 
+  call fe_space%fill_dof_info() 
     
   call fe_affine_operator%create ( sparse_matrix_storage_format= 'CSR', &
                                    diagonal_blocks_symmetric_storage=(/.true./), &
@@ -268,9 +265,10 @@ program test_heterogeneous_poisson
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
   
+
+  
   do  while (residual_nrm2 > tol .and. count <= max_number_iterations)
      
-     ! Create linear solver, set operators and solve linear system
      call linear_solver%create(senv)
      call linear_solver%set_type_and_parameters_from_pl()
      call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
@@ -287,19 +285,19 @@ program test_heterogeneous_poisson
      write(*,*) 'Residual:',residual_nrm2
      
   end do
-
+  
   write(*,*) 'Fixed-point algorithm converged in',count,'iterations'
   
   select type(dof_values)
      class is(serial_scalar_array_t)
-					call dof_values%print(6)
+     call dof_values%print(6)
      class is(serial_block_array_t)
-					call dof_values%print(6)
+     call dof_values%print(6)
      class default
      check(.false.) 
   end select
 		
-		call dof_values%free()
+  call dof_values%free()
   call residual%free()
   call fe_affine_operator%free()
   call fe_space%free()

@@ -87,7 +87,7 @@ module par_scalar_array_names
      procedure :: same_vector_space      => par_scalar_array_same_vector_space
      procedure :: free_in_stages         => par_scalar_array_free_in_stages
      procedure :: default_initialization => par_scalar_array_default_init
-					procedure :: get_number_blocks      => par_scalar_array_get_number_blocks
+     procedure :: get_number_blocks      => par_scalar_array_get_number_blocks
      procedure :: extract_subvector      => par_scalar_array_extract_subvector
   end type par_scalar_array_t
 

@@ -69,7 +69,7 @@ contains
 
     class(vector_t), pointer              :: vector_dof_values
 				
-				number_fe_spaces = fe_space%get_number_fe_spaces()
+    number_fe_spaces = fe_space%get_number_fe_spaces()
     field_blocks    => fe_space%get_field_blocks()
     field_coupling  => fe_space%get_field_coupling()
 

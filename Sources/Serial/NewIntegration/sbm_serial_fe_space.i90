@@ -149,6 +149,9 @@ subroutine free( this )
      this%fe_array(i)%number_nodes = 0
      this%fe_array(i)%number_fe_spaces = 0
 
+     this%fe_array(i)%number_blocks = 0
+     nullify( this%fe_array(i)%field_blocks )
+     
      nullify(this%fe_array(i)%quadrature)
      nullify(this%fe_array(i)%fe_map)
 

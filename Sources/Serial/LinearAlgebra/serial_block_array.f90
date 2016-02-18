@@ -39,7 +39,6 @@ module serial_block_array_names
   
   integer(ip), parameter :: not_created  = 0 
   integer(ip), parameter :: blocks_container_created = 1
-  integer(ip), parameter :: entries_ready = 2
  
   ! vector
   type, extends(array_t) :: serial_block_array_t
@@ -414,17 +413,13 @@ contains
     integer(ip)                , intent(in)    :: size_indices
     integer(ip)                , intent(in)    :: indices(size_indices)
     real(rp)                   , intent(inout) :: values(*)
-    integer(ip)                                :: i
 
-    assert(this%blocks(iblock)%state == entries_ready)
     assert(iblock <= this%nblocks)
+    call this%blocks(iblock)%extract_subvector( 1, &
+                                              & size_indices, &
+                                              & indices, &
+                                              & values )
     
-    do i=1, size_indices
-      assert ( indices(i) <= this%blocks(iblock)%size )
-      if ( indices(i) > 0 ) then
-        values(i) = this%blocks(iblock)%b(indices(i))
-      end if
-    end do 
   end subroutine serial_block_array_extract_subvector
 
 end module serial_block_array_names
