@@ -250,6 +250,69 @@ subroutine quad_lagrangian_reference_fe_get_gradient_vector( this, actual_cell_i
   end do
 end subroutine quad_lagrangian_reference_fe_get_gradient_vector
 
+
+!**************************************************************************************************
+! Evaluate methods for fe_function_scalar/vector/tensor_t
+!**************************************************************************************************
+
+subroutine quad_lagrangian_reference_fe_evaluate_fe_function_scalar( this, &
+                                                                  &  actual_cell_interpolation, &
+                                                                  &  nodal_values, &
+                                                                  &  quadrature_points_values)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(SB_interpolation_t)             , intent(in)    :: actual_cell_interpolation 
+  real(rp)                             , intent(in)    :: nodal_values(:)
+  real(rp)                             , intent(inout) :: quadrature_points_values(:)
+  integer(ip)                                          :: qpoint, ishape
+
+  do qpoint = 1, actual_cell_interpolation%number_evaluation_points
+     quadrature_points_values(qpoint) = 0.0_rp
+     do ishape = 1, actual_cell_interpolation%number_shape_functions
+        quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
+        & actual_cell_interpolation%shape_functions(ishape,qpoint)*nodal_values(ishape)
+     end do
+  end do
+
+end subroutine quad_lagrangian_reference_fe_evaluate_fe_function_scalar
+
+subroutine quad_lagrangian_reference_fe_evaluate_fe_function_vector( this, &
+                                                                  &  actual_cell_interpolation, &
+                                                                  &  nodal_values, &
+                                                                  &  quadrature_points_values)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(SB_interpolation_t)             , intent(in)    :: actual_cell_interpolation 
+  real(rp)                             , intent(in)    :: nodal_values(:)
+  type(vector_field_t)                 , intent(inout) :: quadrature_points_values(:)
+  integer(ip)                                          :: qpoint, inode, icomp, inode_scalar
+  
+  do qpoint = 1, actual_cell_interpolation%number_evaluation_points
+     call quadrature_points_values(qpoint)%init(0.0_rp)
+     do inode = 1, this%number_nodes
+        inode_scalar = this%node_component_array(inode,1)
+        icomp        = this%node_component_array(inode,2)
+        call quadrature_points_values(qpoint)%add(icomp, &
+         & actual_cell_interpolation%shape_functions(inode_scalar,qpoint)*nodal_values(inode_scalar))
+     end do
+  end do
+
+end subroutine quad_lagrangian_reference_fe_evaluate_fe_function_vector
+
+subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor( this, &
+                                                                  &  actual_cell_interpolation, &
+                                                                  &  nodal_values, &
+                                                                  &  quadrature_points_values)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(SB_interpolation_t)             , intent(in)    :: actual_cell_interpolation 
+  real(rp)                             , intent(in)    :: nodal_values(:)
+  type(tensor_field_t)                 , intent(inout) :: quadrature_points_values(:)
+
+  assert( .false. )
+
+end subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor
+
 !=================================================================================================
 ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
 ! and a delay 'r' wrt to a refence element sharing the same vef.

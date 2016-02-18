@@ -74,6 +74,9 @@ subroutine create( this, &
      this%fe_array(i)%volume_integrator => this%volume_integrator
      this%fe_array(i)%reference_fe_phy => this%reference_fe_phy_list
 
+     this%fe_array(i)%number_blocks = this%number_blocks
+     this%fe_array(i)%field_blocks => this%field_blocks
+
      allocate( this%fe_array(i)%elem2dof(this%number_fe_spaces) )
      allocate( this%fe_array(i)%bc_code(this%number_fe_spaces) )
      allocate( this%fe_array(i)%bc_value(this%number_fe_spaces) )
@@ -146,6 +149,9 @@ subroutine free( this )
      this%fe_array(i)%number_nodes = 0
      this%fe_array(i)%number_fe_spaces = 0
 
+     this%fe_array(i)%number_blocks = 0
+     nullify( this%fe_array(i)%field_blocks )
+     
      nullify(this%fe_array(i)%quadrature)
      nullify(this%fe_array(i)%fe_map)
 
@@ -429,12 +435,42 @@ function get_field_coupling( this )
   get_field_coupling => this%field_coupling
 end function get_field_coupling
 
-function get_max_number_nodes( this)
+function get_max_number_nodes_field( this, ifield )
   implicit none
   class(SB_serial_fe_space_t), intent(in) :: this 
-  integer(ip) :: get_max_number_nodes
-  get_max_number_nodes = 100 ! SB.alert 
-end function get_max_number_nodes
+  integer(ip)                , intent(in) :: ifield
+  integer(ip) :: get_max_number_nodes_field, ielem
+  assert(ifield <= this%number_fe_spaces)
+  get_max_number_nodes_field = 0
+  do ielem = 1, this%get_number_elements()
+     get_max_number_nodes_field = max(this%fe_array(ielem)%reference_fe_phy(ifield)%p%get_number_nodes(), &
+                                      get_max_number_nodes_field)
+  end do
+ end function get_max_number_nodes_field
+
+ function get_max_number_nodes_fe_space( this )
+  implicit none
+  class(SB_serial_fe_space_t), intent(in) :: this 
+  integer(ip) :: get_max_number_nodes_fe_space, ielem, ifield
+  get_max_number_nodes_fe_space = 0
+  do ielem = 1, this%get_number_elements()
+     do ifield = 1, this%number_fe_spaces
+        get_max_number_nodes_fe_space = max(this%fe_array(ielem)%reference_fe_phy(ifield)%p%get_number_nodes(), &
+                                            get_max_number_nodes_fe_space)
+     end do
+  end do
+ end function get_max_number_nodes_fe_space
+ 
+ function get_max_number_quadrature_points( this )
+  implicit none
+  class(SB_serial_fe_space_t), intent(in) :: this 
+  integer(ip) :: get_max_number_quadrature_points, iquad
+  get_max_number_quadrature_points = 0
+  do iquad = 1, size(this%quadrature)
+     get_max_number_quadrature_points = max(this%quadrature(iquad)%p%get_number_evaluation_points(), &
+                                      get_max_number_quadrature_points)
+  end do
+ end function get_max_number_quadrature_points
 
 !*********************************************************************************
 ! This subroutine takes the triangulation and fills the element2dof structure at every 

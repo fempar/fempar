@@ -551,6 +551,38 @@ subroutine volume_integrator_get_curl_vector (this, ishape, qpoint, vector_field
   assert( this%reference_fe%field_type == field_type_vector ) 
 end subroutine volume_integrator_get_curl_vector
 
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! procedures to evaluate the fe_function at the quadrature points
+
+subroutine volume_integrator_evaluate_fe_function_scalar ( this, nodal_values, quadrature_points_values )
+  implicit none
+  class(SB_volume_integrator_t), intent(in)    :: this
+  real(rp)                     , intent(in)    :: nodal_values(:)
+  real(rp)                     , intent(inout) :: quadrature_points_values(:)
+
+  call this%reference_fe%evaluate_fe_function ( this%interpolation, nodal_values, quadrature_points_values )
+end subroutine volume_integrator_evaluate_fe_function_scalar
+
+subroutine volume_integrator_evaluate_fe_function_vector ( this, nodal_values, quadrature_points_values )
+  implicit none
+  class(SB_volume_integrator_t), intent(in)    :: this
+  real(rp)                     , intent(in)    :: nodal_values(:)
+  type(vector_field_t)         , intent(inout) :: quadrature_points_values(:)
+
+  call this%reference_fe%evaluate_fe_function ( this%interpolation, nodal_values, quadrature_points_values )
+end subroutine volume_integrator_evaluate_fe_function_vector
+
+subroutine volume_integrator_evaluate_fe_function_tensor ( this, nodal_values, quadrature_points_values )
+  implicit none
+  class(SB_volume_integrator_t), intent(in)    :: this
+  real(rp)                     , intent(in)    :: nodal_values(:)
+  type(tensor_field_t)         , intent(inout) :: quadrature_points_values(:)
+
+  call this%reference_fe%evaluate_fe_function ( this%interpolation, nodal_values, quadrature_points_values )
+end subroutine volume_integrator_evaluate_fe_function_tensor
+
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_volume_integrator_t type procedures
 subroutine p_volume_integrator_allocate( this )

@@ -87,6 +87,24 @@ function finite_face_get_elem2dof(this,i)
 end function finite_face_get_elem2dof
 
 !==================================================================================================
+function finite_face_get_bc_code(this,i)
+  implicit none
+  class(finite_face_t), target, intent(in) :: this
+  integer(ip)                 , intent(in) :: i
+  type(i1p_t)                    , pointer :: finite_face_get_bc_code(:)
+  finite_face_get_bc_code => this%neighbour_fe(i)%p%get_bc_code()
+end function finite_face_get_bc_code
+
+!==================================================================================================
+function finite_face_get_bc_value(this,i)
+  implicit none
+  class(finite_face_t), target, intent(in) :: this
+  integer(ip)                 , intent(in) :: i
+  type(r1p_t)                    , pointer :: finite_face_get_bc_value(:)
+  finite_face_get_bc_value => this%neighbour_fe(i)%p%get_bc_value()
+end function finite_face_get_bc_value
+
+!==================================================================================================
 function finite_face_get_map(this)
   implicit none
   class(finite_face_t), target, intent(in) :: this

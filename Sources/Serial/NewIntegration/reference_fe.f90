@@ -233,6 +233,13 @@ module reference_fe_names
      !procedure(get_curl_vector_interface)              , deferred :: get_curl_vector ! Pending
      !generic :: get_curl => get_curl_vector
 
+     procedure(evaluate_fe_function_scalar_interface), deferred :: evaluate_fe_function_scalar
+     procedure(evaluate_fe_function_vector_interface), deferred :: evaluate_fe_function_vector
+     procedure(evaluate_fe_function_tensor_interface), deferred :: evaluate_fe_function_tensor
+     generic :: evaluate_fe_function => evaluate_fe_function_scalar, &
+                                      & evaluate_fe_function_vector, &
+                                      & evaluate_fe_function_tensor
+     
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
      procedure (permute_order_vef_interface)    , deferred :: permute_order_vef
@@ -249,6 +256,9 @@ module reference_fe_names
      procedure :: set_fe_type => reference_fe_set_fe_type
 
      ! Getters
+     procedure :: get_topology => reference_fe_get_topology
+     procedure :: get_fe_type => reference_fe_get_fe_type
+     procedure :: get_field_type => reference_fe_get_field_type
      procedure :: get_number_dimensions => reference_fe_get_number_dimensions
      procedure :: get_order => reference_fe_get_order
      procedure :: get_continuity => reference_fe_get_continuity
@@ -381,6 +391,42 @@ module reference_fe_names
        type(tensor_field_t)    , intent(out) :: tensor_field
      end subroutine get_gradient_vector_interface
 
+     subroutine evaluate_fe_function_scalar_interface( this, &
+                                                     & actual_cell_interpolation, &
+                                                     & nodal_values, &
+                                                     & quadrature_points_values)
+       import :: reference_fe_t, SB_interpolation_t, rp
+       implicit none
+       class(reference_fe_t)   , intent(in)    :: this 
+       type(SB_interpolation_t), intent(in)    :: actual_cell_interpolation 
+       real(rp)                , intent(in)    :: nodal_values(:)
+       real(rp)                , intent(inout) :: quadrature_points_values(:)
+     end subroutine evaluate_fe_function_scalar_interface
+
+     subroutine evaluate_fe_function_vector_interface( this, &
+                                                     & actual_cell_interpolation, &
+                                                     & nodal_values, &
+                                                     & quadrature_points_values)
+       import :: reference_fe_t, SB_interpolation_t, rp, vector_field_t
+       implicit none
+       class(reference_fe_t)   , intent(in)    :: this 
+       type(SB_interpolation_t), intent(in)    :: actual_cell_interpolation 
+       real(rp)                , intent(in)    :: nodal_values(:)
+       type(vector_field_t)    , intent(inout) :: quadrature_points_values(:)
+     end subroutine evaluate_fe_function_vector_interface
+
+     subroutine evaluate_fe_function_tensor_interface( this, &
+                                                     & actual_cell_interpolation, &
+                                                     & nodal_values, &
+                                                     & quadrature_points_values)
+       import :: reference_fe_t, SB_interpolation_t, rp, tensor_field_t
+       implicit none
+       class(reference_fe_t)   , intent(in)    :: this 
+       type(SB_interpolation_t), intent(in)    :: actual_cell_interpolation 
+       real(rp)                , intent(in)    :: nodal_values(:)
+       type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
+     end subroutine evaluate_fe_function_tensor_interface     
+     
      subroutine permute_order_vef_interface( this, o2n,p,o,r,nd )
        import :: reference_fe_t, ip
        implicit none
@@ -447,6 +493,9 @@ module reference_fe_names
      procedure :: get_gradient_scalar       => quad_lagrangian_reference_fe_get_gradient_scalar
      procedure :: get_gradient_vector       => quad_lagrangian_reference_fe_get_gradient_vector
 
+     procedure :: evaluate_fe_function_scalar => quad_lagrangian_reference_fe_evaluate_fe_function_scalar
+     procedure :: evaluate_fe_function_vector => quad_lagrangian_reference_fe_evaluate_fe_function_vector
+     procedure :: evaluate_fe_function_tensor => quad_lagrangian_reference_fe_evaluate_fe_function_tensor
 
      ! Concrete TBPs of this derived data type
      procedure :: fill                      => quad_lagrangian_reference_fe_fill
@@ -509,6 +558,13 @@ contains
   ! But note that in such a case we would require higher-to-2 rank tensors
   ! (i.e., type(tensor_field_t) is a rank-2 tensor)
   
+  procedure, non_overridable, private :: volume_integrator_evaluate_fe_function_scalar
+  procedure, non_overridable, private :: volume_integrator_evaluate_fe_function_vector
+  procedure, non_overridable, private :: volume_integrator_evaluate_fe_function_tensor
+  generic :: evaluate_fe_function => volume_integrator_evaluate_fe_function_scalar, &
+                                   & volume_integrator_evaluate_fe_function_vector, &
+                                   & volume_integrator_evaluate_fe_function_tensor
+
 end type SB_volume_integrator_t
 
 type SB_p_volume_integrator_t

@@ -65,29 +65,30 @@ module par_scalar_array_names
      type ( dof_distribution_t ), pointer  :: dof_dist => NULL()
      type ( par_environment_t ) , pointer  :: p_env => NULL()
    contains
-     procedure :: create_and_allocate => par_scalar_array_create_and_allocate
-     procedure :: create              => par_scalar_array_create
-     procedure :: allocate            => par_scalar_array_allocate
-     procedure :: create_view         => par_scalar_array_create_view
-     procedure :: set_view_entries    => par_scalar_array_set_view_entries
-     procedure :: weight              => par_scalar_array_weight
-     procedure :: print               => par_scalar_array_print
-     procedure :: print_market_market => par_scalar_array_print_matrix_market
+     procedure :: create_and_allocate    => par_scalar_array_create_and_allocate
+     procedure :: create                 => par_scalar_array_create
+     procedure :: allocate               => par_scalar_array_allocate
+     procedure :: create_view            => par_scalar_array_create_view
+     procedure :: set_view_entries       => par_scalar_array_set_view_entries
+     procedure :: weight                 => par_scalar_array_weight
+     procedure :: print                  => par_scalar_array_print
+     procedure :: print_market_market    => par_scalar_array_print_matrix_market
 
      ! Provide type bound procedures (tbp) implementors
-     procedure :: dot        => par_scalar_array_dot
-     procedure :: local_dot  => par_scalar_array_local_dot
-     procedure :: copy => par_scalar_array_copy
-     procedure :: init => par_scalar_array_init
-     procedure :: scal => par_scalar_array_scal
-     procedure :: axpby => par_scalar_array_axpby
-     procedure :: nrm2 => par_scalar_array_nrm2
-     procedure :: clone => par_scalar_array_clone
-     procedure :: comm  => par_scalar_array_comm
-     procedure :: same_vector_space => par_scalar_array_same_vector_space
-     procedure :: free_in_stages  => par_scalar_array_free_in_stages
-     procedure :: default_initialization  => par_scalar_array_default_init
-					procedure :: get_number_blocks
+     procedure :: dot                    => par_scalar_array_dot
+     procedure :: local_dot              => par_scalar_array_local_dot
+     procedure :: copy                   => par_scalar_array_copy
+     procedure :: init                   => par_scalar_array_init
+     procedure :: scal                   => par_scalar_array_scal
+     procedure :: axpby                  => par_scalar_array_axpby
+     procedure :: nrm2                   => par_scalar_array_nrm2
+     procedure :: clone                  => par_scalar_array_clone
+     procedure :: comm                   => par_scalar_array_comm
+     procedure :: same_vector_space      => par_scalar_array_same_vector_space
+     procedure :: free_in_stages         => par_scalar_array_free_in_stages
+     procedure :: default_initialization => par_scalar_array_default_init
+     procedure :: get_number_blocks      => par_scalar_array_get_number_blocks
+     procedure :: extract_subvector      => par_scalar_array_extract_subvector
   end type par_scalar_array_t
 
 
@@ -189,6 +190,7 @@ contains
     call this%serial_scalar_array%create_view (start, end, t_p_vec%serial_scalar_array) 
   end subroutine par_scalar_array_create_view
   
+  !=============================================================================
   subroutine par_scalar_array_set_view_entries ( this, entries ) 
     implicit none
     class(par_scalar_array_t), intent(inout) ::  this
@@ -256,6 +258,7 @@ contains
 
   end subroutine comm_interface
 
+  !=============================================================================
   subroutine par_scalar_array_weight ( this, weight )
     implicit none
     ! Parameters
@@ -344,7 +347,8 @@ contains
     
     call weighted_dot (x, y, t)
   end subroutine dot_interface
-
+  
+  !=============================================================================
   subroutine par_scalar_array_print ( this, luout )
     implicit none
     class(par_scalar_array_t), intent(in) :: this
@@ -360,7 +364,8 @@ contains
     call  this%serial_scalar_array%print(luout)
     write(luout,'(a)') '*** end par_scalar_array_t data structure ***'
   end subroutine par_scalar_array_print
-
+  
+  !=============================================================================
   subroutine par_scalar_array_print_matrix_market ( this, dir_path, prefix )
     implicit none
     ! Parameters
@@ -405,6 +410,7 @@ contains
     call io_close (lunou)
   end subroutine par_scalar_array_print_matrix_market
 
+  !=============================================================================
   function count_digits_par_vector ( i )
     implicit none
     ! Parameters
@@ -421,7 +427,6 @@ contains
        x = x/10;
     end do
   end function count_digits_par_vector
-
 
   ! Auxiliary (module private) routine
   ! for computing dot products and euclidean
@@ -572,7 +577,6 @@ contains
     call op1%CleanTemp()
     call op2%CleanTemp()
   end function par_scalar_array_local_dot
-  
   
   ! op1 <- op2 
   subroutine par_scalar_array_copy(op1,op2)
@@ -737,6 +741,7 @@ contains
     call comm_interface ( op_G )
   end subroutine par_scalar_array_comm
 
+  !=============================================================================
   subroutine par_scalar_array_free_in_stages(this,action)
     implicit none
     class(par_scalar_array_t), intent(inout) :: this
@@ -764,6 +769,7 @@ contains
     end if
   end subroutine par_scalar_array_free_in_stages
   
+  !=============================================================================
   function par_scalar_array_same_vector_space(this,vector)
    implicit none
    class(par_scalar_array_t), intent(in) :: this
@@ -774,13 +780,31 @@ contains
    class is (par_scalar_array_t)
      par_scalar_array_same_vector_space = (this%dof_dist%nl == vector%dof_dist%nl)
    end select
- end function par_scalar_array_same_vector_space
+  end function par_scalar_array_same_vector_space
   
- function get_number_blocks(this) result(res)
+  !=============================================================================
+  function par_scalar_array_get_number_blocks(this) result(res)
    implicit none 
    class(par_scalar_array_t), intent(in)   :: this
    integer(ip) :: res
    res = 1
- end function get_number_blocks
+  end function par_scalar_array_get_number_blocks
+ 
+  !=============================================================================
+  subroutine par_scalar_array_extract_subvector( this, &
+                                               & iblock, &
+                                               & size_indices, &
+                                               & indices, &
+                                               & values )
+   implicit none
+   class(par_scalar_array_t), intent(in)    :: this 
+   integer(ip)              , intent(in)    :: iblock
+   integer(ip)              , intent(in)    :: size_indices
+   integer(ip)              , intent(in)    :: indices(size_indices)
+   real(rp)                 , intent(inout) :: values(*)
+
+   assert( .false. )
+   
+  end subroutine par_scalar_array_extract_subvector
 
 end module par_scalar_array_names
