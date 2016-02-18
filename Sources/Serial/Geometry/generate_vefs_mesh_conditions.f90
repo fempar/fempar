@@ -75,8 +75,12 @@ contains
     else
        call generate_vefs_mesh_conditions(msh, tmsh)
     end if
+    assert ( allocated(tmsh%coord) )
+
     call mesh_free(msh)
     call mesh_copy(tmsh,msh)
+
+    assert ( allocated(msh%coord) )
 
    end subroutine generate_efs
   

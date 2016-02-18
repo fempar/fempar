@@ -60,25 +60,24 @@ contains
   end subroutine par_test_triangulations_set_par_default_params
 
   !==================================================================================================
-  subroutine cli_add_par_params(cli,params,group)
+  subroutine cli_add_par_params(cli,params)
     implicit none
     type(Type_Command_Line_Interface)    , intent(inout) :: cli
     type(par_test_triangulations_params_t)          , intent(in)    :: params
-    character(*)                         , intent(in)    :: group
     !class(par_test_triangulations_parallel_params_t), intent(inout) :: par_params
     ! Locals
     integer(ip) :: error
     character   :: aux_string
 
     ! IO parameters
-    call cli%add(group=trim(group),switch='--dir_path',switch_ab='-d',                              &
+    call cli%add(switch='--dir_path',switch_ab='-d',                              &
          &       help='Directory of the source files',required=.false., act='store',                &
          &       def=trim(params%default_dir_path),error=error)
     check(error==0)
-    call cli%add(group=trim(group),switch='--prefix',switch_ab='-pr',help='Name of the GiD files',  &
+    call cli%add(switch='--prefix',switch_ab='-pr',help='Name of the GiD files',  &
          &       required=.false.,act='store',def=trim(params%default_prefix),error=error) 
     check(error==0)
-    call cli%add(group=trim(group),switch='--dir_path_out',switch_ab='-out',help='Output Directory',&
+    call cli%add(switch='--dir_path_out',switch_ab='-out',help='Output Directory',&
          &       required=.false.,act='store',def=trim(params%default_dir_path_out),error=error)
     check(error==0)
     
@@ -97,7 +96,8 @@ program par_test_triangulations
   use JP_par_mesh_to_triangulation_names
   use Data_Type_Command_Line_Interface
   use par_command_line_parameters_names
-
+  use mpi
+  
   implicit none
 #include "debug.i90"
   ! Our data
@@ -115,7 +115,6 @@ program par_test_triangulations
   integer(ip) :: lunio, istat
 
   type(Type_Command_Line_Interface):: cli 
-  character(len=:)   , allocatable :: group
  
   call meminit
 
@@ -124,14 +123,16 @@ program par_test_triangulations
   call par_environment_create(p_env,p_context)
 
   ! Read IO parameters
-  call read_flap_cli_par_test_triangulations(cli,test_params,group)
+  call read_flap_cli_par_test_triangulations(cli,test_params)
  
   ! Read mesh
-  call cli%get(group=trim(group),switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-out',val=dir_path_out,error=istat); check(istat==0)
+  call cli%get(switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
+  call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
+  call cli%get(switch='-out',val=dir_path_out,error=istat); check(istat==0)
   call par_mesh_read (dir_path, prefix, p_env, p_mesh)
 
+  !call mpi_barrier(p_context%icontxt,istat)
+  
   ! Read conditions 
   call par_conditions_read (dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
 
@@ -155,14 +156,13 @@ program par_test_triangulations
 contains
 
   !==================================================================================================
-  subroutine read_flap_cli_par_test_triangulations(cli,test_params,group)
+  subroutine read_flap_cli_par_test_triangulations(cli,test_params)
     use Data_Type_Command_Line_Interface
     use par_command_line_parameters_names
     use serial_names
     implicit none
     type(Type_Command_Line_Interface), intent(out)   :: cli
     type(par_test_triangulations_params_t)      , intent(inout) :: test_params
-    character(len=:)   , allocatable , intent(inout) :: group
     
     ! Locals
     integer(ip)                 :: istat
@@ -174,6 +174,11 @@ contains
          &        license     = '',                                                                 &
          &        description =  'Parallel FEMPAR driver to trinagulations.', &
          &        examples    = ['par_test_triangulations -h  ', 'par_test_triangulations -h  ' ])
+    
+    ! Set Parallel parameters
+    call test_params%set_default_params()
+    call cli_add_par_params(cli,test_params) 
+    
     call cli%parse(error=istat)
     check(istat == 0)
     

@@ -343,8 +343,8 @@ function fe_map_compute_h ( this, igaus)
   integer(ip)    , intent(in) :: igaus
   real(rp)                    :: fe_map_compute_h
 
-  integer(ip) :: idime, jdime
-  real(rp)    :: inverse_h(3), h(2), volumetric_h, number_dimensions
+  integer(ip) :: idime, jdime, number_dimensions
+  real(rp)    :: inverse_h(3), h(2), volumetric_h
   integer(ip) :: i,j
 
   number_dimensions = size(this%jacobian, dim=1)

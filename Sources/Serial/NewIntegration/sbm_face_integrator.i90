@@ -113,7 +113,7 @@ subroutine face_map_update(this,local_face_id,face_quadrature,left_reference_fe_
   type(SB_quadrature_t), intent(in)    :: face_quadrature
   class(reference_fe_t), intent(in)    :: left_reference_fe_geo
 
-  assert((local_face_id(2)<=0) == this%is_boundary)
+  assert((local_face_id(2)<=0) .eqv. this%is_boundary)
   call this%face_map%face_map_update(local_face_id(1),left_reference_fe_geo,face_quadrature)
   
   call this%fe_maps(1)%update(local_face_id(1),face_quadrature)
