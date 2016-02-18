@@ -165,9 +165,6 @@ module SB_fe_space_names
      integer(ip)                   , allocatable :: field_blocks(:)
      logical                       , allocatable :: field_coupling(:,:)
      integer(ip)                   , allocatable :: number_dofs(:)
-     
-     ! Acceleration arrays
-     type(list_2d_t)               , allocatable :: vef2dof(:)
    contains
      procedure, non_overridable :: create
      procedure, non_overridable :: fill_dof_info

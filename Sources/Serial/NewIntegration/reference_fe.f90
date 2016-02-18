@@ -277,6 +277,9 @@ module reference_fe_names
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
      procedure :: get_number_corners_vef => reference_fe_get_number_corners_vef
      procedure :: get_orientation => reference_fe_get_orientation
+     
+     procedure :: get_vef_dimension  => reference_fe_get_vef_dimension
+     
   end type reference_fe_t
 
   type p_reference_fe_t

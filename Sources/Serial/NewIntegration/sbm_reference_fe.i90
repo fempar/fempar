@@ -318,6 +318,22 @@ end function reference_fe_get_continuity
     type(allocatable_array_ip1_t), pointer :: reference_fe_get_orientation
     reference_fe_get_orientation => this%orientation
   end function reference_fe_get_orientation
+  
+  function reference_fe_get_vef_dimension ( this, vef_id )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip)          , intent(in) :: vef_id
+    integer(ip) :: reference_fe_get_vef_dimension
+
+    integer(ip) :: i 
+    assert ( vef_id >= 1 .and. vef_id <= this%number_vefs ) 
+    do i = 1, this%number_dimensions
+       if ( vef_id < this%number_vefs_dimension(i+1) ) then
+          reference_fe_get_vef_dimension = i - 1 
+          exit
+       end if
+    end do
+  end function  
 
   !==================================================================================================
   subroutine p_reference_fe_free( this )
