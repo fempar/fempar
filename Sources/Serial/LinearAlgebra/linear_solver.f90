@@ -37,6 +37,7 @@ module linear_solver_names
   use fgmres_names
   use lfom_names
   use minres_names
+  use icg_names 
   
   ! Abstract modules
   use vector_names
@@ -143,11 +144,12 @@ contains
   ! SELECT MANUALLY ITERATIVE LINEAR SOLVER TYPE: 
      !this%base_linear_solver => create_richardson(this%environment)
      !this%base_linear_solver => create_cg(this%environment)
-     !this%base_linear_solver => create_rgmres(this%environment)
+     this%base_linear_solver => create_rgmres(this%environment)
      !this%base_linear_solver => create_lgmres(this%environment)
      !this%base_linear_solver => create_fgmres(this%environment)
      !this%base_linear_solver => create_lfom(this%environment) 
-     this%base_linear_solver => create_minres(this%environment)
+     !this%base_linear_solver => create_minres(this%environment)
+     !this%base_linear_solver => create_icg(this%environment)
      
      assert ( this%base_linear_solver%get_state() == start )
      this%state = solver_type_set
@@ -156,7 +158,6 @@ contains
    subroutine linear_solver_set_parameters_from_pl ( this )
      implicit none
      class(linear_solver_t), intent(inout) :: this
-     character(len=:)      , allocatable   :: linear_solver_type
      assert ( this%state == solver_type_set )
      call this%base_linear_solver%set_parameters_from_pl()
    end subroutine linear_solver_set_parameters_from_pl

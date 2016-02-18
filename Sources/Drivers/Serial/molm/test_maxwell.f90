@@ -368,7 +368,7 @@ program test_reference_fe
     call linear_solver%set_type_and_parameters_from_pl()
     call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
     call linear_solver%solve(vector)
-   ! call linear_solver%print_convergence_history('csic')
+  !  call linear_solver%print_convergence_history('csic')
     call linear_solver%free() 
 
 !  ===============================   ABSTRACT    SOLVE       ==================================
@@ -379,7 +379,8 @@ program test_reference_fe
   ! sctrl%rtol = 1.0e-06_rp
   ! sctrl%itmax = 100
   ! sctrl%stopc = res_res
-  ! call abstract_solve(matrix, .identity. fe_affine_operator , rhs, vector, sctrl, senv ) 
+  ! call abstract_solve(matrix, .identity. fe_affine_operator , rhs, vector, sctrl, senv )
+  
 
    select type(vector)
      class is(serial_block_array_t)
