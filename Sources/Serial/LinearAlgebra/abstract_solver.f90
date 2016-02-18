@@ -2193,7 +2193,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl, env)
        s     , sn    , t     , tnorm2, ynorm2, z
 
   integer(ip) :: i, istop, itn
-  logical :: debug, prnt
+  logical     :: debug, prnt
   logical     :: beta1_lt_zero, beta1_eq_zero, beta_lt_zero, istop_neq_zero
 
   real(rp) ::   Anorm, Acond, rnorm, ynorm

@@ -117,7 +117,7 @@ contains
     call memfree(this%hh,__FILE__,__LINE__)
     call memfree(this%g,__FILE__,__LINE__)
     call memfree(this%cs,__FILE__,__LINE__)
-      if ( this%get_stopping_criteria() == res_res .or. res_rhs ) then 
+      if ( this%get_stopping_criteria() == res_res .or. this%get_stopping_criteria() == res_rhs ) then 
     call memfree(this%g_aux,__FILE__,__LINE__)
       end if
   end subroutine lgmres_free_workspace
