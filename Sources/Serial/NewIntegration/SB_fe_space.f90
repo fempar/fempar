@@ -95,6 +95,10 @@ module SB_fe_space_names
      procedure, non_overridable :: update_integration
      ! procedure :: free Pending
      ! procedure :: print Pending
+     procedure, non_overridable :: fill_interior_dofs
+     procedure, non_overridable :: fill_dofs_on_vef
+     procedure, non_overridable :: fill_dofs_on_vef_from_source_element
+     
      procedure, non_overridable :: get_number_nodes 
      procedure, non_overridable :: get_fe_map
      procedure, non_overridable :: get_quadrature	
@@ -168,6 +172,7 @@ module SB_fe_space_names
    contains
      procedure, non_overridable :: create
      procedure, non_overridable :: fill_dof_info
+     procedure, non_overridable, private :: fill_elem2dof_and_count_dofs
      procedure, non_overridable :: free
      procedure, non_overridable :: print
      procedure, non_overridable :: initialize_integration
