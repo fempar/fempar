@@ -849,9 +849,9 @@ contains
         integer(ip),                      intent(in)    :: num_col
         integer(ip),                      intent(in)    :: perm(:)
         integer(ip),                      intent(in)    :: iperm(:)
-        real(rp),    allocatable,         intent(out)   :: A_CC(:,:)
-        real(rp),    allocatable,         intent(out)   :: A_CR(:,:)
-        real(rp),    allocatable,         intent(out)   :: A_RC(:,:)
+        real(rp),    allocatable,         intent(inout) :: A_CC(:,:)
+        real(rp),    allocatable,         intent(inout) :: A_CR(:,:)
+        real(rp),    allocatable,         intent(inout) :: A_RC(:,:)
         class(sparse_matrix_t),           intent(inout) :: A_RR
         logical,                optional, intent(in)    :: symmetric_storage
         logical,                optional, intent(in)    :: symmetric
@@ -861,6 +861,10 @@ contains
         integer(ip)                                     :: sign_aux
     !-----------------------------------------------------------------
         assert(allocated(this%State))
+
+        if(allocated(A_CC)) call memfree(A_CC, __FILE__, __LINE__)
+        if(allocated(A_CR)) call memfree(A_CR, __FILE__, __LINE__)
+        if(allocated(A_RC)) call memfree(A_RC, __FILE__, __LINE__)
 
         if(.not. allocated(A_RR%State)) then
             allocate(A_RR%State, mold=this%State)
