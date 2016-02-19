@@ -71,26 +71,27 @@ module serial_scalar_array_names
      logical                    :: is_a_view  = .false.
      real(rp), pointer          :: b(:) => NULL()
    contains
-     procedure :: create_and_allocate => serial_scalar_array_create_and_allocate
-     procedure :: create              => serial_scalar_array_create
-     procedure :: allocate            => serial_scalar_array_allocate
-     procedure :: create_view         => serial_scalar_array_create_view
-     procedure :: set_view_entries    => serial_scalar_array_set_view_entries
-     procedure :: print               => serial_scalar_array_print
-     procedure :: print_matrix_market => serial_scalar_array_print_matrix_market
+     procedure :: create_and_allocate    => serial_scalar_array_create_and_allocate
+     procedure :: create                 => serial_scalar_array_create
+     procedure :: allocate               => serial_scalar_array_allocate
+     procedure :: create_view            => serial_scalar_array_create_view
+     procedure :: set_view_entries       => serial_scalar_array_set_view_entries
+     procedure :: print                  => serial_scalar_array_print
+     procedure :: print_matrix_market    => serial_scalar_array_print_matrix_market
 
-     procedure :: dot => serial_scalar_array_dot
-     procedure :: local_dot  => serial_scalar_array_dot
-     procedure :: copy => serial_scalar_array_copy
-     procedure :: init => serial_scalar_array_init
-     procedure :: scal => serial_scalar_array_scal
-     procedure :: axpby => serial_scalar_array_axpby
-     procedure :: nrm2 => serial_scalar_array_nrm2
-     procedure :: clone => serial_scalar_array_clone
-     procedure :: same_vector_space => serial_scalar_array_same_vector_space
-     procedure :: free_in_stages  => serial_scalar_array_free_in_stages
+     procedure :: dot                    => serial_scalar_array_dot
+     procedure :: local_dot              => serial_scalar_array_dot
+     procedure :: copy                   => serial_scalar_array_copy
+     procedure :: init                   => serial_scalar_array_init
+     procedure :: scal                   => serial_scalar_array_scal
+     procedure :: axpby                  => serial_scalar_array_axpby
+     procedure :: nrm2                   => serial_scalar_array_nrm2
+     procedure :: clone                  => serial_scalar_array_clone
+     procedure :: same_vector_space      => serial_scalar_array_same_vector_space
+     procedure :: free_in_stages         => serial_scalar_array_free_in_stages
      procedure :: default_initialization => serial_scalar_array_default_init
-     procedure :: get_number_blocks
+     procedure :: get_number_blocks      => serial_scalar_array_get_number_blocks
+     procedure :: extract_subvector      => serial_scalar_array_extract_subvector
   end type serial_scalar_array_t
 
   ! Types
@@ -133,13 +134,13 @@ contains
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
     assert ( this%state == created )
-    !write(*,*) 1/0.0_rp
     call memallocp(this%size,this%b,__FILE__,__LINE__)
     this%b    = 0.0_rp
     this%state = entries_ready
     this%is_a_view = .false.
   end subroutine serial_scalar_array_allocate
 
+  !=============================================================================
   subroutine serial_scalar_array_create_view (this, start, end, tvec)
     implicit none
     class(serial_scalar_array_t), intent(in), target  :: this
@@ -155,6 +156,7 @@ contains
     tvec%state = entries_ready
   end subroutine serial_scalar_array_create_view
   
+  !=============================================================================
   subroutine serial_scalar_array_set_view_entries ( this, entries ) 
     implicit none
     class(serial_scalar_array_t), intent(inout) ::  this
@@ -165,6 +167,7 @@ contains
     this%state     = entries_ready
   end subroutine serial_scalar_array_set_view_entries
   
+  !=============================================================================
   subroutine serial_scalar_array_print (this, luout)
     implicit none
     class(serial_scalar_array_t), intent(in) :: this
@@ -176,6 +179,7 @@ contains
     write (luout, '(a)')     '*** end serial_scalar_array data structure ***'
   end subroutine serial_scalar_array_print
 
+  !=============================================================================
   subroutine serial_scalar_array_print_matrix_market ( this, luout )
     implicit none
     class(serial_scalar_array_t), intent(in) :: this
@@ -350,6 +354,7 @@ contains
     call op2%CleanTemp()
   end subroutine serial_scalar_array_clone
 
+  !=============================================================================
   subroutine serial_scalar_array_free_in_stages(this,action)
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
@@ -379,24 +384,51 @@ contains
     end if
   end subroutine serial_scalar_array_free_in_stages
   
- function serial_scalar_array_same_vector_space(this,vector)
-   implicit none
-   class(serial_scalar_array_t), intent(in) :: this
-   class(vector_t)             , intent(in) :: vector
-   logical :: serial_scalar_array_same_vector_space
-   serial_scalar_array_same_vector_space = .false.
-   assert (this%state == created .or. this%state == entries_ready)
-   select type(vector)
-   class is (serial_scalar_array_t)
-     serial_scalar_array_same_vector_space = (this%size == vector%size)
-   end select
- end function serial_scalar_array_same_vector_space
+  !=============================================================================
+  function serial_scalar_array_same_vector_space(this,vector)
+    implicit none
+    class(serial_scalar_array_t), intent(in) :: this
+    class(vector_t)             , intent(in) :: vector
+    logical :: serial_scalar_array_same_vector_space
+    serial_scalar_array_same_vector_space = .false.
+    assert (this%state == created .or. this%state == entries_ready)
+    select type(vector)
+    class is (serial_scalar_array_t)
+      serial_scalar_array_same_vector_space = (this%size == vector%size)
+    end select
+  end function serial_scalar_array_same_vector_space
 	
- function get_number_blocks(this) result(res)
-   implicit none 
-   class(serial_scalar_array_t), intent(in)   :: this
-   integer(ip) :: res
-   res = 1
- end function get_number_blocks
+  !=============================================================================
+  function serial_scalar_array_get_number_blocks(this) result(res)
+    implicit none 
+    class(serial_scalar_array_t), intent(in)   :: this
+    integer(ip) :: res
+    res = 1
+  end function serial_scalar_array_get_number_blocks
+ 
+  !=============================================================================
+  subroutine serial_scalar_array_extract_subvector( this, &
+                                                  & iblock, &
+                                                  & size_indices, &
+                                                  & indices, &
+                                                  & values )
+    implicit none
+    class(serial_scalar_array_t), intent(in)    :: this 
+    integer(ip)                 , intent(in)    :: iblock
+    integer(ip)                 , intent(in)    :: size_indices
+    integer(ip)                 , intent(in)    :: indices(size_indices)
+    real(rp)                    , intent(inout) :: values(*)
+    integer(ip)                                 :: i
+
+    assert(this%state == entries_ready)
+    assert(iblock == 1)
+        
+    do i=1, size_indices
+      assert ( indices(i) <= this%size )
+      if ( indices(i) > 0 ) then
+        values(i) = this%b(indices(i))
+      end if
+    end do 
+  end subroutine serial_scalar_array_extract_subvector
 
 end module serial_scalar_array_names

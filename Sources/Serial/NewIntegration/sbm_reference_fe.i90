@@ -119,17 +119,6 @@
 
 end subroutine reference_fe_print
 
-! Given a dimension 'vef_dimension' this functions returns the amount of objects of that 
-! dimension the element contains.
-function reference_fe_number_vefs_of_dimension ( this, vef_dimensions )
-  implicit none
-  class(reference_fe_t), intent(in) :: this
-  integer(ip)          , intent(in) :: vef_dimensions
-  integer(ip) :: reference_fe_number_vefs_of_dimension
-  reference_fe_number_vefs_of_dimension = this%number_vefs_dimension(vef_dimensions+2) -          &
-       &                                  this%number_vefs_dimension(vef_dimensions+1)
-end function reference_fe_number_vefs_of_dimension
-
 subroutine reference_fe_set_common_data( this, number_dimensions, order, field_type, continuity )
   implicit none 
   class(reference_fe_t), intent(inout) :: this 
@@ -174,6 +163,27 @@ subroutine reference_fe_set_fe_type( this, fe_type)
   this%fe_type = fe_type
 end subroutine reference_fe_set_fe_type
 
+function reference_fe_get_topology( this )
+  implicit none
+  class(reference_fe_t), target, intent(in) :: this
+  character(:), pointer :: reference_fe_get_topology
+  reference_fe_get_topology => this%topology
+end function reference_fe_get_topology
+
+function reference_fe_get_fe_type( this )
+  implicit none
+  class(reference_fe_t), target, intent(in) :: this
+  character(:), pointer :: reference_fe_get_fe_type
+  reference_fe_get_fe_type => this%fe_type
+end function reference_fe_get_fe_type
+
+function reference_fe_get_field_type( this )
+  implicit none
+  class(reference_fe_t), target, intent(in) :: this
+  character(:), pointer :: reference_fe_get_field_type
+  reference_fe_get_field_type => this%field_type
+end function reference_fe_get_field_type
+
 function reference_fe_get_number_dimensions( this )
   implicit none
   class(reference_fe_t), intent(in) :: this
@@ -215,6 +225,17 @@ end function reference_fe_get_continuity
     integer(ip) :: reference_fe_get_number_nodes
     reference_fe_get_number_nodes = this%number_nodes
   end function reference_fe_get_number_nodes
+  
+  ! Given a dimension 'vef_dimension' this functions returns the amount of objects of that 
+  ! dimension the element contains.
+  function reference_fe_get_number_vefs_of_dimension ( this, vef_dimensions )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip)          , intent(in) :: vef_dimensions
+    integer(ip) :: reference_fe_get_number_vefs_of_dimension
+    reference_fe_get_number_vefs_of_dimension = this%number_vefs_dimension(vef_dimensions+2) -          &
+         &                                  this%number_vefs_dimension(vef_dimensions+1)
+  end function reference_fe_get_number_vefs_of_dimension
 
   function reference_fe_get_number_vefs_dimension ( this )
     implicit none
@@ -283,12 +304,36 @@ end function reference_fe_get_continuity
     reference_fe_get_number_interior_nodes_vef = this%interior_nodes_vef%p(i+1)-this%interior_nodes_vef%p(i)
   end function reference_fe_get_number_interior_nodes_vef
   
+  function reference_fe_get_number_corners_vef ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i
+    integer(ip) :: reference_fe_get_number_corners_vef
+    reference_fe_get_number_corners_vef = this%corners_vef%p(i+1)-this%corners_vef%p(i)
+  end function reference_fe_get_number_corners_vef
+
   function reference_fe_get_orientation ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
     type(allocatable_array_ip1_t), pointer :: reference_fe_get_orientation
     reference_fe_get_orientation => this%orientation
   end function reference_fe_get_orientation
+  
+  function reference_fe_get_vef_dimension ( this, vef_id )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip)          , intent(in) :: vef_id
+    integer(ip) :: reference_fe_get_vef_dimension
+
+    integer(ip) :: i 
+    assert ( vef_id >= 1 .and. vef_id <= this%number_vefs ) 
+    do i = 1, this%number_dimensions
+       if ( vef_id < this%number_vefs_dimension(i+1) ) then
+          reference_fe_get_vef_dimension = i - 1 
+          exit
+       end if
+    end do
+  end function  
 
   !==================================================================================================
   subroutine p_reference_fe_free( this )

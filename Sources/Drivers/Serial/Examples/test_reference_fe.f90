@@ -325,7 +325,7 @@ program test_reference_fe
   ! Construct triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
-  problem_id = 1
+  problem_id = 0
   if ( problem_id == 1) then
      ! Composite case
      reference_fe_array_two(1) = make_reference_fe ( topology = "quad", &
@@ -380,7 +380,7 @@ program test_reference_fe
                            reference_fe_geo_topology = "quad", &
                            reference_fe_geo_type = "Lagrangian" )
      call fe_space%fill_dof_info() 
-
+     
      call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                      diagonal_blocks_symmetric_storage=(/.true./), &
                                      diagonal_blocks_symmetric=(/.true./), &
