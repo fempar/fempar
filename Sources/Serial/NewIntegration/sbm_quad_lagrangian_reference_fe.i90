@@ -280,8 +280,8 @@ subroutine quad_lagrangian_reference_fe_get_curl_vector( this, actual_cell_inter
   integer(ip) :: idime, jdime, kdime
   ! Epsilon_{ijk} = Levi_Civita(i,j,k)
   real(rp), parameter :: Levi_Civita(3,3,3) = reshape( (/0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, -1.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, &
-													     0.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, -1.0_rp, 0.0_rp, 0.0_rp, &
-													     0.0_rp, -1.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp/), (/3, 3, 3/) )
+													                                            0.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, -1.0_rp, 0.0_rp, 0.0_rp, &
+													                                            0.0_rp, -1.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp/), (/3, 3, 3/) )
 
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%number_nodes )

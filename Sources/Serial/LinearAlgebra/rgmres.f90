@@ -119,6 +119,9 @@ contains
   end subroutine rgmres_set_parameters_from_pl
   
   subroutine rgmres_solve_body(this,x)
+#ifdef ENABLE_BLAS
+    use blas77_interfaces_names
+#endif
     implicit none
     class(rgmres_t)    , intent(inout) :: this
     class(vector_t)    , intent(inout) :: x 

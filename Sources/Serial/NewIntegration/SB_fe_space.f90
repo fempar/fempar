@@ -91,27 +91,27 @@ module SB_fe_space_names
      type(r1p_t)                   , allocatable :: bc_value(:)
    contains
      
-     ! procedure :: create Pending
-     procedure, non_overridable :: update_integration
-     ! procedure :: free Pending
+     procedure, non_overridable :: create =>  finite_element_create
+     procedure, non_overridable :: update_integration => finite_element_update_integration
+     procedure, non_overridable :: free => finite_element_free
      ! procedure :: print Pending
-     procedure, non_overridable :: fill_interior_dofs
-     procedure, non_overridable :: fill_dofs_on_vef
-     procedure, non_overridable :: fill_dofs_on_vef_from_source_element
+     procedure, non_overridable :: fill_interior_dofs => finite_element_fill_interior_dofs
+     procedure, non_overridable :: fill_dofs_on_vef => finite_element_fill_dofs_on_vef
+     procedure, non_overridable :: fill_dofs_on_vef_from_source_element => finite_element_fill_dofs_on_vef_from_source_element
      
-     procedure, non_overridable :: get_number_nodes 
-     procedure, non_overridable :: get_fe_map
-     procedure, non_overridable :: get_quadrature	
-     procedure, non_overridable :: get_volume_integrator
-     procedure, non_overridable :: get_elem2dof 
-     procedure, non_overridable :: get_bc_code 
-     procedure, non_overridable :: get_bc_value 
-     procedure, non_overridable :: get_number_nodes_per_field 
-     procedure, non_overridable :: get_subset_id 
+     procedure, non_overridable :: get_number_nodes => finite_element_get_number_nodes
+     procedure, non_overridable :: get_fe_map => finite_element_get_fe_map
+     procedure, non_overridable :: get_quadrature	=> finite_element_get_quadrature
+     procedure, non_overridable :: get_volume_integrator => finite_element_get_volume_integrator
+     procedure, non_overridable :: get_elem2dof  => finite_element_get_elem2dof
+     procedure, non_overridable :: get_bc_code  => finite_element_get_bc_code
+     procedure, non_overridable :: get_bc_value => finite_element_get_bc_value
+     procedure, non_overridable :: get_number_nodes_per_field => finite_element_get_number_nodes_per_field
+     procedure, non_overridable :: get_subset_id => finite_element_get_subset_id
      
-     procedure, non_overridable, private :: update_scalar_values
-     procedure, non_overridable, private :: update_vector_values
-     procedure, non_overridable, private :: update_tensor_values
+     procedure, non_overridable, private :: update_scalar_values => finite_element_update_scalar_values
+     procedure, non_overridable, private :: update_vector_values => finite_element_update_vector_values
+     procedure, non_overridable, private :: update_tensor_values => finite_element_update_tensor_values
      generic :: update_values => update_scalar_values, &
                                & update_vector_values, &
                                & update_tensor_values
