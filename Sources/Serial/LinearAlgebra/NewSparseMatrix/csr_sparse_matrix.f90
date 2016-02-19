@@ -1035,34 +1035,14 @@ contains
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
-                if(is_properties_setted_state) A_II%irp(i+1) = A_II%irp(i)
-                counter = 0
-                do j=1,i-1
-                    if(j>num_col) exit
-                    k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1))
-                    if(k==-1) cycle
-                    A_II%val(A_II%irp(i)+counter) = this%val(this%irp(j)+k-1)
-                    if(is_properties_setted_state) then
-                        A_II%ja (A_II%irp(i)+counter) = j
-                        A_II%irp(i+1)           = A_II%irp(i+1) + 1
-                    endif
-                    counter = counter + 1
-                enddo
-
-                if(nz>0) then
-                    ! Calculate bounds
-                    A_XX_lbound = A_II%irp(i)+counter; A_XX_ubound = A_II%irp(i)+counter+nz-1
-                    this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
-                    ! Assign columns and values
-                    if(is_properties_setted_state) then
-                        A_II%irp(i+1)                     = A_II%irp(i+1)+nz
-                        A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
-                        A_II%nnz = A_II%nnz + nz
-                    endif
-                    A_II%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
-                endif
-                if(is_properties_setted_state) A_II%nnz = A_II%irp(i+1)-1
-
+                write(*,*) 'Split_2x2: symmetric_storage combination not yet implemented'
+                check(.false.) ! Algorithm not implemented
+    !-----------------------------------------------------------------
+    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
+    !< NOT IMPLEMENTED !!!!!!
+    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !-----------------------------------------------------------------        
             endif
 
             ! Number of nnz of A_IG in row i
@@ -1160,31 +1140,14 @@ contains
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
-                if(is_properties_setted_state) A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
-                counter = 0
-                do j=max(num_row,num_col)+1,i-1
-                    k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1))
-                    if(k==-1) cycle
-                    A_GG%val(A_GG%irp(i-num_row)+counter) = this%ja(this%irp(j)+j-1)
-                    if(is_properties_setted_state) then
-                        A_GG%ja(A_GG%irp(i-num_row)+counter) = j-num_col
-                        A_GG%irp(i-num_row+1)          = A_GG%irp(i-num_row+1) + 1  
-                    endif
-                    counter = counter + 1
-                enddo
-
-                if(nz>0) then
-                    ! Calculate bounds
-                    A_XX_lbound = A_GG%irp(i-num_row); A_XX_ubound = A_GG%irp(i-num_row)+nz-1
-                    this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i)+nz-1
-                    ! Assign columns aned values
-                    if(is_properties_setted_state) then
-                        A_GG%irp(i-num_row+1)             = A_GG%irp(i-num_row+1)+nz
-                        A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)-num_col
-                    endif
-                    A_GG%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
-                endif
-                if(is_properties_setted_state) A_GG%nnz = A_GG%irp(i-num_row+1)-1
+                write(*,*) 'Split_2x2: symmetric_storage combination not yet implemented'
+                check(.false.) ! Algorithm not implemented
+    !-----------------------------------------------------------------
+    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
+    !< NOT IMPLEMENTED !!!!!!
+    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !-----------------------------------------------------------------    
             endif
         enddo
         if(present(A_GI) .and. is_properties_setted_state) then
@@ -1360,26 +1323,14 @@ contains
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
-                A_II%irp(i+1) = A_II%irp(i)
-                do j=1,i-1
-                    if(j>num_col) exit
-                    k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1))
-                    if(k==-1) cycle
-                    A_II%ja (A_II%irp(i+1)) = j
-                    A_II%irp(i+1)           = A_II%irp(i+1) + 1
-                enddo
-
-                if(nz>0) then
-                    ! Calculate bounds
-                    A_XX_lbound = A_II%irp(i+1); A_XX_ubound = A_II%irp(i+1)+nz-1
-                    this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
-                    ! Assign columns
-                    A_II%irp(i+1)                     = A_II%irp(i+1)+nz
-                    A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
-                    A_II%nnz = A_II%nnz + nz
-                endif
-                A_II%nnz = A_II%irp(i+1)-1
-
+                write(*,*) 'Split_2x2: symmetric_storage combination not yet implemented'
+                check(.false.) ! Algorithm not implemented
+    !-----------------------------------------------------------------
+    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
+    !< NOT IMPLEMENTED !!!!!!
+    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !-----------------------------------------------------------------    
             endif
 
             ! Number of nnz of A_IG in row i
@@ -1462,23 +1413,14 @@ contains
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
-                A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
-                do j=max(num_row,num_col)+1,i-1
-                    k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1))
-                    if(k==-1) cycle           
-                    A_GG%ja(A_GG%irp(i-num_row+1)) = j-num_col
-                    A_GG%irp(i-num_row+1)          = A_GG%irp(i-num_row+1) + 1
-                enddo
-
-                if(nz>0) then
-                    ! Calculate bounds
-                    A_XX_lbound = A_GG%irp(i-num_row); A_XX_ubound = A_GG%irp(i-num_row)+nz-1
-                    this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i)+nz-1
-                    ! Assign columns
-                    A_GG%irp(i-num_row+1)             = A_GG%irp(i-num_row+1)+nz
-                    A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)-num_col
-                endif
-                A_GG%nnz = A_GG%irp(i-num_row+1)-1
+                write(*,*) 'Split_2x2: symmetric_storage combination not yet implemented'
+                check(.false.) ! Algorithm not implemented
+    !-----------------------------------------------------------------
+    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
+    !< NOT IMPLEMENTED !!!!!!
+    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !-----------------------------------------------------------------    
             endif
         enddo
 
@@ -1587,6 +1529,8 @@ contains
             call A_RR%set_num_rows(A_RR_num_rows)
             call A_RR%set_num_rows(A_RR_num_cols)
             if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
+                write(*,*) 'Permute_and_split_2x2: symmetric_storage combination not yet implemented'
+                check(.false.) ! Algorithm must be reimplemented
                 ! All diagonal elements in the original matrix must appear in the sparsity pattern
                 call A_RR%allocate_symbolic(2*this%get_nnz()-total_num_rows)
             else if(.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) then
@@ -1629,21 +1573,28 @@ contains
             current_row_offset = this%irp(current_row)
             nz_per_row = 0
             permuted_row_offset = A_RR%irp(permuted_row-num_row)
-
-            ! If THIS_has_symmetric_storage transpose upper_triangle
-            if(THIS_has_symmetric_storage) then
-                do i=1, current_row-1
-                    permuted_col = perm(i)-num_col
-                    if(permuted_col>0 .and. ((.not. A_RR_has_symmetric_storage) .or. (permuted_col > permuted_row-num_row))) then
-                        ! For each one of the previous rows, check if the current row is in it's list of columns
-                        j = binary_search(current_row,this%irp(i+1)-this%irp(i),this%ja(this%irp(i):this%irp(i+1)-1))
-                        if(j==-1) cycle           
-                        A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
-                        A_RR%val(permuted_row_offset+nz_per_row) = this%val(this%irp(i)+j-1)
-                        nz_per_row = nz_per_row + 1
-                    endif
-                enddo
-            endif
+    !-----------------------------------------------------------------
+    !< Only needed if (THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) 
+    !< We have to implement this case !!!!!
+    !<
+    !< Unsymmetric sparsity patterns are not allowed we don't have to manage 
+    !< (.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) as a special case
+    !-----------------------------------------------------------------
+!            ! If THIS_has_symmetric_storage transpose upper_triangle
+!            if(THIS_has_symmetric_storage) then
+!                do i=1, current_row-1
+!                    permuted_col = perm(i)-num_col
+!                    if(permuted_col>0 .and. ((.not. A_RR_has_symmetric_storage) .or. (permuted_col > permuted_row-num_row))) then
+!                        ! For each one of the previous rows, check if the current row is in it's list of columns
+!                        j = binary_search(current_row,this%irp(i+1)-this%irp(i),this%ja(this%irp(i):this%irp(i+1)-1))
+!                        if(j==-1) cycle           
+!                        A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
+!                        A_RR%val(permuted_row_offset+nz_per_row) = this%val(this%irp(i)+j-1)
+!                        nz_per_row = nz_per_row + 1
+!                    endif
+!                enddo
+!            endif
+    !-----------------------------------------------------------------
 
             ! Add permuted_cols to the permuted_row
             do i = current_row_offset, this%irp(current_row+1)-1
@@ -1772,6 +1723,8 @@ contains
         call memalloc(perm_size+2, link_list, __FILE__, __LINE__)
 
         if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
+            write(*,*) 'Permute_and_split_2x2: symmetric_storage combination not yet implemented'
+            check(.false.) ! Algorithm must be reimplemented
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
             call A_RR%allocate_symbolic(2*this%get_nnz()-total_num_rows)
         else if(.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) then
@@ -1790,19 +1743,27 @@ contains
             permuted_row_offset = A_RR%irp(permuted_row)
             nz_per_row = 0
 
-            ! If THIS_has_symmetric_storage transpose upper_triangle
-            if(THIS_has_symmetric_storage) then
-                do i=1, current_row-1
-                    permuted_col = perm(i) - num_col
-                    if((.not. A_RR_has_symmetric_storage) .or. (permuted_col > permuted_row))then 
-                        ! For each one of the previous rows, check if the current row is in it's list of columns
-                        j = binary_search(current_row,this%irp(i+1)-this%irp(i),this%ja(this%irp(i):this%irp(i+1)-1))
-                        if(j==-1) cycle
-                        A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
-                        nz_per_row = nz_per_row + 1
-                    endif
-                enddo
-            endif
+    !-----------------------------------------------------------------
+    !< Only needed if (THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) 
+    !< We have to implement this case !!!!!
+    !<
+    !< Unsymmetric sparsity patterns are not allowed we don't have to manage 
+    !< (.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) as a special case
+    !-----------------------------------------------------------------
+!            ! If THIS_has_symmetric_storage transpose upper_triangle
+!            if(THIS_has_symmetric_storage) then
+!                do i=1, current_row-1
+!                    permuted_col = perm(i) - num_col
+!                    if((.not. A_RR_has_symmetric_storage) .or. (permuted_col > permuted_row))then 
+!                        ! For each one of the previous rows, check if the current row is in it's list of columns
+!                        j = binary_search(current_row,this%irp(i+1)-this%irp(i),this%ja(this%irp(i):this%irp(i+1)-1))
+!                        if(j==-1) cycle
+!                        A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
+!                        nz_per_row = nz_per_row + 1
+!                    endif
+!                enddo
+!            endif
+    !-----------------------------------------------------------------
 
             ! Add permuted_cols to the permuted_row
             do i = current_row_offset, this%irp(current_row+1)-1
@@ -1913,6 +1874,7 @@ contains
         integer                                        :: last_visited_row_offset
         integer                                        :: C_irp(C_T_num_cols)
         integer                                        :: I_irp(C_T_num_cols)
+        integer                                        :: I_counter
         integer                                        :: nz_per_row_counter(C_T_num_cols)
         integer                                        :: nz_counter
         logical                                        :: sorted
@@ -1980,6 +1942,8 @@ contains
         new_nz=this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
         call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
         if(this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+            write(*,*) 'Expand_matrix: symmetric_storage combination not yet implemented'
+            check(.false.) ! Algorithm must be reimplemented
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
             new_nz=2*this%nnz-initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
         else if(.not. this%get_symmetric_storage() .and. to%get_symmetric_storage()) then
@@ -2113,90 +2077,17 @@ contains
             endif
             to%nnz = nz_counter
         else if (this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+    !-----------------------------------------------------------------
+    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
+    !< NOT IMPLEMENTED !!!!!!
+    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !-----------------------------------------------------------------        
             ! Initialize irp
             to%irp(1) = 1
 
             ! If the current_row of C_T is different to 1: Copy the original ja from 1:current_row_offset
             current_row = C_T_ia(1)
-            if(current_row/=1) then
-                do i=1, current_row-1
-                    ! Transpose upper triangle
-                    do j=1,i-1
-                        k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1)) ! Search the col i in previous rows
-                        if(k/=-1) then 
-                            nz_counter = nz_counter+1
-                            to%ja(nz_counter) = j
-                            to%val(nz_counter) = this%val(this%irp(j)+k-1)
-                        endif
-                    enddo
-                    to%ja(nz_counter+1:nz_counter+this%irp(i+1)-this%irp(i)) = this%ja(this%irp(i):this%irp(i+1)-1)
-                    to%val(nz_counter+1:nz_counter+this%irp(i+1)-this%irp(i)) = this%val(this%irp(i):this%irp(i+1)-1)
-                    nz_counter = this%irp(current_row)-this%irp(i)
-                enddo
-            endif
-            last_visited_row = current_row
-
-            ! Loop over C_T to expand the matrix
-            nz_per_row = 0
-            current_nz_per_row = 0
-            do i=1,C_T_nz
-                nz_per_row = nz_per_row+1
-                if(i/=C_T_nz) then
-                    if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
-                endif
-
-                current_row             = C_T_ia(i)                                           ! current row or C_T
-                next_row                = current_row+1                                       ! next row of C_T
-                last_visited_row_offset = this%irp(last_visited_row)                          ! ja offset for the last visited row of C_T
-                next_row_offset         = this%irp(next_row)                                  ! ja offset for the next row of C_T 
-                current_nz_per_row      = next_row_offset-last_visited_row_offset             ! Number of nnz per row before expanding the matrix
-                do j=last_visited_row, current_row
-                    ! Transpose upper triangle
-                    do k=1,j-1
-                        f = binary_search(j,this%irp(k+1)-this%irp(k),this%ja(this%irp(k):this%irp(k+1)-1)) ! Search the col j in previous rows
-                        if(f/=-1) then 
-                            nz_counter = nz_counter+1
-                            to%ja(nz_counter) = k
-                            to%val(nz_counter) = this%val(this%irp(k)+f-1)
-                        endif
-                    enddo
-                    ! Append existing columns into the current row of the expanded matrix
-                    to%ja(nz_counter+1:nz_counter+this%irp(j+1)-this%irp(j)) = this%ja(this%irp(j):this%irp(j+1)-1)
-                    to%val(nz_counter+1:nz_counter+this%irp(j+1)-this%irp(j)) = this%val(this%irp(j):this%irp(j+1)-1)
-                    nz_counter = nz_counter+this%irp(j+1)-this%irp(j)
-                    to%irp(j+1) = nz_counter+1
-                enddo
-                ! Append new columns into the current row of the expanded matrix
-                to%ja(nz_counter+1:nz_counter+nz_per_row) = C_T_ja(i-nz_per_row+1:i) + initial_num_cols
-                to%val(nz_counter+1:nz_counter+nz_per_row) = C_T_val(i-nz_per_row+1:i)
-                nz_counter = nz_counter + nz_per_row
-
-                ! Add the new nnz to irp
-                to%irp(next_row) = nz_counter+1
-
-                nz_per_row = 0
-                last_visited_row  = next_row
-            enddo
-
-            ! If the last visited row is not the last row append the rest of the ja values
-            if(last_visited_row/=initial_num_rows+1) then
-                do i=last_visited_row, initial_num_rows
-                    ! Transpose upper triangle
-                    do j=1,i-1
-                        k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1)) ! Search the col i in previous rows
-                        if(k/=-1) then 
-                            nz_counter = nz_counter+1
-                            to%ja(nz_counter) = j
-                            to%val(nz_counter) = this%ja(this%irp(j)+k-1)
-                        endif
-                    enddo
-                    to%ja(nz_counter+1:nz_counter+this%irp(i+1)-this%irp(i)) = this%ja(this%irp(i):this%irp(i+1)-1)
-                    to%val(nz_counter+1:nz_counter+this%irp(i+1)-this%irp(i)) = this%val(this%irp(i):this%irp(i+1)-1)
-                    nz_counter = this%irp(current_row)-this%irp(i)
-                enddo
-
-            endif
-            to%nnz = nz_counter
         endif
         to%irp(initial_num_rows+1) = to%nnz+1
 
@@ -2204,26 +2095,22 @@ contains
     ! Loop to expand with C  and I matrices (Append new rows)
     !-----------------------------------------------------------------        
         nz_per_row_counter = 0
+        I_counter = 1
         do i=1,C_T_num_cols
             current_row = initial_num_rows+i+1
             if(symmetric_storage) then
                 ! If symmetric_storage, only upper triangle of I matrix will be appended
                 nz_per_row = I_irp(i)
-                j = binary_search(i,I_nz,I_ia) ! Search the row i in I_ia
-                if(j>1) then ! Rewind if row was founded and is not the first index
-                    do while (j>2 .and. I_ia(j-1)==i)
-                        j = j-1
-                    enddo
-                endif
-                if(j/=-1) then
-                    do while (I_ia(j)==i)
-                        if(I_ja(j)>=I_ia(j)) then
-                            to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
-                            to%val(to%irp(current_row-1)+nz_per_row_counter(i)) = I_val(j)
+
+                if(I_counter<=I_nz) then
+                    do while (I_ia(I_counter)==i)
+                        if(I_ja(I_counter)>=I_ia(I_counter)) then
+                            to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(I_counter)+initial_num_cols
+                            to%val(to%irp(current_row-1)+nz_per_row_counter(i)) = I_val(I_counter)
                             nz_per_row_counter(i) = nz_per_row_counter(i) + 1
                         endif
-                        j = j+1
-                        if(j>I_nz) exit
+                        I_counter = I_counter+1
+                        if(I_counter>I_nz) exit
                     enddo
                 endif
             else
@@ -2240,19 +2127,14 @@ contains
                     endif
                 enddo
                 nz_per_row = nz_per_row + I_irp(i)
-                j = binary_search(i,I_nz,I_ia) ! Search the row i in I_ia
-                if(j>1) then ! Rewind if row was founded and is not the first index
-                    do while (j>2 .and. I_ia(j-1)==i)
-                        j = j-1
-                    enddo
-                endif
-                if(j>=1) then
-                    do while (I_ia(j)==i)
-                        to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
-                        to%val(to%irp(current_row-1)+nz_per_row_counter(i)) = I_val(j)
+
+                if(I_counter<=I_nz) then
+                    do while (I_ia(I_counter)==i)
+                        to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(I_counter)+initial_num_cols
+                        to%val(to%irp(current_row-1)+nz_per_row_counter(i)) = I_val(I_counter)
                         nz_per_row_counter(i) = nz_per_row_counter(i) + 1
-                        j = j+1
-                        if(j>I_nz .or. nz_per_row_counter(i)>=nz_per_row) exit
+                        I_counter = I_counter+1
+                        if(I_counter>I_nz .or. nz_per_row_counter(i)>=nz_per_row) exit
                     enddo
                 endif
             endif
@@ -2343,6 +2225,7 @@ contains
         integer                                        :: last_visited_row_offset
         integer                                        :: C_irp(C_T_num_cols)
         integer                                        :: I_irp(C_T_num_cols)
+        integer                                        :: I_counter
         integer                                        :: nz_per_row_counter(C_T_num_cols)
         integer                                        :: nz_counter
         logical                                        :: sorted
@@ -2408,6 +2291,8 @@ contains
     !-----------------------------------------------------------------
         call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
         if(this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+            write(*,*) 'Expand matrix: symmetric_storage combination not yet implemented'
+            check(.false.) ! Algorithm not implemented
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
             new_nz=2*this%nnz-initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
         else if(.not. this%get_symmetric_storage() .and. to%get_symmetric_storage()) then
@@ -2531,83 +2416,17 @@ contains
             endif
             to%nnz = nz_counter
         else if (this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+    !-----------------------------------------------------------------
+    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
+    !< NOT IMPLEMENTED !!!!!!
+    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !-----------------------------------------------------------------        
             ! Initialize irp
             to%irp(1) = 1
 
             ! If the current_row of C_T is different to 1: Copy the original ja from 1:current_row_offset
             current_row = C_T_ia(1)
-            if(current_row/=1) then
-                do i=1, current_row-1
-                    ! Transpose upper triangle
-                    do j=1,i-1
-                        k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1)) ! Search the col i in previous rows
-                        if(k/=-1) then 
-                            nz_counter = nz_counter+1
-                            to%ja(nz_counter) = j
-                        endif
-                    enddo
-                    to%ja(nz_counter+1:nz_counter+this%irp(i+1)-this%irp(i)) = this%ja(this%irp(i):this%irp(i+1)-1)
-                    nz_counter = this%irp(current_row)-this%irp(i)
-                enddo
-            endif
-            last_visited_row = current_row
-
-            ! Loop over C_T to expand the matrix
-            nz_per_row = 0
-            current_nz_per_row = 0
-            do i=1,C_T_nz
-                nz_per_row = nz_per_row+1
-                if(i/=C_T_nz) then
-                    if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
-                endif
-
-                current_row             = C_T_ia(i)                                           ! current row or C_T
-                next_row                = current_row+1                                       ! next row of C_T
-                last_visited_row_offset = this%irp(last_visited_row)                          ! ja offset for the last visited row of C_T
-                next_row_offset         = this%irp(next_row)                                  ! ja offset for the next row of C_T 
-                current_nz_per_row      = next_row_offset-last_visited_row_offset             ! Number of nnz per row before expanding the matrix
-                do j=last_visited_row, current_row
-                    ! Transpose upper triangle
-                    do k=1,j-1
-                        f = binary_search(j,this%irp(k+1)-this%irp(k),this%ja(this%irp(k):this%irp(k+1)-1)) ! Search the col j in previous rows
-                        if(f/=-1) then 
-                            nz_counter = nz_counter+1
-                            to%ja(nz_counter) = k
-                        endif
-                    enddo
-                    ! Append existing columns into the current row of the expanded matrix
-                    to%ja(nz_counter+1:nz_counter+this%irp(j+1)-this%irp(j)) = this%ja(this%irp(j):this%irp(j+1)-1)
-                    nz_counter = nz_counter+this%irp(j+1)-this%irp(j)
-                    to%irp(j+1) = nz_counter+1
-                enddo
-                ! Append new columns into the current row of the expanded matrix
-                to%ja(nz_counter+1:nz_counter+nz_per_row) = C_T_ja(i-nz_per_row+1:i) + initial_num_cols
-                nz_counter = nz_counter + nz_per_row
-
-                ! Add the new nnz to irp
-                to%irp(next_row) = nz_counter+1
-
-                nz_per_row = 0
-                last_visited_row  = next_row
-            enddo
-
-            ! If the last visited row is not the last row append the rest of the ja values
-            if(last_visited_row/=initial_num_rows+1) then
-                do i=last_visited_row, initial_num_rows
-                    ! Transpose upper triangle
-                    do j=1,i-1
-                        k = binary_search(i,this%irp(j+1)-this%irp(j),this%ja(this%irp(j):this%irp(j+1)-1)) ! Search the col i in previous rows
-                        if(k/=-1) then 
-                            nz_counter = nz_counter+1
-                            to%ja(nz_counter) = j
-                        endif
-                    enddo
-                    to%ja(nz_counter+1:nz_counter+this%irp(i+1)-this%irp(i)) = this%ja(this%irp(i):this%irp(i+1)-1)
-                    nz_counter = this%irp(current_row)-this%irp(i)
-                enddo
-
-            endif
-            to%nnz = nz_counter
         endif
         to%irp(initial_num_rows+1) = to%nnz+1
 
@@ -2615,25 +2434,21 @@ contains
     ! Loop to expand with C  and I matrices (Append new rows)
     !-----------------------------------------------------------------
         nz_per_row_counter = 0
+        I_counter = 1
         do i=1,C_T_num_cols
             current_row = initial_num_rows+i+1
             if(symmetric_storage) then
                 ! If symmetric_storage, only upper triangle of I matrix will be appended
                 nz_per_row = I_irp(i)
-                j = binary_search(i,I_nz,I_ia) ! Search the row i in I_ia
-                if(j>1) then ! Rewind if row was founded and is not the first index
-                    do while (j>2 .and. I_ia(j-1)==i)
-                        j = j-1
-                    enddo
-                endif
-                if(j/=-1) then
-                    do while (I_ia(j)==i)
-                        if(I_ja(j)>=I_ia(j)) then
-                            to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
+
+                if(I_counter<=I_nz) then
+                    do while (I_ia(I_counter)==i)
+                        if(I_ja(I_counter)>=I_ia(I_counter)) then
+                            to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(I_counter)+initial_num_cols
                             nz_per_row_counter(i) = nz_per_row_counter(i) + 1
                         endif
-                        j = j+1
-                        if(j>I_nz) exit
+                        I_counter = I_counter+1
+                        if(I_counter>I_nz) exit
                     enddo
                 endif
             else
@@ -2649,25 +2464,19 @@ contains
                     endif
                 enddo
                 nz_per_row = nz_per_row + I_irp(i)
-                j = binary_search(i,I_nz,I_ia) ! Search the row i in I_ia
-                if(j>1) then ! Rewind if row was founded and is not the first index
-                    do while (j>2 .and. I_ia(j-1)==i)
-                        j = j-1
-                    enddo
-                endif
-                if(j>=1) then
-                    do while (I_ia(j)==i)
-                        to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(j)+initial_num_cols
+
+                if(I_counter<=I_nz) then
+                    do while (I_ia(I_counter)==i)
+                        to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(I_counter)+initial_num_cols
                         nz_per_row_counter(i) = nz_per_row_counter(i) + 1
-                        j = j+1
-                        if(j>I_nz .or. nz_per_row_counter(i)>=nz_per_row) exit
+                        I_counter = I_counter+1
+                        if(I_counter>I_nz .or. nz_per_row_counter(i)>=nz_per_row) exit
                     enddo
                 endif
             endif
             to%irp(current_row) = to%irp(current_row-1)+nz_per_row_counter(i)
             nz_per_row = 0
         enddo
-
     !-----------------------------------------------------------------
     ! Update matrix properties
     !-----------------------------------------------------------------
