@@ -380,7 +380,7 @@ program test_reference_fe
                            reference_fe_geo_topology = "quad", &
                            reference_fe_geo_type = "Lagrangian" )
      call fe_space%fill_dof_info() 
-
+     
      call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                      diagonal_blocks_symmetric_storage=(/.true./), &
                                      diagonal_blocks_symmetric=(/.true./), &

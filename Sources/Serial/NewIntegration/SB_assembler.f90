@@ -34,20 +34,21 @@ module SB_assembler_names
   private
 
   type, abstract :: SB_assembler_t
-    contains
-	     procedure (assembly_interface)        , deferred :: assembly
-      procedure (compress_storage_interface), deferred :: compress_storage
-  end type
-  
+   contains
+     procedure (assembly_interface)        , deferred :: assembly
+     procedure (face_assembly_interface)   , deferred :: face_assembly
+     procedure (compress_storage_interface), deferred :: compress_storage
+  end type SB_assembler_t
+
   abstract interface
-     subroutine assembly_interface( this, & 
-                                    number_fe_spaces, &
-                                    number_nodes, &
-                                    elem2dof, &
-                                    field_blocks, &
-                                    field_coupling, &
-                                    elmat, &
-                                    elvec )
+     subroutine assembly_interface( this,             & 
+          &                         number_fe_spaces, &
+          &                         number_nodes,     &
+          &                         elem2dof,         &
+          &                         field_blocks,     &
+          &                         field_coupling,   &
+          &                         elmat,            &
+          &                         elvec )
        import :: SB_assembler_t, rp, ip, i1p_t
        implicit none
        class(SB_assembler_t) , intent(inout) :: this
@@ -61,17 +62,35 @@ module SB_assembler_names
        ! elvec MUST have as many entries as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
        real(rp)              , intent(in)    :: elvec(:)   
      end subroutine assembly_interface
-     
+
+     subroutine face_assembly_interface(this,number_fe_spaces,test_number_nodes,trial_number_nodes, &
+          &                   test_elem2dof,trial_elem2dof,field_blocks,field_coupling,facemat,elvec) 
+       import :: SB_assembler_t, rp, ip, i1p_t
+       implicit none
+       class(SB_assembler_t), intent(inout) :: this
+       integer(ip)          , intent(in)    :: number_fe_spaces
+       integer(ip)          , intent(in)    :: test_number_nodes(number_fe_spaces)
+       integer(ip)          , intent(in)    :: trial_number_nodes(number_fe_spaces)
+       type(i1p_t)          , intent(in)    :: test_elem2dof(number_fe_spaces)
+       type(i1p_t)          , intent(in)    :: trial_elem2dof(number_fe_spaces)
+       integer(ip)          , intent(in)    :: field_blocks(number_fe_spaces)
+       logical              , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
+       ! elmat MUST have as many rows/columns as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
+       real(rp)             , intent(in)    :: facemat(:,:) 
+       ! elvec MUST have as many entries as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
+       real(rp)             , intent(in)    :: elvec(:)  
+     end subroutine face_assembly_interface
+
      subroutine compress_storage_interface( this, & 
-                                            sparse_matrix_storage_format )
+          &                                 sparse_matrix_storage_format )
        import :: SB_assembler_t
        implicit none
        class(SB_assembler_t) , intent(inout) :: this
        character(*)          , intent(in)    :: sparse_matrix_storage_format
      end subroutine compress_storage_interface
-     
+
   end interface
-	 
+
   ! Data types
   public :: SB_assembler_t
 

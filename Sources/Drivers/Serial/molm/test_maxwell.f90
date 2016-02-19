@@ -341,6 +341,8 @@ program test_reference_fe
 
    call fe_space%fill_dof_info() 
  
+   call fe_space%print()
+ 
    call fe_affine_operator%create ( 'CSR', &
                                     (/.true.,.true./), &
                                     (/.true.,.true./), &
