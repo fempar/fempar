@@ -112,7 +112,7 @@ contains
                                                             diagonal_blocks_sign(ib) )
           else
              call this%blocks(ib,jb)%sparse_matrix%create( diagonal_blocks_num_rows(ib), &
-                                                           diagonal_blocks_num_cols(ib) )
+                                                           diagonal_blocks_num_cols(jb) )
           end if
        end do
     end do

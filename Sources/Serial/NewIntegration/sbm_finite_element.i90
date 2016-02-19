@@ -1,4 +1,73 @@
-subroutine update_integration( this )
+subroutine finite_element_create( this, & 
+                                  cell, &
+                                  number_fe_spaces, &
+                                  reference_fe_phy, &
+                                  quadrature, &
+                                  fe_map, &
+                                  volume_integrator, &
+                                  number_blocks, &
+                                  field_blocks,  &
+                                  boundary_conditions )
+  implicit none
+  class(SB_finite_element_t)            , intent(inout) :: this 
+  type(elem_topology_t)         , target, intent(in)    :: cell
+  integer(ip)                           , intent(in)    :: number_fe_spaces
+  type(p_reference_fe_t)        , target, intent(in)    :: reference_fe_phy(number_fe_spaces)
+  type(SB_quadrature_t)         , target, intent(in)    :: quadrature
+  type(fe_map_t)                , target, intent(in)    :: fe_map
+  type(SB_p_volume_integrator_t), target, intent(in)    :: volume_integrator(number_fe_spaces)  
+  integer(ip)                           , intent(in)    :: number_blocks
+  integer(ip)                   , target, intent(in)    :: field_blocks(number_blocks)
+  type(conditions_t)                    , intent(in)    :: boundary_conditions
+  
+  integer(ip) :: j, ivef, inode, jnode, vef_gid, number_nodes, component, offset_component
+  
+  number_nodes = 0
+  do j = 1, number_fe_spaces
+    number_nodes = number_nodes + reference_fe_phy(j)%p%get_number_nodes()
+  end do
+     
+  this%cell => cell
+  this%number_nodes = number_nodes
+  this%number_fe_spaces = number_fe_spaces
+  
+  this%quadrature => quadrature
+  this%fe_map => fe_map
+
+  this%volume_integrator => volume_integrator
+  this%reference_fe_phy => reference_fe_phy
+
+  this%number_blocks = number_blocks
+  this%field_blocks => field_blocks
+
+  allocate( this%elem2dof(this%number_fe_spaces) )
+  allocate( this%bc_code(this%number_fe_spaces) )
+  allocate( this%bc_value(this%number_fe_spaces) )
+    
+  offset_component = 0
+  do j = 1, this%number_fe_spaces
+    number_nodes = this%reference_fe_phy(j)%p%get_number_nodes()
+    allocate( this%elem2dof(j)%p(number_nodes) )
+    this%elem2dof(j)%p = 0
+    allocate( this%bc_code(j)%p(number_nodes) )
+    allocate( this%bc_value(j)%p(number_nodes) )
+    this%bc_code(j)%p = 0
+    this%bc_value(j)%p = 0.0_rp
+    do ivef = 1,this%cell%num_vefs
+      vef_gid = this%cell%vefs(ivef)
+      do inode = 1, this%reference_fe_phy(j)%p%get_number_interior_nodes_vef(ivef)
+        jnode = this%reference_fe_phy(j)%p%get_interior_node_vef(inode,ivef)
+        component = offset_component+reference_fe_phy(j)%p%get_bc_component_node(jnode)
+        this%bc_code(j)%p(jnode) = boundary_conditions%code(component,vef_gid)
+        this%bc_value(j)%p(jnode) = boundary_conditions%valu(component,vef_gid)
+      end do
+    end do
+    offset_component = offset_component + reference_fe_phy(j)%p%get_number_field_components()
+  end do 
+  
+end subroutine finite_element_create
+
+subroutine finite_element_update_integration( this )
   implicit none
   class(SB_finite_element_t), intent(inout) :: this 
   integer(ip)                      :: i
@@ -11,9 +80,33 @@ subroutine update_integration( this )
   do i = 1, this%number_fe_spaces
      call this%volume_integrator(i)%p%update(this%fe_map)
   end do
-end subroutine update_integration
+end subroutine finite_element_update_integration
 
-subroutine fill_interior_dofs ( this, fe_space_id, dof_count )
+subroutine finite_element_free( this )
+  implicit none
+  class(SB_finite_element_t), intent(inout) :: this 
+  integer(ip) :: j
+  
+  nullify(this%cell)
+  this%number_nodes = 0
+  this%number_blocks = 0
+  nullify( this%field_blocks )
+  nullify(this%quadrature)
+  nullify(this%fe_map)
+  nullify(this%volume_integrator)
+  nullify(this%reference_fe_phy)
+  do j = 1, this%number_fe_spaces
+    deallocate( this%elem2dof(j)%p )
+    deallocate( this%bc_code(j)%p )
+    deallocate( this%bc_value(j)%p )
+  end do
+  this%number_fe_spaces = 0   
+  deallocate( this%elem2dof )
+  deallocate( this%bc_code )
+  deallocate( this%bc_value )
+end subroutine finite_element_free
+
+subroutine finite_element_fill_interior_dofs ( this, fe_space_id, dof_count )
   implicit none
   ! Parameters
   class(SB_finite_element_t), intent(inout)   :: this
@@ -39,9 +132,9 @@ subroutine fill_interior_dofs ( this, fe_space_id, dof_count )
         end do
       end do
    end if
-end subroutine fill_interior_dofs
+end subroutine finite_element_fill_interior_dofs
 
-subroutine fill_dofs_on_vef ( this, vef_local_id, fe_space_id, dof_count )
+subroutine finite_element_fill_dofs_on_vef ( this, vef_local_id, fe_space_id, dof_count )
   implicit none
   ! Parameters
   class(SB_finite_element_t), intent(inout)   :: this
@@ -59,9 +152,9 @@ subroutine fill_dofs_on_vef ( this, vef_local_id, fe_space_id, dof_count )
       this%elem2dof(fe_space_id)%p(l_node) = dof_count
     end	if
   end do
-end subroutine fill_dofs_on_vef
+end subroutine finite_element_fill_dofs_on_vef
 
-subroutine fill_dofs_on_vef_from_source_element ( this, &
+subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
                                                            target_vef_lid, &
                                                            source_fe, &  
                                                            source_vef_lid, &
@@ -101,66 +194,67 @@ subroutine fill_dofs_on_vef_from_source_element ( this, &
   
     do interior_inode = 1, interior_nnode
         inode_source = source_ref_fe%get_interior_node_vef(interior_inode,source_vef_lid)
-        inode_target = target_ref_fe%get_interior_node_vef(s2t_perm_for_interior_nodes_vef(interior_inode),target_vef_lid)
+        !inode_target = target_ref_fe%get_interior_node_vef(s2t_perm_for_interior_nodes_vef(interior_inode),target_vef_lid)
+      		inode_target = target_ref_fe%get_interior_node_vef(interior_inode,target_vef_lid)
         if ( this%bc_code(fe_space_id)%p(inode_target) == 0 ) then
            this%elem2dof(fe_space_id)%p(inode_target) = source_fe%elem2dof(fe_space_id)%p(inode_source)
         end	if
     end do 
  end if
  
-end subroutine fill_dofs_on_vef_from_source_element
+end subroutine finite_element_fill_dofs_on_vef_from_source_element
 
-function get_number_nodes ( this )
+function finite_element_get_number_nodes ( this )
   implicit none
   class(SB_finite_element_t), intent(in) :: this
-  integer(ip)                            :: get_number_nodes
-  get_number_nodes = this%number_nodes
-end function get_number_nodes
+  integer(ip)                            :: finite_element_get_number_nodes
+  finite_element_get_number_nodes = this%number_nodes
+end function finite_element_get_number_nodes
 
-function get_fe_map ( this )
+function finite_element_get_fe_map ( this )
   implicit none
   class(SB_finite_element_t), target, intent(in)  :: this
-  type(fe_map_t)                        , pointer :: get_fe_map
-  get_fe_map => this%fe_map
-end function get_fe_map
+  type(fe_map_t)                        , pointer :: finite_element_get_fe_map
+  finite_element_get_fe_map => this%fe_map
+end function finite_element_get_fe_map
 
-function get_quadrature ( this )
+function finite_element_get_quadrature ( this )
   implicit none
   class(SB_finite_element_t), target, intent(in)  :: this
-  type(SB_quadrature_t), pointer :: get_quadrature
-  get_quadrature => this%quadrature
-end function get_quadrature
+  type(SB_quadrature_t), pointer :: finite_element_get_quadrature
+  finite_element_get_quadrature => this%quadrature
+end function finite_element_get_quadrature
 
-function get_volume_integrator ( this, i )
+function finite_element_get_volume_integrator ( this, i )
   implicit none
   class(SB_finite_element_t), target, intent(in)  :: this
   integer(ip)                       , intent(in)  :: i
-  type(SB_volume_integrator_t)      , pointer     :: get_volume_integrator
-  get_volume_integrator => this%volume_integrator(i)%p
-end function get_volume_integrator
+  type(SB_volume_integrator_t)      , pointer     :: finite_element_get_volume_integrator
+  finite_element_get_volume_integrator => this%volume_integrator(i)%p
+end function finite_element_get_volume_integrator
 
-function get_elem2dof( this )
+function finite_element_get_elem2dof( this )
   implicit none
   class(SB_finite_element_t), target, intent(in) :: this
-  type(i1p_t), pointer :: get_elem2dof(:)
-  get_elem2dof => this%elem2dof
-end function get_elem2dof
+  type(i1p_t), pointer :: finite_element_get_elem2dof(:)
+  finite_element_get_elem2dof => this%elem2dof
+end function finite_element_get_elem2dof
 
-function get_bc_code( this )
+function finite_element_get_bc_code( this )
   implicit none
   class(SB_finite_element_t), target, intent(in) :: this
-  type(i1p_t), pointer :: get_bc_code(:)
-  get_bc_code => this%bc_code
-end function get_bc_code
+  type(i1p_t), pointer :: finite_element_get_bc_code(:)
+  finite_element_get_bc_code => this%bc_code
+end function finite_element_get_bc_code
 
-function get_bc_value( this )
+function finite_element_get_bc_value( this )
   implicit none
   class(SB_finite_element_t), target, intent(in) :: this
-  type(r1p_t), pointer :: get_bc_value(:)
-  get_bc_value => this%bc_value
-end function get_bc_value
+  type(r1p_t), pointer :: finite_element_get_bc_value(:)
+  finite_element_get_bc_value => this%bc_value
+end function finite_element_get_bc_value
 
-subroutine get_number_nodes_per_field ( this, number_nodes )
+subroutine finite_element_get_number_nodes_per_field ( this, number_nodes )
   implicit none
   class(SB_finite_element_t), intent(in)  :: this
   integer(ip)               , intent(out) :: number_nodes(this%number_fe_spaces)
@@ -168,20 +262,20 @@ subroutine get_number_nodes_per_field ( this, number_nodes )
   do i = 1, this%number_fe_spaces
      number_nodes(i) = this%reference_fe_phy(i)%p%get_number_nodes()
   end do
-end subroutine get_number_nodes_per_field
+end subroutine finite_element_get_number_nodes_per_field
 
-function get_subset_id ( this )
+function finite_element_get_subset_id ( this )
   implicit none
   class(SB_finite_element_t), intent(in) :: this
-  integer(ip)                            :: get_subset_id
-  get_subset_id = this%cell%subset_id
-end function get_subset_id
+  integer(ip)                            :: finite_element_get_subset_id
+  finite_element_get_subset_id = this%cell%subset_id
+end function finite_element_get_subset_id
 
 !**************************************************************************************************
 ! Update methods for fe_function_scalar/vector/tensor_t
 !**************************************************************************************************
 
-subroutine update_scalar_values (this, fe_function_scalar, vector_dof_values)
+subroutine finite_element_update_scalar_values (this, fe_function_scalar, vector_dof_values)
   implicit none
   class(SB_finite_element_t), intent(in)    :: this
   type(fe_function_scalar_t), intent(inout) :: fe_function_scalar
@@ -215,9 +309,9 @@ subroutine update_scalar_values (this, fe_function_scalar, vector_dof_values)
   call this%volume_integrator(fe_space_id)%p%evaluate_fe_function ( nodal_values, & 
                                                                   & quadrature_points_values )
   
-end subroutine update_scalar_values
+end subroutine finite_element_update_scalar_values
 
-subroutine update_vector_values (this, fe_function_vector, vector_dof_values)
+subroutine finite_element_update_vector_values (this, fe_function_vector, vector_dof_values)
   implicit none
   class(SB_finite_element_t), intent(in)              :: this
   type(fe_function_vector_t), intent(inout)           :: fe_function_vector
@@ -250,9 +344,9 @@ subroutine update_vector_values (this, fe_function_vector, vector_dof_values)
 
   call this%volume_integrator(fe_space_id)%p%evaluate_fe_function ( nodal_values, & 
                                                                   & quadrature_points_values )
-end subroutine update_vector_values
+end subroutine finite_element_update_vector_values
 
-subroutine update_tensor_values (this, fe_function_tensor, vector_dof_values)
+subroutine finite_element_update_tensor_values (this, fe_function_tensor, vector_dof_values)
   implicit none
   class(SB_finite_element_t), intent(in)              :: this
   type(fe_function_tensor_t), intent(inout)           :: fe_function_tensor
@@ -285,6 +379,6 @@ subroutine update_tensor_values (this, fe_function_tensor, vector_dof_values)
 
   call this%volume_integrator(fe_space_id)%p%evaluate_fe_function ( nodal_values, & 
                                                                   & quadrature_points_values )
-end subroutine update_tensor_values
+end subroutine finite_element_update_tensor_values
 
 

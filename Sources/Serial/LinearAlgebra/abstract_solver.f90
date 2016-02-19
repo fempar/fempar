@@ -773,7 +773,6 @@ end subroutine abstract_ipcg
 
        ! start iterations
        kloc = 0
-       kloc = 0
        inner: do while ( (.not.exit_loop) .and. &
             &            (ctrl%it < ctrl%itmax) .and. &
             &            (kloc < ctrl%dkrymax))
@@ -1106,6 +1105,7 @@ use blas77_interfaces_names
     if ( env%am_i_fine_task() ) then
         if ((me == 0).and.(ctrl%trace/=0)) call solver_control_log_header(ctrl)
     end if
+
     ctrl%it = 0
   outer: do while ( (.not.exit_loop) .and. &
        &            (ctrl%it < ctrl%itmax))
@@ -1699,8 +1699,6 @@ use lapack77_interfaces_names
  
     assert(ctrl%stopc==res_res.or.ctrl%stopc==res_rhs)
 
-    
-
     call A%GuardTemp()
     call M%GuardTemp()
     call b%GuardTemp()
@@ -2195,7 +2193,7 @@ subroutine abstract_pminres(A, M, b, x, ctrl, env)
        s     , sn    , t     , tnorm2, ynorm2, z
 
   integer(ip) :: i, istop, itn
-  logical :: debug, prnt
+  logical     :: debug, prnt
   logical     :: beta1_lt_zero, beta1_eq_zero, beta_lt_zero, istop_neq_zero
 
   real(rp) ::   Anorm, Acond, rnorm, ynorm
