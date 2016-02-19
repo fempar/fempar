@@ -16,7 +16,7 @@ module base_sparse_matrix_names
 
   ! States
   integer(ip), parameter :: SPARSE_MATRIX_STATE_START              = 0
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_PROPERTIES_SETTED  = 1
+  integer(ip), parameter :: SPARSE_MATRIX_STATE_PROPERTIES_SET     = 1
   integer(ip), parameter :: SPARSE_MATRIX_STATE_CREATED            = 2
   integer(ip), parameter :: SPARSE_MATRIX_STATE_BUILD_SYMBOLIC     = 3
   integer(ip), parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC      = 4
@@ -197,7 +197,7 @@ module base_sparse_matrix_names
         procedure, public :: is_symmetric                     => base_sparse_matrix_is_symmetric
         procedure, public :: set_state                        => base_sparse_matrix_set_state
         procedure, public :: set_state_start                  => base_sparse_matrix_set_state_start
-        procedure, public :: set_state_properties_setted      => base_sparse_matrix_set_state_properties_setted
+        procedure, public :: set_state_properties_set         => base_sparse_matrix_set_state_properties_set
         procedure, public :: set_state_created                => base_sparse_matrix_set_state_created
         procedure, public :: set_state_build_symbolic         => base_sparse_matrix_set_state_build_symbolic
         procedure, public :: set_state_build_numeric          => base_sparse_matrix_set_state_build_numeric
@@ -783,15 +783,15 @@ contains
     end subroutine base_sparse_matrix_set_state_start
 
 
-    subroutine base_sparse_matrix_set_state_properties_setted(this)
+    subroutine base_sparse_matrix_set_state_properties_set(this)
     !-----------------------------------------------------------------
-    !< Set the matrix state to SPARSE_MATRIX_STATE_PROPERTIES_SETTED
+    !< Set the matrix state to SPARSE_MATRIX_STATE_PROPERTIES_SET
     !< The matrix can jump to this state after set_properties() calls
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        this%state = SPARSE_MATRIX_STATE_PROPERTIES_SETTED
-    end subroutine base_sparse_matrix_set_state_properties_setted
+        this%state = SPARSE_MATRIX_STATE_PROPERTIES_SET
+    end subroutine base_sparse_matrix_set_state_properties_set
 
 
     subroutine base_sparse_matrix_set_state_created(this)
@@ -877,12 +877,12 @@ contains
 
     function base_sparse_matrix_state_is_properties_setted(this) result(state_properties_setted)
     !-----------------------------------------------------------------
-    !< Check if the matrix state is SPARSE_MATRIX_STATE_PROPERTIES_SETTED
+    !< Check if the matrix state is SPARSE_MATRIX_STATE_PROPERTIES_SET
     !-----------------------------------------------------------------
         class(base_sparse_matrix_t), intent(in) :: this
         logical                                 :: state_properties_setted
     !-----------------------------------------------------------------
-        state_properties_setted = (this%state == SPARSE_MATRIX_STATE_PROPERTIES_SETTED)
+        state_properties_setted = (this%state == SPARSE_MATRIX_STATE_PROPERTIES_SET)
     end function base_sparse_matrix_state_is_properties_setted
 
 
@@ -1138,7 +1138,7 @@ contains
         call this%set_symmetric_storage(symmetric_storage)
         this%symmetric = is_symmetric
         this%sign = sign
-        call this%set_state_properties_setted()
+        call this%set_state_properties_set()
     end subroutine base_sparse_matrix_set_properties
 
 
@@ -1153,7 +1153,7 @@ contains
         integer(ip),                 intent(in)    :: sign
         integer(ip), optional,       intent(in)    :: nz
     !-----------------------------------------------------------------
-        assert(this%state == SPARSE_MATRIX_STATE_START .or. this%state == SPARSE_MATRIX_STATE_PROPERTIES_SETTED)
+        assert(this%state == SPARSE_MATRIX_STATE_START .or. this%state == SPARSE_MATRIX_STATE_PROPERTIES_SET)
         assert(this%is_valid_sign(sign))
         if(symmetric_storage) then
             assert(is_symmetric)
@@ -1177,7 +1177,7 @@ contains
         integer(ip),                 intent(in)    :: num_cols
         integer(ip), optional,       intent(in)    :: nz
     !-----------------------------------------------------------------
-        assert(this%state == SPARSE_MATRIX_STATE_START .or. this%state == SPARSE_MATRIX_STATE_PROPERTIES_SETTED)
+        assert(this%state == SPARSE_MATRIX_STATE_START .or. this%state == SPARSE_MATRIX_STATE_PROPERTIES_SET)
         if(.not. this%state_is_properties_setted()) then
             call this%set_symmetric_storage(.false.)
             this%symmetric = .false.

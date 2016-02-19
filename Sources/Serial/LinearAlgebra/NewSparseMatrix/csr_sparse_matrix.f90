@@ -1586,10 +1586,14 @@ contains
         if(A_RR%state_is_properties_setted()) then
             call A_RR%set_num_rows(A_RR_num_rows)
             call A_RR%set_num_rows(A_RR_num_cols)
-            if(.not. A_RR_has_symmetric_storage .and. THIS_has_symmetric_storage) then
-                call A_RR%allocate_numeric(this%get_nnz()*2)
+            if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
+                ! All diagonal elements in the original matrix must appear in the sparsity pattern
+                call A_RR%allocate_symbolic(2*this%get_nnz()-total_num_rows)
+            else if(.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) then
+                ! All diagonal elements in the original matrix must appear in the sparsity pattern
+                call A_RR%allocate_symbolic((this%get_nnz()-total_num_rows)/2+total_num_rows)
             else
-                call A_RR%allocate_numeric(this%get_nnz())
+                call A_RR%allocate_symbolic(this%get_nnz())
             endif
         else
             call A_RR%allocate_values_body(A_RR%get_nnz())
@@ -1767,8 +1771,12 @@ contains
 
         call memalloc(perm_size+2, link_list, __FILE__, __LINE__)
 
-        if(.not. A_RR_has_symmetric_storage .and. THIS_has_symmetric_storage) then
-            call A_RR%allocate_symbolic(this%get_nnz()*2)
+        if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
+            ! All diagonal elements in the original matrix must appear in the sparsity pattern
+            call A_RR%allocate_symbolic(2*this%get_nnz()-total_num_rows)
+        else if(.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) then
+            ! All diagonal elements in the original matrix must appear in the sparsity pattern
+            call A_RR%allocate_symbolic((this%get_nnz()-total_num_rows)/2+total_num_rows)
         else
             call A_RR%allocate_symbolic(this%get_nnz())
         endif
@@ -1865,7 +1873,7 @@ contains
     !<  - C = transpose(C_T)
     !<  - I is a square matrix
     !<  - THIS (input) sparse matrix must be in ASSEMBLED state
-    !<  - TO (output) sparse matrix must be in START state
+    !<  - TO (output) sparse matrix must be in PROPERTIES_SET state
     !<  - C_T coordinate arrays (C_T_ia, C_T_ja and C_T_val) must 
     !<    have the same size (C_T_nz)
     !<  - I coordinate arrays (I_ia, I_ja and I_val) must 
@@ -1922,7 +1930,7 @@ contains
 
         call to%set_num_rows(initial_num_rows+C_T_num_cols)
         call to%set_num_cols(initial_num_cols+C_T_num_cols)
-		symmetric_storage = to%get_symmetric_storage()
+        symmetric_storage = to%get_symmetric_storage()
 
     !-----------------------------------------------------------------
     ! Check if (C_T) ia and ja arrays are sorted by rows
@@ -1967,12 +1975,16 @@ contains
         check(sorted)
 
     !-----------------------------------------------------------------
-    ! Realloc to%irp with the new number of rows and to%ja with the new number of nnz
+    ! Alloc to%irp with the new number of rows and to%ja with the new number of nnz
     !-----------------------------------------------------------------
         new_nz=this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
         call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
         if(this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
-            new_nz=2*this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
+            ! All diagonal elements in the original matrix must appear in the sparsity pattern
+            new_nz=2*this%nnz-initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and. to%get_symmetric_storage()) then
+            ! All diagonal elements in the original matrix must appear in the sparsity pattern
+            new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
         else
             new_nz=this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
         endif
@@ -2293,7 +2305,7 @@ contains
     !<  - I is a square matrix
     !<  - THIS (input sparse matrix must be in ASSEMBLED or 
     !<    ASSEMBLED_SYMBOLIC state
-    !<  - TO (output) sparse matrix must be in START state
+    !<  - TO (output) sparse matrix must be in PROPERTIES_SET state
     !<  - C_T coordinate arrays (C_T_ia, C_T_ja and C_T_val) must 
     !<    have the same size (C_T_nz)
     !<  - I coordinate arrays (I_ia, I_ja and I_val) must 
@@ -2348,7 +2360,7 @@ contains
     !-----------------------------------------------------------------
         call to%set_num_rows(initial_num_rows+C_T_num_cols)
         call to%set_num_cols(initial_num_cols+C_T_num_cols)
-		symmetric_storage = to%get_symmetric_storage()
+        symmetric_storage = to%get_symmetric_storage()
     !-----------------------------------------------------------------
     ! Check if (C_T) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for C matrix
@@ -2392,11 +2404,15 @@ contains
         check(sorted)
 
     !-----------------------------------------------------------------
-    ! Realloc to%irp with the new number of rows and to%ja with the new number of nnz
+    ! Alloc to%irp with the new number of rows and to%ja with the new number of nnz
     !-----------------------------------------------------------------
         call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
         if(this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
-            new_nz=2*this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
+            ! All diagonal elements in the original matrix must appear in the sparsity pattern
+            new_nz=2*this%nnz-initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and. to%get_symmetric_storage()) then
+            ! All diagonal elements in the original matrix must appear in the sparsity pattern
+            new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
         else
             new_nz=this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
         endif

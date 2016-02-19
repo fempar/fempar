@@ -58,8 +58,8 @@ print*, '!------------------------------------------------------------------'
                               val=(/3.,4.,5./))
     call sparse_matrix%insert(nz=3,          &
                               ia=4,          &
-                              ja=(/1,2,3/),  &
-                              val=(/1.,2.,3./))
+                              ja=(/1,2,4/),  &
+                              val=(/1.,2.,4./))
     call sparse_matrix%insert(nz=3,          &
                               ia=5,          &
                               ja=(/3,4,5/),  &
@@ -134,7 +134,7 @@ print*, '!------------------------------------------------------------------'
                                               I_ia   = I_ia,                              &
                                               I_ja   = I_ja,                              &
                                               to     = expanded_sparse_matrix,            &
-                                             symmetric_storage = .false.)
+                                              symmetric_storage = .false.)
 
     call expanded_sparse_matrix%print(6)
     call expanded_sparse_matrix%free()
