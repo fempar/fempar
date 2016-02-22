@@ -6,11 +6,11 @@ subroutine create( this, &
                    field_coupling )
   implicit none
   class(serial_fe_space_t), target, intent(inout) :: this
-  type(triangulation_t)      , target, intent(in)    :: triangulation
-  type(conditions_t)                 , intent(in)    :: boundary_conditions
-  type(p_reference_fe_t),      target, intent(in)    :: reference_fe_phy(:)
-  integer(ip)              , optional, intent(in)    :: field_blocks(:)
-  logical                  , optional, intent(in)    :: field_coupling(:,:)
+  type(triangulation_t)   , target, intent(in)    :: triangulation
+  type(conditions_t)              , intent(in)    :: boundary_conditions
+  type(p_reference_fe_t)  , target, intent(in)    :: reference_fe_phy(:)
+  integer(ip)           , optional, intent(in)    :: field_blocks(:)
+  logical               , optional, intent(in)    :: field_coupling(:,:)
   
   integer(ip) :: i, j, number_nodes, istat, iobje, obje_g, inode, jnode, offset_field_component
 
@@ -254,8 +254,8 @@ function create_assembler(this, &
   integer(ip)                       , intent(in) :: diagonal_blocks_sign(this%number_blocks)
   class(matrix_array_assembler_t), pointer    :: create_assembler
   
-		! Locals
-		class(matrix_t), pointer :: matrix
+  ! Locals
+  class(matrix_t), pointer :: matrix
   class(array_t) , pointer :: array
 		logical, allocatable :: blocks_coupling(:,:)
 		integer(ip)          :: ife_space, jfe_space

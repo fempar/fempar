@@ -459,6 +459,7 @@ contains
     call memalloc ( number_nodes, 2,facevec, __FILE__, __LINE__ )
 
     !call fe_space%initialize_face_integration()
+    write(*,*) __FILE__,__LINE__,fe_space%get_number_interior_faces()
     do iface = 1, fe_space%get_number_interior_faces()
 
        facemat = 0.0_rp
@@ -639,7 +640,6 @@ program test_cdr
 
   ! Read conditions 
   call conditions_read (dir_path, prefix, f_mesh%npoin, f_cond)
-
   ! Construc triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 

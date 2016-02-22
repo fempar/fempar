@@ -308,8 +308,7 @@ end function reference_fe_get_continuity
     integer(ip) :: reference_fe_get_number_nodes
     reference_fe_get_number_nodes = this%number_nodes
   end function reference_fe_get_number_nodes
- 
-  
+
   function reference_fe_get_vef_dimension ( this, vef_id )
     implicit none
     class(reference_fe_t), intent(in) :: this
