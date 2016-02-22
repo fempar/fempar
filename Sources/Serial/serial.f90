@@ -35,6 +35,7 @@ module serial_names
   use postpro_names
   use environment_names
   use serial_environment_names
+  use Data_Type_Command_Line_Interface
 
   ! Geometry
   use map_names
@@ -82,5 +83,11 @@ module serial_names
   use block_vector_names
   
   ! Integration 
-
+  use reference_fe_names
+  use reference_fe_factory_names
+  use field_names
+  use serial_fe_space_names
+  use discrete_integration_names
+  use assembler_names
+  use fe_affine_operator_names
 end module serial_names
