@@ -2,16 +2,12 @@ subroutine create( this, &
                    triangulation, &
                    boundary_conditions, &
                    reference_fe_phy, &
-                   reference_fe_geo_topology, &
-                   reference_fe_geo_type, & 
                    field_blocks, &
                    field_coupling )
   implicit none
   class(SB_serial_fe_space_t), target, intent(inout) :: this
   type(triangulation_t)      , target, intent(in)    :: triangulation
   type(conditions_t)                 , intent(in)    :: boundary_conditions
-  character(*)                       , intent(in)    :: reference_fe_geo_topology
-  character(*)                       , intent(in)    :: reference_fe_geo_type
   type(p_reference_fe_t),      target, intent(in)    :: reference_fe_phy(:)
   integer(ip)              , optional, intent(in)    :: field_blocks(:)
   logical                  , optional, intent(in)    :: field_coupling(:,:)
@@ -37,20 +33,12 @@ subroutine create( this, &
 
   ! Assuming only one geometrical reference FE for the moment  SB.alert
   ! assuming we are going to use faces of 1 type
-  allocate( this%reference_fe_geo_list(1), stat=istat )
   allocate( this%quadrature(1), stat=istat )
   allocate( this%fe_map(1), stat=istat )
   
   allocate( this%volume_integrator(this%number_fe_spaces), stat=istat )
   allocate( this%reference_fe_phy_list(this%number_fe_spaces), stat=istat )
-
-  ! Order 1 for geometry SB.alert
-  this%reference_fe_geo_list(1) = make_reference_fe ( topology = reference_fe_geo_topology, &
-                                                      fe_type = reference_fe_geo_type, & 
-                                                      number_dimensions = triangulation%num_dims, &
-                                                      order=1, &
-                                                      field_type = "vector", &
-                                                      continuity = .true. )						
+			
   call this%quadrature(1)%allocate()
   call this%fe_map(1)%allocate()
   do i  = 1, this%number_fe_spaces
@@ -140,7 +128,6 @@ subroutine free( this )
 
 
   ! Order 1 for geometry SB.alert
-  call this%reference_fe_geo_list(1)%free()
   call this%quadrature(1)%free()
   call this%fe_map(1)%free()
 		
@@ -150,7 +137,6 @@ subroutine free( this )
   end do
   
   ! Assuming only one reference FE for the moment  SB.alert
-  deallocate( this%reference_fe_geo_list )
   deallocate( this%quadrature )
   deallocate( this%fe_map )
   deallocate( this%volume_integrator )
@@ -253,7 +239,7 @@ subroutine initialize_fe_map(this)
   integer(ip) :: i
   do i = 1, size(this%fe_map)
      call this%fe_map(i)%p%create( this%quadrature(i)%p, &
-                                  this%reference_fe_geo_list(i)%p )
+                                  this%triangulation%reference_fe_geo_list(1)%p )
   end do
 end subroutine initialize_fe_map
 

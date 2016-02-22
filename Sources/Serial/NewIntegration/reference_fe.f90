@@ -167,6 +167,11 @@ module reference_fe_names
   character(*), parameter :: field_type_tensor           = 'tensor'
   character(*), parameter :: field_type_symmetric_tensor = 'symmetric_tensor'
   
+  character(*), parameter :: topology_quad = "quad"
+  character(*), parameter :: topology_tet  = "tet"
+  
+  character(*), parameter :: fe_type_lagrangian = "Lagrangian"
+  
   ! Abstract reference_fe
   type, abstract ::  reference_fe_t
      private
@@ -191,8 +196,8 @@ module reference_fe_names
      type(allocatable_array_ip1_t)  :: orientation        ! orientation of the vefs 
      type(list_t)                   :: interior_nodes_vef ! interior nodes per vef
      type(list_t)                   :: nodes_vef          ! all nodes per vef
-     type(list_t)                   :: corners_vef        ! corners per vef
-     type(list_t)                   :: vefs_vef           ! all vefs per vef (idem nodes_vef for order = 2)
+     type(list_t)                   :: vertices_vef       ! vertices per vef
+     type(list_t)                   :: vefs_vef           ! all vefs per vef
    contains
      ! TBPs
      ! Fill topology, fe_type, number_dimensions, order, continuity 
@@ -264,22 +269,29 @@ module reference_fe_names
      procedure :: get_continuity => reference_fe_get_continuity
      procedure :: get_number_field_components => reference_fe_get_number_field_components
      procedure :: get_number_vefs => reference_fe_get_number_vefs
-     procedure :: get_number_nodes => reference_fe_get_number_nodes
+     procedure :: get_number_vertices => reference_fe_get_number_vertices
+     procedure :: get_first_vertex_id => reference_fe_get_first_vertex_id
+     procedure :: get_number_vertices_per_vertex => reference_fe_get_number_vertices_per_vertex
+     procedure :: get_number_vertices_per_edge => reference_fe_get_number_vertices_per_edge
+     procedure :: get_number_vertices_per_face => reference_fe_get_number_vertices_per_face
+     procedure :: get_number_edges => reference_fe_get_number_edges
+     procedure :: get_first_edge_id => reference_fe_get_first_edge_id
+     procedure :: get_number_faces => reference_fe_get_number_faces
+     procedure :: get_first_face_id => reference_fe_get_first_face_id
      procedure :: get_number_vefs_of_dimension  => reference_fe_get_number_vefs_of_dimension
-     procedure :: get_number_vefs_dimension => reference_fe_get_number_vefs_dimension
+     procedure :: get_first_vef_id_of_dimension => reference_fe_get_first_vef_id_of_dimension 
+     procedure :: get_number_nodes => reference_fe_get_number_nodes
+     procedure :: get_vef_dimension  => reference_fe_get_vef_dimension
      procedure :: get_interior_nodes_vef  => reference_fe_get_interior_nodes_vef
      procedure :: get_nodes_vef  =>     reference_fe_get_nodes_vef
-     procedure :: get_corners_vef  =>   reference_fe_get_corners_vef
+     procedure :: get_vertices_vef  =>   reference_fe_get_vertices_vef
      procedure :: get_vefs_vef   =>   reference_fe_get_vefs_vef
      procedure :: get_node_vef => reference_fe_get_node_vef
      procedure :: get_interior_node_vef => reference_fe_get_interior_node_vef
      procedure :: get_number_nodes_vef => reference_fe_get_number_nodes_vef
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
-     procedure :: get_number_corners_vef => reference_fe_get_number_corners_vef
-     procedure :: get_orientation => reference_fe_get_orientation
-     
-     procedure :: get_vef_dimension  => reference_fe_get_vef_dimension
-     
+     procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
+     procedure :: get_orientation => reference_fe_get_orientation     
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -491,6 +503,7 @@ module reference_fe_names
 
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
+  public :: topology_quad, topology_tet, fe_type_lagrangian
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(reference_fe_t) :: quad_lagrangian_reference_fe_t

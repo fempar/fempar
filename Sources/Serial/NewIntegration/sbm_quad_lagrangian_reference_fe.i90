@@ -544,7 +544,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   call this%interior_nodes_vef%create(n=no)
   call this%nodes_vef%create(n=no)
   call this%vefs_vef%create(n=no)
-  call this%corners_vef%create(n=no)
+  call this%vertices_vef%create(n=no)
   call memalloc(nod,nd+1,obdla,__FILE__,__LINE__)
   call memalloc(no, node2ob,__FILE__,__LINE__)        ! Auxiliar array
   call memalloc(no, ob2node,__FILE__,__LINE__)        ! Auxiliar array
@@ -553,7 +553,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   this%interior_nodes_vef%p(1) = 1
   this%nodes_vef%p(1) = 1
   this%vefs_vef%p(1) = 1
-  this%corners_vef%p(1) = 1
+  this%vertices_vef%p(1) = 1
 
   !Loop over dimensions
   do k = 0,nd
@@ -566,14 +566,14 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
      do i = this%number_vefs_dimension(k+1),this%number_vefs_dimension(k+2)-1 
         this%interior_nodes_vef%p(i+1) = this%interior_nodes_vef%p(i) + aux1 ! assign pointers
         this%nodes_vef%p(i+1) = this%nodes_vef%p(i) + aux3 ! assign pointers
-        this%corners_vef%p(i+1) = this%corners_vef%p(i) + aux2 ! assign pointers
+        this%vertices_vef%p(i+1) = this%vertices_vef%p(i) + aux2 ! assign pointers
         this%vefs_vef%p(i+1) = this%vefs_vef%p(i) + aux4 ! assign pointers 
      end do
   end do
   
   call this%interior_nodes_vef%allocate_list_from_pointer()
   call this%nodes_vef%allocate_list_from_pointer()
-  call this%corners_vef%allocate_list_from_pointer()
+  call this%vertices_vef%allocate_list_from_pointer()
   call this%vefs_vef%allocate_list_from_pointer()
 
   ! Initialize auxiliar values
@@ -713,7 +713,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
                  ijk_g(idm(k)+1) = auxt2(k,m)
               end do
               c2 = c2+1
-              this%corners_vef%l(c2) = Q_gijk(ijk_g,nd,1) !store the vef numbering of the corner 
+              this%vertices_vef%l(c2) = Q_gijk(ijk_g,nd,1) !store the vef numbering of the corner 
            end do
         end do
 

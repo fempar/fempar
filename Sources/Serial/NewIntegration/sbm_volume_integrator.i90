@@ -8,7 +8,7 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
   integer(ip) :: number_dimensions
-  integer(ip) :: number_evaluation_points, number_corners
+  integer(ip) :: number_evaluation_points, number_vertices
 
   call this%free()
   number_dimensions        = reference_fe_geometry%number_dimensions
@@ -33,9 +33,9 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
                 number_evaluation_points, &
                 this%coordinates_points,__FILE__,__LINE__)
 
-  number_corners = reference_fe_geometry%get_number_vefs_of_dimension(0)
+  number_vertices = reference_fe_geometry%get_number_vertices()
   call memalloc(number_dimensions, &
-       &        number_corners,    &
+       &        number_vertices,    &
        &        this%coordinates,__FILE__,__LINE__)
 
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
@@ -51,7 +51,7 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
   integer(ip) :: number_dimensions
-  integer(ip) :: number_evaluation_points, number_corners
+  integer(ip) :: number_evaluation_points, number_vertices
 
   call this%free()
   number_dimensions        = reference_fe_geometry%number_dimensions
@@ -77,9 +77,9 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
                 number_evaluation_points, &
                 this%coordinates_points,__FILE__,__LINE__)
 
-  number_corners = reference_fe_geometry%get_number_vefs_of_dimension(0)
+  number_vertices = reference_fe_geometry%get_number_vertices()
   call memalloc(number_dimensions, &
-       &        number_corners,    &
+       &        number_vertices,    &
        &        this%coordinates,__FILE__,__LINE__)
   
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
@@ -94,7 +94,7 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
   class(reference_fe_t) , intent(in)    :: reference_fe_geo
 
   integer(ip) :: number_dimensions, number_face_dimensions
-  integer(ip) :: number_evaluation_points, number_corners_face
+  integer(ip) :: number_evaluation_points, number_vertices_face
 
   call this%free()
   number_dimensions        = reference_fe_geo%number_dimensions
@@ -120,10 +120,9 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
                 number_evaluation_points, &
                 this%normals,__FILE__,__LINE__)
 
-  number_corners_face = reference_fe_geo%get_number_corners_vef                              &
-       &  (reference_fe_geo%number_vefs_dimension(reference_fe_geo%get_number_dimensions()))
+  number_vertices_face = reference_fe_geo%get_number_vertices_per_face()
   call memalloc(number_dimensions,      &
-       &        number_corners_face,    &
+       &        number_vertices_face,    &
        &        this%coordinates,__FILE__,__LINE__)
 
   this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
@@ -344,8 +343,8 @@ function fe_map_compute_h ( this, igaus)
   real(rp)                    :: fe_map_compute_h
 
   integer(ip) :: idime, jdime
-  real(rp)    :: inverse_h(3), h(2), volumetric_h, number_dimensions
-  integer(ip) :: i,j
+  real(rp)    :: inverse_h(3), h(2), volumetric_h
+  integer(ip) :: i,j, number_dimensions
 
   number_dimensions = size(this%jacobian, dim=1)
   inverse_h = 0.0_rp

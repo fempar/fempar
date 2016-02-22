@@ -151,7 +151,6 @@ module SB_fe_space_names
   type :: SB_serial_fe_space_t
      private
      integer(ip)                                 :: number_fe_spaces   
-     type(p_reference_fe_t)        , allocatable :: reference_fe_geo_list(:)
      type(p_fe_map_t)              , allocatable :: fe_map(:)
      type(face_map_t)              , allocatable :: face_map(:)
      type(p_reference_fe_t)        , allocatable :: reference_fe_phy_list(:)

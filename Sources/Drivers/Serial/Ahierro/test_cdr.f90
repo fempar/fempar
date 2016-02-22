@@ -510,17 +510,16 @@ contains
     integer(ip)              :: diagonal_blocks_sign(2)
     
     ! Composite case
-    reference_fe_array_two(1) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
-         &                      number_dimensions = 2, order = 1, field_type = "scalar",            &
+    reference_fe_array_two(1) = make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian,      &
+         &                      number_dimensions = 2, order = 1, field_type = field_type_scalar,            &
          &                      continuity = .false. )
 
-    reference_fe_array_two(2) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
-         &                      number_dimensions = 2, order = 1, field_type = "vector",            &
+    reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian,      &
+         &                      number_dimensions = 2, order = 1, field_type = field_type_vector,            &
          &                      continuity = .false. )
 
     call fe_space%create( triangulation = f_trian, boundary_conditions = f_cond,                    &
          &                reference_fe_phy = reference_fe_array_two,                                &
-         &                reference_fe_geo_topology = "quad", reference_fe_geo_type = "Lagrangian", &
          &                field_blocks = (/1,2/),                                                   &
          &                field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
 

@@ -27,9 +27,9 @@ subroutine create_face_array (this)
 
  ! Construct the quadrature and face_map
   call this%reference_fe_phy_list(1)%p%create_face_quadrature(this%face_quadrature(1),max_order)
-  call this%face_map(1)%create(this%reference_fe_geo_list(1)%p,this%reference_fe_geo_list(1)%p,   &
+  call this%face_map(1)%create(this%triangulation%reference_fe_geo_list(1)%p,this%triangulation%reference_fe_geo_list(1)%p,   &
        &                       this%face_quadrature(1))
-  call this%face_map(2)%create(this%reference_fe_geo_list(1)%p,null_reference_fe_p,               &
+  call this%face_map(2)%create(this%triangulation%reference_fe_geo_list(1)%p,null_reference_fe_p,               &
        &                       this%face_quadrature(1))
 
   ! Construct the face integrators

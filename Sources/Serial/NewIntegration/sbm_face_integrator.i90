@@ -7,12 +7,11 @@ subroutine fe_map_face_restriction_create( this, quadrature, reference_fe_geomet
   type(SB_quadrature_t)           , intent(in)    :: quadrature
   class(reference_fe_t)           , intent(in)    :: reference_fe_geometry
 
-  integer(ip)           :: face_dimensions,local_face_id, istat
+  integer(ip)           :: local_face_id, istat
 
   call this%free()
 
-  face_dimensions = reference_fe_geometry%number_dimensions - 1
-  this%number_faces = reference_fe_geometry%get_number_vefs_of_dimension(face_dimensions)
+  this%number_faces = reference_fe_geometry%get_number_faces()
 
   allocate(this%fe_map(this%number_faces),stat = istat)
   check(istat == 0)
@@ -213,7 +212,7 @@ subroutine interpolation_face_restriction_create(this, local_quadrature, referen
   type(SB_quadrature_t)        ,  intent(in)   :: local_quadrature
   class(reference_fe_t), target, intent(in)    :: reference_fe_phy
 
-  integer(ip)           :: face_dimensions,local_face_id, istat
+  integer(ip)           :: local_face_id, istat
   type(SB_quadrature_t) :: face_quadrature
 
   call this%free()
@@ -221,8 +220,7 @@ subroutine interpolation_face_restriction_create(this, local_quadrature, referen
 
   this%number_shape_functions   = reference_fe_phy%number_nodes
   this%number_evaluation_points = local_quadrature%number_evaluation_points
-  face_dimensions               = reference_fe_phy%number_dimensions - 1
-  this%number_faces             = reference_fe_phy%get_number_vefs_of_dimension(face_dimensions)
+  this%number_faces             = reference_fe_phy%get_number_faces()
 
   allocate(this%interpolation(this%number_faces),stat = istat)
   check(istat == 0)

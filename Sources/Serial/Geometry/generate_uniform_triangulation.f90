@@ -2233,9 +2233,7 @@ contains
              call memalloc(trian%elems(nenum(num))%num_vefs,trian%elems(nenum(num))%vefs, &
                   &        __FILE__,__LINE__)
              call memalloc(trian%num_dims,ncorn,trian%elems(nenum(num))%coordinates, __FILE__, __LINE__ )
-             call put_topology_element_triangulation(nenum(num),trian)
-             trian%elems(nenum(num))%order = get_order(trian%elems(nenum(num))%geo_reference_element%ftype,ncorn,trian%num_dims)
-           
+             call put_topology_element_triangulation(nenum(num),trian)           
              count = 1
              ! Elemental corners
              do m=0,1

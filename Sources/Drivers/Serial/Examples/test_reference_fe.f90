@@ -328,25 +328,23 @@ program test_reference_fe
   problem_id = 0
   if ( problem_id == 1) then
      ! Composite case
-     reference_fe_array_two(1) = make_reference_fe ( topology = "quad", &
-                                                     fe_type = "Lagrangian", &
+     reference_fe_array_two(1) = make_reference_fe ( topology = topology_quad, &
+                                                     fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
                                                      order = 1, &
-                                                     field_type = "scalar", &
+                                                     field_type = field_type_scalar, &
                                                      continuity = .true. )
      
-     reference_fe_array_two(2) = make_reference_fe ( topology = "quad", &
-                                                     fe_type = "Lagrangian", &
+     reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad, &
+                                                     fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
                                                      order = 1, & 
-                                                     field_type = "vector", &
+                                                     field_type = field_type_vector, &
                                                      continuity = .true. )
      
      call fe_space%create( triangulation = f_trian, &
                            boundary_conditions = f_cond, &
                            reference_fe_phy = reference_fe_array_two, &
-                           reference_fe_geo_topology = "quad", &
-                           reference_fe_geo_type = "Lagrangian", &
                            !field_blocks = (/1,1/), &
                            !field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
                            field_blocks = (/1,2/), &
@@ -367,18 +365,17 @@ program test_reference_fe
   else 
        
      ! Simple case
-     reference_fe_array_one(1) =  make_reference_fe ( topology = "quad", &
-                                                      fe_type = "Lagrangian", &
+     reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
+                                                      fe_type = fe_type_lagrangian, &
                                                       number_dimensions = 2, &
                                                       order = 1, &
-                                                      field_type = "scalar", &
+                                                      field_type = field_type_scalar, &
                                                       continuity = .true. )
      
      call fe_space%create( triangulation = f_trian, &
                            boundary_conditions = f_cond, &
-                           reference_fe_phy = reference_fe_array_one, &
-                           reference_fe_geo_topology = "quad", &
-                           reference_fe_geo_type = "Lagrangian" )
+                           reference_fe_phy = reference_fe_array_one )
+     
      call fe_space%fill_dof_info() 
      
      call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
