@@ -225,16 +225,363 @@ contains
 end module command_line_parameters_names
 
 !****************************************************************************************************
-!****************************************************************************************************
+module CDR_discrete_integration_names
+ use serial_names
+  
+  implicit none
+# include "debug.i90"
+  private
+  type, extends(discrete_integration_t) :: CDR_discrete_integration_t
+     integer(ip) :: viscosity 
+   contains
+     procedure :: integrate
+  end type CDR_discrete_integration_t
+  
+  public :: CDR_discrete_integration_t
+  
+contains
+  
+  subroutine integrate ( this, fe_space, assembler )
+    implicit none
+    class(CDR_discrete_integration_t), intent(in)    :: this
+    class(serial_fe_space_t)      , intent(inout) :: fe_space
+    class(assembler_t)            , intent(inout) :: assembler
 
+    type(finite_element_t), pointer :: fe
+    type(volume_integrator_t), pointer :: vol_int
+    real(rp), allocatable :: elmat(:,:), elvec(:)
+    type(fe_map_t), pointer :: fe_map
+    type(quadrature_t), pointer :: quad
+
+    integer(ip)  :: igaus,inode,jnode,ngaus
+    real(rp)     :: factor
+
+    type(vector_field_t) :: grad_test, grad_trial
+
+    integer(ip) :: number_fe_spaces
+
+    integer(ip), pointer :: field_blocks(:)
+    logical, pointer :: field_coupling(:,:)
+
+    integer(ip) :: ielem, iapprox, number_nodes
+    type(i1p_t), pointer :: elem2dof(:)
+    type(i1p_t), pointer :: bc_code(:)
+    type(r1p_t), pointer :: bc_value(:)
+    integer(ip), allocatable :: number_nodes_per_field(:)
+
+    
+    number_fe_spaces = fe_space%get_number_fe_spaces()
+    field_blocks => fe_space%get_field_blocks()
+    field_coupling => fe_space%get_field_coupling()
+
+    fe => fe_space%get_finite_element(1)
+    number_nodes = fe%get_number_nodes()
+    call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
+    call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
+    call memalloc ( number_fe_spaces, number_nodes_per_field, __FILE__, __LINE__ )
+    call fe%get_number_nodes_per_field( number_nodes_per_field )
+
+    call fe_space%initialize_integration()
+    
+    quad => fe%get_quadrature()
+    ngaus = quad%get_number_evaluation_points()
+    do ielem = 1, fe_space%get_number_elements()
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+
+       fe => fe_space%get_finite_element(ielem)
+       call fe%update_integration()
+       
+       fe_map   => fe%get_fe_map()
+       vol_int  => fe%get_volume_integrator(1)
+       elem2dof => fe%get_elem2dof()
+       bc_code  => fe%get_bc_code()
+       bc_value => fe%get_bc_value()
+
+       do igaus = 1,ngaus
+          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          do inode = 1, number_nodes
+             call vol_int%get_gradient(inode,igaus,grad_trial)
+             do jnode = 1, number_nodes
+                call vol_int%get_gradient(jnode,igaus,grad_test)
+                elmat(inode,jnode) = elmat(inode,jnode) + factor * grad_test * grad_trial
+             end do
+          end do
+       end do
+       !write (*,*) 'XXXXXXXXX ELMAT XXXXXXXXX'
+       !write (*,*) elmat
+       
+       ! Apply boundary conditions
+       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
+       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )
+    end do
+    call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
+    call memfree ( elmat, __FILE__, __LINE__ )
+    call memfree ( elvec, __FILE__, __LINE__ )
+  end subroutine integrate
+end module CDR_discrete_integration_names
+
+!==================================================================================================
+module vector_dG_CDR_discrete_integration_names
+use serial_names
+
+implicit none
+# include "debug.i90"
+private
+type, extends(discrete_integration_t) :: vector_dG_CDR_discrete_integration_t
+real(rp) :: viscosity 
+real(rp) :: C_IP ! Interior Penalty constant
+real(rp) :: xi   ! DG symmetric parameter: (0-Symmetric, 1/2-Incomplete, 1-Antisymmetric)
+contains
+procedure :: set_problem
+procedure :: integrate
+end type vector_dG_CDR_discrete_integration_t
+
+public :: vector_dG_CDR_discrete_integration_t
+
+contains
+  subroutine set_problem(this, viscosity, C_IP, xi)
+    implicit none
+    class(vector_dG_CDR_discrete_integration_t), intent(inout) :: this
+    real(rp)                                   , intent(in)    :: viscosity 
+    real(rp)                                   , intent(in)    :: C_IP 
+    real(rp)                                   , intent(in)    :: xi
+    
+    this%viscosity = viscosity
+    this%C_IP      = C_IP
+    this%xi        = xi
+  end subroutine set_problem
+  subroutine integrate ( this, fe_space, assembler )
+    implicit none
+    class(vector_dG_CDR_discrete_integration_t), intent(in)    :: this
+    class(serial_fe_space_t)                , intent(inout) :: fe_space
+    class(assembler_t)                      , intent(inout) :: assembler
+
+    type(finite_element_t)   , pointer :: fe
+    type(finite_face_t)         , pointer :: face
+    type(volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
+    type(face_integrator_t)     , pointer :: face_int
+    real(rp)                , allocatable :: elmat(:,:), elvec(:), facemat(:,:,:,:), facevec(:,:)
+    type(fe_map_t)              , pointer :: fe_map
+    type(face_map_t)            , pointer :: face_map
+    type(quadrature_t)       , pointer :: quad
+    integer(ip)             , allocatable :: number_nodes_per_field(:)
+
+    integer(ip)  :: igaus,inode,jnode,ioffset,joffset,ngaus
+    real(rp)     :: factor, h_length, bcvalue
+
+    real(rp)             :: shape_test_scalar, shape_trial_scalar
+    type(vector_field_t) :: grad_test_scalar, grad_trial_scalar
+    type(tensor_field_t) :: grad_test_vector, grad_trial_vector
+    type(vector_field_t) :: normal(2)
+    
+    integer(ip)          :: i, j, number_fe_spaces
+
+    integer(ip), pointer :: field_blocks(:)
+    logical    , pointer :: field_coupling(:,:)
+
+    integer(ip)          :: ielem, iface, number_nodes, ineigh, jneigh, number_neighbours
+    type(i1p_t), pointer :: elem2dof(:),test_elem2dof(:),trial_elem2dof(:)
+    type(i1p_t), pointer :: bc_code(:)
+    type(r1p_t), pointer :: bc_value(:)
+
+    number_fe_spaces = fe_space%get_number_fe_spaces()
+    field_blocks => fe_space%get_field_blocks()
+    field_coupling => fe_space%get_field_coupling()
+
+    fe => fe_space%get_finite_element(1)
+    number_nodes = fe%get_number_nodes()
+
+    call memalloc ( number_fe_spaces, number_nodes_per_field, __FILE__, __LINE__ )
+    call fe%get_number_nodes_per_field( number_nodes_per_field )
+
+    ! --------------------------- LOOP OVER THE ELEMENTS -------------------------
+    call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
+    call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
+    
+    call fe_space%initialize_integration()
+    
+    quad  => fe%get_quadrature()
+    ngaus = quad%get_number_evaluation_points()
+    do ielem = 1, fe_space%get_number_elements()
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+
+       fe => fe_space%get_finite_element(ielem)
+       call fe%update_integration()
+       
+       fe_map            => fe%get_fe_map()
+       vol_int_first_fe  => fe%get_volume_integrator(1)
+       vol_int_second_fe => fe%get_volume_integrator(2)
+       elem2dof          => fe%get_elem2dof()
+       bc_code           => fe%get_bc_code()
+       bc_value          => fe%get_bc_value()
+
+       do igaus = 1,ngaus
+          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          do inode = 1, number_nodes_per_field(1)
+             call vol_int_first_fe%get_gradient(inode,igaus,grad_trial_scalar)
+             do jnode = 1, number_nodes_per_field(1)
+                call vol_int_first_fe%get_gradient(jnode,igaus,grad_test_scalar)
+                elmat(inode,jnode) = elmat(inode,jnode) + factor *                                  &
+                     &               this%viscosity * grad_test_scalar*grad_trial_scalar
+             end do
+          end do
+
+          do inode = 1, number_nodes_per_field(2)
+             ioffset = number_nodes_per_field(1)+inode
+             call vol_int_second_fe%get_gradient(inode,igaus,grad_trial_vector)
+             do jnode = 1, number_nodes_per_field(2)
+                joffset = number_nodes_per_field(1)+jnode
+                call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_vector)
+                elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor *                        &
+                     &          this%viscosity*double_contract(grad_test_vector,grad_trial_vector)
+             end do
+          end do
+       end do
+       
+       
+       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value,                   &
+            &                                  number_nodes_per_field, number_fe_spaces )
+       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks, &
+            &                   field_coupling, elmat, elvec )      
+    end do
+    do inode = 1, number_nodes_per_field(1)
+       write(*,*) inode, '+++++'
+       write(*,*) elmat(1:4,inode)
+    end do
+    call memfree ( elmat, __FILE__, __LINE__ )
+    call memfree ( elvec, __FILE__, __LINE__ )
+
+
+    ! --------------------------- LOOP OVER THE FACES -----------------------------
+    call memalloc ( number_nodes, number_nodes,2,2,facemat, __FILE__, __LINE__ )
+    call memalloc ( number_nodes, 2,facevec, __FILE__, __LINE__ )
+
+    !call fe_space%initialize_face_integration()
+    do iface = 1, fe_space%get_number_interior_faces()
+
+       facemat = 0.0_rp
+       facevec = 0.0_rp
+
+       face => fe_space%get_finite_face(iface)
+       number_neighbours = face%number_neighbours()
+       write(*,*) __FILE__,__LINE__,iface,'------------------'
+       call face%update_integration()
+      
+       quad   => face%get_quadrature()
+       ngaus = quad%get_number_evaluation_points()
+       face_map => face%get_map()
+
+       j = 1
+       face_int => face%get_face_integrator(j)
+       
+       do igaus = 1, ngaus
+          call face_map%get_normals(igaus,normal)
+          h_length = face_map%compute_characteristic_length(igaus,number_neighbours)
+          factor = face_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          do ineigh = 1, number_neighbours
+             do inode = 1, number_nodes_per_field(j)
+                !ioffset = number_nodes_per_field(j)*(ineigh-1) + inode
+                call face_int%get_value(inode,igaus,ineigh,shape_trial_scalar)
+                call face_int%get_gradient(inode,igaus,ineigh,grad_trial_scalar)
+                do jneigh = 1, number_neighbours
+                   do jnode = 1, number_nodes_per_field(j)
+                      !joffset = number_nodes_per_field(j)*(jneigh-1) + jnode
+                      call face_int%get_value(jnode,igaus,jneigh,shape_test_scalar)
+                      call face_int%get_gradient(jnode,igaus,jneigh,grad_test_scalar)
+                      !- mu*({{grad u}}[[v]] + (1-xi)*[[u]]{{grad v}} ) + C*mu*p^2/h * [[u]] [[v]]
+                      facemat(inode,jnode,ineigh,jneigh) = facemat(inode,jnode,ineigh,jneigh) +     &
+                           &  factor * this%viscosity *   &
+                           &  (-0.5_rp*grad_test_scalar*normal(ineigh)*shape_trial_scalar - &
+                           &   0.5_rp*grad_trial_scalar*normal(jneigh)*shape_test_scalar  + &
+                           &   this%c_IP / h_length * shape_test_scalar*shape_trial_scalar *        &
+                           &   normal(ineigh)*normal(jneigh))
+                   end do
+                end do
+             end do
+          end do
+       end do
+       do ineigh = 1, number_neighbours
+          test_elem2dof => face%get_elem2dof(ineigh)
+          do jneigh = 1, number_neighbours
+             trial_elem2dof => face%get_elem2dof(jneigh)
+             call assembler%face_assembly(number_fe_spaces,number_nodes_per_field, number_nodes_per_field,&
+                  &                  test_elem2dof,trial_elem2dof,field_blocks,field_coupling,       &
+                  &                  facemat(:,:,ineigh,jneigh), facevec(:,ineigh) )   
+          end do
+       end do
+    end do
+
+    do inode = 1, number_nodes_per_field(j)
+       write(*,*) inode, '-------'
+       write(*,*) facemat(1:4,inode,1,1),  facemat(1:4,inode,2,1)
+    end do
+    do inode = 1, number_nodes_per_field(j)
+       write(*,*) number_nodes_per_field(j)+inode, '-------'
+       write(*,*) facemat(1:4,inode,1,2),  facemat(1:4,inode,2,2)
+    end do
+
+    do iface = fe_space%get_number_interior_faces() + 1, fe_space%get_number_interior_faces() +   &
+         &                                               fe_space%get_number_boundary_faces()
+
+       facemat = 0.0_rp
+       facevec = 0.0_rp
+
+       face => fe_space%get_finite_face(iface)
+       number_neighbours = face%number_neighbours()
+       write(*,*) __FILE__,__LINE__,iface,'------------------'
+       call face%update_integration()
+
+       face_map => face%get_map()
+       quad   => face%get_quadrature()
+       ngaus = quad%get_number_evaluation_points()
+
+       j = 1
+       face_int => face%get_face_integrator(j)
+      
+       do igaus = 1, ngaus
+          call face_map%get_normals(igaus,normal)
+          h_length = face_map%compute_characteristic_length(igaus,number_neighbours)
+          factor = face_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          do ineigh = 1, number_neighbours
+             do inode = 1, number_nodes_per_field(j)
+                call face_int%get_value(inode,igaus,ineigh,shape_trial_scalar)
+                call face_int%get_gradient(inode,igaus,ineigh,grad_trial_scalar)
+                do jneigh = 1, number_neighbours
+                   do jnode = 1, number_nodes_per_field(j)
+                      call face_int%get_value(jnode,igaus,jneigh,shape_test_scalar)
+                      call face_int%get_gradient(jnode,igaus,jneigh,grad_test_scalar)
+                      facemat(inode,jnode,ineigh,jneigh) = facemat(inode,jnode,ineigh,jneigh) +     &
+                           &  factor * this%viscosity *   &
+                           &  (-grad_test_scalar*normal(ineigh)*shape_trial_scalar - &
+                           &   grad_trial_scalar*normal(jneigh)*shape_test_scalar  + &
+                           &   this%c_IP / h_length * shape_test_scalar*shape_trial_scalar)
+                   end do
+                end do
+                bcvalue = 1.0_rp
+                facevec(inode,ineigh) = facevec(inode,ineigh) + factor * this%viscosity *           &
+                     &                  (bcvalue * grad_trial_scalar*normal(jneigh) +       &
+                     &                  this%c_IP/h_length * bcvalue * shape_trial_scalar )
+             end do
+          end do
+       end do
+    end do
+ 
+    call memfree ( facemat, __FILE__, __LINE__ )
+    call memfree ( facevec, __FILE__, __LINE__ )
+    ! ----------------------------------------------------------------------------
+    call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
+  end subroutine integrate
+
+end module vector_dG_CDR_discrete_integration_names
+
+
+!****************************************************************************************************
 program test_cdr
   use serial_names
-  use prob_names
-  use lib_vtk_io_interface_names
   use Data_Type_Command_Line_Interface
   use command_line_parameters_names
-  use time_integration_names
-  use theta_method_names
   implicit none
 #include "debug.i90"
 
@@ -242,28 +589,10 @@ program test_cdr
   type(mesh_t)                          :: f_mesh
   type(triangulation_t)                 :: f_trian
   type(conditions_t)                    :: f_cond
-  type(dof_descriptor_t)                :: dof_descriptor
-  type(serial_fe_space_t)               :: fe_space
-  type(cdr_problem_t)                   :: my_problem
-  type(cdr_discrete_t)                  :: my_discrete
-  type(theta_method_t)                  :: theta_integ
-  type(cdr_transient_t)       , target  :: cdr_matvec
-  type(error_norm_t)          , target  :: compute_error
-  type(serial_scalar_t)                 :: enorm
-  type(vtk_t)                           :: fevtk
-  integer(ip)                           :: num_approximations
-  type(p_discrete_integration_t)        :: approximations(1)
   class(matrix_t)             , pointer :: matrix
-  type(serial_scalar_matrix_t), pointer :: my_matrix
   class(array_t)              , pointer :: array
   type(serial_scalar_array_t) , pointer :: my_array
   type(serial_scalar_array_t) , target  :: feunk
-  type(fe_affine_operator_t)            :: fe_affine_operator
-  type(fe_affine_operator_t)            :: fe_affine_operator_error
-
-  type(preconditioner_t)                :: feprec
-  type(preconditioner_params_t)         :: ppars
-  type(solver_control_t)                :: sctrl
   type(serial_environment_t)            :: senv
 
   type(Type_Command_Line_Interface)     :: cli 
@@ -315,188 +644,31 @@ program test_cdr
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
   call triangulation_construct_faces ( f_trian )
-!!$
-!!$  ! Assign the DOFs
-!!$  vars_prob = 1
-!!$  !( dof_descriptor, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
-!!$  call dof_descriptor%create( 1, 1, 1 )
-!!$
-!!$  ! Create the physical problem
-!!$  call physical_cdr_problem_create(my_problem,cli,space_solution_flag,tempo_solution_flag)
-!!$
-!!$  ! Create the discrete method associated the problem
-!!$  call discrete_cdr_problem_create(my_discrete,cli)
-!!$
-!!$  ! Define the method to solve the proble
-!!$  call approximation_cdr_problem_create(my_problem,my_discrete,theta_integ,cdr_matvec,cli, f_trian,order,     &
-!!$       &                                continuity,enable_face_integration,material,problem)
-!!$
-!!$  ! Create FE Space
-!!$  call fe_space%create ( f_trian, dof_descriptor, problem, f_cond, continuity,                      &
-!!$       &                 enable_face_integration, order, material, time_steps_to_store = 3,         &
-!!$       &                 hierarchical_basis = .false., static_condensation = .false.,               &
-!!$       &                 num_continuity = 1 )
-!!$
-!!$  ! Initialize VTK output
-!!$  call fevtk%initialize(f_trian,fe_space,my_problem,senv,dir_path_out,prefix, linear_order=.false.)
-!!$
-!!$  ! Assign analytical solution
-!!$  call fe_space%set_analytical_code(space_solution_flag,tempo_solution_flag)
-!!$
-!!$  !Initialize time parameters
-!!$  call cdr_matvec%time_integ%initialize()
-!!$
-!!$  ! Initialize solution
-!!$  if (theta_integ%dtinv .ne. 0.0_rp) then
-!!$     call update_analytical_initial(vars_prob,theta_integ%itime,fe_space)
-!!$     istat = fevtk%write_VTK(t_step = theta_integ%real_time)
-!!$     call theta_integ%update()
-!!$     ! Store the solution in the previous time step
-!!$     call update_transient_solution(fe_space,vars_prob,my_discrete%get_current(),                   &
-!!$          &                          my_discrete%get_prev_step(),theta_integ)
-!!$  end if
-!!$
-!!$
-!!$
-!!$  ! Create vef2dof array
-!!$  call create_dof_info( fe_space )
-!!$
-!!$  ! Create the operator
-!!$  diagonal_blocks_symmetric_storage = (/(my_problem%kfl_conv == 0)/)
-!!$  diagonal_blocks_symmetric         = (/(my_problem%kfl_conv == 0)/)
-!!$  diagonal_blocks_sign              = (/positive_definite/) 
-!!$  call fe_affine_operator%create (diagonal_blocks_symmetric_storage , diagonal_blocks_symmetric,    &
-!!$       diagonal_blocks_sign, fe_space, approximations)
-!!$  call fe_affine_operator%symbolic_setup()
-!!$
-!!$
-!!$  ! Create preconditioners
-!!$  ppars%type = pardiso_mkl_prec
-!!$  call preconditioner_create(fe_affine_operator,feprec,ppars)
-!!$  call preconditioner_symbolic_setup(feprec)
-!!$
-!!$  ! Create the computation of the error
-!!$  call compute_error%create(my_problem,my_discrete)
-!!$
-!!$  ! The get_matrix/vector allocates and computes the matrix
-!!$  call fe_affine_operator%free_in_stages(free_numerical_setup)
-!!$
-!!$  do while (.not. theta_integ%finished) 
-!!$
-!!$     ! Print the time step
-!!$     call theta_integ%print(6)
-!!$     ! Update boundary conditions
-!!$     call update_strong_dirichlet_bcond( fe_space, f_cond )
-!!$     call update_analytical_bcond(vars_prob,theta_integ%ctime,fe_space)
-!!$
-!!$     ! Initialize the matrix and vector
-!!$     !call my_matrix%init(0.0_rp)
-!!$     !call my_array%init(0.0_rp)
-!!$
-!!$     ! Compute the matrix an vector of the problem
-!!$     approximations(1)%discrete_integration => cdr_matvec
-!!$     call fe_affine_operator%numerical_setup()
-!!$
-!!$     ! Create the matrix
-!!$     matrix => fe_affine_operator%get_matrix()
-!!$     select type(matrix)
-!!$        class is(serial_scalar_matrix_t)
-!!$        my_matrix => matrix
-!!$        class default
-!!$        check(.false.)
-!!$     end select
-!!$
-!!$     ! Create array 
-!!$     array => fe_affine_operator%get_array()
-!!$     select type(array)
-!!$        class is(serial_scalar_array_t)
-!!$        my_array => array
-!!$        class default
-!!$        check(.false.)
-!!$     end select
-!!$
-!!$     ! Create the vector
-!!$     call feunk%clone(my_array) 
-!!$
-!!$     ! Update the preconditioner
-!!$     call preconditioner_numerical_setup(feprec)
-!!$     !call preconditioner_log_info(feprec)
-!!$
-!!$     ! Solve the matrix-vector problem
-!!$     call abstract_solve(my_matrix,feprec,my_array,feunk,sctrl,senv)
-!!$     call solver_control_free_conv_his(sctrl)
-!!$
-!!$     ! Store the solution in FE space
-!!$     call update_solution(feunk, fe_space)
-!!$
-!!$     ! Store the solution in the previous time step
-!!$     call update_transient_solution(fe_space,vars_prob,my_discrete%get_current(),                   &
-!!$          &                          my_discrete%get_prev_step(),theta_integ)
-!!$
-!!$     ! Compute Error Norm
-!!$     approximations(1)%discrete_integration => compute_error
-!!$     compute_error%ctime = theta_integ%real_time
-!!$     call enorm%create()
-!!$     call enorm%init(0.0_rp)
-!!$     call fe_space%volume_integral(approximations,enorm)
-!!$     call enorm%reduce()
-!!$     write(*,*) 'XXX Error wrt analytical solution XXX',  sqrt(enorm%get_value())
-!!$     ! Print solution to VTK file
-!!$     istat = fevtk%write_VTK(t_step = theta_integ%real_time)
-!!$     istat = fevtk%write_PVTK(t_step = theta_integ%real_time)
-!!$
-!!$     call fe_affine_operator%free_in_stages(free_numerical_setup)
-!!$     ! Update the time integration variables
-!!$     call theta_integ%update()
-!!$  end do
-!!$
-!!$  istat = fevtk%write_PVD()
-!!$  call memfree( continuity, __FILE__, __LINE__)
-!!$  call memfree( enable_face_integration, __FILE__, __LINE__)
-!!$  call memfree( order, __FILE__, __LINE__)
-!!$  call memfree( material, __FILE__, __LINE__)
-!!$  call memfree( problem, __FILE__, __LINE__)
+
 
   ! To be erased
-  call test_reference_face_stuff(f_trian,f_cond,my_problem)
+  call test_reference_face_stuff(f_trian,f_cond)
 
-!!$  call feunk%free()
-!!$  call fe_affine_operator%free()
-!!$  call fe_space%free()
-!!$  call my_problem%free
-!!$  call my_discrete%free
-!!$  call cdr_matvec%free
-!!$  call compute_error%free
-!!$  call compute_error%free
-!!$  call dof_descriptor_free ( dof_descriptor )
-!!$  call fevtk%free
   call triangulation_free ( f_trian )
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
   call memstatus
 contains
   !==================================================================================================
-  subroutine  test_reference_face_stuff(f_trian, f_cond,my_problem)
-    use reference_fe_names
-    use reference_fe_factory_names
-    use SB_fe_space_names
-    use SB_discrete_integration_names
+  subroutine  test_reference_face_stuff(f_trian, f_cond)
+    use serial_names
     use CDR_discrete_integration_names
-    use SB_fe_affine_operator_names
-    use SB_preconditioner_names
     use vector_dG_CDR_discrete_integration_names
-    use block_sparse_matrix_names
 
     implicit none
 
     type(triangulation_t), intent(inout) :: f_trian
     type(conditions_t)   , intent(in)    :: f_cond
-    type(cdr_problem_t)  , intent(in)    :: my_problem
 
-    type(SB_serial_fe_space_t)                    :: fe_space
+    type(serial_fe_space_t)                    :: fe_space
     type(p_reference_fe_t)                        :: reference_fe_array_two(2)
     type(p_reference_fe_t)                        :: reference_fe_array_one(1)
-    type(SB_fe_affine_operator_t)                 :: fe_affine_operator
+    type(fe_affine_operator_t)                 :: fe_affine_operator
     type(vector_dG_CDR_discrete_integration_t)    :: vector_dG_CDR_integration
     type(CDR_discrete_integration_t)              :: CDR_integration
     type(vector_space_t)    , pointer             :: fe_affine_operator_range_vector_space 
@@ -510,17 +682,16 @@ contains
     integer(ip)              :: diagonal_blocks_sign(2)
     
     ! Composite case
-    reference_fe_array_two(1) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
-         &                      number_dimensions = 2, order = 1, field_type = "scalar",            &
+    reference_fe_array_two(1) = make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian,      &
+         &                      number_dimensions = 2, order = 1, field_type = field_type_scalar,            &
          &                      continuity = .false. )
 
-    reference_fe_array_two(2) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",      &
-         &                      number_dimensions = 2, order = 1, field_type = "vector",            &
+    reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian,      &
+         &                      number_dimensions = 2, order = 1, field_type = field_type_vector,            &
          &                      continuity = .false. )
 
     call fe_space%create( triangulation = f_trian, boundary_conditions = f_cond,                    &
          &                reference_fe_phy = reference_fe_array_two,                                &
-         &                reference_fe_geo_topology = "quad", reference_fe_geo_type = "Lagrangian", &
          &                field_blocks = (/1,2/),                                                   &
          &                field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
 
@@ -531,7 +702,7 @@ contains
     ! Create the operator
     diagonal_blocks_symmetric_storage = .false.
     diagonal_blocks_symmetric         = .false.
-    diagonal_blocks_sign              = positive_definite
+    diagonal_blocks_sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE
     call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                       &
          &                          diagonal_blocks_symmetric,diagonal_blocks_sign, f_trian,        &
          &                          fe_space, vector_dG_CDR_integration)
@@ -598,106 +769,6 @@ contains
     call cli_add_params(cli,transient_params,'transient')
 
   end subroutine read_flap_cli_test_cdr
-  !==================================================================================================
-
-  subroutine physical_cdr_problem_create(my_problem,cli,space_solution_flag,tempo_solution_flag)
-    implicit none
-    type(cdr_problem_t)              , intent(inout) :: my_problem
-    type(Type_Command_Line_Interface), intent(inout) :: cli
-    integer(ip)                      , intent(inout) :: space_solution_flag(1)
-    integer(ip)                      , intent(inout) :: tempo_solution_flag(1)
-
-    !Create the problem to solve 
-    call my_problem%create( f_trian%num_dims )
-    call cli%get(group=trim(group),switch='-kconv',val=my_problem%kfl_conv ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-kreac',val=my_problem%kfl_react,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-ktd'  ,val=my_problem%kfl_tder ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-reac' ,val=my_problem%reaction ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-diff' ,val=my_problem%diffusion ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-ssol' ,val=space_solution_flag ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-tsol' ,val=tempo_solution_flag ,error=istat)
-    check(istat==0)
-  end subroutine physical_cdr_problem_create
-  !==================================================================================================
-
-  subroutine discrete_cdr_problem_create(my_discrete,cli)
-    implicit none
-    type(cdr_discrete_t)             , intent(inout) :: my_discrete
-    type(Type_Command_Line_Interface), intent(inout) :: cli
-
-    real(rp) :: time_step
-
-    call my_discrete%create( my_problem)
-    call cli%get(group=trim(group),switch='-kst' ,val=my_discrete%kfl_stab,error=istat)
-    check(istat==0)
-  end subroutine discrete_cdr_problem_create
-  !==================================================================================================
-
-  subroutine approximation_cdr_problem_create(my_problem,my_discrete,theta_integ,cdr_matvec,cli,          &
-       &                                      f_trian,order,continuity,enable_face_integration,     &
-       &                                      material, problem)
-    implicit none
-    type(cdr_problem_t)              , intent(in)            :: my_problem
-    type(cdr_discrete_t)             , intent(in)            :: my_discrete
-    type(theta_method_t)             , intent(in)   , target :: theta_integ
-    type(cdr_transient_t)            , intent(inout), target :: cdr_matvec
-    type(Type_Command_Line_Interface), intent(inout)         :: cli
-    type(triangulation_t)            , intent(in)            :: f_trian
-    integer(ip)         , allocatable, intent(inout)         :: order(:,:),continuity(:,:)
-    logical             , allocatable, intent(inout)         :: enable_face_integration(:,:)
-    integer(ip)         , allocatable, intent(inout)         :: material(:),problem(:)
-
-    integer(ip) :: continuity_flag,face_int_flag, order_flag
-    real(rp)    :: time_step
-
-    ! Create the solver type
-    call cdr_matvec%create(my_problem,my_discrete)
-    cdr_matvec%time_integ => theta_integ
-    num_approximations = 1
-    approximations(1)%discrete_integration => cdr_matvec
-    call dof_descriptor%set_problem( 1, my_discrete )
-
-    ! Continuity set up
-    call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, continuity, __FILE__, __LINE__)
-    call cli%get(group=trim(group),switch='-cg', val=continuity_flag, error=istat); check(istat==0)
-    continuity = continuity_flag
-
-    ! Face integration set up
-    call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, enable_face_integration,         &
-         &        __FILE__, __LINE__)
-    call cli%get(group=trim(group),switch='-fi', val=face_int_flag, error=istat); check(istat==0)
-    enable_face_integration = (face_int_flag==1) ! (cG/ No face integration)
-
-    ! Order set up
-    call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, order, __FILE__, __LINE__)
-    call cli%get(group=trim(group),switch='-p', val=order_flag, error=istat); check(istat==0)
-    order = order_flag
-
-    ! Define the material
-    call memalloc( f_trian%num_elems, material, __FILE__, __LINE__)
-    material = 1
-
-    ! Define the problem
-    call memalloc( f_trian%num_elems, problem, __FILE__, __LINE__)
-    problem = 1
-
-
-    call cli%get(group=trim(group),switch='-t0'  ,val=cdr_matvec%time_integ%itime     ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-tf'  ,val=cdr_matvec%time_integ%ftime     ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-ts'  ,val=cdr_matvec%time_integ%time_step ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-tht' ,val=cdr_matvec%time_integ%theta     ,error=istat)
-    check(istat==0)
-
-  end subroutine approximation_cdr_problem_create
 
 
 end program test_cdr

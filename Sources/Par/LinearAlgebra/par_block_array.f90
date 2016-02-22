@@ -36,7 +36,6 @@ module par_block_array_names
   ! Parallel modules
   use par_environment_names
   use par_scalar_array_names
-  use blocks_dof_distribution_names
 
   implicit none
 # include "debug.i90"
@@ -52,10 +51,10 @@ module par_block_array_names
      type(par_scalar_array_t), allocatable :: blocks(:)
    contains	 
      procedure, private :: par_block_array_create_only_blocks_container
-     procedure, private :: par_block_array_create_blocks_container_and_blocks
-     generic :: create => par_block_array_create_only_blocks_container, & 
-                          par_block_array_create_blocks_container_and_blocks
-     procedure :: create_and_allocate => par_block_array_create_blocks_container_and_allocate_blocks
+     !procedure, private :: par_block_array_create_blocks_container_and_blocks
+     generic :: create => par_block_array_create_only_blocks_container!, & 
+     !                     par_block_array_create_blocks_container_and_blocks
+     !procedure :: create_and_allocate => par_block_array_create_blocks_container_and_allocate_blocks
      procedure :: allocate => par_block_array_create_blocks_allocate_blocks						  
 
      procedure :: create_view       => par_block_array_create_view
@@ -94,35 +93,35 @@ contains
     this%state = blocks_container_created
   end subroutine par_block_array_create_only_blocks_container
 
-  !=============================================================================
-  subroutine par_block_array_create_blocks_container_and_blocks(this, nblocks, blocks_dof_distribution)
-    implicit none
-    class(par_block_array_t)      , intent(out) :: this
-    integer(ip)                   , intent(in)  :: nblocks
-    type(blocks_dof_distribution_t), intent(in) :: blocks_dof_distribution
-    integer(ip)  :: ib
+  !!=============================================================================
+  !subroutine par_block_array_create_blocks_container_and_blocks(this, nblocks, blocks_dof_distribution)
+  !  implicit none
+  !  class(par_block_array_t)      , intent(out) :: this
+  !  integer(ip)                   , intent(in)  :: nblocks
+  !  type(blocks_dof_distribution_t), intent(in) :: blocks_dof_distribution
+  !  integer(ip)  :: ib
 
-    call this%create(nblocks)
-    do ib=1, this%nblocks
-       call this%blocks(ib)%create ( blocks_dof_distribution%blocks(ib), blocks_dof_distribution%p_env )
-    end do
-    this%state = blocks_container_created
-  end subroutine par_block_array_create_blocks_container_and_blocks
+  !  call this%create(nblocks)
+  !  do ib=1, this%nblocks
+  !     call this%blocks(ib)%create ( blocks_dof_distribution%blocks(ib), blocks_dof_distribution%p_env )
+  !  end do
+  !  this%state = blocks_container_created
+  !end subroutine par_block_array_create_blocks_container_and_blocks
   
-  !=============================================================================
-  subroutine par_block_array_create_blocks_container_and_allocate_blocks(this, nblocks, blocks_dof_distribution)
-    implicit none
-    class(par_block_array_t)       , intent(out) :: this
-    integer(ip)                    , intent(in)  :: nblocks
-    type(blocks_dof_distribution_t), intent(in)  :: blocks_dof_distribution
-    integer(ip)  :: ib
+  !!=============================================================================
+  !subroutine par_block_array_create_blocks_container_and_allocate_blocks(this, nblocks, blocks_dof_distribution)
+  !  implicit none
+  !  class(par_block_array_t)       , intent(out) :: this
+  !  integer(ip)                    , intent(in)  :: nblocks
+  !  type(blocks_dof_distribution_t), intent(in)  :: blocks_dof_distribution
+  !  integer(ip)  :: ib
 
-    call this%create(nblocks)
-    do ib=1, this%nblocks
-       call this%blocks(ib)%create_and_allocate ( blocks_dof_distribution%blocks(ib), blocks_dof_distribution%p_env )
-    end do
-    this%state = blocks_container_created
-  end subroutine par_block_array_create_blocks_container_and_allocate_blocks
+  !  call this%create(nblocks)
+  !  do ib=1, this%nblocks
+  !     call this%blocks(ib)%create_and_allocate ( blocks_dof_distribution%blocks(ib), blocks_dof_distribution%p_env )
+  !  end do
+  !  this%state = blocks_container_created
+  !end subroutine par_block_array_create_blocks_container_and_allocate_blocks
   
   !=============================================================================
   subroutine par_block_array_create_blocks_allocate_blocks(this)

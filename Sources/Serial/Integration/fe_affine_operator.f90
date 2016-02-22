@@ -28,17 +28,20 @@
 module fe_affine_operator_names
   use types_names
   use memor_names
-  use problem_names
-  
+
   ! Abstract types
+  use triangulation_names
   use vector_space_names
-  use dof_descriptor_names
-  use fe_space_names
+  use reference_fe_names
+  use serial_fe_space_names
   use operator_names
   use vector_names
+  use assembler_names
   use matrix_array_assembler_names
   use array_names
   use matrix_names
+
+  use discrete_integration_names
 
   implicit none
 # include "debug.i90"
@@ -55,7 +58,7 @@ module fe_affine_operator_names
   ! Input State | Action               | Output State 
   ! -------------------------------------------------
   ! start       | create               | created
-  ! start       | free_numerical_setup | start
+  ! start       | free_numerical_setup          | start
   ! start       | free_symbolic_setup  | start
   ! start       | free_clean           | start 
   ! start       | free                 | start 
@@ -68,15 +71,15 @@ module fe_affine_operator_names
   !               get_range_vector_space+        "
   !               abort_if_not_in_range+         "
   !               abort_if_not_in_domain         "
-  ! created     | free_numerical_setup | created
-  ! created     | free_symbolic_setup  | created
+  ! created     | free_numerical_setup          | created
+  ! created     | free_symbolic_setup          | created
   ! created     | free_clean           | start
   ! created     | free                 | start
 
   ! symbolically_setup    | symbolic_setup       | symbolically_setup
   ! symbolically_setup    | numerical_setup      | numerically_setup
-  ! symbolically_setup    | free_numerical_setup | symbolically_setup
-  ! symbolically_setup    | free_symbolic_setup  | created
+  ! symbolically_setup    | free_numerical_setup          | symbolically_setup
+  ! symbolically_setup    | free_symbolic_setup          | created
   ! symbolically_setup    | free_clean           | start
   ! symbolically_setup    | free                 | start
   ! symbolically_setup    | get_tangent+         | numerically_setup
@@ -88,7 +91,7 @@ module fe_affine_operator_names
 
   ! numerically_setup    | symbolic_setup       | numerically_setup
   ! numerically_setup    | numerical_setup      | numerically_setup
-  ! numerically_setup    | free_numerical_setup | symbolically_setup
+  ! numerically_setup    | free_numerical_setup          | symbolically_setup
   ! numerically_setup    | free_symbolic_setup  | created
   ! numerically_setup    | free                 | start
   ! numerically_setup    | free_clean           |  
@@ -98,91 +101,84 @@ module fe_affine_operator_names
   !                        get_range_vector_space+        "
   !                        abort_if_not_in_range+         "
   !                        abort_if_not_in_domain         "
- 
-  
-  type, extends(operator_t):: fe_affine_operator_t
-     private
-     integer(ip)                                  :: state  = start
-     class(fe_space_t)              , pointer     :: fe_space               => NULL()
-     type(p_discrete_integration_t) , allocatable :: approximations(:)      
-     class(matrix_array_assembler_t), pointer     :: matrix_array_assembler => NULL()
-   contains
-     procedure          :: create                      => fe_affine_operator_create
-     procedure          :: symbolic_setup              => fe_affine_operator_symbolic_setup
-     procedure          :: numerical_setup             => fe_affine_operator_numerical_setup
-     procedure          :: apply                       => fe_affine_operator_apply
-     procedure          :: is_linear                   => fe_affine_operator_is_linear
-     procedure          :: get_tangent                 => fe_affine_operator_get_tangent
-     procedure          :: get_translation             => fe_affine_operator_get_translation
-     procedure          :: get_matrix                  => fe_affine_operator_get_matrix
-     procedure          :: get_array                   => fe_affine_operator_get_array
-     procedure          :: free_in_stages              => fe_affine_operator_free_in_stages
-     procedure          :: free                        => fe_affine_operator_free
-     procedure          :: get_domain_vector_space     => fe_affine_operator_get_domain_vector_space
-     procedure          :: get_range_vector_space      => fe_affine_operator_get_range_vector_space
-     procedure          :: abort_if_not_in_range       => fe_affine_operator_abort_if_not_in_range
-     procedure          :: abort_if_not_in_domain      => fe_affine_operator_abort_if_not_in_domain
-     procedure, private :: fe_affine_operator_free_numerical_setup
-     procedure, private :: fe_affine_operator_free_symbolic_setup
-     procedure, private :: fe_affine_operator_free_clean
-     procedure, private :: fe_affine_operator_setup
-     procedure, private :: create_vector_spaces        => fe_affine_operator_create_vector_spaces
-  end type fe_affine_operator_t
 
-  ! Types
-  public :: fe_affine_operator_t
+
+  type, extends(operator_t):: fe_affine_operator_t
+  private
+  integer(ip)                                     :: state  = start
+  character(:)                      , allocatable :: sparse_matrix_storage_format
+  type(triangulation_t)             , pointer     :: triangulation          => NULL()
+  class(serial_fe_space_t)       , pointer     :: fe_space               => NULL() ! trial_fe_space
+  class(serial_fe_space_t)       , pointer     :: test_fe_space          => NULL() ! To be used in the future
+  class(discrete_integration_t)     , pointer     :: discrete_integration   => NULL()
+  class(matrix_array_assembler_t), pointer     :: matrix_array_assembler => NULL()
+contains
+  procedure          :: create                      => fe_affine_operator_create
+  procedure          :: symbolic_setup              => fe_affine_operator_symbolic_setup
+  procedure          :: numerical_setup             => fe_affine_operator_numerical_setup
+  procedure          :: apply                       => fe_affine_operator_apply
+  procedure          :: is_linear                   => fe_affine_operator_is_linear
+  procedure          :: get_tangent                 => fe_affine_operator_get_tangent
+  procedure          :: get_translation             => fe_affine_operator_get_translation
+  procedure          :: get_matrix                  => fe_affine_operator_get_matrix
+  procedure          :: get_array                   => fe_affine_operator_get_array
+  procedure          :: free_in_stages              => fe_affine_operator_free_in_stages
+  procedure          :: free                        => fe_affine_operator_free
+  procedure          :: get_domain_vector_space     => fe_affine_operator_get_domain_vector_space
+  procedure          :: get_range_vector_space      => fe_affine_operator_get_range_vector_space
+  procedure          :: abort_if_not_in_range       => fe_affine_operator_abort_if_not_in_range
+  procedure          :: abort_if_not_in_domain      => fe_affine_operator_abort_if_not_in_domain
+  procedure, private :: fe_affine_operator_free_numerical_setup
+  procedure, private :: fe_affine_operator_free_symbolic_setup
+  procedure, private :: fe_affine_operator_free_clean
+  procedure, private :: fe_affine_operator_setup
+  procedure, private :: fe_affine_operator_fill_values
+  procedure, private :: create_vector_spaces        => fe_affine_operator_create_vector_spaces
+end type fe_affine_operator_t
+
+! Types
+public :: fe_affine_operator_t
 
 contains
-  subroutine fe_affine_operator_create (this, &
-                                        diagonal_blocks_symmetric_storage,&
-                                        diagonal_blocks_symmetric,&
-                                        diagonal_blocks_sign,&
-                                        fe_space,&
-                                        approximations)
-    implicit none
-    class(fe_affine_operator_t)            , intent(out) :: this
-    class(fe_space_t)              , target, intent(in)  :: fe_space
-    logical                                , intent(in)  :: diagonal_blocks_symmetric_storage(fe_space%dof_descriptor%nblocks)
-    logical                                , intent(in)  :: diagonal_blocks_symmetric(fe_space%dof_descriptor%nblocks)
-    integer(ip)                            , intent(in)  :: diagonal_blocks_sign(fe_space%dof_descriptor%nblocks)
-    type(p_discrete_integration_t)         , intent(in)  :: approximations(:)
-    
-    integer(ip) :: iapprox
+subroutine fe_affine_operator_create (this, &
+                                      sparse_matrix_storage_format, &
+                                      diagonal_blocks_symmetric_storage,&
+                                      diagonal_blocks_symmetric,&
+                                      diagonal_blocks_sign,&
+                                      triangulation,&
+                                      fe_space,&
+                                      discrete_integration )
+ implicit none
+ class(fe_affine_operator_t)              , intent(out) :: this
+ character(*)                                , intent(in)  :: sparse_matrix_storage_format
+ logical                                     , intent(in)  :: diagonal_blocks_symmetric_storage(:)
+ logical                                     , intent(in)  :: diagonal_blocks_symmetric(:)
+ integer(ip)                                 , intent(in)  :: diagonal_blocks_sign(:)
+ type(triangulation_t)               , target, intent(in)  :: triangulation
+ class(serial_fe_space_t)         , target, intent(in)  :: fe_space
+ class(discrete_integration_t)    , target, intent(in)  :: discrete_integration
 
-    assert(this%state == start)
+ assert(this%state == start)
 
-    this%fe_space               => fe_space
-    allocate ( this%approximations(size(approximations)) )
-    do iapprox=1, size(approximations)
-      this%approximations(iapprox)%discrete_integration => approximations(iapprox)%discrete_integration
-    end do
-    this%matrix_array_assembler => fe_space%create_matrix_array_assembler(diagonal_blocks_symmetric_storage, &
-                                                                          diagonal_blocks_symmetric, &
-                                                                          diagonal_blocks_sign)
-    call this%create_vector_spaces()
-    this%state = created
-  end subroutine fe_affine_operator_create
-  
-  subroutine fe_affine_operator_symbolic_setup (this)
-    implicit none
-    class(fe_affine_operator_t), intent(inout) :: this
+ this%sparse_matrix_storage_format = sparse_matrix_storage_format
+ this%triangulation                => triangulation
+ this%fe_space                     => fe_space
+ this%discrete_integration         => discrete_integration
+ this%matrix_array_assembler       => fe_space%create_assembler(diagonal_blocks_symmetric_storage, &
+                                                                diagonal_blocks_symmetric, &
+                                                                diagonal_blocks_sign)
+ call this%create_vector_spaces()
+ this%state = created
+end subroutine fe_affine_operator_create
 
-    assert ( .not. this%state == start )
-    
-    if ( this%state == created ) then 
-      call this%fe_space%symbolic_setup_matrix_array_assembler(this%matrix_array_assembler)
-      this%state = symbolically_setup
-    end if
-  end subroutine fe_affine_operator_symbolic_setup
-  
   subroutine fe_affine_operator_create_vector_spaces(this)
     implicit none
     class(fe_affine_operator_t), intent(inout) :: this
-    type(vector_space_t), pointer :: fe_affine_operator_domain_vector_space
-    type(vector_space_t), pointer :: fe_affine_operator_range_vector_space
-    type(vector_space_t), pointer :: matrix_domain_vector_space
-    type(vector_space_t), pointer :: matrix_range_vector_space
-    class(matrix_t), pointer :: matrix
+    type(vector_space_t), pointer                 :: fe_affine_operator_domain_vector_space
+    type(vector_space_t), pointer                 :: fe_affine_operator_range_vector_space
+    type(vector_space_t), pointer                 :: matrix_domain_vector_space
+    type(vector_space_t), pointer                 :: matrix_range_vector_space
+    class(matrix_t)     , pointer :: matrix
     matrix => this%matrix_array_assembler%get_matrix()
     matrix_domain_vector_space => matrix%get_domain_vector_space()
     matrix_range_vector_space => matrix%get_range_vector_space()
@@ -191,208 +187,231 @@ contains
     call matrix_domain_vector_space%clone(fe_affine_operator_domain_vector_space)
     call matrix_range_vector_space%clone(fe_affine_operator_range_vector_space)
   end subroutine fe_affine_operator_create_vector_spaces
-  
-  subroutine fe_affine_operator_numerical_setup (this)
-    implicit none
-    class(fe_affine_operator_t), intent(inout) :: this
-    
-    assert ( .not. this%state == start )
 
-    if ( this%state == created ) then
-       call this%symbolic_setup()
-    end if
 
-    if ( this%state == symbolically_setup ) then
-       call this%matrix_array_assembler%allocate()
-       call this%fe_space%volume_integral(this%approximations,this%matrix_array_assembler)
-       this%state = numerically_setup
-    end if
-  end subroutine fe_affine_operator_numerical_setup
+subroutine fe_affine_operator_symbolic_setup (this)
+ implicit none
+ class(fe_affine_operator_t), intent(inout) :: this
 
-  subroutine fe_affine_operator_free_numerical_setup(this)
-    implicit none
-    class(fe_affine_operator_t), intent(inout) :: this
-    call this%matrix_array_assembler%free_in_stages(free_numerical_setup)
-  end subroutine fe_affine_operator_free_numerical_setup
+ assert ( .not. this%state == start )
 
-  subroutine fe_affine_operator_free_symbolic_setup(this)
-    implicit none
-    class(fe_affine_operator_t), intent(inout) :: this
-    call this%matrix_array_assembler%free_in_stages(free_symbolic_setup)
-  end subroutine fe_affine_operator_free_symbolic_setup
+ if ( this%state == created ) then 
+    call this%fe_space%symbolic_setup_assembler(this%matrix_array_assembler)
+    this%state = symbolically_setup
+ end if
 
-  subroutine fe_affine_operator_free_clean(this)
-    implicit none
-    class(fe_affine_operator_t), intent(inout) :: this
-    integer(ip) :: istat
-    call this%matrix_array_assembler%free_in_stages(free_clean)
-    deallocate ( this%matrix_array_assembler, stat=istat )
-    check(istat==0)
-    nullify(this%matrix_array_assembler)
-    nullify(this%fe_space)
-    deallocate(this%approximations, stat=istat)
-    check(istat==0)
-    call this%free_vector_spaces()
-  end subroutine fe_affine_operator_free_clean
- 
-  subroutine fe_affine_operator_free_in_stages(this,action)
-    implicit none
-    class(fe_affine_operator_t), intent(inout) :: this
-    integer(ip)                , intent(in)    :: action
-    integer(ip)                                :: istat
+end subroutine fe_affine_operator_symbolic_setup
 
-    if ( this%state == start ) then
-       return
-    else if ( this%state == created ) then
-       if ( action == free_clean ) then
-          call this%fe_affine_operator_free_clean()
-          this%state = start
-       end if
-    else if ( this%state == symbolically_setup ) then
-       if ( action == free_symbolic_setup ) then
-          call this%fe_affine_operator_free_symbolic_setup()
-          this%state = created
-       else if ( action == free_clean ) then
-          call this%fe_affine_operator_free_symbolic_setup()
-          call this%fe_affine_operator_free_clean()
-          this%state=start
-       end if
-    else if ( this%state == numerically_setup ) then
-       if ( action == free_numerical_setup ) then
-          call this%fe_affine_operator_free_numerical_setup()
-          this%state = symbolically_setup
-       else if ( action == free_symbolic_setup ) then
-          call this%fe_affine_operator_free_numerical_setup()
-          call this%fe_affine_operator_free_symbolic_setup()
-          this%state = created
-       else if ( action == free_clean ) then
-          call this%fe_affine_operator_free_numerical_setup()
-          call this%fe_affine_operator_free_symbolic_setup()
-          call this%fe_affine_operator_free_clean()
-          this%state=start
-       end if
-    end if
-    
-  end subroutine fe_affine_operator_free_in_stages
-  
-  subroutine fe_affine_operator_free(this)
-    implicit none
-    class(fe_affine_operator_t), intent(inout) :: this
-    call this%free_in_stages(free_numerical_setup)
-    call this%free_in_stages(free_symbolic_setup)
-    call this%free_in_stages(free_clean)
-  end subroutine fe_affine_operator_free
-  
-  function fe_affine_operator_get_matrix(this)
-    implicit none
-    class(fe_affine_operator_t), target, intent(in) :: this
-    class(matrix_t), pointer :: fe_affine_operator_get_matrix
-    call this%fe_affine_operator_setup()
-    fe_affine_operator_get_matrix => this%matrix_array_assembler%get_matrix()
-  end function fe_affine_operator_get_matrix
-  
-  function fe_affine_operator_get_array(this)
-    implicit none
-    class(fe_affine_operator_t), target, intent(in) :: this
-    class(array_t), pointer :: fe_affine_operator_get_array
-    call this%fe_affine_operator_setup()
-    fe_affine_operator_get_array => this%matrix_array_assembler%get_array()
-  end function fe_affine_operator_get_array
-  
-  ! op%apply(x,y) <=> y <- op*x
-  ! Implicitly assumes that y is already allocated
-  subroutine fe_affine_operator_apply(op,x,y) 
-    implicit none
-    class(fe_affine_operator_t), intent(in)    :: op
-    class(vector_t) , intent(in)    :: x
-    class(vector_t) , intent(inout) :: y 
-    class(matrix_t) , pointer       :: matrix
-    class(array_t)  , pointer       :: array
-    call op%fe_affine_operator_setup()
-    call op%abort_if_not_in_domain(x)
-    call op%abort_if_not_in_range(y)
-    call x%GuardTemp()
-    matrix => op%matrix_array_assembler%get_matrix()
-    call matrix%apply(x,y)
-    array => op%matrix_array_assembler%get_array()
-    call y%axpby( -1.0_rp, array, 1.0_rp )
-    call x%CleanTemp()
-  end subroutine fe_affine_operator_apply
-  
-  function fe_affine_operator_is_linear(op)
-    implicit none
-    class(fe_affine_operator_t), intent(in) :: op
-    logical :: fe_affine_operator_is_linear
-    fe_affine_operator_is_linear = .false.
-  end function fe_affine_operator_is_linear
-  
-  function fe_affine_operator_get_tangent(op,x) result(tangent)
-    implicit none
-    class(fe_affine_operator_t), intent(in) :: op
-    class(vector_t), optional  , intent(in) :: x
-    type(dynamic_state_operator_t)          :: tangent
-    call op%fe_affine_operator_setup()
-    tangent = op%get_matrix()
-    call tangent%SetTemp()
-  end function fe_affine_operator_get_tangent
-  
-  function fe_affine_operator_get_translation(op) result(translation)
-    implicit none
-    class(fe_affine_operator_t), intent(in) :: op
-    class(vector_t), pointer                :: translation
-    call op%fe_affine_operator_setup()
-    translation => op%get_array()
-  end function fe_affine_operator_get_translation
+subroutine fe_affine_operator_numerical_setup (this)
+ implicit none
+ class(fe_affine_operator_t), intent(inout) :: this
 
-  subroutine fe_affine_operator_abort_if_not_in_domain ( this, vector )
-    implicit none
-    class(fe_affine_operator_t), intent(in)  :: this
-    class(vector_t)            , intent(in)  :: vector
-    assert ( .not. this%state == start )
-    call operator_abort_if_not_in_domain(this,vector)
-  end subroutine fe_affine_operator_abort_if_not_in_domain
+ assert ( .not. this%state == start )
 
-  subroutine fe_affine_operator_abort_if_not_in_range ( this, vector )
-    implicit none
-    class(fe_affine_operator_t), intent(in) :: this
-    class(vector_t)            , intent(in) :: vector
-    assert ( .not. this%state == start )
-    call operator_abort_if_not_in_range(this,vector)
-  end subroutine fe_affine_operator_abort_if_not_in_range
-
-  function fe_affine_operator_get_domain_vector_space ( this )
-    implicit none
-    class(fe_affine_operator_t), target, intent(in) :: this
-    type(vector_space_t)               , pointer    :: fe_affine_operator_get_domain_vector_space
-    assert ( .not. this%state == start )
-    fe_affine_operator_get_domain_vector_space => operator_get_domain_vector_space(this)
-  end function fe_affine_operator_get_domain_vector_space
-  
-  function fe_affine_operator_get_range_vector_space ( this )
-    implicit none
-    class(fe_affine_operator_t), target, intent(in) :: this
-    type(vector_space_t)                  , pointer :: fe_affine_operator_get_range_vector_space
-    assert ( .not. this%state == start )
-    fe_affine_operator_get_range_vector_space => operator_get_range_vector_space(this)
-  end function fe_affine_operator_get_range_vector_space
-
-  function fe_affine_operator_apply_fun(op,x) result(y)
-    implicit none
-    class(fe_affine_operator_t)   , intent(in)  :: op
-    class(vector_t)     , intent(in)  :: x
-    class(vector_t)     , allocatable :: y
-    type(vector_space_t), pointer     :: range_vector_space
-    range_vector_space => op%get_range_vector_space()
-    call op%fe_affine_operator_setup()
-    call range_vector_space%create_vector(y)
-    call op%apply(x,y)
-  end function fe_affine_operator_apply_fun
-
-  subroutine fe_affine_operator_setup(this)
-    implicit none
-    class(fe_affine_operator_t)  :: this
+ if ( this%state == created ) then
     call this%symbolic_setup()
-    call this%numerical_setup()
-  end subroutine fe_affine_operator_setup
+ end if
+ if ( this%state == symbolically_setup ) then
+    this%state = numerically_setup
+    call this%matrix_array_assembler%allocate()
+    call this%fe_affine_operator_fill_values()
+    call this%matrix_array_assembler%compress_storage(this%sparse_matrix_storage_format)
+ end if
+
+end subroutine fe_affine_operator_numerical_setup
+
+subroutine fe_affine_operator_free_numerical_setup(this)
+ implicit none
+ class(fe_affine_operator_t), intent(inout) :: this
+ call this%matrix_array_assembler%free_in_stages(free_numerical_setup)
+end subroutine fe_affine_operator_free_numerical_setup
+
+subroutine fe_affine_operator_free_symbolic_setup(this)
+ implicit none
+ class(fe_affine_operator_t), intent(inout) :: this
+ call this%matrix_array_assembler%free_in_stages(free_symbolic_setup)
+end subroutine fe_affine_operator_free_symbolic_setup
+
+subroutine fe_affine_operator_free_clean(this)
+ implicit none
+ class(fe_affine_operator_t), intent(inout) :: this
+ integer(ip) :: istat
+ nullify(this%triangulation)
+ nullify(this%fe_space)
+ nullify(this%test_fe_space)
+ nullify(this%discrete_integration)
+ call this%matrix_array_assembler%free_in_stages(free_clean)
+ deallocate(this%matrix_array_assembler, stat=istat )
+ check(istat==0)
+ nullify(this%matrix_array_assembler)
+ call this%free_vector_spaces()
+end subroutine fe_affine_operator_free_clean
+
+subroutine fe_affine_operator_free_in_stages(this,action)
+ implicit none
+ class(fe_affine_operator_t), intent(inout) :: this
+ integer(ip)                , intent(in)    :: action
+ integer(ip)                                :: istat
+
+ if ( this%state == start ) then
+    return
+ else if ( this%state == created ) then
+    if ( action == free_clean ) then
+       call this%fe_affine_operator_free_clean()
+       this%state = start
+    end if
+ else if ( this%state == symbolically_setup ) then
+    if ( action == free_symbolic_setup ) then
+       call this%fe_affine_operator_free_symbolic_setup()
+       this%state = created
+    else if ( action == free_clean ) then
+       call this%fe_affine_operator_free_symbolic_setup()
+       call this%fe_affine_operator_free_clean()
+       this%state=start
+    end if
+ else if ( this%state == numerically_setup ) then
+    if ( action == free_numerical_setup ) then
+       call this%fe_affine_operator_free_numerical_setup()
+       this%state = symbolically_setup
+    else if ( action == free_symbolic_setup ) then
+       call this%fe_affine_operator_free_numerical_setup()
+       call this%fe_affine_operator_free_symbolic_setup()
+       this%state = created
+    else if ( action == free_clean ) then
+       call this%fe_affine_operator_free_numerical_setup()
+       call this%fe_affine_operator_free_symbolic_setup()
+       call this%fe_affine_operator_free_clean()
+       this%state=start
+    end if
+ end if
+
+end subroutine fe_affine_operator_free_in_stages
+
+subroutine fe_affine_operator_free(this)
+ implicit none
+ class(fe_affine_operator_t), intent(inout) :: this
+ call this%free_in_stages(free_numerical_setup)
+ call this%free_in_stages(free_symbolic_setup)
+ call this%free_in_stages(free_clean)
+end subroutine fe_affine_operator_free
+
+function fe_affine_operator_get_matrix(this)
+ implicit none
+ class(fe_affine_operator_t), target, intent(in) :: this
+ class(matrix_t), pointer :: fe_affine_operator_get_matrix
+ call this%fe_affine_operator_setup()
+ fe_affine_operator_get_matrix => this%matrix_array_assembler%get_matrix()
+end function fe_affine_operator_get_matrix
+
+function fe_affine_operator_get_array(this)
+ implicit none
+ class(fe_affine_operator_t), target, intent(in) :: this
+ class(array_t), pointer :: fe_affine_operator_get_array
+ call this%fe_affine_operator_setup()
+ fe_affine_operator_get_array => this%matrix_array_assembler%get_array()
+end function fe_affine_operator_get_array
+
+! op%apply(x,y) <=> y <- op*x
+! Implicitly assumes that y is already allocated
+subroutine fe_affine_operator_apply(op,x,y) 
+ implicit none
+ class(fe_affine_operator_t), intent(in)    :: op
+ class(vector_t) , intent(in)    :: x
+ class(vector_t) , intent(inout) :: y 
+ class(matrix_t) , pointer       :: matrix
+ class(array_t)  , pointer       :: array
+ call op%fe_affine_operator_setup()
+ call op%abort_if_not_in_domain(x)
+ call op%abort_if_not_in_range(y)
+ call x%GuardTemp()
+ matrix => op%matrix_array_assembler%get_matrix()
+ call matrix%apply(x,y)
+ array => op%matrix_array_assembler%get_array()
+ call y%axpby( -1.0_rp, array, 1.0_rp )
+ call x%CleanTemp()
+end subroutine fe_affine_operator_apply
+
+function fe_affine_operator_is_linear(op)
+ implicit none
+ class(fe_affine_operator_t), intent(in) :: op
+ logical :: fe_affine_operator_is_linear
+ fe_affine_operator_is_linear = .false.
+end function fe_affine_operator_is_linear
+
+function fe_affine_operator_get_tangent(op,x) result(tangent)
+ implicit none
+ class(fe_affine_operator_t), intent(in) :: op
+ class(vector_t), optional  , intent(in) :: x
+ type(dynamic_state_operator_t)          :: tangent
+ call op%fe_affine_operator_setup()
+ tangent = op%get_matrix()
+ call tangent%SetTemp()
+end function fe_affine_operator_get_tangent
+
+function fe_affine_operator_get_translation(op) result(translation)
+ implicit none
+ class(fe_affine_operator_t), intent(in) :: op
+ class(vector_t), pointer                :: translation
+ call op%fe_affine_operator_setup()
+ translation => op%get_array()
+end function fe_affine_operator_get_translation
+
+subroutine fe_affine_operator_abort_if_not_in_domain ( this, vector )
+ implicit none
+ class(fe_affine_operator_t), intent(in)  :: this
+ class(vector_t)            , intent(in)  :: vector
+ assert ( .not. this%state == start )
+ call operator_abort_if_not_in_domain(this,vector)
+end subroutine fe_affine_operator_abort_if_not_in_domain
+
+subroutine fe_affine_operator_abort_if_not_in_range ( this, vector )
+ implicit none
+ class(fe_affine_operator_t), intent(in) :: this
+ class(vector_t)            , intent(in) :: vector
+ assert ( .not. this%state == start )
+ call operator_abort_if_not_in_range(this,vector)
+end subroutine fe_affine_operator_abort_if_not_in_range
+
+function fe_affine_operator_get_domain_vector_space ( this )
+ implicit none
+ class(fe_affine_operator_t), target, intent(in) :: this
+ type(vector_space_t)               , pointer    :: fe_affine_operator_get_domain_vector_space
+ assert ( .not. this%state == start )
+ fe_affine_operator_get_domain_vector_space => operator_get_domain_vector_space(this)
+end function fe_affine_operator_get_domain_vector_space
+
+function fe_affine_operator_get_range_vector_space ( this )
+ implicit none
+ class(fe_affine_operator_t), target, intent(in) :: this
+ type(vector_space_t)                  , pointer :: fe_affine_operator_get_range_vector_space
+ assert ( .not. this%state == start )
+ fe_affine_operator_get_range_vector_space => operator_get_range_vector_space(this)
+end function fe_affine_operator_get_range_vector_space
+
+function fe_affine_operator_apply_fun(op,x) result(y)
+ implicit none
+ class(fe_affine_operator_t)   , intent(in)  :: op
+ class(vector_t)     , intent(in)  :: x
+ class(vector_t)     , allocatable :: y
+ type(vector_space_t), pointer     :: range_vector_space
+ range_vector_space => op%get_range_vector_space()
+ call op%fe_affine_operator_setup()
+ call range_vector_space%create_vector(y)
+ call op%apply(x,y)
+end function fe_affine_operator_apply_fun
+
+subroutine fe_affine_operator_setup(this)
+ implicit none
+ class(fe_affine_operator_t)  :: this
+ call this%symbolic_setup()
+ call this%numerical_setup()
+end subroutine fe_affine_operator_setup
+
+subroutine fe_affine_operator_fill_values(this)
+  implicit none
+  class(fe_affine_operator_t), intent(inout) :: this
+  call this%discrete_integration%integrate( this%fe_space, this%matrix_array_assembler )
+end subroutine fe_affine_operator_fill_values
+
 
 end module fe_affine_operator_names

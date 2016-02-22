@@ -30,7 +30,6 @@ module mesh_to_triangulation_names
   use memor_names
   use mesh_names
   use triangulation_names
-  use fe_space_types_names
   use generate_vefs_mesh_conditions_names
   use conditions_names
   use reference_fe_names
@@ -69,7 +68,7 @@ contains
 
   end subroutine mesh_to_triangulation
 
-subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcond,reference_fe_geo, &
+subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcond, &
      &                                           elem_to_subset_id)
     implicit none
     ! Parameters
@@ -77,7 +76,6 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
     type(triangulation_t)              , intent(inout) :: trian 
     integer(ip)              , optional, intent(in)    :: length_trian
     type(conditions_t)       , optional, intent(inout) :: gcond
-    class(reference_fe_t)    , optional, intent(in)    :: reference_fe_geo 
     type(elem_to_subset_id_t), optional, intent(inout) :: elem_to_subset_id
 
     ! Locals
@@ -101,20 +99,29 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
     trian%num_elems = gmesh%nelem
     trian%num_dims  = gmesh%ndime
 
+    !! Variable values depending of the element ndime
+    ! nvef = trian%elems(ielem)%num_vefs 
+    ! ndime = trian%num_dims
+    ! etype = 0
+    ! if(ndime == 2) then       ! 2D
+    !   if(nvef == 6) then     ! Linear triangles (P1)
+    !      etype = P_type_id
+    !   elseif(nvef == 8) then ! Linear quads (Q1)
+    !      etype = Q_type_id
+    !   end if
+    ! elseif(ndime == 3) then    ! 3D
+    !   if(nvef == 14) then     ! Linear tetrahedra (P1)
+    !      etype = P_type_id
+    !   elseif(nvef == 26) then ! Linear hexahedra (Q1)
+    !      etype = Q_type_id
+    !   end if
+    ! end if
+    ! assert( etype /= 0 )
+    
     ! This will not be here in the future
-    trian%reference_fe(1) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",          &
+    trian%reference_fe_geo_list(1) = make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian,          &
          &                                      number_dimensions = trian%num_dims, order = 1,      &
-         &                                      field_type = "vector",continuity = .true. )
-
-!!$     AFM: I think this is not really needed. trian%elems could already be
-!!$     allocated with sufficient size (see next if-end block)
-!!$     if ( trian%state == triangulation_elems_vefs_filled .or. &
-!!$          trian%state == triangulation_elems_filled ) then
-!!$       ! Deallocate the element structure array */
-!!$       deallocate(trian%elems, stat=istat)
-!!$       check(istat==0)
-!!$       trian%elem_array_len = -1
-!!$    end if
+         &                                      field_type = field_type_vector, continuity = .true. )
 
     if ( trian%num_elems > trian%elem_array_len ) then
        if (allocated(trian%elems)) then
@@ -127,12 +134,12 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
     end if
 
     if (present(gcond)) then
-       call generate_vefs_mesh_conditions(gmesh, tmesh, gcond, tcond)
+       call generate_vefs_mesh_conditions(gmesh, tmesh, trian%reference_fe_geo_list(1)%p, gcond, tcond)
        call conditions_free( gcond )
        call conditions_copy( tcond, gcond )
        call conditions_free( tcond )
     else
-       call generate_vefs_mesh_conditions(gmesh, tmesh)
+       call generate_vefs_mesh_conditions(gmesh, tmesh, trian%reference_fe_geo_list(1)%p)
     end if
        
     do ielem=1, trian%num_elems
@@ -154,7 +161,6 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
           g_node = gmesh%lnods(inode)
           trian%elems(ielem)%coordinates(1:trian%num_dims, count) = gmesh%coord(1:trian%num_dims, g_node)
        end do
-       trian%elems(ielem)%order = get_order( trian%elems(ielem)%geo_reference_element%ftype, count, trian%num_dims )
     end do
 
     if (present(elem_to_subset_id)) then

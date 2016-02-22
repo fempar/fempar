@@ -1,0 +1,132 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!====================================================================================================
+subroutine create_face_array (this)
+  implicit none
+  class(serial_fe_space_t), target, intent(inout) :: this
+
+  integer(ip)                    :: face_id, i, j
+  integer(ip)                    :: number_interior_faces, number_boundary_faces, number_total_faces
+  integer(ip)                    :: istat,  local_neigh_elem_id, neigh_elem_id, max_order
+  type(face_topology_t), pointer :: face_topology
+  type(finite_face_t)  , pointer :: face
+
+  class(reference_fe_t), pointer :: null_reference_fe_p=> NULL()
+
+  ! Get the variables from the triangulation
+  ! AH: Once we have the iterator and more intrincated triangulations, this will be not simply
+  ! taking the raw values but only the active faces or the ones we are interested in
+  number_interior_faces = this%triangulation%number_interior_faces
+  number_boundary_faces = this%triangulation%number_boundary_faces
+  number_total_faces    = number_interior_faces + number_boundary_faces
+
+  allocate( this%face_quadrature(1), stat=istat )
+  check(istat == 0)
+  allocate( this%face_map(2), stat=istat )
+  check(istat == 0)
+
+  max_order = 1
+
+ ! Construct the quadrature and face_map
+  call this%reference_fe_phy_list(1)%p%create_face_quadrature(this%face_quadrature(1),max_order)
+  call this%face_map(1)%create(this%triangulation%reference_fe_geo_list(1)%p,this%triangulation%reference_fe_geo_list(1)%p,   &
+       &                       this%face_quadrature(1))
+  call this%face_map(2)%create(this%triangulation%reference_fe_geo_list(1)%p,null_reference_fe_p,               &
+       &                       this%face_quadrature(1))
+
+  ! Construct the face integrators
+  allocate( this%face_integrator(2*this%number_fe_spaces), stat=istat )
+  check (istat == 0)
+  do i  = 1, this%number_fe_spaces
+     allocate( this%face_integrator(i)%p, stat = istat )
+     check(istat == 0)
+     call this%face_integrator(i)%p%create(this%face_quadrature(1),                           &
+          &                                this%reference_fe_phy_list(i)%p,                   &
+          &                                this%reference_fe_phy_list(i)%p)
+  end do
+  
+  null_reference_fe_p => NULL()
+  do i  = this%number_fe_spaces+1, 2*this%number_fe_spaces
+     j = i - this%number_fe_spaces
+     allocate( this%face_integrator(i)%p, stat = istat )
+     check(istat == 0)     
+     call this%face_integrator(i)%p%create(this%face_quadrature(1),                               &
+          &                                this%reference_fe_phy_list(j)%p, null_reference_fe_p)
+  end do
+
+  ! Allocate the array of faces
+  allocate (this%face_array(number_total_faces), stat = istat )
+  check (istat == 0)
+
+  ! Loop over the interior faces (AH: this will be performed by an iterator at some point)
+  do face_id = 1,  number_interior_faces
+     face          => this%face_array(face_id)
+     face_topology => this%triangulation%faces(face_id)
+
+     ! Assign pointers of the face
+     face%face_topology => face_topology
+     do local_neigh_elem_id = 1, 2
+        neigh_elem_id = face_topology%neighbour_elems_id(local_neigh_elem_id)
+        face%neighbour_fe(local_neigh_elem_id)%p => this%fe_array(neigh_elem_id)
+     end do
+     
+     call face%create(this%number_fe_spaces)
+     ! Assign the face integrator pointers
+     face%map        => this%face_map(1)
+     face%quadrature => this%face_quadrature(1)
+     do i = 1,  this%number_fe_spaces
+        face%face_integrator(i)%p => this%face_integrator(i)%p
+     end do
+  end do
+
+  ! Loop over the boundary faces
+  do face_id = number_interior_faces + 1, number_interior_faces + number_boundary_faces
+     face          => this%face_array(face_id)
+     face_topology => this%triangulation%faces(face_id)
+
+     ! Assign pointers of the face (Only for the left neighbour since it is on the boundary)
+     face%face_topology => face_topology
+     local_neigh_elem_id = 1
+     neigh_elem_id = face_topology%neighbour_elems_id(local_neigh_elem_id)
+     face%neighbour_fe(local_neigh_elem_id)%p => this%fe_array(neigh_elem_id)
+
+     local_neigh_elem_id = 2
+     face%neighbour_fe(local_neigh_elem_id)%p => NULL()
+
+     call face%create(this%number_fe_spaces)
+     ! Assign the face integrator pointers
+     face%map        => this%face_map(2)
+     face%quadrature => this%face_quadrature(1)
+     ! Assign the face integrator pointers 
+     ! AH: notice that now they are pointing to the integrator corresponding to an interior face. 
+     ! (This should be improved when we are able to construct the integrators on the fly)
+     do i = 1,  this%number_fe_spaces
+        face%face_integrator(i)%p => this%face_integrator(this%number_fe_spaces+i)%p
+     end do
+  end do
+end subroutine create_face_array

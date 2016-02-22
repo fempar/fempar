@@ -28,7 +28,6 @@
 module triangulation_names
   use types_names
   use memor_names
-  use fe_space_types_names
   use hash_table_names  
   use list_types_names
   use reference_fe_names
@@ -43,14 +42,11 @@ module triangulation_names
   type elem_topology_t
      integer(ip)               :: num_vefs = -1    ! Number of vefs
      integer(ip), allocatable  :: vefs(:)          ! List of Local IDs of the vefs (vertices, edges, faces) that make up this element
-     type(reference_element_t), pointer :: geo_reference_element => NULL() ! Topological info of the geometry (SBmod)
-     class(reference_fe_t), pointer :: reference_fe_geo => NULL()
+     class(reference_fe_t), pointer :: reference_fe_geo => NULL() ! Topological info of the geometry (SBmod)
      real(rp), allocatable     :: coordinates(:,:)
-     integer(ip)               :: order
      integer(ip)               :: subset_id = 1
    contains
      procedure :: get_coordinates => elem_topology_get_coordinates
-
   end type elem_topology_t
 
   type p_elem_topology_t
@@ -84,9 +80,7 @@ module triangulation_names
      type(elem_topology_t), allocatable :: elems(:) ! array of elements in the mesh.
      type(face_topology_t), allocatable :: faces(:) ! Array of faces, allocated only if needed
      type(vef_topology_t) , allocatable :: vefs(:) ! array of vefs in the mesh.
-     type (position_hash_table_t)       :: pos_elem_info  ! Topological info hash table (SBmod)
-     type (reference_element_t)         :: reference_elements(max_elinf) ! List of topological info's
-     type(p_reference_fe_t)             :: reference_fe(1)
+     type(p_reference_fe_t)             :: reference_fe_geo_list(1)
      integer(ip)                        :: num_boundary_faces ! Number of faces in the boundary 
      integer(ip), allocatable           :: lst_boundary_faces(:) ! List of faces LIDs in the boundary
   end type triangulation_t
@@ -128,9 +122,6 @@ contains
        call initialize_elem_topology(trian%elems(ielem))
     end do
 
-    ! Initialization of element fixed info parameters (SBmod)
-    call trian%pos_elem_info%init(ht_length)
-
   end subroutine triangulation_create
 
   !==================================================================================================
@@ -168,7 +159,6 @@ contains
     integer(ip)                        :: number_vefs_dimension(5)
     type(elem_topology_t)    , pointer :: elem
     type(vef_topology_t)     , pointer :: vef
-    type(reference_element_t), pointer :: reference_elem
 
     face_dimensions         = trian%num_dims - 1
 
@@ -185,13 +175,12 @@ contains
     do elem_id = 1, trian%num_elems
        ! Get the reference element
        elem => trian%elems(elem_id)
-       reference_elem => elem%geo_reference_element
 
        ! Get the pointer to the first face
-       local_1st_face_id = reference_elem%nvef_dim(face_dimensions+1)
+       local_1st_face_id = elem%reference_fe_geo%get_first_face_id()
 
        ! Iterate over the local faces
-       do local_vef_id = local_1st_face_id, elem%num_vefs
+       do local_vef_id = local_1st_face_id, elem%reference_fe_geo%get_number_faces()
           ! Number the local faces
           local_face_id = local_vef_id-local_1st_face_id+1
 
@@ -222,13 +211,12 @@ contains
     do elem_id = 1, trian%num_elems
        ! Get the reference element
        elem => trian%elems(elem_id)
-       reference_elem => elem%geo_reference_element
 
        ! Get the pointer to the first face
-       local_1st_face_id = reference_elem%nvef_dim(face_dimensions+1)
+       local_1st_face_id = elem%reference_fe_geo%get_first_face_id()
 
        ! Iterate over the local faces
-       do local_vef_id =  local_1st_face_id, elem%num_vefs
+       do local_vef_id =  local_1st_face_id, elem%reference_fe_geo%get_number_faces()
           ! Number the local faces
           local_face_id = local_vef_id-local_1st_face_id+1
 
@@ -261,7 +249,6 @@ contains
     integer(ip)                        :: elem_id, face_id, local_vef_id, local_1st_face_id
     integer(ip)                        :: istat, local_face_id
     type(elem_topology_t)    , pointer :: elem
-    type(reference_element_t), pointer :: reference_elem
     type(face_topology_t)    , pointer :: face
 
     ! Allocate the face array
@@ -272,13 +259,12 @@ contains
     do elem_id = 1,trian%num_elems
        ! Get the reference element
        elem => trian%elems(elem_id)
-       reference_elem => elem%geo_reference_element
 
        ! Get the pointer to the first face
-       local_1st_face_id = reference_elem%nvef_dim(trian%num_dims)
+       local_1st_face_id = elem%reference_fe_geo%get_first_face_id()
 
        ! Iterate over the local faces
-       do local_vef_id = local_1st_face_id, elem%num_vefs
+       do local_vef_id = local_1st_face_id, elem%reference_fe_geo%get_number_faces()
           ! Number the local faces
           local_face_id = local_vef_id-local_1st_face_id+1
 
@@ -320,11 +306,7 @@ contains
     check(istat==0)
 
     ! Deallocate fixed info
-    do iobj = 1,trian%pos_elem_info%last()
-       call reference_element_free (trian%reference_elements(iobj))
-    end do
-    call trian%pos_elem_info%free
-    call trian%reference_fe(1)%free
+    call trian%reference_fe_geo_list(1)%free
 
     trian%elem_array_len = -1 
     trian%num_vefs = -1
@@ -394,7 +376,7 @@ contains
     end if
 
     element%num_vefs = -1
-    nullify( element%geo_reference_element )
+    nullify( element%reference_fe_geo )
   end subroutine free_elem_topology
 
   subroutine initialize_elem_topology(element)
@@ -462,20 +444,16 @@ contains
 
     ! List elements and add vef dimension
     do ielem=1, length_trian_
-       do idime =1, trian%num_dims    ! (SBmod)
-          do iobj = trian%elems(ielem)%geo_reference_element%nvef_dim(idime), &
-               trian%elems(ielem)%geo_reference_element%nvef_dim(idime+1)-1 
-             !do iobj=1, trian%elems(ielem)%num_vefs
-             jobj = trian%elems(ielem)%vefs(iobj)
-             if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
-                trian%vefs(jobj)%dimension = idime-1
-                if (elems_around_pos(jobj) == 1) then
-                   call memalloc( trian%vefs(jobj)%num_elems_around, trian%vefs(jobj)%elems_around, __FILE__, __LINE__ )
-                end if
-                trian%vefs(jobj)%elems_around(elems_around_pos(jobj)) = ielem
-                elems_around_pos(jobj) = elems_around_pos(jobj) + 1 
+       do iobj=1, trian%elems(ielem)%num_vefs
+          jobj = trian%elems(ielem)%vefs(iobj)
+          if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
+             trian%vefs(jobj)%dimension = trian%elems(ielem)%reference_fe_geo%get_vef_dimension(iobj)
+             if (elems_around_pos(jobj) == 1) then
+                call memalloc( trian%vefs(jobj)%num_elems_around, trian%vefs(jobj)%elems_around, __FILE__, __LINE__ )
              end if
-          end do
+             trian%vefs(jobj)%elems_around(elems_around_pos(jobj)) = ielem
+             elems_around_pos(jobj) = elems_around_pos(jobj) + 1 
+          end if
        end do
     end do
 
@@ -499,12 +477,8 @@ contains
           end if
        end if
     end do
-
     call memfree ( elems_around_pos, __FILE__, __LINE__ )
-
     trian%state = triangulation_filled
-
-
   end subroutine triangulation_to_dual
 
   subroutine put_topology_element_triangulation( ielem, trian )
@@ -516,36 +490,8 @@ contains
     logical :: created
     integer(ip) :: aux_val
 
-    nvef = trian%elems(ielem)%num_vefs 
-    ndime = trian%num_dims
-
-    ! Variable values depending of the element ndime
-    etype = 0
-    if(ndime == 2) then       ! 2D
-       if(nvef == 6) then     ! Linear triangles (P1)
-          etype = P_type_id
-       elseif(nvef == 8) then ! Linear quads (Q1)
-          etype = Q_type_id
-       end if
-    elseif(ndime == 3) then    ! 3D
-       if(nvef == 14) then     ! Linear tetrahedra (P1)
-          etype = P_type_id
-       elseif(nvef == 26) then ! Linear hexahedra (Q1)
-          etype = Q_type_id
-       end if
-    end if
-    assert( etype /= 0 )
-
     ! Assign pointer to topological information
-    v_key = ndime + (max_ndime+1)*etype + (max_ndime+1)*(max_FE_types+1)
-    call trian%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
-    if ( istat == new_index) then
-       ! Create fixed info if not constructed
-       call reference_element_create(trian%reference_elements(pos_elinf),etype,  &
-            &                                     1,ndime)
-    end if
-    trian%elems(ielem)%geo_reference_element => trian%reference_elements(pos_elinf)
-    trian%elems(ielem)%reference_fe_geo => trian%reference_fe(1)%p
+    trian%elems(ielem)%reference_fe_geo => trian%reference_fe_geo_list(1)%p
   end subroutine put_topology_element_triangulation
 
   subroutine local_id_from_vertices( e, nd, list, no, lid ) ! (SBmod)
@@ -555,14 +501,16 @@ contains
     integer(ip), intent(out) :: lid
     ! Locals
     integer(ip)              :: first, last, io, iv, jv, ivl, c
+    type(list_t), pointer :: vertices_vef
+    
+    vertices_vef => e%reference_fe_geo%get_vertices_vef()
     lid = -1
-
-    do io = e%geo_reference_element%nvef_dim(nd), e%geo_reference_element%nvef_dim(nd+1)-1
-       first =  e%geo_reference_element%crxob%p(io)
-       last = e%geo_reference_element%crxob%p(io+1) -1
+    do io = e%reference_fe_geo%get_first_vef_id_of_dimension(nd-1), e%reference_fe_geo%get_first_vef_id_of_dimension(nd)-1
+       first =  vertices_vef%p(io)
+       last = vertices_vef%p(io+1) -1
        if ( last - first + 1  == no ) then 
           do iv = first,last
-             ivl = e%vefs(e%geo_reference_element%crxob%l(iv)) ! LID of vertices of the ef
+             ivl = e%vefs(vertices_vef%l(iv)) ! LID of vertices of the ef
              c = 0
              do jv = 1,no
                 if ( ivl ==  list(jv) ) then
@@ -611,7 +559,6 @@ contains
        write (lunou,*) 'num_vefs:', trian%elems(ielem)%num_vefs
        write (lunou,*) 'vefs:', trian%elems(ielem)%vefs
        write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
-       write (lunou,*) 'order:', trian%elems(ielem)%order
        write (lunou,*) 'subset_id:', trian%elems(ielem)%subset_id
 
        !call reference_element_write ( trian%elems(ielem)%geo_reference_element )
@@ -643,7 +590,6 @@ contains
     write (lunou,*) 'num_vefs:', elem%num_vefs
     write (lunou,*) 'vefs:', elem%vefs
     write (lunou,*) 'coordinates:', elem%coordinates
-    write (lunou,*) 'order:', elem%order
     write (lunou,*) 'subset_id:', elem%subset_id
   end subroutine element_print
 
@@ -662,22 +608,17 @@ contains
     class(face_topology_t), intent(in)    :: this
     real(rp)              , intent(inout) :: face_topology_coordinates(:,:)
     
-    integer(ip)           :: i,aux_vef_dimension(5), local_vef_id
-    integer(ip)           :: number_corners_face_geo, local_element_corner
-    type(list_t)         , pointer :: corners_vef 
+    integer(ip)           :: i, local_vef_id
+    integer(ip)           :: local_element_corner
+    type(list_t)         , pointer :: vertices_vef 
     class(reference_fe_t), pointer :: left_reference_fe_geo
 
     left_reference_fe_geo => this%neighbour_elems(1)%p%reference_fe_geo
-
     ! This is using corners_vef and assuming that the geometrical reference element is linear.
-    aux_vef_dimension = left_reference_fe_geo%get_number_vefs_dimension()
-    number_corners_face_geo = left_reference_fe_geo%get_number_corners_vef                          &
-         &                  (aux_vef_dimension(left_reference_fe_geo%get_number_dimensions()))
-    local_vef_id = aux_vef_dimension(left_reference_fe_geo%get_number_dimensions()) +               &
-         &         this%relative_face(1) - 1
-    corners_vef => left_reference_fe_geo%get_corners_vef()
-    do i = 1, number_corners_face_geo
-       local_element_corner = corners_vef%l(corners_vef%p(local_vef_id) + i-1)
+    local_vef_id = left_reference_fe_geo%get_first_face_id() + this%relative_face(1) - 1
+    vertices_vef => left_reference_fe_geo%get_vertices_vef()
+    do i = 1, left_reference_fe_geo%get_number_vertices_per_face()
+       local_element_corner = vertices_vef%l(vertices_vef%p(local_vef_id) + i-1)
        face_topology_coordinates(:,i) = this%neighbour_elems(1)%p%coordinates(:,local_element_corner)
     end do
   end subroutine face_topology_get_coordinates
