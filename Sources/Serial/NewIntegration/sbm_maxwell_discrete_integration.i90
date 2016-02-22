@@ -1,0 +1,168 @@
+module maxwell_discrete_integration_names
+use field_names
+use SB_assembler_names
+use SB_fe_space_names
+use SB_discrete_integration_names
+use reference_fe_names
+use types_names
+use memor_names
+
+implicit none
+# include "debug.i90"
+private
+type, extends(SB_discrete_integration_t) :: maxwell_discrete_integration_t
+integer(ip) :: viscosity 
+contains
+procedure :: integrate
+end type maxwell_discrete_integration_t
+
+public :: maxwell_discrete_integration_t
+
+contains
+  subroutine integrate ( this, fe_space, assembler )
+    implicit none
+    class(maxwell_discrete_integration_t), intent(in)    :: this
+    class(SB_serial_fe_space_t)                   , intent(inout) :: fe_space
+    class(SB_assembler_t)                         , intent(inout) :: assembler
+
+    type(SB_finite_element_t), pointer :: fe
+    type(SB_volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
+    real(rp), allocatable :: elmat(:,:), elvec(:)
+    type(fe_map_t), pointer :: fe_map
+    type(SB_quadrature_t), pointer :: quad
+    integer(ip), allocatable :: number_nodes_per_field(:)
+
+    integer(ip)  :: igaus,inode,jnode,ioffset,joffset,ngaus
+    real(rp) :: factor, h
+
+    type(vector_field_t) :: rot_test_vector, rot_trial_vector
+    type(vector_field_t) :: grad_test_scalar, grad_trial_scalar, source
+    type(vector_field_t) :: v_test_vector, p_grad_trial, q_grad_test, u_trial_vector
+    type(tensor_field_t) :: grad_test_vector, grad_trial_vector
+    real(rp)             :: p_trial_scalar, div_test_vector, q_test_scalar, div_trial_vector
+    
+    integer(ip) :: i, number_fe_spaces, d
+
+    integer(ip), pointer :: field_blocks(:)
+    logical, pointer :: field_coupling(:,:)
+
+    integer(ip) :: ielem, number_nodes
+    type(i1p_t), pointer :: elem2dof(:)
+    type(i1p_t), pointer :: bc_code(:)
+    type(r1p_t), pointer :: bc_value(:)
+
+    number_fe_spaces = fe_space%get_number_fe_spaces()
+    field_blocks => fe_space%get_field_blocks()
+    field_coupling => fe_space%get_field_coupling()
+
+    fe => fe_space%get_finite_element(1)
+    number_nodes = fe%get_number_nodes()
+    call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
+    call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
+    call memalloc ( number_fe_spaces, number_nodes_per_field, __FILE__, __LINE__ )
+    call fe%get_number_nodes_per_field( number_nodes_per_field )
+    
+    call fe_space%initialize_integration()
+   
+   ! Additional values: mesh size and source term 
+    call source%init(2.0_rp)
+
+    quad  => fe%get_quadrature()
+    ngaus = quad%get_number_evaluation_points()
+    do ielem = 1, fe_space%get_number_elements()
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+
+       fe => fe_space%get_finite_element(ielem)
+       call fe%update_integration()
+       
+       fe_map            => fe%get_fe_map()
+       vol_int_first_fe  => fe%get_volume_integrator(1)
+       vol_int_second_fe => fe%get_volume_integrator(2)
+       elem2dof          => fe%get_elem2dof()
+       bc_code           => fe%get_bc_code()
+       bc_value          => fe%get_bc_value()
+
+       do igaus = 1,ngaus
+          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+
+   ! Structured meshes |J| = (h/2)^d: It may be computed with mass matrix
+    d = quad%get_number_dimensions()
+    h = (2**d * fe_map%get_det_jacobian(igaus) )**(1.0_rp/d)  
+
+       ! BLOCK (1,1) values
+          do inode = 1, number_nodes_per_field(1) 
+             call vol_int_first_fe%get_curl(inode,igaus,rot_test_vector)   
+                 do jnode = 1, number_nodes_per_field(1)
+             call vol_int_first_fe%get_curl(jnode,igaus,rot_trial_vector)     
+      elmat(inode,jnode) = elmat(inode,jnode) + factor * rot_test_vector * rot_trial_vector 
+             end do
+     ! Source term 
+          call vol_int_first_fe%get_value(inode,igaus,v_test_vector)
+       elvec(inode) = elvec(inode) + factor * source * v_test_vector; 
+          end do
+
+       ! BLOCK (2,2) values
+          do inode = 1, number_nodes_per_field(2)
+             ioffset = number_nodes_per_field(1)+inode
+             call vol_int_second_fe%get_gradient(inode,igaus,grad_trial_scalar)
+             do jnode = 1, number_nodes_per_field(2)
+                joffset = number_nodes_per_field(1)+jnode
+                call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_scalar)
+       elmat(ioffset,joffset) = elmat(ioffset,joffset) + h*h* factor * grad_test_scalar * grad_trial_scalar
+             end do
+          end do
+
+       ! ! BLOCK (1,2) values -- div(v) p
+       !   do inode = 1, number_nodes_per_field(1)
+       !       call vol_int_first_fe%get_divergence(inode,igaus,div_test_vector)
+       !       do jnode = 1, number_nodes_per_field(2)     
+       !        joffset = number_nodes_per_field(1)+jnode
+       !          call vol_int_second_fe%get_value(jnode,igaus,p_trial_scalar)
+       !       elmat(inode,joffset) = elmat(inode,joffset) + factor * div_test_vector * p_trial_scalar
+       !       end do
+       !    end do
+
+        ! BLOCK (1,2) values -- grad(p) v
+         do inode = 1, number_nodes_per_field(1)
+             call vol_int_first_fe%get_value(inode,igaus,v_test_vector)
+             do jnode = 1, number_nodes_per_field(2)     
+              joffset = number_nodes_per_field(1)+jnode
+               call vol_int_second_fe%get_gradient(jnode,igaus,p_grad_trial)
+             elmat(inode,joffset) = elmat(inode,joffset) - factor * v_test_vector * p_grad_trial 
+             end do
+          end do
+
+        ! ! BLOCK (2,1) values -- div(u)q
+        !    do inode = 1, number_nodes_per_field(2)
+        !         ioffset = number_nodes_per_field(1)+inode
+        !         call vol_int_second_fe%get_value(inode,igaus,q_test_scalar)
+        !      do jnode = 1, number_nodes_per_field(1)
+        !         call vol_int_first_fe%get_divergence(jnode,igaus,div_trial_vector)
+        !      elmat(ioffset,jnode) = elmat(ioffset,jnode) - factor * q_test_scalar * div_trial_vector
+        !      end do
+        !   end do
+
+         ! BLOCK (2,1) values -- grad(q)u 
+           do inode = 1, number_nodes_per_field(2)
+                ioffset = number_nodes_per_field(1)+inode
+                call vol_int_second_fe%get_gradient(inode,igaus,q_grad_test)
+             do jnode = 1, number_nodes_per_field(1)
+                call vol_int_first_fe%get_value(jnode,igaus,u_trial_vector)
+             elmat(ioffset,jnode) = elmat(ioffset,jnode) + factor * q_grad_test * u_trial_vector
+             end do
+          end do
+
+       end do
+       
+ call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
+call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )    
+  
+    end do
+
+    call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
+    call memfree ( elmat, __FILE__, __LINE__ )
+    call memfree ( elvec, __FILE__, __LINE__ )
+  end subroutine integrate
+
+end module maxwell_discrete_integration_names

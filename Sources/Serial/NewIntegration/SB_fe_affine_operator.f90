@@ -117,9 +117,9 @@ module SB_fe_affine_operator_names
   
   ! New things by SB in the process of restructuring of the FE machinery
   ! Array of working arrays (element matrix/vector) (to be pointed from finite_elements)
-  !type(position_hash_table_t)          :: pos_elmatvec
-  !type(allocatable_array_rp2_t), allocatable :: lelmat(max_cases)
-  !type(allocatable_array_rp1_t), allocatable :: lelvec(max_cases)
+  ! type(position_hash_table_t)          :: pos_elmatvec
+  ! type(allocatable_array_rp2_t), allocatable :: lelmat(max_cases)
+  ! type(allocatable_array_rp1_t), allocatable :: lelvec(max_cases)
 contains
   procedure          :: create                      => fe_affine_operator_create
   procedure          :: symbolic_setup              => fe_affine_operator_symbolic_setup

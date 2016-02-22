@@ -54,7 +54,7 @@ module rgmres_names
                                         !       (appropriate for distributed GMRES)
   
   integer (ip)    , parameter :: default_rgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
-  integer (ip)    , parameter :: default_dkrymax           = 100
+  integer (ip)    , parameter :: default_dkrymax           = 30
   integer (ip)    , parameter :: default_orthonorm_strat   = icgsro
   
   type, extends(base_linear_solver_t) :: rgmres_t
@@ -119,6 +119,9 @@ contains
   end subroutine rgmres_set_parameters_from_pl
   
   subroutine rgmres_solve_body(this,x)
+#ifdef ENABLE_BLAS
+    use blas77_interfaces_names
+#endif
     implicit none
     class(rgmres_t)    , intent(inout) :: this
     class(vector_t)    , intent(inout) :: x 

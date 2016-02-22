@@ -16,7 +16,7 @@ subroutine create( this, &
   integer(ip)              , optional, intent(in)    :: field_blocks(:)
   logical                  , optional, intent(in)    :: field_coupling(:,:)
   
-  integer(ip) :: i, j, number_nodes, istat, iobje, obje_g, inode, jnode
+  integer(ip) :: i, j, number_nodes, istat, iobje, obje_g, inode, jnode, offset_field_component
 
   this%number_fe_spaces = size(reference_fe_phy)
   call memalloc( this%number_fe_spaces, this%field_blocks, __FILE__, __LINE__)
@@ -60,46 +60,17 @@ subroutine create( this, &
 
   allocate(this%fe_array(this%triangulation%num_elems))
   do i = 1, this%triangulation%num_elems
-     number_nodes = 0
-     do j = 1, this%number_fe_spaces
-        number_nodes = number_nodes + reference_fe_phy(j)%p%get_number_nodes()
-     end do
-     this%fe_array(i)%cell => triangulation%elems(i)
-     this%fe_array(i)%number_nodes = number_nodes
-     this%fe_array(i)%number_fe_spaces = this%number_fe_spaces
+      call this%fe_array(i)%create (this%triangulation%elems(i),&
+                                    this%number_fe_spaces,&
+                                    this%reference_fe_phy_list, &
+                                    this%quadrature(1)%p,&
+                                    this%fe_map(1)%p,&
+                                    this%volume_integrator,&
+                                    this%number_blocks,&
+                                    this%field_blocks,&
+                                    boundary_conditions)
+  end do 
 
-     this%fe_array(i)%quadrature => this%quadrature(1)%p
-     this%fe_array(i)%fe_map => this%fe_map(1)%p
-
-     this%fe_array(i)%volume_integrator => this%volume_integrator
-     this%fe_array(i)%reference_fe_phy => this%reference_fe_phy_list
-
-     this%fe_array(i)%number_blocks = this%number_blocks
-     this%fe_array(i)%field_blocks => this%field_blocks
-
-     allocate( this%fe_array(i)%elem2dof(this%number_fe_spaces) )
-     allocate( this%fe_array(i)%bc_code(this%number_fe_spaces) )
-     allocate( this%fe_array(i)%bc_value(this%number_fe_spaces) )
-     do j = 1, this%number_fe_spaces
-        number_nodes = this%reference_fe_phy_list(j)%p%get_number_nodes()
-        allocate( this%fe_array(i)%elem2dof(j)%p(number_nodes) )
-        this%fe_array(i)%elem2dof(j)%p = 0
-        allocate( this%fe_array(i)%bc_code(j)%p(number_nodes) )
-        allocate( this%fe_array(i)%bc_value(j)%p(number_nodes) )
-        this%fe_array(i)%bc_code(j)%p = 0
-        this%fe_array(i)%bc_value(j)%p = 0.0_rp
-        do iobje = 1,triangulation%elems(i)%num_vefs
-           obje_g = triangulation%elems(i)%vefs(iobje)
-           do inode = 1, this%fe_array(i)%reference_fe_phy(j)%p%get_number_interior_nodes_vef(iobje)
-              jnode = this%fe_array(i)%reference_fe_phy(j)%p%get_interior_node_vef(inode,iobje)
-              this%fe_array(i)%bc_code(j)%p(jnode) = &
-                   boundary_conditions%code(this%fe_array(i)%reference_fe_phy(j)%p%get_bc_component_node(jnode),obje_g)
-              this%fe_array(i)%bc_value(j)%p(jnode) = &
-                   boundary_conditions%valu(this%fe_array(i)%reference_fe_phy(j)%p%get_bc_component_node(jnode),obje_g)
-           end do
-        end do
-     end do
-  end do
 end subroutine create
 
 subroutine fill_dof_info( this )
@@ -186,29 +157,7 @@ subroutine free( this )
   deallocate( this%reference_fe_phy_list )
   
   do i = 1, this%triangulation%num_elems
-     
-     nullify(this%fe_array(i)%cell)
-     this%fe_array(i)%number_nodes = 0
-     this%fe_array(i)%number_fe_spaces = 0
-
-     this%fe_array(i)%number_blocks = 0
-     nullify( this%fe_array(i)%field_blocks )
-     
-     nullify(this%fe_array(i)%quadrature)
-     nullify(this%fe_array(i)%fe_map)
-
-     nullify(this%fe_array(i)%volume_integrator)
-     nullify(this%fe_array(i)%reference_fe_phy)
-
-     do j = 1, this%number_fe_spaces
-        deallocate( this%fe_array(i)%elem2dof(j)%p )
-        deallocate( this%fe_array(i)%bc_code(j)%p )
-        deallocate( this%fe_array(i)%bc_value(j)%p )
-     end do
-     
-     deallocate( this%fe_array(i)%elem2dof )
-     deallocate( this%fe_array(i)%bc_code )
-     deallocate( this%fe_array(i)%bc_value )
+     call this%fe_array(i)%free()
   end do
   
   deallocate(this%fe_array)
@@ -353,25 +302,26 @@ function create_assembler(this, &
         class is (block_sparse_matrix_t)
         call matrix%create(this%number_blocks,this%number_dofs,this%number_dofs,&
              &             diagonal_blocks_symmetric_storage,diagonal_blocks_symmetric,diagonal_blocks_sign)
-								call memalloc ( this%number_blocks, this%number_blocks, blocks_coupling, __FILE__, __LINE__)
-								blocks_coupling = .false.
-								do jfe_space=1,this%number_fe_spaces
-										do ife_space=1,this%number_fe_spaces
-										   blocks_coupling(this%field_blocks(ife_space), this%field_blocks(jfe_space)) = & 
-																													this%field_coupling(ife_space,jfe_space)
-										end do
-								end do
+
+	call memalloc ( this%number_blocks, this%number_blocks, blocks_coupling, __FILE__, __LINE__)
+	blocks_coupling = .false.
+	do jfe_space=1,this%number_fe_spaces
+	   do ife_space=1,this%number_fe_spaces
+		 blocks_coupling(this%field_blocks(ife_space), this%field_blocks(jfe_space)) =  this%field_coupling(ife_space,jfe_space)
+           end do
+	end do
 								
-								do jblock=1,this%number_blocks
-								  do iblock=1,this%number_blocks
+	do jblock=1,this%number_blocks
+               do iblock=1,this%number_blocks
             if (.not. blocks_coupling(iblock,jblock) ) then
-												  call matrix%set_block_to_zero(iblock,jblock)
-												end if
-										end do
-								end do
-								
-								call memfree ( blocks_coupling, __FILE__, __LINE__)
-        class default
+		  call matrix%set_block_to_zero(iblock,jblock)
+	    end if
+	      end do
+	end do				
+
+	call memfree ( blocks_coupling, __FILE__, __LINE__)
+        
+      class default
         check(.false.)
      end select
      select type(array)

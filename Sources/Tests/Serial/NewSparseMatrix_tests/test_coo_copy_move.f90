@@ -13,21 +13,21 @@ implicit none
 
     call meminit()
 
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix%state_is_start())
 
 !------------------------------------------------------------------
 ! NUMERIC
 !------------------------------------------------------------------
 
     call coo_matrix%create(num_rows=5,num_cols=5, nz=10)
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_CREATED)
+    check(coo_matrix%state_is_created())
 
     call coo_matrix%insert(nz=10,                                 &
                            ia=(/1,2,3,4,5,1,2,3,4,5/),            &
                            ja=(/1,2,3,4,5,5,4,3,2,1/),            &
                            val=(/1.,2.,3.,4.,5.,5.,4.,3.,2.,1./), &
                            imin=1, imax=5, jmin=1, jmax=5 )
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_BUILD_NUMERIC)
+    check(coo_matrix%state_is_build_numeric())
 
     ! Copy coo_matrix (COO) -> coo_matrix_copy (COO)
     call coo_matrix%copy_to_coo(coo_matrix_copy)
@@ -44,38 +44,38 @@ implicit none
 
     ! Move coo_matrix (COO) -> coo_matrix_copy (COO)
     call coo_matrix%move_to_coo(coo_matrix_copy)
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix%state_is_start())
     ! Move coo_matrix (COO) <- coo_matrix_copy (COO)
     call coo_matrix%move_from_coo(coo_matrix_copy)
-    check(coo_matrix_copy%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix_copy%state_is_start())
     ! Move coo_matrix (COO) -> coo_matrix_copy (FMT)
     call coo_matrix%move_to_fmt(coo_matrix_copy)
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix%state_is_start())
     ! Move coo_matrix (COO) <- coo_matrix_copy (FMT)
     call coo_matrix%move_from_fmt(coo_matrix_copy)
-    check(coo_matrix_copy%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix_copy%state_is_start())
 
 
     call coo_matrix%free()
 
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix%state_is_start())
 
     call coo_matrix_copy%free()
 
-    check(coo_matrix_copy%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix_copy%state_is_start())
 
 !------------------------------------------------------------------
 ! SYMBOLIC
 !------------------------------------------------------------------
 
     call coo_matrix%create(num_rows=5,num_cols=5, nz=10)
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_CREATED)
+    check(coo_matrix%state_is_created())
 
     call coo_matrix%insert(nz=10,                                 &
                            ia=(/1,2,3,4,5,1,2,3,4,5/),            &
                            ja=(/1,2,3,4,5,5,4,3,2,1/),            &
                            imin=1, imax=5, jmin=1, jmax=5 )
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
+    check(coo_matrix%state_is_build_symbolic())
 
     ! Copy coo_matrix (COO) -> coo_matrix_copy (COO)
     call coo_matrix%copy_to_coo(coo_matrix_copy)
@@ -92,25 +92,25 @@ implicit none
 
     ! Move coo_matrix (COO) -> coo_matrix_copy (COO)
     call coo_matrix%move_to_coo(coo_matrix_copy)
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix%state_is_start())
     ! Move coo_matrix (COO) <- coo_matrix_copy (COO)
     call coo_matrix%move_from_coo(coo_matrix_copy)
-    check(coo_matrix_copy%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix_copy%state_is_start())
     ! Move coo_matrix (COO) -> coo_matrix_copy (FMT)
     call coo_matrix%move_to_fmt(coo_matrix_copy)
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix%state_is_start())
     ! Move coo_matrix (COO) <- coo_matrix_copy (FMT)
     call coo_matrix%move_from_fmt(coo_matrix_copy)
-    check(coo_matrix_copy%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix_copy%state_is_start())
 
 
     call coo_matrix%free()
 
-    check(coo_matrix%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix%state_is_start())
 
     call coo_matrix_copy%free()
 
-    check(coo_matrix_copy%get_state() == SPARSE_MATRIX_STATE_START)
+    check(coo_matrix_copy%state_is_start())
 
 
     call memstatus()

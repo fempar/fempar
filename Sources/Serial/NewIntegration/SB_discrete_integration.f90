@@ -261,7 +261,7 @@ contains
                 joffset = number_nodes_per_field(1)+jnode
                 call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_vector)
                 !call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_scalar)
-                elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor * double_contract(grad_test_vector,grad_trial_vector)
+               elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor * double_contract(grad_test_vector,grad_trial_vector)
                 !elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor * grad_test_scalar * grad_trial_scalar
              end do
           end do
@@ -284,3 +284,5 @@ contains
 end module vector_laplacian_discrete_integration_names
 
 #include "sbm_cdr_discrete_integration.i90"
+#include "sbm_maxwell_discrete_integration.i90"
+#include "sbm_stokes_discrete_integration.i90"
