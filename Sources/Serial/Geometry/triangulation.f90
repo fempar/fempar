@@ -28,7 +28,6 @@
 module triangulation_names
   use types_names
   use memor_names
-  use fe_space_types_names
   use hash_table_names  
   use list_types_names
   use reference_fe_names
@@ -43,8 +42,7 @@ module triangulation_names
   type elem_topology_t
      integer(ip)               :: num_vefs = -1    ! Number of vefs
      integer(ip), allocatable  :: vefs(:)          ! List of Local IDs of the vefs (vertices, edges, faces) that make up this element
-     type(reference_element_t), pointer :: geo_reference_element => NULL() ! Topological info of the geometry (SBmod)
-     class(reference_fe_t), pointer :: reference_fe_geo => NULL()
+     class(reference_fe_t), pointer :: reference_fe_geo => NULL() ! Topological info of the geometry (SBmod)
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: subset_id = 1
    contains
@@ -82,8 +80,6 @@ module triangulation_names
      type(elem_topology_t), allocatable :: elems(:) ! array of elements in the mesh.
      type(face_topology_t), allocatable :: faces(:) ! Array of faces, allocated only if needed
      type(vef_topology_t) , allocatable :: vefs(:) ! array of vefs in the mesh.
-     type (position_hash_table_t)       :: pos_elem_info  ! Topological info hash table (SBmod)
-     type (reference_element_t)         :: reference_elements(max_elinf) ! List of topological info's
      type(p_reference_fe_t)             :: reference_fe_geo_list(1)
      integer(ip)                        :: num_boundary_faces ! Number of faces in the boundary 
      integer(ip), allocatable           :: lst_boundary_faces(:) ! List of faces LIDs in the boundary
@@ -125,9 +121,6 @@ contains
     do ielem = 1, trian%elem_array_len
        call initialize_elem_topology(trian%elems(ielem))
     end do
-
-    ! Initialization of element fixed info parameters (SBmod)
-    call trian%pos_elem_info%init(ht_length)
 
   end subroutine triangulation_create
 
@@ -313,10 +306,6 @@ contains
     check(istat==0)
 
     ! Deallocate fixed info
-    do iobj = 1,trian%pos_elem_info%last()
-       call reference_element_free (trian%reference_elements(iobj))
-    end do
-    call trian%pos_elem_info%free
     call trian%reference_fe_geo_list(1)%free
 
     trian%elem_array_len = -1 
@@ -387,7 +376,6 @@ contains
     end if
 
     element%num_vefs = -1
-    nullify( element%geo_reference_element )
     nullify( element%reference_fe_geo )
   end subroutine free_elem_topology
 
@@ -502,35 +490,7 @@ contains
     logical :: created
     integer(ip) :: aux_val
 
-    nvef = trian%elems(ielem)%num_vefs 
-    ndime = trian%num_dims
-
-    ! Variable values depending of the element ndime
-    etype = 0
-    if(ndime == 2) then       ! 2D
-       if(nvef == 6) then     ! Linear triangles (P1)
-          etype = P_type_id
-       elseif(nvef == 8) then ! Linear quads (Q1)
-          etype = Q_type_id
-       end if
-    elseif(ndime == 3) then    ! 3D
-       if(nvef == 14) then     ! Linear tetrahedra (P1)
-          etype = P_type_id
-       elseif(nvef == 26) then ! Linear hexahedra (Q1)
-          etype = Q_type_id
-       end if
-    end if
-    assert( etype /= 0 )
-
     ! Assign pointer to topological information
-    v_key = ndime + (max_ndime+1)*etype + (max_ndime+1)*(max_FE_types+1)
-    call trian%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
-    if ( istat == new_index) then
-       ! Create fixed info if not constructed
-       call reference_element_create(trian%reference_elements(pos_elinf),etype,  &
-            &                                     1,ndime)
-    end if
-    trian%elems(ielem)%geo_reference_element => trian%reference_elements(pos_elinf)
     trian%elems(ielem)%reference_fe_geo => trian%reference_fe_geo_list(1)%p
   end subroutine put_topology_element_triangulation
 

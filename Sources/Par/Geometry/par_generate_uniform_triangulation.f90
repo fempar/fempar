@@ -29,12 +29,13 @@ module par_generate_uniform_triangulation_names
   use types_names
   use list_types_names
   use memor_names
-  use fe_space_types_names
   use triangulation_names
   use generate_uniform_triangulation_names
   use mesh_distribution_names
   use element_import_create_names
   use hash_table_names
+  use reference_fe_names
+  
   use par_environment_names
   use par_triangulation_names
   use par_conditions_names
@@ -56,7 +57,7 @@ contains
     type(par_environment_t)  , target, intent(in)  :: p_env
     type(uniform_mesh_descriptor_t)                , intent(in)  :: gdata
     type(uniform_conditions_descriptor_t)               , intent(in)  :: bdata
-    type(reference_element_t)           , intent(in)  :: geo_reference_element
+    class(reference_fe_t)           , intent(in)  :: geo_reference_element
     type(par_triangulation_t), target, intent(out) :: p_trian 
     type(par_conditions_t)           , intent(out) :: p_cond
     integer(ip), allocatable       , intent(out) :: material(:)

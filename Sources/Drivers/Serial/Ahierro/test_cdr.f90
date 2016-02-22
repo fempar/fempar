@@ -229,12 +229,8 @@ end module command_line_parameters_names
 
 program test_cdr
   use serial_names
-  use prob_names
-  use lib_vtk_io_interface_names
   use Data_Type_Command_Line_Interface
   use command_line_parameters_names
-  use time_integration_names
-  use theta_method_names
   implicit none
 #include "debug.i90"
 
@@ -242,28 +238,10 @@ program test_cdr
   type(mesh_t)                          :: f_mesh
   type(triangulation_t)                 :: f_trian
   type(conditions_t)                    :: f_cond
-  type(dof_descriptor_t)                :: dof_descriptor
-  type(serial_fe_space_t)               :: fe_space
-  type(cdr_problem_t)                   :: my_problem
-  type(cdr_discrete_t)                  :: my_discrete
-  type(theta_method_t)                  :: theta_integ
-  type(cdr_transient_t)       , target  :: cdr_matvec
-  type(error_norm_t)          , target  :: compute_error
-  type(serial_scalar_t)                 :: enorm
-  type(vtk_t)                           :: fevtk
-  integer(ip)                           :: num_approximations
-  type(p_discrete_integration_t)        :: approximations(1)
   class(matrix_t)             , pointer :: matrix
-  type(serial_scalar_matrix_t), pointer :: my_matrix
   class(array_t)              , pointer :: array
   type(serial_scalar_array_t) , pointer :: my_array
   type(serial_scalar_array_t) , target  :: feunk
-  type(fe_affine_operator_t)            :: fe_affine_operator
-  type(fe_affine_operator_t)            :: fe_affine_operator_error
-
-  type(preconditioner_t)                :: feprec
-  type(preconditioner_params_t)         :: ppars
-  type(solver_control_t)                :: sctrl
   type(serial_environment_t)            :: senv
 
   type(Type_Command_Line_Interface)     :: cli 
@@ -315,175 +293,24 @@ program test_cdr
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
   call triangulation_construct_faces ( f_trian )
-!!$
-!!$  ! Assign the DOFs
-!!$  vars_prob = 1
-!!$  !( dof_descriptor, nblocks, nprobs, nvars_global, vars_block, dof_coupl )
-!!$  call dof_descriptor%create( 1, 1, 1 )
-!!$
-!!$  ! Create the physical problem
-!!$  call physical_cdr_problem_create(my_problem,cli,space_solution_flag,tempo_solution_flag)
-!!$
-!!$  ! Create the discrete method associated the problem
-!!$  call discrete_cdr_problem_create(my_discrete,cli)
-!!$
-!!$  ! Define the method to solve the proble
-!!$  call approximation_cdr_problem_create(my_problem,my_discrete,theta_integ,cdr_matvec,cli, f_trian,order,     &
-!!$       &                                continuity,enable_face_integration,material,problem)
-!!$
-!!$  ! Create FE Space
-!!$  call fe_space%create ( f_trian, dof_descriptor, problem, f_cond, continuity,                      &
-!!$       &                 enable_face_integration, order, material, time_steps_to_store = 3,         &
-!!$       &                 hierarchical_basis = .false., static_condensation = .false.,               &
-!!$       &                 num_continuity = 1 )
-!!$
-!!$  ! Initialize VTK output
-!!$  call fevtk%initialize(f_trian,fe_space,my_problem,senv,dir_path_out,prefix, linear_order=.false.)
-!!$
-!!$  ! Assign analytical solution
-!!$  call fe_space%set_analytical_code(space_solution_flag,tempo_solution_flag)
-!!$
-!!$  !Initialize time parameters
-!!$  call cdr_matvec%time_integ%initialize()
-!!$
-!!$  ! Initialize solution
-!!$  if (theta_integ%dtinv .ne. 0.0_rp) then
-!!$     call update_analytical_initial(vars_prob,theta_integ%itime,fe_space)
-!!$     istat = fevtk%write_VTK(t_step = theta_integ%real_time)
-!!$     call theta_integ%update()
-!!$     ! Store the solution in the previous time step
-!!$     call update_transient_solution(fe_space,vars_prob,my_discrete%get_current(),                   &
-!!$          &                          my_discrete%get_prev_step(),theta_integ)
-!!$  end if
-!!$
-!!$
-!!$
-!!$  ! Create vef2dof array
-!!$  call create_dof_info( fe_space )
-!!$
-!!$  ! Create the operator
-!!$  diagonal_blocks_symmetric_storage = (/(my_problem%kfl_conv == 0)/)
-!!$  diagonal_blocks_symmetric         = (/(my_problem%kfl_conv == 0)/)
-!!$  diagonal_blocks_sign              = (/positive_definite/) 
-!!$  call fe_affine_operator%create (diagonal_blocks_symmetric_storage , diagonal_blocks_symmetric,    &
-!!$       diagonal_blocks_sign, fe_space, approximations)
-!!$  call fe_affine_operator%symbolic_setup()
-!!$
-!!$
-!!$  ! Create preconditioners
-!!$  ppars%type = pardiso_mkl_prec
-!!$  call preconditioner_create(fe_affine_operator,feprec,ppars)
-!!$  call preconditioner_symbolic_setup(feprec)
-!!$
-!!$  ! Create the computation of the error
-!!$  call compute_error%create(my_problem,my_discrete)
-!!$
-!!$  ! The get_matrix/vector allocates and computes the matrix
-!!$  call fe_affine_operator%free_in_stages(free_numerical_setup)
-!!$
-!!$  do while (.not. theta_integ%finished) 
-!!$
-!!$     ! Print the time step
-!!$     call theta_integ%print(6)
-!!$     ! Update boundary conditions
-!!$     call update_strong_dirichlet_bcond( fe_space, f_cond )
-!!$     call update_analytical_bcond(vars_prob,theta_integ%ctime,fe_space)
-!!$
-!!$     ! Initialize the matrix and vector
-!!$     !call my_matrix%init(0.0_rp)
-!!$     !call my_array%init(0.0_rp)
-!!$
-!!$     ! Compute the matrix an vector of the problem
-!!$     approximations(1)%discrete_integration => cdr_matvec
-!!$     call fe_affine_operator%numerical_setup()
-!!$
-!!$     ! Create the matrix
-!!$     matrix => fe_affine_operator%get_matrix()
-!!$     select type(matrix)
-!!$        class is(serial_scalar_matrix_t)
-!!$        my_matrix => matrix
-!!$        class default
-!!$        check(.false.)
-!!$     end select
-!!$
-!!$     ! Create array 
-!!$     array => fe_affine_operator%get_array()
-!!$     select type(array)
-!!$        class is(serial_scalar_array_t)
-!!$        my_array => array
-!!$        class default
-!!$        check(.false.)
-!!$     end select
-!!$
-!!$     ! Create the vector
-!!$     call feunk%clone(my_array) 
-!!$
-!!$     ! Update the preconditioner
-!!$     call preconditioner_numerical_setup(feprec)
-!!$     !call preconditioner_log_info(feprec)
-!!$
-!!$     ! Solve the matrix-vector problem
-!!$     call abstract_solve(my_matrix,feprec,my_array,feunk,sctrl,senv)
-!!$     call solver_control_free_conv_his(sctrl)
-!!$
-!!$     ! Store the solution in FE space
-!!$     call update_solution(feunk, fe_space)
-!!$
-!!$     ! Store the solution in the previous time step
-!!$     call update_transient_solution(fe_space,vars_prob,my_discrete%get_current(),                   &
-!!$          &                          my_discrete%get_prev_step(),theta_integ)
-!!$
-!!$     ! Compute Error Norm
-!!$     approximations(1)%discrete_integration => compute_error
-!!$     compute_error%ctime = theta_integ%real_time
-!!$     call enorm%create()
-!!$     call enorm%init(0.0_rp)
-!!$     call fe_space%volume_integral(approximations,enorm)
-!!$     call enorm%reduce()
-!!$     write(*,*) 'XXX Error wrt analytical solution XXX',  sqrt(enorm%get_value())
-!!$     ! Print solution to VTK file
-!!$     istat = fevtk%write_VTK(t_step = theta_integ%real_time)
-!!$     istat = fevtk%write_PVTK(t_step = theta_integ%real_time)
-!!$
-!!$     call fe_affine_operator%free_in_stages(free_numerical_setup)
-!!$     ! Update the time integration variables
-!!$     call theta_integ%update()
-!!$  end do
-!!$
-!!$  istat = fevtk%write_PVD()
-!!$  call memfree( continuity, __FILE__, __LINE__)
-!!$  call memfree( enable_face_integration, __FILE__, __LINE__)
-!!$  call memfree( order, __FILE__, __LINE__)
-!!$  call memfree( material, __FILE__, __LINE__)
-!!$  call memfree( problem, __FILE__, __LINE__)
+
 
   ! To be erased
-  call test_reference_face_stuff(f_trian,f_cond,my_problem)
+  call test_reference_face_stuff(f_trian,f_cond)
 
-!!$  call feunk%free()
-!!$  call fe_affine_operator%free()
-!!$  call fe_space%free()
-!!$  call my_problem%free
-!!$  call my_discrete%free
-!!$  call cdr_matvec%free
-!!$  call compute_error%free
-!!$  call compute_error%free
-!!$  call dof_descriptor_free ( dof_descriptor )
-!!$  call fevtk%free
   call triangulation_free ( f_trian )
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
   call memstatus
 contains
   !==================================================================================================
-  subroutine  test_reference_face_stuff(f_trian, f_cond,my_problem)
+  subroutine  test_reference_face_stuff(f_trian, f_cond)
     use reference_fe_names
     use reference_fe_factory_names
     use SB_fe_space_names
     use SB_discrete_integration_names
     use CDR_discrete_integration_names
     use SB_fe_affine_operator_names
-    use SB_preconditioner_names
     use vector_dG_CDR_discrete_integration_names
     use block_sparse_matrix_names
 
@@ -491,7 +318,6 @@ contains
 
     type(triangulation_t), intent(inout) :: f_trian
     type(conditions_t)   , intent(in)    :: f_cond
-    type(cdr_problem_t)  , intent(in)    :: my_problem
 
     type(SB_serial_fe_space_t)                    :: fe_space
     type(p_reference_fe_t)                        :: reference_fe_array_two(2)
@@ -530,7 +356,7 @@ contains
     ! Create the operator
     diagonal_blocks_symmetric_storage = .false.
     diagonal_blocks_symmetric         = .false.
-    diagonal_blocks_sign              = positive_definite
+    diagonal_blocks_sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE
     call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                       &
          &                          diagonal_blocks_symmetric,diagonal_blocks_sign, f_trian,        &
          &                          fe_space, vector_dG_CDR_integration)
@@ -597,106 +423,6 @@ contains
     call cli_add_params(cli,transient_params,'transient')
 
   end subroutine read_flap_cli_test_cdr
-  !==================================================================================================
-
-  subroutine physical_cdr_problem_create(my_problem,cli,space_solution_flag,tempo_solution_flag)
-    implicit none
-    type(cdr_problem_t)              , intent(inout) :: my_problem
-    type(Type_Command_Line_Interface), intent(inout) :: cli
-    integer(ip)                      , intent(inout) :: space_solution_flag(1)
-    integer(ip)                      , intent(inout) :: tempo_solution_flag(1)
-
-    !Create the problem to solve 
-    call my_problem%create( f_trian%num_dims )
-    call cli%get(group=trim(group),switch='-kconv',val=my_problem%kfl_conv ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-kreac',val=my_problem%kfl_react,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-ktd'  ,val=my_problem%kfl_tder ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-reac' ,val=my_problem%reaction ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-diff' ,val=my_problem%diffusion ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-ssol' ,val=space_solution_flag ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-tsol' ,val=tempo_solution_flag ,error=istat)
-    check(istat==0)
-  end subroutine physical_cdr_problem_create
-  !==================================================================================================
-
-  subroutine discrete_cdr_problem_create(my_discrete,cli)
-    implicit none
-    type(cdr_discrete_t)             , intent(inout) :: my_discrete
-    type(Type_Command_Line_Interface), intent(inout) :: cli
-
-    real(rp) :: time_step
-
-    call my_discrete%create( my_problem)
-    call cli%get(group=trim(group),switch='-kst' ,val=my_discrete%kfl_stab,error=istat)
-    check(istat==0)
-  end subroutine discrete_cdr_problem_create
-  !==================================================================================================
-
-  subroutine approximation_cdr_problem_create(my_problem,my_discrete,theta_integ,cdr_matvec,cli,          &
-       &                                      f_trian,order,continuity,enable_face_integration,     &
-       &                                      material, problem)
-    implicit none
-    type(cdr_problem_t)              , intent(in)            :: my_problem
-    type(cdr_discrete_t)             , intent(in)            :: my_discrete
-    type(theta_method_t)             , intent(in)   , target :: theta_integ
-    type(cdr_transient_t)            , intent(inout), target :: cdr_matvec
-    type(Type_Command_Line_Interface), intent(inout)         :: cli
-    type(triangulation_t)            , intent(in)            :: f_trian
-    integer(ip)         , allocatable, intent(inout)         :: order(:,:),continuity(:,:)
-    logical             , allocatable, intent(inout)         :: enable_face_integration(:,:)
-    integer(ip)         , allocatable, intent(inout)         :: material(:),problem(:)
-
-    integer(ip) :: continuity_flag,face_int_flag, order_flag
-    real(rp)    :: time_step
-
-    ! Create the solver type
-    call cdr_matvec%create(my_problem,my_discrete)
-    cdr_matvec%time_integ => theta_integ
-    num_approximations = 1
-    approximations(1)%discrete_integration => cdr_matvec
-    call dof_descriptor%set_problem( 1, my_discrete )
-
-    ! Continuity set up
-    call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, continuity, __FILE__, __LINE__)
-    call cli%get(group=trim(group),switch='-cg', val=continuity_flag, error=istat); check(istat==0)
-    continuity = continuity_flag
-
-    ! Face integration set up
-    call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, enable_face_integration,         &
-         &        __FILE__, __LINE__)
-    call cli%get(group=trim(group),switch='-fi', val=face_int_flag, error=istat); check(istat==0)
-    enable_face_integration = (face_int_flag==1) ! (cG/ No face integration)
-
-    ! Order set up
-    call memalloc( f_trian%num_elems, dof_descriptor%nvars_global, order, __FILE__, __LINE__)
-    call cli%get(group=trim(group),switch='-p', val=order_flag, error=istat); check(istat==0)
-    order = order_flag
-
-    ! Define the material
-    call memalloc( f_trian%num_elems, material, __FILE__, __LINE__)
-    material = 1
-
-    ! Define the problem
-    call memalloc( f_trian%num_elems, problem, __FILE__, __LINE__)
-    problem = 1
-
-
-    call cli%get(group=trim(group),switch='-t0'  ,val=cdr_matvec%time_integ%itime     ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-tf'  ,val=cdr_matvec%time_integ%ftime     ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-ts'  ,val=cdr_matvec%time_integ%time_step ,error=istat)
-    check(istat==0)
-    call cli%get(group=trim(group),switch='-tht' ,val=cdr_matvec%time_integ%theta     ,error=istat)
-    check(istat==0)
-
-  end subroutine approximation_cdr_problem_create
 
 
 end program test_cdr

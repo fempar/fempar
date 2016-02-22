@@ -30,7 +30,6 @@ module mesh_to_triangulation_names
   use memor_names
   use mesh_names
   use triangulation_names
-  use fe_space_types_names
   use generate_vefs_mesh_conditions_names
   use conditions_names
   use reference_fe_names
@@ -100,6 +99,25 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
     trian%num_elems = gmesh%nelem
     trian%num_dims  = gmesh%ndime
 
+    !! Variable values depending of the element ndime
+    ! nvef = trian%elems(ielem)%num_vefs 
+    ! ndime = trian%num_dims
+    ! etype = 0
+    ! if(ndime == 2) then       ! 2D
+    !   if(nvef == 6) then     ! Linear triangles (P1)
+    !      etype = P_type_id
+    !   elseif(nvef == 8) then ! Linear quads (Q1)
+    !      etype = Q_type_id
+    !   end if
+    ! elseif(ndime == 3) then    ! 3D
+    !   if(nvef == 14) then     ! Linear tetrahedra (P1)
+    !      etype = P_type_id
+    !   elseif(nvef == 26) then ! Linear hexahedra (Q1)
+    !      etype = Q_type_id
+    !   end if
+    ! end if
+    ! assert( etype /= 0 )
+    
     ! This will not be here in the future
     trian%reference_fe_geo_list(1) = make_reference_fe ( topology = "quad", fe_type = "Lagrangian",          &
          &                                      number_dimensions = trian%num_dims, order = 1,      &
@@ -116,12 +134,12 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
     end if
 
     if (present(gcond)) then
-       call generate_vefs_mesh_conditions(gmesh, tmesh, gcond, tcond)
+       call generate_vefs_mesh_conditions(gmesh, tmesh, trian%reference_fe_geo_list(1)%p, gcond, tcond)
        call conditions_free( gcond )
        call conditions_copy( tcond, gcond )
        call conditions_free( tcond )
     else
-       call generate_vefs_mesh_conditions(gmesh, tmesh)
+       call generate_vefs_mesh_conditions(gmesh, tmesh, trian%reference_fe_geo_list(1)%p)
     end if
        
     do ielem=1, trian%num_elems

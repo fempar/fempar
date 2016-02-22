@@ -27,7 +27,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module SB_sparse_matrix_array_assembler_names
   use types_names
-  use dof_descriptor_names
   use allocatable_array_names
 
   ! Abstract modules

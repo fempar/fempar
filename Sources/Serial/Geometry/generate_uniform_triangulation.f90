@@ -27,11 +27,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module generate_uniform_triangulation_names
   use types_names
+  use reference_fe_names
   use conditions_names
   use triangulation_names
   use mesh_distribution_names
   use materials_names
-  use fe_space_types_names
   use map_names
   use Data_Type_Command_Line_Interface
   implicit none
@@ -397,13 +397,13 @@ contains
     !-----------------------------------------------------------------------------------------------!
     implicit none
     type(uniform_mesh_descriptor_t)     , intent(in)  :: gdata
-    type(reference_element_t), intent(in)  :: geo_reference_element
+    class(reference_fe_t), intent(in)  :: geo_reference_element
     type(geom_size_t)     , intent(out) :: gsize
 
     ! Local variables
     integer(ip) :: pdegr,idime,jdime
 
-    pdegr = geo_reference_element%order
+    pdegr = geo_reference_element%get_order()
 
     ! Directional sizes
     gsize%npdir = gdata%npdir
@@ -536,7 +536,7 @@ contains
     integer(ip)                          , intent(in)  :: lpart
     type(uniform_mesh_descriptor_t)                      , intent(in)  :: gdata
     type(uniform_conditions_descriptor_t)                     , intent(in)  :: bdata
-    type(reference_element_t)                 , intent(in)  :: geo_reference_element
+    class(reference_fe_t)              , intent(in)  :: geo_reference_element
     type(triangulation_t)              , intent(out) :: trian
     type(conditions_t)                 , intent(out) :: bcond
     integer(ip), allocatable             , intent(out) :: mater(:)
@@ -552,7 +552,7 @@ contains
     integer(igp), allocatable   :: lextn(:)
 
     ! Checks
-    check(geo_reference_element%ftype == Q_type_id)
+    check(geo_reference_element%get_topology() == topology_quad)
 
     ! Geometrical sizes
     call structured_geom_size_create(gdata,geo_reference_element,gsize)
@@ -614,7 +614,7 @@ contains
     type(uniform_mesh_descriptor_t)                    , intent(in)    :: gdata
     type(geom_size_t)                    , intent(in)    :: gsize
     type(topo_size_t)                    , intent(in)    :: tsize
-    type(reference_element_t)               , intent(in)    :: geo_reference_element
+    class(reference_fe_t)           , intent(in)    :: geo_reference_element
     type(triangulation_t)            , intent(inout) :: trian
     type(conditions_t)               , intent(in)    :: poin,line,surf
     type(conditions_t)               , intent(out)   :: nodes
@@ -689,7 +689,7 @@ contains
     end do
 
     ! Calculate lnods, coord and l2g vector for emap and nmap
-    call generic_l2g(subgl,npnumg,npnumt,nenum,ndime,geo_reference_element%order,gsize,tsize,gdata,l2ge,l2gp,trian, &
+    call generic_l2g(subgl,npnumg,npnumt,nenum,ndime,geo_reference_element%get_order(),gsize,tsize,gdata,l2ge,l2gp,trian, &
          &           coord,mater)
 
     ! Fill nmap
@@ -756,7 +756,7 @@ contains
     type(geom_size_t)     , intent(in)    :: gsize
     type(topo_size_t)     , intent(in)    :: tsize
     type(uniform_mesh_descriptor_t)     , intent(in)    :: gdata
-    type(reference_element_t), intent(in)    :: geo_reference_element
+    class(reference_fe_t), intent(in)    :: geo_reference_element
     integer(ip)         , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp)            , intent(inout) :: coord(:,:)
 
@@ -898,8 +898,8 @@ contains
     integer(ip)                   , intent(in)    :: ijkpart(3),isper(3),ndime,case
     type(geom_size_t)               , intent(in)    :: gsize
     type(topo_size_t)               , intent(in)    :: tsize
-    type(uniform_mesh_descriptor_t)               , intent(in)    :: gdata
-    type(reference_element_t)          , intent(in)    :: geo_reference_element
+    type(uniform_mesh_descriptor_t) , intent(in)    :: gdata
+    class(reference_fe_t)           , intent(in)    :: geo_reference_element
     type(conditions_t)          , intent(in)    :: surf
     integer(ip)                   , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp)                      , intent(inout) :: coord(:,:)
@@ -1181,7 +1181,7 @@ contains
     type(geom_size_t),      intent(in)    :: gsize
     type(topo_size_t),      intent(in)    :: tsize
     type(uniform_mesh_descriptor_t),      intent(in)    :: gdata
-    type(reference_element_t), intent(in)    :: geo_reference_element
+    class(reference_fe_t), intent(in)    :: geo_reference_element
     type(conditions_t), intent(in)    :: line,surf
     integer(ip),          intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp),             intent(inout) :: coord(:,:)
@@ -1540,7 +1540,7 @@ contains
     type(geom_size_t)     , intent(in)    :: gsize
     type(topo_size_t)     , intent(in)    :: tsize
     type(uniform_mesh_descriptor_t)     , intent(in)    :: gdata
-    type(reference_element_t), intent(in)    :: geo_reference_element
+    class(reference_fe_t), intent(in)    :: geo_reference_element
     type(conditions_t), intent(in)    :: poin,line,surf
     integer(ip)         , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
     real(rp)            , intent(inout) :: coord(:,:)
@@ -1841,7 +1841,7 @@ contains
     integer(ip)         , intent(in)    :: ijkpoin(3),ijkpart(3),npdir(3),nedom(3),nedir(3)
     integer(ip)         , intent(in)    :: ndime
     type(uniform_mesh_descriptor_t)     , intent(in)    :: msize
-    type(reference_element_t), intent(in)    :: geo_reference_element
+    class(reference_fe_t), intent(in)    :: geo_reference_element
     real(rp)            , intent(inout) :: coord(:)
 
     integer(ip) :: i,ntdis(3),pdegr,nebl(3)
@@ -1850,7 +1850,7 @@ contains
     real(rp)    :: newleng
 
     ! Unpack uniform_mesh_descriptor
-    pdegr   = geo_reference_element%order
+    pdegr   = geo_reference_element%get_order()
     leng(1) = msize%xleng
     leng(2) = msize%yleng
     leng(3) = msize%zleng

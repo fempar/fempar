@@ -224,8 +224,6 @@ end module command_line_parameters_names
 
 program test_reference_fe
   use serial_names
-  use prob_names
-  use lib_vtk_io_interface_names
   use Data_Type_Command_Line_Interface
   use command_line_parameters_names
   ! SB
@@ -237,7 +235,6 @@ program test_reference_fe
   use poisson_discrete_integration_names
   use vector_laplacian_discrete_integration_names
   use SB_fe_affine_operator_names
-  use SB_preconditioner_names
   implicit none
 #include "debug.i90"
 
@@ -245,18 +242,7 @@ program test_reference_fe
   type(mesh_t)                          :: f_mesh
   type(triangulation_t)                 :: f_trian
   type(conditions_t)                    :: f_cond
-  type(dof_descriptor_t)                :: dof_descriptor
-  !  type(serial_fe_space_t)               :: fe_space
-  type(cdr_problem_t)                   :: my_problem
-  type(cdr_discrete_t)                  :: my_discrete
-  type(cdr_nonlinear_t), target         :: cdr_matvec
-  type(error_norm_t)       , target     :: compute_error
-  type(serial_scalar_t)                 :: enorm
-  type(vtk_t)                           :: fevtk
-  integer(ip)                           :: num_approximations
   class(matrix_t)             , pointer :: matrix
-  type(serial_scalar_matrix_t), pointer :: my_matrix
-  type(serial_block_matrix_t), pointer :: my_block_matrix
   class(array_t)              , pointer :: array
   type(serial_scalar_array_t) , pointer :: my_array
   type(serial_scalar_array_t) , target  :: feunk
@@ -267,9 +253,6 @@ program test_reference_fe
 
   type(linear_solver_t)                           :: linear_solver
   type(vector_space_t)    , pointer               :: fe_affine_operator_range_vector_space
-  type(SB_preconditioner_t)        :: feprec
-  type(SB_preconditioner_params_t) :: ppars
-  type(solver_control_t)        :: sctrl
   type(serial_environment_t)    :: senv
 
   ! Arguments
@@ -328,25 +311,23 @@ program test_reference_fe
   problem_id = 1
   if ( problem_id == 1) then
      ! Composite case
-     reference_fe_array_two(1) = make_reference_fe ( topology = "quad", &
-                                                     fe_type = "Lagrangian", &
+     reference_fe_array_two(1) = make_reference_fe ( topology = topology_quad, &
+                                                     fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
                                                      order = 1, &
-                                                     field_type = "scalar", &
+                                                     field_type = field_type_scalar, &
                                                      continuity = .true. )
      
-     reference_fe_array_two(2) = make_reference_fe ( topology = "quad", &
-                                                     fe_type = "Lagrangian", &
+     reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad, &
+                                                     fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
                                                      order = 1, & 
-                                                     field_type = "vector", &
+                                                     field_type = field_type_vector, &
                                                      continuity = .true. )
      
      call fe_space%create( triangulation = f_trian, &
                            boundary_conditions = f_cond, &
                            reference_fe_phy = reference_fe_array_two, &
-                           reference_fe_geo_topology = "quad", &
-                           reference_fe_geo_type = "Lagrangian", &
                            !field_blocks = (/1,1/), &
                            !field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
                            field_blocks = (/1,2/), &
@@ -357,34 +338,30 @@ program test_reference_fe
      call fe_affine_operator%create ( 'CSR', &
                                       (/.true.,.true./), &
                                       (/.true.,.true./), &
-                                      (/positive_definite,positive_definite/),&
-                                     !(/.true./), &
-                                     !(/.true./), &
-                                     !(/positive_definite/), &
-                                     f_trian, &
-                                     fe_space, &
-                                     vector_laplacian_integration )
+                                      (/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/),&
+                                      f_trian, &
+                                      fe_space, &
+                                      vector_laplacian_integration )
   else 
        
      ! Simple case
-     reference_fe_array_one(1) =  make_reference_fe ( topology = "quad", &
-                                                      fe_type = "Lagrangian", &
+     reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
+                                                      fe_type = fe_type_lagrangian, &
                                                       number_dimensions = 2, &
                                                       order = 1, &
-                                                      field_type = "scalar", &
+                                                      field_type = field_type_scalar, &
                                                       continuity = .true. )
      
      call fe_space%create( triangulation = f_trian, &
                            boundary_conditions = f_cond, &
-                           reference_fe_phy = reference_fe_array_one, &
-                           reference_fe_geo_topology = "quad", &
-                           reference_fe_geo_type = "Lagrangian" )
+                           reference_fe_phy = reference_fe_array_one )
+     
      call fe_space%fill_dof_info() 
 
      call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                      diagonal_blocks_symmetric_storage=(/.true./), &
                                      diagonal_blocks_symmetric=(/.true./), &
-                                     diagonal_blocks_sign=(/positive_definite/), &
+                                     diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
                                      triangulation=f_trian, &
                                      fe_space=fe_space, &
                                      discrete_integration=poisson_integration )

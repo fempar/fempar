@@ -27,7 +27,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module SB_assembler_names
   use types_names
-  use dof_descriptor_names
 
   implicit none
 # include "debug.i90"

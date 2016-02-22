@@ -28,12 +28,10 @@
 module SB_fe_affine_operator_names
   use types_names
   use memor_names
-  use problem_names
 
   ! Abstract types
   use triangulation_names
   use vector_space_names
-  use dof_descriptor_names
   use reference_fe_names
   use SB_fe_space_names
   use operator_names

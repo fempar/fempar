@@ -224,8 +224,6 @@ end module command_line_parameters_names
 
 program test_reference_fe
   use serial_names
-  use prob_names
-  use lib_vtk_io_interface_names
   use Data_Type_Command_Line_Interface
   use command_line_parameters_names
   ! SB
@@ -237,7 +235,6 @@ program test_reference_fe
   use stokes_discrete_integration_names 
   use maxwell_discrete_integration_names
   use SB_fe_affine_operator_names
-  use SB_preconditioner_names
   implicit none
 #include "debug.i90"
 
@@ -254,9 +251,6 @@ program test_reference_fe
 
   type(linear_solver_t)                           :: linear_solver
   type(vector_space_t)    , pointer               :: fe_affine_operator_range_vector_space
-  type(SB_preconditioner_t)          :: feprec
-  type(SB_preconditioner_params_t)   :: ppars
-  type(solver_control_t)             :: sctrl
   type(serial_environment_t)         :: senv
 
   ! Arguments
@@ -317,25 +311,23 @@ program test_reference_fe
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
   ! Composite case (u,p)
-     composite_reference_array(1) = make_reference_fe ( topology = "quad", &
-                                                     fe_type = "Lagrangian", &
+     composite_reference_array(1) = make_reference_fe ( topology = topology_quad, &
+                                                     fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
                                                      order = 1, &
-                                                     field_type = "vector", &
+                                                     field_type = field_type_vector, &
                                                      continuity = .true. )
      
-     composite_reference_array(2) = make_reference_fe ( topology = "quad", &
-                                                     fe_type = "Lagrangian", &
+     composite_reference_array(2) = make_reference_fe ( topology = topology_quad, &
+                                                     fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
                                                      order = 1, & 
-                                                     field_type = "scalar", &
+                                                     field_type = field_type_scalar, &
                                                      continuity = .true. )
  
      call fe_space%create( triangulation = f_trian, &
                            boundary_conditions = f_cond, &
                            reference_fe_phy = composite_reference_array, &
-                           reference_fe_geo_topology = "quad", &
-                           reference_fe_geo_type = "Lagrangian", &
                            field_blocks = (/1,2/), &
                            field_coupling = reshape((/.true.,.true.,.true.,.true./),(/2,2/)) )   
 
@@ -346,7 +338,7 @@ program test_reference_fe
    call fe_affine_operator%create ( 'CSR', &
                                     (/.true.,.true./), &
                                     (/.true.,.true./), &
-                                    (/positive_definite,positive_definite/),&
+                                    (/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/),&
                                     f_trian, &
                                     fe_space, &
                                     maxwell_integration )
@@ -373,17 +365,6 @@ program test_reference_fe
   !  call linear_solver%print_convergence_history('csic')
     call linear_solver%free() 
 
-!  ===============================   ABSTRACT    SOLVE       ==================================
-  ! call vector%init(0.0_rp)
-  ! sctrl%method = minres
-  ! sctrl%trace  = 1
-  ! sctrl%track_conv_his = .true.
-  ! sctrl%rtol = 1.0e-06_rp
-  ! sctrl%itmax = 100
-  ! sctrl%stopc = res_res
-  ! call abstract_solve(matrix, .identity. fe_affine_operator , rhs, vector, sctrl, senv )
-  
-
    select type(vector)
      class is(serial_block_array_t)
      write(*,*) ' --------------------------------------------------------- '
@@ -403,7 +384,6 @@ program test_reference_fe
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
-  call solver_control_free_conv_his(sctrl)
 
    call memstatus 
 contains

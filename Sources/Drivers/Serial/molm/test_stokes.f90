@@ -224,8 +224,6 @@ end module command_line_parameters_names
 
 program test_reference_fe
   use serial_names
-  use prob_names
-  use lib_vtk_io_interface_names
   use Data_Type_Command_Line_Interface
   use command_line_parameters_names
   ! SB
@@ -237,7 +235,6 @@ program test_reference_fe
   use stokes_discrete_integration_names 
   use maxwell_discrete_integration_names
   use SB_fe_affine_operator_names
-  use SB_preconditioner_names
   implicit none
 #include "debug.i90"
 
@@ -245,18 +242,8 @@ program test_reference_fe
   type(mesh_t)                          :: f_mesh
   type(triangulation_t)                 :: f_trian
   type(conditions_t)                    :: f_cond
-  type(dof_descriptor_t)                :: dof_descriptor
-  type(cdr_problem_t)                   :: my_problem
-  type(cdr_discrete_t)                  :: my_discrete
-  type(cdr_nonlinear_t), target         :: cdr_matvec
-  type(error_norm_t), target            :: compute_error
-  type(serial_scalar_t)                 :: enorm
-  type(vtk_t)                           :: fevtk
-  integer(ip)                           :: num_approximations
   class(matrix_t)             , pointer :: matrix
   class(vector_t)             , pointer :: rhs
-  type(serial_scalar_matrix_t), pointer :: my_matrix
-  type(serial_block_matrix_t), pointer  :: my_block_matrix
   class(array_t)              , pointer :: array
   type(serial_scalar_array_t) , pointer :: my_array
   type(serial_scalar_array_t) , target  :: feunk
@@ -267,9 +254,6 @@ program test_reference_fe
 
   type(linear_solver_t)                           :: linear_solver
   type(vector_space_t)    , pointer               :: fe_affine_operator_range_vector_space
-  type(SB_preconditioner_t)          :: feprec
-  type(SB_preconditioner_params_t)   :: ppars
-  type(solver_control_t)             :: sctrl
   type(serial_environment_t)         :: senv
 
   ! Arguments
@@ -329,25 +313,23 @@ program test_reference_fe
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
   ! Composite case (u,p)
-     composite_reference_array(1) = make_reference_fe ( topology = "quad", &
-                                                     fe_type = "Lagrangian", &
+     composite_reference_array(1) = make_reference_fe ( topology = topology_quad, &
+                                                     fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
                                                      order = 1, &
-                                                     field_type = "vector", &
+                                                     field_type = field_type_vector, &
                                                      continuity = .true. )
      
-     composite_reference_array(2) = make_reference_fe ( topology = "quad", &
-                                                     fe_type = "Lagrangian", &
+     composite_reference_array(2) = make_reference_fe ( topology = topology_quad, &
+                                                     fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
                                                      order = 1, & 
-                                                     field_type = "scalar", &
+                                                     field_type = field_type_scalar, &
                                                      continuity = .true. )
  
      call fe_space%create( triangulation = f_trian, &
                            boundary_conditions = f_cond, &
                            reference_fe_phy = composite_reference_array, &
-                           reference_fe_geo_topology = "quad", &
-                           reference_fe_geo_type = "Lagrangian", &
                            field_blocks = (/1,2/), &
                            field_coupling = reshape((/.true.,.true.,.true.,.true./),(/2,2/)) )   
 
@@ -356,7 +338,7 @@ program test_reference_fe
    call fe_affine_operator%create ( 'CSR', &
                                     (/.true.,.true./), &
                                     (/.true.,.true./), &
-                                    (/positive_definite,positive_definite/),&
+                                    (/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/),&
                                     f_trian, &
                                     fe_space, &
                                     stokes_integration )
@@ -376,20 +358,11 @@ program test_reference_fe
   call fe_affine_operator_range_vector_space%create_vector(vector)
 
   ! Create linear solver, set operators and solve linear system: so far Richardson ,CG
-   ! call linear_solver%create(senv)
-   ! call linear_solver%set_type_and_parameters_from_pl()
-   ! call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-   ! call linear_solver%solve(vector)
-   ! call linear_solver%free() 
-
-! ===============================       SOLVE          ======================================
-   call vector%init(0.0_rp)
-  sctrl%method = lgmres
-  sctrl%trace  = 1
-  sctrl%track_conv_his = .true.
-  sctrl%rtol = 1.0e-06_rp
-   call abstract_solve(matrix, .identity. fe_affine_operator , rhs, vector, sctrl, senv ) 
-! ==========================================================================================
+  call linear_solver%create(senv)
+  call linear_solver%set_type_and_parameters_from_pl()
+  call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+  call linear_solver%solve(vector)
+  call linear_solver%free() 
 
   select type(vector)
      class is(serial_scalar_array_t)
@@ -413,9 +386,7 @@ write(*,*) 'Pressure error norm: ', vector%blocks(2)%nrm2()
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
-  call solver_control_free_conv_his(sctrl)
-
-   call memstatus 
+  call memstatus 
 
 contains
   !==================================================================================================

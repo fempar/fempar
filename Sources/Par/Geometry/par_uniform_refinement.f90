@@ -33,7 +33,6 @@ module par_uniform_refinement_names
   use migratory_element_names
   use triangulation_names
   use hash_table_names
-  use fe_space_types_names
   use map_names
   use reference_fe_names
 
