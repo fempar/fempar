@@ -8,8 +8,6 @@ PROJECT(FEMPAR Fortran C)
 
 SET(${PROJECT_NAME}_VERSION 0.0.1)
 SET(${PROJECT_NAME}_SOVERSION 1)
-SET(SERIAL_LIB serial)   # SERIAL library
-SET(PAR_LIB par)         # PAR library
 SET(${PROJECT_NAME}_USER "" CACHE STRING "")
 
 SET(CMAKE_VERBOSE_MAKEFILE TRUE)
@@ -70,6 +68,11 @@ ENDIF(NOT CMAKE_BUILD_TYPE)
 #################################################################
 # List of external libraries
 #################################################################
+
+FIND_PACKAGE(MPI REQUIRED)
+
+INCLUDE(CMakeForceCompiler)
+CMAKE_FORCE_Fortran_COMPILER(${MPI_Fortran_COMPILER} ${CMAKE_Fortran_COMPILER_ID})
 
 # LIBRARY ORDER IS IMPORTANT IN THE CASE OF MKL, BLAS AND LAPACK
 # IF MKL WAS FOUND BLAS AND LAPACK MACRO DEFITIONS ARE ACTIVE 
@@ -234,17 +237,57 @@ IF(NOT ${BUILD_SHARED_LIBS})
 ENDIF()
 
 #################################################################
-# ADD SOURCE SUBDIRS
+# ADD LIBRARY SOURCE SUBDIRS
 #################################################################
 
 ADD_SUBDIRECTORY(${SERIAL_PATH})
 ADD_SUBDIRECTORY(${PAR_PATH})
 
-ADD_SUBDIRECTORY(${SERIAL_DRIVERS_PATH})
-ADD_SUBDIRECTORY(${PAR_DRIVERS_PATH})
+#################################################################
+# ADD LIBRARY TARGET
+#################################################################
 
-ADD_SUBDIRECTORY(${SERIAL_TESTS_PATH})
-ADD_SUBDIRECTORY(${PAR_TESTS_PATH})
+FIND_PACKAGE(MPI REQUIRED)
+
+IF(MPI_Fortran_COMPILER)
+
+    INCLUDE(CMakeForceCompiler)
+    CMAKE_FORCE_Fortran_COMPILER(${MPI_Fortran_COMPILER} ${CMAKE_Fortran_COMPILER_ID})
+
+    # Find mpi.mod
+    FIND_PATH(MPI_MOD_FOUND mpi.mod  PATHS ${MPI_Fortran_INCLUDE_PATH})
+    IF(MPI_MOD_FOUND)
+        ADD_DEFINITIONS(-DMPI_MOD)
+    ELSE()
+        ADD_DEFINITIONS(-DMPI_H)
+    ENDIF()
+
+    # Add MPI directories
+    ADD_DEFINITIONS(${MPI_Fortran_COMPILE_FLAGS})
+    INCLUDE_DIRECTORIES(${MPI_Fortran_INCLUDE_PATH})
+    LINK_DIRECTORIES(${MPI_Fortran_LIBRARIES})
+
+    ADD_LIBRARY(${PROJECT_NAME} ${SERIAL_SRC} ${PAR_SRC})
+    TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${MPI_Fortran_LIBRARIES})
+    FOREACH(EXT_LIB ${EXT_LIBS})
+        IF(${EXT_LIB}_FOUND)
+            TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${${EXT_LIB}_LIBRARIES})
+        ENDIF()
+    ENDFOREACH()
+    SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES VERSION ${${PROJECT_NAME}_VERSION} SOVERSION ${${PROJECT_NAME}_SOVERSION})
+
+ENDIF()
+
+
+#################################################################
+# ADD LIBRARY SOURCE SUBDIRS
+#################################################################
+
+#ADD_SUBDIRECTORY(${SERIAL_DRIVERS_PATH})
+#ADD_SUBDIRECTORY(${PAR_DRIVERS_PATH})
+
+#ADD_SUBDIRECTORY(${SERIAL_TESTS_PATH})
+#ADD_SUBDIRECTORY(${PAR_TESTS_PATH})
 
 #################################################################
 # CREATE TAGS
