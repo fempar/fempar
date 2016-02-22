@@ -1,8 +1,8 @@
 module CDR_discrete_integration_names
   use field_names
-  use SB_assembler_names
-  use SB_fe_space_names
-  use SB_discrete_integration_names
+  use assembler_names
+  use serial_fe_space_names
+  use discrete_integration_names
   use reference_fe_names
   use types_names
   use memor_names
@@ -10,7 +10,7 @@ module CDR_discrete_integration_names
   implicit none
 # include "debug.i90"
   private
-  type, extends(SB_discrete_integration_t) :: CDR_discrete_integration_t
+  type, extends(discrete_integration_t) :: CDR_discrete_integration_t
      integer(ip) :: viscosity 
    contains
      procedure :: integrate
@@ -23,14 +23,14 @@ contains
   subroutine integrate ( this, fe_space, assembler )
     implicit none
     class(CDR_discrete_integration_t), intent(in)    :: this
-    class(SB_serial_fe_space_t)      , intent(inout) :: fe_space
-    class(SB_assembler_t)            , intent(inout) :: assembler
+    class(serial_fe_space_t)      , intent(inout) :: fe_space
+    class(assembler_t)            , intent(inout) :: assembler
 
-    type(SB_finite_element_t), pointer :: fe
-    type(SB_volume_integrator_t), pointer :: vol_int
+    type(finite_element_t), pointer :: fe
+    type(volume_integrator_t), pointer :: vol_int
     real(rp), allocatable :: elmat(:,:), elvec(:)
     type(fe_map_t), pointer :: fe_map
-    type(SB_quadrature_t), pointer :: quad
+    type(quadrature_t), pointer :: quad
 
     integer(ip)  :: igaus,inode,jnode,ngaus
     real(rp)     :: factor
@@ -103,9 +103,9 @@ end module CDR_discrete_integration_names
 !==================================================================================================
 module vector_dG_CDR_discrete_integration_names
 use field_names
-use SB_assembler_names
-use SB_fe_space_names
-use SB_discrete_integration_names
+use assembler_names
+use serial_fe_space_names
+use discrete_integration_names
 use reference_fe_names
 use types_names
 use memor_names
@@ -113,7 +113,7 @@ use memor_names
 implicit none
 # include "debug.i90"
 private
-type, extends(SB_discrete_integration_t) :: vector_dG_CDR_discrete_integration_t
+type, extends(discrete_integration_t) :: vector_dG_CDR_discrete_integration_t
 real(rp) :: viscosity 
 real(rp) :: C_IP ! Interior Penalty constant
 real(rp) :: xi   ! DG symmetric parameter: (0-Symmetric, 1/2-Incomplete, 1-Antisymmetric)
@@ -139,17 +139,17 @@ contains
   subroutine integrate ( this, fe_space, assembler )
     implicit none
     class(vector_dG_CDR_discrete_integration_t), intent(in)    :: this
-    class(SB_serial_fe_space_t)                , intent(inout) :: fe_space
-    class(SB_assembler_t)                      , intent(inout) :: assembler
+    class(serial_fe_space_t)                , intent(inout) :: fe_space
+    class(assembler_t)                      , intent(inout) :: assembler
 
-    type(SB_finite_element_t)   , pointer :: fe
+    type(finite_element_t)   , pointer :: fe
     type(finite_face_t)         , pointer :: face
-    type(SB_volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
+    type(volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
     type(face_integrator_t)     , pointer :: face_int
     real(rp)                , allocatable :: elmat(:,:), elvec(:), facemat(:,:,:,:), facevec(:,:)
     type(fe_map_t)              , pointer :: fe_map
     type(face_map_t)            , pointer :: face_map
-    type(SB_quadrature_t)       , pointer :: quad
+    type(quadrature_t)       , pointer :: quad
     integer(ip)             , allocatable :: number_nodes_per_field(:)
 
     integer(ip)  :: igaus,inode,jnode,ioffset,joffset,ngaus

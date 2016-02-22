@@ -116,7 +116,7 @@ end function finite_face_get_map
 function finite_face_get_quadrature(this)
   implicit none
   class(finite_face_t), target, intent(in) :: this
-  type(SB_quadrature_t)       , pointer    :: finite_face_get_quadrature
+  type(quadrature_t)       , pointer    :: finite_face_get_quadrature
   finite_face_get_quadrature => this%quadrature
 end function finite_face_get_quadrature
 

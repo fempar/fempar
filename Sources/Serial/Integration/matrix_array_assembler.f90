@@ -25,17 +25,17 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module SB_matrix_array_assembler_names
+module matrix_array_assembler_names
   use types_names
   use matrix_names
   use array_names
-  use SB_assembler_names
+  use assembler_names
   
   implicit none
 # include "debug.i90"
   private
 
-  type, abstract, extends(SB_assembler_t) :: SB_matrix_array_assembler_t
+  type, abstract, extends(assembler_t) :: matrix_array_assembler_t
      private
      class(matrix_t), pointer :: matrix
      class(array_t) , pointer :: array
@@ -47,27 +47,27 @@ module SB_matrix_array_assembler_names
      procedure :: free_in_stages   => matrix_array_assembler_free_in_stages
      procedure :: get_matrix       => matrix_array_assembler_get_matrix
      procedure :: get_array        => matrix_array_assembler_get_array
-  end type SB_matrix_array_assembler_t
+  end type matrix_array_assembler_t
 		
 		abstract interface
 		   subroutine matrix_array_assembler_compress_storage_interface ( this, sparse_matrix_storage_format )
-       import :: SB_matrix_array_assembler_t
+       import :: matrix_array_assembler_t
        implicit none 
-       class(SB_matrix_array_assembler_t), intent(inout) :: this 
+       class(matrix_array_assembler_t), intent(inout) :: this 
        character(*)                      , intent(in)    :: sparse_matrix_storage_format 
      end subroutine matrix_array_assembler_compress_storage_interface
 		end interface
 		
 	 
   ! Data types
-  public :: SB_matrix_array_assembler_t
+  public :: matrix_array_assembler_t
   
 contains
   ! Sets the pointer to class(matrix_t) in such a way that this 
   ! can become reponsible to free it later on 
   subroutine matrix_array_assembler_set_matrix(this,matrix)
     implicit none
-    class(SB_matrix_array_assembler_t), intent(inout) :: this
+    class(matrix_array_assembler_t), intent(inout) :: this
     class(matrix_t), pointer, intent(in) :: matrix
     this%matrix => matrix
   end subroutine matrix_array_assembler_set_matrix
@@ -76,20 +76,20 @@ contains
   ! can become reponsible to free it later on 
   subroutine matrix_array_assembler_set_array(this,array)
     implicit none
-    class(SB_matrix_array_assembler_t), intent(inout) :: this
+    class(matrix_array_assembler_t), intent(inout) :: this
     class(array_t), pointer, intent(in) :: array
     this%array => array
   end subroutine matrix_array_assembler_set_array
   
   subroutine matrix_array_assembler_allocate(this)
     implicit none
-    class(SB_matrix_array_assembler_t), intent(inout) :: this
+    class(matrix_array_assembler_t), intent(inout) :: this
     call this%array%allocate()  
   end subroutine matrix_array_assembler_allocate
   
   subroutine matrix_array_assembler_free_in_stages(this,action)
     implicit none
-    class(SB_matrix_array_assembler_t), intent(inout) :: this
+    class(matrix_array_assembler_t), intent(inout) :: this
     integer(ip)                       , intent(in)    :: action
     call this%matrix%free_in_stages(action)
     call this%array%free_in_stages(action)
@@ -103,16 +103,16 @@ contains
   
     function matrix_array_assembler_get_matrix(this)
     implicit none
-    class(SB_matrix_array_assembler_t), target, intent(in) :: this
+    class(matrix_array_assembler_t), target, intent(in) :: this
     class(matrix_t), pointer :: matrix_array_assembler_get_matrix
     matrix_array_assembler_get_matrix => this%matrix 
   end function matrix_array_assembler_get_matrix
   
   function matrix_array_assembler_get_array(this)
     implicit none
-    class(SB_matrix_array_assembler_t), target, intent(in) :: this
+    class(matrix_array_assembler_t), target, intent(in) :: this
     class(array_t), pointer :: matrix_array_assembler_get_array
     matrix_array_assembler_get_array => this%array 
   end function matrix_array_assembler_get_array
   
-end module SB_matrix_array_assembler_names
+end module matrix_array_assembler_names

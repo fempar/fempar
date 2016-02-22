@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module SB_sparse_matrix_array_assembler_names
+module sparse_matrix_array_assembler_names
   use types_names
   use allocatable_array_names
 
   ! Abstract modules
-  use SB_matrix_array_assembler_names
+  use matrix_array_assembler_names
   use matrix_names
   use array_names
 
@@ -42,7 +42,7 @@ module SB_sparse_matrix_array_assembler_names
 # include "debug.i90"
   private
 
-  type, extends(SB_matrix_array_assembler_t) :: SB_sparse_matrix_array_assembler_t
+  type, extends(matrix_array_assembler_t) :: sparse_matrix_array_assembler_t
   contains
     procedure :: assembly         => sparse_matrix_array_assembler_assembly
     procedure :: face_assembly    => sparse_matrix_array_assembler_face_assembly
@@ -51,7 +51,7 @@ module SB_sparse_matrix_array_assembler_names
   end type
 
 ! Data types
-public :: SB_sparse_matrix_array_assembler_t
+public :: sparse_matrix_array_assembler_t
 public :: element_sparse_matrix_assembly, element_serial_scalar_array_assembly
 
 contains
@@ -64,7 +64,7 @@ subroutine sparse_matrix_array_assembler_assembly( this, &
                                                    elmat, &
                                                    elvec ) 
  implicit none
- class(SB_sparse_matrix_array_assembler_t), intent(inout) :: this
+ class(sparse_matrix_array_assembler_t), intent(inout) :: this
  integer(ip)                              , intent(in)    :: number_fe_spaces
  integer(ip)                              , intent(in)    :: number_nodes(number_fe_spaces)
  type(i1p_t)                              , intent(in)    :: elem2dof(number_fe_spaces)
@@ -109,7 +109,7 @@ end subroutine sparse_matrix_array_assembler_assembly
 
 subroutine sparse_matrix_array_assembler_allocate( this )
  implicit none
- class(SB_sparse_matrix_array_assembler_t), intent(inout) :: this
+ class(sparse_matrix_array_assembler_t), intent(inout) :: this
  class(array_t), pointer :: array
  array=>this%get_array()
  call array%allocate()
@@ -118,7 +118,7 @@ end subroutine sparse_matrix_array_assembler_allocate
 subroutine sparse_matrix_array_assembler_compress_storage( this, & 
                                                            sparse_matrix_storage_format )
   implicit none
-  class(SB_sparse_matrix_array_assembler_t) , intent(inout) :: this
+  class(sparse_matrix_array_assembler_t) , intent(inout) :: this
   character(*)                              , intent(in)    :: sparse_matrix_storage_format
   class(matrix_t), pointer :: matrix
   matrix=>this%get_matrix() 
@@ -146,35 +146,6 @@ subroutine element_sparse_matrix_assembly( matrix, number_fe_spaces, number_node
  integer(ip) :: idof, jdof 
  integer(ip) :: inode, jnode
  integer(ip) :: ielmat, jelmat
- 
- ! We are going to use a single entry-wise insertion approach.
- ! In the future, we may consider an "optimization" that
- ! inserts all entries in one shot. This, however, may
- ! imply dynamic/memory allocation/deallocation to e.g. transform
- ! elmat into a 1D array. Note that, on the other
- ! hand, that type(sparse_matrix_t) already supports
- ! that some of entries in elem2dof might be zero, ignoring them (as they would
- ! be out of the (imin,imax,jmin,jmax) 
- !ielmat=0
- !do ife_space=1, number_fe_spaces
- !  assert(field_blocks(ife_space)==1)
- !  do inode=1, number_nodes(ife_space)
- !    idof = elem2dof(ife_space)%p(inode)
- !    jelmat=0
- !    ielmat=ielmat+1
- !    do jfe_space=1, number_fe_spaces
- !      if (field_coupling(ife_space,jfe_space)) then
- !        do jnode=1, number_nodes(jfe_space)
- !          jdof = elem2dof(jfe_space)%p(jnode)
- !          jelmat=jelmat+1
- !          call matrix%insert(idof,jdof,elmat(ielmat,jelmat),1,matrix%get_num_rows(),1,matrix%get_num_cols())
- !        end do
- !      else
- !        jelmat=jelmat+number_nodes(jfe_space)
- !      end if
- !    end do
- !  end do
- !end do
  
  ielmat=0
  do ife_space=1, number_fe_spaces
@@ -226,7 +197,7 @@ subroutine sparse_matrix_array_assembler_face_assembly(this,number_fe_spaces,tes
      &                                                 trial_elem2dof,field_blocks,field_coupling,  &
      &                                                 facemat,elvec ) 
   implicit none
-  class(SB_sparse_matrix_array_assembler_t), intent(inout) :: this
+  class(sparse_matrix_array_assembler_t), intent(inout) :: this
   integer(ip)                              , intent(in)    :: number_fe_spaces
   integer(ip)                              , intent(in)    :: test_number_nodes(number_fe_spaces)
   integer(ip)                              , intent(in)    :: trial_number_nodes(number_fe_spaces)
@@ -301,5 +272,5 @@ subroutine element_sparse_matrix_face_assembly( matrix, number_fe_spaces, test_n
 
 end subroutine element_sparse_matrix_face_assembly
 
-end module SB_sparse_matrix_array_assembler_names
+end module sparse_matrix_array_assembler_names
 

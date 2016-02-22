@@ -1,7 +1,7 @@
 !====================================================================================================
 subroutine create_face_array (this)
   implicit none
-  class(SB_serial_fe_space_t), target, intent(inout) :: this
+  class(serial_fe_space_t), target, intent(inout) :: this
 
   integer(ip)                    :: face_id, i, j
   integer(ip)                    :: number_interior_faces, number_boundary_faces, number_total_faces

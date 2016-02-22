@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module SB_fe_space_names
+module serial_fe_space_names
   use memor_names
   use allocatable_array_names
   use matrix_names
@@ -35,16 +35,15 @@ module SB_fe_space_names
   use serial_scalar_array_names
   use block_sparse_matrix_names
   use serial_block_array_names
-  use SB_matrix_array_assembler_names
-  use SB_sparse_matrix_array_assembler_names
-  use SB_block_sparse_matrix_array_assembler_names
+  use matrix_array_assembler_names
+  use sparse_matrix_array_assembler_names
+  use block_sparse_matrix_array_assembler_names
   use types_names
   use field_names
   use list_types_names
   use reference_fe_names
   use triangulation_names
   use reference_fe_factory_names
-  !use integration_tools_names
   use migratory_element_names
   use conditions_names
   use hash_table_names
@@ -64,14 +63,13 @@ module SB_fe_space_names
   !   that must be provided by any fe_space_t concretization
   ! * serial_fe_space_t: The serial version of the fe_space_t, which includes an array
   !   of finite_element_t, the array of all possible reference_fe_t and volume_integrator_t
-  !   in the FE space, the total number of DOFs and an array that provides the DOFs
-  !   in a VEF.
+  !   in the FE space, and the total number of DOFs.
   ! * fe_function_scalar/vector/tensor_t: 3 different field-dependent objects that contain
   !   two work arrays at the element level: The first stores the nodal values of the FE  
   !   approximation from a global dof-vector. The second gives the values of the FE
   !   approximation at the quadrature points.
 
-  type :: SB_finite_element_t
+  type :: finite_element_t
      private 
      integer(ip)                                 :: number_nodes
      integer(ip)                                 :: number_fe_spaces
@@ -83,8 +81,8 @@ module SB_fe_space_names
      type(fe_map_t)                , pointer     :: fe_map
      
      type(p_reference_fe_t)        , pointer     :: reference_fe_phy(:) 
-     type(SB_quadrature_t)         , pointer     :: quadrature
-     type(SB_p_volume_integrator_t), pointer     :: volume_integrator(:)
+     type(quadrature_t)         , pointer     :: quadrature
+     type(p_volume_integrator_t), pointer     :: volume_integrator(:)
      
      type(i1p_t)                   , allocatable :: elem2dof(:)
      type(i1p_t)                   , allocatable :: bc_code(:)
@@ -116,21 +114,21 @@ module SB_fe_space_names
                                & update_vector_values, &
                                & update_tensor_values
      
-  end type SB_finite_element_t
+  end type finite_element_t
 
-  type :: p_SB_finite_element_t
-     type(SB_finite_element_t), pointer :: p
-  end type p_SB_finite_element_t
+  type :: p_finite_element_t
+     type(finite_element_t), pointer :: p
+  end type p_finite_element_t
 
-  public :: SB_finite_element_t, p_SB_finite_element_t
+  public :: finite_element_t, p_finite_element_t
 
   type :: finite_face_t
      private
      integer(ip)                            :: number_fe_spaces
      type(face_topology_t)    , pointer     :: face_topology
-     type(p_SB_finite_element_t)            :: neighbour_fe(2)
+     type(p_finite_element_t)            :: neighbour_fe(2)
      type(face_map_t)         , pointer     :: map
-     type(SB_quadrature_t)    , pointer     :: quadrature
+     type(quadrature_t)    , pointer     :: quadrature
      type(p_face_integrator_t), allocatable :: face_integrator(:)
    contains
      procedure, non_overridable :: create              => finite_face_create
@@ -148,19 +146,19 @@ module SB_fe_space_names
 
   public :: finite_face_t
 
-  type :: SB_serial_fe_space_t
+  type :: serial_fe_space_t
      private
      integer(ip)                                 :: number_fe_spaces   
      type(p_fe_map_t)              , allocatable :: fe_map(:)
      type(face_map_t)              , allocatable :: face_map(:)
      type(p_reference_fe_t)        , allocatable :: reference_fe_phy_list(:)
-     type(SB_p_quadrature_t)       , allocatable :: quadrature(:)
-     type(SB_quadrature_t)         , allocatable :: face_quadrature(:)
-     type(SB_p_volume_integrator_t), allocatable :: volume_integrator(:)
+     type(p_quadrature_t)       , allocatable :: quadrature(:)
+     type(quadrature_t)         , allocatable :: face_quadrature(:)
+     type(p_volume_integrator_t), allocatable :: volume_integrator(:)
      type(p_face_integrator_t)     , allocatable :: face_integrator(:)
      
      type(triangulation_t)         , pointer     :: triangulation
-     type(SB_finite_element_t)     , allocatable :: fe_array(:)
+     type(finite_element_t)        , allocatable :: fe_array(:)
      type(finite_face_t)           , allocatable :: face_array(:)
      
      ! Data related to block structure of the FE system + size of each block
@@ -202,9 +200,9 @@ module SB_fe_space_names
                                     & create_fe_function_vector, &
                                     & create_fe_function_tensor
      
-  end type SB_serial_fe_space_t
+  end type serial_fe_space_t
 
-  public :: SB_serial_fe_space_t
+  public :: serial_fe_space_t
   
   type fe_function_scalar_t
    private
@@ -297,4 +295,4 @@ contains
 
 #include "sbm_fe_function.i90"
 
-end module SB_fe_space_names
+end module serial_fe_space_names

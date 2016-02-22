@@ -5,7 +5,7 @@ subroutine interpolation_create( this, &
                                  number_entries_symmetric_tensor, &
                                  compute_hessian )
   implicit none
-  class(SB_interpolation_t), intent(inout) :: this
+  class(interpolation_t), intent(inout) :: this
   integer(ip)              , intent(in)    :: number_dimensions, & 
                                               number_shape_functions, & 
                                               number_evaluation_points
@@ -37,7 +37,7 @@ end subroutine interpolation_create
 
 subroutine interpolation_free( this)
   implicit none
-  class(SB_interpolation_t), intent(inout) :: this
+  class(interpolation_t), intent(inout) :: this
   this%number_dimensions = 0
   this%number_shape_functions = 0
   this%number_evaluation_points = 0
@@ -49,8 +49,8 @@ end subroutine interpolation_free
 
 subroutine interpolation_copy(this, source_interpolation)
   implicit none
-  class(SB_interpolation_t), intent(inout) :: this
-		type(SB_interpolation_t), intent(in)     :: source_interpolation
+  class(interpolation_t), intent(inout) :: this
+		type(interpolation_t), intent(in)     :: source_interpolation
 
 		call this%free()
   this%number_dimensions = source_interpolation%number_dimensions
@@ -73,7 +73,7 @@ end subroutine interpolation_copy
 
 subroutine interpolation_print ( this )
   implicit none
-  class(SB_interpolation_t), intent(in) :: this
+  class(interpolation_t), intent(in) :: this
   integer(ip) :: i,j,k
   write(*,*) 'number_dimensions: ', this%number_dimensions
   write(*,*) 'number_shape_functions: ', this%number_shape_functions
@@ -105,35 +105,35 @@ end subroutine interpolation_print
 
 function interpolation_get_number_dimensions( this )
   implicit none
-  class(SB_interpolation_t), intent(in) :: this
+  class(interpolation_t), intent(in) :: this
   integer(ip) :: interpolation_get_number_dimensions
   interpolation_get_number_dimensions = this%number_dimensions
 end function interpolation_get_number_dimensions
 
 function interpolation_get_number_shape_functions( this )
   implicit none
-  class(SB_interpolation_t), intent(in) :: this
+  class(interpolation_t), intent(in) :: this
   integer(ip) :: interpolation_get_number_shape_functions
   interpolation_get_number_shape_functions = this%number_shape_functions
 end function interpolation_get_number_shape_functions
 
 function interpolation_get_number_evaluation_points( this )
   implicit none
-  class(SB_interpolation_t), intent(in) :: this
+  class(interpolation_t), intent(in) :: this
   integer(ip) :: interpolation_get_number_evaluation_points
   interpolation_get_number_evaluation_points = this%number_evaluation_points
 end function interpolation_get_number_evaluation_points
 
 function interpolation_get_number_entries_symmetric_tensor( this )
   implicit none
-  class(SB_interpolation_t), intent(in) :: this
+  class(interpolation_t), intent(in) :: this
   integer(ip) :: interpolation_get_number_entries_symmetric_tensor
   interpolation_get_number_entries_symmetric_tensor = this%number_entries_symmetric_tensor
 end function interpolation_get_number_entries_symmetric_tensor
 
 function interpolation_get_shape_function ( this, i, j )
   implicit none
-  class(SB_interpolation_t), intent(in) :: this
+  class(interpolation_t), intent(in) :: this
   integer(ip), intent(in) :: i, j
   real(rp) :: interpolation_get_shape_function
   interpolation_get_shape_function = this%shape_functions(i,j)
@@ -141,7 +141,7 @@ end function interpolation_get_shape_function
 
 function interpolation_get_shape_derivative ( this, i, j, k )
   implicit none
-  class(SB_interpolation_t), intent(in) :: this
+  class(interpolation_t), intent(in) :: this
   integer(ip), intent(in) :: i, j, k
   real(rp) :: interpolation_get_shape_derivative
   interpolation_get_shape_derivative = this%shape_derivatives(i,j,k)
@@ -149,7 +149,7 @@ end function interpolation_get_shape_derivative
 
 function interpolation_get_hessian ( this, i, j, k )
   implicit none
-  class(SB_interpolation_t), intent(in) :: this
+  class(interpolation_t), intent(in) :: this
   integer(ip), intent(in) :: i, j, k
   real(rp) :: interpolation_get_hessian
   interpolation_get_hessian = this%hessian(i,j,k)
@@ -157,21 +157,21 @@ end function interpolation_get_hessian
 
 ! function interpolation_get_pointer_shape_functions ( this )
 !   implicit none
-!   class(SB_interpolation_t), target, intent(in) :: this
+!   class(interpolation_t), target, intent(in) :: this
 !   real(rp), pointer :: interpolation_get_pointer_shape_functions(:,:)
 !   interpolation_get_pointer_shape_functions => this%shape_functions
 ! end function interpolation_get_pointer_shape_functions
 
 ! function interpolation_get_pointer_shape_derivatives ( this )
 !   implicit none
-!   class(SB_interpolation_t), target, intent(in) :: this
+!   class(interpolation_t), target, intent(in) :: this
 !   real(rp), pointer :: interpolation_get_pointer_shape_derivatives(:,:,:)
 !   interpolation_get_pointer_shape_derivatives => this%shape_derivatives
 ! end function interpolation_get_pointer_shape_derivatives
 
 ! function interpolation_get_pointer_hessian ( this )
 !   implicit none
-!   class(SB_interpolation_t), target, intent(in) :: this
+!   class(interpolation_t), target, intent(in) :: this
 !   real(rp), pointer :: interpolation_get_pointer_hessian(:,:,:)
 !   if ( allocated( this%hessian ) ) then
 !      interpolation_get_pointer_hessian => this%hessian

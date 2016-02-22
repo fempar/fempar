@@ -307,10 +307,10 @@ contains
   subroutine  test_reference_face_stuff(f_trian, f_cond)
     use reference_fe_names
     use reference_fe_factory_names
-    use SB_fe_space_names
-    use SB_discrete_integration_names
+    use serial_fe_space_names
+    use discrete_integration_names
     use CDR_discrete_integration_names
-    use SB_fe_affine_operator_names
+    use fe_affine_operator_names
     use vector_dG_CDR_discrete_integration_names
     use block_sparse_matrix_names
 
@@ -319,10 +319,10 @@ contains
     type(triangulation_t), intent(inout) :: f_trian
     type(conditions_t)   , intent(in)    :: f_cond
 
-    type(SB_serial_fe_space_t)                    :: fe_space
+    type(serial_fe_space_t)                    :: fe_space
     type(p_reference_fe_t)                        :: reference_fe_array_two(2)
     type(p_reference_fe_t)                        :: reference_fe_array_one(1)
-    type(SB_fe_affine_operator_t)                 :: fe_affine_operator
+    type(fe_affine_operator_t)                 :: fe_affine_operator
     type(vector_dG_CDR_discrete_integration_t)    :: vector_dG_CDR_integration
     type(CDR_discrete_integration_t)              :: CDR_integration
     type(vector_space_t)    , pointer             :: fe_affine_operator_range_vector_space 

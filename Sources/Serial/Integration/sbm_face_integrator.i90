@@ -4,7 +4,7 @@ subroutine fe_map_face_restriction_create( this, quadrature, reference_fe_geomet
   implicit none
   ! Parameters
   class(fe_map_face_restriction_t), intent(inout) :: this
-  type(SB_quadrature_t)           , intent(in)    :: quadrature
+  type(quadrature_t)           , intent(in)    :: quadrature
   class(reference_fe_t)           , intent(in)    :: reference_fe_geometry
 
   integer(ip)           :: local_face_id, istat
@@ -28,7 +28,7 @@ subroutine fe_map_face_restriction_update( this, local_face_id, quadrature)
   ! Parameters
   class(fe_map_face_restriction_t), intent(inout) :: this
   integer(ip)                     , intent(in)    :: local_face_id
-  type(SB_quadrature_t)           , intent(in)    :: quadrature
+  type(quadrature_t)           , intent(in)    :: quadrature
 
   this%active_face_id = local_face_id
   call this%fe_map(local_face_id)%update(quadrature)
@@ -74,7 +74,7 @@ subroutine face_map_create(this,left_geo_reference_fe,right_geo_reference_fe, qu
   ! Parameters
   class(face_map_t)             , intent(inout) :: this
   class(reference_fe_t), pointer, intent(in)    :: left_geo_reference_fe, right_geo_reference_fe
-  type(SB_quadrature_t)         , intent(in)    :: quadrature
+  type(quadrature_t)         , intent(in)    :: quadrature
 
   call this%free()
 
@@ -109,7 +109,7 @@ subroutine face_map_update(this,local_face_id,face_quadrature,left_reference_fe_
   ! Parameters
   class(face_map_t)    , intent(inout) :: this
   integer(ip)          , intent(in)    :: local_face_id(2)
-  type(SB_quadrature_t), intent(in)    :: face_quadrature
+  type(quadrature_t), intent(in)    :: face_quadrature
   class(reference_fe_t), intent(in)    :: left_reference_fe_geo
 
   assert((local_face_id(2)<=0) .eqv. this%is_boundary)
@@ -209,11 +209,11 @@ subroutine interpolation_face_restriction_create(this, local_quadrature, referen
   implicit none
   ! Parameters
   class(interpolation_face_restriction_t)  , intent(inout) :: this
-  type(SB_quadrature_t)        ,  intent(in)   :: local_quadrature
+  type(quadrature_t)        ,  intent(in)   :: local_quadrature
   class(reference_fe_t), target, intent(in)    :: reference_fe_phy
 
   integer(ip)           :: local_face_id, istat
-  type(SB_quadrature_t) :: face_quadrature
+  type(quadrature_t) :: face_quadrature
 
   call this%free()
   this%active_face_id = -1
@@ -262,7 +262,7 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   implicit none
   ! Parameters
   class(face_integrator_t)      , intent(inout) :: this
-  type(SB_quadrature_t)         , intent(in)    :: quadrature
+  type(quadrature_t)         , intent(in)    :: quadrature
   class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
 
   call this%free()

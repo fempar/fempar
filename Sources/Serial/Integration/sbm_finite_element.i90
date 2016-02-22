@@ -9,13 +9,13 @@ subroutine finite_element_create( this, &
                                   field_blocks,  &
                                   boundary_conditions )
   implicit none
-  class(SB_finite_element_t)            , intent(inout) :: this 
+  class(finite_element_t)            , intent(inout) :: this 
   type(elem_topology_t)         , target, intent(in)    :: cell
   integer(ip)                           , intent(in)    :: number_fe_spaces
   type(p_reference_fe_t)        , target, intent(in)    :: reference_fe_phy(number_fe_spaces)
-  type(SB_quadrature_t)         , target, intent(in)    :: quadrature
+  type(quadrature_t)         , target, intent(in)    :: quadrature
   type(fe_map_t)                , target, intent(in)    :: fe_map
-  type(SB_p_volume_integrator_t), target, intent(in)    :: volume_integrator(number_fe_spaces)  
+  type(p_volume_integrator_t), target, intent(in)    :: volume_integrator(number_fe_spaces)  
   integer(ip)                           , intent(in)    :: number_blocks
   integer(ip)                   , target, intent(in)    :: field_blocks(number_blocks)
   type(conditions_t)                    , intent(in)    :: boundary_conditions
@@ -69,7 +69,7 @@ end subroutine finite_element_create
 
 subroutine finite_element_update_integration( this )
   implicit none
-  class(SB_finite_element_t), intent(inout) :: this 
+  class(finite_element_t), intent(inout) :: this 
   integer(ip)                      :: i
   real(rp), pointer :: coordinates(:,:)
 
@@ -84,7 +84,7 @@ end subroutine finite_element_update_integration
 
 subroutine finite_element_free( this )
   implicit none
-  class(SB_finite_element_t), intent(inout) :: this 
+  class(finite_element_t), intent(inout) :: this 
   integer(ip) :: j
   
   nullify(this%cell)
@@ -109,7 +109,7 @@ end subroutine finite_element_free
 subroutine finite_element_fill_interior_dofs ( this, fe_space_id, dof_count )
   implicit none
   ! Parameters
-  class(SB_finite_element_t), intent(inout)   :: this
+  class(finite_element_t), intent(inout)   :: this
   integer(ip)               , intent(in)      :: fe_space_id
   integer(ip)               , intent(inout)   :: dof_count
 
@@ -137,7 +137,7 @@ end subroutine finite_element_fill_interior_dofs
 subroutine finite_element_fill_dofs_on_vef ( this, vef_local_id, fe_space_id, dof_count )
   implicit none
   ! Parameters
-  class(SB_finite_element_t), intent(inout)   :: this
+  class(finite_element_t), intent(inout)   :: this
   integer(ip)               , intent(in)      :: vef_local_id
   integer(ip)               , intent(in)      :: fe_space_id
   integer(ip)               , intent(inout)   :: dof_count
@@ -162,9 +162,9 @@ subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
                                                            s2t_perm_for_interior_nodes_vef)
   implicit none
   ! Parameters
-  class(SB_finite_element_t) , target, intent(inout) :: this
+  class(finite_element_t) , target, intent(inout) :: this
   integer(ip)                        , intent(in)    :: target_vef_lid
-  type(SB_finite_element_t) , target , intent(in)    :: source_fe
+  type(finite_element_t) , target , intent(in)    :: source_fe
   integer(ip)                        , intent(in)    :: source_vef_lid
   integer(ip)                        , intent(in)    :: fe_space_id
   integer(ip)                        , intent(out)   :: s2t_perm_for_interior_nodes_vef(:) ! Workspace
@@ -206,57 +206,57 @@ end subroutine finite_element_fill_dofs_on_vef_from_source_element
 
 function finite_element_get_number_nodes ( this )
   implicit none
-  class(SB_finite_element_t), intent(in) :: this
+  class(finite_element_t), intent(in) :: this
   integer(ip)                            :: finite_element_get_number_nodes
   finite_element_get_number_nodes = this%number_nodes
 end function finite_element_get_number_nodes
 
 function finite_element_get_fe_map ( this )
   implicit none
-  class(SB_finite_element_t), target, intent(in)  :: this
+  class(finite_element_t), target, intent(in)  :: this
   type(fe_map_t)                        , pointer :: finite_element_get_fe_map
   finite_element_get_fe_map => this%fe_map
 end function finite_element_get_fe_map
 
 function finite_element_get_quadrature ( this )
   implicit none
-  class(SB_finite_element_t), target, intent(in)  :: this
-  type(SB_quadrature_t), pointer :: finite_element_get_quadrature
+  class(finite_element_t), target, intent(in)  :: this
+  type(quadrature_t), pointer :: finite_element_get_quadrature
   finite_element_get_quadrature => this%quadrature
 end function finite_element_get_quadrature
 
 function finite_element_get_volume_integrator ( this, i )
   implicit none
-  class(SB_finite_element_t), target, intent(in)  :: this
+  class(finite_element_t), target, intent(in)  :: this
   integer(ip)                       , intent(in)  :: i
-  type(SB_volume_integrator_t)      , pointer     :: finite_element_get_volume_integrator
+  type(volume_integrator_t)      , pointer     :: finite_element_get_volume_integrator
   finite_element_get_volume_integrator => this%volume_integrator(i)%p
 end function finite_element_get_volume_integrator
 
 function finite_element_get_elem2dof( this )
   implicit none
-  class(SB_finite_element_t), target, intent(in) :: this
+  class(finite_element_t), target, intent(in) :: this
   type(i1p_t), pointer :: finite_element_get_elem2dof(:)
   finite_element_get_elem2dof => this%elem2dof
 end function finite_element_get_elem2dof
 
 function finite_element_get_bc_code( this )
   implicit none
-  class(SB_finite_element_t), target, intent(in) :: this
+  class(finite_element_t), target, intent(in) :: this
   type(i1p_t), pointer :: finite_element_get_bc_code(:)
   finite_element_get_bc_code => this%bc_code
 end function finite_element_get_bc_code
 
 function finite_element_get_bc_value( this )
   implicit none
-  class(SB_finite_element_t), target, intent(in) :: this
+  class(finite_element_t), target, intent(in) :: this
   type(r1p_t), pointer :: finite_element_get_bc_value(:)
   finite_element_get_bc_value => this%bc_value
 end function finite_element_get_bc_value
 
 subroutine finite_element_get_number_nodes_per_field ( this, number_nodes )
   implicit none
-  class(SB_finite_element_t), intent(in)  :: this
+  class(finite_element_t), intent(in)  :: this
   integer(ip)               , intent(out) :: number_nodes(this%number_fe_spaces)
   integer(ip) :: i
   do i = 1, this%number_fe_spaces
@@ -266,7 +266,7 @@ end subroutine finite_element_get_number_nodes_per_field
 
 function finite_element_get_subset_id ( this )
   implicit none
-  class(SB_finite_element_t), intent(in) :: this
+  class(finite_element_t), intent(in) :: this
   integer(ip)                            :: finite_element_get_subset_id
   finite_element_get_subset_id = this%cell%subset_id
 end function finite_element_get_subset_id
@@ -277,7 +277,7 @@ end function finite_element_get_subset_id
 
 subroutine finite_element_update_scalar_values (this, fe_function_scalar, vector_dof_values)
   implicit none
-  class(SB_finite_element_t), intent(in)    :: this
+  class(finite_element_t), intent(in)    :: this
   type(fe_function_scalar_t), intent(inout) :: fe_function_scalar
   class(vector_t)           , intent(in)    :: vector_dof_values
 
@@ -313,7 +313,7 @@ end subroutine finite_element_update_scalar_values
 
 subroutine finite_element_update_vector_values (this, fe_function_vector, vector_dof_values)
   implicit none
-  class(SB_finite_element_t), intent(in)              :: this
+  class(finite_element_t), intent(in)              :: this
   type(fe_function_vector_t), intent(inout)           :: fe_function_vector
   class(vector_t)           , intent(in)   , optional :: vector_dof_values
 
@@ -348,7 +348,7 @@ end subroutine finite_element_update_vector_values
 
 subroutine finite_element_update_tensor_values (this, fe_function_tensor, vector_dof_values)
   implicit none
-  class(SB_finite_element_t), intent(in)              :: this
+  class(finite_element_t), intent(in)              :: this
   type(fe_function_tensor_t), intent(inout)           :: fe_function_tensor
   class(vector_t)           , intent(in)   , optional :: vector_dof_values
 

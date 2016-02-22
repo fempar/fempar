@@ -4,7 +4,7 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
   class(fe_map_t)      , intent(inout) :: this
-  type(SB_quadrature_t), intent(in)    :: quadrature
+  type(quadrature_t), intent(in)    :: quadrature
   class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
   integer(ip) :: number_dimensions
@@ -47,7 +47,7 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   ! Parameters
   class(fe_map_t)      , intent(inout) :: this
   integer(ip)          , intent(in)    :: local_face_id
-  type(SB_quadrature_t), intent(in)    :: quadrature
+  type(quadrature_t), intent(in)    :: quadrature
   class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
   integer(ip) :: number_dimensions
@@ -90,7 +90,7 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
   implicit none
   ! Parameters
   class(fe_map_t)       , intent(inout) :: this
-  type(SB_quadrature_t) , intent(in)    :: quadrature
+  type(quadrature_t) , intent(in)    :: quadrature
   class(reference_fe_t) , intent(in)    :: reference_fe_geo
 
   integer(ip) :: number_dimensions, number_face_dimensions
@@ -135,7 +135,7 @@ subroutine fe_map_update( this, quadrature)
   !-----------------------------------------------------------------------
   implicit none    
   class(fe_map_t)      , intent(inout) :: this
-  type(SB_quadrature_t), intent(in)    :: quadrature
+  type(quadrature_t), intent(in)    :: quadrature
 
   ! Locals
   real(rp), allocatable :: wmat1(:,:,:)
@@ -242,7 +242,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
   class(fe_map_t)      , intent(inout) :: this
   integer(ip)          , intent(in)    :: local_face_id
   class(reference_fe_t), intent(in)    :: reference_fe
-  type(SB_quadrature_t), intent(in)    :: quadrature
+  type(quadrature_t), intent(in)    :: quadrature
   
   integer(ip) :: evaluation_point_id, node_id, idime, jdime, local_vef_id,  reorientation_factor
   integer(ip) :: number_face_dimensions, number_elem_dimensions, orientation_face
@@ -394,8 +394,8 @@ end subroutine p_fe_map_free
 subroutine volume_integrator_create( this, quadrature, reference_fe )
   implicit none
   ! Parameters
-  class(SB_volume_integrator_t), intent(inout) :: this 
-  type(SB_quadrature_t)        ,  intent(in)   :: quadrature
+  class(volume_integrator_t), intent(inout) :: this 
+  type(quadrature_t)        ,  intent(in)   :: quadrature
   class(reference_fe_t), target,  intent(in)   :: reference_fe  
 
   call this%free()
@@ -410,7 +410,7 @@ end subroutine volume_integrator_create
 
 subroutine volume_integrator_free( this )
   implicit none
-  class(SB_volume_integrator_t), intent(inout) :: this
+  class(volume_integrator_t), intent(inout) :: this
   call this%interpolation%free()
   call this%interpolation_o_map%free()
   nullify(this%reference_fe)
@@ -421,7 +421,7 @@ end subroutine volume_integrator_free
 !==================================================================================================
 subroutine volume_integrator_update( this, fe_map )
   implicit none
-  class(SB_volume_integrator_t), intent(inout) :: this
+  class(volume_integrator_t), intent(inout) :: this
   type(fe_map_t)               , intent(in)    :: fe_map
 
   call this%reference_fe%update_interpolation(fe_map, this%interpolation,this%interpolation_o_map)
@@ -429,7 +429,7 @@ end subroutine volume_integrator_update
 !==================================================================================================
 subroutine volume_integrator_print( this )
   implicit none
-  class(SB_volume_integrator_t), intent(in) :: this
+  class(volume_integrator_t), intent(in) :: this
   write(*,*) 'PRINT VOLUME INTEGRATOR: '
   write(*,*) '%%%%%%%%%%%%%%%% interpolation: %%%%%%%%%%%%%%%%'
   call this%interpolation%print()
@@ -440,8 +440,8 @@ end subroutine volume_integrator_print
 !==================================================================================================
 function volume_integrator_get_interpolation_reference_cell(this)
   implicit none
-  class(SB_volume_integrator_t), target, intent(in):: this
-  type(SB_interpolation_t), pointer ::  volume_integrator_get_interpolation_reference_cell
+  class(volume_integrator_t), target, intent(in):: this
+  type(interpolation_t), pointer ::  volume_integrator_get_interpolation_reference_cell
 
   volume_integrator_get_interpolation_reference_cell => this%interpolation
 end function volume_integrator_get_interpolation_reference_cell
@@ -449,8 +449,8 @@ end function volume_integrator_get_interpolation_reference_cell
 !==================================================================================================
 function volume_integrator_get_interpolation_real_cell(this)
   implicit none
-  class(SB_volume_integrator_t), target, intent(in) :: this
-  type(SB_interpolation_t), pointer ::  volume_integrator_get_interpolation_real_cell
+  class(volume_integrator_t), target, intent(in) :: this
+  type(interpolation_t), pointer ::  volume_integrator_get_interpolation_real_cell
 
   volume_integrator_get_interpolation_real_cell => this%interpolation_o_map
 end function volume_integrator_get_interpolation_real_cell
@@ -458,7 +458,7 @@ end function volume_integrator_get_interpolation_real_cell
 !==================================================================================================
 subroutine volume_integrator_get_value_scalar (this, ishape, qpoint, scalar_field)
   implicit none
-  class(SB_volume_integrator_t), intent(in)    :: this
+  class(volume_integrator_t), intent(in)    :: this
   integer(ip)                  , intent(in)    :: ishape
   integer(ip)                  , intent(in)    :: qpoint
   real(rp)                     , intent(out)   :: scalar_field
@@ -468,7 +468,7 @@ end subroutine volume_integrator_get_value_scalar
 
 subroutine volume_integrator_get_value_vector (this, ishape, qpoint, vector_field)
   implicit none
-  class(SB_volume_integrator_t), intent(in)    :: this
+  class(volume_integrator_t), intent(in)    :: this
   integer(ip)                  , intent(in)    :: ishape
   integer(ip)                  , intent(in)    :: qpoint
   type(vector_field_t)         , intent(out)   :: vector_field
@@ -478,7 +478,7 @@ end subroutine volume_integrator_get_value_vector
 
 subroutine volume_integrator_get_value_tensor (this, ishape, qpoint, tensor_field)
   implicit none
-  class(SB_volume_integrator_t), intent(in)    :: this
+  class(volume_integrator_t), intent(in)    :: this
   integer(ip)                  , intent(in)    :: ishape
   integer(ip)                  , intent(in)    :: qpoint
   type(tensor_field_t)         , intent(out)   :: tensor_field
@@ -487,7 +487,7 @@ end subroutine volume_integrator_get_value_tensor
 
 subroutine volume_integrator_get_value_symmetric_tensor (this, ishape, qpoint, symmetric_tensor_field)
   implicit none
-  class(SB_volume_integrator_t)  , intent(in)    :: this
+  class(volume_integrator_t)  , intent(in)    :: this
   integer(ip)                    , intent(in)    :: ishape
   integer(ip)                    , intent(in)    :: qpoint
   type(symmetric_tensor_field_t) , intent(out)   :: symmetric_tensor_field
@@ -496,7 +496,7 @@ end subroutine volume_integrator_get_value_symmetric_tensor
 
 subroutine volume_integrator_get_gradient_scalar (this, ishape, qpoint, vector_field)
   implicit none
-  class(SB_volume_integrator_t), intent(in)    :: this
+  class(volume_integrator_t), intent(in)    :: this
   integer(ip)                  , intent(in)    :: ishape
   integer(ip)                  , intent(in)    :: qpoint
   type(vector_field_t)         , intent(out)   :: vector_field
@@ -506,7 +506,7 @@ end subroutine volume_integrator_get_gradient_scalar
 
 subroutine volume_integrator_get_gradient_vector (this, ishape, qpoint, tensor_field)
   implicit none
-  class(SB_volume_integrator_t), intent(in)    :: this
+  class(volume_integrator_t), intent(in)    :: this
   integer(ip)                  , intent(in)    :: ishape
   integer(ip)                  , intent(in)    :: qpoint
   type(tensor_field_t)         , intent(out)   :: tensor_field
@@ -516,7 +516,7 @@ end subroutine volume_integrator_get_gradient_vector
 
 subroutine volume_integrator_get_symmetric_gradient_vector (this, ishape, qpoint, tensor_field)
   implicit none
-  class(SB_volume_integrator_t), intent(in)    :: this
+  class(volume_integrator_t), intent(in)    :: this
   integer(ip)                  , intent(in)    :: ishape
   integer(ip)                  , intent(in)    :: qpoint
   type(vector_field_t)         , intent(out)   :: tensor_field
@@ -525,7 +525,7 @@ end subroutine volume_integrator_get_symmetric_gradient_vector
 
 subroutine volume_integrator_get_divergence_vector (this, ishape, qpoint, scalar_field)
   implicit none
-  class(SB_volume_integrator_t), intent(in)    :: this
+  class(volume_integrator_t), intent(in)    :: this
   integer(ip)                  , intent(in)    :: ishape
   integer(ip)                  , intent(in)    :: qpoint
   real(rp)                     , intent(out)   :: scalar_field
@@ -535,7 +535,7 @@ end subroutine volume_integrator_get_divergence_vector
 
 subroutine volume_integrator_get_divergence_tensor (this, ishape, qpoint, vector_field)
   implicit none
-  class(SB_volume_integrator_t), intent(in)    :: this
+  class(volume_integrator_t), intent(in)    :: this
   integer(ip)                  , intent(in)    :: ishape
   integer(ip)                  , intent(in)    :: qpoint
   type(vector_field_t)         , intent(out)   :: vector_field
@@ -544,7 +544,7 @@ end subroutine volume_integrator_get_divergence_tensor
 
 subroutine volume_integrator_get_curl_vector (this, ishape, qpoint, vector_field)
   implicit none
-  class(SB_volume_integrator_t), intent(in)    :: this
+  class(volume_integrator_t), intent(in)    :: this
   integer(ip)                  , intent(in)    :: ishape
   integer(ip)                  , intent(in)    :: qpoint
   type(vector_field_t)         , intent(out)   :: vector_field
@@ -558,7 +558,7 @@ end subroutine volume_integrator_get_curl_vector
 
 subroutine volume_integrator_evaluate_fe_function_scalar ( this, nodal_values, quadrature_points_values )
   implicit none
-  class(SB_volume_integrator_t), intent(in)    :: this
+  class(volume_integrator_t), intent(in)    :: this
   real(rp)                     , intent(in)    :: nodal_values(:)
   real(rp)                     , intent(inout) :: quadrature_points_values(:)
 
@@ -567,7 +567,7 @@ end subroutine volume_integrator_evaluate_fe_function_scalar
 
 subroutine volume_integrator_evaluate_fe_function_vector ( this, nodal_values, quadrature_points_values )
   implicit none
-  class(SB_volume_integrator_t), intent(in)    :: this
+  class(volume_integrator_t), intent(in)    :: this
   real(rp)                     , intent(in)    :: nodal_values(:)
   type(vector_field_t)         , intent(inout) :: quadrature_points_values(:)
 
@@ -576,7 +576,7 @@ end subroutine volume_integrator_evaluate_fe_function_vector
 
 subroutine volume_integrator_evaluate_fe_function_tensor ( this, nodal_values, quadrature_points_values )
   implicit none
-  class(SB_volume_integrator_t), intent(in)    :: this
+  class(volume_integrator_t), intent(in)    :: this
   real(rp)                     , intent(in)    :: nodal_values(:)
   type(tensor_field_t)         , intent(inout) :: quadrature_points_values(:)
 
@@ -588,13 +588,13 @@ end subroutine volume_integrator_evaluate_fe_function_tensor
 ! p_volume_integrator_t type procedures
 subroutine p_volume_integrator_allocate( this )
   implicit none
-  class(SB_p_volume_integrator_t), intent(inout) :: this
+  class(p_volume_integrator_t), intent(inout) :: this
 		allocate(this%p)
 end subroutine p_volume_integrator_allocate
 
 subroutine p_volume_integrator_free( this )
   implicit none
-  class(SB_p_volume_integrator_t), intent(inout) :: this
+  class(p_volume_integrator_t), intent(inout) :: this
   call this%p%free()
 		deallocate(this%p)
 end subroutine p_volume_integrator_free

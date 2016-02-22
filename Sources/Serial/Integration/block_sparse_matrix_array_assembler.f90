@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module SB_block_sparse_matrix_array_assembler_names
+module block_sparse_matrix_array_assembler_names
   use types_names
   use allocatable_array_names
 
   ! Abstract modules
-  use SB_matrix_array_assembler_names
+  use matrix_array_assembler_names
   use matrix_names
   use array_names
 
@@ -43,7 +43,7 @@ module SB_block_sparse_matrix_array_assembler_names
 # include "debug.i90"
   private
 
-  type, extends(SB_matrix_array_assembler_t) :: SB_block_sparse_matrix_array_assembler_t
+  type, extends(matrix_array_assembler_t) :: block_sparse_matrix_array_assembler_t
 contains
   procedure :: assembly         => block_sparse_matrix_array_assembler_assembly
   procedure :: face_assembly    => block_sparse_matrix_array_assembler_face_assembly
@@ -52,7 +52,7 @@ contains
 end type
 
 ! Data types
-public :: SB_block_sparse_matrix_array_assembler_t
+public :: block_sparse_matrix_array_assembler_t
 
 contains
 subroutine block_sparse_matrix_array_assembler_assembly( this, & 
@@ -64,7 +64,7 @@ subroutine block_sparse_matrix_array_assembler_assembly( this, &
                                                          elmat, &
                                                          elvec )
  implicit none
- class(SB_block_sparse_matrix_array_assembler_t), intent(inout) :: this
+ class(block_sparse_matrix_array_assembler_t), intent(inout) :: this
  integer(ip)                                    , intent(in)    :: number_fe_spaces
  integer(ip)                                    , intent(in)    :: number_nodes(number_fe_spaces)
  type(i1p_t)                                    , intent(in)    :: elem2dof(number_fe_spaces)
@@ -110,7 +110,7 @@ end subroutine block_sparse_matrix_array_assembler_assembly
 
 subroutine block_sparse_matrix_array_assembler_compress_storage(this,sparse_matrix_storage_format)
   implicit none
-  class(SB_block_sparse_matrix_array_assembler_t), intent(inout) :: this
+  class(block_sparse_matrix_array_assembler_t), intent(inout) :: this
   character(*)                                   , intent(in)    :: sparse_matrix_storage_format
 		class(matrix_t), pointer :: matrix
 		matrix=>this%get_matrix() 
@@ -124,7 +124,7 @@ end subroutine block_sparse_matrix_array_assembler_compress_storage
 
 subroutine block_sparse_matrix_array_assembler_allocate(this)
   implicit none
-  class(SB_block_sparse_matrix_array_assembler_t), intent(inout) :: this
+  class(block_sparse_matrix_array_assembler_t), intent(inout) :: this
 		class(array_t), pointer :: array
   array=>this%get_array()
   call array%allocate()
@@ -149,30 +149,7 @@ subroutine element_block_sparse_matrix_assembly( matrix, &
   
   integer(ip) :: ielmat, ife_space, iblock, inode, idof
   integer(ip) :: jelmat, jfe_space, jblock, jnode, jdof
-  type(sparse_matrix_t), pointer :: mat  
-  
-  !ielmat = 0
-  !do ife_space = 1, number_fe_spaces
-  !   iblock = field_blocks(ife_space)
-  !   do inode = 1, number_nodes(ife_space)
-  !      idof = elem2dof(ife_space)%p(inode)
-  !      ielmat = ielmat + 1
-  !      jelmat = 0
-  !      do jfe_space = 1, number_fe_spaces
-  !         jblock = field_blocks(jfe_space)
-  !         if ( field_coupling(ife_space,jfe_space) ) then
-  !             mat => matrix%get_block(iblock,jblock)
-  !             do jnode = 1, number_nodes(jfe_space)
-  !                jdof = elem2dof(jfe_space)%p(jnode)
-  !                jelmat = jelmat + 1
-  !                call mat%insert(idof,jdof,elmat(ielmat,jelmat),1,mat%get_num_rows(),1,mat%get_num_cols())
-  !             end do
-  !         else
-  !             jelmat = jelmat + number_nodes(jfe_space)
-  !         end if
-  !      end do
-  !   end do
-  !end do
+  type(sparse_matrix_t), pointer :: mat
   
  ielmat=0
  do ife_space=1, number_fe_spaces
@@ -235,7 +212,7 @@ subroutine block_sparse_matrix_array_assembler_face_assembly(this,number_fe_spac
      &                                                 trial_elem2dof,field_blocks,field_coupling,  &
      &                                                 facemat,elvec ) 
   implicit none
-  class(SB_block_sparse_matrix_array_assembler_t), intent(inout) :: this
+  class(block_sparse_matrix_array_assembler_t), intent(inout) :: this
   integer(ip)                    , intent(in)    :: number_fe_spaces
   integer(ip)                    , intent(in)    :: test_number_nodes(number_fe_spaces)
   integer(ip)                    , intent(in)    :: trial_number_nodes(number_fe_spaces)
@@ -312,4 +289,4 @@ subroutine element_block_sparse_matrix_face_assembly(matrix, number_fe_spaces, t
 
 end subroutine element_block_sparse_matrix_face_assembly
    
-end module SB_block_sparse_matrix_array_assembler_names
+end module block_sparse_matrix_array_assembler_names

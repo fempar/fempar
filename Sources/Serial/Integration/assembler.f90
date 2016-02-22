@@ -25,19 +25,19 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module SB_assembler_names
+module assembler_names
   use types_names
 
   implicit none
 # include "debug.i90"
   private
 
-  type, abstract :: SB_assembler_t
+  type, abstract :: assembler_t
    contains
      procedure (assembly_interface)        , deferred :: assembly
      procedure (face_assembly_interface)   , deferred :: face_assembly
      procedure (compress_storage_interface), deferred :: compress_storage
-  end type SB_assembler_t
+  end type assembler_t
 
   abstract interface
      subroutine assembly_interface( this,             & 
@@ -48,9 +48,9 @@ module SB_assembler_names
           &                         field_coupling,   &
           &                         elmat,            &
           &                         elvec )
-       import :: SB_assembler_t, rp, ip, i1p_t
+       import :: assembler_t, rp, ip, i1p_t
        implicit none
-       class(SB_assembler_t) , intent(inout) :: this
+       class(assembler_t) , intent(inout) :: this
        integer(ip)           , intent(in)    :: number_fe_spaces
        integer(ip)           , intent(in)    :: number_nodes(number_fe_spaces)
        type(i1p_t)           , intent(in)    :: elem2dof(number_fe_spaces)
@@ -64,9 +64,9 @@ module SB_assembler_names
 
      subroutine face_assembly_interface(this,number_fe_spaces,test_number_nodes,trial_number_nodes, &
           &                   test_elem2dof,trial_elem2dof,field_blocks,field_coupling,facemat,elvec) 
-       import :: SB_assembler_t, rp, ip, i1p_t
+       import :: assembler_t, rp, ip, i1p_t
        implicit none
-       class(SB_assembler_t), intent(inout) :: this
+       class(assembler_t), intent(inout) :: this
        integer(ip)          , intent(in)    :: number_fe_spaces
        integer(ip)          , intent(in)    :: test_number_nodes(number_fe_spaces)
        integer(ip)          , intent(in)    :: trial_number_nodes(number_fe_spaces)
@@ -82,15 +82,15 @@ module SB_assembler_names
 
      subroutine compress_storage_interface( this, & 
           &                                 sparse_matrix_storage_format )
-       import :: SB_assembler_t
+       import :: assembler_t
        implicit none
-       class(SB_assembler_t) , intent(inout) :: this
+       class(assembler_t) , intent(inout) :: this
        character(*)          , intent(in)    :: sparse_matrix_storage_format
      end subroutine compress_storage_interface
 
   end interface
 
   ! Data types
-  public :: SB_assembler_t
+  public :: assembler_t
 
-end module SB_assembler_names
+end module assembler_names

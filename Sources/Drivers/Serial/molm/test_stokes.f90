@@ -230,11 +230,11 @@ program test_reference_fe
   !use reference_face_names
   use reference_fe_names
   use reference_fe_factory_names
-  use SB_fe_space_names
-  use SB_discrete_integration_names
+  use serial_fe_space_names
+  use discrete_integration_names
   use stokes_discrete_integration_names 
   use maxwell_discrete_integration_names
-  use SB_fe_affine_operator_names
+  use fe_affine_operator_names
   implicit none
 #include "debug.i90"
 
@@ -277,10 +277,10 @@ program test_reference_fe
   character(len=:), allocatable :: group
 
   ! SB
-  type(SB_serial_fe_space_t)            :: fe_space
+  type(serial_fe_space_t)            :: fe_space
   type(stokes_discrete_integration_t)   :: stokes_integration 
   type(maxwell_discrete_integration_t)  :: maxwell_integration
-  type(SB_fe_affine_operator_t)         :: fe_affine_operator
+  type(fe_affine_operator_t)         :: fe_affine_operator
   type(p_reference_fe_t)                :: composite_reference_array(2)
 
   integer(ip), allocatable :: nnodesfield(:)

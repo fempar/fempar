@@ -31,7 +31,7 @@ module reference_fe_names
   !   composition of the FE map and the interpolation, to provide derivatives in the
   !   physical space
 
-  type SB_quadrature_t
+  type quadrature_t
      private
      integer(ip)           ::   &
           number_dimensions,    &
@@ -46,20 +46,20 @@ module reference_fe_names
      procedure, non_overridable :: get_number_dimensions => quadrature_get_number_dimensions
      procedure, non_overridable :: get_number_evaluation_points => quadrature_get_number_evaluation_points
      procedure, non_overridable :: get_weight => quadrature_get_weight
-  end type SB_quadrature_t
+  end type quadrature_t
 
-  type SB_p_quadrature_t
-     type(SB_quadrature_t), pointer :: p => NULL()
+  type p_quadrature_t
+     type(quadrature_t), pointer :: p => NULL()
    contains
      procedure :: allocate => p_quadrature_allocate
      procedure :: free     => p_quadrature_free
-  end type SB_p_quadrature_t
+  end type p_quadrature_t
 
   ! Types
-  public :: SB_quadrature_t, SB_p_quadrature_t
+  public :: quadrature_t, p_quadrature_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type SB_interpolation_t
+  type interpolation_t
      private
      integer(ip)                ::  &
           number_dimensions,        &      
@@ -82,9 +82,9 @@ module reference_fe_names
      !procedure, non_overridable :: get_shape_function => interpolation_get_shape_function
      !procedure, non_overridable :: get_shape_derivative => interpolation_get_shape_derivative
      !procedure, non_overridable :: get_hessian  => interpolation_get_hessian
-  end type SB_interpolation_t
+  end type interpolation_t
 
-  public :: SB_interpolation_t
+  public :: interpolation_t
   
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   
@@ -94,8 +94,8 @@ module reference_fe_names
      integer(ip)                           :: number_evaluation_points
      integer(ip)                           :: number_faces
      integer(ip)                           :: active_face_id
-     type(SB_interpolation_t), allocatable :: interpolation(:)
-     type(SB_interpolation_t)              :: interpolation_o_map
+     type(interpolation_t), allocatable :: interpolation(:)
+     type(interpolation_t)              :: interpolation_o_map
    contains
      procedure, non_overridable :: create => interpolation_face_restriction_create
      procedure, non_overridable :: free   => interpolation_face_restriction_free
@@ -121,7 +121,7 @@ module reference_fe_names
      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
      real(rp), allocatable    :: normals(:,:)  
      ! Geometry interpolation_t in the reference element domain    
-     type(SB_interpolation_t) :: interpolation_geometry   
+     type(interpolation_t) :: interpolation_geometry   
      ! Characteristic length of the reference element
      real(rp)                 :: reference_fe_characteristic_length
    contains
@@ -169,7 +169,6 @@ module reference_fe_names
   
   character(*), parameter :: topology_quad = "quad"
   character(*), parameter :: topology_tet  = "tet"
-  
   character(*), parameter :: fe_type_lagrangian = "Lagrangian"
   
   ! Abstract reference_fe
@@ -312,46 +311,46 @@ module reference_fe_names
      end subroutine create_interface
      
      subroutine create_quadrature_interface ( this, quadrature, max_order )
-       import :: reference_fe_t, SB_quadrature_t, ip
+       import :: reference_fe_t, quadrature_t, ip
        implicit none 
        class(reference_fe_t), intent(in)    :: this
-       type(SB_quadrature_t), intent(inout) :: quadrature
+       type(quadrature_t), intent(inout) :: quadrature
        integer(ip), optional, intent(in)    :: max_order
      end subroutine create_quadrature_interface
  
      subroutine create_face_quadrature_interface ( this, quadrature, max_order  )
-       import :: reference_fe_t, SB_quadrature_t, ip
+       import :: reference_fe_t, quadrature_t, ip
        implicit none
        class(reference_fe_t), intent(in)    :: this
-       type(SB_quadrature_t), intent(inout) :: quadrature
+       type(quadrature_t), intent(inout) :: quadrature
        integer(ip), optional, intent(in)    :: max_order
      end subroutine create_face_quadrature_interface
      
      subroutine create_interpolation_interface ( this, quadrature, interpolation, compute_hessian )
-       import :: reference_fe_t, SB_quadrature_t, SB_interpolation_t
+       import :: reference_fe_t, quadrature_t, interpolation_t
        implicit none 
        class(reference_fe_t)   , intent(in)    :: this 
-       type(SB_quadrature_t)   , intent(in)    :: quadrature
-       type(SB_interpolation_t), intent(inout) :: interpolation
+       type(quadrature_t)   , intent(in)    :: quadrature
+       type(interpolation_t), intent(inout) :: interpolation
        logical       , optional, intent(in)    :: compute_hessian
      end subroutine create_interpolation_interface
 
      subroutine create_face_local_interpolation_interface ( this, quadrature, interpolation )
-       import :: reference_fe_t, SB_quadrature_t, SB_interpolation_t
+       import :: reference_fe_t, quadrature_t, interpolation_t
        implicit none
        class(reference_fe_t)   , intent(in)    :: this
-       type(SB_quadrature_t)   , intent(in)    :: quadrature
-       type(SB_interpolation_t), intent(inout) :: interpolation
+       type(quadrature_t)   , intent(in)    :: quadrature
+       type(interpolation_t), intent(inout) :: interpolation
      end subroutine create_face_local_interpolation_interface
 
      subroutine create_face_interpolation_interface ( this, local_face_id , local_quadrature,       &
           &                                           face_interpolation)
-       import :: reference_fe_t, ip, SB_quadrature_t, SB_interpolation_t
+       import :: reference_fe_t, ip, quadrature_t, interpolation_t
        implicit none 
        class(reference_fe_t)     , intent(in)    :: this
        integer(ip)               , intent(in)    :: local_face_id
-       type(SB_quadrature_t)     , intent(in)    :: local_quadrature
-       type(SB_interpolation_t)  , intent(inout) :: face_interpolation
+       type(quadrature_t)     , intent(in)    :: local_quadrature
+       type(interpolation_t)  , intent(inout) :: face_interpolation
      end subroutine create_face_interpolation_interface
  
      function get_bc_component_node_interface( this, node )
@@ -364,10 +363,10 @@ module reference_fe_names
 
      subroutine get_value_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,        &
           &                                 scalar_field )
-       import :: reference_fe_t, SB_interpolation_t, ip, rp
+       import :: reference_fe_t, interpolation_t, ip, rp
        implicit none
        class(reference_fe_t)   , intent(in)  :: this 
-       type(SB_interpolation_t), intent(in)  :: actual_cell_interpolation 
+       type(interpolation_t), intent(in)  :: actual_cell_interpolation 
        integer(ip)             , intent(in)  :: ishape
        integer(ip)             , intent(in)  :: qpoint
        real(rp)                , intent(out) :: scalar_field
@@ -375,10 +374,10 @@ module reference_fe_names
      
      subroutine get_value_vector_interface( this, actual_cell_interpolation, ishape, qpoint,        &
           &                                 vector_field )
-       import :: reference_fe_t, SB_interpolation_t, vector_field_t, ip
+       import :: reference_fe_t, interpolation_t, vector_field_t, ip
        implicit none
        class(reference_fe_t)   , intent(in)  :: this 
-       type(SB_interpolation_t), intent(in)  :: actual_cell_interpolation 
+       type(interpolation_t), intent(in)  :: actual_cell_interpolation 
        integer(ip)             , intent(in)  :: ishape
        integer(ip)             , intent(in)  :: qpoint
        type(vector_field_t)    , intent(out) :: vector_field
@@ -386,10 +385,10 @@ module reference_fe_names
      
      subroutine get_gradient_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,     &
           &                                    vector_field )
-       import :: reference_fe_t, SB_interpolation_t, vector_field_t, ip
+       import :: reference_fe_t, interpolation_t, vector_field_t, ip
        implicit none
        class(reference_fe_t)   , intent(in)  :: this 
-       type(SB_interpolation_t), intent(in)  :: actual_cell_interpolation 
+       type(interpolation_t), intent(in)  :: actual_cell_interpolation 
        integer(ip)             , intent(in)  :: ishape
        integer(ip)             , intent(in)  :: qpoint
        type(vector_field_t)    , intent(out) :: vector_field
@@ -397,10 +396,10 @@ module reference_fe_names
      
      subroutine get_gradient_vector_interface( this, actual_cell_interpolation, ishape, qpoint,     &
           &                                    tensor_field )
-       import :: reference_fe_t, SB_interpolation_t, tensor_field_t, ip
+       import :: reference_fe_t, interpolation_t, tensor_field_t, ip
        implicit none
        class(reference_fe_t)   , intent(in)  :: this 
-       type(SB_interpolation_t), intent(in)  :: actual_cell_interpolation 
+       type(interpolation_t), intent(in)  :: actual_cell_interpolation 
        integer(ip)             , intent(in)  :: ishape
        integer(ip)             , intent(in)  :: qpoint
        type(tensor_field_t)    , intent(out) :: tensor_field
@@ -408,10 +407,10 @@ module reference_fe_names
 
      subroutine get_divergence_vector_interface( this, actual_cell_interpolation, ishape, qpoint,        &
           &                                 scalar_field )
-      import :: reference_fe_t, SB_interpolation_t, ip, rp
+      import :: reference_fe_t, interpolation_t, ip, rp
        implicit none
        class(reference_fe_t)   , intent(in)  :: this 
-       type(SB_interpolation_t), intent(in)  :: actual_cell_interpolation 
+       type(interpolation_t), intent(in)  :: actual_cell_interpolation 
        integer(ip)             , intent(in)  :: ishape
        integer(ip)             , intent(in)  :: qpoint
        real(rp)                , intent(out) :: scalar_field
@@ -419,10 +418,10 @@ module reference_fe_names
 
      subroutine get_curl_vector_interface( this, actual_cell_interpolation, ishape, qpoint,     &
           &                                    vector_field )
-       import :: reference_fe_t, SB_interpolation_t, vector_field_t, ip
+       import :: reference_fe_t, interpolation_t, vector_field_t, ip
        implicit none
        class(reference_fe_t)   , intent(in)  :: this 
-       type(SB_interpolation_t), intent(in)  :: actual_cell_interpolation 
+       type(interpolation_t), intent(in)  :: actual_cell_interpolation 
        integer(ip)             , intent(in)  :: ishape
        integer(ip)             , intent(in)  :: qpoint
        type(vector_field_t)    , intent(out) :: vector_field
@@ -432,10 +431,10 @@ module reference_fe_names
                                                      & actual_cell_interpolation, &
                                                      & nodal_values, &
                                                      & quadrature_points_values)
-       import :: reference_fe_t, SB_interpolation_t, rp
+       import :: reference_fe_t, interpolation_t, rp
        implicit none
        class(reference_fe_t)   , intent(in)    :: this 
-       type(SB_interpolation_t), intent(in)    :: actual_cell_interpolation 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
        real(rp)                , intent(in)    :: nodal_values(:)
        real(rp)                , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_scalar_interface
@@ -444,10 +443,10 @@ module reference_fe_names
                                                      & actual_cell_interpolation, &
                                                      & nodal_values, &
                                                      & quadrature_points_values)
-       import :: reference_fe_t, SB_interpolation_t, rp, vector_field_t
+       import :: reference_fe_t, interpolation_t, rp, vector_field_t
        implicit none
        class(reference_fe_t)   , intent(in)    :: this 
-       type(SB_interpolation_t), intent(in)    :: actual_cell_interpolation 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
        real(rp)                , intent(in)    :: nodal_values(:)
        type(vector_field_t)    , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_vector_interface
@@ -456,10 +455,10 @@ module reference_fe_names
                                                      & actual_cell_interpolation, &
                                                      & nodal_values, &
                                                      & quadrature_points_values)
-       import :: reference_fe_t, SB_interpolation_t, rp, tensor_field_t
+       import :: reference_fe_t, interpolation_t, rp, tensor_field_t
        implicit none
        class(reference_fe_t)   , intent(in)    :: this 
-       type(SB_interpolation_t), intent(in)    :: actual_cell_interpolation 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
        real(rp)                , intent(in)    :: nodal_values(:)
        type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_tensor_interface     
@@ -481,12 +480,12 @@ module reference_fe_names
 
      subroutine update_interpolation_interface ( this, fe_map, interpolation_reference_cell,        &
           &                            interpolation_real_cell )
-       import :: reference_fe_t, fe_map_t, SB_interpolation_t
+       import :: reference_fe_t, fe_map_t, interpolation_t
        implicit none 
        class(reference_fe_t)    , intent(in)    :: this 
        type(fe_map_t)           , intent(in)    :: fe_map
-       type(SB_interpolation_t) , intent(in)    :: interpolation_reference_cell
-       type(SB_interpolation_t) , intent(inout) :: interpolation_real_cell
+       type(interpolation_t) , intent(in)    :: interpolation_reference_cell
+       type(interpolation_t) , intent(inout) :: interpolation_real_cell
      end subroutine update_interpolation_interface
 
      subroutine update_interpolation_face_interface ( this, local_face_id,fe_map_face_restriction,  &
@@ -548,13 +547,13 @@ module reference_fe_names
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-type SB_volume_integrator_t 
+type volume_integrator_t 
   private
   integer(ip)                    :: number_shape_functions
   integer(ip)                    :: number_evaluation_points
   class(reference_fe_t), pointer :: reference_fe
-  type(SB_interpolation_t)       :: interpolation      ! Unknown interpolation_t in the reference element domain
-  type(SB_interpolation_t)       :: interpolation_o_map! Unknown interpolation_t in the physical element domain
+  type(interpolation_t)       :: interpolation      ! Unknown interpolation_t in the reference element domain
+  type(interpolation_t)       :: interpolation_o_map! Unknown interpolation_t in the physical element domain
 contains
 
   procedure, non_overridable :: create => volume_integrator_create
@@ -606,16 +605,16 @@ contains
                                    & volume_integrator_evaluate_fe_function_vector, &
                                    & volume_integrator_evaluate_fe_function_tensor
 
-end type SB_volume_integrator_t
+end type volume_integrator_t
 
-type SB_p_volume_integrator_t
-  type(SB_volume_integrator_t), pointer :: p => NULL() 
+type p_volume_integrator_t
+  type(volume_integrator_t), pointer :: p => NULL() 
 contains
   procedure :: allocate => p_volume_integrator_allocate 
   procedure :: free     => p_volume_integrator_free
-end type SB_p_volume_integrator_t
+end type p_volume_integrator_t
 
-public :: SB_volume_integrator_t, SB_p_volume_integrator_t
+public :: volume_integrator_t, p_volume_integrator_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

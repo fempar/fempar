@@ -230,11 +230,11 @@ program test_reference_fe
   !use reference_face_names
   use reference_fe_names
   use reference_fe_factory_names
-  use SB_fe_space_names
-  use SB_discrete_integration_names
+  use serial_fe_space_names
+  use discrete_integration_names
   use poisson_discrete_integration_names
   use vector_laplacian_discrete_integration_names
-  use SB_fe_affine_operator_names
+  use fe_affine_operator_names
   implicit none
 #include "debug.i90"
 
@@ -276,10 +276,10 @@ program test_reference_fe
   character(len=:), allocatable :: group
 
   ! SB
-  type(SB_serial_fe_space_t) :: fe_space
+  type(serial_fe_space_t) :: fe_space
   type(poisson_discrete_integration_t) :: poisson_integration
   type(vector_laplacian_discrete_integration_t) :: vector_laplacian_integration
-  type(SB_fe_affine_operator_t)            :: fe_affine_operator
+  type(fe_affine_operator_t)            :: fe_affine_operator
   type(p_reference_fe_t) :: reference_fe_array_two(2)
   type(p_reference_fe_t) :: reference_fe_array_one(1)
 
@@ -388,22 +388,6 @@ program test_reference_fe
   call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
   call linear_solver%solve(vector)
   call linear_solver%free() 
-
-  ! ppars%type = pardiso_mkl_prec
-  ! call SB_preconditioner_create(fe_affine_operator,feprec,ppars)
-  ! call SB_preconditioner_symbolic_setup(feprec)
-  ! call SB_preconditioner_numerical_setup(feprec)
-  ! call SB_preconditioner_log_info(feprec)
-
-  ! fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-  ! call fe_affine_operator_range_vector_space%create_vector(vector)
-
-  ! ! Create linear solver, set operators and solve linear system
-  ! call linear_solver%create(senv)
-  ! call linear_solver%set_type_and_parameters_from_pl()
-  ! call linear_solver%set_operators(fe_affine_operator,feprec)
-  ! call linear_solver%solve(vector)
-  ! call linear_solver%free() 
 
   select type(vector)
      class is(serial_scalar_array_t)

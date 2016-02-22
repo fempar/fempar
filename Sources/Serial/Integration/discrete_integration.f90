@@ -1,34 +1,34 @@
-module SB_discrete_integration_names
+module discrete_integration_names
   use field_names
   use reference_fe_names
   use types_names
-  use SB_assembler_names
-  use SB_fe_space_names
+  use assembler_names
+  use serial_fe_space_names
   use memor_names
 
   implicit none
 # include "debug.i90"
   private
 
-  type, abstract :: SB_discrete_integration_t
+  type, abstract :: discrete_integration_t
    contains
      procedure (integrate_interface), deferred :: integrate
      procedure                                 :: impose_strong_dirichlet_data
-  end type SB_discrete_integration_t
+  end type discrete_integration_t
 
-  type SB_p_discrete_integration_t
-     class(SB_discrete_integration_t), pointer :: p => NULL()  
-  end type SB_p_discrete_integration_t
+  type p_discrete_integration_t
+     class(discrete_integration_t), pointer :: p => NULL()  
+  end type p_discrete_integration_t
 
-  public :: SB_discrete_integration_t, SB_p_discrete_integration_t
+  public :: discrete_integration_t, p_discrete_integration_t
 
   abstract interface
      subroutine integrate_interface ( this, fe_space, assembler  )
-       import :: SB_discrete_integration_t, SB_serial_fe_space_t, SB_assembler_t
+       import :: discrete_integration_t, serial_fe_space_t, assembler_t
        implicit none
-       class(SB_discrete_integration_t), intent(in)    :: this
-       class(SB_serial_fe_space_t)     , intent(inout) :: fe_space
-       class(SB_assembler_t)           , intent(inout) :: assembler
+       class(discrete_integration_t), intent(in)    :: this
+       class(serial_fe_space_t)     , intent(inout) :: fe_space
+       class(assembler_t)           , intent(inout) :: assembler
      end subroutine integrate_interface
   end interface
 
@@ -36,7 +36,7 @@ contains
 
 subroutine impose_strong_dirichlet_data ( this, elmat, elvec, code, value, nnode, num_fe_spaces )
  implicit none
- class(SB_discrete_integration_t) :: this
+ class(discrete_integration_t) :: this
  real(rp), intent(in) :: elmat(:,:)
  real(rp), intent(inout) :: elvec(:)  
  type(i1p_t), intent(in) :: code(:)
@@ -56,13 +56,13 @@ subroutine impose_strong_dirichlet_data ( this, elmat, elvec, code, value, nnode
 
 end subroutine impose_strong_dirichlet_data
 
-end module SB_discrete_integration_names
+end module discrete_integration_names
 
 module poisson_discrete_integration_names
   use field_names
-  use SB_assembler_names
-  use SB_fe_space_names
-  use SB_discrete_integration_names
+  use assembler_names
+  use serial_fe_space_names
+  use discrete_integration_names
   use reference_fe_names
   use types_names
   use memor_names
@@ -70,7 +70,7 @@ module poisson_discrete_integration_names
   implicit none
 # include "debug.i90"
   private
-  type, extends(SB_discrete_integration_t) :: poisson_discrete_integration_t
+  type, extends(discrete_integration_t) :: poisson_discrete_integration_t
      integer(ip) :: viscosity 
    contains
      procedure :: integrate
@@ -83,14 +83,14 @@ contains
   subroutine integrate ( this, fe_space, assembler )
     implicit none
     class(poisson_discrete_integration_t), intent(in)    :: this
-    class(SB_serial_fe_space_t)          , intent(inout) :: fe_space
-    class(SB_assembler_t)                , intent(inout) :: assembler
+    class(serial_fe_space_t)          , intent(inout) :: fe_space
+    class(assembler_t)                , intent(inout) :: assembler
 
-    type(SB_finite_element_t), pointer :: fe
-    type(SB_volume_integrator_t), pointer :: vol_int
+    type(finite_element_t), pointer :: fe
+    type(volume_integrator_t), pointer :: vol_int
     real(rp), allocatable :: elmat(:,:), elvec(:)
     type(fe_map_t), pointer :: fe_map
-    type(SB_quadrature_t), pointer :: quad
+    type(quadrature_t), pointer :: quad
 
     integer(ip)  :: igaus,inode,jnode,ngaus
     real(rp)     :: factor
@@ -162,9 +162,9 @@ end module poisson_discrete_integration_names
 
 module vector_laplacian_discrete_integration_names
 use field_names
-use SB_assembler_names
-use SB_fe_space_names
-use SB_discrete_integration_names
+use assembler_names
+use serial_fe_space_names
+use discrete_integration_names
 use reference_fe_names
 use types_names
 use memor_names
@@ -172,7 +172,7 @@ use memor_names
 implicit none
 # include "debug.i90"
 private
-type, extends(SB_discrete_integration_t) :: vector_laplacian_discrete_integration_t
+type, extends(discrete_integration_t) :: vector_laplacian_discrete_integration_t
 integer(ip) :: viscosity 
 contains
 procedure :: integrate
@@ -184,14 +184,14 @@ contains
   subroutine integrate ( this, fe_space, assembler )
     implicit none
     class(vector_laplacian_discrete_integration_t), intent(in)    :: this
-    class(SB_serial_fe_space_t)                   , intent(inout) :: fe_space
-    class(SB_assembler_t)                         , intent(inout) :: assembler
+    class(serial_fe_space_t)                   , intent(inout) :: fe_space
+    class(assembler_t)                         , intent(inout) :: assembler
 
-    type(SB_finite_element_t), pointer :: fe
-    type(SB_volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
+    type(finite_element_t), pointer :: fe
+    type(volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
     real(rp), allocatable :: elmat(:,:), elvec(:)
     type(fe_map_t), pointer :: fe_map
-    type(SB_quadrature_t), pointer :: quad
+    type(quadrature_t), pointer :: quad
     integer(ip), allocatable :: number_nodes_per_field(:)
 
     integer(ip)  :: igaus,inode,jnode,ioffset,joffset,ngaus

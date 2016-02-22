@@ -5,7 +5,7 @@ subroutine create( this, &
                    field_blocks, &
                    field_coupling )
   implicit none
-  class(SB_serial_fe_space_t), target, intent(inout) :: this
+  class(serial_fe_space_t), target, intent(inout) :: this
   type(triangulation_t)      , target, intent(in)    :: triangulation
   type(conditions_t)                 , intent(in)    :: boundary_conditions
   type(p_reference_fe_t),      target, intent(in)    :: reference_fe_phy(:)
@@ -63,7 +63,7 @@ end subroutine create
 
 subroutine fill_dof_info( this )
   implicit none
-  class(SB_serial_fe_space_t), intent(inout) :: this 
+  class(serial_fe_space_t), intent(inout) :: this 
   integer(ip) :: iblock, fe_space_id
   call memalloc( this%number_blocks, this%number_dofs, __FILE__, __LINE__ )
   this%number_dofs = 0
@@ -79,7 +79,7 @@ end subroutine fill_dof_info
 subroutine fill_elem2dof_and_count_dofs( this, fe_space_id, dof_count ) 
   implicit none
   ! Parameters
-  class(SB_serial_fe_space_t), intent(inout) :: this 
+  class(serial_fe_space_t), intent(inout) :: this 
   integer(ip)                , intent(in)    :: fe_space_id
   integer(ip)                , intent(inout) :: dof_count
   
@@ -122,7 +122,7 @@ end subroutine fill_elem2dof_and_count_dofs
 
 subroutine free( this )
   implicit none
-  class(SB_serial_fe_space_t), intent(inout) :: this
+  class(serial_fe_space_t), intent(inout) :: this
   
   integer(ip) :: iblock, i, j, number_nodes, istat, iobje, obje_g, inode, jnode
 
@@ -179,7 +179,7 @@ subroutine free( this )
 end subroutine free
 
 subroutine print ( this )
-  class(SB_serial_fe_space_t), intent(in)                 :: this 
+  class(serial_fe_space_t), intent(in)                 :: this 
   
   integer(ip) :: i,j
   do i  = 1, this%triangulation%num_elems
@@ -204,7 +204,7 @@ end subroutine print
 subroutine initialize_integration( this, max_order )
   implicit none
   ! Parameters
-  class(SB_serial_fe_space_t), intent(inout) :: this  
+  class(serial_fe_space_t), intent(inout) :: this  
   integer(ip), optional, intent(in)  :: max_order
   call this%initialize_quadrature(max_order)
   call this%initialize_fe_map()
@@ -214,7 +214,7 @@ end subroutine initialize_integration
 subroutine initialize_quadrature( this, max_order )
   implicit none
   ! Parameters
-  class(SB_serial_fe_space_t), intent(inout) :: this  
+  class(serial_fe_space_t), intent(inout) :: this  
   integer(ip), optional, intent(in)  :: max_order
   integer(ip) :: i
 
@@ -225,7 +225,7 @@ end subroutine initialize_quadrature
 
 subroutine initialize_volume_integrator( this )
   implicit none
-  class(SB_serial_fe_space_t), intent(inout) :: this
+  class(serial_fe_space_t), intent(inout) :: this
   integer(ip) :: i
   do i = 1, this%number_fe_spaces
      call this%volume_integrator(i)%p%create( this%quadrature(1)%p, & 
@@ -235,7 +235,7 @@ end subroutine initialize_volume_integrator
 
 subroutine initialize_fe_map(this)
   implicit none
-  class(SB_serial_fe_space_t), intent(inout) :: this  
+  class(serial_fe_space_t), intent(inout) :: this  
   integer(ip) :: i
   do i = 1, size(this%fe_map)
      call this%fe_map(i)%p%create( this%quadrature(i)%p, &
@@ -248,11 +248,11 @@ function create_assembler(this, &
                           diagonal_blocks_symmetric, & 
                           diagonal_blocks_sign)
   implicit none
-  class(SB_serial_fe_space_t)       , intent(in) :: this
+  class(serial_fe_space_t)       , intent(in) :: this
   logical                           , intent(in) :: diagonal_blocks_symmetric_storage(this%number_blocks)
   logical                           , intent(in) :: diagonal_blocks_symmetric(this%number_blocks)
   integer(ip)                       , intent(in) :: diagonal_blocks_sign(this%number_blocks)
-  class(SB_matrix_array_assembler_t), pointer    :: create_assembler
+  class(matrix_array_assembler_t), pointer    :: create_assembler
   
 		! Locals
 		class(matrix_t), pointer :: matrix
@@ -262,7 +262,7 @@ function create_assembler(this, &
 		integer(ip)          :: iblock, jblock
 
   if (this%number_blocks == 1) then
-     allocate ( SB_sparse_matrix_array_assembler_t :: create_assembler )
+     allocate ( sparse_matrix_array_assembler_t :: create_assembler )
      allocate ( sparse_matrix_t :: matrix )
      allocate ( serial_scalar_array_t  :: array )
      select type(matrix)
@@ -281,7 +281,7 @@ function create_assembler(this, &
         check(.false.)
      end select
   else
-     allocate ( SB_block_sparse_matrix_array_assembler_t :: create_assembler )
+     allocate ( block_sparse_matrix_array_assembler_t :: create_assembler )
      allocate ( block_sparse_matrix_t :: matrix )
      allocate ( serial_block_array_t  :: array )
      select type(matrix)
@@ -324,8 +324,8 @@ end function create_assembler
 
 subroutine symbolic_setup_assembler(this,matrix_array_assembler)
   implicit none
-  class(SB_serial_fe_space_t)        , intent(in)    :: this
-  class(SB_matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+  class(serial_fe_space_t)        , intent(in)    :: this
+  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
   ! Polymorphic matrix 
   class(matrix_t), pointer :: matrix
 
@@ -340,43 +340,43 @@ end subroutine symbolic_setup_assembler
 
 function get_number_elements ( this )
   implicit none
-  class(SB_serial_fe_space_t), intent(in) :: this
+  class(serial_fe_space_t), intent(in) :: this
   integer(ip)                 :: get_number_elements
   get_number_elements = this%triangulation%num_elems
 end function get_number_elements
 
 function get_number_interior_faces ( this )
   implicit none
-  class(SB_serial_fe_space_t), intent(in) :: this
+  class(serial_fe_space_t), intent(in) :: this
   integer(ip)                 :: get_number_interior_faces
   get_number_interior_faces = this%triangulation%number_interior_faces
 end function get_number_interior_faces
 
 function get_number_boundary_faces ( this )
   implicit none
-  class(SB_serial_fe_space_t), intent(in) :: this
+  class(serial_fe_space_t), intent(in) :: this
   integer(ip)                 :: get_number_boundary_faces
   get_number_boundary_faces = this%triangulation%number_boundary_faces
 end function get_number_boundary_faces
 
 function get_number_fe_spaces( this)
   implicit none
-  class(SB_serial_fe_space_t), intent(in) :: this 
+  class(serial_fe_space_t), intent(in) :: this 
   integer(ip) :: get_number_fe_spaces
   get_number_fe_spaces = this%number_fe_spaces
 end function get_number_fe_spaces
 
 function get_finite_element( this, i )
   implicit none
-  class(SB_serial_fe_space_t), target, intent(in) :: this
+  class(serial_fe_space_t), target, intent(in) :: this
   integer(ip) :: i
-  type(SB_finite_element_t), pointer :: get_finite_element
+  type(finite_element_t), pointer :: get_finite_element
   get_finite_element => this%fe_array(i)
 end function get_finite_element
 
 function get_finite_face( this, i )
   implicit none
-  class(SB_serial_fe_space_t), target, intent(in) :: this
+  class(serial_fe_space_t), target, intent(in) :: this
   integer(ip) :: i
   class(finite_face_t), pointer :: get_finite_face
   get_finite_face => this%face_array(i)
@@ -384,28 +384,28 @@ end function get_finite_face
 
 function get_number_blocks( this)
   implicit none
-  class(SB_serial_fe_space_t), intent(in) :: this 
+  class(serial_fe_space_t), intent(in) :: this 
   integer(ip) :: get_number_blocks
   get_number_blocks = this%number_blocks ! SB.alert 
 end function get_number_blocks
 
 function get_field_blocks( this )
   implicit none
-  class(SB_serial_fe_space_t), target, intent(in) :: this
+  class(serial_fe_space_t), target, intent(in) :: this
   integer(ip), pointer :: get_field_blocks(:)
   get_field_blocks => this%field_blocks
 end function get_field_blocks
 
 function get_field_coupling( this )
   implicit none
-  class(SB_serial_fe_space_t), target, intent(in) :: this
+  class(serial_fe_space_t), target, intent(in) :: this
   logical, pointer :: get_field_coupling(:,:)
   get_field_coupling => this%field_coupling
 end function get_field_coupling
 
 function get_max_number_nodes_field( this, ifield )
   implicit none
-  class(SB_serial_fe_space_t), intent(in) :: this 
+  class(serial_fe_space_t), intent(in) :: this 
   integer(ip)                , intent(in) :: ifield
   integer(ip) :: get_max_number_nodes_field, ielem
   assert(ifield <= this%number_fe_spaces)
@@ -418,7 +418,7 @@ function get_max_number_nodes_field( this, ifield )
 
  function get_max_number_nodes_fe_space( this )
   implicit none
-  class(SB_serial_fe_space_t), intent(in) :: this 
+  class(serial_fe_space_t), intent(in) :: this 
   integer(ip) :: get_max_number_nodes_fe_space, ielem, ifield
   get_max_number_nodes_fe_space = 0
   do ielem = 1, this%get_number_elements()
@@ -431,7 +431,7 @@ function get_max_number_nodes_field( this, ifield )
  
  function get_max_number_quadrature_points( this )
   implicit none
-  class(SB_serial_fe_space_t), intent(in) :: this 
+  class(serial_fe_space_t), intent(in) :: this 
   integer(ip) :: get_max_number_quadrature_points, iquad
   get_max_number_quadrature_points = 0
   do iquad = 1, size(this%quadrature)

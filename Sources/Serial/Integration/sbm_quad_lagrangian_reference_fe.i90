@@ -16,7 +16,7 @@ end subroutine quad_lagrangian_reference_fe_create
 subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, max_order )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this  
-  type(SB_quadrature_t)                , intent(inout) :: quadrature
+  type(quadrature_t)                , intent(inout) :: quadrature
   integer(ip)                , optional, intent(in)    :: max_order
   
   integer(ip) :: ngaus, order
@@ -34,7 +34,7 @@ end subroutine quad_lagrangian_reference_fe_create_quadrature
 subroutine quad_lagrangian_reference_fe_create_face_quadrature ( this, quadrature, max_order )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this
-  type(SB_quadrature_t)                , intent(inout) :: quadrature
+  type(quadrature_t)                , intent(inout) :: quadrature
   integer(ip)                , optional, intent(in)    :: max_order
 
   integer(ip) :: ngaus, order, face_dimensions
@@ -53,8 +53,8 @@ end subroutine quad_lagrangian_reference_fe_create_face_quadrature
 subroutine quad_lagrangian_reference_fe_create_interpolation ( this, quadrature, interpolation, compute_hessian )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(SB_quadrature_t)               , intent(in)     :: quadrature
-  type(SB_interpolation_t)            , intent(inout) :: interpolation
+  type(quadrature_t)               , intent(in)     :: quadrature
+  type(interpolation_t)            , intent(inout) :: interpolation
   logical,                    optional, intent(in)     :: compute_hessian
 
   integer(ip) :: nlocs, ntens, i
@@ -82,8 +82,8 @@ subroutine quad_lagrangian_reference_fe_create_face_interpolation( this,local_fa
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
   integer(ip)                          , intent(in)    :: local_face_id
-  type(SB_quadrature_t)                , intent(in)    :: local_quadrature
-  type(SB_interpolation_t)             , intent(inout) :: face_interpolation
+  type(quadrature_t)                , intent(in)    :: local_quadrature
+  type(interpolation_t)             , intent(inout) :: face_interpolation
 
   integer(ip) :: number_faces
   
@@ -102,8 +102,8 @@ subroutine quad_lagrangian_reference_fe_create_face_local_interpolation ( this, 
      &                                                                    interpolation)
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this
-  type(SB_quadrature_t)               , intent(in)     :: quadrature
-  type(SB_interpolation_t)            , intent(inout) :: interpolation
+  type(quadrature_t)               , intent(in)     :: quadrature
+  type(interpolation_t)            , intent(inout) :: interpolation
 
   integer(ip) :: nlocs
   integer(ip) :: number_nodes_face_scalar, number_dimensions_face
@@ -132,8 +132,8 @@ subroutine quad_lagrangian_reference_fe_update_interpolation( this, fe_map,     
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
   type(fe_map_t)                       , intent(in)    :: fe_map
-  type(SB_interpolation_t)             , intent(in)    :: interpolation_reference_cell
-  type(SB_interpolation_t)             , intent(inout) :: interpolation_real_cell
+  type(interpolation_t)             , intent(in)    :: interpolation_reference_cell
+  type(interpolation_t)             , intent(inout) :: interpolation_real_cell
 
   call femap_apply_to_interp( fe_map, interpolation_reference_cell,interpolation_real_cell )
 end subroutine quad_lagrangian_reference_fe_update_interpolation
@@ -163,33 +163,10 @@ function quad_lagrangian_reference_fe_get_bc_component_node( this, node )
   quad_lagrangian_reference_fe_get_bc_component_node = this%node_component_array(node,2)
 end function quad_lagrangian_reference_fe_get_bc_component_node
 
-!subroutine quad_lagrangian_reference_fe_get_value( this, shp, int, node, gp )
-!  implicit none
-!  class(quad_lagrangian_reference_fe_t), intent(in)  :: this 
-!  type(SB_interpolation_t)             , intent(in)  :: int 
-!  integer(ip)                          , intent(in)  :: node, gp
-!  real(rp)                             , intent(out) :: shp(:,:)
-!  shp = 0
-!  shp(this%node_component_array(node,2),1) = &
-!      int%shape_functions(this%node_component_array(node,1),gp)
-!end subroutine quad_lagrangian_reference_fe_get_value
-
-!subroutine quad_lagrangian_reference_fe_get_gradient( this, shg, int, node, gp )
-!  implicit none
-!  class(quad_lagrangian_reference_fe_t), intent(in)  :: this 
-!  type(SB_interpolation_t)             , intent(in)  :: int 
-!  integer(ip)                          , intent(in)  :: node, gp
-!  real(rp)                             , intent(out) :: shg(:,:)
-
-!  shg = 0
-!  shg(1:2,this%node_component_array(node,2)) = &
-!       int%shape_derivatives(1:2,this%node_component_array(node,1),gp)
-!end subroutine quad_lagrangian_reference_fe_get_gradient
-
 subroutine quad_lagrangian_reference_fe_get_value_scalar( this, actual_cell_interpolation, ishape, qpoint, scalar_field )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(SB_interpolation_t)             , intent(in)    :: actual_cell_interpolation 
+  type(interpolation_t)             , intent(in)    :: actual_cell_interpolation 
   integer(ip)                          , intent(in)    :: ishape
   integer(ip)                          , intent(in)    :: qpoint
   real(rp)                             , intent(out)   :: scalar_field
@@ -202,7 +179,7 @@ end subroutine quad_lagrangian_reference_fe_get_value_scalar
 subroutine quad_lagrangian_reference_fe_get_value_vector( this, actual_cell_interpolation, ishape, qpoint, vector_field )
   implicit none
   class(quad_lagrangian_reference_fe_t)   , intent(in)    :: this 
-  type(SB_interpolation_t)                , intent(in)    :: actual_cell_interpolation 
+  type(interpolation_t)                , intent(in)    :: actual_cell_interpolation 
   integer(ip)                             , intent(in)    :: ishape
   integer(ip)                             , intent(in)    :: qpoint
   type(vector_field_t)                    , intent(out)   :: vector_field
@@ -217,7 +194,7 @@ end subroutine quad_lagrangian_reference_fe_get_value_vector
 subroutine quad_lagrangian_reference_fe_get_gradient_scalar( this, actual_cell_interpolation, ishape, qpoint, vector_field )
   implicit none
   class(quad_lagrangian_reference_fe_t)   , intent(in)    :: this 
-  type(SB_interpolation_t)                , intent(in)    :: actual_cell_interpolation 
+  type(interpolation_t)                , intent(in)    :: actual_cell_interpolation 
   integer(ip)                             , intent(in)    :: ishape
   integer(ip)                             , intent(in)    :: qpoint
   type(vector_field_t)                    , intent(out)   :: vector_field
@@ -234,7 +211,7 @@ end subroutine quad_lagrangian_reference_fe_get_gradient_scalar
 subroutine quad_lagrangian_reference_fe_get_gradient_vector( this, actual_cell_interpolation, ishape, qpoint, tensor_field )
   implicit none
   class(quad_lagrangian_reference_fe_t)   , intent(in)    :: this 
-  type(SB_interpolation_t), intent(in)    :: actual_cell_interpolation 
+  type(interpolation_t), intent(in)    :: actual_cell_interpolation 
   integer(ip)             , intent(in)    :: ishape
   integer(ip)             , intent(in)    :: qpoint
   type(tensor_field_t)    , intent(out)   :: tensor_field
@@ -253,7 +230,7 @@ end subroutine quad_lagrangian_reference_fe_get_gradient_vector
 subroutine quad_lagrangian_reference_fe_get_divergence_vector( this, actual_cell_interpolation, ishape, qpoint, scalar_field )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(SB_interpolation_t)             , intent(in)    :: actual_cell_interpolation 
+  type(interpolation_t)             , intent(in)    :: actual_cell_interpolation 
   integer(ip)                          , intent(in)    :: ishape
   integer(ip)                          , intent(in)    :: qpoint
   real(rp)                             , intent(out)   :: scalar_field
@@ -271,7 +248,7 @@ end subroutine quad_lagrangian_reference_fe_get_divergence_vector
 subroutine quad_lagrangian_reference_fe_get_curl_vector( this, actual_cell_interpolation, ishape, qpoint, vector_field )
   implicit none
   class(quad_lagrangian_reference_fe_t)   , intent(in)    :: this 
-  type(SB_interpolation_t), intent(in)    :: actual_cell_interpolation 
+  type(interpolation_t), intent(in)    :: actual_cell_interpolation 
   integer(ip)             , intent(in)    :: ishape
   integer(ip)             , intent(in)    :: qpoint
   type(vector_field_t)    , intent(out)   :: vector_field
@@ -313,7 +290,7 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_scalar( this, &
                                                                   &  quadrature_points_values)
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(SB_interpolation_t)             , intent(in)    :: actual_cell_interpolation 
+  type(interpolation_t)             , intent(in)    :: actual_cell_interpolation 
   real(rp)                             , intent(in)    :: nodal_values(:)
   real(rp)                             , intent(inout) :: quadrature_points_values(:)
   integer(ip)                                          :: qpoint, ishape
@@ -334,7 +311,7 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_vector( this, &
                                                                   &  quadrature_points_values)
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(SB_interpolation_t)             , intent(in)    :: actual_cell_interpolation 
+  type(interpolation_t)             , intent(in)    :: actual_cell_interpolation 
   real(rp)                             , intent(in)    :: nodal_values(:)
   type(vector_field_t)                 , intent(inout) :: quadrature_points_values(:)
   integer(ip)                                          :: qpoint, inode, icomp, inode_scalar
@@ -357,7 +334,7 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor( this, &
                                                                   &  quadrature_points_values)
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(SB_interpolation_t)             , intent(in)    :: actual_cell_interpolation 
+  type(interpolation_t)             , intent(in)    :: actual_cell_interpolation 
   real(rp)                             , intent(in)    :: nodal_values(:)
   type(tensor_field_t)                 , intent(inout) :: quadrature_points_values(:)
 
@@ -1021,7 +998,7 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
   ! 
   !-----------------------------------------------------------------------
   implicit none
-  type(SB_quadrature_t), intent(inout)  :: quadrature
+  type(quadrature_t), intent(inout)  :: quadrature
   real(rp)                 :: posgl(20),weigl(20)
   integer(ip)              :: nlocs,igaus,ilocs,jlocs,klocs,ndime,ngaus
 
@@ -1530,7 +1507,7 @@ end subroutine fill_quadrature
 
 subroutine fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coord_ip ) !ndime,ngaus,posgp,weigp)
   implicit none 
-  type(SB_interpolation_t), intent(inout) :: interpolation
+  type(interpolation_t), intent(inout) :: interpolation
   integer(ip), intent(in) :: order, ndime, nlocs, ntens
   real(rp), intent(in) :: coord_ip(:,:)
 
@@ -1800,12 +1777,12 @@ end subroutine permute_or_2d
 subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadrature, local_face_id)
   implicit none
   type(quad_lagrangian_reference_fe_t), intent(in)    :: this
-  type(SB_interpolation_t)            , intent(inout) :: face_interpolation
-  type(SB_quadrature_t)               , intent(in)    :: local_quadrature
+  type(interpolation_t)            , intent(inout) :: face_interpolation
+  type(quadrature_t)               , intent(in)    :: local_quadrature
   integer(ip)                         , intent(in)    :: local_face_id
 
-  type(SB_interpolation_t) :: interp_1D_corners, local_interpolation
-  type(SB_quadrature_t)    :: nodal_coordinates_1D
+  type(interpolation_t) :: interp_1D_corners, local_interpolation
+  type(quadrature_t)    :: nodal_coordinates_1D
   integer(ip)              :: order_of_approximation
   type(quad_lagrangian_reference_fe_t) :: face_reference_fe, reference_fe_1D
 
@@ -1904,8 +1881,8 @@ end subroutine face_shapen
   subroutine femap_apply_to_interp(map,ref,phy)
     implicit none
     type(fe_map_t)          , intent(in)    :: map
-    type(SB_interpolation_t), intent(in)    :: ref
-    type(SB_interpolation_t), intent(inout) :: phy
+    type(interpolation_t), intent(in)    :: ref
+    type(interpolation_t), intent(inout) :: phy
     real(rp), allocatable :: wmat1(:,:,:)
     real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
     integer(ip) :: ndime,nnode,nlocs,ntens
