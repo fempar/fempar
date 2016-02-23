@@ -2,11 +2,11 @@
 # Parallel tests
 #################################################################
 
-IF(MPI_Fortran_COMPILER)
+IF(MPI_FOUND)
+
     IF(NOT MPIEXEC)
         MESSAGE(WARNING "MPIEXEC was not found. Parallel TESTS will not be performed!")
     ENDIF()
-
 
     FILE(GLOB_RECURSE TESTS_PAR_SRC *.f90 *.F90)
     SET(TESTS_PAR_SRC ${TESTS_PAR_SRC} PARENT_SCOPE)
@@ -26,4 +26,5 @@ IF(MPI_Fortran_COMPILER)
             ENDIF()
         ENDIF()
     ENDFOREACH()
+
 ENDIF()
