@@ -718,7 +718,7 @@ contains
            write(*,*) __FILE__,__LINE__
            my_matrix => matrix%blocks(i,i)%sparse_matrix
            write(*,*) __FILE__,__LINE__
-           call my_matrix%print_matrix_market(6)
+           !call my_matrix%print_matrix_market(6)
            write(*,*) __FILE__,__LINE__
         end do
      class default
