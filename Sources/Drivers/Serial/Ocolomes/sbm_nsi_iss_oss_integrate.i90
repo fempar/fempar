@@ -1,0 +1,200 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!====================================================================================================
+subroutine integrate(this,fe_space,assembler)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
+  class(serial_fe_space_t)                 , intent(inout) :: fe_space
+  class(assembler_t)                       , intent(inout) :: assembler
+  ! Integers
+  integer(ip)              :: number_fe_spaces, number_nodes, number_elements
+  integer(ip)              :: ngaus
+  integer(ip)              :: ielem,igaus,inode,jnode
+  integer(ip)              :: ioffset,joffset
+  integer(ip), pointer     :: field_blocks(:)
+  integer(ip), allocatable :: number_nodes_per_field(:)
+  ! Reals
+  real(rp)              :: velocity_gp
+  real(rp)              :: test_scalar, trial_scalar
+  real(rp), allocatable :: dvolume
+  real(rp), allocatable :: elmat(:,:)
+  real(rp), allocatable :: elvec(:)
+  ! Logicals
+  logical, pointer :: field_coupling(:,:)
+  ! Types
+  type(vector_field_t)               :: test_vector, trial_vector
+  type(vector_field_t)               :: advection_vector
+  type(vector_field_t)               :: source_vector
+  type(vector_field_t)               :: grad_test_scalar, grad_trial_scalar
+  type(tensor_field_t)               :: grad_test_vector, grad_trial_vector
+  type(fe_function_vector_t)         :: fe_velocity
+  type(finite_element_t)   , pointer :: fe
+  type(quadrature_t)       , pointer :: quad
+  type(fe_map_t)           , pointer :: fe_map
+  type(volume_integrator_t), pointer :: vol_int_velocity_fe
+  type(volume_integrator_t), pointer :: vol_int_pressure_fe
+  type(volume_integrator_t), pointer :: vol_int_projection_fe
+  type(i1p_t)              , pointer :: elem2dof(:)
+  type(i1p_t)              , pointer :: bc_code(:)
+  type(r1p_t)              , pointer :: bc_value(:)
+  class(vector_t)          , pointer :: vector_dof_values
+  
+  ! Getters
+  fe               => fe_space%get_finite_element(1)
+  field_blocks     => fe_space%get_field_blocks()
+  field_coupling   => fe_space%get_field_coupling()
+  number_fe_spaces =  fe_space%get_number_fe_spaces()
+  number_nodes     =  fe%get_number_nodes()
+  number_elements  =  fe_space%get_number_elements()
+  quad             => fe%get_quadrature()
+  ngaus            =  quad%get_number_evaluation_points()
+  call memalloc(number_fe_spaces,number_nodes_per_field,__FILE__,__LINE__)
+  call fe%get_number_nodes_per_field(number_nodes_per_field)
+
+  ! Asserts
+  assert(number_fe_spaces == 3) ! Velocity + Pressure + Projection
+
+  ! Allocate elemental matrix and vector (same for all elements)
+  call memalloc(number_nodes,number_nodes,elmat,__FILE__,__LINE__)
+  call memalloc(number_nodes,elvec,__FILE__,__LINE__)
+
+  ! Initialize integration
+  call fe_space%initialize_integration()
+  call fe_space%create_fe_function(1,fe_velocity)
+  call source_vector%init(0.0_rp)
+  vector_dof_values => this%dof_values
+
+  ! Loop over elements
+  element: do ielem = 1, number_elements
+
+     ! Initialize matrix and vector
+     elmat = 0.0_rp
+     elvec = 0.0_rp
+
+     ! Update finite element structures
+     fe => fe_space%get_finite_element(ielem)
+     call fe%update_integration()
+     call fe%update_values(fe_velocity, vector_dof_values)
+     
+     ! Elemental getters
+     fe_map                => fe%get_fe_map()
+     vol_int_velocity_fe   => fe%get_volume_integrator(1)
+     vol_int_pressure_fe   => fe%get_volume_integrator(2)
+     vol_int_projection_fe => fe%get_volume_integrator(3)
+     elem2dof              => fe%get_elem2dof()
+     bc_code               => fe%get_bc_code()
+     bc_value              => fe%get_bc_value()
+     
+     ! Loop over Gauss points
+     gaus: do igaus = 1, ngaus
+        
+        ! |J]*wg
+        dvolume = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+
+        ! Velocity at Gauss point
+        call fe_velocity%get_value(igaus,advection_vector)
+        
+        !-----------!
+        ! BLOCK V-U !
+        !-----------!
+        ! Diffusive term: (nu*grad(v),grad(u))
+        do inode = 1, number_nodes_per_field(1) 
+           call vol_int_velocity_fe%get_gradient(inode,igaus,grad_test_vector)  
+           do jnode = 1, number_nodes_per_field(1)
+              call vol_int_velocity_fe%get_gradient(jnode,igaus,grad_trial_vector)  
+              elmat(inode,jnode) = elmat(inode,jnode) + this%viscosity * dvolume * &
+                   &               double_contract(grad_test_vector,grad_trial_vector)
+           end do
+        end do
+        
+        ! Convective term: (v,u*grad(u))
+        do jnode = 1, number_nodes_per_field(1) 
+           call vol_int_velocity_fe%get_gradient(jnode,igaus,grad_trial_vector)  
+           trial_vector = advection_vector * grad_trial_vector
+           do inode = 1, number_nodes_per_field(1) 
+              call vol_int_velocity_fe%get_value(inode,igaus,test_vector)
+              elmat(inode,jnode) = elmat(inode,jnode) + dvolume * test_vector * trial_vector
+           end do
+        end do
+
+        ! Grad-div term: (tau_c*div(v),div(u))
+        
+        !-----------!
+        ! BLOCK V-P !
+        !-----------!
+        ! Pressure gradient term: -(div(v),p)
+        do inode = 1, number_nodes_per_field(1) 
+           call vol_int_velocity_fe%get_divergence(inode,igaus,test_scalar)
+           do jnode = 1, number_nodes_per_field(2)
+              call vol_int_pressure_fe%get_value(jnode,igaus,trial_scalar)
+              joffset = number_nodes_per_field(1)+jnode
+              elmat(inode,joffset) = elmat(inode,joffset) - dvolume * test_scalar * trial_scalar
+           end do
+        end do
+        
+        !-----------!
+        ! BLOCK V-X !
+        !-----------!
+        ! Projection term: -(tau_m*u*grad(v),xi)
+
+        
+        !-----------!
+        ! BLOCK Q-U !
+        !-----------!
+        ! Velocity divergence term: (q,div(u))
+
+        
+        !-----------!
+        ! BLOCK E-U !
+        !-----------!
+        ! Velocity gradient projection term: (tau_m*eta,u*grad(u))
+        
+        
+        !-----------!
+        ! BLOCK E-X !
+        !-----------!
+        ! Projection mass term: -(tau_m*eta,xi)
+
+        !-----------!
+        ! BLOCK U   !
+        !-----------!
+        ! Source term: (v,f)    
+        
+     end do gaus
+    
+     call this%impose_strong_dirichlet_data(elmat,elvec,bc_code,bc_value,number_nodes_per_field,number_fe_spaces)
+     call assembler%assembly(number_fe_spaces,number_nodes_per_field,elem2dof,field_blocks,field_coupling,elmat,elvec)  
+     
+  end do element
+
+  ! Deallocate
+  call memfree(number_nodes_per_field,__FILE__,__LINE__)
+  call memfree(elmat,__FILE__,__LINE__)
+  call memfree(elvec,__FILE__,__LINE__)
+  
+end subroutine integrate
