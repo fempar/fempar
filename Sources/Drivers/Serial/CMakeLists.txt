@@ -2,7 +2,6 @@
 # Serial drivers
 #################################################################
 
-
 IF(${PROJECT_NAME}_USER)
 
     FILE(GLOB_RECURSE DRIVERS_SERIAL_SRC ${${PROJECT_NAME}_USER}/*.f90 ${${PROJECT_NAME}_USER}/*.F90)

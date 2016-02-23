@@ -2,13 +2,9 @@
 # Parallel drivers
 #################################################################
 
-IF(MPI_Fortran_COMPILER)
-
+IF(MPI_FOUND)
 
     IF(${PROJECT_NAME}_USER)
-
-        INCLUDE(CMakeForceCompiler)
-        CMAKE_FORCE_Fortran_COMPILER(${MPI_Fortran_COMPILER} ${CMAKE_Fortran_COMPILER_ID})
 
         FILE(GLOB_RECURSE DRIVERS_PAR_SRC ${${PROJECT_NAME}_USER}/*.f90  ${${PROJECT_NAME}_USER}/*.F90)
         SET(DRIVERS_PAR_SRC ${DRIVERS_PAR_SRC} PARENT_SCOPE)
@@ -23,5 +19,7 @@ IF(MPI_Fortran_COMPILER)
                 ENDIF()
             ENDFOREACH()
         ENDFOREACH()
+
     ENDIF()
+
 ENDIF()
