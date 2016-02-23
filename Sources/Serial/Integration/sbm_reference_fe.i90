@@ -238,21 +238,21 @@ end function reference_fe_get_continuity
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: reference_fe_get_number_vertices_per_vertex
-    reference_fe_get_number_vertices_per_vertex = this%vertices_vef%p(2)-this%vertices_vef%p(1)
+    reference_fe_get_number_vertices_per_vertex = this%vertices_vef%p(this%number_vefs_dimension(1)+1)-this%vertices_vef%p( this%number_vefs_dimension(1))
   end function reference_fe_get_number_vertices_per_vertex
   
   function reference_fe_get_number_vertices_per_edge ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: reference_fe_get_number_vertices_per_edge
-    reference_fe_get_number_vertices_per_edge = this%vertices_vef%p(3)-this%vertices_vef%p(2)
+    reference_fe_get_number_vertices_per_edge = this%vertices_vef%p(this%number_vefs_dimension(2)+1)-this%vertices_vef%p(this%number_vefs_dimension(2))
   end function reference_fe_get_number_vertices_per_edge
   
   function reference_fe_get_number_vertices_per_face ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: reference_fe_get_number_vertices_per_face
-    reference_fe_get_number_vertices_per_face = this%vertices_vef%p(this%number_dimensions+1)-this%vertices_vef%p(this%number_dimensions)
+    reference_fe_get_number_vertices_per_face = this%vertices_vef%p(this%number_vefs_dimension(this%number_dimensions)+1)-this%vertices_vef%p(this%number_vefs_dimension(this%number_dimensions))
   end function reference_fe_get_number_vertices_per_face
   
   function reference_fe_get_number_edges ( this )

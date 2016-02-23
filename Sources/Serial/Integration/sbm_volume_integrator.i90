@@ -253,6 +253,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
   orientation_face  = reference_fe%orientation%a(local_vef_id)
   reorientation_factor = (-1)**orientation_face
 
+  write(*,*) __FILE__,__LINE__, this%coordinates
   ! Initialize values
   this%coordinates_points = 0.0_rp
   this%jacobian           = 0.0_rp
