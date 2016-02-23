@@ -83,7 +83,7 @@ contains
     do i = 1,gmsh%ndime
        nodim(i) = reference_fe%get_number_vefs_of_dimension(i-1)
        vef_lid  = reference_fe%get_first_vef_id_of_dimension(i-1) 
-       nndim(i) = reference_fe%get_number_interior_nodes_vef(vef_lid)
+       nndim(i) = reference_fe%get_number_vertices_vef(vef_lid)
     end do
     nvef=gmsh%nnode+nodim(2)+nodim(3) ! Total number of objects per element
    

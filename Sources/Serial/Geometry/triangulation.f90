@@ -180,9 +180,9 @@ contains
        local_1st_face_id = elem%reference_fe_geo%get_first_face_id()
 
        ! Iterate over the local faces
-       do local_vef_id = local_1st_face_id, elem%reference_fe_geo%get_number_faces()
+       do local_face_id = 1, elem%reference_fe_geo%get_number_faces()
           ! Number the local faces
-          local_face_id = local_vef_id-local_1st_face_id+1
+          local_vef_id = local_1st_face_id+local_face_id-1
 
           ! Take the corresponding vef
           global_vef_id = elem%vefs(local_vef_id) 
@@ -216,10 +216,10 @@ contains
        local_1st_face_id = elem%reference_fe_geo%get_first_face_id()
 
        ! Iterate over the local faces
-       do local_vef_id =  local_1st_face_id, elem%reference_fe_geo%get_number_faces()
+       do local_face_id = 1, elem%reference_fe_geo%get_number_faces()
           ! Number the local faces
-          local_face_id = local_vef_id-local_1st_face_id+1
-
+          local_vef_id = local_1st_face_id+local_face_id-1
+    
           ! Take the corresponding vef
           vef => trian%vefs(elem%vefs(local_vef_id))
           assert(vef%dimension == face_dimensions)
@@ -264,10 +264,10 @@ contains
        local_1st_face_id = elem%reference_fe_geo%get_first_face_id()
 
        ! Iterate over the local faces
-       do local_vef_id = local_1st_face_id, elem%reference_fe_geo%get_number_faces()
+       do local_face_id = 1, elem%reference_fe_geo%get_number_faces()
           ! Number the local faces
-          local_face_id = local_vef_id-local_1st_face_id+1
-
+          local_vef_id = local_1st_face_id+local_face_id-1
+     
           ! Get the corresponding face
           face_id = elem_face_map(elem_id,local_face_id)
           face => trian%faces(face_id)

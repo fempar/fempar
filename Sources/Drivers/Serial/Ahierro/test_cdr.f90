@@ -459,6 +459,7 @@ contains
     call memalloc ( number_nodes, 2,facevec, __FILE__, __LINE__ )
 
     !call fe_space%initialize_face_integration()
+    write(*,*) __FILE__,__LINE__,fe_space%get_number_interior_faces()
     do iface = 1, fe_space%get_number_interior_faces()
 
        facemat = 0.0_rp
@@ -639,7 +640,6 @@ program test_cdr
 
   ! Read conditions 
   call conditions_read (dir_path, prefix, f_mesh%npoin, f_cond)
-
   ! Construc triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
@@ -659,16 +659,17 @@ contains
     use serial_names
     use CDR_discrete_integration_names
     use vector_dG_CDR_discrete_integration_names
+    use block_sparse_matrix_names
 
     implicit none
 
     type(triangulation_t), intent(inout) :: f_trian
     type(conditions_t)   , intent(in)    :: f_cond
 
-    type(serial_fe_space_t)                    :: fe_space
+    type(serial_fe_space_t)                       :: fe_space
     type(p_reference_fe_t)                        :: reference_fe_array_two(2)
     type(p_reference_fe_t)                        :: reference_fe_array_one(1)
-    type(fe_affine_operator_t)                 :: fe_affine_operator
+    type(fe_affine_operator_t)                    :: fe_affine_operator
     type(vector_dG_CDR_discrete_integration_t)    :: vector_dG_CDR_integration
     type(CDR_discrete_integration_t)              :: CDR_integration
     type(vector_space_t)    , pointer             :: fe_affine_operator_range_vector_space 
@@ -708,21 +709,21 @@ contains
          &                          fe_space, vector_dG_CDR_integration)
     call fe_affine_operator%symbolic_setup()
     call fe_affine_operator%numerical_setup()
-!!$    matrix => fe_affine_operator%get_matrix()
-!!$     select type(matrix)
-!!$     class is(block_sparse_matrix_t)
-!!$        !my_matrix => matrix
-!!$        do i = 1,1! matrix%nblocks
-!!$           write(*,*) i,i,'+++++++++++++++++++++++++++++++'
-!!$           write(*,*) __FILE__,__LINE__
-!!$           my_matrix => matrix%blocks(i,i)%sparse_matrix
-!!$           write(*,*) __FILE__,__LINE__
-!!$           call my_matrix%print_matrix_market(6)
-!!$           write(*,*) __FILE__,__LINE__
-!!$        end do
-!!$     class default
-!!$        check(.false.)
-!!$     end select
+    matrix => fe_affine_operator%get_matrix()
+    select type(matrix)
+     class is(block_sparse_matrix_t)
+        !my_matrix => matrix
+        do i = 1,1! matrix%nblocks
+           write(*,*) i,i,'+++++++++++++++++++++++++++++++'
+           write(*,*) __FILE__,__LINE__
+           my_matrix => matrix%blocks(i,i)%sparse_matrix
+           write(*,*) __FILE__,__LINE__
+           !call my_matrix%print_matrix_market(6)
+           write(*,*) __FILE__,__LINE__
+        end do
+     class default
+        check(.false.)
+     end select
 
      !fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
      !call fe_affine_operator_range_vector_space%create_vector(vector)
