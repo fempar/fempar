@@ -1869,6 +1869,7 @@ contains
         integer                                        :: nz_offset
         integer                                        :: last_visited_row
         integer                                        :: current_row
+        integer                                        :: current_col
         integer                                        :: next_row
         integer                                        :: next_row_offset
         integer                                        :: last_visited_row_offset
@@ -1894,11 +1895,11 @@ contains
         call to%set_num_cols(initial_num_cols+C_T_num_cols)
         symmetric_storage = to%get_symmetric_storage()
 
+#ifdef DEBUG
     !-----------------------------------------------------------------
     ! Check if (C_T) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for C matrix
     !-----------------------------------------------------------------
-        C_irp = 0
         sorted = .true.
         previous_ia = 1
         previous_ja = 0
@@ -1911,15 +1912,12 @@ contains
             endif
             previous_ia = C_T_ia(i)
             previous_ja = C_T_ja(i)
-            if(symmetric_storage) cycle
-            C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1
         enddo
         check(sorted)
     !-----------------------------------------------------------------
     ! Check if (I) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for I matrix
     !-----------------------------------------------------------------
-        I_irp = 0
         previous_ia = 1
         previous_ja = 0
         do i=1, I_nz
@@ -1931,26 +1929,31 @@ contains
             endif
             previous_ia = I_ia(i)
             previous_ja = I_ja(i)
+        enddo
+        check(sorted)
+#endif
+
+        ! Count number of elements of I finally added to the output matrix
+        I_irp = 0
+        do i=1, I_nz
             if(symmetric_storage .and. I_ia(i)>I_ja(i)) cycle
             I_irp(I_ia(i)) = I_irp(I_ia(i)) + 1
         enddo
-        check(sorted)
 
     !-----------------------------------------------------------------
     ! Alloc to%irp with the new number of rows and to%ja with the new number of nnz
     !-----------------------------------------------------------------
-        new_nz=this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
         call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
-        if(this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
-            write(*,*) 'Expand_matrix: symmetric_storage combination not yet implemented'
-            check(.false.) ! Algorithm must be reimplemented
+        if(           this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
-            new_nz=2*this%nnz-initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
-        else if(.not. this%get_symmetric_storage() .and. to%get_symmetric_storage()) then
+            new_nz=2*this%nnz-initial_num_rows+2*C_T_nz+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
-            new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
-        else
-            new_nz=this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
+            new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+            new_nz=this%nnz+2*C_T_nz+sum(I_irp)
+        else if(      this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
+            new_nz=this%nnz+C_T_nz+sum(I_irp)
         endif
         call memalloc(new_nz, to%ja, __FILE__, __LINE__)
         call memalloc(new_nz, to%val, __FILE__, __LINE__)
@@ -1959,6 +1962,7 @@ contains
     ! Expand  C_T matrix (Add columns to existing rows)
     !-----------------------------------------------------------------
         nz_counter = 0
+        C_Irp = 0
         if(this%get_symmetric_storage() .eqv. to%get_symmetric_storage()) then
             ! Initialize irp
             to%irp(:initial_num_rows) = this%irp(:initial_num_rows)
@@ -1978,6 +1982,7 @@ contains
             current_nz_per_row = 0
             do i=1,C_T_nz
                 nz_per_row = nz_per_row+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
                 if(i/=C_T_nz) then
                     if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
                 endif
@@ -2031,6 +2036,7 @@ contains
             nz_per_row = 0
             do i=1,C_T_nz
                 nz_per_row = nz_per_row+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
                 if(i/=C_T_nz) then
                     if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
                 endif
@@ -2077,17 +2083,66 @@ contains
             endif
             to%nnz = nz_counter
         else if (this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
-    !-----------------------------------------------------------------
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
-    !< NOT IMPLEMENTED !!!!!!
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            to%irp = 0; to%irp(1) = 1
     !-----------------------------------------------------------------        
-            ! Initialize irp
-            to%irp(1) = 1
+    ! Count number of elements in each row for the 
+    ! lower (new) + upper triangle, till initial_num_rows
+    !-----------------------------------------------------------------        
+            do current_row=1, initial_num_rows
+                ! lower triangle, transposed elements (new)
+                do i=this%irp(current_row), this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    if(current_row==current_col) cycle
+                    to%irp(current_col+1) = to%irp(current_col+1)+1
+                enddo
+                ! Upper triangle elements
+                to%irp(current_row+1) = to%irp(current_row+1)+this%irp(current_row+1)-this%irp(current_row)
+            enddo
 
-            ! If the current_row of C_T is different to 1: Copy the original ja from 1:current_row_offset
-            current_row = C_T_ia(1)
+            ! Add the number of elements Of C_T in each row
+            do i=1, C_T_nz
+                current_row = C_T_ia(i)
+                to%irp(current_row+1) = to%irp(current_row+1)+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
+            enddo
+
+            ! Convert counter to CSR header
+            do current_row=1, max(initial_num_rows, initial_num_cols)
+                to%irp(current_row+1) = to%irp(current_row+1)+to%irp(current_row)
+            enddo
+
+    !-----------------------------------------------------------------        
+    ! Add elements to JA and VAL arrays
+    !-----------------------------------------------------------------        
+            ! Add elements from the original matrix
+            do current_row=1, initial_num_rows
+                do i=this%irp(current_row),this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    to%ja(to%irp(current_row)) = current_col
+                    to%val(to%irp(current_row)) = this%val(i)
+                    to%irp(current_row) = to%irp(current_row)+1
+                    if(current_row == current_col) cycle
+                    to%ja(to%irp(current_col)) = current_row
+                    to%val(to%irp(current_col)) = this%val(i)
+                    to%irp(current_col) = to%irp(current_col)+1
+                enddo
+            enddo
+
+            ! Add C_T_nz elements
+            do i=1, C_T_nz
+                current_row = C_T_ia(i)
+                current_col = C_T_ja(i)
+                to%ja(to%irp(current_row)) = initial_num_cols+ current_col
+                to%val(to%irp(current_row)) = C_T_val(i)
+                to%irp(current_row) = to%irp(current_row)+1
+            enddo
+
+            ! Recalculate CSR irp header
+            to%nnz = to%irp(initial_num_rows)-1
+            do current_row=initial_num_rows, 1, -1
+                to%irp(current_row+1)=to%irp(current_row)
+            enddo
+            to%irp(1) = 1
         endif
         to%irp(initial_num_rows+1) = to%nnz+1
 
@@ -2220,6 +2275,7 @@ contains
         integer                                        :: nz_offset
         integer                                        :: last_visited_row
         integer                                        :: current_row
+        integer                                        :: current_col
         integer                                        :: next_row
         integer                                        :: next_row_offset
         integer                                        :: last_visited_row_offset
@@ -2244,11 +2300,11 @@ contains
         call to%set_num_rows(initial_num_rows+C_T_num_cols)
         call to%set_num_cols(initial_num_cols+C_T_num_cols)
         symmetric_storage = to%get_symmetric_storage()
+#ifdef DEBUG
     !-----------------------------------------------------------------
     ! Check if (C_T) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for C matrix
     !-----------------------------------------------------------------
-        C_irp = 0
         sorted = .true.
         previous_ia = 1
         previous_ja = 0
@@ -2261,15 +2317,12 @@ contains
             endif
             previous_ia = C_T_ia(i)
             previous_ja = C_T_ja(i)
-            if(symmetric_storage) cycle
-            C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1
         enddo
         check(sorted)
     !-----------------------------------------------------------------
     ! Check if (I) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for I matrix
     !-----------------------------------------------------------------
-        I_irp = 0
         previous_ia = 1
         previous_ja = 0
         do i=1, I_nz
@@ -2281,25 +2334,31 @@ contains
             endif
             previous_ia = I_ia(i)
             previous_ja = I_ja(i)
+        enddo
+        check(sorted)
+#endif
+
+        ! Count number of elements of I finally added to the output matrix
+        I_irp = 0
+        do i=1, I_nz
             if(symmetric_storage .and. I_ia(i)>I_ja(i)) cycle
             I_irp(I_ia(i)) = I_irp(I_ia(i)) + 1
         enddo
-        check(sorted)
 
     !-----------------------------------------------------------------
     ! Alloc to%irp with the new number of rows and to%ja with the new number of nnz
     !-----------------------------------------------------------------
         call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
-        if(this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
-            write(*,*) 'Expand matrix: symmetric_storage combination not yet implemented'
-            check(.false.) ! Algorithm not implemented
+        if(           this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
-            new_nz=2*this%nnz-initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
-        else if(.not. this%get_symmetric_storage() .and. to%get_symmetric_storage()) then
+            new_nz=2*this%nnz-initial_num_rows+2*C_T_nz+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
-            new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
-        else
-            new_nz=this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
+            new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+            new_nz=this%nnz+2*C_T_nz+sum(I_irp)
+        else if(      this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
+            new_nz=this%nnz+C_T_nz+sum(I_irp)
         endif
         call memalloc(new_nz, to%ja, __FILE__, __LINE__)
 
@@ -2307,6 +2366,7 @@ contains
     ! Expand  C_T matrix (Add columns to existing rows)
     !-----------------------------------------------------------------
         nz_counter = 0
+        C_irp = 0
         if(this%get_symmetric_storage() .eqv. to%get_symmetric_storage()) then
             ! Initialize irp
             to%irp(:initial_num_rows) = this%irp(:initial_num_rows)
@@ -2324,6 +2384,7 @@ contains
             current_nz_per_row = 0
             do i=1,C_T_nz
                 nz_per_row = nz_per_row+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
                 if(i/=C_T_nz) then
                     if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
                 endif
@@ -2372,6 +2433,7 @@ contains
             ! Loop over C_T to expand the matrix
             nz_per_row = 0
             do i=1,C_T_nz
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
                 nz_per_row = nz_per_row+1
                 if(i/=C_T_nz) then
                     if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
@@ -2416,17 +2478,65 @@ contains
             endif
             to%nnz = nz_counter
         else if (this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
-    !-----------------------------------------------------------------
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
-    !< NOT IMPLEMENTED !!!!!!
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !-----------------------------------------------------------------        
             ! Initialize irp
+            to%irp = 0; to%irp(1) = 1
+    !-----------------------------------------------------------------        
+    ! Count number of elements in each row for the 
+    ! lower (new) + upper triangle, till initial_num_rows
+    !-----------------------------------------------------------------        
+            do current_row=1, initial_num_rows
+                ! lower triangle, transposed elements (new)
+                do i=this%irp(current_row), this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    if(current_row==current_col) cycle
+                    to%irp(current_col+1) = to%irp(current_col+1)+1
+                enddo
+                ! Upper triangle elements
+                to%irp(current_row+1) = to%irp(current_row+1)+this%irp(current_row+1)-this%irp(current_row)
+            enddo
+
+            ! Add the number of elements Of C_T in each row
+            do i=1, C_T_nz
+                current_row = C_T_ia(i)
+                to%irp(current_row+1) = to%irp(current_row+1)+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
+            enddo
+
+            ! Convert counter to CSR header
+            do current_row=1, max(initial_num_rows, initial_num_cols)
+                to%irp(current_row+1) = to%irp(current_row+1)+to%irp(current_row)
+            enddo
+
+    !-----------------------------------------------------------------        
+    ! Add elements to JA array
+    !-----------------------------------------------------------------        
+            ! Add elements from the original matrix
+            do current_row=1, initial_num_rows
+                do i=this%irp(current_row),this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    to%ja(to%irp(current_row)) = current_col
+                    to%irp(current_row) = to%irp(current_row)+1
+                    if(current_row == current_col) cycle
+                    to%ja(to%irp(current_col)) = current_row
+                    to%irp(current_col) = to%irp(current_col)+1
+                enddo
+            enddo
+
+            ! Add C_T_nz elements
+            do i=1, C_T_nz
+                current_row = C_T_ia(i)
+                current_col = C_T_ja(i)
+                to%ja(to%irp(current_row)) = initial_num_cols+ current_col
+                to%irp(current_row) = to%irp(current_row)+1
+            enddo
+
+            ! Recalculate CSR irp header
+            to%nnz = to%irp(initial_num_rows)-1
+            do current_row=initial_num_rows, 1, -1
+                to%irp(current_row+1)=to%irp(current_row)
+            enddo
             to%irp(1) = 1
 
-            ! If the current_row of C_T is different to 1: Copy the original ja from 1:current_row_offset
-            current_row = C_T_ia(1)
         endif
         to%irp(initial_num_rows+1) = to%nnz+1
 
