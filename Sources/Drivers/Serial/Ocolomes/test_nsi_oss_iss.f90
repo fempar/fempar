@@ -61,6 +61,8 @@ contains
     this%default_prefix       = 'test'
     this%default_dir_path_out = 'output'
 
+    !...
+
   end subroutine set_default_params
      
 end module command_line_parameters_names
@@ -77,10 +79,22 @@ module nsi_iss_oss_discrete_integration_names
 
   type, extends(discrete_integration_t) :: nsi_iss_oss_discrete_integration_t
      real(rp)                 :: viscosity
+     real(rp)                 :: c1
+     real(rp)                 :: c2
+     real(rp)                 :: cc
+     integer(ip)              :: elemental_length_flag
+     logical                  :: convection_activated
      class(vector_t), pointer :: dof_values => NULL() 
    contains
-     procedure :: integrate
+     procedure                  :: integrate
+     !procedure, non_overridable :: initialize_from_cli
+     procedure, non_overridable :: compute_stabilization_parameters
+     procedure, non_overridable :: compute_characteristic_length
   end type nsi_iss_oss_discrete_integration_t
+
+  integer(ip), parameter :: characteristic_elemental_length = 0
+  integer(ip), parameter :: minimum_elemental_length = 1
+  integer(ip), parameter :: maximum_elemental_length = 2
 
 contains
 

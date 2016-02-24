@@ -298,6 +298,14 @@ function finite_element_get_subset_id ( this )
   finite_element_get_subset_id = this%cell%subset_id
 end function finite_element_get_subset_id
 
+function finite_element_get_order ( this, i )
+  implicit none
+  class(finite_element_t), intent(in) :: this
+  integer(ip)            , intent(in) :: i
+  integer(ip)                         :: finite_element_get_order
+  finite_element_get_order = this%reference_fe_phy(i)%p%get_order()
+end function finite_element_get_order
+
 !**************************************************************************************************
 ! Update methods for fe_function_scalar/vector/tensor_t
 !**************************************************************************************************
