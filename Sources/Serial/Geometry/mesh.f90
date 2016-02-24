@@ -38,16 +38,23 @@ module mesh_names
 
   type mesh_t
      integer(ip)                :: &
+          nelty=1,                 &         ! Number of element types
+          ndime,                   &         ! Number of space dimensions
+          npoin,                   &         ! Number of nodes (vertices)
           nelem,                   &         ! Number of elements
-          nnode                              ! Maximum number of nodes per element
+          nnode,                   &         ! Maximum number of nodes per element
+          nboun,                   &         ! Number of boundary elements
+          nnodb                              ! Maximum number of nodes per boundary element
 
      integer(ip), allocatable ::   &
-          pnods(:) ,               &         ! pointers to the lnods
-          lnods(:)                           ! list of nodes of each element
-
-     integer(ip)                :: &
-          ndime,                   &         ! Number of space dimensions
-          npoin                              ! Number of nodes
+          pnods(:),               &         ! pointers to the lnods
+          lnods(:),               &         ! list of nodes of each element
+          legeo(:),               &         ! List of geometry (volume) each element lies in
+          leset(:),               &         ! List of sets associated to each element
+          pnodb(:),               &         ! pointers to the lnodb
+          lnodb(:),               &         ! list of nodes of each boundary element (includes edges and faces)
+          lbgeo(:),               &         ! List of geometry (volume) each edge or face lies in
+          lbset(:)                          ! List of sets associated to each edge or face
 
      real(rp), allocatable ::      &
           coord(:,:)                         ! Node coordinates       

@@ -49,9 +49,9 @@ module map_apply_names
             map_igp_apply_g2l_r1, map_igp_apply_g2l_r2, map_igp_apply_g2l_i1, map_igp_apply_g2l_i2
   end interface map_apply_g2l
 
-  interface mesh_g2l
-     module procedure mesh_g2l_emap_ip, mesh_g2l_emap_igp, mesh_g2l_nmap_igp_emap_igp
-  end interface
+  !interface mesh_g2l
+  !   module procedure mesh_g2l_emap_ip, mesh_g2l_emap_igp, mesh_g2l_nmap_igp_emap_igp
+  !end interface
 
   ! Constants
   public :: l2g_add, l2g_copy
@@ -336,6 +336,135 @@ contains
 
 
   !================================================================================================
+  subroutine mesh_g2l(nmap,emap,gmesh,lmesh)
+    implicit none
+    type(map_igp_t), intent(in)  :: nmap, emap
+    type(mesh_t)   , intent(in)  :: gmesh
+    type(mesh_t)   , intent(out) :: lmesh
+    type(hash_table_igp_ip_t)    :: ws_inmap
+    type(hash_table_igp_ip_t)    :: el_inmap
+    integer(ip)    , allocatable :: node_list(:)
+    integer(ip)                  :: aux, ipoin,inode,inodb,knode,knodb,lnodb_size,istat
+    integer(ip)                  :: ielem_lmesh,ielem_gmesh,iboun_lmesh,iboun_gmesh
+    integer(ip)                  :: p_ielem_gmesh,p_ipoin_lmesh,p_ipoin_gmesh
+    logical :: count_it
+
+    assert(nmap%ng == gmesh%npoin)
+    assert(emap%ng == gmesh%nelem)
+
+    lmesh%nelty=gmesh%nelty ! Only informative, not required by algorithms
+    lmesh%ndime=gmesh%ndime
+    lmesh%npoin=nmap%nl
+    lmesh%nelem=emap%nl
+
+    call ws_inmap%init(max(int(nmap%nl*0.25,ip),10))
+    do ipoin=1,nmap%nl
+       ! aux is used to avoid compiler warning related to val being an intent(inout) argument
+       aux = ipoin
+       call ws_inmap%put(key=nmap%l2g(ipoin),val=aux,stat=istat) 
+    end do
+
+    call el_inmap%init(max(int(emap%nl*0.25,ip),10))
+    do ipoin=1,emap%nl
+       ! aux is used to avoid compiler warning related to val being an intent(inout) argument
+       aux = ipoin
+       call el_inmap%put(key=emap%l2g(ipoin),val=aux,stat=istat) 
+    end do
+
+    ! Elements
+    call memalloc(lmesh%nelem+1, lmesh%pnods, __FILE__,__LINE__)
+    call memalloc(lmesh%nelem  , lmesh%legeo, __FILE__,__LINE__)
+    call memalloc(lmesh%nelem  , lmesh%leset, __FILE__,__LINE__)
+    lmesh%nnode=0
+    lmesh%pnods=0
+    lmesh%pnods(1)=1
+    do ielem_lmesh=1,lmesh%nelem
+       ielem_gmesh = emap%l2g(ielem_lmesh)
+       knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
+       lmesh%pnods(ielem_lmesh+1)=lmesh%pnods(ielem_lmesh)+knode
+       lmesh%nnode=max(lmesh%nnode,knode)
+       lmesh%legeo(ielem_lmesh)=gmesh%legeo(ielem_gmesh)
+       lmesh%leset(ielem_lmesh)=gmesh%leset(ielem_gmesh)
+    end do
+    call memalloc (lmesh%pnods(lmesh%nelem+1), lmesh%lnods, __FILE__,__LINE__)
+    do ielem_lmesh=1,lmesh%nelem
+       ielem_gmesh = emap%l2g(ielem_lmesh)
+       p_ipoin_gmesh = gmesh%pnods(ielem_gmesh)-1
+       p_ipoin_lmesh = lmesh%pnods(ielem_lmesh)-1
+       knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
+       do inode=1,knode
+          call ws_inmap%get(key=int(gmesh%lnods(p_ipoin_gmesh+inode),igp),val=lmesh%lnods(p_ipoin_lmesh+inode),stat=istat) 
+       end do
+    end do
+
+    ! Boundary elements
+    iboun_lmesh=0
+    lmesh%nnodb=0
+    lnodb_size=0
+    do iboun_gmesh=1,gmesh%nboun
+       p_ipoin_gmesh = gmesh%pnodb(iboun_gmesh)-1
+       knodb = gmesh%pnodb(iboun_gmesh+1)-gmesh%pnodb(iboun_gmesh)
+       count_it=.true.
+       do inode=1,knodb
+          call ws_inmap%get(key=int(gmesh%lnodb(p_ipoin_gmesh+inode),igp),val=knode,stat=istat)
+          if(istat==key_not_found) then
+             count_it=.false.
+             exit
+          end if
+       end do
+       if(count_it) then
+          lnodb_size=lnodb_size+knodb
+          lmesh%nnodb=max(lmesh%nnodb,knodb)
+          iboun_lmesh=iboun_lmesh+1
+       end if
+    end do
+
+    if(iboun_lmesh>0) then
+       lmesh%nboun=iboun_lmesh
+       call memalloc (  lmesh%nnodb,   node_list, __FILE__,__LINE__)
+       call memalloc (lmesh%nboun+1, lmesh%pnodb, __FILE__,__LINE__)
+       call memalloc (   lnodb_size, lmesh%lnodb, __FILE__,__LINE__)
+       call memalloc(   lmesh%nboun, lmesh%lbgeo, __FILE__,__LINE__)
+       call memalloc(   lmesh%nboun, lmesh%lbset, __FILE__,__LINE__)
+
+       lmesh%pnodb=0
+       lmesh%pnodb(1)=1
+       iboun_lmesh=0
+       do iboun_gmesh=1,gmesh%nboun
+          p_ipoin_gmesh = gmesh%pnodb(iboun_gmesh)-1
+          knodb = gmesh%pnodb(iboun_gmesh+1)-gmesh%pnodb(iboun_gmesh)
+          count_it=.true.
+          do inode=1,knodb
+             call ws_inmap%get(key=int(gmesh%lnodb(p_ipoin_gmesh+inode),igp),val=node_list(inode),stat=istat)
+             if(istat==key_not_found) then
+                count_it=.false.
+                exit
+             end if
+          end do
+          if(count_it) then
+             iboun_lmesh=iboun_lmesh+1
+             lmesh%pnodb(iboun_lmesh+1)=lmesh%pnodb(iboun_lmesh)+knodb
+             p_ipoin_lmesh = lmesh%pnodb(iboun_lmesh)-1
+             lmesh%lnodb(p_ipoin_lmesh+1:p_ipoin_lmesh+knodb)=node_list(1:knodb)
+             lmesh%lbgeo(iboun_lmesh)=gmesh%lbgeo(iboun_gmesh)
+             lmesh%lbset(iboun_lmesh)=gmesh%lbset(iboun_gmesh)
+          end if
+       end do
+       call memfree (node_list, __FILE__,__LINE__)
+    end if
+    
+    call ws_inmap%free
+    call el_inmap%free
+
+    call memalloc(lmesh%ndime, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
+    call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord)
+
+  end subroutine mesh_g2l
+
+
+
+
+
   subroutine mesh_g2l_nmap_igp_emap_igp(nmap,emap,bmap,gmesh,lmesh,nrenumbering,erenumbering)
     implicit none
     type(map_igp_t)        , intent(in)  :: nmap, emap

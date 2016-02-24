@@ -103,7 +103,7 @@ contains
     do ipart=1,prt_pars%nparts
 
        ! Generate Local mesh
-       call mesh_g2l(distr(ipart)%nmap, distr(ipart)%emap, dummy_bmap, femesh, lmesh(ipart))
+       call mesh_g2l(distr(ipart)%nmap, distr(ipart)%emap, femesh, lmesh(ipart))
 
        ! Mesh to dual with global element numbers in the dual (just get numbers applying g2l map to dual_femesh)
        ! Store dual_part too.
