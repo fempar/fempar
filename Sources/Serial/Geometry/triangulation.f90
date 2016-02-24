@@ -558,7 +558,7 @@ contains
 
        write (lunou,*) 'num_vefs:', trian%elems(ielem)%num_vefs
        write (lunou,*) 'vefs:', trian%elems(ielem)%vefs
-       write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
+       if (allocated(trian%elems(ielem)%coordinates)) write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
        write (lunou,*) 'subset_id:', trian%elems(ielem)%subset_id
 
        !call reference_element_write ( trian%elems(ielem)%geo_reference_element )

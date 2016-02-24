@@ -95,12 +95,16 @@ end function quadrature_get_weight
 subroutine p_quadrature_allocate ( this)
   implicit none       
   class(p_quadrature_t), intent(inout) :: this
-		allocate(this%p)
+		call this%free()
+  allocate(this%p)
 end subroutine p_quadrature_allocate
 
 subroutine p_quadrature_free ( this)
   implicit none       
   class(p_quadrature_t), intent(inout) :: this
-  call this%p%free()
-		deallocate(this%p)
+		if (associated(this%p)) then
+     call this%p%free()
+     deallocate(this%p)
+     nullify(this%p)
+  end if   
 end subroutine p_quadrature_free

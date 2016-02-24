@@ -734,6 +734,8 @@ contains
     !call reference_fe_array_two(2)%free
     call fe_affine_operator%free()
     call fe_space%free()
+    call reference_fe_array_two(1)%free()
+    call reference_fe_array_two(2)%free()
   end subroutine test_reference_face_stuff
 
   !==================================================================================================

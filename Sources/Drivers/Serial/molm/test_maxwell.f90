@@ -534,6 +534,8 @@ program test_reference_fe
   deallocate(vector)
   call fe_affine_operator%free()
   call fe_space%free()
+  call composite_reference_array(1)%free()
+  call composite_reference_array(2)%free()
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)

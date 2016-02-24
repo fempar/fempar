@@ -432,7 +432,9 @@ end function reference_fe_get_continuity
   subroutine p_reference_fe_free( this )
     implicit none
     class(p_reference_fe_t), intent(inout) :: this
-    call this%p%free()
-    deallocate ( this%p )
+    if (associated ( this%p )) then
+      call this%p%free()
+      deallocate ( this%p )
+    end if  
   end subroutine p_reference_fe_free
   

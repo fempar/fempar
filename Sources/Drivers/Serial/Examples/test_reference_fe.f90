@@ -612,6 +612,14 @@ program test_reference_fe
 		deallocate(vector)
   call fe_affine_operator%free()
   call fe_space%free()
+  
+  if ( problem_id == 1) then
+    call reference_fe_array_two(1)%free()
+    call reference_fe_array_two(2)%free()
+  else
+    call reference_fe_array_one(1)%free()
+  end if
+  
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)

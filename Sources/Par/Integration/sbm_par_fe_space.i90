@@ -1,0 +1,293 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine par_fe_space_create( this, &
+                                par_triangulation, &
+                                par_boundary_conditions, &
+                                reference_fe_phy, &
+                                field_blocks, &
+                                field_coupling )
+  implicit none
+  class(par_fe_space_t)           , intent(inout) :: this
+  type(par_triangulation_t),target, intent(in)    :: par_triangulation
+  type(par_conditions_t)          , intent(in)    :: par_boundary_conditions
+  type(p_reference_fe_t)  , target, intent(in)    :: reference_fe_phy(:)
+  integer(ip)           , optional, intent(in)    :: field_blocks(:)
+  logical               , optional, intent(in)    :: field_coupling(:,:)
+ 
+  integer(ip) :: i
+  integer(ip) :: num_elems, num_ghosts
+ 
+  call this%free()
+  
+  this%par_triangulation => par_triangulation
+  if ( par_triangulation%p_env%p_context%iam >= 0 ) then
+    call this%serial_fe_space_t%create( par_triangulation%f_trian, &
+                                        par_boundary_conditions%f_conditions, &
+                                        reference_fe_phy, &
+                                        field_blocks, &
+                                        field_coupling )       
+    
+    num_elems  = par_triangulation%num_elems
+    num_ghosts = par_triangulation%num_ghosts
+    
+    allocate(this%ghost_fe_array(num_ghosts))
+    do i=1, num_ghosts
+       call this%ghost_fe_array(i)%create (this%triangulation%elems(num_elems+i),&
+                                           this%number_fe_spaces,&
+                                           this%reference_fe_phy_list, &
+                                           this%quadrature(1)%p,&
+                                           this%fe_map(1)%p,&
+                                           this%volume_integrator,&
+                                           this%number_blocks,&
+                                           this%field_blocks,&
+                                           par_boundary_conditions%f_conditions)
+    end do
+  end if
+  
+end subroutine par_fe_space_create
+
+subroutine par_fe_space_free( this )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip) :: i
+ 
+  if ( associated (this%par_triangulation) ) then
+    if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+      call this%serial_fe_space_t%free()
+      do i=1, this%par_triangulation%num_ghosts
+        call this%ghost_fe_array(i)%free()
+      end do
+      deallocate(this%ghost_fe_array)
+    end if
+    nullify(this%par_triangulation)
+  end if
+  
+end subroutine par_fe_space_free
+
+subroutine par_fe_space_print ( this )
+  class(par_fe_space_t), intent(in) :: this 
+  integer(ip) :: i,j
+  
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+    call this%serial_fe_space_t%print()
+    do i = 1, this%par_triangulation%num_ghosts
+     write(*,*) '********* GHOST ELEMENT: ',i,'********'
+     write(*,*) '********* ELEMENT 2 DOF********'
+     do j = 1, this%number_fe_spaces
+        write(*,*) '********* FE COMPONENT: ',j,'********'
+        write(*,*) this%ghost_fe_array(i)%elem2dof(j)%p
+     end do
+    end do
+  end if
+  
+  !do i  = 1, this%triangulation%number_interior_faces
+  !   write(*,*) '--------------------- Face: ',i,'-------------------------'
+  !   write(*,*) '-- Elem 1 --'
+  !   write(*,*) this%face_array(i)%neighbour_fe(1)%p%elem2dof(1)%p
+  !   write(*,*) '-- Elem 2 --'
+  !   write(*,*) this%face_array(i)%neighbour_fe(2)%p%elem2dof(1)%p
+  !end do
+
+end subroutine par_fe_space_print
+
+
+subroutine par_fe_space_fill_dof_info( this )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this 
+  integer(ip) :: iblock, fe_space_id
+  
+  assert ( associated (this%par_triangulation) )
+  
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+    call this%serial_fe_space_t%fill_dof_info()
+    do iblock = 1, this%number_blocks
+       do fe_space_id = 1, this%number_fe_spaces
+          if ( this%field_blocks(fe_space_id) == iblock ) then   
+             call this%par_fe_space_fill_elem2dof_and_count_dofs( fe_space_id, this%number_dofs(iblock) )
+          end if
+       end do
+    end do
+  end if
+  
+end subroutine par_fe_space_fill_dof_info
+
+subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id, dof_count ) 
+  implicit none
+  ! Parameters
+  class(par_fe_space_t)      , intent(inout) :: this 
+  integer(ip)                , intent(in)    :: fe_space_id
+  integer(ip)                , intent(inout) :: dof_count
+  
+  ! Local variables
+  integer(ip) :: ivef, vef_id, ighost, ielem, elem_id, ivef_in_elem_id
+  integer(ip) :: num_elems, num_ghosts
+  integer(ip) :: first_face_id, num_faces
+  
+  integer(ip), allocatable :: s2t_perm_for_interior_nodes_vef(:)
+
+  assert ( associated (this%par_triangulation) )
+  assert ( this%par_triangulation%p_env%p_context%iam >= 0 )
+  
+  call memalloc ( this%get_max_number_nodes(), s2t_perm_for_interior_nodes_vef, __FILE__, __LINE__ )
+  do ighost = 1, this%par_triangulation%num_ghosts
+     if ( this%ghost_fe_array(ighost)%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
+       ! Fill elem2dof on ghost elements from the elem2dof 
+       ! already computed on neighbouring local elements
+       do ivef = 1, this%ghost_fe_array(ighost)%cell%num_vefs
+          vef_id = this%ghost_fe_array(ighost)%cell%vefs(ivef)
+          if ( vef_id /= -1 ) then
+            ! Find local element around vef_id in elem_id
+            do ielem=1, this%triangulation%vefs(vef_id)%num_elems_around
+              elem_id = this%triangulation%vefs(vef_id)%elems_around(ielem)
+              ! Is elem_id a local element ?
+              if ( elem_id <= this%triangulation%num_elems ) exit
+            end do
+            
+            ! Find position of vef_id in local element
+            do ivef_in_elem_id = 1, this%fe_array(elem_id)%cell%num_vefs
+              if ( this%fe_array(elem_id)%cell%vefs(ivef_in_elem_id) == vef_id ) exit
+            end do
+            
+            call this%ghost_fe_array(ighost)%fill_interior_dofs_on_vef_from_source_element ( ivef, &
+                                                                                             this%fe_array(elem_id), &
+                                                                                             ivef_in_elem_id, &
+                                                                                             fe_space_id, &
+                                                                                             s2t_perm_for_interior_nodes_vef )
+          end if
+       end do 
+     else
+       first_face_id = this%ghost_fe_array(ighost)%cell%reference_fe_geo%get_first_face_id()
+       num_faces     = this%ghost_fe_array(ighost)%cell%reference_fe_geo%get_number_faces()
+       do ivef = first_face_id, first_face_id+num_faces-1
+         vef_id = this%ghost_fe_array(ighost)%cell%vefs(ivef)
+         if ( vef_id /= -1 ) then
+         call this%ghost_fe_array(ighost)%fill_dofs_on_vef ( ivef, &
+                                                             fe_space_id, &
+                                                             dof_count )
+         end if
+       end do
+     
+     end if
+  end do   
+  call memfree ( s2t_perm_for_interior_nodes_vef, __FILE__, __LINE__ )
+end subroutine par_fe_space_fill_elem2dof_and_count_dofs
+
+!function serial_fe_space_create_assembler(this, &
+!                          diagonal_blocks_symmetric_storage,&
+!                          diagonal_blocks_symmetric, & 
+!                          diagonal_blocks_sign)
+!  implicit none
+!  class(serial_fe_space_t)          , intent(in) :: this
+!  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(this%number_blocks)
+!  logical                           , intent(in) :: diagonal_blocks_symmetric(this%number_blocks)
+!  integer(ip)                       , intent(in) :: diagonal_blocks_sign(this%number_blocks)
+!  class(matrix_array_assembler_t)   , pointer    :: serial_fe_space_create_assembler
+!  
+!  ! Locals
+!  class(matrix_t), pointer :: matrix
+!  class(array_t) , pointer :: array
+!		logical, allocatable :: blocks_coupling(:,:)
+!		integer(ip)          :: ife_space, jfe_space
+!		integer(ip)          :: iblock, jblock
+
+!  if (this%number_blocks == 1) then
+!     allocate ( sparse_matrix_array_assembler_t :: serial_fe_space_create_assembler )
+!     allocate ( sparse_matrix_t :: matrix )
+!     allocate ( serial_scalar_array_t  :: array )
+!     select type(matrix)
+!        class is(sparse_matrix_t)
+!        call matrix%create(this%number_dofs(1), &
+!                           diagonal_blocks_symmetric_storage(1),&
+!                           diagonal_blocks_symmetric(1),&
+!                           diagonal_blocks_sign(1))
+!        class default
+!        check(.false.)
+!     end select
+!     select type(array)
+!        class is(serial_scalar_array_t)
+!        call array%create(this%number_dofs(1))
+!        class default
+!        check(.false.)
+!     end select
+!  else
+!     allocate ( block_sparse_matrix_array_assembler_t :: serial_fe_space_create_assembler )
+!     allocate ( block_sparse_matrix_t :: matrix )
+!     allocate ( serial_block_array_t  :: array )
+!     select type(matrix)
+!        class is (block_sparse_matrix_t)
+!        call matrix%create(this%number_blocks,this%number_dofs,this%number_dofs,&
+!             &             diagonal_blocks_symmetric_storage,diagonal_blocks_symmetric,diagonal_blocks_sign)
+
+!	call memalloc ( this%number_blocks, this%number_blocks, blocks_coupling, __FILE__, __LINE__)
+!	blocks_coupling = .false.
+!	do jfe_space=1,this%number_fe_spaces
+!	   do ife_space=1,this%number_fe_spaces
+!		 blocks_coupling(this%field_blocks(ife_space), this%field_blocks(jfe_space)) =  this%field_coupling(ife_space,jfe_space)
+!           end do
+!	end do
+!								
+!	do jblock=1,this%number_blocks
+!               do iblock=1,this%number_blocks
+!            if (.not. blocks_coupling(iblock,jblock) ) then
+!		  call matrix%set_block_to_zero(iblock,jblock)
+!	    end if
+!	      end do
+!	end do				
+
+!	call memfree ( blocks_coupling, __FILE__, __LINE__)
+!        
+!      class default
+!        check(.false.)
+!     end select
+!     select type(array)
+!        class is(serial_block_array_t)
+!        call array%create(this%number_blocks,this%number_dofs)
+!        class default
+!        check(.false.)
+!     end select
+!  end if
+!  call serial_fe_space_create_assembler%set_matrix(matrix)
+!  call serial_fe_space_create_assembler%set_array(array)
+!end function serial_fe_space_create_assembler
+
+!subroutine serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
+!  implicit none
+!  class(serial_fe_space_t)        , intent(in)    :: this
+!  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+!  ! Polymorphic matrix 
+!  class(matrix_t), pointer :: matrix
+
+!  matrix => matrix_array_assembler%get_matrix()
+!  select type(matrix)
+!     class is(sparse_matrix_t)
+!     class is(block_sparse_matrix_t)
+!     class default
+!     check(.false.)
+!  end select
+!end subroutine serial_fe_space_symbolic_setup_assembler
+

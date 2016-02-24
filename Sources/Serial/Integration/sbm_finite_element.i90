@@ -25,16 +25,16 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine finite_element_create( this, & 
-                                  cell, &
-                                  number_fe_spaces, &
-                                  reference_fe_phy, &
-                                  quadrature, &
-                                  fe_map, &
-                                  volume_integrator, &
-                                  number_blocks, &
-                                  field_blocks,  &
-                                  boundary_conditions )
+subroutine finite_element_create ( this, & 
+                                   cell, &
+                                   number_fe_spaces, &
+                                   reference_fe_phy, &
+                                   quadrature, &
+                                   fe_map, &
+                                   volume_integrator, &
+                                   number_blocks, &
+                                   field_blocks,  &
+                                   boundary_conditions )
   implicit none
   class(finite_element_t)            , intent(inout) :: this 
   type(elem_topology_t)      , target, intent(in)    :: cell
@@ -48,6 +48,8 @@ subroutine finite_element_create( this, &
   type(conditions_t)                 , intent(in)    :: boundary_conditions
   
   integer(ip) :: j, ivef, inode, jnode, vef_gid, number_nodes, component, offset_component
+  
+  call this%free()
   
   number_nodes = 0
   do j = 1, number_fe_spaces
@@ -82,12 +84,14 @@ subroutine finite_element_create( this, &
     this%bc_value(j)%p = 0.0_rp
     do ivef = 1,this%cell%num_vefs
       vef_gid = this%cell%vefs(ivef)
-      do inode = 1, this%reference_fe_phy(j)%p%get_number_interior_nodes_vef(ivef)
-        jnode = this%reference_fe_phy(j)%p%get_interior_node_vef(inode,ivef)
-        component = offset_component+reference_fe_phy(j)%p%get_bc_component_node(jnode)
-        this%bc_code(j)%p(jnode) = boundary_conditions%code(component,vef_gid)
-        this%bc_value(j)%p(jnode) = boundary_conditions%valu(component,vef_gid)
-      end do
+      if (vef_gid /= -1) then
+        do inode = 1, this%reference_fe_phy(j)%p%get_number_interior_nodes_vef(ivef)
+          jnode = this%reference_fe_phy(j)%p%get_interior_node_vef(inode,ivef)
+          component = offset_component+reference_fe_phy(j)%p%get_bc_component_node(jnode)
+          this%bc_code(j)%p(jnode) = boundary_conditions%code(component,vef_gid)
+          this%bc_value(j)%p(jnode) = boundary_conditions%valu(component,vef_gid)
+        end do
+      end if
     end do
     offset_component = offset_component + reference_fe_phy(j)%p%get_number_field_components()
   end do 
@@ -123,14 +127,15 @@ subroutine finite_element_free( this )
   nullify(this%volume_integrator)
   nullify(this%reference_fe_phy)
   do j = 1, this%number_fe_spaces
-    deallocate( this%elem2dof(j)%p )
-    deallocate( this%bc_code(j)%p )
-    deallocate( this%bc_value(j)%p )
+    if (associated(this%elem2dof(j)%p)) deallocate( this%elem2dof(j)%p )
+    if (associated(this%bc_code(j)%p))  deallocate( this%bc_code(j)%p )
+    if (associated(this%bc_value(j)%p)) deallocate( this%bc_value(j)%p )
   end do
   this%number_fe_spaces = 0   
-  deallocate( this%elem2dof )
-  deallocate( this%bc_code )
-  deallocate( this%bc_value )
+  if ( allocated(this%elem2dof) ) deallocate( this%elem2dof )
+  if ( allocated(this%bc_code) ) deallocate( this%bc_code )
+  if ( allocated(this%bc_value) ) deallocate( this%bc_value )
+  
 end subroutine finite_element_free
 
 subroutine finite_element_fill_interior_dofs ( this, fe_space_id, dof_count )
@@ -161,7 +166,7 @@ subroutine finite_element_fill_interior_dofs ( this, fe_space_id, dof_count )
    end if
 end subroutine finite_element_fill_interior_dofs
 
-subroutine finite_element_fill_dofs_on_vef ( this, vef_local_id, fe_space_id, dof_count )
+subroutine finite_element_fill_interior_dofs_on_vef ( this, vef_local_id, fe_space_id, dof_count )
   implicit none
   ! Parameters
   class(finite_element_t), intent(inout)   :: this
@@ -179,9 +184,9 @@ subroutine finite_element_fill_dofs_on_vef ( this, vef_local_id, fe_space_id, do
       this%elem2dof(fe_space_id)%p(l_node) = dof_count
     end	if
   end do
-end subroutine finite_element_fill_dofs_on_vef
+end subroutine finite_element_fill_interior_dofs_on_vef
 
-subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
+subroutine finite_element_fill_interior_dofs_on_vef_from_source_element ( this, &
                                                            target_vef_lid, &
                                                            source_fe, &  
                                                            source_vef_lid, &
@@ -229,7 +234,27 @@ subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
     end do 
  end if
  
-end subroutine finite_element_fill_dofs_on_vef_from_source_element
+end subroutine finite_element_fill_interior_dofs_on_vef_from_source_element
+
+subroutine finite_element_fill_dofs_on_vef ( this, vef_local_id, fe_space_id, dof_count )
+  implicit none
+  ! Parameters
+  class(finite_element_t), intent(inout)   :: this
+  integer(ip)               , intent(in)      :: vef_local_id
+  integer(ip)               , intent(in)      :: fe_space_id
+  integer(ip)               , intent(inout)   :: dof_count
+
+  ! Local variables
+  integer(ip) :: inode, l_node
+
+  do inode = 1,this%reference_fe_phy(fe_space_id)%p%get_number_nodes_vef(vef_local_id)
+    l_node = this%reference_fe_phy(fe_space_id)%p%get_node_vef(inode,vef_local_id)
+    if ( this%bc_code(fe_space_id)%p(l_node) == 0 ) then
+      dof_count = dof_count + 1
+      this%elem2dof(fe_space_id)%p(l_node) = dof_count
+    end	if
+  end do
+end subroutine finite_element_fill_dofs_on_vef
 
 function finite_element_get_number_nodes ( this )
   implicit none

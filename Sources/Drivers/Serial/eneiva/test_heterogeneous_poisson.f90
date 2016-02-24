@@ -486,6 +486,8 @@ program test_heterogeneous_poisson
   call residual%free()
   call fe_affine_operator%free()
   call fe_space%free()
+  call reference_fe_array(1)%free()
+  call reference_fe_array(2)%free()
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
   call conditions_free(f_cond_tri)
