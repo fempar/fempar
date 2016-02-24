@@ -1527,23 +1527,40 @@ contains
         A_RR_has_symmetric_storage = A_RR%get_symmetric_storage()
         if(A_RR%state_is_properties_setted()) then
             call A_RR%set_num_rows(A_RR_num_rows)
-            call A_RR%set_num_rows(A_RR_num_cols)
+            call A_RR%set_num_cols(A_RR_num_cols)
             if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
-                write(*,*) 'Permute_and_split_2x2: symmetric_storage combination not yet implemented'
-                check(.false.) ! Algorithm must be reimplemented
                 ! All diagonal elements in the original matrix must appear in the sparsity pattern
-                call A_RR%allocate_symbolic(2*this%get_nnz()-total_num_rows)
+                call A_RR%allocate_numeric(2*this%get_nnz()-total_num_rows)
             else if(.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) then
                 ! All diagonal elements in the original matrix must appear in the sparsity pattern
-                call A_RR%allocate_symbolic((this%get_nnz()-total_num_rows)/2+total_num_rows)
+                call A_RR%allocate_numeric((this%get_nnz()-total_num_rows)/2+total_num_rows)
             else
-                call A_RR%allocate_symbolic(this%get_nnz())
+                call A_RR%allocate_numeric(this%get_nnz())
             endif
         else
             call A_RR%allocate_values_body(A_RR%get_nnz())
         endif
 
         A_RR%irp = 0
+
+        if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
+            ! Count nnz per row for A_RR matrix (transpose non diagonal elements)
+            do permuted_row=num_row+1, total_num_rows
+                current_row = iperm(permuted_row)
+                do i = this%irp(current_row), this%irp(current_row+1)-1
+                    permuted_col = perm(this%ja(i))
+                    A_RR%Irp(permuted_row-num_row+1) = A_RR%irp(permuted_row-num_row+1)+1
+                    if(permuted_row-num_row == permuted_col-num_col .or. permuted_col<=num_col) cycle
+                    A_RR%irp(permuted_col-num_col+1) = A_RR%irp(permuted_col-num_col+1)+1
+                enddo
+            enddo
+
+            ! Rebuild CSR header from nz counter
+            A_RR%irp(1) = 1
+            do permuted_row=1, total_num_rows-num_row
+                A_RR%irp(permuted_row+1) = A_RR%irp(permuted_row+1)+A_RR%irp(permuted_row)
+            enddo
+        endif
 
         ! Loop on permuted rows to fill A_CC and A_CR arrays
         A_RR%irp(1) = 1
@@ -1572,61 +1589,93 @@ contains
             current_row = iperm(permuted_row)
             current_row_offset = this%irp(current_row)
             nz_per_row = 0
-            permuted_row_offset = A_RR%irp(permuted_row-num_row)
-    !-----------------------------------------------------------------
-    !< Only needed if (THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) 
-    !< We have to implement this case !!!!!
-    !<
-    !< Unsymmetric sparsity patterns are not allowed we don't have to manage 
-    !< (.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) as a special case
-    !-----------------------------------------------------------------
-!            ! If THIS_has_symmetric_storage transpose upper_triangle
-!            if(THIS_has_symmetric_storage) then
-!                do i=1, current_row-1
-!                    permuted_col = perm(i)-num_col
-!                    if(permuted_col>0 .and. ((.not. A_RR_has_symmetric_storage) .or. (permuted_col > permuted_row-num_row))) then
-!                        ! For each one of the previous rows, check if the current row is in it's list of columns
-!                        j = binary_search(current_row,this%irp(i+1)-this%irp(i),this%ja(this%irp(i):this%irp(i+1)-1))
-!                        if(j==-1) cycle           
-!                        A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
-!                        A_RR%val(permuted_row_offset+nz_per_row) = this%val(this%irp(i)+j-1)
-!                        nz_per_row = nz_per_row + 1
-!                    endif
-!                enddo
-!            endif
-    !-----------------------------------------------------------------
 
-            ! Add permuted_cols to the permuted_row
-            do i = current_row_offset, this%irp(current_row+1)-1
-                current_col = this%ja(i)
-                permuted_col = perm(current_col)
-                if ( permuted_col <= num_col ) then
-                    A_RC(permuted_row-num_row,permuted_col) = this%val(i)
-                    if(THIS_has_symmetric_storage .and. (permuted_col<num_row) .and. &
-                        (permuted_row>num_col)) &
-                        A_CR(permuted_col,permuted_row-num_row) = this%val(i)
-                else
-                    if (A_RR_has_symmetric_storage .and. permuted_row-num_row>permuted_col-num_col) cycle
-                    A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col-num_col
-                    A_RR%val(permuted_row_offset+nz_per_row) = this%val(i)
-                    nz_per_row = nz_per_row + 1
+            if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
+                permuted_row_offset = A_RR%irp(permuted_row-num_row)
+                ! Add permuted_cols to the permuted_row
+                do i = current_row_offset, this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    permuted_col = perm(current_col)
+                    if ( permuted_col <= num_col ) then
+                        A_RC(permuted_row-num_row,permuted_col) = this%val(i)
+                        if(THIS_has_symmetric_storage .and. (permuted_col<num_row) .and. &
+                            (permuted_row>num_col)) &
+                            A_CR(permuted_col,permuted_row-num_row) = this%val(i)
+                    else
+                        ! Add permuted_col to the permuted_row of A_RR
+                        j = A_RR%irp(permuted_row-num_row)
+                        A_RR%ja(j) = permuted_col-num_col
+                        A_RR%val(j) = this%val(i)
+                        A_RR%irp(permuted_row-num_row) = A_RR%irp(permuted_row-num_row)+1
+                        if(permuted_row-num_row == permuted_col-num_col) cycle
+                        ! Unsymmetrize element if is not in the diagonal
+                        j = A_RR%irp(permuted_col-num_col)
+                        A_RR%ja(j) = permuted_row-num_row
+                        A_RR%val(j) = this%val(i)
+                        A_RR%irp(permuted_col-num_col) = A_RR%irp(permuted_col-num_col)+1
+                    endif
+                enddo
+
+            else
+                permuted_row_offset = A_RR%irp(permuted_row-num_row)
+                ! Add permuted_cols to the permuted_row
+                do i = current_row_offset, this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    permuted_col = perm(current_col)
+                    if ( permuted_col <= num_col ) then
+                        A_RC(permuted_row-num_row,permuted_col) = this%val(i)
+                        if(THIS_has_symmetric_storage .and. (permuted_col<num_row) .and. &
+                            (permuted_row>num_col)) &
+                            A_CR(permuted_col,permuted_row-num_row) = this%val(i)
+                    else
+                        if (A_RR_has_symmetric_storage .and. permuted_row-num_row>permuted_col-num_col) cycle
+                        A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col-num_col
+                        A_RR%val(permuted_row_offset+nz_per_row) = this%val(i)
+                        nz_per_row = nz_per_row + 1
+                    endif
+                end do
+                A_RR%irp(permuted_row-num_row+1) = permuted_row_offset+nz_per_row
+
+                ! Sort permuted columns of A_RR sparse matrix for each row
+                if(nz_per_row>0) then
+                    next_permuted_row_offset = permuted_row_offset+nz_per_row
+                    call mergesort_link_list(nz_per_row,                         &
+                        A_RR%ja(permuted_row_offset:next_permuted_row_offset-1), &
+                        link_list,                                               &
+                        iret)
+                    if(iret == 0) call reorder_ip_rp_from_link_list(nz_per_row,   &
+                        A_RR%val(permuted_row_offset:next_permuted_row_offset-1), &
+                        A_RR%ja(permuted_row_offset:next_permuted_row_offset-1),  &
+                        link_list)
                 endif
-            end do
+            endif
+        end do
 
-            ! Sort permuted columns of A_RR sparse matrix for each row
-            if(nz_per_row>0) then
-                next_permuted_row_offset = permuted_row_offset+nz_per_row
+        if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
+            ! In this case A_RR%irp is not well builded we have to revert it
+            ! to get a valid CSR header
+            do permuted_row=A_RR_num_rows, 1, -1
+                A_RR%irp(permuted_row+1) = A_RR%irp(permuted_row)
+            enddo
+            A_RR%irp(1) = 1
+
+            ! Sort permuted_cols for each permuted_row
+            do permuted_row=1, A_RR_num_rows
+                permuted_row_offset = A_RR%irp(permuted_row)
+                next_permuted_row_offset = A_RR%irp(permuted_row+1)-1
+                nz_per_row = next_permuted_row_offset-permuted_row_offset+1
+                ! Sort permuted columns of A_RR sparse matrix for each row
                 call mergesort_link_list(nz_per_row,                         &
-                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1), &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset),   &
                     link_list,                                               &
                     iret)
-                if(iret == 0) call reorder_ip_rp_from_link_list(nz_per_row,   &
-                    A_RR%val(permuted_row_offset:next_permuted_row_offset-1), &
-                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1),  &
+                if(iret == 0) call reorder_ip_rp_from_link_list(nz_per_row,  &
+                    A_RR%val(permuted_row_offset:next_permuted_row_offset),  &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset),   &
                     link_list)
-            endif
-            A_RR%irp(permuted_row-num_row+1) = permuted_row_offset+nz_per_row
-        end do
+            enddo
+        endif
+
         A_RR%nnz = A_RR%irp(A_RR_num_rows+1)-1
         call memfree(link_list, __FILE__, __LINE__)
 
@@ -1716,15 +1765,13 @@ contains
         A_RR_num_rows = total_num_rows-num_row
         A_RR_num_cols = total_num_cols-num_col
         call A_RR%set_num_rows(A_RR_num_rows)
-        call A_RR%set_num_rows(A_RR_num_cols)
+        call A_RR%set_num_cols(A_RR_num_cols)
         THIS_has_symmetric_storage = this%get_symmetric_storage()
         A_RR_has_symmetric_storage = A_RR%get_symmetric_storage()
 
         call memalloc(perm_size+2, link_list, __FILE__, __LINE__)
 
         if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
-            write(*,*) 'Permute_and_split_2x2: symmetric_storage combination not yet implemented'
-            check(.false.) ! Algorithm must be reimplemented
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
             call A_RR%allocate_symbolic(2*this%get_nnz()-total_num_rows)
         else if(.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) then
@@ -1733,60 +1780,107 @@ contains
         else
             call A_RR%allocate_symbolic(this%get_nnz())
         endif
+
         A_RR%irp = 0
 
-        ! Loop on permuted rows to fill A_RR sparse matrix
-        A_RR%irp(1) = 1
-        do permuted_row=1, A_RR_num_rows
-            current_row = iperm(permuted_row+num_row)
-            current_row_offset = this%irp(current_row)
-            permuted_row_offset = A_RR%irp(permuted_row)
-            nz_per_row = 0
+        if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
+            ! Count nnz per row for A_RR matrix (transpose non diagonal elements)
+            do permuted_row=1, A_RR_num_rows
+                current_row = iperm(permuted_row+num_row)
+                do i = this%irp(current_row), this%irp(current_row+1)-1
+                    permuted_col = perm(this%ja(i))-num_col
+                    A_RR%Irp(permuted_row+1) = A_RR%irp(permuted_row+1)+1
+                    if(permuted_row == permuted_col) cycle
+                    A_RR%irp(permuted_col+1) = A_RR%irp(permuted_col+1)+1
+                enddo
+            enddo
 
-    !-----------------------------------------------------------------
-    !< Only needed if (THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) 
-    !< We have to implement this case !!!!!
-    !<
-    !< Unsymmetric sparsity patterns are not allowed we don't have to manage 
-    !< (.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) as a special case
-    !-----------------------------------------------------------------
-!            ! If THIS_has_symmetric_storage transpose upper_triangle
-!            if(THIS_has_symmetric_storage) then
-!                do i=1, current_row-1
-!                    permuted_col = perm(i) - num_col
-!                    if((.not. A_RR_has_symmetric_storage) .or. (permuted_col > permuted_row))then 
-!                        ! For each one of the previous rows, check if the current row is in it's list of columns
-!                        j = binary_search(current_row,this%irp(i+1)-this%irp(i),this%ja(this%irp(i):this%irp(i+1)-1))
-!                        if(j==-1) cycle
-!                        A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
-!                        nz_per_row = nz_per_row + 1
-!                    endif
-!                enddo
-!            endif
-    !-----------------------------------------------------------------
+            ! Build CSR header from counter
+            A_RR%irp(1) = 1
+            do permuted_row=1, A_RR_num_rows
+                A_RR%irp(permuted_row+1) = A_RR%irp(permuted_row+1)+A_RR%irp(permuted_row)
+            enddo
 
-            ! Add permuted_cols to the permuted_row
-            do i = current_row_offset, this%irp(current_row+1)-1
-                current_col = this%ja(i)
-                permuted_col = perm(current_col) - num_col
-                if (permuted_col<1 .or. (A_RR_has_symmetric_storage .and. permuted_row>permuted_col)) cycle
-                A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
-                nz_per_row = nz_per_row + 1
-            end do
+            do permuted_row=1, A_RR_num_rows
+                current_row = iperm(permuted_row+num_row)
+                current_row_offset = this%irp(current_row)
+                nz_per_row = 0
 
-            ! Sort permuted columns of A_RR sparse matrix for each row
-            if(nz_per_row>0) then
-                next_permuted_row_offset = permuted_row_offset+nz_per_row
+                permuted_row_offset = A_RR%irp(permuted_row)
+                ! Add permuted_cols to the permuted_row
+                do i = current_row_offset, this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    permuted_col = perm(current_col)-num_col
+                    if ( permuted_col > 0 ) then
+                        ! Add permuted_col to the permuted_row of A_RR
+                        j = A_RR%irp(permuted_row)
+                        A_RR%ja(j) = permuted_col
+                        A_RR%irp(permuted_row) = A_RR%irp(permuted_row)+1
+                        if(permuted_row == permuted_col) cycle
+                        ! Unsymmetrize element if is not in the diagonal
+                        j = A_RR%irp(permuted_col)
+                        A_RR%ja(j) = permuted_row
+                        A_RR%irp(permuted_col) = A_RR%irp(permuted_col)+1
+                    endif
+                enddo
+            enddo
+
+            ! In this case A_RR%irp is not well builded we have to revert it
+            ! to get a valid CSR header
+            do permuted_row=A_RR_num_rows, 1, -1
+                A_RR%irp(permuted_row+1) = A_RR%irp(permuted_row)
+            enddo
+            A_RR%irp(1) = 1
+
+            ! Sort permuted_cols for each permuted_row
+            do permuted_row=1, A_RR_num_rows
+                permuted_row_offset = A_RR%irp(permuted_row)
+                next_permuted_row_offset = A_RR%irp(permuted_row+1)-1
+                nz_per_row = next_permuted_row_offset-permuted_row_offset+1
+                ! Sort permuted columns of A_RR sparse matrix for each row
                 call mergesort_link_list(nz_per_row,                         &
-                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1), &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset), &
                     link_list,                                               &
                     iret)
-                if(iret == 0) call reorder_ip_from_link_list(nz_per_row,   &
-                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1),  &
+                if(iret == 0) call reorder_ip_from_link_list(nz_per_row,     &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset), &
                     link_list)
-            endif
-            A_RR%irp(permuted_row+1) = permuted_row_offset+nz_per_row
-        end do
+            enddo
+
+        else
+            ! Loop on permuted rows to fill A_RR sparse matrix
+            A_RR%irp(1) = 1
+            do permuted_row=1, A_RR_num_rows
+                current_row = iperm(permuted_row+num_row)
+                current_row_offset = this%irp(current_row)
+                permuted_row_offset = A_RR%irp(permuted_row)
+                nz_per_row = 0
+
+                ! Add permuted_cols to the permuted_row
+                do i = current_row_offset, this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    permuted_col = perm(current_col) - num_col
+                    if (permuted_col<1 .or. (A_RR_has_symmetric_storage .and. permuted_row>permuted_col)) cycle
+                    A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
+                    nz_per_row = nz_per_row + 1
+                end do
+
+                ! Sort permuted columns of A_RR sparse matrix for each row
+                if(nz_per_row>0) then
+                    next_permuted_row_offset = permuted_row_offset+nz_per_row
+                    call mergesort_link_list(nz_per_row,                         &
+                        A_RR%ja(permuted_row_offset:next_permuted_row_offset-1), &
+                        link_list,                                               &
+                        iret)
+                    if(iret == 0) call reorder_ip_from_link_list(nz_per_row,   &
+                        A_RR%ja(permuted_row_offset:next_permuted_row_offset-1),  &
+                        link_list)
+                endif
+                A_RR%irp(permuted_row+1) = permuted_row_offset+nz_per_row
+            end do
+
+        endif
+
         A_RR%nnz = A_RR%irp(A_RR_num_rows+1)-1
 
         call memfree(link_list, __FILE__, __LINE__)
