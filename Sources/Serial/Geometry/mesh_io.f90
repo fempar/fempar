@@ -35,18 +35,38 @@ module mesh_io_names
   private
 
   ! Functions
-  public :: mesh_read, mesh_write_gid, &
-          & mesh_compose_name, mesh_write_file, mesh_write_gid_files, &
-          & mesh_write_files, mesh_read_file, mesh_read_files
+  public :: mesh_compose_name, mesh_read, mesh_read_file, &
+       !&    mesh_read_files, & ! This procedure is not used.
+       &    mesh_write_file, mesh_write_files, &
+       &    mesh_write_file_for_postprocess, mesh_write_files_for_postprocess
 
-  !integer(ip), parameter :: permu_2DQ1(4) = (/ 1, 2, 4, 3/)
-  !integer(ip), parameter :: permu_3DQ1(8) = (/ 1, 2, 4, 3, 5, 6, 8, 7/)
+  integer(ip), target :: permu_2DP1(3) = (/ 1, 2, 3/)
   integer(ip), target :: permu_2DQ1(4) = (/ 1, 2, 4, 3/)
+  integer(ip), target :: permu_3DP1(4) = (/ 1, 2, 3, 4/)
+  integer(ip), target :: permu_3DPR(6) = (/ 1, 2, 3, 4, 5, 6/)
   integer(ip), target :: permu_3DQ1(8) = (/ 1, 2, 4, 3, 5, 6, 8, 7/)
+  integer(ip), target :: permu_id  (8) = (/ 1, 2, 3, 4, 5, 6, 7, 8/)
   ! permu_2D_nnode_8 = (/ 1, 2, 4, 3, 5, 7, 8, 6/)
   ! permu_3D_nnode_26 = (/ 1, 9, 2, 12, 21, 10, 4, 11, 3, 13, 22, 14, 25, 27, 23, 16, 24, 15, 5, 17, 6, 20, 26, 18, 8, 19, 7/)
 
 contains
+
+  !  Interfaces:
+
+  ! subroutine mesh_read_file  ( lunio,msh,permute_c2z)
+  ! subroutine mesh_read_files ( dir_path, prefix, nparts, lmesh )
+  ! subroutine mesh_read       ( dir_path, prefix, f_mesh, permute_c2z )
+
+  ! subroutine mesh_compose_name ( prefix, name ) 
+  ! subroutine mesh_compose_post_name ( prefix, name ) 
+
+  ! subroutine mesh_write_file      (lunio,msh,title)
+  ! subroutine mesh_write_post_file (lunio,msh,title)
+
+  ! subroutine mesh_write_files                  ( dir_path, prefix, nparts, lmesh )
+
+  ! subroutine mesh_write_file_for_postprocess   ( dir_path, prefix, f_mesh )
+  ! subroutine mesh_write_files_for_postprocess  ( dir_path, prefix, nparts, lmesh )
 
   !=============================================================================
   ! TODO:
@@ -74,7 +94,7 @@ contains
     character(1000) :: tel
     integer(ip), allocatable :: lnods_aux(:)
     integer(ip), pointer     :: permu(:)
-    logical                  :: permute_c2z_, apply_perm
+    logical                  :: permute_c2z_
 
     if(present(permute_c2z)) then
        permute_c2z_ = permute_c2z
@@ -164,24 +184,26 @@ contains
     end do
 
     ! Reordering (c to z) the nodes of the mesh, if needed
-    if(msh%ndime == 2) then
-       if(msh%nnode == 3) then     ! Linear triangles (2DP1)
-          permute_c2z_ = .false. 
-       elseif(msh%nnode == 4) then ! Linear quadrilaterals(2DQ1)
-          permu => permu_2DQ1
-       end if
-    elseif(msh%ndime == 3) then
-       if(msh%nnode == 4) then     ! Linear tetrahedra (3DP1)
-          permute_c2z_ = .false. 
-       elseif(msh%nnode == 8) then ! Linear hexahedra (3DQ1)
-          permu => permu_3DQ1
-       end if
-    end if
     if(permute_c2z_) then
+       msh%order=z_order
        call memalloc(msh%nnode, lnods_aux, __FILE__, __LINE__)
        do ielem = 1,msh%nelem
-          lnods_aux = msh%lnods(msh%pnods(ielem):msh%pnods(ielem+1)-1)
-          do inode = 1, msh%pnods(ielem+1) - msh%pnods(ielem)
+          nnode = msh%pnods(ielem+1) - msh%pnods(ielem)
+          lnods_aux(1:nnode) = msh%lnods(msh%pnods(ielem):msh%pnods(ielem+1)-1)
+          if(msh%ndime == 2) then
+             if(nnode == 3)  then    ! Linear triangles (2DP1)
+                permu => permu_2DP1
+             elseif(nnode == 4) then ! Linear quadrilaterals(2DQ1)
+                permu => permu_2DQ1
+             end if
+          elseif(msh%ndime == 3) then
+             if(nnode == 4) then     ! Linear tetrahedra (3DP1)
+                permu => permu_3DP1
+             elseif(nnode == 8) then ! Linear hexahedra (3DQ1)
+                permu => permu_3DQ1
+             end if
+          end if
+          do inode = 1, nnode
              msh%lnods(msh%pnods(ielem)+inode-1) = lnods_aux(permu(inode))
           end do
        end do
@@ -236,36 +258,42 @@ contains
   end subroutine mesh_write_file
 
   !=============================================================================
-  subroutine mesh_write_gid_file (lunio,msh,title)
+  subroutine mesh_write_post_file (lunio,msh,title)
     !------------------------------------------------------------------------
     !
-    ! This routine writes a mesh in GiD format. Only works for nelty=1
+    ! This routine writes a mesh in GiD format (only works for linear elements).
     !
     !------------------------------------------------------------------------
     implicit none
     integer(ip)      , intent(in)           :: lunio
-    type(mesh_t)   , intent(in)           :: msh
+    type(mesh_t)     , intent(in)           :: msh
     character(*)     , intent(in), optional :: title
 
-    integer(ip)                    :: ielem, idime, ipoin, inode
+    integer(ip)                    :: ielem, idime, ipoin, inode, nnode
     character(13)                  :: elemt
     character(len=:), allocatable  :: title_
 
-    assert(msh%nelty==1)
+    integer(ip)     , pointer      :: permu(:)
 
+    permu => permu_id
     if(msh%ndime==2) then
-       if(msh%nnode==3.or.msh%nnode==6.or.msh%nnode==7) then
+       if(msh%nnode==3) then
           elemt='Triangle' 
+          if(msh%order==z_order) permu => permu_2DP1
        else
           elemt='Quadrilateral'
+          if(msh%order==z_order) permu => permu_2DQ1
        end if
     else
-       if(msh%nnode==4.or.msh%nnode==10) then 
+       if(msh%nnode==4) then 
           elemt='Tetrahedra'
-       else if(msh%nnode==8.or.msh%nnode==20.or.msh%nnode==27.or.msh%nnode==64) then 
-          elemt='Hexahedra'
-       else if(msh%nnode==6.or.msh%nnode==15) then 
+          if(msh%order==z_order) permu => permu_3DP1
+       else if(msh%nnode==6) then 
           elemt='Prism'
+          if(msh%order==z_order) permu => permu_3DPR
+       else if(msh%nnode==8) then 
+          elemt='Hexahedra'
+          if(msh%order==z_order) permu => permu_3DQ1
        end if
     end if
 
@@ -284,12 +312,57 @@ contains
     write(lunio,2)'end coordinates'
 
     ! Connectivity
-    write(lunio,2)'elements'
-    do ielem=1,msh%nelem
-       write(lunio,4) ielem, &
-            &  (msh%lnods(inode+(ielem-1)*msh%nnode),inode=1,msh%nnode),1
-    end do
-    write(lunio,2) 'end elements'
+    if(msh%nelty==1) then
+       write(lunio,2)'elements'
+       do ielem=1,msh%nelem
+          nnode = msh%pnods(ielem+1)-msh%pnods(ielem)
+          write(lunio,4) ielem, (msh%lnods(msh%pnods(ielem)-1+permu(inode)),inode=1,nnode),1
+       end do
+       write(lunio,2) 'end elements'
+    else
+       ! Write hexahedra or prismas (3D) or quads(2)
+       write(lunio,2)'elements'
+       do ielem=1,msh%nelem
+          nnode = msh%pnods(ielem+1)-msh%pnods(ielem)
+          if(nnode == msh%nnode) &
+               write(lunio,4) ielem, (msh%lnods(msh%pnods(ielem)-1+permu(inode)),inode=1,nnode),1
+       end do
+       write(lunio,2) 'end elements'
+       ! Now write tetrahedra (3D) or triangles (2D)
+       if(msh%ndime==2) then
+          nnode = 3
+          elemt = 'Triangle' 
+          if(msh%order==z_order) permu => permu_2DP1
+       else if(msh%ndime==3) then
+          nnode = 4
+          elemt='Tetrahedra'
+          if(msh%order==z_order) permu => permu_3DP1
+       end if
+       write(lunio,1) adjustl(trim(title_)),msh%ndime,adjustl(trim(elemt)),nnode
+       write(lunio,2)'coordinates'
+       write(lunio,2)'end coordinates'
+       write(lunio,2)'elements'
+       do ielem=1,msh%nelem
+          if(msh%pnods(ielem+1)-msh%pnods(ielem) == nnode) &
+               write(lunio,4) ielem, (msh%lnods(msh%pnods(ielem)-1+permu(inode)),inode=1,nnode),1
+       end do
+       write(lunio,2) 'end elements'
+       ! Eventually write prismas (3D)
+       if(msh%ndime==3.and.msh%nnode==8) then
+          nnode = 4
+          elemt='Prism'
+          if(msh%order==z_order) permu => permu_3DPR
+          write(lunio,1) adjustl(trim(title_)),msh%ndime,adjustl(trim(elemt)),nnode
+          write(lunio,2)'coordinates'
+          write(lunio,2)'end coordinates'
+          write(lunio,2)'elements'
+          do ielem=1,msh%nelem
+             if(msh%pnods(ielem+1)-msh%pnods(ielem) == nnode) &
+                  write(lunio,4) ielem, (msh%lnods(msh%pnods(ielem)-1+permu(inode)),inode=1,nnode),1
+          end do
+          write(lunio,2) 'end elements'
+       end if
+    end if
 
 1   format('MESH ',a,' dimension ',i1,' Elemtype ',a,' Nnode ',i2)
 2   format(a)
@@ -298,21 +371,24 @@ contains
 5   format('BOUNDARY ',a,' Nnodb ',i2)
 6   format(i6,10(1x,i6))
 
-  end subroutine mesh_write_gid_file
+  end subroutine mesh_write_post_file
 
+  !=============================================================================
   subroutine mesh_compose_name ( prefix, name ) 
     implicit none
     character(len=*)             , intent(in)    :: prefix 
     character(len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.mesh'
   end subroutine mesh_compose_name
-  subroutine mesh_compose_gid_name ( prefix, name ) 
+  !=============================================================================
+  subroutine mesh_compose_post_name ( prefix, name ) 
     implicit none
     character(len=*)             , intent(in)    :: prefix 
     character(len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.post.msh'
-  end subroutine mesh_compose_gid_name
+  end subroutine mesh_compose_post_name
 
+  !=============================================================================
   subroutine mesh_write_files ( dir_path, prefix, nparts, lmesh )
      implicit none
      ! Parameters 
@@ -340,32 +416,31 @@ contains
      ! go out of scope. Should we deallocate them explicitly for safety reasons?
    end subroutine mesh_write_files
 
-  subroutine mesh_write_gid_files ( dir_path, prefix, nparts, lmesh )
+  !=============================================================================
+  subroutine mesh_write_files_for_postprocess ( dir_path, prefix, nparts, lmesh )
      implicit none
      ! Parameters 
-     character(*)   , intent(in)  :: dir_path 
-     character(*)   , intent(in)  :: prefix
+     character(*)    , intent(in)  :: dir_path 
+     character(*)    , intent(in)  :: prefix
      integer(ip)     , intent(in)  :: nparts
-     type(mesh_t)  , intent(in)  :: lmesh (nparts)
-
+     type(mesh_t)    , intent(in)  :: lmesh (nparts)
      character(len=:), allocatable :: name, rename ! Deferred-length allocatable character arrays
 
      ! Locals 
      integer (ip) :: i,lunio
 
-     call mesh_compose_gid_name ( prefix, name )
-
      do i=nparts, 1, -1  
-        rename=name
-        call numbered_filename_compose(i,nparts,rename)
+        name=prefix
+        call numbered_filename_compose(i,nparts,name)
+        call mesh_compose_post_name (name, rename)
         lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' )
-        call mesh_write_gid_file(lunio,lmesh(i))
+        call mesh_write_post_file(lunio,lmesh(i))
         call io_close(lunio)
      end do
      
-   end subroutine mesh_write_gid_files
+   end subroutine mesh_write_files_for_postprocess
 
-
+  !=============================================================================
    subroutine mesh_read_files ( dir_path, prefix, nparts, lmesh )
      implicit none
      ! Parameters 
@@ -379,7 +454,6 @@ contains
      integer (ip)                     :: i,lunio
      
      call mesh_compose_name ( prefix, name )
-    
      do i=nparts, 1, -1  
         rename=name
         call numbered_filename_compose(i,nparts,rename)
@@ -396,9 +470,8 @@ contains
      ! Parameters
      character (*)                , intent(in)  :: dir_path
      character (*)                , intent(in)  :: prefix
-     type(mesh_t)               , intent(out) :: f_mesh
+     type(mesh_t)                 , intent(out) :: f_mesh
      logical, optional, intent(in)  :: permute_c2z
-
      ! Locals
      integer                        :: iam, num_procs
      integer(ip)                    :: j, ndigs_iam, ndigs_num_procs, lunio
@@ -406,15 +479,13 @@ contains
 
      ! Read mesh
      call mesh_compose_name ( prefix, name )
-
      lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
      call mesh_read_file(lunio, f_mesh, permute_c2z)
      call io_close(lunio)
-
    end subroutine mesh_read
 
    !=============================================================================
-   subroutine mesh_write_gid ( dir_path, prefix, f_mesh )
+   subroutine mesh_write_file_for_postprocess ( dir_path, prefix, f_mesh )
      implicit none 
      ! Parameters
      character (*)                , intent(in)  :: dir_path
@@ -425,13 +496,11 @@ contains
      integer(ip)                    :: lunio
      character(len=:), allocatable  :: name
 
-     ! Read mesh
-     call mesh_compose_gid_name ( prefix, name )
-     
+     call mesh_compose_post_name ( prefix, name )
      lunio = io_open( trim(dir_path)//'/'//trim(name), 'write' )
-     call mesh_write_gid_file(lunio, f_mesh)
+     call mesh_write_post_file(lunio, f_mesh)
      call io_close(lunio)
 
-   end subroutine mesh_write_gid
+   end subroutine mesh_write_file_for_postprocess
    
 end module mesh_io_names

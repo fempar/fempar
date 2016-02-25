@@ -17,8 +17,6 @@
 *set var nelty=nelty+1
 *set var netot=netot+nelem
 *endif 
-*set elems(Linear)
-*set var nboun=nelem
 *else
 *set elems(Tetrahedra)
 *if(nelem>0) 
@@ -34,11 +32,16 @@
 *if(nelem>0) 
 *set var nelty=nelty+1
 *endif 
-*set elems(Triangle) 
-*add elems(Quadrilateral)
-*add elems(Linear)
-*set var nboun=nelem
 *endif 
+*\
+*set elems(Linear)
+*set Cond Line_id *elems
+*if(ndime==3)
+*add elems(Triangle)  
+*add elems(Quadrilateral)
+*add Cond Surface_id *elems
+*endif
+*set var nboun=CondNumEntities
 *format "%2i %2i %10i %10i %10i"
 MESH dimension *ndime types *nelty elements *netot nodes *npoin boundaries *nboun
 *\------------------------------------------------------------
@@ -97,7 +100,7 @@ end elements
 *\ ------------------------------------------------------------
 boundaries
 *set var k=0
-*loop elems
+*loop elems *OnlyInCond 
 *set var k=k+1
 *format "%8i %8i %8i %8i %8i %8i %8i %8i %8i %8i %8i"
    *k *elemsNnode *elemsConec  *cond(1) *cond(2) 

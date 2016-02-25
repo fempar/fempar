@@ -36,8 +36,12 @@ module mesh_names
 # include "debug.i90"
   private
 
+  integer(ip), parameter :: c_order = 0
+  integer(ip), parameter :: z_order = 1
+
   type mesh_t
      integer(ip)                :: &
+          order=c_order,           &         ! GiD element order (c)
           nelty=1,                 &         ! Number of element types
           ndime,                   &         ! Number of space dimensions
           npoin,                   &         ! Number of nodes (vertices)
@@ -69,6 +73,7 @@ module mesh_names
 
   ! Constants
   public :: count_elements_around_points, list_elements_around_points
+  public :: c_order, z_order
 
 contains
   !=============================================================================

@@ -68,7 +68,7 @@ program partitioner
   !gmat%list = 1 
   
   ! Write original mesh for postprocess
-  call mesh_write_gid(dir_path_out, prefix, gmesh)
+  call mesh_write_file_for_postprocess(dir_path_out, prefix, gmesh)
 
 !!$  ! Write original conditions
 !!$  call conditions_compose_name ( comp_prefix, name ) 
@@ -110,8 +110,8 @@ program partitioner
   call mesh_distribution_write_files ( dir_path_out, prefix, nparts, distr )
 
   ! Write local meshes
-  call mesh_write_files     ( dir_path_out, prefix, nparts, lmesh )
-  call mesh_write_gid_files ( dir_path_out, prefix, nparts, lmesh )
+  call mesh_write_files                 ( dir_path_out, prefix, nparts, lmesh )
+  call mesh_write_files_for_postprocess ( dir_path_out, prefix, nparts, lmesh )
 
   ! Create local conditions
   !allocate(lnodes(nparts))

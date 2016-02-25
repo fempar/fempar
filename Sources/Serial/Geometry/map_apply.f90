@@ -352,7 +352,8 @@ contains
     assert(nmap%ng == gmesh%npoin)
     assert(emap%ng == gmesh%nelem)
 
-    lmesh%nelty=gmesh%nelty ! Only informative, not required by algorithms
+    lmesh%order=gmesh%order
+    lmesh%nelty=gmesh%nelty
     lmesh%ndime=gmesh%ndime
     lmesh%npoin=nmap%nl
     lmesh%nelem=emap%nl
