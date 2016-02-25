@@ -971,18 +971,48 @@ contains
     
             ! Allocate irp, ja and val arrays of all submatrices
             nz = this%irp(num_row+1)-1  ! nnz after num_row
-            call A_II%allocate_numeric(nz);     A_II%irp(1) = 1
+            if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
+                call A_II%allocate_numeric(2*nz)
+            else
+                call A_II%allocate_numeric(nz)
+            endif
+            A_II%irp(1) = 1
             call A_IG%allocate_numeric(nz);     A_IG%irp(1) = 1
             nz = this%nnz - nz          ! nnz after num_row
             if(present(A_GI)) then
                 call A_GI%allocate_numeric(nz); A_GI%irp(1) = 1
             endif
-            call A_GG%allocate_numeric(nz);     A_GG%irp(1) = 1
+            if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
+                call A_GG%allocate_numeric(2*nz)
+            else
+                call A_GG%allocate_numeric(nz)
+            endif
+            A_GG%irp(1) = 1
         else
             call A_II%allocate_values_body(A_II%nnz)
             call A_IG%allocate_values_body(A_IG%nnz)
             if(present(A_GI)) call A_GI%allocate_values_body(A_GI%nnz)
             call A_GG%allocate_values_body(A_GG%nnz)
+        endif
+
+        if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
+            ! If input matrix has symmetric storage and one or more of the output diagonal matrix has not symmetric 
+            A_II%irp = 0
+            ! Count total number of
+            do i=1, num_row
+                do j=this%irp(i), this%irp(i+1)-1
+                    k = this%ja(j)
+                    if(k>num_col) exit
+                    A_II%irp(i+1) = A_II%irp(i+1)+1
+                    if(i == k) cycle ! diagonal elements
+                    A_II%irp(k+1) = A_II%irp(k+1)+1
+                enddo
+            enddo
+            ! Build CSR header from the counter
+            A_II%irp(1) = 1
+            do i=1, num_row
+                A_II%irp(i+1) = A_II%irp(i+1)+A_II%irp(i)
+            enddo
         endif
 
         ! Loop (1:num_row) to get A_II and A_IG 
@@ -1035,14 +1065,18 @@ contains
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
-                write(*,*) 'Split_2x2: symmetric_storage combination not yet implemented'
-                check(.false.) ! Algorithm not implemented
-    !-----------------------------------------------------------------
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
-    !< NOT IMPLEMENTED !!!!!!
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !-----------------------------------------------------------------        
+                do j=this%irp(i), this%irp(i)+nz-1
+                    ! Add upper triangle elements
+                    k = this%ja(j)
+                    A_II%ja(A_II%irp(i)) = k
+                    A_II%val(A_II%irp(i)) = this%val(j)
+                    A_II%irp(i) = A_II%irp(i)+1
+                    if(i==k) cycle
+                    ! Add lower triangle elements
+                    A_II%ja(A_II%irp(k)) = i
+                    A_II%val(A_II%irp(k)) = this%val(i)
+                    A_II%irp(k) = A_II%irp(k)+1
+                enddo
             endif
 
             ! Number of nnz of A_IG in row i
@@ -1062,12 +1096,42 @@ contains
                 A_IG%irp(i+1) = A_IG%irp(i)
             endif
         enddo
+
+        if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
+            do i=num_row, 1, -1
+                A_II%irp(i+1) = A_II%irp(i)
+            enddo
+            A_II%irp(1) = 1
+            A_II%nnz = A_II%irp(num_row+1)-1
+        endif
+
         if(is_properties_setted_state) then
             call memrealloc(A_II%nnz, A_II%ja,   __FILE__, __LINE__)
             call memrealloc(A_IG%nnz, A_IG%ja,   __FILE__, __LINE__)
             call memrealloc(A_II%nnz, A_II%val,  __FILE__, __LINE__)
             call memrealloc(A_IG%nnz, A_IG%val,  __FILE__, __LINE__)
         endif
+
+        if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
+            ! If input matrix has symmetric storage and one or more of the output diagonal matrix has not symmetric 
+            A_GG%irp = 0
+            ! Count total number of
+            do i=num_row+1, total_rows
+                do j=this%irp(i), this%irp(i+1)-1
+                    k = this%ja(j)-num_col
+                    if(k<0) cycle
+                    A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row+1)+1
+                    if(i-num_row == k) cycle ! diagonal elements
+                    A_GG%irp(k+1) = A_GG%irp(k+1)+1
+                enddo
+            enddo
+            ! Build CSR header from counter
+            A_GG%irp(1) = 1
+            do i=1, A_GG%get_num_rows()
+                A_GG%irp(i+1) = A_GG%irp(i+1)+A_GG%irp(i)
+            enddo
+        endif
+
         ! Loop (num_row:this%num_rows) to get A_GI and A_GG
         do i=num_row+1, this%get_num_rows()
             nz_offset = 0
@@ -1140,16 +1204,29 @@ contains
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
-                write(*,*) 'Split_2x2: symmetric_storage combination not yet implemented'
-                check(.false.) ! Algorithm not implemented
-    !-----------------------------------------------------------------
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
-    !< NOT IMPLEMENTED !!!!!!
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !-----------------------------------------------------------------    
+                do j=this%irp(i), this%irp(i)+nz-1
+                    ! Add upper triangle elements
+                    k = this%ja(j)-num_col
+                    A_GG%ja(A_GG%irp(i-num_row)) = k
+                    A_GG%val(A_GG%irp(i-num_row)) = this%val(j)
+                    A_GG%irp(i-num_row) = A_GG%irp(i-num_row)+1
+                    if(i-num_row==k) cycle
+                    ! Add lower triangle elements
+                    A_GG%ja(A_GG%irp(k)) = i-num_row
+                    A_GG%val(A_GG%irp(k)) = this%val(i)
+                    A_GG%irp(k) = A_GG%irp(k)+1
+                enddo
             endif
         enddo
+
+        if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
+            do i=A_GG%get_num_rows(), 1, -1
+                A_GG%irp(i+1) = A_GG%irp(i)
+            enddo
+            A_GG%irp(1) = 1
+            A_GG%nnz = A_GG%irp(A_GG%get_num_rows()+1)-1
+        endif
+
         if(present(A_GI) .and. is_properties_setted_state) then
             call memrealloc(A_GI%nnz, A_GI%ja,   __FILE__, __LINE__)
             call memrealloc(A_GI%nnz, A_GI%val,  __FILE__, __LINE__)
@@ -1238,8 +1315,6 @@ contains
         integer(ip)                                        :: sign
         integer(ip)                                        :: state
         logical                                            :: properties_are_setted
-        logical                                            :: symmetric
-        logical                                            :: symmetric_storage
     !-----------------------------------------------------------------
         ! Check state
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic() ) 
@@ -1262,7 +1337,7 @@ contains
         ! Allocate irp, ja and val arrays of all submatrices
         nz = this%irp(num_row+1)-1  ! nnz after num_row
         if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
-            call A_II%allocate_symbolic(this%nnz)
+            call A_II%allocate_symbolic(2*nz)
         else
             call A_II%allocate_symbolic(nz)
         endif
@@ -1273,11 +1348,30 @@ contains
             call A_GI%allocate_symbolic(nz); A_GI%irp(1) = 1
         endif
         if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
-            call A_GG%allocate_symbolic(this%nnz)
+            call A_GG%allocate_symbolic(2*nz)
         else
             call A_GG%allocate_symbolic(nz)
         endif
         A_GG%irp(1) = 1
+
+        if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
+            ! If input matrix has symmetric storage and one or more of the output diagonal matrix has not symmetric 
+            A_II%irp = 0
+            ! Count total number of
+            do i=1, num_row
+                do j=this%irp(i), this%irp(i+1)-1
+                    k = this%ja(j)
+                    if(k>num_col) exit
+                    A_II%irp(i+1) = A_II%irp(i+1)+1
+                    if(i == k) cycle ! diagonal elements
+                    A_II%irp(k+1) = A_II%irp(k+1)+1
+                enddo
+            enddo
+            A_II%irp(1) = 1
+            do i=1, num_row
+                A_II%irp(i+1) = A_II%irp(i+1)+A_II%irp(i)
+            enddo
+        endif
 
         ! Loop (1:num_row) to get A_II and A_IG 
         do i=1, num_row
@@ -1323,14 +1417,16 @@ contains
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
-                write(*,*) 'Split_2x2: symmetric_storage combination not yet implemented'
-                check(.false.) ! Algorithm not implemented
-    !-----------------------------------------------------------------
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
-    !< NOT IMPLEMENTED !!!!!!
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !-----------------------------------------------------------------    
+                do j=this%irp(i), this%irp(i)+nz-1
+                    ! Add upper triangle elements
+                    k = this%ja(j)
+                    A_II%ja(A_II%irp(i)) = k
+                    A_II%irp(i) = A_II%irp(i)+1
+                    if(i==k) cycle
+                    ! Add lower triangle elements
+                    A_II%ja(A_II%irp(k)) = i
+                    A_II%irp(k) = A_II%irp(k)+1
+                enddo
             endif
 
             ! Number of nnz of A_IG in row i
@@ -1347,11 +1443,40 @@ contains
                 A_IG%irp(i+1) = A_IG%irp(i)
             endif
         enddo
+
+        if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
+            do i=num_row, 1, -1
+                A_II%irp(i+1) = A_II%irp(i)
+            enddo
+            A_II%irp(1) = 1
+            A_II%nnz = A_II%irp(num_row+1)-1
+        endif
+
         call memrealloc(A_II%nnz, A_II%ja, __FILE__, __LINE__)
         call memrealloc(A_IG%nnz, A_IG%ja, __FILE__, __LINE__)
 
+        if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
+            ! If input matrix has symmetric storage and one or more of the output diagonal matrix has not symmetric 
+            A_GG%irp = 0
+            ! Count total number of
+            do i=num_row+1, total_rows
+                do j=this%irp(i), this%irp(i+1)-1
+                    k = this%ja(j)-num_col
+                    if(k<0) cycle
+                    A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row+1)+1
+                    if(i-num_row == k) cycle ! diagonal elements
+                    A_GG%irp(k+1) = A_GG%irp(k+1)+1
+                enddo
+            enddo
+            ! Build CSR header from counter
+            A_GG%irp(1) = 1
+            do i=1, A_GG%get_num_rows()
+                A_GG%irp(i+1) = A_GG%irp(i+1)+A_GG%irp(i)
+            enddo
+        endif
+
         ! Loop (num_row:this%num_rows) to get A_GI and A_GG
-        do i=num_row+1, this%get_num_rows()
+        do i=num_row+1, total_rows
             nz_offset = 0
             ! Count the number of columns less than or equal to num_row
             do j=this%irp(i), this%irp(i+1)-1
@@ -1413,16 +1538,26 @@ contains
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
-                write(*,*) 'Split_2x2: symmetric_storage combination not yet implemented'
-                check(.false.) ! Algorithm not implemented
-    !-----------------------------------------------------------------
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
-    !< NOT IMPLEMENTED !!!!!!
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !-----------------------------------------------------------------    
+                do j=this%irp(i), this%irp(i)+nz-1
+                    ! Add upper triangle elements
+                    k = this%ja(j)-num_col
+                    A_GG%ja(A_GG%irp(i-num_row)) = k
+                    A_GG%irp(i-num_row) = A_GG%irp(i-num_row)+1
+                    if(i-num_row==k) cycle
+                    ! Add lower triangle elements
+                    A_GG%ja(A_GG%irp(k)) = i-num_row
+                    A_GG%irp(k) = A_GG%irp(k)+1
+                enddo
             endif
         enddo
+
+        if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
+            do i=A_GG%get_num_rows(), 1, -1
+                A_GG%irp(i+1) = A_GG%irp(i)
+            enddo
+            A_GG%irp(1) = 1
+            A_GG%nnz = A_GG%irp(A_GG%get_num_rows()+1)-1
+        endif
 
         if(present(A_GI)) call memrealloc(A_GI%nnz, A_GI%ja, __FILE__, __LINE__)
         call memrealloc(A_GG%nnz, A_GG%ja, __FILE__, __LINE__)
@@ -1538,6 +1673,7 @@ contains
                 call A_RR%allocate_numeric(this%get_nnz())
             endif
         else
+            assert(A_RR%get_num_rows() == A_RR_num_rows .and. A_RR%get_num_cols() == A_RR_num_rows)
             call A_RR%allocate_values_body(A_RR%get_nnz())
         endif
 

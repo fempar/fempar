@@ -152,8 +152,8 @@ implicit none
 ! SYMMETRIC STORAGE
 !------------------------------------------------------------------
 
-    call sparse_matrix%permute_and_split_2x2_symbolic(num_row=1, num_col=1, perm=perm, iperm=iperm, A_RR=A_RR, symmetric_storage=.false.)
-    call sparse_matrix%permute_and_split_2x2_numeric(num_row=1, num_col=1, perm=perm, iperm=iperm, A_CC=A_CC, A_CR=A_CR, A_RC=A_RC, A_RR=A_RR, symmetric_storage=.false.)
+    call sparse_matrix%permute_and_split_2x2_symbolic(num_row=2, num_col=2, perm=perm, iperm=iperm, A_RR=A_RR, symmetric_storage=.false.)
+    call sparse_matrix%permute_and_split_2x2_numeric(num_row=2, num_col=2, perm=perm, iperm=iperm, A_CC=A_CC, A_CR=A_CR, A_RC=A_RC, A_RR=A_RR, symmetric_storage=.false.)
 
     print*, '--------------------------------------------'
     print*, ' Original matrix (SYMMETRIC STORAGE)'
