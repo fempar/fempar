@@ -1,0 +1,106 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine quadrature_create ( this, number_dimensions, number_evaluation_points )
+  implicit none       
+  class(quadrature_t), intent(inout) :: this
+  integer(ip)           , intent(in)    :: number_dimensions, number_evaluation_points
+  call this%free()
+  this%number_dimensions = number_dimensions
+  this%number_evaluation_points = number_evaluation_points
+  call memalloc(number_dimensions,number_evaluation_points,this%coordinates,__FILE__,__LINE__)
+  call memalloc(number_evaluation_points,this%weight,__FILE__,__LINE__)
+  this%coordinates=0.0_rp
+  this%weight=0.0_rp
+end subroutine quadrature_create
+
+subroutine quadrature_free ( this)
+  implicit none       
+  class(quadrature_t), intent(inout) :: this
+  this%number_dimensions = 0
+  this%number_evaluation_points = 0
+  if(allocated(this%coordinates)) call memfree(this%coordinates,__FILE__,__LINE__)
+  if(allocated(this%weight)) call memfree(this%weight,__FILE__,__LINE__)
+end subroutine quadrature_free
+
+subroutine quadrature_print ( this )
+  implicit none
+  class(quadrature_t), intent(in) :: this
+  write(*,*) 'number_dimensions: ', this%number_dimensions
+  write(*,*) 'number_evaluation_points: ', this%number_evaluation_points
+  write(*,*) 'coordinates: ', this%coordinates
+  write(*,*) 'weight: ', this%weight
+end subroutine quadrature_print
+
+function quadrature_get_number_dimensions ( this )
+  implicit none
+  class(quadrature_t), intent(in) :: this
+  integer(ip) :: quadrature_get_number_dimensions
+  quadrature_get_number_dimensions = this%number_dimensions
+end function quadrature_get_number_dimensions
+
+function quadrature_get_number_evaluation_points ( this )
+  implicit none
+  class(quadrature_t), intent(in) :: this
+  integer(ip) :: quadrature_get_number_evaluation_points
+  quadrature_get_number_evaluation_points = this%number_evaluation_points
+end function quadrature_get_number_evaluation_points
+
+function quadrature_get_weight ( this, i )
+  implicit none
+  class(quadrature_t), intent(in) :: this
+  integer(ip), intent(in) :: i
+  real(rp) :: quadrature_get_weight
+  quadrature_get_weight = this%weight(i)
+end function quadrature_get_weight
+
+! function quadrature_get_pointer_coordinates ( this )
+!   implicit none
+!   class(quadrature_t), target, intent(in) :: this
+!   real(rp), pointer :: quadrature_get_pointer_coordinates(:,:)
+!   quadrature_get_pointer_coordinates => this%coordinates
+! end function quadrature_get_pointer_coordinates
+
+! function quadrature_get_pointer_weight ( this )
+!   implicit none
+!   class(quadrature_t), target, intent(in) :: this
+!   real(rp), pointer :: quadrature_get_pointer_weight(:)
+!   quadrature_get_pointer_weight => this%weight
+! end function quadrature_get_pointer_weight
+
+subroutine p_quadrature_allocate ( this)
+  implicit none       
+  class(p_quadrature_t), intent(inout) :: this
+		allocate(this%p)
+end subroutine p_quadrature_allocate
+
+subroutine p_quadrature_free ( this)
+  implicit none       
+  class(p_quadrature_t), intent(inout) :: this
+  call this%p%free()
+		deallocate(this%p)
+end subroutine p_quadrature_free

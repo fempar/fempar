@@ -27,28 +27,69 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module assembler_names
   use types_names
-  use dof_descriptor_names
-  use finite_element_names
 
   implicit none
 # include "debug.i90"
   private
 
   type, abstract :: assembler_t
-    contains
-	  procedure (assembly_interface), deferred :: assembly
-  end type
-  
+   contains
+     procedure (assembly_interface)        , deferred :: assembly
+     procedure (face_assembly_interface)   , deferred :: face_assembly
+     procedure (compress_storage_interface), deferred :: compress_storage
+  end type assembler_t
+
   abstract interface
-     subroutine assembly_interface(this,dof_descriptor,finite_element) 
-       import :: assembler_t, dof_descriptor_t, finite_element_t
+     subroutine assembly_interface( this,             & 
+          &                         number_fe_spaces, &
+          &                         number_nodes,     &
+          &                         elem2dof,         &
+          &                         field_blocks,     &
+          &                         field_coupling,   &
+          &                         elmat,            &
+          &                         elvec )
+       import :: assembler_t, rp, ip, i1p_t
        implicit none
-       class(assembler_t)       , intent(inout) :: this
-       type(dof_descriptor_t)   , intent(in)    :: dof_descriptor
-       type(finite_element_t)   , intent(in)    :: finite_element 
+       class(assembler_t) , intent(inout) :: this
+       integer(ip)           , intent(in)    :: number_fe_spaces
+       integer(ip)           , intent(in)    :: number_nodes(number_fe_spaces)
+       type(i1p_t)           , intent(in)    :: elem2dof(number_fe_spaces)
+       integer(ip)           , intent(in)    :: field_blocks(number_fe_spaces)
+       logical               , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
+       ! elmat MUST have as many rows/columns as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
+       real(rp)              , intent(in)    :: elmat(:,:) 
+       ! elvec MUST have as many entries as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
+       real(rp)              , intent(in)    :: elvec(:)   
      end subroutine assembly_interface
+
+     subroutine face_assembly_interface(this,number_fe_spaces,test_number_nodes,trial_number_nodes, &
+          &                   test_elem2dof,trial_elem2dof,field_blocks,field_coupling,facemat,elvec) 
+       import :: assembler_t, rp, ip, i1p_t
+       implicit none
+       class(assembler_t), intent(inout) :: this
+       integer(ip)          , intent(in)    :: number_fe_spaces
+       integer(ip)          , intent(in)    :: test_number_nodes(number_fe_spaces)
+       integer(ip)          , intent(in)    :: trial_number_nodes(number_fe_spaces)
+       type(i1p_t)          , intent(in)    :: test_elem2dof(number_fe_spaces)
+       type(i1p_t)          , intent(in)    :: trial_elem2dof(number_fe_spaces)
+       integer(ip)          , intent(in)    :: field_blocks(number_fe_spaces)
+       logical              , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
+       ! elmat MUST have as many rows/columns as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
+       real(rp)             , intent(in)    :: facemat(:,:) 
+       ! elvec MUST have as many entries as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
+       real(rp)             , intent(in)    :: elvec(:)  
+     end subroutine face_assembly_interface
+
+     subroutine compress_storage_interface( this, & 
+          &                                 sparse_matrix_storage_format )
+       import :: assembler_t
+       implicit none
+       class(assembler_t) , intent(inout) :: this
+       character(*)          , intent(in)    :: sparse_matrix_storage_format
+     end subroutine compress_storage_interface
+
   end interface
-	 
+
   ! Data types
   public :: assembler_t
 

@@ -1,0 +1,438 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+ subroutine reference_fe_permute_nodes_per_vef( reference_element2, reference_element1, permu, &
+                                    o1, o2, ln1, ln2, od, q, subface1, subface2 )
+    implicit none
+    ! Parameters
+    class(reference_fe_t), intent(in)   :: reference_element1, reference_element2   ! Info of the elements
+    integer(ip)         , intent(out)  :: permu(:) ! Permutation vector
+    integer(ip)         , intent(in)   :: o1,o2    ! Local identifier of the vef in each element
+    integer(ip)         , intent(in)   :: ln1(reference_element1%number_vefs), ln2(reference_element2%number_vefs) ! lnods of each vef
+    integer(ip)         , intent(in)   :: od       ! Dimension of the vef
+    integer(ip)         , intent(in)   :: q  
+    integer(ip), optional, intent(in)  :: subface1,subface2
+
+    ! Local variables
+    integer(ip) :: i,c1,r, o=0, r0, num_corners
+
+    ! TODO: CHECK THE R0 implementation, it is probably wrong
+
+    if (present(subface1)) then
+       if (subface1 == 0) then
+          r0=0
+       else
+          r0 = subface1 -1
+       end if
+       assert (subface2 == 0) 
+    else
+       r0 = 0
+    end if
+
+    permu = 1
+
+    c1 = ln1(reference_element1%vertices_vef%l(reference_element1%vertices_vef%p(o1)+r0))  ! Global identifier of the vef of the first corner
+    r = 1
+    do i = reference_element2%vertices_vef%p(o2),reference_element2%vertices_vef%p(o2+1)-1
+       if ( ln2(reference_element2%vertices_vef%l(i)) == c1 ) exit
+       r = r+1
+    end do
+    check ( ln2(reference_element2%vertices_vef%l(i)) == c1 )
+
+    if (r0>0) then
+       r = r-r0
+       if (r < 1) then
+          num_corners = reference_element2%vertices_vef%p(o2+1)- reference_element2%vertices_vef%p(o2)
+          r = r + num_corners 
+       end if
+    end if
+
+    if (od == 2) then
+       o = modulo(reference_element1%orientation%a(o1)+reference_element1%orientation%a(o2)+1,2)
+    else
+       o = 0
+    end if
+
+    call reference_element2%permute_order_vef( permu,q,o,r,od )
+
+  end subroutine reference_fe_permute_nodes_per_vef
+
+  subroutine reference_fe_free( this )
+    implicit none
+    class(reference_fe_t), intent(inout) :: this
+
+    if(allocated(this%topology)) deallocate(this%topology)
+    if(allocated(this%fe_type)) deallocate(this%fe_type)
+    if(allocated(this%field_type)) deallocate(this%field_type)
+
+    call this%interior_nodes_vef%free()
+    call this%nodes_vef%free()
+    call this%vertices_vef%free()
+    call this%vefs_vef%free()
+    call this%orientation%free()
+
+    this%number_dimensions = 0
+    this%order = 0
+    this%number_field_components = 0
+    this%number_vefs = 0
+    this%number_nodes = 0
+    this%number_vefs_dimension  = 0
+    this%continuity = .true.
+  end subroutine reference_fe_free
+  
+  subroutine reference_fe_print ( reference_fe )
+  implicit none
+  !     Parameters
+  class(reference_fe_t),  intent(in) :: reference_fe
+
+  integer(ip) :: i
+
+  write(*,*) 'topology: ', reference_fe%topology
+  write(*,*) 'fe_type: ', reference_fe%fe_type
+  write(*,*) 'fe_type: ', reference_fe%field_type
+  write(*,*) 'fe_type: ', reference_fe%number_field_components
+  write(*,*) 'number_dimensions: ', reference_fe%number_dimensions
+  write(*,*) 'order: ', reference_fe%order
+  write(*,*) 'continuity: ',reference_fe%continuity
+  write(*,*) 'number_vefs', reference_fe%number_vefs
+  write(*,*) 'number_nodes', reference_fe%number_nodes
+  write(*,*) 'number_vefs_dimension', reference_fe%number_vefs_dimension
+
+  write(*,*) 'orientation', reference_fe%orientation%a
+
+  write(*,*) 'interior_nodes_vef'
+  do i=1,reference_fe%number_vefs+1
+     write(*,*) reference_fe%interior_nodes_vef%l(reference_fe%interior_nodes_vef%p(i):reference_fe%interior_nodes_vef%p(i+1)-1)
+  end do
+
+  write(*,*) 'nodes_vef'
+  do i=1,reference_fe%number_vefs+1
+     write(*,*) reference_fe%nodes_vef%l(reference_fe%nodes_vef%p(i):reference_fe%nodes_vef%p(i+1)-1)
+  end do
+
+  write(*,*) 'corners_vef'
+  do i=1,reference_fe%number_vefs+1
+     write(*,*) reference_fe%vertices_vef%l(reference_fe%vertices_vef%p(i):reference_fe%vertices_vef%p(i+1)-1)
+  end do
+
+  write(*,*) 'vefs_vef'
+  do i=1,reference_fe%number_vefs+1
+     write(*,*) reference_fe%vefs_vef%l(reference_fe%vefs_vef%p(i):reference_fe%vefs_vef%p(i+1)-1)
+  end do
+
+end subroutine reference_fe_print
+
+subroutine reference_fe_set_common_data( this, number_dimensions, order, field_type, continuity )
+  implicit none 
+  class(reference_fe_t), intent(inout) :: this 
+  integer(ip)          , intent(in)    :: number_dimensions
+  integer(ip)          , intent(in)    :: order
+  character(*)         , intent(in)    :: field_type
+  logical    , optional, intent(in)    :: continuity
+
+  this%number_dimensions = number_dimensions
+  this%order             = order
+  if ( present( continuity) ) then
+     this%continuity = continuity
+  else 
+     this%continuity = .true.
+  end if
+  this%field_type = field_type
+  if( field_type == "scalar" ) then
+     this%number_field_components = 1
+  else if ( field_type == "vector" ) then
+     this%number_field_components = number_dimensions
+  else if ( field_type == "tensor" ) then
+     this%number_field_components = number_dimensions**2
+  else if ( field_type == "symmetric_tensor" ) then
+     this%number_field_components = ((number_dimensions)*(number_dimensions+1))/2
+  else
+     write (*,*) 'ERROR: field type not defined'
+     check (.false.)
+  end if
+end subroutine reference_fe_set_common_data
+
+subroutine reference_fe_set_topology( this, topology)
+  implicit none
+  class(reference_fe_t), intent(inout) :: this 
+  character(*), intent(in) :: topology
+  this%topology = topology
+end subroutine reference_fe_set_topology
+
+subroutine reference_fe_set_fe_type( this, fe_type)
+  implicit none
+  class(reference_fe_t), intent(inout) :: this 
+  character(*), intent(in) :: fe_type
+  this%fe_type = fe_type
+end subroutine reference_fe_set_fe_type
+
+function reference_fe_get_topology( this )
+  implicit none
+  class(reference_fe_t), target, intent(in) :: this
+  character(:), pointer :: reference_fe_get_topology
+  reference_fe_get_topology => this%topology
+end function reference_fe_get_topology
+
+function reference_fe_get_fe_type( this )
+  implicit none
+  class(reference_fe_t), target, intent(in) :: this
+  character(:), pointer :: reference_fe_get_fe_type
+  reference_fe_get_fe_type => this%fe_type
+end function reference_fe_get_fe_type
+
+function reference_fe_get_field_type( this )
+  implicit none
+  class(reference_fe_t), target, intent(in) :: this
+  character(:), pointer :: reference_fe_get_field_type
+  reference_fe_get_field_type => this%field_type
+end function reference_fe_get_field_type
+
+function reference_fe_get_number_dimensions( this )
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  integer(ip) :: reference_fe_get_number_dimensions
+  reference_fe_get_number_dimensions = this%number_dimensions
+end function reference_fe_get_number_dimensions
+
+function reference_fe_get_order( this )
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  integer(ip) :: reference_fe_get_order
+  reference_fe_get_order = this%order
+end function reference_fe_get_order
+
+function reference_fe_get_continuity( this )
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  logical :: reference_fe_get_continuity
+  reference_fe_get_continuity = this%continuity
+end function reference_fe_get_continuity
+
+  function reference_fe_get_number_field_components ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_field_components
+    reference_fe_get_number_field_components = this%number_field_components
+  end function reference_fe_get_number_field_components
+
+  function reference_fe_get_number_vefs ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_vefs
+    reference_fe_get_number_vefs = this%number_vefs
+  end function reference_fe_get_number_vefs
+  
+  function reference_fe_get_number_vertices ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_vertices
+    reference_fe_get_number_vertices = this%number_vefs_dimension(2) -          &
+         &                             this%number_vefs_dimension(1)
+  end function reference_fe_get_number_vertices
+  
+  function reference_fe_get_first_vertex_id ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_first_vertex_id
+    reference_fe_get_first_vertex_id = this%number_vefs_dimension(1)
+  end function reference_fe_get_first_vertex_id
+  
+  function reference_fe_get_number_vertices_per_vertex ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_vertices_per_vertex
+    reference_fe_get_number_vertices_per_vertex = this%vertices_vef%p(this%number_vefs_dimension(1)+1)-this%vertices_vef%p( this%number_vefs_dimension(1))
+  end function reference_fe_get_number_vertices_per_vertex
+  
+  function reference_fe_get_number_vertices_per_edge ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_vertices_per_edge
+    reference_fe_get_number_vertices_per_edge = this%vertices_vef%p(this%number_vefs_dimension(2)+1)-this%vertices_vef%p(this%number_vefs_dimension(2))
+  end function reference_fe_get_number_vertices_per_edge
+  
+  function reference_fe_get_number_vertices_per_face ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_vertices_per_face
+    reference_fe_get_number_vertices_per_face = this%vertices_vef%p(this%number_vefs_dimension(this%number_dimensions)+1)-this%vertices_vef%p(this%number_vefs_dimension(this%number_dimensions))
+  end function reference_fe_get_number_vertices_per_face
+  
+  function reference_fe_get_number_edges ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_edges
+    reference_fe_get_number_edges  = this%number_vefs_dimension(3) -          &
+         &                             this%number_vefs_dimension(2)
+  end function reference_fe_get_number_edges
+  
+ function reference_fe_get_first_edge_id ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_first_edge_id
+    reference_fe_get_first_edge_id = this%number_vefs_dimension(2)
+  end function reference_fe_get_first_edge_id
+  
+  function reference_fe_get_number_faces ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_faces
+    reference_fe_get_number_faces = this%number_vefs_dimension(this%number_dimensions+1) -          &
+         &                          this%number_vefs_dimension(this%number_dimensions)
+  end function reference_fe_get_number_faces
+  
+  function reference_fe_get_first_face_id ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_first_face_id
+    reference_fe_get_first_face_id = this%number_vefs_dimension(this%number_dimensions)
+  end function reference_fe_get_first_face_id
+  
+  function reference_fe_get_number_vefs_of_dimension ( this, vef_dimension )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip)          , intent(in) :: vef_dimension
+    integer(ip) :: reference_fe_get_number_vefs_of_dimension
+    reference_fe_get_number_vefs_of_dimension = this%number_vefs_dimension(vef_dimension+2) -          &
+         &                                      this%number_vefs_dimension(vef_dimension+1)
+  end function reference_fe_get_number_vefs_of_dimension
+  
+  function reference_fe_get_first_vef_id_of_dimension ( this, vef_dimension )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip)          , intent(in) :: vef_dimension
+    integer(ip) :: reference_fe_get_first_vef_id_of_dimension
+    reference_fe_get_first_vef_id_of_dimension = this%number_vefs_dimension(vef_dimension+1)
+  end function reference_fe_get_first_vef_id_of_dimension
+
+  function reference_fe_get_number_nodes ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_nodes
+    reference_fe_get_number_nodes = this%number_nodes
+  end function reference_fe_get_number_nodes
+
+  function reference_fe_get_vef_dimension ( this, vef_id )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip)          , intent(in) :: vef_id
+    integer(ip) :: reference_fe_get_vef_dimension
+
+    integer(ip) :: i 
+    assert ( vef_id >= 1 .and. vef_id <= this%number_vefs ) 
+    do i = 1, this%number_dimensions
+       if ( vef_id < this%number_vefs_dimension(i+1) ) then
+          reference_fe_get_vef_dimension = i - 1 
+          exit
+       end if
+    end do
+  end function  
+  
+  function reference_fe_get_interior_nodes_vef ( this )
+    implicit none
+    class(reference_fe_t), target, intent(in) :: this
+    type(list_t), pointer :: reference_fe_get_interior_nodes_vef
+    reference_fe_get_interior_nodes_vef => this%interior_nodes_vef
+  end function reference_fe_get_interior_nodes_vef
+
+  function reference_fe_get_nodes_vef ( this )
+    implicit none
+    class(reference_fe_t), target, intent(in) :: this
+    type(list_t), pointer :: reference_fe_get_nodes_vef
+    reference_fe_get_nodes_vef => this%nodes_vef
+  end function reference_fe_get_nodes_vef
+
+  function reference_fe_get_vertices_vef ( this )
+    implicit none
+    class(reference_fe_t), target, intent(in) :: this
+    type(list_t), pointer :: reference_fe_get_vertices_vef
+    reference_fe_get_vertices_vef => this%vertices_vef
+  end function reference_fe_get_vertices_vef
+
+  function reference_fe_get_vefs_vef ( this )
+    implicit none
+    class(reference_fe_t), target, intent(in) :: this
+    type(list_t), pointer :: reference_fe_get_vefs_vef
+    reference_fe_get_vefs_vef => this%vefs_vef
+  end function reference_fe_get_vefs_vef
+
+  function reference_fe_get_node_vef ( this, i, j )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i, j
+    integer(ip) :: reference_fe_get_node_vef
+    reference_fe_get_node_vef = this%nodes_vef%l(this%nodes_vef%p(j) + i -1)
+  end function reference_fe_get_node_vef
+
+  function reference_fe_get_interior_node_vef ( this, i, j )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i, j
+    integer(ip) :: reference_fe_get_interior_node_vef
+    reference_fe_get_interior_node_vef = this%interior_nodes_vef%l(this%interior_nodes_vef%p(j) + i -1)
+  end function reference_fe_get_interior_node_vef
+
+  function reference_fe_get_number_nodes_vef ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i
+    integer(ip) :: reference_fe_get_number_nodes_vef
+    reference_fe_get_number_nodes_vef = this%nodes_vef%p(i+1)-this%nodes_vef%p(i)
+  end function reference_fe_get_number_nodes_vef
+
+  function reference_fe_get_number_interior_nodes_vef ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i
+    integer(ip) :: reference_fe_get_number_interior_nodes_vef
+    reference_fe_get_number_interior_nodes_vef = this%interior_nodes_vef%p(i+1)-this%interior_nodes_vef%p(i)
+  end function reference_fe_get_number_interior_nodes_vef
+  
+  function reference_fe_get_number_vertices_vef ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i
+    integer(ip) :: reference_fe_get_number_vertices_vef
+    reference_fe_get_number_vertices_vef = this%vertices_vef%p(i+1)-this%vertices_vef%p(i)
+  end function reference_fe_get_number_vertices_vef
+
+  function reference_fe_get_orientation ( this )
+    implicit none
+    class(reference_fe_t), target, intent(in) :: this
+    type(allocatable_array_ip1_t), pointer :: reference_fe_get_orientation
+    reference_fe_get_orientation => this%orientation
+  end function reference_fe_get_orientation
+  
+  !==================================================================================================
+  subroutine p_reference_fe_free( this )
+    implicit none
+    class(p_reference_fe_t), intent(inout) :: this
+    call this%p%free()
+    deallocate ( this%p )
+  end subroutine p_reference_fe_free
+  

@@ -27,65 +27,23 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module generate_vefs_mesh_conditions_names
   use types_names
+  use list_types_names
   use memor_names
   use mesh_names
-  use serial_fe_space_names
-  use fe_space_types_names
-  use interpolation_names
   use conditions_names
-  !use element_gather_tools
+  use reference_fe_names
+  
   implicit none
 # include "debug.i90"
   private
 
   ! Functions
-  public ::  generate_vefs_mesh_conditions, generate_efs
+  public ::  generate_vefs_mesh_conditions
 
 contains
 
-  !===============================================================================================
-  subroutine refcoord2(type,coord,ndime,order)
-    implicit none
-    integer(ip), intent(in)    :: type,ndime,order
-    real(rp),    intent(inout) :: coord(:,:)
-    ! Locals
-    real(rp) :: a,b
-
-    if(type==P_type_id) then    
-       call P_refcoord (coord,ndime,order,size(coord,dim=2))
-    elseif (type == Q_type_id) then
-       call Q_refcoord(coord,ndime,order,size(coord,dim=2))
-    end if
-
-  end subroutine refcoord2
-
   !==================================================================================================
-  subroutine generate_efs(msh,cnd)
-    implicit none
-    type(mesh_t)                , intent(inout)    :: msh
-    type(conditions_t), optional, intent(inout)    :: cnd
-    type(mesh_t)       :: tmsh
-    type(conditions_t) :: tcnd
-
-    if (present(cnd)) then
-       call generate_vefs_mesh_conditions(msh, tmsh, cnd, tcnd)
-       call conditions_free( cnd )
-       call conditions_copy( tcnd, cnd )
-       call conditions_free( tcnd )
-    else
-       call generate_vefs_mesh_conditions(msh, tmsh)
-    end if
-    assert ( allocated(tmsh%coord) )
-
-    call mesh_free(msh)
-    call mesh_copy(tmsh,msh)
-
-    assert ( allocated(msh%coord) )
-
-   end subroutine generate_efs
-  
-  !==================================================================================================
-  subroutine generate_vefs_mesh_conditions(gmsh,omsh,gcnd,ocnd)
+  subroutine generate_vefs_mesh_conditions(gmsh,omsh,reference_fe,gcnd,ocnd)
     implicit none
     !------------------------------------------------------------------------------------------------
     !
@@ -95,11 +53,11 @@ contains
     ! Parameters
     type(mesh_t)                , intent(in)    :: gmsh
     type(mesh_t)                , intent(out)   :: omsh
+    class(reference_fe_t)       , intent(in)    :: reference_fe
     type(conditions_t), optional, intent(in)    :: gcnd
     type(conditions_t), optional, intent(out)   :: ocnd
 
     ! Local variables
-    type(reference_element_t)     :: reference_element
     integer(ip)              :: etype,nodim(3),nndim(3)
     integer(ip)              :: i,j,k,r,s, t
     integer(ip)              :: nvef,gp,op,nd_i(2),nd_j(2)
@@ -108,7 +66,10 @@ contains
     integer(ip), allocatable :: nd_jf(:), fnode(:)
     integer(ip), allocatable :: nelpo_aux(:), lelpo_aux(:), aux1(:)
     integer(ip), allocatable :: edgeint(:,:), faceint(:,:)
-    logical              :: kfl_bc
+    logical                  :: kfl_bc
+    
+    integer(ip)              :: vef_lid
+    type(list_t), pointer    :: vertices_vef
 
     ! Create ocnd flag
     kfl_bc = (present(gcnd) .and. present(ocnd))
@@ -116,42 +77,26 @@ contains
     omsh%nelem     = gmsh%nelem     ! Number of elements
     omsh%ndime     = gmsh%ndime     ! Number of space dimensions
 
-    ! Variable values depending of the element
-    if(gmsh%ndime == 2) then        ! 2D
-       if(gmsh%nnode == 3) then     ! Linear triangles (P1)
-          etype = P_type_id
-       elseif(gmsh%nnode == 4) then ! Linear quads (Q1)
-          etype = Q_type_id
-       end if
-    elseif(gmsh%ndime == 3) then    ! 3D
-       if(gmsh%nnode == 4) then     ! Linear tetrahedra (P1)
-          etype = P_type_id
-       elseif(gmsh%nnode == 8) then ! Linear hexahedra (Q1)
-          etype = Q_type_id
-       end if
-    end if
-    
-    ! Construct reference_element
-    call reference_element_create(reference_element,etype,1,gmsh%ndime)
-
+    vertices_vef => reference_fe%get_vertices_vef()
     ! Construct the array of #objects(nodim) and #nodesxobject(nndim) for each dimension
     nodim = 0
     do i = 1,gmsh%ndime
-       nodim(i) = reference_element%nvef_dim(i+1)-reference_element%nvef_dim(i)  
-       nndim(i) = reference_element%ntxob%p(reference_element%nvef_dim(i)+1) - reference_element%ntxob%p(reference_element%nvef_dim(i))
+       nodim(i) = reference_fe%get_number_vefs_of_dimension(i-1)
+       vef_lid  = reference_fe%get_first_vef_id_of_dimension(i-1) 
+       nndim(i) = reference_fe%get_number_vertices_vef(vef_lid)
     end do
     nvef=gmsh%nnode+nodim(2)+nodim(3) ! Total number of objects per element
    
     ! Allocation of auxiliar arrays
-    call memalloc(gmsh%npoin+1,          nelpo_aux,  'mesh_topology::nelpo_aux')
-    call memalloc(  gmsh%npoin,               aux1,       'mesh_topology::aux1')
-    call memalloc(gmsh%nelem*gmsh%nnode, lelpo_aux,  'mesh_topology::lelpo_aux')
-    call memalloc(gmsh%nelem,  nodim(2),   edgeint,    'mesh_topology::edgeint')
-    if(gmsh%ndime==3) call memalloc(gmsh%nelem, nodim(3), faceint, 'mesh_topology::edgeint')
+    call memalloc(gmsh%npoin+1,          nelpo_aux, __FILE__, __LINE__ )
+    call memalloc(  gmsh%npoin,               aux1, __FILE__, __LINE__ )
+    call memalloc(gmsh%nelem*gmsh%nnode, lelpo_aux, __FILE__, __LINE__ )
+    call memalloc(gmsh%nelem,  nodim(2),   edgeint,__FILE__, __LINE__ )
+    if(gmsh%ndime==3) call memalloc(gmsh%nelem, nodim(3), faceint, __FILE__, __LINE__ )
 
     ! Allocate omsh vectors
-    call memalloc(       gmsh%nelem+1,  omsh%pnods, 'mesh_topology::omsh%pnods')
-    call memalloc(gmsh%nelem*nvef, omsh%lnods , 'mesh_topology::omsh%lnods')
+    call memalloc(       gmsh%nelem+1,  omsh%pnods, __FILE__, __LINE__ )
+    call memalloc(gmsh%nelem*nvef, omsh%lnods , __FILE__, __LINE__ )
 
     ! Initialization
     omsh%npoin = gmsh%npoin ! Number of objects (nodes + edges + faces)
@@ -199,14 +144,15 @@ contains
 
     ! -------------------------------------------- EDGES -------------------------------------------- 
     ! First:: generate the common edges
+    vef_lid = reference_fe%get_first_vef_id_of_dimension(1)
     iedge = 0
     do ielem=1,gmsh%nelem
        do i=1,nodim(2)
           if(edgeint(ielem,i)==0) then
              already_counted=0
              gp = gmsh%nnode*(ielem-1)
-             nd_i(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+i-1)))
-             nd_i(2) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+i-1)+1))
+             nd_i(1) = gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+i-1)))
+             nd_i(2) = gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+i-1)+1))
 
              ! Loop over the elements around corner j
              do t = nelpo_aux(nd_i(1)),nelpo_aux(nd_i(1)+1)-1
@@ -216,8 +162,8 @@ contains
                    gp = gmsh%nnode*(jelem-1)
 
                    do k=1,nodim(2)
-                      nd_j(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+k-1)))
-                      nd_j(2) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+k-1)+1))
+                      nd_j(1) = gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+k-1)))
+                      nd_j(2) = gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+k-1)+1))
 
                       counter=0
                       do r=1,nndim(2)
@@ -258,17 +204,18 @@ contains
     ! ------------------------------------------ FACES ----------------------------------------------
     if(gmsh%ndime==3) then
        ! First:: generate the common faces
+       vef_lid = reference_fe%get_first_vef_id_of_dimension(1)
        faceint = 0
        iface = 0
-       call memalloc(nndim(3), nd_jf, 'mesh_topology::nelpo_nd_jf')
-       call memalloc(nndim(3), fnode,         'mesh_topology::fnode')
+       call memalloc(nndim(3), nd_jf, __FILE__, __LINE__ )
+       call memalloc(nndim(3), fnode, __FILE__, __LINE__ )
        do ielem=1,gmsh%nelem
           do i=1,nodim(3)
              if(faceint(ielem,i)==0) then
                 already_counted=0
                 gp = gmsh%nnode*(ielem-1)
                 do j=1,nndim(3)
-                   fnode(j) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(3)+i-1)+j-1))
+                   fnode(j) = gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+i-1)+j-1))
                 end do
 
                 do t = nelpo_aux(fnode(1)),nelpo_aux(fnode(1)+1)-1
@@ -279,7 +226,7 @@ contains
 
                       do k=1,nodim(3)
                          do j=1,nndim(3)
-                            nd_jf(j) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(3)+k-1)+j-1))
+                            nd_jf(j) = gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+k-1)+j-1))
                          end do
 
                          counter=0
@@ -335,6 +282,7 @@ contains
     end if
 
     ! Next:: we generate the unique edges (edges left to fill)
+    vef_lid = reference_fe%get_first_vef_id_of_dimension(1)
     npoin_aux  = gmsh%npoin + iedge
     iedgb = 0
     do ielem=1,gmsh%nelem
@@ -344,8 +292,8 @@ contains
              omsh%lnods((ielem-1)*nvef+gmsh%nnode+i) = npoin_aux + iedgb
              if (kfl_bc) then
                 gp = gmsh%nnode*(ielem-1)
-                nd_i(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+i-1)))
-                nd_i(2) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+i-1)+1))
+                nd_i(1) = gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+i-1)))
+                nd_i(2) = gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+i-1)+1))
                 do icode = 1, ocnd%ncode
                    if (ocnd%code(icode,nd_i(1)) ==  ocnd%code(icode,nd_i(2))) then
                       ocnd%code(icode,omsh%lnods(nvef*(ielem-1)+gmsh%nnode+i)) =                   &
@@ -364,7 +312,7 @@ contains
     end do
 
     if(gmsh%ndime==3) then
-
+       vef_lid = reference_fe%get_first_vef_id_of_dimension(2)
        if (kfl_bc) then
           edgeint = 0
           ! Find edges on the boundary
@@ -373,8 +321,8 @@ contains
                 if(edgeint(ielem,i)==0) then
                    already_counted=1
                    gp = gmsh%nnode*(ielem-1)
-                   nd_i(1)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+i-1)))
-                   nd_i(2)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+i-1)+1))
+                   nd_i(1)=gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+i-1)))
+                   nd_i(2)=gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+i-1)+1))
 
                    ! Number of elements for j
                    do t = nelpo_aux(nd_i(1)), nelpo_aux(nd_i(1)+1)-1
@@ -384,8 +332,8 @@ contains
                          gp = gmsh%nnode*(jelem-1)
 
                          do k=1,nodim(2)
-                            nd_j(1)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+k-1)))
-                            nd_j(2)=gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(2)+k-1)+1))
+                            nd_j(1)=gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+k-1)))
+                            nd_j(2)=gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+k-1)+1))
 
                             counter=0
                             do r=1,nndim(2)
@@ -429,15 +377,15 @@ contains
                 if (kfl_bc) then
                    gp = gmsh%nnode*(ielem-1)
                    op = nvef*(ielem-1)
-                   nd_i(1) = gmsh%lnods(gp+reference_element%crxob%l(reference_element%crxob%p(reference_element%nvef_dim(3)+j-1)))
+                   nd_i(1) = gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+j-1)))
                    do icode = 1, ocnd%ncode
                       ocnd%valu(icode,omsh%lnods(op+i)) =                                           &
                            &            ocnd%valu(icode,omsh%lnods(op+i))                           &
                            &          + ocnd%valu(icode,nd_i(1))
                       s = 1
                       do k = 2,nndim(3)
-                         nd_i(2) = gmsh%lnods(gp+reference_element%crxob%l                                      &
-                              &    (reference_element%crxob%p(reference_element%nvef_dim(3)+j-1)+k-1))
+                         nd_i(2) = gmsh%lnods(gp+vertices_vef%l                                      &
+                              &    (vertices_vef%p(vef_lid+j-1)+k-1))
                          if (ocnd%code(icode,nd_i(1)) .ne.  ocnd%code(icode,nd_i(2))) s = 0
                          ocnd%valu(icode,omsh%lnods(op+i)) =                                        &
                               &     ocnd%valu(icode,omsh%lnods(op+i))                               &
@@ -467,7 +415,6 @@ contains
     omsh%nnode = gmsh%nnode + nodim(2) + nodim(3)
 
     ! Deallocate auxiliar arrays
-    call reference_element_free(reference_element)
     call memfree(edgeint,__FILE__,__LINE__)
     if(gmsh%ndime==3) call memfree(faceint,__FILE__,__LINE__)
   end subroutine generate_vefs_mesh_conditions

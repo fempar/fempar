@@ -1,0 +1,411 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine finite_element_create( this, & 
+                                  cell, &
+                                  number_fe_spaces, &
+                                  reference_fe_phy, &
+                                  quadrature, &
+                                  fe_map, &
+                                  volume_integrator, &
+                                  number_blocks, &
+                                  field_blocks,  &
+                                  boundary_conditions )
+  implicit none
+  class(finite_element_t)            , intent(inout) :: this 
+  type(elem_topology_t)      , target, intent(in)    :: cell
+  integer(ip)                        , intent(in)    :: number_fe_spaces
+  type(p_reference_fe_t)     , target, intent(in)    :: reference_fe_phy(number_fe_spaces)
+  type(quadrature_t)         , target, intent(in)    :: quadrature
+  type(fe_map_t)             , target, intent(in)    :: fe_map
+  type(p_volume_integrator_t), target, intent(in)    :: volume_integrator(number_fe_spaces)  
+  integer(ip)                        , intent(in)    :: number_blocks
+  integer(ip)                , target, intent(in)    :: field_blocks(number_blocks)
+  type(conditions_t)                 , intent(in)    :: boundary_conditions
+  
+  integer(ip) :: j, ivef, inode, jnode, vef_gid, number_nodes, component, offset_component
+  
+  number_nodes = 0
+  do j = 1, number_fe_spaces
+    number_nodes = number_nodes + reference_fe_phy(j)%p%get_number_nodes()
+  end do
+     
+  this%cell => cell
+  this%number_nodes = number_nodes
+  this%number_fe_spaces = number_fe_spaces
+  
+  this%quadrature => quadrature
+  this%fe_map => fe_map
+
+  this%volume_integrator => volume_integrator
+  this%reference_fe_phy => reference_fe_phy
+
+  this%number_blocks = number_blocks
+  this%field_blocks => field_blocks
+
+  allocate( this%elem2dof(this%number_fe_spaces) )
+  allocate( this%bc_code(this%number_fe_spaces) )
+  allocate( this%bc_value(this%number_fe_spaces) )
+    
+  offset_component = 0
+  do j = 1, this%number_fe_spaces
+    number_nodes = this%reference_fe_phy(j)%p%get_number_nodes()
+    allocate( this%elem2dof(j)%p(number_nodes) )
+    this%elem2dof(j)%p = 0
+    allocate( this%bc_code(j)%p(number_nodes) )
+    allocate( this%bc_value(j)%p(number_nodes) )
+    this%bc_code(j)%p = 0
+    this%bc_value(j)%p = 0.0_rp
+    do ivef = 1,this%cell%num_vefs
+      vef_gid = this%cell%vefs(ivef)
+      do inode = 1, this%reference_fe_phy(j)%p%get_number_interior_nodes_vef(ivef)
+        jnode = this%reference_fe_phy(j)%p%get_interior_node_vef(inode,ivef)
+        component = offset_component+reference_fe_phy(j)%p%get_bc_component_node(jnode)
+        this%bc_code(j)%p(jnode) = boundary_conditions%code(component,vef_gid)
+        this%bc_value(j)%p(jnode) = boundary_conditions%valu(component,vef_gid)
+      end do
+    end do
+    offset_component = offset_component + reference_fe_phy(j)%p%get_number_field_components()
+  end do 
+  
+end subroutine finite_element_create
+
+subroutine finite_element_update_integration( this )
+  implicit none
+  class(finite_element_t), intent(inout) :: this 
+  integer(ip)                      :: i
+  real(rp), pointer :: coordinates(:,:)
+
+  coordinates => this%fe_map%get_coordinates()
+  call this%cell%get_coordinates(coordinates)
+
+  call this%fe_map%update( this%quadrature)!, this%cell%coordinates )
+  do i = 1, this%number_fe_spaces
+     call this%volume_integrator(i)%p%update(this%fe_map)
+  end do
+end subroutine finite_element_update_integration
+
+subroutine finite_element_free( this )
+  implicit none
+  class(finite_element_t), intent(inout) :: this 
+  integer(ip) :: j
+  
+  nullify(this%cell)
+  this%number_nodes = 0
+  this%number_blocks = 0
+  nullify( this%field_blocks )
+  nullify(this%quadrature)
+  nullify(this%fe_map)
+  nullify(this%volume_integrator)
+  nullify(this%reference_fe_phy)
+  do j = 1, this%number_fe_spaces
+    deallocate( this%elem2dof(j)%p )
+    deallocate( this%bc_code(j)%p )
+    deallocate( this%bc_value(j)%p )
+  end do
+  this%number_fe_spaces = 0   
+  deallocate( this%elem2dof )
+  deallocate( this%bc_code )
+  deallocate( this%bc_value )
+end subroutine finite_element_free
+
+subroutine finite_element_fill_interior_dofs ( this, fe_space_id, dof_count )
+  implicit none
+  ! Parameters
+  class(finite_element_t), intent(inout)   :: this
+  integer(ip)               , intent(in)      :: fe_space_id
+  integer(ip)               , intent(inout)   :: dof_count
+
+  ! Local variables
+  integer(ip) :: inode, l_node, ivef
+  
+  if ( this%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
+      ivef = this%cell%num_vefs+1
+      do inode = 1, this%reference_fe_phy(fe_space_id)%p%get_number_interior_nodes_vef(ivef)
+         l_node = this%reference_fe_phy(fe_space_id)%p%get_interior_node_vef(inode,ivef)
+         dof_count = dof_count +1
+         this%elem2dof(fe_space_id)%p(l_node) = dof_count
+      end do
+  else
+      do ivef = 1, this%cell%num_vefs+1
+       do inode = 1, this%reference_fe_phy(fe_space_id)%p%get_number_interior_nodes_vef(ivef)
+            l_node = this%reference_fe_phy(fe_space_id)%p%get_interior_node_vef(inode,ivef)
+            dof_count = dof_count + 1
+            this%elem2dof(fe_space_id)%p(l_node) = dof_count
+        end do
+      end do
+   end if
+end subroutine finite_element_fill_interior_dofs
+
+subroutine finite_element_fill_dofs_on_vef ( this, vef_local_id, fe_space_id, dof_count )
+  implicit none
+  ! Parameters
+  class(finite_element_t), intent(inout)   :: this
+  integer(ip)               , intent(in)      :: vef_local_id
+  integer(ip)               , intent(in)      :: fe_space_id
+  integer(ip)               , intent(inout)   :: dof_count
+
+  ! Local variables
+  integer(ip) :: inode, l_node
+
+  do inode = 1,this%reference_fe_phy(fe_space_id)%p%get_number_interior_nodes_vef(vef_local_id)
+    l_node = this%reference_fe_phy(fe_space_id)%p%get_interior_node_vef(inode,vef_local_id)
+    if ( this%bc_code(fe_space_id)%p(l_node) == 0 ) then
+      dof_count = dof_count + 1
+      this%elem2dof(fe_space_id)%p(l_node) = dof_count
+    end	if
+  end do
+end subroutine finite_element_fill_dofs_on_vef
+
+subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
+                                                           target_vef_lid, &
+                                                           source_fe, &  
+                                                           source_vef_lid, &
+                                                           fe_space_id, &
+                                                           s2t_perm_for_interior_nodes_vef)
+  implicit none
+  ! Parameters
+  class(finite_element_t) , target, intent(inout) :: this
+  integer(ip)                        , intent(in)    :: target_vef_lid
+  type(finite_element_t) , target , intent(in)    :: source_fe
+  integer(ip)                        , intent(in)    :: source_vef_lid
+  integer(ip)                        , intent(in)    :: fe_space_id
+  integer(ip)                        , intent(out)   :: s2t_perm_for_interior_nodes_vef(:) ! Workspace
+
+  ! Local variables
+  integer(ip)                    :: interior_inode, l_node, interior_nnode, inode_source, inode_target, order
+  class(reference_fe_t), pointer :: source_ref_fe, target_ref_fe
+  
+  source_ref_fe => source_fe%reference_fe_phy(fe_space_id)%p
+  target_ref_fe => this%reference_fe_phy(fe_space_id)%p
+  
+  assert ( source_ref_fe%get_number_interior_nodes_vef(source_vef_lid) == target_ref_fe%get_number_interior_nodes_vef(target_vef_lid) )
+  assert ( source_ref_fe%get_vef_dimension(source_vef_lid) == target_ref_fe%get_vef_dimension(target_vef_lid) )
+  
+  interior_nnode = source_ref_fe%get_number_interior_nodes_vef(source_vef_lid)
+  if ( interior_nnode > 0 ) then
+   order = source_ref_fe%get_order()
+   order = order - 2 ! cG case SB.alert
+   call target_ref_fe%permute_nodes_per_vef( source_ref_fe, &
+                                             s2t_perm_for_interior_nodes_vef, &
+                                             source_vef_lid, &
+                                             target_vef_lid, &
+                                             source_fe%cell%vefs, &
+                                             this%cell%vefs, &
+                                             source_ref_fe%get_vef_dimension(source_vef_lid), &
+                                             order )
+  
+    do interior_inode = 1, interior_nnode
+        inode_source = source_ref_fe%get_interior_node_vef(interior_inode,source_vef_lid)
+        !inode_target = target_ref_fe%get_interior_node_vef(s2t_perm_for_interior_nodes_vef(interior_inode),target_vef_lid)
+      		inode_target = target_ref_fe%get_interior_node_vef(interior_inode,target_vef_lid)
+        if ( this%bc_code(fe_space_id)%p(inode_target) == 0 ) then
+           this%elem2dof(fe_space_id)%p(inode_target) = source_fe%elem2dof(fe_space_id)%p(inode_source)
+        end	if
+    end do 
+ end if
+ 
+end subroutine finite_element_fill_dofs_on_vef_from_source_element
+
+function finite_element_get_number_nodes ( this )
+  implicit none
+  class(finite_element_t), intent(in) :: this
+  integer(ip)                            :: finite_element_get_number_nodes
+  finite_element_get_number_nodes = this%number_nodes
+end function finite_element_get_number_nodes
+
+function finite_element_get_fe_map ( this )
+  implicit none
+  class(finite_element_t), target, intent(in)  :: this
+  type(fe_map_t)                        , pointer :: finite_element_get_fe_map
+  finite_element_get_fe_map => this%fe_map
+end function finite_element_get_fe_map
+
+function finite_element_get_quadrature ( this )
+  implicit none
+  class(finite_element_t), target, intent(in)  :: this
+  type(quadrature_t), pointer :: finite_element_get_quadrature
+  finite_element_get_quadrature => this%quadrature
+end function finite_element_get_quadrature
+
+function finite_element_get_volume_integrator ( this, i )
+  implicit none
+  class(finite_element_t), target, intent(in)  :: this
+  integer(ip)                       , intent(in)  :: i
+  type(volume_integrator_t)      , pointer     :: finite_element_get_volume_integrator
+  finite_element_get_volume_integrator => this%volume_integrator(i)%p
+end function finite_element_get_volume_integrator
+
+function finite_element_get_elem2dof( this )
+  implicit none
+  class(finite_element_t), target, intent(in) :: this
+  type(i1p_t), pointer :: finite_element_get_elem2dof(:)
+  finite_element_get_elem2dof => this%elem2dof
+end function finite_element_get_elem2dof
+
+function finite_element_get_bc_code( this )
+  implicit none
+  class(finite_element_t), target, intent(in) :: this
+  type(i1p_t), pointer :: finite_element_get_bc_code(:)
+  finite_element_get_bc_code => this%bc_code
+end function finite_element_get_bc_code
+
+function finite_element_get_bc_value( this )
+  implicit none
+  class(finite_element_t), target, intent(in) :: this
+  type(r1p_t), pointer :: finite_element_get_bc_value(:)
+  finite_element_get_bc_value => this%bc_value
+end function finite_element_get_bc_value
+
+subroutine finite_element_get_number_nodes_per_field ( this, number_nodes )
+  implicit none
+  class(finite_element_t), intent(in)  :: this
+  integer(ip)               , intent(out) :: number_nodes(this%number_fe_spaces)
+  integer(ip) :: i
+  do i = 1, this%number_fe_spaces
+     number_nodes(i) = this%reference_fe_phy(i)%p%get_number_nodes()
+  end do
+end subroutine finite_element_get_number_nodes_per_field
+
+function finite_element_get_subset_id ( this )
+  implicit none
+  class(finite_element_t), intent(in) :: this
+  integer(ip)                            :: finite_element_get_subset_id
+  finite_element_get_subset_id = this%cell%subset_id
+end function finite_element_get_subset_id
+
+!**************************************************************************************************
+! Update methods for fe_function_scalar/vector/tensor_t
+!**************************************************************************************************
+
+subroutine finite_element_update_scalar_values (this, fe_function_scalar, vector_dof_values)
+  implicit none
+  class(finite_element_t), intent(in)    :: this
+  type(fe_function_scalar_t), intent(inout) :: fe_function_scalar
+  class(vector_t)           , intent(in)    :: vector_dof_values
+
+  real(rp), pointer :: nodal_values(:)
+  real(rp), pointer :: quadrature_points_values(:)
+  
+  integer(ip)       :: fe_space_id, block_id, number_nodes_fe_space
+
+  assert ( associated(this%field_blocks) )
+
+  fe_space_id = fe_function_scalar%get_fe_space_id()
+  call fe_function_scalar%set_current_number_quadrature_points( &
+                          & this%quadrature%get_number_evaluation_points() )
+  call fe_function_scalar%set_current_number_nodes(             &
+                          & this%reference_fe_phy(fe_space_id)%p%get_number_nodes() )
+
+  block_id = this%field_blocks(fe_space_id)
+  nodal_values             => fe_function_scalar%get_nodal_values()
+  quadrature_points_values => fe_function_scalar%get_quadrature_points_values()
+  
+  number_nodes_fe_space = this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
+  nodal_values(1:number_nodes_fe_space) = this%bc_value(fe_space_id)%p(:)
+
+  call vector_dof_values%extract_subvector ( block_id, &
+                                           & number_nodes_fe_space, &
+                                           & this%elem2dof(fe_space_id)%p, &
+                                           & nodal_values )
+  
+  call this%volume_integrator(fe_space_id)%p%evaluate_fe_function ( nodal_values, & 
+                                                                  & quadrature_points_values )
+  
+end subroutine finite_element_update_scalar_values
+
+subroutine finite_element_update_vector_values (this, fe_function_vector, vector_dof_values)
+  implicit none
+  class(finite_element_t), intent(in)              :: this
+  type(fe_function_vector_t), intent(inout)           :: fe_function_vector
+  class(vector_t)           , intent(in)   , optional :: vector_dof_values
+
+  real(rp), pointer             :: nodal_values(:)
+  type(vector_field_t), pointer :: quadrature_points_values(:)
+  
+  integer(ip)                   :: fe_space_id, block_id, number_nodes_fe_space
+
+  assert ( associated(this%field_blocks) )
+
+  fe_space_id = fe_function_vector%get_fe_space_id()
+  call fe_function_vector%set_current_number_quadrature_points( &
+                          & this%quadrature%get_number_evaluation_points() )
+  call fe_function_vector%set_current_number_nodes(             &
+                          & this%reference_fe_phy(fe_space_id)%p%get_number_nodes() )
+
+  block_id = this%field_blocks(fe_space_id)
+  nodal_values             => fe_function_vector%get_nodal_values()
+  quadrature_points_values => fe_function_vector%get_quadrature_points_values()
+
+  number_nodes_fe_space = this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
+  nodal_values(1:number_nodes_fe_space) = this%bc_value(fe_space_id)%p(:)
+
+  call vector_dof_values%extract_subvector ( block_id, &
+                                           & number_nodes_fe_space, &
+                                           & this%elem2dof(fe_space_id)%p, &
+                                           & nodal_values )
+
+  call this%volume_integrator(fe_space_id)%p%evaluate_fe_function ( nodal_values, & 
+                                                                  & quadrature_points_values )
+end subroutine finite_element_update_vector_values
+
+subroutine finite_element_update_tensor_values (this, fe_function_tensor, vector_dof_values)
+  implicit none
+  class(finite_element_t), intent(in)              :: this
+  type(fe_function_tensor_t), intent(inout)           :: fe_function_tensor
+  class(vector_t)           , intent(in)   , optional :: vector_dof_values
+
+  real(rp), pointer             :: nodal_values(:)
+  type(tensor_field_t), pointer :: quadrature_points_values(:)
+  
+  integer(ip)                   :: fe_space_id, block_id, number_nodes_fe_space
+
+  assert ( associated(this%field_blocks) )
+
+  fe_space_id = fe_function_tensor%get_fe_space_id()
+  call fe_function_tensor%set_current_number_quadrature_points( & ! Set, but not used
+                          & this%quadrature%get_number_evaluation_points() )
+  call fe_function_tensor%set_current_number_nodes(             & ! Set, but not used
+                          & this%reference_fe_phy(fe_space_id)%p%get_number_nodes() )
+
+  block_id = this%field_blocks(fe_space_id)
+  nodal_values             => fe_function_tensor%get_nodal_values()
+  quadrature_points_values => fe_function_tensor%get_quadrature_points_values()
+
+  number_nodes_fe_space = this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
+  nodal_values(1:number_nodes_fe_space) = this%bc_value(fe_space_id)%p(:)
+
+  call vector_dof_values%extract_subvector ( block_id, &
+                                           & number_nodes_fe_space, &
+                                           & this%elem2dof(fe_space_id)%p, &
+                                           & nodal_values )
+
+  call this%volume_integrator(fe_space_id)%p%evaluate_fe_function ( nodal_values, & 
+                                                                  & quadrature_points_values )
+end subroutine finite_element_update_tensor_values
+
+

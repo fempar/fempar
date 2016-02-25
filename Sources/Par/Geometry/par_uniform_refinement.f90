@@ -33,8 +33,8 @@ module par_uniform_refinement_names
   use migratory_element_names
   use triangulation_names
   use hash_table_names
-  use fe_space_types_names
   use map_names
+  use reference_fe_names
 
   use stdio_names
   use mesh_io_names
@@ -107,26 +107,27 @@ contains
     integer(ip), allocatable  :: code(:,:)
     real(rp)   , allocatable  :: valu(:,:)
     type(list_t)              :: subelems_around_vertices
-    type(reference_element_t), pointer :: reference_element
     type(subelems_GIDs_t), allocatable  :: data(:)
     type(hash_table_igp_ip_t)    :: subelems_visited
 
     integer(ip) :: ierr, istat, lunio
     
+    class(reference_fe_t), pointer :: reference_fe_geo
+    type(list_t)         , pointer :: vertices_vef
+    
     p_mesh%p_env => p_trian%p_env
 
     if ( p_trian%p_env%am_i_fine_task() ) then
        ! The triangulation must have only a single element type in triangulation
-       assert ( p_trian%f_trian%pos_elem_info%last() == 1 )
+       assert ( size(p_trian%f_trian%reference_fe_geo_list) == 1 )
 
        ! Element type must be triangles or tetrahedra
-       assert ( p_trian%f_trian%reference_elements(1)%ftype == P_type_id )
-
-       reference_element => p_trian%f_trian%reference_elements(1)
+       assert ( p_trian%f_trian%reference_fe_geo_list(1)%p%get_topology() == topology_tet )
        
-       ! call reference_element_write(reference_element)
-
-       call generate_data_subelems ( reference_element, &
+       reference_fe_geo => p_trian%f_trian%reference_fe_geo_list(1)%p
+       vertices_vef     => reference_fe_geo%get_vertices_vef()
+       
+       call generate_data_subelems ( reference_fe_geo, &
                                      num_vertices_per_subelem, &
                                      num_subelems, &
                                      subelem_vertices, &
@@ -219,8 +220,8 @@ contains
                         p_trian%f_trian%elems(ielem)%coordinates(:,subelem_vertices(ivertex,isubelem))
                 else if ( vef_dimension == 1 ) then ! Vef is an edge
                    ! Extract local ids (within reference element) of vertices of current edge
-                   vertex1 = reference_element%crxob%l(reference_element%crxob%p(subelem_vertices(ivertex,isubelem)))
-                   vertex2 = reference_element%crxob%l(reference_element%crxob%p(subelem_vertices(ivertex,isubelem))+1)
+                   vertex1 = vertices_vef%l(vertices_vef%p(subelem_vertices(ivertex,isubelem)))
+                   vertex2 = vertices_vef%l(vertices_vef%p(subelem_vertices(ivertex,isubelem))+1)
                    do idime=1, p_mesh%f_mesh%ndime
                       p_mesh%f_mesh%coord(idime,old2new_vefs(vef_lid))= &
                            (p_trian%f_trian%elems(ielem)%coordinates(idime,vertex1) + &
@@ -472,7 +473,7 @@ contains
        subelems_around_vertices)
     implicit none
     ! Dummy arguments
-    type(reference_element_t), intent(in)   :: reference_elem
+    class(reference_fe_t), intent(in)  :: reference_elem
     integer(ip), intent(out)                :: num_vertices_per_subelem
     integer(ip), intent(out)                :: num_subelems
     integer(ip), allocatable, intent(out)   :: subelem_vertices(:,:)
@@ -482,9 +483,9 @@ contains
     integer(ip) :: num_vertices_per_elem 
     integer(ip) :: ielem, ivertex
 
-    assert ( reference_elem%ftype == P_type_id )
+    assert ( reference_elem%get_topology() == topology_tet )
 
-    if(reference_elem%ndime==2) then
+    if(reference_elem%get_number_dimensions()==2) then
        num_vertices_per_elem = 6
        num_vertices_per_subelem = 3
        num_subelems = 4
@@ -495,7 +496,7 @@ contains
        subelem_vertices(:,2) = (/4,2,6/)
        subelem_vertices(:,3) = (/4,6,5/)
        subelem_vertices(:,4) = (/5,6,3/)
-    else if(reference_elem%ndime==3) then
+    else if(reference_elem%get_number_dimensions()==3) then
        num_vertices_per_elem = 10
        num_vertices_per_subelem = 4
        num_subelems = 8

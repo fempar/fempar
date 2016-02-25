@@ -219,25 +219,227 @@ contains
 
 end module command_line_parameters_names
 
+module poisson_discrete_integration_names
+  use serial_names
+  
+  implicit none
+# include "debug.i90"
+  private
+  type, extends(discrete_integration_t) :: poisson_discrete_integration_t
+     integer(ip) :: viscosity 
+   contains
+     procedure :: integrate
+  end type poisson_discrete_integration_t
+  
+  public :: poisson_discrete_integration_t
+  
+contains
+  
+  subroutine integrate ( this, fe_space, assembler )
+    implicit none
+    class(poisson_discrete_integration_t), intent(in)    :: this
+    class(serial_fe_space_t)          , intent(inout) :: fe_space
+    class(assembler_t)                , intent(inout) :: assembler
+
+    type(finite_element_t), pointer :: fe
+    type(volume_integrator_t), pointer :: vol_int
+    real(rp), allocatable :: elmat(:,:), elvec(:)
+    type(fe_map_t), pointer :: fe_map
+    type(quadrature_t), pointer :: quad
+
+    integer(ip)  :: igaus,inode,jnode,ngaus
+    real(rp)     :: factor
+
+    type(vector_field_t) :: grad_test, grad_trial
+
+    integer(ip) :: number_fe_spaces
+
+    integer(ip), pointer :: field_blocks(:)
+    logical, pointer :: field_coupling(:,:)
+
+    integer(ip) :: ielem, iapprox, number_nodes
+    type(i1p_t), pointer :: elem2dof(:)
+    type(i1p_t), pointer :: bc_code(:)
+    type(r1p_t), pointer :: bc_value(:)
+    integer(ip), allocatable :: number_nodes_per_field(:)
+
+    
+    number_fe_spaces = fe_space%get_number_fe_spaces()
+    field_blocks => fe_space%get_field_blocks()
+    field_coupling => fe_space%get_field_coupling()
+
+    fe => fe_space%get_finite_element(1)
+    number_nodes = fe%get_number_nodes()
+    call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
+    call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
+    call memalloc ( number_fe_spaces, number_nodes_per_field, __FILE__, __LINE__ )
+    call fe%get_number_nodes_per_field( number_nodes_per_field )
+
+    call fe_space%initialize_integration()
+    
+    quad => fe%get_quadrature()
+    ngaus = quad%get_number_evaluation_points()
+    do ielem = 1, fe_space%get_number_elements()
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+
+       fe => fe_space%get_finite_element(ielem)
+       call fe%update_integration()
+       
+       fe_map   => fe%get_fe_map()
+       vol_int  => fe%get_volume_integrator(1)
+       elem2dof => fe%get_elem2dof()
+       bc_code  => fe%get_bc_code()
+       bc_value => fe%get_bc_value()
+
+       do igaus = 1,ngaus
+          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          do inode = 1, number_nodes
+             call vol_int%get_gradient(inode,igaus,grad_trial)
+             do jnode = 1, number_nodes
+                call vol_int%get_gradient(jnode,igaus,grad_test)
+                elmat(inode,jnode) = elmat(inode,jnode) + factor * grad_test * grad_trial
+             end do
+          end do
+       end do
+       !write (*,*) 'XXXXXXXXX ELMAT XXXXXXXXX'
+       !write (*,*) elmat
+       
+       ! Apply boundary conditions
+       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
+       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )
+    end do
+    call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
+    call memfree ( elmat, __FILE__, __LINE__ )
+    call memfree ( elvec, __FILE__, __LINE__ )
+  end subroutine integrate
+end module poisson_discrete_integration_names
+
+module vector_laplacian_discrete_integration_names
+use serial_names
+
+implicit none
+# include "debug.i90"
+private
+type, extends(discrete_integration_t) :: vector_laplacian_discrete_integration_t
+integer(ip) :: viscosity 
+contains
+procedure :: integrate
+end type vector_laplacian_discrete_integration_t
+
+public :: vector_laplacian_discrete_integration_t
+
+contains
+  subroutine integrate ( this, fe_space, assembler )
+    implicit none
+    class(vector_laplacian_discrete_integration_t), intent(in)    :: this
+    class(serial_fe_space_t)                   , intent(inout) :: fe_space
+    class(assembler_t)                         , intent(inout) :: assembler
+
+    type(finite_element_t), pointer :: fe
+    type(volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
+    real(rp), allocatable :: elmat(:,:), elvec(:)
+    type(fe_map_t), pointer :: fe_map
+    type(quadrature_t), pointer :: quad
+    integer(ip), allocatable :: number_nodes_per_field(:)
+
+    integer(ip)  :: igaus,inode,jnode,ioffset,joffset,ngaus
+    real(rp) :: factor
+
+    type(vector_field_t) :: grad_test_scalar, grad_trial_scalar
+    type(tensor_field_t) :: grad_test_vector, grad_trial_vector
+    
+    integer(ip) :: i, number_fe_spaces
+
+    integer(ip), pointer :: field_blocks(:)
+    logical, pointer :: field_coupling(:,:)
+
+    integer(ip) :: ielem, number_nodes
+    type(i1p_t), pointer :: elem2dof(:)
+    type(i1p_t), pointer :: bc_code(:)
+    type(r1p_t), pointer :: bc_value(:)
+
+    number_fe_spaces = fe_space%get_number_fe_spaces()
+    field_blocks => fe_space%get_field_blocks()
+    field_coupling => fe_space%get_field_coupling()
+
+    fe => fe_space%get_finite_element(1)
+    number_nodes = fe%get_number_nodes()
+    call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
+    call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
+    call memalloc ( number_fe_spaces, number_nodes_per_field, __FILE__, __LINE__ )
+    call fe%get_number_nodes_per_field( number_nodes_per_field )
+    
+    call fe_space%initialize_integration()
+    
+    quad  => fe%get_quadrature()
+    ngaus = quad%get_number_evaluation_points()
+    do ielem = 1, fe_space%get_number_elements()
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+
+       fe => fe_space%get_finite_element(ielem)
+       call fe%update_integration()
+       
+       fe_map            => fe%get_fe_map()
+       vol_int_first_fe  => fe%get_volume_integrator(1)
+       vol_int_second_fe => fe%get_volume_integrator(2)
+       elem2dof          => fe%get_elem2dof()
+       bc_code           => fe%get_bc_code()
+       bc_value          => fe%get_bc_value()
+
+       do igaus = 1,ngaus
+          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          do inode = 1, number_nodes_per_field(1)
+             call vol_int_first_fe%get_gradient(inode,igaus,grad_trial_scalar)
+             !call vol_int_first_fe%get_gradient(inode,igaus,grad_trial_vector)
+             do jnode = 1, number_nodes_per_field(1)
+                call vol_int_first_fe%get_gradient(jnode,igaus,grad_test_scalar)
+                !call vol_int_first_fe%get_gradient(jnode,igaus,grad_test_vector)
+                elmat(inode,jnode) = elmat(inode,jnode) + factor * grad_test_scalar * grad_trial_scalar
+                !elmat(inode,jnode) = elmat(inode,jnode) + factor * (grad_test_vector .doublecontract. grad_trial_vector)
+             end do
+          end do
+
+          do inode = 1, number_nodes_per_field(2)
+             ioffset = number_nodes_per_field(1)+inode
+             !call vol_int_second_fe%get_gradient(inode,igaus,grad_trial_scalar)
+             call vol_int_second_fe%get_gradient(inode,igaus,grad_trial_vector)
+             ! write(*,*) inode, grad_trial_vector%value
+             do jnode = 1, number_nodes_per_field(2)
+                joffset = number_nodes_per_field(1)+jnode
+                call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_vector)
+                !call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_scalar)
+               elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor * double_contract(grad_test_vector,grad_trial_vector)
+                !elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor * grad_test_scalar * grad_trial_scalar
+             end do
+          end do
+       end do
+       
+       !write (*,*) 'XXXXXXXXX ELMAT field 1 XXXXXXXXX'
+       !write (*,*) elmat(1:number_nodes_per_field(1),1:number_nodes_per_field(1))
+       
+       !write (*,*) 'XXXXXXXXX ELMAT field 2 XXXXXXXXX'
+       !write (*,*) elmat(number_nodes_per_field(1)+1:,number_nodes_per_field(1)+1:)
+       
+       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
+       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
+    end do
+    call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
+    call memfree ( elmat, __FILE__, __LINE__ )
+    call memfree ( elvec, __FILE__, __LINE__ )
+  end subroutine integrate
+
+end module vector_laplacian_discrete_integration_names
+
 !****************************************************************************************************
 !****************************************************************************************************
 
 program test_reference_fe
   use serial_names
-  use prob_names
-  use lib_vtk_io_interface_names
-  use Data_Type_Command_Line_Interface
   use command_line_parameters_names
-  ! SB
-  !use reference_face_names
-  use reference_fe_names
-  use reference_fe_factory_names
-  use SB_fe_space_names
-  use SB_discrete_integration_names
   use poisson_discrete_integration_names
   use vector_laplacian_discrete_integration_names
-  use SB_fe_affine_operator_names
-  use SB_preconditioner_names
   implicit none
 #include "debug.i90"
 
@@ -245,18 +447,9 @@ program test_reference_fe
   type(mesh_t)                          :: f_mesh
   type(triangulation_t)                 :: f_trian
   type(conditions_t)                    :: f_cond
-  type(dof_descriptor_t)                :: dof_descriptor
   !  type(serial_fe_space_t)               :: fe_space
-  type(cdr_problem_t)                   :: my_problem
-  type(cdr_discrete_t)                  :: my_discrete
-  type(cdr_nonlinear_t), target         :: cdr_matvec
-  type(error_norm_t)       , target     :: compute_error
-  type(serial_scalar_t)                 :: enorm
-  type(vtk_t)                           :: fevtk
   integer(ip)                           :: num_approximations
   class(matrix_t)             , pointer :: matrix
-  type(serial_scalar_matrix_t), pointer :: my_matrix
-  type(serial_block_matrix_t), pointer :: my_block_matrix
   class(array_t)              , pointer :: array
   type(serial_scalar_array_t) , pointer :: my_array
   type(serial_scalar_array_t) , target  :: feunk
@@ -267,9 +460,6 @@ program test_reference_fe
 
   type(linear_solver_t)                           :: linear_solver
   type(vector_space_t)    , pointer               :: fe_affine_operator_range_vector_space
-  type(SB_preconditioner_t)        :: feprec
-  type(SB_preconditioner_params_t) :: ppars
-  type(solver_control_t)        :: sctrl
   type(serial_environment_t)    :: senv
 
   ! Arguments
@@ -293,10 +483,10 @@ program test_reference_fe
   character(len=:), allocatable :: group
 
   ! SB
-  type(SB_serial_fe_space_t) :: fe_space
+  type(serial_fe_space_t) :: fe_space
   type(poisson_discrete_integration_t) :: poisson_integration
   type(vector_laplacian_discrete_integration_t) :: vector_laplacian_integration
-  type(SB_fe_affine_operator_t)            :: fe_affine_operator
+  type(fe_affine_operator_t)            :: fe_affine_operator
   type(p_reference_fe_t) :: reference_fe_array_two(2)
   type(p_reference_fe_t) :: reference_fe_array_one(1)
 
@@ -328,25 +518,23 @@ program test_reference_fe
   problem_id = 0
   if ( problem_id == 1) then
      ! Composite case
-     reference_fe_array_two(1) = make_reference_fe ( topology = "quad", &
-                                                     fe_type = "Lagrangian", &
+     reference_fe_array_two(1) = make_reference_fe ( topology = topology_quad, &
+                                                     fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
                                                      order = 1, &
-                                                     field_type = "scalar", &
+                                                     field_type = field_type_scalar, &
                                                      continuity = .true. )
      
-     reference_fe_array_two(2) = make_reference_fe ( topology = "quad", &
-                                                     fe_type = "Lagrangian", &
+     reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad, &
+                                                     fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
                                                      order = 1, & 
-                                                     field_type = "vector", &
+                                                     field_type = field_type_vector, &
                                                      continuity = .true. )
      
      call fe_space%create( triangulation = f_trian, &
                            boundary_conditions = f_cond, &
                            reference_fe_phy = reference_fe_array_two, &
-                           reference_fe_geo_topology = "quad", &
-                           reference_fe_geo_type = "Lagrangian", &
                            !field_blocks = (/1,1/), &
                            !field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
                            field_blocks = (/1,2/), &
@@ -357,34 +545,30 @@ program test_reference_fe
      call fe_affine_operator%create ( 'CSR', &
                                       (/.true.,.true./), &
                                       (/.true.,.true./), &
-                                      (/positive_definite,positive_definite/),&
-                                     !(/.true./), &
-                                     !(/.true./), &
-                                     !(/positive_definite/), &
-                                     f_trian, &
-                                     fe_space, &
-                                     vector_laplacian_integration )
+                                      (/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/),&
+                                      f_trian, &
+                                      fe_space, &
+                                      vector_laplacian_integration )
   else 
        
      ! Simple case
-     reference_fe_array_one(1) =  make_reference_fe ( topology = "quad", &
-                                                      fe_type = "Lagrangian", &
+     reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
+                                                      fe_type = fe_type_lagrangian, &
                                                       number_dimensions = 2, &
                                                       order = 1, &
-                                                      field_type = "scalar", &
+                                                      field_type = field_type_scalar, &
                                                       continuity = .true. )
      
      call fe_space%create( triangulation = f_trian, &
                            boundary_conditions = f_cond, &
-                           reference_fe_phy = reference_fe_array_one, &
-                           reference_fe_geo_topology = "quad", &
-                           reference_fe_geo_type = "Lagrangian" )
+                           reference_fe_phy = reference_fe_array_one )
+     
      call fe_space%fill_dof_info() 
-
+     
      call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                      diagonal_blocks_symmetric_storage=(/.true./), &
                                      diagonal_blocks_symmetric=(/.true./), &
-                                     diagonal_blocks_sign=(/positive_definite/), &
+                                     diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
                                      triangulation=f_trian, &
                                      fe_space=fe_space, &
                                      discrete_integration=poisson_integration )
@@ -413,22 +597,6 @@ program test_reference_fe
   call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
   call linear_solver%solve(vector)
   call linear_solver%free() 
-
-  ! ppars%type = pardiso_mkl_prec
-  ! call SB_preconditioner_create(fe_affine_operator,feprec,ppars)
-  ! call SB_preconditioner_symbolic_setup(feprec)
-  ! call SB_preconditioner_numerical_setup(feprec)
-  ! call SB_preconditioner_log_info(feprec)
-
-  ! fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-  ! call fe_affine_operator_range_vector_space%create_vector(vector)
-
-  ! ! Create linear solver, set operators and solve linear system
-  ! call linear_solver%create(senv)
-  ! call linear_solver%set_type_and_parameters_from_pl()
-  ! call linear_solver%set_operators(fe_affine_operator,feprec)
-  ! call linear_solver%solve(vector)
-  ! call linear_solver%free() 
 
   select type(vector)
      class is(serial_scalar_array_t)

@@ -34,8 +34,6 @@ module par_names
   use par_timer_names
   use par_io_names
   use par_environment_names
-  use par_update_names
-  use par_statistics_names
 
   ! Geometry
   use par_mesh_names
@@ -47,18 +45,8 @@ module par_names
 
   ! Linear algebra
   use par_scalar_array_names
-  use par_scalar_matrix_names
-  use par_block_matrix_names
   use par_block_array_names
-  use blocks_dof_distribution_names
-  use par_dd_base_names
-  use par_preconditioner_dd_diagonal_names
-  use par_preconditioner_dd_mlevel_bddc_names
-  use par_preconditioner_dd_identity_names
 
   ! Integration
-  use par_fe_space_names
-  use par_create_global_dof_info_names
-  use par_scalar_names
     
 end module par_names
