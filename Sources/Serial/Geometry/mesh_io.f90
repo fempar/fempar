@@ -103,10 +103,10 @@ contains
     end if
 
     ! Read first line: "MESH dimension  3  types  1  elements        352  nodes        100  boundaries        144"
-    read(lunio,'(a14,1x,i2,a7,1x,i2,a10,1x,i10,a7,1x,i10,a12,1x,i10)') &
-         & dum1,msh%ndime,dum2,msh%nelty,dum3,msh%nelem,dum4,msh%npoin,dum5,msh%nboun
+    read(lunio,'(a14,1x,i2,a7,1x,i2,a7,1x,i2,a10,1x,i10,a7,1x,i10,a12,1x,i10)') &
+         & dum1,msh%ndime,dum2,msh%order,dum2,msh%nelty,dum3,msh%nelem,dum4,msh%npoin,dum5,msh%nboun
 
-    write(*,*) msh%ndime,msh%nelty,msh%nelem,msh%npoin,msh%nboun
+    write(*,*) msh%ndime,msh%order,msh%nelty,msh%nelem,msh%npoin,msh%nboun
 
     ! Read nodes
     call memalloc(msh%ndime,msh%npoin,msh%coord,__FILE__,__LINE__)
@@ -184,8 +184,9 @@ contains
     end do
 
     ! Reordering (c to z) the nodes of the mesh, if needed
-    if(permute_c2z_) then
-       msh%order=z_order
+    !if(permute_c2z_) then
+    if(msh%order==c_order) then
+       msh%order= z_order
        call memalloc(msh%nnode, lnods_aux, __FILE__, __LINE__)
        do ielem = 1,msh%nelem
           nnode = msh%pnods(ielem+1) - msh%pnods(ielem)
@@ -226,9 +227,9 @@ contains
 
     integer(ip)                    :: ielem, idime, ipoin, inode, iboun
 
-    ! Read first line: "MESH dimension  3  types  1  elements        352  nodes        100  boundaries        144"
-    write(lunio,'(a14,1x,i2,a7,1x,i2,a10,1x,i10,a7,1x,i10,a12,1x,i10)') &
-         & 'MESH dimension',msh%ndime,'  types',msh%nelty,'  elements', &
+    ! Read first line: "MESH dimension  2  order  0  types  2  elements         86  nodes         63  boundaries         28"
+    write(lunio,'(a14,1x,i2,a7,1x,i2,a7,1x,i2,a10,1x,i10,a7,1x,i10,a12,1x,i10)') &
+         & 'MESH dimension',msh%ndime,'  order',msh%order,'  types',msh%nelty,'  elements', &
          & msh%nelem,'  nodes',msh%npoin,'  boundaries',msh%nboun
 
     ! Coordinates
