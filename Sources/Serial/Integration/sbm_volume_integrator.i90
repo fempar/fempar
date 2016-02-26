@@ -58,12 +58,12 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
 
   call memalloc(number_dimensions, &
                 number_evaluation_points, &
-                this%coordinates_points,__FILE__,__LINE__)
+                this%coordinates_quadrature,__FILE__,__LINE__)
 
   number_vertices = reference_fe_geometry%get_number_vertices()
   call memalloc(number_dimensions, &
        &        number_vertices,    &
-       &        this%coordinates,__FILE__,__LINE__)
+       &        this%coordinates_vertices,__FILE__,__LINE__)
 
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
 end subroutine fe_map_create
@@ -102,12 +102,12 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
 
   call memalloc(number_dimensions, &
                 number_evaluation_points, &
-                this%coordinates_points,__FILE__,__LINE__)
+                this%coordinates_quadrature,__FILE__,__LINE__)
 
   number_vertices = reference_fe_geometry%get_number_vertices()
   call memalloc(number_dimensions, &
        &        number_vertices,    &
-       &        this%coordinates,__FILE__,__LINE__)
+       &        this%coordinates_vertices,__FILE__,__LINE__)
   
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
 end subroutine fe_map_create_on_face
@@ -141,7 +141,7 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
 
   call memalloc(number_dimensions, &
                 number_evaluation_points, &
-                this%coordinates_points,__FILE__,__LINE__)
+                this%coordinates_quadrature,__FILE__,__LINE__)
 
   call memalloc(number_dimensions, &
                 number_evaluation_points, &
@@ -150,7 +150,7 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
   number_vertices_face = reference_fe_geo%get_number_vertices_per_face()
   call memalloc(number_dimensions,      &
        &        number_vertices_face,    &
-       &        this%coordinates,__FILE__,__LINE__)
+       &        this%coordinates_vertices,__FILE__,__LINE__)
 
   this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
 end subroutine fe_map_face_map_create
@@ -190,7 +190,7 @@ subroutine fe_map_update( this, quadrature)
         do jdime=1,ndime
            do idime=1,ndime
               this%jacobian(idime,jdime,ilocs) = this%jacobian(idime,jdime,ilocs)               &
-                   & + this%coordinates(idime,inode) *                                          &
+                   & + this%coordinates_vertices(idime,inode) *                                          &
                    & this%interpolation_geometry%shape_derivatives(jdime,inode,ilocs)
            end do
         end do
@@ -201,11 +201,11 @@ subroutine fe_map_update( this, quadrature)
 
   ! Evaluation (Gauss) point coordinates
   do ilocs=1,nlocs
-     this%coordinates_points(:,ilocs)=0.0_rp
+     this%coordinates_quadrature(:,ilocs)=0.0_rp
      do inode=1,nnode
         do idime=1,ndime
-           this%coordinates_points(idime,ilocs) = this%coordinates_points(idime,ilocs) &
-                + this%coordinates(idime,inode)*this%interpolation_geometry%shape_functions(inode,ilocs)
+           this%coordinates_quadrature(idime,ilocs) = this%coordinates_quadrature(idime,ilocs) &
+                + this%coordinates_vertices(idime,inode)*this%interpolation_geometry%shape_functions(inode,ilocs)
         end do
      end do
   end do
@@ -281,13 +281,13 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
   reorientation_factor = (-1)**orientation_face
 
   ! Initialize values
-  this%coordinates_points = 0.0_rp
+  this%coordinates_quadrature = 0.0_rp
   this%jacobian           = 0.0_rp
   do evaluation_point_id = 1, quadrature%number_evaluation_points
      do node_id = 1, this%interpolation_geometry%number_shape_functions
         ! Updating the coordinates
-        this%coordinates_points(:,evaluation_point_id) =                                          &
-             & this%coordinates_points(:,evaluation_point_id) + this%coordinates(:,node_id) *     &
+        this%coordinates_quadrature(:,evaluation_point_id) =                                          &
+             & this%coordinates_quadrature(:,evaluation_point_id) + this%coordinates_vertices(:,node_id) *     &
              & this%interpolation_geometry%shape_functions(node_id,evaluation_point_id)
 
         ! Updating the Jacobian Matrix
@@ -295,7 +295,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
              do idime = 1, number_elem_dimensions
                 this%jacobian(idime,jdime,evaluation_point_id) =                                  &
                      &  this%jacobian(idime,jdime,evaluation_point_id) +                          &
-                     &  this%coordinates(idime,node_id) *                                 &
+                     &  this%coordinates_vertices(idime,node_id) *                                 &
                      &  this%interpolation_geometry%shape_derivatives(jdime,node_id,evaluation_point_id)
              end do
           end do
@@ -332,8 +332,8 @@ subroutine fe_map_free( this )
   if(allocated(this%inv_jacobian)) call memfree(this%inv_jacobian,__FILE__,__LINE__)
   if(allocated(this%det_jacobian)) call memfree(this%det_jacobian,__FILE__,__LINE__)
   if(allocated(this%d2sdx)) call memfree(this%d2sdx,__FILE__,__LINE__)
-  if(allocated(this%coordinates_points)) call memfree(this%coordinates_points,__FILE__,__LINE__)
-  if(allocated(this%coordinates)) call memfree(this%coordinates,__FILE__,__LINE__)
+  if(allocated(this%coordinates_quadrature)) call memfree(this%coordinates_quadrature,__FILE__,__LINE__)
+  if(allocated(this%coordinates_vertices)) call memfree(this%coordinates_vertices,__FILE__,__LINE__)
   if(allocated(this%normals)) call memfree(this%normals,__FILE__,__LINE__)
   call this%interpolation_geometry%free()
 end subroutine fe_map_free
@@ -397,7 +397,7 @@ function fe_map_get_coordinates(this)
   class(fe_map_t)   , target, intent(in) :: this
   real(rp), pointer :: fe_map_get_coordinates(:,:)
   
-  fe_map_get_coordinates => this%coordinates
+  fe_map_get_coordinates => this%coordinates_vertices
 
 end function fe_map_get_coordinates
 

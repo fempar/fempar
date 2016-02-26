@@ -33,8 +33,6 @@ module field_names
 
   private
 
-  integer(ip), parameter :: dim = 3
-  
   type :: scalar_field_t
      private
      real(rp) :: value
@@ -45,7 +43,7 @@ module field_names
   
   type :: vector_field_t
      private
-     real(rp) :: value(dim)
+     real(rp) :: value(number_space_dimensions)
    contains
      procedure, non_overridable :: init  => vector_field_init
      procedure, non_overridable :: set   => vector_field_set
@@ -55,7 +53,7 @@ module field_names
   
   type :: tensor_field_t
      private
-     real(rp)  :: value(dim,dim)
+     real(rp)  :: value(number_space_dimensions,number_space_dimensions)
    contains
      procedure, non_overridable :: init  => tensor_field_init
      procedure, non_overridable :: set   => tensor_field_set
@@ -65,7 +63,7 @@ module field_names
 
   type :: symmetric_tensor_field_t
      private
-     real(rp)  :: value(dim,dim)
+     real(rp)  :: value(number_space_dimensions,number_space_dimensions)
    contains			
      procedure, non_overridable :: init  => symmetric_tensor_field_init
      procedure, non_overridable :: set   => symmetric_tensor_field_set					
@@ -190,7 +188,7 @@ contains
     real(rp)                         :: res
     integer(ip) :: k
     res=0.0_rp
-    do k=1,dim
+    do k=1,number_space_dimensions
       res = res + v1%value(k)*v2%value(k)
     end do
    end function single_contract_vector_vector
@@ -202,8 +200,8 @@ contains
     type(vector_field_t)             :: res
     integer(ip) :: i, k
     res%value=0.0_rp
-    do k=1,dim
-      do i=1,dim
+    do k=1,number_space_dimensions
+      do i=1,number_space_dimensions
         res%value(i) = res%value(i) + t%value(i,k) * v%value(k)
       end do
     end do
@@ -216,8 +214,8 @@ contains
     type(vector_field_t)             :: res
     integer(ip) :: i, k
     res%value=0.0_rp
-    do i=1,dim
-      do k=1,dim
+    do i=1,number_space_dimensions
+      do k=1,number_space_dimensions
         res%value(i) = res%value(i) + v%value(k) * t%value(k,i)
       end do
     end do
@@ -230,9 +228,9 @@ contains
     type(tensor_field_t)             :: res
     integer(ip) :: i, j, k
     res%value=0.0_rp
-    do i=1,dim
-      do k=1,dim
-        do j=1,dim
+    do i=1,number_space_dimensions
+      do k=1,number_space_dimensions
+        do j=1,number_space_dimensions
           res%value(i,k) = res%value(i,k) + t1%value(i,j) * t2%value(j,k)
         end do
       end do
@@ -294,8 +292,8 @@ contains
     real(rp)                         :: res
     integer(ip) :: i, j
     res = 0.0_rp
-    do j=1, dim
-      do i=1,dim
+    do j=1, number_space_dimensions
+      do i=1,number_space_dimensions
         res = res + t1%value(i,j)*t2%value(i,j)
       end do
     end do
