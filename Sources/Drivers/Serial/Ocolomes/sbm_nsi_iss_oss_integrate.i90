@@ -26,6 +26,27 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !====================================================================================================
+subroutine initialize_from_cli(this,cli,group)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+  type(Type_Command_Line_Interface)        , intent(inout) :: cli
+  character(len=:), allocatable            , intent(in)    :: group
+  ! Locals
+  integer(ip) :: istat
+
+  ! Getters
+  call cli%get(group=trim(group),switch='-nu'   ,val=this%viscosity,error=istat); check(istat==0)
+  call cli%get(group=trim(group),switch='-c1'   ,val=this%c1       ,error=istat); check(istat==0)
+  call cli%get(group=trim(group),switch='-c2'   ,val=this%c2       ,error=istat); check(istat==0)
+  call cli%get(group=trim(group),switch='-cc'   ,val=this%cc       ,error=istat); check(istat==0)
+  call cli%get(group=trim(group),switch='-h_flg',val=this%elemental_length_flag,error=istat)
+  check(istat==0)
+  call cli%get(group=trim(group),switch='-cnv'  ,val=this%convection_activated ,error=istat)
+  check(istat==0)
+
+end subroutine initialize_from_cli
+
+!====================================================================================================
 subroutine integrate(this,fe_space,assembler)
   implicit none
   class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
@@ -107,10 +128,6 @@ subroutine integrate(this,fe_space,assembler)
      fe => fe_space%get_finite_element(ielem)
      call fe%update_integration()
      call fe%update_values(fe_velocity, vector_dof_values)
-
-     ! Update discrete integration structures
-     call this%compute_stabilization_parameters(fe_map,fe_velocity,number_nodes,number_dimensions, & 
-     &                                          velocity_order,tau_m,tau_c)
      
      ! Elemental getters
      fe_map                => fe%get_fe_map()
@@ -120,6 +137,10 @@ subroutine integrate(this,fe_space,assembler)
      elem2dof              => fe%get_elem2dof()
      bc_code               => fe%get_bc_code()
      bc_value              => fe%get_bc_value()
+
+     ! Update discrete integration structures
+     call this%compute_stabilization_parameters(fe_map,fe_velocity,ngaus,number_nodes_per_field(1), & 
+     &                                          number_dimensions,velocity_order,tau_m,tau_c)
      
      ! Loop over Gauss points
      gaus: do igaus = 1, ngaus
@@ -160,7 +181,7 @@ subroutine integrate(this,fe_space,assembler)
            call vol_int_velocity_fe%get_divergence(inode,igaus,test_scalar)
            do jnode = 1, number_nodes_per_field(1) 
               call vol_int_velocity_fe%get_divergence(jnode,igaus,trial_scalar)
-              elmat(inode,jnode) = elmat(inode,jnode) + tau_c(igaus) * dvolume * test_vector * trial_vector
+              elmat(inode,jnode) = elmat(inode,jnode) + tau_c(igaus) * dvolume * test_scalar * trial_scalar
            end do
         end do            
         
@@ -176,7 +197,7 @@ subroutine integrate(this,fe_space,assembler)
               elmat(inode,joffset) = elmat(inode,joffset) - dvolume * test_scalar * trial_scalar
            end do
         end do
-        
+
         !-----------!
         ! BLOCK V-X !
         !-----------!
@@ -192,13 +213,13 @@ subroutine integrate(this,fe_space,assembler)
               end do
            end do
         end if
-        
+
         !-----------!
         ! BLOCK Q-U !
         !-----------!
         ! Velocity divergence term: (q,div(u))
         do inode = 1, number_nodes_per_field(2)
-           call vol_int_pressure_fe%get_value(jnode,igaus,test_scalar)
+           call vol_int_pressure_fe%get_value(inode,igaus,test_scalar)
            ioffset = number_nodes_per_field(1)+inode
            do jnode = 1, number_nodes_per_field(1) 
               call vol_int_velocity_fe%get_divergence(jnode,igaus,trial_scalar)
@@ -271,7 +292,7 @@ subroutine allocate_stabilization_parameters(ngaus,tau_m,tau_c)
 
   ! Allocate $\tau_m$ and $\tau_c$
   call memalloc(ngaus,tau_m,__FILE__,__LINE__)
-  call memalloc(ngaus,tau_m,__FILE__,__LINE__)
+  call memalloc(ngaus,tau_c,__FILE__,__LINE__)
 
 end subroutine allocate_stabilization_parameters
 
@@ -283,36 +304,30 @@ subroutine deallocate_stabilization_parameters(tau_m,tau_c)
 
   ! Dellocate $\tau_m$ and $\tau_c$
   call memfree(tau_m,__FILE__,__LINE__)
-  call memfree(tau_m,__FILE__,__LINE__)
+  call memfree(tau_c,__FILE__,__LINE__)
 
 end subroutine deallocate_stabilization_parameters
 
 !====================================================================================================
-subroutine compute_stabilization_parameters(this,fe_map,fe_velocity,number_nodes,number_components, & 
-     &                                      velocity_order,tau_m,tau_c)
+subroutine compute_stabilization_parameters(this,fe_map,fe_velocity,ngaus,number_velocity_nodes, & 
+     &                                      number_components,velocity_order,tau_m,tau_c)
   implicit none
   class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
   type(fe_map_t)                           , intent(in)    :: fe_map
   type(fe_function_vector_t)               , intent(in)    :: fe_velocity
-  integer(ip)                              , intent(in)    :: number_nodes
+  integer(ip)                              , intent(in)    :: ngaus
+  integer(ip)                              , intent(in)    :: number_velocity_nodes
   integer(ip)                              , intent(in)    :: number_components
   integer(ip)                              , intent(in)    :: velocity_order
-  real(rp), allocatable                    , intent(inout) :: tau_m(:)
-  real(rp), allocatable                    , intent(inout) :: tau_c(:)
+  real(rp)                                 , intent(inout) :: tau_m(ngaus)
+  real(rp)                                 , intent(inout) :: tau_c(ngaus)
   ! Locals
-  integer(ip) :: ngaus
   integer(ip) :: igaus
   real(rp)    :: gp_velocity
   real(rp)    :: h_vol,h_flow
   real(rp)    :: ch_velocity(number_components,2)
   real(rp)    :: inv_tau_m
   type(vector_field_t) :: advection_vector
-
-  assert( allocated(tau_m) )
-  assert( allocated(tau_c) )
-
-  ! Getters
-  ngaus = size(tau_m,1)
 
   ! Initiealize
   tau_m = 0.0_rp
@@ -327,7 +342,7 @@ subroutine compute_stabilization_parameters(this,fe_map,fe_velocity,number_nodes
      gp_velocity = sqrt(gp_velocity)
 
      ! Characteristic element length
-     call this%compute_characteristic_length(fe_map,fe_velocity,number_nodes,number_components, &
+     call this%compute_characteristic_length(fe_map,fe_velocity,number_velocity_nodes,number_components, &
      &                                       velocity_order,igaus,ch_velocity,h_vol,h_flow)
 
      ! $\tau_m$
@@ -342,13 +357,14 @@ subroutine compute_stabilization_parameters(this,fe_map,fe_velocity,number_nodes
 end subroutine compute_stabilization_parameters
 
 !====================================================================================================
-subroutine compute_characteristic_length(this,fe_map,fe_velocity,number_nodes,number_components, &
-     &                                   velocity_order,igaus,ch_velocity,h_vol,h_flow)
+subroutine compute_characteristic_length(this,fe_map,fe_velocity,number_velocity_nodes,            &
+     &                                   number_components,velocity_order,igaus,ch_velocity,h_vol, &
+     &                                   h_flow)
   implicit none
   class(nsi_iss_oss_discrete_integration_t), intent(in)  :: this
   type(fe_map_t)                           , intent(in)  :: fe_map
   type(fe_function_vector_t)               , intent(in)  :: fe_velocity
-  integer(ip)                              , intent(in)  :: number_nodes
+  integer(ip)                              , intent(in)  :: number_velocity_nodes
   integer(ip)                              , intent(in)  :: number_components
   integer(ip)                              , intent(in)  :: velocity_order
   integer(ip)                              , intent(in)  :: igaus
@@ -359,7 +375,7 @@ subroutine compute_characteristic_length(this,fe_map,fe_velocity,number_nodes,nu
   real(rp)          :: v1_norm,v2_norm
   real(rp), pointer :: elemental_velocity(:)
   real(rp), pointer :: inv_jacobian(:,:,:)
-  integer(ip)       :: number_nodes_scalar
+  integer(ip)       :: number_velocity_nodes_scalar
   integer(ip)       :: idime,jdime,inode,counter
 
   ! Get elemental lengths
@@ -370,21 +386,21 @@ subroutine compute_characteristic_length(this,fe_map,fe_velocity,number_nodes,nu
   inv_jacobian => fe_map%get_inv_jacobian()
 
   ! Number of physical elemental nodes 
-  number_nodes_scalar = number_nodes/number_components
+  number_velocity_nodes_scalar = number_velocity_nodes/number_components
 
   ! Length in the flow direction
   if(this%convection_activated) then
 
      ! Characteristic element velocity
-     elemental_velocity = fe_velocity%get_nodal_values()
+     elemental_velocity => fe_velocity%get_nodal_values()
      ch_velocity = 0.0_rp
      counter = 0
      do idime = 1, number_components
-        do inode = 1, number_nodes_scalar
+        do inode = 1, number_velocity_nodes_scalar
            counter = counter + 1
            ch_velocity(idime,1) = ch_velocity(idime,1) + elemental_velocity(counter)
         end do
-        ch_velocity(idime,1) = ch_velocity(idime,1)/real(number_nodes_scalar)
+        ch_velocity(idime,1) = ch_velocity(idime,1)/real(number_velocity_nodes_scalar)
      end do
      do idime = 1, number_components
         ch_velocity(idime,2) = 0.0_rp
@@ -396,8 +412,8 @@ subroutine compute_characteristic_length(this,fe_map,fe_velocity,number_nodes,nu
      v1_norm = 0.0_rp
      v2_norm = 0.0_rp
      do idime = 1, number_components
-        v1_norm = v1_norm + ch_velocity(idime,1)
-        v2_norm = v2_norm + ch_velocity(idime,2)
+        v1_norm = v1_norm + ch_velocity(idime,1)*ch_velocity(idime,1)
+        v2_norm = v2_norm + ch_velocity(idime,2)*ch_velocity(idime,2)
      end do
      v1_norm = sqrt(v1_norm)
      v2_norm = sqrt(v2_norm)

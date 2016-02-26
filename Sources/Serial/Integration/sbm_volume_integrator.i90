@@ -458,9 +458,9 @@ end function fe_map_get_coordinates
 !==================================================================================================
 function fe_map_get_inv_jacobian ( this )
   implicit none
-  class(fe_map_t), intent(in) :: this
+  class(fe_map_t), target, intent(in) :: this
   real(rp), pointer :: fe_map_get_inv_jacobian(:,:,:)
-  fe_map_get_inv_jacobian = this%inv_jacobian
+  fe_map_get_inv_jacobian => this%inv_jacobian
 end function fe_map_get_inv_jacobian
 
 !==================================================================================================

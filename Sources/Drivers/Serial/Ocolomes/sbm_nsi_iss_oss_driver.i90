@@ -1,0 +1,193 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! Initialize memory structures
+  call meminit
+
+  !----------------!
+  ! READ ARGUMENTS !
+  !----------------!
+  ! Read from Command Line
+  call read_flap_cli_nsi_iss_oss(cli)
+  call cli%parse(error=istat)
+  if(cli%run_command('analytical')) then
+     group = 'analytical'
+  end if
+  ! Getters		
+  call cli%get(group=trim(group),switch='-pwd_in' ,val=dir_path    ,error=istat); check(istat==0)
+  call cli%get(group=trim(group),switch='-prf'    ,val=prefix      ,error=istat); check(istat==0)
+  call cli%get(group=trim(group),switch='-pwd_out',val=dir_path_out,error=istat); check(istat==0)
+
+  !----------!
+  ! GEOMETRY !
+  !----------!
+  ! Getters
+  call cli%get(group=trim(group),switch='-str',val=is_structured_mesh,error=istat); check(istat==0)
+  structured_mesh: if(.not.is_structured_mesh) then
+
+     ! Read mesh
+     call mesh_read(dir_path,prefix,f_mesh,permute_c2z=.true.)
+
+     ! Read conditions
+     call conditions_read(dir_path,prefix,f_mesh%npoin,f_cond)
+
+     ! Construct triangulation
+     call mesh_to_triangulation(f_mesh,f_trian,gcond=f_cond)
+
+  end if structured_mesh
+
+  !----------------------!
+  ! FINITE ELEMENT SPACE !
+  !----------------------!
+  ! Getters
+  call cli%get(group=trim(group),switch='-vo',val=velocity_order,error=istat); check(istat==0)
+  call cli%get(group=trim(group),switch='-po',val=pressure_order,error=istat); check(istat==0)
+  number_dimensions = f_trian%num_dims
+  ! Velocity reference FE
+  reference_fe_array(1) = make_reference_fe(topology          = topology_quad,      &
+       &                                    fe_type           = fe_type_lagrangian, &
+       &                                    number_dimensions = number_dimensions,  &
+       &                                    order             = velocity_order,     &
+       &                                    field_type        = field_type_vector,  &
+       &                                    continuity        = .true.)
+  ! Pressure reference FE
+  reference_fe_array(2) = make_reference_fe(topology          = topology_quad,      &
+       &                                    fe_type           = fe_type_lagrangian, &
+       &                                    number_dimensions = number_dimensions,  &
+       &                                    order             = pressure_order,     &
+       &                                    field_type        = field_type_scalar,  &
+       &                                    continuity        = .true.)
+  ! Projection reference FE
+  reference_fe_array(3) = make_reference_fe(topology          = topology_quad,      &
+       &                                    fe_type           = fe_type_lagrangian, &
+       &                                    number_dimensions = number_dimensions,  &
+       &                                    order             = velocity_order,     &
+       &                                    field_type        = field_type_vector,  &
+       &                                    continuity        = .true.)
+  ! Create FE space
+  call fe_space%create(triangulation       = f_trian,                          &
+       &               boundary_conditions = f_cond,                           &
+       &               reference_fe_phy    = reference_fe_array,               &
+       &               field_blocks        = (/1,2,3/),                        &
+       &               field_coupling      = reshape((/.true.,.true.,.true.,   &
+       &                                               .true.,.false.,.false., &
+       &                                               .true.,.false.,.true./),(/3,3/)))
+  call fe_space%fill_dof_info() 
+
+  !---------!
+  ! PROBLEM !
+  !---------!
+  call nsi_iss_oss_integration%initialize_from_cli(cli,group)
+
+  !-----------------!
+  ! AFFINE OPERATOR !
+  !-----------------!
+  ! Create affine operator
+  call fe_affine_operator%create ( sparse_matrix_storage_format= 'CSR', &
+       diagonal_blocks_symmetric_storage=(/.false.,.true.,.false./),    &
+       diagonal_blocks_symmetric=(/.false.,.true.,.false./),            &
+       diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_UNKNOWN,               &
+       &                      SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,     &
+       &                      SPARSE_MATRIX_SIGN_UNKNOWN/),             &
+       triangulation=f_trian,                                           &
+       fe_space=fe_space,                                               &
+       discrete_integration=nsi_iss_oss_integration )
+  fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+  ! Create values vector
+  call fe_affine_operator_range_vector_space%create_vector(dof_values)
+  call fe_affine_operator_range_vector_space%create_vector(residual)   
+  nsi_iss_oss_integration%dof_values => dof_values
+  call dof_values%init(0.0_rp)
+  call residual%init(0.0_rp)    
+  ! Fill affine operator
+  call fe_affine_operator%symbolic_setup()
+  call fe_affine_operator%numerical_setup()
+
+  !--------!
+  ! SOLVER !
+  !--------!
+  ! Create solver
+!!$  call linear_solver%create(senv)
+!!$  call linear_solver%set_type_and_parameters_from_pl()
+!!$  call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+
+  !----------------!
+  ! NONLINEAR LOOP !
+  !----------------!
+  nonlinear_tolerance      = 1.0e-12_rp
+  max_nonlinear_iterations = 2
+  residual_norm            = 1.0_rp
+  counter                  = 0
+  nonlinear: do while (residual_norm > nonlinear_tolerance .and. counter <= max_nonlinear_iterations)
+
+     ! Update counter
+     counter = counter + 1
+
+     ! Update linear solver
+     call linear_solver%create(senv)
+     call linear_solver%set_type_and_parameters_from_pl()
+     call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     call linear_solver%set_initial_solution(dof_values)
+     call linear_solver%solve(dof_values)
+     call linear_solver%free()
+
+     ! Update affine operator and residual
+     call fe_affine_operator%free_in_stages(free_numerical_setup)
+     call fe_affine_operator%numerical_setup()
+     call fe_affine_operator%apply(dof_values,residual)
+     residual_norm = residual%nrm2()
+     write(*,*) 'Residual:',residual_norm   
+
+  end do nonlinear
+
+  !---------!
+  ! OUTPUTS !
+  !---------!
+  ! Nonlinear output
+  write(*,*) 'Fixed-point algorithm converged in',counter,'iterations'
+  select type(dof_values)
+     class is(serial_block_array_t)
+     call dof_values%print(6)
+     class default
+     check(.false.) 
+  end select
+
+  !------------!
+  ! DEALLOCATE !
+  !------------!
+  call dof_values%free()
+  call residual%free()
+  call fe_affine_operator%free()
+!!$  call linear_solver%free()
+  call fe_space%free()
+  call triangulation_free(f_trian)
+  call conditions_free(f_cond)
+  if(.not.is_structured_mesh) call mesh_free(f_mesh)
+
+  ! Output memory status
+  call memstatus
