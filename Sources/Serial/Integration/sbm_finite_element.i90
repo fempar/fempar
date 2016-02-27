@@ -126,11 +126,25 @@ subroutine finite_element_free( this )
   nullify(this%fe_map)
   nullify(this%volume_integrator)
   nullify(this%reference_fe_phy)
-  do j = 1, this%number_fe_spaces
-    if (associated(this%elem2dof(j)%p)) deallocate( this%elem2dof(j)%p )
-    if (associated(this%bc_code(j)%p))  deallocate( this%bc_code(j)%p )
-    if (associated(this%bc_value(j)%p)) deallocate( this%bc_value(j)%p )
-  end do
+
+  if ( allocated(this%elem2dof) ) then
+    do j = 1, size(this%elem2dof)
+      if (associated(this%elem2dof(j)%p)) deallocate( this%elem2dof(j)%p )
+    end do
+  end if
+
+  if ( allocated(this%bc_code) ) then
+    do j = 1, size(this%bc_code)
+      if (associated(this%bc_code(j)%p))  deallocate( this%bc_code(j)%p )
+    end do
+  end if
+
+  if ( allocated(this%bc_value) ) then
+    do j = 1, size(this%bc_value)
+      if (associated(this%bc_value(j)%p)) deallocate( this%bc_value(j)%p )
+    end do
+  end if
+
   this%number_fe_spaces = 0   
   if ( allocated(this%elem2dof) ) deallocate( this%elem2dof )
   if ( allocated(this%bc_code) ) deallocate( this%bc_code )
