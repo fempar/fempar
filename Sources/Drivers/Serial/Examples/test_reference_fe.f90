@@ -529,18 +529,21 @@ program test_reference_fe
                                                      fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
                                                      order = 1, & 
-                                                     field_type = field_type_vector, &
-                                                     continuity = .true. )
+                                                     field_type = field_type_scalar, &
+                                                     continuity = .false. )
      
      call fe_space%create( triangulation = f_trian, &
                            boundary_conditions = f_cond, &
                            reference_fe_phy = reference_fe_array_two, &
-                           !field_blocks = (/1,1/), &
-                           !field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
-                           field_blocks = (/1,2/), &
+                           field_blocks = (/1,1/), &
                            field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
+                           !field_blocks = (/1,2/), &
+                           !field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
      
-     call fe_space%fill_dof_info() 
+     call fe_space%fill_dof_info()  
+     !call fe_space%print()
+     
+     !stop
      
      call fe_affine_operator%create ( 'CSR', &
                                       (/.true.,.true./), &
@@ -564,6 +567,9 @@ program test_reference_fe
                            reference_fe_phy = reference_fe_array_one )
      
      call fe_space%fill_dof_info() 
+     
+     !call fe_space%print()
+     !stop
      
      call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                      diagonal_blocks_symmetric_storage=(/.true./), &

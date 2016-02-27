@@ -122,37 +122,35 @@ subroutine par_fe_space_fill_dof_info( this )
   integer(ip) :: iblock, fe_space_id
   
   assert ( associated (this%par_triangulation) )
-  
   if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
     call this%serial_fe_space_t%fill_dof_info()
-    do iblock = 1, this%number_blocks
-       do fe_space_id = 1, this%number_fe_spaces
-          if ( this%field_blocks(fe_space_id) == iblock ) then   
-             call this%par_fe_space_fill_elem2dof_and_count_dofs( fe_space_id, this%number_dofs(iblock) )
-          end if
-       end do
+    do fe_space_id = 1, this%number_fe_spaces
+      call this%par_fe_space_fill_elem2dof_and_count_dofs( fe_space_id )
     end do
   end if
   
 end subroutine par_fe_space_fill_dof_info
 
-subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id, dof_count ) 
+subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id ) 
   implicit none
   ! Parameters
   class(par_fe_space_t)      , intent(inout) :: this 
   integer(ip)                , intent(in)    :: fe_space_id
-  integer(ip)                , intent(inout) :: dof_count
   
   ! Local variables
   integer(ip) :: ivef, vef_id, ighost, ielem, elem_id, ivef_in_elem_id
   integer(ip) :: num_elems, num_ghosts
   integer(ip) :: first_face_id, num_faces
-  
+  integer(ip) :: iblock, init_dof_block, current_dof_block
   integer(ip), allocatable :: s2t_perm_for_interior_nodes_vef(:)
 
   assert ( associated (this%par_triangulation) )
   assert ( this%par_triangulation%p_env%p_context%iam >= 0 )
   
+  iblock            = this%field_blocks(fe_space_id)
+  init_dof_block    = this%number_dofs_per_block(iblock)
+  current_dof_block = init_dof_block
+
   call memalloc ( this%get_max_number_nodes(), s2t_perm_for_interior_nodes_vef, __FILE__, __LINE__ )
   do ighost = 1, this%par_triangulation%num_ghosts
      if ( this%ghost_fe_array(ighost)%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
@@ -161,6 +159,7 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id, dof_cou
        do ivef = 1, this%ghost_fe_array(ighost)%cell%num_vefs
           vef_id = this%ghost_fe_array(ighost)%cell%vefs(ivef)
           if ( vef_id /= -1 ) then
+          
             ! Find local element around vef_id in elem_id
             do ielem=1, this%triangulation%vefs(vef_id)%num_elems_around
               elem_id = this%triangulation%vefs(vef_id)%elems_around(ielem)
@@ -181,6 +180,8 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id, dof_cou
           end if
        end do 
      else
+       ! Fill elem2dof on ghost elements by assigning new dof identifiers
+       ! to all DoFs placed on local faces
        first_face_id = this%ghost_fe_array(ighost)%cell%reference_fe_geo%get_first_face_id()
        num_faces     = this%ghost_fe_array(ighost)%cell%reference_fe_geo%get_number_faces()
        do ivef = first_face_id, first_face_id+num_faces-1
@@ -188,13 +189,17 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id, dof_cou
          if ( vef_id /= -1 ) then
          call this%ghost_fe_array(ighost)%fill_dofs_on_vef ( ivef, &
                                                              fe_space_id, &
-                                                             dof_count )
+                                                             current_dof_block )
          end if
        end do
-     
      end if
   end do   
   call memfree ( s2t_perm_for_interior_nodes_vef, __FILE__, __LINE__ )
+
+  this%number_dofs_per_field(fe_space_id) = this%number_dofs_per_field(fe_space_id) + & 
+                                            (current_dof_block - init_dof_block)
+  this%number_dofs_per_block(iblock) = this%number_dofs_per_block(iblock) + &
+                                       (current_dof_block - init_dof_block) 
 end subroutine par_fe_space_fill_elem2dof_and_count_dofs
 
 !function serial_fe_space_create_assembler(this, &

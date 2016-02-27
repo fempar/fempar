@@ -93,38 +93,43 @@ end subroutine serial_fe_space_create
 subroutine serial_fe_space_fill_dof_info( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this 
-  integer(ip) :: iblock, fe_space_id
-  call memalloc( this%number_blocks, this%number_dofs, __FILE__, __LINE__ )
-  this%number_dofs = 0
-  do iblock = 1, this%number_blocks
-     do fe_space_id = 1, this%number_fe_spaces
-        if ( this%field_blocks(fe_space_id) == iblock ) then   
-           call this%fill_elem2dof_and_count_dofs( fe_space_id, this%number_dofs(iblock) )
-        end if
-     end do
+  integer(ip) :: fe_space_id
+  call memalloc( this%number_blocks, this%number_dofs_per_block, __FILE__, __LINE__ )
+  call memalloc( this%number_fe_spaces, this%number_dofs_per_field, __FILE__, __LINE__ )
+
+  this%number_dofs_per_block = 0
+  this%number_dofs_per_field = 0
+  
+  do fe_space_id = 1, this%number_fe_spaces
+    call this%fill_elem2dof_and_count_dofs( fe_space_id )
   end do
+  
 end subroutine serial_fe_space_fill_dof_info
 
-subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id, dof_count ) 
+subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id ) 
   implicit none
   ! Parameters
   class(serial_fe_space_t), intent(inout) :: this 
-  integer(ip)                , intent(in)    :: fe_space_id
-  integer(ip)                , intent(inout) :: dof_count
+  integer(ip)                , intent(in) :: fe_space_id
   
   ! Local variables
   integer(ip) :: ivef, vef_id, ielem
+  integer(ip) :: iblock, init_dof_block, current_dof_block
   
   integer(ip), allocatable :: visited_vef_to_elem_map(:,:)
   integer(ip), allocatable :: s2t_perm_for_interior_nodes_vef(:)
 
+  iblock            = this%field_blocks(fe_space_id)
+  init_dof_block    = this%number_dofs_per_block(iblock)
+  current_dof_block = init_dof_block
+  
   call memalloc ( this%get_max_number_nodes(), s2t_perm_for_interior_nodes_vef, __FILE__, __LINE__ )
   call memalloc ( 2, this%triangulation%num_vefs, visited_vef_to_elem_map,  __FILE__, __LINE__ )
   visited_vef_to_elem_map = -1
   
   do ielem = 1, this%get_number_elements()
      ! Deal with dofs on the interior of the element
-     call this%fe_array(ielem)%fill_interior_dofs ( fe_space_id, dof_count ) 
+     call this%fe_array(ielem)%fill_interior_dofs ( fe_space_id, current_dof_block ) 
 
      ! Deal with dofs on the boundary of the element 
      if ( this%fe_array(ielem)%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
@@ -133,7 +138,7 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id, dof_
           if ( visited_vef_to_elem_map ( 1, vef_id ) == -1 ) then
             visited_vef_to_elem_map ( 1, vef_id ) = ielem
             visited_vef_to_elem_map ( 2, vef_id ) = ivef
-            call this%fe_array(ielem)%fill_interior_dofs_on_vef ( ivef, fe_space_id, dof_count  ) 
+            call this%fe_array(ielem)%fill_interior_dofs_on_vef ( ivef, fe_space_id, current_dof_block  ) 
           else 
             call this%fe_array(ielem)%fill_interior_dofs_on_vef_from_source_element ( ivef, &
                                                                  this%fe_array(visited_vef_to_elem_map(1,vef_id)), &
@@ -147,6 +152,10 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id, dof_
   
   call memfree ( visited_vef_to_elem_map,  __FILE__, __LINE__ )
   call memfree ( s2t_perm_for_interior_nodes_vef, __FILE__, __LINE__ )
+  
+  this%number_dofs_per_field(fe_space_id) = current_dof_block - init_dof_block
+  this%number_dofs_per_block(iblock) = this%number_dofs_per_block(iblock) + &
+                                       this%number_dofs_per_field(fe_space_id)     
 end subroutine serial_fe_space_fill_elem2dof_and_count_dofs
 
 subroutine serial_fe_space_free( this )
@@ -198,7 +207,8 @@ subroutine serial_fe_space_free( this )
      deallocate(this%face_map)
   end if
   
-  if (allocated(this%number_dofs)) call memfree( this%number_dofs, __FILE__, __LINE__ )
+  if (allocated(this%number_dofs_per_block)) call memfree( this%number_dofs_per_block, __FILE__, __LINE__ )
+  if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   this%number_fe_spaces = 0
   this%number_blocks = 0
   if (allocated(this%field_blocks)) call memfree( this%field_blocks, __FILE__, __LINE__)
@@ -210,6 +220,10 @@ subroutine serial_fe_space_print ( this )
   class(serial_fe_space_t), intent(in)                 :: this 
   
   integer(ip) :: i,j
+  
+  write(*,*) '********* number_dofs_per_field',this%number_dofs_per_field,'********'
+  write(*,*) '********* number_dofs_per_block',this%number_dofs_per_block,'********'
+  
   do i  = 1, this%triangulation%num_elems
      write(*,*) '********* ELEMENT: ',i,'********'
      write(*,*) '********* ELEMENT 2 DOF********'
@@ -295,7 +309,7 @@ function serial_fe_space_create_assembler(this, &
      allocate ( serial_scalar_array_t  :: array )
      select type(matrix)
         class is(sparse_matrix_t)
-        call matrix%create(this%number_dofs(1), &
+        call matrix%create(this%number_dofs_per_block(1), &
                            diagonal_blocks_symmetric_storage(1),&
                            diagonal_blocks_symmetric(1),&
                            diagonal_blocks_sign(1))
@@ -304,7 +318,7 @@ function serial_fe_space_create_assembler(this, &
      end select
      select type(array)
         class is(serial_scalar_array_t)
-        call array%create(this%number_dofs(1))
+        call array%create(this%number_dofs_per_block(1))
         class default
         check(.false.)
      end select
@@ -314,7 +328,7 @@ function serial_fe_space_create_assembler(this, &
      allocate ( serial_block_array_t  :: array )
      select type(matrix)
         class is (block_sparse_matrix_t)
-        call matrix%create(this%number_blocks,this%number_dofs,this%number_dofs,&
+        call matrix%create(this%number_blocks,this%number_dofs_per_block,this%number_dofs_per_block,&
              &             diagonal_blocks_symmetric_storage,diagonal_blocks_symmetric,diagonal_blocks_sign)
 
 	call memalloc ( this%number_blocks, this%number_blocks, blocks_coupling, __FILE__, __LINE__)
@@ -340,7 +354,7 @@ function serial_fe_space_create_assembler(this, &
      end select
      select type(array)
         class is(serial_block_array_t)
-        call array%create(this%number_blocks,this%number_dofs)
+        call array%create(this%number_blocks,this%number_dofs_per_block)
         class default
         check(.false.)
      end select

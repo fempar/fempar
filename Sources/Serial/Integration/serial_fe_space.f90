@@ -110,7 +110,7 @@ module serial_fe_space_names
      
      procedure, non_overridable :: get_number_nodes => finite_element_get_number_nodes
      procedure, non_overridable :: get_fe_map => finite_element_get_fe_map
-     procedure, non_overridable :: get_quadrature	=> finite_element_get_quadrature
+     procedure, non_overridable :: get_quadrature => finite_element_get_quadrature
      procedure, non_overridable :: get_volume_integrator => finite_element_get_volume_integrator
      procedure, non_overridable :: get_elem2dof  => finite_element_get_elem2dof
      procedure, non_overridable :: get_bc_code  => finite_element_get_bc_code
@@ -176,7 +176,8 @@ module serial_fe_space_names
      integer(ip)                                 :: number_blocks
      integer(ip)                   , allocatable :: field_blocks(:)
      logical                       , allocatable :: field_coupling(:,:)
-     integer(ip)                   , allocatable :: number_dofs(:)
+     integer(ip)                   , allocatable :: number_dofs_per_block(:)
+     integer(ip)                   , allocatable :: number_dofs_per_field(:)
    contains
      procedure, non_overridable :: create => serial_fe_space_create
      procedure, non_overridable :: fill_dof_info => serial_fe_space_fill_dof_info

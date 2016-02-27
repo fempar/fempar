@@ -161,14 +161,14 @@ program par_test_reference_fe
                                                    number_dimensions = 2, &
                                                    order = 2, &
                                                    field_type = field_type_scalar, &
-                                                   continuity = .false. )
+                                                   continuity = .true. )
   
   call p_fe_space%par_fe_space_create( par_triangulation = p_trian, &
                                        par_boundary_conditions = p_cond, &
                                        reference_fe_phy = reference_fe_array_one )
 
   call p_fe_space%par_fe_space_fill_dof_info()
-  call p_fe_space%par_fe_space_print()
+  !call p_fe_space%par_fe_space_print()
   
   call p_fe_space%par_fe_space_free()
   call reference_fe_array_one(1)%free()
