@@ -31,6 +31,18 @@ module dof_import_names
   implicit none
   private
 
+  ! Column identifiers for accessing raw_interface_data(:,:)
+  ! (generated from type(par_fe_space_t))
+  integer(ip), parameter :: neighbour_part_id = 1
+  integer(ip), parameter :: owner_flag        = 2 
+  integer(ip), parameter :: max_egid          = 3
+  integer(ip), parameter :: lpos_dof_max_egid = 4
+  
+  ! Possible values for owner_flag column
+  integer(igp), parameter :: uncoupled  = -1
+  integer(igp), parameter :: owner      = 1  
+  integer(igp), parameter :: non_owner  = 2
+  
   ! Import
   ! Host for data needed to perform communications for
   ! element-based data distributions (similar to epetra_import)
@@ -65,6 +77,9 @@ module dof_import_names
 
   ! Functions
   public :: dof_import_free, dof_import_print
+ 
+  public :: neighbour_part_id, owner_flag, max_egid, lpos_dof_max_egid
+  public :: uncoupled, owner, non_owner
 
 contains
 

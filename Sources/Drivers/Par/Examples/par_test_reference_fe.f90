@@ -159,7 +159,7 @@ program par_test_reference_fe
   reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = 2, &
-                                                   order = 2, &
+                                                   order = 1, &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
   
@@ -168,6 +168,8 @@ program par_test_reference_fe
                                        reference_fe_phy = reference_fe_array_one )
 
   call p_fe_space%par_fe_space_fill_dof_info()
+  
+  call p_fe_space%par_fe_space_compute_dof_import()
   !call p_fe_space%par_fe_space_print()
   
   call p_fe_space%par_fe_space_free()

@@ -57,6 +57,7 @@ module serial_fe_space_names
  ! Parallel modules
   use par_triangulation_names
   use par_conditions_names
+  use dof_import_names
   
   
   implicit none
@@ -221,11 +222,15 @@ module serial_fe_space_names
      type(par_triangulation_t), pointer     :: par_triangulation
      type(finite_element_t)   , allocatable :: ghost_fe_array(:)
   contains
-     procedure :: par_fe_space_create
-     procedure :: par_fe_space_fill_dof_info
-     procedure :: par_fe_space_fill_elem2dof_and_count_dofs
-     procedure :: par_fe_space_print
-     procedure :: par_fe_space_free
+     procedure          :: par_fe_space_create
+     procedure          :: par_fe_space_fill_dof_info
+     procedure          :: par_fe_space_fill_elem2dof_and_count_dofs
+     procedure          :: par_fe_space_compute_dof_import
+     procedure, private :: par_fe_space_compute_raw_interface_data
+     procedure, private :: par_fe_space_compute_ubound_number_interface_couplings
+     procedure          :: par_fe_space_get_finite_element
+     procedure          :: par_fe_space_print
+     procedure          :: par_fe_space_free
   end type
 
   public :: par_fe_space_t
