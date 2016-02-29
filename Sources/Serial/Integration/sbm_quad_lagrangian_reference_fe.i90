@@ -93,9 +93,9 @@ subroutine quad_lagrangian_reference_fe_create_interpolation ( this, quadrature,
   end do
 
   call interpolation%create( this%number_dimensions, this%number_nodes_scalar, &
-                             quadrature%number_evaluation_points, ntens, compute_hessian )
+                             quadrature%number_quadrature_points, ntens, compute_hessian )
 
-  nlocs = int(real(quadrature%number_evaluation_points)**(1.0_rp/real(this%number_dimensions)))
+  nlocs = int(real(quadrature%number_quadrature_points)**(1.0_rp/real(this%number_dimensions)))
   
   call fill_interpolation( interpolation, this%order, this%number_dimensions, &
                            nlocs, ntens, quadrature%coordinates )
@@ -117,7 +117,7 @@ subroutine quad_lagrangian_reference_fe_create_face_interpolation( this,local_fa
   
   ! Allocate the arrays of the interpolation
   call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar,              &
-       &                    local_quadrature%number_evaluation_points, 0 )
+       &                    local_quadrature%number_quadrature_points, 0 )
 
   ! Fill the values of the shape functions
   call face_interpolation_shape_fill (this,face_interpolation,local_quadrature,local_face_id)
@@ -145,10 +145,10 @@ subroutine quad_lagrangian_reference_fe_create_face_local_interpolation ( this, 
 
   ! Allocate the arrays of the interpolation
   call interpolation%create( number_dimensions_face, number_nodes_face_scalar, &
-                             quadrature%number_evaluation_points, 0)
+                             quadrature%number_quadrature_points, 0)
 
   ! Fill the values with the common routine for filling an interpolation
-  nlocs = int(real(quadrature%number_evaluation_points)**(1.0_rp/real( number_dimensions_face)))
+  nlocs = int(real(quadrature%number_quadrature_points)**(1.0_rp/real( number_dimensions_face)))
   call fill_interpolation( interpolation, face_order, number_dimensions_face, &
                            nlocs, 0, quadrature%coordinates )
 
@@ -1031,7 +1031,7 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
   integer(ip)              :: nlocs,igaus,ilocs,jlocs,klocs,ndime,ngaus
 
   ndime = quadrature%number_dimensions
-  ngaus = quadrature%number_evaluation_points
+  ngaus = quadrature%number_quadrature_points
 
   if(ndime==1) then
      nlocs=ngaus

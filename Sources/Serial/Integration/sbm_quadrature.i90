@@ -25,15 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine quadrature_create ( this, number_dimensions, number_evaluation_points )
+subroutine quadrature_create ( this, number_dimensions, number_quadrature_points )
   implicit none       
   class(quadrature_t), intent(inout) :: this
-  integer(ip)           , intent(in)    :: number_dimensions, number_evaluation_points
+  integer(ip)           , intent(in)    :: number_dimensions, number_quadrature_points
   call this%free()
   this%number_dimensions = number_dimensions
-  this%number_evaluation_points = number_evaluation_points
-  call memalloc(number_dimensions,number_evaluation_points,this%coordinates,__FILE__,__LINE__)
-  call memalloc(number_evaluation_points,this%weight,__FILE__,__LINE__)
+  this%number_quadrature_points = number_quadrature_points
+  call memalloc(number_dimensions,number_quadrature_points,this%coordinates,__FILE__,__LINE__)
+  call memalloc(number_quadrature_points,this%weight,__FILE__,__LINE__)
   this%coordinates=0.0_rp
   this%weight=0.0_rp
 end subroutine quadrature_create
@@ -42,7 +42,7 @@ subroutine quadrature_free ( this)
   implicit none       
   class(quadrature_t), intent(inout) :: this
   this%number_dimensions = 0
-  this%number_evaluation_points = 0
+  this%number_quadrature_points = 0
   if(allocated(this%coordinates)) call memfree(this%coordinates,__FILE__,__LINE__)
   if(allocated(this%weight)) call memfree(this%weight,__FILE__,__LINE__)
 end subroutine quadrature_free
@@ -51,7 +51,7 @@ subroutine quadrature_print ( this )
   implicit none
   class(quadrature_t), intent(in) :: this
   write(*,*) 'number_dimensions: ', this%number_dimensions
-  write(*,*) 'number_evaluation_points: ', this%number_evaluation_points
+  write(*,*) 'number_quadrature_points: ', this%number_quadrature_points
   write(*,*) 'coordinates: ', this%coordinates
   write(*,*) 'weight: ', this%weight
 end subroutine quadrature_print
@@ -63,12 +63,12 @@ function quadrature_get_number_dimensions ( this )
   quadrature_get_number_dimensions = this%number_dimensions
 end function quadrature_get_number_dimensions
 
-function quadrature_get_number_evaluation_points ( this )
+function quadrature_get_number_quadrature_points ( this )
   implicit none
   class(quadrature_t), intent(in) :: this
-  integer(ip) :: quadrature_get_number_evaluation_points
-  quadrature_get_number_evaluation_points = this%number_evaluation_points
-end function quadrature_get_number_evaluation_points
+  integer(ip) :: quadrature_get_number_quadrature_points
+  quadrature_get_number_quadrature_points = this%number_quadrature_points
+end function quadrature_get_number_quadrature_points
 
 function quadrature_get_weight ( this, i )
   implicit none

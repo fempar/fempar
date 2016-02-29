@@ -196,7 +196,7 @@ contains
     call fe_space%initialize_integration()
     
     quad => fe%get_quadrature()
-    ngaus = quad%get_number_evaluation_points()
+    ngaus = quad%get_number_quadrature_points()
     
     call fe_space%create_fe_function(1,fe_unknown_scalar)
     call fe_space%create_fe_function(2,fe_unknown_vector)

@@ -62,7 +62,7 @@ module reference_fe_names
      private
      integer(ip)           ::   &
           number_dimensions,    &
-          number_evaluation_points
+          number_quadrature_points
      real(rp), allocatable :: &
           coordinates(:,:),   &   
           weight(:)                         
@@ -71,7 +71,7 @@ module reference_fe_names
      procedure, non_overridable :: free   => quadrature_free
      procedure, non_overridable :: print  => quadrature_print
      procedure, non_overridable :: get_number_dimensions => quadrature_get_number_dimensions
-     procedure, non_overridable :: get_number_evaluation_points => quadrature_get_number_evaluation_points
+     procedure, non_overridable :: get_number_quadrature_points => quadrature_get_number_quadrature_points
      procedure, non_overridable :: get_weight => quadrature_get_weight
   end type quadrature_t
 
@@ -151,6 +151,10 @@ module reference_fe_names
      type(interpolation_t) :: interpolation_geometry   
      ! Characteristic length of the reference element
      real(rp)                 :: reference_fe_characteristic_length
+     ! Number of dimensions
+     integer(ip)              :: number_dimensions
+     ! Number of quadrature points
+     integer(ip)              :: number_quadrature_points
    contains
      procedure, non_overridable :: create           => fe_map_create
      procedure, non_overridable :: create_on_face   => fe_map_create_on_face

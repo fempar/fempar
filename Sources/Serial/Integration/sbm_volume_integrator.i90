@@ -31,37 +31,36 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
   class(fe_map_t)      , intent(inout) :: this
-  type(quadrature_t), intent(in)    :: quadrature
+  type(quadrature_t)   , intent(in)    :: quadrature
   class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
-  integer(ip) :: number_dimensions
-  integer(ip) :: number_evaluation_points, number_vertices
+  integer(ip) :: number_vertices
 
   call this%free()
-  number_dimensions        = reference_fe_geometry%number_dimensions
-  number_evaluation_points = quadrature%number_evaluation_points
+  this%number_dimensions        = reference_fe_geometry%number_dimensions
+  this%number_quadrature_points = quadrature%number_quadrature_points
 
   call reference_fe_geometry%create_interpolation( quadrature, this%interpolation_geometry )
 
-  call memalloc(number_dimensions, &
-                number_dimensions, &
-                number_evaluation_points, &
+  call memalloc(this%number_dimensions, &
+                this%number_dimensions, &
+                this%number_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
 
-  call memalloc(number_dimensions, &
-                number_dimensions, &
-                number_evaluation_points, &
+  call memalloc(this%number_dimensions, &
+                this%number_dimensions, &
+                this%number_quadrature_points, &
                 this%inv_jacobian,__FILE__,__LINE__)
 
-  call memalloc(number_evaluation_points, &
+  call memalloc(this%number_quadrature_points, &
                 this%det_jacobian,__FILE__,__LINE__)
 
-  call memalloc(number_dimensions, &
-                number_evaluation_points, &
+  call memalloc(this%number_dimensions, &
+                this%number_quadrature_points, &
                 this%coordinates_quadrature,__FILE__,__LINE__)
 
   number_vertices = reference_fe_geometry%get_number_vertices()
-  call memalloc(number_dimensions, &
+  call memalloc(this%number_dimensions, &
        &        number_vertices,    &
        &        this%coordinates_vertices,__FILE__,__LINE__)
 
@@ -77,35 +76,34 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   type(quadrature_t), intent(in)    :: quadrature
   class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
-  integer(ip) :: number_dimensions
-  integer(ip) :: number_evaluation_points, number_vertices
+  integer(ip) :: number_vertices
 
   call this%free()
-  number_dimensions        = reference_fe_geometry%number_dimensions
-  number_evaluation_points = quadrature%number_evaluation_points
+  this%number_dimensions        = reference_fe_geometry%number_dimensions
+  this%number_quadrature_points = quadrature%number_quadrature_points
 
   call reference_fe_geometry%create_face_interpolation( local_face_id, quadrature,                &
        &                                                this%interpolation_geometry )
 
-  call memalloc(number_dimensions, &
-                number_dimensions, &
-                number_evaluation_points, &
+  call memalloc(this%number_dimensions, &
+                this%number_dimensions, &
+                this%number_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
 
-  call memalloc(number_dimensions, &
-                number_dimensions, &
-                number_evaluation_points, &
+  call memalloc(this%number_dimensions, &
+                this%number_dimensions, &
+                this%number_quadrature_points, &
                 this%inv_jacobian,__FILE__,__LINE__)
 
-  call memalloc(number_evaluation_points, &
+  call memalloc(this%number_quadrature_points, &
                 this%det_jacobian,__FILE__,__LINE__)
 
-  call memalloc(number_dimensions, &
-                number_evaluation_points, &
+  call memalloc(this%number_dimensions, &
+                this%number_quadrature_points, &
                 this%coordinates_quadrature,__FILE__,__LINE__)
 
   number_vertices = reference_fe_geometry%get_number_vertices()
-  call memalloc(number_dimensions, &
+  call memalloc(this%number_dimensions, &
        &        number_vertices,    &
        &        this%coordinates_vertices,__FILE__,__LINE__)
   
@@ -120,35 +118,35 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
   type(quadrature_t) , intent(in)    :: quadrature
   class(reference_fe_t) , intent(in)    :: reference_fe_geo
 
-  integer(ip) :: number_dimensions, number_face_dimensions
-  integer(ip) :: number_evaluation_points, number_vertices_face
+  integer(ip) :: number_face_dimensions
+  integer(ip) :: number_vertices_face
 
   call this%free()
-  number_dimensions        = reference_fe_geo%number_dimensions
-  number_evaluation_points = quadrature%number_evaluation_points
-  number_face_dimensions   = reference_fe_geo%number_dimensions - 1
+  this%number_dimensions        = reference_fe_geo%number_dimensions
+  this%number_quadrature_points = quadrature%number_quadrature_points
+  number_face_dimensions        = reference_fe_geo%number_dimensions - 1
 
   call reference_fe_geo%create_face_local_interpolation                                      &
        &                ( quadrature, this%interpolation_geometry)
   
-  call memalloc(number_dimensions, &
+  call memalloc(this%number_dimensions, &
                 number_face_dimensions, &
-                number_evaluation_points, &
+                this%number_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
 
-  call memalloc(number_evaluation_points, &
+  call memalloc(this%number_quadrature_points, &
        this%det_jacobian,__FILE__,__LINE__)
 
-  call memalloc(number_dimensions, &
-                number_evaluation_points, &
+  call memalloc(this%number_dimensions, &
+                this%number_quadrature_points, &
                 this%coordinates_quadrature,__FILE__,__LINE__)
 
-  call memalloc(number_dimensions, &
-                number_evaluation_points, &
+  call memalloc(this%number_dimensions, &
+                this%number_quadrature_points, &
                 this%normals,__FILE__,__LINE__)
 
   number_vertices_face = reference_fe_geo%get_number_vertices_per_face()
-  call memalloc(number_dimensions,      &
+  call memalloc(this%number_dimensions,      &
        &        number_vertices_face,    &
        &        this%coordinates_vertices,__FILE__,__LINE__)
 
@@ -283,7 +281,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
   ! Initialize values
   this%coordinates_quadrature = 0.0_rp
   this%jacobian           = 0.0_rp
-  do evaluation_point_id = 1, quadrature%number_evaluation_points
+  do evaluation_point_id = 1, quadrature%number_quadrature_points
      do node_id = 1, this%interpolation_geometry%number_shape_functions
         ! Updating the coordinates
         this%coordinates_quadrature(:,evaluation_point_id) =                                          &
@@ -363,83 +361,86 @@ function fe_map_get_det_jacobian ( this, i )
 end function fe_map_get_det_jacobian
 
 !==================================================================================================
-function fe_map_compute_h ( this, igaus)
+function fe_map_compute_h ( this, qpoin)
   implicit none
   class(fe_map_t), intent(in) :: this
-  integer(ip)    , intent(in) :: igaus
+  integer(ip)    , intent(in) :: qpoin
   real(rp)                    :: fe_map_compute_h
 
   integer(ip) :: idime, jdime
-  real(rp)    :: inverse_h(3), h(2), volumetric_h
-  integer(ip) :: i,j, number_dimensions
+  real(rp)    :: inverse_h(number_space_dimensions), volumetric_h
+  integer(ip) :: i,j
 
-  number_dimensions = size(this%jacobian, dim=1)
+  assert( qpoin <= this%number_quadrature_points)
+
   inverse_h = 0.0_rp
-  do idime = 1, number_dimensions
-     do jdime = 1,  number_dimensions
-        inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,igaus)**2.0_rp
+  do idime = 1, this%number_dimensions
+     do jdime = 1,  this%number_dimensions
+        inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,qpoin)**2.0_rp
      end do
      inverse_h(idime) = sqrt(inverse_h(idime))
   end do  
   
   volumetric_h = inverse_h(1)
-  do j = 2, number_dimensions
+  do j = 2, this%number_dimensions
      volumetric_h = volumetric_h * inverse_h(j)
   end do
   volumetric_h = 1.0_rp / volumetric_h
-  volumetric_h = volumetric_h**(1.0_rp/real(number_dimensions))
+  volumetric_h = volumetric_h**(1.0_rp/real(this%number_dimensions))
   fe_map_compute_h = this%reference_fe_characteristic_length*volumetric_h
 end function fe_map_compute_h
 
 !==================================================================================================
-function fe_map_compute_h_min ( this, igaus)
+function fe_map_compute_h_min ( this, qpoin)
   implicit none
   class(fe_map_t), intent(in) :: this
-  integer(ip)    , intent(in) :: igaus
+  integer(ip)    , intent(in) :: qpoin
   real(rp)                    :: fe_map_compute_h_min
 
   integer(ip) :: idime, jdime
-  real(rp)    :: inverse_h(3), h(2), minimum_h
-  integer(ip) :: i,j, number_dimensions
+  real(rp)    :: inverse_h(number_space_dimensions), minimum_h
+  integer(ip) :: i,j
 
-  number_dimensions = size(this%jacobian, dim=1)
+  assert( qpoin <= this%number_quadrature_points)
+
   inverse_h = 0.0_rp
-  do idime = 1, number_dimensions
-     do jdime = 1,  number_dimensions
-        inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,igaus)**2.0_rp
+  do idime = 1, this%number_dimensions
+     do jdime = 1,  this%number_dimensions
+        inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,qpoin)**2.0_rp
      end do
      inverse_h(idime) = sqrt(inverse_h(idime))
   end do  
 
   minimum_h = 1.0_rp/inverse_h(1)
-  do j = 2, number_dimensions
+  do j = 2, this%number_dimensions
      minimum_h = min(minimum_h, 1.0_rp/inverse_h(j))
   end do
   fe_map_compute_h_min = this%reference_fe_characteristic_length*minimum_h
 end function fe_map_compute_h_min
 
 !==================================================================================================
-function fe_map_compute_h_max ( this, igaus)
+function fe_map_compute_h_max ( this, qpoin)
   implicit none
   class(fe_map_t), intent(in) :: this
-  integer(ip)    , intent(in) :: igaus
+  integer(ip)    , intent(in) :: qpoin
   real(rp)                    :: fe_map_compute_h_max
 
   integer(ip) :: idime, jdime
-  real(rp)    :: inverse_h(3), h(2), maximum_h
-  integer(ip) :: i,j, number_dimensions
+  real(rp)    :: inverse_h(number_space_dimensions), maximum_h
+  integer(ip) :: i,j
 
-  number_dimensions = size(this%jacobian, dim=1)
+  assert( qpoin <= this%number_quadrature_points)
+
   inverse_h = 0.0_rp
-  do idime = 1, number_dimensions
-     do jdime = 1,  number_dimensions
-        inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,igaus)**2.0_rp
+  do idime = 1, this%number_dimensions
+     do jdime = 1,  this%number_dimensions
+        inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,qpoin)**2.0_rp
      end do
      inverse_h(idime) = sqrt(inverse_h(idime))
   end do  
 
   maximum_h = 1.0_rp/inverse_h(1)
-  do j = 2, number_dimensions
+  do j = 2, this%number_dimensions
      maximum_h = max(maximum_h, 1.0_rp/inverse_h(j))
   end do
   fe_map_compute_h_max = this%reference_fe_characteristic_length*maximum_h
@@ -497,7 +498,7 @@ subroutine volume_integrator_create( this, quadrature, reference_fe )
 
   call this%free()
   
-  this%number_evaluation_points = quadrature%number_evaluation_points
+  this%number_evaluation_points = quadrature%number_quadrature_points
   this%number_shape_functions   = reference_fe%number_nodes
   this%reference_fe             => reference_fe
   

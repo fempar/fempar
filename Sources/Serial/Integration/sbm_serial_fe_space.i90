@@ -462,7 +462,7 @@ function get_max_number_nodes_field( this, ifield )
   integer(ip) :: get_max_number_quadrature_points, iquad
   get_max_number_quadrature_points = 0
   do iquad = 1, size(this%quadrature)
-     get_max_number_quadrature_points = max(this%quadrature(iquad)%p%get_number_evaluation_points(), &
+     get_max_number_quadrature_points = max(this%quadrature(iquad)%p%get_number_quadrature_points(), &
                                       get_max_number_quadrature_points)
   end do
  end function get_max_number_quadrature_points

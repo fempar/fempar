@@ -284,7 +284,7 @@ contains
     call source%init(2.0_rp)
 
     quad  => fe%get_quadrature()
-    ngaus = quad%get_number_evaluation_points()
+    ngaus = quad%get_number_quadrature_points()
     do ielem = 1, fe_space%get_number_elements()
        elmat = 0.0_rp
        elvec = 0.0_rp
