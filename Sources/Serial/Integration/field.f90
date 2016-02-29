@@ -49,6 +49,7 @@ module field_names
      procedure, non_overridable :: set   => vector_field_set
      procedure, non_overridable :: get   => vector_field_get	
      procedure, non_overridable :: add   => vector_field_add
+     procedure, non_overridable :: nrm2  => vector_field_nrm2
   end type vector_field_t
   
   type :: tensor_field_t
@@ -130,6 +131,14 @@ contains
     real(rp)             , intent(in)    :: value
     this%value(i) = this%value(i) + value
   end subroutine vector_field_add
+  
+  function vector_field_nrm2(this)
+    implicit none
+    class(vector_field_t), intent(inout) :: this
+    real(rp) :: vector_field_nrm2
+    vector_field_nrm2 = this * this
+    vector_field_nrm2 = sqrt(vector_field_nrm2)
+  end function vector_field_nrm2
 		
   subroutine tensor_field_init(this,value)
     implicit none

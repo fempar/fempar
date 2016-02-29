@@ -457,12 +457,22 @@ function fe_map_get_coordinates(this)
 end function fe_map_get_coordinates
 
 !==================================================================================================
-function fe_map_get_inv_jacobian ( this )
+subroutine fe_map_get_inv_jacobian_tensor ( this, qpoin, inv_jacobian )
   implicit none
-  class(fe_map_t), target, intent(in) :: this
-  real(rp), pointer :: fe_map_get_inv_jacobian(:,:,:)
-  fe_map_get_inv_jacobian => this%inv_jacobian
-end function fe_map_get_inv_jacobian
+  class(fe_map_t)        , intent(in)  :: this
+  integer(ip)            , intent(in)  :: qpoin
+  type(tensor_field_t)   , intent(out) :: inv_jacobian
+  ! Locals
+  integer(ip) :: idime,jdime
+
+  call inv_jacobian%init(0.0_rp)
+  do idime = 1, this%number_dimensions
+     do jdime = 1,  this%number_dimensions
+        call inv_jacobian%set(idime,jdime,this%inv_jacobian(idime,jdime,qpoin))
+     end do
+  end do
+
+end subroutine fe_map_get_inv_jacobian_tensor
 
 !==================================================================================================
 function fe_map_get_reference_h ( this )
