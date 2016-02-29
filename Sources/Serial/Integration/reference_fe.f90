@@ -141,10 +141,10 @@ module reference_fe_names
      real(rp), allocatable    :: det_jacobian(:)  
      ! Map's 2nd derivatives (number_dime,number_dime,number_dime,number_evaluation_points)         
      real(rp), allocatable    :: d2sdx(:,:,:,:)     
-     ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)       
-     real(rp), allocatable    :: coordinates_points(:,:)  
+     ! Coordinates of git  points (number_dimensions,number_evaluation_points)       
+     real(rp), allocatable    :: coordinates_quadrature(:,:)  
      ! Coordinates of evaluation points (number_dimensions,number_corners of element/face)  
-     real(rp), allocatable    :: coordinates(:,:)  
+     real(rp), allocatable    :: coordinates_vertices(:,:)  
      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
      real(rp), allocatable    :: normals(:,:)  
      ! Geometry interpolation_t in the reference element domain    
