@@ -312,7 +312,7 @@ contains
     end do
 
     if(gmsh%ndime==3) then
-       vef_lid = reference_fe%get_first_vef_id_of_dimension(2)
+       vef_lid = reference_fe%get_first_vef_id_of_dimension(1)
        if (kfl_bc) then
           edgeint = 0
           ! Find edges on the boundary
