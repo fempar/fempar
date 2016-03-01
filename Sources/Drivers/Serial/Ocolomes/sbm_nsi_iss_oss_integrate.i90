@@ -413,7 +413,6 @@ subroutine compute_characteristic_length(this,fe_map,mean_velocity_vector,veloci
      h_vol  = h_max
      h_flow = h_max
   end if
-  write(*,*) h_vol,h_flow
 
   ! Divide by p**2
   h_vol  = h_vol/real(velocity_order**2)

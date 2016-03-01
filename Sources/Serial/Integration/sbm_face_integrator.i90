@@ -107,6 +107,7 @@ subroutine face_map_create(this,left_geo_reference_fe,right_geo_reference_fe, qu
 
   this%is_boundary = (.not. associated(right_geo_reference_fe))
 
+  this%number_dimensions = quadrature%get_number_dimensions()
   call this%face_map%fe_map_face_map_create(quadrature,left_geo_reference_fe)
   call this%fe_maps(1)%create(quadrature,left_geo_reference_fe)
   if (associated(right_geo_reference_fe)) then
@@ -149,10 +150,10 @@ subroutine face_map_update(this,local_face_id,face_quadrature,left_reference_fe_
 end subroutine face_map_update
 
 !==================================================================================================
-function face_map_compute_characteristic_length(this,igaus, number_neighbours)
+function face_map_compute_characteristic_length(this,qpoin, number_neighbours)
   implicit none
   class(face_map_t), target, intent(in) :: this
-  integer(ip)              , intent(in) :: igaus, number_neighbours
+  integer(ip)              , intent(in) :: qpoin, number_neighbours
   real(rp) :: face_map_compute_characteristic_length
 
   real(rp)    :: h
@@ -160,12 +161,12 @@ function face_map_compute_characteristic_length(this,igaus, number_neighbours)
   type(fe_map_t), pointer :: fe_map
   
   fe_map => this%fe_maps(1)%fe_map(this%fe_maps(1)%active_face_id)
-  face_map_compute_characteristic_length = fe_map%compute_h(igaus)
+  face_map_compute_characteristic_length = fe_map%compute_h(qpoin)
 
   if (.not. this%is_boundary) then
      i = 2
      fe_map => this%fe_maps(i)%fe_map(this%fe_maps(i)%active_face_id)
-     h = fe_map%compute_h(igaus) 
+     h = fe_map%compute_h(qpoin) 
      face_map_compute_characteristic_length = min(face_map_compute_characteristic_length, h)
   end if
 
@@ -215,7 +216,7 @@ subroutine face_map_get_normals (this, qpoint, normal)
   integer(ip) :: idime
   call normal(1)%init(0.0_rp)
   call normal(2)%init(0.0_rp)
-  do idime = 1, size(this%face_map%normals,dim=1)
+  do idime = 1, this%number_dimensions
      call normal(1)%set(idime,this%face_map%normals(idime,qpoint))
      call normal(2)%set(idime,- this%face_map%normals(idime,qpoint))
   end do
@@ -246,7 +247,7 @@ subroutine interpolation_face_restriction_create(this, local_quadrature, referen
   this%active_face_id = -1
 
   this%number_shape_functions   = reference_fe_phy%number_nodes
-  this%number_evaluation_points = local_quadrature%number_quadrature_points
+  this%number_quadrature_points = local_quadrature%number_quadrature_points
   this%number_faces             = reference_fe_phy%get_number_faces()
 
   allocate(this%interpolation(this%number_faces),stat = istat)
@@ -278,7 +279,7 @@ subroutine interpolation_face_restriction_free(this)
      check (istat == 0)
   end if
   this%number_shape_functions   = 0
-  this%number_evaluation_points = 0
+  this%number_quadrature_points = 0
   this%number_faces             = 0
 
 end subroutine interpolation_face_restriction_free

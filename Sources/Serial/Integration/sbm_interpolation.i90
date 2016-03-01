@@ -29,14 +29,14 @@
 subroutine interpolation_create( this, &
                                  number_dimensions, &
                                  number_shape_functions, &
-                                 number_evaluation_points, & 
+                                 number_quadrature_points, & 
                                  number_entries_symmetric_tensor, &
                                  compute_hessian )
   implicit none
   class(interpolation_t), intent(inout) :: this
   integer(ip)              , intent(in)    :: number_dimensions, & 
                                               number_shape_functions, & 
-                                              number_evaluation_points
+                                              number_quadrature_points
   integer(ip)              , intent(in)    :: number_entries_symmetric_tensor
   logical, optional        , intent(in)    :: compute_hessian
 
@@ -44,20 +44,20 @@ subroutine interpolation_create( this, &
   
   this%number_dimensions = number_dimensions
   this%number_shape_functions = number_shape_functions
-  this%number_evaluation_points = number_evaluation_points
+  this%number_quadrature_points = number_quadrature_points
   this%number_entries_symmetric_tensor = number_entries_symmetric_tensor
   call memalloc(number_shape_functions, &
-                number_evaluation_points, &
+                number_quadrature_points, &
                 this%shape_functions,__FILE__,__LINE__)
   call memalloc(number_dimensions, &
                 number_shape_functions, &
-                number_evaluation_points, &
+                number_quadrature_points, &
                 this%shape_derivatives, __FILE__, __LINE__)
   if ( present(compute_hessian) ) then
      if ( compute_hessian ) then 
         call memalloc(number_entries_symmetric_tensor,&
                       number_shape_functions,&
-                      number_evaluation_points, &
+                      number_quadrature_points, &
                       this%hessian,__FILE__,__LINE__) 
      end if
   end if
@@ -68,7 +68,7 @@ subroutine interpolation_free( this)
   class(interpolation_t), intent(inout) :: this
   this%number_dimensions = 0
   this%number_shape_functions = 0
-  this%number_evaluation_points = 0
+  this%number_quadrature_points = 0
   this%number_entries_symmetric_tensor = 0
   if(allocated(this%shape_functions)) call memfree(this%shape_functions,__FILE__,__LINE__)
   if(allocated(this%shape_derivatives)) call memfree(this%shape_derivatives,   __FILE__,__LINE__)
@@ -83,17 +83,17 @@ subroutine interpolation_copy(this, source_interpolation)
 		call this%free()
   this%number_dimensions = source_interpolation%number_dimensions
   this%number_shape_functions = source_interpolation%number_shape_functions
-  this%number_evaluation_points = source_interpolation%number_evaluation_points
+  this%number_quadrature_points = source_interpolation%number_quadrature_points
   this%number_entries_symmetric_tensor = source_interpolation%number_entries_symmetric_tensor
-  call memalloc(this%number_shape_functions,this%number_evaluation_points, &
+  call memalloc(this%number_shape_functions,this%number_quadrature_points, &
 																this%shape_functions,__FILE__,__LINE__)
   call memalloc(this%number_dimensions,this%number_shape_functions,&
-																this%number_evaluation_points,this%shape_derivatives,   __FILE__,__LINE__)
+																this%number_quadrature_points,this%shape_derivatives,   __FILE__,__LINE__)
   this%shape_functions(:,:) = source_interpolation%shape_functions(:,:)
   this%shape_derivatives(:,:,:) = source_interpolation%shape_derivatives(:,:,:)
   if ( allocated(source_interpolation%hessian) ) then
     call memalloc(this%number_entries_symmetric_tensor,this%number_shape_functions,&
-																		this%number_evaluation_points,this%hessian,   __FILE__,__LINE__) 
+																		this%number_quadrature_points,this%hessian,   __FILE__,__LINE__) 
 				this%hessian(:,:,:) = source_interpolation%hessian(:,:,:)
   end if
 
@@ -105,7 +105,7 @@ subroutine interpolation_print ( this )
   integer(ip) :: i,j,k
   write(*,*) 'number_dimensions: ', this%number_dimensions
   write(*,*) 'number_shape_functions: ', this%number_shape_functions
-  write(*,*) 'number_evaluation_points: ', this%number_evaluation_points
+  write(*,*) 'number_quadrature_points: ', this%number_quadrature_points
   write(*,*) 'number_entries_symmetric_tensor: ', this%number_entries_symmetric_tensor
   write(*,*) '*************** SHAPE FUNCTIONS ******************'
   do i = 1, size(this%shape_functions,1)
@@ -149,7 +149,7 @@ function interpolation_get_number_evaluation_points( this )
   implicit none
   class(interpolation_t), intent(in) :: this
   integer(ip) :: interpolation_get_number_evaluation_points
-  interpolation_get_number_evaluation_points = this%number_evaluation_points
+  interpolation_get_number_evaluation_points = this%number_quadrature_points
 end function interpolation_get_number_evaluation_points
 
 function interpolation_get_number_entries_symmetric_tensor( this )

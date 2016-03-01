@@ -178,7 +178,7 @@ subroutine fe_map_update( this, quadrature)
 
   ndime = this%interpolation_geometry%number_dimensions
   nnode = size(this%interpolation_geometry%shape_functions,1)
-  nlocs = this%interpolation_geometry%number_evaluation_points
+  nlocs = this%interpolation_geometry%number_quadrature_points
 
 
 
@@ -350,10 +350,10 @@ subroutine fe_map_print( this )
   integer(ip) :: i,j,k
   call this%interpolation_geometry%print()
   write(*,*) '%%%%%%%%%%%%%%%% JACOBIAN: %%%%%%%%%%%%%%%%'
-  do i = 1, size(this%jacobian,3)
+  do i = 1, this%number_quadrature_points
      write(*,*) '%%%%%%%%%%%%%%%% Gauss point: ',i
-     do j = 1, size(this%jacobian,1)
-        do k = 1, size(this%jacobian,2)
+     do j = 1, this%number_dimensions
+        do k = 1, this%number_dimensions
            write(*,*) '%%%% (',j,',',k,') = ', this%jacobian(j,k,i)
         end do
      end do
@@ -534,7 +534,7 @@ subroutine volume_integrator_create( this, quadrature, reference_fe )
 
   call this%free()
   
-  this%number_evaluation_points = quadrature%number_quadrature_points
+  this%number_quadrature_points = quadrature%number_quadrature_points
   this%number_shape_functions   = reference_fe%number_nodes
   this%reference_fe             => reference_fe
 
@@ -548,7 +548,7 @@ subroutine volume_integrator_free( this )
   call this%interpolation%free()
   call this%interpolation_o_map%free()
   nullify(this%reference_fe)
-  this%number_evaluation_points = 0
+  this%number_quadrature_points = 0
   this%number_shape_functions = 0
 end subroutine volume_integrator_free
 
