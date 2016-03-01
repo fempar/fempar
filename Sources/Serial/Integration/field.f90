@@ -133,9 +133,9 @@ contains
 
   function vector_field_get(this,i) result(value)
     implicit none
-    class(vector_field_t), intent(inout) :: this
-    integer(ip)          , intent(in)    :: i
-    real(rp)                             :: value
+    class(vector_field_t), intent(in) :: this
+    integer(ip)          , intent(in) :: i
+    real(rp)                          :: value
     value = this%value(i)
   end function vector_field_get
 
@@ -173,10 +173,10 @@ contains
 
   function tensor_field_get(this,i,j) result(value)
     implicit none
-    class(tensor_field_t), intent(inout) :: this
-    integer(ip)          , intent(in)    :: i
-    integer(ip)          , intent(in)    :: j
-    real(rp)                             :: value
+    class(tensor_field_t), intent(in) :: this
+    integer(ip)          , intent(in) :: i
+    integer(ip)          , intent(in) :: j
+    real(rp)                          :: value
     value = this%value(i,j)
   end function tensor_field_get
 
