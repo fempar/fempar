@@ -39,7 +39,7 @@ subroutine serial_fe_space_create( this, &
   integer(ip)           , optional, intent(in)    :: field_blocks(:)
   logical               , optional, intent(in)    :: field_coupling(:,:)
   
-  integer(ip) :: i, istat
+  integer(ip) :: i, istat, jfe_space, ife_space
 
   call this%free()
   
@@ -57,6 +57,14 @@ subroutine serial_fe_space_create( this, &
      this%field_coupling = .true.
   end if
   this%number_blocks = maxval(this%field_blocks)
+  
+  call memalloc ( this%number_blocks, this%number_blocks, this%blocks_coupling, __FILE__, __LINE__)
+	 this%blocks_coupling = .false.
+	 do jfe_space=1,this%number_fe_spaces
+	     do ife_space=1,this%number_fe_spaces
+		      this%blocks_coupling(this%field_blocks(ife_space), this%field_blocks(jfe_space)) =  this%field_coupling(ife_space,jfe_space)
+      end do
+	 end do
 
   this%triangulation => triangulation
 
@@ -213,6 +221,7 @@ subroutine serial_fe_space_free( this )
   this%number_blocks = 0
   if (allocated(this%field_blocks)) call memfree( this%field_blocks, __FILE__, __LINE__)
   if (allocated(this%field_coupling)) call memfree( this%field_coupling, __FILE__, __LINE__)
+  if (allocated(this%blocks_coupling)) call memfree ( this%blocks_coupling, __FILE__, __LINE__)
   nullify(this%triangulation)
 end subroutine serial_fe_space_free
 
@@ -339,23 +348,16 @@ function serial_fe_space_create_assembler(this, &
         call matrix%create(this%number_blocks,this%number_dofs_per_block,this%number_dofs_per_block,&
              &             diagonal_blocks_symmetric_storage,diagonal_blocks_symmetric,diagonal_blocks_sign)
 
-	call memalloc ( this%number_blocks, this%number_blocks, blocks_coupling, __FILE__, __LINE__)
-	blocks_coupling = .false.
-	do jfe_space=1,this%number_fe_spaces
-	   do ife_space=1,this%number_fe_spaces
-		 blocks_coupling(this%field_blocks(ife_space), this%field_blocks(jfe_space)) =  this%field_coupling(ife_space,jfe_space)
-           end do
-	end do
+
 								
 	do jblock=1,this%number_blocks
-               do iblock=1,this%number_blocks
-            if (.not. blocks_coupling(iblock,jblock) ) then
-		  call matrix%set_block_to_zero(iblock,jblock)
-	    end if
-	      end do
+    do iblock=1,this%number_blocks
+       if (.not. blocks_coupling(iblock,jblock) ) then
+		      call matrix%set_block_to_zero(iblock,jblock)
+	   end if
+	end do
 	end do				
 
-	call memfree ( blocks_coupling, __FILE__, __LINE__)
         
       class default
         check(.false.)

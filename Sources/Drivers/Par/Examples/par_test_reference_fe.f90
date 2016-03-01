@@ -161,7 +161,7 @@ program par_test_reference_fe
                                                    number_dimensions = 2, &
                                                    order = 1, &
                                                    field_type = field_type_scalar, &
-                                                   continuity = .true. )
+                                                   continuity = .false. )
   
   call p_fe_space%par_fe_space_create( par_triangulation = p_trian, &
                                        par_boundary_conditions = p_cond, &
@@ -169,7 +169,6 @@ program par_test_reference_fe
 
   call p_fe_space%par_fe_space_fill_dof_info()
   
-  call p_fe_space%par_fe_space_compute_dof_import()
   !call p_fe_space%par_fe_space_print()
   
   call p_fe_space%par_fe_space_free()

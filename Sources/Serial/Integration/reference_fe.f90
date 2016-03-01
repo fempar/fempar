@@ -306,7 +306,6 @@ module reference_fe_names
      procedure :: get_number_vefs => reference_fe_get_number_vefs
      procedure :: get_number_vertices => reference_fe_get_number_vertices
      procedure :: get_first_vertex_id => reference_fe_get_first_vertex_id
-     procedure :: get_number_vertices_per_vertex => reference_fe_get_number_vertices_per_vertex
      procedure :: get_number_vertices_per_edge => reference_fe_get_number_vertices_per_edge
      procedure :: get_number_vertices_per_face => reference_fe_get_number_vertices_per_face
      procedure :: get_number_edges => reference_fe_get_number_edges
@@ -326,7 +325,11 @@ module reference_fe_names
      procedure :: get_number_nodes_vef => reference_fe_get_number_nodes_vef
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
-     procedure :: get_orientation => reference_fe_get_orientation     
+     procedure :: get_number_nodes_per_vertex => reference_fe_get_number_nodes_per_vertex
+     procedure :: get_number_nodes_per_edge => reference_fe_get_number_nodes_per_edge
+     procedure :: get_number_interior_nodes_per_edge => reference_fe_get_number_interior_nodes_per_edge
+     procedure :: get_number_nodes_per_face => reference_fe_get_number_nodes_per_face
+     procedure :: get_number_interior_nodes_per_face => reference_fe_get_number_interior_nodes_per_face
   end type reference_fe_t
 
   type p_reference_fe_t

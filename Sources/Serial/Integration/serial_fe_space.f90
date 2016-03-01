@@ -32,6 +32,7 @@ module serial_fe_space_names
   use types_names
   use list_types_names
   use memor_names
+  use sort_names
   use allocatable_array_names
   use hash_table_names
   
@@ -179,6 +180,7 @@ module serial_fe_space_names
      integer(ip)                                 :: number_blocks
      integer(ip)                   , allocatable :: field_blocks(:)
      logical                       , allocatable :: field_coupling(:,:)
+     logical                       , allocatable :: blocks_coupling(:,:)
      integer(ip)                   , allocatable :: number_dofs_per_block(:)
      integer(ip)                   , allocatable :: number_dofs_per_field(:)
    contains
@@ -223,13 +225,18 @@ module serial_fe_space_names
      private
      type(par_triangulation_t), pointer     :: par_triangulation
      type(finite_element_t)   , allocatable :: ghost_fe_array(:)
+     type(dof_import_t)       , allocatable :: blocks_dof_import(:)
   contains
      procedure          :: par_fe_space_create
      procedure          :: par_fe_space_fill_dof_info
-     procedure          :: par_fe_space_fill_elem2dof_and_count_dofs
-     procedure          :: par_fe_space_compute_dof_import
-     procedure, private :: par_fe_space_compute_raw_interface_data
-     procedure, private :: par_fe_space_compute_ubound_number_interface_couplings
+     procedure, private :: par_fe_space_fill_elem2dof_and_count_dofs
+     procedure, private :: par_fe_space_compute_blocks_dof_import
+     procedure, private :: par_fe_space_compute_dof_import
+     procedure, private :: par_fe_space_compute_raw_interface_data_by_continuity
+     procedure, private :: par_fe_space_raw_interface_data_by_continuity_decide_owner
+     procedure, private :: par_fe_space_compute_raw_interface_data_by_face_integ
+     procedure, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
+     procedure, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
      procedure          :: par_fe_space_get_finite_element
      procedure          :: par_fe_space_print
      procedure          :: par_fe_space_free

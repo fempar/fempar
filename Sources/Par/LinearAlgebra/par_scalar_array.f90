@@ -228,14 +228,14 @@ contains
 
     ! First stage: owners receive/reduce, non-owners send
     call single_exchange ( p_vec%p_env%p_context%icontxt, &
-         p_vec%dof_dist%dof_import%num_rcv,    &
-         p_vec%dof_dist%dof_import%list_rcv,   &
-         p_vec%dof_dist%dof_import%rcv_ptrs,   &
-         p_vec%dof_dist%dof_import%unpack_idx, &
-         p_vec%dof_dist%dof_import%num_snd,    &
-         p_vec%dof_dist%dof_import%list_snd,   &
-         p_vec%dof_dist%dof_import%snd_ptrs,   &
-         p_vec%dof_dist%dof_import%pack_idx,   &
+         p_vec%dof_dist%dof_import%get_num_rcv(),    &
+         p_vec%dof_dist%dof_import%get_list_rcv(),   &
+         p_vec%dof_dist%dof_import%get_rcv_ptrs(),   &
+         p_vec%dof_dist%dof_import%get_unpack_idx(), &
+         p_vec%dof_dist%dof_import%get_num_snd(),    &
+         p_vec%dof_dist%dof_import%get_list_snd(),   &
+         p_vec%dof_dist%dof_import%get_snd_ptrs(),   &
+         p_vec%dof_dist%dof_import%get_pack_idx(),   &
          1.0_rp,                         &
          1.0_rp,                         &
          p_vec%serial_scalar_array%b ) 
@@ -244,14 +244,14 @@ contains
 
     ! Second stage: owners send, non-owners receive/insert
     call single_exchange ( p_vec%p_env%p_context%icontxt, &
-         p_vec%dof_dist%dof_import%num_snd,    &
-         p_vec%dof_dist%dof_import%list_snd,   &
-         p_vec%dof_dist%dof_import%snd_ptrs,   &
-         p_vec%dof_dist%dof_import%pack_idx,   &
-         p_vec%dof_dist%dof_import%num_rcv,    &
-         p_vec%dof_dist%dof_import%list_rcv,   &
-         p_vec%dof_dist%dof_import%rcv_ptrs,   &
-         p_vec%dof_dist%dof_import%unpack_idx, &
+         p_vec%dof_dist%dof_import%get_num_snd(),    &
+         p_vec%dof_dist%dof_import%get_list_snd(),   &
+         p_vec%dof_dist%dof_import%get_snd_ptrs(),   &
+         p_vec%dof_dist%dof_import%get_pack_idx(),   &
+         p_vec%dof_dist%dof_import%get_num_rcv(),    &
+         p_vec%dof_dist%dof_import%get_list_rcv(),   &
+         p_vec%dof_dist%dof_import%get_rcv_ptrs(),   &
+         p_vec%dof_dist%dof_import%get_unpack_idx(), &
          1.0_rp,                         &
          0.0_rp,                         &
          p_vec%serial_scalar_array%b )
