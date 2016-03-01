@@ -36,8 +36,8 @@ subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order,
 
   call this%free()
   call this%set_common_data ( number_dimensions, order, field_type, continuity )
-  call this%set_topology ( "tet" )
-  call this%set_fe_type ( "Lagrangian" )
+  call this%set_topology ( topology_quad )
+  call this%set_fe_type ( fe_type_lagrangian )
   call this%fill( )
 end subroutine quad_lagrangian_reference_fe_create
 
@@ -295,6 +295,8 @@ subroutine quad_lagrangian_reference_fe_get_curl_vector( this, actual_cell_inter
 
  call vector_field%init(0.0_rp)
 
+ 
+ 
  kdime = this%node_component_array(ishape,2)
  do idime=1,3 
    do jdime = 1,this%number_dimensions

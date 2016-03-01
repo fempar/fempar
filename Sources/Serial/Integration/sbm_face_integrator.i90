@@ -89,7 +89,7 @@ function fe_map_face_restriction_get_coordinates(this,local_face_id)
   ! Parameters
   class(fe_map_face_restriction_t), intent(in) :: this
   integer(ip)                     , intent(in) :: local_face_id
-  real(rp), pointer :: fe_map_face_restriction_get_coordinates(:,:)
+  type(point_t), pointer :: fe_map_face_restriction_get_coordinates(:)
   
   fe_map_face_restriction_get_coordinates => this%fe_map(local_face_id)%get_coordinates()
 end function fe_map_face_restriction_get_coordinates
@@ -176,7 +176,7 @@ function face_map_get_face_coordinates(this)
   implicit none
   ! Parameters
   class(face_map_t), target, intent(in) :: this
-  real(rp), pointer :: face_map_get_face_coordinates(:,:)
+  type(point_t), pointer :: face_map_get_face_coordinates(:)
   
   face_map_get_face_coordinates => this%face_map%get_coordinates()
 end function face_map_get_face_coordinates
@@ -188,7 +188,7 @@ function face_map_get_coordinates_neighbour(this,neighbour_id,local_face_id)
   class(face_map_t), target, intent(in) :: this
   integer(ip)              , intent(in)    :: neighbour_id
   integer(ip)              , intent(in)    :: local_face_id
-  real(rp), pointer :: face_map_get_coordinates_neighbour(:,:)
+  type(point_t), pointer :: face_map_get_coordinates_neighbour(:)
   assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_boundary)))
   face_map_get_coordinates_neighbour => this%fe_maps(neighbour_id)%get_coordinates(local_face_id)
 end function face_map_get_coordinates_neighbour
