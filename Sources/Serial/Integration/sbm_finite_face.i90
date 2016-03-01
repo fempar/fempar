@@ -45,7 +45,7 @@ subroutine finite_face_update_integration( this )
   class(finite_face_t), intent(inout) :: this 
   integer(ip) :: i
 
-  real(rp), pointer :: coords(:,:)
+  type(point_t),  pointer :: coords(:)
 
   coords => this%map%get_face_coordinates()
   call this%face_topology%get_coordinates(coords)

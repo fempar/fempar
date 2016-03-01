@@ -261,9 +261,8 @@ contains
     type(i1p_t), pointer :: elem2dof(:)
     type(i1p_t), pointer :: bc_code(:)
     type(r1p_t), pointer :: bc_value(:)
-    integer(ip), allocatable :: number_nodes_per_field(:)
+    integer(ip), allocatable :: number_nodes_per_field(:)  
 
-    
     number_fe_spaces = fe_space%get_number_fe_spaces()
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
@@ -528,7 +527,7 @@ program test_reference_fe
      reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad, &
                                                      fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
-                                                     order = 1, & 
+                                                     order = 2, & 
                                                      field_type = field_type_vector, &
                                                      continuity = .true. )
      
