@@ -88,7 +88,8 @@ module field_names
   end interface operator(+)
 
   interface assignment(=)
-     module procedure assign_scalar_to_vector, assign_vector_to_point, assign_scalar_to_point
+     module procedure assign_scalar_to_vector, assign_vector_to_point, assign_scalar_to_point, &
+          &           assign_vector_to_vector
   end interface assignment(=)
 
   interface double_contract
@@ -360,6 +361,13 @@ contains
     real(rp)     , intent(in)  :: scalar
     vector%value = scalar
   end subroutine assign_scalar_to_vector
+
+  subroutine assign_vector_to_vector( vector1, vector2 )
+    implicit none
+    type(vector_field_t), intent(out) :: vector1
+    type(vector_field_t), intent(in)  :: vector2
+    vector1%value = vector2%value
+  end subroutine assign_vector_to_vector
 
   subroutine assign_vector_to_point( point, vector )
     implicit none

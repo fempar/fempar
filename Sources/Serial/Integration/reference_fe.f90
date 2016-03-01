@@ -170,6 +170,7 @@ module reference_fe_names
      procedure, non_overridable :: get_coordinates         => fe_map_get_coordinates
      procedure, non_overridable :: get_inv_jacobian_tensor => fe_map_get_inv_jacobian_tensor
      procedure, non_overridable :: get_reference_h         => fe_map_get_reference_h
+     procedure, non_overridable :: apply_inv_jacobian      => fe_map_apply_inv_jacobian
   end type fe_map_t
 
   type p_fe_map_t

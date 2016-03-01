@@ -107,6 +107,7 @@ module serial_fe_space_names
      procedure, non_overridable :: get_number_nodes_per_field => finite_element_get_number_nodes_per_field
      procedure, non_overridable :: get_subset_id => finite_element_get_subset_id
      procedure, non_overridable :: get_order     => finite_element_get_order
+     procedure, non_overridable :: get_volume     => finite_element_get_volume
      
      procedure, non_overridable, private :: update_scalar_values => finite_element_update_scalar_values
      procedure, non_overridable, private :: update_vector_values => finite_element_update_vector_values

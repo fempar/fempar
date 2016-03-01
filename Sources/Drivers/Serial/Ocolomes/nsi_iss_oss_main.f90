@@ -88,6 +88,7 @@ module nsi_iss_oss_discrete_integration_names
      procedure, non_overridable :: initialize_from_cli
      procedure, non_overridable :: compute_stabilization_parameters
      procedure, non_overridable :: compute_characteristic_length
+     procedure, non_overridable :: compute_mean_elemental_velocity
   end type nsi_iss_oss_discrete_integration_t
 
   integer(ip), parameter :: characteristic_elemental_length = 0

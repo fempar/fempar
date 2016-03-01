@@ -483,6 +483,24 @@ subroutine fe_map_get_inv_jacobian_tensor ( this, qpoin, inv_jacobian )
 end subroutine fe_map_get_inv_jacobian_tensor
 
 !==================================================================================================
+function fe_map_apply_inv_jacobian ( this, qpoin, v_in ) result ( v_out )
+  implicit none
+  class(fe_map_t)     , intent(in)    :: this
+  integer(ip)         , intent(in)    :: qpoin
+  type(vector_field_t), intent(inout) :: v_in
+  type(vector_field_t) :: v_out
+  integer(ip)          :: idime,jdime
+
+  call v_out%init(0.0_rp)
+  do idime = 1, this%number_dimensions
+     do jdime = 1,  this%number_dimensions
+        call v_out%add(idime, this%inv_jacobian(idime,jdime,qpoin)*v_in%get(jdime))
+     end do
+  end do  
+
+end function fe_map_apply_inv_jacobian
+
+!==================================================================================================
 function fe_map_get_reference_h ( this )
   implicit none
   class(fe_map_t), intent(in) :: this
