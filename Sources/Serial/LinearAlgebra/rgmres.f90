@@ -583,7 +583,7 @@ contains
 
     if (x.eq.rzero .and. y.eq.rzero) then
        c = one
-       s = zero
+       s = rzero
     else if (abs(y).gt.abs(x)) then
        t = x / y
        x = sqrt(one+t*t)

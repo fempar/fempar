@@ -102,7 +102,7 @@ subroutine finite_element_update_integration( this )
   implicit none
   class(finite_element_t), intent(inout) :: this 
   integer(ip)                      :: i
-  real(rp), pointer :: coordinates(:,:)
+  type(point_t), pointer :: coordinates(:)
 
   coordinates => this%fe_map%get_coordinates()
   call this%cell%get_coordinates(coordinates)
