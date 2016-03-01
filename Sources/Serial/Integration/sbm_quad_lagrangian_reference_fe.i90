@@ -446,13 +446,6 @@ subroutine quad_lagrangian_reference_fe_permute_interior_nodes_per_vef(target_re
            
            call permute_or_2d(permute_nodes_scalar(1:number_nodes_x_dim**2),                      &
                 &             number_nodes_x_dim-1,relative_orientation,relative_rotation)
-           write(*,*) relative_orientation,relative_rotation
-           write(*,*)  target_vef_id,source_vef_id,target_reference_fe%vertices_vef%p(target_vef_id)
-           write(*,*)  target_reference_fe%vertices_vef%l(target_reference_fe%vertices_vef%p(target_vef_id):target_reference_fe%vertices_vef%p(target_vef_id+1)-1)
-           !write(*,*)  target_vefs(target_reference_fe%vertices_vef%l(target_reference_fe%vertices_vef%p(target_vef_id):target_reference_fe%vertices_vef%p(target_vef_id+1)-1))
-           !write(*,*)  source_vefs(source_reference_fe%vertices_vef%l(source_reference_fe%vertices_vef%p(source_vef_id):source_reference_fe%vertices_vef%p(source_vef_id+1)-1))
-           write(*,*) permute_nodes_scalar(1:number_nodes_x_dim**2)
-           check(.false.)
         else 
            check (.false.)
         end if

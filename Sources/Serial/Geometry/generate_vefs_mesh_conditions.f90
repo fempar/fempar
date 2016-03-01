@@ -204,7 +204,7 @@ contains
     ! ------------------------------------------ FACES ----------------------------------------------
     if(gmsh%ndime==3) then
        ! First:: generate the common faces
-       vef_lid = reference_fe%get_first_vef_id_of_dimension(1)
+       vef_lid = reference_fe%get_first_vef_id_of_dimension(2)
        faceint = 0
        iface = 0
        call memalloc(nndim(3), nd_jf, __FILE__, __LINE__ )
@@ -217,18 +217,15 @@ contains
                 do j=1,nndim(3)
                    fnode(j) = gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+i-1)+j-1))
                 end do
-
                 do t = nelpo_aux(fnode(1)),nelpo_aux(fnode(1)+1)-1
                    jelem = lelpo_aux(t)
 
                    if (jelem.gt.ielem) then
                       gp = gmsh%nnode*(jelem-1)
-
                       do k=1,nodim(3)
                          do j=1,nndim(3)
                             nd_jf(j) = gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+k-1)+j-1))
                          end do
-
                          counter=0
                          do r=1,nndim(3)
                             do s=1,nndim(3)
