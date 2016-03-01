@@ -32,11 +32,12 @@ module lib_vtk_io_interface_names
 USE iso_c_binding
 USE types_names
 USE memor_names
-USE ir_precision, only: str
-USE environment_names
-USE triangulation_names
-USE serial_fe_space_names
+USE ir_precision,               only: str
+USE environment_names,          only: environment_t
+USE triangulation_names,        only: triangulation_t
+USE serial_fe_space_names,      only: serial_fe_space_t
 USE Lib_VTK_IO
+USE reference_fe_names,         only: topology_quad, topology_tet, fe_type_lagrangian
 
 
 implicit none
@@ -44,13 +45,13 @@ implicit none
 
 private
 
-    ! Write process status parameters
-    integer(ip), parameter :: unknown = 0
-    integer(ip), parameter :: started = 1
-    integer(ip), parameter :: pointdata_opened = 2
-    integer(ip), parameter :: pointdata_closed = 3
-    integer(ip), parameter :: ended  = 4
-    integer(ip), parameter :: started_read = 5
+    ! STATE PARAMETERS
+    integer(ip), parameter :: VTK_STATE_UNKNOWN          = 0
+    integer(ip), parameter :: VTK_STATE_WRITE_STARTED    = 1
+    integer(ip), parameter :: VTK_STATE_POINTDATA_OPENED = 2
+    integer(ip), parameter :: VTK_STATE_POINTDATA_CLOSED = 3
+    integer(ip), parameter :: VTK_STATE_ENDED            = 4
+    integer(ip), parameter :: VTK_STATE_READ_STARTED     = 5
   
     interface
         function mkdir_recursive(path) bind(c,name="mkdir_recursive")
@@ -85,7 +86,7 @@ private
         type(vtk_field_t), allocatable:: postprocess_fields(:) ! Array storing postprocess field_ts info
         logical                       :: linear_order = .False.
         logical                       :: filled = .False.
-        integer(ip)                   :: status = unknown      ! Status of the write process
+        integer(ip)                   :: status = VTK_STATE_UNKNOWN      ! Status of the write process
     end type vtk_mesh_t
 
     ! Type for storing several mesh data with its field descriptors
@@ -102,23 +103,24 @@ private
          integer(ip)                         :: num_parts = 0      ! Number of parts
          integer(ip)                         :: root_proc = 0      ! Root processor
     contains
-        procedure          :: initialize              ! Initialize mesh_t derived type
-        procedure          :: free => VTK_free                    ! Deallocate
-        procedure          :: write_VTK_start
-        procedure          :: write_VTK_end
-        procedure, private :: initialize_linear_order
-        procedure, private :: fill_mesh_from_triangulation
-        procedure, private :: get_VTK_time_output_path
-        procedure, private :: get_PVD_time_output_path
-        procedure, private :: get_VTK_filename
-        procedure, private :: get_pvtk_filename
-        procedure, private :: set_root_proc
-        procedure, private :: set_num_steps
-        procedure, private :: set_num_parts
-        procedure, private :: set_dir_path
-        procedure, private :: set_prefix
-        procedure, private :: append_step
-        procedure, private :: create_dir_hierarchy_on_root_process
+        procedure          :: initialize               => vtk_initialize
+        procedure          :: free                     => VTK_free
+        procedure          :: begin_write              => vtk_begin_write
+        procedure          :: end_write                => vtk_end_write
+        procedure          :: begin_read               => vtk_begin_read
+        procedure          :: end_read                 => vtk_end_read
+        procedure, private :: fill_mesh_linear_order   => vtk_fill_mesh_linear_order
+        procedure, private :: get_VTK_time_output_path => vtk_get_VTK_time_output_path
+        procedure, private :: get_PVD_time_output_path => vtk_get_PVD_time_output_path
+        procedure, private :: get_VTK_filename         => vtk_get_VTK_filename
+        procedure, private :: get_PVTK_filename        => vtk_get_PVTK_filename
+        procedure, private :: set_root_proc            => vtk_set_root_proc
+        procedure, private :: set_num_steps            => vtk_set_num_steps
+        procedure, private :: set_num_parts            => vtk_set_num_parts
+        procedure, private :: set_path                 => vtk_set_path
+        procedure, private :: set_prefix               => vtk_set_prefix
+        procedure, private :: append_step              => vtk_append_step
+        procedure, private :: create_directory         => vtk_create_dir_hierarchy_on_root_process
     end type vtk_t
 
     character(len=5) :: time_prefix = 'time_'
@@ -131,7 +133,7 @@ public :: vtk_t
 contains
 
 
-    subroutine set_dir_path(this, path, mesh_number)
+    subroutine vtk_set_path(this, path, mesh_number)
     !-----------------------------------------------------------------
     !< Set the name of the output directory
     !-----------------------------------------------------------------
@@ -142,10 +144,10 @@ contains
     !-----------------------------------------------------------------
         if(present(mesh_number)) nm = mesh_number
         this%mesh(nm)%directory_path = path
-    end subroutine set_dir_path
+    end subroutine vtk_set_path
 
 
-    subroutine set_prefix(this, prefix, mesh_number)
+    subroutine vtk_set_prefix(this, prefix, mesh_number)
     !-----------------------------------------------------------------
     !< Set the name of the output directory
     !-----------------------------------------------------------------
@@ -156,10 +158,10 @@ contains
     !-----------------------------------------------------------------
         if(present(mesh_number)) nm = mesh_number
         this%mesh(nm)%name_prefix = prefix
-    end subroutine set_prefix
+    end subroutine vtk_set_prefix
 
 
-    function create_dir_hierarchy_on_root_process(this, path, issue_final_barrier) result(res)
+    function vtk_create_dir_hierarchy_on_root_process(this, path, issue_final_barrier) result(res)
     !-----------------------------------------------------------------
     !< The root process create a hierarchy of directories
     !-----------------------------------------------------------------
@@ -183,10 +185,10 @@ contains
         end if
 
         if(ifb) call this%env%first_level_barrier()
-    end function create_dir_hierarchy_on_root_process
+    end function vtk_create_dir_hierarchy_on_root_process
 
 
-    function get_VTK_time_output_path(this, path, time_step, mesh_number) result(dp)
+    function vtk_get_VTK_time_output_path(this, path, time_step, mesh_number) result(dp)
     !-----------------------------------------------------------------
     !< Build time output dir path for the vtk files in each timestep
     !-----------------------------------------------------------------
@@ -210,10 +212,10 @@ contains
         if(present(path)) fp = path
 
         dp = trim(adjustl(fp))//'/'//time_prefix//trim(adjustl(str(no_sign=.true., n=ts)))//'/'
-    end function get_VTK_time_output_path
+    end function vtk_get_VTK_time_output_path
 
 
-    function get_PVD_time_output_path(this, path, time_step) result(dp)
+    function vtk_get_PVD_time_output_path(this, path, time_step) result(dp)
     !-----------------------------------------------------------------
     !< Build output dir path for the PVD files
     !-----------------------------------------------------------------
@@ -227,10 +229,10 @@ contains
         ts = this%num_steps
         if(present(time_step)) ts = time_step 
         dp = time_prefix//trim(adjustl(str(no_sign=.true., n=ts)))//'/'
-    end function get_PVD_time_output_path
+    end function vtk_get_PVD_time_output_path
 
 
-    function get_VTK_filename(this, prefix, part_number, mesh_number) result(fn)
+    function vtk_get_VTK_filename(this, prefix, part_number, mesh_number) result(fn)
     !-----------------------------------------------------------------
     !< Build VTK filename
     !-----------------------------------------------------------------
@@ -254,11 +256,11 @@ contains
         if(present(prefix)) fp = prefix
 
         fn = trim(adjustl(fp))//'_'//trim(adjustl(str(no_sign=.true., n=nm)))//'_'//trim(adjustl(str(no_sign=.true., n=np)))//vtk_ext
-    end function get_VTK_filename
+    end function vtk_get_VTK_filename
 
 
       ! Build VTK filename
-    function get_PVTK_filename(this, prefix, mesh_number, time_step) result(fn)
+    function vtk_get_PVTK_filename(this, prefix, mesh_number, time_step) result(fn)
     !-----------------------------------------------------------------
     !< Build PVTK filename
     !-----------------------------------------------------------------
@@ -286,10 +288,10 @@ contains
         if(present(prefix)) fp = prefix
 
         fn = trim(adjustl(fp))//'_'//trim(adjustl(str(no_sign=.true., n=nm)))//'_'//trim(adjustl(str(no_sign=.true., n=ts)))//pvtk_ext
-    end function get_PVTK_filename
+    end function vtk_get_PVTK_filename
 
 
-    subroutine set_root_proc(this, root)
+    subroutine vtk_set_root_proc(this, root)
     !-----------------------------------------------------------------
     !< Set the root processor
     !-----------------------------------------------------------------
@@ -297,10 +299,10 @@ contains
         integer(ip),  intent(IN)    :: root
     !-----------------------------------------------------------------
         this%root_proc = root
-    end subroutine set_root_proc
+    end subroutine vtk_set_root_proc
 
 
-    subroutine set_num_steps(this, steps)
+    subroutine vtk_set_num_steps(this, steps)
     !-----------------------------------------------------------------
     !< Set the number of time steps of the simulation to be writen in the PVD
     !-----------------------------------------------------------------
@@ -313,10 +315,10 @@ contains
         elseif(size(this%steps)<this%num_steps) then
             call memrealloc ( steps, this%steps, __FILE__,__LINE__)
         endif
-    end subroutine set_num_steps
+    end subroutine vtk_set_num_steps
 
 
-    subroutine append_step(this, current_step)
+    subroutine vtk_append_step(this, current_step)
     !-----------------------------------------------------------------
     !< Append a new time stepstep
     !-----------------------------------------------------------------
@@ -331,10 +333,10 @@ contains
             call memrealloc (this%num_steps, this%steps, __FILE__,__LINE__)
         endif        
         this%steps(this%steps_counter) = current_step
-    end subroutine append_step
+    end subroutine vtk_append_step
 
 
-    subroutine set_num_parts(this, number_of_parts)
+    subroutine vtk_set_num_parts(this, number_of_parts)
     !-----------------------------------------------------------------
     !< Set the number of parts of the partitioned mesh to be writen in the PVTK
     !-----------------------------------------------------------------
@@ -342,10 +344,10 @@ contains
         integer(ip),  intent(IN)    :: number_of_parts
     !-----------------------------------------------------------------
         this%num_parts = number_of_parts
-    end subroutine set_num_parts
+    end subroutine vtk_set_num_parts
 
 
-    subroutine initialize(this, triangulation, fe_space, env, path, prefix, root_proc, number_of_parts, number_of_steps, mesh_number, linear_order)
+    subroutine vtk_initialize(this, triangulation, fe_space, env, path, prefix, root_proc, number_of_parts, number_of_steps, mesh_number, linear_order)
     !-----------------------------------------------------------------
     !< Initialize the vtk_t derived type
     !-----------------------------------------------------------------
@@ -379,14 +381,14 @@ contains
 
         if(ft) then
             if(lo) then 
-                call this%initialize_linear_order(triangulation=triangulation, mesh_number=nm)
+                call this%fill_mesh_linear_order(triangulation=triangulation, mesh_number=nm)
             else
                 check(.false.)
 !                call this%initialize_superlinear_order(fe_space=fe_space, mesh_number=nm)
             endif
             if(present(mesh_number)) mesh_number = nm
 
-            call this%set_dir_path(path,nm)
+            call this%set_path(path,nm)
             call this%set_prefix(prefix,nm)
             if(present(number_of_parts)) np = number_of_parts
             call this%set_num_parts(np)
@@ -396,7 +398,7 @@ contains
 
         endif
 
-    end subroutine initialize
+    end subroutine vtk_initialize
 
 
     subroutine initialize_linear_order(this, triangulation, mesh_number)
@@ -408,12 +410,12 @@ contains
         integer(ip), optional,           intent(OUT)   :: mesh_number
         integer(ip)                                    :: nm
     !-----------------------------------------------------------------
-        call this%fill_mesh_from_triangulation(triangulation, nm)
+        call this%fill_mesh_linear_order(triangulation, nm)
         if(present(mesh_number)) mesh_number = nm
     end subroutine initialize_linear_order
 
 
-    subroutine fill_mesh_from_triangulation(this, triangulation, mesh_number)
+    subroutine vtk_fill_mesh_linear_order(this, triangulation, mesh_number)
     !-----------------------------------------------------------------
     !< Store a linear_order mesh in a vtk_t derived type from a triangulation
     !-----------------------------------------------------------------
@@ -450,7 +452,7 @@ contains
         tnnod = 0
         do i=1, triangulation%num_elems
             topology => triangulation%elems(i)%reference_fe_geo%get_topology()
-            if(topology == 'quad') then
+            if(topology == topology_quad) then
                 this%mesh(this%num_meshes)%cell_types(i) = 8 ! VTK_VOXEL
             else
                 write(*,*) 'fill_mesh_from_triangulation: Topology not supported -> ', topology
@@ -482,10 +484,10 @@ contains
             tnnod = tnnod + triangulation%elems(i)%reference_fe_geo%get_number_vertices()
         enddo
         this%mesh(this%num_meshes)%filled = .True.
-    end subroutine fill_mesh_from_triangulation
+    end subroutine vtk_fill_mesh_linear_order
 
 
-    function write_VTK_start(this, file_name, part_number, time_step, mesh_number, format, f_id) result(E_IO)
+    function vtk_begin_write(this, file_name, part_number, time_step, mesh_number, format, f_id) result(E_IO)
     !-----------------------------------------------------------------
     !< Start the writing of a single VTK file to disk (if I am fine MPI task)
     !< Writes connectivities and coordinates ( VTK_INI_XML, 
@@ -532,14 +534,14 @@ contains
             call this%append_step(ts)
 
 
-            if(this%mesh(nm)%status == unknown .or. this%mesh(nm)%status == ended) then
+            if(this%mesh(nm)%status == VTK_STATE_UNKNOWN .or. this%mesh(nm)%status == VTK_STATE_ENDED) then
         
                 dp = this%get_VTK_time_output_path(path=this%mesh(nm)%directory_path, time_step=ts, mesh_number=nm)
                 fn = this%get_VTK_filename(prefix=this%mesh(nm)%name_prefix, part_number=np, mesh_number=nm)
                 fn = dp//fn
                 if(present(file_name)) fn = file_name
 
-                if( this%create_dir_hierarchy_on_root_process(dp,issue_final_barrier=.True.) == 0) then    
+                if( this%create_directory(dp,issue_final_barrier=.True.) == 0) then    
                     of = 'raw'
                     if(present(format)) of = trim(adjustl(format))
             
@@ -561,16 +563,16 @@ contains
                                        offset    = this%mesh(nm)%offset,         &
                                        cell_type = this%mesh(nm)%cell_types,     &
                                        cf        = fid)
-                    this%mesh(nm)%status = started
+                    this%mesh(nm)%status = VTK_STATE_WRITE_STARTED
                 endif
             endif
             if(present(f_id)) f_id = fid
 
         endif
-    end function write_VTK_start
+    end function vtk_begin_write
 
 
-    function write_VTK_end(this, mesh_number, f_id) result(E_IO)
+    function vtk_end_write(this, mesh_number, f_id) result(E_IO)
     !-----------------------------------------------------------------
     !< Ends the writing of a single VTK file to disk (if I am fine MPI task)
     !< Closes geometry ( VTK_END_XML, VTK_GEO_XML )
@@ -593,15 +595,15 @@ contains
            nm = this%num_meshes
            if(present(mesh_number)) nm = mesh_number
            
-           if ((this%mesh(nm)%status >= started) .and. (this%mesh(nm)%status /= ended)) then
+           if ((this%mesh(nm)%status >= VTK_STATE_WRITE_STARTED) .and. (this%mesh(nm)%status /= VTK_STATE_ENDED)) then
               
-              if(this%mesh(nm)%status == pointdata_opened) then
+              if(this%mesh(nm)%status == VTK_STATE_POINTDATA_OPENED) then
                  if(present(f_id)) then
                     E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=f_id)
                  else
                     E_IO = VTK_DAT_XML(var_location='node',var_block_action='close')
                  endif
-                 this%mesh(nm)%status = pointdata_closed
+                 this%mesh(nm)%status = VTK_STATE_POINTDATA_CLOSED
               endif
               
               if(present(f_id)) then       
@@ -612,10 +614,110 @@ contains
                  E_IO = VTK_END_XML()
               endif
               
-              this%mesh(nm)%status = ended
+              this%mesh(nm)%status = VTK_STATE_ENDED
            endif
         endif
-    end function write_VTK_end
+    end function vtk_end_write
+
+
+    function vtk_begin_read(this, filename, part_number, time_step, mesh_number, format, f_id) result(E_IO)
+    !-----------------------------------------------------------------
+    !< Begin the reading of a single VTK file to disk (if I am fine MPI task)
+    !-----------------------------------------------------------------
+        class(vtk_t),             intent(INOUT)   :: this        !< VTK_t derived type
+        character(len=*), optional, intent(IN)    :: filename    !< VTK File NAME
+        integer(ip),      optional, intent(IN)    :: part_number !< Number of the PART
+        real(rp),         optional, intent(IN)    :: time_step   !< Time STEP value
+        integer(ip),      optional, intent(IN)    :: mesh_number !< Number of the MESH
+        character(len=*), optional, intent(IN)    :: format      !< Ouput ForMaT
+        integer(ip),      optional, intent(OUT)   :: f_id        !< File ID
+        character(len=:), allocatable             :: fn          !< Real File Name
+        character(len=:), allocatable             :: dp          !< Real Directory Path
+        character(len=:), allocatable             :: of          !< Real Output Format
+        real(rp)                                  :: ts          !< Real Time Step
+        logical                                   :: ft          !< Fine Task
+        integer(ip)                               :: nm          !< Real Number of the Mesh
+        integer(ip)                               :: np          !< Real Number of the Part
+        integer(ip)                               :: me          !< Task identifier
+        integer(ip)                               :: fid         !< Real File ID
+        integer(ip)                               :: nnods       !< Number of NODeS
+        integer(ip)                               :: nels        !< Number of ELementS
+        integer(ip)                               :: E_IO        !< Error IO
+    !-----------------------------------------------------------------
+        check(associated(this%env))
+     
+        ft =  this%env%am_i_fine_task() 
+
+        E_IO = 0
+        fid = -1
+        
+        if(ft) then
+            me = 0; np = 1
+            call this%env%info(me,np) 
+            np = me
+            if(present(part_number)) np = part_number
+
+            nm = this%num_meshes
+            if(present(mesh_number)) nm = mesh_number
+        
+            ts = 0._rp
+            if(present(time_step)) ts = time_step
+            call this%append_step(ts)
+
+            if(this%mesh(nm)%status == VTK_STATE_UNKNOWN .or. this%mesh(nm)%status == VTK_STATE_ENDED) then
+        
+                dp = this%get_VTK_time_output_path(path=this%mesh(nm)%directory_path, time_step=ts, mesh_number=nm)
+                fn = this%get_VTK_filename(prefix=this%mesh(nm)%name_prefix, part_number=np, mesh_number=nm)
+                fn = dp//fn
+                if(present(filename)) fn = filename
+
+                if( this%create_directory(dp,issue_final_barrier=.True.) == 0) then    
+                    of = 'raw'
+                    if(present(format)) of = trim(adjustl(format))
+            
+                    nnods = this%mesh(nm)%number_of_nodes
+                    nels = size(this%mesh(nm)%cell_types, dim=1)
+            
+                    E_IO = VTK_INI_XML_READ(input_format = trim(adjustl(of)), filename = trim(adjustl(fn)), mesh_topology = 'UnstructuredGrid', cf=fid)
+                    this%mesh(nm)%status = VTK_STATE_READ_STARTED
+                endif
+            endif
+            if(present(f_id)) f_id = fid
+
+        endif
+    end function  vtk_begin_read
+
+
+    function vtk_end_read(this, mesh_number, f_id) result(E_IO)
+    !-----------------------------------------------------------------
+    !< End the reading of a single VTK file to disk (if I am fine MPI task)
+    !-----------------------------------------------------------------
+        class(vtk_t),               intent(INOUT) :: this        !< VTK_t derived type
+        integer(ip),      optional, intent(IN)    :: mesh_number !< Number of MESH
+        integer(ip),      optional, intent(INOUT) :: f_id        !< File ID
+        integer(ip)                               :: nm          !< Real Number of Mesh
+        integer(ip)                               :: E_IO        !< IO Error
+        logical                                   :: ft          !< Fine Task
+    !-----------------------------------------------------------------
+        check(associated(this%env))
+        ft =  this%env%am_i_fine_task() 
+
+        E_IO = 0
+
+        nm = this%num_meshes
+        if(present(mesh_number)) nm = mesh_number
+        
+        if(ft .and. (this%mesh(nm)%status >= VTK_STATE_READ_STARTED) .and. (this%mesh(nm)%status /= VTK_STATE_ENDED)) then
+
+            if(present(f_id)) then       
+                E_IO = VTK_END_XML_READ(cf=f_id)
+            else
+                E_IO = VTK_END_XML_READ()
+            endif
+
+            this%mesh(nm)%status = VTK_STATE_ENDED
+        endif
+    end function vtk_end_read
 
 
     subroutine VTK_free (this)
