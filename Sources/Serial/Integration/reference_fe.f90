@@ -246,8 +246,9 @@ module reference_fe_names
      
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
-     procedure (permute_order_vef_interface)    , deferred :: permute_order_vef
-     procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
+     procedure (permute_order_vef_interface)             , deferred :: permute_order_vef
+     procedure (permute_interior_nodes_per_vef_interface), deferred :: permute_interior_nodes_per_vef
+     procedure (get_characteristic_length_interface)     , deferred :: get_characteristic_length
 
      ! generic part of the subroutine above
      procedure :: permute_nodes_per_vef => reference_fe_permute_nodes_per_vef
@@ -471,6 +472,22 @@ module reference_fe_names
        integer(ip), intent(inout) :: o2n(:)
      end subroutine permute_order_vef_interface
 
+     subroutine permute_interior_nodes_per_vef_interface(target_reference_fe,source_reference_fe,   &
+          &                                              permu_nodes,source_vef_id,target_vef_id,   &
+          &                                              source_vefs,target_vefs,source_subface,    &
+          &                                              target_subface )
+       import :: reference_fe_t, ip
+       implicit none
+       class(reference_fe_t), intent(in) :: target_reference_fe
+       class(reference_fe_t), intent(in)  :: source_reference_fe
+       integer(ip)          , intent(out) :: permu_nodes(:)! Permutation vector
+       integer(ip)          , intent(in)  :: source_vef_id ! Local vef ID
+       integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
+       integer(ip)          , intent(in)  :: source_vefs(source_reference_fe%number_vefs)
+       integer(ip)          , intent(in)  :: target_vefs(target_reference_fe%number_vefs) 
+       integer(ip), optional, intent(in)  :: source_subface,target_subface
+     end subroutine permute_interior_nodes_per_vef_interface
+
      function get_characteristic_length_interface( this)
        import :: reference_fe_t, rp
        implicit none 
@@ -518,12 +535,14 @@ module reference_fe_names
      procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
      procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
      procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
-     procedure :: create_face_local_interpolation                                                      &
+     procedure :: create_face_local_interpolation                                                   &
           &                          => quad_lagrangian_reference_fe_create_face_local_interpolation
      procedure :: update_interpolation      => quad_lagrangian_reference_fe_update_interpolation
      procedure :: update_interpolation_face => quad_lagrangian_reference_fe_update_interpolation_face
      procedure :: get_bc_component_node     => quad_lagrangian_reference_fe_get_bc_component_node
      procedure :: permute_order_vef         => quad_lagrangian_reference_fe_permute_order_vef
+     procedure :: permute_interior_nodes_per_vef                                                    &
+          &                          => quad_lagrangian_reference_fe_permute_interior_nodes_per_vef 
 
      procedure :: get_value_scalar          => quad_lagrangian_reference_fe_get_value_scalar
      procedure :: get_value_vector          => quad_lagrangian_reference_fe_get_value_vector

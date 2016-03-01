@@ -311,8 +311,9 @@ contains
        end do
     end do
 
+    write(*,*) __FILE__,__LINE__,nodim
     if(gmsh%ndime==3) then
-       vef_lid = reference_fe%get_first_vef_id_of_dimension(2)
+       vef_lid = reference_fe%get_first_vef_id_of_dimension(1)
        if (kfl_bc) then
           edgeint = 0
           ! Find edges on the boundary
@@ -332,6 +333,7 @@ contains
                          gp = gmsh%nnode*(jelem-1)
 
                          do k=1,nodim(2)
+                            write(*,*) gp,vef_lid,k,vertices_vef%l(vertices_vef%p(vef_lid+k-1))
                             nd_j(1)=gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+k-1)))
                             nd_j(2)=gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+k-1)+1))
 
@@ -366,6 +368,7 @@ contains
 
        ! Next, we generate the unique faces (faces left to fill)
        npoin_aux  = gmsh%npoin + iedge + iedgb + iface
+       vef_lid = reference_fe%get_first_vef_id_of_dimension(2)
        ifacb = 0
        do ielem=1,gmsh%nelem
           j = 0

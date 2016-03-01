@@ -162,12 +162,12 @@ subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
                                                            s2t_perm_for_interior_nodes_vef)
   implicit none
   ! Parameters
-  class(finite_element_t) , target, intent(inout) :: this
-  integer(ip)                        , intent(in)    :: target_vef_lid
-  type(finite_element_t) , target , intent(in)    :: source_fe
-  integer(ip)                        , intent(in)    :: source_vef_lid
-  integer(ip)                        , intent(in)    :: fe_space_id
-  integer(ip)                        , intent(out)   :: s2t_perm_for_interior_nodes_vef(:) ! Workspace
+  class(finite_element_t), target, intent(inout) :: this
+  integer(ip)                    , intent(in)    :: target_vef_lid
+  type(finite_element_t) , target, intent(in)    :: source_fe
+  integer(ip)                    , intent(in)    :: source_vef_lid
+  integer(ip)                    , intent(in)    :: fe_space_id
+  integer(ip)                    , intent(out)   :: s2t_perm_for_interior_nodes_vef(:) ! Workspace
 
   ! Local variables
   integer(ip)                    :: interior_inode, l_node, interior_nnode, inode_source, inode_target, order
@@ -191,7 +191,15 @@ subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
                                              this%cell%vefs, &
                                              source_ref_fe%get_vef_dimension(source_vef_lid), &
                                              order )
+
+   call target_ref_fe%permute_interior_nodes_per_vef( source_ref_fe,                              &
+                                                      s2t_perm_for_interior_nodes_vef,            &
+                                                      source_vef_lid,                             &
+                                                      target_vef_lid,                             &
+                                                      source_fe%cell%vefs,                        &
+                                                      this%cell%vefs)
   
+   !write(*,*) __FILE__,__LINE__,s2t_perm_for_interior_nodes_vef
     do interior_inode = 1, interior_nnode
         inode_source = source_ref_fe%get_interior_node_vef(interior_inode,source_vef_lid)
         !inode_target = target_ref_fe%get_interior_node_vef(s2t_perm_for_interior_nodes_vef(interior_inode),target_vef_lid)

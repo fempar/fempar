@@ -446,10 +446,10 @@ contains
        call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks, &
             &                   field_coupling, elmat, elvec )      
     end do
-    do inode = 1, number_nodes_per_field(1)
-       write(*,*) inode, '+++++'
-       write(*,*) elmat(1:4,inode)
-    end do
+!!$    do inode = 1, number_nodes_per_field(1)
+!!$       write(*,*) inode, '+++++'
+!!$       write(*,*) elmat(1:4,inode)
+!!$    end do
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
 
@@ -514,14 +514,14 @@ contains
        end do
     end do
 
-    do inode = 1, number_nodes_per_field(j)
-       write(*,*) inode, '-------'
-       write(*,*) facemat(1:4,inode,1,1),  facemat(1:4,inode,2,1)
-    end do
-    do inode = 1, number_nodes_per_field(j)
-       write(*,*) number_nodes_per_field(j)+inode, '-------'
-       write(*,*) facemat(1:4,inode,1,2),  facemat(1:4,inode,2,2)
-    end do
+!!$    do inode = 1, number_nodes_per_field(j)
+!!$       write(*,*) inode, '-------'
+!!$       write(*,*) facemat(1:4,inode,1,1),  facemat(1:4,inode,2,1)
+!!$    end do
+!!$    do inode = 1, number_nodes_per_field(j)
+!!$       write(*,*) number_nodes_per_field(j)+inode, '-------'
+!!$       write(*,*) facemat(1:4,inode,1,2),  facemat(1:4,inode,2,2)
+!!$    end do
 
     do iface = fe_space%get_number_interior_faces() + 1, fe_space%get_number_interior_faces() +   &
          &                                               fe_space%get_number_boundary_faces()
@@ -684,12 +684,12 @@ contains
     
     ! Composite case
     reference_fe_array_two(1) = make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian,      &
-         &                      number_dimensions = 2, order = 1, field_type = field_type_scalar,            &
-         &                      continuity = .false. )
+         &                      number_dimensions = 2, order = 3, field_type = field_type_scalar,            &
+         &                      continuity = .true. )
 
     reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian,      &
-         &                      number_dimensions = 2, order = 1, field_type = field_type_vector,            &
-         &                      continuity = .false. )
+         &                      number_dimensions = 2, order = 3, field_type = field_type_vector,            &
+         &                      continuity = .true. )
 
     call fe_space%create( triangulation = f_trian, boundary_conditions = f_cond,                    &
          &                reference_fe_phy = reference_fe_array_two,                                &
