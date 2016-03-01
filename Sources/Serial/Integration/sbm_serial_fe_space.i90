@@ -96,11 +96,12 @@ subroutine fill_elem2dof_and_count_dofs( this, fe_space_id, dof_count )
   do ielem = 1, this%triangulation%num_elems
      ! Deal with dofs on the interior of the element
      call this%fe_array(ielem)%fill_interior_dofs ( fe_space_id, dof_count ) 
-
+     write(*,*) __FILE__,__LINE__,ielem
      ! Deal with dofs on the boundary of the element 
      if ( this%fe_array(ielem)%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
        do ivef = 1, this%triangulation%elems(ielem)%num_vefs
           vef_id = this%triangulation%elems(ielem)%vefs(ivef)
+          write(*,*) __FILE__,__LINE__, ivef, vef_id
           if ( visited_vef_to_elem_map ( 1, vef_id ) == -1 ) then
             visited_vef_to_elem_map ( 1, vef_id ) = ielem
             visited_vef_to_elem_map ( 2, vef_id ) = ivef

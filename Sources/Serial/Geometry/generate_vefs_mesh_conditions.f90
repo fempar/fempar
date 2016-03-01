@@ -311,7 +311,6 @@ contains
        end do
     end do
 
-    write(*,*) __FILE__,__LINE__,nodim
     if(gmsh%ndime==3) then
        vef_lid = reference_fe%get_first_vef_id_of_dimension(1)
        if (kfl_bc) then
@@ -333,7 +332,6 @@ contains
                          gp = gmsh%nnode*(jelem-1)
 
                          do k=1,nodim(2)
-                            write(*,*) gp,vef_lid,k,vertices_vef%l(vertices_vef%p(vef_lid+k-1))
                             nd_j(1)=gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+k-1)))
                             nd_j(2)=gmsh%lnods(gp+vertices_vef%l(vertices_vef%p(vef_lid+k-1)+1))
 

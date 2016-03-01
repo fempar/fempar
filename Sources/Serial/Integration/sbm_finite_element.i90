@@ -191,7 +191,6 @@ subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
                                              this%cell%vefs, &
                                              source_ref_fe%get_vef_dimension(source_vef_lid), &
                                              order )
-
    call target_ref_fe%permute_interior_nodes_per_vef( source_ref_fe,                              &
                                                       s2t_perm_for_interior_nodes_vef,            &
                                                       source_vef_lid,                             &

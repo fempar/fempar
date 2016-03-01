@@ -404,6 +404,7 @@ contains
     quad  => fe%get_quadrature()
     ngaus = quad%get_number_evaluation_points()
     do ielem = 1, fe_space%get_number_elements()
+       write(*,*) __FILE__,__LINE__,ielem,'------------------'
        elmat = 0.0_rp
        elvec = 0.0_rp
 
@@ -434,6 +435,7 @@ contains
              do jnode = 1, number_nodes_per_field(2)
                 joffset = number_nodes_per_field(1)+jnode
                 call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_vector)
+               
                 elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor *                        &
                      &          this%viscosity*double_contract(grad_test_vector,grad_trial_vector)
              end do
@@ -647,7 +649,7 @@ program test_cdr
 
 
   ! To be erased
-  call test_reference_face_stuff(f_trian,f_cond)
+  call test_reference_face_stuff(f_trian,f_cond,cli,group)
 
   call triangulation_free ( f_trian )
   call conditions_free ( f_cond )
@@ -655,7 +657,7 @@ program test_cdr
   call memstatus
 contains
   !==================================================================================================
-  subroutine  test_reference_face_stuff(f_trian, f_cond)
+  subroutine  test_reference_face_stuff(f_trian, f_cond,cli,group)
     use serial_names
     use CDR_discrete_integration_names
     use vector_dG_CDR_discrete_integration_names
@@ -663,9 +665,11 @@ contains
 
     implicit none
 
-    type(triangulation_t), intent(inout) :: f_trian
-    type(conditions_t)   , intent(in)    :: f_cond
-
+    type(triangulation_t)            , intent(inout) :: f_trian
+    type(conditions_t)               , intent(in)    :: f_cond
+    type(Type_Command_Line_Interface), intent(inout) :: cli 
+    character(*)                     , intent(inout) :: group
+  
     type(serial_fe_space_t)                       :: fe_space
     type(p_reference_fe_t)                        :: reference_fe_array_two(2)
     type(p_reference_fe_t)                        :: reference_fe_array_one(1)
@@ -674,22 +678,30 @@ contains
     type(CDR_discrete_integration_t)              :: CDR_integration
     type(vector_space_t)    , pointer             :: fe_affine_operator_range_vector_space 
     class(vector_t)         , allocatable, target :: vector
-    type(interpolation_face_restriction_t)                    :: face_interpolation
+    type(interpolation_face_restriction_t)        :: face_interpolation
 
     class(matrix_t), pointer :: matrix
     type(sparse_matrix_t), pointer :: my_matrix
     logical                  :: diagonal_blocks_symmetric_storage(2)
     logical                  :: diagonal_blocks_symmetric(2)
-    integer(ip)              :: diagonal_blocks_sign(2)
+    integer(ip)              :: diagonal_blocks_sign(2), order
     
+     call cli%get(group=trim(group),switch='-p',val=order,error=istat); check(istat==0)
+     write(*,*)
     ! Composite case
-    reference_fe_array_two(1) = make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian,      &
-         &                      number_dimensions = 2, order = 3, field_type = field_type_scalar,            &
-         &                      continuity = .true. )
+    reference_fe_array_two(1) = make_reference_fe ( topology = topology_quad,                       &
+         &                                          fe_type  = fe_type_lagrangian,                  &
+         &                                          number_dimensions = f_trian%num_dims,           &
+         &                                          order = order,                                  &
+         &                                          field_type = field_type_scalar,                 &
+         &                                          continuity = .true. )
 
-    reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian,      &
-         &                      number_dimensions = 2, order = 3, field_type = field_type_vector,            &
-         &                      continuity = .true. )
+    reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad,                       &
+         &                                          fe_type = fe_type_lagrangian,                   &
+         &                                          number_dimensions = f_trian%num_dims,           &
+         &                                          order = order,                                  &
+         &                                          field_type = field_type_vector,                 &
+         &                                          continuity = .true. )
 
     call fe_space%create( triangulation = f_trian, boundary_conditions = f_cond,                    &
          &                reference_fe_phy = reference_fe_array_two,                                &
