@@ -139,7 +139,7 @@ subroutine integrate(this,fe_space,assembler)
      bc_value              => fe%get_bc_value()
 
      ! Update discrete integration structures
-     call this%compute_stabilization_parameters(fe_map,fe_velocity,number_quadrature_points, & 
+     call this%compute_stabilization_parameters(fe_map,quad,fe_velocity,number_quadrature_points, & 
      &                                          number_dimensions,velocity_order,tau_m,tau_c)
      
      ! Loop over Gauss points
@@ -309,11 +309,12 @@ subroutine deallocate_stabilization_parameters(tau_m,tau_c)
 end subroutine deallocate_stabilization_parameters
 
 !====================================================================================================
-subroutine compute_stabilization_parameters(this,fe_map,fe_velocity,number_quadrature_points, & 
+subroutine compute_stabilization_parameters(this,fe_map,quad,fe_velocity,number_quadrature_points, & 
      &                                      number_components,velocity_order,tau_m,tau_c)
   implicit none
   class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
   type(fe_map_t)                           , intent(in)    :: fe_map
+  type(quadrature_t)                       , intent(in)    :: quad
   type(fe_function_vector_t)               , intent(in)    :: fe_velocity
   integer(ip)                              , intent(in)    :: number_quadrature_points
   integer(ip)                              , intent(in)    :: number_components
@@ -325,7 +326,7 @@ subroutine compute_stabilization_parameters(this,fe_map,fe_velocity,number_quadr
   real(rp)    :: gp_velocity
   real(rp)    :: h_vol,h_flow
   real(rp)    :: inv_tau_m
-  real(rp)    :: alpha
+  real(rp)    :: alpha,dvolume,aux_value, dvolume_sum
   type(vector_field_t) :: velocity_vector
   type(vector_field_t) :: mean_velocity_vector
 
@@ -333,20 +334,27 @@ subroutine compute_stabilization_parameters(this,fe_map,fe_velocity,number_quadr
   tau_m = 0.0_rp
   tau_c = 0.0_rp
 
-  ! Compute mean velocity vector
+  ! Compute mean velocity vector 
+  ! \bar{v} = \frac{ \sum w_{gp} v_{gp} |J|}{ \sum w_{gp} |J|} = \frac{ \int_K v}{\int_K 1} 
   call mean_velocity_vector%init(0.0_rp)
+  dvolume_sum = 0.0_rp
   do qpoin = 1, number_quadrature_points
+
+     ! |J]*wg
+     dvolume = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
+     dvolume_sum = dvolume_sum + dvolume
 
      ! Velocity norm at Gauss point
      call fe_velocity%get_value(qpoin,velocity_vector)
 
      ! Add to mean vector
      do idime = 1,number_components
-        call mean_velocity_vector%add(idime,velocity_vector%get(idime))
+        aux_value = dvolume * velocity_vector%get(idime)
+        call mean_velocity_vector%add(idime,aux_value)
      end do
      
   end do
-  alpha = 1.0_rp/real(number_quadrature_points)
+  alpha = 1.0_rp/dvolume_sum
   mean_velocity_vector = alpha * mean_velocity_vector
 
   ! Loop over Gauss points
