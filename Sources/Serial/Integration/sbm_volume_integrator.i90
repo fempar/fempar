@@ -36,6 +36,7 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
 
   integer(ip) :: number_dimensions
   integer(ip) :: number_evaluation_points, number_vertices
+  integer(ip) :: istat
 
   call this%free()
   number_dimensions        = reference_fe_geometry%number_dimensions
@@ -44,26 +45,24 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   call reference_fe_geometry%create_interpolation( quadrature, this%interpolation_geometry )
 
   call memalloc(number_dimensions, &
-                number_dimensions, &
-                number_evaluation_points, &
-                this%jacobian,__FILE__,__LINE__)
+       number_dimensions, &
+       number_evaluation_points, &
+       this%jacobian,__FILE__,__LINE__)
 
   call memalloc(number_dimensions, &
-                number_dimensions, &
-                number_evaluation_points, &
-                this%inv_jacobian,__FILE__,__LINE__)
+       number_dimensions, &
+       number_evaluation_points, &
+       this%inv_jacobian,__FILE__,__LINE__)
 
   call memalloc(number_evaluation_points, &
-                this%det_jacobian,__FILE__,__LINE__)
+       this%det_jacobian,__FILE__,__LINE__)
 
-  call memalloc(number_dimensions, &
-                number_evaluation_points, &
-                this%coordinates_quadrature,__FILE__,__LINE__)
+  allocate(this%coordinates_quadrature(number_evaluation_points), stat=istat)
+  check(istat==0)
 
   number_vertices = reference_fe_geometry%get_number_vertices()
-  call memalloc(number_dimensions, &
-       &        number_vertices,    &
-       &        this%coordinates_vertices,__FILE__,__LINE__)
+  allocate(this%coordinates_vertices(number_vertices), stat=istat)
+  check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
 end subroutine fe_map_create
@@ -79,6 +78,7 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
 
   integer(ip) :: number_dimensions
   integer(ip) :: number_evaluation_points, number_vertices
+  integer(ip) :: istat
 
   call this%free()
   number_dimensions        = reference_fe_geometry%number_dimensions
@@ -88,27 +88,25 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
        &                                                this%interpolation_geometry )
 
   call memalloc(number_dimensions, &
-                number_dimensions, &
-                number_evaluation_points, &
-                this%jacobian,__FILE__,__LINE__)
+       number_dimensions, &
+       number_evaluation_points, &
+       this%jacobian,__FILE__,__LINE__)
 
   call memalloc(number_dimensions, &
-                number_dimensions, &
-                number_evaluation_points, &
-                this%inv_jacobian,__FILE__,__LINE__)
+       number_dimensions, &
+       number_evaluation_points, &
+       this%inv_jacobian,__FILE__,__LINE__)
 
   call memalloc(number_evaluation_points, &
-                this%det_jacobian,__FILE__,__LINE__)
+       this%det_jacobian,__FILE__,__LINE__)
 
-  call memalloc(number_dimensions, &
-                number_evaluation_points, &
-                this%coordinates_quadrature,__FILE__,__LINE__)
+  allocate(this%coordinates_quadrature(number_evaluation_points), stat=istat)
+  check(istat==0)
 
   number_vertices = reference_fe_geometry%get_number_vertices()
-  call memalloc(number_dimensions, &
-       &        number_vertices,    &
-       &        this%coordinates_vertices,__FILE__,__LINE__)
-  
+  allocate(this%coordinates_vertices(number_vertices), stat=istat)
+  check(istat==0)
+
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
 end subroutine fe_map_create_on_face
 
@@ -122,6 +120,7 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
 
   integer(ip) :: number_dimensions, number_face_dimensions
   integer(ip) :: number_evaluation_points, number_vertices_face
+  integer(ip) :: istat
 
   call this%free()
   number_dimensions        = reference_fe_geo%number_dimensions
@@ -130,27 +129,25 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
 
   call reference_fe_geo%create_face_local_interpolation                                      &
        &                ( quadrature, this%interpolation_geometry)
-  
+
   call memalloc(number_dimensions, &
-                number_face_dimensions, &
-                number_evaluation_points, &
-                this%jacobian,__FILE__,__LINE__)
+       number_face_dimensions, &
+       number_evaluation_points, &
+       this%jacobian,__FILE__,__LINE__)
 
   call memalloc(number_evaluation_points, &
        this%det_jacobian,__FILE__,__LINE__)
 
-  call memalloc(number_dimensions, &
-                number_evaluation_points, &
-                this%coordinates_quadrature,__FILE__,__LINE__)
+  allocate(this%coordinates_quadrature(number_evaluation_points), stat=istat)
+  check(istat==0)
 
   call memalloc(number_dimensions, &
-                number_evaluation_points, &
-                this%normals,__FILE__,__LINE__)
+       number_evaluation_points, &
+       this%normals,__FILE__,__LINE__)
 
-  number_vertices_face = reference_fe_geo%get_number_vertices_per_face()
-  call memalloc(number_dimensions,      &
-       &        number_vertices_face,    &
-       &        this%coordinates_vertices,__FILE__,__LINE__)
+  number_vertices_face = reference_fe_geo%get_number_vertices_per_face() 
+  allocate(this%coordinates_vertices(number_vertices_face), stat=istat)
+  check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
 end subroutine fe_map_face_map_create
@@ -172,6 +169,7 @@ subroutine fe_map_update( this, quadrature)
   integer(ip) :: ndime,nnode,nlocs,ntens
   integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens
   logical :: khes
+  type(vector_field_t) :: aux_vector
 
   khes = .false.
   if ( allocated( this%interpolation_geometry%hessian ) ) then 
@@ -182,17 +180,19 @@ subroutine fe_map_update( this, quadrature)
   nnode = size(this%interpolation_geometry%shape_functions,1)
   nlocs = this%interpolation_geometry%number_evaluation_points
 
+
+
   do ilocs=1,nlocs
      ! Matmul is not thread safe
      !map%jacob(:,:,ilocs)=matmul(elcod,transpose(int%deriv(:,:,ilocs)))
-     this%jacobian(:,:,ilocs)=0.0_rp
-     do inode=1,nnode
-        do jdime=1,ndime
-           do idime=1,ndime
-              this%jacobian(idime,jdime,ilocs) = this%jacobian(idime,jdime,ilocs)               &
-                   & + this%coordinates_vertices(idime,inode) *                                          &
-                   & this%interpolation_geometry%shape_derivatives(jdime,inode,ilocs)
-           end do
+     do jdime=1,ndime
+        aux_vector = 0.0_rp
+        do inode=1,nnode
+           aux_vector = aux_vector + this%coordinates_vertices(inode) * &
+                & this%interpolation_geometry%shape_derivatives(jdime,inode,ilocs)
+        end do
+        do idime=1,ndime
+           this%jacobian(idime,jdime,ilocs) = aux_vector%get(idime)
         end do
      end do
      ! J^(-t)
@@ -201,12 +201,10 @@ subroutine fe_map_update( this, quadrature)
 
   ! Evaluation (Gauss) point coordinates
   do ilocs=1,nlocs
-     this%coordinates_quadrature(:,ilocs)=0.0_rp
+     this%coordinates_quadrature(ilocs)=0.0_rp
      do inode=1,nnode
-        do idime=1,ndime
-           this%coordinates_quadrature(idime,ilocs) = this%coordinates_quadrature(idime,ilocs) &
-                + this%coordinates_vertices(idime,inode)*this%interpolation_geometry%shape_functions(inode,ilocs)
-        end do
+        this%coordinates_quadrature(ilocs) = this%coordinates_quadrature(ilocs) &
+             + this%coordinates_vertices(inode)*this%interpolation_geometry%shape_functions(inode,ilocs)
      end do
   end do
 
@@ -270,10 +268,11 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
   integer(ip)          , intent(in)    :: local_face_id
   class(reference_fe_t), intent(in)    :: reference_fe
   type(quadrature_t), intent(in)    :: quadrature
-  
+
   integer(ip) :: evaluation_point_id, node_id, idime, jdime, local_vef_id,  reorientation_factor
   integer(ip) :: number_face_dimensions, number_elem_dimensions, orientation_face
-  
+  type(vector_field_t) :: aux_vector
+
   number_face_dimensions = this%interpolation_geometry%number_dimensions
   number_elem_dimensions = reference_fe%number_dimensions
   local_vef_id = reference_fe%number_vefs_dimension(number_elem_dimensions) + local_face_id - 1
@@ -281,26 +280,33 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
   reorientation_factor = (-1)**orientation_face
 
   ! Initialize values
-  this%coordinates_quadrature = 0.0_rp
   this%jacobian           = 0.0_rp
   do evaluation_point_id = 1, quadrature%number_evaluation_points
+     this%coordinates_quadrature(evaluation_point_id) = 0.0_rp
      do node_id = 1, this%interpolation_geometry%number_shape_functions
         ! Updating the coordinates
-        this%coordinates_quadrature(:,evaluation_point_id) =                                          &
-             & this%coordinates_quadrature(:,evaluation_point_id) + this%coordinates_vertices(:,node_id) *     &
+        this%coordinates_quadrature(evaluation_point_id) =                                          &
+             & this%coordinates_quadrature(evaluation_point_id) + this%coordinates_vertices(node_id) *     &
              & this%interpolation_geometry%shape_functions(node_id,evaluation_point_id)
-
-        ! Updating the Jacobian Matrix
-        do jdime=1, number_face_dimensions
-             do idime = 1, number_elem_dimensions
-                this%jacobian(idime,jdime,evaluation_point_id) =                                  &
-                     &  this%jacobian(idime,jdime,evaluation_point_id) +                          &
-                     &  this%coordinates_vertices(idime,node_id) *                                 &
-                     &  this%interpolation_geometry%shape_derivatives(jdime,node_id,evaluation_point_id)
-             end do
-          end do
      end do
-     
+
+     ! Updating the Jacobian Matrix
+     do jdime=1, number_face_dimensions
+        aux_vector = 0.0_rp
+        do node_id = 1, this%interpolation_geometry%number_shape_functions
+           aux_vector = aux_vector + this%coordinates_vertices(node_id) * &
+                & this%interpolation_geometry%shape_derivatives(jdime,node_id,evaluation_point_id)
+
+        end do
+        do idime=1,number_elem_dimensions
+           this%jacobian(idime,jdime,evaluation_point_id) = aux_vector%get(idime)
+        end do
+
+
+     end do
+
+
+
      ! Compute outside normals (using the jacobian Matrix)
      if ( number_elem_dimensions == 1) then
         this%normals(1,evaluation_point_id) = -1.0_rp**(real(local_face_id))
@@ -320,7 +326,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
      ! Normalize the normal vector and make it point in the correct direction
      this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *&
           &                      real(reorientation_factor)/this%det_jacobian(evaluation_point_id) 
-     
+
   end do
 end subroutine fe_map_face_map_update
 
@@ -332,8 +338,8 @@ subroutine fe_map_free( this )
   if(allocated(this%inv_jacobian)) call memfree(this%inv_jacobian,__FILE__,__LINE__)
   if(allocated(this%det_jacobian)) call memfree(this%det_jacobian,__FILE__,__LINE__)
   if(allocated(this%d2sdx)) call memfree(this%d2sdx,__FILE__,__LINE__)
-  if(allocated(this%coordinates_quadrature)) call memfree(this%coordinates_quadrature,__FILE__,__LINE__)
-  if(allocated(this%coordinates_vertices)) call memfree(this%coordinates_vertices,__FILE__,__LINE__)
+  if(allocated(this%coordinates_quadrature)) deallocate(this%coordinates_quadrature)
+  if(allocated(this%coordinates_vertices)) deallocate(this%coordinates_vertices)
   if(allocated(this%normals)) call memfree(this%normals,__FILE__,__LINE__)
   call this%interpolation_geometry%free()
 end subroutine fe_map_free
@@ -380,8 +386,8 @@ function fe_map_compute_h ( this, igaus)
         inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,igaus)**2.0_rp
      end do
      inverse_h(idime) = sqrt(inverse_h(idime))
-  end do  
-  
+  end do
+
   volumetric_h = inverse_h(1)
   do j = 2, number_dimensions
      volumetric_h = volumetric_h * inverse_h(j)
@@ -395,8 +401,8 @@ end function fe_map_compute_h
 function fe_map_get_coordinates(this)
   implicit none
   class(fe_map_t)   , target, intent(in) :: this
-  real(rp), pointer :: fe_map_get_coordinates(:,:)
-  
+  type(point_t), pointer :: fe_map_get_coordinates(:)
+
   fe_map_get_coordinates => this%coordinates_vertices
 
 end function fe_map_get_coordinates
@@ -426,11 +432,11 @@ subroutine volume_integrator_create( this, quadrature, reference_fe )
   class(reference_fe_t), target,  intent(in)   :: reference_fe  
 
   call this%free()
-  
+
   this%number_evaluation_points = quadrature%number_evaluation_points
   this%number_shape_functions   = reference_fe%number_nodes
   this%reference_fe             => reference_fe
-  
+
   call reference_fe%create_interpolation( quadrature, this%interpolation )
   call this%interpolation_o_map%copy(source_interpolation = this%interpolation)
 end subroutine volume_integrator_create
@@ -616,14 +622,14 @@ end subroutine volume_integrator_evaluate_fe_function_tensor
 subroutine p_volume_integrator_allocate( this )
   implicit none
   class(p_volume_integrator_t), intent(inout) :: this
-		allocate(this%p)
+  allocate(this%p)
 end subroutine p_volume_integrator_allocate
 
 subroutine p_volume_integrator_free( this )
   implicit none
   class(p_volume_integrator_t), intent(inout) :: this
   call this%p%free()
-		deallocate(this%p)
+  deallocate(this%p)
 end subroutine p_volume_integrator_free
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -658,206 +664,206 @@ subroutine vecpro(v1,v2,v3,n)
 
 end subroutine vecpro
 
-  subroutine invmtx(a,b,deter,nsize)
-    !-----------------------------------------------------------------------
-    !
-    ! This routine inverts a square matrix A -> Mat(nsize,nsize). The
-    ! inverse is stored in B. Its determinant is DETER
-    !    
-    !-----------------------------------------------------------------------
-    implicit none
-    integer(ip), intent(in)  :: nsize
-    real(rp),    intent(in)  :: a(nsize,nsize)
-    real(rp),    intent(out) :: b(nsize,nsize),deter
-    integer(ip)              :: isize,jsize
-    real(rp)                 :: denom,t1,t2,t3,t4
-
-    select case (nsize)
-
-    case(1)
-       deter=a(1,1)
-       if(deter==0.0_rp) return
-       b(1,1) = 1.0_rp/a(1,1)
-
-    case(2)
-       deter=a(1,1)*a(2,2)-a(2,1)*a(1,2)
-       if(deter/=0.0_rp) then
-          denom=1.0_rp/deter
-          b(1,1) = a(2,2)*denom
-          b(2,2) = a(1,1)*denom
-          b(2,1) =-a(2,1)*denom
-          b(1,2) =-a(1,2)*denom 
-       end if
-
-    case(3)
-       t1  = a(2,2)*a(3,3) - a(3,2)*a(2,3)
-       t2  =-a(2,1)*a(3,3) + a(3,1)*a(2,3)
-       t3  = a(2,1)*a(3,2) - a(3,1)*a(2,2)
-       deter = a(1,1)*t1 + a(1,2)*t2 + a(1,3)*t3
-       if(deter==0.0_rp) return
-       denom = 1.0_rp/deter
-       b(1,1) = t1*denom
-       b(2,1) = t2*denom
-       b(3,1) = t3*denom
-       b(2,2) = ( a(1,1)*a(3,3) - a(3,1)*a(1,3))*denom
-       b(3,2) = (-a(1,1)*a(3,2) + a(1,2)*a(3,1))*denom
-       b(3,3) = ( a(1,1)*a(2,2) - a(2,1)*a(1,2))*denom
-       b(1,2) = (-a(1,2)*a(3,3) + a(3,2)*a(1,3))*denom
-       b(1,3) = ( a(1,2)*a(2,3) - a(2,2)*a(1,3))*denom
-       b(2,3) = (-a(1,1)*a(2,3) + a(2,1)*a(1,3))*denom
-
-    case(4)
-       t1= a(2,2)*a(3,3)*a(4,4) + a(2,3)*a(3,4)*a(4,2)&
-            + a(2,4)*a(3,2)*a(4,3) - a(2,3)*a(3,2)*a(4,4)&
-            - a(2,2)*a(3,4)*a(4,3) - a(2,4)*a(3,3)*a(4,2)
-       t2=-a(2,1)*a(3,3)*a(4,4) - a(2,3)*a(3,4)*a(4,1)&
-            - a(2,4)*a(3,1)*a(4,3) + a(2,4)*a(3,3)*a(4,1)&
-            + a(2,3)*a(3,1)*a(4,4) + a(2,1)*a(3,4)*a(4,3)
-       t3=+a(2,1)*a(3,2)*a(4,4) + a(2,2)*a(3,4)*a(4,1)&
-            + a(2,4)*a(3,1)*a(4,2) - a(2,4)*a(3,2)*a(4,1)&
-            - a(2,2)*a(3,1)*a(4,4) - a(2,1)*a(3,4)*a(4,2)
-       t4=-a(2,1)*a(3,2)*a(4,3) - a(2,2)*a(3,3)*a(4,1)&
-            - a(2,3)*a(3,1)*a(4,2) + a(2,3)*a(3,2)*a(4,1)&
-            + a(2,2)*a(3,1)*a(4,3) + a(2,1)*a(3,3)*a(4,2)
-       deter= a(1,1)*t1 + a(1,2)*t2 + a(1,3)*t3 + a(1,4)*t4
-       if(deter==0.0_rp) return
-       denom=1.0_rp/deter
-       b(1,1) = t1*denom
-       b(2,1) = t2*denom
-       b(3,1) = t3*denom
-       b(4,1) = t4*denom
-       b(1,2) =(- a(1,2)*a(3,3)*a(4,4) - a(1,3)*a(3,4)*a(4,2)&
-            - a(1,4)*a(3,2)*a(4,3) + a(1,3)*a(3,2)*a(4,4)&
-            + a(1,2)*a(3,4)*a(4,3) + a(1,4)*a(3,3)*a(4,2))*denom
-       b(2,2) =(  a(1,1)*a(3,3)*a(4,4) + a(1,3)*a(3,4)*a(4,1)&
-            + a(1,4)*a(3,1)*a(4,3) - a(1,4)*a(3,3)*a(4,1)&
-            - a(1,3)*a(3,1)*a(4,4) - a(1,1)*a(3,4)*a(4,3))*denom
-       b(3,2) =(- a(1,1)*a(3,2)*a(4,4) - a(1,2)*a(3,4)*a(4,1)&
-            - a(1,4)*a(3,1)*a(4,2) + a(1,4)*a(3,2)*a(4,1)&
-            + a(1,2)*a(3,1)*a(4,4) + a(1,1)*a(3,4)*a(4,2))*denom
-       b(4,2) =(  a(1,1)*a(3,2)*a(4,3) + a(1,2)*a(3,3)*a(4,1)&
-            + a(1,3)*a(3,1)*a(4,2) - a(1,3)*a(3,2)*a(4,1)&
-            - a(1,2)*a(3,1)*a(4,3) - a(1,1)*a(3,3)*a(4,2))*denom
-       b(1,3) =(  a(1,2)*a(2,3)*a(4,4) + a(1,3)*a(2,4)*a(4,2)&
-            + a(1,4)*a(2,2)*a(4,3) - a(1,3)*a(2,2)*a(4,4)&
-            - a(1,2)*a(2,4)*a(4,3) - a(1,4)*a(2,3)*a(4,2))*denom
-       b(2,3) =(- a(1,1)*a(2,3)*a(4,4) - a(1,3)*a(2,4)*a(4,1)&
-            - a(1,4)*a(2,1)*a(4,3) + a(1,4)*a(2,3)*a(4,1)&
-            + a(1,3)*a(2,1)*a(4,4) + a(1,1)*a(2,4)*a(4,3))*denom
-       b(3,3) =(  a(1,1)*a(2,2)*a(4,4) + a(1,2)*a(2,4)*a(4,1)&
-            + a(1,4)*a(2,1)*a(4,2) - a(1,4)*a(2,2)*a(4,1)&
-            - a(1,2)*a(2,1)*a(4,4) - a(1,1)*a(2,4)*a(4,2))*denom
-       b(4,3) =(- a(1,1)*a(2,2)*a(4,3) - a(1,2)*a(2,3)*a(4,1)&
-            - a(1,3)*a(2,1)*a(4,2) + a(1,3)*a(2,2)*a(4,1)&
-            + a(1,2)*a(2,1)*a(4,3) + a(1,1)*a(2,3)*a(4,2))*denom
-       b(1,4) =(- a(1,2)*a(2,3)*a(3,4) - a(1,3)*a(2,4)*a(3,2)&
-            - a(1,4)*a(2,2)*a(3,3) + a(1,4)*a(2,3)*a(3,2)&
-            + a(1,3)*a(2,2)*a(3,4) + a(1,2)*a(2,4)*a(3,3))*denom
-       b(2,4) =(  a(1,1)*a(2,3)*a(3,4) + a(1,3)*a(2,4)*a(3,1)&
-            + a(1,4)*a(2,1)*a(3,3) - a(1,4)*a(2,3)*a(3,1)&
-            - a(1,3)*a(2,1)*a(3,4) - a(1,1)*a(2,4)*a(3,3))*denom
-       b(3,4) =(- a(1,1)*a(2,2)*a(3,4) - a(1,2)*a(2,4)*a(3,1)&
-            - a(1,4)*a(2,1)*a(3,2) + a(1,4)*a(2,2)*a(3,1)&
-            + a(1,2)*a(2,1)*a(3,4) + a(1,1)*a(2,4)*a(3,2))*denom
-       b(4,4) =(  a(1,1)*a(2,2)*a(3,3) + a(1,2)*a(2,3)*a(3,1)&
-            + a(1,3)*a(2,1)*a(3,2) - a(1,3)*a(2,2)*a(3,1)&
-            - a(1,2)*a(2,1)*a(3,3) - a(1,1)*a(2,3)*a(3,2))*denom
-
-    case default
-       b=a
-       call invert(b,nsize,nsize)
-    end select
-
-  end subroutine invmtx
-
+subroutine invmtx(a,b,deter,nsize)
   !-----------------------------------------------------------------------
-  subroutine invert(a,nmax,ndm)
-    !-----------------------------------------------------------------------
-    !
-    ! This routine performs the inversion of a ndm*ndm square matrix 
-    ! or just part of it (nmax*nmax)
-    !
-    !-----------------------------------------------------------------------
-    implicit none
-    integer(ip), intent(in)    :: ndm,nmax
-    real(rp),    intent(inout) :: a(ndm,ndm)
-    real(rp)                   :: d
-    integer(ip)                :: n,j,i
-
-    do n = 1,nmax
-       d = a(n,n)
-       do j = 1,nmax
-          a(n,j) = -a(n,j)/d
-       end do
-       do i = 1,nmax
-          if(n/=i) then
-             do j = 1,nmax
-                if(n/=j) a(i,j) = a(i,j) +a(i,n)*a(n,j)
-             end do
-          end if
-          a(i,n) = a(i,n)/d
-       end do
-       a(n,n) = 1.0_rp/d
-    end do
-
-  end subroutine invert
-
-
+  !
+  ! This routine inverts a square matrix A -> Mat(nsize,nsize). The
+  ! inverse is stored in B. Its determinant is DETER
+  !    
   !-----------------------------------------------------------------------
-  subroutine vetoma(vecto,xmatr,ndime,ntens)
-    !-----------------------------------------------------------------------
-    !                                      
-    ! This routine stores a vector VECTO as a symmetric matrix XMATR
-    !
-    !-----------------------------------------------------------------------
-    implicit none
-    integer(ip), intent(in)  :: ndime,ntens
-    real(rp)   , intent(in)  :: vecto(ntens)
-    real(rp)   , intent(out) :: xmatr(ndime,ndime)
+  implicit none
+  integer(ip), intent(in)  :: nsize
+  real(rp),    intent(in)  :: a(nsize,nsize)
+  real(rp),    intent(out) :: b(nsize,nsize),deter
+  integer(ip)              :: isize,jsize
+  real(rp)                 :: denom,t1,t2,t3,t4
 
-    if(ndime.eq.2) then
-       xmatr(1,1)=vecto(1)
-       xmatr(1,2)=vecto(3)
-       xmatr(2,1)=vecto(3)
-       xmatr(2,2)=vecto(2)
-    else
-       xmatr(1,1)=vecto(1)
-       xmatr(1,2)=vecto(4)
-       xmatr(1,3)=vecto(5)
-       xmatr(2,1)=vecto(4)
-       xmatr(2,2)=vecto(2)
-       xmatr(2,3)=vecto(6)
-       xmatr(3,1)=vecto(5)
-       xmatr(3,2)=vecto(6)
-       xmatr(3,3)=vecto(3)
-    end if
+  select case (nsize)
 
-  end subroutine vetoma
+  case(1)
+     deter=a(1,1)
+     if(deter==0.0_rp) return
+     b(1,1) = 1.0_rp/a(1,1)
 
+  case(2)
+     deter=a(1,1)*a(2,2)-a(2,1)*a(1,2)
+     if(deter/=0.0_rp) then
+        denom=1.0_rp/deter
+        b(1,1) = a(2,2)*denom
+        b(2,2) = a(1,1)*denom
+        b(2,1) =-a(2,1)*denom
+        b(1,2) =-a(1,2)*denom 
+     end if
+
+  case(3)
+     t1  = a(2,2)*a(3,3) - a(3,2)*a(2,3)
+     t2  =-a(2,1)*a(3,3) + a(3,1)*a(2,3)
+     t3  = a(2,1)*a(3,2) - a(3,1)*a(2,2)
+     deter = a(1,1)*t1 + a(1,2)*t2 + a(1,3)*t3
+     if(deter==0.0_rp) return
+     denom = 1.0_rp/deter
+     b(1,1) = t1*denom
+     b(2,1) = t2*denom
+     b(3,1) = t3*denom
+     b(2,2) = ( a(1,1)*a(3,3) - a(3,1)*a(1,3))*denom
+     b(3,2) = (-a(1,1)*a(3,2) + a(1,2)*a(3,1))*denom
+     b(3,3) = ( a(1,1)*a(2,2) - a(2,1)*a(1,2))*denom
+     b(1,2) = (-a(1,2)*a(3,3) + a(3,2)*a(1,3))*denom
+     b(1,3) = ( a(1,2)*a(2,3) - a(2,2)*a(1,3))*denom
+     b(2,3) = (-a(1,1)*a(2,3) + a(2,1)*a(1,3))*denom
+
+  case(4)
+     t1= a(2,2)*a(3,3)*a(4,4) + a(2,3)*a(3,4)*a(4,2)&
+          + a(2,4)*a(3,2)*a(4,3) - a(2,3)*a(3,2)*a(4,4)&
+          - a(2,2)*a(3,4)*a(4,3) - a(2,4)*a(3,3)*a(4,2)
+     t2=-a(2,1)*a(3,3)*a(4,4) - a(2,3)*a(3,4)*a(4,1)&
+          - a(2,4)*a(3,1)*a(4,3) + a(2,4)*a(3,3)*a(4,1)&
+          + a(2,3)*a(3,1)*a(4,4) + a(2,1)*a(3,4)*a(4,3)
+     t3=+a(2,1)*a(3,2)*a(4,4) + a(2,2)*a(3,4)*a(4,1)&
+          + a(2,4)*a(3,1)*a(4,2) - a(2,4)*a(3,2)*a(4,1)&
+          - a(2,2)*a(3,1)*a(4,4) - a(2,1)*a(3,4)*a(4,2)
+     t4=-a(2,1)*a(3,2)*a(4,3) - a(2,2)*a(3,3)*a(4,1)&
+          - a(2,3)*a(3,1)*a(4,2) + a(2,3)*a(3,2)*a(4,1)&
+          + a(2,2)*a(3,1)*a(4,3) + a(2,1)*a(3,3)*a(4,2)
+     deter= a(1,1)*t1 + a(1,2)*t2 + a(1,3)*t3 + a(1,4)*t4
+     if(deter==0.0_rp) return
+     denom=1.0_rp/deter
+     b(1,1) = t1*denom
+     b(2,1) = t2*denom
+     b(3,1) = t3*denom
+     b(4,1) = t4*denom
+     b(1,2) =(- a(1,2)*a(3,3)*a(4,4) - a(1,3)*a(3,4)*a(4,2)&
+          - a(1,4)*a(3,2)*a(4,3) + a(1,3)*a(3,2)*a(4,4)&
+          + a(1,2)*a(3,4)*a(4,3) + a(1,4)*a(3,3)*a(4,2))*denom
+     b(2,2) =(  a(1,1)*a(3,3)*a(4,4) + a(1,3)*a(3,4)*a(4,1)&
+          + a(1,4)*a(3,1)*a(4,3) - a(1,4)*a(3,3)*a(4,1)&
+          - a(1,3)*a(3,1)*a(4,4) - a(1,1)*a(3,4)*a(4,3))*denom
+     b(3,2) =(- a(1,1)*a(3,2)*a(4,4) - a(1,2)*a(3,4)*a(4,1)&
+          - a(1,4)*a(3,1)*a(4,2) + a(1,4)*a(3,2)*a(4,1)&
+          + a(1,2)*a(3,1)*a(4,4) + a(1,1)*a(3,4)*a(4,2))*denom
+     b(4,2) =(  a(1,1)*a(3,2)*a(4,3) + a(1,2)*a(3,3)*a(4,1)&
+          + a(1,3)*a(3,1)*a(4,2) - a(1,3)*a(3,2)*a(4,1)&
+          - a(1,2)*a(3,1)*a(4,3) - a(1,1)*a(3,3)*a(4,2))*denom
+     b(1,3) =(  a(1,2)*a(2,3)*a(4,4) + a(1,3)*a(2,4)*a(4,2)&
+          + a(1,4)*a(2,2)*a(4,3) - a(1,3)*a(2,2)*a(4,4)&
+          - a(1,2)*a(2,4)*a(4,3) - a(1,4)*a(2,3)*a(4,2))*denom
+     b(2,3) =(- a(1,1)*a(2,3)*a(4,4) - a(1,3)*a(2,4)*a(4,1)&
+          - a(1,4)*a(2,1)*a(4,3) + a(1,4)*a(2,3)*a(4,1)&
+          + a(1,3)*a(2,1)*a(4,4) + a(1,1)*a(2,4)*a(4,3))*denom
+     b(3,3) =(  a(1,1)*a(2,2)*a(4,4) + a(1,2)*a(2,4)*a(4,1)&
+          + a(1,4)*a(2,1)*a(4,2) - a(1,4)*a(2,2)*a(4,1)&
+          - a(1,2)*a(2,1)*a(4,4) - a(1,1)*a(2,4)*a(4,2))*denom
+     b(4,3) =(- a(1,1)*a(2,2)*a(4,3) - a(1,2)*a(2,3)*a(4,1)&
+          - a(1,3)*a(2,1)*a(4,2) + a(1,3)*a(2,2)*a(4,1)&
+          + a(1,2)*a(2,1)*a(4,3) + a(1,1)*a(2,3)*a(4,2))*denom
+     b(1,4) =(- a(1,2)*a(2,3)*a(3,4) - a(1,3)*a(2,4)*a(3,2)&
+          - a(1,4)*a(2,2)*a(3,3) + a(1,4)*a(2,3)*a(3,2)&
+          + a(1,3)*a(2,2)*a(3,4) + a(1,2)*a(2,4)*a(3,3))*denom
+     b(2,4) =(  a(1,1)*a(2,3)*a(3,4) + a(1,3)*a(2,4)*a(3,1)&
+          + a(1,4)*a(2,1)*a(3,3) - a(1,4)*a(2,3)*a(3,1)&
+          - a(1,3)*a(2,1)*a(3,4) - a(1,1)*a(2,4)*a(3,3))*denom
+     b(3,4) =(- a(1,1)*a(2,2)*a(3,4) - a(1,2)*a(2,4)*a(3,1)&
+          - a(1,4)*a(2,1)*a(3,2) + a(1,4)*a(2,2)*a(3,1)&
+          + a(1,2)*a(2,1)*a(3,4) + a(1,1)*a(2,4)*a(3,2))*denom
+     b(4,4) =(  a(1,1)*a(2,2)*a(3,3) + a(1,2)*a(2,3)*a(3,1)&
+          + a(1,3)*a(2,1)*a(3,2) - a(1,3)*a(2,2)*a(3,1)&
+          - a(1,2)*a(2,1)*a(3,3) - a(1,1)*a(2,3)*a(3,2))*denom
+
+  case default
+     b=a
+     call invert(b,nsize,nsize)
+  end select
+
+end subroutine invmtx
+
+!-----------------------------------------------------------------------
+subroutine invert(a,nmax,ndm)
   !-----------------------------------------------------------------------
-  subroutine btdbma(aglob,aloca,bmatr,n1,n2)
-    !-----------------------------------------------------------------------
-    !                                      
-    ! This routine computes Ag = Bt Al B  when Ag and Al are stored as full
-    ! matrices (Ag := aglob, Al := aloca, B := bmatr). The dimensions are
-    ! Al -> Mat(n1,n1), Ag -> Mat(n2,n2), B -> Mat(n2,n1) 
-    !
-    !-----------------------------------------------------------------------
-    implicit none
-    integer(ip), intent(in)  :: n1,n2
-    real(rp)   , intent(in)  :: aloca(n1,n1), bmatr(n1,n2)
-    real(rp)   , intent(out) :: aglob(n2,n2)
-    integer(ip)              :: i,j,k,l
+  !
+  ! This routine performs the inversion of a ndm*ndm square matrix 
+  ! or just part of it (nmax*nmax)
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  integer(ip), intent(in)    :: ndm,nmax
+  real(rp),    intent(inout) :: a(ndm,ndm)
+  real(rp)                   :: d
+  integer(ip)                :: n,j,i
 
-    do i=1,n2
-       do j=1,n2
-          aglob(i,j)=0.0
-          do k=1,n1
-             do l=1,n1
-                aglob(i,j)=aglob(i,j)+bmatr(k,i)*aloca(k,l)*bmatr(l,j)
-             end do
-          end do
-       end do
-    end do
+  do n = 1,nmax
+     d = a(n,n)
+     do j = 1,nmax
+        a(n,j) = -a(n,j)/d
+     end do
+     do i = 1,nmax
+        if(n/=i) then
+           do j = 1,nmax
+              if(n/=j) a(i,j) = a(i,j) +a(i,n)*a(n,j)
+           end do
+        end if
+        a(i,n) = a(i,n)/d
+     end do
+     a(n,n) = 1.0_rp/d
+  end do
 
-  end subroutine btdbma
+end subroutine invert
+
+
+!-----------------------------------------------------------------------
+subroutine vetoma(vecto,xmatr,ndime,ntens)
+  !-----------------------------------------------------------------------
+  !                                      
+  ! This routine stores a vector VECTO as a symmetric matrix XMATR
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  integer(ip), intent(in)  :: ndime,ntens
+  real(rp)   , intent(in)  :: vecto(ntens)
+  real(rp)   , intent(out) :: xmatr(ndime,ndime)
+
+  if(ndime.eq.2) then
+     xmatr(1,1)=vecto(1)
+     xmatr(1,2)=vecto(3)
+     xmatr(2,1)=vecto(3)
+     xmatr(2,2)=vecto(2)
+  else
+     xmatr(1,1)=vecto(1)
+     xmatr(1,2)=vecto(4)
+     xmatr(1,3)=vecto(5)
+     xmatr(2,1)=vecto(4)
+     xmatr(2,2)=vecto(2)
+     xmatr(2,3)=vecto(6)
+     xmatr(3,1)=vecto(5)
+     xmatr(3,2)=vecto(6)
+     xmatr(3,3)=vecto(3)
+  end if
+
+end subroutine vetoma
+
+!-----------------------------------------------------------------------
+subroutine btdbma(aglob,aloca,bmatr,n1,n2)
+  !-----------------------------------------------------------------------
+  !                                      
+  ! This routine computes Ag = Bt Al B  when Ag and Al are stored as full
+  ! matrices (Ag := aglob, Al := aloca, B := bmatr). The dimensions are
+  ! Al -> Mat(n1,n1), Ag -> Mat(n2,n2), B -> Mat(n2,n1) 
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  integer(ip), intent(in)  :: n1,n2
+  real(rp)   , intent(in)  :: aloca(n1,n1), bmatr(n1,n2)
+  real(rp)   , intent(out) :: aglob(n2,n2)
+  integer(ip)              :: i,j,k,l
+
+  do i=1,n2
+     do j=1,n2
+        aglob(i,j)=0.0
+        do k=1,n1
+           do l=1,n1
+              aglob(i,j)=aglob(i,j)+bmatr(k,i)*aloca(k,l)*bmatr(l,j)
+           end do
+        end do
+     end do
+  end do
+
+end subroutine btdbma
