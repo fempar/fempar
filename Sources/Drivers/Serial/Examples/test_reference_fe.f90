@@ -527,7 +527,7 @@ program test_reference_fe
      reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad, &
                                                      fe_type = fe_type_lagrangian, &
                                                      number_dimensions = 2, &
-                                                     order = 1, & 
+                                                     order = 2, & 
                                                      field_type = field_type_vector, &
                                                      continuity = .true. )
      
