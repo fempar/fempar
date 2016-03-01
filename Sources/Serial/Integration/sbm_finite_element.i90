@@ -306,10 +306,10 @@ function finite_element_get_order ( this, i )
   finite_element_get_order = this%reference_fe_phy(i)%p%get_order()
 end function finite_element_get_order
 
-function finite_element_get_volume ( this )
+function finite_element_compute_volume ( this )
   implicit none
   class(finite_element_t), intent(in) :: this
-  real(rp)                            :: finite_element_get_volume
+  real(rp)                            :: finite_element_compute_volume
   integer(ip)                 :: qpoin,number_quadrature_points
   type(quadrature_t), pointer :: quad
   type(fe_map_t)    , pointer :: fe_map
@@ -317,12 +317,12 @@ function finite_element_get_volume ( this )
   quad   => this%get_quadrature()
   fe_map => this%get_fe_map()
   number_quadrature_points = quad%get_number_quadrature_points()
-  finite_element_get_volume = 0.0_rp
+  finite_element_compute_volume = 0.0_rp
   do qpoin = 1, number_quadrature_points
-     finite_element_get_volume = finite_element_get_volume + &
-          &                      fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
+     finite_element_compute_volume = finite_element_compute_volume + &
+          &                          fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
   end do
-end function finite_element_get_volume
+end function finite_element_compute_volume
 
 !**************************************************************************************************
 ! Update methods for fe_function_scalar/vector/tensor_t

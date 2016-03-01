@@ -379,7 +379,7 @@ function fe_map_compute_h ( this, qpoin)
   real(rp)    :: inverse_h(number_space_dimensions), volumetric_h
   integer(ip) :: i,j
 
-  assert( qpoin <= this%number_quadrature_points)
+  assert( qpoin>=1 .and. qpoin <= this%number_quadrature_points)
 
   inverse_h = 0.0_rp
   do idime = 1, this%number_dimensions
@@ -409,7 +409,7 @@ function fe_map_compute_h_min ( this, qpoin)
   real(rp)    :: inverse_h(number_space_dimensions), minimum_h
   integer(ip) :: i,j
 
-  assert( qpoin <= this%number_quadrature_points)
+  assert( qpoin>=1 .and. qpoin <= this%number_quadrature_points)
 
   inverse_h = 0.0_rp
   do idime = 1, this%number_dimensions
@@ -437,7 +437,7 @@ function fe_map_compute_h_max ( this, qpoin)
   real(rp)    :: inverse_h(number_space_dimensions), maximum_h
   integer(ip) :: i,j
 
-  assert( qpoin <= this%number_quadrature_points)
+  assert( qpoin>=1 .and. qpoin <= this%number_quadrature_points)
 
   inverse_h = 0.0_rp
   do idime = 1, this%number_dimensions
@@ -474,8 +474,8 @@ subroutine fe_map_get_inv_jacobian_tensor ( this, qpoin, inv_jacobian )
   integer(ip) :: idime,jdime
 
   call inv_jacobian%init(0.0_rp)
-  do idime = 1, this%number_dimensions
-     do jdime = 1,  this%number_dimensions
+  do jdime = 1, this%number_dimensions
+     do idime = 1,  this%number_dimensions
         call inv_jacobian%set(idime,jdime,this%inv_jacobian(idime,jdime,qpoin))
      end do
   end do
@@ -490,11 +490,15 @@ function fe_map_apply_inv_jacobian ( this, qpoin, v_in ) result ( v_out )
   type(vector_field_t), intent(inout) :: v_in
   type(vector_field_t) :: v_out
   integer(ip)          :: idime,jdime
+  real(rp)             :: vector_value
+
+  assert( qpoin>=1 .and. qpoin <= this%number_quadrature_points)
 
   call v_out%init(0.0_rp)
-  do idime = 1, this%number_dimensions
-     do jdime = 1,  this%number_dimensions
-        call v_out%add(idime, this%inv_jacobian(idime,jdime,qpoin)*v_in%get(jdime))
+  do jdime = 1, this%number_dimensions
+     vector_value = v_in%get(jdime)
+     do idime = 1,  this%number_dimensions
+        call v_out%add(idime, this%inv_jacobian(idime,jdime,qpoin)*vector_value)
      end do
   end do  
 

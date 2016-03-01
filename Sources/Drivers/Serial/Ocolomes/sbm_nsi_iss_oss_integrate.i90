@@ -284,11 +284,13 @@ end subroutine integrate
 !====================================================================================================
 subroutine allocate_stabilization_parameters(number_quadrature_points,tau_m,tau_c)
   implicit none
-  integer(ip)          , intent(in)  :: number_quadrature_points
-  real(rp), allocatable, intent(out) :: tau_m(:)
-  real(rp), allocatable, intent(out) :: tau_c(:)
+  integer(ip)          , intent(in)    :: number_quadrature_points
+  real(rp), allocatable, intent(inout) :: tau_m(:)
+  real(rp), allocatable, intent(inout) :: tau_c(:)
 
   ! Allocate $\tau_m$ and $\tau_c$
+  if(allocated(tau_m)) call memfree(tau_m,__FILE__,__LINE__)
+  if(allocated(tau_c)) call memfree(tau_c,__FILE__,__LINE__)
   call memalloc(number_quadrature_points,tau_m,__FILE__,__LINE__)
   call memalloc(number_quadrature_points,tau_c,__FILE__,__LINE__)
 
@@ -415,8 +417,8 @@ subroutine compute_characteristic_length(this,fe_map,mean_velocity_vector,veloci
   end if
 
   ! Divide by p**2
-  h_vol  = h_vol/real(velocity_order**2)
-  h_flow = h_flow/real(velocity_order**2)  
+  h_vol  = h_vol/real(velocity_order**2,rp)
+  h_flow = h_flow/real(velocity_order**2,rp)  
   
 end subroutine compute_characteristic_length
 
@@ -438,7 +440,7 @@ subroutine compute_mean_elemental_velocity(this,fe,fe_velocity,mean_velocity_vec
   ! Getters
   fe_map => fe%get_fe_map()
   quad   => fe%get_quadrature()
-  volume =  fe%get_volume()
+  volume =  fe%compute_volume()
   number_quadrature_points = quad%get_number_quadrature_points()
   number_dimensions        = quad%get_number_dimensions()
 
