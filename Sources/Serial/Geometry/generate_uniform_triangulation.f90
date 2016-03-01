@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module generate_uniform_triangulation_names
   use types_names
+  use memor_names
   use reference_fe_names
   use conditions_names
   use triangulation_names

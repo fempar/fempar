@@ -1,3 +1,30 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module reference_fe_names
   use allocatable_array_ip1_names
   use field_names
@@ -114,10 +141,10 @@ module reference_fe_names
      real(rp), allocatable    :: det_jacobian(:)  
      ! Map's 2nd derivatives (number_dime,number_dime,number_dime,number_evaluation_points)         
      real(rp), allocatable    :: d2sdx(:,:,:,:)     
-     ! Coordinates of evaluation points (number_dimensions,number_evaluation_points)       
-     real(rp), allocatable    :: coordinates_points(:,:)  
+     ! Coordinates of git  points (number_dimensions,number_evaluation_points)       
+     type(point_t), allocatable    :: coordinates_quadrature(:)  
      ! Coordinates of evaluation points (number_dimensions,number_corners of element/face)  
-     real(rp), allocatable    :: coordinates(:,:)  
+     type(point_t), allocatable    :: coordinates_vertices(:)  
      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
      real(rp), allocatable    :: normals(:,:)  
      ! Geometry interpolation_t in the reference element domain    
