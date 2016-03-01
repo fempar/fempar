@@ -1,0 +1,79 @@
+!==================================================================================================
+subroutine set_default_params(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), intent(inout) :: this
+
+  ! IO parameters
+  this%default_dir_path     = 'data'
+  this%default_prefix       = 'test'
+  this%default_dir_path_out = 'output'
+
+  ! Mesh
+  this%default_structured_mesh = '.false.'
+  
+  ! FE space
+  this%default_velocity_order = '2'
+  this%default_pressure_order = '1'
+
+  ! Problem
+  this%default_viscosity             = '1.0'
+  this%default_c1                    = '12.0'
+  this%default_c2                    = '4.0'
+  this%default_cc                    = '1.0'
+  this%default_elemental_length_flag = '0'
+  this%default_convection_activated  = '.true.'
+
+end subroutine set_default_params
+
+!==================================================================================================
+subroutine add_params_to_cli(this,cli,group)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in)    :: this
+  type(Type_Command_Line_Interface), intent(inout) :: cli
+  character(*)                     , intent(in)    :: group
+  ! Locals
+  integer(ip) :: error
+
+  ! IO parameters
+  call cli%add(group=trim(group),switch='--dir_path',switch_ab='-pwd_in',                           &
+       &       help='Directory of the source files',required=.false., act='store',                  &
+       &       def=trim(this%default_dir_path),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--prefix',switch_ab='-prf',help='Prefix',required=.false., &
+       &       act='store',def=trim(this%default_prefix),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--dir_path_out',switch_ab='-pwd_out',                      &
+       &       help='Output Directory',required=.false.,act='store',                                &
+       &       def=trim(this%default_dir_path_out),error=error); check(error==0)
+
+  ! Mesh
+  call cli%add(group=trim(group),switch='--structured_mesh',switch_ab='-str',                       &
+       &       help='Structured mesh (.true., .false.)',required=.false., act='store',              &
+       &       def=trim(this%default_structured_mesh),error=error); check(error==0)
+
+  ! FE space
+  call cli%add(group=trim(group),switch='--velocity_order',switch_ab='-vo',                         &
+       &       help='Velocity interpolation order',required=.false., act='store',                   &
+       &       def=trim(this%default_velocity_order),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--pressure_order',switch_ab='-po',                         &
+       &       help='Pressure interpolation order',required=.false., act='store',                   &
+       &       def=trim(this%default_pressure_order),error=error); check(error==0)
+
+
+  ! Problem6
+  call cli%add(group=trim(group),switch='--viscosity',switch_ab='-nu',help='Viscosity',             &
+       &       required=.false., act='store',def=trim(this%default_viscosity),error=error) 
+  check(error==0)
+  call cli%add(group=trim(group),switch='--c1',switch_ab='-c1',help='c1 stabilization constant',    &
+       &       required=.false., act='store',def=trim(this%default_c1),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--c2',switch_ab='-c2',help='c2 stabilization constant',    &
+       &       required=.false., act='store',def=trim(this%default_c2),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--cc',switch_ab='-cc',help='cc stabilization constant',    &
+       &       required=.false., act='store',def=trim(this%default_cc),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--elemental_length',switch_ab='-h_flg',                    &
+       &       help='Elemental length computation (0: standard, 1: minimum, 2: maximum)',           &
+       &       required=.false., choices='0,1,2',act='store',                                       &
+       &       def=trim(this%default_elemental_length_flag),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--convection',switch_ab='-cnv',                            &
+       &       help='Activate convection',required=.false., act='store',                            &
+       &       def=trim(this%default_convection_activated),error=error); check(error==0)  
+
+end subroutine add_params_to_cli
