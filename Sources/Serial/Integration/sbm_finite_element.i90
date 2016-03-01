@@ -311,16 +311,13 @@ function finite_element_compute_volume ( this )
   class(finite_element_t), intent(in) :: this
   real(rp)                            :: finite_element_compute_volume
   integer(ip)                 :: qpoin,number_quadrature_points
-  type(quadrature_t), pointer :: quad
-  type(fe_map_t)    , pointer :: fe_map
-    
-  quad   => this%get_quadrature()
-  fe_map => this%get_fe_map()
-  number_quadrature_points = quad%get_number_quadrature_points()
+
+  number_quadrature_points = this%quadrature%get_number_quadrature_points()
   finite_element_compute_volume = 0.0_rp
   do qpoin = 1, number_quadrature_points
      finite_element_compute_volume = finite_element_compute_volume + &
-          &                          fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
+          &                          this%fe_map%get_det_jacobian(qpoin) * &
+          &                          this%quadrature%get_weight(qpoin)
   end do
 end function finite_element_compute_volume
 

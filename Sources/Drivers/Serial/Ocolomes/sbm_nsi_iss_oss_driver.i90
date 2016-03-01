@@ -139,7 +139,7 @@
   !----------------!
   ! NONLINEAR LOOP !
   !----------------!
-  nonlinear_tolerance      = 1.0e-12_rp
+  nonlinear_tolerance      = 1.0e-10_rp
   max_nonlinear_iterations = 2
   residual_norm            = 1.0_rp
   counter                  = 0

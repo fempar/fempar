@@ -289,8 +289,7 @@ subroutine allocate_stabilization_parameters(number_quadrature_points,tau_m,tau_
   real(rp), allocatable, intent(inout) :: tau_c(:)
 
   ! Allocate $\tau_m$ and $\tau_c$
-  if(allocated(tau_m)) call memfree(tau_m,__FILE__,__LINE__)
-  if(allocated(tau_c)) call memfree(tau_c,__FILE__,__LINE__)
+  call deallocate_stabilization_parameters(tau_m,tau_c)
   call memalloc(number_quadrature_points,tau_m,__FILE__,__LINE__)
   call memalloc(number_quadrature_points,tau_c,__FILE__,__LINE__)
 
@@ -303,8 +302,8 @@ subroutine deallocate_stabilization_parameters(tau_m,tau_c)
   real(rp), allocatable, intent(inout) :: tau_c(:)
 
   ! Dellocate $\tau_m$ and $\tau_c$
-  call memfree(tau_m,__FILE__,__LINE__)
-  call memfree(tau_c,__FILE__,__LINE__)
+  if(allocated(tau_m)) call memfree(tau_m,__FILE__,__LINE__)
+  if(allocated(tau_c)) call memfree(tau_c,__FILE__,__LINE__)
 
 end subroutine deallocate_stabilization_parameters
 
