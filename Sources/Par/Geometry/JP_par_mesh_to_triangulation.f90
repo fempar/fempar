@@ -38,6 +38,7 @@ module JP_par_mesh_to_triangulation_names
   use JP_element_topology_names
   use JP_mesh_to_triangulation_names
   use psi_penv_mod_names
+  use list_types_names
 
   ! Parallel modules
   use par_element_topology_names
@@ -78,6 +79,7 @@ contains
     class(migratory_element_t)  , pointer :: migratory_elements(:) => NULL()
     type(par_element_topology_t), pointer :: elements(:) => NULL()
     type(par_vef_topology_t)    , pointer :: vefs(:)     => NULL()
+    type(list_t), pointer :: vertices_vef
 
     !class(par_element_topology_t), pointer     :: elem, neighbor
     !class(element_id_t)          , allocatable :: elem_id
@@ -198,7 +200,7 @@ contains
           ! Step 1: Put LID of vertices in the ghost elements (f_mesh_dist)
           ilele = p_gmesh%f_mesh_dist%lebou(ielem) ! local ID element
           ! aux : array of ilele (LID) vertices in GID
-          nvert  = elements(ilele)%geo_reference_element%nvef_dim(2)-1
+          nvert  = elements(ilele)%geo_reference_element%get_number_vertices()
           call memalloc( nvert, aux_igp, __FILE__, __LINE__  )
           do iobj = 1, nvert                        ! vertices only
              aux_igp(iobj) = elements(ilele)%vefs_GIDs(iobj) ! extract GIDs vertices
@@ -206,7 +208,7 @@ contains
           do jelem = p_gmesh%f_mesh_dist%pextn(ielem), & 
                p_gmesh%f_mesh_dist%pextn(ielem+1)-1  ! external neighbor elements
              call hash%get(key = p_gmesh%f_mesh_dist%lextn(jelem), val=jlele, stat=istat) ! LID external element
-             do jobj = 1, elements(jlele)%geo_reference_element%nvef_dim(2)-1 ! vertices external 
+             do jobj = 1, elements(jlele)%geo_reference_element%get_number_vertices()
                 if ( elements(jlele)%vefs(jobj) == -1) then
                    do iobj = 1, nvert
                       if ( aux_igp(iobj) == elements(jlele)%vefs_GIDs(jobj) ) then
@@ -226,29 +228,28 @@ contains
           do jelem = p_gmesh%f_mesh_dist%pextn(ielem), &
                p_gmesh%f_mesh_dist%pextn(ielem+1)-1  ! external neighbor elements
              call hash%get(key = p_gmesh%f_mesh_dist%lextn(jelem), val=jlele, stat=istat) ! LID external element
+             vertices_vef => elements(jlele)%geo_reference_element%get_vertices_vef()
+
              ! loop over all efs of external elements
              do idime =2,p_trian%num_dims
-                do iobj = elements(jlele)%geo_reference_element%nvef_dim(idime), &
-                     elements(jlele)%geo_reference_element%nvef_dim(idime+1)-1 
+                do iobj = elements(jlele)%geo_reference_element%get_first_vef_id_of_dimension(idime-1), &
+                     elements(jlele)%geo_reference_element%get_first_vef_id_of_dimension(idime-1)-1 
                    if ( elements(jlele)%vefs(iobj) == -1) then ! efs not assigned yet
                       count = 1
                       ! loop over vertices of every ef
-                      do jobj = elements(jlele)%geo_reference_element%crxob%p(iobj), &
-                           elements(jlele)%geo_reference_element%crxob%p(iobj+1)-1    
-                         ivere = elements(jlele)%geo_reference_element%crxob%l(jobj)
+                      do jobj = vertices_vef%p(iobj), vertices_vef%p(iobj+1)-1    
+                         ivere = vertices_vef%l(jobj)
                          if (elements(jlele)%vefs(ivere) == -1) then
                             count = 0 ! not an vef of the local triangulation
                             exit
                          end if
                       end do
                       if (count == 1) then
-                         nvert = elements(jlele)%geo_reference_element%crxob%p(iobj+1)- &
-                              elements(jlele)%geo_reference_element%crxob%p(iobj)
+                         nvert = vertices_vef%p(iobj+1) - vertices_vef%p(iobj)
                          call memalloc( nvert, aux, __FILE__, __LINE__)
                          count = 1
-                         do jobj = elements(jlele)%geo_reference_element%crxob%p(iobj), &
-                              elements(jlele)%geo_reference_element%crxob%p(iobj+1)-1 
-                            ivere = elements(jlele)%geo_reference_element%crxob%l(jobj)
+                         do jobj = vertices_vef%p(iobj), vertices_vef%p(iobj+1)-1 
+                            ivere = vertices_vef%l(jobj)
                             aux(count) = elements(jlele)%vefs(ivere)
                             count = count+1
                          end do
@@ -299,8 +300,8 @@ contains
              do jelem = 1,vefs(iobj)%num_elems_around
                 jlele = vefs(iobj)%elems_around(jelem)%get_index()
 
-                do jobj = elements(jlele)%geo_reference_element%nvef_dim(idime), &
-                     & elements(jlele)%geo_reference_element%nvef_dim(idime+1)-1 ! efs of neighbor els
+                do jobj = elements(jlele)%geo_reference_element%get_first_vef_id_of_dimension(idime-1), &
+                     & elements(jlele)%geo_reference_element%get_first_vef_id_of_dimension(idime)-1 ! efs of neighbor els
                    if ( elements(jlele)%vefs(jobj) == iobj ) then
                       if ( iobjg == -1 ) then 
                          iobjg  = elements(jlele)%vefs_GIDs(jobj)
@@ -316,8 +317,8 @@ contains
 
              do jelem = 1,vefs(iobj)%num_elems_around
                 jlele = vefs(iobj)%elems_around(jelem)%get_index()
-                do jobj = elements(jlele)%geo_reference_element%nvef_dim(idime), &
-                     & elements(jlele)%geo_reference_element%nvef_dim(idime+1)-1 ! efs of neighbor els
+                do jobj = elements(jlele)%geo_reference_element%get_first_vef_id_of_dimension(idime-1), &
+                     & elements(jlele)%geo_reference_element%get_first_vef_id_of_dimension(idime)-1 ! efs of neighbor els
                    if ( elements(jlele)%vefs(jobj) == iobj) then
                       elements(jlele)%vefs_GIDs(jobj) = iobjg
                       exit

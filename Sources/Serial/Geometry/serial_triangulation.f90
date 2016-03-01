@@ -30,7 +30,7 @@ module serial_triangulation_names
   use memor_names
   use element_id_names
   use migratory_element_names
-  use fe_space_types_names
+  !use fe_space_types_names
   use hash_table_names  
   use JP_element_topology_names
   use JP_triangulation_names

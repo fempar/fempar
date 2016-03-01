@@ -28,10 +28,10 @@
 module JP_element_topology_names
   use types_names
   use memor_names
-  use fe_space_types_names
+  use list_types_names
   use element_id_names
   use migratory_element_names
-  !use hash_table_names  
+  use reference_fe_names
   implicit none
   private
 # include "debug.i90"
@@ -56,7 +56,7 @@ module JP_element_topology_names
      integer(ip), allocatable  :: vefs(:)          ! List of Local IDs of the vefs (vertices, edges, faces) that make up this element
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: order
-     type(reference_element_t), pointer :: geo_reference_element => NULL() ! Topological info of the geometry (SBmod)
+     class(reference_fe_t), pointer :: geo_reference_element => NULL() ! Topological info of the geometry (SBmod)
    contains
      procedure :: create => element_topology_create
      procedure :: free   => element_topology_free
@@ -156,21 +156,55 @@ contains
   end function downcast_to_element_topology
 
  !=============================================================================
-  subroutine local_id_from_vertices( e, nd, list, no, lid ) ! (SBmod)
+  !subroutine local_id_from_vertices( e, nd, list, no, lid ) ! (SBmod)
+  !  implicit none
+  !  class(JP_element_topology_t), intent(in) :: e
+  !  integer(ip), intent(in)  :: nd, list(:), no
+  !  integer(ip), intent(out) :: lid
+  !  ! Locals
+  !  integer(ip)              :: first, last, io, iv, jv, ivl, c
+  !  lid = -1
+
+  !  do io = e%geo_reference_element%nvef_dim(nd), e%geo_reference_element%nvef_dim(nd+1)-1
+  !     first =  e%geo_reference_element%crxob%p(io)
+  !     last = e%geo_reference_element%crxob%p(io+1) -1
+  !     if ( last - first + 1  == no ) then 
+  !        do iv = first,last
+  !           ivl = e%vefs(e%geo_reference_element%crxob%l(iv)) ! LID of vertices of the ef
+  !           c = 0
+  !           do jv = 1,no
+  !              if ( ivl ==  list(jv) ) then
+  !                 c  = 1 ! vertex in the external ef
+  !                 exit
+  !              end if
+  !           end do
+  !           if (c == 0) exit
+  !        end do
+  !        if (c == 1) then ! vef in the external element
+  !           lid = e%vefs(io)
+  !           exit
+  !        end if
+  !     end if
+  !  end do
+  !end subroutine local_id_from_vertices
+
+   subroutine local_id_from_vertices( e, nd, list, no, lid ) ! (SBmod)
     implicit none
     class(JP_element_topology_t), intent(in) :: e
     integer(ip), intent(in)  :: nd, list(:), no
     integer(ip), intent(out) :: lid
     ! Locals
     integer(ip)              :: first, last, io, iv, jv, ivl, c
+    type(list_t), pointer :: vertices_vef
+    
+    vertices_vef => e%geo_reference_element%get_vertices_vef()
     lid = -1
-
-    do io = e%geo_reference_element%nvef_dim(nd), e%geo_reference_element%nvef_dim(nd+1)-1
-       first =  e%geo_reference_element%crxob%p(io)
-       last = e%geo_reference_element%crxob%p(io+1) -1
+    do io = e%geo_reference_element%get_first_vef_id_of_dimension(nd-1), e%geo_reference_element%get_first_vef_id_of_dimension(nd)-1
+       first =  vertices_vef%p(io)
+       last = vertices_vef%p(io+1) -1
        if ( last - first + 1  == no ) then 
           do iv = first,last
-             ivl = e%vefs(e%geo_reference_element%crxob%l(iv)) ! LID of vertices of the ef
+             ivl = e%vefs(vertices_vef%l(iv)) ! LID of vertices of the ef
              c = 0
              do jv = 1,no
                 if ( ivl ==  list(jv) ) then
@@ -188,6 +222,7 @@ contains
     end do
   end subroutine local_id_from_vertices
 
+  
  !=============================================================================
  ! To be eliminated
  !=============================================================================

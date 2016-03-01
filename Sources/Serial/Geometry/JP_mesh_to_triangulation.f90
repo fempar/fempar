@@ -32,7 +32,7 @@ module JP_mesh_to_triangulation_names
   use JP_triangulation_names
   use serial_triangulation_names
   use JP_element_topology_names
-  use fe_space_types_names
+  !use fe_space_types_names
   use generate_vefs_mesh_conditions_names
   use conditions_names
 

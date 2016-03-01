@@ -137,7 +137,7 @@ program par_test_triangulations
   call par_conditions_read (dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
 
   ! Generate efs and its boundary conditions
-  call generate_efs(p_mesh%f_mesh, p_cond%f_conditions)
+  !call generate_efs(p_mesh%f_mesh, p_cond%f_conditions)
 
   ! Construct triangulation
   call JP_par_mesh_to_triangulation ( p_mesh, p_trian)

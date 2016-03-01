@@ -28,11 +28,11 @@
 module JP_triangulation_names
   use types_names
   use memor_names
-  use fe_space_types_names
   use element_id_names
   use JP_element_topology_names
   use migratory_element_names
   use hash_table_names  
+  use reference_fe_names
   implicit none
   private
 # include "debug.i90"
@@ -78,8 +78,9 @@ module JP_triangulation_names
      class(migratory_element_set_t)     , allocatable :: element_set
      class(migratory_element_iterator_t), allocatable :: element_iterator
      class(vef_topology_t)              , allocatable :: vefs(:) ! array of vefs in the mesh.
-     type (position_hash_table_t)           :: pos_elem_info     ! Topological info hash table (SBmod)
-     type (reference_element_t)             :: reference_elements(max_elinf) ! List of topological info's
+     
+     type(position_hash_table_t)            :: reference_fe_geo_type
+     type(p_reference_fe_t)                 :: reference_fe_geo_list(3)
      integer(ip)                            :: num_boundary_faces ! Number of faces in the boundary 
      integer(ip), allocatable               :: lst_boundary_faces(:) ! List of faces LIDs in the boundary
    contains
@@ -173,7 +174,7 @@ contains
     end do
 
     ! Initialization of element fixed info parameters (SBmod)
-    call trian%pos_elem_info%init(ht_length)
+    call trian%reference_fe_geo_type%init(3)
 
     trian%state = JP_triangulation_created
 
@@ -212,8 +213,9 @@ contains
        end do
 
        ! Deallocate reference elements
-       do iobj = 1,trian%pos_elem_info%last()
-          call reference_element_free (trian%reference_elements(iobj))
+       do iobj = 1,trian%reference_fe_geo_type%last()
+          !call reference_element_free (trian%reference_elements(iobj))
+          call trian%reference_fe_geo_list(iobj)%free
        end do
 
        trian%state = JP_triangulation_created
@@ -225,7 +227,7 @@ contains
        ! Free iterator using the virtual function
        call trian%free_element_iterator()
 
-       call trian%pos_elem_info%free
+       call trian%reference_fe_geo_type%free
 
        trian%num_vefs = -1
        trian%num_elems = -1
@@ -295,9 +297,7 @@ contains
       do while(.not.element_iterator%finished())
          elem => downcast_to_element_topology( element_iterator%current() )
          call element_iterator%get_id(elem_id)
-         do idime =1, trian%num_dims
-            do iobj = elem%geo_reference_element%nvef_dim(idime), &
-                 elem%geo_reference_element%nvef_dim(idime+1)-1 
+            do iobj = 1, elem%num_vefs
                jobj = elem%vefs(iobj)
                if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
                   trian%vefs(jobj)%dimension = idime-1
@@ -309,7 +309,6 @@ contains
                   elems_around_pos(jobj) = elems_around_pos(jobj) + 1 
                end if
             end do
-         end do
          call element_iterator%next()
       end do
       call element_iterator%free_id(elem_id)
@@ -363,30 +362,30 @@ contains
        ndime = trian%num_dims
 
        ! Variable values depending of the element ndime
-       etype = 0
-       if(ndime == 2) then       ! 2D
-          if(nvef == 6) then     ! Linear triangles (P1)
-             etype = P_type_id
-          elseif(nvef == 8) then ! Linear quads (Q1)
-             etype = Q_type_id
-          end if
-       elseif(ndime == 3) then    ! 3D
-          if(nvef == 14) then     ! Linear tetrahedra (P1)
-             etype = P_type_id
-          elseif(nvef == 26) then ! Linear hexahedra (Q1)
-             etype = Q_type_id
-          end if
-       end if
-       assert( etype /= 0 )
+       !etype = 0
+       !if(ndime == 2) then       ! 2D
+       !   if(nvef == 6) then     ! Linear triangles (P1)
+       !      etype = P_type_id
+       !   elseif(nvef == 8) then ! Linear quads (Q1)
+       !      etype = Q_type_id
+       !   end if
+       !elseif(ndime == 3) then    ! 3D
+       !   if(nvef == 14) then     ! Linear tetrahedra (P1)
+       !      etype = P_type_id
+       !   elseif(nvef == 26) then ! Linear hexahedra (Q1)
+       !      etype = Q_type_id
+       !   end if
+       !end if
+       !assert( etype /= 0 )
 
        ! Assign pointer to topological information
-       v_key = ndime + (max_ndime+1)*etype + (max_ndime+1)*(max_FE_types+1)
-       call trian%pos_elem_info%get(key=v_key,val=pos_elinf,stat=istat)
-       if ( istat == new_index) then
-          ! Create fixed info if not constructed
-          call reference_element_create(trian%reference_elements(pos_elinf),etype,1,ndime)
-       end if
-       elem%geo_reference_element => trian%reference_elements(pos_elinf)
+       !v_key = ndime + (max_ndime+1)*etype + (max_ndime+1)*(max_FE_types+1)
+       !call trian%reference_fe_geo_type%get(key=v_key,val=pos_elinf,stat=istat)
+       !if ( istat == new_index) then
+       !   ! Create fixed info if not constructed
+       !   call reference_element_create(trian%reference_elements(pos_elinf),etype,1,ndime)
+       !end if
+       !elem%geo_reference_element => trian%reference_elements(pos_elinf)
        call trian%element_iterator%next()
     end do
 
