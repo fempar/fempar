@@ -258,10 +258,18 @@ subroutine serial_fe_space_initialize_quadrature( this, max_order )
   ! Parameters
   class(serial_fe_space_t), intent(inout) :: this  
   integer(ip), optional, intent(in)  :: max_order
-  integer(ip) :: i
+  integer(ip) :: i, max_order_
 
+  if ( present(max_order) ) then
+     max_order_ = max_order
+  else
+     max_order_ = 0
+     do i = 1, this%number_fe_spaces
+        max_order_ = max( max_order_, this%reference_fe_phy_list(i)%p%get_order() )
+     end do
+  end if
   do i = 1, size(this%quadrature)
-     call this%reference_fe_phy_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order )
+     call this%reference_fe_phy_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order_ )
   end do
 end subroutine serial_fe_space_initialize_quadrature
 
@@ -477,7 +485,8 @@ function serial_fe_space_get_max_number_nodes_field( this, ifield )
   integer(ip) :: serial_fe_space_get_max_number_quadrature_points, iquad
   serial_fe_space_get_max_number_quadrature_points = 0
   do iquad = 1, size(this%quadrature)
-     serial_fe_space_get_max_number_quadrature_points = max(this%quadrature(iquad)%p%get_number_evaluation_points(), &
+
+     serial_fe_space_get_max_number_quadrature_points = max(this%quadrature(iquad)%p%get_number_quadrature_points(), &
                                                             serial_fe_space_get_max_number_quadrature_points)
   end do
  end function serial_fe_space_get_max_number_quadrature_points

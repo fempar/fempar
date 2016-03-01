@@ -62,7 +62,7 @@ module reference_fe_names
      private
      integer(ip)           ::   &
           number_dimensions,    &
-          number_evaluation_points
+          number_quadrature_points
      real(rp), allocatable :: &
           coordinates(:,:),   &   
           weight(:)                         
@@ -71,7 +71,7 @@ module reference_fe_names
      procedure, non_overridable :: free   => quadrature_free
      procedure, non_overridable :: print  => quadrature_print
      procedure, non_overridable :: get_number_dimensions => quadrature_get_number_dimensions
-     procedure, non_overridable :: get_number_evaluation_points => quadrature_get_number_evaluation_points
+     procedure, non_overridable :: get_number_quadrature_points => quadrature_get_number_quadrature_points
      procedure, non_overridable :: get_weight => quadrature_get_weight
   end type quadrature_t
 
@@ -91,7 +91,7 @@ module reference_fe_names
      integer(ip)                ::  &
           number_dimensions,        &      
           number_shape_functions,   &      
-          number_evaluation_points, &      
+          number_quadrature_points, &      
           number_entries_symmetric_tensor
      real(rp), allocatable      ::  &
           shape_functions(:,:),     &   
@@ -118,7 +118,7 @@ module reference_fe_names
   type interpolation_face_restriction_t
      private
      integer(ip)                           :: number_shape_functions
-     integer(ip)                           :: number_evaluation_points
+     integer(ip)                           :: number_quadrature_points
      integer(ip)                           :: number_faces
      integer(ip)                           :: active_face_id
      type(interpolation_t), allocatable :: interpolation(:)
@@ -133,15 +133,15 @@ module reference_fe_names
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type fe_map_t
      private
-     ! Map's Jacobian (number_dimensions,number_dimensions,number_evaluation_points)
+     ! Map's Jacobian (number_dimensions,number_dimensions,number_quadrature_points)
      real(rp), allocatable    :: jacobian(:,:,:)    
-     ! Map's Jacobian inverse (number_dimensions,number_dimensions,number_evaluation_points)       
+     ! Map's Jacobian inverse (number_dimensions,number_dimensions,number_quadrature_points)       
      real(rp), allocatable    :: inv_jacobian(:,:,:)     
-     ! Map's Jacobian det (number_evaluation_points)  
+     ! Map's Jacobian det (number_quadrature_points)  
      real(rp), allocatable    :: det_jacobian(:)  
-     ! Map's 2nd derivatives (number_dime,number_dime,number_dime,number_evaluation_points)         
+     ! Map's 2nd derivatives (number_dime,number_dime,number_dime,number_quadrature_points)         
      real(rp), allocatable    :: d2sdx(:,:,:,:)     
-     ! Coordinates of git  points (number_dimensions,number_evaluation_points)       
+     ! Coordinates of git  points (number_dimensions,number_quadrature_points)       
      type(point_t), allocatable    :: coordinates_quadrature(:)  
      ! Coordinates of evaluation points (number_dimensions,number_corners of element/face)  
      type(point_t), allocatable    :: coordinates_vertices(:)  
@@ -151,17 +151,26 @@ module reference_fe_names
      type(interpolation_t) :: interpolation_geometry   
      ! Characteristic length of the reference element
      real(rp)                 :: reference_fe_characteristic_length
+     ! Number of dimensions
+     integer(ip)              :: number_dimensions
+     ! Number of quadrature points
+     integer(ip)              :: number_quadrature_points
    contains
-     procedure, non_overridable :: create           => fe_map_create
-     procedure, non_overridable :: create_on_face   => fe_map_create_on_face
+     procedure, non_overridable :: create                  => fe_map_create
+     procedure, non_overridable :: create_on_face          => fe_map_create_on_face
      procedure, non_overridable :: fe_map_face_map_create  => fe_map_face_map_create
-     procedure, non_overridable :: update           => fe_map_update
-     procedure, non_overridable :: face_map_update  => fe_map_face_map_update
-     procedure, non_overridable :: free             => fe_map_free
-     procedure, non_overridable :: print            => fe_map_print
-     procedure, non_overridable :: get_det_jacobian => fe_map_get_det_jacobian
-     procedure, non_overridable :: compute_h        => fe_map_compute_h
-     procedure, non_overridable :: get_coordinates  => fe_map_get_coordinates
+     procedure, non_overridable :: update                  => fe_map_update
+     procedure, non_overridable :: face_map_update         => fe_map_face_map_update
+     procedure, non_overridable :: free                    => fe_map_free
+     procedure, non_overridable :: print                   => fe_map_print
+     procedure, non_overridable :: get_det_jacobian        => fe_map_get_det_jacobian
+     procedure, non_overridable :: compute_h               => fe_map_compute_h
+     procedure, non_overridable :: compute_h_min           => fe_map_compute_h_min
+     procedure, non_overridable :: compute_h_max           => fe_map_compute_h_max
+     procedure, non_overridable :: get_coordinates         => fe_map_get_coordinates
+     procedure, non_overridable :: get_inv_jacobian_tensor => fe_map_get_inv_jacobian_tensor
+     procedure, non_overridable :: get_reference_h         => fe_map_get_reference_h
+     procedure, non_overridable :: apply_inv_jacobian      => fe_map_apply_inv_jacobian
   end type fe_map_t
 
   type p_fe_map_t
@@ -577,7 +586,7 @@ module reference_fe_names
 type volume_integrator_t 
   private
   integer(ip)                    :: number_shape_functions
-  integer(ip)                    :: number_evaluation_points
+  integer(ip)                    :: number_quadrature_points
   class(reference_fe_t), pointer :: reference_fe
   type(interpolation_t)       :: interpolation      ! Unknown interpolation_t in the reference element domain
   type(interpolation_t)       :: interpolation_o_map! Unknown interpolation_t in the physical element domain
@@ -650,6 +659,7 @@ type face_map_t
    logical                         :: is_boundary
    type(fe_map_t)                  :: face_map
    type(fe_map_face_restriction_t) :: fe_maps(2)
+   integer(ip)                     :: number_dimensions
  contains
    procedure, non_overridable :: create               => face_map_create
    procedure, non_overridable :: free                 => face_map_free
