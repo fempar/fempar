@@ -31,6 +31,7 @@ module triangulation_names
   use hash_table_names  
   use list_types_names
   use reference_fe_names
+  use field_names
   implicit none
 # include "debug.i90"
 
@@ -598,18 +599,26 @@ contains
     implicit none
     ! Parameters
     class(elem_topology_t), intent(in)    :: this
-    real(rp)              , intent(inout) :: elem_topology_coordinates(:,:)
+    type(point_t)        ,  intent(inout) :: elem_topology_coordinates(:)
     
-    elem_topology_coordinates = this%coordinates
+    integer(ip) :: id_vertex, idime
+    
+    do id_vertex=1, this%reference_fe_geo%get_number_vertices()
+      elem_topology_coordinates(id_vertex) = 0.0_rp
+      do idime=1, this%reference_fe_geo%get_number_dimensions()
+        call elem_topology_coordinates(id_vertex)%set(idime,this%coordinates(idime,id_vertex))
+      end do
+    end do
+    
   end subroutine elem_topology_get_coordinates
 
   subroutine face_topology_get_coordinates(this, face_topology_coordinates)
     implicit none
     ! Parameters
     class(face_topology_t), intent(in)    :: this
-    real(rp)              , intent(inout) :: face_topology_coordinates(:,:)
+    type(point_t)        ,  intent(inout) :: face_topology_coordinates(:)
     
-    integer(ip)           :: i, local_vef_id
+    integer(ip)           :: i, idime, local_vef_id
     integer(ip)           :: local_element_corner
     type(list_t)         , pointer :: vertices_vef 
     class(reference_fe_t), pointer :: left_reference_fe_geo
@@ -620,8 +629,12 @@ contains
     vertices_vef => left_reference_fe_geo%get_vertices_vef()
     do i = 1, left_reference_fe_geo%get_number_vertices_per_face()
        local_element_corner = vertices_vef%l(vertices_vef%p(local_vef_id) + i-1)
-       face_topology_coordinates(:,i) = this%neighbour_elems(1)%p%coordinates(:,local_element_corner)
+       face_topology_coordinates(i) = 0.0_rp
+       do idime = 1, left_reference_fe_geo%get_number_dimensions()
+         call face_topology_coordinates(i)%set(idime,this%neighbour_elems(1)%p%coordinates(idime,local_element_corner))
+       end do  
     end do
+    
   end subroutine face_topology_get_coordinates
 
 end module triangulation_names

@@ -1,0 +1,98 @@
+subroutine array_get_component_value_space( this, result, point, component )
+  class(array_function_t), intent(in) :: this
+  type(point_t), intent(in)          :: point
+  integer(ip), intent(in)             :: component
+  real(rp), intent(inout)             :: result
+  ! Error: Function f(x) not implemented 
+  assert( .false. )
+end subroutine array_get_component_value_space
+
+subroutine array_get_component_value_space_time( this, result, point, time, component )
+  class(array_function_t), intent(in) :: this
+  type(point_t), intent(in)          :: point
+  real(rp), intent(in)                :: time
+  integer(ip), intent(in)             :: component
+  real(rp), intent(inout)             :: result
+  ! Error: Function f(x,t) not implemented 
+  assert( .false. )
+end subroutine array_get_component_value_space_time
+
+subroutine array_get_component_values_set_space( this, result, point, component )
+  class(array_function_t), intent(in) :: this
+  type(point_t), intent(in)          :: point(:)
+  integer(ip), intent(in)             :: component
+  real(rp), intent(inout)             :: result(:)
+  integer(ip) :: i, num_points
+  num_points = size(point)
+  do i = 1, num_points
+     call this%get_component_value_space( result(i), point(i), component )
+  end do
+end subroutine array_get_component_values_set_space
+
+subroutine array_get_component_values_set_space_time( this, result, point, time, component )
+  class(array_function_t), intent(in) :: this
+  type(point_t), intent(in)          :: point(:)
+  real(rp), intent(in)                :: time(:)
+  integer(ip), intent(in)             :: component
+  real(rp), intent(inout)             :: result(:,:)
+  integer(ip) :: i, j, num_points, num_time_steps
+  num_points = size(point)
+  num_time_steps = size(time)
+  do j = 1, num_time_steps
+     do i = 1, num_points
+        call this%get_component_value_space_time( result(i,j), point(i), time(j), component )
+     end do
+  end do
+end subroutine array_get_component_values_set_space_time
+
+subroutine array_get_value_space( this, result, point )
+  !import :: point_t, rp
+  class(array_function_t), intent(in) :: this
+  type(point_t), intent(in)          :: point
+  real(rp), intent(inout)             :: result(:)
+  integer(ip) :: i
+  do i = 1, this%number_components
+     call this%get_component_value_space( result(i), point, i )
+  end do
+end subroutine array_get_value_space
+
+subroutine array_get_value_space_time( this, result, point, time )
+  !import :: point_t, rp
+  class(array_function_t), intent(in) :: this
+  type(point_t), intent(in)          :: point
+  real(rp), intent(in)                :: time
+  real(rp), intent(inout)             :: result(:)
+  integer(ip) :: i
+  do i = 1, this%number_components
+     call this%get_component_value_space_time( result(i), point, time, i )
+  end do
+end subroutine array_get_value_space_time
+
+subroutine array_get_values_set_space( this, result, point )
+  !import :: point_t, rp
+  class(array_function_t), intent(in) :: this
+  type(point_t), intent(in)          :: point(:)
+  real(rp), intent(inout)             :: result(:,:)
+  integer(ip) :: i
+  do i = 1, this%number_components
+     call this%get_component_values_set_space( result(i,:), point, i )
+  end do
+end subroutine array_get_values_set_space
+
+subroutine array_get_values_set_space_time( this, result, point, time )
+  !import :: point_t, rp
+  class(array_function_t), intent(in) :: this
+  type(point_t), intent(in)          :: point(:)
+  real(rp), intent(in)                :: time(:)
+  real(rp), intent(inout)             :: result(:,:,:)
+  integer(ip) :: i
+  do i = 1, this%number_components
+     call this%get_component_values_set_space_time( result(i,:,:), point, time, i )
+  end do
+end subroutine array_get_values_set_space_time
+
+subroutine array_set_number_components( this, number_components )
+  class(array_function_t), intent(inout) :: this
+  integer(ip), intent(in)          :: number_components
+  this%number_components = number_components
+end subroutine array_set_number_components
