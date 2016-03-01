@@ -40,7 +40,7 @@ module field_names
      procedure, non_overridable :: init  => scalar_field_init
      procedure, non_overridable :: set   => scalar_field_set
   end type scalar_field_t
-  
+
   type :: vector_field_t
      private
      real(rp) :: value(number_space_dimensions)
@@ -51,7 +51,7 @@ module field_names
      procedure, non_overridable :: add   => vector_field_add
      procedure, non_overridable :: nrm2  => vector_field_nrm2
   end type vector_field_t
-  
+
   type :: tensor_field_t
      private
      real(rp)  :: value(number_space_dimensions,number_space_dimensions)
@@ -69,24 +69,38 @@ module field_names
      procedure, non_overridable :: init  => symmetric_tensor_field_init
      procedure, non_overridable :: set   => symmetric_tensor_field_set					
   end type symmetric_tensor_field_t
-  
+
+  type, extends(vector_field_t) :: point_t
+  end type point_t
+
   interface operator(*)
-    module procedure single_contract_vector_vector, single_contract_tensor_vector, &
-                     single_contract_vector_tensor, single_contract_tensor_tensor
-    module procedure scal_left_vector, scal_right_vector, scal_left_tensor, scal_right_tensor
-    module procedure scal_left_scalar, scal_right_scalar
-  end interface
-  
+     module procedure single_contract_vector_vector, single_contract_tensor_vector, &
+          single_contract_vector_tensor, single_contract_tensor_tensor
+     module procedure scal_left_vector, scal_right_vector, scal_left_tensor, scal_right_tensor
+  end interface operator(*)
+
+  interface operator(*)
+     module procedure scal_left_point, scal_right_point
+  end interface operator(*)
+
+  interface operator(+)
+     module procedure sum_point_point, sum_point_vector, sum_vector_vector
+  end interface operator(+)
+
+  interface assignment(=)
+     module procedure assign_scalar_to_vector, assign_vector_to_point, assign_scalar_to_point
+  end interface assignment(=)
+
   interface double_contract
-    module procedure double_contract_tensor_tensor
-  end interface
-  
+     module procedure double_contract_tensor_tensor
+  end interface double_contract
+
   !public :: scalar_field_t (not actually needed, used real(rp) instead)
-  public :: vector_field_t, tensor_field_t, symmetric_tensor_field_t 
-  public :: operator(*)
+  public :: vector_field_t, tensor_field_t, symmetric_tensor_field_t, point_t 
+  public :: operator(*), operator(+), assignment(=)
   public :: double_contract
 contains
-
+  
   subroutine scalar_field_init(this,value)
     implicit none
     class(scalar_field_t), intent(inout) :: this
@@ -100,7 +114,7 @@ contains
     real(rp)             , intent(in)    :: value
     this%value = value
   end subroutine scalar_field_set
-		
+
   subroutine vector_field_init(this,value)
     implicit none
     class(vector_field_t), intent(inout) :: this
@@ -115,7 +129,7 @@ contains
     real(rp)             , intent(in)    :: value
     this%value(i) = value
   end subroutine vector_field_set
-  
+
   function vector_field_get(this,i) result(value)
     implicit none
     class(vector_field_t), intent(inout) :: this
@@ -123,7 +137,7 @@ contains
     real(rp)                             :: value
     value = this%value(i)
   end function vector_field_get
-  
+
   subroutine vector_field_add(this,i,value)
     implicit none
     class(vector_field_t), intent(inout) :: this
@@ -131,7 +145,7 @@ contains
     real(rp)             , intent(in)    :: value
     this%value(i) = this%value(i) + value
   end subroutine vector_field_add
-  
+
   function vector_field_nrm2(this)
     implicit none
     class(vector_field_t), intent(inout) :: this
@@ -139,7 +153,7 @@ contains
     vector_field_nrm2 = this * this
     vector_field_nrm2 = sqrt(vector_field_nrm2)
   end function vector_field_nrm2
-		
+
   subroutine tensor_field_init(this,value)
     implicit none
     class(tensor_field_t), intent(inout) :: this
@@ -155,7 +169,7 @@ contains
     real(rp)             , intent(in)    :: value
     this%value(i,j) = value
   end subroutine tensor_field_set
-  
+
   function tensor_field_get(this,i,j) result(value)
     implicit none
     class(tensor_field_t), intent(inout) :: this
@@ -164,7 +178,7 @@ contains
     real(rp)                             :: value
     value = this%value(i,j)
   end function tensor_field_get
-  
+
   subroutine tensor_field_add(this,i,j,value)
     implicit none
     class(tensor_field_t), intent(inout) :: this
@@ -172,7 +186,7 @@ contains
     real(rp)             , intent(in)    :: value
     this%value(i,j) = this%value(i,j) + value
   end subroutine tensor_field_add
-		
+
   subroutine symmetric_tensor_field_init(this,value)
     implicit none
     class(symmetric_tensor_field_t), intent(inout) :: this
@@ -198,11 +212,11 @@ contains
     integer(ip) :: k
     res=0.0_rp
     do k=1,number_space_dimensions
-      res = res + v1%value(k)*v2%value(k)
+       res = res + v1%value(k)*v2%value(k)
     end do
-   end function single_contract_vector_vector
-   
-   function single_contract_tensor_vector(t,v) result(res)
+  end function single_contract_vector_vector
+
+  function single_contract_tensor_vector(t,v) result(res)
     implicit none
     type(tensor_field_t), intent(in) :: t
     type(vector_field_t), intent(in) :: v
@@ -210,13 +224,13 @@ contains
     integer(ip) :: i, k
     res%value=0.0_rp
     do k=1,number_space_dimensions
-      do i=1,number_space_dimensions
-        res%value(i) = res%value(i) + t%value(i,k) * v%value(k)
-      end do
+       do i=1,number_space_dimensions
+          res%value(i) = res%value(i) + t%value(i,k) * v%value(k)
+       end do
     end do
-   end function single_contract_tensor_vector
-   
-   function single_contract_vector_tensor(v,t) result(res)
+  end function single_contract_tensor_vector
+
+  function single_contract_vector_tensor(v,t) result(res)
     implicit none
     type(vector_field_t), intent(in) :: v
     type(tensor_field_t), intent(in) :: t
@@ -224,13 +238,13 @@ contains
     integer(ip) :: i, k
     res%value=0.0_rp
     do i=1,number_space_dimensions
-      do k=1,number_space_dimensions
-        res%value(i) = res%value(i) + v%value(k) * t%value(k,i)
-      end do
+       do k=1,number_space_dimensions
+          res%value(i) = res%value(i) + v%value(k) * t%value(k,i)
+       end do
     end do
-   end function single_contract_vector_tensor
-   
-   function single_contract_tensor_tensor(t1,t2) result(res)
+  end function single_contract_vector_tensor
+
+  function single_contract_tensor_tensor(t1,t2) result(res)
     implicit none
     type(tensor_field_t), intent(in) :: t1
     type(tensor_field_t), intent(in) :: t2
@@ -238,63 +252,47 @@ contains
     integer(ip) :: i, j, k
     res%value=0.0_rp
     do i=1,number_space_dimensions
-      do k=1,number_space_dimensions
-        do j=1,number_space_dimensions
-          res%value(i,k) = res%value(i,k) + t1%value(i,j) * t2%value(j,k)
-        end do
-      end do
+       do k=1,number_space_dimensions
+          do j=1,number_space_dimensions
+             res%value(i,k) = res%value(i,k) + t1%value(i,j) * t2%value(j,k)
+          end do
+       end do
     end do
-   end function single_contract_tensor_tensor
-   
-   function scal_left_scalar(alpha,v) result(res)
-    implicit none
-    real(rp)            , intent(in) :: alpha
-    type(scalar_field_t), intent(in) :: v
-    real(rp)                         :: res
-    res = alpha * v%value
-   end function scal_left_scalar
-   
-   function scal_right_scalar(v,alpha) result(res)
-    implicit none
-    type(scalar_field_t), intent(in) :: v
-    real(rp)            , intent(in) :: alpha
-    real(rp)                         :: res
-    res = alpha * v%value
-   end function scal_right_scalar
+  end function single_contract_tensor_tensor
 
-   function scal_left_vector(alpha,v) result(res)
+  function scal_left_vector(alpha,v) result(res)
     implicit none
     real(rp)            , intent(in) :: alpha
     type(vector_field_t), intent(in) :: v
     type(vector_field_t)             :: res
     res%value = alpha * v%value
-   end function scal_left_vector
-   
-   function scal_right_vector(v,alpha) result(res)
+  end function scal_left_vector
+
+  function scal_right_vector(v,alpha) result(res)
     implicit none
     type(vector_field_t), intent(in) :: v
     real(rp)            , intent(in) :: alpha
     type(vector_field_t)             :: res
     res%value = alpha * v%value
-   end function scal_right_vector
-   
-   function scal_left_tensor(alpha,t) result(res)
+  end function scal_right_vector
+
+  function scal_left_tensor(alpha,t) result(res)
     implicit none
     real(rp)            , intent(in) :: alpha
     type(tensor_field_t), intent(in) :: t
     type(tensor_field_t)             :: res
     res%value = alpha * t%value
-   end function scal_left_tensor
-   
-   function scal_right_tensor(t,alpha) result(res)
+  end function scal_left_tensor
+
+  function scal_right_tensor(t,alpha) result(res)
     implicit none
     type(tensor_field_t), intent(in) :: t
     real(rp)            , intent(in) :: alpha
     type(tensor_field_t)             :: res
     res%value = alpha * t%value
-   end function scal_right_tensor
-   
-   function double_contract_tensor_tensor(t1,t2) result(res)
+  end function scal_right_tensor
+
+  function double_contract_tensor_tensor(t1,t2) result(res)
     implicit none
     type(tensor_field_t), intent(in) :: t1
     type(tensor_field_t), intent(in) :: t2
@@ -302,10 +300,72 @@ contains
     integer(ip) :: i, j
     res = 0.0_rp
     do j=1, number_space_dimensions
-      do i=1,number_space_dimensions
-        res = res + t1%value(i,j)*t2%value(i,j)
-      end do
+       do i=1,number_space_dimensions
+          res = res + t1%value(i,j)*t2%value(i,j)
+       end do
     end do
-   end function double_contract_tensor_tensor
-  
+  end function double_contract_tensor_tensor
+
+  function scal_left_point(alpha,v) result(res)
+    implicit none
+    real(rp)            , intent(in) :: alpha
+    type(point_t), intent(in) :: v
+    type(vector_field_t)             :: res
+    res%value = alpha * v%value
+  end function scal_left_point
+
+  function scal_right_point(v,alpha) result(res)
+    implicit none
+    type(point_t), intent(in) :: v
+    real(rp)     , intent(in) :: alpha
+    type(vector_field_t)             :: res
+    res%value = alpha * v%value
+  end function scal_right_point
+
+  function sum_vector_vector ( vector1, vector2) result(vector_sum)
+    implicit none
+    type(vector_field_t), intent(in) :: vector1, vector2
+    type(vector_field_t) :: vector_sum
+
+    vector_sum%value = vector1%value + vector2%value
+  end function sum_vector_vector
+
+  function sum_point_point ( point1, point2) result(point_sum)
+    implicit none
+    type(point_t), intent(in) :: point1, point2
+    type(point_t) :: point_sum
+
+    point_sum%value = point1%value + point2%value
+  end function sum_point_point
+
+  function sum_point_vector ( point, vector) result(vector_sum)
+    implicit none
+    type(point_t), intent(in) :: point
+    type(vector_field_t), intent(in) :: vector
+    type(vector_field_t) :: vector_sum
+
+    vector_sum%value = point%value + vector%value
+  end function sum_point_vector
+
+  subroutine assign_scalar_to_point ( point, scalar )
+    implicit none
+    type(point_t), intent(out) :: point
+    real(rp)     , intent(in)  :: scalar
+    point%value = scalar
+  end subroutine assign_scalar_to_point
+
+  subroutine assign_scalar_to_vector ( vector, scalar )
+    implicit none
+    type(vector_field_t), intent(out) :: vector
+    real(rp)     , intent(in)  :: scalar
+    vector%value = scalar
+  end subroutine assign_scalar_to_vector
+
+  subroutine assign_vector_to_point( point, vector )
+    implicit none
+    type(point_t), intent(out) :: point
+    type(vector_field_t), intent(in) :: vector
+    point%value = vector%value
+  end subroutine assign_vector_to_point
+
 end module field_names

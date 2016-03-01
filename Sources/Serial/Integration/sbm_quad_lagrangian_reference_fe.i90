@@ -295,6 +295,8 @@ subroutine quad_lagrangian_reference_fe_get_curl_vector( this, actual_cell_inter
 
  call vector_field%init(0.0_rp)
 
+ 
+ 
  kdime = this%node_component_array(ishape,2)
  do idime=1,3 
    do jdime = 1,this%number_dimensions

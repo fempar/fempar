@@ -1,0 +1,42 @@
+subroutine vector_get_value_space( this, result, point )
+  !import :: point_t, rp
+  class(vector_function_t), intent(in) :: this
+  class(point_t), intent(in)          :: point
+  type(vector_field_t), intent(inout)             :: result
+  assert( 0 == 0)
+end subroutine vector_get_value_space
+
+subroutine vector_get_value_space_time( this, result, point, time )
+  !import :: point_t, rp
+  class(vector_function_t), intent(in) :: this
+  class(point_t), intent(in)          :: point
+  real(rp), intent(in)                :: time
+  type(vector_field_t), intent(inout)             :: result
+  assert( 0 == 0)
+end subroutine vector_get_value_space_time
+
+subroutine vector_get_values_set_space( this, result, point )
+  !import :: point_t, rp
+  class(vector_function_t), intent(in) :: this
+  class(point_t), intent(in)          :: point(:)
+  type(vector_field_t), intent(inout)             :: result(:)
+  integer(ip) :: i
+  do i = 1, size(point)
+     call this%get_value_space( result(i), point(i) )
+  end do
+end subroutine vector_get_values_set_space
+
+subroutine vector_get_values_set_space_time( this, result, point, time )
+  !import :: point_t, rp
+  class(vector_function_t), intent(in) :: this
+  class(point_t), intent(in)          :: point(:)
+  real(rp), intent(in)                :: time(:)
+  type(vector_field_t), intent(inout)             :: result(:,:)
+  integer(ip) :: i, j
+  do i = 1, size(point)
+     do j = 1, size(time)
+        call this%get_value_space_time( result(i,j), point(i), time(j) )
+     end do
+  end do
+end subroutine vector_get_values_set_space_time
+

@@ -112,7 +112,7 @@ contains
 end module command_line_parameters_names
 
 module heterogeneous_poisson_discrete_integration_names
-  use field_names
+
   use assembler_names
   use serial_fe_space_names
   use discrete_integration_names
