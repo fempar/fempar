@@ -90,4 +90,5 @@ module serial_names
   use discrete_integration_names
   use assembler_names
   use fe_affine_operator_names
+  use function_names
 end module serial_names

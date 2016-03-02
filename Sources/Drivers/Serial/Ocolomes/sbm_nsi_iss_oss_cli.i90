@@ -23,6 +23,16 @@ subroutine set_default_params(this)
   this%default_elemental_length_flag = '0'
   this%default_convection_activated  = '.true.'
 
+  ! Solution
+  this%default_is_analytical          = '.true.'
+  this%default_is_initial             = '.true.'
+  this%default_is_temporal            = '.false.'
+  this%default_analytical_velocity_id = '1'
+  this%default_analytical_pressure_id = '1'
+
+  ! Time integration
+  this%default_initial_time = '0.0'
+
 end subroutine set_default_params
 
 !==================================================================================================
@@ -57,8 +67,7 @@ subroutine add_params_to_cli(this,cli,group)
        &       help='Pressure interpolation order',required=.false., act='store',                   &
        &       def=trim(this%default_pressure_order),error=error); check(error==0)
 
-
-  ! Problem6
+  ! Problem
   call cli%add(group=trim(group),switch='--viscosity',switch_ab='-nu',help='Viscosity',             &
        &       required=.false., act='store',def=trim(this%default_viscosity),error=error) 
   check(error==0)
@@ -75,5 +84,27 @@ subroutine add_params_to_cli(this,cli,group)
   call cli%add(group=trim(group),switch='--convection',switch_ab='-cnv',                            &
        &       help='Activate convection',required=.false., act='store',                            &
        &       def=trim(this%default_convection_activated),error=error); check(error==0)  
+
+  ! Solution
+  call cli%add(group=trim(group),switch='--analytical_solution',switch_ab='-ana',                   &
+       &       help='Is it an analytical solution?',required=.false., act='store',                  &
+       &       def=trim(this%default_is_analytical),error=error); check(error==0)  
+  call cli%add(group=trim(group),switch='--initial_solution',switch_ab='-ini',                      &
+       &       help='Is it an initial solution?',required=.false., act='store',                     &
+       &       def=trim(this%default_is_initial),error=error); check(error==0)  
+  call cli%add(group=trim(group),switch='--temporal_solution',switch_ab='-tmp',                     &
+       &       help='Is it a temporal solution?',required=.false., act='store',                     &
+       &       def=trim(this%default_is_temporal),error=error); check(error==0)  
+  call cli%add(group=trim(group),switch='--analytical_velocity_function',switch_ab='-av',           &
+       &       help='Analytical velocity function identifier',required=.false., act='store',        &
+       &       def=trim(this%default_analytical_velocity_id),error=error); check(error==0)  
+  call cli%add(group=trim(group),switch='--analytical_pressure_function',switch_ab='-ap',           &
+       &       help='Analytical pressure function identifier',required=.false., act='store',        &
+       &       def=trim(this%default_analytical_pressure_id),error=error); check(error==0)  
+
+  ! Time integration
+  call cli%add(group=trim(group),switch='--initial_time',switch_ab='-it',help='Initial time',       &
+       &       required=.false., act='store',def=trim(this%default_initial_time),error=error)
+  check(error==0)  
 
 end subroutine add_params_to_cli

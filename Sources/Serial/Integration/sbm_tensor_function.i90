@@ -1,4 +1,4 @@
-subroutine tensor_get_value_space( this, result, point )
+subroutine tensor_get_value_space( this, point, result )
   !import :: point_t, rp
   class(tensor_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point
@@ -6,7 +6,7 @@ subroutine tensor_get_value_space( this, result, point )
   assert( .false. )
 end subroutine tensor_get_value_space
 
-subroutine tensor_get_value_space_time( this, result, point, time )
+subroutine tensor_get_value_space_time( this, point, time, result )
   !import :: point_t, rp
   class(tensor_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point
@@ -15,7 +15,7 @@ subroutine tensor_get_value_space_time( this, result, point, time )
   assert( .false. )
 end subroutine tensor_get_value_space_time
 
-subroutine tensor_get_values_set_space( this, result, point )
+subroutine tensor_get_values_set_space( this, point, result )
   !import :: point_t, rp
   class(tensor_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point(:)
@@ -23,11 +23,11 @@ subroutine tensor_get_values_set_space( this, result, point )
   integer(ip) :: i, num_points
   num_points = size(point)
   do i = 1, num_points
-     call this%get_value_space( result(i), point(i) )
+     call this%get_value_space( point(i), result(i) )
   end do
 end subroutine tensor_get_values_set_space
 
-subroutine tensor_get_values_set_space_time( this, result, point, time )
+subroutine tensor_get_values_set_space_time( this, point, time, result )
   !import :: point_t, rp
   class(tensor_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point(:)
@@ -38,7 +38,7 @@ subroutine tensor_get_values_set_space_time( this, result, point, time )
   num_time_steps = size(time)
   do j = 1, num_time_steps
      do i = 1, num_points
-        call this%get_value_space_time( result(i,j), point(i), time(j) )
+        call this%get_value_space_time( point(i), time(j), result(i,j) )
      end do
   end do
 end subroutine tensor_get_values_set_space_time

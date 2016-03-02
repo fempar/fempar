@@ -49,10 +49,16 @@ module command_line_parameters_names
      character(len=:), allocatable :: default_cc                   
      character(len=:), allocatable :: default_elemental_length_flag
      character(len=:), allocatable :: default_convection_activated 
+     character(len=:), allocatable :: default_is_analytical
+     character(len=:), allocatable :: default_is_initial
+     character(len=:), allocatable :: default_is_temporal
+     character(len=:), allocatable :: default_analytical_velocity_id
+     character(len=:), allocatable :: default_analytical_pressure_id
+     character(len=:), allocatable :: default_initial_time
    contains
-     procedure :: set_default    => set_default_params
+     procedure, non_overridable :: set_default    => set_default_params
      !procedure :: set_analytical => set_default_analytical_params
-     procedure :: add_to_cli     => add_params_to_cli
+     procedure, non_overridable :: add_to_cli     => add_params_to_cli
   end type test_nsi_iss_oss_params_t
 
   ! Types
@@ -65,12 +71,74 @@ contains
 end module command_line_parameters_names
 
 !***************************************************************************************************!
+! ANALYTICAL FUNCTIONS                                                                              ! 
+! Definition of the analytical functions for the NSI_ISS_OSS problem.                               !
+!***************************************************************************************************!
+module nsi_iss_oss_analytical_functions_names
+  use serial_names
+# include "debug.i90"
+  implicit none
+  private
+
+  type, extends(vector_function_t) :: velocity_function_t
+     integer(ip) :: swich
+   contains
+     procedure, non_overridable :: get_value_space_time => velocity_get_value_space_time
+  end type velocity_function_t
+
+  type, extends(vector_function_t) :: dt_velocity_function_t
+     integer(ip) :: swich
+   contains
+     procedure, non_overridable :: get_value_space_time => dt_velocity_get_value_space_time
+  end type dt_velocity_function_t
+
+  type, extends(tensor_function_t) :: velocity_gradient_function_t
+     integer(ip) :: swich
+   contains
+     procedure, non_overridable :: get_value_space_time => velocity_gradient_get_value_space_time
+  end type velocity_gradient_function_t
+
+  type, extends(vector_function_t) :: velocity_grad_div_function_t
+     integer(ip) :: swich
+   contains
+     procedure, non_overridable :: get_value_space_time => velocity_grad_div_get_value_space_time
+  end type velocity_grad_div_function_t
+
+  type, extends(vector_function_t) :: pressure_gradient_function_t
+     integer(ip) :: swich
+   contains
+     procedure, non_overridable :: get_value_space_time => pressure_gradient_get_value_space_time
+  end type pressure_gradient_function_t
+
+  type nsi_iss_oss_analytical_functions_t
+     type(velocity_function_t)          :: velocity
+     type(dt_velocity_function_t)       :: dt_velocity
+     type(velocity_gradient_function_t) :: velocity_gradient
+     type(velocity_grad_div_function_t) :: velocity_grad_div
+     type(pressure_gradient_function_t) :: pressure_gradient
+     integer(ip)                        :: velocity_function_id
+     integer(ip)                        :: pressure_function_id
+   contains
+     procedure, non_overridable :: initialize_from_cli
+  end type nsi_iss_oss_analytical_functions_t
+
+  ! Types
+  public :: nsi_iss_oss_analytical_functions_t
+
+contains
+
+# include "sbm_nsi_iss_oss_analytical.i90"
+  
+end module nsi_iss_oss_analytical_functions_names
+
+!***************************************************************************************************!
 ! DISCRETE INTEGRATION: NSI_ISS_OSS                                                                 ! 
 ! Navier-Stokes with Inf-Sup stable discretization using Orthogonal Subscales stabilization.        !
 !***************************************************************************************************!
 module nsi_iss_oss_discrete_integration_names
   use serial_names
   use command_line_parameters_names
+  use nsi_iss_oss_analytical_functions_names
 # include "debug.i90"
   implicit none
   private
@@ -80,15 +148,25 @@ module nsi_iss_oss_discrete_integration_names
      real(rp)                 :: c1
      real(rp)                 :: c2
      real(rp)                 :: cc
+     real(rp)                 :: current_time
      integer(ip)              :: elemental_length_flag
      logical                  :: convection_activated
+     logical                  :: is_analytical_solution
+     logical                  :: is_initial_solution
+     logical                  :: is_temporal_solution
      class(vector_t), pointer :: dof_values => NULL() 
+     type(nsi_iss_oss_analytical_functions_t) :: analytical_functions
    contains
      procedure                  :: integrate
      procedure, non_overridable :: initialize_from_cli
      procedure, non_overridable :: compute_stabilization_parameters
      procedure, non_overridable :: compute_characteristic_length
      procedure, non_overridable :: compute_mean_elemental_velocity
+     procedure, non_overridable :: compute_analytical_force
+     procedure, non_overridable :: evaluate_analytical_vector
+     procedure, non_overridable :: evaluate_analytical_tensor
+     procedure, non_overridable :: update_boundary_conditions_analytical
+     generic :: evaluate_analytical => evaluate_analytical_vector, evaluate_analytical_tensor
   end type nsi_iss_oss_discrete_integration_t
 
   integer(ip), parameter :: characteristic_elemental_length = 0
