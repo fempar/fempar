@@ -485,14 +485,12 @@ subroutine quad_lagrangian_reference_fe_fill (this)
   end if
 
   call memalloc( this%number_nodes, 2, this%node_component_array, __FILE__, __LINE__ )
-  call memalloc( this%number_nodes_scalar, this%number_field_components, this%component_to_node_array, __FILE__, __LINE__ )
 
   c = 1
   do i = 1, this%number_field_components
      do j = 1, this%number_nodes_scalar
         this%node_component_array(c,1) = j
         this%node_component_array(c,2) = i   
-        this%component_to_node_array(j,i) = c
         c = c+1
      end do
   end do
@@ -507,9 +505,6 @@ subroutine quad_lagrangian_reference_fe_free ( this )
   ! quad_lagrangian_reference_fe_t variables
   if(allocated(this%node_component_array)) & 
        call memfree(this%node_component_array,__FILE__,__LINE__)
-
-  if(allocated(this%component_to_node_array)) &
-       call memfree( this%component_to_node_array, __FILE__, __LINE__ )
 
   this%number_nodes_scalar = 0
 end subroutine quad_lagrangian_reference_fe_free

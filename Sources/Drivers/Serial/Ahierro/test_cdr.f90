@@ -396,64 +396,63 @@ contains
     call fe%get_number_nodes_per_field( number_nodes_per_field )
 
     ! --------------------------- LOOP OVER THE ELEMENTS -------------------------
-!!$    call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
-!!$    call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
-!!$    
-!!$    call fe_space%initialize_integration()
-!!$    
-!!$    quad  => fe%get_quadrature()
-!!$    ngaus = quad%get_number_evaluation_points()
-!!$    do ielem = 1, fe_space%get_number_elements()
-!!$       write(*,*) __FILE__,__LINE__,ielem,'------------------'
-!!$       elmat = 0.0_rp
-!!$       elvec = 0.0_rp
-!!$
-!!$       fe => fe_space%get_finite_element(ielem)
-!!$       call fe%update_integration()
-!!$       
-!!$       fe_map            => fe%get_fe_map()
-!!$       vol_int_first_fe  => fe%get_volume_integrator(1)
-!!$       vol_int_second_fe => fe%get_volume_integrator(2)
-!!$       elem2dof          => fe%get_elem2dof()
-!!$       bc_code           => fe%get_bc_code()
-!!$       bc_value          => fe%get_bc_value()
-!!$
-!!$       do igaus = 1,ngaus
-!!$          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
-!!$          do inode = 1, number_nodes_per_field(1)
-!!$             call vol_int_first_fe%get_gradient(inode,igaus,grad_trial_scalar)
-!!$             do jnode = 1, number_nodes_per_field(1)
-!!$                call vol_int_first_fe%get_gradient(jnode,igaus,grad_test_scalar)
-!!$                elmat(inode,jnode) = elmat(inode,jnode) + factor *                                  &
-!!$                     &               this%viscosity * grad_test_scalar*grad_trial_scalar
-!!$             end do
-!!$          end do
-!!$
-!!$          do inode = 1, number_nodes_per_field(2)
-!!$             ioffset = number_nodes_per_field(1)+inode
-!!$             call vol_int_second_fe%get_gradient(inode,igaus,grad_trial_vector)
-!!$             do jnode = 1, number_nodes_per_field(2)
-!!$                joffset = number_nodes_per_field(1)+jnode
-!!$                call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_vector)
-!!$               
-!!$                elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor *                        &
-!!$                     &          this%viscosity*double_contract(grad_test_vector,grad_trial_vector)
-!!$             end do
-!!$          end do
-!!$       end do
-!!$       
-!!$       
-!!$       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value,                   &
-!!$            &                                  number_nodes_per_field, number_fe_spaces )
-!!$       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks, &
-!!$            &                   field_coupling, elmat, elvec )      
-!!$    end do
-!!$    ! do inode = 1, number_nodes_per_field(1)
-!!$    !    write(*,*) inode, '+++++'
-!!$    !    write(*,*) elmat(1:4,inode)
-!!$    ! end do
-!!$    call memfree ( elmat, __FILE__, __LINE__ )
-!!$    call memfree ( elvec, __FILE__, __LINE__ )
+    call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
+    call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
+    
+    call fe_space%initialize_integration()
+    
+    quad  => fe%get_quadrature()
+    ngaus = quad%get_number_evaluation_points()
+    do ielem = 1, fe_space%get_number_elements()
+       write(*,*) __FILE__,__LINE__,ielem,'------------------'
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+
+       fe => fe_space%get_finite_element(ielem)
+       call fe%update_integration()
+       
+       fe_map            => fe%get_fe_map()
+       vol_int_first_fe  => fe%get_volume_integrator(1)
+       vol_int_second_fe => fe%get_volume_integrator(2)
+       elem2dof          => fe%get_elem2dof()
+       bc_code           => fe%get_bc_code()
+       bc_value          => fe%get_bc_value()
+
+       do igaus = 1,ngaus
+          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          do inode = 1, number_nodes_per_field(1)
+             call vol_int_first_fe%get_gradient(inode,igaus,grad_trial_scalar)
+             do jnode = 1, number_nodes_per_field(1)
+                call vol_int_first_fe%get_gradient(jnode,igaus,grad_test_scalar)
+                elmat(inode,jnode) = elmat(inode,jnode) + factor *                                  &
+                     &               this%viscosity * grad_test_scalar*grad_trial_scalar
+             end do
+          end do
+
+          do inode = 1, number_nodes_per_field(2)
+             ioffset = number_nodes_per_field(1)+inode
+             call vol_int_second_fe%get_gradient(inode,igaus,grad_trial_vector)
+             do jnode = 1, number_nodes_per_field(2)
+                joffset = number_nodes_per_field(1)+jnode
+                call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_vector)
+               
+                elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor *                        &
+                     &          this%viscosity*double_contract(grad_test_vector,grad_trial_vector)
+             end do
+          end do
+       end do
+      
+       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value,                   &
+            &                                  number_nodes_per_field, number_fe_spaces )
+       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks, &
+            &                   field_coupling, elmat, elvec )      
+    end do
+    ! do inode = 1, number_nodes_per_field(1)
+    !    write(*,*) inode, '+++++'
+    !    write(*,*) elmat(1:4,inode)
+    ! end do
+    call memfree ( elmat, __FILE__, __LINE__ )
+    call memfree ( elvec, __FILE__, __LINE__ )
 
 
     ! --------------------------- LOOP OVER THE FACES -----------------------------
@@ -461,7 +460,6 @@ contains
     call memalloc ( number_nodes, 2,facevec, __FILE__, __LINE__ )
 
     !call fe_space%initialize_face_integration()
-    write(*,*) __FILE__,__LINE__,fe_space%get_number_interior_faces()
     do iface = 1, fe_space%get_number_interior_faces()
 
        facemat = 0.0_rp
@@ -516,61 +514,61 @@ contains
        end do
     end do
 
-!!$    do inode = 1, number_nodes_per_field(j)
-!!$       write(*,*) inode, '-------'
-!!$       write(*,*) facemat(1:4,inode,1,1),  facemat(1:4,inode,2,1)
-!!$    end do
-!!$    do inode = 1, number_nodes_per_field(j)
-!!$       write(*,*) number_nodes_per_field(j)+inode, '-------'
-!!$       write(*,*) facemat(1:4,inode,1,2),  facemat(1:4,inode,2,2)
-!!$    end do
-!!$
-!!$    do iface = fe_space%get_number_interior_faces() + 1, fe_space%get_number_interior_faces() +   &
-!!$         &                                               fe_space%get_number_boundary_faces()
-!!$
-!!$       facemat = 0.0_rp
-!!$       facevec = 0.0_rp
-!!$
-!!$       face => fe_space%get_finite_face(iface)
-!!$       number_neighbours = face%number_neighbours()
-!!$       write(*,*) __FILE__,__LINE__,iface,'------------------'
-!!$       call face%update_integration()
-!!$
-!!$       face_map => face%get_map()
-!!$       quad   => face%get_quadrature()
-!!$       ngaus = quad%get_number_evaluation_points()
-!!$
-!!$       j = 1
-!!$       face_int => face%get_face_integrator(j)
-!!$      
-!!$       do igaus = 1, ngaus
-!!$          call face_map%get_normals(igaus,normal)
-!!$          h_length = face_map%compute_characteristic_length(igaus,number_neighbours)
-!!$          factor = face_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
-!!$          do ineigh = 1, number_neighbours
-!!$             do inode = 1, number_nodes_per_field(j)
-!!$                call face_int%get_value(inode,igaus,ineigh,shape_trial_scalar)
-!!$                call face_int%get_gradient(inode,igaus,ineigh,grad_trial_scalar)
-!!$                do jneigh = 1, number_neighbours
-!!$                   do jnode = 1, number_nodes_per_field(j)
-!!$                      call face_int%get_value(jnode,igaus,jneigh,shape_test_scalar)
-!!$                      call face_int%get_gradient(jnode,igaus,jneigh,grad_test_scalar)
-!!$                      facemat(inode,jnode,ineigh,jneigh) = facemat(inode,jnode,ineigh,jneigh) +     &
-!!$                           &  factor * this%viscosity *   &
-!!$                           &  (-grad_test_scalar*normal(ineigh)*shape_trial_scalar - &
-!!$                           &   grad_trial_scalar*normal(jneigh)*shape_test_scalar  + &
-!!$                           &   this%c_IP / h_length * shape_test_scalar*shape_trial_scalar)
-!!$                   end do
-!!$                end do
-!!$                bcvalue = 1.0_rp
-!!$                facevec(inode,ineigh) = facevec(inode,ineigh) + factor * this%viscosity *           &
-!!$                     &                  (bcvalue * grad_trial_scalar*normal(jneigh) +       &
-!!$                     &                  this%c_IP/h_length * bcvalue * shape_trial_scalar )
-!!$             end do
-!!$          end do
-!!$       end do
-!!$    end do
-!!$ 
+    ! do inode = 1, number_nodes_per_field(j)
+    !    write(*,*) inode, '-------'
+    !    write(*,*) facemat(1:4,inode,1,1),  facemat(1:4,inode,2,1)
+    ! end do
+    ! do inode = 1, number_nodes_per_field(j)
+    !    write(*,*) number_nodes_per_field(j)+inode, '-------'
+    !    write(*,*) facemat(1:4,inode,1,2),  facemat(1:4,inode,2,2)
+    ! end do
+
+    do iface = fe_space%get_number_interior_faces() + 1, fe_space%get_number_interior_faces() +   &
+         &                                               fe_space%get_number_boundary_faces()
+
+       facemat = 0.0_rp
+       facevec = 0.0_rp
+
+       face => fe_space%get_finite_face(iface)
+       number_neighbours = face%number_neighbours()
+       write(*,*) __FILE__,__LINE__,iface,'------------------'
+       call face%update_integration()
+
+       face_map => face%get_map()
+       quad   => face%get_quadrature()
+       ngaus = quad%get_number_evaluation_points()
+
+       j = 1
+       face_int => face%get_face_integrator(j)
+      
+       do igaus = 1, ngaus
+          call face_map%get_normals(igaus,normal)
+          h_length = face_map%compute_characteristic_length(igaus,number_neighbours)
+          factor = face_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          do ineigh = 1, number_neighbours
+             do inode = 1, number_nodes_per_field(j)
+                call face_int%get_value(inode,igaus,ineigh,shape_trial_scalar)
+                call face_int%get_gradient(inode,igaus,ineigh,grad_trial_scalar)
+                do jneigh = 1, number_neighbours
+                   do jnode = 1, number_nodes_per_field(j)
+                      call face_int%get_value(jnode,igaus,jneigh,shape_test_scalar)
+                      call face_int%get_gradient(jnode,igaus,jneigh,grad_test_scalar)
+                      facemat(inode,jnode,ineigh,jneigh) = facemat(inode,jnode,ineigh,jneigh) +     &
+                           &  factor * this%viscosity *   &
+                           &  (-grad_test_scalar*normal(ineigh)*shape_trial_scalar - &
+                           &   grad_trial_scalar*normal(jneigh)*shape_test_scalar  + &
+                           &   this%c_IP / h_length * shape_test_scalar*shape_trial_scalar)
+                   end do
+                end do
+                bcvalue = 1.0_rp
+                facevec(inode,ineigh) = facevec(inode,ineigh) + factor * this%viscosity *           &
+                     &                  (bcvalue * grad_trial_scalar*normal(jneigh) +       &
+                     &                  this%c_IP/h_length * bcvalue * shape_trial_scalar )
+             end do
+          end do
+       end do
+    end do
+ 
     call memfree ( facemat, __FILE__, __LINE__ )
     call memfree ( facevec, __FILE__, __LINE__ )
     ! ----------------------------------------------------------------------------
@@ -733,7 +731,7 @@ contains
            write(*,*) __FILE__,__LINE__
            my_matrix => matrix%blocks(i,i)%sparse_matrix
            write(*,*) __FILE__,__LINE__
-           call my_matrix%print_matrix_market(6)
+           !call my_matrix%print_matrix_market(6)
            write(*,*) __FILE__,__LINE__
         end do
      class default

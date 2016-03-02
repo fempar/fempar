@@ -553,7 +553,6 @@ module reference_fe_names
      private
      integer(ip)              :: number_nodes_scalar
      integer(ip), allocatable :: node_component_array(:,:)
-     integer(ip), allocatable :: component_to_node_array(:,:)
    contains 
      ! Deferred TBP implementors
      procedure :: create                    => quad_lagrangian_reference_fe_create
