@@ -93,9 +93,9 @@ subroutine quad_lagrangian_reference_fe_create_interpolation ( this, quadrature,
   end do
 
   call interpolation%create( this%number_dimensions, this%number_nodes_scalar, &
-                             quadrature%number_evaluation_points, ntens, compute_hessian )
+                             quadrature%number_quadrature_points, ntens, compute_hessian )
 
-  nlocs = int(real(quadrature%number_evaluation_points)**(1.0_rp/real(this%number_dimensions)))
+  nlocs = int(real(quadrature%number_quadrature_points)**(1.0_rp/real(this%number_dimensions)))
   
   call fill_interpolation( interpolation, this%order, this%number_dimensions, &
                            nlocs, ntens, quadrature%coordinates )
@@ -116,7 +116,7 @@ subroutine quad_lagrangian_reference_fe_create_face_interpolation( this,local_fa
   integer(ip) :: number_faces
   ! Allocate the arrays of the interpolation
   call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar,              &
-       &                    local_quadrature%number_evaluation_points, 0 )
+       &                    local_quadrature%number_quadrature_points, 0 )
   ! Fill the values of the shape functions
 
   call face_interpolation_shape_fill (this,face_interpolation,local_quadrature,local_face_id)
@@ -144,10 +144,10 @@ subroutine quad_lagrangian_reference_fe_create_face_local_interpolation ( this, 
 
   ! Allocate the arrays of the interpolation
   call interpolation%create( number_dimensions_face, number_nodes_face_scalar, &
-                             quadrature%number_evaluation_points, 0)
+                             quadrature%number_quadrature_points, 0)
 
   ! Fill the values with the common routine for filling an interpolation
-  nlocs = int(real(quadrature%number_evaluation_points)**(1.0_rp/real( number_dimensions_face)))
+  nlocs = int(real(quadrature%number_quadrature_points)**(1.0_rp/real( number_dimensions_face)))
   call fill_interpolation( interpolation, face_order, number_dimensions_face, &
                            nlocs, 0, quadrature%coordinates )
 
@@ -324,7 +324,7 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_scalar( this, &
   real(rp)                             , intent(inout) :: quadrature_points_values(:)
   integer(ip)                                          :: qpoint, ishape
 
-  do qpoint = 1, actual_cell_interpolation%number_evaluation_points
+  do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      quadrature_points_values(qpoint) = 0.0_rp
      do ishape = 1, actual_cell_interpolation%number_shape_functions
         quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
@@ -345,7 +345,7 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_vector( this, &
   type(vector_field_t)                 , intent(inout) :: quadrature_points_values(:)
   integer(ip)                                          :: qpoint, inode, icomp, inode_scalar
   
-  do qpoint = 1, actual_cell_interpolation%number_evaluation_points
+  do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      call quadrature_points_values(qpoint)%init(0.0_rp)
      do inode = 1, this%number_nodes
         inode_scalar = this%node_component_array(inode,1)
@@ -1110,10 +1110,10 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
   implicit none
   type(quadrature_t), intent(inout)  :: quadrature
   real(rp)                 :: posgl(20),weigl(20)
-  integer(ip)              :: nlocs,igaus,ilocs,jlocs,klocs,ndime,ngaus
+  integer(ip)              :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,ngaus
 
   ndime = quadrature%number_dimensions
-  ngaus = quadrature%number_evaluation_points
+  ngaus = quadrature%number_quadrature_points
 
   if(ndime==1) then
      nlocs=ngaus
@@ -1582,32 +1582,32 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
   end if
 
   if(ndime==1) then
-     igaus=0
+     qpoin=0
      do ilocs=1,nlocs
-        igaus=igaus+1
-        quadrature%weight(  igaus)=weigl(ilocs)
-        quadrature%coordinates(1,igaus)=posgl(ilocs)
+        qpoin=qpoin+1
+        quadrature%weight(  qpoin)=weigl(ilocs)
+        quadrature%coordinates(1,qpoin)=posgl(ilocs)
      end do
   else if(ndime==2) then
-     igaus=0
+     qpoin=0
      do jlocs=1,nlocs
         do ilocs=1,nlocs
-           igaus=igaus+1
-           quadrature%weight(  igaus)=weigl(ilocs)*weigl(jlocs)
-           quadrature%coordinates(1,igaus)=posgl(ilocs)
-           quadrature%coordinates(2,igaus)=posgl(jlocs)
+           qpoin=qpoin+1
+           quadrature%weight(  qpoin)=weigl(ilocs)*weigl(jlocs)
+           quadrature%coordinates(1,qpoin)=posgl(ilocs)
+           quadrature%coordinates(2,qpoin)=posgl(jlocs)
         end do
      end do
   else if(ndime==3) then
-     igaus=0
+     qpoin=0
      do klocs=1,nlocs
         do jlocs=1,nlocs
            do ilocs=1,nlocs
-              igaus=igaus+1
-              quadrature%weight(  igaus)=weigl(ilocs)*weigl(jlocs)*weigl(klocs)
-              quadrature%coordinates(1,igaus)=posgl(ilocs)
-              quadrature%coordinates(2,igaus)=posgl(jlocs)
-              quadrature%coordinates(3,igaus)=posgl(klocs)
+              qpoin=qpoin+1
+              quadrature%weight(  qpoin)=weigl(ilocs)*weigl(jlocs)*weigl(klocs)
+              quadrature%coordinates(1,qpoin)=posgl(ilocs)
+              quadrature%coordinates(2,qpoin)=posgl(jlocs)
+              quadrature%coordinates(3,qpoin)=posgl(klocs)
            end do
         end do
      end do
@@ -1915,7 +1915,7 @@ subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadratu
        &           local_interpolation%shape_functions,local_interpolation%shape_derivatives,  &
        &           interp_1D_corners%shape_functions,interp_1D_corners%shape_derivatives,      &
        &           face_interpolation%number_dimensions,order_of_approximation,                &
-       &           face_interpolation%number_evaluation_points,local_face_id)
+       &           face_interpolation%number_quadrature_points,local_face_id)
 
   call face_reference_fe%free()
   call reference_fe_1D%free
@@ -2009,7 +2009,7 @@ end subroutine face_shapen
 
     ndime = ref%number_dimensions
     ntens = ref%number_entries_symmetric_tensor
-    nlocs = ref%number_evaluation_points
+    nlocs = ref%number_quadrature_points
     !nnode = ref%number_shape_functions
     nnode = size(ref%shape_functions,1)
 
@@ -2019,7 +2019,7 @@ end subroutine face_shapen
     ! First derivatives do
     !if(phy%kder==1) then
     phy%shape_derivatives=0.0_rp
-    do ilocs=1,phy%number_evaluation_points
+    do ilocs=1,phy%number_quadrature_points
        do inode=1,size(phy%shape_functions,1)!phy%number_shape_functions
           do idime=1,ndime
              do jdime=1,ndime

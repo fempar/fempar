@@ -305,6 +305,29 @@ function finite_element_get_subset_id ( this )
   finite_element_get_subset_id = this%cell%subset_id
 end function finite_element_get_subset_id
 
+function finite_element_get_order ( this, i )
+  implicit none
+  class(finite_element_t), intent(in) :: this
+  integer(ip)            , intent(in) :: i
+  integer(ip)                         :: finite_element_get_order
+  finite_element_get_order = this%reference_fe_phy(i)%p%get_order()
+end function finite_element_get_order
+
+function finite_element_compute_volume ( this )
+  implicit none
+  class(finite_element_t), intent(in) :: this
+  real(rp)                            :: finite_element_compute_volume
+  integer(ip)                 :: qpoin,number_quadrature_points
+
+  number_quadrature_points = this%quadrature%get_number_quadrature_points()
+  finite_element_compute_volume = 0.0_rp
+  do qpoin = 1, number_quadrature_points
+     finite_element_compute_volume = finite_element_compute_volume + &
+          &                          this%fe_map%get_det_jacobian(qpoin) * &
+          &                          this%quadrature%get_weight(qpoin)
+  end do
+end function finite_element_compute_volume
+
 !**************************************************************************************************
 ! Update methods for fe_function_scalar/vector/tensor_t
 !**************************************************************************************************
@@ -324,7 +347,7 @@ subroutine finite_element_update_scalar_values (this, fe_function_scalar, vector
 
   fe_space_id = fe_function_scalar%get_fe_space_id()
   call fe_function_scalar%set_current_number_quadrature_points( &
-                          & this%quadrature%get_number_evaluation_points() )
+                          & this%quadrature%get_number_quadrature_points() )
   call fe_function_scalar%set_current_number_nodes(             &
                           & this%reference_fe_phy(fe_space_id)%p%get_number_nodes() )
 
@@ -360,7 +383,7 @@ subroutine finite_element_update_vector_values (this, fe_function_vector, vector
 
   fe_space_id = fe_function_vector%get_fe_space_id()
   call fe_function_vector%set_current_number_quadrature_points( &
-                          & this%quadrature%get_number_evaluation_points() )
+                          & this%quadrature%get_number_quadrature_points() )
   call fe_function_vector%set_current_number_nodes(             &
                           & this%reference_fe_phy(fe_space_id)%p%get_number_nodes() )
 
@@ -395,7 +418,7 @@ subroutine finite_element_update_tensor_values (this, fe_function_tensor, vector
 
   fe_space_id = fe_function_tensor%get_fe_space_id()
   call fe_function_tensor%set_current_number_quadrature_points( & ! Set, but not used
-                          & this%quadrature%get_number_evaluation_points() )
+                          & this%quadrature%get_number_quadrature_points() )
   call fe_function_tensor%set_current_number_nodes(             & ! Set, but not used
                           & this%reference_fe_phy(fe_space_id)%p%get_number_nodes() )
 

@@ -284,7 +284,7 @@ contains
     call fe_space%initialize_integration()
     
     quad => fe%get_quadrature()
-    ngaus = quad%get_number_evaluation_points()
+    ngaus = quad%get_number_quadrature_points()
     do ielem = 1, fe_space%get_number_elements()
        elmat = 0.0_rp
        elvec = 0.0_rp
@@ -402,7 +402,7 @@ contains
     call fe_space%initialize_integration()
     
     quad  => fe%get_quadrature()
-    ngaus = quad%get_number_evaluation_points()
+    ngaus = quad%get_number_quadrature_points()
     do ielem = 1, fe_space%get_number_elements()
        write(*,*) __FILE__,__LINE__,ielem,'------------------'
        elmat = 0.0_rp
@@ -471,7 +471,7 @@ contains
        call face%update_integration()
       
        quad   => face%get_quadrature()
-       ngaus = quad%get_number_evaluation_points()
+       ngaus = quad%get_number_quadrature_points()
        face_map => face%get_map()
 
        j = 1
@@ -536,7 +536,7 @@ contains
 
        face_map => face%get_map()
        quad   => face%get_quadrature()
-       ngaus = quad%get_number_evaluation_points()
+       ngaus = quad%get_number_quadrature_points()
 
        j = 1
        face_int => face%get_face_integrator(j)
