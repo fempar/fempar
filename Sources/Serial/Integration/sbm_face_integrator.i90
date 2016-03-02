@@ -37,16 +37,12 @@ subroutine fe_map_face_restriction_create( this, quadrature, reference_fe_geomet
   integer(ip)           :: local_face_id, istat
 
   call this%free()
-
   this%number_faces = reference_fe_geometry%get_number_faces()
-
   allocate(this%fe_map(this%number_faces),stat = istat)
   check(istat == 0)
-
   do local_face_id = 1,  this%number_faces
      call this%fe_map(local_face_id)%create_on_face(local_face_id,quadrature,reference_fe_geometry)
   end do
-
 end subroutine fe_map_face_restriction_create
 
 !==================================================================================================
@@ -106,7 +102,6 @@ subroutine face_map_create(this,left_geo_reference_fe,right_geo_reference_fe, qu
   call this%free()
 
   this%is_boundary = (.not. associated(right_geo_reference_fe))
-
   call this%face_map%fe_map_face_map_create(quadrature,left_geo_reference_fe)
   call this%fe_maps(1)%create(quadrature,left_geo_reference_fe)
   if (associated(right_geo_reference_fe)) then

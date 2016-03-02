@@ -228,8 +228,8 @@ subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
    !write(*,*) __FILE__,__LINE__,s2t_perm_for_interior_nodes_vef
     do interior_inode = 1, interior_nnode
         inode_source = source_ref_fe%get_interior_node_vef(interior_inode,source_vef_lid)
-        !inode_target = target_ref_fe%get_interior_node_vef(s2t_perm_for_interior_nodes_vef(interior_inode),target_vef_lid)
-      		inode_target = target_ref_fe%get_interior_node_vef(interior_inode,target_vef_lid)
+        inode_target = target_ref_fe%get_interior_node_vef(s2t_perm_for_interior_nodes_vef(interior_inode),target_vef_lid)
+        !inode_target = target_ref_fe%get_interior_node_vef(interior_inode,target_vef_lid)
         if ( this%bc_code(fe_space_id)%p(inode_target) == 0 ) then
            this%elem2dof(fe_space_id)%p(inode_target) = source_fe%elem2dof(fe_space_id)%p(inode_source)
         end	if

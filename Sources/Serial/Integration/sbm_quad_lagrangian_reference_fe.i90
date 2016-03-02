@@ -114,12 +114,11 @@ subroutine quad_lagrangian_reference_fe_create_face_interpolation( this,local_fa
   type(interpolation_t)             , intent(inout) :: face_interpolation
 
   integer(ip) :: number_faces
-  
   ! Allocate the arrays of the interpolation
   call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar,              &
        &                    local_quadrature%number_evaluation_points, 0 )
-
   ! Fill the values of the shape functions
+
   call face_interpolation_shape_fill (this,face_interpolation,local_quadrature,local_face_id)
 end subroutine quad_lagrangian_reference_fe_create_face_interpolation
 
@@ -408,7 +407,7 @@ subroutine quad_lagrangian_reference_fe_permute_interior_nodes_per_vef(target_re
 
   integer(ip) :: vef_dimension, number_nodes_x_dim, permute_nodes_scalar(36) 
   integer(ip) :: i, relative_rotation,source_first_vertex_global_id, target_vertex_global_id 
-  integer(ip) :: relative_orientation
+  integer(ip) :: relative_orientation, idime, number_nodes_scalar, inode_scalar
 
   select type(source_reference_fe)
      class is(quad_lagrangian_reference_fe_t)
@@ -436,20 +435,35 @@ subroutine quad_lagrangian_reference_fe_permute_interior_nodes_per_vef(target_re
         vef_dimension = target_reference_fe%get_vef_dimension(target_vef_id)
         assert (vef_dimension == source_reference_fe%get_vef_dimension(source_vef_id))
         if (vef_dimension == 0) then
+           number_nodes_scalar = 1
            permute_nodes_scalar(1) = 1
         elseif (vef_dimension == 1) then
-           call permute_or_1d(permute_nodes_scalar(1:number_nodes_x_dim),number_nodes_x_dim-1,    &
+           number_nodes_scalar = number_nodes_x_dim
+           call permute_or_1d(permute_nodes_scalar(1:number_nodes_scalar),number_nodes_x_dim-1,    &
                 &             relative_rotation)
         elseif (vef_dimension == 2) then
+           number_nodes_scalar = number_nodes_x_dim**2
            relative_orientation = modulo( 1 + source_reference_fe%orientation%a(source_vef_id) -  &
                                               target_reference_fe%orientation%a(target_vef_id),2)
            
-           call permute_or_2d(permute_nodes_scalar(1:number_nodes_x_dim**2),                      &
+           call permute_or_2d(permute_nodes_scalar(1: number_nodes_scalar),                       &
                 &             number_nodes_x_dim-1,relative_orientation,relative_rotation)
         else 
            check (.false.)
         end if
 
+        check (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
+        assert (target_reference_fe%get_number_interior_nodes_vef(target_vef_id) == source_reference_fe%get_number_interior_nodes_vef(source_vef_id))
+        i = 1
+        do idime = 1, target_reference_fe%number_field_components
+           ! This is taking advantage of the face that we know how the DoF are ordered
+           ! in case this ordering change, this will not work anymore.
+           do inode_scalar = 1, number_nodes_scalar
+              permu_nodes(i) = number_nodes_scalar * (idime-1) + permute_nodes_scalar(inode_scalar)
+              i = i + 1
+           end do
+        end do
+        assert( i == source_reference_fe%get_number_interior_nodes_vef(source_vef_id) + 1)
      class default
         check(.false.)
   end select
@@ -471,12 +485,14 @@ subroutine quad_lagrangian_reference_fe_fill (this)
   end if
 
   call memalloc( this%number_nodes, 2, this%node_component_array, __FILE__, __LINE__ )
+  call memalloc( this%number_nodes_scalar, this%number_field_components, this%component_to_node_array, __FILE__, __LINE__ )
 
   c = 1
   do i = 1, this%number_field_components
      do j = 1, this%number_nodes_scalar
         this%node_component_array(c,1) = j
         this%node_component_array(c,2) = i   
+        this%component_to_node_array(j,i) = c
         c = c+1
      end do
   end do
@@ -491,6 +507,10 @@ subroutine quad_lagrangian_reference_fe_free ( this )
   ! quad_lagrangian_reference_fe_t variables
   if(allocated(this%node_component_array)) & 
        call memfree(this%node_component_array,__FILE__,__LINE__)
+
+  if(allocated(this%component_to_node_array)) &
+       call memfree( this%component_to_node_array, __FILE__, __LINE__ )
+
   this%number_nodes_scalar = 0
 end subroutine quad_lagrangian_reference_fe_free
 
@@ -1880,6 +1900,8 @@ subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadratu
   type(quadrature_t)    :: nodal_coordinates_1D
   integer(ip)              :: order_of_approximation
   type(quad_lagrangian_reference_fe_t) :: face_reference_fe, reference_fe_1D
+
+  write(*,*) __FILE__,__LINE__,'Creation of 2 reference_FE!!'
 
   ! Create a 1D interpolation evaluated on the corners
   call nodal_coordinates_1D%create(1,2)
