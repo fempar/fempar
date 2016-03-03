@@ -318,6 +318,10 @@ subroutine face_integrator_free(this)
      call this%interpolation_face_restriction(i)%free()
   end do
 
+  if (allocated(this%quadrature_points_permutation)) then
+     call memfree (this%quadrature_points_permutation, __FILE__,__LINE__)
+  end if
+
 end subroutine face_integrator_free
 
 !==================================================================================================

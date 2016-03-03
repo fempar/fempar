@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module reference_fe_names
   use allocatable_array_ip1_names
+  use allocatable_array_ip2_names
   use field_names
   use types_names
   use list_types_names
@@ -233,6 +234,10 @@ module reference_fe_names
      type(list_t)                   :: nodes_vef          ! all nodes per vef
      type(list_t)                   :: vertices_vef       ! vertices per vef
      type(list_t)                   :: vefs_vef           ! all vefs per vef
+
+     integer(ip), allocatable :: number_rotations_vef(:)
+     integer(ip), allocatable :: number_orientations_vef(:)
+     type(allocatable_array_ip2_t), allocatable :: permutation_arrays(:)
    contains
      ! TBPs
      ! Fill topology, fe_type, number_dimensions, order, continuity 
@@ -596,6 +601,7 @@ module reference_fe_names
           &                          => quad_lagrangian_reference_fe_get_characteristic_length
      procedure :: fill_face_points_permutation &
           &                   => quad_lagrangian_reference_fe_fill_face_points_permutation
+     procedure :: fill_permutation_array => quad_lagrangian_reference_fe_fill_permutation_array
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t
