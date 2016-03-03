@@ -233,6 +233,7 @@ module reference_fe_names
      type(list_t)                   :: nodes_vef          ! all nodes per vef
      type(list_t)                   :: vertices_vef       ! vertices per vef
      type(list_t)                   :: vefs_vef           ! all vefs per vef
+     type(quadrature_t)             :: nodal_quadrature
    contains
      ! TBPs
      ! Fill topology, fe_type, number_dimensions, order, continuity 
@@ -284,6 +285,7 @@ module reference_fe_names
      ! and a delay 'r' wrt to a refence element sharing the same vef.
      procedure (permute_order_vef_interface)    , deferred :: permute_order_vef
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
+     procedure (set_nodal_quadrature_interface), deferred :: set_nodal_quadrature
 
      ! generic part of the subroutine above
      procedure :: permute_nodes_per_vef => reference_fe_permute_nodes_per_vef
@@ -327,6 +329,7 @@ module reference_fe_names
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
      procedure :: get_orientation => reference_fe_get_orientation     
+     procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -533,6 +536,12 @@ module reference_fe_names
        type(fe_map_face_restriction_t)       , intent(in)    :: fe_map_face_restriction
        type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
      end subroutine update_interpolation_face_interface
+
+     subroutine set_nodal_quadrature_interface ( this )
+       import :: reference_fe_t
+       implicit none
+       class(reference_fe_t), intent(inout) :: this 
+     end subroutine set_nodal_quadrature_interface
      
   end interface
 
@@ -571,6 +580,8 @@ module reference_fe_names
      procedure :: evaluate_fe_function_scalar => quad_lagrangian_reference_fe_evaluate_fe_function_scalar
      procedure :: evaluate_fe_function_vector => quad_lagrangian_reference_fe_evaluate_fe_function_vector
      procedure :: evaluate_fe_function_tensor => quad_lagrangian_reference_fe_evaluate_fe_function_tensor
+
+     procedure :: set_nodal_quadrature => quad_lagrangian_reference_fe_set_nodal_quadrature
 
      ! Concrete TBPs of this derived data type
      procedure :: fill                      => quad_lagrangian_reference_fe_fill
@@ -640,6 +651,15 @@ contains
   generic :: evaluate_fe_function => volume_integrator_evaluate_fe_function_scalar, &
                                    & volume_integrator_evaluate_fe_function_vector, &
                                    & volume_integrator_evaluate_fe_function_tensor
+
+  procedure, non_overridable, private :: volume_integrator_interpolate_scalar
+  procedure, non_overridable, private :: volume_integrator_interpolate_point 
+  procedure, non_overridable, private :: volume_integrator_interpolate_vector
+  procedure, non_overridable, private :: volume_integrator_interpolate_tensor
+  generic :: interpolate_field => volume_integrator_interpolate_scalar, &
+                                & volume_integrator_interpolate_point,  & 
+                                & volume_integrator_interpolate_vector, &
+                                & volume_integrator_interpolate_tensor
 
 end type volume_integrator_t
 

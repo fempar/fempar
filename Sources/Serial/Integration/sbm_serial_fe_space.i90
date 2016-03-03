@@ -475,4 +475,175 @@ function get_max_number_nodes_field( this, ifield )
   end do
  end function get_max_number_quadrature_points
 
+ subroutine update_bc_value_scalar( this, analytical_function, bc_code, fe_space_component, time)
+   implicit none
+   class(serial_fe_space_t), intent(inout) :: this 
+   type(scalar_function_t) , intent(in)    :: analytical_function
+   integer(ip)             , intent(in)    :: bc_code
+   integer(ip)             , intent(in)    :: fe_space_component
+   real(rp)   , optional   , intent(in)    :: time(1)
+   ! Locals
+   integer(ip) :: ielem, qpoin, istat
+   integer(ip) :: number_quadrature_points, number_vertices
+   real(rp), allocatable       :: values(:,:)
+   character(:), allocatable   :: field_type
+   type(volume_integrator_t)   :: volume_integrator
+   type(quadrature_t), pointer :: nodal_quadrature
+   type(point_t), allocatable  :: nodal_coordinates(:)
+   type(point_t), allocatable  :: coordinates_vertices(:)
+   
+   ! Getters
+   field_type               =  this%reference_fe_phy_list(fe_space_component)%p%get_field_type()
+   nodal_quadrature         => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
+   number_vertices          =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
+   number_quadrature_points =  nodal_quadrature%get_number_quadrature_points()
+   assert( field_type == field_type_scalar )
+
+   ! Allocate nodal coordinates
+   allocate(nodal_coordinates(number_quadrature_points), stat=istat); check(istat==0)
+   allocate(coordinates_vertices(number_vertices), stat=istat); check(istat==0)
+   call memalloc(number_quadrature_points,1,values,__FILE__,__LINE__)
+    
+   ! Create volume integrator
+   call volume_integrator%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
+
+   ! Loop over elements
+   do ielem = 1, this%triangulation%num_elems
+
+      ! Interpolate coordinates
+      call this%fe_array(ielem)%cell%get_coordinates(coordinates_vertices)
+      nodal_coordinates = volume_integrator%interpolate_field(coordinates_vertices)
+
+      ! Evaluate function
+      if(present(time)) then
+         call analytical_function%get_values_set_space_time(nodal_coordinates,time,values)
+      else
+         call analytical_function%get_values_set_space(nodal_coordinates,values(:,1))
+      end if
+         
+      ! Fill bc_value
+      call this%fe_array(ielem)%set_bc_value(fe_space_component,values(:,1))
+      
+   end do
+
+   deallocate(nodal_coordinates)
+   deallocate(coordinates_vertices)
+   call memfree(values,__FILE__,__LINE__)
+   
+ end subroutine update_bc_value_scalar
+
+ subroutine update_bc_value_vector( this, analytical_function, bc_code, fe_space_component, time)
+   implicit none
+   class(serial_fe_space_t), intent(inout) :: this 
+   type(vector_function_t) , intent(in)    :: analytical_function
+   integer(ip)             , intent(in)    :: bc_code
+   integer(ip)             , intent(in)    :: fe_space_component
+   real(rp)   , optional   , intent(in)    :: time(1)
+   ! Locals
+   integer(ip) :: ielem, qpoin, istat
+   integer(ip) :: number_quadrature_points, number_vertices
+   character(:), allocatable         :: field_type
+   type(volume_integrator_t)         :: volume_integrator
+   type(quadrature_t)  , pointer     :: nodal_quadrature
+   type(point_t)       , allocatable :: nodal_coordinates(:)
+   type(point_t)       , allocatable :: coordinates_vertices(:)
+   type(vector_field_t), allocatable :: values(:,:)
+   
+   ! Getters
+   field_type               =  this%reference_fe_phy_list(fe_space_component)%p%get_field_type()
+   nodal_quadrature         => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
+   number_vertices          =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
+   number_quadrature_points =  nodal_quadrature%get_number_quadrature_points()
+   assert( field_type == field_type_vector )
+
+   ! Allocate nodal coordinates
+   allocate(nodal_coordinates(number_quadrature_points), stat=istat); check(istat==0)
+   allocate(coordinates_vertices(number_vertices), stat=istat); check(istat==0)
+   allocate(values(number_quadrature_points,1), stat=istat); check(istat==0)
+    
+   ! Create volume integrator
+   call volume_integrator%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
+
+   ! Loop over elements
+   do ielem = 1, this%triangulation%num_elems
+
+      ! Interpolate coordinates
+      call this%fe_array(ielem)%cell%get_coordinates(coordinates_vertices)
+      nodal_coordinates = volume_integrator%interpolate_field(coordinates_vertices)
+
+      ! Evaluate function
+      if(present(time)) then
+         call analytical_function%get_values_set_space_time(nodal_coordinates,time,values)
+      else
+         call analytical_function%get_values_set_space(nodal_coordinates,values(:,1))
+      end if
+         
+      ! Fill bc_value
+      call this%fe_array(ielem)%set_bc_value(fe_space_component,values(:,1))
+      
+   end do
+
+   deallocate(nodal_coordinates)
+   deallocate(coordinates_vertices)
+   deallocate(values)
+   
+ end subroutine update_bc_value_vector
+
+ subroutine update_bc_value_tensor( this, analytical_function, bc_code, fe_space_component, time)
+   implicit none
+   class(serial_fe_space_t), intent(inout) :: this 
+   type(tensor_function_t) , intent(in)    :: analytical_function
+   integer(ip)             , intent(in)    :: bc_code
+   integer(ip)             , intent(in)    :: fe_space_component
+   real(rp)   , optional   , intent(in)    :: time(1)
+   ! Locals
+   integer(ip) :: ielem, qpoin, istat
+   integer(ip) :: number_quadrature_points, number_vertices
+   character(:), allocatable   :: field_type
+   type(volume_integrator_t)   :: volume_integrator
+   type(quadrature_t), pointer :: nodal_quadrature
+   type(point_t), allocatable  :: nodal_coordinates(:)
+   type(point_t), allocatable  :: coordinates_vertices(:)
+   type(tensor_field_t), allocatable :: values(:,:)
+   
+   ! Getters
+   field_type               =  this%reference_fe_phy_list(fe_space_component)%p%get_field_type()
+   nodal_quadrature         => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
+   number_vertices          =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
+   number_quadrature_points =  nodal_quadrature%get_number_quadrature_points()
+   assert( field_type == field_type_tensor )
+
+   ! Allocate nodal coordinates
+   allocate(nodal_coordinates(number_quadrature_points), stat=istat); check(istat==0)
+   allocate(coordinates_vertices(number_vertices), stat=istat); check(istat==0)
+   allocate(values(number_quadrature_points,1), stat=istat); check(istat==0)
+    
+   ! Create volume integrator
+   call volume_integrator%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
+
+   ! Loop over elements
+   do ielem = 1, this%triangulation%num_elems
+
+      ! Interpolate coordinates
+      call this%fe_array(ielem)%cell%get_coordinates(coordinates_vertices)
+      nodal_coordinates = volume_integrator%interpolate_field(coordinates_vertices)
+
+      ! Evaluate function
+      if(present(time)) then
+         call analytical_function%get_values_set_space_time(nodal_coordinates,time,values)
+      else
+         call analytical_function%get_values_set_space(nodal_coordinates,values(:,1))
+      end if
+         
+      ! Fill bc_value
+      call this%fe_array(ielem)%set_bc_value(fe_space_component,values(:,1))
+      
+   end do
+
+   deallocate(nodal_coordinates)
+   deallocate(coordinates_vertices)
+   deallocate(values)
+   
+ end subroutine update_bc_value_tensor
+
 

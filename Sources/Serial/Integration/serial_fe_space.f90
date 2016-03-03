@@ -49,6 +49,7 @@ module serial_fe_space_names
   use hash_table_names
   use graph_names
   use sort_names
+  use function_names
   implicit none
 # include "debug.i90"
   private
@@ -108,6 +109,12 @@ module serial_fe_space_names
      procedure, non_overridable :: get_subset_id => finite_element_get_subset_id
      procedure, non_overridable :: get_order     => finite_element_get_order
      procedure, non_overridable :: compute_volume     => finite_element_compute_volume
+     procedure, non_overridable :: set_bc_value_scalar => finite_element_set_bc_value_scalar
+     procedure, non_overridable :: set_bc_value_vector => finite_element_set_bc_value_vector
+     procedure, non_overridable :: set_bc_value_tensor => finite_element_set_bc_value_tensor
+     generic :: set_bc_value => set_bc_value_scalar, &
+                              & set_bc_value_vector, &
+                              & set_bc_value_tensor
      
      procedure, non_overridable, private :: update_scalar_values => finite_element_update_scalar_values
      procedure, non_overridable, private :: update_vector_values => finite_element_update_vector_values
@@ -201,6 +208,12 @@ module serial_fe_space_names
      generic :: create_fe_function => create_fe_function_scalar, &
                                     & create_fe_function_vector, &
                                     & create_fe_function_tensor
+     procedure, non_overridable :: update_bc_value_scalar
+     procedure, non_overridable :: update_bc_value_vector
+     procedure, non_overridable :: update_bc_value_tensor
+     generic :: update_bc_value => update_bc_value_scalar, &
+                                 & update_bc_value_vector, &
+                                 & update_bc_value_tensor
      
   end type serial_fe_space_t
 

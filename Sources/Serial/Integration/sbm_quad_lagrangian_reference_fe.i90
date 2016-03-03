@@ -39,6 +39,7 @@ subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order,
   call this%set_topology ( topology_quad )
   call this%set_fe_type ( fe_type_lagrangian )
   call this%fill( )
+  call this%set_nodal_quadrature ()
 end subroutine quad_lagrangian_reference_fe_create
 
 subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, max_order )
@@ -445,6 +446,17 @@ subroutine quad_lagrangian_reference_fe_fill_field_components (this)
   this%number_nodes_scalar = this%number_nodes
   this%number_nodes = this%number_nodes_scalar * this%number_field_components
 end subroutine quad_lagrangian_reference_fe_fill_field_components
+
+subroutine quad_lagrangian_reference_fe_set_nodal_quadrature (this)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
+  
+  ! Create nodal quadrature
+  call this%nodal_quadrature%create(this%number_dimensions,this%number_nodes_scalar)
+
+  ! Fill nodal quadrature
+  call fill_nodal_quadrature ( this%nodal_quadrature )
+end subroutine quad_lagrangian_reference_fe_set_nodal_quadrature
 
 subroutine extend_list_components(this, list_1d)
   implicit none
@@ -1534,6 +1546,522 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
   end if
 
 end subroutine fill_quadrature
+
+!-----------------------------------------------------------------------
+subroutine fill_nodal_quadrature ( quadrature ) 
+  implicit none
+  type(quadrature_t), intent(inout)  :: quadrature
+  real(rp)                 :: posgl(20),weigl(20)
+  integer(ip)              :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,nquad
+
+  ndime = quadrature%number_dimensions
+  nquad = quadrature%number_quadrature_points
+
+  if(ndime==1) then
+     nlocs=nquad
+  else if(ndime==2) then
+     nlocs=nint(sqrt(real(nquad,rp)))
+  else
+     nlocs=nint(real(nquad,rp)**(1.0_rp/3.0_rp))
+  end if
+
+  if(nlocs==1) then
+     posgl(1)=0.0_rp
+     weigl(1)=1.0_rp
+  else if(nlocs== 2 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+  else if(nlocs== 3 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = 0.000000000000000_rp 
+     posgl( 3 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+  else if(nlocs== 4 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.333333333333333_rp 
+     posgl( 3 ) = 0.333333333333333_rp 
+     posgl( 4 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+  else if(nlocs== 5 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.500000000000000_rp 
+     posgl( 3 ) = 0.000000000000000_rp 
+     posgl( 4 ) = 0.500000000000000_rp 
+     posgl( 5 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+  else if(nlocs== 6 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.600000000000000_rp 
+     posgl( 3 ) = -0.200000000000000_rp 
+     posgl( 4 ) = 0.200000000000000_rp 
+     posgl( 5 ) = 0.600000000000000_rp 
+     posgl( 6 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+  else if(nlocs== 7 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.666666666666667_rp 
+     posgl( 3 ) = -0.333333333333333_rp 
+     posgl( 4 ) = -0.000000000000000_rp 
+     posgl( 5 ) = 0.333333333333333_rp 
+     posgl( 6 ) = 0.666666666666667_rp 
+     posgl( 7 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+  else if(nlocs== 8 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.714285714285714_rp 
+     posgl( 3 ) = -0.428571428571429_rp 
+     posgl( 4 ) = -0.142857142857143_rp 
+     posgl( 5 ) = 0.142857142857143_rp 
+     posgl( 6 ) = 0.428571428571428_rp 
+     posgl( 7 ) = 0.714285714285714_rp 
+     posgl( 8 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+  else if(nlocs== 9 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.750000000000000_rp 
+     posgl( 3 ) = -0.500000000000000_rp 
+     posgl( 4 ) = -0.250000000000000_rp 
+     posgl( 5 ) = 0.000000000000000_rp 
+     posgl( 6 ) = 0.250000000000000_rp 
+     posgl( 7 ) = 0.500000000000000_rp 
+     posgl( 8 ) = 0.750000000000000_rp 
+     posgl( 9 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+     weigl( 9 ) = 1.000000000000000_rp 
+  else if(nlocs== 10 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.777777777777778_rp 
+     posgl( 3 ) = -0.555555555555556_rp 
+     posgl( 4 ) = -0.333333333333333_rp 
+     posgl( 5 ) = -0.111111111111111_rp 
+     posgl( 6 ) = 0.111111111111111_rp 
+     posgl( 7 ) = 0.333333333333333_rp 
+     posgl( 8 ) = 0.555555555555555_rp 
+     posgl( 9 ) = 0.777777777777778_rp 
+     posgl( 10 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+     weigl( 9 ) = 1.000000000000000_rp 
+     weigl( 10 ) = 1.000000000000000_rp 
+  else if(nlocs== 11 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.800000000000000_rp 
+     posgl( 3 ) = -0.600000000000000_rp 
+     posgl( 4 ) = -0.400000000000000_rp 
+     posgl( 5 ) = -0.200000000000000_rp 
+     posgl( 6 ) = 0.000000000000000_rp 
+     posgl( 7 ) = 0.200000000000000_rp 
+     posgl( 8 ) = 0.400000000000000_rp 
+     posgl( 9 ) = 0.600000000000000_rp 
+     posgl( 10 ) = 0.800000000000000_rp 
+     posgl( 11 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+     weigl( 9 ) = 1.000000000000000_rp 
+     weigl( 10 ) = 1.000000000000000_rp 
+     weigl( 11 ) = 1.000000000000000_rp 
+  else if(nlocs== 12 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.818181818181818_rp 
+     posgl( 3 ) = -0.636363636363636_rp 
+     posgl( 4 ) = -0.454545454545454_rp 
+     posgl( 5 ) = -0.272727272727273_rp 
+     posgl( 6 ) = -0.090909090909091_rp 
+     posgl( 7 ) = 0.090909090909091_rp 
+     posgl( 8 ) = 0.272727272727273_rp 
+     posgl( 9 ) = 0.454545454545455_rp 
+     posgl( 10 ) = 0.636363636363636_rp 
+     posgl( 11 ) = 0.818181818181818_rp 
+     posgl( 12 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+     weigl( 9 ) = 1.000000000000000_rp 
+     weigl( 10 ) = 1.000000000000000_rp 
+     weigl( 11 ) = 1.000000000000000_rp 
+     weigl( 12 ) = 1.000000000000000_rp 
+  else if(nlocs== 13 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.833333333333333_rp 
+     posgl( 3 ) = -0.666666666666667_rp 
+     posgl( 4 ) = -0.500000000000000_rp 
+     posgl( 5 ) = -0.333333333333333_rp 
+     posgl( 6 ) = -0.166666666666667_rp 
+     posgl( 7 ) = -0.000000000000000_rp 
+     posgl( 8 ) = 0.166666666666667_rp 
+     posgl( 9 ) = 0.333333333333333_rp 
+     posgl( 10 ) = 0.500000000000000_rp 
+     posgl( 11 ) = 0.666666666666667_rp 
+     posgl( 12 ) = 0.833333333333333_rp 
+     posgl( 13 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+     weigl( 9 ) = 1.000000000000000_rp 
+     weigl( 10 ) = 1.000000000000000_rp 
+     weigl( 11 ) = 1.000000000000000_rp 
+     weigl( 12 ) = 1.000000000000000_rp 
+     weigl( 13 ) = 1.000000000000000_rp 
+  else if(nlocs== 14 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.846153846153846_rp 
+     posgl( 3 ) = -0.692307692307692_rp 
+     posgl( 4 ) = -0.538461538461538_rp 
+     posgl( 5 ) = -0.384615384615385_rp 
+     posgl( 6 ) = -0.230769230769231_rp 
+     posgl( 7 ) = -0.076923076923077_rp 
+     posgl( 8 ) = 0.076923076923077_rp 
+     posgl( 9 ) = 0.230769230769231_rp 
+     posgl( 10 ) = 0.384615384615385_rp 
+     posgl( 11 ) = 0.538461538461539_rp 
+     posgl( 12 ) = 0.692307692307693_rp 
+     posgl( 13 ) = 0.846153846153846_rp 
+     posgl( 14 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+     weigl( 9 ) = 1.000000000000000_rp 
+     weigl( 10 ) = 1.000000000000000_rp 
+     weigl( 11 ) = 1.000000000000000_rp 
+     weigl( 12 ) = 1.000000000000000_rp 
+     weigl( 13 ) = 1.000000000000000_rp 
+     weigl( 14 ) = 1.000000000000000_rp 
+  else if(nlocs== 15 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.857142857142857_rp 
+     posgl( 3 ) = -0.714285714285714_rp 
+     posgl( 4 ) = -0.571428571428572_rp 
+     posgl( 5 ) = -0.428571428571429_rp 
+     posgl( 6 ) = -0.285714285714286_rp 
+     posgl( 7 ) = -0.142857142857143_rp 
+     posgl( 8 ) = -0.000000000000000_rp 
+     posgl( 9 ) = 0.142857142857143_rp 
+     posgl( 10 ) = 0.285714285714286_rp 
+     posgl( 11 ) = 0.428571428571428_rp 
+     posgl( 12 ) = 0.571428571428571_rp 
+     posgl( 13 ) = 0.714285714285714_rp 
+     posgl( 14 ) = 0.857142857142857_rp 
+     posgl( 15 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+     weigl( 9 ) = 1.000000000000000_rp 
+     weigl( 10 ) = 1.000000000000000_rp 
+     weigl( 11 ) = 1.000000000000000_rp 
+     weigl( 12 ) = 1.000000000000000_rp 
+     weigl( 13 ) = 1.000000000000000_rp 
+     weigl( 14 ) = 1.000000000000000_rp 
+     weigl( 15 ) = 1.000000000000000_rp 
+  else if(nlocs== 16 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.866666666666667_rp 
+     posgl( 3 ) = -0.733333333333333_rp 
+     posgl( 4 ) = -0.600000000000000_rp 
+     posgl( 5 ) = -0.466666666666667_rp 
+     posgl( 6 ) = -0.333333333333333_rp 
+     posgl( 7 ) = -0.200000000000000_rp 
+     posgl( 8 ) = -0.066666666666667_rp 
+     posgl( 9 ) = 0.066666666666666_rp 
+     posgl( 10 ) = 0.200000000000000_rp 
+     posgl( 11 ) = 0.333333333333333_rp 
+     posgl( 12 ) = 0.466666666666666_rp 
+     posgl( 13 ) = 0.600000000000000_rp 
+     posgl( 14 ) = 0.733333333333333_rp 
+     posgl( 15 ) = 0.866666666666666_rp 
+     posgl( 16 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+     weigl( 9 ) = 1.000000000000000_rp 
+     weigl( 10 ) = 1.000000000000000_rp 
+     weigl( 11 ) = 1.000000000000000_rp 
+     weigl( 12 ) = 1.000000000000000_rp 
+     weigl( 13 ) = 1.000000000000000_rp 
+     weigl( 14 ) = 1.000000000000000_rp 
+     weigl( 15 ) = 1.000000000000000_rp 
+     weigl( 16 ) = 1.000000000000000_rp 
+  else if(nlocs== 17 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.875000000000000_rp 
+     posgl( 3 ) = -0.750000000000000_rp 
+     posgl( 4 ) = -0.625000000000000_rp 
+     posgl( 5 ) = -0.500000000000000_rp 
+     posgl( 6 ) = -0.375000000000000_rp 
+     posgl( 7 ) = -0.250000000000000_rp 
+     posgl( 8 ) = -0.125000000000000_rp 
+     posgl( 9 ) = 0.000000000000000_rp 
+     posgl( 10 ) = 0.125000000000000_rp 
+     posgl( 11 ) = 0.250000000000000_rp 
+     posgl( 12 ) = 0.375000000000000_rp 
+     posgl( 13 ) = 0.500000000000000_rp 
+     posgl( 14 ) = 0.625000000000000_rp 
+     posgl( 15 ) = 0.750000000000000_rp 
+     posgl( 16 ) = 0.875000000000000_rp 
+     posgl( 17 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+     weigl( 9 ) = 1.000000000000000_rp 
+     weigl( 10 ) = 1.000000000000000_rp 
+     weigl( 11 ) = 1.000000000000000_rp 
+     weigl( 12 ) = 1.000000000000000_rp 
+     weigl( 13 ) = 1.000000000000000_rp 
+     weigl( 14 ) = 1.000000000000000_rp 
+     weigl( 15 ) = 1.000000000000000_rp 
+     weigl( 16 ) = 1.000000000000000_rp 
+     weigl( 17 ) = 1.000000000000000_rp 
+  else if(nlocs== 18 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.882352941176471_rp 
+     posgl( 3 ) = -0.764705882352941_rp 
+     posgl( 4 ) = -0.647058823529412_rp 
+     posgl( 5 ) = -0.529411764705882_rp 
+     posgl( 6 ) = -0.411764705882353_rp 
+     posgl( 7 ) = -0.294117647058823_rp 
+     posgl( 8 ) = -0.176470588235294_rp 
+     posgl( 9 ) = -0.058823529411764_rp 
+     posgl( 10 ) = 0.058823529411765_rp 
+     posgl( 11 ) = 0.176470588235294_rp 
+     posgl( 12 ) = 0.294117647058824_rp 
+     posgl( 13 ) = 0.411764705882353_rp 
+     posgl( 14 ) = 0.529411764705883_rp 
+     posgl( 15 ) = 0.647058823529412_rp 
+     posgl( 16 ) = 0.764705882352942_rp 
+     posgl( 17 ) = 0.882352941176471_rp 
+     posgl( 18 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+     weigl( 9 ) = 1.000000000000000_rp 
+     weigl( 10 ) = 1.000000000000000_rp 
+     weigl( 11 ) = 1.000000000000000_rp 
+     weigl( 12 ) = 1.000000000000000_rp 
+     weigl( 13 ) = 1.000000000000000_rp 
+     weigl( 14 ) = 1.000000000000000_rp 
+     weigl( 15 ) = 1.000000000000000_rp 
+     weigl( 16 ) = 1.000000000000000_rp 
+     weigl( 17 ) = 1.000000000000000_rp 
+     weigl( 18 ) = 1.000000000000000_rp 
+  else if(nlocs== 19 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.888888888888889_rp 
+     posgl( 3 ) = -0.777777777777778_rp 
+     posgl( 4 ) = -0.666666666666667_rp 
+     posgl( 5 ) = -0.555555555555555_rp 
+     posgl( 6 ) = -0.444444444444444_rp 
+     posgl( 7 ) = -0.333333333333333_rp 
+     posgl( 8 ) = -0.222222222222222_rp 
+     posgl( 9 ) = -0.111111111111111_rp 
+     posgl( 10 ) = 0.000000000000000_rp 
+     posgl( 11 ) = 0.111111111111111_rp 
+     posgl( 12 ) = 0.222222222222222_rp 
+     posgl( 13 ) = 0.333333333333333_rp 
+     posgl( 14 ) = 0.444444444444445_rp 
+     posgl( 15 ) = 0.555555555555556_rp 
+     posgl( 16 ) = 0.666666666666667_rp 
+     posgl( 17 ) = 0.777777777777778_rp 
+     posgl( 18 ) = 0.888888888888889_rp 
+     posgl( 19 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+     weigl( 9 ) = 1.000000000000000_rp 
+     weigl( 10 ) = 1.000000000000000_rp 
+     weigl( 11 ) = 1.000000000000000_rp 
+     weigl( 12 ) = 1.000000000000000_rp 
+     weigl( 13 ) = 1.000000000000000_rp 
+     weigl( 14 ) = 1.000000000000000_rp 
+     weigl( 15 ) = 1.000000000000000_rp 
+     weigl( 16 ) = 1.000000000000000_rp 
+     weigl( 17 ) = 1.000000000000000_rp 
+     weigl( 18 ) = 1.000000000000000_rp 
+     weigl( 19 ) = 1.000000000000000_rp 
+  else if(nlocs== 20 )  then 
+     posgl( 1 ) = -1.000000000000000_rp 
+     posgl( 2 ) = -0.894736842105263_rp 
+     posgl( 3 ) = -0.789473684210526_rp 
+     posgl( 4 ) = -0.684210526315789_rp 
+     posgl( 5 ) = -0.578947368421053_rp 
+     posgl( 6 ) = -0.473684210526316_rp 
+     posgl( 7 ) = -0.368421052631579_rp 
+     posgl( 8 ) = -0.263157894736842_rp 
+     posgl( 9 ) = -0.157894736842105_rp 
+     posgl( 10 ) = -0.052631578947369_rp 
+     posgl( 11 ) = 0.052631578947368_rp 
+     posgl( 12 ) = 0.157894736842105_rp 
+     posgl( 13 ) = 0.263157894736842_rp 
+     posgl( 14 ) = 0.368421052631579_rp 
+     posgl( 15 ) = 0.473684210526316_rp 
+     posgl( 16 ) = 0.578947368421053_rp 
+     posgl( 17 ) = 0.684210526315789_rp 
+     posgl( 18 ) = 0.789473684210526_rp 
+     posgl( 19 ) = 0.894736842105263_rp 
+     posgl( 20 ) = 1.000000000000000_rp 
+
+     weigl( 1 ) = 1.000000000000000_rp 
+     weigl( 2 ) = 1.000000000000000_rp 
+     weigl( 3 ) = 1.000000000000000_rp 
+     weigl( 4 ) = 1.000000000000000_rp 
+     weigl( 5 ) = 1.000000000000000_rp 
+     weigl( 6 ) = 1.000000000000000_rp 
+     weigl( 7 ) = 1.000000000000000_rp 
+     weigl( 8 ) = 1.000000000000000_rp 
+     weigl( 9 ) = 1.000000000000000_rp 
+     weigl( 10 ) = 1.000000000000000_rp 
+     weigl( 11 ) = 1.000000000000000_rp 
+     weigl( 12 ) = 1.000000000000000_rp 
+     weigl( 13 ) = 1.000000000000000_rp 
+     weigl( 14 ) = 1.000000000000000_rp 
+     weigl( 15 ) = 1.000000000000000_rp 
+     weigl( 16 ) = 1.000000000000000_rp 
+     weigl( 17 ) = 1.000000000000000_rp 
+     weigl( 18 ) = 1.000000000000000_rp 
+     weigl( 19 ) = 1.000000000000000_rp 
+     weigl( 20 ) = 1.000000000000000_rp 
+  else
+     write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',nlocs
+     stop
+  end if
+
+  if(ndime==1) then
+     qpoin=0
+     do ilocs=1,nlocs
+        qpoin=qpoin+1
+        quadrature%weight(  qpoin)=weigl(ilocs)
+        quadrature%coordinates(1,qpoin)=posgl(ilocs)
+     end do
+  else if(ndime==2) then
+     qpoin=0
+     do jlocs=1,nlocs
+        do ilocs=1,nlocs
+           qpoin=qpoin+1
+           quadrature%weight(  qpoin)=weigl(ilocs)*weigl(jlocs)
+           quadrature%coordinates(1,qpoin)=posgl(ilocs)
+           quadrature%coordinates(2,qpoin)=posgl(jlocs)
+        end do
+     end do
+  else if(ndime==3) then
+     qpoin=0
+     do klocs=1,nlocs
+        do jlocs=1,nlocs
+           do ilocs=1,nlocs
+              qpoin=qpoin+1
+              quadrature%weight(  qpoin)=weigl(ilocs)*weigl(jlocs)*weigl(klocs)
+              quadrature%coordinates(1,qpoin)=posgl(ilocs)
+              quadrature%coordinates(2,qpoin)=posgl(jlocs)
+              quadrature%coordinates(3,qpoin)=posgl(klocs)
+           end do
+        end do
+     end do
+  end if
+
+end subroutine fill_nodal_quadrature
 
 subroutine fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coord_ip ) !ndime,ngaus,posgp,weigp)
   implicit none 

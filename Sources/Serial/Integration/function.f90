@@ -1,4 +1,4 @@
-module function
+module function_names
   use types_names
   !use memor_names
   use field_names
@@ -71,6 +71,8 @@ module function
      generic   :: get_values_set => get_values_set_space, get_values_set_space_time     
   end type tensor_function_t
 
+  public :: array_function_t, scalar_function_t, vector_function_t, tensor_function_t
+
 contains
 ! One only needs to fill array_get_component_value_space or array_get_component_value_space_time
 ! (depending on the type of function). The rest of TBPs are implemented based on that at the 
@@ -93,4 +95,4 @@ contains
 ! defined functions that inherit from tensor_function_t
 #include "sbm_tensor_function.i90"
 
-end module function
+end module function_names
