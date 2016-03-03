@@ -117,8 +117,8 @@ subroutine quad_lagrangian_reference_fe_create_face_interpolation( this,local_fa
   ! Allocate the arrays of the interpolation
   call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar,              &
        &                    local_quadrature%number_quadrature_points, 0 )
-  ! Fill the values of the shape functions
 
+  ! Fill the values of the shape functions
   call face_interpolation_shape_fill (this,face_interpolation,local_quadrature,local_face_id)
 end subroutine quad_lagrangian_reference_fe_create_face_interpolation
 
@@ -371,65 +371,36 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor( this, &
 
 end subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor
 
-!=================================================================================================
-! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
-! and a delay 'r' wrt to a refence element sharing the same vef.
-subroutine  quad_lagrangian_reference_fe_permute_order_vef( this,o2n,p,o,r,nd )
-  implicit none
-  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
-  integer(ip), intent(in)    :: p,o,r,nd
-  integer(ip), intent(inout) :: o2n(:)
-
-  if     (nd == 0) then
-     o2n(1) = 1
-  elseif (nd == 1) then
-     call permute_or_1d(o2n(1:p+1),p,r)
-  elseif (nd == 2) then
-     call permute_or_2d(o2n(1:int((p+1)**2)),p,o,r)
-  else
-     write(*,*) __FILE__,__LINE__,'WARNING! Permutations not given for nd>3'
-  end if
-end subroutine quad_lagrangian_reference_fe_permute_order_vef
-
 !==================================================================================================
 subroutine quad_lagrangian_reference_fe_permute_interior_nodes_per_vef(target_reference_fe,       &
-     &     source_reference_fe,permu_nodes,source_vef_id,target_vef_id, source_vefs, target_vefs, &
-     &     source_subface,target_subface )
+     &     source_reference_fe,source_vef_id,target_vef_id, source_vefs, target_vefs,permu_nodes, &
+     &     source_subface)
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)  :: target_reference_fe
   class(reference_fe_t)                , intent(in)  :: source_reference_fe
-  integer(ip)                          , intent(out) :: permu_nodes(:) ! Permutation vector
   integer(ip)                          , intent(in)  :: source_vef_id ! Local vef ID
   integer(ip)                          , intent(in)  :: target_vef_id ! Local vef ID
   integer(ip)                          , intent(in)  :: source_vefs(source_reference_fe%number_vefs)
   integer(ip)                          , intent(in)  :: target_vefs(target_reference_fe%number_vefs) 
-  integer(ip)                , optional, intent(in)  :: source_subface,target_subface
+  integer(ip)                          , intent(out) :: permu_nodes(:) ! Permutation vector
+  integer(ip)                , optional, intent(in)  :: source_subface
 
-  integer(ip) :: vef_dimension, number_nodes_x_dim, permute_nodes_scalar(36) 
-  integer(ip) :: i, relative_rotation,source_first_vertex_global_id, target_vertex_global_id 
+  integer(ip) :: vef_dimension, number_interior_nodes_x_dim, permute_nodes_scalar(36) 
+  integer(ip) :: i, relative_rotation
   integer(ip) :: relative_orientation, idime, number_nodes_scalar, inode_scalar
 
   select type(source_reference_fe)
      class is(quad_lagrangian_reference_fe_t)
 
         ! Get number nodes per dimension
-        check (target_reference_fe%order == source_reference_fe%order)
-        number_nodes_x_dim = target_reference_fe%order - 1
+        assert (target_reference_fe%order == source_reference_fe%order)
+        assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
+        number_interior_nodes_x_dim = target_reference_fe%order - 1
 
-        ! Relative Rotation
-        if (.not. present(target_subface)) then 
-           source_first_vertex_global_id = source_vefs(source_reference_fe%vertices_vef%l         &
-                & (source_reference_fe%vertices_vef%p(source_vef_id)))
-           relative_rotation = 1
-           do i = target_reference_fe%vertices_vef%p(target_vef_id),                              &
-                & target_reference_fe%vertices_vef%p(target_vef_id+1)-1
-              target_vertex_global_id = target_vefs(target_reference_fe%vertices_vef%l(i))
-              if (target_vertex_global_id ==  source_first_vertex_global_id) exit
-              relative_rotation = relative_rotation + 1
-           end do
-        else
-           check (.false.)
-        end if
+        ! Compute relative rotation
+        call target_reference_fe%compute_relative_rotation( source_reference_fe,                  &
+             & relative_rotation,source_vef_id,target_vef_id,source_vefs,target_vefs, &
+             & source_subface)
 
         ! Take the dimension of the vef
         vef_dimension = target_reference_fe%get_vef_dimension(target_vef_id)
@@ -438,22 +409,24 @@ subroutine quad_lagrangian_reference_fe_permute_interior_nodes_per_vef(target_re
            number_nodes_scalar = 1
            permute_nodes_scalar(1) = 1
         elseif (vef_dimension == 1) then
-           number_nodes_scalar = number_nodes_x_dim
-           call permute_or_1d(permute_nodes_scalar(1:number_nodes_scalar),number_nodes_x_dim-1,    &
-                &             relative_rotation)
+           number_nodes_scalar = number_interior_nodes_x_dim
+           call permute_or_1d(permute_nodes_scalar(1:number_nodes_scalar),                        &
+                &             number_interior_nodes_x_dim-1,relative_rotation)
         elseif (vef_dimension == 2) then
-           number_nodes_scalar = number_nodes_x_dim**2
-           relative_orientation = modulo( 1 + source_reference_fe%orientation%a(source_vef_id) -  &
-                                              target_reference_fe%orientation%a(target_vef_id),2)
-           
+           number_nodes_scalar = number_interior_nodes_x_dim**2
+           ! Compute relative orientation
+           call target_reference_fe%compute_relative_orientation(source_reference_fe,             &
+                &                              relative_orientation,source_vef_id,target_vef_id)
+                      
            call permute_or_2d(permute_nodes_scalar(1: number_nodes_scalar),                       &
-                &             number_nodes_x_dim-1,relative_orientation,relative_rotation)
+                &             number_interior_nodes_x_dim-1,relative_orientation,relative_rotation)
         else 
            check (.false.)
         end if
 
-        check (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
+        assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
         assert (target_reference_fe%get_number_interior_nodes_vef(target_vef_id) == source_reference_fe%get_number_interior_nodes_vef(source_vef_id))
+
         i = 1
         do idime = 1, target_reference_fe%number_field_components
            ! This is taking advantage of the face that we know how the DoF are ordered
@@ -467,9 +440,14 @@ subroutine quad_lagrangian_reference_fe_permute_interior_nodes_per_vef(target_re
      class default
         check(.false.)
   end select
-  
-  
+ 
 end subroutine quad_lagrangian_reference_fe_permute_interior_nodes_per_vef
+
+ !==================================================================================================
+  subroutine quad_lagrangian_reference_fe_fill_face_points_permutation(this)
+    implicit none
+    class(quad_lagrangian_reference_fe_t), intent(in)  :: this
+  end subroutine quad_lagrangian_reference_fe_fill_face_points_permutation
 
 subroutine quad_lagrangian_reference_fe_fill (this)
   implicit none

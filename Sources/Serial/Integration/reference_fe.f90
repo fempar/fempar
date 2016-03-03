@@ -282,12 +282,12 @@ module reference_fe_names
      
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
-     procedure (permute_order_vef_interface)             , deferred :: permute_order_vef
      procedure (permute_interior_nodes_per_vef_interface), deferred :: permute_interior_nodes_per_vef
      procedure (get_characteristic_length_interface)     , deferred :: get_characteristic_length
+     procedure (fill_face_points_permutation_interface), deferred :: &
+          &                                  fill_face_points_permutation
 
      ! generic part of the subroutine above
-     procedure :: permute_nodes_per_vef => reference_fe_permute_nodes_per_vef
      procedure :: free  => reference_fe_free
      procedure :: print => reference_fe_print
 
@@ -328,6 +328,9 @@ module reference_fe_names
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
      procedure :: get_orientation => reference_fe_get_orientation     
+     procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
+     procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
+
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -500,28 +503,19 @@ module reference_fe_names
        type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_tensor_interface     
      
-     subroutine permute_order_vef_interface( this, o2n,p,o,r,nd )
-       import :: reference_fe_t, ip
-       implicit none
-       class(reference_fe_t), intent(in) :: this 
-       integer(ip), intent(in)    :: p,o,r,nd
-       integer(ip), intent(inout) :: o2n(:)
-     end subroutine permute_order_vef_interface
-
      subroutine permute_interior_nodes_per_vef_interface(target_reference_fe,source_reference_fe,   &
-          &                                              permu_nodes,source_vef_id,target_vef_id,   &
-          &                                              source_vefs,target_vefs,source_subface,    &
-          &                                              target_subface )
+          &                                              source_vef_id,target_vef_id,source_vefs,   &
+          &                                              target_vefs,permu_nodes,source_subface)
        import :: reference_fe_t, ip
        implicit none
        class(reference_fe_t), intent(in) :: target_reference_fe
        class(reference_fe_t), intent(in)  :: source_reference_fe
-       integer(ip)          , intent(out) :: permu_nodes(:)! Permutation vector
        integer(ip)          , intent(in)  :: source_vef_id ! Local vef ID
        integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
        integer(ip)          , intent(in)  :: source_vefs(source_reference_fe%number_vefs)
        integer(ip)          , intent(in)  :: target_vefs(target_reference_fe%number_vefs) 
-       integer(ip), optional, intent(in)  :: source_subface,target_subface
+       integer(ip)          , intent(out) :: permu_nodes(:)! Permutation vector
+       integer(ip), optional, intent(in)  :: source_subface
      end subroutine permute_interior_nodes_per_vef_interface
 
      function get_characteristic_length_interface( this)
@@ -551,6 +545,11 @@ module reference_fe_names
        type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
      end subroutine update_interpolation_face_interface
      
+     subroutine fill_face_points_permutation_interface( this )
+       import :: reference_fe_t
+       implicit none 
+       class(reference_fe_t)                 , intent(in)    :: this 
+     end subroutine fill_face_points_permutation_interface
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -576,7 +575,6 @@ module reference_fe_names
      procedure :: update_interpolation      => quad_lagrangian_reference_fe_update_interpolation
      procedure :: update_interpolation_face => quad_lagrangian_reference_fe_update_interpolation_face
      procedure :: get_bc_component_node     => quad_lagrangian_reference_fe_get_bc_component_node
-     procedure :: permute_order_vef         => quad_lagrangian_reference_fe_permute_order_vef
      procedure :: permute_interior_nodes_per_vef                                                    &
           &                          => quad_lagrangian_reference_fe_permute_interior_nodes_per_vef 
 
@@ -596,6 +594,8 @@ module reference_fe_names
      procedure :: free                      => quad_lagrangian_reference_fe_free
      procedure :: get_characteristic_length &
           &                          => quad_lagrangian_reference_fe_get_characteristic_length
+     procedure :: fill_face_points_permutation &
+          &                   => quad_lagrangian_reference_fe_fill_face_points_permutation
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t
@@ -702,6 +702,7 @@ type face_integrator_t
    logical                                :: is_boundary
    type(interpolation_face_restriction_t) :: interpolation_face_restriction(2)
    type(p_reference_fe_t)                 :: reference_fe(2)
+   integer(ip), allocatable               :: quadrature_points_permutation(:,:)
  contains
    procedure, non_overridable :: create            => face_integrator_create
    procedure, non_overridable :: update            => face_integrator_update
