@@ -311,6 +311,32 @@ subroutine quad_lagrangian_reference_fe_get_curl_vector( this, actual_cell_inter
 
 end subroutine quad_lagrangian_reference_fe_get_curl_vector
 
+subroutine quad_lagrangian_reference_fe_interpolate_nodal_values( this, &
+                                                               &  nodal_interpolation, &
+                                                               &  nodal_values_origin, &
+                                                               &  nodal_values_destination)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)                , intent(in)    :: nodal_interpolation
+  real(rp)                             , intent(in)    :: nodal_values_origin(:)
+  real(rp)                             , intent(inout) :: nodal_values_destination(:)
+  integer(ip) :: qpoint, ishape, icomp, c_dest
+
+  c_dest = 0
+  do icomp = 1, this%number_field_components
+     do qpoint = 1, nodal_interpolation%number_quadrature_points
+        c_dest = c_dest + 1
+        nodal_values_destination(c_dest) = 0.0_rp
+        do ishape = 1, nodal_interpolation%number_shape_functions
+           nodal_values_destination(c_dest) = nodal_values_destination(c_dest) + & 
+                & nodal_interpolation%shape_functions(ishape,qpoint) *           &
+                & nodal_values_origin(this%node_array_component(ishape,icomp))
+        end do
+     end do
+  end do
+
+end subroutine quad_lagrangian_reference_fe_interpolate_nodal_values
+
 !**************************************************************************************************
 ! Evaluate methods for fe_function_scalar/vector/tensor_t
 !**************************************************************************************************
@@ -407,15 +433,18 @@ subroutine quad_lagrangian_reference_fe_fill (this)
   end if
 
   call memalloc( this%number_nodes, 2, this%node_component_array, __FILE__, __LINE__ )
+  call memalloc( this%number_nodes_scalar, this%number_field_components, this%node_array_component, __FILE__, __LINE__ )
 
   c = 1
   do i = 1, this%number_field_components
      do j = 1, this%number_nodes_scalar
         this%node_component_array(c,1) = j
         this%node_component_array(c,2) = i   
+        this%node_array_component(j,i) = c
         c = c+1
      end do
   end do
+
 end subroutine quad_lagrangian_reference_fe_fill
 
 subroutine quad_lagrangian_reference_fe_free ( this )
@@ -427,6 +456,8 @@ subroutine quad_lagrangian_reference_fe_free ( this )
   ! quad_lagrangian_reference_fe_t variables
   if(allocated(this%node_component_array)) & 
        call memfree(this%node_component_array,__FILE__,__LINE__)
+  if(allocated(this%node_array_component)) & 
+       call memfree(this%node_array_component,__FILE__,__LINE__)
   this%number_nodes_scalar = 0
 end subroutine quad_lagrangian_reference_fe_free
 

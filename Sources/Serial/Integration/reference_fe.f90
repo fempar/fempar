@@ -171,6 +171,7 @@ module reference_fe_names
      procedure, non_overridable :: get_inv_jacobian_tensor => fe_map_get_inv_jacobian_tensor
      procedure, non_overridable :: get_reference_h         => fe_map_get_reference_h
      procedure, non_overridable :: apply_inv_jacobian      => fe_map_apply_inv_jacobian
+     procedure, non_overridable :: get_quadrature_coordinates  => fe_map_get_quadrature_coordinates
   end type fe_map_t
 
   type p_fe_map_t
@@ -554,6 +555,7 @@ module reference_fe_names
      private
      integer(ip)              :: number_nodes_scalar
      integer(ip), allocatable :: node_component_array(:,:)
+     integer(ip), allocatable :: node_array_component(:,:)
    contains 
      ! Deferred TBP implementors
      procedure :: create                    => quad_lagrangian_reference_fe_create
@@ -651,15 +653,6 @@ contains
   generic :: evaluate_fe_function => volume_integrator_evaluate_fe_function_scalar, &
                                    & volume_integrator_evaluate_fe_function_vector, &
                                    & volume_integrator_evaluate_fe_function_tensor
-
-  procedure, non_overridable, private :: volume_integrator_interpolate_scalar
-  procedure, non_overridable, private :: volume_integrator_interpolate_point 
-  procedure, non_overridable, private :: volume_integrator_interpolate_vector
-  procedure, non_overridable, private :: volume_integrator_interpolate_tensor
-  generic :: interpolate_field => volume_integrator_interpolate_scalar, &
-                                & volume_integrator_interpolate_point,  & 
-                                & volume_integrator_interpolate_vector, &
-                                & volume_integrator_interpolate_tensor
 
 end type volume_integrator_t
 

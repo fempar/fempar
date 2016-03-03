@@ -200,13 +200,7 @@ subroutine fe_map_update( this, quadrature)
   end do
 
   ! Evaluation (Gauss) point coordinates
-  do ilocs=1,nlocs
-     this%coordinates_quadrature(ilocs)=0.0_rp
-     do inode=1,nnode
-        this%coordinates_quadrature(ilocs) = this%coordinates_quadrature(ilocs) &
-             + this%coordinates_vertices(inode)*this%interpolation_geometry%shape_functions(inode,ilocs)
-     end do
-  end do
+  this%coordinates_quadrature = this%get_quadrature_coordinates()
 
   ! ! Second derivatives of the map
   if( khes ) then
@@ -279,16 +273,18 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
   orientation_face  = reference_fe%orientation%a(local_vef_id)
   reorientation_factor = (-1)**orientation_face
 
+  
+  this%coordinates_quadrature = this%get_quadrature_coordinates()
   ! Initialize values
   this%jacobian           = 0.0_rp
   do evaluation_point_id = 1, quadrature%number_quadrature_points
-     this%coordinates_quadrature(evaluation_point_id) = 0.0_rp
-     do node_id = 1, this%interpolation_geometry%number_shape_functions
-        ! Updating the coordinates
-        this%coordinates_quadrature(evaluation_point_id) =                                          &
-             & this%coordinates_quadrature(evaluation_point_id) + this%coordinates_vertices(node_id) *     &
-             & this%interpolation_geometry%shape_functions(node_id,evaluation_point_id)
-     end do
+     ! this%coordinates_quadrature(evaluation_point_id) = 0.0_rp
+     ! do node_id = 1, this%interpolation_geometry%number_shape_functions
+     !    ! Updating the coordinates
+     !    this%coordinates_quadrature(evaluation_point_id) =                                          &
+     !         & this%coordinates_quadrature(evaluation_point_id) + this%coordinates_vertices(node_id) *     &
+     !         & this%interpolation_geometry%shape_functions(node_id,evaluation_point_id)
+     ! end do
 
      ! Updating the Jacobian Matrix
      do jdime=1, number_face_dimensions
@@ -512,6 +508,25 @@ function fe_map_get_reference_h ( this )
   fe_map_get_reference_h = this%reference_fe_characteristic_length
 end function fe_map_get_reference_h
 
+!==================================================================================================
+function fe_map_get_quadrature_coordinates(this) result(point_out)
+  implicit none
+  class(fe_map_t), intent(in) :: this
+  type(point_t) :: point_out(this%number_quadrature_points)
+  integer(ip)   :: qpoin,inode,nnode,nquad
+
+  nnode = this%interpolation_geometry%number_shape_functions
+  nquad = this%number_quadrature_points
+  do qpoin = 1,nquad
+     call point_out(qpoin)%init(0.0_rp)
+     do inode=1,nnode
+        point_out(qpoin) = point_out(qpoin) + &
+             &             this%coordinates_vertices(inode) * this%interpolation_geometry%shape_functions(inode,qpoin)
+     end do
+  end do
+  
+end function fe_map_get_quadrature_coordinates
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_fe_map_t type procedures
 subroutine p_fe_map_allocate( this )
@@ -720,87 +735,6 @@ subroutine volume_integrator_evaluate_fe_function_tensor ( this, nodal_values, q
 
   call this%reference_fe%evaluate_fe_function ( this%interpolation, nodal_values, quadrature_points_values )
 end subroutine volume_integrator_evaluate_fe_function_tensor
-
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-! procedures to interpolate fields
-
-function volume_integrator_interpolate_scalar(this,value_in) result(value_out)
-  implicit none
-  class(volume_integrator_t), intent(in) :: this
-  real(rp)                  , intent(in) :: value_in(this%number_shape_functions)
-  real(rp)    :: value_out(this%number_quadrature_points)
-  integer(ip) :: qpoin,inode,nnode,nquad
-
-  nnode = this%number_shape_functions
-  nquad = this%number_quadrature_points
-  do qpoin=1,nquad
-     value_out(qpoin) = 0.0_rp
-     do inode=1,nnode
-        value_out(qpoin) = value_out(qpoin) + &
-             &             value_in(inode) * this%interpolation_o_map%shape_functions(inode,qpoin)
-     end do
-  end do
-
-end function volume_integrator_interpolate_scalar
-
-function volume_integrator_interpolate_point(this,point_in) result(point_out)
-  implicit none
-  class(volume_integrator_t), intent(in) :: this
-  type(point_t)             , intent(in) :: point_in(this%number_shape_functions)
-  type(point_t) :: point_out(this%number_quadrature_points)
-  integer(ip)   :: qpoin,inode,nnode,nquad
-
-  nnode = this%number_shape_functions
-  nquad = this%number_quadrature_points
-  do qpoin = 1,nquad
-     call point_out(qpoin)%init(0.0_rp)
-     do inode=1,nnode
-        point_out(qpoin) = point_out(qpoin) + &
-             &             point_in(inode) * this%interpolation_o_map%shape_functions(inode,qpoin)
-     end do
-  end do
-  
-end function volume_integrator_interpolate_point
-
-function volume_integrator_interpolate_vector(this,vector_in) result(vector_out)
-  implicit none
-  class(volume_integrator_t), intent(in) :: this
-  type(vector_field_t)      , intent(in) :: vector_in(this%number_shape_functions)
-  type(vector_field_t) :: vector_out(this%number_quadrature_points)
-  integer(ip)          :: qpoin,inode,nnode,nquad
-
-  nnode = this%number_shape_functions
-  nquad = this%number_quadrature_points
-  do qpoin = 1,nquad
-     call vector_out(qpoin)%init(0.0_rp)
-     do inode=1,nnode
-        vector_out(qpoin) = vector_out(qpoin) + &
-             &             vector_in(inode) * this%interpolation_o_map%shape_functions(inode,qpoin)
-     end do
-  end do
-  
-end function volume_integrator_interpolate_vector
-
-function volume_integrator_interpolate_tensor(this,tensor_in) result(tensor_out)
-  implicit none
-  class(volume_integrator_t), intent(in) :: this
-  type(tensor_field_t)      , intent(in) :: tensor_in(this%number_shape_functions)
-  type(tensor_field_t) :: tensor_out(this%number_quadrature_points)
-  integer(ip)          :: qpoin,inode,nnode,nquad
-
-  nnode = this%number_shape_functions
-  nquad = this%number_quadrature_points
-  do qpoin = 1,nquad
-     call tensor_out(qpoin)%init(0.0_rp)
-     do inode=1,nnode
-        tensor_out(qpoin) = tensor_out(qpoin) + &
-             &             tensor_in(inode) * this%interpolation_o_map%shape_functions(inode,qpoin)
-     end do
-  end do
-  
-end function volume_integrator_interpolate_tensor
-
-
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_volume_integrator_t type procedures

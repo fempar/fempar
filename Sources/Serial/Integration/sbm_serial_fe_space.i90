@@ -488,9 +488,10 @@ function get_max_number_nodes_field( this, ifield )
    real(rp), allocatable       :: values(:,:)
    character(:), allocatable   :: field_type
    type(volume_integrator_t)   :: volume_integrator
+   type(fe_map_t)              :: fe_map
    type(quadrature_t), pointer :: nodal_quadrature
    type(point_t), allocatable  :: nodal_coordinates(:)
-   type(point_t), allocatable  :: coordinates_vertices(:)
+   type(point_t), pointer      :: vertex_coordinates(:)
    
    ! Getters
    field_type               =  this%reference_fe_phy_list(fe_space_component)%p%get_field_type()
@@ -501,18 +502,19 @@ function get_max_number_nodes_field( this, ifield )
 
    ! Allocate nodal coordinates
    allocate(nodal_coordinates(number_quadrature_points), stat=istat); check(istat==0)
-   allocate(coordinates_vertices(number_vertices), stat=istat); check(istat==0)
    call memalloc(number_quadrature_points,1,values,__FILE__,__LINE__)
     
    ! Create volume integrator
    call volume_integrator%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
+   call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
 
    ! Loop over elements
    do ielem = 1, this%triangulation%num_elems
 
       ! Interpolate coordinates
-      call this%fe_array(ielem)%cell%get_coordinates(coordinates_vertices)
-      nodal_coordinates = volume_integrator%interpolate_field(coordinates_vertices)
+      vertex_coordinates => fe_map%get_coordinates()
+      call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
+      nodal_coordinates = fe_map%get_quadrature_coordinates()
 
       ! Evaluate function
       if(present(time)) then
@@ -527,8 +529,11 @@ function get_max_number_nodes_field( this, ifield )
    end do
 
    deallocate(nodal_coordinates)
-   deallocate(coordinates_vertices)
    call memfree(values,__FILE__,__LINE__)
+
+   ! Free volume integrator and FE map
+   call fe_map%free()
+   call volume_integrator%free()
    
  end subroutine update_bc_value_scalar
 
@@ -544,9 +549,11 @@ function get_max_number_nodes_field( this, ifield )
    integer(ip) :: number_quadrature_points, number_vertices
    character(:), allocatable         :: field_type
    type(volume_integrator_t)         :: volume_integrator
+   type(fe_map_t)                    :: fe_map
    type(quadrature_t)  , pointer     :: nodal_quadrature
    type(point_t)       , allocatable :: nodal_coordinates(:)
    type(point_t)       , allocatable :: coordinates_vertices(:)
+   type(point_t)       , pointer     :: vertex_coordinates(:)
    type(vector_field_t), allocatable :: values(:,:)
    
    ! Getters
@@ -558,18 +565,19 @@ function get_max_number_nodes_field( this, ifield )
 
    ! Allocate nodal coordinates
    allocate(nodal_coordinates(number_quadrature_points), stat=istat); check(istat==0)
-   allocate(coordinates_vertices(number_vertices), stat=istat); check(istat==0)
    allocate(values(number_quadrature_points,1), stat=istat); check(istat==0)
     
    ! Create volume integrator
    call volume_integrator%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
+   call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
 
    ! Loop over elements
    do ielem = 1, this%triangulation%num_elems
 
       ! Interpolate coordinates
-      call this%fe_array(ielem)%cell%get_coordinates(coordinates_vertices)
-      nodal_coordinates = volume_integrator%interpolate_field(coordinates_vertices)
+      vertex_coordinates => fe_map%get_coordinates()
+      call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
+      nodal_coordinates = fe_map%get_quadrature_coordinates()
 
       ! Evaluate function
       if(present(time)) then
@@ -584,8 +592,11 @@ function get_max_number_nodes_field( this, ifield )
    end do
 
    deallocate(nodal_coordinates)
-   deallocate(coordinates_vertices)
    deallocate(values)
+
+   ! Free volume integrator and FE map
+   call fe_map%free()
+   call volume_integrator%free()
    
  end subroutine update_bc_value_vector
 
@@ -601,9 +612,10 @@ function get_max_number_nodes_field( this, ifield )
    integer(ip) :: number_quadrature_points, number_vertices
    character(:), allocatable   :: field_type
    type(volume_integrator_t)   :: volume_integrator
+   type(fe_map_t)              :: fe_map
    type(quadrature_t), pointer :: nodal_quadrature
    type(point_t), allocatable  :: nodal_coordinates(:)
-   type(point_t), allocatable  :: coordinates_vertices(:)
+   type(point_t), pointer      :: vertex_coordinates(:)
    type(tensor_field_t), allocatable :: values(:,:)
    
    ! Getters
@@ -615,18 +627,19 @@ function get_max_number_nodes_field( this, ifield )
 
    ! Allocate nodal coordinates
    allocate(nodal_coordinates(number_quadrature_points), stat=istat); check(istat==0)
-   allocate(coordinates_vertices(number_vertices), stat=istat); check(istat==0)
    allocate(values(number_quadrature_points,1), stat=istat); check(istat==0)
     
    ! Create volume integrator
    call volume_integrator%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
+   call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
 
    ! Loop over elements
    do ielem = 1, this%triangulation%num_elems
 
       ! Interpolate coordinates
-      call this%fe_array(ielem)%cell%get_coordinates(coordinates_vertices)
-      nodal_coordinates = volume_integrator%interpolate_field(coordinates_vertices)
+      vertex_coordinates => fe_map%get_coordinates()
+      call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
+      nodal_coordinates = fe_map%get_quadrature_coordinates()
 
       ! Evaluate function
       if(present(time)) then
@@ -641,8 +654,11 @@ function get_max_number_nodes_field( this, ifield )
    end do
 
    deallocate(nodal_coordinates)
-   deallocate(coordinates_vertices)
    deallocate(values)
+
+   ! Free volume integrator and FE map
+   call fe_map%free()
+   call volume_integrator%free()
    
  end subroutine update_bc_value_tensor
 
