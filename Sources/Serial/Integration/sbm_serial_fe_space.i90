@@ -59,12 +59,12 @@ subroutine serial_fe_space_create( this, &
   this%number_blocks = maxval(this%field_blocks)
   
   call memalloc ( this%number_blocks, this%number_blocks, this%blocks_coupling, __FILE__, __LINE__)
-	 this%blocks_coupling = .false.
-	 do jfe_space=1,this%number_fe_spaces
-	     do ife_space=1,this%number_fe_spaces
-		      this%blocks_coupling(this%field_blocks(ife_space), this%field_blocks(jfe_space)) =  this%field_coupling(ife_space,jfe_space)
-      end do
-	 end do
+  this%blocks_coupling = .false.
+  do jfe_space=1,this%number_fe_spaces
+     do ife_space=1,this%number_fe_spaces
+        this%blocks_coupling(this%field_blocks(ife_space), this%field_blocks(jfe_space)) =  this%field_coupling(ife_space,jfe_space)
+     end do
+  end do
 
   this%triangulation => triangulation
 
@@ -94,24 +94,22 @@ subroutine serial_fe_space_create( this, &
                                     this%number_blocks,&
                                     this%field_blocks,&
                                     boundary_conditions)
-  end do 
-
+   end do
 end subroutine serial_fe_space_create
 
 subroutine serial_fe_space_fill_dof_info( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this 
   integer(ip) :: fe_space_id
+
   call memalloc( this%number_blocks, this%number_dofs_per_block, __FILE__, __LINE__ )
   call memalloc( this%number_fe_spaces, this%number_dofs_per_field, __FILE__, __LINE__ )
-
+  
   this%number_dofs_per_block = 0
   this%number_dofs_per_field = 0
-  
   do fe_space_id = 1, this%number_fe_spaces
-    call this%fill_elem2dof_and_count_dofs( fe_space_id )
+     call this%fill_elem2dof_and_count_dofs( fe_space_id )
   end do
-  
 end subroutine serial_fe_space_fill_dof_info
 
 subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id ) 
@@ -303,14 +301,14 @@ subroutine serial_fe_space_initialize_fe_map(this)
 end subroutine serial_fe_space_initialize_fe_map
 
 function serial_fe_space_create_assembler(this, &
-                          diagonal_blocks_symmetric_storage,&
-                          diagonal_blocks_symmetric, & 
-                          diagonal_blocks_sign)
+                                          diagonal_blocks_symmetric_storage,&
+                                          diagonal_blocks_symmetric, & 
+                                          diagonal_blocks_sign)
   implicit none
   class(serial_fe_space_t)          , intent(in) :: this
-  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(this%number_blocks)
-  logical                           , intent(in) :: diagonal_blocks_symmetric(this%number_blocks)
-  integer(ip)                       , intent(in) :: diagonal_blocks_sign(this%number_blocks)
+  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
+  logical                           , intent(in) :: diagonal_blocks_symmetric(:)
+  integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
   class(matrix_array_assembler_t)   , pointer    :: serial_fe_space_create_assembler
   
   ! Locals
@@ -325,18 +323,18 @@ function serial_fe_space_create_assembler(this, &
      allocate ( sparse_matrix_t :: matrix )
      allocate ( serial_scalar_array_t  :: array )
      select type(matrix)
-        class is(sparse_matrix_t)
+     class is(sparse_matrix_t)
         call matrix%create(this%number_dofs_per_block(1), &
                            diagonal_blocks_symmetric_storage(1),&
                            diagonal_blocks_symmetric(1),&
                            diagonal_blocks_sign(1))
-        class default
+     class default
         check(.false.)
      end select
      select type(array)
-        class is(serial_scalar_array_t)
+     class is(serial_scalar_array_t)
         call array%create(this%number_dofs_per_block(1))
-        class default
+     class default
         check(.false.)
      end select
   else
@@ -344,35 +342,35 @@ function serial_fe_space_create_assembler(this, &
      allocate ( block_sparse_matrix_t :: matrix )
      allocate ( serial_block_array_t  :: array )
      select type(matrix)
-        class is (block_sparse_matrix_t)
-        call matrix%create(this%number_blocks,this%number_dofs_per_block,this%number_dofs_per_block,&
-             &             diagonal_blocks_symmetric_storage,diagonal_blocks_symmetric,diagonal_blocks_sign)
-
-
-								
-	do jblock=1,this%number_blocks
-    do iblock=1,this%number_blocks
-       if (.not. blocks_coupling(iblock,jblock) ) then
-		      call matrix%set_block_to_zero(iblock,jblock)
-	   end if
-	end do
-	end do				
-
-        
-      class default
+     class is (block_sparse_matrix_t)
+        call matrix%create(this%number_blocks, &
+                           this%number_dofs_per_block,&
+                           this%number_dofs_per_block,&
+                           diagonal_blocks_symmetric_storage,&
+                           diagonal_blocks_symmetric,&
+                           diagonal_blocks_sign)
+            
+	       do jblock=1,this%number_blocks
+           do iblock=1,this%number_blocks
+              if (.not. blocks_coupling(iblock,jblock) ) then
+                 call matrix%set_block_to_zero(iblock,jblock)
+              end if
+           end do
+        end do
+     class default
         check(.false.)
      end select
      select type(array)
-        class is(serial_block_array_t)
+     class is(serial_block_array_t)
         call array%create(this%number_blocks,this%number_dofs_per_block)
-        class default
+     class default
         check(.false.)
      end select
   end if
-
   call serial_fe_space_create_assembler%set_matrix(matrix)
   call serial_fe_space_create_assembler%set_array(array)
 end function serial_fe_space_create_assembler
+
 
 subroutine serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
   implicit none

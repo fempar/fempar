@@ -303,7 +303,6 @@ contains
        end do
        !write (*,*) 'XXXXXXXXX ELMAT XXXXXXXXX'
        !write (*,*) elmat
-       
        ! Apply boundary conditions
        call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
        call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )
@@ -458,7 +457,6 @@ program test_reference_fe
   class(operator_t), pointer :: A
 
   type(linear_solver_t)                           :: linear_solver
-  type(vector_space_t)    , pointer               :: fe_affine_operator_range_vector_space
   type(serial_environment_t)    :: senv
 
   ! Arguments
@@ -548,7 +546,7 @@ program test_reference_fe
                                       (/.true.,.true./), &
                                       (/.true.,.true./), &
                                       (/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/),&
-                                      f_trian, &
+                                      senv, &
                                       fe_space, &
                                       vector_laplacian_integration )
   else 
@@ -567,14 +565,14 @@ program test_reference_fe
      
      call fe_space%fill_dof_info() 
      
-     !call fe_space%print()
+     call fe_space%print()
      !stop
      
      call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                      diagonal_blocks_symmetric_storage=(/.true./), &
                                      diagonal_blocks_symmetric=(/.true./), &
                                      diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
-                                     triangulation=f_trian, &
+                                     environment=senv, &
                                      fe_space=fe_space, &
                                      discrete_integration=poisson_integration )
   end if
@@ -590,11 +588,13 @@ program test_reference_fe
       call matrix%print_matrix_market(6)
   end select
   
-
-  
-  fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-  call fe_affine_operator_range_vector_space%create_vector(vector)
-  fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+  array => fe_affine_operator%get_array()
+  select type(array)
+    class is (serial_scalar_array_t)
+      call array%print_matrix_market(6)
+  end select
+ 
+  call fe_affine_operator%create_range_vector(vector)
 
   ! Create linear solver, set operators and solve linear system
   call linear_solver%create(senv)

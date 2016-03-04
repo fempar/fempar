@@ -46,12 +46,12 @@ module serial_fe_space_names
   use matrix_names
   use vector_names
   use array_names
+  use matrix_array_assembler_names
+  
   use sparse_matrix_names
   use block_sparse_matrix_names
-  
   use serial_scalar_array_names
   use serial_block_array_names
-  use matrix_array_assembler_names
   use sparse_matrix_array_assembler_names
   use block_sparse_matrix_array_assembler_names
   
@@ -59,6 +59,9 @@ module serial_fe_space_names
   use par_triangulation_names
   use par_conditions_names
   use dof_import_names
+  use par_sparse_matrix_names
+  use par_scalar_array_names
+  use par_sparse_matrix_array_assembler_names
   
   
   implicit none
@@ -141,9 +144,9 @@ module serial_fe_space_names
      private
      integer(ip)                            :: number_fe_spaces
      type(face_topology_t)    , pointer     :: face_topology
-     type(p_finite_element_t)            :: neighbour_fe(2)
+     type(p_finite_element_t)               :: neighbour_fe(2)
      type(face_map_t)         , pointer     :: map
-     type(quadrature_t)    , pointer     :: quadrature
+     type(quadrature_t)       , pointer     :: quadrature
      type(p_face_integrator_t), allocatable :: face_integrator(:)
    contains
      procedure, non_overridable :: create              => finite_face_create
@@ -193,8 +196,8 @@ module serial_fe_space_names
      procedure, non_overridable, private :: initialize_quadrature => serial_fe_space_initialize_quadrature
      procedure, non_overridable, private :: initialize_volume_integrator => serial_fe_space_initialize_volume_integrator
      procedure, non_overridable, private :: initialize_fe_map => serial_fe_space_initialize_fe_map
-     procedure, non_overridable :: create_assembler => serial_fe_space_create_assembler
-     procedure, non_overridable :: symbolic_setup_assembler => serial_fe_space_symbolic_setup_assembler
+     procedure                  :: create_assembler => serial_fe_space_create_assembler
+     procedure                  :: symbolic_setup_assembler => serial_fe_space_symbolic_setup_assembler
      procedure, non_overridable :: get_number_elements => serial_fe_space_get_number_elements
      procedure, non_overridable :: get_number_interior_faces => serial_fe_space_get_number_interior_faces
      procedure, non_overridable :: get_number_boundary_faces => serial_fe_space_get_number_boundary_faces
@@ -227,19 +230,21 @@ module serial_fe_space_names
      type(finite_element_t)   , allocatable :: ghost_fe_array(:)
      type(dof_import_t)       , allocatable :: blocks_dof_import(:)
   contains
-     procedure          :: par_fe_space_create
-     procedure          :: par_fe_space_fill_dof_info
-     procedure, private :: par_fe_space_fill_elem2dof_and_count_dofs
-     procedure, private :: par_fe_space_compute_blocks_dof_import
-     procedure, private :: par_fe_space_compute_dof_import
-     procedure, private :: par_fe_space_compute_raw_interface_data_by_continuity
-     procedure, private :: par_fe_space_raw_interface_data_by_continuity_decide_owner
-     procedure, private :: par_fe_space_compute_raw_interface_data_by_face_integ
-     procedure, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
-     procedure, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
-     procedure          :: par_fe_space_get_finite_element
-     procedure          :: par_fe_space_print
-     procedure          :: par_fe_space_free
+     procedure, non_overridable          :: par_fe_space_create
+     procedure, non_overridable          :: par_fe_space_fill_dof_info
+     procedure, non_overridable, private :: par_fe_space_fill_elem2dof_and_count_dofs
+     procedure, non_overridable, private :: par_fe_space_compute_blocks_dof_import
+     procedure, non_overridable, private :: par_fe_space_compute_dof_import
+     procedure, non_overridable, private :: par_fe_space_compute_raw_interface_data_by_continuity
+     procedure, non_overridable, private :: par_fe_space_raw_interface_data_by_continuity_decide_owner
+     procedure, non_overridable, private :: par_fe_space_compute_raw_interface_data_by_face_integ
+     procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
+     procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
+     procedure, non_overridable          :: par_fe_space_get_finite_element
+     procedure, non_overridable          :: par_fe_space_print
+     procedure, non_overridable          :: par_fe_space_free
+     procedure                           :: create_assembler         => par_fe_space_create_assembler
+     procedure                           :: symbolic_setup_assembler => par_fe_space_symbolic_setup_assembler
   end type
 
   public :: par_fe_space_t

@@ -387,9 +387,8 @@ program test_reference_fe
   class(vector_t) , pointer :: x, y
   class(matrix_t) , pointer :: A
 
-  type(linear_solver_t)                           :: linear_solver
-  type(vector_space_t)    , pointer               :: fe_affine_operator_range_vector_space
-  type(serial_environment_t)         :: senv
+  type(linear_solver_t)      :: linear_solver
+  type(serial_environment_t) :: senv
 
   ! Arguments
   character(len=256)       :: dir_path, dir_path_out
@@ -468,7 +467,7 @@ program test_reference_fe
                                     (/.true.,.true./), &
                                     (/.true.,.true./), &
                                     (/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/),&
-                                    f_trian, &
+                                    senv, &
                                     fe_space, &
                                     stokes_integration )
   
@@ -483,8 +482,7 @@ program test_reference_fe
       call matrix%print_matrix_market(6)
   end select
   
-  fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-  call fe_affine_operator_range_vector_space%create_vector(vector)
+  call fe_affine_operator%create_range_vector(vector)
 
   ! Create linear solver, set operators and solve linear system: so far Richardson ,CG
   call linear_solver%create(senv)

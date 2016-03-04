@@ -37,6 +37,7 @@ module block_sparse_matrix_array_assembler_names
   ! Concrete implementations
   use sparse_matrix_names
   use block_sparse_matrix_names
+  use serial_scalar_array_names
   use serial_block_array_names
 
   implicit none
@@ -188,16 +189,18 @@ subroutine element_serial_block_array_assembly( array, &
   integer(ip)               , intent(in)    :: field_blocks(number_fe_spaces)
   real(rp)                  , intent(in)    :: elvec(:)
   
-  integer(ip) :: ielmat, ife_space, iblock, inode, idof
+  integer(ip)                           :: ielmat, ife_space, iblock, inode, idof
+  type(serial_scalar_array_t), pointer  :: block
 
   ielmat = 0
   do ife_space = 1, number_fe_spaces
      iblock = field_blocks(ife_space)
+     block => array%get_block(iblock)
      do inode = 1, number_nodes(ife_space)
         idof = elem2dof(ife_space)%p(inode) 
         ielmat = ielmat+1
         if ( idof  > 0 ) then
-           array%blocks(iblock)%b(idof) =  array%blocks(iblock)%b(idof) + elvec(ielmat)
+           call block%add(idof,elvec(ielmat))
         end if
      end do
   end do
