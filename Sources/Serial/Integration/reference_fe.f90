@@ -234,6 +234,7 @@ module reference_fe_names
      type(list_t)                   :: nodes_vef          ! all nodes per vef
      type(list_t)                   :: vertices_vef       ! vertices per vef
      type(list_t)                   :: vefs_vef           ! all vefs per vef
+     type(quadrature_t)             :: nodal_quadrature
    contains
      ! TBPs
      ! Fill topology, fe_type, number_dimensions, order, continuity 
@@ -285,6 +286,14 @@ module reference_fe_names
      ! and a delay 'r' wrt to a refence element sharing the same vef.
      procedure (permute_order_vef_interface)    , deferred :: permute_order_vef
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
+     procedure (set_nodal_quadrature_interface), deferred :: set_nodal_quadrature
+
+     procedure (set_scalar_field_to_nodal_values_interface), deferred :: set_scalar_field_to_nodal_values
+     procedure (set_vector_field_to_nodal_values_interface), deferred :: set_vector_field_to_nodal_values
+     procedure (set_tensor_field_to_nodal_values_interface), deferred :: set_tensor_field_to_nodal_values
+     generic :: set_field_to_nodal_values => set_scalar_field_to_nodal_values, &
+                                           & set_vector_field_to_nodal_values, &
+                                           & set_tensor_field_to_nodal_values
 
      ! generic part of the subroutine above
      procedure :: permute_nodes_per_vef => reference_fe_permute_nodes_per_vef
@@ -328,6 +337,7 @@ module reference_fe_names
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
      procedure :: get_orientation => reference_fe_get_orientation     
+     procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -534,6 +544,46 @@ module reference_fe_names
        type(fe_map_face_restriction_t)       , intent(in)    :: fe_map_face_restriction
        type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
      end subroutine update_interpolation_face_interface
+
+     subroutine set_nodal_quadrature_interface ( this )
+       import :: reference_fe_t
+       implicit none
+       class(reference_fe_t), intent(inout) :: this 
+     end subroutine set_nodal_quadrature_interface
+
+     subroutine set_scalar_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
+          &                                                  nodal_values, unknown_component)
+       import :: reference_fe_t, rp, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       integer(ip)          , intent(in)    :: code
+       real(rp)             , intent(in)    :: values(:)
+       integer(ip)          , intent(in)    :: nodal_codes(:)
+       real(rp)             , intent(inout) :: nodal_values(:)
+       integer(ip), optional, intent(in)    :: unknown_component
+     end subroutine set_scalar_field_to_nodal_values_interface
+
+     subroutine set_vector_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
+          &                                                  nodal_values)
+       import :: reference_fe_t, vector_field_t, ip, rp
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       integer(ip)          , intent(in)    :: code
+       type(vector_field_t) , intent(in)    :: values(:)
+       integer(ip)          , intent(in)    :: nodal_codes(:)
+       real(rp)             , intent(inout) :: nodal_values(:)
+     end subroutine set_vector_field_to_nodal_values_interface
+
+     subroutine set_tensor_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
+          &                                                  nodal_values)
+       import :: reference_fe_t, tensor_field_t, ip, rp
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       integer(ip)          , intent(in)    :: code
+       type(tensor_field_t) , intent(in)    :: values(:)
+       integer(ip)          , intent(in)    :: nodal_codes(:)
+       real(rp)             , intent(inout) :: nodal_values(:)
+     end subroutine set_tensor_field_to_nodal_values_interface
      
   end interface
 
@@ -546,6 +596,7 @@ module reference_fe_names
      private
      integer(ip)              :: number_nodes_scalar
      integer(ip), allocatable :: node_component_array(:,:)
+     integer(ip), allocatable :: node_array_component(:,:)
    contains 
      ! Deferred TBP implementors
      procedure :: create                    => quad_lagrangian_reference_fe_create
@@ -572,6 +623,12 @@ module reference_fe_names
      procedure :: evaluate_fe_function_scalar => quad_lagrangian_reference_fe_evaluate_fe_function_scalar
      procedure :: evaluate_fe_function_vector => quad_lagrangian_reference_fe_evaluate_fe_function_vector
      procedure :: evaluate_fe_function_tensor => quad_lagrangian_reference_fe_evaluate_fe_function_tensor
+
+     procedure :: set_nodal_quadrature => quad_lagrangian_reference_fe_set_nodal_quadrature
+
+     procedure :: set_scalar_field_to_nodal_values => quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values
+     procedure :: set_vector_field_to_nodal_values => quad_lagrangian_reference_fe_set_vector_field_to_nodal_values
+     procedure :: set_tensor_field_to_nodal_values => quad_lagrangian_reference_fe_set_tensor_field_to_nodal_values
 
      ! Concrete TBPs of this derived data type
      procedure :: fill                      => quad_lagrangian_reference_fe_fill

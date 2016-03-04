@@ -39,6 +39,7 @@ subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order,
   call this%set_topology ( topology_quad )
   call this%set_fe_type ( fe_type_lagrangian )
   call this%fill( )
+  call this%set_nodal_quadrature ()
 end subroutine quad_lagrangian_reference_fe_create
 
 subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, max_order )
@@ -310,6 +311,32 @@ subroutine quad_lagrangian_reference_fe_get_curl_vector( this, actual_cell_inter
 
 end subroutine quad_lagrangian_reference_fe_get_curl_vector
 
+subroutine quad_lagrangian_reference_fe_interpolate_nodal_values( this, &
+                                                               &  nodal_interpolation, &
+                                                               &  nodal_values_origin, &
+                                                               &  nodal_values_destination)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)                , intent(in)    :: nodal_interpolation
+  real(rp)                             , intent(in)    :: nodal_values_origin(:)
+  real(rp)                             , intent(inout) :: nodal_values_destination(:)
+  integer(ip) :: qpoint, ishape, icomp, c_dest
+
+  c_dest = 0
+  do icomp = 1, this%number_field_components
+     do qpoint = 1, nodal_interpolation%number_quadrature_points
+        c_dest = c_dest + 1
+        nodal_values_destination(c_dest) = 0.0_rp
+        do ishape = 1, nodal_interpolation%number_shape_functions
+           nodal_values_destination(c_dest) = nodal_values_destination(c_dest) + & 
+                & nodal_interpolation%shape_functions(ishape,qpoint) *           &
+                & nodal_values_origin(this%node_array_component(ishape,icomp))
+        end do
+     end do
+  end do
+
+end subroutine quad_lagrangian_reference_fe_interpolate_nodal_values
+
 !**************************************************************************************************
 ! Evaluate methods for fe_function_scalar/vector/tensor_t
 !**************************************************************************************************
@@ -406,15 +433,18 @@ subroutine quad_lagrangian_reference_fe_fill (this)
   end if
 
   call memalloc( this%number_nodes, 2, this%node_component_array, __FILE__, __LINE__ )
+  call memalloc( this%number_nodes_scalar, this%number_field_components, this%node_array_component, __FILE__, __LINE__ )
 
   c = 1
   do i = 1, this%number_field_components
      do j = 1, this%number_nodes_scalar
         this%node_component_array(c,1) = j
         this%node_component_array(c,2) = i   
+        this%node_array_component(j,i) = c
         c = c+1
      end do
   end do
+
 end subroutine quad_lagrangian_reference_fe_fill
 
 subroutine quad_lagrangian_reference_fe_free ( this )
@@ -426,6 +456,8 @@ subroutine quad_lagrangian_reference_fe_free ( this )
   ! quad_lagrangian_reference_fe_t variables
   if(allocated(this%node_component_array)) & 
        call memfree(this%node_component_array,__FILE__,__LINE__)
+  if(allocated(this%node_array_component)) & 
+       call memfree(this%node_array_component,__FILE__,__LINE__)
   this%number_nodes_scalar = 0
 end subroutine quad_lagrangian_reference_fe_free
 
@@ -445,6 +477,82 @@ subroutine quad_lagrangian_reference_fe_fill_field_components (this)
   this%number_nodes_scalar = this%number_nodes
   this%number_nodes = this%number_nodes_scalar * this%number_field_components
 end subroutine quad_lagrangian_reference_fe_fill_field_components
+
+subroutine quad_lagrangian_reference_fe_set_nodal_quadrature (this)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
+  
+  ! Create nodal quadrature
+  call this%nodal_quadrature%create(this%number_dimensions,this%number_nodes_scalar)
+
+  ! Fill nodal quadrature
+  call fill_nodal_quadrature ( this%nodal_quadrature )
+end subroutine quad_lagrangian_reference_fe_set_nodal_quadrature
+
+subroutine quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values (this, code, values, &
+     &     nodal_codes, nodal_values, unknown_component)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: code
+  real(rp)                             , intent(in)    :: values(:)
+  integer(ip)                          , intent(in)    :: nodal_codes(:)
+  real(rp)                             , intent(inout) :: nodal_values(:)
+  integer(ip), optional                , intent(in)    :: unknown_component
+  integer(ip) :: i, icomp
+
+  assert(size(nodal_values) == this%number_nodes)
+  assert(size(values) == this%number_nodes_scalar)
+
+  icomp = 1
+  if(present(unknown_component)) icomp = unknown_component
+
+  do i = 1, this%number_nodes_scalar
+     if(nodal_codes(this%node_array_component(i,icomp)) == code) then
+        nodal_values(this%node_array_component(i,icomp)) = values(i)
+     end if
+  end do
+     
+end subroutine quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values
+
+subroutine quad_lagrangian_reference_fe_set_vector_field_to_nodal_values (this, code, values, &
+     &     nodal_codes, nodal_values)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: code
+  type(vector_field_t)                 , intent(in)    :: values(:)
+  integer(ip)                          , intent(in)    :: nodal_codes(:)
+  real(rp)                             , intent(inout) :: nodal_values(:)
+  integer(ip) :: i, icomp
+
+  assert(size(nodal_values) == this%number_nodes)
+  assert(size(values) == this%number_nodes)
+
+  do icomp = 1, this%number_field_components
+     do i = 1, this%number_nodes_scalar
+        if(nodal_codes(this%node_array_component(i,icomp)) == code) then
+           nodal_values(this%node_array_component(i,icomp)) = values(i)%get(icomp)
+        end if
+     end do
+  end do
+     
+end subroutine quad_lagrangian_reference_fe_set_vector_field_to_nodal_values
+
+subroutine quad_lagrangian_reference_fe_set_tensor_field_to_nodal_values (this, code, values, &
+     &     nodal_codes, nodal_values)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: code
+  type(tensor_field_t)                 , intent(in)    :: values(:)
+  integer(ip)                          , intent(in)    :: nodal_codes(:)
+  real(rp)                             , intent(inout) :: nodal_values(:)
+  integer(ip) :: i, icomp, jcomp
+
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for tensor field unknowns '
+  check( .false. )
+
+end subroutine quad_lagrangian_reference_fe_set_tensor_field_to_nodal_values
+
 
 subroutine extend_list_components(this, list_1d)
   implicit none
@@ -1534,6 +1642,64 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
   end if
 
 end subroutine fill_quadrature
+
+!-----------------------------------------------------------------------
+subroutine fill_nodal_quadrature ( quadrature ) 
+  implicit none
+  type(quadrature_t), intent(inout)  :: quadrature
+  real(rp)                 :: posgl(20),weigl(20)
+  integer(ip)              :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,nquad
+
+  ndime = quadrature%number_dimensions
+  nquad = quadrature%number_quadrature_points
+
+  if(ndime==1) then
+     nlocs=nquad
+  else if(ndime==2) then
+     nlocs=nint(sqrt(real(nquad,rp)))
+  else
+     nlocs=nint(real(nquad,rp)**(1.0_rp/3.0_rp))
+  end if
+
+  posgl(1) = -1.0_rp
+  do ilocs=1,nlocs-1
+     posgl(ilocs+1) = -1.0_rp + ilocs*2.0_rp/(nlocs-1)
+  end do
+  weigl = 1.0_rp
+
+  if(ndime==1) then
+     qpoin=0
+     do ilocs=1,nlocs
+        qpoin=qpoin+1
+        quadrature%weight(  qpoin)=weigl(ilocs)
+        quadrature%coordinates(1,qpoin)=posgl(ilocs)
+     end do
+  else if(ndime==2) then
+     qpoin=0
+     do jlocs=1,nlocs
+        do ilocs=1,nlocs
+           qpoin=qpoin+1
+           quadrature%weight(  qpoin)=weigl(ilocs)*weigl(jlocs)
+           quadrature%coordinates(1,qpoin)=posgl(ilocs)
+           quadrature%coordinates(2,qpoin)=posgl(jlocs)
+        end do
+     end do
+  else if(ndime==3) then
+     qpoin=0
+     do klocs=1,nlocs
+        do jlocs=1,nlocs
+           do ilocs=1,nlocs
+              qpoin=qpoin+1
+              quadrature%weight(  qpoin)=weigl(ilocs)*weigl(jlocs)*weigl(klocs)
+              quadrature%coordinates(1,qpoin)=posgl(ilocs)
+              quadrature%coordinates(2,qpoin)=posgl(jlocs)
+              quadrature%coordinates(3,qpoin)=posgl(klocs)
+           end do
+        end do
+     end do
+  end if
+
+end subroutine fill_nodal_quadrature
 
 subroutine fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coord_ip ) !ndime,ngaus,posgp,weigp)
   implicit none 
