@@ -487,7 +487,6 @@ function get_max_number_nodes_field( this, ifield )
    integer(ip) :: number_quadrature_points, number_vertices
    real(rp), allocatable       :: values(:,:)
    character(:), allocatable   :: field_type
-   type(volume_integrator_t)   :: volume_integrator
    type(fe_map_t)              :: fe_map
    type(quadrature_t), pointer :: nodal_quadrature
    type(point_t), allocatable  :: nodal_coordinates(:)
@@ -505,7 +504,6 @@ function get_max_number_nodes_field( this, ifield )
    call memalloc(number_quadrature_points,1,values,__FILE__,__LINE__)
     
    ! Create volume integrator
-   call volume_integrator%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
    call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
 
    ! Loop over elements
@@ -533,7 +531,6 @@ function get_max_number_nodes_field( this, ifield )
 
    ! Free volume integrator and FE map
    call fe_map%free()
-   call volume_integrator%free()
    
  end subroutine update_bc_value_scalar
 
@@ -548,7 +545,6 @@ function get_max_number_nodes_field( this, ifield )
    integer(ip) :: ielem, qpoin, istat
    integer(ip) :: number_quadrature_points, number_vertices
    character(:), allocatable         :: field_type
-   type(volume_integrator_t)         :: volume_integrator
    type(fe_map_t)                    :: fe_map
    type(quadrature_t)  , pointer     :: nodal_quadrature
    type(point_t)       , allocatable :: nodal_coordinates(:)
@@ -568,7 +564,6 @@ function get_max_number_nodes_field( this, ifield )
    allocate(values(number_quadrature_points,1), stat=istat); check(istat==0)
     
    ! Create volume integrator
-   call volume_integrator%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
    call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
 
    ! Loop over elements
@@ -596,7 +591,6 @@ function get_max_number_nodes_field( this, ifield )
 
    ! Free volume integrator and FE map
    call fe_map%free()
-   call volume_integrator%free()
    
  end subroutine update_bc_value_vector
 
@@ -611,7 +605,6 @@ function get_max_number_nodes_field( this, ifield )
    integer(ip) :: ielem, qpoin, istat
    integer(ip) :: number_quadrature_points, number_vertices
    character(:), allocatable   :: field_type
-   type(volume_integrator_t)   :: volume_integrator
    type(fe_map_t)              :: fe_map
    type(quadrature_t), pointer :: nodal_quadrature
    type(point_t), allocatable  :: nodal_coordinates(:)
@@ -630,7 +623,6 @@ function get_max_number_nodes_field( this, ifield )
    allocate(values(number_quadrature_points,1), stat=istat); check(istat==0)
     
    ! Create volume integrator
-   call volume_integrator%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
    call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
 
    ! Loop over elements
@@ -658,7 +650,6 @@ function get_max_number_nodes_field( this, ifield )
 
    ! Free volume integrator and FE map
    call fe_map%free()
-   call volume_integrator%free()
    
  end subroutine update_bc_value_tensor
 
