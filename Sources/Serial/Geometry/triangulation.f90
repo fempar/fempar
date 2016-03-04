@@ -289,17 +289,15 @@ contains
              face%relative_face(2)       = local_face_id
 
              ! Compute relative orientation
-             call elem%reference_fe_geo%compute_relative_orientation                                &
+             face%relative_orientation = elem%reference_fe_geo%compute_relative_orientation         &
                   &   (face%neighbour_elems(1)%p%reference_fe_geo,                                  &
-                  &    face%relative_orientation,                                                   &
                   &    face%neighbour_elems(1)%p%reference_fe_geo%get_first_face_id() +             &
-                  &    face%relative_face(1) -1,    &
+                  &    face%relative_face(1) -1,                                                    &
                   &    local_vef_id)
 
              ! Compute relative orientation
-             call elem%reference_fe_geo%compute_relative_rotation                                   &
+             face%relative_orientation = elem%reference_fe_geo%compute_relative_rotation            &
                   &   (face%neighbour_elems(1)%p%reference_fe_geo,                                  &
-                  &    face%relative_orientation,                                                   &
                   &    face%neighbour_elems(1)%p%reference_fe_geo%get_first_face_id() +             &
                   &    face%relative_face(1) -1,                                                    &
                   &    local_vef_id,                                                                &

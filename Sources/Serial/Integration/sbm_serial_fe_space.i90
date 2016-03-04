@@ -114,9 +114,7 @@ subroutine fill_elem2dof_and_count_dofs( this, fe_space_id, dof_count )
   integer(ip) :: ivef, vef_id, ielem
   
   integer(ip), allocatable :: visited_vef_to_elem_map(:,:)
-  integer(ip), allocatable :: s2t_perm_for_interior_nodes_vef(:)
 
-  call memalloc ( this%get_max_number_nodes(), s2t_perm_for_interior_nodes_vef, __FILE__, __LINE__ )
   call memalloc ( 2, this%triangulation%num_vefs, visited_vef_to_elem_map,  __FILE__, __LINE__ )
   visited_vef_to_elem_map = -1
   
@@ -135,15 +133,13 @@ subroutine fill_elem2dof_and_count_dofs( this, fe_space_id, dof_count )
             call this%fe_array(ielem)%fill_dofs_on_vef_from_source_element ( ivef, &
                                                                  this%fe_array(visited_vef_to_elem_map(1,vef_id)), &
                                                                  visited_vef_to_elem_map(2,vef_id), &
-                                                                 fe_space_id, &
-                                                                 s2t_perm_for_interior_nodes_vef ) 
+                                                                 fe_space_id) 
           end if
        end do   
      end if
   end do
   
   call memfree ( visited_vef_to_elem_map,  __FILE__, __LINE__ )
-  call memfree ( s2t_perm_for_interior_nodes_vef, __FILE__, __LINE__ )
 end subroutine fill_elem2dof_and_count_dofs
 
 subroutine free( this )

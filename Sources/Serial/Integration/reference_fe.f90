@@ -287,7 +287,8 @@ module reference_fe_names
      
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
-     procedure (permute_interior_nodes_per_vef_interface), deferred :: permute_interior_nodes_per_vef
+     procedure (check_compatibility_of_vefs_interface), deferred :: &
+          &     check_compatibility_of_vefs
      procedure (get_characteristic_length_interface)     , deferred :: get_characteristic_length
      procedure (fill_face_points_permutation_interface), deferred :: &
           &                                  fill_face_points_permutation
@@ -335,7 +336,7 @@ module reference_fe_names
      procedure :: get_orientation => reference_fe_get_orientation     
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
-
+     procedure :: get_permuted_interior_node_vef  => reference_fe_get_permuted_interior_node_vef
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -508,20 +509,16 @@ module reference_fe_names
        type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_tensor_interface     
      
-     subroutine permute_interior_nodes_per_vef_interface(target_reference_fe,source_reference_fe,   &
-          &                                              source_vef_id,target_vef_id,source_vefs,   &
-          &                                              target_vefs,permu_nodes,source_subface)
+     function check_compatibility_of_vefs_interface(target_reference_fe, &
+          &                       source_reference_fe, source_vef_id,target_vef_id)
        import :: reference_fe_t, ip
        implicit none
        class(reference_fe_t), intent(in) :: target_reference_fe
        class(reference_fe_t), intent(in)  :: source_reference_fe
-       integer(ip)          , intent(in)  :: source_vef_id ! Local vef ID
-       integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
-       integer(ip)          , intent(in)  :: source_vefs(source_reference_fe%number_vefs)
-       integer(ip)          , intent(in)  :: target_vefs(target_reference_fe%number_vefs) 
-       integer(ip)          , intent(out) :: permu_nodes(:)! Permutation vector
-       integer(ip), optional, intent(in)  :: source_subface
-     end subroutine permute_interior_nodes_per_vef_interface
+       integer(ip)          , intent(in)  :: source_vef_id
+       integer(ip)          , intent(in)  :: target_vef_id 
+       logical :: check_compatibility_of_vefs_interface
+     end function  check_compatibility_of_vefs_interface
 
      function get_characteristic_length_interface( this)
        import :: reference_fe_t, rp
@@ -580,8 +577,8 @@ module reference_fe_names
      procedure :: update_interpolation      => quad_lagrangian_reference_fe_update_interpolation
      procedure :: update_interpolation_face => quad_lagrangian_reference_fe_update_interpolation_face
      procedure :: get_bc_component_node     => quad_lagrangian_reference_fe_get_bc_component_node
-     procedure :: permute_interior_nodes_per_vef                                                    &
-          &                          => quad_lagrangian_reference_fe_permute_interior_nodes_per_vef 
+     procedure :: check_compatibility_of_vefs                                         &
+          &                 => quad_lagrangian_reference_fe_check_compatibility_of_vefs 
 
      procedure :: get_value_scalar          => quad_lagrangian_reference_fe_get_value_scalar
      procedure :: get_value_vector          => quad_lagrangian_reference_fe_get_value_vector

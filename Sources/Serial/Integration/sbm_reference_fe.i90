@@ -373,18 +373,18 @@ end function reference_fe_get_continuity
   end function reference_fe_get_orientation
 
   !==================================================================================================
-  subroutine reference_fe_compute_relative_rotation(target_reference_fe,                          &
-     &     source_reference_fe,relative_rotation,source_vef_id,target_vef_id, source_vefs,        &
-     &     target_vefs,source_subface)
+  function reference_fe_compute_relative_rotation(target_reference_fe,source_reference_fe,          &
+       &                                          source_vef_id,target_vef_id, source_vefs,         &
+       &                                          target_vefs,source_subface)
     implicit none
     class(reference_fe_t), intent(in)  :: target_reference_fe
     class(reference_fe_t), intent(in)  :: source_reference_fe
-    integer(ip)          , intent(out) :: relative_rotation ! Permutation vector
     integer(ip)          , intent(in)  :: source_vef_id ! Local vef ID
     integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
     integer(ip)          , intent(in)  :: source_vefs(source_reference_fe%number_vefs)
     integer(ip)          , intent(in)  :: target_vefs(target_reference_fe%number_vefs) 
     integer(ip), optional, intent(in)  :: source_subface
+    integer(ip)                        :: reference_fe_compute_relative_rotation 
 
     integer(ip) :: source_first_vertex_global_id, i, target_vertex_global_id 
 
@@ -392,35 +392,57 @@ end function reference_fe_get_continuity
     if (.not. present(source_subface) .or. source_subface == 0) then 
        source_first_vertex_global_id = source_vefs(source_reference_fe%vertices_vef%l         &
             & (source_reference_fe%vertices_vef%p(source_vef_id)))
-       relative_rotation = 1
+       reference_fe_compute_relative_rotation = 1
        do i = target_reference_fe%vertices_vef%p(target_vef_id),                              &
             & target_reference_fe%vertices_vef%p(target_vef_id+1)-1
           target_vertex_global_id = target_vefs(target_reference_fe%vertices_vef%l(i))
           if (target_vertex_global_id ==  source_first_vertex_global_id) exit
-          relative_rotation = relative_rotation + 1
+          reference_fe_compute_relative_rotation = reference_fe_compute_relative_rotation + 1
        end do
     else
        check (.false.)
     end if
-  end subroutine reference_fe_compute_relative_rotation
+  end function reference_fe_compute_relative_rotation
 
   !==================================================================================================
-  subroutine reference_fe_compute_relative_orientation(target_reference_fe,                      &
-     &                       source_reference_fe,relative_orientation,source_vef_id,target_vef_id)
+  function reference_fe_compute_relative_orientation(target_reference_fe,                      &
+     &                       source_reference_fe,source_vef_id,target_vef_id)
     implicit none
     class(reference_fe_t), intent(in)  :: target_reference_fe
     class(reference_fe_t), intent(in)  :: source_reference_fe
-    integer(ip)          , intent(out) :: relative_orientation ! Permutation vector
     integer(ip)          , intent(in)  :: source_vef_id ! Local vef ID
     integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
+    integer(ip)                        :: reference_fe_compute_relative_orientation 
 
-    if (target_reference_fe%number_dimensions < 3) then
-       relative_orientation = 0
+    if (target_reference_fe%get_vef_dimension(target_vef_id) < 3) then
+       reference_fe_compute_relative_orientation = 0
     else
-       relative_orientation = modulo( 1 + source_reference_fe%orientation%a(source_vef_id) -      &
+       reference_fe_compute_relative_orientation = modulo( 1 +                                    &
+            &                             source_reference_fe%orientation%a(source_vef_id) -      &
             &                             target_reference_fe%orientation%a(target_vef_id),2)
     end if
-  end subroutine reference_fe_compute_relative_orientation
+  end function reference_fe_compute_relative_orientation
+
+  !==================================================================================================
+  function reference_fe_get_permuted_interior_node_vef(target_reference_fe,inode,target_vef_id,     &
+       &                                               relative_orientation, relative_rotation)
+    implicit none
+    class(reference_fe_t), intent(in)  :: target_reference_fe
+    integer(ip)          , intent(in)  :: inode
+    integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
+    integer(ip)          , intent(in)  :: relative_orientation
+    integer(ip)          , intent(in)  :: relative_rotation
+    integer(ip) :: reference_fe_get_permuted_interior_node_vef
+
+    integer(ip) :: vef_dimension, permutation_key
+
+    vef_dimension = target_reference_fe%get_vef_dimension(target_vef_id)
+    permutation_key = relative_rotation +                                                        &
+         &         target_reference_fe%number_rotations_vef(vef_dimension+1)*relative_orientation
+    
+    reference_fe_get_permuted_interior_node_vef = target_reference_fe%permutation_arrays          &
+         & (vef_dimension+1)%a(inode,permutation_key)
+  end function reference_fe_get_permuted_interior_node_vef
 
    !==================================================================================================
   subroutine p_reference_fe_free( this )

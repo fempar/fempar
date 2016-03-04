@@ -372,22 +372,14 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor( this, &
 end subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor
 
 !==================================================================================================
-subroutine quad_lagrangian_reference_fe_permute_interior_nodes_per_vef(target_reference_fe,       &
-     &     source_reference_fe,source_vef_id,target_vef_id, source_vefs, target_vefs,permu_nodes, &
-     &     source_subface)
+function quad_lagrangian_reference_fe_check_compatibility_of_vefs                   &
+     &                      (target_reference_fe,source_reference_fe, source_vef_id,target_vef_id)
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)  :: target_reference_fe
   class(reference_fe_t)                , intent(in)  :: source_reference_fe
   integer(ip)                          , intent(in)  :: source_vef_id ! Local vef ID
   integer(ip)                          , intent(in)  :: target_vef_id ! Local vef ID
-  integer(ip)                          , intent(in)  :: source_vefs(source_reference_fe%number_vefs)
-  integer(ip)                          , intent(in)  :: target_vefs(target_reference_fe%number_vefs) 
-  integer(ip)                          , intent(out) :: permu_nodes(:) ! Permutation vector
-  integer(ip)                , optional, intent(in)  :: source_subface
-
-  integer(ip) :: vef_dimension, number_interior_nodes_x_dim, permute_nodes_scalar(36) 
-  integer(ip) :: i, relative_rotation
-  integer(ip) :: relative_orientation, idime, number_nodes_scalar, inode_scalar
+  logical :: quad_lagrangian_reference_fe_check_compatibility_of_vefs 
 
   select type(source_reference_fe)
      class is(quad_lagrangian_reference_fe_t)
@@ -395,53 +387,16 @@ subroutine quad_lagrangian_reference_fe_permute_interior_nodes_per_vef(target_re
         ! Get number nodes per dimension
         assert (target_reference_fe%order == source_reference_fe%order)
         assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
-        number_interior_nodes_x_dim = target_reference_fe%order - 1
-
-        ! Compute relative rotation
-        call target_reference_fe%compute_relative_rotation( source_reference_fe,                  &
-             & relative_rotation,source_vef_id,target_vef_id,source_vefs,target_vefs, &
-             & source_subface)
-
-        ! Take the dimension of the vef
-        vef_dimension = target_reference_fe%get_vef_dimension(target_vef_id)
-        assert (vef_dimension == source_reference_fe%get_vef_dimension(source_vef_id))
-        if (vef_dimension == 0) then
-           number_nodes_scalar = 1
-           permute_nodes_scalar(1) = 1
-        elseif (vef_dimension == 1) then
-           number_nodes_scalar = number_interior_nodes_x_dim
-           call permute_or_1d(permute_nodes_scalar(1:number_nodes_scalar),                        &
-                &             number_interior_nodes_x_dim-1,relative_rotation)
-        elseif (vef_dimension == 2) then
-           number_nodes_scalar = number_interior_nodes_x_dim**2
-           ! Compute relative orientation
-           call target_reference_fe%compute_relative_orientation(source_reference_fe,             &
-                &                              relative_orientation,source_vef_id,target_vef_id)
-                      
-           call permute_or_2d(permute_nodes_scalar(1: number_nodes_scalar),                       &
-                &             number_interior_nodes_x_dim-1,relative_orientation,relative_rotation)
-        else 
-           check (.false.)
-        end if
-
+        assert (target_reference_fe%get_vef_dimension(target_vef_id) == source_reference_fe%get_vef_dimension(source_vef_id))
+        assert (target_reference_fe%get_vef_dimension(target_vef_id) < 3)
         assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
         assert (target_reference_fe%get_number_interior_nodes_vef(target_vef_id) == source_reference_fe%get_number_interior_nodes_vef(source_vef_id))
-
-        i = 1
-        do idime = 1, target_reference_fe%number_field_components
-           ! This is taking advantage of the face that we know how the DoF are ordered
-           ! in case this ordering change, this will not work anymore.
-           do inode_scalar = 1, number_nodes_scalar
-              permu_nodes(i) = number_nodes_scalar * (idime-1) + permute_nodes_scalar(inode_scalar)
-              i = i + 1
-           end do
-        end do
-        assert( i == source_reference_fe%get_number_interior_nodes_vef(source_vef_id) + 1)
+        quad_lagrangian_reference_fe_check_compatibility_of_vefs = .true.
      class default
-        check(.false.)
+        quad_lagrangian_reference_fe_check_compatibility_of_vefs = .false.
   end select
  
-end subroutine quad_lagrangian_reference_fe_permute_interior_nodes_per_vef
+end function quad_lagrangian_reference_fe_check_compatibility_of_vefs
 
  !==================================================================================================
   subroutine quad_lagrangian_reference_fe_fill_face_points_permutation(this)

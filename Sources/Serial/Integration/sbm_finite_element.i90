@@ -185,8 +185,7 @@ subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
                                                            target_vef_lid, &
                                                            source_fe, &  
                                                            source_vef_lid, &
-                                                           fe_space_id, &
-                                                           s2t_perm_for_interior_nodes_vef)
+                                                           fe_space_id)
   implicit none
   ! Parameters
   class(finite_element_t), target, intent(inout) :: this
@@ -194,30 +193,36 @@ subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
   type(finite_element_t) , target, intent(in)    :: source_fe
   integer(ip)                    , intent(in)    :: source_vef_lid
   integer(ip)                    , intent(in)    :: fe_space_id
-  integer(ip)                    , intent(out)   :: s2t_perm_for_interior_nodes_vef(:) ! Workspace
 
   ! Local variables
   integer(ip)                    :: interior_inode, l_node, interior_nnode, inode_source, inode_target
   class(reference_fe_t), pointer :: source_ref_fe, target_ref_fe
+  integer(ip) :: relative_orientation, relative_rotation
   
   source_ref_fe => source_fe%reference_fe_phy(fe_space_id)%p
   target_ref_fe => this%reference_fe_phy(fe_space_id)%p
   
   assert ( source_ref_fe%get_number_interior_nodes_vef(source_vef_lid) == target_ref_fe%get_number_interior_nodes_vef(target_vef_lid) )
   assert ( source_ref_fe%get_vef_dimension(source_vef_lid) == target_ref_fe%get_vef_dimension(target_vef_lid) )
-  
+
   interior_nnode = source_ref_fe%get_number_interior_nodes_vef(source_vef_lid)
   if ( interior_nnode > 0 ) then
-   call target_ref_fe%permute_interior_nodes_per_vef( source_ref_fe,                              &
-                                                      source_vef_lid,                             &
-                                                      target_vef_lid,                             &
-                                                      source_fe%cell%vefs,                        &
-                                                      this%cell%vefs,                             &
-                                                      s2t_perm_for_interior_nodes_vef)
-  
-    do interior_inode = 1, interior_nnode
+
+     check (target_ref_fe%check_compatibility_of_vefs(source_ref_fe,source_vef_lid,target_vef_lid))
+     relative_rotation = target_ref_fe%compute_relative_rotation( source_ref_fe,                  &
+          &                                        source_vef_lid,                                &
+          &                                        target_vef_lid,                                &
+          &                                        source_fe%cell%vefs,                           &
+          &                                        this%cell%vefs)
+
+     relative_orientation = target_ref_fe%compute_relative_orientation( source_ref_fe,            &
+          &                                           source_vef_lid,                             &
+          &                                           target_vef_lid)
+
+     do interior_inode = 1, interior_nnode
         inode_source = source_ref_fe%get_interior_node_vef(interior_inode,source_vef_lid)
-        inode_target = target_ref_fe%get_interior_node_vef(s2t_perm_for_interior_nodes_vef(interior_inode),target_vef_lid)
+        inode_target = target_ref_fe%get_permuted_interior_node_vef(interior_inode,               &
+             &                              target_vef_lid, relative_orientation,relative_rotation)
         if ( this%bc_code(fe_space_id)%p(inode_target) == 0 ) then
            this%elem2dof(fe_space_id)%p(inode_target) = source_fe%elem2dof(fe_space_id)%p(inode_source)
         end	if
