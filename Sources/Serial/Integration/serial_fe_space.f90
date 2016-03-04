@@ -109,12 +109,6 @@ module serial_fe_space_names
      procedure, non_overridable :: get_subset_id => finite_element_get_subset_id
      procedure, non_overridable :: get_order     => finite_element_get_order
      procedure, non_overridable :: compute_volume     => finite_element_compute_volume
-     procedure, non_overridable :: set_bc_value_scalar => finite_element_set_bc_value_scalar
-     procedure, non_overridable :: set_bc_value_vector => finite_element_set_bc_value_vector
-     procedure, non_overridable :: set_bc_value_tensor => finite_element_set_bc_value_tensor
-     generic :: set_bc_value => set_bc_value_scalar, &
-                              & set_bc_value_vector, &
-                              & set_bc_value_tensor
      
      procedure, non_overridable, private :: update_scalar_values => finite_element_update_scalar_values
      procedure, non_overridable, private :: update_vector_values => finite_element_update_vector_values

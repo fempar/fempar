@@ -281,54 +281,6 @@ function finite_element_get_bc_value( this )
   finite_element_get_bc_value => this%bc_value
 end function finite_element_get_bc_value
 
-subroutine finite_element_set_bc_value_scalar( this, fe_space_component, value )
-  implicit none
-  class(finite_element_t), intent(inout) :: this
-  integer(ip)            , intent(in)    :: fe_space_component
-  real(rp)               , intent(in)    :: value(:)
-  integer(ip) :: i,num_nodes
-  num_nodes = size(value)
-  do i = 1, num_nodes
-     this%bc_value(fe_space_component)%p(i) = value(i)
-  end do
-end subroutine  finite_element_set_bc_value_scalar
-
-subroutine finite_element_set_bc_value_vector( this, fe_space_component, value )
-  implicit none
-  class(finite_element_t), intent(inout) :: this
-  integer(ip)            , intent(in)    :: fe_space_component
-  type(vector_field_t)   , intent(in)    :: value(:)
-  integer(ip) :: i,j,num_nodes, number_dimensions, cnt
-  num_nodes = size(value)
-  number_dimensions = this%reference_fe_phy(fe_space_component)%p%get_number_dimensions()
-  cnt = 0
-  do i = 1, num_nodes
-     do j = 1, number_dimensions
-        cnt = cnt + 1
-        this%bc_value(fe_space_component)%p(cnt) = value(i)%get(j)
-     end do
-  end do
-end subroutine  finite_element_set_bc_value_vector
-
-subroutine finite_element_set_bc_value_tensor( this, fe_space_component, value )
-  implicit none
-  class(finite_element_t), intent(inout) :: this
-  integer(ip)            , intent(in)    :: fe_space_component
-  type(tensor_field_t)   , intent(in)    :: value(:)
-  integer(ip) :: i,j,k,num_nodes, number_dimensions, cnt
-  num_nodes = size(value)
-  number_dimensions = this%reference_fe_phy(fe_space_component)%p%get_number_dimensions()
-  cnt = 0
-  do i = 1, num_nodes
-     do j = 1, number_dimensions
-        do k = 1, number_dimensions
-           cnt = cnt + 1
-           this%bc_value(fe_space_component)%p(cnt) = value(i)%get(j,k)
-        end do
-     end do
-  end do
-end subroutine  finite_element_set_bc_value_tensor
-
 subroutine finite_element_get_number_nodes_per_field ( this, number_nodes )
   implicit none
   class(finite_element_t), intent(in)  :: this

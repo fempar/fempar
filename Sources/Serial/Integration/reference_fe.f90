@@ -288,6 +288,13 @@ module reference_fe_names
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
      procedure (set_nodal_quadrature_interface), deferred :: set_nodal_quadrature
 
+     procedure (set_scalar_field_to_nodal_values_interface), deferred :: set_scalar_field_to_nodal_values
+     procedure (set_vector_field_to_nodal_values_interface), deferred :: set_vector_field_to_nodal_values
+     procedure (set_tensor_field_to_nodal_values_interface), deferred :: set_tensor_field_to_nodal_values
+     generic :: set_field_to_nodal_values => set_scalar_field_to_nodal_values, &
+                                           & set_vector_field_to_nodal_values, &
+                                           & set_tensor_field_to_nodal_values
+
      ! generic part of the subroutine above
      procedure :: permute_nodes_per_vef => reference_fe_permute_nodes_per_vef
      procedure :: free  => reference_fe_free
@@ -543,6 +550,40 @@ module reference_fe_names
        implicit none
        class(reference_fe_t), intent(inout) :: this 
      end subroutine set_nodal_quadrature_interface
+
+     subroutine set_scalar_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
+          &                                                  nodal_values, unknown_component)
+       import :: reference_fe_t, rp, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       integer(ip)          , intent(in)    :: code
+       real(rp)             , intent(in)    :: values(:)
+       integer(ip)          , intent(in)    :: nodal_codes(:)
+       real(rp)             , intent(inout) :: nodal_values(:)
+       integer(ip), optional, intent(in)    :: unknown_component
+     end subroutine set_scalar_field_to_nodal_values_interface
+
+     subroutine set_vector_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
+          &                                                  nodal_values)
+       import :: reference_fe_t, vector_field_t, ip, rp
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       integer(ip)          , intent(in)    :: code
+       type(vector_field_t) , intent(in)    :: values(:)
+       integer(ip)          , intent(in)    :: nodal_codes(:)
+       real(rp)             , intent(inout) :: nodal_values(:)
+     end subroutine set_vector_field_to_nodal_values_interface
+
+     subroutine set_tensor_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
+          &                                                  nodal_values)
+       import :: reference_fe_t, tensor_field_t, ip, rp
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       integer(ip)          , intent(in)    :: code
+       type(tensor_field_t) , intent(in)    :: values(:)
+       integer(ip)          , intent(in)    :: nodal_codes(:)
+       real(rp)             , intent(inout) :: nodal_values(:)
+     end subroutine set_tensor_field_to_nodal_values_interface
      
   end interface
 
@@ -584,6 +625,10 @@ module reference_fe_names
      procedure :: evaluate_fe_function_tensor => quad_lagrangian_reference_fe_evaluate_fe_function_tensor
 
      procedure :: set_nodal_quadrature => quad_lagrangian_reference_fe_set_nodal_quadrature
+
+     procedure :: set_scalar_field_to_nodal_values => quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values
+     procedure :: set_vector_field_to_nodal_values => quad_lagrangian_reference_fe_set_vector_field_to_nodal_values
+     procedure :: set_tensor_field_to_nodal_values => quad_lagrangian_reference_fe_set_tensor_field_to_nodal_values
 
      ! Concrete TBPs of this derived data type
      procedure :: fill                      => quad_lagrangian_reference_fe_fill

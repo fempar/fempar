@@ -278,13 +278,6 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
   ! Initialize values
   this%jacobian           = 0.0_rp
   do evaluation_point_id = 1, quadrature%number_quadrature_points
-     ! this%coordinates_quadrature(evaluation_point_id) = 0.0_rp
-     ! do node_id = 1, this%interpolation_geometry%number_shape_functions
-     !    ! Updating the coordinates
-     !    this%coordinates_quadrature(evaluation_point_id) =                                          &
-     !         & this%coordinates_quadrature(evaluation_point_id) + this%coordinates_vertices(node_id) *     &
-     !         & this%interpolation_geometry%shape_functions(node_id,evaluation_point_id)
-     ! end do
 
      ! Updating the Jacobian Matrix
      do jdime=1, number_face_dimensions
@@ -298,10 +291,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
            this%jacobian(idime,jdime,evaluation_point_id) = aux_vector%get(idime)
         end do
 
-
      end do
-
-
 
      ! Compute outside normals (using the jacobian Matrix)
      if ( number_elem_dimensions == 1) then

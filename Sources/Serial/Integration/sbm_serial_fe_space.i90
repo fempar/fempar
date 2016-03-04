@@ -475,34 +475,32 @@ function get_max_number_nodes_field( this, ifield )
   end do
  end function get_max_number_quadrature_points
 
- subroutine update_bc_value_scalar( this, analytical_function, bc_code, fe_space_component, time)
+ subroutine update_bc_value_scalar( this, analytical_function, bc_code, fe_space_component, time, unknown_component)
    implicit none
    class(serial_fe_space_t), intent(inout) :: this 
    type(scalar_function_t) , intent(in)    :: analytical_function
    integer(ip)             , intent(in)    :: bc_code
    integer(ip)             , intent(in)    :: fe_space_component
    real(rp)   , optional   , intent(in)    :: time(1)
+   integer(ip), optional   , intent(in)    :: unknown_component
    ! Locals
-   integer(ip) :: ielem, qpoin, istat
+   integer(ip) :: ielem, inode, istat
    integer(ip) :: number_quadrature_points, number_vertices
    real(rp), allocatable       :: values(:,:)
-   character(:), allocatable   :: field_type
    type(fe_map_t)              :: fe_map
    type(quadrature_t), pointer :: nodal_quadrature
    type(point_t), allocatable  :: nodal_coordinates(:)
    type(point_t), pointer      :: vertex_coordinates(:)
    
    ! Getters
-   field_type               =  this%reference_fe_phy_list(fe_space_component)%p%get_field_type()
    nodal_quadrature         => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
    number_vertices          =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
    number_quadrature_points =  nodal_quadrature%get_number_quadrature_points()
-   assert( field_type == field_type_scalar )
-
+   
    ! Allocate nodal coordinates
    allocate(nodal_coordinates(number_quadrature_points), stat=istat); check(istat==0)
    call memalloc(number_quadrature_points,1,values,__FILE__,__LINE__)
-    
+
    ! Create volume integrator
    call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
 
@@ -520,10 +518,11 @@ function get_max_number_nodes_field( this, ifield )
       else
          call analytical_function%get_values_set_space(nodal_coordinates,values(:,1))
       end if
-         
-      ! Fill bc_value
-      call this%fe_array(ielem)%set_bc_value(fe_space_component,values(:,1))
-      
+
+      ! Set nodal bc_values from the analytical function evaluation
+      call this%reference_fe_phy_list(fe_space_component)%p%set_scalar_field_to_nodal_values(bc_code, &
+           & values(:,1),this%fe_array(ielem)%bc_code(fe_space_component)%p,                          &
+           & this%fe_array(ielem)%bc_value(fe_space_component)%p, unknown_component)
    end do
 
    deallocate(nodal_coordinates)
@@ -580,9 +579,11 @@ function get_max_number_nodes_field( this, ifield )
       else
          call analytical_function%get_values_set_space(nodal_coordinates,values(:,1))
       end if
-         
-      ! Fill bc_value
-      call this%fe_array(ielem)%set_bc_value(fe_space_component,values(:,1))
+
+      ! Set nodal bc_values from the analytical function evaluation
+      call this%reference_fe_phy_list(fe_space_component)%p%set_field_to_nodal_values(bc_code, &
+           & values(:,1),this%fe_array(ielem)%bc_code(fe_space_component)%p,                   &
+           & this%fe_array(ielem)%bc_value(fe_space_component)%p)
       
    end do
 
@@ -639,9 +640,11 @@ function get_max_number_nodes_field( this, ifield )
       else
          call analytical_function%get_values_set_space(nodal_coordinates,values(:,1))
       end if
-         
-      ! Fill bc_value
-      call this%fe_array(ielem)%set_bc_value(fe_space_component,values(:,1))
+
+      ! Set nodal bc_values from the analytical function evaluation
+      call this%reference_fe_phy_list(fe_space_component)%p%set_field_to_nodal_values(bc_code, &
+           & values(:,1),this%fe_array(ielem)%bc_code(fe_space_component)%p,                   &
+           & this%fe_array(ielem)%bc_value(fe_space_component)%p)
       
    end do
 
