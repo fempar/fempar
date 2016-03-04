@@ -720,9 +720,9 @@ contains
          &                          fe_space, vector_dG_CDR_integration)
     call fe_affine_operator%symbolic_setup()
 
-!!$    call fe_affine_operator%numerical_setup()
-!!$
-!!$    matrix => fe_affine_operator%get_matrix()
+    call fe_affine_operator%numerical_setup()
+
+    matrix => fe_affine_operator%get_matrix()
 !!$    select type(matrix)
 !!$     class is(block_sparse_matrix_t)
 !!$        !my_matrix => matrix

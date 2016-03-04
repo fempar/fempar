@@ -300,9 +300,8 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
      call this%interpolation_face_restriction(2)%create(quadrature,this%reference_fe(2)%p)
   end if
 
-  call memalloc (quadrature%number_quadrature_points,2+4*(quadrature%number_dimensions+2),        &
-       &        this%quadrature_points_permutation, __FILE__,__LINE__)
-  !call left_rederence_fe%fill_face_quadrature_point_permutation()
+  call left_reference_fe%fill_face_points_permutation(quadrature,                                 &
+       &                                              this%quadrature_points_permutation)
 end subroutine face_integrator_create
 
 !==================================================================================================

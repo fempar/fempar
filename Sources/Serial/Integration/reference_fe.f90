@@ -547,10 +547,12 @@ module reference_fe_names
        type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
      end subroutine update_interpolation_face_interface
      
-     subroutine fill_face_points_permutation_interface( this )
-       import :: reference_fe_t
+     subroutine fill_face_points_permutation_interface( this,quadrature,permutation_array )
+       import :: reference_fe_t, quadrature_t,ip
        implicit none 
-       class(reference_fe_t)                 , intent(in)    :: this 
+       class(reference_fe_t)                 , intent(inout) :: this 
+       type(quadrature_t)                    , intent(in)    :: quadrature
+       integer(ip)      , allocatable, target, intent(inout) :: permutation_array(:,:)
      end subroutine fill_face_points_permutation_interface
   end interface
 
@@ -619,9 +621,9 @@ contains
   procedure, non_overridable :: update => volume_integrator_update
   procedure, non_overridable :: print  => volume_integrator_print
   
-  procedure, non_overridable :: get_interpolation_reference_cell =>                                 &
+  procedure, non_overridable :: get_interpolation_reference_cell =>                               &
        &                                   volume_integrator_get_interpolation_reference_cell
-  procedure, non_overridable :: get_interpolation_real_cell =>                                 &
+  procedure, non_overridable :: get_interpolation_real_cell =>                                    &
        &                                   volume_integrator_get_interpolation_real_cell
 
 
