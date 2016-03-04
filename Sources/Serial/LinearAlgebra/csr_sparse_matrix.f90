@@ -15,10 +15,10 @@ private
 
     type, extends(base_sparse_matrix_t) :: csr_sparse_matrix_t
     private
-        integer(ip)                :: nnz = 0                     !< Number of non zeros
-        integer(ip), allocatable   :: irp(:)                      !< Row pointers
-        integer(ip), allocatable   :: ja(:)                       !< Column indices        
-        real(rp),    allocatable   :: val(:)                      !< Values
+        integer(ip)                      :: nnz = 0                     !< Number of non zeros
+        integer(ip), allocatable, public :: irp(:)                      !< Row pointers
+        integer(ip), allocatable, public :: ja(:)                       !< Column indices        
+        real(rp),    allocatable, public :: val(:)                      !< Values
     contains
     private
         procedure, public :: is_by_rows                              => csr_sparse_matrix_is_by_rows
