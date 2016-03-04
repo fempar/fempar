@@ -30,9 +30,24 @@
     implicit none
     class(reference_fe_t), intent(inout) :: this
 
+    integer(ip) :: i
+
     if(allocated(this%topology)) deallocate(this%topology)
     if(allocated(this%fe_type)) deallocate(this%fe_type)
     if(allocated(this%field_type)) deallocate(this%field_type)
+    
+    if (allocated(this%number_rotations_vef)) &
+         call memfree(this%number_rotations_vef,__FILE__,__LINE__)
+
+    if (allocated(this%number_orientations_vef)) &
+         call memfree(this%number_orientations_vef,__FILE__,__LINE__)
+
+    if (allocated(this%permutation_arrays)) then
+       do i = 1, this%number_dimensions
+          call this%permutation_arrays(i)%free()
+       end do
+       deallocate(this%permutation_arrays)
+    end if
 
     call this%interior_nodes_vef%free()
     call this%nodes_vef%free()
@@ -47,6 +62,7 @@
     this%number_nodes = 0
     this%number_vefs_dimension  = 0
     this%continuity = .true.
+
   end subroutine reference_fe_free
   
   subroutine reference_fe_print ( reference_fe )
@@ -435,6 +451,10 @@ end function reference_fe_get_continuity
     integer(ip) :: reference_fe_get_permuted_interior_node_vef
 
     integer(ip) :: vef_dimension, permutation_key
+    
+    assert ( allocated ( target_reference_fe%number_rotations_vef ) )
+    assert ( allocated ( target_reference_fe%number_orientations_vef ) )
+    assert ( allocated ( target_reference_fe%permutation_arrays ) )
 
     vef_dimension = target_reference_fe%get_vef_dimension(target_vef_id)
     permutation_key = relative_rotation +                                                        &
