@@ -334,8 +334,8 @@ module reference_fe_names
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
      procedure :: get_orientation => reference_fe_get_orientation     
-     procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
+     procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
      procedure :: get_permuted_interior_node_vef  => reference_fe_get_permuted_interior_node_vef
   end type reference_fe_t
 
@@ -707,6 +707,7 @@ type face_integrator_t
    logical                                :: is_boundary
    type(interpolation_face_restriction_t) :: interpolation_face_restriction(2)
    type(p_reference_fe_t)                 :: reference_fe(2)
+   integer(ip)                            :: current_permutation_key(2)
    integer(ip), allocatable               :: quadrature_points_permutation(:,:)
  contains
    procedure, non_overridable :: create            => face_integrator_create

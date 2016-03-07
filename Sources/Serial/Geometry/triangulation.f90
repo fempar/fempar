@@ -62,7 +62,10 @@ module triangulation_names
      integer(ip)             :: relative_orientation  = -1
      integer(ip)             :: relative_rotation     = -1
    contains
-     procedure :: get_coordinates => face_topology_get_coordinates
+     procedure, non_overridable :: get_coordinates          => face_topology_get_coordinates
+     procedure, non_overridable :: get_relative_orientation => face_topology_get_relative_orientation
+     procedure, non_overridable :: get_relative_rotation    => face_topology_get_relative_rotation
+     
   end type face_topology_t
 
   type vef_topology_t
@@ -630,6 +633,7 @@ contains
     
   end subroutine elem_topology_get_coordinates
 
+  !==================================================================================================
   subroutine face_topology_get_coordinates(this, face_topology_coordinates)
     implicit none
     ! Parameters
@@ -654,5 +658,23 @@ contains
     end do
     
   end subroutine face_topology_get_coordinates
+  
+  !==================================================================================================
+  function face_topology_get_relative_orientation(this)
+    implicit none
+    ! Parameters
+    class(face_topology_t), intent(in)    :: this
+    integer(ip) :: face_topology_get_relative_orientation
+    face_topology_get_relative_orientation = this%relative_orientation
+  end function face_topology_get_relative_orientation
+
+  !==================================================================================================
+  function face_topology_get_relative_rotation(this)
+    implicit none
+    ! Parameters
+    class(face_topology_t), intent(in)    :: this
+    integer(ip) :: face_topology_get_relative_rotation
+    face_topology_get_relative_rotation = this%relative_rotation
+  end function face_topology_get_relative_rotation
 
 end module triangulation_names

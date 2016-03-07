@@ -389,6 +389,25 @@ end function reference_fe_get_continuity
   end function reference_fe_get_orientation
 
   !==================================================================================================
+  function reference_fe_compute_relative_orientation(target_reference_fe,                      &
+     &                       source_reference_fe,source_vef_id,target_vef_id)
+    implicit none
+    class(reference_fe_t), intent(in)  :: target_reference_fe
+    class(reference_fe_t), intent(in)  :: source_reference_fe
+    integer(ip)          , intent(in)  :: source_vef_id ! Local vef ID
+    integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
+    integer(ip)                        :: reference_fe_compute_relative_orientation 
+
+    if (target_reference_fe%get_vef_dimension(target_vef_id) < 3) then
+       reference_fe_compute_relative_orientation = 0
+    else
+       reference_fe_compute_relative_orientation = modulo( 1 +                                    &
+            &                             source_reference_fe%orientation%a(source_vef_id) -      &
+            &                             target_reference_fe%orientation%a(target_vef_id),2)
+    end if
+  end function reference_fe_compute_relative_orientation
+
+  !==================================================================================================
   function reference_fe_compute_relative_rotation(target_reference_fe,source_reference_fe,          &
        &                                          source_vef_id,target_vef_id, source_vefs,         &
        &                                          target_vefs,source_subface)
@@ -419,25 +438,6 @@ end function reference_fe_get_continuity
        check (.false.)
     end if
   end function reference_fe_compute_relative_rotation
-
-  !==================================================================================================
-  function reference_fe_compute_relative_orientation(target_reference_fe,                      &
-     &                       source_reference_fe,source_vef_id,target_vef_id)
-    implicit none
-    class(reference_fe_t), intent(in)  :: target_reference_fe
-    class(reference_fe_t), intent(in)  :: source_reference_fe
-    integer(ip)          , intent(in)  :: source_vef_id ! Local vef ID
-    integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
-    integer(ip)                        :: reference_fe_compute_relative_orientation 
-
-    if (target_reference_fe%get_vef_dimension(target_vef_id) < 3) then
-       reference_fe_compute_relative_orientation = 0
-    else
-       reference_fe_compute_relative_orientation = modulo( 1 +                                    &
-            &                             source_reference_fe%orientation%a(source_vef_id) -      &
-            &                             target_reference_fe%orientation%a(target_vef_id),2)
-    end if
-  end function reference_fe_compute_relative_orientation
 
   !==================================================================================================
   function reference_fe_get_permuted_interior_node_vef(this,inode,target_vef_id,     &
