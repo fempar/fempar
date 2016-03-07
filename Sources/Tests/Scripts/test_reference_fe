@@ -1,0 +1,32 @@
+#!/bin/sh
+TEST_BINARY_PATH="$1"
+TEST_INPUT_DATA_PATH="$2"
+final_exit_code=0
+if [ -f "$TEST_BINARY_PATH" ]
+then
+ if [ -d "$TEST_INPUT_DATA_PATH" ] 
+   then
+      for order in 1 2 3 4 5
+      do
+        $TEST_BINARY_PATH --dir_path $TEST_INPUT_DATA_PATH/square_4x4_scalar.gid/data/ --prefix square_4x4_scalar -o $order -lt scalar 
+      done
+
+      for order in 1 2 3 4 5
+      do 
+        $TEST_BINARY_PATH --dir_path $TEST_INPUT_DATA_PATH/square_4x4_vector.gid/data/ --prefix square_4x4_vector -o $order -lt vector
+      done 
+ 
+      if [ $? -ne 0 ] 
+      then
+         final_exit_code=1
+      fi
+   else
+      echo "$0: input data directory not found!"
+      final_exit_code=1
+   fi
+else
+  echo "$0: BINARY not found! Value PROVIDED: $1."
+  final_exit_code=1
+fi
+rm -Rf $TEST_INPUT_FILE
+exit $final_exit_code 
