@@ -559,21 +559,7 @@ subroutine quad_lagrangian_reference_fe_free ( this )
   ! quad_lagrangian_reference_fe_t variables
   if(allocated(this%node_component_array)) & 
        call memfree(this%node_component_array,__FILE__,__LINE__)
-
   this%number_nodes_scalar = 0
-
-  if (allocated(this%number_rotations_vef)) &
-       call memfree(this%number_rotations_vef,__FILE__,__LINE__)
-
-  if (allocated(this%number_orientations_vef)) &
-       call memfree(this%number_orientations_vef,__FILE__,__LINE__)
-
-  if (allocated(this%permutation_arrays)) then
-     do i = 1, this%number_dimensions
-        call this%permutation_arrays(i)%free()
-     end do
-     deallocate(this%permutation_arrays)
-  end if
   call reference_fe_free ( this )
 end subroutine quad_lagrangian_reference_fe_free
 
