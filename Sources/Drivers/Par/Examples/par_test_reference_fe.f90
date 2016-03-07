@@ -266,11 +266,11 @@ program par_test_reference_fe
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
   
-  call par_fe_space%par_fe_space_create( par_triangulation = par_triangulation, &
-                                       par_boundary_conditions = par_conditions, &
-                                       reference_fe_phy = reference_fe_array_one )
+  call par_fe_space%create( par_triangulation = par_triangulation, &
+                            par_boundary_conditions = par_conditions, &
+                            reference_fe_phy = reference_fe_array_one )
 
-  call par_fe_space%par_fe_space_fill_dof_info()
+  call par_fe_space%fill_dof_info()
   
   call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                   diagonal_blocks_symmetric_storage=(/.true./), &
@@ -322,7 +322,7 @@ program par_test_reference_fe
   !call p_fe_space%par_fe_space_print()
   
   call fe_affine_operator%free()
-  call par_fe_space%par_fe_space_free()
+  call par_fe_space%free()
   call reference_fe_array_one(1)%free()
   
   call par_triangulation_free(par_triangulation)

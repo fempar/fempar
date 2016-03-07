@@ -187,11 +187,12 @@ module serial_fe_space_names
      integer(ip)                   , allocatable :: number_dofs_per_block(:)
      integer(ip)                   , allocatable :: number_dofs_per_field(:)
    contains
-     procedure, non_overridable :: create => serial_fe_space_create
-     procedure, non_overridable :: fill_dof_info => serial_fe_space_fill_dof_info
+     procedure, private         :: serial_fe_space_create
+     generic                    :: create => serial_fe_space_create
+     procedure                  :: fill_dof_info => serial_fe_space_fill_dof_info
      procedure, non_overridable, private :: fill_elem2dof_and_count_dofs => serial_fe_space_fill_elem2dof_and_count_dofs
-     procedure, non_overridable :: free => serial_fe_space_free
-     procedure, non_overridable :: print => serial_fe_space_print
+     procedure                  :: free => serial_fe_space_free
+     procedure                  :: print => serial_fe_space_print
      procedure, non_overridable :: initialize_integration => serial_fe_space_initialize_integration
      procedure, non_overridable, private :: initialize_quadrature => serial_fe_space_initialize_quadrature
      procedure, non_overridable, private :: initialize_volume_integrator => serial_fe_space_initialize_volume_integrator
@@ -202,7 +203,7 @@ module serial_fe_space_names
      procedure, non_overridable :: get_number_interior_faces => serial_fe_space_get_number_interior_faces
      procedure, non_overridable :: get_number_boundary_faces => serial_fe_space_get_number_boundary_faces
      procedure, non_overridable :: get_number_fe_spaces => serial_fe_space_get_number_fe_spaces
-     procedure, non_overridable :: get_finite_element => serial_fe_space_get_finite_element
+     procedure                  :: get_finite_element => serial_fe_space_get_finite_element
      procedure, non_overridable :: get_finite_face => serial_fe_space_get_finite_face
      procedure, non_overridable :: get_number_blocks => serial_fe_space_get_number_blocks
      procedure, non_overridable :: get_field_blocks => serial_fe_space_get_field_blocks
@@ -230,8 +231,11 @@ module serial_fe_space_names
      type(finite_element_t)   , allocatable :: ghost_fe_array(:)
      type(dof_import_t)       , allocatable :: blocks_dof_import(:)
   contains
-     procedure, non_overridable          :: par_fe_space_create
-     procedure, non_overridable          :: par_fe_space_fill_dof_info
+     
+     procedure, non_overridable, private :: par_fe_space_create
+     procedure, non_overridable, private :: serial_fe_space_create   => par_fe_space_serial_fe_space_create
+     generic                             :: create                   => par_fe_space_create
+     procedure, non_overridable          :: fill_dof_info            => par_fe_space_fill_dof_info
      procedure, non_overridable, private :: par_fe_space_fill_elem2dof_and_count_dofs
      procedure, non_overridable, private :: par_fe_space_compute_blocks_dof_import
      procedure, non_overridable, private :: par_fe_space_compute_dof_import
@@ -240,11 +244,11 @@ module serial_fe_space_names
      procedure, non_overridable, private :: par_fe_space_compute_raw_interface_data_by_face_integ
      procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
      procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
-     procedure, non_overridable          :: par_fe_space_get_finite_element
-     procedure, non_overridable          :: par_fe_space_print
-     procedure, non_overridable          :: par_fe_space_free
-     procedure                           :: create_assembler         => par_fe_space_create_assembler
-     procedure                           :: symbolic_setup_assembler => par_fe_space_symbolic_setup_assembler
+     procedure, non_overridable          :: get_finite_element       => par_fe_space_get_finite_element
+     procedure, non_overridable          :: print                    => par_fe_space_print
+     procedure, non_overridable          :: free                     => par_fe_space_free
+     procedure, non_overridable          :: create_assembler         => par_fe_space_create_assembler
+     procedure, non_overridable          :: symbolic_setup_assembler => par_fe_space_symbolic_setup_assembler
   end type
 
   public :: par_fe_space_t

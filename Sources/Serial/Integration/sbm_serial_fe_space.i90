@@ -416,12 +416,12 @@ function serial_fe_space_get_number_fe_spaces( this)
   serial_fe_space_get_number_fe_spaces = this%number_fe_spaces
 end function serial_fe_space_get_number_fe_spaces
 
-function serial_fe_space_get_finite_element( this, i )
+function serial_fe_space_get_finite_element( this, ielem )
   implicit none
   class(serial_fe_space_t), target, intent(in) :: this
-  integer(ip) :: i
+  integer(ip)                     , intent(in) :: ielem
   type(finite_element_t), pointer :: serial_fe_space_get_finite_element
-  serial_fe_space_get_finite_element => this%fe_array(i)
+  serial_fe_space_get_finite_element => this%fe_array(ielem)
 end function serial_fe_space_get_finite_element
 
 function serial_fe_space_get_finite_face( this, i )

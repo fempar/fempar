@@ -76,6 +76,23 @@ subroutine par_fe_space_create( this, &
   
 end subroutine par_fe_space_create
 
+subroutine par_fe_space_serial_fe_space_create( this, &
+                                                triangulation, &
+                                                boundary_conditions, &
+                                                reference_fe_phy, &
+                                                field_blocks, &
+                                                field_coupling )
+  implicit none
+  class(par_fe_space_t)        , intent(inout)    :: this
+  type(triangulation_t)   , target, intent(in)    :: triangulation
+  type(conditions_t)              , intent(in)    :: boundary_conditions
+  type(p_reference_fe_t)  , target, intent(in)    :: reference_fe_phy(:)
+  integer(ip)           , optional, intent(in)    :: field_blocks(:)
+  logical               , optional, intent(in)    :: field_coupling(:,:)
+  check(.false.)
+end subroutine par_fe_space_serial_fe_space_create
+
+
 subroutine par_fe_space_free( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
@@ -105,9 +122,9 @@ end subroutine par_fe_space_free
 
 function par_fe_space_get_finite_element( this, ielem )
   implicit none
-  class(par_fe_space_t), target, intent(inout) :: this
-  integer(ip)                  , intent(in)    :: ielem
-  type(finite_element_t), pointer              :: par_fe_space_get_finite_element
+  class(par_fe_space_t), target, intent(in) :: this
+  integer(ip)                  , intent(in) :: ielem
+  type(finite_element_t), pointer           :: par_fe_space_get_finite_element
   integer(ip) :: num_local_elems
   
   assert ( associated (this%par_triangulation) )
@@ -359,7 +376,7 @@ function par_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, fe_
       elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
       part_id = this%par_triangulation%elems(elem_lid)%mypart
       if ( part_id /= mypart_id ) then
-        finite_element => this%par_fe_space_get_finite_element(elem_lid)
+        finite_element => this%get_finite_element(elem_lid)
         ivef = finite_element%cell%find_local_pos_from_vef_id(vef_lid)
         result = result + finite_element%reference_fe_phy(fe_space_id)%p%get_number_interior_nodes_vef(ivef)
       end if  
@@ -392,7 +409,7 @@ function par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ( this, fe_
     if ( this%triangulation%vefs(vef_lid)%dimension == this%triangulation%num_dims-1 ) then
       do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
         elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
-        finite_element => this%par_fe_space_get_finite_element(elem_lid)
+        finite_element => this%get_finite_element(elem_lid)
         result = result + finite_element%reference_fe_phy(fe_space_id)%p%get_number_nodes_per_face()
       end do
     end if  
@@ -462,7 +479,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
       elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
       elem_gid = this%par_triangulation%elems(elem_lid)%globalID
       part_id = this%par_triangulation%elems(elem_lid)%mypart
-      finite_element => this%par_fe_space_get_finite_element(elem_lid)
+      finite_element => this%get_finite_element(elem_lid)
       ivef = finite_element%cell%find_local_pos_from_vef_id(vef_lid)
       do idof_interior=1, finite_element%reference_fe_phy(fe_space_id)%p%get_number_interior_nodes_vef(ivef)
         idof = finite_element%reference_fe_phy(fe_space_id)%p%get_interior_node_vef(idof_interior,ivef)
@@ -682,7 +699,7 @@ function par_fe_space_compute_raw_interface_data_by_face_integ (  this, &
        do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
         elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
         elem_gid = this%par_triangulation%elems(elem_lid)%globalID
-        finite_element => this%par_fe_space_get_finite_element(elem_lid)
+        finite_element => this%get_finite_element(elem_lid)
         ivef = finite_element%cell%find_local_pos_from_vef_id(vef_lid)
         do idof_face=1, finite_element%reference_fe_phy(fe_space_id)%p%get_number_nodes_vef(ivef)
           idof = finite_element%reference_fe_phy(fe_space_id)%p%get_node_vef(idof_face,ivef)

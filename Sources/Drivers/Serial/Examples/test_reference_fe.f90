@@ -565,8 +565,7 @@ program test_reference_fe
      
      call fe_space%fill_dof_info() 
      
-     call fe_space%print()
-     !stop
+     !call fe_space%print()
      
      call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                      diagonal_blocks_symmetric_storage=(/.true./), &
@@ -582,17 +581,17 @@ program test_reference_fe
 		call fe_affine_operator%free_in_stages(free_numerical_setup)
   call fe_affine_operator%numerical_setup()
   
-  matrix => fe_affine_operator%get_matrix()
-  select type(matrix)
-    class is (sparse_matrix_t)
-      call matrix%print_matrix_market(6)
-  end select
+  !matrix => fe_affine_operator%get_matrix()
+  !select type(matrix)
+  !  class is (sparse_matrix_t)
+  !    call matrix%print_matrix_market(6)
+  !end select
   
-  array => fe_affine_operator%get_array()
-  select type(array)
-    class is (serial_scalar_array_t)
-      call array%print_matrix_market(6)
-  end select
+  !array => fe_affine_operator%get_array()
+  !select type(array)
+  !  class is (serial_scalar_array_t)
+  !    call array%print_matrix_market(6)
+  !end select
  
   call fe_affine_operator%create_range_vector(vector)
 
