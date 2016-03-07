@@ -5,6 +5,7 @@ module wsmp_direct_solver_names
     USE sparse_matrix_names
     USE serial_scalar_array_names
     USE base_direct_solver_names
+    USE FPL
 
     implicit none
 # include "debug.i90"
@@ -16,15 +17,16 @@ module wsmp_direct_solver_names
 
     contains
     private
-        procedure, public :: is_linear          => wsmp_direct_solver_is_linear
-        procedure, public :: free_clean         => wsmp_direct_solver_free_clean
-        procedure, public :: free_symbolic      => wsmp_direct_solver_free_symbolic
-        procedure, public :: free_numerical     => wsmp_direct_solver_free_numerical
-        procedure         :: initialize         => wsmp_direct_solver_initialize
-        procedure, public :: set_defaults       => wsmp_direct_solver_set_defaults
-        procedure, public :: symbolic_setup     => wsmp_direct_solver_symbolic_setup
-        procedure, public :: numerical_setup    => wsmp_direct_solver_numerical_setup
-        procedure, public :: solve              => wsmp_direct_solver_solve
+        procedure, public :: is_linear               => wsmp_direct_solver_is_linear
+        procedure, public :: free_clean              => wsmp_direct_solver_free_clean
+        procedure, public :: free_symbolic           => wsmp_direct_solver_free_symbolic
+        procedure, public :: free_numerical          => wsmp_direct_solver_free_numerical
+        procedure         :: initialize              => wsmp_direct_solver_initialize
+        procedure, public :: set_defaults            => wsmp_direct_solver_set_defaults
+        procedure, public :: set_from_parameter_list => wsmp_direct_solver_set_from_parameter_list
+        procedure, public :: symbolic_setup          => wsmp_direct_solver_symbolic_setup
+        procedure, public :: numerical_setup         => wsmp_direct_solver_numerical_setup
+        procedure, public :: solve                   => wsmp_direct_solver_solve
     end type
 
 contains
@@ -36,6 +38,11 @@ contains
     subroutine wsmp_direct_solver_set_defaults(this)
         class(wsmp_direct_solver_t),   intent(inout) :: this
     end subroutine wsmp_direct_solver_set_defaults
+
+    subroutine wsmp_direct_solver_set_from_parameter_list(this, parameter_list)
+        class(wsmp_direct_solver_t),  intent(inout) :: this
+        type(ParameterList_t),        intent(in)    :: parameter_list
+    end subroutine wsmp_direct_solver_set_from_parameter_list
 
     subroutine wsmp_direct_solver_symbolic_setup(this)
         class(wsmp_direct_solver_t), intent(inout) :: this

@@ -4,6 +4,7 @@ module base_direct_solver_names
     USE memor_names
     USE sparse_matrix_names
     USE serial_scalar_array_names
+    USE FPL
 
     implicit none
 # include "debug.i90"
@@ -18,8 +19,8 @@ module base_direct_solver_names
     type, abstract :: base_direct_solver_t
     private
         character(len=:), allocatable          :: name
-        integer(ip)                            :: state = BASE_DIRECT_SOLVER_STATE_START
-        type(sparse_matrix_t), public, pointer :: matrix
+        integer(ip)                            :: state  = BASE_DIRECT_SOLVER_STATE_START
+        type(sparse_matrix_t), public, pointer :: matrix => NULL()
         ! Direct solvers info
         integer(ip)                            :: mem_peak_symb
         integer(ip)                            :: mem_perm_symb
@@ -28,14 +29,15 @@ module base_direct_solver_names
         real(rp)                               :: Mflops
     contains
     private
-        procedure(base_direct_solver_free_clean),         public, deferred :: free_clean
-        procedure(base_direct_solver_free_symbolic),      public, deferred :: free_symbolic
-        procedure(base_direct_solver_free_numerical),     public, deferred :: free_numerical
-        procedure(base_direct_solver_initialize),                 deferred :: initialize
-        procedure(base_direct_solver_set_defaults),       public, deferred :: set_defaults
-        procedure(base_direct_solver_symbolic_setup),     public, deferred :: symbolic_setup
-        procedure(base_direct_solver_numerical_setup),    public, deferred :: numerical_setup
-        procedure(base_direct_solver_solve),              public, deferred :: solve
+        procedure(base_direct_solver_free_clean),              public, deferred :: free_clean
+        procedure(base_direct_solver_free_symbolic),           public, deferred :: free_symbolic
+        procedure(base_direct_solver_free_numerical),          public, deferred :: free_numerical
+        procedure(base_direct_solver_initialize),                      deferred :: initialize
+        procedure(base_direct_solver_set_defaults),            public, deferred :: set_defaults
+        procedure(base_direct_solver_set_from_parameter_list), public, deferred :: set_from_parameter_list
+        procedure(base_direct_solver_symbolic_setup),          public, deferred :: symbolic_setup
+        procedure(base_direct_solver_numerical_setup),         public, deferred :: numerical_setup
+        procedure(base_direct_solver_solve),                   public, deferred :: solve
         procedure, public :: set_name                  => base_direct_solver_set_name
         procedure, public :: set_matrix                => base_direct_solver_set_matrix
         procedure, public :: matrix_is_set             => base_direct_solver_matrix_is_set
@@ -63,6 +65,13 @@ module base_direct_solver_names
             import base_direct_solver_t
             class(base_direct_solver_t),   intent(inout) :: this
         end subroutine base_direct_solver_set_defaults
+
+        subroutine base_direct_solver_set_from_parameter_list(this, parameter_list)
+            import base_direct_solver_t
+            import ParameterList_t
+            class(base_direct_solver_t),   intent(inout) :: this
+            type(ParameterList_t),         intent(in)    :: parameter_list
+        end subroutine base_direct_solver_set_from_parameter_list
 
         subroutine base_direct_solver_symbolic_setup(this)
             import base_direct_solver_t

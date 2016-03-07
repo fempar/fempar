@@ -10,6 +10,7 @@ module pardiso_mkl_direct_solver_names
     USE csr_sparse_matrix_names, only: csr_sparse_matrix_t
     USE serial_scalar_array_names
     USE base_direct_solver_names
+    USE FPL
 #ifdef ENABLE_MKL
     USE mkl_pardiso
 #endif
@@ -28,12 +29,12 @@ module pardiso_mkl_direct_solver_names
 
     ! Parameter strings to be used in the Parameter List
     character(len=*), parameter :: pardiso_mkl_name             = 'PARDISO_MKL'
-    character(len=*), parameter :: pardiso_mkl_iparam           = 'pardiso_mkl_iparam'
-    character(len=*), parameter :: pardiso_mkl_message_level    = 'pardiso_mkl_matrix_type'
-    character(len=*), parameter :: pardiso_mkl_matrix_type      = 'pardiso_mkl_message_level'
+    character(len=*), parameter :: pardiso_mkl_iparm            = 'pardiso_mkl_iparm'
+    character(len=*), parameter :: pardiso_mkl_matrix_type      = 'pardiso_mkl_matrix_type'
+    character(len=*), parameter :: pardiso_mkl_message_level    = 'pardiso_mkl_message_level'
 
     integer, parameter :: default_pardiso_mkl_message_level = 0                ! Default pardiso_mkl parameters array
-    integer, parameter :: default_pardiso_mkl_iparam(64)    = 0                ! Default pardiso_mkl parameters array
+    integer, parameter :: default_pardiso_mkl_iparm(64)    = 0                ! Default pardiso_mkl parameters array
     integer, parameter :: default_pardiso_mkl_matrix_type   = pardiso_mkl_uns  ! Default pardiso_mkl parameters array
 
     type, extends(base_direct_solver_t) :: pardiso_mkl_direct_solver_t
@@ -50,15 +51,16 @@ module pardiso_mkl_direct_solver_names
         integer                     :: message_level         = 0
     contains
     private
-        procedure, public :: is_linear          => pardiso_mkl_direct_solver_is_linear
-        procedure, public :: free_clean         => pardiso_mkl_direct_solver_free_clean
-        procedure, public :: free_symbolic      => pardiso_mkl_direct_solver_free_symbolic
-        procedure, public :: free_numerical     => pardiso_mkl_direct_solver_free_numerical
-        procedure         :: initialize         => pardiso_mkl_direct_solver_initialize
-        procedure, public :: set_defaults       => pardiso_mkl_direct_solver_set_defaults
-        procedure, public :: symbolic_setup     => pardiso_mkl_direct_solver_symbolic_setup
-        procedure, public :: numerical_setup    => pardiso_mkl_direct_solver_numerical_setup
-        procedure, public :: solve              => pardiso_mkl_direct_solver_solve
+        procedure, public :: is_linear               => pardiso_mkl_direct_solver_is_linear
+        procedure, public :: free_clean              => pardiso_mkl_direct_solver_free_clean
+        procedure, public :: free_symbolic           => pardiso_mkl_direct_solver_free_symbolic
+        procedure, public :: free_numerical          => pardiso_mkl_direct_solver_free_numerical
+        procedure         :: initialize              => pardiso_mkl_direct_solver_initialize
+        procedure, public :: set_defaults            => pardiso_mkl_direct_solver_set_defaults
+        procedure, public :: set_from_parameter_list => pardiso_mkl_direct_solver_set_from_parameter_list
+        procedure, public :: symbolic_setup          => pardiso_mkl_direct_solver_symbolic_setup
+        procedure, public :: numerical_setup         => pardiso_mkl_direct_solver_numerical_setup
+        procedure, public :: solve                   => pardiso_mkl_direct_solver_solve
 #ifndef ENABLE_MKL
         procedure         :: not_enabled_error  => pardiso_mkl_direct_solver_not_enabled_error
 #endif
@@ -122,7 +124,7 @@ contains
         this%actual_matrix         = 1
         this%number_of_rhs         = 1
         this%message_level         = default_pardiso_mkl_message_level
-        this%pardiso_mkl_iparm     = default_pardiso_mkl_iparam
+        this%pardiso_mkl_iparm     = default_pardiso_mkl_iparm
         this%matrix_type           = default_pardiso_mkl_matrix_type
 
         if(this%matrix_is_set()) then
@@ -163,6 +165,54 @@ contains
         call this%not_enabled_error()
 #endif
     end subroutine pardiso_mkl_direct_solver_set_defaults
+
+
+    subroutine pardiso_mkl_direct_solver_set_from_parameter_list(this, parameter_list)
+    !-----------------------------------------------------------------
+    !< Set PARDISO default parameters
+    !< Choose pardiso_mkl matrix according to matrix if is set.
+    !-----------------------------------------------------------------
+        class(pardiso_mkl_direct_solver_t),  intent(inout) :: this
+        type(ParameterList_t),               intent(in)    :: parameter_list
+        integer(ip)                                        :: FPLError
+        integer(ip)                                        :: i
+        logical                                            :: is_present
+        logical                                            :: same_data_type
+        integer(ip), allocatable                           :: shape(:)
+    !-----------------------------------------------------------------
+#ifdef ENABLE_MKL
+        assert(.not. this%state_is_start())
+
+        ! Matrix type
+        is_present     = parameter_list%isPresent(Key=pardiso_mkl_matrix_type)
+        same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_matrix_type, mold=this%matrix_type)
+        shape          = parameter_list%getshape(Key=pardiso_mkl_matrix_type)
+        if(is_present .and. same_data_type .and. size(shape) == 0) then
+            FPLError   = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=this%matrix_type)
+            assert(FPLError == 0)
+        endif
+        ! iparm
+        is_present     = parameter_list%isPresent(Key=pardiso_mkl_iparm)
+        same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%matrix_type)
+        shape          = parameter_list%getshape(Key=pardiso_mkl_iparm)
+        if(is_present .and. same_data_type .and. size(shape) == 1) then
+            if(shape(1) == 64) then
+                FPLError =  parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
+                assert(FPLError == 0)
+            endif
+        endif
+        ! Message level
+        is_present     = parameter_list%isPresent(Key=pardiso_mkl_message_level)
+        same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_message_level, mold=this%message_level)
+        shape          = parameter_list%getshape(Key=pardiso_mkl_message_level)
+        if(is_present .and. same_data_type .and. size(shape) == 0) then
+            FPLError   = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
+            assert(FPLError == 0)
+        endif
+#else
+        call this%not_enabled_error()
+#endif
+    end subroutine pardiso_mkl_direct_solver_set_from_parameter_list
 
 
     subroutine pardiso_mkl_direct_solver_symbolic_setup(this)
