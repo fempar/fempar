@@ -554,7 +554,7 @@ program test_reference_fe
      reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
                                                       fe_type = fe_type_lagrangian, &
                                                       number_dimensions = 2, &
-                                                      order = 1, &
+                                                      order = 2, &
                                                       field_type = field_type_scalar, &
                                                       continuity = .true. )
      
@@ -575,7 +575,7 @@ program test_reference_fe
   
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
-		call fe_affine_operator%free_in_stages(free_numerical_setup)
+  call fe_affine_operator%free_in_stages(free_numerical_setup)
   call fe_affine_operator%numerical_setup()
   
   matrix => fe_affine_operator%get_matrix()
@@ -607,8 +607,8 @@ program test_reference_fe
      check(.false.) 
   end select
   
-		call vector%free()
-		deallocate(vector)
+  call vector%free()
+  deallocate(vector)
   call fe_affine_operator%free()
   call fe_space%free()
   call triangulation_free(f_trian)
