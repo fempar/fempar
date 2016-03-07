@@ -290,7 +290,6 @@ contains
              face%neighbour_elems_id(2)  = elem_id
              face%neighbour_elems(2)%p   => trian%elems(elem_id)
              face%relative_face(2)       = local_face_id
-
              ! Compute relative orientation
              face%relative_orientation = elem%reference_fe_geo%compute_relative_orientation         &
                   &   (face%neighbour_elems(1)%p%reference_fe_geo,                                  &
@@ -299,13 +298,13 @@ contains
                   &    local_vef_id)
 
              ! Compute relative orientation
-             face%relative_orientation = elem%reference_fe_geo%compute_relative_rotation            &
-                  &   (face%neighbour_elems(1)%p%reference_fe_geo,                                  &
+             face%relative_rotation = face%neighbour_elems(1)%p%reference_fe_geo%compute_relative_rotation &
+                  &   (elem%reference_fe_geo,                                                       &
+                  &    local_vef_id,                                                                &
                   &    face%neighbour_elems(1)%p%reference_fe_geo%get_first_face_id() +             &
                   &    face%relative_face(1) -1,                                                    &
-                  &    local_vef_id,                                                                &
-                  &    face%neighbour_elems(1)%p%vefs,                                              &
                   &    elem%vefs,                                                                   &
+                  &    face%neighbour_elems(1)%p%vefs,                                              &
                   &    face%left_elem_subface)
           end if
        end do

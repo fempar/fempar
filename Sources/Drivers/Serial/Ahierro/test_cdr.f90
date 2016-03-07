@@ -445,8 +445,8 @@ contains
       
        call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value,                   &
             &                                  number_nodes_per_field, number_fe_spaces )
-       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks, &
-            &                   field_coupling, elmat, elvec )      
+!!$       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks, &
+!!$            &                   field_coupling, elmat, elvec )      
     end do
     ! do inode = 1, number_nodes_per_field(1)
     !    write(*,*) inode, '+++++'
@@ -724,20 +724,20 @@ contains
     call fe_affine_operator%numerical_setup()
 
     matrix => fe_affine_operator%get_matrix()
-!!$    select type(matrix)
-!!$     class is(block_sparse_matrix_t)
-!!$        !my_matrix => matrix
-!!$        do i = 1,1! matrix%nblocks
-!!$           write(*,*) i,i,'+++++++++++++++++++++++++++++++'
-!!$           write(*,*) __FILE__,__LINE__
-!!$           my_matrix => matrix%blocks(i,i)%sparse_matrix
-!!$           write(*,*) __FILE__,__LINE__
-!!$           !call my_matrix%print_matrix_market(6)
-!!$           write(*,*) __FILE__,__LINE__
-!!$        end do
-!!$     class default
-!!$        check(.false.)
-!!$     end select
+    select type(matrix)
+     class is(block_sparse_matrix_t)
+        !my_matrix => matrix
+        do i = 1,1! matrix%nblocks
+           write(*,*) i,i,'+++++++++++++++++++++++++++++++'
+           write(*,*) __FILE__,__LINE__
+           my_matrix => matrix%blocks(i,i)%sparse_matrix
+           write(*,*) __FILE__,__LINE__
+           call my_matrix%print_matrix_market(6)
+           write(*,*) __FILE__,__LINE__
+        end do
+     class default
+        check(.false.)
+     end select
 
      !fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
      !call fe_affine_operator_range_vector_space%create_vector(vector)
