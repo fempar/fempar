@@ -136,7 +136,7 @@ subroutine fill_elem2dof_and_count_dofs( this, fe_space_id, dof_count )
                                                                  fe_space_id) 
           end if
        end do   
-     end if
+    end if
   end do
   
   call memfree ( visited_vef_to_elem_map,  __FILE__, __LINE__ )

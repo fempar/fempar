@@ -440,28 +440,31 @@ end function reference_fe_get_continuity
   end function reference_fe_compute_relative_orientation
 
   !==================================================================================================
-  function reference_fe_get_permuted_interior_node_vef(target_reference_fe,inode,target_vef_id,     &
+  function reference_fe_get_permuted_interior_node_vef(this,inode,target_vef_id,     &
        &                                               relative_orientation, relative_rotation)
     implicit none
-    class(reference_fe_t), intent(in)  :: target_reference_fe
+    class(reference_fe_t), intent(in)  :: this
     integer(ip)          , intent(in)  :: inode
     integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
     integer(ip)          , intent(in)  :: relative_orientation
     integer(ip)          , intent(in)  :: relative_rotation
     integer(ip) :: reference_fe_get_permuted_interior_node_vef
 
-    integer(ip) :: vef_dimension, permutation_key
+    integer(ip) :: vef_dimension, permutation_key, permuted_interior_node
     
-    assert ( allocated ( target_reference_fe%number_rotations_vef ) )
-    assert ( allocated ( target_reference_fe%number_orientations_vef ) )
-    assert ( allocated ( target_reference_fe%permutation_arrays ) )
+    assert ( allocated ( this%number_rotations_vef ) )
+    assert ( allocated ( this%number_orientations_vef ) )
+    assert ( allocated ( this%permutation_arrays ) )
 
-    vef_dimension = target_reference_fe%get_vef_dimension(target_vef_id)
-    permutation_key = relative_rotation +                                                        &
-         &         target_reference_fe%number_rotations_vef(vef_dimension+1)*relative_orientation
+    vef_dimension = this%get_vef_dimension(target_vef_id)
+    permutation_key = relative_rotation +                                                         &
+         &         this%number_rotations_vef(vef_dimension+1)*relative_orientation
     
-    reference_fe_get_permuted_interior_node_vef = target_reference_fe%permutation_arrays          &
+    permuted_interior_node = this%permutation_arrays          &
          & (vef_dimension+1)%a(inode,permutation_key)
+
+    reference_fe_get_permuted_interior_node_vef = this%interior_nodes_vef%                        &
+          & l(this%interior_nodes_vef%p(target_vef_id) + permuted_interior_node -1)
   end function reference_fe_get_permuted_interior_node_vef
 
    !==================================================================================================

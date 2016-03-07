@@ -218,7 +218,7 @@ subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
      relative_orientation = target_ref_fe%compute_relative_orientation( source_ref_fe,            &
           &                                           source_vef_lid,                             &
           &                                           target_vef_lid)
-
+     
      do interior_inode = 1, interior_nnode
         inode_source = source_ref_fe%get_interior_node_vef(interior_inode,source_vef_lid)
         inode_target = target_ref_fe%get_permuted_interior_node_vef(interior_inode,               &
