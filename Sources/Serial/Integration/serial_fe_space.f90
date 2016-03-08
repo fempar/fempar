@@ -49,6 +49,7 @@ module serial_fe_space_names
   use hash_table_names
   use graph_names
   use sort_names
+  use function_names
   implicit none
 # include "debug.i90"
   private
@@ -203,6 +204,12 @@ module serial_fe_space_names
      generic :: create_fe_function => create_fe_function_scalar, &
                                     & create_fe_function_vector, &
                                     & create_fe_function_tensor
+     procedure, non_overridable :: update_bc_value_scalar
+     procedure, non_overridable :: update_bc_value_vector
+     procedure, non_overridable :: update_bc_value_tensor
+     generic :: update_bc_value => update_bc_value_scalar, &
+                                 & update_bc_value_vector, &
+                                 & update_bc_value_tensor
      
   end type serial_fe_space_t
 

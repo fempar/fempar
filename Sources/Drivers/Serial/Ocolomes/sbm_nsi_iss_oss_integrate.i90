@@ -206,7 +206,7 @@ subroutine integrate(this,fe_space,assembler)
               test_vector = advection_vector * grad_test_vector
               do jnode = 1, number_nodes_per_field(3) 
                  call vol_int_projection_fe%get_value(jnode,qpoin,trial_vector)
-                 joffset = number_nodes_per_field(1 )+ number_nodes_per_field(2) + jnode
+                 joffset = number_nodes_per_field(1) + number_nodes_per_field(2) + jnode
                  elmat(inode,joffset) = elmat(inode,joffset) - tau_m(qpoin) * dvolume * test_vector * trial_vector
               end do
            end do

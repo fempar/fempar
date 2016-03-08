@@ -727,7 +727,7 @@ contains
     select type(matrix)
      class is(block_sparse_matrix_t)
         !my_matrix => matrix
-        do i = 1,1! matrix%nblocks
+        do i = 2,2! matrix%nblocks
            write(*,*) i,i,'+++++++++++++++++++++++++++++++'
            write(*,*) __FILE__,__LINE__
            my_matrix => matrix%blocks(i,i)%sparse_matrix
