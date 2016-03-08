@@ -84,12 +84,12 @@ module field_names
   end interface operator(*)
 
   interface operator(+)
-     module procedure sum_point_point, sum_point_vector, sum_vector_vector
+     module procedure sum_point_point, sum_point_vector, sum_vector_vector, sum_tensor_tensor
   end interface operator(+)
 
   interface assignment(=)
      module procedure assign_scalar_to_vector, assign_vector_to_point, assign_scalar_to_point, &
-          &           assign_vector_to_vector
+          &           assign_vector_to_vector, assign_tensor_to_tensor
   end interface assignment(=)
 
   interface double_contract
@@ -348,6 +348,14 @@ contains
     vector_sum%value = point%value + vector%value
   end function sum_point_vector
 
+  function sum_tensor_tensor ( tensor1, tensor2) result(tensor_sum)
+    implicit none
+    type(tensor_field_t), intent(in) :: tensor1, tensor2
+    type(tensor_field_t) :: tensor_sum
+
+    tensor_sum%value = tensor1%value + tensor2%value
+  end function sum_tensor_tensor
+
   subroutine assign_scalar_to_point ( point, scalar )
     implicit none
     type(point_t), intent(out) :: point
@@ -375,5 +383,12 @@ contains
     type(vector_field_t), intent(in) :: vector
     point%value = vector%value
   end subroutine assign_vector_to_point
+
+  subroutine assign_tensor_to_tensor( tensor1, tensor2 )
+    implicit none
+    type(tensor_field_t), intent(out) :: tensor1
+    type(tensor_field_t), intent(in)  :: tensor2
+    tensor1%value = tensor2%value
+  end subroutine assign_tensor_to_tensor
 
 end module field_names

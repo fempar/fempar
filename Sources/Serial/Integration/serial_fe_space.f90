@@ -28,7 +28,6 @@
 module serial_fe_space_names
   
  ! Serial modules
-
   use types_names
   use list_types_names
   use memor_names
@@ -42,6 +41,7 @@ module serial_fe_space_names
   use reference_fe_names
   use reference_fe_factory_names
   use field_names
+  use function_names
   
   use matrix_names
   use vector_names
@@ -62,7 +62,6 @@ module serial_fe_space_names
   use par_sparse_matrix_names
   use par_scalar_array_names
   use par_sparse_matrix_array_assembler_names
-  
   
   implicit none
 # include "debug.i90"
@@ -220,6 +219,12 @@ module serial_fe_space_names
      generic :: create_fe_function => create_fe_function_scalar, &
                                     & create_fe_function_vector, &
                                     & create_fe_function_tensor
+     procedure, non_overridable :: update_bc_value_scalar
+     procedure, non_overridable :: update_bc_value_vector
+     procedure, non_overridable :: update_bc_value_tensor
+     generic :: update_bc_value => update_bc_value_scalar, &
+                                 & update_bc_value_vector, &
+                                 & update_bc_value_tensor
      
   end type serial_fe_space_t
 
