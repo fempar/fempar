@@ -81,8 +81,15 @@ module serial_scalar_array_names
      procedure :: print_matrix_market    => serial_scalar_array_print_matrix_market
      procedure :: get_entries            => serial_scalar_array_get_entries
      
-     procedure :: insert                 => serial_scalar_array_insert
-     procedure :: add                    => serial_scalar_array_add
+     procedure, private :: serial_scalar_array_insert_single_entry
+     procedure, private :: serial_scalar_array_insert_multiple_entries
+     procedure, private :: serial_scalar_array_add_single_entry
+     procedure, private :: serial_scalar_array_add_multiple_entries
+     
+     generic  :: insert                  => serial_scalar_array_insert_single_entry, &
+                                            serial_scalar_array_insert_multiple_entries
+     generic  :: add                     => serial_scalar_array_add_single_entry, &
+                                            serial_scalar_array_add_multiple_entries
 
      procedure :: dot                    => serial_scalar_array_dot
      procedure :: local_dot              => serial_scalar_array_dot
@@ -198,21 +205,56 @@ contains
     end do
   end subroutine serial_scalar_array_print_matrix_market
   
-  subroutine serial_scalar_array_insert (this, i, val)
+  subroutine serial_scalar_array_insert_single_entry (this, i, val)
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: i
     real(rp)                    , intent(in)    :: val
-    this%b(i) = val 
-  end subroutine serial_scalar_array_insert
+    assert ( i==0 .or. (i>=1 .and. i<= this.size) )
+    if ( i > 0 ) this%b(i) = val 
+  end subroutine serial_scalar_array_insert_single_entry
   
-  subroutine serial_scalar_array_add (this, i, val)
+  subroutine serial_scalar_array_insert_multiple_entries (this, num_entries, ia, ioffset, val)
+    implicit none
+    class(serial_scalar_array_t), intent(inout) :: this
+    integer(ip)                 , intent(in)    :: num_entries
+    integer(ip)                 , intent(in)    :: ia(num_entries)
+    integer(ip)                 , intent(in)    :: ioffset
+    real(rp)                    , intent(in)    :: val(:)
+    integer(ip) :: i, j
+    
+    do i=1, num_entries
+      j = ia(i) 
+      assert ( j == 0 .or. (j >=1 .and. j <= this.size) )
+      if (j > 0) this%b(j) = val(i+ioffset) 
+    end do
+  end subroutine serial_scalar_array_insert_multiple_entries
+  
+  subroutine serial_scalar_array_add_single_entry (this, i, val)
     implicit none
     class(serial_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: i
     real(rp)                    , intent(in)    :: val
-    this%b(i) = this%b(i) + val
-  end subroutine serial_scalar_array_add
+    assert ( i==0 .or. (i>=1 .and. i<= this.size) )
+    if ( i > 0 ) this%b(i) = this%b(i) + val
+  end subroutine serial_scalar_array_add_single_entry
+  
+    subroutine serial_scalar_array_add_multiple_entries (this, num_entries, ia, ioffset, val)
+    implicit none
+    class(serial_scalar_array_t), intent(inout) :: this
+    integer(ip)                 , intent(in)    :: num_entries
+    integer(ip)                 , intent(in)    :: ia(num_entries)
+    integer(ip)                 , intent(in)    :: ioffset
+    real(rp)                    , intent(in)    :: val(:)
+    integer(ip) :: i, j
+    
+    do i=1, num_entries
+      j = ia(i) 
+      assert ( j == 0 .or. (j >=1 .and. j <= this.size) )
+      if (j > 0) this%b(j) = this%b(j) + val(i+ioffset) 
+    end do
+    
+  end subroutine serial_scalar_array_add_multiple_entries
   
   !=============================================================================
   function serial_scalar_array_get_entries ( this )

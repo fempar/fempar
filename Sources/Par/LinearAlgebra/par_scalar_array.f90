@@ -72,8 +72,15 @@ module par_scalar_array_names
      procedure :: get_par_environment     => par_scalar_array_get_par_environment
      procedure :: get_serial_scalar_array => par_scalar_array_get_serial_scalar_array
     
-     procedure :: insert                  => par_scalar_array_insert
-     procedure :: add                     => par_scalar_array_add
+     procedure, private :: par_scalar_array_insert_single_entry
+     procedure, private :: par_scalar_array_insert_multiple_entries
+     procedure, private :: par_scalar_array_add_single_entry
+     procedure, private :: par_scalar_array_add_multiple_entries                      
+    
+     generic :: insert                  => par_scalar_array_insert_single_entry, &
+                                             par_scalar_array_insert_multiple_entries
+     generic :: add                     => par_scalar_array_add_single_entry, &
+                                             par_scalar_array_add_multiple_entries
      
      ! Provide type bound procedures (tbp) implementors
      procedure :: dot                    => par_scalar_array_dot
@@ -219,7 +226,7 @@ contains
    par_scalar_array_get_serial_scalar_array => this%serial_scalar_array
   end function par_scalar_array_get_serial_scalar_array
   
-  subroutine par_scalar_array_insert (this, i, val)
+  subroutine par_scalar_array_insert_single_entry (this, i, val)
     implicit none
     class(par_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: i
@@ -229,9 +236,23 @@ contains
     assert ( this%p_env%p_context%created .eqv. .true.)
     if(this%p_env%p_context%iam<0) return
     call this%serial_scalar_array%insert(i,val)
-  end subroutine par_scalar_array_insert
+  end subroutine par_scalar_array_insert_single_entry
   
-  subroutine par_scalar_array_add (this, i, val)
+  subroutine par_scalar_array_insert_multiple_entries (this, num_entries, ia, ioffset, val)
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: this
+    integer(ip)                 , intent(in) :: num_entries
+    integer(ip)                 , intent(in) :: ia(num_entries)
+    integer(ip)                 , intent(in) :: ioffset
+    real(rp)                    , intent(in) :: val(:)
+    assert ( associated(this%dof_import   ) )
+    assert ( associated(this%p_env%p_context) )
+    assert ( this%p_env%p_context%created .eqv. .true.)
+    if(this%p_env%p_context%iam<0) return
+    call this%serial_scalar_array%insert(num_entries,ia,ioffset,val)
+  end subroutine par_scalar_array_insert_multiple_entries
+  
+  subroutine par_scalar_array_add_single_entry (this, i, val)
     implicit none
     class(par_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: i
@@ -241,7 +262,22 @@ contains
     assert ( this%p_env%p_context%created .eqv. .true.)
     if(this%p_env%p_context%iam<0) return
     call this%serial_scalar_array%add(i,val)
-  end subroutine par_scalar_array_add
+  end subroutine par_scalar_array_add_single_entry
+  
+  subroutine par_scalar_array_add_multiple_entries (this, num_entries, ia, ioffset, val)
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: this
+    integer(ip)                 , intent(in) :: num_entries
+    integer(ip)                 , intent(in) :: ia(num_entries)
+    integer(ip)                 , intent(in) :: ioffset
+    real(rp)                    , intent(in) :: val(:)
+    assert ( associated(this%dof_import   ) )
+    assert ( associated(this%p_env%p_context) )
+    assert ( this%p_env%p_context%created .eqv. .true.)
+    if (this%p_env%p_context%iam<0) return
+    call this%serial_scalar_array%add(num_entries,ia,ioffset,val)
+  end subroutine par_scalar_array_add_multiple_entries
+  
     
   !=============================================================================
   subroutine par_scalar_array_print ( this, luout )
