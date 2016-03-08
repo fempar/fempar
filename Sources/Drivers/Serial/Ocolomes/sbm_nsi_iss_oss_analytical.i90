@@ -37,13 +37,14 @@ subroutine initialize_from_cli(this,cli,group)
   ! Getters
   call cli%get(group=trim(group),switch='-av',val=this%velocity_function_id,error=istat)
   check(istat==0)
-  call cli%get(group=trim(group),switch='-ap',val=this%velocity_function_id,error=istat)
+  call cli%get(group=trim(group),switch='-ap',val=this%pressure_function_id,error=istat)
   check(istat==0)
 
   this%velocity%swich          = this%velocity_function_id
   this%dt_velocity%swich       = this%velocity_function_id
   this%velocity_gradient%swich = this%velocity_function_id
   this%velocity_grad_div%swich = this%velocity_function_id
+  this%pressure%swich          = this%pressure_function_id
   this%pressure_gradient%swich = this%pressure_function_id
 
 end subroutine initialize_from_cli
@@ -60,7 +61,7 @@ subroutine velocity_get_value_space_time(this,point,time,result)
   select case(this%swich)
      case(1) ! u = (x,-y,0)
         call result%set(1,point%get(1))
-        call result%set(2,1.0_rp*point%get(2))
+        call result%set(2,-1.0_rp*point%get(2))
   end select
 
 end subroutine velocity_get_value_space_time
@@ -111,6 +112,22 @@ subroutine velocity_grad_div_get_value_space_time(this,point,time,result)
   end select
 
 end subroutine velocity_grad_div_get_value_space_time
+
+!====================================================================================================
+subroutine pressure_get_value_space_time(this,point,time,result)
+  implicit none
+  class(pressure_function_t), intent(in)    :: this
+  type(point_t)             , intent(in)    :: point
+  real(rp)                  , intent(in)    :: time
+  real(rp)                  , intent(inout) :: result
+  
+  result = 0.0_rp
+  select case(this%swich)
+     case(1) ! p = x+y
+        result = point%get(1) + point%get(2)
+  end select
+
+end subroutine pressure_get_value_space_time
 
 !====================================================================================================
 subroutine pressure_gradient_get_value_space_time(this,point,time,result)

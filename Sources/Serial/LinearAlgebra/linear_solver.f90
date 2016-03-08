@@ -143,8 +143,8 @@ contains
   
   ! SELECT MANUALLY ITERATIVE LINEAR SOLVER TYPE: 
      !this%base_linear_solver => create_richardson(this%environment)
-     this%base_linear_solver => create_cg(this%environment)
-     !this%base_linear_solver => create_rgmres(this%environment)
+     !this%base_linear_solver => create_cg(this%environment)
+     this%base_linear_solver => create_rgmres(this%environment)
      !this%base_linear_solver => create_lgmres(this%environment)
      !this%base_linear_solver => create_fgmres(this%environment)
      !this%base_linear_solver => create_lfom(this%environment) 

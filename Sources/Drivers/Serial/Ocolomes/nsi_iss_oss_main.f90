@@ -104,6 +104,12 @@ module nsi_iss_oss_analytical_functions_names
      procedure, non_overridable :: get_value_space_time => velocity_grad_div_get_value_space_time
   end type velocity_grad_div_function_t
 
+  type, extends(scalar_function_t) :: pressure_function_t
+     integer(ip) :: swich
+   contains
+     procedure, non_overridable :: get_value_space_time => pressure_get_value_space_time
+  end type pressure_function_t
+
   type, extends(vector_function_t) :: pressure_gradient_function_t
      integer(ip) :: swich
    contains
@@ -115,6 +121,7 @@ module nsi_iss_oss_analytical_functions_names
      type(dt_velocity_function_t)       :: dt_velocity
      type(velocity_gradient_function_t) :: velocity_gradient
      type(velocity_grad_div_function_t) :: velocity_grad_div
+     type(pressure_function_t)          :: pressure
      type(pressure_gradient_function_t) :: pressure_gradient
      integer(ip)                        :: velocity_function_id
      integer(ip)                        :: pressure_function_id
@@ -163,10 +170,7 @@ module nsi_iss_oss_discrete_integration_names
      procedure, non_overridable :: compute_characteristic_length
      procedure, non_overridable :: compute_mean_elemental_velocity
      procedure, non_overridable :: compute_analytical_force
-     procedure, non_overridable :: evaluate_analytical_vector
-     procedure, non_overridable :: evaluate_analytical_tensor
      procedure, non_overridable :: update_boundary_conditions_analytical
-     generic :: evaluate_analytical => evaluate_analytical_vector, evaluate_analytical_tensor
   end type nsi_iss_oss_discrete_integration_t
 
   integer(ip), parameter :: characteristic_elemental_length = 0

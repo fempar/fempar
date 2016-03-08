@@ -103,6 +103,10 @@
   ! PROBLEM !
   !---------!
   call nsi_iss_oss_integration%initialize_from_cli(cli,group)
+  ! Update initial boundary conditions
+  if(nsi_iss_oss_integration%is_analytical_solution.or.nsi_iss_oss_integration%is_initial_solution) then
+     call nsi_iss_oss_integration%update_boundary_conditions_analytical(fe_space)
+  end if
 
   !-----------------!
   ! AFFINE OPERATOR !
@@ -139,7 +143,7 @@
   !----------------!
   ! NONLINEAR LOOP !
   !----------------!
-  nonlinear_tolerance      = 1.0e-10_rp
+  nonlinear_tolerance      = 1.0e-12_rp
   max_nonlinear_iterations = 2
   residual_norm            = 1.0_rp
   counter                  = 0

@@ -473,7 +473,7 @@ function get_max_number_nodes_field( this, ifield )
  subroutine update_bc_value_scalar( this, analytical_function, bc_code, fe_space_component, time, unknown_component)
    implicit none
    class(serial_fe_space_t), intent(inout) :: this 
-   type(scalar_function_t) , intent(in)    :: analytical_function
+   class(scalar_function_t), intent(in)    :: analytical_function
    integer(ip)             , intent(in)    :: bc_code
    integer(ip)             , intent(in)    :: fe_space_component
    real(rp)   , optional   , intent(in)    :: time
@@ -534,13 +534,13 @@ function get_max_number_nodes_field( this, ifield )
  subroutine update_bc_value_vector( this, analytical_function, bc_code, fe_space_component, time)
    implicit none
    class(serial_fe_space_t), intent(inout) :: this 
-   type(vector_function_t) , intent(in)    :: analytical_function
+   class(vector_function_t), intent(in)    :: analytical_function
    integer(ip)             , intent(in)    :: bc_code
    integer(ip)             , intent(in)    :: fe_space_component
    real(rp)   , optional   , intent(in)    :: time
    ! Locals
    integer(ip) :: ielem, qpoin, istat
-   integer(ip) :: number_quadrature_points, number_vertices
+   integer(ip) :: number_nodes, number_vertices
    real(rp)    :: time_(1)
    character(:), allocatable         :: field_type
    type(fe_map_t)                    :: fe_map
@@ -550,17 +550,17 @@ function get_max_number_nodes_field( this, ifield )
    type(vector_field_t), allocatable :: values(:,:)
    
    ! Getters
-   field_type               =  this%reference_fe_phy_list(fe_space_component)%p%get_field_type()
-   nodal_quadrature         => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
-   number_vertices          =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
-   number_quadrature_points =  nodal_quadrature%get_number_quadrature_points()
+   field_type       =  this%reference_fe_phy_list(fe_space_component)%p%get_field_type()
+   nodal_quadrature => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
+   number_vertices  =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
+   number_nodes     =  this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
    assert( field_type == field_type_vector )
    
    ! Auxiliar time as an array of dimension 1
    if (present(time)) time_(1) = time 
 
    ! Allocate nodal coordinates
-   allocate(values(number_quadrature_points,1), stat=istat); check(istat==0)
+   allocate(values(number_nodes,1), stat=istat); check(istat==0)
     
    ! Create FE map
    call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
@@ -598,13 +598,13 @@ function get_max_number_nodes_field( this, ifield )
  subroutine update_bc_value_tensor( this, analytical_function, bc_code, fe_space_component, time)
    implicit none
    class(serial_fe_space_t), intent(inout) :: this 
-   type(tensor_function_t) , intent(in)    :: analytical_function
+   class(tensor_function_t), intent(in)    :: analytical_function
    integer(ip)             , intent(in)    :: bc_code
    integer(ip)             , intent(in)    :: fe_space_component
    real(rp)   , optional   , intent(in)    :: time
    ! Locals
    integer(ip) :: ielem, qpoin, istat
-   integer(ip) :: number_quadrature_points, number_vertices
+   integer(ip) :: number_nodes, number_vertices
    real(rp)    :: time_(1)
    character(:), allocatable   :: field_type
    type(fe_map_t)              :: fe_map
@@ -614,17 +614,17 @@ function get_max_number_nodes_field( this, ifield )
    type(tensor_field_t), allocatable :: values(:,:)
    
    ! Getters
-   field_type               =  this%reference_fe_phy_list(fe_space_component)%p%get_field_type()
-   nodal_quadrature         => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
-   number_vertices          =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
-   number_quadrature_points =  nodal_quadrature%get_number_quadrature_points()
+   field_type       =  this%reference_fe_phy_list(fe_space_component)%p%get_field_type()
+   nodal_quadrature => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
+   number_vertices  =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
+   number_nodes     =  this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
    assert( field_type == field_type_tensor )
    
    ! Auxiliar time as an array of dimension 1
    if (present(time)) time_(1) = time 
 
    ! Allocate nodal coordinates
-   allocate(values(number_quadrature_points,1), stat=istat); check(istat==0)
+   allocate(values(number_nodes,1), stat=istat); check(istat==0)
     
    ! Create FE map
    call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)

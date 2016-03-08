@@ -95,7 +95,7 @@ subroutine integrate(this,fe_space,assembler)
   type(i1p_t)              , pointer :: bc_code(:)
   type(r1p_t)              , pointer :: bc_value(:)
   class(vector_t)          , pointer :: vector_dof_values
-  type(point_t)            , pointer :: quadrature_point
+  type(point_t)            , pointer :: quadrature_coordinate(:)
   
   ! Getters
   fe                       => fe_space%get_finite_element(1)
@@ -146,9 +146,10 @@ subroutine integrate(this,fe_space,assembler)
      elem2dof              => fe%get_elem2dof()
      bc_code               => fe%get_bc_code()
      bc_value              => fe%get_bc_value()
+     quadrature_coordinate => fe_map%get_quadrature_coordinates()
      
      ! Update analytical boundary conditions
-     if(this%is_analytical_solution) call this%update_boundary_conditions_analytical(fe)
+!     if(this%is_analytical_solution) call this%update_boundary_conditions_analytical(fe)
 
      ! Update discrete integration structures
      call this%compute_stabilization_parameters(fe,fe_velocity,tau_m,tau_c)
@@ -164,8 +165,7 @@ subroutine integrate(this,fe_space,assembler)
 
         ! Compute source vector for an analytical solution
         if(this%is_analytical_solution) then
-           quadrature_point => fe_map%get_coordinates_quadrature(qpoin)
-           source_vector = this%compute_analytical_force(quadrature_point)
+           source_vector = this%compute_analytical_force(quadrature_coordinate(qpoin))
         end if
         
         !-----------!
@@ -495,56 +495,44 @@ function compute_analytical_force(this,point) result(source)
   type(vector_field_t) :: pressure_gradient
 
   ! Evaluate functions
-  velocity          = this%evaluate_analytical(point,this%analytical_functions%velocity)
-  dt_velocity       = this%evaluate_analytical(point,this%analytical_functions%dt_velocity)
-  velocity_gradient = this%evaluate_analytical(point,this%analytical_functions%velocity_gradient)
-  velocity_grad_div = this%evaluate_analytical(point,this%analytical_functions%velocity_grad_div)
-  pressure_gradient = this%evaluate_analytical(point,this%analytical_functions%pressure_gradient)
+  call this%analytical_functions%velocity%get_value_space_time(point,this%current_time,velocity)
+  call this%analytical_functions%dt_velocity%get_value_space_time(point,this%current_time,       &
+       &                                                          dt_velocity)
+  call this%analytical_functions%velocity_gradient%get_value_space_time(point,this%current_time, &
+       &                                                                velocity_gradient)
+  call this%analytical_functions%velocity_grad_div%get_value_space_time(point,this%current_time, &
+       &                                                                velocity_grad_div)
+  call this%analytical_functions%pressure_gradient%get_value_space_time(point,this%current_time, &
+       &                                                                pressure_gradient)
 
   ! Compute force  ( f = du/dt + u*grad(u) - nu * div( grad(u) + grad(u)T ) + grad(p) )
-  source = dt_velocity + velocity * velocity_gradient + (-1.0_rp*this%viscosity) * velocity_grad_div &
-       & + pressure_gradient
+  if(this%convection_activated) then
+     source = dt_velocity + velocity * velocity_gradient + (-1.0_rp*this%viscosity) * velocity_grad_div &
+          & + pressure_gradient
+  else
+     source = dt_velocity + (-1.0_rp*this%viscosity) * velocity_grad_div + pressure_gradient
+  end if
   
 end function compute_analytical_force
-
-!====================================================================================================
-function evaluate_analytical_vector(this,point,analytical_function) result(vector)
-  implicit none
-  class(nsi_iss_oss_discrete_integration_t), intent(in) :: this
-  type(point_t)                            , intent(in) :: point
-  class(vector_function_t)                 , intent(in) :: analytical_function
-  type(vector_field_t) :: vector
-
-  ! Initialize
-  call vector%init(0.0_rp) 
-  
-  ! Evaluate
-  call analytical_function%get_value_space_time(point,this%current_time,vector)
-
-end function evaluate_analytical_vector
   
 !====================================================================================================
-function evaluate_analytical_tensor(this,point,analytical_function) result(tensor)
-  implicit none
-  class(nsi_iss_oss_discrete_integration_t), intent(in) :: this
-  type(point_t)                            , intent(in) :: point
-  class(tensor_function_t)                 , intent(in) :: analytical_function
-  type(tensor_field_t) :: tensor
-
-  ! Initialize
-  call tensor%init(0.0_rp) 
-  
-  ! Evaluate
-  call analytical_function%get_value_space_time(point,this%current_time,tensor)
-
-end function evaluate_analytical_tensor
-  
-!====================================================================================================
-subroutine update_boundary_conditions_analytical(this,fe)
+subroutine update_boundary_conditions_analytical(this,fe_space,time)
   implicit none
   class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
-  type(finite_element_t)                   , intent(inout) :: fe
+  class(serial_fe_space_t)                 , intent(inout) :: fe_space
+  real(rp), optional                       , intent(in)    :: time
+  ! Locals
+  real(rp) :: time_
 
-  !!!!!!!!!!!!!!!
+  time_ = 0.0_rp
+  if(present(time)) time_ = time
+
+  ! Update velocity 
+  call fe_space%update_bc_value(this%analytical_functions%velocity,bc_code=1,fe_space_component=1, &
+       &                        time=time_)
+
+  ! Update pressure
+  call fe_space%update_bc_value(this%analytical_functions%pressure,bc_code=1,fe_space_component=2, &
+       &                        time=time_)
 
 end subroutine update_boundary_conditions_analytical
