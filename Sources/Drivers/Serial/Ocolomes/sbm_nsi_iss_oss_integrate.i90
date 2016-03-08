@@ -146,10 +146,7 @@ subroutine integrate(this,fe_space,assembler)
      elem2dof              => fe%get_elem2dof()
      bc_code               => fe%get_bc_code()
      bc_value              => fe%get_bc_value()
-     quadrature_coordinate => fe_map%get_quadrature_coordinates()
-     
-     ! Update analytical boundary conditions
-!     if(this%is_analytical_solution) call this%update_boundary_conditions_analytical(fe)
+     quadrature_coordinate => fe_map%get_quadrature_coordinates() 
 
      ! Update discrete integration structures
      call this%compute_stabilization_parameters(fe,fe_velocity,tau_m,tau_c)

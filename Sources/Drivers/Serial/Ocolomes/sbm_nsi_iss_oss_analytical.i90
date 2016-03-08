@@ -62,6 +62,9 @@ subroutine velocity_get_value_space_time(this,point,time,result)
      case(1) ! u = (x,-y,0)
         call result%set(1,point%get(1))
         call result%set(2,-1.0_rp*point%get(2))
+     case(2) ! u = (1.0,1.0,0)
+        call result%set(1,1.0_rp)
+        call result%set(2,1.0_rp)
   end select
 
 end subroutine velocity_get_value_space_time

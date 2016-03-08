@@ -451,19 +451,6 @@ function fe_map_get_coordinates(this)
 end function fe_map_get_coordinates
 
 !==================================================================================================
-function fe_map_get_coordinates_quadrature(this,qpoin)
-  implicit none
-  class(fe_map_t), target, intent(in) :: this
-  integer(ip)            , intent(in) :: qpoin
-  type(point_t), pointer :: fe_map_get_coordinates_quadrature
-
-  assert( qpoin>=1 .and. qpoin <= this%number_quadrature_points)
-
-  fe_map_get_coordinates_quadrature => this%coordinates_quadrature(qpoin)
-
-end function fe_map_get_coordinates_quadrature
-
-!==================================================================================================
 subroutine fe_map_get_inv_jacobian_tensor ( this, qpoin, inv_jacobian )
   implicit none
   class(fe_map_t)        , intent(in)  :: this

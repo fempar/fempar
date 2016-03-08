@@ -144,7 +144,7 @@
   ! NONLINEAR LOOP !
   !----------------!
   nonlinear_tolerance      = 1.0e-12_rp
-  max_nonlinear_iterations = 2
+  max_nonlinear_iterations = 10
   residual_norm            = 1.0_rp
   counter                  = 0
   nonlinear: do while (residual_norm > nonlinear_tolerance .and. counter <= max_nonlinear_iterations)
