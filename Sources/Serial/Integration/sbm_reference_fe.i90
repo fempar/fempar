@@ -398,7 +398,7 @@ end function reference_fe_get_continuity
     integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
     integer(ip)                        :: reference_fe_compute_relative_orientation 
 
-    if (target_reference_fe%get_vef_dimension(target_vef_id) < 3) then
+    if (target_reference_fe%get_vef_dimension(target_vef_id) < 2) then
        reference_fe_compute_relative_orientation = 0
     else
        reference_fe_compute_relative_orientation = modulo( 1 +                                    &
