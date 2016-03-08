@@ -445,8 +445,8 @@ contains
       
        call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value,                   &
             &                                  number_nodes_per_field, number_fe_spaces )
-!!$       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks, &
-!!$            &                   field_coupling, elmat, elvec )      
+       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks, &
+            &                   field_coupling, elmat, elvec )      
     end do
     ! do inode = 1, number_nodes_per_field(1)
     !    write(*,*) inode, '+++++'
