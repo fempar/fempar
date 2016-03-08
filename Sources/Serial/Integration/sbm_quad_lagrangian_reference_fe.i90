@@ -482,15 +482,12 @@ subroutine quad_lagrangian_reference_fe_fill (this)
      end do
   end do
 
-<<<<<<< HEAD
-=======
   call memalloc (this%number_dimensions,this%number_rotations_vef,__FILE__,__LINE__)
   call memalloc (this%number_dimensions,this%number_orientations_vef,__FILE__,__LINE__)
   allocate(this%permutation_arrays(this%number_dimensions))
 
   call this%fill_permutation_array()
   
->>>>>>> df9d5c7250f5136ae148bc68a3ceee14bcdac5a2
 end subroutine quad_lagrangian_reference_fe_fill
 !==================================================================================================
 

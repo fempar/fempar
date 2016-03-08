@@ -476,15 +476,16 @@ function get_max_number_nodes_field( this, ifield )
    type(scalar_function_t) , intent(in)    :: analytical_function
    integer(ip)             , intent(in)    :: bc_code
    integer(ip)             , intent(in)    :: fe_space_component
-   real(rp)   , optional   , intent(in)    :: time(1)
+   real(rp)   , optional   , intent(in)    :: time
    integer(ip), optional   , intent(in)    :: unknown_component
    ! Locals
    integer(ip) :: ielem, inode, istat
    integer(ip) :: number_quadrature_points, number_vertices
+   real(rp)    :: time_(1)
    real(rp), allocatable       :: values(:,:)
    type(fe_map_t)              :: fe_map
    type(quadrature_t), pointer :: nodal_quadrature
-   type(point_t), allocatable  :: nodal_coordinates(:)
+   type(point_t), pointer      :: nodal_coordinates(:)
    type(point_t), pointer      :: vertex_coordinates(:)
    
    ! Getters
@@ -492,11 +493,13 @@ function get_max_number_nodes_field( this, ifield )
    number_vertices          =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
    number_quadrature_points =  nodal_quadrature%get_number_quadrature_points()
    
+   ! Auxiliar time as an array of dimension 1
+   if (present(time)) time_(1) = time 
+   
    ! Allocate nodal coordinates
-   allocate(nodal_coordinates(number_quadrature_points), stat=istat); check(istat==0)
    call memalloc(number_quadrature_points,1,values,__FILE__,__LINE__)
 
-   ! Create volume integrator
+   ! Create FE map
    call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
 
    ! Loop over elements
@@ -505,11 +508,12 @@ function get_max_number_nodes_field( this, ifield )
       ! Interpolate coordinates
       vertex_coordinates => fe_map%get_coordinates()
       call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
-      nodal_coordinates = fe_map%get_quadrature_coordinates()
+      call fe_map%compute_quadrature_coordinates()
+      nodal_coordinates => fe_map%get_quadrature_coordinates()
 
       ! Evaluate function
       if(present(time)) then
-         call analytical_function%get_values_set_space_time(nodal_coordinates,time,values)
+         call analytical_function%get_values_set_space_time(nodal_coordinates,time_,values)
       else
          call analytical_function%get_values_set_space(nodal_coordinates,values(:,1))
       end if
@@ -520,10 +524,9 @@ function get_max_number_nodes_field( this, ifield )
            & this%fe_array(ielem)%bc_value(fe_space_component)%p, unknown_component)
    end do
 
-   deallocate(nodal_coordinates)
    call memfree(values,__FILE__,__LINE__)
 
-   ! Free volume integrator and FE map
+   ! Free FE map
    call fe_map%free()
    
  end subroutine update_bc_value_scalar
@@ -534,15 +537,15 @@ function get_max_number_nodes_field( this, ifield )
    type(vector_function_t) , intent(in)    :: analytical_function
    integer(ip)             , intent(in)    :: bc_code
    integer(ip)             , intent(in)    :: fe_space_component
-   real(rp)   , optional   , intent(in)    :: time(1)
+   real(rp)   , optional   , intent(in)    :: time
    ! Locals
    integer(ip) :: ielem, qpoin, istat
    integer(ip) :: number_quadrature_points, number_vertices
+   real(rp)    :: time_(1)
    character(:), allocatable         :: field_type
    type(fe_map_t)                    :: fe_map
    type(quadrature_t)  , pointer     :: nodal_quadrature
-   type(point_t)       , allocatable :: nodal_coordinates(:)
-   type(point_t)       , allocatable :: coordinates_vertices(:)
+   type(point_t)       , pointer     :: nodal_coordinates(:)
    type(point_t)       , pointer     :: vertex_coordinates(:)
    type(vector_field_t), allocatable :: values(:,:)
    
@@ -552,12 +555,14 @@ function get_max_number_nodes_field( this, ifield )
    number_vertices          =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
    number_quadrature_points =  nodal_quadrature%get_number_quadrature_points()
    assert( field_type == field_type_vector )
+   
+   ! Auxiliar time as an array of dimension 1
+   if (present(time)) time_(1) = time 
 
    ! Allocate nodal coordinates
-   allocate(nodal_coordinates(number_quadrature_points), stat=istat); check(istat==0)
    allocate(values(number_quadrature_points,1), stat=istat); check(istat==0)
     
-   ! Create volume integrator
+   ! Create FE map
    call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
 
    ! Loop over elements
@@ -566,11 +571,12 @@ function get_max_number_nodes_field( this, ifield )
       ! Interpolate coordinates
       vertex_coordinates => fe_map%get_coordinates()
       call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
-      nodal_coordinates = fe_map%get_quadrature_coordinates()
+      call fe_map%compute_quadrature_coordinates()
+      nodal_coordinates => fe_map%get_quadrature_coordinates()
 
       ! Evaluate function
       if(present(time)) then
-         call analytical_function%get_values_set_space_time(nodal_coordinates,time,values)
+         call analytical_function%get_values_set_space_time(nodal_coordinates,time_,values)
       else
          call analytical_function%get_values_set_space(nodal_coordinates,values(:,1))
       end if
@@ -582,10 +588,9 @@ function get_max_number_nodes_field( this, ifield )
       
    end do
 
-   deallocate(nodal_coordinates)
    deallocate(values)
 
-   ! Free volume integrator and FE map
+   ! Free FE map
    call fe_map%free()
    
  end subroutine update_bc_value_vector
@@ -596,14 +601,15 @@ function get_max_number_nodes_field( this, ifield )
    type(tensor_function_t) , intent(in)    :: analytical_function
    integer(ip)             , intent(in)    :: bc_code
    integer(ip)             , intent(in)    :: fe_space_component
-   real(rp)   , optional   , intent(in)    :: time(1)
+   real(rp)   , optional   , intent(in)    :: time
    ! Locals
    integer(ip) :: ielem, qpoin, istat
    integer(ip) :: number_quadrature_points, number_vertices
+   real(rp)    :: time_(1)
    character(:), allocatable   :: field_type
    type(fe_map_t)              :: fe_map
    type(quadrature_t), pointer :: nodal_quadrature
-   type(point_t), allocatable  :: nodal_coordinates(:)
+   type(point_t), pointer      :: nodal_coordinates(:)
    type(point_t), pointer      :: vertex_coordinates(:)
    type(tensor_field_t), allocatable :: values(:,:)
    
@@ -613,12 +619,14 @@ function get_max_number_nodes_field( this, ifield )
    number_vertices          =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
    number_quadrature_points =  nodal_quadrature%get_number_quadrature_points()
    assert( field_type == field_type_tensor )
+   
+   ! Auxiliar time as an array of dimension 1
+   if (present(time)) time_(1) = time 
 
    ! Allocate nodal coordinates
-   allocate(nodal_coordinates(number_quadrature_points), stat=istat); check(istat==0)
    allocate(values(number_quadrature_points,1), stat=istat); check(istat==0)
     
-   ! Create volume integrator
+   ! Create FE map
    call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
 
    ! Loop over elements
@@ -627,11 +635,12 @@ function get_max_number_nodes_field( this, ifield )
       ! Interpolate coordinates
       vertex_coordinates => fe_map%get_coordinates()
       call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
-      nodal_coordinates = fe_map%get_quadrature_coordinates()
+      call fe_map%compute_quadrature_coordinates()
+      nodal_coordinates => fe_map%get_quadrature_coordinates()
 
       ! Evaluate function
       if(present(time)) then
-         call analytical_function%get_values_set_space_time(nodal_coordinates,time,values)
+         call analytical_function%get_values_set_space_time(nodal_coordinates,time_,values)
       else
          call analytical_function%get_values_set_space(nodal_coordinates,values(:,1))
       end if
@@ -643,10 +652,9 @@ function get_max_number_nodes_field( this, ifield )
       
    end do
 
-   deallocate(nodal_coordinates)
    deallocate(values)
 
-   ! Free volume integrator and FE map
+   ! Free FE map
    call fe_map%free()
    
  end subroutine update_bc_value_tensor

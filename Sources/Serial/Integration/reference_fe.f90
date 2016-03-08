@@ -157,22 +157,23 @@ module reference_fe_names
      ! Number of quadrature points
      integer(ip)              :: number_quadrature_points
    contains
-     procedure, non_overridable :: create                  => fe_map_create
-     procedure, non_overridable :: create_on_face          => fe_map_create_on_face
-     procedure, non_overridable :: fe_map_face_map_create  => fe_map_face_map_create
-     procedure, non_overridable :: update                  => fe_map_update
-     procedure, non_overridable :: face_map_update         => fe_map_face_map_update
-     procedure, non_overridable :: free                    => fe_map_free
-     procedure, non_overridable :: print                   => fe_map_print
-     procedure, non_overridable :: get_det_jacobian        => fe_map_get_det_jacobian
-     procedure, non_overridable :: compute_h               => fe_map_compute_h
-     procedure, non_overridable :: compute_h_min           => fe_map_compute_h_min
-     procedure, non_overridable :: compute_h_max           => fe_map_compute_h_max
-     procedure, non_overridable :: get_coordinates         => fe_map_get_coordinates
-     procedure, non_overridable :: get_inv_jacobian_tensor => fe_map_get_inv_jacobian_tensor
-     procedure, non_overridable :: get_reference_h         => fe_map_get_reference_h
-     procedure, non_overridable :: apply_inv_jacobian      => fe_map_apply_inv_jacobian
-     procedure, non_overridable :: get_quadrature_coordinates  => fe_map_get_quadrature_coordinates
+     procedure, non_overridable :: create                         => fe_map_create
+     procedure, non_overridable :: create_on_face                 => fe_map_create_on_face
+     procedure, non_overridable :: fe_map_face_map_create         => fe_map_face_map_create
+     procedure, non_overridable :: update                         => fe_map_update
+     procedure, non_overridable :: face_map_update                => fe_map_face_map_update
+     procedure, non_overridable :: free                           => fe_map_free
+     procedure, non_overridable :: print                          => fe_map_print
+     procedure, non_overridable :: get_det_jacobian               => fe_map_get_det_jacobian
+     procedure, non_overridable :: compute_h                      => fe_map_compute_h
+     procedure, non_overridable :: compute_h_min                  => fe_map_compute_h_min
+     procedure, non_overridable :: compute_h_max                  => fe_map_compute_h_max
+     procedure, non_overridable :: get_coordinates                => fe_map_get_coordinates
+     procedure, non_overridable :: get_inv_jacobian_tensor        => fe_map_get_inv_jacobian_tensor
+     procedure, non_overridable :: get_reference_h                => fe_map_get_reference_h
+     procedure, non_overridable :: apply_inv_jacobian             => fe_map_apply_inv_jacobian
+     procedure, non_overridable :: compute_quadrature_coordinates => fe_map_compute_quadrature_coordinates
+     procedure, non_overridable :: get_quadrature_coordinates     => fe_map_get_quadrature_coordinates
   end type fe_map_t
 
   type p_fe_map_t
@@ -289,10 +290,12 @@ module reference_fe_names
      
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
-<<<<<<< HEAD
-     procedure (permute_order_vef_interface)    , deferred :: permute_order_vef
+     procedure (check_compatibility_of_vefs_interface), deferred :: &
+          &     check_compatibility_of_vefs
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
      procedure (set_nodal_quadrature_interface), deferred :: set_nodal_quadrature
+     procedure (fill_face_points_permutation_interface), deferred :: &
+          &                                  fill_face_points_permutation
 
      procedure (set_scalar_field_to_nodal_values_interface), deferred :: set_scalar_field_to_nodal_values
      procedure (set_vector_field_to_nodal_values_interface), deferred :: set_vector_field_to_nodal_values
@@ -300,13 +303,6 @@ module reference_fe_names
      generic :: set_field_to_nodal_values => set_scalar_field_to_nodal_values, &
                                            & set_vector_field_to_nodal_values, &
                                            & set_tensor_field_to_nodal_values
-=======
-     procedure (check_compatibility_of_vefs_interface), deferred :: &
-          &     check_compatibility_of_vefs
-     procedure (get_characteristic_length_interface)     , deferred :: get_characteristic_length
-     procedure (fill_face_points_permutation_interface), deferred :: &
-          &                                  fill_face_points_permutation
->>>>>>> df9d5c7250f5136ae148bc68a3ceee14bcdac5a2
 
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
@@ -349,13 +345,10 @@ module reference_fe_names
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
      procedure :: get_orientation => reference_fe_get_orientation     
-<<<<<<< HEAD
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
-=======
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
      procedure :: get_permuted_interior_node_vef  => reference_fe_get_permuted_interior_node_vef
->>>>>>> df9d5c7250f5136ae148bc68a3ceee14bcdac5a2
   end type reference_fe_t
 
   type p_reference_fe_t
