@@ -708,8 +708,8 @@ contains
             i1 = this%irp(ir)
             i2 = this%irp(ir+1)
             nc = i2-i1
-            assert(ipaux>0) ! Entry not found
             ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+            assert(ipaux>0) ! Entry not found
             if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
         end do
     end subroutine csr_sparse_matrix_update_bounded_values_by_col_body

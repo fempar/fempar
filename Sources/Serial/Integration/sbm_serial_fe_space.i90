@@ -309,7 +309,6 @@ function serial_fe_space_create_assembler(this, &
   ! Locals
   class(matrix_t), pointer :: matrix
   class(array_t) , pointer :: array
-		logical, allocatable :: blocks_coupling(:,:)
 		integer(ip)          :: ife_space, jfe_space
 		integer(ip)          :: iblock, jblock
 
@@ -347,7 +346,7 @@ function serial_fe_space_create_assembler(this, &
             
 	       do jblock=1,this%number_blocks
            do iblock=1,this%number_blocks
-              if (.not. blocks_coupling(iblock,jblock) ) then
+              if (.not. this%blocks_coupling(iblock,jblock) ) then
                  call matrix%set_block_to_zero(iblock,jblock)
               end if
            end do
