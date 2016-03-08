@@ -304,6 +304,8 @@ module reference_fe_names
                                            & set_vector_field_to_nodal_values, &
                                            & set_tensor_field_to_nodal_values
 
+     procedure (interpolate_nodal_values_interface), deferred :: interpolate_nodal_values
+
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
      procedure :: print => reference_fe_print
@@ -606,6 +608,17 @@ module reference_fe_names
        type(quadrature_t)                    , intent(in)    :: quadrature
        integer(ip)      , allocatable, target, intent(inout) :: permutation_array(:,:)
      end subroutine fill_face_points_permutation_interface
+
+     subroutine interpolate_nodal_values_interface(this,nodal_interpolation,nodal_values_origin, &
+          &                                        nodal_values_destination)
+       import :: reference_fe_t, interpolation_t, rp
+       implicit none 
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: nodal_interpolation
+       real(rp)             , intent(in)    :: nodal_values_origin(:)
+       real(rp)             , intent(inout) :: nodal_values_destination(:)
+     end subroutine interpolate_nodal_values_interface
+       
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -641,6 +654,8 @@ module reference_fe_names
      procedure :: get_gradient_vector       => quad_lagrangian_reference_fe_get_gradient_vector
      procedure :: get_divergence_vector     => quad_lagrangian_reference_fe_get_divergence_vector
      procedure :: get_curl_vector           => quad_lagrangian_reference_fe_get_curl_vector
+
+     procedure :: interpolate_nodal_values => quad_lagrangian_reference_fe_interpolate_nodal_values
 
      procedure :: evaluate_fe_function_scalar => quad_lagrangian_reference_fe_evaluate_fe_function_scalar
      procedure :: evaluate_fe_function_vector => quad_lagrangian_reference_fe_evaluate_fe_function_vector
