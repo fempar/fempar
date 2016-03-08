@@ -25,10 +25,11 @@ SET(PAR_PATH ${SRC_PATH}/Par)
 SET(SERIAL_DRIVERS_PATH ${SRC_PATH}/Drivers/Serial)
 SET(PAR_DRIVERS_PATH ${SRC_PATH}/Drivers/Par)
 
-SET(SERIAL_TESTS_PATH ${SRC_PATH}/Tests/Serial)
-SET(PAR_TESTS_PATH ${SRC_PATH}/Tests/Par)
-SET(SCRIPTS_TESTS_PATH ${SRC_PATH}/Tests/Scripts)
-SET(DATA_TESTS_PATH ${SRC_PATH}/Tests/Data)
+SET(TESTS_PATH ${SRC_PATH}/Tests)
+SET(SERIAL_TESTS_PATH ${TESTS_PATH}/Serial)
+SET(PAR_TESTS_PATH ${TESTS_PATH}/Par)
+SET(SCRIPTS_TESTS_PATH ${TESTS_PATH}/Scripts)
+SET(DATA_TESTS_PATH ${TESTS_PATH}/Data)
 
 SET(GENERIC_PATH ${SRC_PATH}/Generic)
 
@@ -90,7 +91,7 @@ IF(MPI_FOUND)
     IF(MPI_MOD_FOUND)
         TRY_COMPILE(FORTRAN_COMPILER_MATCH_MPI_MOD 
                     ${PROJECT_BINARY_DIR} 
-                    ${SERIAL_TESTS_PATH}/try_compile_mpi_mod.f90	
+                    ${TESTS_PATH}/try_compile_mpi_mod.f90	
                     CMAKE_FLAGS
                         "-DINCLUDE_DIRECTORIES:STRING=${MPI_Fortran_INCLUDE_PATH}"
                         "-DLINK_LIBRARIES:STRING=${MPI_Fortran_LIBRARIES}")
