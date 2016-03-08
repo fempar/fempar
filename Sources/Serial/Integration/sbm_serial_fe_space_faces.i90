@@ -129,4 +129,5 @@ subroutine create_face_array (this)
         face%face_integrator(i)%p => this%face_integrator(this%number_fe_spaces+i)%p
      end do
   end do
+
 end subroutine create_face_array
