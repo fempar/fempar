@@ -129,9 +129,9 @@ module serial_fe_space_names
      private
      integer(ip)                            :: number_fe_spaces
      type(face_topology_t)    , pointer     :: face_topology
-     type(p_finite_element_t)            :: neighbour_fe(2)
+     type(p_finite_element_t)               :: neighbour_fe(2)
      type(face_map_t)         , pointer     :: map
-     type(quadrature_t)    , pointer     :: quadrature
+     type(quadrature_t)       , pointer     :: quadrature
      type(p_face_integrator_t), allocatable :: face_integrator(:)
    contains
      procedure, non_overridable :: create              => finite_face_create

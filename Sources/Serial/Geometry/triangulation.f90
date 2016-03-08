@@ -53,12 +53,14 @@ module triangulation_names
   type p_elem_topology_t
      type(elem_topology_t), pointer :: p => NULL()      
   end type p_elem_topology_t
-
+  
   type face_topology_t
      integer(ip)             :: neighbour_elems_id(2) = -1
      type(p_elem_topology_t) :: neighbour_elems(2)
      integer(ip)             :: relative_face(2)      = -1
-     integer(ip)             :: right_elem_subface    = -1
+     integer(ip)             :: left_elem_subface     = -1
+     integer(ip)             :: relative_orientation  = -1
+     integer(ip)             :: relative_rotation     = -1
    contains
      procedure :: get_coordinates => face_topology_get_coordinates
   end type face_topology_t
@@ -278,13 +280,30 @@ contains
              face%neighbour_elems_id(1)  = elem_id
              face%neighbour_elems(1)%p   => trian%elems(elem_id)
              face%relative_face(1)       = local_face_id
+             face%left_elem_subface     = 0
           else
              ! If not, fill the right neighbour element info
              assert(face%neighbour_elems_id(2) == -1 )
              face%neighbour_elems_id(2)  = elem_id
              face%neighbour_elems(2)%p   => trian%elems(elem_id)
              face%relative_face(2)       = local_face_id
-             face%right_elem_subface     = 0
+
+             ! Compute relative orientation
+             face%relative_orientation = elem%reference_fe_geo%compute_relative_orientation         &
+                  &   (face%neighbour_elems(1)%p%reference_fe_geo,                                  &
+                  &    face%neighbour_elems(1)%p%reference_fe_geo%get_first_face_id() +             &
+                  &    face%relative_face(1) -1,                                                    &
+                  &    local_vef_id)
+
+             ! Compute relative orientation
+             face%relative_orientation = elem%reference_fe_geo%compute_relative_rotation            &
+                  &   (face%neighbour_elems(1)%p%reference_fe_geo,                                  &
+                  &    face%neighbour_elems(1)%p%reference_fe_geo%get_first_face_id() +             &
+                  &    face%relative_face(1) -1,                                                    &
+                  &    local_vef_id,                                                                &
+                  &    face%neighbour_elems(1)%p%vefs,                                              &
+                  &    elem%vefs,                                                                   &
+                  &    face%left_elem_subface)
           end if
        end do
     end do

@@ -200,7 +200,7 @@ subroutine fe_map_update( this, quadrature)
   end do
 
   ! Evaluation (Gauss) point coordinates
-  this%coordinates_quadrature = this%get_quadrature_coordinates()
+  call this%compute_quadrature_coordinates()
 
   ! ! Second derivatives of the map
   if( khes ) then
@@ -274,7 +274,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
   reorientation_factor = (-1)**orientation_face
 
   
-  this%coordinates_quadrature = this%get_quadrature_coordinates()
+  call this%compute_quadrature_coordinates()
   ! Initialize values
   this%jacobian           = 0.0_rp
   do evaluation_point_id = 1, quadrature%number_quadrature_points
@@ -512,22 +512,31 @@ function fe_map_get_reference_h ( this )
 end function fe_map_get_reference_h
 
 !==================================================================================================
-function fe_map_get_quadrature_coordinates(this) result(point_out)
+subroutine fe_map_compute_quadrature_coordinates(this)
   implicit none
-  class(fe_map_t), intent(in) :: this
-  type(point_t) :: point_out(this%number_quadrature_points)
+  class(fe_map_t), intent(inout) :: this
   integer(ip)   :: qpoin,inode,nnode,nquad
 
   nnode = this%interpolation_geometry%number_shape_functions
   nquad = this%number_quadrature_points
   do qpoin = 1,nquad
-     call point_out(qpoin)%init(0.0_rp)
+     call this%coordinates_quadrature(qpoin)%init(0.0_rp)
      do inode=1,nnode
-        point_out(qpoin) = point_out(qpoin) + &
-             &             this%coordinates_vertices(inode) * this%interpolation_geometry%shape_functions(inode,qpoin)
+        this%coordinates_quadrature(qpoin) = this%coordinates_quadrature(qpoin) + &
+             & this%coordinates_vertices(inode) * this%interpolation_geometry%shape_functions(inode,qpoin)
      end do
   end do
   
+end subroutine fe_map_compute_quadrature_coordinates
+
+!==================================================================================================
+function fe_map_get_quadrature_coordinates(this)
+  implicit none
+  class(fe_map_t)   , target, intent(in) :: this
+  type(point_t), pointer :: fe_map_get_quadrature_coordinates(:)
+
+  fe_map_get_quadrature_coordinates => this%coordinates_quadrature
+
 end function fe_map_get_quadrature_coordinates
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
