@@ -703,8 +703,8 @@ contains
             i1 = this%irp(ir)
             i2 = this%irp(ir+1)
             nc = i2-i1
-            assert(ipaux>0) ! Entry not found
             ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+            assert(ipaux>0) ! Entry not found
             if (ipaux>0) call apply_duplicates(input=val(i), output=this%val(i1+ipaux-1))
         end do
     end subroutine csr_sparse_matrix_update_bounded_values_by_col_body
@@ -971,18 +971,48 @@ contains
     
             ! Allocate irp, ja and val arrays of all submatrices
             nz = this%irp(num_row+1)-1  ! nnz after num_row
-            call A_II%allocate_numeric(nz);     A_II%irp(1) = 1
+            if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
+                call A_II%allocate_numeric(2*nz)
+            else
+                call A_II%allocate_numeric(nz)
+            endif
+            A_II%irp(1) = 1
             call A_IG%allocate_numeric(nz);     A_IG%irp(1) = 1
             nz = this%nnz - nz          ! nnz after num_row
             if(present(A_GI)) then
                 call A_GI%allocate_numeric(nz); A_GI%irp(1) = 1
             endif
-            call A_GG%allocate_numeric(nz);     A_GG%irp(1) = 1
+            if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
+                call A_GG%allocate_numeric(2*nz)
+            else
+                call A_GG%allocate_numeric(nz)
+            endif
+            A_GG%irp(1) = 1
         else
             call A_II%allocate_values_body(A_II%nnz)
             call A_IG%allocate_values_body(A_IG%nnz)
             if(present(A_GI)) call A_GI%allocate_values_body(A_GI%nnz)
             call A_GG%allocate_values_body(A_GG%nnz)
+        endif
+
+        if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
+            ! If input matrix has symmetric storage and one or more of the output diagonal matrix has not symmetric 
+            A_II%irp = 0
+            ! Count total number of
+            do i=1, num_row
+                do j=this%irp(i), this%irp(i+1)-1
+                    k = this%ja(j)
+                    if(k>num_col) exit
+                    A_II%irp(i+1) = A_II%irp(i+1)+1
+                    if(i == k) cycle ! diagonal elements
+                    A_II%irp(k+1) = A_II%irp(k+1)+1
+                enddo
+            enddo
+            ! Build CSR header from the counter
+            A_II%irp(1) = 1
+            do i=1, num_row
+                A_II%irp(i+1) = A_II%irp(i+1)+A_II%irp(i)
+            enddo
         endif
 
         ! Loop (1:num_row) to get A_II and A_IG 
@@ -1035,14 +1065,18 @@ contains
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
-                write(*,*) 'Split_2x2: symmetric_storage combination not yet implemented'
-                check(.false.) ! Algorithm not implemented
-    !-----------------------------------------------------------------
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
-    !< NOT IMPLEMENTED !!!!!!
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !-----------------------------------------------------------------        
+                do j=this%irp(i), this%irp(i)+nz-1
+                    ! Add upper triangle elements
+                    k = this%ja(j)
+                    A_II%ja(A_II%irp(i)) = k
+                    A_II%val(A_II%irp(i)) = this%val(j)
+                    A_II%irp(i) = A_II%irp(i)+1
+                    if(i==k) cycle
+                    ! Add lower triangle elements
+                    A_II%ja(A_II%irp(k)) = i
+                    A_II%val(A_II%irp(k)) = this%val(i)
+                    A_II%irp(k) = A_II%irp(k)+1
+                enddo
             endif
 
             ! Number of nnz of A_IG in row i
@@ -1062,12 +1096,42 @@ contains
                 A_IG%irp(i+1) = A_IG%irp(i)
             endif
         enddo
+
+        if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
+            do i=num_row, 1, -1
+                A_II%irp(i+1) = A_II%irp(i)
+            enddo
+            A_II%irp(1) = 1
+            A_II%nnz = A_II%irp(num_row+1)-1
+        endif
+
         if(is_properties_setted_state) then
             call memrealloc(A_II%nnz, A_II%ja,   __FILE__, __LINE__)
             call memrealloc(A_IG%nnz, A_IG%ja,   __FILE__, __LINE__)
             call memrealloc(A_II%nnz, A_II%val,  __FILE__, __LINE__)
             call memrealloc(A_IG%nnz, A_IG%val,  __FILE__, __LINE__)
         endif
+
+        if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
+            ! If input matrix has symmetric storage and one or more of the output diagonal matrix has not symmetric 
+            A_GG%irp = 0
+            ! Count total number of
+            do i=num_row+1, total_rows
+                do j=this%irp(i), this%irp(i+1)-1
+                    k = this%ja(j)-num_col
+                    if(k<0) cycle
+                    A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row+1)+1
+                    if(i-num_row == k) cycle ! diagonal elements
+                    A_GG%irp(k+1) = A_GG%irp(k+1)+1
+                enddo
+            enddo
+            ! Build CSR header from counter
+            A_GG%irp(1) = 1
+            do i=1, A_GG%get_num_rows()
+                A_GG%irp(i+1) = A_GG%irp(i+1)+A_GG%irp(i)
+            enddo
+        endif
+
         ! Loop (num_row:this%num_rows) to get A_GI and A_GG
         do i=num_row+1, this%get_num_rows()
             nz_offset = 0
@@ -1140,16 +1204,29 @@ contains
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
-                write(*,*) 'Split_2x2: symmetric_storage combination not yet implemented'
-                check(.false.) ! Algorithm not implemented
-    !-----------------------------------------------------------------
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
-    !< NOT IMPLEMENTED !!!!!!
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !-----------------------------------------------------------------    
+                do j=this%irp(i), this%irp(i)+nz-1
+                    ! Add upper triangle elements
+                    k = this%ja(j)-num_col
+                    A_GG%ja(A_GG%irp(i-num_row)) = k
+                    A_GG%val(A_GG%irp(i-num_row)) = this%val(j)
+                    A_GG%irp(i-num_row) = A_GG%irp(i-num_row)+1
+                    if(i-num_row==k) cycle
+                    ! Add lower triangle elements
+                    A_GG%ja(A_GG%irp(k)) = i-num_row
+                    A_GG%val(A_GG%irp(k)) = this%val(i)
+                    A_GG%irp(k) = A_GG%irp(k)+1
+                enddo
             endif
         enddo
+
+        if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
+            do i=A_GG%get_num_rows(), 1, -1
+                A_GG%irp(i+1) = A_GG%irp(i)
+            enddo
+            A_GG%irp(1) = 1
+            A_GG%nnz = A_GG%irp(A_GG%get_num_rows()+1)-1
+        endif
+
         if(present(A_GI) .and. is_properties_setted_state) then
             call memrealloc(A_GI%nnz, A_GI%ja,   __FILE__, __LINE__)
             call memrealloc(A_GI%nnz, A_GI%val,  __FILE__, __LINE__)
@@ -1238,8 +1315,6 @@ contains
         integer(ip)                                        :: sign
         integer(ip)                                        :: state
         logical                                            :: properties_are_setted
-        logical                                            :: symmetric
-        logical                                            :: symmetric_storage
     !-----------------------------------------------------------------
         ! Check state
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic() ) 
@@ -1262,7 +1337,7 @@ contains
         ! Allocate irp, ja and val arrays of all submatrices
         nz = this%irp(num_row+1)-1  ! nnz after num_row
         if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
-            call A_II%allocate_symbolic(this%nnz)
+            call A_II%allocate_symbolic(2*nz)
         else
             call A_II%allocate_symbolic(nz)
         endif
@@ -1273,11 +1348,30 @@ contains
             call A_GI%allocate_symbolic(nz); A_GI%irp(1) = 1
         endif
         if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
-            call A_GG%allocate_symbolic(this%nnz)
+            call A_GG%allocate_symbolic(2*nz)
         else
             call A_GG%allocate_symbolic(nz)
         endif
         A_GG%irp(1) = 1
+
+        if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
+            ! If input matrix has symmetric storage and one or more of the output diagonal matrix has not symmetric 
+            A_II%irp = 0
+            ! Count total number of
+            do i=1, num_row
+                do j=this%irp(i), this%irp(i+1)-1
+                    k = this%ja(j)
+                    if(k>num_col) exit
+                    A_II%irp(i+1) = A_II%irp(i+1)+1
+                    if(i == k) cycle ! diagonal elements
+                    A_II%irp(k+1) = A_II%irp(k+1)+1
+                enddo
+            enddo
+            A_II%irp(1) = 1
+            do i=1, num_row
+                A_II%irp(i+1) = A_II%irp(i+1)+A_II%irp(i)
+            enddo
+        endif
 
         ! Loop (1:num_row) to get A_II and A_IG 
         do i=1, num_row
@@ -1323,14 +1417,16 @@ contains
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
-                write(*,*) 'Split_2x2: symmetric_storage combination not yet implemented'
-                check(.false.) ! Algorithm not implemented
-    !-----------------------------------------------------------------
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
-    !< NOT IMPLEMENTED !!!!!!
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !-----------------------------------------------------------------    
+                do j=this%irp(i), this%irp(i)+nz-1
+                    ! Add upper triangle elements
+                    k = this%ja(j)
+                    A_II%ja(A_II%irp(i)) = k
+                    A_II%irp(i) = A_II%irp(i)+1
+                    if(i==k) cycle
+                    ! Add lower triangle elements
+                    A_II%ja(A_II%irp(k)) = i
+                    A_II%irp(k) = A_II%irp(k)+1
+                enddo
             endif
 
             ! Number of nnz of A_IG in row i
@@ -1347,11 +1443,40 @@ contains
                 A_IG%irp(i+1) = A_IG%irp(i)
             endif
         enddo
+
+        if(this%get_symmetric_storage() .and. .not. A_II%get_symmetric_storage()) then
+            do i=num_row, 1, -1
+                A_II%irp(i+1) = A_II%irp(i)
+            enddo
+            A_II%irp(1) = 1
+            A_II%nnz = A_II%irp(num_row+1)-1
+        endif
+
         call memrealloc(A_II%nnz, A_II%ja, __FILE__, __LINE__)
         call memrealloc(A_IG%nnz, A_IG%ja, __FILE__, __LINE__)
 
+        if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
+            ! If input matrix has symmetric storage and one or more of the output diagonal matrix has not symmetric 
+            A_GG%irp = 0
+            ! Count total number of
+            do i=num_row+1, total_rows
+                do j=this%irp(i), this%irp(i+1)-1
+                    k = this%ja(j)-num_col
+                    if(k<0) cycle
+                    A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row+1)+1
+                    if(i-num_row == k) cycle ! diagonal elements
+                    A_GG%irp(k+1) = A_GG%irp(k+1)+1
+                enddo
+            enddo
+            ! Build CSR header from counter
+            A_GG%irp(1) = 1
+            do i=1, A_GG%get_num_rows()
+                A_GG%irp(i+1) = A_GG%irp(i+1)+A_GG%irp(i)
+            enddo
+        endif
+
         ! Loop (num_row:this%num_rows) to get A_GI and A_GG
-        do i=num_row+1, this%get_num_rows()
+        do i=num_row+1, total_rows
             nz_offset = 0
             ! Count the number of columns less than or equal to num_row
             do j=this%irp(i), this%irp(i+1)-1
@@ -1413,16 +1538,26 @@ contains
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
-                write(*,*) 'Split_2x2: symmetric_storage combination not yet implemented'
-                check(.false.) ! Algorithm not implemented
-    !-----------------------------------------------------------------
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
-    !< NOT IMPLEMENTED !!!!!!
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !-----------------------------------------------------------------    
+                do j=this%irp(i), this%irp(i)+nz-1
+                    ! Add upper triangle elements
+                    k = this%ja(j)-num_col
+                    A_GG%ja(A_GG%irp(i-num_row)) = k
+                    A_GG%irp(i-num_row) = A_GG%irp(i-num_row)+1
+                    if(i-num_row==k) cycle
+                    ! Add lower triangle elements
+                    A_GG%ja(A_GG%irp(k)) = i-num_row
+                    A_GG%irp(k) = A_GG%irp(k)+1
+                enddo
             endif
         enddo
+
+        if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
+            do i=A_GG%get_num_rows(), 1, -1
+                A_GG%irp(i+1) = A_GG%irp(i)
+            enddo
+            A_GG%irp(1) = 1
+            A_GG%nnz = A_GG%irp(A_GG%get_num_rows()+1)-1
+        endif
 
         if(present(A_GI)) call memrealloc(A_GI%nnz, A_GI%ja, __FILE__, __LINE__)
         call memrealloc(A_GG%nnz, A_GG%ja, __FILE__, __LINE__)
@@ -1527,23 +1662,41 @@ contains
         A_RR_has_symmetric_storage = A_RR%get_symmetric_storage()
         if(A_RR%state_is_properties_setted()) then
             call A_RR%set_num_rows(A_RR_num_rows)
-            call A_RR%set_num_rows(A_RR_num_cols)
+            call A_RR%set_num_cols(A_RR_num_cols)
             if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
-                write(*,*) 'Permute_and_split_2x2: symmetric_storage combination not yet implemented'
-                check(.false.) ! Algorithm must be reimplemented
                 ! All diagonal elements in the original matrix must appear in the sparsity pattern
-                call A_RR%allocate_symbolic(2*this%get_nnz()-total_num_rows)
+                call A_RR%allocate_numeric(2*this%get_nnz()-total_num_rows)
             else if(.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) then
                 ! All diagonal elements in the original matrix must appear in the sparsity pattern
-                call A_RR%allocate_symbolic((this%get_nnz()-total_num_rows)/2+total_num_rows)
+                call A_RR%allocate_numeric((this%get_nnz()-total_num_rows)/2+total_num_rows)
             else
-                call A_RR%allocate_symbolic(this%get_nnz())
+                call A_RR%allocate_numeric(this%get_nnz())
             endif
         else
+            assert(A_RR%get_num_rows() == A_RR_num_rows .and. A_RR%get_num_cols() == A_RR_num_rows)
             call A_RR%allocate_values_body(A_RR%get_nnz())
         endif
 
         A_RR%irp = 0
+
+        if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
+            ! Count nnz per row for A_RR matrix (transpose non diagonal elements)
+            do permuted_row=num_row+1, total_num_rows
+                current_row = iperm(permuted_row)
+                do i = this%irp(current_row), this%irp(current_row+1)-1
+                    permuted_col = perm(this%ja(i))
+                    A_RR%Irp(permuted_row-num_row+1) = A_RR%irp(permuted_row-num_row+1)+1
+                    if(permuted_row-num_row == permuted_col-num_col .or. permuted_col<=num_col) cycle
+                    A_RR%irp(permuted_col-num_col+1) = A_RR%irp(permuted_col-num_col+1)+1
+                enddo
+            enddo
+
+            ! Rebuild CSR header from nz counter
+            A_RR%irp(1) = 1
+            do permuted_row=1, total_num_rows-num_row
+                A_RR%irp(permuted_row+1) = A_RR%irp(permuted_row+1)+A_RR%irp(permuted_row)
+            enddo
+        endif
 
         ! Loop on permuted rows to fill A_CC and A_CR arrays
         A_RR%irp(1) = 1
@@ -1572,61 +1725,93 @@ contains
             current_row = iperm(permuted_row)
             current_row_offset = this%irp(current_row)
             nz_per_row = 0
-            permuted_row_offset = A_RR%irp(permuted_row-num_row)
-    !-----------------------------------------------------------------
-    !< Only needed if (THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) 
-    !< We have to implement this case !!!!!
-    !<
-    !< Unsymmetric sparsity patterns are not allowed we don't have to manage 
-    !< (.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) as a special case
-    !-----------------------------------------------------------------
-!            ! If THIS_has_symmetric_storage transpose upper_triangle
-!            if(THIS_has_symmetric_storage) then
-!                do i=1, current_row-1
-!                    permuted_col = perm(i)-num_col
-!                    if(permuted_col>0 .and. ((.not. A_RR_has_symmetric_storage) .or. (permuted_col > permuted_row-num_row))) then
-!                        ! For each one of the previous rows, check if the current row is in it's list of columns
-!                        j = binary_search(current_row,this%irp(i+1)-this%irp(i),this%ja(this%irp(i):this%irp(i+1)-1))
-!                        if(j==-1) cycle           
-!                        A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
-!                        A_RR%val(permuted_row_offset+nz_per_row) = this%val(this%irp(i)+j-1)
-!                        nz_per_row = nz_per_row + 1
-!                    endif
-!                enddo
-!            endif
-    !-----------------------------------------------------------------
 
-            ! Add permuted_cols to the permuted_row
-            do i = current_row_offset, this%irp(current_row+1)-1
-                current_col = this%ja(i)
-                permuted_col = perm(current_col)
-                if ( permuted_col <= num_col ) then
-                    A_RC(permuted_row-num_row,permuted_col) = this%val(i)
-                    if(THIS_has_symmetric_storage .and. (permuted_col<num_row) .and. &
-                        (permuted_row>num_col)) &
-                        A_CR(permuted_col,permuted_row-num_row) = this%val(i)
-                else
-                    if (A_RR_has_symmetric_storage .and. permuted_row-num_row>permuted_col-num_col) cycle
-                    A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col-num_col
-                    A_RR%val(permuted_row_offset+nz_per_row) = this%val(i)
-                    nz_per_row = nz_per_row + 1
+            if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
+                permuted_row_offset = A_RR%irp(permuted_row-num_row)
+                ! Add permuted_cols to the permuted_row
+                do i = current_row_offset, this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    permuted_col = perm(current_col)
+                    if ( permuted_col <= num_col ) then
+                        A_RC(permuted_row-num_row,permuted_col) = this%val(i)
+                        if(THIS_has_symmetric_storage .and. (permuted_col<num_row) .and. &
+                            (permuted_row>num_col)) &
+                            A_CR(permuted_col,permuted_row-num_row) = this%val(i)
+                    else
+                        ! Add permuted_col to the permuted_row of A_RR
+                        j = A_RR%irp(permuted_row-num_row)
+                        A_RR%ja(j) = permuted_col-num_col
+                        A_RR%val(j) = this%val(i)
+                        A_RR%irp(permuted_row-num_row) = A_RR%irp(permuted_row-num_row)+1
+                        if(permuted_row-num_row == permuted_col-num_col) cycle
+                        ! Unsymmetrize element if is not in the diagonal
+                        j = A_RR%irp(permuted_col-num_col)
+                        A_RR%ja(j) = permuted_row-num_row
+                        A_RR%val(j) = this%val(i)
+                        A_RR%irp(permuted_col-num_col) = A_RR%irp(permuted_col-num_col)+1
+                    endif
+                enddo
+
+            else
+                permuted_row_offset = A_RR%irp(permuted_row-num_row)
+                ! Add permuted_cols to the permuted_row
+                do i = current_row_offset, this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    permuted_col = perm(current_col)
+                    if ( permuted_col <= num_col ) then
+                        A_RC(permuted_row-num_row,permuted_col) = this%val(i)
+                        if(THIS_has_symmetric_storage .and. (permuted_col<num_row) .and. &
+                            (permuted_row>num_col)) &
+                            A_CR(permuted_col,permuted_row-num_row) = this%val(i)
+                    else
+                        if (A_RR_has_symmetric_storage .and. permuted_row-num_row>permuted_col-num_col) cycle
+                        A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col-num_col
+                        A_RR%val(permuted_row_offset+nz_per_row) = this%val(i)
+                        nz_per_row = nz_per_row + 1
+                    endif
+                end do
+                A_RR%irp(permuted_row-num_row+1) = permuted_row_offset+nz_per_row
+
+                ! Sort permuted columns of A_RR sparse matrix for each row
+                if(nz_per_row>0) then
+                    next_permuted_row_offset = permuted_row_offset+nz_per_row
+                    call mergesort_link_list(nz_per_row,                         &
+                        A_RR%ja(permuted_row_offset:next_permuted_row_offset-1), &
+                        link_list,                                               &
+                        iret)
+                    if(iret == 0) call reorder_ip_rp_from_link_list(nz_per_row,   &
+                        A_RR%val(permuted_row_offset:next_permuted_row_offset-1), &
+                        A_RR%ja(permuted_row_offset:next_permuted_row_offset-1),  &
+                        link_list)
                 endif
-            end do
+            endif
+        end do
 
-            ! Sort permuted columns of A_RR sparse matrix for each row
-            if(nz_per_row>0) then
-                next_permuted_row_offset = permuted_row_offset+nz_per_row
+        if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
+            ! In this case A_RR%irp is not well builded we have to revert it
+            ! to get a valid CSR header
+            do permuted_row=A_RR_num_rows, 1, -1
+                A_RR%irp(permuted_row+1) = A_RR%irp(permuted_row)
+            enddo
+            A_RR%irp(1) = 1
+
+            ! Sort permuted_cols for each permuted_row
+            do permuted_row=1, A_RR_num_rows
+                permuted_row_offset = A_RR%irp(permuted_row)
+                next_permuted_row_offset = A_RR%irp(permuted_row+1)-1
+                nz_per_row = next_permuted_row_offset-permuted_row_offset+1
+                ! Sort permuted columns of A_RR sparse matrix for each row
                 call mergesort_link_list(nz_per_row,                         &
-                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1), &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset),   &
                     link_list,                                               &
                     iret)
-                if(iret == 0) call reorder_ip_rp_from_link_list(nz_per_row,   &
-                    A_RR%val(permuted_row_offset:next_permuted_row_offset-1), &
-                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1),  &
+                if(iret == 0) call reorder_ip_rp_from_link_list(nz_per_row,  &
+                    A_RR%val(permuted_row_offset:next_permuted_row_offset),  &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset),   &
                     link_list)
-            endif
-            A_RR%irp(permuted_row-num_row+1) = permuted_row_offset+nz_per_row
-        end do
+            enddo
+        endif
+
         A_RR%nnz = A_RR%irp(A_RR_num_rows+1)-1
         call memfree(link_list, __FILE__, __LINE__)
 
@@ -1716,15 +1901,13 @@ contains
         A_RR_num_rows = total_num_rows-num_row
         A_RR_num_cols = total_num_cols-num_col
         call A_RR%set_num_rows(A_RR_num_rows)
-        call A_RR%set_num_rows(A_RR_num_cols)
+        call A_RR%set_num_cols(A_RR_num_cols)
         THIS_has_symmetric_storage = this%get_symmetric_storage()
         A_RR_has_symmetric_storage = A_RR%get_symmetric_storage()
 
         call memalloc(perm_size+2, link_list, __FILE__, __LINE__)
 
         if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
-            write(*,*) 'Permute_and_split_2x2: symmetric_storage combination not yet implemented'
-            check(.false.) ! Algorithm must be reimplemented
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
             call A_RR%allocate_symbolic(2*this%get_nnz()-total_num_rows)
         else if(.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) then
@@ -1733,60 +1916,107 @@ contains
         else
             call A_RR%allocate_symbolic(this%get_nnz())
         endif
+
         A_RR%irp = 0
 
-        ! Loop on permuted rows to fill A_RR sparse matrix
-        A_RR%irp(1) = 1
-        do permuted_row=1, A_RR_num_rows
-            current_row = iperm(permuted_row+num_row)
-            current_row_offset = this%irp(current_row)
-            permuted_row_offset = A_RR%irp(permuted_row)
-            nz_per_row = 0
+        if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
+            ! Count nnz per row for A_RR matrix (transpose non diagonal elements)
+            do permuted_row=1, A_RR_num_rows
+                current_row = iperm(permuted_row+num_row)
+                do i = this%irp(current_row), this%irp(current_row+1)-1
+                    permuted_col = perm(this%ja(i))-num_col
+                    A_RR%Irp(permuted_row+1) = A_RR%irp(permuted_row+1)+1
+                    if(permuted_row == permuted_col) cycle
+                    A_RR%irp(permuted_col+1) = A_RR%irp(permuted_col+1)+1
+                enddo
+            enddo
 
-    !-----------------------------------------------------------------
-    !< Only needed if (THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) 
-    !< We have to implement this case !!!!!
-    !<
-    !< Unsymmetric sparsity patterns are not allowed we don't have to manage 
-    !< (.not. THIS_has_symmetric_storage .and. A_RR_has_symmetric_storage) as a special case
-    !-----------------------------------------------------------------
-!            ! If THIS_has_symmetric_storage transpose upper_triangle
-!            if(THIS_has_symmetric_storage) then
-!                do i=1, current_row-1
-!                    permuted_col = perm(i) - num_col
-!                    if((.not. A_RR_has_symmetric_storage) .or. (permuted_col > permuted_row))then 
-!                        ! For each one of the previous rows, check if the current row is in it's list of columns
-!                        j = binary_search(current_row,this%irp(i+1)-this%irp(i),this%ja(this%irp(i):this%irp(i+1)-1))
-!                        if(j==-1) cycle
-!                        A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
-!                        nz_per_row = nz_per_row + 1
-!                    endif
-!                enddo
-!            endif
-    !-----------------------------------------------------------------
+            ! Build CSR header from counter
+            A_RR%irp(1) = 1
+            do permuted_row=1, A_RR_num_rows
+                A_RR%irp(permuted_row+1) = A_RR%irp(permuted_row+1)+A_RR%irp(permuted_row)
+            enddo
 
-            ! Add permuted_cols to the permuted_row
-            do i = current_row_offset, this%irp(current_row+1)-1
-                current_col = this%ja(i)
-                permuted_col = perm(current_col) - num_col
-                if (permuted_col<1 .or. (A_RR_has_symmetric_storage .and. permuted_row>permuted_col)) cycle
-                A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
-                nz_per_row = nz_per_row + 1
-            end do
+            do permuted_row=1, A_RR_num_rows
+                current_row = iperm(permuted_row+num_row)
+                current_row_offset = this%irp(current_row)
+                nz_per_row = 0
 
-            ! Sort permuted columns of A_RR sparse matrix for each row
-            if(nz_per_row>0) then
-                next_permuted_row_offset = permuted_row_offset+nz_per_row
+                permuted_row_offset = A_RR%irp(permuted_row)
+                ! Add permuted_cols to the permuted_row
+                do i = current_row_offset, this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    permuted_col = perm(current_col)-num_col
+                    if ( permuted_col > 0 ) then
+                        ! Add permuted_col to the permuted_row of A_RR
+                        j = A_RR%irp(permuted_row)
+                        A_RR%ja(j) = permuted_col
+                        A_RR%irp(permuted_row) = A_RR%irp(permuted_row)+1
+                        if(permuted_row == permuted_col) cycle
+                        ! Unsymmetrize element if is not in the diagonal
+                        j = A_RR%irp(permuted_col)
+                        A_RR%ja(j) = permuted_row
+                        A_RR%irp(permuted_col) = A_RR%irp(permuted_col)+1
+                    endif
+                enddo
+            enddo
+
+            ! In this case A_RR%irp is not well builded we have to revert it
+            ! to get a valid CSR header
+            do permuted_row=A_RR_num_rows, 1, -1
+                A_RR%irp(permuted_row+1) = A_RR%irp(permuted_row)
+            enddo
+            A_RR%irp(1) = 1
+
+            ! Sort permuted_cols for each permuted_row
+            do permuted_row=1, A_RR_num_rows
+                permuted_row_offset = A_RR%irp(permuted_row)
+                next_permuted_row_offset = A_RR%irp(permuted_row+1)-1
+                nz_per_row = next_permuted_row_offset-permuted_row_offset+1
+                ! Sort permuted columns of A_RR sparse matrix for each row
                 call mergesort_link_list(nz_per_row,                         &
-                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1), &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset), &
                     link_list,                                               &
                     iret)
-                if(iret == 0) call reorder_ip_from_link_list(nz_per_row,   &
-                    A_RR%ja(permuted_row_offset:next_permuted_row_offset-1),  &
+                if(iret == 0) call reorder_ip_from_link_list(nz_per_row,     &
+                    A_RR%ja(permuted_row_offset:next_permuted_row_offset), &
                     link_list)
-            endif
-            A_RR%irp(permuted_row+1) = permuted_row_offset+nz_per_row
-        end do
+            enddo
+
+        else
+            ! Loop on permuted rows to fill A_RR sparse matrix
+            A_RR%irp(1) = 1
+            do permuted_row=1, A_RR_num_rows
+                current_row = iperm(permuted_row+num_row)
+                current_row_offset = this%irp(current_row)
+                permuted_row_offset = A_RR%irp(permuted_row)
+                nz_per_row = 0
+
+                ! Add permuted_cols to the permuted_row
+                do i = current_row_offset, this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    permuted_col = perm(current_col) - num_col
+                    if (permuted_col<1 .or. (A_RR_has_symmetric_storage .and. permuted_row>permuted_col)) cycle
+                    A_RR%ja(permuted_row_offset+nz_per_row) = permuted_col
+                    nz_per_row = nz_per_row + 1
+                end do
+
+                ! Sort permuted columns of A_RR sparse matrix for each row
+                if(nz_per_row>0) then
+                    next_permuted_row_offset = permuted_row_offset+nz_per_row
+                    call mergesort_link_list(nz_per_row,                         &
+                        A_RR%ja(permuted_row_offset:next_permuted_row_offset-1), &
+                        link_list,                                               &
+                        iret)
+                    if(iret == 0) call reorder_ip_from_link_list(nz_per_row,   &
+                        A_RR%ja(permuted_row_offset:next_permuted_row_offset-1),  &
+                        link_list)
+                endif
+                A_RR%irp(permuted_row+1) = permuted_row_offset+nz_per_row
+            end do
+
+        endif
+
         A_RR%nnz = A_RR%irp(A_RR_num_rows+1)-1
 
         call memfree(link_list, __FILE__, __LINE__)
@@ -1869,6 +2099,7 @@ contains
         integer                                        :: nz_offset
         integer                                        :: last_visited_row
         integer                                        :: current_row
+        integer                                        :: current_col
         integer                                        :: next_row
         integer                                        :: next_row_offset
         integer                                        :: last_visited_row_offset
@@ -1894,11 +2125,11 @@ contains
         call to%set_num_cols(initial_num_cols+C_T_num_cols)
         symmetric_storage = to%get_symmetric_storage()
 
+#ifdef DEBUG
     !-----------------------------------------------------------------
     ! Check if (C_T) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for C matrix
     !-----------------------------------------------------------------
-        C_irp = 0
         sorted = .true.
         previous_ia = 1
         previous_ja = 0
@@ -1911,15 +2142,12 @@ contains
             endif
             previous_ia = C_T_ia(i)
             previous_ja = C_T_ja(i)
-            if(symmetric_storage) cycle
-            C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1
         enddo
         check(sorted)
     !-----------------------------------------------------------------
     ! Check if (I) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for I matrix
     !-----------------------------------------------------------------
-        I_irp = 0
         previous_ia = 1
         previous_ja = 0
         do i=1, I_nz
@@ -1931,26 +2159,31 @@ contains
             endif
             previous_ia = I_ia(i)
             previous_ja = I_ja(i)
+        enddo
+        check(sorted)
+#endif
+
+        ! Count number of elements of I finally added to the output matrix
+        I_irp = 0
+        do i=1, I_nz
             if(symmetric_storage .and. I_ia(i)>I_ja(i)) cycle
             I_irp(I_ia(i)) = I_irp(I_ia(i)) + 1
         enddo
-        check(sorted)
 
     !-----------------------------------------------------------------
     ! Alloc to%irp with the new number of rows and to%ja with the new number of nnz
     !-----------------------------------------------------------------
-        new_nz=this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
         call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
-        if(this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
-            write(*,*) 'Expand_matrix: symmetric_storage combination not yet implemented'
-            check(.false.) ! Algorithm must be reimplemented
+        if(           this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
-            new_nz=2*this%nnz-initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
-        else if(.not. this%get_symmetric_storage() .and. to%get_symmetric_storage()) then
+            new_nz=2*this%nnz-initial_num_rows+2*C_T_nz+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
-            new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
-        else
-            new_nz=this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
+            new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+            new_nz=this%nnz+2*C_T_nz+sum(I_irp)
+        else if(      this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
+            new_nz=this%nnz+C_T_nz+sum(I_irp)
         endif
         call memalloc(new_nz, to%ja, __FILE__, __LINE__)
         call memalloc(new_nz, to%val, __FILE__, __LINE__)
@@ -1959,6 +2192,7 @@ contains
     ! Expand  C_T matrix (Add columns to existing rows)
     !-----------------------------------------------------------------
         nz_counter = 0
+        C_Irp = 0
         if(this%get_symmetric_storage() .eqv. to%get_symmetric_storage()) then
             ! Initialize irp
             to%irp(:initial_num_rows) = this%irp(:initial_num_rows)
@@ -1978,6 +2212,7 @@ contains
             current_nz_per_row = 0
             do i=1,C_T_nz
                 nz_per_row = nz_per_row+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
                 if(i/=C_T_nz) then
                     if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
                 endif
@@ -2031,6 +2266,7 @@ contains
             nz_per_row = 0
             do i=1,C_T_nz
                 nz_per_row = nz_per_row+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
                 if(i/=C_T_nz) then
                     if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
                 endif
@@ -2077,17 +2313,66 @@ contains
             endif
             to%nnz = nz_counter
         else if (this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
-    !-----------------------------------------------------------------
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
-    !< NOT IMPLEMENTED !!!!!!
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            to%irp = 0; to%irp(1) = 1
     !-----------------------------------------------------------------        
-            ! Initialize irp
-            to%irp(1) = 1
+    ! Count number of elements in each row for the 
+    ! lower (new) + upper triangle, till initial_num_rows
+    !-----------------------------------------------------------------        
+            do current_row=1, initial_num_rows
+                ! lower triangle, transposed elements (new)
+                do i=this%irp(current_row), this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    if(current_row==current_col) cycle
+                    to%irp(current_col+1) = to%irp(current_col+1)+1
+                enddo
+                ! Upper triangle elements
+                to%irp(current_row+1) = to%irp(current_row+1)+this%irp(current_row+1)-this%irp(current_row)
+            enddo
 
-            ! If the current_row of C_T is different to 1: Copy the original ja from 1:current_row_offset
-            current_row = C_T_ia(1)
+            ! Add the number of elements Of C_T in each row
+            do i=1, C_T_nz
+                current_row = C_T_ia(i)
+                to%irp(current_row+1) = to%irp(current_row+1)+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
+            enddo
+
+            ! Convert counter to CSR header
+            do current_row=1, max(initial_num_rows, initial_num_cols)
+                to%irp(current_row+1) = to%irp(current_row+1)+to%irp(current_row)
+            enddo
+
+    !-----------------------------------------------------------------        
+    ! Add elements to JA and VAL arrays
+    !-----------------------------------------------------------------        
+            ! Add elements from the original matrix
+            do current_row=1, initial_num_rows
+                do i=this%irp(current_row),this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    to%ja(to%irp(current_row)) = current_col
+                    to%val(to%irp(current_row)) = this%val(i)
+                    to%irp(current_row) = to%irp(current_row)+1
+                    if(current_row == current_col) cycle
+                    to%ja(to%irp(current_col)) = current_row
+                    to%val(to%irp(current_col)) = this%val(i)
+                    to%irp(current_col) = to%irp(current_col)+1
+                enddo
+            enddo
+
+            ! Add C_T_nz elements
+            do i=1, C_T_nz
+                current_row = C_T_ia(i)
+                current_col = C_T_ja(i)
+                to%ja(to%irp(current_row)) = initial_num_cols+ current_col
+                to%val(to%irp(current_row)) = C_T_val(i)
+                to%irp(current_row) = to%irp(current_row)+1
+            enddo
+
+            ! Recalculate CSR irp header
+            to%nnz = to%irp(initial_num_rows)-1
+            do current_row=initial_num_rows, 1, -1
+                to%irp(current_row+1)=to%irp(current_row)
+            enddo
+            to%irp(1) = 1
         endif
         to%irp(initial_num_rows+1) = to%nnz+1
 
@@ -2220,6 +2505,7 @@ contains
         integer                                        :: nz_offset
         integer                                        :: last_visited_row
         integer                                        :: current_row
+        integer                                        :: current_col
         integer                                        :: next_row
         integer                                        :: next_row_offset
         integer                                        :: last_visited_row_offset
@@ -2244,11 +2530,11 @@ contains
         call to%set_num_rows(initial_num_rows+C_T_num_cols)
         call to%set_num_cols(initial_num_cols+C_T_num_cols)
         symmetric_storage = to%get_symmetric_storage()
+#ifdef DEBUG
     !-----------------------------------------------------------------
     ! Check if (C_T) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for C matrix
     !-----------------------------------------------------------------
-        C_irp = 0
         sorted = .true.
         previous_ia = 1
         previous_ja = 0
@@ -2261,15 +2547,12 @@ contains
             endif
             previous_ia = C_T_ia(i)
             previous_ja = C_T_ja(i)
-            if(symmetric_storage) cycle
-            C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1
         enddo
         check(sorted)
     !-----------------------------------------------------------------
     ! Check if (I) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for I matrix
     !-----------------------------------------------------------------
-        I_irp = 0
         previous_ia = 1
         previous_ja = 0
         do i=1, I_nz
@@ -2281,25 +2564,31 @@ contains
             endif
             previous_ia = I_ia(i)
             previous_ja = I_ja(i)
+        enddo
+        check(sorted)
+#endif
+
+        ! Count number of elements of I finally added to the output matrix
+        I_irp = 0
+        do i=1, I_nz
             if(symmetric_storage .and. I_ia(i)>I_ja(i)) cycle
             I_irp(I_ia(i)) = I_irp(I_ia(i)) + 1
         enddo
-        check(sorted)
 
     !-----------------------------------------------------------------
     ! Alloc to%irp with the new number of rows and to%ja with the new number of nnz
     !-----------------------------------------------------------------
         call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
-        if(this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
-            write(*,*) 'Expand matrix: symmetric_storage combination not yet implemented'
-            check(.false.) ! Algorithm not implemented
+        if(           this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
-            new_nz=2*this%nnz-initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
-        else if(.not. this%get_symmetric_storage() .and. to%get_symmetric_storage()) then
+            new_nz=2*this%nnz-initial_num_rows+2*C_T_nz+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
-            new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(C_irp)+sum(I_irp)
-        else
-            new_nz=this%nnz+C_T_nz+sum(C_irp)+sum(I_irp)
+            new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+            new_nz=this%nnz+2*C_T_nz+sum(I_irp)
+        else if(      this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
+            new_nz=this%nnz+C_T_nz+sum(I_irp)
         endif
         call memalloc(new_nz, to%ja, __FILE__, __LINE__)
 
@@ -2307,6 +2596,7 @@ contains
     ! Expand  C_T matrix (Add columns to existing rows)
     !-----------------------------------------------------------------
         nz_counter = 0
+        C_irp = 0
         if(this%get_symmetric_storage() .eqv. to%get_symmetric_storage()) then
             ! Initialize irp
             to%irp(:initial_num_rows) = this%irp(:initial_num_rows)
@@ -2324,6 +2614,7 @@ contains
             current_nz_per_row = 0
             do i=1,C_T_nz
                 nz_per_row = nz_per_row+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
                 if(i/=C_T_nz) then
                     if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
                 endif
@@ -2372,6 +2663,7 @@ contains
             ! Loop over C_T to expand the matrix
             nz_per_row = 0
             do i=1,C_T_nz
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
                 nz_per_row = nz_per_row+1
                 if(i/=C_T_nz) then
                     if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
@@ -2416,17 +2708,65 @@ contains
             endif
             to%nnz = nz_counter
         else if (this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
-    !-----------------------------------------------------------------
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !< this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()
-    !< NOT IMPLEMENTED !!!!!!
-    !< !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !-----------------------------------------------------------------        
             ! Initialize irp
+            to%irp = 0; to%irp(1) = 1
+    !-----------------------------------------------------------------        
+    ! Count number of elements in each row for the 
+    ! lower (new) + upper triangle, till initial_num_rows
+    !-----------------------------------------------------------------        
+            do current_row=1, initial_num_rows
+                ! lower triangle, transposed elements (new)
+                do i=this%irp(current_row), this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    if(current_row==current_col) cycle
+                    to%irp(current_col+1) = to%irp(current_col+1)+1
+                enddo
+                ! Upper triangle elements
+                to%irp(current_row+1) = to%irp(current_row+1)+this%irp(current_row+1)-this%irp(current_row)
+            enddo
+
+            ! Add the number of elements Of C_T in each row
+            do i=1, C_T_nz
+                current_row = C_T_ia(i)
+                to%irp(current_row+1) = to%irp(current_row+1)+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
+            enddo
+
+            ! Convert counter to CSR header
+            do current_row=1, max(initial_num_rows, initial_num_cols)
+                to%irp(current_row+1) = to%irp(current_row+1)+to%irp(current_row)
+            enddo
+
+    !-----------------------------------------------------------------        
+    ! Add elements to JA array
+    !-----------------------------------------------------------------        
+            ! Add elements from the original matrix
+            do current_row=1, initial_num_rows
+                do i=this%irp(current_row),this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    to%ja(to%irp(current_row)) = current_col
+                    to%irp(current_row) = to%irp(current_row)+1
+                    if(current_row == current_col) cycle
+                    to%ja(to%irp(current_col)) = current_row
+                    to%irp(current_col) = to%irp(current_col)+1
+                enddo
+            enddo
+
+            ! Add C_T_nz elements
+            do i=1, C_T_nz
+                current_row = C_T_ia(i)
+                current_col = C_T_ja(i)
+                to%ja(to%irp(current_row)) = initial_num_cols+ current_col
+                to%irp(current_row) = to%irp(current_row)+1
+            enddo
+
+            ! Recalculate CSR irp header
+            to%nnz = to%irp(initial_num_rows)-1
+            do current_row=initial_num_rows, 1, -1
+                to%irp(current_row+1)=to%irp(current_row)
+            enddo
             to%irp(1) = 1
 
-            ! If the current_row of C_T is different to 1: Copy the original ja from 1:current_row_offset
-            current_row = C_T_ia(1)
         endif
         to%irp(initial_num_rows+1) = to%nnz+1
 

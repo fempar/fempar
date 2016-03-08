@@ -114,7 +114,6 @@ subroutine quad_lagrangian_reference_fe_create_face_interpolation( this,local_fa
   type(interpolation_t)             , intent(inout) :: face_interpolation
 
   integer(ip) :: number_faces
-  
   ! Allocate the arrays of the interpolation
   call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar,              &
        &                    local_quadrature%number_quadrature_points, 0 )
@@ -372,26 +371,64 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor( this, &
 
 end subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor
 
-!=================================================================================================
-! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
-! and a delay 'r' wrt to a refence element sharing the same vef.
-subroutine  quad_lagrangian_reference_fe_permute_order_vef( this,o2n,p,o,r,nd )
+!==================================================================================================
+function quad_lagrangian_reference_fe_check_compatibility_of_vefs                   &
+     &                      (target_reference_fe,source_reference_fe, source_vef_id,target_vef_id)
   implicit none
-  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
-  integer(ip), intent(in)    :: p,o,r,nd
-  integer(ip), intent(inout) :: o2n(:)
+  class(quad_lagrangian_reference_fe_t), intent(in)  :: target_reference_fe
+  class(reference_fe_t)                , intent(in)  :: source_reference_fe
+  integer(ip)                          , intent(in)  :: source_vef_id ! Local vef ID
+  integer(ip)                          , intent(in)  :: target_vef_id ! Local vef ID
+  logical :: quad_lagrangian_reference_fe_check_compatibility_of_vefs 
 
-  if     (nd == 0) then
-     o2n(1) = 1
-  elseif (nd == 1) then
-     call permute_or_1d(o2n(1:p+1),p,r)
-  elseif (nd == 2) then
-     call permute_or_2d(o2n(1:int((p+1)**2)),p,o,r)
+  select type(source_reference_fe)
+     class is(quad_lagrangian_reference_fe_t)
+
+        ! Get number nodes per dimension
+        assert (target_reference_fe%order == source_reference_fe%order)
+        assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
+        assert (target_reference_fe%get_vef_dimension(target_vef_id) == source_reference_fe%get_vef_dimension(source_vef_id))
+        assert (target_reference_fe%get_vef_dimension(target_vef_id) < 3)
+        assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
+        assert (target_reference_fe%get_number_interior_nodes_vef(target_vef_id) == source_reference_fe%get_number_interior_nodes_vef(source_vef_id))
+        quad_lagrangian_reference_fe_check_compatibility_of_vefs = .true.
+     class default
+        quad_lagrangian_reference_fe_check_compatibility_of_vefs = .false.
+  end select
+ 
+end function quad_lagrangian_reference_fe_check_compatibility_of_vefs
+
+!==================================================================================================
+subroutine quad_lagrangian_reference_fe_fill_face_points_permutation(this,quadrature,             &
+     &                                                               permutation_array)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
+  type(quadrature_t)                   , intent(in)    :: quadrature
+  integer(ip)     , allocatable, target, intent(inout) :: permutation_array(:,:)
+
+  integer(ip) :: num_dim, number_of_possible_permutations, number_quadrature_points_x_dim
+  
+  num_dim = this%number_dimensions
+  assert (num_dim == quadrature%number_dimensions + 1)
+  if (num_dim == 2) then
+     number_quadrature_points_x_dim = quadrature%number_quadrature_points
+  elseif (num_dim == 3) then
+     number_quadrature_points_x_dim = nint(sqrt(real(quadrature%number_quadrature_points)))
   else
-     write(*,*) __FILE__,__LINE__,'WARNING! Permutations not given for nd>3'
+     check(.false.)
   end if
-end subroutine quad_lagrangian_reference_fe_permute_order_vef
 
+  number_of_possible_permutations = this%number_rotations_vef(num_dim) *                         &
+       &                            this%number_rotations_vef(num_dim)
+  
+  call memalloc (quadrature%number_quadrature_points,number_of_possible_permutations,            &
+       &         permutation_array, __FILE__,__LINE__)
+  
+  call fill_permutation_array(this,num_dim-1,number_quadrature_points_x_dim,1,permutation_array)
+
+end subroutine quad_lagrangian_reference_fe_fill_face_points_permutation
+
+!==================================================================================================
 subroutine quad_lagrangian_reference_fe_fill (this)
   implicit none
   ! Parameters
@@ -415,18 +452,115 @@ subroutine quad_lagrangian_reference_fe_fill (this)
         c = c+1
      end do
   end do
+
+  call memalloc (this%number_dimensions,this%number_rotations_vef,__FILE__,__LINE__)
+  call memalloc (this%number_dimensions,this%number_orientations_vef,__FILE__,__LINE__)
+  allocate(this%permutation_arrays(this%number_dimensions))
+
+  call this%fill_permutation_array()
+  
 end subroutine quad_lagrangian_reference_fe_fill
+!==================================================================================================
+
+subroutine quad_lagrangian_reference_fe_fill_permutation_array(this)
+  implicit none 
+  class(quad_lagrangian_reference_fe_t), target, intent(inout) :: this 
+
+  integer(ip) :: i, j
+  integer(ip) :: number_relative_positions_vef, number_interior_nodes_vef
+  integer(ip) :: relative_orientation, number_interior_nodes_x_dim
+  integer(ip) :: vef_dimension
+
+  ! Initialize values
+  number_interior_nodes_x_dim = this%order - 1
+  do i = 1, this%number_dimensions
+     vef_dimension = i-1
+     ! Compute number of possible relative positions
+     this%number_rotations_vef(i) = 2**(vef_dimension)
+     if (vef_dimension==2) then
+        this%number_orientations_vef(i) = 2
+     else
+        this%number_orientations_vef(i) = 1
+     end if
+     number_relative_positions_vef=this%number_rotations_vef(i)*this%number_orientations_vef(i)
+
+     ! Compute the number of interior nodes x vef
+     j = this%get_first_vef_id_of_dimension(vef_dimension)
+     number_interior_nodes_vef = this%get_number_interior_nodes_vef(j)
+
+     ! Allocate number_interior_nodes_x_vef_of_dim=i x number_permutation*number_rotation
+     call  this%permutation_arrays(i)%create(number_interior_nodes_vef,                           &
+          &                                    number_relative_positions_vef)
+
+     call fill_permutation_array(this,vef_dimension,number_interior_nodes_x_dim,                  &
+          &                      this%number_field_components,this%permutation_arrays(i)%a)
+  end do
+end subroutine quad_lagrangian_reference_fe_fill_permutation_array
+!==================================================================================================
+subroutine fill_permutation_array(this,vef_dimension, number_nodes_x_dim,number_field_components, &
+     &                             permutation_array)
+  implicit none 
+  class(quad_lagrangian_reference_fe_t), intent(inout) :: this 
+  integer(ip)                          , intent(in)    :: vef_dimension
+  integer(ip)                          , intent(in)    :: number_nodes_x_dim
+  integer(ip)                          , intent(in)    :: number_field_components
+  integer(ip)                  , target, intent(inout) :: permutation_array(:,:)
+  
+
+  integer(ip) :: irotation, iorientation, array_position, number_nodes_scalar
+  integer(ip) :: inode, idime, inode_scalar 
+  integer(ip), pointer :: permutation_array_col(:)
+
+  ! Fill array
+  array_position = 0
+  do iorientation = 0, this%number_orientations_vef(vef_dimension+1)-1
+     do irotation = 1, this%number_rotations_vef(vef_dimension+1)
+        array_position = array_position + 1
+        permutation_array_col => permutation_array(:, array_position)
+        ! Permute the scalar part
+        if (vef_dimension == 0) then
+           number_nodes_scalar = 1
+           permutation_array_col(1) = 1
+        elseif (vef_dimension == 1) then
+           number_nodes_scalar = number_nodes_x_dim
+           call permute_or_1d(permutation_array_col(1:number_nodes_scalar),                    &
+                &             number_nodes_x_dim-1,irotation)
+        elseif (vef_dimension == 2) then
+           number_nodes_scalar = number_nodes_x_dim**2
+           ! Compute relative orientation
+           call permute_or_2d(permutation_array_col(1: number_nodes_scalar),                   &
+                &             number_nodes_x_dim-1,iorientation,irotation)
+        else 
+           check (.false.)
+        end if
+
+        ! Fill the rest of components
+        inode = number_nodes_scalar
+        do idime = 2, number_field_components
+           ! This is taking advantage of the face that we know how the DoF are ordered
+           ! in case this ordering change, this will not work anymore.
+           do inode_scalar = 1, number_nodes_scalar
+              inode = inode + 1
+              permutation_array_col(inode) = number_nodes_scalar *                            &
+                   &                         (idime-1) +  permutation_array_col(inode_scalar)
+           end do
+        end do
+     end do
+  end do
+end subroutine fill_permutation_array
+!==================================================================================================
 
 subroutine quad_lagrangian_reference_fe_free ( this )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(inout) :: this 
 
-  call reference_fe_free ( this )
+  integer(ip) :: i
   
   ! quad_lagrangian_reference_fe_t variables
   if(allocated(this%node_component_array)) & 
        call memfree(this%node_component_array,__FILE__,__LINE__)
   this%number_nodes_scalar = 0
+  call reference_fe_free ( this )
 end subroutine quad_lagrangian_reference_fe_free
 
 function quad_lagrangian_reference_fe_get_characteristic_length ( this )
@@ -1815,6 +1949,8 @@ subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadratu
   type(quadrature_t)    :: nodal_coordinates_1D
   integer(ip)              :: order_of_approximation
   type(quad_lagrangian_reference_fe_t) :: face_reference_fe, reference_fe_1D
+
+  write(*,*) __FILE__,__LINE__,'Creation of 2 reference_FE!!'
 
   ! Create a 1D interpolation evaluated on the corners
   call nodal_coordinates_1D%create(1,2)
