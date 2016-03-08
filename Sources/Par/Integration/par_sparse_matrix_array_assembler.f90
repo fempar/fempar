@@ -97,11 +97,11 @@ subroutine par_sparse_matrix_array_assembler_assembly( this, &
  select type(array)
     class is(par_scalar_array_t)
     call element_par_scalar_array_assembly( array, &
-                                               number_fe_spaces, &
-                                               number_nodes, &
-                                               elem2dof, &
-                                               field_blocks, &
-                                               elvec )
+                                            number_fe_spaces, &
+                                            number_nodes, &
+                                            elem2dof, &
+                                            field_blocks, &
+                                            elvec )
     class default
     check(.false.)
  end select
@@ -180,24 +180,23 @@ subroutine element_par_scalar_array_assembly( array, number_fe_spaces, number_no
  implicit none
  ! Parameters
  type(par_scalar_array_t), intent(inout) :: array
- integer(ip)                , intent(in)    :: number_fe_spaces
- integer(ip)                , intent(in)    :: number_nodes(number_fe_spaces)
- type(i1p_t)                , intent(in)    :: elem2dof(number_fe_spaces)
- integer(ip)                , intent(in)    :: field_blocks(number_fe_spaces)
- real(rp)                   , intent(in)    :: elvec(:) 
+ integer(ip)                , intent(in) :: number_fe_spaces
+ integer(ip)                , intent(in) :: number_nodes(number_fe_spaces)
+ type(i1p_t)                , intent(in) :: elem2dof(number_fe_spaces)
+ integer(ip)                , intent(in) :: field_blocks(number_fe_spaces)
+ real(rp)                   , intent(in) :: elvec(:) 
  
  integer(ip) :: inode, idof, ielvec, ife_space
  
-  ielvec = 0
-  do ife_space = 1, number_fe_spaces
-     do inode = 1, number_nodes(ife_space)
-        idof = elem2dof(ife_space)%p(inode) 
-        ielvec = ielvec+1
-        if ( idof  > 0 ) then
-           call array%add(idof, elvec(ielvec))
-        end if
-     end do
-  end do
+ ielvec = 0
+ do ife_space = 1, number_fe_spaces
+   call array%add( number_nodes(ife_space), &
+                   elem2dof(ife_space)%p, &
+                   ielvec, &
+                   elvec )
+   ielvec = ielvec + number_nodes(ife_space)
+ end do
+ 
 end subroutine element_par_scalar_array_assembly
 
 !====================================================================================================
