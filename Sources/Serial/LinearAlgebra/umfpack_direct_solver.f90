@@ -27,6 +27,7 @@ module umfpack_direct_solver_names
         procedure, public :: symbolic_setup          => umfpack_direct_solver_symbolic_setup
         procedure, public :: numerical_setup         => umfpack_direct_solver_numerical_setup
         procedure, public :: solve                   => umfpack_direct_solver_solve
+        procedure, public :: log_info                => umfpack_direct_solver_log_info
     end type
 
 contains
@@ -62,6 +63,10 @@ contains
         class(serial_scalar_array_t),   intent(in)    :: x
         class(serial_scalar_array_t),   intent(inout) :: y
     end subroutine umfpack_direct_solver_solve
+
+    subroutine umfpack_direct_solver_log_info(this)
+        class(umfpack_direct_solver_t), intent(in) :: this
+    end subroutine umfpack_direct_solver_log_info
 
     subroutine umfpack_direct_solver_free_clean(this)
         class(umfpack_direct_solver_t), intent(inout) :: this

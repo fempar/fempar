@@ -37,6 +37,7 @@ module base_direct_solver_names
         procedure(base_direct_solver_set_from_parameter_list), public, deferred :: set_from_parameter_list
         procedure(base_direct_solver_symbolic_setup),          public, deferred :: symbolic_setup
         procedure(base_direct_solver_numerical_setup),         public, deferred :: numerical_setup
+        procedure(base_direct_solver_log_info),                public, deferred :: log_info
         procedure(base_direct_solver_solve),                   public, deferred :: solve
         procedure, public :: set_name                  => base_direct_solver_set_name
         procedure, public :: set_matrix                => base_direct_solver_set_matrix
@@ -51,8 +52,14 @@ module base_direct_solver_names
         procedure, public :: state_is_numeric          => base_direct_solver_state_is_numeric
         procedure, public :: set_mem_peak_symb         => base_direct_solver_set_mem_peak_symb
         procedure, public :: set_mem_perm_symb         => base_direct_solver_set_mem_perm_symb
+        procedure, public :: set_mem_peak_num          => base_direct_solver_set_mem_peak_num
         procedure, public :: set_nz_factors            => base_direct_solver_set_nz_factors
         procedure, public :: set_Mflops                => base_direct_solver_set_Mflops
+        procedure, public :: get_mem_peak_symb         => base_direct_solver_get_mem_peak_symb
+        procedure, public :: get_mem_perm_symb         => base_direct_solver_get_mem_perm_symb
+        procedure, public :: get_mem_peak_num          => base_direct_solver_get_mem_peak_num
+        procedure, public :: get_nz_factors            => base_direct_solver_get_nz_factors
+        procedure, public :: get_Mflops                => base_direct_solver_get_Mflops
     end type
 
     interface
@@ -192,6 +199,12 @@ contains
         this%mem_perm_symb = mem_perm_symb
     end subroutine base_direct_solver_set_mem_perm_symb
 
+    subroutine base_direct_solver_set_mem_peak_num(this, mem_peak_num)
+        class(base_direct_solver_t), intent(inout) :: this
+        integer(ip),                 intent(in)    :: mem_peak_num
+        this%mem_peak_num = mem_peak_num
+    end subroutine base_direct_solver_set_mem_peak_num
+
     subroutine base_direct_solver_set_nz_factors(this, nz_factors)
         class(base_direct_solver_t), intent(inout) :: this
         integer(ip),                 intent(in)    :: nz_factors
@@ -203,5 +216,36 @@ contains
         real(rp),                    intent(in)    :: Mflops
         this%Mflops = Mflops
     end subroutine base_direct_solver_set_Mflops
+
+    function base_direct_solver_get_mem_peak_symb(this) result(mem_peak_symb)
+        class(base_direct_solver_t), intent(in) :: this
+        integer(ip)                             :: mem_peak_symb
+        mem_peak_symb = this%mem_peak_symb
+    end function base_direct_solver_get_mem_peak_symb
+
+    function base_direct_solver_get_mem_perm_symb(this) result(mem_perm_symb)
+        class(base_direct_solver_t), intent(in) :: this
+        integer(ip)                             :: mem_perm_symb
+        mem_perm_symb = this%mem_perm_symb
+    end function base_direct_solver_get_mem_perm_symb
+
+    function base_direct_solver_get_mem_peak_num(this) result(mem_peak_num)
+        class(base_direct_solver_t), intent(in) :: this
+        integer(ip)                             :: mem_peak_num
+        mem_peak_num = this%mem_peak_num
+    end function base_direct_solver_get_mem_peak_num
+
+    function base_direct_solver_get_nz_factors(this) result(nz_factors)
+        class(base_direct_solver_t), intent(in) :: this
+        integer(ip)                             :: nz_factors
+        nz_factors = this%nz_factors
+    end function base_direct_solver_get_nz_factors
+
+    function base_direct_solver_get_Mflops(this) result(Mflops)
+        class(base_direct_solver_t), intent(in) :: this
+        real(rp)                                :: Mflops
+        Mflops = this%Mflops
+    end function base_direct_solver_get_Mflops
+
 
 end module base_direct_solver_names

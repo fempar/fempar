@@ -34,7 +34,7 @@ module pardiso_mkl_direct_solver_names
     character(len=*), parameter :: pardiso_mkl_message_level    = 'pardiso_mkl_message_level'
 
     integer, parameter :: default_pardiso_mkl_message_level = 0                ! Default pardiso_mkl parameters array
-    integer, parameter :: default_pardiso_mkl_iparm(64)    = 0                ! Default pardiso_mkl parameters array
+    integer, parameter :: default_pardiso_mkl_iparm(64)     = 0                ! Default pardiso_mkl parameters array
     integer, parameter :: default_pardiso_mkl_matrix_type   = pardiso_mkl_uns  ! Default pardiso_mkl parameters array
 
     type, extends(base_direct_solver_t) :: pardiso_mkl_direct_solver_t
@@ -51,7 +51,6 @@ module pardiso_mkl_direct_solver_names
         integer                     :: message_level         = 0
     contains
     private
-        procedure, public :: is_linear               => pardiso_mkl_direct_solver_is_linear
         procedure, public :: free_clean              => pardiso_mkl_direct_solver_free_clean
         procedure, public :: free_symbolic           => pardiso_mkl_direct_solver_free_symbolic
         procedure, public :: free_numerical          => pardiso_mkl_direct_solver_free_numerical
@@ -61,12 +60,15 @@ module pardiso_mkl_direct_solver_names
         procedure, public :: symbolic_setup          => pardiso_mkl_direct_solver_symbolic_setup
         procedure, public :: numerical_setup         => pardiso_mkl_direct_solver_numerical_setup
         procedure, public :: solve                   => pardiso_mkl_direct_solver_solve
+        procedure, public :: log_info                => pardiso_mkl_direct_solver_log_info
 #ifndef ENABLE_MKL
         procedure         :: not_enabled_error  => pardiso_mkl_direct_solver_not_enabled_error
 #endif
     end type
 
 public :: create_pardiso_mkl_direct_solver
+public :: pardiso_mkl_name, pardiso_mkl_iparm, pardiso_mkl_matrix_type, pardiso_mkl_message_level
+public :: pardiso_mkl_spd, pardiso_mkl_sin, pardiso_mkl_uss, pardiso_mkl_uns
 
 contains
 
@@ -182,33 +184,14 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         assert(.not. this%state_is_start())
-
+        FPLError = 0
         ! Matrix type
-        is_present     = parameter_list%isPresent(Key=pardiso_mkl_matrix_type)
-        same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_matrix_type, mold=this%matrix_type)
-        shape          = parameter_list%getshape(Key=pardiso_mkl_matrix_type)
-        if(is_present .and. same_data_type .and. size(shape) == 0) then
-            FPLError   = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=this%matrix_type)
-            assert(FPLError == 0)
-        endif
+        FPLError = FPLError + parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=this%matrix_type)
         ! iparm
-        is_present     = parameter_list%isPresent(Key=pardiso_mkl_iparm)
-        same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%matrix_type)
-        shape          = parameter_list%getshape(Key=pardiso_mkl_iparm)
-        if(is_present .and. same_data_type .and. size(shape) == 1) then
-            if(shape(1) == 64) then
-                FPLError =  parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
-                assert(FPLError == 0)
-            endif
-        endif
+        FPLError = FPLError + parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
         ! Message level
-        is_present     = parameter_list%isPresent(Key=pardiso_mkl_message_level)
-        same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_message_level, mold=this%message_level)
-        shape          = parameter_list%getshape(Key=pardiso_mkl_message_level)
-        if(is_present .and. same_data_type .and. size(shape) == 0) then
-            FPLError   = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
-            assert(FPLError == 0)
-        endif
+        FPLError = FPLError + parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
+        assert(FPLError == 0)
 #else
         call this%not_enabled_error()
 #endif
@@ -329,6 +312,10 @@ contains
                             error, 'during stage', this%phase, 'in row', this%pardiso_mkl_iparm(30)
                     check(.false.)
                 end if
+
+                ! Set pardiso mkl info
+                call this%set_mem_peak_num(this%pardiso_mkl_iparm(16)+this%pardiso_mkl_iparm(17))
+                call this%set_Mflops(real(this%pardiso_mkl_iparm(19))/1.0e3_rp)
             class DEFAULT
                 check(.false.)
         end select
@@ -337,16 +324,6 @@ contains
         call this%not_enabled_error()
 #endif
     end subroutine pardiso_mkl_direct_solver_numerical_setup
-
-
-    function pardiso_mkl_direct_solver_is_linear(this) result(is_linear)
-    !-----------------------------------------------------------------
-    !-----------------------------------------------------------------
-        class(pardiso_mkl_direct_solver_t), intent(inout) :: this
-        logical                                            :: is_linear
-    !-----------------------------------------------------------------
-        is_linear = .false.
-    end function pardiso_mkl_direct_solver_is_linear
 
 
     subroutine pardiso_mkl_direct_solver_solve(op, x, y)
@@ -397,6 +374,28 @@ contains
         call op%not_enabled_error()
 #endif
     end subroutine pardiso_mkl_direct_solver_solve
+
+
+    subroutine pardiso_mkl_direct_solver_log_info(this)
+    !-----------------------------------------------------------------
+    !< Printo pardiso mkl info
+    !-----------------------------------------------------------------
+        class(pardiso_mkl_direct_solver_t), intent(in) :: this
+    !-----------------------------------------------------------------
+        write (*,'(a)') '----------------------------------'
+        write (*,'(a)') 'PARDISO_MKL DIRECT SOLVER LOG INFO'
+        write (*,'(a)') '----------------------------------'
+        if(this%state_is_symbolic() .or. this%state_is_numeric()) then
+            write (*,'(a,i10)') 'Peak mem.      in KBytes (symb fact) = ', this%get_mem_peak_symb()
+            write (*,'(a,i10)') 'Permanent mem. in KBytes (symb fact) = ', this%get_mem_perm_symb()
+            write (*,'(a,i10)') 'Size of factors (thousands)          = ', this%get_nz_factors()
+        endif
+        if(this%state_is_numeric()) then
+            write (*,'(a,i10)') 'Peak mem.      in KBytes (num fact)  = ', this%get_mem_peak_num()
+            write (*,'(a,f10.2)') 'MFlops for factorization             = ', this%get_Mflops() 
+        endif
+        write (*,'(a)') ''
+    end subroutine pardiso_mkl_direct_solver_log_info
 
 
     subroutine pardiso_mkl_direct_solver_free_clean(this)
@@ -494,6 +493,7 @@ contains
                     error, 'during stage', this%phase
             check(.false.)
         end if
+
         call this%set_state_symbolic()
 #else
         call this%not_enabled_error()
