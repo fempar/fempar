@@ -2,7 +2,7 @@ module umfpack_direct_solver_names
 
     USE types_names
     USE memor_names
-    USE iso_c_binding
+!    USE iso_c_binding
     USE sparse_matrix_names
     USE base_sparse_matrix_names
     USE csr_sparse_matrix_names
