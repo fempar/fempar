@@ -604,7 +604,7 @@ module reference_fe_names
                                                             dimension,&
                                                             number_interior_points,&
                                                             interior_points_permutation )
-       import :: reference_fe_t, quadrature_t,ip
+       import :: reference_fe_t, ip
        implicit none 
        class(reference_fe_t)                 , intent(inout) :: this 
        integer(ip)                           , intent(in)    :: dimension
