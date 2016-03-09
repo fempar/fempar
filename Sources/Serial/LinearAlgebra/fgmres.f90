@@ -71,6 +71,7 @@ module fgmres_names
   public :: default_dkrymax, default_orthonorm_strat
   public :: mgsro, icgsro
   public :: modified_gs_reorthonorm, iterative_gs_reorthonorm, apply_givens_rotation
+  public :: fgmres_name
   
 contains
   subroutine fgmres_allocate_workspace(this)

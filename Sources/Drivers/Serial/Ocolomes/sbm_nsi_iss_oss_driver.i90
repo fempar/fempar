@@ -143,7 +143,7 @@
   !----------------!
   ! NONLINEAR LOOP !
   !----------------!
-  nonlinear_tolerance      = 1.0e-12_rp
+  nonlinear_tolerance      = 1.0e-10_rp
   max_nonlinear_iterations = 10
   residual_norm            = 1.0_rp
   counter                  = 0
@@ -155,6 +155,7 @@
      ! Update linear solver
      call linear_solver%create(senv)
      call linear_solver%set_type_and_parameters_from_pl()
+     call linear_solver%set_type_from_string('RGMRES')
      call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call linear_solver%set_initial_solution(dof_values)
      call linear_solver%solve(dof_values)

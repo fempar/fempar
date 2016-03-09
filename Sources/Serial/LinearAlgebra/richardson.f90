@@ -62,7 +62,7 @@ module richardson_names
   end type
   
   ! Data types
-  public :: richardson_t, create_richardson
+  public :: richardson_t, create_richardson, richardson_name
   
 contains
   subroutine richardson_allocate_workspace(this)

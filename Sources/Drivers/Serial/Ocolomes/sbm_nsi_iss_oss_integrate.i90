@@ -291,6 +291,7 @@ subroutine integrate(this,fe_space,assembler)
   call memfree(number_nodes_per_field,__FILE__,__LINE__)
   call memfree(elmat,__FILE__,__LINE__)
   call memfree(elvec,__FILE__,__LINE__)
+  call fe_velocity%free()
   
   ! Finalize discrete integration structures
   call deallocate_stabilization_parameters(tau_m,tau_c)

@@ -378,7 +378,7 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_vector( this, &
         inode_scalar = this%node_component_array(inode,1)
         icomp        = this%node_component_array(inode,2)
         call quadrature_points_values(qpoint)%add(icomp, &
-         & actual_cell_interpolation%shape_functions(inode_scalar,qpoint)*nodal_values(inode_scalar))
+         & actual_cell_interpolation%shape_functions(inode_scalar,qpoint)*nodal_values(inode))
      end do
   end do
 

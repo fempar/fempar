@@ -81,6 +81,7 @@ module linear_solver_names
     procedure :: set_operators                   => linear_solver_set_operators
     procedure :: set_initial_solution            => linear_solver_set_initial_solution
     procedure :: set_rhs                         => linear_solver_set_rhs
+    procedure :: set_type_from_string            => linear_solver_set_type_from_string
   end type
   
   ! Data types
@@ -143,8 +144,8 @@ contains
   
   ! SELECT MANUALLY ITERATIVE LINEAR SOLVER TYPE: 
      !this%base_linear_solver => create_richardson(this%environment)
-     !this%base_linear_solver => create_cg(this%environment)
-     this%base_linear_solver => create_rgmres(this%environment)
+     this%base_linear_solver => create_cg(this%environment)
+     !this%base_linear_solver => create_rgmres(this%environment)
      !this%base_linear_solver => create_lgmres(this%environment)
      !this%base_linear_solver => create_fgmres(this%environment)
      !this%base_linear_solver => create_lfom(this%environment) 
@@ -192,5 +193,32 @@ contains
      assert ( this%state == solver_type_set )
      call this%base_linear_solver%set_initial_solution(initial_solution)
    end subroutine linear_solver_set_initial_solution
+
+   subroutine linear_solver_set_type_from_string (this, linear_solver_type)
+     implicit none
+     class(linear_solver_t), intent(inout) :: this
+     character(len=*)      , intent(in)    :: linear_solver_type
+     
+     select case(linear_solver_type)
+        case(richardson_name) 
+           this%base_linear_solver => create_richardson(this%environment)
+        case(cg_name) 
+           this%base_linear_solver => create_cg(this%environment)
+        case(rgmres_name) 
+           this%base_linear_solver => create_rgmres(this%environment)
+        case(lgmres_name) 
+           this%base_linear_solver => create_lgmres(this%environment)
+        case(fgmres_name) 
+           this%base_linear_solver => create_fgmres(this%environment)
+        case(lfom_name) 
+           this%base_linear_solver => create_lfom(this%environment) 
+        case(minres_name) 
+           this%base_linear_solver => create_minres(this%environment)
+        case(icg_name) 
+           this%base_linear_solver => create_icg(this%environment)
+        end select
+
+   end subroutine linear_solver_set_type_from_string
+     
    
 end module linear_solver_names

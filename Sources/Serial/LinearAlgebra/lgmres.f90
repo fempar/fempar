@@ -70,6 +70,7 @@ module lgmres_names
   public :: default_dkrymax, default_orthonorm_strat
   public :: mgsro, icgsro
   public :: modified_gs_reorthonorm, iterative_gs_reorthonorm, apply_givens_rotation
+  public :: lgmres_name
   
 contains
   subroutine lgmres_allocate_workspace(this)

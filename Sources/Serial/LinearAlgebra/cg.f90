@@ -62,7 +62,7 @@ module cg_names
   end type
   
   ! Data types
-  public :: cg_t, create_cg
+  public :: cg_t, create_cg, cg_name
   
 contains
   subroutine cg_allocate_workspace(this)

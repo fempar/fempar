@@ -307,7 +307,7 @@ module minres_names
   end type
   
   ! Data types
-  public :: minres_t, create_minres
+  public :: minres_t, create_minres, minres_name
   
 contains
   subroutine minres_allocate_workspace(this)
