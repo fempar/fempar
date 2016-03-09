@@ -4,6 +4,7 @@ module direct_solver_names
     USE memor_names
     USE base_direct_solver_names
     USE pardiso_mkl_direct_solver_names
+    USE umfpack_direct_solver_names
     USE sparse_matrix_names, only: sparse_matrix_t
     USE serial_scalar_array_names
     USE FPL
@@ -19,16 +20,16 @@ implicit none
         class(base_direct_solver_t), pointer :: base_direct_solver => NULL()
     contains
     private
-        procedure, public :: set_type                     => direct_solver_set_type
-        procedure, public :: set_defaults                 => direct_solver_set_defaults
-        procedure, public :: set_type_from_parameter_list => direct_solver_set_type_from_parameter_list
-        procedure, public :: set_from_parameter_list      => direct_solver_set_from_parameter_list
-        procedure, public :: set_matrix                   => direct_solver_set_matrix
-        procedure, public :: symbolic_setup               => direct_solver_symbolic_setup
-        procedure, public :: numerical_setup              => direct_solver_numerical_setup
-        procedure, public :: log_info                     => direct_solver_log_info
-        procedure, public :: solve                        => direct_solver_solve
-        procedure, public :: free                         => direct_solver_free
+        procedure, non_overridable, public :: set_type                     => direct_solver_set_type
+        procedure, non_overridable, public :: set_defaults                 => direct_solver_set_defaults
+        procedure, non_overridable, public :: set_type_from_parameter_list => direct_solver_set_type_from_parameter_list
+        procedure, non_overridable, public :: set_from_parameter_list      => direct_solver_set_from_parameter_list
+        procedure, non_overridable, public :: set_matrix                   => direct_solver_set_matrix
+        procedure, non_overridable, public :: symbolic_setup               => direct_solver_symbolic_setup
+        procedure, non_overridable, public :: numerical_setup              => direct_solver_numerical_setup
+        procedure, non_overridable, public :: log_info                     => direct_solver_log_info
+        procedure, non_overridable, public :: solve                        => direct_solver_solve
+        procedure, non_overridable, public :: free                         => direct_solver_free
     end type
 
 contains
@@ -44,7 +45,13 @@ contains
             call this%base_direct_solver%free_clean()
             deallocate(this%base_direct_solver)
         endif
-        this%base_direct_solver => create_pardiso_mkl_direct_solver()
+
+        select case (name)
+            case (pardiso_mkl_name)
+                this%base_direct_solver => create_pardiso_mkl_direct_solver()
+            case (umfpack_name)
+                this%base_direct_solver => create_umfpack_direct_solver()
+        end select
     end subroutine direct_solver_set_type
 
 

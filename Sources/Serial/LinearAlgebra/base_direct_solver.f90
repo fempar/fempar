@@ -32,42 +32,37 @@ module base_direct_solver_names
         procedure(base_direct_solver_free_clean),              public, deferred :: free_clean
         procedure(base_direct_solver_free_symbolic),           public, deferred :: free_symbolic
         procedure(base_direct_solver_free_numerical),          public, deferred :: free_numerical
-        procedure(base_direct_solver_initialize),                      deferred :: initialize
         procedure(base_direct_solver_set_defaults),            public, deferred :: set_defaults
         procedure(base_direct_solver_set_from_parameter_list), public, deferred :: set_from_parameter_list
         procedure(base_direct_solver_symbolic_setup),          public, deferred :: symbolic_setup
         procedure(base_direct_solver_numerical_setup),         public, deferred :: numerical_setup
-        procedure(base_direct_solver_log_info),                public, deferred :: log_info
         procedure(base_direct_solver_solve),                   public, deferred :: solve
-        procedure, public :: set_name                  => base_direct_solver_set_name
-        procedure, public :: set_matrix                => base_direct_solver_set_matrix
-        procedure, public :: matrix_is_set             => base_direct_solver_matrix_is_set
-        procedure, public :: set_state_start           => base_direct_solver_set_state_start
-        procedure, public :: set_state_init            => base_direct_solver_set_state_init
-        procedure, public :: set_state_symbolic        => base_direct_solver_set_state_symbolic
-        procedure, public :: set_state_numeric         => base_direct_solver_set_state_numeric
-        procedure, public :: state_is_start            => base_direct_solver_state_is_start
-        procedure, public :: state_is_init             => base_direct_solver_state_is_init
-        procedure, public :: state_is_symbolic         => base_direct_solver_state_is_symbolic
-        procedure, public :: state_is_numeric          => base_direct_solver_state_is_numeric
-        procedure, public :: set_mem_peak_symb         => base_direct_solver_set_mem_peak_symb
-        procedure, public :: set_mem_perm_symb         => base_direct_solver_set_mem_perm_symb
-        procedure, public :: set_mem_peak_num          => base_direct_solver_set_mem_peak_num
-        procedure, public :: set_nz_factors            => base_direct_solver_set_nz_factors
-        procedure, public :: set_Mflops                => base_direct_solver_set_Mflops
-        procedure, public :: get_mem_peak_symb         => base_direct_solver_get_mem_peak_symb
-        procedure, public :: get_mem_perm_symb         => base_direct_solver_get_mem_perm_symb
-        procedure, public :: get_mem_peak_num          => base_direct_solver_get_mem_peak_num
-        procedure, public :: get_nz_factors            => base_direct_solver_get_nz_factors
-        procedure, public :: get_Mflops                => base_direct_solver_get_Mflops
+        procedure, non_overridable, public :: reset              => base_direct_solver_reset
+        procedure, non_overridable, public :: set_name           => base_direct_solver_set_name
+        procedure, non_overridable, public :: set_matrix         => base_direct_solver_set_matrix
+        procedure, non_overridable, public :: matrix_is_set      => base_direct_solver_matrix_is_set
+        procedure, non_overridable, public :: set_state_start    => base_direct_solver_set_state_start
+        procedure, non_overridable, public :: set_state_init     => base_direct_solver_set_state_init
+        procedure, non_overridable, public :: set_state_symbolic => base_direct_solver_set_state_symbolic
+        procedure, non_overridable, public :: set_state_numeric  => base_direct_solver_set_state_numeric
+        procedure, non_overridable, public :: state_is_start     => base_direct_solver_state_is_start
+        procedure, non_overridable, public :: state_is_init      => base_direct_solver_state_is_init
+        procedure, non_overridable, public :: state_is_symbolic  => base_direct_solver_state_is_symbolic
+        procedure, non_overridable, public :: state_is_numeric   => base_direct_solver_state_is_numeric
+        procedure, non_overridable, public :: set_mem_peak_symb  => base_direct_solver_set_mem_peak_symb
+        procedure, non_overridable, public :: set_mem_perm_symb  => base_direct_solver_set_mem_perm_symb
+        procedure, non_overridable, public :: set_mem_peak_num   => base_direct_solver_set_mem_peak_num
+        procedure, non_overridable, public :: set_nz_factors     => base_direct_solver_set_nz_factors
+        procedure, non_overridable, public :: set_Mflops         => base_direct_solver_set_Mflops
+        procedure, non_overridable, public :: get_mem_peak_symb  => base_direct_solver_get_mem_peak_symb
+        procedure, non_overridable, public :: get_mem_perm_symb  => base_direct_solver_get_mem_perm_symb
+        procedure, non_overridable, public :: get_mem_peak_num   => base_direct_solver_get_mem_peak_num
+        procedure, non_overridable, public :: get_nz_factors     => base_direct_solver_get_nz_factors
+        procedure, non_overridable, public :: get_Mflops         => base_direct_solver_get_Mflops
+        procedure, non_overridable, public :: log_info           => base_direct_solver_log_info
     end type
 
     interface
-        subroutine base_direct_solver_initialize(this)
-            import base_direct_solver_t
-            class(base_direct_solver_t),   intent(inout) :: this
-        end subroutine base_direct_solver_initialize
-
         subroutine base_direct_solver_set_defaults(this)
             import base_direct_solver_t
             class(base_direct_solver_t),   intent(inout) :: this
@@ -112,16 +107,22 @@ module base_direct_solver_names
             import base_direct_solver_t
             class(base_direct_solver_t), intent(inout) :: this
         end subroutine base_direct_solver_free_numerical
-
-        subroutine  base_direct_solver_log_info (this)
-            import base_direct_solver_t
-            class(base_direct_solver_t), intent(in) :: this
-        end subroutine base_direct_solver_log_info
     end interface
 
 public :: base_direct_solver_t
 
 contains
+
+    subroutine base_direct_solver_reset(this)
+        class(base_direct_solver_t), intent(inout) :: this
+        this%state  = BASE_DIRECT_SOLVER_STATE_START
+        nullify(this%matrix)
+        this%mem_peak_symb = 0
+        this%mem_perm_symb = 0
+        this%nz_factors    = 0
+        this%mem_peak_num  = 0
+        this%Mflops        = 0._rp
+    end subroutine base_direct_solver_reset
 
     subroutine base_direct_solver_set_name(this, name)
         class(base_direct_solver_t),   intent(inout) :: this
@@ -247,5 +248,23 @@ contains
         Mflops = this%Mflops
     end function base_direct_solver_get_Mflops
 
+
+    subroutine base_direct_solver_log_info(this)
+    !-----------------------------------------------------------------
+    !< Print info
+    !-----------------------------------------------------------------
+        class(base_direct_solver_t), intent(in) :: this
+    !-----------------------------------------------------------------
+        write (*,'(a)') ''
+        write (*,'(a)') '---------------------------------------'
+        write (*,'(a)') ' '//this%name//' DIRECT SOLVER LOG INFO'
+        write (*,'(a)') '---------------------------------------'
+        write (*,'(a,i10)') 'Peak mem.      in KBytes (symb fact) = ', this%get_mem_peak_symb()
+        write (*,'(a,i10)') 'Permanent mem. in KBytes (symb fact) = ', this%get_mem_perm_symb()
+        write (*,'(a,i10)') 'Size of factors (thousands)          = ', this%get_nz_factors()
+        write (*,'(a,i10)') 'Peak mem.      in KBytes (num fact)  = ', this%get_mem_peak_num()
+        write (*,'(a,f10.2)') 'MFlops for factorization             = ', this%get_Mflops() 
+        write (*,'(a)') ''
+    end subroutine base_direct_solver_log_info
 
 end module base_direct_solver_names

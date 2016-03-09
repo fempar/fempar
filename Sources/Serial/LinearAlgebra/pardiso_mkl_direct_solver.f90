@@ -60,7 +60,6 @@ module pardiso_mkl_direct_solver_names
         procedure, public :: symbolic_setup          => pardiso_mkl_direct_solver_symbolic_setup
         procedure, public :: numerical_setup         => pardiso_mkl_direct_solver_numerical_setup
         procedure, public :: solve                   => pardiso_mkl_direct_solver_solve
-        procedure, public :: log_info                => pardiso_mkl_direct_solver_log_info
 #ifndef ENABLE_MKL
         procedure         :: not_enabled_error  => pardiso_mkl_direct_solver_not_enabled_error
 #endif
@@ -98,6 +97,7 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         assert(this%state_is_start())
+        call this%reset()
         ! Initiliaze the internal solver memory pointer. This is only
         ! necessary before FIRST call of PARDISO.
         do i = 1, 64
@@ -171,8 +171,7 @@ contains
 
     subroutine pardiso_mkl_direct_solver_set_from_parameter_list(this, parameter_list)
     !-----------------------------------------------------------------
-    !< Set PARDISO default parameters
-    !< Choose pardiso_mkl matrix according to matrix if is set.
+    !< Set PARDISO parameters from a given ParameterList
     !-----------------------------------------------------------------
         class(pardiso_mkl_direct_solver_t),  intent(inout) :: this
         type(ParameterList_t),               intent(in)    :: parameter_list
@@ -184,14 +183,12 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         assert(.not. this%state_is_start())
-        FPLError = 0
         ! Matrix type
-        FPLError = FPLError + parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=this%matrix_type)
+        FPLError = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=this%matrix_type)
         ! iparm
-        FPLError = FPLError + parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
+        FPLError = parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
         ! Message level
-        FPLError = FPLError + parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
-        assert(FPLError == 0)
+        FPLError = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
 #else
         call this%not_enabled_error()
 #endif
@@ -376,28 +373,6 @@ contains
     end subroutine pardiso_mkl_direct_solver_solve
 
 
-    subroutine pardiso_mkl_direct_solver_log_info(this)
-    !-----------------------------------------------------------------
-    !< Printo pardiso mkl info
-    !-----------------------------------------------------------------
-        class(pardiso_mkl_direct_solver_t), intent(in) :: this
-    !-----------------------------------------------------------------
-        write (*,'(a)') '----------------------------------'
-        write (*,'(a)') 'PARDISO_MKL DIRECT SOLVER LOG INFO'
-        write (*,'(a)') '----------------------------------'
-        if(this%state_is_symbolic() .or. this%state_is_numeric()) then
-            write (*,'(a,i10)') 'Peak mem.      in KBytes (symb fact) = ', this%get_mem_peak_symb()
-            write (*,'(a,i10)') 'Permanent mem. in KBytes (symb fact) = ', this%get_mem_perm_symb()
-            write (*,'(a,i10)') 'Size of factors (thousands)          = ', this%get_nz_factors()
-        endif
-        if(this%state_is_numeric()) then
-            write (*,'(a,i10)') 'Peak mem.      in KBytes (num fact)  = ', this%get_mem_peak_num()
-            write (*,'(a,f10.2)') 'MFlops for factorization             = ', this%get_Mflops() 
-        endif
-        write (*,'(a)') ''
-    end subroutine pardiso_mkl_direct_solver_log_info
-
-
     subroutine pardiso_mkl_direct_solver_free_clean(this)
     !-----------------------------------------------------------------
     !< Deallocate PARDISO internal data structure
@@ -419,7 +394,7 @@ contains
     subroutine pardiso_mkl_direct_solver_free_symbolic(this)
     !-----------------------------------------------------------------
     !< Release all internal memory for all matrices
-    !< Set state to direct_solver_STATE_CREATED
+    !< Set state to direct_solver_STATE_INIT
     !-----------------------------------------------------------------
         class(pardiso_mkl_direct_solver_t), intent(inout) :: this
         integer                                           :: error

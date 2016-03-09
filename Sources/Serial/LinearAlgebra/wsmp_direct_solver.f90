@@ -27,7 +27,6 @@ module wsmp_direct_solver_names
         procedure, public :: symbolic_setup          => wsmp_direct_solver_symbolic_setup
         procedure, public :: numerical_setup         => wsmp_direct_solver_numerical_setup
         procedure, public :: solve                   => wsmp_direct_solver_solve
-        procedure, public :: log_info                => wsmp_direct_solver_log_info
     end type
 
 contains
@@ -63,10 +62,6 @@ contains
         class(serial_scalar_array_t), intent(in)    :: x
         class(serial_scalar_array_t), intent(inout) :: y
     end subroutine wsmp_direct_solver_solve
-
-    subroutine wsmp_direct_solver_log_info(this)
-        class(wsmp_direct_solver_t), intent(in) :: this
-    end subroutine wsmp_direct_solver_log_info
 
     subroutine wsmp_direct_solver_free_clean(this)
         class(wsmp_direct_solver_t), intent(inout) :: this

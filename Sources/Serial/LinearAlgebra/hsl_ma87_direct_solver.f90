@@ -26,7 +26,6 @@ module hsl_ma87_direct_solver_names
         procedure, public :: symbolic_setup          => hsl_ma87_direct_solver_symbolic_setup
         procedure, public :: numerical_setup         => hsl_ma87_direct_solver_numerical_setup
         procedure, public :: solve                   => hsl_ma87_direct_solver_solve
-        procedure, public :: log_info                => hsl_ma87_direct_solver_log_info
     end type
 
 contains
@@ -62,10 +61,6 @@ contains
         class(serial_scalar_array_t),    intent(in)    :: x
         class(serial_scalar_array_t),    intent(inout) :: y
     end subroutine hsl_ma87_direct_solver_solve
-
-    subroutine hsl_ma87_direct_solver_log_info(this)
-        class(hsl_ma87_direct_solver_t), intent(in) :: this
-    end subroutine hsl_ma87_direct_solver_log_info
 
     subroutine hsl_ma87_direct_solver_free_clean(this)
         class(hsl_ma87_direct_solver_t), intent(inout) :: this
