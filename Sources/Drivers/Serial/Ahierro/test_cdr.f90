@@ -723,20 +723,20 @@ contains
     call fe_affine_operator%numerical_setup()
 
     matrix => fe_affine_operator%get_matrix()
-!!$    select type(matrix)
-!!$     class is(block_sparse_matrix_t)
-!!$        !my_matrix => matrix
-!!$        do i = 1,1! matrix%nblocks
-!!$           write(*,*) i,i,'+++++++++++++++++++++++++++++++'
-!!$           write(*,*) __FILE__,__LINE__
-!!$           my_matrix => matrix%blocks(i,i)%sparse_matrix
-!!$           write(*,*) __FILE__,__LINE__
-!!$           !call my_matrix%print_matrix_market(6)
-!!$           write(*,*) __FILE__,__LINE__
-!!$        end do
-!!$     class default
-!!$        check(.false.)
-!!$     end select
+    select type(matrix)
+     class is(block_sparse_matrix_t)
+        !my_matrix => matrix
+        do i = 2,2! matrix%nblocks
+           write(*,*) i,i,'+++++++++++++++++++++++++++++++'
+           write(*,*) __FILE__,__LINE__
+           my_matrix => matrix%blocks(i,i)%sparse_matrix
+           write(*,*) __FILE__,__LINE__
+           call my_matrix%print_matrix_market(6)
+           write(*,*) __FILE__,__LINE__
+        end do
+     class default
+        check(.false.)
+     end select
 
      !call fe_affine_operator%create_range_vector(vector)
 

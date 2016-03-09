@@ -63,7 +63,10 @@ module triangulation_names
      integer(ip)             :: relative_orientation  = -1
      integer(ip)             :: relative_rotation     = -1
    contains
-     procedure :: get_coordinates => face_topology_get_coordinates
+     procedure, non_overridable :: get_coordinates          => face_topology_get_coordinates
+     procedure, non_overridable :: get_relative_orientation => face_topology_get_relative_orientation
+     procedure, non_overridable :: get_relative_rotation    => face_topology_get_relative_rotation
+     
   end type face_topology_t
 
   type vef_topology_t
@@ -288,7 +291,6 @@ contains
              face%neighbour_elems_id(2)  = elem_id
              face%neighbour_elems(2)%p   => trian%elems(elem_id)
              face%relative_face(2)       = local_face_id
-
              ! Compute relative orientation
              face%relative_orientation = elem%reference_fe_geo%compute_relative_orientation         &
                   &   (face%neighbour_elems(1)%p%reference_fe_geo,                                  &
@@ -296,14 +298,14 @@ contains
                   &    face%relative_face(1) -1,                                                    &
                   &    local_vef_id)
 
-             ! Compute relative orientation
-             face%relative_orientation = elem%reference_fe_geo%compute_relative_rotation            &
-                  &   (face%neighbour_elems(1)%p%reference_fe_geo,                                  &
+             ! Compute relative rotation
+             face%relative_rotation = face%neighbour_elems(1)%p%reference_fe_geo%compute_relative_rotation &
+                  &   (elem%reference_fe_geo,                                                       &
+                  &    local_vef_id,                                                                &
                   &    face%neighbour_elems(1)%p%reference_fe_geo%get_first_face_id() +             &
                   &    face%relative_face(1) -1,                                                    &
-                  &    local_vef_id,                                                                &
-                  &    face%neighbour_elems(1)%p%vefs,                                              &
                   &    elem%vefs,                                                                   &
+                  &    face%neighbour_elems(1)%p%vefs,                                              &
                   &    face%left_elem_subface)
           end if
        end do
@@ -648,6 +650,7 @@ contains
     end do
   end function elem_topology_find_local_pos_from_vef_id
 
+  !==================================================================================================
   subroutine face_topology_get_coordinates(this, face_topology_coordinates)
     implicit none
     ! Parameters
@@ -672,5 +675,23 @@ contains
     end do
     
   end subroutine face_topology_get_coordinates
+  
+  !==================================================================================================
+  function face_topology_get_relative_orientation(this)
+    implicit none
+    ! Parameters
+    class(face_topology_t), intent(in)    :: this
+    integer(ip) :: face_topology_get_relative_orientation
+    face_topology_get_relative_orientation = this%relative_orientation
+  end function face_topology_get_relative_orientation
+
+  !==================================================================================================
+  function face_topology_get_relative_rotation(this)
+    implicit none
+    ! Parameters
+    class(face_topology_t), intent(in)    :: this
+    integer(ip) :: face_topology_get_relative_rotation
+    face_topology_get_relative_rotation = this%relative_rotation
+  end function face_topology_get_relative_rotation
 
 end module triangulation_names

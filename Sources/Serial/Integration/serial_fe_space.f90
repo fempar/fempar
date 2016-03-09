@@ -159,6 +159,8 @@ module serial_fe_space_names
      procedure, non_overridable :: get_map             => finite_face_get_map
      procedure, non_overridable :: get_quadrature      => finite_face_get_quadrature
      procedure, non_overridable :: get_face_integrator => finite_face_get_face_integrator
+     procedure, non_overridable :: get_relative_orientation => finite_face_get_relative_orientation
+     procedure, non_overridable :: get_relative_rotation => finite_face_get_relative_rotation
   end type finite_face_t
 
   public :: finite_face_t
