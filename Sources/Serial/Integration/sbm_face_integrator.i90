@@ -300,9 +300,10 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
      call this%interpolation_face_restriction(2)%create(quadrature,this%reference_fe(2)%p)
   end if
 
-  this%current_permutation_key = 1
-  call left_reference_fe%fill_face_points_permutation(quadrature,                                 &
-       &                                              this%quadrature_points_permutation)
+  this%current_qpoints_perm_cols = 1
+  call left_reference_fe%fill_interior_points_permutation(quadrature%number_dimensions,&
+                                                          quadrature%number_quadrature_points,&
+       &                                                  this%qpoints_perm)
 end subroutine face_integrator_create
 
 !==================================================================================================
@@ -318,8 +319,8 @@ subroutine face_integrator_free(this)
      call this%interpolation_face_restriction(i)%free()
   end do
 
-  if (allocated(this%quadrature_points_permutation)) then
-     call memfree (this%quadrature_points_permutation, __FILE__,__LINE__)
+  if (allocated(this%qpoints_perm)) then
+     call memfree (this%qpoints_perm, __FILE__,__LINE__)
   end if
 
 end subroutine face_integrator_free
@@ -337,8 +338,8 @@ subroutine face_integrator_update(this,local_face_id,face_map,relative_orientati
        &                                                this%interpolation_face_restriction(1))
 
   if (.not. this%is_boundary) then
-     this%current_permutation_key(2) = relative_rotation +                                        &
-         & this%reference_fe(2)%p%number_rotations_vef(this%reference_fe(2)%p%number_dimensions)  &
+     this%current_qpoints_perm_cols(2) = relative_rotation +                                        &
+         & this%reference_fe(2)%p%number_rotations_per_dimension(this%reference_fe(2)%p%number_dimensions-1)  &
          & * relative_orientation
      call this%reference_fe(2)%p%update_interpolation_face(local_face_id(2),face_map%fe_maps(2),  &
        &                                                   this%interpolation_face_restriction(2))
@@ -358,7 +359,7 @@ subroutine face_integrator_get_value_scalar (this, ishape, qpoint, ineigh, scala
   assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
 
-  actual_qpoint = this%quadrature_points_permutation(qpoint,this%current_permutation_key(ineigh))
+  actual_qpoint = this%qpoints_perm(qpoint,this%current_qpoints_perm_cols(ineigh))
   active_face_id = this%interpolation_face_restriction(ineigh)%active_face_id
   scalar_field =  this%interpolation_face_restriction(ineigh)%interpolation(active_face_id)%                  &
        &          shape_functions(ishape,actual_qpoint)
@@ -377,7 +378,7 @@ subroutine face_integrator_get_gradient_scalar (this, ishape, qpoint, ineigh, ve
   assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
 
-  actual_qpoint = this%quadrature_points_permutation(qpoint,this%current_permutation_key(ineigh))
+  actual_qpoint = this%qpoints_perm(qpoint,this%current_qpoints_perm_cols(ineigh))
   call this%reference_fe(ineigh)%p%get_gradient(this%interpolation_face_restriction(ineigh)%interpolation_o_map,   &
        &                                            ishape,actual_qpoint,vector_field)
 end subroutine face_integrator_get_gradient_scalar

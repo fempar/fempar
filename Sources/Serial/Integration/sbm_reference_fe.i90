@@ -36,17 +36,17 @@
     if(allocated(this%fe_type)) deallocate(this%fe_type)
     if(allocated(this%field_type)) deallocate(this%field_type)
     
-    if (allocated(this%number_rotations_vef)) &
-         call memfree(this%number_rotations_vef,__FILE__,__LINE__)
+    if (allocated(this%number_rotations_per_dimension)) &
+         call memfree(this%number_rotations_per_dimension,__FILE__,__LINE__)
 
-    if (allocated(this%number_orientations_vef)) &
-         call memfree(this%number_orientations_vef,__FILE__,__LINE__)
+    if (allocated(this%number_orientations_per_dimension)) &
+         call memfree(this%number_orientations_per_dimension,__FILE__,__LINE__)
 
-    if (allocated(this%permutation_arrays)) then
-       do i = 1, this%number_dimensions
-          call this%permutation_arrays(i)%free()
+    if (allocated(this%interior_node_permutations)) then
+       do i = 1, this%number_dimensions-1
+          call this%interior_node_permutations(i)%free()
        end do
-       deallocate(this%permutation_arrays)
+       deallocate(this%interior_node_permutations)
     end if
 
     call this%interior_nodes_vef%free()
@@ -124,13 +124,13 @@ subroutine reference_fe_set_common_data( this, number_dimensions, order, field_t
      this%continuity = .true.
   end if
   this%field_type = field_type
-  if( field_type == "scalar" ) then
+  if( this%field_type == field_type_scalar ) then
      this%number_field_components = 1
-  else if ( field_type == "vector" ) then
+  else if ( this%field_type == field_type_vector ) then
      this%number_field_components = number_dimensions
-  else if ( field_type == "tensor" ) then
+  else if ( this%field_type == field_type_tensor ) then
      this%number_field_components = number_dimensions**2
-  else if ( field_type == "symmetric_tensor" ) then
+  else if ( this%field_type == field_type_symmetric_tensor ) then
      this%number_field_components = ((number_dimensions)*(number_dimensions+1))/2
   else
      write (*,*) 'ERROR: field type not defined'
@@ -460,17 +460,22 @@ end function reference_fe_get_continuity
 
     integer(ip) :: vef_dimension, permutation_key, permuted_interior_node
     
-    assert ( allocated ( this%number_rotations_vef ) )
-    assert ( allocated ( this%number_orientations_vef ) )
-    assert ( allocated ( this%permutation_arrays ) )
+    assert ( allocated ( this%number_rotations_per_dimension ) )
+    assert ( allocated ( this%number_orientations_per_dimension ) )
+    assert ( allocated ( this%interior_node_permutations ) )
 
     vef_dimension = this%get_vef_dimension(target_vef_id)
-    permutation_key = relative_rotation +                                                         &
-         &         this%number_rotations_vef(vef_dimension+1)*relative_orientation
     
-    permuted_interior_node = this%permutation_arrays          &
-         & (vef_dimension+1)%a(inode,permutation_key)
+    if ( vef_dimension == 0 ) then
+      permuted_interior_node = inode
+    else
+      permutation_key = relative_rotation +                                                         &
+         &              this%number_rotations_per_dimension(vef_dimension)*relative_orientation
+    
+      permuted_interior_node = this%interior_node_permutations          &
+                              & (vef_dimension)%a(inode,permutation_key)
 
+    end if                          
     reference_fe_get_permuted_interior_node_vef = this%interior_nodes_vef%                        &
           & l(this%interior_nodes_vef%p(target_vef_id) + permuted_interior_node -1)
   end function reference_fe_get_permuted_interior_node_vef
