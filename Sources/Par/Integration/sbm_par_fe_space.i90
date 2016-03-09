@@ -209,40 +209,39 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id )
 
   do ighost = 1, this%par_triangulation%num_ghosts
      if ( this%ghost_fe_array(ighost)%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
-       ! Fill elem2dof on ghost elements from the elem2dof 
-       ! already computed on neighbouring local elements
-       do ivef = 1, this%ghost_fe_array(ighost)%cell%num_vefs
-          vef_lid = this%ghost_fe_array(ighost)%cell%vefs(ivef)
-          if ( vef_lid /= -1 ) then
-            ! Find local element around vef_lid in elem_id
-            do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
-              elem_id = this%triangulation%vefs(vef_lid)%elems_around(ielem)
-              ! Is elem_id a local element ?
-              if ( elem_id <= this%triangulation%num_elems ) exit
-            end do
-            
-            ! Find local position of vef_lid in elem_id            
-            ivef_in_elem_id = this%fe_array(elem_id)%cell%find_local_pos_from_vef_id(vef_lid)
-            
-            call this%ghost_fe_array(ighost)%fill_interior_dofs_on_vef_from_source_element ( ivef, &
-                                                                                             this%fe_array(elem_id), &
-                                                                                             ivef_in_elem_id, &
-                                                                                             fe_space_id )
-          end if
-       end do 
+        ! Fill elem2dof on ghost elements from the elem2dof 
+        ! already computed on neighbouring local elements
+        do ivef = 1, this%ghost_fe_array(ighost)%cell%num_vefs
+           vef_lid = this%ghost_fe_array(ighost)%cell%vefs(ivef)
+           if ( vef_lid /= -1 ) then
+              ! Find local element around vef_lid in elem_id
+              do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
+                 elem_id = this%triangulation%vefs(vef_lid)%elems_around(ielem)
+                 ! Is elem_id a local element ?
+                 if ( elem_id <= this%triangulation%num_elems ) then
+                    if ( this%fe_array(elem_id)%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
+                       ! Find local position of vef_lid in elem_id            
+                       ivef_in_elem_id = this%fe_array(elem_id)%cell%find_local_pos_from_vef_id(vef_lid) 
+                       call this%ghost_fe_array(ighost)%fill_interior_dofs_on_vef_from_source_element ( ivef, &
+                            this%fe_array(elem_id), ivef_in_elem_id, fe_space_id )    
+                       exit
+                    end if
+                 end if
+              end do
+           end if
+        end do
      else
-       ! Fill elem2dof on ghost elements by assigning new dof identifiers
-       ! to all DoFs placed on local faces
-       first_face_id = this%ghost_fe_array(ighost)%cell%reference_fe_geo%get_first_face_id()
-       num_faces     = this%ghost_fe_array(ighost)%cell%reference_fe_geo%get_number_faces()
-       do ivef = first_face_id, first_face_id+num_faces-1
-         vef_lid = this%ghost_fe_array(ighost)%cell%vefs(ivef)
-         if ( vef_lid /= -1 ) then
-         call this%ghost_fe_array(ighost)%fill_dofs_on_vef ( ivef, &
-                                                             fe_space_id, &
-                                                             current_dof_block )
-         end if
-       end do
+        ! Fill elem2dof on ghost elements by assigning new dof identifiers
+        ! to all DoFs placed on local faces
+        first_face_id = this%ghost_fe_array(ighost)%cell%reference_fe_geo%get_first_face_id()
+        num_faces     = this%ghost_fe_array(ighost)%cell%reference_fe_geo%get_number_faces()
+        do ivef = first_face_id, first_face_id+num_faces-1
+           vef_lid = this%ghost_fe_array(ighost)%cell%vefs(ivef)
+           if ( vef_lid /= -1 ) then
+              call this%ghost_fe_array(ighost)%fill_dofs_on_vef ( ivef, &
+                   fe_space_id, current_dof_block )
+           end if
+        end do
      end if
   end do
 

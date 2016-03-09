@@ -145,9 +145,9 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id )
             call this%fe_array(ielem)%fill_interior_dofs_on_vef ( ivef, fe_space_id, current_dof_block  ) 
           else 
             call this%fe_array(ielem)%fill_interior_dofs_on_vef_from_source_element ( ivef, &
-                                                                 this%fe_array(visited_vef_to_elem_map(1,vef_id)), &
-                                                                 visited_vef_to_elem_map(2,vef_id), &
-                                                                 fe_space_id) 
+                                                                                      this%fe_array(visited_vef_to_elem_map(1,vef_id)), &
+                                                                                      visited_vef_to_elem_map(2,vef_id), &
+                                                                                      fe_space_id) 
           end if
        end do   
     end if
