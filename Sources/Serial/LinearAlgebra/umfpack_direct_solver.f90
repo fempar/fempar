@@ -31,8 +31,8 @@ private
 #ifdef ENABLE_UMFPACK
         real(c_double) :: Control(0:UMFPACK_CONTROL-1)            
         real(c_double) :: Info(0:UMFPACK_INFO-1)            
-        integer(ip)    :: Matrix_numbering = FORTRAN_NUMBERING
 #endif
+        integer(ip)    :: Matrix_numbering = FORTRAN_NUMBERING
     contains
     private
         procedure, public :: free_clean              => umfpack_direct_solver_free_clean
@@ -269,7 +269,7 @@ contains
                 call op%C_to_Fortran_numbering()
         end select
 #else
-        call this%not_enabled_error
+        call op%not_enabled_error()
 #endif
     end subroutine umfpack_direct_solver_solve
 
@@ -332,6 +332,7 @@ contains
         class(umfpack_direct_solver_t), intent(inout) :: this
         class(base_sparse_matrix_t), pointer          :: matrix
     !-----------------------------------------------------------------
+#ifdef ENABLE_UMFPACK
         if(this%Matrix_Numbering == FORTRAN_NUMBERING) then
             matrix => this%matrix%get_pointer_to_base_matrix()
             select type (matrix)
@@ -341,6 +342,9 @@ contains
                     this%Matrix_Numbering = C_NUMBERING
             end select
         endif
+#else
+        call this%not_enabled_error()
+#endif
     end subroutine
 
 
@@ -351,6 +355,7 @@ contains
         class(umfpack_direct_solver_t), intent(inout) :: this
         class(base_sparse_matrix_t), pointer          :: matrix
     !-----------------------------------------------------------------
+#ifdef ENABLE_UMFPACK
         if(this%Matrix_Numbering == C_NUMBERING) then
             matrix => this%matrix%get_pointer_to_base_matrix()
             select type (matrix)
@@ -360,6 +365,9 @@ contains
                     this%Matrix_Numbering = FORTRAN_NUMBERING
             end select
         endif
+#else
+        call this%not_enabled_error()
+#endif
     end subroutine
 
 
