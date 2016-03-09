@@ -238,9 +238,9 @@ module reference_fe_names
      type(list_t)                   :: vefs_vef           ! all vefs per vef
      type(quadrature_t)             :: nodal_quadrature
 
-     integer(ip), allocatable :: number_rotations_vef(:)
-     integer(ip), allocatable :: number_orientations_vef(:)
-     type(allocatable_array_ip2_t), allocatable :: permutation_arrays(:)
+     integer(ip), allocatable :: number_rotations_per_dimension(:)
+     integer(ip), allocatable :: number_orientations_per_dimension(:)
+     type(allocatable_array_ip2_t), allocatable :: interior_node_permutations(:)
    contains
      ! TBPs
      ! Fill topology, fe_type, number_dimensions, order, continuity 
@@ -293,9 +293,8 @@ module reference_fe_names
      procedure (check_compatibility_of_vefs_interface), deferred :: &
           &     check_compatibility_of_vefs
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
-     procedure (set_nodal_quadrature_interface), deferred :: set_nodal_quadrature
-     procedure (fill_face_points_permutation_interface), deferred :: &
-          &                                  fill_face_points_permutation
+     procedure (set_nodal_quadrature_interface), deferred :: set_nodal_quadrature          
+     procedure (fill_interior_points_permutation_interface), deferred :: fill_interior_points_permutation
 
      procedure (set_scalar_field_to_nodal_values_interface), deferred :: set_scalar_field_to_nodal_values
      procedure (set_vector_field_to_nodal_values_interface), deferred :: set_vector_field_to_nodal_values
@@ -346,10 +345,10 @@ module reference_fe_names
      procedure :: get_number_nodes_vef => reference_fe_get_number_nodes_vef
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
-     procedure :: get_orientation => reference_fe_get_orientation     
+     procedure :: get_orientation => reference_fe_get_orientation   
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
-     procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
+     procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
      procedure :: get_permuted_interior_node_vef  => reference_fe_get_permuted_interior_node_vef
   end type reference_fe_t
 
@@ -600,14 +599,18 @@ module reference_fe_names
        integer(ip)          , intent(in)    :: nodal_codes(:)
        real(rp)             , intent(inout) :: nodal_values(:)
      end subroutine set_tensor_field_to_nodal_values_interface
-     
-     subroutine fill_face_points_permutation_interface( this,quadrature,permutation_array )
-       import :: reference_fe_t, quadrature_t,ip
+               
+     subroutine fill_interior_points_permutation_interface( this,&
+                                                            dimension,&
+                                                            number_interior_points,&
+                                                            interior_points_permutation )
+       import :: reference_fe_t, ip
        implicit none 
        class(reference_fe_t)                 , intent(inout) :: this 
-       type(quadrature_t)                    , intent(in)    :: quadrature
-       integer(ip)      , allocatable, target, intent(inout) :: permutation_array(:,:)
-     end subroutine fill_face_points_permutation_interface
+       integer(ip)                           , intent(in)    :: dimension
+       integer(ip)                           , intent(in)    :: number_interior_points
+       integer(ip)      , allocatable        , intent(inout) :: interior_points_permutation(:,:)
+     end subroutine fill_interior_points_permutation_interface
 
      subroutine interpolate_nodal_values_interface(this,nodal_interpolation,nodal_values_origin, &
           &                                        nodal_values_destination)
@@ -672,9 +675,9 @@ module reference_fe_names
      procedure :: free                      => quad_lagrangian_reference_fe_free
      procedure :: get_characteristic_length &
           &                          => quad_lagrangian_reference_fe_get_characteristic_length
-     procedure :: fill_face_points_permutation &
-          &                   => quad_lagrangian_reference_fe_fill_face_points_permutation
-     procedure :: fill_permutation_array => quad_lagrangian_reference_fe_fill_permutation_array
+          
+     procedure :: fill_interior_points_permutation &
+          &                   => quad_lagrangian_reference_fe_fill_interior_points_permutation     
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t
@@ -781,16 +784,16 @@ type face_integrator_t
    logical                                :: is_boundary
    type(interpolation_face_restriction_t) :: interpolation_face_restriction(2)
    type(p_reference_fe_t)                 :: reference_fe(2)
-   integer(ip), allocatable               :: quadrature_points_permutation(:,:)
+   integer(ip)                            :: current_qpoints_perm_cols(2)
+   integer(ip), allocatable               :: qpoints_perm(:,:)
  contains
    procedure, non_overridable :: create            => face_integrator_create
    procedure, non_overridable :: update            => face_integrator_update
    procedure, non_overridable :: free              => face_integrator_free
    procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
-   generic :: get_value => get_value_scalar
-   procedure, non_overridable :: get_gradient_scalar                                              &
-        &                                          => face_integrator_get_gradient_scalar
-   generic :: get_gradient => get_gradient_scalar
+   generic                    :: get_value         => get_value_scalar
+   procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
+   generic                    :: get_gradient => get_gradient_scalar
 end type face_integrator_t
 
 type p_face_integrator_t
