@@ -483,8 +483,8 @@ contains
     type(serial_environment_t)           :: senv
     class(vector_t), allocatable         :: computed_solution_vector, exact_solution_vector
     class(matrix_t)            , pointer :: matrix
-    class(array_t)             , pointer :: array
-
+    class(array_t)             , pointer :: array    
+    
     ! Simple case
      reference_fe_array(1) =  make_reference_fe ( topology = topology_quad, &
                                                   fe_type = fe_type_lagrangian, &

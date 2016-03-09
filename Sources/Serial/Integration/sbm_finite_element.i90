@@ -202,9 +202,6 @@ subroutine finite_element_fill_dofs_on_vef_from_source_element ( this, &
   source_ref_fe => source_fe%reference_fe_phy(fe_space_id)%p
   target_ref_fe => this%reference_fe_phy(fe_space_id)%p
   
-  assert ( source_ref_fe%get_number_interior_nodes_vef(source_vef_lid) == target_ref_fe%get_number_interior_nodes_vef(target_vef_lid) )
-  assert ( source_ref_fe%get_vef_dimension(source_vef_lid) == target_ref_fe%get_vef_dimension(target_vef_lid) )
-
   interior_nnode = source_ref_fe%get_number_interior_nodes_vef(source_vef_lid)
   if ( interior_nnode > 0 ) then
 
