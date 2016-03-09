@@ -297,7 +297,7 @@ contains
                   &    face%relative_face(1) -1,                                                    &
                   &    local_vef_id)
 
-             ! Compute relative orientation
+             ! Compute relative rotation
              face%relative_rotation = face%neighbour_elems(1)%p%reference_fe_geo%compute_relative_rotation &
                   &   (elem%reference_fe_geo,                                                       &
                   &    local_vef_id,                                                                &
