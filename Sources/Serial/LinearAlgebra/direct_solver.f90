@@ -22,8 +22,8 @@ implicit none
     private
         procedure, non_overridable, public :: set_type                     => direct_solver_set_type
         procedure, non_overridable, public :: set_defaults                 => direct_solver_set_defaults
-        procedure, non_overridable, public :: set_type_from_parameter_list => direct_solver_set_type_from_parameter_list
-        procedure, non_overridable, public :: set_from_parameter_list      => direct_solver_set_from_parameter_list
+        procedure, non_overridable, public :: set_type_from_pl             => direct_solver_set_type_from_pl
+        procedure, non_overridable, public :: set_parameters_from_pl       => direct_solver_set_parameters_from_pl
         procedure, non_overridable, public :: set_matrix                   => direct_solver_set_matrix
         procedure, non_overridable, public :: symbolic_setup               => direct_solver_symbolic_setup
         procedure, non_overridable, public :: numerical_setup              => direct_solver_numerical_setup
@@ -55,7 +55,7 @@ contains
     end subroutine direct_solver_set_type
 
 
-    subroutine direct_solver_set_type_from_parameter_list(this, parameter_list)
+    subroutine direct_solver_set_type_from_pl(this, parameter_list)
     !-----------------------------------------------------------------
     !< Allocate the concrete direct solver from a solver name stored 
     !< in the parameter list
@@ -65,13 +65,25 @@ contains
         character(len=:), allocatable         :: name
         integer(I4P)                          :: DataSizeInBytes
         integer                               :: FPLError
+#ifdef DEBUG
+        logical                               :: is_present
+        logical                               :: is_string
+        integer(ip), allocatable              :: shape(:)
     !-----------------------------------------------------------------
+        is_present = parameter_list%isPresent(Key=direct_solver_type)
+        is_string = parameter_list%isOfDataType(Key=direct_solver_type, mold=name)
+        shape = parameter_list%getshape(Key=direct_solver_type)
+        ! check if direct_solver_type is present and is a scalar string
+        ! in the given parameter list,
+        assert(is_present .and. is_string .and. size(shape) == 0) 
+#endif
         DataSizeInBytes = parameter_list%DataSizeInBytes(Key=direct_solver_type)
         allocate(character(len=DataSizeInBytes) :: name, stat=FPLError)
         assert(FPLError == 0)
         FPLError = parameter_list%Get(Key=direct_solver_type, Value=name)
+        assert(FPLError == 0)
         call this%set_type(name)
-    end subroutine direct_solver_set_type_from_parameter_list
+    end subroutine direct_solver_set_type_from_pl
 
 
     subroutine direct_solver_set_defaults(this)
@@ -85,7 +97,7 @@ contains
     end subroutine direct_solver_set_defaults
 
 
-    subroutine direct_solver_set_from_parameter_list(this, parameter_list)
+    subroutine direct_solver_set_parameters_from_pl(this, parameter_list)
     !-----------------------------------------------------------------
     !< Set parameters from values stored in a given parameter list
     !-----------------------------------------------------------------
@@ -93,8 +105,8 @@ contains
         type(ParameterList_t),  intent(in)    :: parameter_list
     !-----------------------------------------------------------------
         assert(associated(this%base_direct_solver))
-        call this%base_direct_solver%set_from_parameter_list(parameter_list)
-    end subroutine direct_solver_set_from_parameter_list
+        call this%base_direct_solver%set_parameters_from_pl(parameter_list)
+    end subroutine direct_solver_set_parameters_from_pl
 
 
 

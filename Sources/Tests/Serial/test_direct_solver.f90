@@ -62,10 +62,10 @@ implicit none
 
 #ifdef ENABLE_MKL
     ! Direct solver: create and set properties
-    call direct_solver%set_type_from_parameter_list(direct_solver_parameters)
+    call direct_solver%set_type_from_pl(direct_solver_parameters)
     call direct_solver%set_matrix(sparse_matrix)
     call direct_solver%set_defaults()
-    call direct_solver%set_from_parameter_list(direct_solver_parameters)
+    call direct_solver%set_parameters_from_pl(direct_solver_parameters)
 
     ! Direct solver: analisys, factorization and solve
     call direct_solver%symbolic_setup()
@@ -91,10 +91,10 @@ implicit none
 
 #ifdef ENABLE_UMFPACK
     ! Direct solver: create and set properties
-    call direct_solver%set_type_from_parameter_list(direct_solver_parameters)
+    call direct_solver%set_type_from_pl(direct_solver_parameters)
     call direct_solver%set_matrix(sparse_matrix)
     call direct_solver%set_defaults()
-    call direct_solver%set_from_parameter_list(direct_solver_parameters)
+    call direct_solver%set_parameters_from_pl(direct_solver_parameters)
 
     ! Direct solver: analisys, factorization and solve
     call direct_solver%symbolic_setup()

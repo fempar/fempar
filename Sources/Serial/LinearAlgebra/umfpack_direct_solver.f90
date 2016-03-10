@@ -40,7 +40,7 @@ private
         procedure, public :: free_numerical          => umfpack_direct_solver_free_numerical
         procedure         :: initialize              => umfpack_direct_solver_initialize
         procedure, public :: set_defaults            => umfpack_direct_solver_set_defaults
-        procedure, public :: set_from_parameter_list => umfpack_direct_solver_set_from_parameter_list
+        procedure, public :: set_parameters_from_pl  => umfpack_direct_solver_set_parameters_from_pl
         procedure         :: Fortran_to_C_numbering  => umfpack_direct_solver_Fortran_to_C_numbering
         procedure         :: C_to_Fortran_numbering  => umfpack_direct_solver_C_to_Fortran_numbering
         procedure, public :: symbolic_setup          => umfpack_direct_solver_symbolic_setup
@@ -102,7 +102,7 @@ contains
     end subroutine umfpack_direct_solver_set_defaults
 
 
-    subroutine umfpack_direct_solver_set_from_parameter_list(this, parameter_list)
+    subroutine umfpack_direct_solver_set_parameters_from_pl(this, parameter_list)
     !-----------------------------------------------------------------
     !< Set UMPACK parameters from a given ParameterList
     !-----------------------------------------------------------------
@@ -117,7 +117,7 @@ contains
 #else
         call this%not_enabled_error()
 #endif
-    end subroutine umfpack_direct_solver_set_from_parameter_list
+    end subroutine umfpack_direct_solver_set_parameters_from_pl
 
 
     subroutine umfpack_direct_solver_symbolic_setup(this)

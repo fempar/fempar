@@ -23,7 +23,7 @@ module wsmp_direct_solver_names
         procedure, public :: free_numerical          => wsmp_direct_solver_free_numerical
         procedure         :: initialize              => wsmp_direct_solver_initialize
         procedure, public :: set_defaults            => wsmp_direct_solver_set_defaults
-        procedure, public :: set_from_parameter_list => wsmp_direct_solver_set_from_parameter_list
+        procedure, public :: set_parameters_from_pl  => wsmp_direct_solver_set_parameters_from_pl
         procedure, public :: symbolic_setup          => wsmp_direct_solver_symbolic_setup
         procedure, public :: numerical_setup         => wsmp_direct_solver_numerical_setup
         procedure, public :: solve                   => wsmp_direct_solver_solve
@@ -39,10 +39,10 @@ contains
         class(wsmp_direct_solver_t),   intent(inout) :: this
     end subroutine wsmp_direct_solver_set_defaults
 
-    subroutine wsmp_direct_solver_set_from_parameter_list(this, parameter_list)
+    subroutine wsmp_direct_solver_set_parameters_from_pl(this, parameter_list)
         class(wsmp_direct_solver_t),  intent(inout) :: this
         type(ParameterList_t),        intent(in)    :: parameter_list
-    end subroutine wsmp_direct_solver_set_from_parameter_list
+    end subroutine wsmp_direct_solver_set_parameters_from_pl
 
     subroutine wsmp_direct_solver_symbolic_setup(this)
         class(wsmp_direct_solver_t), intent(inout) :: this

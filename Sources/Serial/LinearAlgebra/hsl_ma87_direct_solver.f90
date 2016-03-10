@@ -22,7 +22,7 @@ module hsl_ma87_direct_solver_names
         procedure, public :: free_numerical          => hsl_ma87_direct_solver_free_numerical
         procedure         :: initialize              => hsl_ma87_direct_solver_initialize
         procedure, public :: set_defaults            => hsl_ma87_direct_solver_set_defaults
-        procedure, public :: set_from_parameter_list => hsl_ma87_direct_solver_set_from_parameter_list
+        procedure, public :: set_parameters_from_pl  => hsl_ma87_direct_solver_set_parameters_from_pl
         procedure, public :: symbolic_setup          => hsl_ma87_direct_solver_symbolic_setup
         procedure, public :: numerical_setup         => hsl_ma87_direct_solver_numerical_setup
         procedure, public :: solve                   => hsl_ma87_direct_solver_solve
@@ -38,10 +38,10 @@ contains
         class(hsl_ma87_direct_solver_t),      intent(inout) :: this
     end subroutine hsl_ma87_direct_solver_set_defaults
 
-    subroutine hsl_ma87_direct_solver_set_from_parameter_list(this, parameter_list)
+    subroutine hsl_ma87_direct_solver_set_parameters_from_pl(this, parameter_list)
         class(hsl_ma87_direct_solver_t),  intent(inout) :: this
         type(ParameterList_t),            intent(in)    :: parameter_list
-    end subroutine hsl_ma87_direct_solver_set_from_parameter_list
+    end subroutine hsl_ma87_direct_solver_set_parameters_from_pl
 
     subroutine hsl_ma87_direct_solver_symbolic_setup(this)
         class(hsl_ma87_direct_solver_t), intent(inout) :: this

@@ -56,7 +56,7 @@ module pardiso_mkl_direct_solver_names
         procedure, public :: free_numerical          => pardiso_mkl_direct_solver_free_numerical
         procedure         :: initialize              => pardiso_mkl_direct_solver_initialize
         procedure, public :: set_defaults            => pardiso_mkl_direct_solver_set_defaults
-        procedure, public :: set_from_parameter_list => pardiso_mkl_direct_solver_set_from_parameter_list
+        procedure, public :: set_parameters_from_pl  => pardiso_mkl_direct_solver_set_parameters_from_pl
         procedure, public :: symbolic_setup          => pardiso_mkl_direct_solver_symbolic_setup
         procedure, public :: numerical_setup         => pardiso_mkl_direct_solver_numerical_setup
         procedure, public :: solve                   => pardiso_mkl_direct_solver_solve
@@ -169,30 +169,80 @@ contains
     end subroutine pardiso_mkl_direct_solver_set_defaults
 
 
-    subroutine pardiso_mkl_direct_solver_set_from_parameter_list(this, parameter_list)
+    subroutine pardiso_mkl_direct_solver_set_parameters_from_pl(this, parameter_list)
     !-----------------------------------------------------------------
     !< Set PARDISO parameters from a given ParameterList
     !-----------------------------------------------------------------
         class(pardiso_mkl_direct_solver_t),  intent(inout) :: this
         type(ParameterList_t),               intent(in)    :: parameter_list
         integer(ip)                                        :: FPLError
-        integer(ip)                                        :: i
+        integer(ip)                                        :: matrix_type
         logical                                            :: is_present
         logical                                            :: same_data_type
         integer(ip), allocatable                           :: shape(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         assert(.not. this%state_is_start())
+        
         ! Matrix type
-        FPLError = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=this%matrix_type)
-        ! iparm
-        FPLError = parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
-        ! Message level
-        FPLError = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
+#ifdef DEBUG
+        is_present     = parameter_list%isPresent(Key=pardiso_mkl_matrix_type)
+        if(is_present) then
+            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_matrix_type, mold=this%matrix_type)
+            shape          = parameter_list%getshape(Key=pardiso_mkl_matrix_type)
+            if(same_data_type .and. size(shape) == 0) then
+#endif
+                FPLError   = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=matrix_type)
+                assert(FPLError == 0)
+                if(this%state_is_symbolic()) then
+                    ! Matrix cannot change in symbolic to numeric transition
+                    assert(matrix_type == this%matrix_type)
+                endif
+                this%matrix_type = matrix_type
+#ifdef DEBUG
+            else
+                write(*,'(a)') ' Warning! pardiso_mkl_matrix_type ignored. Wrong data type or shape. '
+            endif
+        endif
+
+         ! iparm
+        is_present     = parameter_list%isPresent(Key=pardiso_mkl_iparm)
+        if(is_present) then
+            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%matrix_type)
+            shape          = parameter_list%getshape(Key=pardiso_mkl_iparm)
+            if(same_data_type .and. size(shape) == 1) then
+                if(shape(1) == 64) then
+#endif
+                    FPLError =  parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
+                    assert(FPLError == 0)
+#ifdef DEBUG
+                else
+                    write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Expected size (64). '
+                endif
+            else
+                write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Wrong data type or shape. '
+            endif
+        endif
+
+         ! Message level
+        is_present     = parameter_list%isPresent(Key=pardiso_mkl_message_level)
+        if(is_present) then
+            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%matrix_type)
+            shape          = parameter_list%getshape(Key=pardiso_mkl_iparm)
+            if(same_data_type .and. size(shape) == 0) then
+#endif
+                FPLError   = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
+                assert(FPLError == 0)
+#ifdef DEBUG
+            else
+                write(*,'(a)') ' Warning! pardiso_mkl_message_level ignored. Wrong data type or shape. '
+            endif
+        endif
+#endif
 #else
         call this%not_enabled_error()
 #endif
-    end subroutine pardiso_mkl_direct_solver_set_from_parameter_list
+    end subroutine pardiso_mkl_direct_solver_set_parameters_from_pl
 
 
     subroutine pardiso_mkl_direct_solver_symbolic_setup(this)

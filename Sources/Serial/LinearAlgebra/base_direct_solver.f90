@@ -33,7 +33,7 @@ module base_direct_solver_names
         procedure(base_direct_solver_free_symbolic),           public, deferred :: free_symbolic
         procedure(base_direct_solver_free_numerical),          public, deferred :: free_numerical
         procedure(base_direct_solver_set_defaults),            public, deferred :: set_defaults
-        procedure(base_direct_solver_set_from_parameter_list), public, deferred :: set_from_parameter_list
+        procedure(base_direct_solver_set_parameters_from_pl),  public, deferred :: set_parameters_from_pl
         procedure(base_direct_solver_symbolic_setup),          public, deferred :: symbolic_setup
         procedure(base_direct_solver_numerical_setup),         public, deferred :: numerical_setup
         procedure(base_direct_solver_solve),                   public, deferred :: solve
@@ -68,12 +68,12 @@ module base_direct_solver_names
             class(base_direct_solver_t),   intent(inout) :: this
         end subroutine base_direct_solver_set_defaults
 
-        subroutine base_direct_solver_set_from_parameter_list(this, parameter_list)
+        subroutine base_direct_solver_set_parameters_from_pl(this, parameter_list)
             import base_direct_solver_t
             import ParameterList_t
             class(base_direct_solver_t),   intent(inout) :: this
             type(ParameterList_t),         intent(in)    :: parameter_list
-        end subroutine base_direct_solver_set_from_parameter_list
+        end subroutine base_direct_solver_set_parameters_from_pl
 
         subroutine base_direct_solver_symbolic_setup(this)
             import base_direct_solver_t
@@ -127,14 +127,15 @@ contains
     subroutine base_direct_solver_set_name(this, name)
         class(base_direct_solver_t),   intent(inout) :: this
         character(len=*),              intent(in)    :: name
-        assert(.not. this%state_is_symbolic() .or. .not. this%state_is_numeric())
+        assert(this%state_is_start())
         this%name = name
     end subroutine base_direct_solver_set_name
 
     subroutine base_direct_solver_set_matrix(this, matrix)
         class(base_direct_solver_t),   intent(inout) :: this
         type(sparse_matrix_t), target, intent(in)    :: matrix
-        assert(.not. this%state_is_symbolic() .or. .not. this%state_is_numeric())
+        assert(.not. this%state_is_symbolic())
+        assert(.not. this%state_is_numeric())
         this%matrix => matrix
     end subroutine base_direct_solver_set_matrix
 
