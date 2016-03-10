@@ -44,10 +44,10 @@ module vector_names
      procedure (nrm2_interface), deferred     :: nrm2
      procedure (clone_interface), deferred    :: clone
      procedure (same_vector_space_interface), deferred :: same_vector_space
-					procedure (get_number_blocks_interface), deferred :: get_number_blocks
+     procedure (get_number_blocks_interface), deferred :: get_number_blocks
      procedure (vector_extract_subvector_interface), deferred :: extract_subvector 
      
-					procedure :: sum_vector
+     procedure :: sum_vector
      procedure :: sub_vector
      procedure :: minus_vector
      procedure, pass(left)  :: scal_left_vector

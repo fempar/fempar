@@ -81,37 +81,37 @@ module nsi_iss_oss_analytical_functions_names
   private
 
   type, extends(vector_function_t) :: velocity_function_t
-     integer(ip) :: swich
+     integer(ip) :: switch
    contains
      procedure, non_overridable :: get_value_space_time => velocity_get_value_space_time
   end type velocity_function_t
 
   type, extends(vector_function_t) :: dt_velocity_function_t
-     integer(ip) :: swich
+     integer(ip) :: switch
    contains
      procedure, non_overridable :: get_value_space_time => dt_velocity_get_value_space_time
   end type dt_velocity_function_t
 
   type, extends(tensor_function_t) :: velocity_gradient_function_t
-     integer(ip) :: swich
+     integer(ip) :: switch
    contains
      procedure, non_overridable :: get_value_space_time => velocity_gradient_get_value_space_time
   end type velocity_gradient_function_t
 
   type, extends(vector_function_t) :: velocity_grad_div_function_t
-     integer(ip) :: swich
+     integer(ip) :: switch
    contains
      procedure, non_overridable :: get_value_space_time => velocity_grad_div_get_value_space_time
   end type velocity_grad_div_function_t
 
   type, extends(scalar_function_t) :: pressure_function_t
-     integer(ip) :: swich
+     integer(ip) :: switch
    contains
      procedure, non_overridable :: get_value_space_time => pressure_get_value_space_time
   end type pressure_function_t
 
   type, extends(vector_function_t) :: pressure_gradient_function_t
-     integer(ip) :: swich
+     integer(ip) :: switch
    contains
      procedure, non_overridable :: get_value_space_time => pressure_gradient_get_value_space_time
   end type pressure_gradient_function_t
