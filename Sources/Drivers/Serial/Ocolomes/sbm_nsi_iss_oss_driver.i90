@@ -135,9 +135,9 @@
   ! SOLVER !
   !--------!
   ! Create solver
-!!$  call linear_solver%create(senv)
-!!$  call linear_solver%set_type_and_parameters_from_pl()
-!!$  call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+!!$  call iterative_linear_solver%create(senv)
+!!$  call iterative_linear_solver%set_type_and_parameters_from_pl()
+!!$  call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
 
   !----------------!
   ! NONLINEAR LOOP !
@@ -152,13 +152,13 @@
      counter = counter + 1
 
      ! Update linear solver
-     call linear_solver%create(senv)
-     call linear_solver%set_type_and_parameters_from_pl()
-     call linear_solver%set_type_from_string('RGMRES')
-     call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call linear_solver%set_initial_solution(dof_values)
-     call linear_solver%solve(dof_values)
-     call linear_solver%free()
+     call iterative_linear_solver%create(senv)
+     call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_type_from_string('RGMRES')
+     call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     call iterative_linear_solver%set_initial_solution(dof_values)
+     call iterative_linear_solver%solve(dof_values)
+     call iterative_linear_solver%free()
 
      ! Update affine operator and residual
      call fe_affine_operator%free_in_stages(free_numerical_setup)
@@ -187,7 +187,7 @@
   call dof_values%free()
   call residual%free()
   call fe_affine_operator%free()
-!!$  call linear_solver%free()
+!!$  call iterative_linear_solver%free()
   call fe_space%free()
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
