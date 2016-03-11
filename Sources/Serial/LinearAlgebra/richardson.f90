@@ -47,7 +47,7 @@ module richardson_names
   integer (ip), parameter :: default_richardson_stopping_criteria = res_res
   real (rp)   , parameter :: default_richardson_relaxation        = 1.0_rp
 
-  type, extends(base_linear_solver_t) :: richardson_t
+  type, extends(base_iterative_linear_solver_t) :: richardson_t
     ! Working space vectors for type(richardson_t)
     class(vector_t), allocatable :: r
     class(vector_t), allocatable :: z 
@@ -214,7 +214,7 @@ contains
   function create_richardson(environment)
     implicit none
     class(environment_t), intent(in) :: environment
-    class(base_linear_solver_t), pointer :: create_richardson
+    class(base_iterative_linear_solver_t), pointer :: create_richardson
     type(richardson_t), pointer :: richardson
     allocate(richardson)
     call richardson%set_environment(environment)

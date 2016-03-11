@@ -1,6 +1,7 @@
 #################################################################
 # HEADER
 #################################################################
+
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.11)
 SET(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS TRUE)
 
@@ -8,13 +9,9 @@ PROJECT(FEMPAR Fortran C)
 
 SET(${PROJECT_NAME}_VERSION 0.0.1)
 SET(${PROJECT_NAME}_SOVERSION 1)
-SET(SERIAL_LIB serial)   # SERIAL library
-SET(PAR_LIB par)         # PAR library
 SET(${PROJECT_NAME}_USER "" CACHE STRING "")
 
 SET(CMAKE_VERBOSE_MAKEFILE TRUE)
-
-message ("-----------------------------------------")
 
 #################################################################
 # DEFINE PATHS
@@ -28,15 +25,15 @@ SET(PAR_PATH ${SRC_PATH}/Par)
 SET(SERIAL_DRIVERS_PATH ${SRC_PATH}/Drivers/Serial)
 SET(PAR_DRIVERS_PATH ${SRC_PATH}/Drivers/Par)
 
-SET(SERIAL_TESTS_PATH ${SRC_PATH}/Tests/Serial)
-SET(PAR_TESTS_PATH ${SRC_PATH}/Tests/Par)
-SET(SCRIPTS_TESTS_PATH ${SRC_PATH}/Tests/Scripts)
-SET(DATA_TESTS_PATH ${SRC_PATH}/Tests/Data)
+SET(TESTS_PATH ${SRC_PATH}/Tests)
+SET(SERIAL_TESTS_PATH ${TESTS_PATH}/Serial)
+SET(PAR_TESTS_PATH ${TESTS_PATH}/Par)
+SET(SCRIPTS_TESTS_PATH ${TESTS_PATH}/Scripts)
+SET(DATA_TESTS_PATH ${TESTS_PATH}/Data)
 
 SET(GENERIC_PATH ${SRC_PATH}/Generic)
 
 SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake/Modules/")
-
 
 #################################################################
 # BUILD PATHS
@@ -78,9 +75,41 @@ SET(EXT_LIBS MKL BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK 
 SET(MKL_FIND_QUIETLY TRUE) 
 
 #################################################################
-# Find packages
+# Find REQUIRED MPI library and check MPI.mod compatibility
 #################################################################
 
+FIND_PACKAGE(MPI REQUIRED)
+
+IF(MPI_FOUND)
+    # Add MPI directories
+    ADD_DEFINITIONS(${MPI_Fortran_COMPILE_FLAGS})
+    INCLUDE_DIRECTORIES(${MPI_Fortran_INCLUDE_PATH})
+    LINK_DIRECTORIES(${MPI_Fortran_LIBRARIES})
+
+    # Find mpi.mod
+    FIND_PATH(MPI_MOD_FOUND mpi.mod  PATHS ${MPI_Fortran_INCLUDE_PATH})
+    IF(MPI_MOD_FOUND)
+        TRY_COMPILE(FORTRAN_COMPILER_MATCH_MPI_MOD 
+                    ${PROJECT_BINARY_DIR} 
+                    ${TESTS_PATH}/try_compile_mpi_mod.f90	
+                    CMAKE_FLAGS
+                        "-DINCLUDE_DIRECTORIES:STRING=${MPI_Fortran_INCLUDE_PATH}"
+                        "-DLINK_LIBRARIES:STRING=${MPI_Fortran_LIBRARIES}")
+        IF(FORTRAN_COMPILER_MATCH_MPI_MOD)
+            ADD_DEFINITIONS(-DMPI_MOD)
+        ELSE()
+            MESSAGE(WARNING "MPI: mpi.mod file is NOT COMPATIBLE with this compiler! mpif.h is going be included instead")
+            ADD_DEFINITIONS(-DMPI_H)            
+        ENDIF()
+    ELSE()
+        MESSAGE(WARNING "MPI: mpi.mod file NOT FOUND! mpif.h is going to be included instead")
+        ADD_DEFINITIONS(-DMPI_H)
+    ENDIF()
+ENDIF()
+
+#################################################################
+# Find external libraries
+#################################################################
 
 FOREACH(EXT_LIB ${EXT_LIBS})
     IF(DEFINED ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND NOT ${EXT_LIB}_FOUND)
@@ -234,11 +263,28 @@ IF(NOT ${BUILD_SHARED_LIBS})
 ENDIF()
 
 #################################################################
-# ADD SOURCE SUBDIRS
+# ADD LIBRARY SOURCE SUBDIRS
 #################################################################
 
 ADD_SUBDIRECTORY(${SERIAL_PATH})
 ADD_SUBDIRECTORY(${PAR_PATH})
+
+#################################################################
+# ADD FEMPAR LIBRARY TARGET
+#################################################################
+
+ADD_LIBRARY(${PROJECT_NAME} ${SERIAL_SRC} ${PAR_SRC})
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${MPI_Fortran_LIBRARIES})
+FOREACH(EXT_LIB ${EXT_LIBS})
+    IF(${EXT_LIB}_FOUND)
+        TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${${EXT_LIB}_LIBRARIES})
+    ENDIF()
+ENDFOREACH()
+SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES VERSION ${${PROJECT_NAME}_VERSION} SOVERSION ${${PROJECT_NAME}_SOVERSION})
+
+#################################################################
+# ADD TESTS AND DRIVERS SOURCE SUBDIRS
+#################################################################
 
 ADD_SUBDIRECTORY(${SERIAL_DRIVERS_PATH})
 ADD_SUBDIRECTORY(${PAR_DRIVERS_PATH})
@@ -256,5 +302,3 @@ IF(ETAGS)
     ADD_CUSTOM_TARGET(TAGS ALL COMMAND ${ETAGS} ${SERIAL_SRC} ${PAR_SRC} ${DRIVERS_SERIAL_SRC} ${DRIVERS_PAR_SRC} ${TESTS_SERIAL_SRC} ${TESTS_PAR_SRC})
 ENDIF()
 
-
-message ("-----------------------------------------")

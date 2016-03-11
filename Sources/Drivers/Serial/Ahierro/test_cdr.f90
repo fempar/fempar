@@ -675,7 +675,6 @@ contains
     type(fe_affine_operator_t)                    :: fe_affine_operator
     type(vector_dG_CDR_discrete_integration_t)    :: vector_dG_CDR_integration
     type(CDR_discrete_integration_t)              :: CDR_integration
-    type(vector_space_t)    , pointer             :: fe_affine_operator_range_vector_space 
     class(vector_t)         , allocatable, target :: vector
     type(interpolation_face_restriction_t)        :: face_interpolation
 
@@ -717,37 +716,37 @@ contains
     diagonal_blocks_sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE
 
     call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                       &
-         &                          diagonal_blocks_symmetric,diagonal_blocks_sign, f_trian,        &
-         &                          fe_space, vector_dG_CDR_integration)
+         &                          diagonal_blocks_symmetric,diagonal_blocks_sign,         &
+         &                          senv, fe_space, vector_dG_CDR_integration)
     call fe_affine_operator%symbolic_setup()
 
     call fe_affine_operator%numerical_setup()
 
     matrix => fe_affine_operator%get_matrix()
-!!$    select type(matrix)
-!!$     class is(block_sparse_matrix_t)
-!!$        !my_matrix => matrix
-!!$        do i = 1,1! matrix%nblocks
-!!$           write(*,*) i,i,'+++++++++++++++++++++++++++++++'
-!!$           write(*,*) __FILE__,__LINE__
-!!$           my_matrix => matrix%blocks(i,i)%sparse_matrix
-!!$           write(*,*) __FILE__,__LINE__
-!!$           !call my_matrix%print_matrix_market(6)
-!!$           write(*,*) __FILE__,__LINE__
-!!$        end do
-!!$     class default
-!!$        check(.false.)
-!!$     end select
+    select type(matrix)
+     class is(block_sparse_matrix_t)
+        !my_matrix => matrix
+        do i = 2,2! matrix%nblocks
+           write(*,*) i,i,'+++++++++++++++++++++++++++++++'
+           write(*,*) __FILE__,__LINE__
+           my_matrix => matrix%blocks(i,i)%sparse_matrix
+           write(*,*) __FILE__,__LINE__
+           call my_matrix%print_matrix_market(6)
+           write(*,*) __FILE__,__LINE__
+        end do
+     class default
+        check(.false.)
+     end select
 
-     !fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-     !call fe_affine_operator_range_vector_space%create_vector(vector)
-     !fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+     !call fe_affine_operator%create_range_vector(vector)
 
     !call fe_space%print()
     !call reference_fe_array_two(1)%free
     !call reference_fe_array_two(2)%free
     call fe_affine_operator%free()
     call fe_space%free()
+    call reference_fe_array_two(1)%free()
+    call reference_fe_array_two(2)%free()
   end subroutine test_reference_face_stuff
 
   !==================================================================================================

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module sparse_matrix_array_assembler_names
+module par_sparse_matrix_array_assembler_names
   use types_names
   use allocatable_array_names
 
@@ -35,27 +35,27 @@ module sparse_matrix_array_assembler_names
   use array_names
 
   ! Concrete implementations
-  use sparse_matrix_names
-  use serial_scalar_array_names
+  use par_sparse_matrix_names
+  use par_scalar_array_names
 
   implicit none
 # include "debug.i90"
   private
 
-  type, extends(matrix_array_assembler_t) :: sparse_matrix_array_assembler_t
+  type, extends(matrix_array_assembler_t) :: par_sparse_matrix_array_assembler_t
   contains
-    procedure :: assembly         => sparse_matrix_array_assembler_assembly
-    procedure :: face_assembly    => sparse_matrix_array_assembler_face_assembly
-    procedure :: allocate         => sparse_matrix_array_assembler_allocate
-    procedure :: compress_storage => sparse_matrix_array_assembler_compress_storage
+    procedure :: assembly         => par_sparse_matrix_array_assembler_assembly
+    procedure :: face_assembly    => par_sparse_matrix_array_assembler_face_assembly
+    procedure :: allocate         => par_sparse_matrix_array_assembler_allocate
+    procedure :: compress_storage => par_sparse_matrix_array_assembler_compress_storage
   end type
 
 ! Data types
-public :: sparse_matrix_array_assembler_t
-public :: element_sparse_matrix_assembly, element_serial_scalar_array_assembly
+public :: par_sparse_matrix_array_assembler_t
+public :: element_par_sparse_matrix_assembly, element_par_scalar_array_assembly
 
 contains
-subroutine sparse_matrix_array_assembler_assembly( this, & 
+subroutine par_sparse_matrix_array_assembler_assembly( this, & 
                                                    number_fe_spaces, &
                                                    number_nodes, &
                                                    elem2dof, &
@@ -64,7 +64,7 @@ subroutine sparse_matrix_array_assembler_assembly( this, &
                                                    elmat, &
                                                    elvec ) 
  implicit none
- class(sparse_matrix_array_assembler_t), intent(inout) :: this
+ class(par_sparse_matrix_array_assembler_t), intent(inout) :: this
  integer(ip)                              , intent(in)    :: number_fe_spaces
  integer(ip)                              , intent(in)    :: number_nodes(number_fe_spaces)
  type(i1p_t)                              , intent(in)    :: elem2dof(number_fe_spaces)
@@ -82,8 +82,8 @@ subroutine sparse_matrix_array_assembler_assembly( this, &
  array  => this%get_array()
 
  select type(matrix)
-    class is(sparse_matrix_t)
-    call element_sparse_matrix_assembly( matrix, &
+    class is(par_sparse_matrix_t)
+    call element_par_sparse_matrix_assembly( matrix, &
                                          number_fe_spaces, &
                                          number_nodes, &
                                          elem2dof, &
@@ -95,46 +95,55 @@ subroutine sparse_matrix_array_assembler_assembly( this, &
  end select
 
  select type(array)
-    class is(serial_scalar_array_t)
-    call element_serial_scalar_array_assembly( array, &
-                                               number_fe_spaces, &
-                                               number_nodes, &
-                                               elem2dof, &
-                                               field_blocks, &
-                                               elvec )
+    class is(par_scalar_array_t)
+    call element_par_scalar_array_assembly( array, &
+                                            number_fe_spaces, &
+                                            number_nodes, &
+                                            elem2dof, &
+                                            field_blocks, &
+                                            elvec )
     class default
     check(.false.)
  end select
-end subroutine sparse_matrix_array_assembler_assembly
+end subroutine par_sparse_matrix_array_assembler_assembly
 
-subroutine sparse_matrix_array_assembler_allocate( this )
+subroutine par_sparse_matrix_array_assembler_allocate( this )
  implicit none
- class(sparse_matrix_array_assembler_t), intent(inout) :: this
+ class(par_sparse_matrix_array_assembler_t), intent(inout) :: this
  class(array_t), pointer :: array
  array=>this%get_array()
  call array%allocate()
-end subroutine sparse_matrix_array_assembler_allocate
+end subroutine par_sparse_matrix_array_assembler_allocate
 
-subroutine sparse_matrix_array_assembler_compress_storage( this, & 
-                                                           sparse_matrix_storage_format )
+subroutine par_sparse_matrix_array_assembler_compress_storage( this, & 
+                                                               sparse_matrix_storage_format )
   implicit none
-  class(sparse_matrix_array_assembler_t) , intent(inout) :: this
-  character(*)                              , intent(in)    :: sparse_matrix_storage_format
+  class(par_sparse_matrix_array_assembler_t) , intent(inout) :: this
+  character(*)                              , intent(in)    ::  sparse_matrix_storage_format
   class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
   matrix=>this%get_matrix() 
-   select type(matrix)
-    class is(sparse_matrix_t)
+  select type(matrix)
+    class is(par_sparse_matrix_t)
     call matrix%convert(sparse_matrix_storage_format)
     class default
     check(.false.)
  end select
-end subroutine sparse_matrix_array_assembler_compress_storage
+ array=>this%get_array() 
+ select type(array)
+    class is(par_scalar_array_t)
+    call array%comm() 
+    class default
+    check(.false.)
+ end select
+ 
+end subroutine par_sparse_matrix_array_assembler_compress_storage
 
 
-subroutine element_sparse_matrix_assembly( matrix, number_fe_spaces, number_nodes, elem2dof, field_blocks, field_coupling, elmat )
+subroutine element_par_sparse_matrix_assembly( matrix, number_fe_spaces, number_nodes, elem2dof, field_blocks, field_coupling, elmat )
  implicit none
  ! Parameters
- type(sparse_matrix_t), intent(inout) :: matrix
+ type(par_sparse_matrix_t), intent(inout) :: matrix
  integer(ip)          , intent(in)    :: number_fe_spaces
  integer(ip)          , intent(in)    :: number_nodes(number_fe_spaces)
  type(i1p_t)          , intent(in)    :: elem2dof(number_fe_spaces)
@@ -165,17 +174,17 @@ subroutine element_sparse_matrix_assembly( matrix, number_fe_spaces, number_node
    ielmat=ielmat+number_nodes(ife_space)
  end do
  
-end subroutine element_sparse_matrix_assembly
+end subroutine element_par_sparse_matrix_assembly
 
-subroutine element_serial_scalar_array_assembly( array, number_fe_spaces, number_nodes, elem2dof, field_blocks, elvec )
+subroutine element_par_scalar_array_assembly( array, number_fe_spaces, number_nodes, elem2dof, field_blocks, elvec )
  implicit none
  ! Parameters
- type(serial_scalar_array_t), intent(inout) :: array
- integer(ip)                , intent(in)    :: number_fe_spaces
- integer(ip)                , intent(in)    :: number_nodes(number_fe_spaces)
- type(i1p_t)                , intent(in)    :: elem2dof(number_fe_spaces)
- integer(ip)                , intent(in)    :: field_blocks(number_fe_spaces)
- real(rp)                   , intent(in)    :: elvec(:) 
+ type(par_scalar_array_t), intent(inout) :: array
+ integer(ip)                , intent(in) :: number_fe_spaces
+ integer(ip)                , intent(in) :: number_nodes(number_fe_spaces)
+ type(i1p_t)                , intent(in) :: elem2dof(number_fe_spaces)
+ integer(ip)                , intent(in) :: field_blocks(number_fe_spaces)
+ real(rp)                   , intent(in) :: elvec(:) 
  
  integer(ip) :: inode, idof, ielvec, ife_space
  
@@ -187,15 +196,16 @@ subroutine element_serial_scalar_array_assembly( array, number_fe_spaces, number
                    elvec )
    ielvec = ielvec + number_nodes(ife_space)
  end do
-end subroutine element_serial_scalar_array_assembly
+ 
+end subroutine element_par_scalar_array_assembly
 
 !====================================================================================================
-subroutine sparse_matrix_array_assembler_face_assembly(this,number_fe_spaces,test_number_nodes,     &
+subroutine par_sparse_matrix_array_assembler_face_assembly(this,number_fe_spaces,test_number_nodes,     &
      &                                                 trial_number_nodes,test_elem2dof,            &
      &                                                 trial_elem2dof,field_blocks,field_coupling,  &
      &                                                 facemat,elvec ) 
   implicit none
-  class(sparse_matrix_array_assembler_t), intent(inout) :: this
+  class(par_sparse_matrix_array_assembler_t), intent(inout) :: this
   integer(ip)                              , intent(in)    :: number_fe_spaces
   integer(ip)                              , intent(in)    :: test_number_nodes(number_fe_spaces)
   integer(ip)                              , intent(in)    :: trial_number_nodes(number_fe_spaces)
@@ -215,8 +225,8 @@ subroutine sparse_matrix_array_assembler_face_assembly(this,number_fe_spaces,tes
   array  => this%get_array()
 
   select type(matrix)
-     class is(sparse_matrix_t)
-     call element_sparse_matrix_face_assembly(matrix,number_fe_spaces,test_number_nodes,             &
+     class is(par_sparse_matrix_t)
+     call element_par_sparse_matrix_face_assembly(matrix,number_fe_spaces,test_number_nodes,             &
           &                              trial_number_nodes,test_elem2dof,trial_elem2dof,            &
           &                              field_blocks,field_coupling,facemat )
      class default
@@ -224,21 +234,21 @@ subroutine sparse_matrix_array_assembler_face_assembly(this,number_fe_spaces,tes
   end select
 
   select type(array)
-     class is(serial_scalar_array_t)
-     call element_serial_scalar_array_assembly( array,number_fe_spaces,test_number_nodes,            &
+     class is(par_scalar_array_t)
+     call element_par_scalar_array_assembly( array,number_fe_spaces,test_number_nodes,            &
           &                                     test_elem2dof,field_blocks,elvec )
      class default
      check(.false.)
   end select
-end subroutine sparse_matrix_array_assembler_face_assembly
+end subroutine par_sparse_matrix_array_assembler_face_assembly
 
 !====================================================================================================
-subroutine element_sparse_matrix_face_assembly( matrix, number_fe_spaces, test_number_nodes,        &
+subroutine element_par_sparse_matrix_face_assembly( matrix, number_fe_spaces, test_number_nodes,        &
      &                                          trial_number_nodes, test_elem2dof, trial_elem2dof,  &
      &                                          field_blocks, field_coupling, facemat )
   implicit none
   ! Parameters
-  type(sparse_matrix_t), intent(inout) :: matrix
+  type(par_sparse_matrix_t), intent(inout) :: matrix
   integer(ip)          , intent(in)    :: number_fe_spaces
   integer(ip)          , intent(in)    :: test_number_nodes(number_fe_spaces)
   integer(ip)          , intent(in)    :: trial_number_nodes(number_fe_spaces)
@@ -268,7 +278,7 @@ subroutine element_sparse_matrix_face_assembly( matrix, number_fe_spaces, test_n
      ielmat=ielmat+test_number_nodes(ife_space)
   end do
 
-end subroutine element_sparse_matrix_face_assembly
+end subroutine element_par_sparse_matrix_face_assembly
 
-end module sparse_matrix_array_assembler_names
+end module par_sparse_matrix_array_assembler_names
 

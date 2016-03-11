@@ -57,7 +57,7 @@ module rgmres_names
   integer (ip)    , parameter :: default_dkrymax           = 30
   integer (ip)    , parameter :: default_orthonorm_strat   = icgsro
   
-  type, extends(base_linear_solver_t) :: rgmres_t
+  type, extends(base_iterative_linear_solver_t) :: rgmres_t
      ! Parameters
      integer(ip)                    :: dkrymax
      integer(ip)                    :: orthonorm_strat
@@ -380,7 +380,7 @@ contains
   function create_rgmres(environment)
     implicit none
     class(environment_t), intent(in) :: environment
-    class(base_linear_solver_t), pointer :: create_rgmres
+    class(base_iterative_linear_solver_t), pointer :: create_rgmres
     type(rgmres_t), pointer :: rgmres
     allocate(rgmres)
     call rgmres%set_environment(environment)

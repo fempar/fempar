@@ -47,9 +47,10 @@ module triangulation_names
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: subset_id = 1
    contains
-     procedure :: get_coordinates => elem_topology_get_coordinates
-  end type elem_topology_t
-
+     procedure :: get_coordinates             => elem_topology_get_coordinates
+     procedure :: find_local_pos_from_vef_id  => elem_topology_find_local_pos_from_vef_id
+  end type
+  
   type p_elem_topology_t
      type(elem_topology_t), pointer :: p => NULL()      
   end type p_elem_topology_t
@@ -62,7 +63,10 @@ module triangulation_names
      integer(ip)             :: relative_orientation  = -1
      integer(ip)             :: relative_rotation     = -1
    contains
-     procedure :: get_coordinates => face_topology_get_coordinates
+     procedure, non_overridable :: get_coordinates          => face_topology_get_coordinates
+     procedure, non_overridable :: get_relative_orientation => face_topology_get_relative_orientation
+     procedure, non_overridable :: get_relative_rotation    => face_topology_get_relative_rotation
+     
   end type face_topology_t
 
   type vef_topology_t
@@ -287,7 +291,6 @@ contains
              face%neighbour_elems_id(2)  = elem_id
              face%neighbour_elems(2)%p   => trian%elems(elem_id)
              face%relative_face(2)       = local_face_id
-
              ! Compute relative orientation
              face%relative_orientation = elem%reference_fe_geo%compute_relative_orientation         &
                   &   (face%neighbour_elems(1)%p%reference_fe_geo,                                  &
@@ -295,14 +298,14 @@ contains
                   &    face%relative_face(1) -1,                                                    &
                   &    local_vef_id)
 
-             ! Compute relative orientation
-             face%relative_orientation = elem%reference_fe_geo%compute_relative_rotation            &
-                  &   (face%neighbour_elems(1)%p%reference_fe_geo,                                  &
+             ! Compute relative rotation
+             face%relative_rotation = face%neighbour_elems(1)%p%reference_fe_geo%compute_relative_rotation &
+                  &   (elem%reference_fe_geo,                                                       &
+                  &    local_vef_id,                                                                &
                   &    face%neighbour_elems(1)%p%reference_fe_geo%get_first_face_id() +             &
                   &    face%relative_face(1) -1,                                                    &
-                  &    local_vef_id,                                                                &
-                  &    face%neighbour_elems(1)%p%vefs,                                              &
                   &    elem%vefs,                                                                   &
+                  &    face%neighbour_elems(1)%p%vefs,                                              &
                   &    face%left_elem_subface)
           end if
        end do
@@ -578,7 +581,7 @@ contains
 
        write (lunou,*) 'num_vefs:', trian%elems(ielem)%num_vefs
        write (lunou,*) 'vefs:', trian%elems(ielem)%vefs
-       write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
+       if (allocated(trian%elems(ielem)%coordinates)) write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
        write (lunou,*) 'subset_id:', trian%elems(ielem)%subset_id
 
        !call reference_element_write ( trian%elems(ielem)%geo_reference_element )
@@ -629,7 +632,25 @@ contains
     end do
     
   end subroutine elem_topology_get_coordinates
+  
+  function elem_topology_find_local_pos_from_vef_id(this, vef_id)
+    implicit none
+    ! Parameters
+    class(elem_topology_t), intent(in)  :: this
+    integer(ip)           , intent(in)  :: vef_id
+    integer(ip)                         :: elem_topology_find_local_pos_from_vef_id
+    integer(ip)                         :: ivef
+    elem_topology_find_local_pos_from_vef_id = -1
+    ! Find position of vef_id in local element
+    do ivef = 1, this%num_vefs
+       if ( this%vefs(ivef) == vef_id ) then
+          elem_topology_find_local_pos_from_vef_id = ivef
+          return 
+       end if
+    end do
+  end function elem_topology_find_local_pos_from_vef_id
 
+  !==================================================================================================
   subroutine face_topology_get_coordinates(this, face_topology_coordinates)
     implicit none
     ! Parameters
@@ -654,5 +675,23 @@ contains
     end do
     
   end subroutine face_topology_get_coordinates
+  
+  !==================================================================================================
+  function face_topology_get_relative_orientation(this)
+    implicit none
+    ! Parameters
+    class(face_topology_t), intent(in)    :: this
+    integer(ip) :: face_topology_get_relative_orientation
+    face_topology_get_relative_orientation = this%relative_orientation
+  end function face_topology_get_relative_orientation
+
+  !==================================================================================================
+  function face_topology_get_relative_rotation(this)
+    implicit none
+    ! Parameters
+    class(face_topology_t), intent(in)    :: this
+    integer(ip) :: face_topology_get_relative_rotation
+    face_topology_get_relative_rotation = this%relative_rotation
+  end function face_topology_get_relative_rotation
 
 end module triangulation_names

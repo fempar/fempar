@@ -671,7 +671,7 @@ contains
     !< given by a mold
     !-----------------------------------------------------------------
         class(sparse_matrix_t),    intent(inout) :: this
-        class(sparse_matrix_t),    intent(in)    :: mold
+        type(sparse_matrix_t) ,    intent(in)    :: mold
         class(base_sparse_matrix_t), allocatable :: tmp
         integer                                  :: error
     !-----------------------------------------------------------------
