@@ -71,7 +71,7 @@ contains
 
     subroutine umfpack_direct_solver_initialize(this)
     !-----------------------------------------------------------------
-    !< Change STATE to direct_solver_STATE_INIT
+    !< Change STATE to direct_solver_STATE_START
     !-----------------------------------------------------------------
         class(umfpack_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
@@ -79,7 +79,7 @@ contains
         assert(this%state_is_start())
         call this%reset()
         this%Matrix_numbering = FORTRAN_NUMBERING
-        call this%set_state_init()
+        call this%set_state_start()
 #else
         call this%not_enabled_error()
 #endif
@@ -93,7 +93,6 @@ contains
         class(umfpack_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-        assert(.not. this%state_is_start())
         !  Set the default control parameters.
         call umfpack_di_defaults (this%Control)
 #else
@@ -109,11 +108,31 @@ contains
         class(umfpack_direct_solver_t),  intent(inout) :: this
         type(ParameterList_t),           intent(in)    :: parameter_list
         integer(ip)                                    :: FPLError
+        logical                                        :: is_present
+        logical                                        :: same_data_type
+        integer(ip), allocatable                       :: shape(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-        assert(.not. this%state_is_start())
-        ! Matrix type
-        FPLError = parameter_list%Get(Key=umfpack_control_params, Value=this%Control)
+#ifdef DEBUG
+        is_present     = parameter_list%isPresent(Key=umfpack_control_params)
+        if(is_present) then
+            same_data_type = parameter_list%isOfDataType(Key=umfpack_control_params, mold=this%Control)
+            shape          = parameter_list%getshape(Key=umfpack_control_params)
+            if(same_data_type .and. size(shape) == 1) then
+                if(shape(1) == UMFPACK_CONTROL) then
+#endif
+                    ! UMFPACK control parameters
+                    FPLError = parameter_list%Get(Key=umfpack_control_params, Value=this%Control)
+                    assert(FPLError == 0)
+#ifdef DEBUG
+                else
+                    write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Expected size (20). '
+                endif
+            else
+                write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Wrong data type or shape. '
+            endif
+        endif
+#endif
 #else
         call this%not_enabled_error()
 #endif
@@ -132,7 +151,7 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         assert ( .not. this%matrix%get_symmetric_storage() )
-        assert (this%state_is_init() .or. this%state_is_symbolic() .or. this%state_is_numeric())
+        assert (this%state_is_START() .or. this%state_is_symbolic() .or. this%state_is_numeric())
         check(this%matrix_is_set())
 
         matrix => this%matrix%get_pointer_to_base_matrix()
@@ -282,7 +301,7 @@ contains
         class(umfpack_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-        assert(this%state_is_init() .or. this%state_is_symbolic() .or. this%state_is_numeric())
+        assert(this%state_is_start() .or. this%state_is_symbolic() .or. this%state_is_numeric())
         call this%set_state_start()
 #else
         call this%not_enabled_error()
@@ -293,14 +312,14 @@ contains
     subroutine umfpack_direct_solver_free_symbolic(this)
     !-----------------------------------------------------------------
     !< Release all internal memory for all matrices
-    !< Set state to direct_solver_STATE_INTI
+    !< Set state to direct_solver_STATE_START
     !-----------------------------------------------------------------
         class(umfpack_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         assert(this%state_is_symbolic() .or. this%state_is_numeric())
         call umfpack_di_free_symbolic ( this%Symbolic )
-        call this%set_state_init()
+        call this%set_state_start()
 #else
         call this%not_enabled_error()
 #endif

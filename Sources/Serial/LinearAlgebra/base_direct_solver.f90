@@ -12,9 +12,8 @@ module base_direct_solver_names
     private
 
     integer(ip), public, parameter :: BASE_DIRECT_SOLVER_STATE_START    = 0
-    integer(ip), public, parameter :: BASE_DIRECT_SOLVER_STATE_INIT     = 1
-    integer(ip), public, parameter :: BASE_DIRECT_SOLVER_STATE_SYMBOLIC = 2 ! Symbolic data already computed
-    integer(ip), public, parameter :: BASE_DIRECT_SOLVER_STATE_NUMERIC  = 3 ! Numerical data already computed
+    integer(ip), public, parameter :: BASE_DIRECT_SOLVER_STATE_SYMBOLIC = 1 ! Symbolic data already computed
+    integer(ip), public, parameter :: BASE_DIRECT_SOLVER_STATE_NUMERIC  = 2 ! Numerical data already computed
 
     type, abstract :: base_direct_solver_t
     private
@@ -42,11 +41,9 @@ module base_direct_solver_names
         procedure, non_overridable, public :: set_matrix         => base_direct_solver_set_matrix
         procedure, non_overridable, public :: matrix_is_set      => base_direct_solver_matrix_is_set
         procedure, non_overridable, public :: set_state_start    => base_direct_solver_set_state_start
-        procedure, non_overridable, public :: set_state_init     => base_direct_solver_set_state_init
         procedure, non_overridable, public :: set_state_symbolic => base_direct_solver_set_state_symbolic
         procedure, non_overridable, public :: set_state_numeric  => base_direct_solver_set_state_numeric
         procedure, non_overridable, public :: state_is_start     => base_direct_solver_state_is_start
-        procedure, non_overridable, public :: state_is_init      => base_direct_solver_state_is_init
         procedure, non_overridable, public :: state_is_symbolic  => base_direct_solver_state_is_symbolic
         procedure, non_overridable, public :: state_is_numeric   => base_direct_solver_state_is_numeric
         procedure, non_overridable, public :: set_mem_peak_symb  => base_direct_solver_set_mem_peak_symb
@@ -150,11 +147,6 @@ contains
         this%state = BASE_DIRECT_SOLVER_STATE_START
     end subroutine base_direct_solver_set_state_start
 
-    subroutine base_direct_solver_set_state_init(this)
-        class(base_direct_solver_t), intent(inout) :: this
-        this%state = BASE_DIRECT_SOLVER_STATE_INIT
-    end subroutine base_direct_solver_set_state_init
-
     subroutine base_direct_solver_set_state_symbolic(this)
         class(base_direct_solver_t), intent(inout) :: this
         this%state = BASE_DIRECT_SOLVER_STATE_SYMBOLIC
@@ -170,12 +162,6 @@ contains
         logical                                 :: is_start
         is_start = this%state == BASE_DIRECT_SOLVER_STATE_START
     end function base_direct_solver_state_is_start
-
-    function base_direct_solver_state_is_init(this) result(is_init)
-        class(base_direct_solver_t), intent(in) :: this
-        logical                                 :: is_init
-        is_init = this%state == BASE_DIRECT_SOLVER_STATE_INIT
-    end function base_direct_solver_state_is_init
 
     function base_direct_solver_state_is_symbolic(this) result(is_symbolic_setup)
         class(base_direct_solver_t), intent(in) :: this

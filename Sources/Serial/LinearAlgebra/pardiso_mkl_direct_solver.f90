@@ -90,7 +90,7 @@ contains
     !-----------------------------------------------------------------
     !< Initiliaze the internal solver memory pointer.
     !< Set PARDISO parameters to the initial state
-    !< Change STATE to direct_solver_STATE_INIT
+    !< Change STATE to direct_solver_STATE_START
     !-----------------------------------------------------------------
         class(pardiso_mkl_direct_solver_t),  intent(inout) :: this
         integer(ip)                                        :: i
@@ -104,7 +104,6 @@ contains
             this%pardiso_mkl_pt(i)%dummy = 0 
             this%pardiso_mkl_iparm(i)    = 0
         end do
-        call this%set_state_init()
 #else
         call this%not_enabled_error()
 #endif
@@ -120,8 +119,6 @@ contains
         integer(ip)                                        :: i
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        assert(.not. this%state_is_start())
-
         this%max_number_of_factors = 1
         this%actual_matrix         = 1
         this%number_of_rhs         = 1
@@ -181,9 +178,7 @@ contains
         logical                                            :: same_data_type
         integer(ip), allocatable                           :: shape(:)
     !-----------------------------------------------------------------
-#ifdef ENABLE_MKL
-        assert(.not. this%state_is_start())
-        
+#ifdef ENABLE_MKL  
         ! Matrix type
 #ifdef DEBUG
         is_present     = parameter_list%isPresent(Key=pardiso_mkl_matrix_type)
@@ -208,7 +203,7 @@ contains
          ! iparm
         is_present     = parameter_list%isPresent(Key=pardiso_mkl_iparm)
         if(is_present) then
-            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%matrix_type)
+            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%pardiso_mkl_iparm)
             shape          = parameter_list%getshape(Key=pardiso_mkl_iparm)
             if(same_data_type .and. size(shape) == 1) then
                 if(shape(1) == 64) then
@@ -227,8 +222,8 @@ contains
          ! Message level
         is_present     = parameter_list%isPresent(Key=pardiso_mkl_message_level)
         if(is_present) then
-            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%matrix_type)
-            shape          = parameter_list%getshape(Key=pardiso_mkl_iparm)
+            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_message_level, mold=this%message_level)
+            shape          = parameter_list%getshape(Key=pardiso_mkl_message_level)
             if(same_data_type .and. size(shape) == 0) then
 #endif
                 FPLError   = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
@@ -247,7 +242,7 @@ contains
 
     subroutine pardiso_mkl_direct_solver_symbolic_setup(this)
     !-----------------------------------------------------------------
-    !< Rewind to direct_solver_STATE_INIT state if necessary
+    !< Rewind to direct_solver_STATE_START state if necessary
     !< Perform PARDISO analysis step. Reordering and symbolic factorization, 
     !< this step also allocates all memory that is necessary for the factorization
     !< Set STATE direct_solver_STATE_SYMBOLIC
@@ -260,7 +255,7 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         ! Check pre-conditions
-        assert (this%state_is_init() .or. this%state_is_symbolic() .or. this%state_is_numeric())
+        assert (this%state_is_start() .or. this%state_is_symbolic() .or. this%state_is_numeric())
         check(this%matrix_is_set())
 
         if(this%state_is_symbolic()) then
@@ -431,7 +426,7 @@ contains
         class(pardiso_mkl_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        assert(this%state_is_init() .or. this%state_is_symbolic() .or. this%state_is_numeric())
+        assert(this%state_is_start() .or. this%state_is_symbolic() .or. this%state_is_numeric())
         this%matrix_type         = -1500
         this%matrix              => NULL()
         call this%set_state_start()
@@ -444,7 +439,7 @@ contains
     subroutine pardiso_mkl_direct_solver_free_symbolic(this)
     !-----------------------------------------------------------------
     !< Release all internal memory for all matrices
-    !< Set state to direct_solver_STATE_INIT
+    !< Set state to direct_solver_STATE_START
     !-----------------------------------------------------------------
         class(pardiso_mkl_direct_solver_t), intent(inout) :: this
         integer                                           :: error
@@ -476,7 +471,8 @@ contains
                 error, 'during stage', this%phase
             check(.false.)
         end if
-        call this%set_state_init()
+        call this%set_state_start()
+
 #else
         call this%not_enabled_error()
 #endif
