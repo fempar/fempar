@@ -46,7 +46,7 @@ module fgmres_names
   character(len=*), parameter :: fgmres_name = 'FGMRES'
   integer (ip)    , parameter :: default_fgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
   
-  type, extends(base_linear_solver_t) :: fgmres_t
+  type, extends(base_iterative_linear_solver_t) :: fgmres_t
      ! Parameters
      integer(ip)                    :: dkrymax
      integer(ip)                    :: orthonorm_strat
@@ -371,7 +371,7 @@ contains
   function create_fgmres(environment)
     implicit none
     class(environment_t), intent(in) :: environment
-    class(base_linear_solver_t), pointer :: create_fgmres
+    class(base_iterative_linear_solver_t), pointer :: create_fgmres
     type(fgmres_t), pointer :: fgmres
     allocate(fgmres)
     call fgmres%set_environment(environment)

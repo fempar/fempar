@@ -67,7 +67,7 @@ module serial_names
   use migratory_element_names
 
   ! Linear Algebra
-  use linear_solver_names
+  use iterative_linear_solver_names
   use sparse_matrix_names
   use serial_scalar_array_names
   use serial_block_array_names

@@ -223,13 +223,6 @@ end function reference_fe_get_continuity
     reference_fe_get_first_vertex_id = this%number_vefs_dimension(1)
   end function reference_fe_get_first_vertex_id
   
-  function reference_fe_get_number_vertices_per_vertex ( this )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip) :: reference_fe_get_number_vertices_per_vertex
-    reference_fe_get_number_vertices_per_vertex = this%vertices_vef%p(this%number_vefs_dimension(1)+1)-this%vertices_vef%p( this%number_vefs_dimension(1))
-  end function reference_fe_get_number_vertices_per_vertex
-  
   function reference_fe_get_number_vertices_per_edge ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
@@ -382,8 +375,49 @@ end function reference_fe_get_continuity
     reference_fe_get_number_vertices_vef = this%vertices_vef%p(i+1)-this%vertices_vef%p(i)
   end function reference_fe_get_number_vertices_vef
 
-  function reference_fe_get_orientation ( this )
+  function reference_fe_get_number_nodes_per_vertex ( this )
     implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_nodes_per_vertex
+    reference_fe_get_number_nodes_per_vertex = this%nodes_vef%p(this%number_vefs_dimension(1)+1)-&
+                                               this%nodes_vef%p(this%number_vefs_dimension(1))
+  end function reference_fe_get_number_nodes_per_vertex
+  
+  
+  function reference_fe_get_number_nodes_per_edge ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_nodes_per_edge
+    reference_fe_get_number_nodes_per_edge = this%nodes_vef%p(this%number_vefs_dimension(2)+1)-&
+                                               this%nodes_vef%p(this%number_vefs_dimension(2))
+  end function reference_fe_get_number_nodes_per_edge
+  
+  function reference_fe_get_number_interior_nodes_per_edge ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_interior_nodes_per_edge
+    reference_fe_get_number_interior_nodes_per_edge = this%interior_nodes_vef%p(this%number_vefs_dimension(2)+1)-&
+                                                      this%interior_nodes_vef%p(this%number_vefs_dimension(2))
+  end function reference_fe_get_number_interior_nodes_per_edge
+  
+  
+  function reference_fe_get_number_nodes_per_face ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_nodes_per_face
+    reference_fe_get_number_nodes_per_face = this%nodes_vef%p(this%number_vefs_dimension(this%number_dimensions)+1)-&
+                                               this%nodes_vef%p(this%number_vefs_dimension(this%number_dimensions))
+  end function reference_fe_get_number_nodes_per_face
+  
+  function reference_fe_get_number_interior_nodes_per_face ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_interior_nodes_per_face
+    reference_fe_get_number_interior_nodes_per_face = this%interior_nodes_vef%p(this%number_vefs_dimension(this%number_dimensions)+1)-&
+                                                      this%interior_nodes_vef%p(this%number_vefs_dimension(this%number_dimensions))
+  end function reference_fe_get_number_interior_nodes_per_face
+  
+  function reference_fe_get_orientation(this)
     class(reference_fe_t), target, intent(in) :: this
     type(allocatable_array_ip1_t), pointer :: reference_fe_get_orientation
     reference_fe_get_orientation => this%orientation
@@ -484,7 +518,9 @@ end function reference_fe_get_continuity
   subroutine p_reference_fe_free( this )
     implicit none
     class(p_reference_fe_t), intent(inout) :: this
-    call this%p%free()
-    deallocate ( this%p )
+    if (associated ( this%p )) then
+      call this%p%free()
+      deallocate ( this%p )
+    end if  
   end subroutine p_reference_fe_free
   

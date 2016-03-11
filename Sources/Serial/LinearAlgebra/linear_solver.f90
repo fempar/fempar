@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module linear_solver_names
+module iterative_linear_solver_names
   use types_names
   use stdio_names
   
@@ -64,77 +64,77 @@ module linear_solver_names
   ! environment_set  | free                 | not_created
   ! solver_type_set  | set_type_from_pl     | solver_type_set
   ! solver_type_set  | free                 | not_created
-  type :: linear_solver_t
+  type :: iterative_linear_solver_t
     private
     class(environment_t)       , pointer  :: environment
-    class(base_linear_solver_t), pointer  :: base_linear_solver
+    class(base_iterative_linear_solver_t), pointer  :: base_iterative_linear_solver
     integer(ip)                           :: state = not_created
   contains
     ! Concrete TBPs
-    procedure :: create                          => linear_solver_create
-    procedure :: free                            => linear_solver_free
-    procedure :: solve                           => linear_solver_solve
-    procedure :: print_convergence_history       => linear_solver_print_convergence_history
-    procedure :: set_type_from_pl                => linear_solver_set_type_from_pl
-    procedure :: set_parameters_from_pl          => linear_solver_set_parameters_from_pl
-    procedure :: set_type_and_parameters_from_pl => linear_solver_set_type_and_parameters_from_pl
-    procedure :: set_operators                   => linear_solver_set_operators
-    procedure :: set_initial_solution            => linear_solver_set_initial_solution
-    procedure :: set_rhs                         => linear_solver_set_rhs
-    procedure :: set_type_from_string            => linear_solver_set_type_from_string
+    procedure :: create                          => iterative_linear_solver_create
+    procedure :: free                            => iterative_linear_solver_free
+    procedure :: solve                           => iterative_linear_solver_solve
+    procedure :: print_convergence_history       => iterative_linear_solver_print_convergence_history
+    procedure :: set_type_from_pl                => iterative_linear_solver_set_type_from_pl
+    procedure :: set_parameters_from_pl          => iterative_linear_solver_set_parameters_from_pl
+    procedure :: set_type_and_parameters_from_pl => iterative_linear_solver_set_type_and_parameters_from_pl
+    procedure :: set_operators                   => iterative_linear_solver_set_operators
+    procedure :: set_initial_solution            => iterative_linear_solver_set_initial_solution
+    procedure :: set_rhs                         => iterative_linear_solver_set_rhs
+    procedure :: set_type_from_string            => iterative_linear_solver_set_type_from_string
   end type
   
   ! Data types
-  public :: linear_solver_t
+  public :: iterative_linear_solver_t
   
 contains    
-   subroutine linear_solver_create ( this, environment )
+   subroutine iterative_linear_solver_create ( this, environment )
      implicit none
-     class(linear_solver_t)      , intent(inout) :: this
+     class(iterative_linear_solver_t)      , intent(inout) :: this
      class(environment_t), target, intent(in)    :: environment
      assert ( this%state == not_created )
      this%environment => environment
      this%state = environment_set
-   end subroutine linear_solver_create
+   end subroutine iterative_linear_solver_create
    
-   subroutine linear_solver_free ( this )
+   subroutine iterative_linear_solver_free ( this )
      implicit none
-     class(linear_solver_t), intent(inout) :: this
+     class(iterative_linear_solver_t), intent(inout) :: this
      if ( this%state == solver_type_set ) then
-       call this%base_linear_solver%free()
-       deallocate (this%base_linear_solver)
+       call this%base_iterative_linear_solver%free()
+       deallocate (this%base_iterative_linear_solver)
      end if
      nullify(this%environment)
      this%state = not_created
-   end subroutine linear_solver_free
+   end subroutine iterative_linear_solver_free
    
-   subroutine linear_solver_print_convergence_history ( this, file_path )
+   subroutine iterative_linear_solver_print_convergence_history ( this, file_path )
      implicit none
-     class(linear_solver_t), intent(in) :: this
+     class(iterative_linear_solver_t), intent(in) :: this
      character(len=*)      , intent(in) :: file_path
      assert ( this%state == solver_type_set )
-     call this%base_linear_solver%print_convergence_history(file_path)
-   end subroutine linear_solver_print_convergence_history
+     call this%base_iterative_linear_solver%print_convergence_history(file_path)
+   end subroutine iterative_linear_solver_print_convergence_history
    
-   subroutine linear_solver_solve ( this, x )
+   subroutine iterative_linear_solver_solve ( this, x )
      implicit none
-     class(linear_solver_t), intent(inout) :: this
+     class(iterative_linear_solver_t), intent(inout) :: this
      class(vector_t)       , intent(inout) :: x 
      assert ( this%state == solver_type_set )
-     call this%base_linear_solver%solve(x)
-   end subroutine linear_solver_solve
+     call this%base_iterative_linear_solver%solve(x)
+   end subroutine iterative_linear_solver_solve
 
-   subroutine linear_solver_set_type_from_pl ( this )
+   subroutine iterative_linear_solver_set_type_from_pl ( this )
      implicit none
-     class(linear_solver_t), intent(inout) :: this
-     character(len=:)      , allocatable   :: linear_solver_type
+     class(iterative_linear_solver_t), intent(inout) :: this
+     character(len=:)      , allocatable   :: iterative_linear_solver_type
      
      assert ( this%state == environment_set .or. this%state == solver_type_set )
      
      if ( this%state == solver_type_set ) then
        ! PENDING: ONLY FREE IF THE TYPE SELECTED DOES NOT MATCH THE EXISTING ONE
-       call this%base_linear_solver%free()
-       deallocate ( this%base_linear_solver )
+       call this%base_iterative_linear_solver%free()
+       deallocate ( this%base_iterative_linear_solver )
      end if
      
      ! PENDING
@@ -143,82 +143,81 @@ contains
      ! 3. Only create if this%state == environment_set or if base_linear_solver was freed in the block of code above
   
   ! SELECT MANUALLY ITERATIVE LINEAR SOLVER TYPE: 
-     !this%base_linear_solver => create_richardson(this%environment)
-     this%base_linear_solver => create_cg(this%environment)
-     !this%base_linear_solver => create_rgmres(this%environment)
-     !this%base_linear_solver => create_lgmres(this%environment)
-     !this%base_linear_solver => create_fgmres(this%environment)
-     !this%base_linear_solver => create_lfom(this%environment) 
-     !this%base_linear_solver => create_minres(this%environment)
-     !this%base_linear_solver => create_icg(this%environment)
+     !this%base_iterative_linear_solver => create_richardson(this%environment)
+     this%base_iterative_linear_solver => create_cg(this%environment)
+     !this%base_iterative_linear_solver => create_rgmres(this%environment)
+     !this%base_iterative_linear_solver => create_lgmres(this%environment)
+     !this%base_iterative_linear_solver => create_fgmres(this%environment)
+     !this%base_iterative_linear_solver => create_lfom(this%environment) 
+     !this%base_iterative_linear_solver => create_minres(this%environment)
+     !this%base_iterative_linear_solver => create_icg(this%environment)
      
-     assert ( this%base_linear_solver%get_state() == start )
+     assert ( this%base_iterative_linear_solver%get_state() == start )
      this%state = solver_type_set
-   end subroutine linear_solver_set_type_from_pl
+   end subroutine iterative_linear_solver_set_type_from_pl
    
-   subroutine linear_solver_set_parameters_from_pl ( this )
+   subroutine iterative_linear_solver_set_parameters_from_pl ( this )
      implicit none
-     class(linear_solver_t), intent(inout) :: this
+     class(iterative_linear_solver_t), intent(inout) :: this
      assert ( this%state == solver_type_set )
-     call this%base_linear_solver%set_parameters_from_pl()
-   end subroutine linear_solver_set_parameters_from_pl
+     call this%base_iterative_linear_solver%set_parameters_from_pl()
+   end subroutine iterative_linear_solver_set_parameters_from_pl
    
-   subroutine linear_solver_set_type_and_parameters_from_pl ( this )
+   subroutine iterative_linear_solver_set_type_and_parameters_from_pl ( this )
      implicit none
-     class(linear_solver_t), intent(inout) :: this
+     class(iterative_linear_solver_t), intent(inout) :: this
      call this%set_type_from_pl()
      call this%set_parameters_from_pl()
-   end subroutine linear_solver_set_type_and_parameters_from_pl
+   end subroutine iterative_linear_solver_set_type_and_parameters_from_pl
    
-   subroutine linear_solver_set_operators ( this, A, M )
+   subroutine iterative_linear_solver_set_operators ( this, A, M )
      implicit none
-     class(linear_solver_t), intent(inout) :: this
+     class(iterative_linear_solver_t), intent(inout) :: this
      class(operator_t)     , intent(in)    :: A, M
      assert ( this%state == solver_type_set )
-     call this%base_linear_solver%set_operators(A,M)
-   end subroutine linear_solver_set_operators
+     call this%base_iterative_linear_solver%set_operators(A,M)
+   end subroutine iterative_linear_solver_set_operators
    
-   subroutine linear_solver_set_rhs ( this, b )
+   subroutine iterative_linear_solver_set_rhs ( this, b )
      implicit none
-     class(linear_solver_t), intent(inout) :: this
+     class(iterative_linear_solver_t), intent(inout) :: this
      class(vector_t)       , intent(in)    :: b
      assert ( this%state == solver_type_set )
-     call this%base_linear_solver%set_rhs(b)
-   end subroutine linear_solver_set_rhs
+     call this%base_iterative_linear_solver%set_rhs(b)
+   end subroutine iterative_linear_solver_set_rhs
    
-   subroutine linear_solver_set_initial_solution( this, initial_solution )
+   subroutine iterative_linear_solver_set_initial_solution( this, initial_solution )
      implicit none
-     class(linear_solver_t), intent(inout) :: this
+     class(iterative_linear_solver_t), intent(inout) :: this
      class(vector_t)       , intent(in)    :: initial_solution
      assert ( this%state == solver_type_set )
-     call this%base_linear_solver%set_initial_solution(initial_solution)
-   end subroutine linear_solver_set_initial_solution
+     call this%base_iterative_linear_solver%set_initial_solution(initial_solution)
+   end subroutine iterative_linear_solver_set_initial_solution
 
-   subroutine linear_solver_set_type_from_string (this, linear_solver_type)
+   subroutine iterative_linear_solver_set_type_from_string (this, linear_solver_type)
      implicit none
-     class(linear_solver_t), intent(inout) :: this
-     character(len=*)      , intent(in)    :: linear_solver_type
-     
-     select case(linear_solver_type)
-        case(richardson_name) 
-           this%base_linear_solver => create_richardson(this%environment)
-        case(cg_name) 
-           this%base_linear_solver => create_cg(this%environment)
-        case(rgmres_name) 
-           this%base_linear_solver => create_rgmres(this%environment)
-        case(lgmres_name) 
-           this%base_linear_solver => create_lgmres(this%environment)
-        case(fgmres_name) 
-           this%base_linear_solver => create_fgmres(this%environment)
-        case(lfom_name) 
-           this%base_linear_solver => create_lfom(this%environment) 
-        case(minres_name) 
-           this%base_linear_solver => create_minres(this%environment)
-        case(icg_name) 
-           this%base_linear_solver => create_icg(this%environment)
-        end select
+     class(iterative_linear_solver_t), intent(inout) :: this
+     character(len=*)                , intent(in)    :: linear_solver_type
 
-   end subroutine linear_solver_set_type_from_string
-     
+     select case(linear_solver_type)
+     case(richardson_name) 
+        this%base_iterative_linear_solver => create_richardson(this%environment)
+     case(cg_name) 
+        this%base_iterative_linear_solver => create_cg(this%environment)
+     case(rgmres_name) 
+        this%base_iterative_linear_solver => create_rgmres(this%environment)
+     case(lgmres_name) 
+        this%base_iterative_linear_solver => create_lgmres(this%environment)
+     case(fgmres_name) 
+        this%base_iterative_linear_solver => create_fgmres(this%environment)
+     case(lfom_name) 
+        this%base_iterative_linear_solver => create_lfom(this%environment) 
+     case(minres_name) 
+        this%base_iterative_linear_solver => create_minres(this%environment)
+     case(icg_name) 
+        this%base_iterative_linear_solver => create_icg(this%environment)
+     end select
+
+   end subroutine iterative_linear_solver_set_type_from_string
    
-end module linear_solver_names
+end module iterative_linear_solver_names

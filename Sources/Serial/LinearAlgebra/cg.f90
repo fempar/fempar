@@ -44,7 +44,7 @@ module cg_names
   character(len=*), parameter :: cg_name = 'CG'
   integer (ip)    , parameter :: default_cg_stopping_criteria = res_res
 
-  type, extends(base_linear_solver_t) :: cg_t
+  type, extends(base_iterative_linear_solver_t) :: cg_t
     ! Working space vectors for type(cg_t)
     class(vector_t), allocatable :: r
     class(vector_t), allocatable :: z 
@@ -263,7 +263,7 @@ contains
   function create_cg(environment)
     implicit none
     class(environment_t), intent(in) :: environment
-    class(base_linear_solver_t), pointer :: create_cg
+    class(base_iterative_linear_solver_t), pointer :: create_cg
     type(cg_t), pointer :: cg
     allocate(cg)
     call cg%set_environment(environment)

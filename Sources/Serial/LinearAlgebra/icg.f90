@@ -44,7 +44,7 @@ module icg_names
   character(len=*), parameter :: icg_name = 'ICG'
   integer (ip)    , parameter :: default_icg_stopping_criteria = res_res
 
-  type, extends(base_linear_solver_t) :: icg_t
+  type, extends(base_iterative_linear_solver_t) :: icg_t
     ! Working space vectors for type(icg_t)
     class(vector_t), allocatable :: r, r2
     class(vector_t), allocatable :: z 
@@ -270,7 +270,7 @@ contains
   function create_icg(environment)
     implicit none
     class(environment_t), intent(in) :: environment
-    class(base_linear_solver_t), pointer :: create_icg
+    class(base_iterative_linear_solver_t), pointer :: create_icg
     type(icg_t), pointer :: icg
     allocate(icg)
     call icg%set_environment(environment)

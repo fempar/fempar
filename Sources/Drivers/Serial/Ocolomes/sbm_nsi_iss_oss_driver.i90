@@ -118,13 +118,12 @@
        diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_UNKNOWN,               &
        &                      SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,     &
        &                      SPARSE_MATRIX_SIGN_UNKNOWN/),             &
-       triangulation=f_trian,                                           &
+       environment=senv,                                                &
        fe_space=fe_space,                                               &
        discrete_integration=nsi_iss_oss_integration )
-  fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
   ! Create values vector
-  call fe_affine_operator_range_vector_space%create_vector(dof_values)
-  call fe_affine_operator_range_vector_space%create_vector(residual)   
+  call fe_affine_operator%create_range_vector(dof_values)
+  call fe_affine_operator%create_range_vector(residual)   
   nsi_iss_oss_integration%dof_values => dof_values
   call dof_values%init(0.0_rp)
   call residual%init(0.0_rp)    

@@ -278,7 +278,7 @@ contains
        end do
   
        ! Communicate global identifiers of my refined elements to my neighbours
-       allocate ( data(p_trian%f_el_import%nelem + p_trian%f_el_import%nghost), stat=istat )
+       allocate ( data(p_trian%element_import%nelem + p_trian%element_import%nghost), stat=istat )
        check(istat==0)
 
        ! Count interface subelems
@@ -305,7 +305,7 @@ contains
        call memalloc ( p_mesh%f_mesh_dist%nebou, p_mesh%f_mesh_dist%lebou, __FILE__, __LINE__ )
        call memalloc ( p_mesh%f_mesh_dist%nebou+1, p_mesh%f_mesh_dist%pextn, __FILE__, __LINE__ )
 
-       call ghost_elements_exchange( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, data )
+       call ghost_elements_exchange( p_trian%p_env%p_context%icontxt, p_trian%element_import, data )
 
        ! List interface subelems and count its neighbours
        num_subelems_interface = 0
@@ -444,7 +444,7 @@ contains
           call memfree( data(elem_lid)%subelems_GIDs, __FILE__, __LINE__ )
        end do
 
-       do ielem = p_trian%f_el_import%nelem+1, p_trian%f_el_import%nelem + p_trian%f_el_import%nghost
+       do ielem = p_trian%element_import%nelem+1, p_trian%element_import%nelem + p_trian%element_import%nghost
           call memfree( data(ielem)%subelems_GIDs, __FILE__, __LINE__ )
        end do
 

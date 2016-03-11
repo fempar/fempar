@@ -46,7 +46,7 @@ module lfom_names
   character(len=*), parameter :: lfom_name = 'LFOM'
   integer (ip)    , parameter :: default_lfom_stopping_criteria = res_res
   
-  type, extends(base_linear_solver_t) :: lfom_t
+  type, extends(base_iterative_linear_solver_t) :: lfom_t
      ! Parameters
      integer(ip)                    :: dkrymax
      integer(ip)                    :: orthonorm_strat
@@ -361,7 +361,7 @@ contains
   function create_lfom(environment)
     implicit none
     class(environment_t), intent(in) :: environment
-    class(base_linear_solver_t), pointer :: create_lfom
+    class(base_iterative_linear_solver_t), pointer :: create_lfom
     type(lfom_t), pointer :: lfom
     allocate(lfom)
     call lfom%set_environment(environment)

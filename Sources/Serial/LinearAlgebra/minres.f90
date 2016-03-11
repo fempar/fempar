@@ -291,7 +291,7 @@ module minres_names
   character(len=*), parameter :: minres_name = 'MINRES'
   integer (ip)    , parameter :: default_minres_stopping_criteria = res_res
 
-  type, extends(base_linear_solver_t) :: minres_t
+  type, extends(base_iterative_linear_solver_t) :: minres_t
     ! Working space vectors for type(minres_t)
     class(vector_t), allocatable :: r1, r2
     class(vector_t), allocatable :: v1, v2
@@ -780,7 +780,7 @@ contains
   function create_minres(environment)
     implicit none
     class(environment_t), intent(in) :: environment
-    class(base_linear_solver_t), pointer :: create_minres
+    class(base_iterative_linear_solver_t), pointer :: create_minres
     type(minres_t), pointer :: minres
     allocate(minres)
     call minres%set_environment(environment)
