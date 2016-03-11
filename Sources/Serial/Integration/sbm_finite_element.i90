@@ -162,6 +162,7 @@ subroutine finite_element_fill_interior_dofs ( this, fe_space_id, dof_count )
   ! Local variables
   integer(ip) :: inode, l_node, ivef
   
+  ! In this TBP, the functional relationship among nodes and vefs should be taken into account
   if ( this%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
       ivef = this%cell%num_vefs+1
       do inode = 1, this%reference_fe_phy(fe_space_id)%p%get_number_interior_nodes_vef(ivef)
@@ -257,7 +258,8 @@ subroutine finite_element_fill_dofs_on_vef ( this, vef_local_id, fe_space_id, do
 
   ! Local variables
   integer(ip) :: inode, l_node
-
+  
+  ! In this TBP, the geometrical relationship among nodes and vefs should be taken into account
   do inode = 1,this%reference_fe_phy(fe_space_id)%p%get_number_nodes_vef(vef_local_id)
     l_node = this%reference_fe_phy(fe_space_id)%p%get_node_vef(inode,vef_local_id)
     if ( this%bc_code(fe_space_id)%p(l_node) == 0 ) then

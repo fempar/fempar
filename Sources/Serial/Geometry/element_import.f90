@@ -28,6 +28,7 @@
 module element_import_names
   use types_names
   use memor_names
+# include "debug.i90"  
   implicit none
   private
 
@@ -54,6 +55,10 @@ module element_import_names
         snd_ptrs(:)                     ! How many elements does does the part send to each neighbour?
      integer(ip), allocatable :: & 
         snd_leids(:)                    ! Local elements IDs of the elements to be sent to each neighbour ?
+  contains
+     procedure, non_overridable :: get_number_neighbours   => elem_import_get_number_neighbours
+     procedure, non_overridable :: get_global_neighbour_id => elem_import_get_global_neighbour_id
+     procedure, non_overridable :: get_local_neighbour_id  => elem_import_get_local_neighbour_id
   end type element_import_t
 
   ! Types
@@ -63,6 +68,37 @@ module element_import_names
   public :: element_import_free, element_import_print
 
 contains
+
+  function elem_import_get_number_neighbours ( this )
+    implicit none
+    class(element_import_t), intent(in) :: this
+    integer(ip)                      :: elem_import_get_number_neighbours
+    elem_import_get_number_neighbours = this%npadj
+  end function elem_import_get_number_neighbours
+  
+  function elem_import_get_global_neighbour_id ( this, local_neighbour_id )
+    implicit none
+    class(element_import_t), intent(in) :: this
+    integer(ip)         , intent(in) :: local_neighbour_id
+    integer(ip)                      :: elem_import_get_global_neighbour_id
+    assert ( local_neighbour_id >=1 .and. local_neighbour_id <= this%npadj )
+    elem_import_get_global_neighbour_id = this%lpadj(local_neighbour_id)
+  end function elem_import_get_global_neighbour_id
+  
+  function elem_import_get_local_neighbour_id ( this, global_neighbour_id )
+    implicit none
+    class(element_import_t), intent(in) :: this
+    integer(ip)            , intent(in) :: global_neighbour_id
+    integer(ip)                      :: elem_import_get_local_neighbour_id
+        
+    do elem_import_get_local_neighbour_id = 1, this%npadj
+      if ( this%lpadj(elem_import_get_local_neighbour_id) == global_neighbour_id ) return
+    end do
+    assert ( .not. (elem_import_get_local_neighbour_id == this%npadj+1) )
+  end function elem_import_get_local_neighbour_id
+  
+  
+
 
   !=============================================================================
   subroutine element_import_free ( element_import )

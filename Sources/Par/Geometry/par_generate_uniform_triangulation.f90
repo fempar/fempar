@@ -86,9 +86,9 @@ contains
             &                 p_cond%f_conditions,material,mdist)
 
        ! Create element_import
-       call element_import_create(mdist,p_trian%f_el_import)
-       num_elems  = p_trian%f_el_import%nelem
-       num_ghosts = p_trian%f_el_import%nghost
+       call element_import_create(mdist,p_trian%element_import)
+       num_elems  = p_trian%element_import%nelem
+       num_ghosts = p_trian%element_import%nghost
        p_trian%num_ghosts = num_ghosts
        p_trian%num_elems  = num_elems
 
@@ -126,7 +126,7 @@ contains
        end do
 
        ! Get vefs_GIDs from ghost elements
-       call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, p_trian%elems )
+       call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%element_import, p_trian%elems )
 
        ! Allocate elem_topology in triangulation for ghost elements  (SBmod)
        do ielem = num_elems+1, num_elems+num_ghosts       
