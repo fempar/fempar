@@ -126,40 +126,9 @@ contains
         this%pardiso_mkl_iparm     = default_pardiso_mkl_iparm
         this%matrix_type           = default_pardiso_mkl_matrix_type
 
-        if(this%matrix_is_set()) then
-            ! Choose pardiso_mkl matrix according to matrix
-            if (this%matrix%get_symmetric_storage() .and. &
-                this%matrix%get_sign() == SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE) then
-               this%matrix_type = pardiso_mkl_spd        ! Real Symmetric positive definite 
-            else if(this%matrix%get_symmetric_storage() .and. &
-                    this%matrix%get_sign() /= SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE) then
-               this%matrix_type = pardiso_mkl_sin        ! Real Symmetric indefinite
-            else 
-               this%matrix_type = pardiso_mkl_uss        ! Real Unsymmetric, structurally symmetric
-            end if
-        elseif (this%matrix_type == pardiso_mkl_uns) then! Real Unsymmetric, structurally unsymmetric
-            this%pardiso_mkl_iparm(1)  = 1               ! no solver default
-            this%pardiso_mkl_iparm(2)  = 2               ! fill-in reordering from METIS
-            this%pardiso_mkl_iparm(3)  = 1               ! numbers of processors
-            this%pardiso_mkl_iparm(4)  = 0               ! no iterative-direct algorithm
-            this%pardiso_mkl_iparm(5)  = 0               ! no user fill-in reducing permutation
-            this%pardiso_mkl_iparm(6)  = 0               ! =0 solution on the first n compoments of x
-            this%pardiso_mkl_iparm(7)  = 0               ! not in use
-            this%pardiso_mkl_iparm(8)  = 9               ! numbers of iterative refinement steps
-            this%pardiso_mkl_iparm(9)  = 0               ! not in use
-            this%pardiso_mkl_iparm(10) = 13              ! perturbe the pivot elements with 1E-13
-            this%pardiso_mkl_iparm(11) = 0               ! not use nonsymmetric permutation and scaling MPS
-            this%pardiso_mkl_iparm(12) = 0               ! not in use
-            this%pardiso_mkl_iparm(13) = 0               ! maximum weighted matching algorithm is switched-on (default for non-symmetric)
-            this%pardiso_mkl_iparm(14) = 0               ! Output: number of perturbed pivots
-            this%pardiso_mkl_iparm(15) = 0               ! not in use
-            this%pardiso_mkl_iparm(16) = 0               ! not in use
-            this%pardiso_mkl_iparm(17) = 0               ! not in use
-            this%pardiso_mkl_iparm(20) = 0               ! Output: Numbers of CG Iterations
-        endif
-        ! Always
-        this%pardiso_mkl_iparm(18)     = -1              ! Output: number of nonzeros in the factor LU
-        this%pardiso_mkl_iparm(19)     = -1              ! Output: Mflops for LU factorization
+        this%pardiso_mkl_iparm         = 0
+        this%pardiso_mkl_iparm(18)     = -1 ! Output: number of nonzeros in the factor LU
+        this%pardiso_mkl_iparm(19)     = -1 ! Output: Mflops for LU factorization
 #else
         call this%not_enabled_error()
 #endif
@@ -258,13 +227,6 @@ contains
         assert (this%state_is_start() .or. this%state_is_symbolic() .or. this%state_is_numeric())
         check(this%matrix_is_set())
 
-        if(this%state_is_symbolic()) then
-            call this%free_symbolic()
-        elseif(this%state_is_numeric()) then
-            call this%free_numerical()
-            call this%free_symbolic()
-        endif
-
         this%phase               = 11 ! only reordering and symbolic factorization
         matrix                   => this%matrix%get_pointer_to_base_matrix()
 
@@ -321,8 +283,9 @@ contains
         real(dp)                                          :: ddum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        assert (this%state_is_symbolic() .or. this%state_is_numeric())
-        if(this%state_is_numeric()) call this%free_numerical()
+        assert (this%state_is_start() .or. this%state_is_symbolic() .or. this%state_is_numeric())
+
+        if(this%state_is_start()) call this%symbolic_setup()
 
         ! Factorization.
         this%phase = 22 ! only numerical factorization
@@ -379,8 +342,11 @@ contains
         integer, target                                   :: idum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        assert (op%state_is_numeric())
+        assert (op%state_is_start() .or. op%state_is_symbolic() .or. op%state_is_numeric())
         assert (op%number_of_rhs == 1)
+
+        if(.not. op%state_is_numeric()) call op%numerical_setup()
+
         ! (c) y  <- A^-1 * x
         op%phase = 33 ! only Fwd/Bck substitution
 

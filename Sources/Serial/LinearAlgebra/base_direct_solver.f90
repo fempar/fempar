@@ -15,6 +15,36 @@ module base_direct_solver_names
     integer(ip), public, parameter :: BASE_DIRECT_SOLVER_STATE_SYMBOLIC = 1 ! Symbolic data already computed
     integer(ip), public, parameter :: BASE_DIRECT_SOLVER_STATE_NUMERIC  = 2 ! Numerical data already computed
 
+  !-----------------------------------------------------------------
+  ! State transition diagram for type(base_direct_solver_t)
+  !-----------------------------------------------------------------
+  ! Note: all the child classes must implement this state diagram
+  !-----------------------------------------------------------------
+  ! Input State         | Action                | Output State 
+  !-----------------------------------------------------------------
+  ! Start               | symbolic_setup        | Symbolic
+  ! Start               | numerical_setup       | Numeric           ! perform symbolic_setup()
+  ! Start               | solve                 | Numeric           ! perform numerical_setup()
+  ! Start               | free_clean            | Start
+  ! Start               | free_symbolic         | Start             ! it does nothing
+  ! Start               | free_numeric          | Start             ! it does nothing
+
+  ! Symbolic            | symbolic_setup        | Symbolic
+  ! Symbolic            | numerical_setup       | Numeric           
+  ! Symbolic            | solve                 | Numeric           ! perform numerical_setup()
+  ! Symbolic            | free_clean            | Start
+  ! Symbolic            | free_symbolic         | Start
+  ! Symbolic            | free_numeric          | Start             ! it does nothing
+
+  ! Numeric             | symbolic_setup        | Symbolic
+  ! Numeric             | numeric_setup         | Numeric
+  ! Numeric             | solve                 | Numeric
+  ! Numeric             | free_numeric          | Symbolic
+  ! Numeric             | free_symbolic         | Start
+  ! Numeric             | free_clean            | Start
+
+  
+
     type, abstract :: base_direct_solver_t
     private
         character(len=:), allocatable          :: name

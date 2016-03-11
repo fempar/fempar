@@ -202,7 +202,9 @@ contains
         integer(ip)                                   :: status
 #ifdef ENABLE_UMFPACK
         assert ( .not. this%matrix%get_symmetric_storage() )
-        assert (this%state_is_symbolic() .or. this%state_is_numeric())
+        assert (this%state_is_start() .or. this%state_is_symbolic() .or. this%state_is_numeric())
+
+        if(this%state_is_start()) call this%symbolic_setup()
 
         matrix => this%matrix%get_pointer_to_base_matrix()
         select type (matrix)
@@ -257,6 +259,8 @@ contains
 #ifdef ENABLE_UMFPACK
         assert ( .not. op%matrix%get_symmetric_storage() )
         assert (op%state_is_numeric())
+
+        if(.not. op%state_is_numeric()) call op%numerical_setup()
 
         matrix => op%matrix%get_pointer_to_base_matrix()
         select type (matrix)
