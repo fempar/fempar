@@ -176,6 +176,7 @@ subroutine serial_fe_space_free( this )
 		
     do i  = 1, this%number_fe_spaces
       call this%volume_integrator(i)%free()
+      call this%reference_fe_phy_list(i)%free()
     end do
     deallocate( this%volume_integrator )
     deallocate( this%reference_fe_phy_list )
