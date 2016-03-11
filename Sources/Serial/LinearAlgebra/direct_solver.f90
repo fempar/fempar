@@ -71,7 +71,7 @@ contains
         integer(ip), allocatable              :: shape(:)
     !-----------------------------------------------------------------
         is_present = parameter_list%isPresent(Key=direct_solver_type)
-        is_string = parameter_list%isOfDataType(Key=direct_solver_type, mold=name)
+        is_string = parameter_list%isOfDataType(Key=direct_solver_type, mold='string')
         shape = parameter_list%getshape(Key=direct_solver_type)
         ! check if direct_solver_type is present and is a scalar string
         ! in the given parameter list,
