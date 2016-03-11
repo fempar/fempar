@@ -73,34 +73,33 @@ implicit none
 ! SYMMETRIC STORAGE - NON SYMMETRIC STORAGE FOR SUBMATRICES
 !------------------------------------------------------------------
 
-!    call sparse_matrix%split_2x2_symbolic(num_row=3, num_col=3, A_II=A_II, A_IG=A_IG, A_GG=A_GG, symmetric_storage=.false.)
-!    call sparse_matrix%split_2x2_numeric(num_row=3, num_col=3, A_II=A_II, A_IG=A_IG, A_GG=A_GG, symmetric_storage=.false.)
+    call sparse_matrix%split_2x2_symbolic(num_row=2, num_col=2, A_II=A_II, A_IG=A_IG, A_GG=A_GG, symmetric_storage=.false.)
+    call sparse_matrix%split_2x2_numeric(num_row=2, num_col=2, A_II=A_II, A_IG=A_IG, A_GG=A_GG, symmetric_storage=.false.)
 
     print*, '--------------------------------------------'
     print*, ' Original matrix (SYMMETRIC STORAGE)'
     print*, ' Submatrices (NON SYMMETRIC STORAGE)'
     print*, '--------------------------------------------'
-    print*, ' NOT IMPLEMENTED !!!'
-!    call sparse_matrix%print_matrix_market(6)
-!    print*, '--------------------------------------------'
-!    print*, ' A_II'
-!    print*, '--------------------------------------------'
-!    call A_II%print_matrix_market(6)
-!    print*, '--------------------------------------------'
-!    print*, ' A_IG'
-!    print*, '--------------------------------------------'
-!    call A_IG%print_matrix_market(6)
-!    print*, '--------------------------------------------'
-!    print*, ' A_GG'
-!    print*, '--------------------------------------------'
-!    call A_GG%print_matrix_market(6)
-!
-!    call A_II%Free()
-!    call A_IG%Free()
-!    call A_GG%Free()
+
+    call sparse_matrix%print_matrix_market(6)
+    print*, '--------------------------------------------'
+    print*, ' A_II'
+    print*, '--------------------------------------------'
+    call A_II%print_matrix_market(6)
+    print*, '--------------------------------------------'
+    print*, ' A_IG'
+    print*, '--------------------------------------------'
+    call A_IG%print_matrix_market(6)
+    print*, '--------------------------------------------'
+    print*, ' A_GG'
+    print*, '--------------------------------------------'
+    call A_GG%print_matrix_market(6)
+
+    call A_II%Free()
+    call A_IG%Free()
+    call A_GG%Free()
 
     call sparse_matrix%free_in_stages(free_clean)
-
 
 !------------------------------------------------------------------
 ! NON SYMMETRIC STORAGE FOR SYMMETRIC MATRIX

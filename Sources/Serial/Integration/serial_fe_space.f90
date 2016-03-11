@@ -26,29 +26,43 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module serial_fe_space_names
+  
+ ! Serial modules
+  use types_names
+  use list_types_names
   use memor_names
+  use sort_names
   use allocatable_array_names
+  use hash_table_names
+  
+  use triangulation_names
+  use conditions_names
+  
+  use reference_fe_names
+  use reference_fe_factory_names
+  use field_names
+  use function_names
+  
   use matrix_names
-  use array_names
-  use sparse_matrix_names
   use vector_names
-  use serial_scalar_array_names
-  use block_sparse_matrix_names
-  use serial_block_array_names
+  use array_names
   use matrix_array_assembler_names
+  
+  use sparse_matrix_names
+  use block_sparse_matrix_names
+  use serial_scalar_array_names
+  use serial_block_array_names
   use sparse_matrix_array_assembler_names
   use block_sparse_matrix_array_assembler_names
-  use types_names
-  use field_names
-  use list_types_names
-  use reference_fe_names
-  use triangulation_names
-  use reference_fe_factory_names
-  use migratory_element_names
-  use conditions_names
-  use hash_table_names
-  use graph_names
-  use sort_names
+  
+ ! Parallel modules
+  use par_triangulation_names
+  use par_conditions_names
+  use dof_import_names
+  use par_sparse_matrix_names
+  use par_scalar_array_names
+  use par_sparse_matrix_array_assembler_names
+  
   implicit none
 # include "debug.i90"
   private
@@ -89,17 +103,18 @@ module serial_fe_space_names
      type(r1p_t)                   , allocatable :: bc_value(:)
    contains
      
-     procedure, non_overridable :: create =>  finite_element_create
-     procedure, non_overridable :: update_integration => finite_element_update_integration
-     procedure, non_overridable :: free => finite_element_free
+     procedure, non_overridable, private :: create =>  finite_element_create
+     procedure, non_overridable          :: update_integration => finite_element_update_integration
+     procedure, non_overridable, private :: free => finite_element_free
      ! procedure :: print Pending
-     procedure, non_overridable :: fill_interior_dofs => finite_element_fill_interior_dofs
-     procedure, non_overridable :: fill_dofs_on_vef => finite_element_fill_dofs_on_vef
-     procedure, non_overridable :: fill_dofs_on_vef_from_source_element => finite_element_fill_dofs_on_vef_from_source_element
+     procedure, non_overridable, private :: fill_interior_dofs => finite_element_fill_interior_dofs
+     procedure, non_overridable, private :: fill_interior_dofs_on_vef => finite_element_fill_interior_dofs_on_vef
+     procedure, non_overridable, private :: fill_interior_dofs_on_vef_from_source_element => finite_element_fill_interior_dofs_on_vef_from_source_element
+     procedure, non_overridable, private :: fill_dofs_on_vef => finite_element_fill_dofs_on_vef
      
      procedure, non_overridable :: get_number_nodes => finite_element_get_number_nodes
      procedure, non_overridable :: get_fe_map => finite_element_get_fe_map
-     procedure, non_overridable :: get_quadrature	=> finite_element_get_quadrature
+     procedure, non_overridable :: get_quadrature => finite_element_get_quadrature
      procedure, non_overridable :: get_volume_integrator => finite_element_get_volume_integrator
      procedure, non_overridable :: get_elem2dof  => finite_element_get_elem2dof
      procedure, non_overridable :: get_bc_code  => finite_element_get_bc_code
@@ -128,9 +143,9 @@ module serial_fe_space_names
      private
      integer(ip)                            :: number_fe_spaces
      type(face_topology_t)    , pointer     :: face_topology
-     type(p_finite_element_t)            :: neighbour_fe(2)
+     type(p_finite_element_t)               :: neighbour_fe(2)
      type(face_map_t)         , pointer     :: map
-     type(quadrature_t)    , pointer     :: quadrature
+     type(quadrature_t)       , pointer     :: quadrature
      type(p_face_integrator_t), allocatable :: face_integrator(:)
    contains
      procedure, non_overridable :: create              => finite_face_create
@@ -144,6 +159,8 @@ module serial_fe_space_names
      procedure, non_overridable :: get_map             => finite_face_get_map
      procedure, non_overridable :: get_quadrature      => finite_face_get_quadrature
      procedure, non_overridable :: get_face_integrator => finite_face_get_face_integrator
+     procedure, non_overridable :: get_relative_orientation => finite_face_get_relative_orientation
+     procedure, non_overridable :: get_relative_rotation => finite_face_get_relative_rotation
   end type finite_face_t
 
   public :: finite_face_t
@@ -167,44 +184,81 @@ module serial_fe_space_names
      integer(ip)                                 :: number_blocks
      integer(ip)                   , allocatable :: field_blocks(:)
      logical                       , allocatable :: field_coupling(:,:)
-     integer(ip)                   , allocatable :: number_dofs(:)
+     logical                       , allocatable :: blocks_coupling(:,:)
+     integer(ip)                   , allocatable :: number_dofs_per_block(:)
+     integer(ip)                   , allocatable :: number_dofs_per_field(:)
    contains
-     procedure, non_overridable :: create
-     procedure, non_overridable :: fill_dof_info
-     procedure, non_overridable, private :: fill_elem2dof_and_count_dofs
-     procedure, non_overridable :: free
-     procedure, non_overridable :: print
-     procedure, non_overridable :: initialize_integration
-     procedure, non_overridable, private :: initialize_quadrature
-     procedure, non_overridable, private :: initialize_volume_integrator
-     procedure, non_overridable, private :: initialize_fe_map
-     procedure, non_overridable :: create_assembler
-     procedure, non_overridable :: symbolic_setup_assembler
-     procedure, non_overridable :: get_number_elements
-     procedure, non_overridable :: get_number_interior_faces
-     procedure, non_overridable :: get_number_boundary_faces
-     procedure, non_overridable :: get_number_fe_spaces
-     procedure, non_overridable :: get_finite_element
-     procedure, non_overridable :: get_finite_face
-     procedure, non_overridable :: get_number_blocks
-     procedure, non_overridable :: get_field_blocks
-     procedure, non_overridable :: get_field_coupling
-     procedure, private         :: get_max_number_nodes_field
-     procedure, private         :: get_max_number_nodes_fe_space
-     generic :: get_max_number_nodes => get_max_number_nodes_field, &
+     procedure, private         :: serial_fe_space_create
+     generic                    :: create => serial_fe_space_create
+     procedure                  :: fill_dof_info => serial_fe_space_fill_dof_info
+     procedure, non_overridable, private :: fill_elem2dof_and_count_dofs => serial_fe_space_fill_elem2dof_and_count_dofs
+     procedure                  :: free => serial_fe_space_free
+     procedure                  :: print => serial_fe_space_print
+     procedure, non_overridable :: initialize_integration => serial_fe_space_initialize_integration
+     procedure, non_overridable, private :: initialize_quadrature => serial_fe_space_initialize_quadrature
+     procedure, non_overridable, private :: initialize_volume_integrator => serial_fe_space_initialize_volume_integrator
+     procedure, non_overridable, private :: initialize_fe_map => serial_fe_space_initialize_fe_map
+     procedure                  :: create_assembler => serial_fe_space_create_assembler
+     procedure                  :: symbolic_setup_assembler => serial_fe_space_symbolic_setup_assembler
+     procedure, non_overridable :: get_number_elements => serial_fe_space_get_number_elements
+     procedure, non_overridable :: get_number_interior_faces => serial_fe_space_get_number_interior_faces
+     procedure, non_overridable :: get_number_boundary_faces => serial_fe_space_get_number_boundary_faces
+     procedure, non_overridable :: get_number_fe_spaces => serial_fe_space_get_number_fe_spaces
+     procedure                  :: get_finite_element => serial_fe_space_get_finite_element
+     procedure, non_overridable :: get_finite_face => serial_fe_space_get_finite_face
+     procedure, non_overridable :: get_number_blocks => serial_fe_space_get_number_blocks
+     procedure, non_overridable :: get_field_blocks => serial_fe_space_get_field_blocks
+     procedure, non_overridable :: get_field_coupling => serial_fe_space_get_field_coupling
+     procedure, private         :: get_max_number_nodes_field => serial_fe_space_get_max_number_nodes_field
+     procedure, private         :: get_max_number_nodes_fe_space => serial_fe_space_get_max_number_nodes_fe_space
+     generic :: get_max_number_nodes => get_max_number_nodes_field, & 
                                       & get_max_number_nodes_fe_space
-     procedure, non_overridable :: get_max_number_quadrature_points
-     procedure, non_overridable :: create_face_array
-     procedure, private         :: create_fe_function_scalar
-     procedure, private         :: create_fe_function_vector
-     procedure, private         :: create_fe_function_tensor
+     procedure, non_overridable :: get_max_number_quadrature_points => serial_fe_space_get_max_number_quadrature_points
+     procedure, non_overridable :: create_face_array => serial_fe_space_create_face_array
+     procedure, private         :: create_fe_function_scalar => serial_fe_space_create_fe_function_scalar
+     procedure, private         :: create_fe_function_vector => serial_fe_space_create_fe_function_vector
+     procedure, private         :: create_fe_function_tensor => serial_fe_space_create_fe_function_tensor
      generic :: create_fe_function => create_fe_function_scalar, &
                                     & create_fe_function_vector, &
                                     & create_fe_function_tensor
+     procedure, non_overridable :: update_bc_value_scalar
+     procedure, non_overridable :: update_bc_value_vector
+     procedure, non_overridable :: update_bc_value_tensor
+     generic :: update_bc_value => update_bc_value_scalar, &
+                                 & update_bc_value_vector, &
+                                 & update_bc_value_tensor
      
   end type serial_fe_space_t
 
   public :: serial_fe_space_t
+  
+  type, extends(serial_fe_space_t) :: par_fe_space_t
+     private
+     type(par_triangulation_t), pointer     :: par_triangulation
+     type(finite_element_t)   , allocatable :: ghost_fe_array(:)
+     type(dof_import_t)       , allocatable :: blocks_dof_import(:)
+  contains
+     
+     procedure, non_overridable, private :: par_fe_space_create
+     procedure, non_overridable, private :: serial_fe_space_create   => par_fe_space_serial_fe_space_create
+     generic                             :: create                   => par_fe_space_create
+     procedure, non_overridable          :: fill_dof_info            => par_fe_space_fill_dof_info
+     procedure, non_overridable, private :: par_fe_space_fill_elem2dof_and_count_dofs
+     procedure, non_overridable, private :: par_fe_space_compute_blocks_dof_import
+     procedure, non_overridable, private :: par_fe_space_compute_dof_import
+     procedure, non_overridable, private :: par_fe_space_compute_raw_interface_data_by_continuity
+     procedure, non_overridable, private :: par_fe_space_raw_interface_data_by_continuity_decide_owner
+     procedure, non_overridable, private :: par_fe_space_compute_raw_interface_data_by_face_integ
+     procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
+     procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
+     procedure, non_overridable          :: get_finite_element       => par_fe_space_get_finite_element
+     procedure, non_overridable          :: print                    => par_fe_space_print
+     procedure, non_overridable          :: free                     => par_fe_space_free
+     procedure, non_overridable          :: create_assembler         => par_fe_space_create_assembler
+     procedure, non_overridable          :: symbolic_setup_assembler => par_fe_space_symbolic_setup_assembler
+  end type
+
+  public :: par_fe_space_t
   
   type fe_function_scalar_t
    private
@@ -290,6 +344,8 @@ contains
 #include "sbm_finite_face.i90"
 
 #include "sbm_serial_fe_space.i90"
+
+#include "../../Par/Integration/sbm_par_fe_space.i90"
 
 #include "sbm_serial_fe_space_faces.i90"
 

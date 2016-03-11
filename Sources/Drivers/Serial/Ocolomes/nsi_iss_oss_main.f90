@@ -126,7 +126,6 @@ program test_nsi_iss_oss
   type(serial_fe_space_t)              :: fe_space
   type(p_reference_fe_t)               :: reference_fe_array(3)
   type(fe_affine_operator_t)           :: fe_affine_operator
-  type(vector_space_t), pointer        :: fe_affine_operator_range_vector_space
   class(vector_t), allocatable, target :: dof_values
   class(vector_t), allocatable, target :: residual
 

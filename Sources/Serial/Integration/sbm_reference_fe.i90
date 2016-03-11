@@ -26,75 +26,35 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
- subroutine reference_fe_permute_nodes_per_vef( reference_element2, reference_element1, permu, &
-                                    o1, o2, ln1, ln2, od, q, subface1, subface2 )
-    implicit none
-    ! Parameters
-    class(reference_fe_t), intent(in)   :: reference_element1, reference_element2   ! Info of the elements
-    integer(ip)         , intent(out)  :: permu(:) ! Permutation vector
-    integer(ip)         , intent(in)   :: o1,o2    ! Local identifier of the vef in each element
-    integer(ip)         , intent(in)   :: ln1(reference_element1%number_vefs), ln2(reference_element2%number_vefs) ! lnods of each vef
-    integer(ip)         , intent(in)   :: od       ! Dimension of the vef
-    integer(ip)         , intent(in)   :: q  
-    integer(ip), optional, intent(in)  :: subface1,subface2
-
-    ! Local variables
-    integer(ip) :: i,c1,r, o=0, r0, num_corners
-
-    ! TODO: CHECK THE R0 implementation, it is probably wrong
-
-    if (present(subface1)) then
-       if (subface1 == 0) then
-          r0=0
-       else
-          r0 = subface1 -1
-       end if
-       assert (subface2 == 0) 
-    else
-       r0 = 0
-    end if
-
-    permu = 1
-
-    c1 = ln1(reference_element1%vertices_vef%l(reference_element1%vertices_vef%p(o1)+r0))  ! Global identifier of the vef of the first corner
-    r = 1
-    do i = reference_element2%vertices_vef%p(o2),reference_element2%vertices_vef%p(o2+1)-1
-       if ( ln2(reference_element2%vertices_vef%l(i)) == c1 ) exit
-       r = r+1
-    end do
-    check ( ln2(reference_element2%vertices_vef%l(i)) == c1 )
-
-    if (r0>0) then
-       r = r-r0
-       if (r < 1) then
-          num_corners = reference_element2%vertices_vef%p(o2+1)- reference_element2%vertices_vef%p(o2)
-          r = r + num_corners 
-       end if
-    end if
-
-    if (od == 2) then
-       o = modulo(reference_element1%orientation%a(o1)+reference_element1%orientation%a(o2)+1,2)
-    else
-       o = 0
-    end if
-
-    call reference_element2%permute_order_vef( permu,q,o,r,od )
-
-  end subroutine reference_fe_permute_nodes_per_vef
-
   subroutine reference_fe_free( this )
     implicit none
     class(reference_fe_t), intent(inout) :: this
 
+    integer(ip) :: i
+
     if(allocated(this%topology)) deallocate(this%topology)
     if(allocated(this%fe_type)) deallocate(this%fe_type)
     if(allocated(this%field_type)) deallocate(this%field_type)
+    
+    if (allocated(this%number_rotations_per_dimension)) &
+         call memfree(this%number_rotations_per_dimension,__FILE__,__LINE__)
+
+    if (allocated(this%number_orientations_per_dimension)) &
+         call memfree(this%number_orientations_per_dimension,__FILE__,__LINE__)
+
+    if (allocated(this%interior_node_permutations)) then
+       do i = 1, this%number_dimensions-1
+          call this%interior_node_permutations(i)%free()
+       end do
+       deallocate(this%interior_node_permutations)
+    end if
 
     call this%interior_nodes_vef%free()
     call this%nodes_vef%free()
     call this%vertices_vef%free()
     call this%vefs_vef%free()
     call this%orientation%free()
+    call this%nodal_quadrature%free()
 
     this%number_dimensions = 0
     this%order = 0
@@ -103,6 +63,7 @@
     this%number_nodes = 0
     this%number_vefs_dimension  = 0
     this%continuity = .true.
+
   end subroutine reference_fe_free
   
   subroutine reference_fe_print ( reference_fe )
@@ -163,13 +124,13 @@ subroutine reference_fe_set_common_data( this, number_dimensions, order, field_t
      this%continuity = .true.
   end if
   this%field_type = field_type
-  if( field_type == "scalar" ) then
+  if( this%field_type == field_type_scalar ) then
      this%number_field_components = 1
-  else if ( field_type == "vector" ) then
+  else if ( this%field_type == field_type_vector ) then
      this%number_field_components = number_dimensions
-  else if ( field_type == "tensor" ) then
+  else if ( this%field_type == field_type_tensor ) then
      this%number_field_components = number_dimensions**2
-  else if ( field_type == "symmetric_tensor" ) then
+  else if ( this%field_type == field_type_symmetric_tensor ) then
      this%number_field_components = ((number_dimensions)*(number_dimensions+1))/2
   else
      write (*,*) 'ERROR: field type not defined'
@@ -261,13 +222,6 @@ end function reference_fe_get_continuity
     integer(ip) :: reference_fe_get_first_vertex_id
     reference_fe_get_first_vertex_id = this%number_vefs_dimension(1)
   end function reference_fe_get_first_vertex_id
-  
-  function reference_fe_get_number_vertices_per_vertex ( this )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip) :: reference_fe_get_number_vertices_per_vertex
-    reference_fe_get_number_vertices_per_vertex = this%vertices_vef%p(this%number_vefs_dimension(1)+1)-this%vertices_vef%p( this%number_vefs_dimension(1))
-  end function reference_fe_get_number_vertices_per_vertex
   
   function reference_fe_get_number_vertices_per_edge ( this )
     implicit none
@@ -421,18 +375,152 @@ end function reference_fe_get_continuity
     reference_fe_get_number_vertices_vef = this%vertices_vef%p(i+1)-this%vertices_vef%p(i)
   end function reference_fe_get_number_vertices_vef
 
-  function reference_fe_get_orientation ( this )
+  function reference_fe_get_number_nodes_per_vertex ( this )
     implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_nodes_per_vertex
+    reference_fe_get_number_nodes_per_vertex = this%nodes_vef%p(this%number_vefs_dimension(1)+1)-&
+                                               this%nodes_vef%p(this%number_vefs_dimension(1))
+  end function reference_fe_get_number_nodes_per_vertex
+  
+  
+  function reference_fe_get_number_nodes_per_edge ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_nodes_per_edge
+    reference_fe_get_number_nodes_per_edge = this%nodes_vef%p(this%number_vefs_dimension(2)+1)-&
+                                               this%nodes_vef%p(this%number_vefs_dimension(2))
+  end function reference_fe_get_number_nodes_per_edge
+  
+  function reference_fe_get_number_interior_nodes_per_edge ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_interior_nodes_per_edge
+    reference_fe_get_number_interior_nodes_per_edge = this%interior_nodes_vef%p(this%number_vefs_dimension(2)+1)-&
+                                                      this%interior_nodes_vef%p(this%number_vefs_dimension(2))
+  end function reference_fe_get_number_interior_nodes_per_edge
+  
+  
+  function reference_fe_get_number_nodes_per_face ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_nodes_per_face
+    reference_fe_get_number_nodes_per_face = this%nodes_vef%p(this%number_vefs_dimension(this%number_dimensions)+1)-&
+                                               this%nodes_vef%p(this%number_vefs_dimension(this%number_dimensions))
+  end function reference_fe_get_number_nodes_per_face
+  
+  function reference_fe_get_number_interior_nodes_per_face ( this )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip) :: reference_fe_get_number_interior_nodes_per_face
+    reference_fe_get_number_interior_nodes_per_face = this%interior_nodes_vef%p(this%number_vefs_dimension(this%number_dimensions)+1)-&
+                                                      this%interior_nodes_vef%p(this%number_vefs_dimension(this%number_dimensions))
+  end function reference_fe_get_number_interior_nodes_per_face
+  
+  function reference_fe_get_orientation(this)
     class(reference_fe_t), target, intent(in) :: this
     type(allocatable_array_ip1_t), pointer :: reference_fe_get_orientation
     reference_fe_get_orientation => this%orientation
   end function reference_fe_get_orientation
+
+  function reference_fe_get_nodal_quadrature ( this )
+    implicit none
+    class(reference_fe_t), target, intent(in) :: this
+    type(quadrature_t), pointer :: reference_fe_get_nodal_quadrature
+    reference_fe_get_nodal_quadrature => this%nodal_quadrature
+  end function reference_fe_get_nodal_quadrature
   
   !==================================================================================================
+  function reference_fe_compute_relative_orientation(target_reference_fe,                      &
+     &                       source_reference_fe,source_vef_id,target_vef_id)
+    implicit none
+    class(reference_fe_t), intent(in)  :: target_reference_fe
+    class(reference_fe_t), intent(in)  :: source_reference_fe
+    integer(ip)          , intent(in)  :: source_vef_id ! Local vef ID
+    integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
+    integer(ip)                        :: reference_fe_compute_relative_orientation 
+
+    if (target_reference_fe%get_vef_dimension(target_vef_id) < 2) then
+       reference_fe_compute_relative_orientation = 0
+    else
+       reference_fe_compute_relative_orientation = modulo( 1 +                                    &
+            &                             source_reference_fe%orientation%a(source_vef_id) -      &
+            &                             target_reference_fe%orientation%a(target_vef_id),2)
+    end if
+  end function reference_fe_compute_relative_orientation
+
+  !==================================================================================================
+  function reference_fe_compute_relative_rotation(target_reference_fe,source_reference_fe,          &
+       &                                          source_vef_id,target_vef_id, source_vefs,         &
+       &                                          target_vefs,source_subface)
+    implicit none
+    class(reference_fe_t), intent(in)  :: target_reference_fe
+    class(reference_fe_t), intent(in)  :: source_reference_fe
+    integer(ip)          , intent(in)  :: source_vef_id ! Local vef ID
+    integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
+    integer(ip)          , intent(in)  :: source_vefs(source_reference_fe%number_vefs)
+    integer(ip)          , intent(in)  :: target_vefs(target_reference_fe%number_vefs) 
+    integer(ip), optional, intent(in)  :: source_subface
+    integer(ip)                        :: reference_fe_compute_relative_rotation 
+
+    integer(ip) :: source_first_vertex_global_id, i, target_vertex_global_id 
+
+    ! Relative Rotation
+    if (.not. present(source_subface) .or. source_subface == 0) then 
+       source_first_vertex_global_id = source_vefs(source_reference_fe%vertices_vef%l         &
+            & (source_reference_fe%vertices_vef%p(source_vef_id)))
+       reference_fe_compute_relative_rotation = 1
+       do i = target_reference_fe%vertices_vef%p(target_vef_id),                              &
+            & target_reference_fe%vertices_vef%p(target_vef_id+1)-1
+          target_vertex_global_id = target_vefs(target_reference_fe%vertices_vef%l(i))
+          if (target_vertex_global_id ==  source_first_vertex_global_id) exit
+          reference_fe_compute_relative_rotation = reference_fe_compute_relative_rotation + 1
+       end do
+    else
+       check (.false.)
+    end if
+  end function reference_fe_compute_relative_rotation
+
+  !==================================================================================================
+  function reference_fe_get_permuted_interior_node_vef(this,inode,target_vef_id,     &
+       &                                               relative_orientation, relative_rotation)
+    implicit none
+    class(reference_fe_t), intent(in)  :: this
+    integer(ip)          , intent(in)  :: inode
+    integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
+    integer(ip)          , intent(in)  :: relative_orientation
+    integer(ip)          , intent(in)  :: relative_rotation
+    integer(ip) :: reference_fe_get_permuted_interior_node_vef
+
+    integer(ip) :: vef_dimension, permutation_key, permuted_interior_node
+    
+    assert ( allocated ( this%number_rotations_per_dimension ) )
+    assert ( allocated ( this%number_orientations_per_dimension ) )
+    assert ( allocated ( this%interior_node_permutations ) )
+
+    vef_dimension = this%get_vef_dimension(target_vef_id)
+    
+    if ( vef_dimension == 0 ) then
+      permuted_interior_node = inode
+    else
+      permutation_key = relative_rotation +                                                         &
+         &              this%number_rotations_per_dimension(vef_dimension)*relative_orientation
+    
+      permuted_interior_node = this%interior_node_permutations          &
+                              & (vef_dimension)%a(inode,permutation_key)
+
+    end if                          
+    reference_fe_get_permuted_interior_node_vef = this%interior_nodes_vef%                        &
+          & l(this%interior_nodes_vef%p(target_vef_id) + permuted_interior_node -1)
+  end function reference_fe_get_permuted_interior_node_vef
+
+   !==================================================================================================
   subroutine p_reference_fe_free( this )
     implicit none
     class(p_reference_fe_t), intent(inout) :: this
-    call this%p%free()
-    deallocate ( this%p )
+    if (associated ( this%p )) then
+      call this%p%free()
+      deallocate ( this%p )
+    end if  
   end subroutine p_reference_fe_free
   

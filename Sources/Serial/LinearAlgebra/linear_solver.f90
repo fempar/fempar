@@ -142,14 +142,14 @@ contains
      ! 3. Only create if this%state == environment_set or if base_linear_solver was freed in the block of code above
   
   ! SELECT MANUALLY ITERATIVE LINEAR SOLVER TYPE: 
-     !this%base_linear_solver => create_richardson(this%environment)
-     !this%base_linear_solver => create_cg(this%environment)
-     this%base_iterative_linear_solver => create_rgmres(this%environment)
-     !this%base_linear_solver => create_lgmres(this%environment)
-     !this%base_linear_solver => create_fgmres(this%environment)
-     !this%base_linear_solver => create_lfom(this%environment) 
-     !this%base_linear_solver => create_minres(this%environment)
-     !this%base_linear_solver => create_icg(this%environment)
+     !this%base_iterative_linear_solver => create_richardson(this%environment)
+     this%base_iterative_linear_solver => create_cg(this%environment)
+     !this%base_iterative_linear_solver => create_rgmres(this%environment)
+     !this%base_iterative_linear_solver => create_lgmres(this%environment)
+     !this%base_iterative_linear_solver => create_fgmres(this%environment)
+     !this%base_iterative_linear_solver => create_lfom(this%environment) 
+     !this%base_iterative_linear_solver => create_minres(this%environment)
+     !this%base_iterative_linear_solver => create_icg(this%environment)
      
      assert ( this%base_iterative_linear_solver%get_state() == start )
      this%state = solver_type_set

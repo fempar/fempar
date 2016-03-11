@@ -58,10 +58,12 @@ subroutine finite_face_update_integration( this )
      call this%neighbour_fe(2)%p%cell%get_coordinates(coords)
   end if
 
-  call this%map%update(this%face_topology%relative_face,this%quadrature,                       &
-       &                           this%neighbour_fe(1)%p%cell%reference_fe_geo)
+  call this%map%update(this%face_topology%relative_face,this%quadrature,                          &
+       &               this%neighbour_fe(1)%p%cell%reference_fe_geo)
+
   do i = 1, this%number_fe_spaces
-     call this%face_integrator(i)%p%update(this%face_topology%relative_face,this%map)
+     call this%face_integrator(i)%p%update(this%face_topology%relative_face,this%map,             &
+          &                         this%get_relative_orientation(),this%get_relative_rotation())
   end do
 end subroutine finite_face_update_integration
 
@@ -155,3 +157,19 @@ function finite_face_get_face_integrator(this,i)
   type(face_integrator_t)     , pointer    :: finite_face_get_face_integrator
   finite_face_get_face_integrator => this%face_integrator(i)%p
 end function finite_face_get_face_integrator
+
+!==================================================================================================
+function finite_face_get_relative_orientation(this)
+  implicit none
+  class(finite_face_t), target, intent(in) :: this
+  integer(ip) :: finite_face_get_relative_orientation
+  finite_face_get_relative_orientation = this%face_topology%get_relative_orientation()
+end function finite_face_get_relative_orientation
+
+!==================================================================================================
+function finite_face_get_relative_rotation(this)
+  implicit none
+  class(finite_face_t), target, intent(in) :: this
+  integer(ip) :: finite_face_get_relative_rotation
+  finite_face_get_relative_rotation = this%face_topology%get_relative_rotation()
+end function finite_face_get_relative_rotation

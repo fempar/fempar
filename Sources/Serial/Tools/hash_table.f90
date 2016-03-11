@@ -99,6 +99,24 @@ use types_names
 #define print_hash_table  print_hash_table_igp_ip
 #define status_hash_table  status_hash_table_igp_ip
 #include "hash_table_header.i90"
+  
+#define hash_table hash_table_ip_igp_t
+#define hash_node  hash_node_ip_igp_t
+#define key_type   integer(igp)
+#define val_type   integer(ip)
+#define put_hash_node     put_hash_node_ip_igp   
+#define get_hash_node     get_hash_node_ip_igp   
+#define del_hash_node     del_hash_node_ip_igp   
+#define free_hash_node    free_hash_node_ip_igp  
+#define print_hash_node   print_hash_node_ip_igp 
+#define init_hash_table   init_hash_table_ip_igp 
+#define put_hash_table    put_hash_table_ip_igp  
+#define get_hash_table    get_hash_table_ip_igp  
+#define del_hash_table    del_hash_table_ip_igp  
+#define free_hash_table   free_hash_table_ip_igp 
+#define print_hash_table  print_hash_table_ip_igp
+#define status_hash_table  status_hash_table_ip_igp
+#include "hash_table_header.i90"  
 
 #define position
 #define hash_table position_hash_table_t
@@ -120,7 +138,7 @@ use types_names
 #include "hash_table_header.i90"
 #undef position
 
-  public :: position_hash_table_t, hash_table_ip_ip_t, hash_table_igp_ip_t
+  public :: position_hash_table_t, hash_table_ip_ip_t, hash_table_igp_ip_t, hash_table_ip_igp_t
 
   public :: was_stored, now_stored, bad_keyval, key_found, key_not_found, deleted, error, new_index, old_index
 
@@ -166,6 +184,26 @@ contains
 #define free_hash_table   free_hash_table_igp_ip 
 #define print_hash_table  print_hash_table_igp_ip
 #define status_hash_table  status_hash_table_igp_ip
+#include "hash_table_body.i90"
+
+#define hash_table hash_table_ip_igp_t
+#define hash_node  hash_node_ip_igp_t
+#define key_type   integer(igp)
+#define key_size   igp
+#define val_type   integer(ip)
+#define print_key_val     write(*,'(i10,2x,i10)') list%key, list%val
+#define put_hash_node     put_hash_node_ip_igp   
+#define get_hash_node     get_hash_node_ip_igp   
+#define del_hash_node     del_hash_node_ip_igp   
+#define free_hash_node    free_hash_node_ip_igp  
+#define print_hash_node   print_hash_node_ip_igp 
+#define init_hash_table   init_hash_table_ip_igp 
+#define put_hash_table    put_hash_table_ip_igp  
+#define del_hash_table    del_hash_table_ip_igp  
+#define get_hash_table    get_hash_table_ip_igp  
+#define free_hash_table   free_hash_table_ip_igp 
+#define print_hash_table  print_hash_table_ip_igp
+#define status_hash_table  status_hash_table_ip_igp
 #include "hash_table_body.i90"
 
 #define position

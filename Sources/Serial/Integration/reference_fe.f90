@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module reference_fe_names
   use allocatable_array_ip1_names
+  use allocatable_array_ip2_names
   use field_names
   use types_names
   use list_types_names
@@ -156,21 +157,23 @@ module reference_fe_names
      ! Number of quadrature points
      integer(ip)              :: number_quadrature_points
    contains
-     procedure, non_overridable :: create                  => fe_map_create
-     procedure, non_overridable :: create_on_face          => fe_map_create_on_face
-     procedure, non_overridable :: fe_map_face_map_create  => fe_map_face_map_create
-     procedure, non_overridable :: update                  => fe_map_update
-     procedure, non_overridable :: face_map_update         => fe_map_face_map_update
-     procedure, non_overridable :: free                    => fe_map_free
-     procedure, non_overridable :: print                   => fe_map_print
-     procedure, non_overridable :: get_det_jacobian        => fe_map_get_det_jacobian
-     procedure, non_overridable :: compute_h               => fe_map_compute_h
-     procedure, non_overridable :: compute_h_min           => fe_map_compute_h_min
-     procedure, non_overridable :: compute_h_max           => fe_map_compute_h_max
-     procedure, non_overridable :: get_coordinates         => fe_map_get_coordinates
-     procedure, non_overridable :: get_inv_jacobian_tensor => fe_map_get_inv_jacobian_tensor
-     procedure, non_overridable :: get_reference_h         => fe_map_get_reference_h
-     procedure, non_overridable :: apply_inv_jacobian      => fe_map_apply_inv_jacobian
+     procedure, non_overridable :: create                         => fe_map_create
+     procedure, non_overridable :: create_on_face                 => fe_map_create_on_face
+     procedure, non_overridable :: fe_map_face_map_create         => fe_map_face_map_create
+     procedure, non_overridable :: update                         => fe_map_update
+     procedure, non_overridable :: face_map_update                => fe_map_face_map_update
+     procedure, non_overridable :: free                           => fe_map_free
+     procedure, non_overridable :: print                          => fe_map_print
+     procedure, non_overridable :: get_det_jacobian               => fe_map_get_det_jacobian
+     procedure, non_overridable :: compute_h                      => fe_map_compute_h
+     procedure, non_overridable :: compute_h_min                  => fe_map_compute_h_min
+     procedure, non_overridable :: compute_h_max                  => fe_map_compute_h_max
+     procedure, non_overridable :: get_coordinates                => fe_map_get_coordinates
+     procedure, non_overridable :: get_inv_jacobian_tensor        => fe_map_get_inv_jacobian_tensor
+     procedure, non_overridable :: get_reference_h                => fe_map_get_reference_h
+     procedure, non_overridable :: apply_inv_jacobian             => fe_map_apply_inv_jacobian
+     procedure, non_overridable :: compute_quadrature_coordinates => fe_map_compute_quadrature_coordinates
+     procedure, non_overridable :: get_quadrature_coordinates     => fe_map_get_quadrature_coordinates
   end type fe_map_t
 
   type p_fe_map_t
@@ -233,6 +236,11 @@ module reference_fe_names
      type(list_t)                   :: nodes_vef          ! all nodes per vef
      type(list_t)                   :: vertices_vef       ! vertices per vef
      type(list_t)                   :: vefs_vef           ! all vefs per vef
+     type(quadrature_t)             :: nodal_quadrature
+
+     integer(ip), allocatable :: number_rotations_per_dimension(:)
+     integer(ip), allocatable :: number_orientations_per_dimension(:)
+     type(allocatable_array_ip2_t), allocatable :: interior_node_permutations(:)
    contains
      ! TBPs
      ! Fill topology, fe_type, number_dimensions, order, continuity 
@@ -282,11 +290,22 @@ module reference_fe_names
      
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
-     procedure (permute_order_vef_interface)    , deferred :: permute_order_vef
+     procedure (check_compatibility_of_vefs_interface), deferred :: &
+          &     check_compatibility_of_vefs
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
+     procedure (set_nodal_quadrature_interface), deferred :: set_nodal_quadrature          
+     procedure (fill_interior_points_permutation_interface), deferred :: fill_interior_points_permutation
+
+     procedure (set_scalar_field_to_nodal_values_interface), deferred :: set_scalar_field_to_nodal_values
+     procedure (set_vector_field_to_nodal_values_interface), deferred :: set_vector_field_to_nodal_values
+     procedure (set_tensor_field_to_nodal_values_interface), deferred :: set_tensor_field_to_nodal_values
+     generic :: set_field_to_nodal_values => set_scalar_field_to_nodal_values, &
+                                           & set_vector_field_to_nodal_values, &
+                                           & set_tensor_field_to_nodal_values
+
+     procedure (interpolate_nodal_values_interface), deferred :: interpolate_nodal_values
 
      ! generic part of the subroutine above
-     procedure :: permute_nodes_per_vef => reference_fe_permute_nodes_per_vef
      procedure :: free  => reference_fe_free
      procedure :: print => reference_fe_print
 
@@ -306,7 +325,6 @@ module reference_fe_names
      procedure :: get_number_vefs => reference_fe_get_number_vefs
      procedure :: get_number_vertices => reference_fe_get_number_vertices
      procedure :: get_first_vertex_id => reference_fe_get_first_vertex_id
-     procedure :: get_number_vertices_per_vertex => reference_fe_get_number_vertices_per_vertex
      procedure :: get_number_vertices_per_edge => reference_fe_get_number_vertices_per_edge
      procedure :: get_number_vertices_per_face => reference_fe_get_number_vertices_per_face
      procedure :: get_number_edges => reference_fe_get_number_edges
@@ -326,7 +344,16 @@ module reference_fe_names
      procedure :: get_number_nodes_vef => reference_fe_get_number_nodes_vef
      procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
+     procedure :: get_number_nodes_per_vertex => reference_fe_get_number_nodes_per_vertex
+     procedure :: get_number_nodes_per_edge => reference_fe_get_number_nodes_per_edge
+     procedure :: get_number_interior_nodes_per_edge => reference_fe_get_number_interior_nodes_per_edge
+     procedure :: get_number_nodes_per_face => reference_fe_get_number_nodes_per_face
+     procedure :: get_number_interior_nodes_per_face => reference_fe_get_number_interior_nodes_per_face
      procedure :: get_orientation => reference_fe_get_orientation     
+     procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
+     procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
+     procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
+     procedure :: get_permuted_interior_node_vef  => reference_fe_get_permuted_interior_node_vef
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -499,13 +526,16 @@ module reference_fe_names
        type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_tensor_interface     
      
-     subroutine permute_order_vef_interface( this, o2n,p,o,r,nd )
+     function check_compatibility_of_vefs_interface(target_reference_fe, &
+          &                       source_reference_fe, source_vef_id,target_vef_id)
        import :: reference_fe_t, ip
        implicit none
-       class(reference_fe_t), intent(in) :: this 
-       integer(ip), intent(in)    :: p,o,r,nd
-       integer(ip), intent(inout) :: o2n(:)
-     end subroutine permute_order_vef_interface
+       class(reference_fe_t), intent(in) :: target_reference_fe
+       class(reference_fe_t), intent(in)  :: source_reference_fe
+       integer(ip)          , intent(in)  :: source_vef_id
+       integer(ip)          , intent(in)  :: target_vef_id 
+       logical :: check_compatibility_of_vefs_interface
+     end function  check_compatibility_of_vefs_interface
 
      function get_characteristic_length_interface( this)
        import :: reference_fe_t, rp
@@ -533,7 +563,69 @@ module reference_fe_names
        type(fe_map_face_restriction_t)       , intent(in)    :: fe_map_face_restriction
        type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
      end subroutine update_interpolation_face_interface
-     
+
+     subroutine set_nodal_quadrature_interface ( this )
+       import :: reference_fe_t
+       implicit none
+       class(reference_fe_t), intent(inout) :: this 
+     end subroutine set_nodal_quadrature_interface
+
+     subroutine set_scalar_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
+          &                                                  nodal_values, unknown_component)
+       import :: reference_fe_t, rp, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       integer(ip)          , intent(in)    :: code
+       real(rp)             , intent(in)    :: values(:)
+       integer(ip)          , intent(in)    :: nodal_codes(:)
+       real(rp)             , intent(inout) :: nodal_values(:)
+       integer(ip), optional, intent(in)    :: unknown_component
+     end subroutine set_scalar_field_to_nodal_values_interface
+
+     subroutine set_vector_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
+          &                                                  nodal_values)
+       import :: reference_fe_t, vector_field_t, ip, rp
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       integer(ip)          , intent(in)    :: code
+       type(vector_field_t) , intent(in)    :: values(:)
+       integer(ip)          , intent(in)    :: nodal_codes(:)
+       real(rp)             , intent(inout) :: nodal_values(:)
+     end subroutine set_vector_field_to_nodal_values_interface
+
+     subroutine set_tensor_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
+          &                                                  nodal_values)
+       import :: reference_fe_t, tensor_field_t, ip, rp
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       integer(ip)          , intent(in)    :: code
+       type(tensor_field_t) , intent(in)    :: values(:)
+       integer(ip)          , intent(in)    :: nodal_codes(:)
+       real(rp)             , intent(inout) :: nodal_values(:)
+     end subroutine set_tensor_field_to_nodal_values_interface
+               
+     subroutine fill_interior_points_permutation_interface( this,&
+                                                            dimension,&
+                                                            number_interior_points,&
+                                                            interior_points_permutation )
+       import :: reference_fe_t, ip
+       implicit none 
+       class(reference_fe_t)                 , intent(inout) :: this 
+       integer(ip)                           , intent(in)    :: dimension
+       integer(ip)                           , intent(in)    :: number_interior_points
+       integer(ip)      , allocatable        , intent(inout) :: interior_points_permutation(:,:)
+     end subroutine fill_interior_points_permutation_interface
+
+     subroutine interpolate_nodal_values_interface(this,nodal_interpolation,nodal_values_origin, &
+          &                                        nodal_values_destination)
+       import :: reference_fe_t, interpolation_t, rp
+       implicit none 
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: nodal_interpolation
+       real(rp)             , intent(in)    :: nodal_values_origin(:)
+       real(rp)             , intent(inout) :: nodal_values_destination(:)
+     end subroutine interpolate_nodal_values_interface
+       
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -545,6 +637,7 @@ module reference_fe_names
      private
      integer(ip)              :: number_nodes_scalar
      integer(ip), allocatable :: node_component_array(:,:)
+     integer(ip), allocatable :: node_array_component(:,:)
    contains 
      ! Deferred TBP implementors
      procedure :: create                    => quad_lagrangian_reference_fe_create
@@ -554,12 +647,13 @@ module reference_fe_names
      procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
      procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
      procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
-     procedure :: create_face_local_interpolation                                                      &
+     procedure :: create_face_local_interpolation                                                   &
           &                          => quad_lagrangian_reference_fe_create_face_local_interpolation
      procedure :: update_interpolation      => quad_lagrangian_reference_fe_update_interpolation
      procedure :: update_interpolation_face => quad_lagrangian_reference_fe_update_interpolation_face
      procedure :: get_bc_component_node     => quad_lagrangian_reference_fe_get_bc_component_node
-     procedure :: permute_order_vef         => quad_lagrangian_reference_fe_permute_order_vef
+     procedure :: check_compatibility_of_vefs                                         &
+          &                 => quad_lagrangian_reference_fe_check_compatibility_of_vefs 
 
      procedure :: get_value_scalar          => quad_lagrangian_reference_fe_get_value_scalar
      procedure :: get_value_vector          => quad_lagrangian_reference_fe_get_value_vector
@@ -568,15 +662,26 @@ module reference_fe_names
      procedure :: get_divergence_vector     => quad_lagrangian_reference_fe_get_divergence_vector
      procedure :: get_curl_vector           => quad_lagrangian_reference_fe_get_curl_vector
 
+     procedure :: interpolate_nodal_values => quad_lagrangian_reference_fe_interpolate_nodal_values
+
      procedure :: evaluate_fe_function_scalar => quad_lagrangian_reference_fe_evaluate_fe_function_scalar
      procedure :: evaluate_fe_function_vector => quad_lagrangian_reference_fe_evaluate_fe_function_vector
      procedure :: evaluate_fe_function_tensor => quad_lagrangian_reference_fe_evaluate_fe_function_tensor
+
+     procedure :: set_nodal_quadrature => quad_lagrangian_reference_fe_set_nodal_quadrature
+
+     procedure :: set_scalar_field_to_nodal_values => quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values
+     procedure :: set_vector_field_to_nodal_values => quad_lagrangian_reference_fe_set_vector_field_to_nodal_values
+     procedure :: set_tensor_field_to_nodal_values => quad_lagrangian_reference_fe_set_tensor_field_to_nodal_values
 
      ! Concrete TBPs of this derived data type
      procedure :: fill                      => quad_lagrangian_reference_fe_fill
      procedure :: free                      => quad_lagrangian_reference_fe_free
      procedure :: get_characteristic_length &
           &                          => quad_lagrangian_reference_fe_get_characteristic_length
+          
+     procedure :: fill_interior_points_permutation &
+          &                   => quad_lagrangian_reference_fe_fill_interior_points_permutation     
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t
@@ -597,9 +702,9 @@ contains
   procedure, non_overridable :: update => volume_integrator_update
   procedure, non_overridable :: print  => volume_integrator_print
   
-  procedure, non_overridable :: get_interpolation_reference_cell =>                                 &
+  procedure, non_overridable :: get_interpolation_reference_cell =>                               &
        &                                   volume_integrator_get_interpolation_reference_cell
-  procedure, non_overridable :: get_interpolation_real_cell =>                                 &
+  procedure, non_overridable :: get_interpolation_real_cell =>                                    &
        &                                   volume_integrator_get_interpolation_real_cell
 
 
@@ -683,15 +788,16 @@ type face_integrator_t
    logical                                :: is_boundary
    type(interpolation_face_restriction_t) :: interpolation_face_restriction(2)
    type(p_reference_fe_t)                 :: reference_fe(2)
+   integer(ip)                            :: current_qpoints_perm_cols(2)
+   integer(ip), allocatable               :: qpoints_perm(:,:)
  contains
    procedure, non_overridable :: create            => face_integrator_create
    procedure, non_overridable :: update            => face_integrator_update
    procedure, non_overridable :: free              => face_integrator_free
    procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
-   generic :: get_value => get_value_scalar
-   procedure, non_overridable :: get_gradient_scalar                                              &
-        &                                          => face_integrator_get_gradient_scalar
-   generic :: get_gradient => get_gradient_scalar
+   generic                    :: get_value         => get_value_scalar
+   procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
+   generic                    :: get_gradient => get_gradient_scalar
 end type face_integrator_t
 
 type p_face_integrator_t
