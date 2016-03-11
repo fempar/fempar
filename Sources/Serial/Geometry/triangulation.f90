@@ -47,9 +47,10 @@ module triangulation_names
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: subset_id = 1
    contains
-     procedure :: get_coordinates => elem_topology_get_coordinates
-  end type elem_topology_t
-
+     procedure :: get_coordinates             => elem_topology_get_coordinates
+     procedure :: find_local_pos_from_vef_id  => elem_topology_find_local_pos_from_vef_id
+  end type
+  
   type p_elem_topology_t
      type(elem_topology_t), pointer :: p => NULL()      
   end type p_elem_topology_t
@@ -580,7 +581,7 @@ contains
 
        write (lunou,*) 'num_vefs:', trian%elems(ielem)%num_vefs
        write (lunou,*) 'vefs:', trian%elems(ielem)%vefs
-       write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
+       if (allocated(trian%elems(ielem)%coordinates)) write (lunou,*) 'coordinates:', trian%elems(ielem)%coordinates
        write (lunou,*) 'subset_id:', trian%elems(ielem)%subset_id
 
        !call reference_element_write ( trian%elems(ielem)%geo_reference_element )
@@ -631,6 +632,23 @@ contains
     end do
     
   end subroutine elem_topology_get_coordinates
+  
+  function elem_topology_find_local_pos_from_vef_id(this, vef_id)
+    implicit none
+    ! Parameters
+    class(elem_topology_t), intent(in)  :: this
+    integer(ip)           , intent(in)  :: vef_id
+    integer(ip)                         :: elem_topology_find_local_pos_from_vef_id
+    integer(ip)                         :: ivef
+    elem_topology_find_local_pos_from_vef_id = -1
+    ! Find position of vef_id in local element
+    do ivef = 1, this%num_vefs
+       if ( this%vefs(ivef) == vef_id ) then
+          elem_topology_find_local_pos_from_vef_id = ivef
+          return 
+       end if
+    end do
+  end function elem_topology_find_local_pos_from_vef_id
 
   !==================================================================================================
   subroutine face_topology_get_coordinates(this, face_topology_coordinates)

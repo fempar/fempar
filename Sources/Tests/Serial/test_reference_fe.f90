@@ -503,7 +503,7 @@ contains
                                      diagonal_blocks_symmetric_storage=(/.true./), &
                                      diagonal_blocks_symmetric=(/.true./), &
                                      diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
-                                     triangulation=f_trian, &
+                                     environment=senv, &
                                      fe_space=fe_space, &
                                      discrete_integration=poisson_integration )
      
@@ -548,6 +548,9 @@ contains
      
      call fe_affine_operator%free()
      call fe_space%free()
+     
+     call reference_fe_array(1)%free()
+     
   end subroutine test_single_scalar_valued_reference_fe
   
   subroutine test_single_vector_valued_reference_fe ()
@@ -582,7 +585,7 @@ contains
                                      diagonal_blocks_symmetric_storage=(/.true./), &
                                      diagonal_blocks_symmetric=(/.true./), &
                                      diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
-                                     triangulation=f_trian, &
+                                     environment=senv, &
                                      fe_space=fe_space, &
                                      discrete_integration=vector_laplacian_integration )
      
@@ -627,6 +630,8 @@ contains
      
      call fe_affine_operator%free()
      call fe_space%free()
+     
+     call reference_fe_array(1)%free()
   end subroutine test_single_vector_valued_reference_fe  
 
   subroutine test_composite_reference_fe_monolithic ()
@@ -670,7 +675,7 @@ contains
                                      diagonal_blocks_symmetric_storage=(/.true./), &
                                      diagonal_blocks_symmetric=(/.true./), &
                                      diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
-                                     triangulation=f_trian, &
+                                     environment=senv, &
                                      fe_space=fe_space, &
                                      discrete_integration=vector_laplacian_integration )
      
@@ -715,6 +720,11 @@ contains
      
      call fe_affine_operator%free()
      call fe_space%free()
+     
+     call reference_fe_array(1)%free()
+     
+     call reference_fe_array(1)%free()
+     call reference_fe_array(2)%free()
   end subroutine test_composite_reference_fe_monolithic    
 
   subroutine test_composite_reference_fe_block ()
@@ -758,7 +768,7 @@ contains
                                       (/.true.,.true./), &
                                       (/.true.,.true./), &
                                       (/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/),&
-                                      f_trian, &
+                                      senv, &
                                       fe_space, &
                                       vector_laplacian_integration )
      
@@ -803,6 +813,9 @@ contains
      
      call fe_affine_operator%free()
      call fe_space%free()
+     
+     call reference_fe_array(1)%free()
+     call reference_fe_array(2)%free()
   end subroutine test_composite_reference_fe_block
   
 

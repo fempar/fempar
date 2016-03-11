@@ -411,11 +411,16 @@ contains
         class(vector_t),            intent(in)    :: x
         class(vector_t) ,           intent(inout) :: y 
     !-----------------------------------------------------------------
+        real(rp), pointer :: x_entries(:)
+        real(rp), pointer :: y_entries(:)
+        
         call x%GuardTemp()
         select type(x)
             class is (serial_scalar_array_t)
                 select type(y)
                     class is(serial_scalar_array_t)
+                        x_entries => x%get_entries()
+                        y_entries => y%get_entries()
                         if (op%get_symmetric_storage()) then
                             call matvec_symmetric_storage(            &
                                         num_rows = op%get_num_rows(), &
@@ -423,16 +428,16 @@ contains
                                         irp      = op%irp,            &
                                         ja       = op%ja,             &
                                         val      = op%val,            &
-                                        x        = x%b,               &
-                                        y        = y%b )
+                                        x        = x_entries,   &
+                                        y        = y_entries )
                         else
                             call matvec(num_rows = op%get_num_rows(), &
                                         num_cols = op%get_num_cols(), &
                                         irp      = op%irp,            &
                                         ja       = op%ja,             &
                                         val      = op%val,            &
-                                        x        = x%b,               &
-                                        y        = y%b )
+                                        x        = x_entries,   &
+                                        y        = y_entries )
                     end if
                 end select
         end select

@@ -93,12 +93,12 @@ contains
        !      Assuming we agree in the first option, how type(par_triangulation) is going to access type(par_neighbourhood) ??? 
        !      This is related with a parallel discussion about the possibility of enriching type(par_triangulation) with the dual graph 
        !      and associated gluing data. Does it make sense? If yes, does type(par_neighborhood) still makes any sense?
-       call element_import_create ( p_gmesh%f_mesh_dist, p_trian%f_el_import )
+       call element_import_create ( p_gmesh%f_mesh_dist, p_trian%element_import )
 
        ! Now we are sure that the local portion of p_trian, i.e., p_trian%f_trian is in triangulation_not_created state
        ! Let's create and fill it
-       num_elems  = p_trian%f_el_import%nelem
-       num_ghosts = p_trian%f_el_import%nghost
+       num_elems  = p_trian%element_import%nelem
+       num_ghosts = p_trian%element_import%nghost
 
        p_trian%num_ghosts = num_ghosts
        p_trian%num_elems  = num_elems
@@ -150,7 +150,7 @@ contains
        end do
 
        ! Get vefs_GIDs from ghost elements
-       call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%f_el_import, p_trian%elems )
+       call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%element_import, p_trian%elems )
 
        ! Allocate elem_topology in triangulation for ghost elements  (SBmod)
        do ielem = num_elems+1, num_elems+num_ghosts       
