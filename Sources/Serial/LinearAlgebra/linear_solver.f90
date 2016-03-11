@@ -42,7 +42,7 @@ module iterative_linear_solver_names
   ! Abstract modules
   use vector_names
   use operator_names
-  use base_linear_solver_names
+  use base_iterative_linear_solver_names
   use environment_names
   
   implicit none
@@ -54,7 +54,7 @@ module iterative_linear_solver_names
   integer(ip), parameter :: environment_set     = 1  ! Pointer to environment set
   integer(ip), parameter :: solver_type_set     = 2  ! Dynamic type of solver set
   
-  ! State transition diagram for type(linear_solver_t)
+  ! State transition diagram for type(iterative_linear_solver_t)
   ! --------------------------------------------------------
   ! Input State      | Action               | Output State 
   ! --------------------------------------------------------
@@ -137,9 +137,9 @@ contains
      end if
      
      ! PENDING
-     ! 1. Get val associated to key="linear_solver_type" from type(ParameterList)
+     ! 1. Get val associated to key="iterative_linear_solver_type" from type(ParameterList)
      ! 2. Select Factory Method associated to val from "global" (and dynamically built) dictionary of Factory Methods
-     ! 3. Only create if this%state == environment_set or if base_linear_solver was freed in the block of code above
+     ! 3. Only create if this%state == environment_set or if base_iterative_linear_solver was freed in the block of code above
   
   ! SELECT MANUALLY ITERATIVE LINEAR SOLVER TYPE: 
      !this%base_iterative_linear_solver => create_richardson(this%environment)

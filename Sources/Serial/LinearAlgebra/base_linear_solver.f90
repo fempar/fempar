@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module base_linear_solver_names
+module base_iterative_linear_solver_names
   use types_names
   use stdio_names
   use memor_names
@@ -40,19 +40,19 @@ module base_linear_solver_names
 # include "debug.i90"
   private
   
-  ! String parameters with the names of the parameters for linear solvers
-  character(len=*), parameter :: ls_type                      = 'linear_solver_type'
-  character(len=*), parameter :: ls_rtol                      = 'linear_solver_rtol'
-  character(len=*), parameter :: ls_atol                      = 'linear_solver_atol'
-  character(len=*), parameter :: ls_stopping_criteria         = 'linear_solver_stopping_criteria'
-  character(len=*), parameter :: ls_output_frequency          = 'linear_solver_output_frequency'
-  character(len=*), parameter :: ls_max_num_iterations        = 'linear_solver_max_num_iterations'
-  character(len=*), parameter :: ls_track_convergence_history = 'linear_solver_track_convergence_history'
+  ! String parameters with the names of the parameters for iterative linear solvers
+  character(len=*), parameter :: ils_type                      = 'iterative_linear_solver_type'
+  character(len=*), parameter :: ils_rtol                      = 'iterative_linear_solver_rtol'
+  character(len=*), parameter :: ils_atol                      = 'iterative_linear_solver_atol'
+  character(len=*), parameter :: ils_stopping_criteria         = 'iterative_linear_solver_stopping_criteria'
+  character(len=*), parameter :: ils_output_frequency          = 'iterative_linear_solver_output_frequency'
+  character(len=*), parameter :: ils_max_num_iterations        = 'iterative_linear_solver_max_num_iterations'
+  character(len=*), parameter :: ils_track_convergence_history = 'iterative_linear_solver_track_convergence_history'
   
-  ! Default values for implementors of class(base_linear_solver_t) parameters
+  ! Default values for implementors of class(base_iterative_linear_solver_t) parameters
   ! A default value for stopping criteria is not declared here as the set of
   ! supported stopping criteria is highly dependent on the particular implementor
-  ! of class(base_linear_solver_t)
+  ! of class(base_iterative_linear_solver_t)
   integer (ip), parameter :: default_luout                      = 6
   real    (rp), parameter :: default_rtol                       = 1.0e-06_rp
   real    (rp), parameter :: default_atol                       = 0.0_rp
@@ -64,7 +64,7 @@ module base_linear_solver_names
   integer(ip), parameter :: operators_set       = 1  ! Matrix A and preconditioner M already set
   integer(ip), parameter :: workspace_allocated = 2  ! All workspace required by solve TBP available 
   
-  ! State transition diagram for type(base_linear_solver_t)
+  ! State transition diagram for type(base_iterative_linear_solver_t)
   ! -----------------------------------------------------------
   ! Input State         | Action                 | Output State 
   ! -----------------------------------------------------------
@@ -153,13 +153,13 @@ module base_linear_solver_names
     procedure :: get_track_convergence_history   
     
     ! Outputs that might be relevant to clients of this data type, in particular,
-    ! type(linear_solver_t)
+    ! type(iterative_linear_solver_t)
     procedure :: converged
     procedure :: get_num_iterations
     procedure :: get_error_estimate_convergence_test
     procedure :: get_error_estimate_extra_convergence_test
 
-    ! This set of TBPs allow indirect access to the output member variables of type(base_linear_solver_t).
+    ! This set of TBPs allow indirect access to the output member variables of type(base_iterative_linear_solver_t).
     ! They could be avoided either with regular (i.e., no pointers) accessors TBPs or declaring the corresponding
     ! member variables as public. 
     procedure :: get_pointer_did_converge
@@ -172,10 +172,10 @@ module base_linear_solver_names
     procedure :: get_pointer_error_estimate_history_extra_convergence_test
     
     procedure :: print_convergence_history
-    procedure :: free   => base_linear_solver_free
-    procedure :: solve  => base_linear_solver_solve
+    procedure :: free   => base_iterative_linear_solver_free
+    procedure :: solve  => base_iterative_linear_solver_solve
     
-    ! Private TBPs to be called from class(base_linear_solver_t)
+    ! Private TBPs to be called from class(base_iterative_linear_solver_t)
     procedure :: print_convergence_history_header
     procedure :: print_convergence_history_body
     procedure :: print_convergence_history_footer
@@ -187,8 +187,8 @@ module base_linear_solver_names
     procedure, private :: free_initial_solution
     procedure, private :: free_rhs
     
-    ! "Private" TBPs to be called from data types which extend class(base_linear_solver_t)
-    procedure           :: base_linear_solver_set_parameters_from_pl
+    ! "Private" TBPs to be called from data types which extend class(base_iterative_linear_solver_t)
+    procedure           :: base_iterative_linear_solver_set_parameters_from_pl
     procedure           :: set_defaults
     
     ! Deferred TBPs
@@ -308,11 +308,11 @@ contains
      M_domain => M%get_domain_vector_space()
      M_range  => M%get_range_vector_space()
      if ( .not. A_domain%equal_to(M_domain) ) then
-       write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: domain(A)/=domain(M)' 
-       write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: operators could not be set'  
+       write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: domain(A)/=domain(M)' 
+       write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: operators could not be set'  
      else if ( .not. A_range%equal_to(M_range) ) then
-       write(0,'(a)') 'base_linear_solver_t%set_operators :: range(A)/=range(M)' 
-       write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: operators could not be set' 
+       write(0,'(a)') 'base_iterative_linear_solver_t%set_operators :: range(A)/=range(M)' 
+       write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: operators could not be set' 
      else
        this%A = A%get_tangent()
        this%M = M
@@ -331,8 +331,8 @@ contains
            call this%free_initial_solution()
            call A_range%create_vector(this%initial_solution)
            call this%initial_solution%init(0.0_rp)
-           write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: Initial solution re-set such that it now belongs to range(A)'
-           write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: you have to (re-)call %set_initial_solution to select an initial solution different from zero'
+           write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: Initial solution re-set such that it now belongs to range(A)'
+           write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: you have to (re-)call %set_initial_solution to select an initial solution different from zero'
          end if
          if (.not. A_domain%belongs_to(this%b)) then
            call this%free_rhs() 
@@ -343,8 +343,8 @@ contains
            else
              call this%b%copy(b)
            end if
-           write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: rhs re-set such that it now belongs to domain(A)'
-           write(0,'(a)') 'Warning: base_linear_solver_t%set_operators :: you have to (re-)call %set_rhs to select a rhs different from the default one'
+           write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: rhs re-set such that it now belongs to domain(A)'
+           write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: you have to (re-)call %set_rhs to select a rhs different from the default one'
          end if
        end if
        this%state = operators_set
@@ -363,7 +363,7 @@ contains
      call initial_solution%GuardTemp()
      A_range  => this%A%get_range_vector_space()
      if (.not. A_range%belongs_to(initial_solution)) then
-       write(0,'(a)') 'Warning: base_linear_solver_t%set_initial_solution :: Ignoring initial solution; it does not belong to range(A)'
+       write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_initial_solution :: Ignoring initial solution; it does not belong to range(A)'
      else
        call this%initial_solution%copy(initial_solution)
      end if  
@@ -387,7 +387,7 @@ contains
      call b%GuardTemp()
      A_domain  => this%A%get_domain_vector_space()
      if (.not. A_domain%belongs_to(b)) then
-       write(0,'(a)') 'Warning: base_linear_solver_t%set_rhs :: Ignoring rhs; it does not belong to domain(A)'
+       write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_rhs :: Ignoring rhs; it does not belong to domain(A)'
      else
        call this%b%copy(b)
      end if  
@@ -777,13 +777,13 @@ contains
       this%stopping_criteria         = this%get_default_stopping_criteria()
     end subroutine set_defaults
     
-    subroutine base_linear_solver_set_parameters_from_pl ( this )
+    subroutine base_iterative_linear_solver_set_parameters_from_pl ( this )
       implicit none
       ! Parameters
       class(base_iterative_linear_solver_t), intent(inout) :: this
-    end subroutine base_linear_solver_set_parameters_from_pl
+    end subroutine base_iterative_linear_solver_set_parameters_from_pl
     
-    subroutine base_linear_solver_free(this)
+    subroutine base_iterative_linear_solver_free(this)
       implicit none
       class(base_iterative_linear_solver_t), intent(inout) :: this
       if ( this%state == operators_set ) then
@@ -798,9 +798,9 @@ contains
         call this%free_convergence_history()
       end if
       this%state = start
-    end subroutine base_linear_solver_free
+    end subroutine base_iterative_linear_solver_free
     
-    subroutine base_linear_solver_solve(this,x)
+    subroutine base_iterative_linear_solver_solve(this,x)
       implicit none
       class(base_iterative_linear_solver_t), intent(inout) :: this
       class(vector_t)            , intent(inout) :: x
@@ -813,6 +813,6 @@ contains
       call this%solve_body(x)
       call x%CleanTemp()
       this%state = workspace_allocated
-    end subroutine base_linear_solver_solve
+    end subroutine base_iterative_linear_solver_solve
 
-end module base_linear_solver_names
+end module base_iterative_linear_solver_names
