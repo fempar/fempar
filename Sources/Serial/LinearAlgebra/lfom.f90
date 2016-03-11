@@ -35,7 +35,7 @@ module lfom_names
   use vector_space_names
   use operator_names
   use environment_names
-  use base_linear_solver_names  
+  use base_iterative_linear_solver_names  
   use multivector_names
   use rgmres_names
 
@@ -67,7 +67,7 @@ module lfom_names
   
   ! Data types
   public :: lfom_t, create_lfom
-  public :: ls_dkrymax, ls_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
+  public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
   public :: default_dkrymax, default_orthonorm_strat
   public :: mgsro, icgsro
   public :: modified_gs_reorthonorm, iterative_gs_reorthonorm, apply_givens_rotation

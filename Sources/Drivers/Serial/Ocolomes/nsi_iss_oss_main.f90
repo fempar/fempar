@@ -130,7 +130,7 @@ program test_nsi_iss_oss
   class(vector_t), allocatable, target :: residual
 
   ! Solver
-  type(iterative_linear_solver_t)      :: linear_solver
+  type(iterative_linear_solver_t)      :: iterative_linear_solver
   type(serial_environment_t) :: senv
 
   ! Arguments
