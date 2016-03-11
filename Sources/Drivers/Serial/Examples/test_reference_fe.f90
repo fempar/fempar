@@ -457,7 +457,7 @@ program test_reference_fe
   class(vector_t) , pointer :: x, y
   class(operator_t), pointer :: A
 
-  type(linear_solver_t)                           :: linear_solver
+  type(iterative_linear_solver_t)                           :: linear_solver
   type(vector_space_t)    , pointer               :: fe_affine_operator_range_vector_space
   type(serial_environment_t)    :: senv
 

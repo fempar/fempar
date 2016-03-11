@@ -93,7 +93,7 @@ module base_linear_solver_names
                                                             ! ||.|| is the 2-norm, dx(i) = x(i) - x(i-1),
                                                             ! r(i) is the residual at the i-th iteration
   
-  type, abstract :: base_linear_solver_t
+  type, abstract :: base_iterative_linear_solver_t
     private
     
     ! Properties
@@ -202,48 +202,48 @@ module base_linear_solver_names
   
   abstract interface
     subroutine allocate_workspace_interface(this)
-     import :: base_linear_solver_t
+     import :: base_iterative_linear_solver_t
      implicit none
-     class(base_linear_solver_t), intent(inout) :: this
+     class(base_iterative_linear_solver_t), intent(inout) :: this
     end subroutine allocate_workspace_interface
     
     subroutine free_workspace_interface(this)
-     import :: base_linear_solver_t
+     import :: base_iterative_linear_solver_t
      implicit none
-     class(base_linear_solver_t), intent(inout) :: this
+     class(base_iterative_linear_solver_t), intent(inout) :: this
     end subroutine free_workspace_interface
    
     subroutine set_parameters_from_pl_interface(this) ! Parameter List still missing
-     import :: base_linear_solver_t
+     import :: base_iterative_linear_solver_t
      implicit none
-     class(base_linear_solver_t), intent(inout) :: this
+     class(base_iterative_linear_solver_t), intent(inout) :: this
     end subroutine set_parameters_from_pl_interface
     
     subroutine solve_body_interface(this,x)
-     import :: base_linear_solver_t, vector_t
+     import :: base_iterative_linear_solver_t, vector_t
      implicit none
-     class(base_linear_solver_t), intent(inout) :: this
+     class(base_iterative_linear_solver_t), intent(inout) :: this
      class(vector_t)            , intent(inout) :: x 
     end subroutine solve_body_interface
     
     function supports_stopping_criteria_interface(this, stopping_criteria)
-       import :: base_linear_solver_t, ip
+       import :: base_iterative_linear_solver_t, ip
        implicit none
-       class(base_linear_solver_t), intent(in) :: this
+       class(base_iterative_linear_solver_t), intent(in) :: this
        integer(ip), intent(in) :: stopping_criteria
        logical :: supports_stopping_criteria_interface
     end function supports_stopping_criteria_interface
     
     function get_default_stopping_criteria_interface(this)
-       import :: base_linear_solver_t, ip
+       import :: base_iterative_linear_solver_t, ip
        implicit none
-       class(base_linear_solver_t), intent(in) :: this
+       class(base_iterative_linear_solver_t), intent(in) :: this
        integer(ip) :: get_default_stopping_criteria_interface
     end function get_default_stopping_criteria_interface
   end interface
   
   ! Data types
-  public :: base_linear_solver_t
+  public :: base_iterative_linear_solver_t
   
   ! State constants
   public :: start, operators_set, workspace_allocated
@@ -257,42 +257,42 @@ module base_linear_solver_names
 contains
     subroutine set_environment(this,environment)
      implicit none
-     class(base_linear_solver_t)        , intent(inout) :: this
+     class(base_iterative_linear_solver_t)        , intent(inout) :: this
      class(environment_t),    target    , intent(in)    :: environment
      this%environment => environment
     end subroutine set_environment
     
     function get_environment(this)
      implicit none
-     class(base_linear_solver_t), target , intent(in) :: this
+     class(base_iterative_linear_solver_t), target , intent(in) :: this
      class(environment_t)       , pointer :: get_environment
      get_environment => this%environment
     end function get_environment
     
     subroutine set_name(this,name)
      implicit none
-     class(base_linear_solver_t)        , intent(inout) :: this
+     class(base_iterative_linear_solver_t)        , intent(inout) :: this
      character(len=*)                   , intent(in)    :: name
      this%name = name
     end subroutine set_name
     
     subroutine set_state(this,state)
      implicit none
-     class(base_linear_solver_t)        , intent(inout) :: this
+     class(base_iterative_linear_solver_t)        , intent(inout) :: this
      integer(ip)                        , intent(in)    :: state
      this%state = state
     end subroutine set_state
     
     function get_state(this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       integer(ip) :: get_state
       get_state = this%state
     end function get_state
     
     subroutine set_operators(this,A,M)
      implicit none
-     class(base_linear_solver_t) , intent(inout) :: this
+     class(base_iterative_linear_solver_t) , intent(inout) :: this
      class(operator_t)           , intent(in)    :: A
      class(operator_t)           , intent(in)    :: M     
      type(vector_space_t), pointer :: A_domain, A_range
@@ -355,7 +355,7 @@ contains
     
     subroutine set_initial_solution(this,initial_solution)
      implicit none
-     class(base_linear_solver_t) , intent(inout) :: this
+     class(base_iterative_linear_solver_t) , intent(inout) :: this
      class(vector_t)             , intent(in)    :: initial_solution     
      type(vector_space_t)        , pointer       :: A_range     
      
@@ -372,14 +372,14 @@ contains
     
     function get_initial_solution(this)
      implicit none
-     class(base_linear_solver_t), target, intent(in) :: this
+     class(base_iterative_linear_solver_t), target, intent(in) :: this
      class(vector_t)            , pointer :: get_initial_solution
      get_initial_solution => this%initial_solution
     end function get_initial_solution
     
     subroutine set_rhs(this,b)
      implicit none
-     class(base_linear_solver_t) , intent(inout) :: this
+     class(base_iterative_linear_solver_t) , intent(inout) :: this
      class(vector_t)             , intent(in)    :: b     
      type(vector_space_t)        , pointer       :: A_domain     
      
@@ -396,189 +396,189 @@ contains
     
     function get_rhs(this)
      implicit none
-     class(base_linear_solver_t), target, intent(in) :: this
+     class(base_iterative_linear_solver_t), target, intent(in) :: this
      class(vector_t)            , pointer :: get_rhs
      get_rhs => this%b
     end function get_rhs
     
     function get_A(this)
       implicit none
-      class(base_linear_solver_t), target, intent(in) :: this
+      class(base_iterative_linear_solver_t), target, intent(in) :: this
       type(dynamic_state_operator_t), pointer         :: get_A
       get_A => this%A
     end function get_A
     
     function get_M(this)
       implicit none
-      class(base_linear_solver_t), target, intent(in) :: this
+      class(base_iterative_linear_solver_t), target, intent(in) :: this
       class(dynamic_state_operator_t), pointer        :: get_M
       get_M => this%M
     end function get_M
     
     subroutine set_stopping_criteria(this,stopping_criteria)
      implicit none
-     class(base_linear_solver_t)        , intent(inout) :: this
+     class(base_iterative_linear_solver_t)        , intent(inout) :: this
      integer(ip)                        , intent(in)    :: stopping_criteria
      this%stopping_criteria = stopping_criteria
     end subroutine set_stopping_criteria
     
     function get_luout(this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       integer(ip) :: get_luout
       get_luout = this%luout
     end function get_luout
     
     function get_rtol(this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       real(rp) :: get_rtol
       get_rtol = this%rtol
     end function get_rtol
     
     function get_atol(this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       real(rp) :: get_atol
       get_atol = this%atol
     end function get_atol
     
     function get_stopping_criteria(this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       integer(ip) :: get_stopping_criteria
       get_stopping_criteria = this%stopping_criteria
     end function get_stopping_criteria
     
     function get_output_frequency(this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       integer(ip) :: get_output_frequency
       get_output_frequency = this%output_frequency
     end function get_output_frequency
     
     function get_max_num_iterations(this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       integer(ip) :: get_max_num_iterations
       get_max_num_iterations = this%max_num_iterations
     end function get_max_num_iterations
 
     function get_track_convergence_history(this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       logical :: get_track_convergence_history
       get_track_convergence_history = this%track_convergence_history
     end function get_track_convergence_history
     
     subroutine unset_operators(this)
      implicit none
-     class(base_linear_solver_t), intent(inout) :: this
+     class(base_iterative_linear_solver_t), intent(inout) :: this
      call this%A%free()
      call this%M%free() 
     end subroutine unset_operators
     
     subroutine free_initial_solution(this)
       implicit none
-      class(base_linear_solver_t), intent(inout) :: this
+      class(base_iterative_linear_solver_t), intent(inout) :: this
       call this%initial_solution%free()
       deallocate(this%initial_solution)
     end subroutine free_initial_solution
     
     subroutine free_rhs(this)
       implicit none
-      class(base_linear_solver_t), intent(inout) :: this
+      class(base_iterative_linear_solver_t), intent(inout) :: this
       call this%b%free()
       deallocate(this%b)
     end subroutine free_rhs
     
     function converged(this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       logical :: converged
       converged = this%did_converge
     end function converged 
     
     function get_num_iterations(this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       integer(ip) :: get_num_iterations
       get_num_iterations = this%num_iterations
     end function get_num_iterations
 
     function get_error_estimate_convergence_test(this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       real(rp) :: get_error_estimate_convergence_test
       get_error_estimate_convergence_test = this%error_estimate_convergence_test
     end function
     
     function get_error_estimate_extra_convergence_test(this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       real(rp) :: get_error_estimate_extra_convergence_test
       get_error_estimate_extra_convergence_test = this%error_estimate_extra_convergence_test
     end function
     
     function get_pointer_did_converge ( this )
       implicit none
-      class(base_linear_solver_t), target, intent(in) :: this
+      class(base_iterative_linear_solver_t), target, intent(in) :: this
       logical                               , pointer :: get_pointer_did_converge
       get_pointer_did_converge => this%did_converge
     end function 
     
     function get_pointer_num_iterations ( this )
       implicit none
-      class(base_linear_solver_t), target, intent(in) :: this
+      class(base_iterative_linear_solver_t), target, intent(in) :: this
       integer(ip)                , pointer :: get_pointer_num_iterations
       get_pointer_num_iterations => this%num_iterations
     end function 
     
     function get_pointer_rhs_convergence_test ( this )
       implicit none
-      class(base_linear_solver_t), target, intent(in) :: this
+      class(base_iterative_linear_solver_t), target, intent(in) :: this
       real(rp)                   , pointer :: get_pointer_rhs_convergence_test 
       get_pointer_rhs_convergence_test => this%rhs_convergence_test
     end function get_pointer_rhs_convergence_test
     
     function get_pointer_rhs_extra_convergence_test ( this )
       implicit none
-      class(base_linear_solver_t), target, intent(in) :: this
+      class(base_iterative_linear_solver_t), target, intent(in) :: this
       real(rp)                   , pointer :: get_pointer_rhs_extra_convergence_test 
       get_pointer_rhs_extra_convergence_test => this%rhs_extra_convergence_test
     end function get_pointer_rhs_extra_convergence_test
     
     function get_pointer_error_estimate_convergence_test(this)
       implicit none
-      class(base_linear_solver_t), target, intent(in) :: this
+      class(base_iterative_linear_solver_t), target, intent(in) :: this
       real(rp), pointer :: get_pointer_error_estimate_convergence_test
       get_pointer_error_estimate_convergence_test => this%error_estimate_convergence_test
     end function get_pointer_error_estimate_convergence_test
     
     function get_pointer_error_estimate_extra_convergence_test(this)
       implicit none
-      class(base_linear_solver_t), target, intent(in) :: this
+      class(base_iterative_linear_solver_t), target, intent(in) :: this
       real(rp), pointer :: get_pointer_error_estimate_extra_convergence_test
       get_pointer_error_estimate_extra_convergence_test => this%error_estimate_extra_convergence_test
     end function get_pointer_error_estimate_extra_convergence_test
     
     function get_pointer_error_estimate_history_convergence_test(this)
       implicit none
-      class(base_linear_solver_t), target, intent(in) :: this
+      class(base_iterative_linear_solver_t), target, intent(in) :: this
       real(rp), pointer :: get_pointer_error_estimate_history_convergence_test(:)
       get_pointer_error_estimate_history_convergence_test => this%error_estimate_history_convergence_test
     end function get_pointer_error_estimate_history_convergence_test
     
     function get_pointer_error_estimate_history_extra_convergence_test(this)
       implicit none
-      class(base_linear_solver_t), target, intent(in) :: this
+      class(base_iterative_linear_solver_t), target, intent(in) :: this
       real(rp), pointer :: get_pointer_error_estimate_history_extra_convergence_test(:)
       get_pointer_error_estimate_history_extra_convergence_test => this%error_estimate_history_extra_convergence_test
     end function get_pointer_error_estimate_history_extra_convergence_test
     
     subroutine print_convergence_history ( this, file_path ) 
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       character(len=*)           , intent(in) :: file_path
       ! Locals
       integer(ip) :: luout
@@ -595,7 +595,7 @@ contains
     subroutine print_convergence_history_body ( this, luout )
       implicit none 
       ! Parameters
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       integer(ip)                , intent(in) :: luout
 
       ! Local variables
@@ -624,7 +624,7 @@ contains
       implicit none
 
       ! Parameters
-      class(base_linear_solver_t), intent(in) :: this 
+      class(base_iterative_linear_solver_t), intent(in) :: this 
       integer(ip)                , intent(in) :: luout
 
       ! Local variables
@@ -659,7 +659,7 @@ contains
     subroutine print_convergence_history_header( this, luout )
       implicit none
       ! Parameters
-      class(base_linear_solver_t), intent(in) :: this 
+      class(base_iterative_linear_solver_t), intent(in) :: this 
       integer(ip)                , intent(in) :: luout
 
       ! Local variables
@@ -690,7 +690,7 @@ contains
     subroutine print_convergence_history_footer ( this, luout )
       implicit none
       ! Parameters
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       integer(ip)                , intent(in) :: luout 
       character(len=*), parameter  :: fmt11='(a,2x,es16.9,1x,a,1x,i4,1x,a)'
       character(len=*), parameter  :: fmt12='(a,3(2x,es16.9))'
@@ -733,7 +733,7 @@ contains
     
     subroutine allocate_convergence_history (this)
       implicit none
-      class(base_linear_solver_t), intent(inout) :: this
+      class(base_iterative_linear_solver_t), intent(inout) :: this
       if (this%track_convergence_history) then
          if ( allocated(this%error_estimate_history_convergence_test) ) then
            if ( this%max_num_iterations /= size(this%error_estimate_history_convergence_test) ) then
@@ -754,7 +754,7 @@ contains
     
     subroutine free_convergence_history (this)
       implicit none
-      class(base_linear_solver_t), intent(in) :: this
+      class(base_iterative_linear_solver_t), intent(in) :: this
       if (this%track_convergence_history) then
          if ( allocated(this%error_estimate_history_convergence_test) ) then
              call memfree(this%error_estimate_history_convergence_test, __FILE__, __LINE__)
@@ -767,7 +767,7 @@ contains
     
     subroutine set_defaults(this)
       implicit none
-      class(base_linear_solver_t), intent(inout) :: this
+      class(base_iterative_linear_solver_t), intent(inout) :: this
       this%luout                     = default_luout
       this%rtol                      = default_rtol
       this%atol                      = default_atol                            
@@ -780,12 +780,12 @@ contains
     subroutine base_linear_solver_set_parameters_from_pl ( this )
       implicit none
       ! Parameters
-      class(base_linear_solver_t), intent(inout) :: this
+      class(base_iterative_linear_solver_t), intent(inout) :: this
     end subroutine base_linear_solver_set_parameters_from_pl
     
     subroutine base_linear_solver_free(this)
       implicit none
-      class(base_linear_solver_t), intent(inout) :: this
+      class(base_iterative_linear_solver_t), intent(inout) :: this
       if ( this%state == operators_set ) then
         call this%unset_operators()
         call this%free_initial_solution()
@@ -802,7 +802,7 @@ contains
     
     subroutine base_linear_solver_solve(this,x)
       implicit none
-      class(base_linear_solver_t), intent(inout) :: this
+      class(base_iterative_linear_solver_t), intent(inout) :: this
       class(vector_t)            , intent(inout) :: x
       assert ( this%state == operators_set .or. this%state == workspace_allocated )
       call this%allocate_convergence_history()

@@ -332,7 +332,7 @@ program test_heterogeneous_poisson
 		
   class(vector_t), allocatable, target :: dof_values, residual ! dof-stored
 
-  type(linear_solver_t)                :: linear_solver
+  type(iterative_linear_solver_t)                :: linear_solver
   type(vector_space_t) , pointer       :: fe_affine_operator_range_vector_space
   type(serial_environment_t)           :: senv
 
