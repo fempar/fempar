@@ -268,8 +268,8 @@ contains
                 ! Fortran to C numbering 
                 call op%Fortran_to_C_numbering()
                 val => matrix%val(:)
-                x_b => x%b
-                y_b => y%b
+                x_b => x%get_entries()
+                y_b => y%get_entries()
                 ! Solve the linear system.
                 status = umfpack_di_solve ( UMFPACK_At, &  !< A'x=b
                                             matrix%irp, &  !< Transposed CSC column (CSR rows) pointers

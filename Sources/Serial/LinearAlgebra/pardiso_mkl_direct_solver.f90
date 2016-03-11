@@ -338,8 +338,10 @@ contains
         class(pardiso_mkl_direct_solver_t), intent(inout) :: op
         class(serial_scalar_array_t),       intent(in)    :: x
         class(serial_scalar_array_t),       intent(inout) :: y
+        real(rp), pointer                                 :: x_b(:)
+        real(rp), pointer                                 :: y_b(:)
         integer                                           :: error
-        integer, target                                   :: idum(1)
+        integer,  target                                  :: idum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         assert (op%state_is_start() .or. op%state_is_symbolic() .or. op%state_is_numeric())
@@ -349,6 +351,8 @@ contains
 
         ! (c) y  <- A^-1 * x
         op%phase = 33 ! only Fwd/Bck substitution
+        x_b => x%get_entries()
+        y_b => y%get_entries()
 
         select type (matrix => op%matrix%get_pointer_to_base_matrix())
             type is (csr_sparse_matrix_t)
@@ -366,8 +370,8 @@ contains
                              nrhs   = op%number_of_rhs,            & !< Number of right-hand sides that need to be solved for
                              iparm  = op%pardiso_mkl_iparm,        & !< This array is used to pass various parameters to Intel MKL PARDISO 
                              msglvl = op%message_level,            & !< Message level information
-                             b      = x%b,                         & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix
-                             x      = y%b,                         & !< Array, size (n, nrhs). If iparm(6)=0 it contains solution vector/matrix X
+                             b      = x_b,                         & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix
+                             x      = y_b,                         & !< Array, size (n, nrhs). If iparm(6)=0 it contains solution vector/matrix X
                              error  = error )
 
                 if (error /= 0) then
