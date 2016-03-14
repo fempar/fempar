@@ -123,7 +123,7 @@ module heterogeneous_poisson_discrete_integration_names
      integer(ip)                :: nvalu
      real(rp), allocatable      :: data_points(:)
      real(rp), allocatable      :: property_values(:)
-     class(vector_t), pointer   :: dof_values => NULL()                    
+     class(fe_function_t), pointer   :: dof_values => NULL()                    
    contains
      procedure                  :: integrate
      procedure, non_overridable :: interpolate_property
@@ -173,7 +173,7 @@ contains
     real(rp)                              :: viscosity_scalar
     type(tensor_field_t)                  :: viscosity_matrix
 
-    class(vector_t), pointer              :: vector_dof_values
+    class(vector_t), pointer              :: free_dof_values
 				
     number_fe_spaces = fe_space%get_number_fe_spaces()
     field_blocks    => fe_space%get_field_blocks()
@@ -194,7 +194,7 @@ contains
     call fe_space%create_fe_function(1,fe_unknown_scalar)
     call fe_space%create_fe_function(2,fe_unknown_vector)
     
-    vector_dof_values => this%dof_values
+    free_dof_values => this%dof_values%free_dof_values
     
     do ielem = 1, fe_space%get_number_elements()
        elmat = 0.0_rp
@@ -210,8 +210,8 @@ contains
        bc_code           => fe%get_bc_code()
        bc_value          => fe%get_bc_value()
 						
-       call fe%update_values(fe_unknown_scalar, vector_dof_values)
-       call fe%update_values(fe_unknown_vector, vector_dof_values)
+       call fe%update_values(fe_unknown_scalar, free_dof_values)
+       call fe%update_values(fe_unknown_vector, free_dof_values)
        
        do igaus = 1,ngaus
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
@@ -323,7 +323,8 @@ program test_heterogeneous_poisson
   type(conditions_t)                   :: f_cond_tri
   type(triangulation_t)                :: f_trian
 		
-  class(vector_t), allocatable, target :: dof_values, residual ! dof-stored
+  class(fe_function_t), allocatable, target :: dof_values
+  class(vector_t), allocatable, target      :: residual ! dof-stored
 
   type(iterative_linear_solver_t)                :: linear_solver
   type(serial_environment_t)           :: senv
@@ -433,7 +434,7 @@ program test_heterogeneous_poisson
                                    fe_space=fe_space, &
                                    discrete_integration=heterogeneous_poisson_integration )
   
-  call fe_affine_operator%create_range_vector(dof_values)
+  call fe_affine_operator%create_range_vector(dof_values%get_vector_dof_values())
   heterogeneous_poisson_integration%dof_values => dof_values
   call dof_values%init(0.0_rp)
   call fe_affine_operator%create_range_vector(residual)

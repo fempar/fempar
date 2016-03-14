@@ -182,6 +182,9 @@ module serial_fe_space_names
      type(p_face_integrator_t)     , allocatable :: face_integrator(:)
      character(:)           , allocatable :: fe_space_type(:)
      
+     ! Strong Dirichlet data
+     real(rp), allocatable :: strong_dirichlet_data(:)
+     
      type(triangulation_t)         , pointer     :: triangulation
      type(finite_element_t)        , allocatable :: fe_array(:)
      type(finite_face_t)           , allocatable :: face_array(:)
@@ -278,7 +281,10 @@ module serial_fe_space_names
    
    real(rp), allocatable :: nodal_values(:)  
    real(rp), allocatable :: quadrature_points_values(:)
-
+   
+   class(vector_t), allocatable :: vector_dof_values
+   real(rp)       , allocatable :: strong_dirichlet_data(:)
+   
   contains
      procedure, non_overridable, private :: create                      => fe_function_scalar_create
      procedure, non_overridable :: get_fe_space_id                      => fe_function_scalar_get_fe_space_id
@@ -302,6 +308,8 @@ module serial_fe_space_names
    
    real(rp)            , allocatable :: nodal_values(:)  
    type(vector_field_t), allocatable :: quadrature_points_values(:)
+   
+   class(vector_t), allocatable :: vector_dof_values
 
   contains
      procedure, non_overridable, private :: create                      => fe_function_vector_create
@@ -326,6 +334,8 @@ module serial_fe_space_names
    
    real(rp)            , allocatable :: nodal_values(:)
    type(tensor_field_t), allocatable :: quadrature_points_values(:)
+   
+   class(vector_t), allocatable :: vector_dof_values
    
   contains
      procedure, non_overridable, private :: create                      => fe_function_tensor_create

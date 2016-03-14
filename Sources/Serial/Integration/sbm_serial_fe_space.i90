@@ -103,7 +103,51 @@ subroutine serial_fe_space_create( this, &
           this%field_blocks,&
           boundary_conditions)
   end do
+
+  call set_up_boundary_conditions( this, boundary_conditions )
+
 end subroutine serial_fe_space_create
+
+subroutine set_up_boundary_conditions( this, boundary_conditions )
+  implicit none
+  class(serial_fe_space_t)        , intent(inout) :: this
+  type(conditions_t)              , intent(in)    :: boundary_conditions
+
+  integer(ip) :: c, j, ielem, ivef, vef_gid, inode, jnode, component, offset_component
+  type(finite_element_t), pointer :: fe
+
+  ! For every fe_space_component, we go through FEs (ON THE BOUNDARY) and
+  ! look for strong Dirichlet data nodes
+  c = 0  
+  offset_component = 0
+
+  ! The way this function is implemented is inefficient, extracting the same fe many times...
+  do j = 1, this%number_fe_spaces
+     do ielem = 1, this%get_number_elements()
+        fe => this%get_finite_element(ielem)
+        do ivef = 1,fe%cell%num_vefs
+           vef_gid = fe%cell%vefs(ivef)
+           if (vef_gid /= -1) then
+              do inode = 1, fe%reference_fe_phy(j)%p%get_number_own_nodes_vef(ivef)
+                 jnode = fe%reference_fe_phy(j)%p%get_own_node_vef(inode,ivef)
+                 component = offset_component+ fe%reference_fe_phy(j)%p%get_bc_component_node(jnode)
+                 if ( boundary_conditions%code(component,vef_gid) /= 0 ) then 
+                    c = c+1 
+                    fe%elem2dof(j)%p(inode) = -1*c
+                 end if
+              end do
+           end if
+        end do
+     end do
+     offset_component = offset_component + fe%reference_fe_phy(j)%p%get_number_field_components()
+  end do
+
+  call memalloc ( c, this%strong_dirichlet_data, __FILE__, __LINE__ ) ! One for all blocks / unknowns
+
+end subroutine set_up_boundary_conditions
+
+
+
 
 subroutine serial_fe_space_fill_dof_info( this )
   implicit none
@@ -138,7 +182,7 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id )
 
   call memalloc ( 2, this%triangulation%num_vefs, visited_vef_to_elem_map,  __FILE__, __LINE__ )
   visited_vef_to_elem_map = -1
-    
+
   if ( this%fe_space_type(fe_space_id) == fe_space_type_cg ) then
      do ielem = 1, this%get_number_elements()
         ! Deal with dofs on the boundary of the element 
@@ -194,6 +238,12 @@ subroutine serial_fe_space_free( this )
         call this%fe_array(i)%free()
      end do
      deallocate(this%fe_array)
+     
+     if (allocated(this%strong_dirichlet_data)) then 
+       deallocate ( this%strong_dirichlet_data, stat = istat )
+       check(istat==0)
+    end if
+     
   end if
 
   ! Free memory related to face (assuming one only face_integrator

@@ -31,9 +31,11 @@
 !**************************************************************************************************
 
  !===============================================================================================
- subroutine fe_function_scalar_create ( this, ifesp, max_nnode, max_npoint )
+ subroutine fe_function_scalar_create ( this, vector_dof_values, strong_dirichlet_data, ifesp, max_nnode, max_npoint )
     implicit none
     class(fe_function_scalar_t), intent(inout) :: this 
+    class(vector_t)            , intent(in)    :: vector_dof_values
+    real(rp)                   , intent(in)    :: strong_dirichlet_data(:)
     integer(ip)                , intent(in)    :: ifesp, max_nnode, max_npoint
     integer(ip)                                :: istat
     
@@ -43,6 +45,11 @@
 
     this%max_number_nodes = max_nnode
     this%max_number_quadrature_points = max_npoint
+    
+    allocate ( this%vector_dof_values, mold = vector_dof_values )
+    this%vector_dof_values = vector_dof_values
+    
+    this%strong_dirichlet_data = strong_dirichlet_data
     
     allocate ( this%nodal_values(max_nnode), stat = istat )
     check(istat==0)
@@ -124,6 +131,13 @@
     this%max_number_nodes                 = 0.0_ip
     this%max_number_quadrature_points     = 0.0_ip
     
+    call this%vector_dof_values%free()
+    
+    if (allocated(this%strong_dirichlet_data)) then 
+       deallocate ( this%strong_dirichlet_data, stat = istat )
+       check(istat==0)
+    end if
+    
     if (allocated(this%nodal_values)) then 
        deallocate ( this%nodal_values, stat = istat )
        check(istat==0)
@@ -142,9 +156,10 @@
 !**************************************************************************************************
 
  !===============================================================================================
- subroutine fe_function_vector_create ( this, ifesp, max_nnode, max_npoint )
+ subroutine fe_function_vector_create ( this, vector_dof_values, ifesp, max_nnode, max_npoint )
     implicit none
     class(fe_function_vector_t), intent(inout) :: this 
+    class(vector_t)            , intent(in)    :: vector_dof_values
     integer(ip)                , intent(in)    :: ifesp, max_nnode, max_npoint
     integer(ip)                                :: istat
     
@@ -154,6 +169,9 @@
 
     this%max_number_nodes = max_nnode
     this%max_number_quadrature_points = max_npoint
+    
+    allocate ( this%vector_dof_values, mold = vector_dof_values )
+    this%vector_dof_values = vector_dof_values
     
     allocate ( this%nodal_values(max_nnode), stat = istat )
     check(istat==0)
@@ -253,9 +271,10 @@
 !**************************************************************************************************
 
  !===============================================================================================
- subroutine fe_function_tensor_create ( this, ifesp, max_nnode, max_npoint )
+ subroutine fe_function_tensor_create ( this, vector_dof_values, ifesp, max_nnode, max_npoint )
     implicit none
     class(fe_function_tensor_t), intent(inout) :: this 
+    class(vector_t)            , intent(in)    :: vector_dof_values
     integer(ip)                , intent(in)    :: ifesp, max_nnode, max_npoint
     integer(ip)                                :: istat
     
@@ -265,6 +284,9 @@
 
     this%max_number_nodes = max_nnode
     this%max_number_quadrature_points = max_npoint
+    
+    allocate ( this%vector_dof_values, mold = vector_dof_values )
+    this%vector_dof_values = vector_dof_values
     
     allocate ( this%nodal_values(max_nnode), stat = istat )
     check(istat==0)
