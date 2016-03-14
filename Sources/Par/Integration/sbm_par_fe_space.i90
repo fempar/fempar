@@ -322,14 +322,14 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
            total_num_itfc_couplings = total_num_itfc_couplings + & 
                 this%par_fe_space_compute_raw_interface_data_by_continuity(fe_space_id, &
                 ubound_num_itfc_couplings(i),&
-                dofs_lid(total_num_itfc_couplings+1),&
-                raw_interface_data(1,total_num_itfc_couplings+1) )
+                dofs_lid,&
+                raw_interface_data, total_num_itfc_couplings)
         else if ( .not.this%reference_fe_phy_list(fe_space_id)%p%get_conformity() ) then
            total_num_itfc_couplings = total_num_itfc_couplings + & 
                 this%par_fe_space_compute_raw_interface_data_by_face_integ(fe_space_id, &
                 ubound_num_itfc_couplings(i),&
-                dofs_lid(total_num_itfc_couplings+1),&
-                raw_interface_data(1,total_num_itfc_couplings+1) )      
+                dofs_lid,&
+                raw_interface_data, total_num_itfc_couplings )      
         end if
 
         i=i+1                                  
@@ -457,13 +457,14 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
      fe_space_id, &
      ubound_num_itfc_couplings, &
      dofs_lid, &
-     raw_interface_data ) result(num_itfc_couplings)
+     raw_interface_data, count ) result(num_itfc_couplings)
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: fe_space_id
   integer(ip)          , intent(in)    :: ubound_num_itfc_couplings
-  integer(ip)          , intent(inout) :: dofs_lid(ubound_num_itfc_couplings)
-  integer(igp)         , intent(inout) :: raw_interface_data(num_rows_raw_interface_data, ubound_num_itfc_couplings)
+  integer(ip)          , intent(in)    :: count
+  integer(ip)          , intent(inout) :: dofs_lid(:)
+  integer(igp)         , intent(inout) :: raw_interface_data(:, :)
   integer(ip)                          :: num_itfc_couplings
 
   ! Locals
@@ -506,7 +507,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
 
   mypart_id = this%par_triangulation%p_env%p_context%iam + 1 
 
-  current_col  = 1
+  current_col  = count + 1
   local_idof   = 0
 
   ! Traverse vefs on the interface
@@ -691,13 +692,14 @@ function par_fe_space_compute_raw_interface_data_by_face_integ (  this, &
      fe_space_id, &
      ubound_num_itfc_couplings, &
      dofs_lid, &
-     raw_interface_data ) result(num_itfc_couplings)
+     raw_interface_data, count ) result(num_itfc_couplings)
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: fe_space_id
   integer(ip)          , intent(in)    :: ubound_num_itfc_couplings
-  integer(ip)          , intent(inout) :: dofs_lid(ubound_num_itfc_couplings)
-  integer(igp)         , intent(inout) :: raw_interface_data(num_rows_raw_interface_data, ubound_num_itfc_couplings)
+  integer(ip)          , intent(in)    :: count
+  integer(ip)          , intent(inout) :: dofs_lid(:)
+  integer(igp)         , intent(inout) :: raw_interface_data(:, :)
   integer(ip)                          :: num_itfc_couplings
 
   ! Locals
@@ -716,7 +718,7 @@ function par_fe_space_compute_raw_interface_data_by_face_integ (  this, &
   assert ( this%par_triangulation%p_env%p_context%iam >= 0 )
 
   mypart_id = this%par_triangulation%p_env%p_context%iam + 1 
-  current_col = 1
+  current_col = count + 1
 
   ! Traverse vefs on the interface
   do ivef_itfc = 1, this%par_triangulation%num_itfc_vefs

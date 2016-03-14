@@ -731,6 +731,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   ! Local variables
   integer(ip)               :: nd,p
   integer(ip)               :: i,j,k,l,m
+  integer(ip)               :: p_minus_one
   integer(ip)               :: aux1,aux2,aux3,aux4
   integer(ip)               :: od,cd,kk,c
   integer(ip)               :: c2,c3,c4,c5,c6,co
@@ -804,11 +805,17 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   this%nodes_vef%p(1) = 1
   this%vefs_vef%p(1) = 1
   this%vertices_vef%p(1) = 1
-
+  
+  p_minus_one = max(p-1,0)
+  
   !Loop over dimensions
   do k = 0,nd
-     aux1 = int(((p-1)**k)) ! interior nodes for an vef of dim k
+     aux1 = int(((p_minus_one)**k)) ! interior nodes for an vef of dim k
      aux3 = int(((p+1)**k)) ! Total nodes for an vef of dim k
+     if ( p == -1 ) then
+        aux1 = 0
+        aux3 = 0
+     end if
      aux2 = int(2**k)       ! Corners for an vef of dim k
      aux4 = int((3**k)) ! Corners for an vef of dim k (idem p=2)
 
@@ -879,12 +886,12 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
 
         if (p > 1) then
            ! Compute auxt3 the local numbering of the interior nodes in an vef of dim od
-           call memalloc(od,(p-1)**(od),auxt3,__FILE__,__LINE__)
+           call memalloc(od,(p_minus_one)**(od),auxt3,__FILE__,__LINE__)
            auxt3 = 0
            kk    = 0
            aux1  = 1
            ijk   = 0
-           call Q_r_ijk(kk,aux1,ijk,od,auxt3,1,p-1)
+           call Q_r_ijk(kk,aux1,ijk,od,auxt3,1,p_minus_one)
         end if
 
         ! Compute auxt4 the local numbering of all nodes in an vef of dim od
@@ -969,6 +976,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
 
         ! Interior node numbering
         ! Loop over the translations
+        if ( p > 0 ) then
         do l = 1,2**(nd-od)
            !ijk_g(jdm) will contain the translations from 1 vef to another; must be scaled by p
            !ijk_g(idm) will contain the variations inside the vef
@@ -977,7 +985,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
            end do
 
            ! Loop over the interior nodes of the vef
-           do m = 1,(p-1)**(od)
+           do m = 1,(p_minus_one)**(od)
               do k = 1,od
                  ijk_g(idm(k)+1) = auxt3(k,m)
               end do
@@ -1004,6 +1012,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
               this%nodes_vef%l(c4) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ntxob%l
            end do
         end do
+        end if
 
         ! obxob array and auxiliar ob2node array 
 

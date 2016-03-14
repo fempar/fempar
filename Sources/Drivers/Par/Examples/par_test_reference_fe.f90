@@ -262,9 +262,13 @@ program par_test_reference_fe
   reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = 2, &
-                                                   order = 3, &
+                                                   order = -1, &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
+  
+  !call reference_fe_array_one(1)%p%print()
+  
+  !stop
   
   call par_fe_space%create( par_triangulation = par_triangulation, &
                             par_boundary_conditions = par_conditions, &
