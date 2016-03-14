@@ -5,6 +5,8 @@ USE memor_names
 USE serial_names
 USE sparse_matrix_names
 USE direct_solver_names
+USE pardiso_mkl_direct_solver_names
+USE umfpack_direct_solver_names
 USE FPL
 USE IR_Precision
 use iso_c_binding
@@ -66,7 +68,6 @@ implicit none
         if(i==1) then
             call direct_solver%set_type_from_pl(direct_solver_parameters)
             call direct_solver%set_matrix(sparse_matrix)
-            call direct_solver%set_defaults()
         endif
         call direct_solver%set_parameters_from_pl(direct_solver_parameters)
 
@@ -105,7 +106,6 @@ implicit none
         if(i==1) then
             call direct_solver%set_type_from_pl(direct_solver_parameters)
             call direct_solver%set_matrix(sparse_matrix)
-            call direct_solver%set_defaults()
         endif
         call direct_solver%set_parameters_from_pl(direct_solver_parameters)
     

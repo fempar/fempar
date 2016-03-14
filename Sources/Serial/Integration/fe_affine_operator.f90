@@ -129,6 +129,7 @@ contains
   procedure          :: abort_if_not_in_range       => fe_affine_operator_abort_if_not_in_range
   procedure          :: abort_if_not_in_domain      => fe_affine_operator_abort_if_not_in_domain
   procedure          :: create_direct_solver        => fe_affine_operator_create_direct_solver
+  procedure          :: update_direct_solver_matrix => fe_affine_operator_update_direct_solver_matrix
   procedure, private :: fe_affine_operator_free_numerical_setup
   procedure, private :: fe_affine_operator_free_symbolic_setup
   procedure, private :: fe_affine_operator_free_clean
@@ -431,6 +432,20 @@ subroutine fe_affine_operator_create_direct_solver(this, name, direct_solver)
       check(.false.)
   end select
 end subroutine fe_affine_operator_create_direct_solver
+
+
+subroutine fe_affine_operator_update_direct_solver_matrix(this, same_nonzero_pattern, direct_solver)
+  implicit none
+  class(fe_affine_operator_t), intent(in)    :: this
+  logical,                     intent(in)    :: same_nonzero_pattern
+  type(direct_solver_t),       intent(inout) :: direct_solver
+  select type(matrix => this%matrix_array_assembler%get_matrix())
+    type is (sparse_matrix_t)
+      call direct_solver%update_matrix(matrix, same_nonzero_pattern)
+    class DEFAULT
+      check(.false.)
+  end select
+end subroutine fe_affine_operator_update_direct_solver_matrix
 
 
 end module fe_affine_operator_names

@@ -35,17 +35,17 @@ private
         integer(ip)    :: Matrix_numbering = FORTRAN_NUMBERING
     contains
     private
-        procedure, public :: free_clean              => umfpack_direct_solver_free_clean
-        procedure, public :: free_symbolic           => umfpack_direct_solver_free_symbolic
-        procedure, public :: free_numerical          => umfpack_direct_solver_free_numerical
+        procedure, public :: free_clean_body         => umfpack_direct_solver_free_clean_body
+        procedure, public :: free_symbolic_body      => umfpack_direct_solver_free_symbolic_body
+        procedure, public :: free_numerical_body     => umfpack_direct_solver_free_numerical_body
         procedure         :: initialize              => umfpack_direct_solver_initialize
-        procedure, public :: set_defaults            => umfpack_direct_solver_set_defaults
+        procedure         :: set_defaults            => umfpack_direct_solver_set_defaults
         procedure, public :: set_parameters_from_pl  => umfpack_direct_solver_set_parameters_from_pl
         procedure         :: Fortran_to_C_numbering  => umfpack_direct_solver_Fortran_to_C_numbering
         procedure         :: C_to_Fortran_numbering  => umfpack_direct_solver_C_to_Fortran_numbering
-        procedure, public :: symbolic_setup          => umfpack_direct_solver_symbolic_setup
-        procedure, public :: numerical_setup         => umfpack_direct_solver_numerical_setup
-        procedure, public :: solve                   => umfpack_direct_solver_solve
+        procedure, public :: symbolic_setup_body     => umfpack_direct_solver_symbolic_setup_body
+        procedure, public :: numerical_setup_body    => umfpack_direct_solver_numerical_setup_body
+        procedure, public :: solve_body              => umfpack_direct_solver_solve_body
 #ifndef ENABLE_UMFPACK
         procedure         :: not_enabled_error       => umfpack_direct_solver_not_enabled_error
 #endif
@@ -71,15 +71,12 @@ contains
 
     subroutine umfpack_direct_solver_initialize(this)
     !-----------------------------------------------------------------
-    !< Change STATE to direct_solver_STATE_START
     !-----------------------------------------------------------------
         class(umfpack_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-        assert(this%state_is_start())
         call this%reset()
         this%Matrix_numbering = FORTRAN_NUMBERING
-        call this%set_state_start()
 #else
         call this%not_enabled_error()
 #endif
@@ -139,20 +136,18 @@ contains
     end subroutine umfpack_direct_solver_set_parameters_from_pl
 
 
-    subroutine umfpack_direct_solver_symbolic_setup(this)
+    subroutine umfpack_direct_solver_symbolic_setup_body(this)
     !-----------------------------------------------------------------
     !< Pre-orders the columns of the matrix to reduce fill-in
     !< adn performs a symbolic analysis
-    !< Set STATE direct_solver_STATE_SYMBOLIC
     !-----------------------------------------------------------------
         class(umfpack_direct_solver_t), intent(inout) :: this
         class(base_sparse_matrix_t), pointer          :: matrix
         integer(ip)                                   :: status
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
+        ! Check pre-conditions
         assert ( .not. this%matrix%get_symmetric_storage() )
-        if(this%state_is_symbolic() .or. this%state_is_numeric()) return
-        check(this%matrix_is_set())
 
 !        print*, '(1) --> symbolic_setup'
         matrix => this%matrix%get_pointer_to_base_matrix()
@@ -183,19 +178,17 @@ contains
                 call this%set_mem_perm_symb( int((this%Info(UMFPACK_SYMBOLIC_SIZE)*this%Info(UMFPACK_SIZE_OF_UNIT))/1024.0_rp) )
             class DEFAULT
                 check(.false.)
-        end select
-        call this%set_state_symbolic()    
+        end select    
 #else
         call this%not_enabled_error
 #endif
-    end subroutine umfpack_direct_solver_symbolic_setup
+    end subroutine umfpack_direct_solver_symbolic_setup_body
 
 
-    subroutine umfpack_direct_solver_numerical_setup(this)
+    subroutine umfpack_direct_solver_numerical_setup_body(this)
     !-----------------------------------------------------------------
     !< Numerically scales and then factorizes a sparse matrix 
     !< into the produc LU
-    !< set direct_solver_STATE_NUMERICAL_SETUP state
     !-----------------------------------------------------------------
         class(umfpack_direct_solver_t), intent(inout) :: this
         class(base_sparse_matrix_t), pointer          :: matrix
@@ -203,10 +196,6 @@ contains
         integer(ip)                                   :: status
 #ifdef ENABLE_UMFPACK
         assert ( .not. this%matrix%get_symmetric_storage() )
-        if(this%state_is_numeric() .and. .not. this%get_numerical_setup_pending()) return
-
-        if(this%state_is_start()) call this%symbolic_setup()
-
 !        print*, '(2) --> numerical_setup'
         matrix => this%matrix%get_pointer_to_base_matrix()
         select type (matrix)
@@ -238,16 +227,14 @@ contains
             class DEFAULT
                 check(.false.)
         end select
-        call this%set_numerical_setup_pending(.false.)
-        call this%set_state_numeric()    
 #else
         call this%not_enabled_error
 #endif
 
-    end subroutine umfpack_direct_solver_numerical_setup
+    end subroutine umfpack_direct_solver_numerical_setup_body
 
 
-    subroutine umfpack_direct_solver_solve(op, x, y)
+    subroutine umfpack_direct_solver_solve_body(op, x, y)
     !-----------------------------------------------------------------
     ! Computes y <- AT^-1 * x, using previously computed LU factorization
     !-----------------------------------------------------------------
@@ -261,9 +248,6 @@ contains
         integer(ip)                                   :: status
 #ifdef ENABLE_UMFPACK
         assert ( .not. op%matrix%get_symmetric_storage() )
-
-        if(.not. op%state_is_numeric() .or. op%get_numerical_setup_pending()) call op%numerical_setup()
-
 !        print*, '(3) --> solve'
         matrix => op%matrix%get_pointer_to_base_matrix()
         select type (matrix)
@@ -297,62 +281,52 @@ contains
 #else
         call op%not_enabled_error()
 #endif
-    end subroutine umfpack_direct_solver_solve
+    end subroutine umfpack_direct_solver_solve_body
 
 
-    subroutine umfpack_direct_solver_free_clean(this)
+    subroutine umfpack_direct_solver_free_clean_body(this)
     !-----------------------------------------------------------------
     !< Deallocate UMFPACK internal data structure
-    !< Reset state to direct_solver_STATE_SYMBOLIC_START
     !-----------------------------------------------------------------
         class(umfpack_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-        if(this%state_is_symbolic() .or. this%state_is_numeric()) call this%free_symbolic()
 !        print*, '(4) --> free_clean'
-        call this%set_state_start()
 #else
         call this%not_enabled_error()
 #endif
-    end subroutine umfpack_direct_solver_free_clean
+    end subroutine umfpack_direct_solver_free_clean_body
 
 
-    subroutine umfpack_direct_solver_free_symbolic(this)
+    subroutine umfpack_direct_solver_free_symbolic_body(this)
     !-----------------------------------------------------------------
     !< Release all internal memory for all matrices
-    !< Set state to direct_solver_STATE_START
     !-----------------------------------------------------------------
         class(umfpack_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-        assert(this%state_is_symbolic() .or. this%state_is_numeric())
-        if(this%state_is_numeric()) call this%free_numerical()
 !        print*, '(5) --> free_symbolic'
         call umfpack_di_free_symbolic ( this%Symbolic )
-        call this%set_state_start()
 #else
         call this%not_enabled_error()
 #endif
     
-    end subroutine umfpack_direct_solver_free_symbolic
+    end subroutine umfpack_direct_solver_free_symbolic_body
 
 
-    subroutine umfpack_direct_solver_free_numerical(this)
+    subroutine umfpack_direct_solver_free_numerical_body(this)
     !-----------------------------------------------------------------
     !< Release internal memory only for L and U factors
-    !< Set state to direct_solver_STATE_SYMBOLIC_SETUP
     !-----------------------------------------------------------------
         class(umfpack_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-        assert(this%state_is_numeric())
 !        print*, '(6) --> free_numeric'
         call umfpack_di_free_numeric ( this%Numeric )
-        call this%set_state_symbolic()
 #else
         call this%not_enabled_error()
 #endif
-    end subroutine umfpack_direct_solver_free_numerical
+    end subroutine umfpack_direct_solver_free_numerical_body
 
 
     subroutine umfpack_direct_solver_Fortran_to_C_numbering(this)

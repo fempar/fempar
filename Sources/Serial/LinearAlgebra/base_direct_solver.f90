@@ -54,19 +54,24 @@ module base_direct_solver_names
         ! Direct solvers info
         integer(ip)                            :: mem_peak_symb
         integer(ip)                            :: mem_perm_symb
-        integer(ip)                            :: nz_factors   
+        integer(ip)                            :: nz_factors
         integer(ip)                            :: mem_peak_num 
         real(rp)                               :: Mflops
     contains
     private
-        procedure(base_direct_solver_free_clean),              public, deferred :: free_clean
-        procedure(base_direct_solver_free_symbolic),           public, deferred :: free_symbolic
-        procedure(base_direct_solver_free_numerical),          public, deferred :: free_numerical
-        procedure(base_direct_solver_set_defaults),            public, deferred :: set_defaults
+        procedure(base_direct_solver_free_clean_body),                 deferred :: free_clean_body
+        procedure(base_direct_solver_free_symbolic_body),              deferred :: free_symbolic_body
+        procedure(base_direct_solver_free_numerical_body),             deferred :: free_numerical_body
+        procedure(base_direct_solver_symbolic_setup_body),             deferred :: symbolic_setup_body
+        procedure(base_direct_solver_numerical_setup_body),            deferred :: numerical_setup_body
+        procedure(base_direct_solver_solve_body),                      deferred :: solve_body
         procedure(base_direct_solver_set_parameters_from_pl),  public, deferred :: set_parameters_from_pl
-        procedure(base_direct_solver_symbolic_setup),          public, deferred :: symbolic_setup
-        procedure(base_direct_solver_numerical_setup),         public, deferred :: numerical_setup
-        procedure(base_direct_solver_solve),                   public, deferred :: solve
+        procedure, non_overridable, public :: free_clean                   => base_direct_solver_free_clean
+        procedure, non_overridable, public :: free_symbolic                => base_direct_solver_free_symbolic
+        procedure, non_overridable, public :: free_numerical               => base_direct_solver_free_numerical
+        procedure, non_overridable, public :: symbolic_setup               => base_direct_solver_symbolic_setup
+        procedure, non_overridable, public :: numerical_setup              => base_direct_solver_numerical_setup
+        procedure, non_overridable, public :: solve                        => base_direct_solver_solve
         procedure, non_overridable, public :: reset                        => base_direct_solver_reset
         procedure, non_overridable, public :: set_name                     => base_direct_solver_set_name
         procedure, non_overridable, public :: set_matrix                   => base_direct_solver_set_matrix
@@ -94,10 +99,6 @@ module base_direct_solver_names
     end type
 
     interface
-        subroutine base_direct_solver_set_defaults(this)
-            import base_direct_solver_t
-            class(base_direct_solver_t),   intent(inout) :: this
-        end subroutine base_direct_solver_set_defaults
 
         subroutine base_direct_solver_set_parameters_from_pl(this, parameter_list)
             import base_direct_solver_t
@@ -106,43 +107,107 @@ module base_direct_solver_names
             type(ParameterList_t),         intent(in)    :: parameter_list
         end subroutine base_direct_solver_set_parameters_from_pl
 
-        subroutine base_direct_solver_symbolic_setup(this)
+        subroutine base_direct_solver_symbolic_setup_body(this)
             import base_direct_solver_t
             class(base_direct_solver_t), intent(inout) :: this
-        end subroutine base_direct_solver_symbolic_setup
+        end subroutine base_direct_solver_symbolic_setup_body
 
-        subroutine base_direct_solver_numerical_setup(this)
+        subroutine base_direct_solver_numerical_setup_body(this)
             import base_direct_solver_t
             class(base_direct_solver_t), intent(inout) :: this
-        end subroutine base_direct_solver_numerical_setup
+        end subroutine base_direct_solver_numerical_setup_body
 
-        subroutine base_direct_solver_solve(op, x, y)
+        subroutine base_direct_solver_solve_body(op, x, y)
             import base_direct_solver_t
             import serial_scalar_array_t
             class(base_direct_solver_t),  intent(inout) :: op
             class(serial_scalar_array_t), intent(in)    :: x
             class(serial_scalar_array_t), intent(inout) :: y
-        end subroutine base_direct_solver_solve
+        end subroutine base_direct_solver_solve_body
 
-        subroutine  base_direct_solver_free_clean(this)
+        subroutine  base_direct_solver_free_clean_body(this)
             import base_direct_solver_t
             class(base_direct_solver_t), intent(inout) :: this
-        end subroutine base_direct_solver_free_clean
+        end subroutine base_direct_solver_free_clean_body
 
-        subroutine  base_direct_solver_free_symbolic(this)
+        subroutine  base_direct_solver_free_symbolic_body(this)
             import base_direct_solver_t
             class(base_direct_solver_t), intent(inout) :: this
-        end subroutine base_direct_solver_free_symbolic
+        end subroutine base_direct_solver_free_symbolic_body
 
-        subroutine  base_direct_solver_free_numerical(this)
+        subroutine  base_direct_solver_free_numerical_body(this)
             import base_direct_solver_t
             class(base_direct_solver_t), intent(inout) :: this
-        end subroutine base_direct_solver_free_numerical
+        end subroutine base_direct_solver_free_numerical_body
     end interface
 
 public :: base_direct_solver_t
 
 contains
+
+    subroutine base_direct_solver_symbolic_setup(this)
+        class(base_direct_solver_t), intent(inout) :: this
+        ! Check pre-conditions
+        check(this%matrix_is_set())
+        if(this%state_is_symbolic() .or. this%state_is_numeric()) return
+        call this%symbolic_setup_body()
+        ! post-conditions
+        call this%set_state_symbolic()
+    end subroutine base_direct_solver_symbolic_setup
+
+    subroutine base_direct_solver_numerical_setup(this)
+        class(base_direct_solver_t), intent(inout) :: this
+        ! Check pre-conditions
+        if(this%state_is_start()) call this%symbolic_setup()
+        if(this%state_is_numeric() .and. .not. this%get_numerical_setup_pending()) return
+        call this%numerical_setup_body()
+        ! post-conditions
+        call this%set_numerical_setup_pending(.false.)
+        call this%set_state_numeric()
+    end subroutine base_direct_solver_numerical_setup
+
+    subroutine base_direct_solver_solve(op, x, y)
+        class(base_direct_solver_t),  intent(inout) :: op
+        class(serial_scalar_array_t), intent(in)    :: x
+        class(serial_scalar_array_t), intent(inout) :: y
+        ! Check pre-conditions
+        if(.not. op%state_is_numeric() .or. op%get_numerical_setup_pending()) call op%numerical_setup()
+        call op%solve_body(x, y)
+        ! post-conditions
+    end subroutine base_direct_solver_solve
+
+    subroutine  base_direct_solver_free_clean(this)
+        class(base_direct_solver_t), intent(inout) :: this
+        ! Check pre-conditions
+        if(this%state_is_symbolic() .or. this%state_is_numeric()) call this%free_symbolic()
+        call this%free_clean_body()
+        ! post-conditions
+        call this%set_state_start()
+    end subroutine base_direct_solver_free_clean
+
+    subroutine  base_direct_solver_free_symbolic(this)
+        class(base_direct_solver_t), intent(inout) :: this
+        ! Check pre-conditions
+        if(this%state_is_start()) return
+        if(this%state_is_numeric()) call this%free_numerical()
+        call this%free_symbolic_body()
+        ! post-conditions
+        call this%set_mem_peak_symb(0_ip)
+        call this%set_mem_perm_symb(0_ip)
+        call this%set_nz_factors(0_ip)
+        call this%set_state_start()
+    end subroutine base_direct_solver_free_symbolic
+
+    subroutine  base_direct_solver_free_numerical(this)
+        class(base_direct_solver_t), intent(inout) :: this
+        ! Check pre-conditions
+        if(.not. this%state_is_numeric()) return
+        call this%free_numerical_body
+        ! post-conditions
+        call this%set_mem_peak_num(0_ip)
+        call this%set_Mflops(0._rp)
+        call this%set_state_symbolic()
+    end subroutine base_direct_solver_free_numerical
 
     subroutine base_direct_solver_reset(this)
         class(base_direct_solver_t), intent(inout) :: this

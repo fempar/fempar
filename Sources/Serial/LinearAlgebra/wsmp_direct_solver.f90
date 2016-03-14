@@ -18,15 +18,15 @@ module wsmp_direct_solver_names
     contains
     private
         procedure, public :: is_linear               => wsmp_direct_solver_is_linear
-        procedure, public :: free_clean              => wsmp_direct_solver_free_clean
-        procedure, public :: free_symbolic           => wsmp_direct_solver_free_symbolic
-        procedure, public :: free_numerical          => wsmp_direct_solver_free_numerical
+        procedure, public :: free_clean_body         => wsmp_direct_solver_free_clean_body
+        procedure, public :: free_symbolic_body      => wsmp_direct_solver_free_symbolic_body
+        procedure, public :: free_numerical_body     => wsmp_direct_solver_free_numerical_body
         procedure         :: initialize              => wsmp_direct_solver_initialize
-        procedure, public :: set_defaults            => wsmp_direct_solver_set_defaults
+        procedure         :: set_defaults            => wsmp_direct_solver_set_defaults
         procedure, public :: set_parameters_from_pl  => wsmp_direct_solver_set_parameters_from_pl
-        procedure, public :: symbolic_setup          => wsmp_direct_solver_symbolic_setup
-        procedure, public :: numerical_setup         => wsmp_direct_solver_numerical_setup
-        procedure, public :: solve                   => wsmp_direct_solver_solve
+        procedure, public :: symbolic_setup_body     => wsmp_direct_solver_symbolic_setup_body
+        procedure, public :: numerical_setup_body    => wsmp_direct_solver_numerical_setup_body
+        procedure, public :: solve_body              => wsmp_direct_solver_solve_body
     end type
 
 contains
@@ -44,35 +44,35 @@ contains
         type(ParameterList_t),        intent(in)    :: parameter_list
     end subroutine wsmp_direct_solver_set_parameters_from_pl
 
-    subroutine wsmp_direct_solver_symbolic_setup(this)
+    subroutine wsmp_direct_solver_symbolic_setup_body(this)
         class(wsmp_direct_solver_t), intent(inout) :: this
-    end subroutine wsmp_direct_solver_symbolic_setup
+    end subroutine wsmp_direct_solver_symbolic_setup_body
 
-    subroutine wsmp_direct_solver_numerical_setup(this)
+    subroutine wsmp_direct_solver_numerical_setup_body(this)
         class(wsmp_direct_solver_t), intent(inout) :: this
-    end subroutine wsmp_direct_solver_numerical_setup
+    end subroutine wsmp_direct_solver_numerical_setup_body
 
     function wsmp_direct_solver_is_linear(this) result(is_linear)
         class(wsmp_direct_solver_t), intent(inout) :: this
         logical                                            :: is_linear
     end function wsmp_direct_solver_is_linear
 
-    subroutine wsmp_direct_solver_solve(op, x, y)
+    subroutine wsmp_direct_solver_solve_body(op, x, y)
         class(wsmp_direct_solver_t),  intent(inout) :: op
         class(serial_scalar_array_t), intent(in)    :: x
         class(serial_scalar_array_t), intent(inout) :: y
-    end subroutine wsmp_direct_solver_solve
+    end subroutine wsmp_direct_solver_solve_body
 
-    subroutine wsmp_direct_solver_free_clean(this)
+    subroutine wsmp_direct_solver_free_clean_body(this)
         class(wsmp_direct_solver_t), intent(inout) :: this
-    end subroutine wsmp_direct_solver_free_clean
+    end subroutine wsmp_direct_solver_free_clean_body
 
-    subroutine wsmp_direct_solver_free_symbolic(this)
+    subroutine wsmp_direct_solver_free_symbolic_body(this)
         class(wsmp_direct_solver_t), intent(inout) :: this
-    end subroutine wsmp_direct_solver_free_symbolic
+    end subroutine wsmp_direct_solver_free_symbolic_body
 
-    subroutine wsmp_direct_solver_free_numerical(this)
+    subroutine wsmp_direct_solver_free_numerical_body(this)
         class(wsmp_direct_solver_t), intent(inout) :: this
-    end subroutine wsmp_direct_solver_free_numerical
+    end subroutine wsmp_direct_solver_free_numerical_body
 
 end module wsmp_direct_solver_names

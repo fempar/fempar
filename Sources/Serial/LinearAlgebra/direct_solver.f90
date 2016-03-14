@@ -21,23 +21,20 @@ private
         class(base_direct_solver_t), pointer :: base_direct_solver => NULL()
     contains
     private
-        procedure, non_overridable, public :: set_type                     => direct_solver_set_type
-        procedure, non_overridable, public :: set_defaults                 => direct_solver_set_defaults
-        procedure, non_overridable, public :: set_type_from_pl             => direct_solver_set_type_from_pl
-        procedure, non_overridable, public :: set_parameters_from_pl       => direct_solver_set_parameters_from_pl
-        procedure, non_overridable, public :: set_matrix                   => direct_solver_set_matrix
-        procedure, non_overridable, public :: update_matrix                => direct_solver_update_matrix
-        procedure, non_overridable, public :: symbolic_setup               => direct_solver_symbolic_setup
-        procedure, non_overridable, public :: numerical_setup              => direct_solver_numerical_setup
-        procedure, non_overridable, public :: log_info                     => direct_solver_log_info
-        procedure, non_overridable, public :: solve                        => direct_solver_solve
-        procedure, non_overridable, public :: free                         => direct_solver_free
+        procedure, non_overridable, public :: set_type                => direct_solver_set_type
+        procedure, non_overridable, public :: set_type_from_pl        => direct_solver_set_type_from_pl
+        procedure, non_overridable, public :: set_parameters_from_pl  => direct_solver_set_parameters_from_pl
+        procedure, non_overridable, public :: set_matrix              => direct_solver_set_matrix
+        procedure, non_overridable, public :: update_matrix           => direct_solver_update_matrix
+        procedure, non_overridable, public :: symbolic_setup          => direct_solver_symbolic_setup
+        procedure, non_overridable, public :: numerical_setup         => direct_solver_numerical_setup
+        procedure, non_overridable, public :: log_info                => direct_solver_log_info
+        procedure, non_overridable, public :: solve                   => direct_solver_solve
+        procedure, non_overridable, public :: free_in_stages          => direct_solver_free_in_stages
+        procedure, non_overridable, public :: free                    => direct_solver_free
     end type
 
 public :: direct_solver_t, direct_solver_type
-public :: pardiso_mkl_name, pardiso_mkl_iparm, pardiso_mkl_matrix_type, pardiso_mkl_message_level
-public :: pardiso_mkl_spd, pardiso_mkl_sin, pardiso_mkl_uss, pardiso_mkl_uns
-public :: umfpack_name, umfpack_control_params
 
 contains
 
@@ -91,17 +88,6 @@ contains
         assert(FPLError == 0)
         call this%set_type(name)
     end subroutine direct_solver_set_type_from_pl
-
-
-    subroutine direct_solver_set_defaults(this)
-    !-----------------------------------------------------------------
-    !< Set the default parameter of the concrete direct solver
-    !-----------------------------------------------------------------
-        class(direct_solver_t), intent(inout) :: this
-    !-----------------------------------------------------------------
-        assert(associated(this%base_direct_solver))
-        call this%base_direct_solver%set_defaults()
-    end subroutine direct_solver_set_defaults
 
 
     subroutine direct_solver_set_parameters_from_pl(this, parameter_list)
@@ -190,31 +176,39 @@ contains
     end subroutine direct_solver_solve
 
 
-    subroutine direct_solver_free(this, action)
+    subroutine direct_solver_free_in_stages(this, action)
     !-----------------------------------------------------------------
-    !< Computes y <- A^-1 * x
+    !< Free direct solver in stages
     !-----------------------------------------------------------------
         class(direct_solver_t), intent(inout) :: this
-        integer(ip), optional,  intent(in)    :: action
+        integer(ip),            intent(in)    :: action
     !-----------------------------------------------------------------
         if(associated(this%base_direct_solver)) then
-            if(present(action)) then
-                select case (action)
-                    case (free_numerical_setup)
-                        call this%base_direct_solver%free_numerical()
-                    case (free_symbolic_setup)
-                        call this%base_direct_solver%free_symbolic()
-                    case (free_clean)
-                        call this%base_direct_solver%free_clean()
-                    case DEFAULT
-                        call this%base_direct_solver%free_clean()                
-                end select
-            else
-                call this%base_direct_solver%free_clean()                
-            endif
-            deallocate(this%base_direct_solver)
+            select case (action)
+                case (free_numerical_setup)
+                    call this%base_direct_solver%free_numerical()
+                case (free_symbolic_setup)
+                    call this%base_direct_solver%free_symbolic()
+                case (free_clean)
+                    call this%base_direct_solver%free_clean()
+                    deallocate(this%base_direct_solver)
+                    nullify(this%base_direct_solver)
+                case DEFAULT
+                    assert(.false.)
+            end select
         endif
-        nullify(this%base_direct_solver)
+    end subroutine direct_solver_free_in_stages
+
+
+    subroutine direct_solver_free(this)
+    !-----------------------------------------------------------------
+    !< Free direct solver
+    !-----------------------------------------------------------------
+        class(direct_solver_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        call this%free_in_stages(free_numerical_setup)
+        call this%free_in_stages(free_symbolic_setup)
+        call this%free_in_stages(free_clean)
     end subroutine direct_solver_free
 
 end module direct_solver_names
