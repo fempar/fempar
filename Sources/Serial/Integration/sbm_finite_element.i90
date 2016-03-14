@@ -85,8 +85,8 @@ subroutine finite_element_create ( this, &
     do ivef = 1,this%cell%num_vefs
       vef_gid = this%cell%vefs(ivef)
       if (vef_gid /= -1) then
-        do inode = 1, this%reference_fe_phy(j)%p%get_number_interior_nodes_vef(ivef)
-          jnode = this%reference_fe_phy(j)%p%get_interior_node_vef(inode,ivef)
+        do inode = 1, this%reference_fe_phy(j)%p%get_number_own_nodes_vef(ivef)
+          jnode = this%reference_fe_phy(j)%p%get_own_node_vef(inode,ivef)
           component = offset_component+reference_fe_phy(j)%p%get_bc_component_node(jnode)
           this%bc_code(j)%p(jnode) = boundary_conditions%code(component,vef_gid)
           this%bc_value(j)%p(jnode) = boundary_conditions%valu(component,vef_gid)
@@ -152,7 +152,7 @@ subroutine finite_element_free( this )
   
 end subroutine finite_element_free
 
-subroutine finite_element_fill_interior_dofs ( this, fe_space_id, dof_count )
+subroutine finite_element_fill_own_dofs ( this, fe_space_id, dof_count )
   implicit none
   ! Parameters
   class(finite_element_t), intent(inout)   :: this
@@ -162,26 +162,15 @@ subroutine finite_element_fill_interior_dofs ( this, fe_space_id, dof_count )
   ! Local variables
   integer(ip) :: inode, l_node, ivef
   
-  ! In this TBP, the functional relationship among nodes and vefs should be taken into account
-  if ( this%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
-      ivef = this%cell%num_vefs+1
-      do inode = 1, this%reference_fe_phy(fe_space_id)%p%get_number_interior_nodes_vef(ivef)
-         l_node = this%reference_fe_phy(fe_space_id)%p%get_interior_node_vef(inode,ivef)
-         dof_count = dof_count +1
-         this%elem2dof(fe_space_id)%p(l_node) = dof_count
-      end do
-  else
-      do ivef = 1, this%cell%num_vefs+1
-       do inode = 1, this%reference_fe_phy(fe_space_id)%p%get_number_interior_nodes_vef(ivef)
-            l_node = this%reference_fe_phy(fe_space_id)%p%get_interior_node_vef(inode,ivef)
-            dof_count = dof_count + 1
-            this%elem2dof(fe_space_id)%p(l_node) = dof_count
-        end do
-      end do
-   end if
-end subroutine finite_element_fill_interior_dofs
+  ivef = this%cell%num_vefs+1 ! volume
+  do inode = 1, this%reference_fe_phy(fe_space_id)%p%get_number_own_nodes_vef(ivef)
+     l_node = this%reference_fe_phy(fe_space_id)%p%get_own_node_vef(inode,ivef)
+     dof_count = dof_count +1
+     this%elem2dof(fe_space_id)%p(l_node) = dof_count
+  end do
+end subroutine finite_element_fill_own_dofs
 
-subroutine finite_element_fill_interior_dofs_on_vef ( this, vef_local_id, fe_space_id, dof_count )
+subroutine finite_element_fill_own_dofs_on_vef ( this, vef_local_id, fe_space_id, dof_count )
   implicit none
   ! Parameters
   class(finite_element_t), intent(inout)   :: this
@@ -192,16 +181,16 @@ subroutine finite_element_fill_interior_dofs_on_vef ( this, vef_local_id, fe_spa
   ! Local variables
   integer(ip) :: inode, l_node
 
-  do inode = 1,this%reference_fe_phy(fe_space_id)%p%get_number_interior_nodes_vef(vef_local_id)
-    l_node = this%reference_fe_phy(fe_space_id)%p%get_interior_node_vef(inode,vef_local_id)
+  do inode = 1,this%reference_fe_phy(fe_space_id)%p%get_number_own_nodes_vef(vef_local_id)
+    l_node = this%reference_fe_phy(fe_space_id)%p%get_own_node_vef(inode,vef_local_id)
     if ( this%bc_code(fe_space_id)%p(l_node) == 0 ) then
       dof_count = dof_count + 1
       this%elem2dof(fe_space_id)%p(l_node) = dof_count
     end	if
   end do
-end subroutine finite_element_fill_interior_dofs_on_vef
+end subroutine finite_element_fill_own_dofs_on_vef
 
-subroutine finite_element_fill_interior_dofs_on_vef_from_source_element ( this, &
+subroutine finite_element_fill_own_dofs_on_vef_from_source_element ( this, &
                                                            target_vef_lid, &
                                                            source_fe, &  
                                                            source_vef_lid, &
@@ -215,15 +204,15 @@ subroutine finite_element_fill_interior_dofs_on_vef_from_source_element ( this, 
   integer(ip)                    , intent(in)    :: fe_space_id
 
   ! Local variables
-  integer(ip)                    :: interior_inode, l_node, interior_nnode, inode_source, inode_target
+  integer(ip)                    :: own_inode, l_node, own_nnode, inode_source, inode_target
   class(reference_fe_t), pointer :: source_ref_fe, target_ref_fe
   integer(ip) :: relative_orientation, relative_rotation
   
   source_ref_fe => source_fe%reference_fe_phy(fe_space_id)%p
   target_ref_fe => this%reference_fe_phy(fe_space_id)%p
   
-  interior_nnode = source_ref_fe%get_number_interior_nodes_vef(source_vef_lid)
-  if ( interior_nnode > 0 ) then
+  own_nnode = source_ref_fe%get_number_own_nodes_vef(source_vef_lid)
+  if ( own_nnode > 0 ) then
 
      check (target_ref_fe%check_compatibility_of_vefs(source_ref_fe,source_vef_lid,target_vef_lid))
      relative_rotation = target_ref_fe%compute_relative_rotation( source_ref_fe,                  &
@@ -236,9 +225,9 @@ subroutine finite_element_fill_interior_dofs_on_vef_from_source_element ( this, 
           &                                           source_vef_lid,                             &
           &                                           target_vef_lid)
      
-     do interior_inode = 1, interior_nnode
-        inode_source = source_ref_fe%get_interior_node_vef(interior_inode,source_vef_lid)
-        inode_target = target_ref_fe%get_permuted_interior_node_vef(interior_inode,               &
+     do own_inode = 1, own_nnode
+        inode_source = source_ref_fe%get_own_node_vef(own_inode,source_vef_lid)
+        inode_target = target_ref_fe%get_permuted_own_node_vef(own_inode,               &
              &                              target_vef_lid, relative_orientation,relative_rotation)
         if ( this%bc_code(fe_space_id)%p(inode_target) == 0 ) then
            this%elem2dof(fe_space_id)%p(inode_target) = source_fe%elem2dof(fe_space_id)%p(inode_source)
@@ -246,7 +235,7 @@ subroutine finite_element_fill_interior_dofs_on_vef_from_source_element ( this, 
     end do 
  end if
  
-end subroutine finite_element_fill_interior_dofs_on_vef_from_source_element
+end subroutine finite_element_fill_own_dofs_on_vef_from_source_element
 
 subroutine finite_element_fill_dofs_on_vef ( this, vef_local_id, fe_space_id, dof_count )
   implicit none
@@ -259,9 +248,8 @@ subroutine finite_element_fill_dofs_on_vef ( this, vef_local_id, fe_space_id, do
   ! Local variables
   integer(ip) :: inode, l_node
   
-  ! In this TBP, the geometrical relationship among nodes and vefs should be taken into account
-  do inode = 1,this%reference_fe_phy(fe_space_id)%p%get_number_nodes_vef(vef_local_id)
-    l_node = this%reference_fe_phy(fe_space_id)%p%get_node_vef(inode,vef_local_id)
+  do inode = 1,this%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_number_nodes_face()!(vef_local_id)
+    l_node = this%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_node_face(inode,vef_local_id)
     if ( this%bc_code(fe_space_id)%p(l_node) == 0 ) then
       dof_count = dof_count + 1
       this%elem2dof(fe_space_id)%p(l_node) = dof_count

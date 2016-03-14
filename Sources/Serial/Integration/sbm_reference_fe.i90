@@ -42,11 +42,11 @@
     if (allocated(this%number_orientations_per_dimension)) &
          call memfree(this%number_orientations_per_dimension,__FILE__,__LINE__)
 
-    if (allocated(this%interior_node_permutations)) then
+    if (allocated(this%own_node_permutations)) then
        do i = 1, this%number_dimensions-1
-          call this%interior_node_permutations(i)%free()
+          call this%own_node_permutations(i)%free()
        end do
-       deallocate(this%interior_node_permutations)
+       deallocate(this%own_node_permutations)
     end if
 
     call this%interior_nodes_vef%free()
@@ -108,13 +108,14 @@
 
 end subroutine reference_fe_print
 
-subroutine reference_fe_set_common_data( this, number_dimensions, order, field_type, continuity )
+subroutine reference_fe_set_common_data( this, number_dimensions, order, field_type, continuity, enable_face_integration )
   implicit none 
   class(reference_fe_t), intent(inout) :: this 
   integer(ip)          , intent(in)    :: number_dimensions
   integer(ip)          , intent(in)    :: order
   character(*)         , intent(in)    :: field_type
   logical    , optional, intent(in)    :: continuity
+  logical    , optional, intent(in)    :: enable_face_integration
 
   this%number_dimensions = number_dimensions
   this%order             = order
@@ -122,6 +123,13 @@ subroutine reference_fe_set_common_data( this, number_dimensions, order, field_t
      this%continuity = continuity
   else 
      this%continuity = .true.
+  end if
+  if ( present( enable_face_integration ) ) then
+     this%conformity = enable_face_integration
+  else if ( .not. this%continuity ) then
+     this%conformity = .true.
+  else 
+     this%conformity = .false.
   end if
   this%field_type = field_type
   if( this%field_type == field_type_scalar ) then
@@ -193,6 +201,13 @@ function reference_fe_get_continuity( this )
   logical :: reference_fe_get_continuity
   reference_fe_get_continuity = this%continuity
 end function reference_fe_get_continuity
+
+function reference_fe_get_conformity( this )
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  logical :: reference_fe_get_conformity
+  reference_fe_get_conformity = this%conformity
+end function reference_fe_get_conformity
 
   function reference_fe_get_number_field_components ( this )
     implicit none
@@ -307,12 +322,12 @@ end function reference_fe_get_continuity
     end do
   end function  
   
-  function reference_fe_get_interior_nodes_vef ( this )
-    implicit none
-    class(reference_fe_t), target, intent(in) :: this
-    type(list_t), pointer :: reference_fe_get_interior_nodes_vef
-    reference_fe_get_interior_nodes_vef => this%interior_nodes_vef
-  end function reference_fe_get_interior_nodes_vef
+  !function reference_fe_get_interior_nodes_vef ( this )
+  !  implicit none
+  !  class(reference_fe_t), target, intent(in) :: this
+  !  type(list_t), pointer :: reference_fe_get_interior_nodes_vef
+  !  reference_fe_get_interior_nodes_vef => this%interior_nodes_vef
+  !end function reference_fe_get_interior_nodes_vef
 
   function reference_fe_get_nodes_vef ( this )
     implicit none
@@ -343,13 +358,30 @@ end function reference_fe_get_continuity
     reference_fe_get_node_vef = this%nodes_vef%l(this%nodes_vef%p(j) + i -1)
   end function reference_fe_get_node_vef
 
+  function reference_fe_get_face_integration_coupling_node_face ( this, i, j )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i, j
+    integer(ip) :: reference_fe_get_face_integration_coupling_node_face
+    reference_fe_get_face_integration_coupling_node_face = &
+    this%face_integration_coupling_nodes_face%l(this%face_integration_coupling_nodes_face%p(j) + i -1)
+  end function reference_fe_get_face_integration_coupling_node_face  
+  
   function reference_fe_get_interior_node_vef ( this, i, j )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip), intent(in) :: i, j
     integer(ip) :: reference_fe_get_interior_node_vef
     reference_fe_get_interior_node_vef = this%interior_nodes_vef%l(this%interior_nodes_vef%p(j) + i -1)
-  end function reference_fe_get_interior_node_vef
+  end function reference_fe_get_interior_node_vef 
+  
+  function reference_fe_get_own_node_vef ( this, i, j )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i, j
+    integer(ip) :: reference_fe_get_own_node_vef
+    reference_fe_get_own_node_vef = this%own_nodes_vef%l(this%own_nodes_vef%p(j) + i -1)
+  end function reference_fe_get_own_node_vef
 
   function reference_fe_get_number_nodes_vef ( this, i )
     implicit none
@@ -358,7 +390,16 @@ end function reference_fe_get_continuity
     integer(ip) :: reference_fe_get_number_nodes_vef
     reference_fe_get_number_nodes_vef = this%nodes_vef%p(i+1)-this%nodes_vef%p(i)
   end function reference_fe_get_number_nodes_vef
-
+  
+  function reference_fe_get_face_integration_coupling_number_nodes_vef ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i
+    integer(ip) :: reference_fe_get_face_integration_coupling_number_nodes_vef
+    reference_fe_get_face_integration_coupling_number_nodes_vef = &
+    this%face_integration_coupling_nodes_face%p(i+1)-this%face_integration_coupling_nodes_face%p(i)
+  end function reference_fe_get_face_integration_coupling_number_nodes_vef
+  
   function reference_fe_get_number_interior_nodes_vef ( this, i )
     implicit none
     class(reference_fe_t), intent(in) :: this
@@ -366,6 +407,14 @@ end function reference_fe_get_continuity
     integer(ip) :: reference_fe_get_number_interior_nodes_vef
     reference_fe_get_number_interior_nodes_vef = this%interior_nodes_vef%p(i+1)-this%interior_nodes_vef%p(i)
   end function reference_fe_get_number_interior_nodes_vef
+
+  function reference_fe_get_number_own_nodes_vef ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i
+    integer(ip) :: reference_fe_get_number_own_nodes_vef
+    reference_fe_get_number_own_nodes_vef = this%own_nodes_vef%p(i+1)-this%own_nodes_vef%p(i)
+  end function reference_fe_get_number_own_nodes_vef
   
   function reference_fe_get_number_vertices_vef ( this, i )
     implicit none
@@ -374,48 +423,23 @@ end function reference_fe_get_continuity
     integer(ip) :: reference_fe_get_number_vertices_vef
     reference_fe_get_number_vertices_vef = this%vertices_vef%p(i+1)-this%vertices_vef%p(i)
   end function reference_fe_get_number_vertices_vef
-
-  function reference_fe_get_number_nodes_per_vertex ( this )
+  
+  function reference_fe_get_face_integration_coupling_number_nodes_face ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    integer(ip) :: reference_fe_get_number_nodes_per_vertex
-    reference_fe_get_number_nodes_per_vertex = this%nodes_vef%p(this%number_vefs_dimension(1)+1)-&
-                                               this%nodes_vef%p(this%number_vefs_dimension(1))
-  end function reference_fe_get_number_nodes_per_vertex
+    integer(ip) :: reference_fe_get_face_integration_coupling_number_nodes_face
+    reference_fe_get_face_integration_coupling_number_nodes_face = &
+    this%face_integration_coupling_nodes_face%p(this%number_vefs_dimension(this%number_dimensions)+1)-&
+         this%face_integration_coupling_nodes_face%p(this%number_vefs_dimension(this%number_dimensions))
+  end function reference_fe_get_face_integration_coupling_number_nodes_face
   
-  
-  function reference_fe_get_number_nodes_per_edge ( this )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip) :: reference_fe_get_number_nodes_per_edge
-    reference_fe_get_number_nodes_per_edge = this%nodes_vef%p(this%number_vefs_dimension(2)+1)-&
-                                               this%nodes_vef%p(this%number_vefs_dimension(2))
-  end function reference_fe_get_number_nodes_per_edge
-  
-  function reference_fe_get_number_interior_nodes_per_edge ( this )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip) :: reference_fe_get_number_interior_nodes_per_edge
-    reference_fe_get_number_interior_nodes_per_edge = this%interior_nodes_vef%p(this%number_vefs_dimension(2)+1)-&
-                                                      this%interior_nodes_vef%p(this%number_vefs_dimension(2))
-  end function reference_fe_get_number_interior_nodes_per_edge
-  
-  
-  function reference_fe_get_number_nodes_per_face ( this )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip) :: reference_fe_get_number_nodes_per_face
-    reference_fe_get_number_nodes_per_face = this%nodes_vef%p(this%number_vefs_dimension(this%number_dimensions)+1)-&
-                                               this%nodes_vef%p(this%number_vefs_dimension(this%number_dimensions))
-  end function reference_fe_get_number_nodes_per_face
-  
-  function reference_fe_get_number_interior_nodes_per_face ( this )
-    implicit none
-    class(reference_fe_t), intent(in) :: this
-    integer(ip) :: reference_fe_get_number_interior_nodes_per_face
-    reference_fe_get_number_interior_nodes_per_face = this%interior_nodes_vef%p(this%number_vefs_dimension(this%number_dimensions)+1)-&
-                                                      this%interior_nodes_vef%p(this%number_vefs_dimension(this%number_dimensions))
-  end function reference_fe_get_number_interior_nodes_per_face
+  !function reference_fe_get_number_interior_nodes_per_face ( this )
+  !  implicit none
+  !  class(reference_fe_t), intent(in) :: this
+  !  integer(ip) :: reference_fe_get_number_interior_nodes_per_face
+  !  reference_fe_get_number_interior_nodes_per_face = this%interior_nodes_vef%p(this%number_vefs_dimension(this%number_dimensions)+1)-&
+  !                                                    this%interior_nodes_vef%p(this%number_vefs_dimension(this%number_dimensions))
+  !end function reference_fe_get_number_interior_nodes_per_face
   
   function reference_fe_get_orientation(this)
     class(reference_fe_t), target, intent(in) :: this
@@ -482,7 +506,7 @@ end function reference_fe_get_continuity
   end function reference_fe_compute_relative_rotation
 
   !==================================================================================================
-  function reference_fe_get_permuted_interior_node_vef(this,inode,target_vef_id,     &
+  function reference_fe_get_permuted_own_node_vef(this,inode,target_vef_id,     &
        &                                               relative_orientation, relative_rotation)
     implicit none
     class(reference_fe_t), intent(in)  :: this
@@ -490,29 +514,29 @@ end function reference_fe_get_continuity
     integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
     integer(ip)          , intent(in)  :: relative_orientation
     integer(ip)          , intent(in)  :: relative_rotation
-    integer(ip) :: reference_fe_get_permuted_interior_node_vef
+    integer(ip) :: reference_fe_get_permuted_own_node_vef
 
-    integer(ip) :: vef_dimension, permutation_key, permuted_interior_node
+    integer(ip) :: vef_dimension, permutation_key, permuted_own_node
     
     assert ( allocated ( this%number_rotations_per_dimension ) )
     assert ( allocated ( this%number_orientations_per_dimension ) )
-    assert ( allocated ( this%interior_node_permutations ) )
+    assert ( allocated ( this%own_node_permutations ) )
 
     vef_dimension = this%get_vef_dimension(target_vef_id)
     
     if ( vef_dimension == 0 ) then
-      permuted_interior_node = inode
+      permuted_own_node = inode
     else
       permutation_key = relative_rotation +                                                         &
          &              this%number_rotations_per_dimension(vef_dimension)*relative_orientation
     
-      permuted_interior_node = this%interior_node_permutations          &
+      permuted_own_node = this%own_node_permutations          &
                               & (vef_dimension)%a(inode,permutation_key)
 
     end if                          
-    reference_fe_get_permuted_interior_node_vef = this%interior_nodes_vef%                        &
-          & l(this%interior_nodes_vef%p(target_vef_id) + permuted_interior_node -1)
-  end function reference_fe_get_permuted_interior_node_vef
+    reference_fe_get_permuted_own_node_vef = this%own_nodes_vef%                        &
+          & l(this%own_nodes_vef%p(target_vef_id) + permuted_own_node -1)
+  end function reference_fe_get_permuted_own_node_vef
 
    !==================================================================================================
   subroutine p_reference_fe_free( this )

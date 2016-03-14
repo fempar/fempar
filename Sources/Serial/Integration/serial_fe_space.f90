@@ -107,9 +107,9 @@ module serial_fe_space_names
      procedure, non_overridable          :: update_integration => finite_element_update_integration
      procedure, non_overridable, private :: free => finite_element_free
      ! procedure :: print Pending
-     procedure, non_overridable, private :: fill_interior_dofs => finite_element_fill_interior_dofs
-     procedure, non_overridable, private :: fill_interior_dofs_on_vef => finite_element_fill_interior_dofs_on_vef
-     procedure, non_overridable, private :: fill_interior_dofs_on_vef_from_source_element => finite_element_fill_interior_dofs_on_vef_from_source_element
+     procedure, non_overridable, private :: fill_own_dofs => finite_element_fill_own_dofs
+     procedure, non_overridable, private :: fill_own_dofs_on_vef => finite_element_fill_own_dofs_on_vef
+     procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_element => finite_element_fill_own_dofs_on_vef_from_source_element
      procedure, non_overridable, private :: fill_dofs_on_vef => finite_element_fill_dofs_on_vef
      
      procedure, non_overridable :: get_number_nodes => finite_element_get_number_nodes
@@ -165,16 +165,22 @@ module serial_fe_space_names
 
   public :: finite_face_t
 
+  
+  character(*), parameter :: fe_space_type_cg = "cg_co"
+  character(*), parameter :: fe_space_type_dg  = "dg_nc"
+  character(*), parameter :: fe_space_type_dg_conforming = "dg_co"
+  
   type :: serial_fe_space_t
      private
      integer(ip)                                 :: number_fe_spaces   
      type(p_fe_map_t)              , allocatable :: fe_map(:)
      type(face_map_t)              , allocatable :: face_map(:)
      type(p_reference_fe_t)        , allocatable :: reference_fe_phy_list(:)
-     type(p_quadrature_t)       , allocatable :: quadrature(:)
-     type(quadrature_t)         , allocatable :: face_quadrature(:)
-     type(p_volume_integrator_t), allocatable :: volume_integrator(:)
+     type(p_quadrature_t)          , allocatable :: quadrature(:)
+     type(quadrature_t)            , allocatable :: face_quadrature(:)
+     type(p_volume_integrator_t)   , allocatable :: volume_integrator(:)
      type(p_face_integrator_t)     , allocatable :: face_integrator(:)
+     character(:)           , allocatable :: fe_space_type(:)
      
      type(triangulation_t)         , pointer     :: triangulation
      type(finite_element_t)        , allocatable :: fe_array(:)
