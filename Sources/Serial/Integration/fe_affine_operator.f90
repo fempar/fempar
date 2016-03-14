@@ -38,6 +38,7 @@ module fe_affine_operator_names
   use matrix_array_assembler_names
   use array_names
   use matrix_names
+  use sparse_matrix_names, only: sparse_matrix_t
   use discrete_integration_names
   use environment_names
   use direct_solver_names
@@ -423,7 +424,12 @@ subroutine fe_affine_operator_create_direct_solver(this, name, direct_solver)
   character(len=*),            intent(in)    :: name
   type(direct_solver_t),       intent(inout) :: direct_solver
   call direct_solver%set_type(name)
-  call direct_solver%set_matrix(this%matrix_array_assembler%get_matrix())
+  select type(matrix => this%matrix_array_assembler%get_matrix())
+    type is (sparse_matrix_t)
+      call direct_solver%set_matrix(matrix)
+    class DEFAULT
+      check(.false.)
+  end select
 end subroutine fe_affine_operator_create_direct_solver
 
 
