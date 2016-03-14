@@ -12,6 +12,7 @@ module direct_solver_names
 implicit none
 # include "debug.i90"
 
+private
     ! Parameter strings to be used in the Parameter List
     character(len=*), parameter :: direct_solver_type = 'direct_solver_name'
 
@@ -25,12 +26,18 @@ implicit none
         procedure, non_overridable, public :: set_type_from_pl             => direct_solver_set_type_from_pl
         procedure, non_overridable, public :: set_parameters_from_pl       => direct_solver_set_parameters_from_pl
         procedure, non_overridable, public :: set_matrix                   => direct_solver_set_matrix
+        procedure, non_overridable, public :: update_matrix                => direct_solver_update_matrix
         procedure, non_overridable, public :: symbolic_setup               => direct_solver_symbolic_setup
         procedure, non_overridable, public :: numerical_setup              => direct_solver_numerical_setup
         procedure, non_overridable, public :: log_info                     => direct_solver_log_info
         procedure, non_overridable, public :: solve                        => direct_solver_solve
         procedure, non_overridable, public :: free                         => direct_solver_free
     end type
+
+public :: direct_solver_t, direct_solver_type
+public :: pardiso_mkl_name, pardiso_mkl_iparm, pardiso_mkl_matrix_type, pardiso_mkl_message_level
+public :: pardiso_mkl_spd, pardiso_mkl_sin, pardiso_mkl_uss, pardiso_mkl_uns
+public :: umfpack_name, umfpack_control_params
 
 contains
 
@@ -120,6 +127,21 @@ contains
         assert(associated(this%base_direct_solver))
         call this%base_direct_solver%set_matrix(matrix)
     end subroutine direct_solver_set_matrix
+
+
+    subroutine direct_solver_update_matrix(this, matrix, same_nonzero_pattern)
+    !-----------------------------------------------------------------
+    !< Update matrix pointer 
+    !< If same_nonzero_pattern numerical_setup has to be performed
+    !< If not same_nonzero_pattern symbolic_setup has to be performed
+    !-----------------------------------------------------------------
+        class(direct_solver_t),        intent(inout) :: this
+        type(sparse_matrix_t), target, intent(in)    :: matrix
+        logical,                       intent(in)    :: same_nonzero_pattern
+    !-----------------------------------------------------------------
+        assert(associated(this%base_direct_solver))
+        call this%base_direct_solver%update_matrix(matrix, same_nonzero_pattern)
+    end subroutine direct_solver_update_matrix
 
 
     subroutine direct_solver_symbolic_setup(this)

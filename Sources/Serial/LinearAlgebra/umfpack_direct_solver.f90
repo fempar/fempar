@@ -151,9 +151,10 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         assert ( .not. this%matrix%get_symmetric_storage() )
-        assert (this%state_is_START() .or. this%state_is_symbolic() .or. this%state_is_numeric())
+        if(this%state_is_symbolic() .or. this%state_is_numeric()) return
         check(this%matrix_is_set())
 
+!        print*, '(1) --> symbolic_setup'
         matrix => this%matrix%get_pointer_to_base_matrix()
 
         select type (matrix)
@@ -202,10 +203,11 @@ contains
         integer(ip)                                   :: status
 #ifdef ENABLE_UMFPACK
         assert ( .not. this%matrix%get_symmetric_storage() )
-        assert (this%state_is_start() .or. this%state_is_symbolic() .or. this%state_is_numeric())
+        if(this%state_is_numeric()) return
 
         if(this%state_is_start()) call this%symbolic_setup()
 
+!        print*, '(2) --> numerical_setup'
         matrix => this%matrix%get_pointer_to_base_matrix()
         select type (matrix)
             type is (csr_sparse_matrix_t)
@@ -258,10 +260,10 @@ contains
         integer(ip)                                   :: status
 #ifdef ENABLE_UMFPACK
         assert ( .not. op%matrix%get_symmetric_storage() )
-        assert (op%state_is_numeric())
 
         if(.not. op%state_is_numeric()) call op%numerical_setup()
 
+!        print*, '(3) --> solve'
         matrix => op%matrix%get_pointer_to_base_matrix()
         select type (matrix)
             type is (csr_sparse_matrix_t)
@@ -305,7 +307,8 @@ contains
         class(umfpack_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-        assert(this%state_is_start() .or. this%state_is_symbolic() .or. this%state_is_numeric())
+        if(this%state_is_symbolic() .or. this%state_is_numeric()) call this%free_symbolic()
+!        print*, '(4) --> free_clean'
         call this%set_state_start()
 #else
         call this%not_enabled_error()
@@ -322,6 +325,8 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         assert(this%state_is_symbolic() .or. this%state_is_numeric())
+        if(this%state_is_numeric()) call this%free_numerical()
+!        print*, '(5) --> free_symbolic'
         call umfpack_di_free_symbolic ( this%Symbolic )
         call this%set_state_start()
 #else
@@ -340,6 +345,7 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         assert(this%state_is_numeric())
+!        print*, '(6) --> free_numeric'
         call umfpack_di_free_numeric ( this%Numeric )
         call this%set_state_symbolic()
 #else

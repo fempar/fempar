@@ -119,12 +119,12 @@ contains
         integer(ip)                                        :: i
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        this%max_number_of_factors = 1
-        this%actual_matrix         = 1
-        this%number_of_rhs         = 1
-        this%message_level         = default_pardiso_mkl_message_level
-        this%pardiso_mkl_iparm     = default_pardiso_mkl_iparm
-        this%matrix_type           = default_pardiso_mkl_matrix_type
+        this%max_number_of_factors                 = 1
+        this%actual_matrix                         = 1
+        this%number_of_rhs                         = 1
+        this%message_level                         = default_pardiso_mkl_message_level
+        this%pardiso_mkl_iparm                     = default_pardiso_mkl_iparm
+        if(this%state_is_start()) this%matrix_type = default_pardiso_mkl_matrix_type
 
         this%pardiso_mkl_iparm         = 0
         this%pardiso_mkl_iparm(18)     = -1 ! Output: number of nonzeros in the factor LU
@@ -224,9 +224,10 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         ! Check pre-conditions
-        assert (this%state_is_start() .or. this%state_is_symbolic() .or. this%state_is_numeric())
+        if(this%state_is_symbolic() .or. this%state_is_numeric()) return
         check(this%matrix_is_set())
 
+!        print*, '(1) --> symbolic_setup'
         this%phase               = 11 ! only reordering and symbolic factorization
         matrix                   => this%matrix%get_pointer_to_base_matrix()
 
@@ -283,10 +284,11 @@ contains
         real(dp)                                          :: ddum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        assert (this%state_is_start() .or. this%state_is_symbolic() .or. this%state_is_numeric())
+        if(this%state_is_numeric()) return
 
         if(this%state_is_start()) call this%symbolic_setup()
 
+!        print*, '(2) --> numerical_setup'
         ! Factorization.
         this%phase = 22 ! only numerical factorization
         matrix => this%matrix%get_pointer_to_base_matrix()
@@ -349,6 +351,7 @@ contains
 
         if(.not. op%state_is_numeric()) call op%numerical_setup()
 
+!        print*, '(3) --> solve'
         ! (c) y  <- A^-1 * x
         op%phase = 33 ! only Fwd/Bck substitution
         x_b => x%get_entries()
@@ -396,7 +399,8 @@ contains
         class(pardiso_mkl_direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        assert(this%state_is_start() .or. this%state_is_symbolic() .or. this%state_is_numeric())
+        if(this%state_is_symbolic() .or. this%state_is_numeric()) call this%free_symbolic()
+!        print*, '(4) --> free_clean' 
         this%matrix_type         = -1500
         this%matrix              => NULL()
         call this%set_state_start()
@@ -418,6 +422,8 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         assert(this%state_is_symbolic() .or. this%state_is_numeric())
+        if(this%state_is_numeric()) call this%free_numerical()
+!        print*, '(5) --> free_symbolic'
         this%phase = -1 ! Release all internal memory for all matrices
         call pardiso(pt     = this%pardiso_mkl_pt,             & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
                      maxfct = this%max_number_of_factors,      & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
@@ -461,6 +467,8 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         assert(this%state_is_numeric())
+
+!        print*, '(6) --> free_numerical'
         ! Release internal memory only for L and U factors
         this%phase = 0 ! Release internal memory for L and U matrix number mnum
         call pardiso(pt     = this%pardiso_mkl_pt,         & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso

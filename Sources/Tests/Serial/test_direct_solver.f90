@@ -23,6 +23,7 @@ implicit none
     integer                        :: FPLError
     real(c_double)                 :: control_params(20) = 0
     integer                        :: iparm(64) = 0
+    integer                        :: i, iters=5
 
     call meminit()
     ! ParameterList: initialize
@@ -44,6 +45,7 @@ implicit none
     call y%create_and_allocate(sparse_matrix%get_num_cols())
     call x%print(6)
 
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! PARDISO MKL
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -57,23 +59,33 @@ implicit none
     FPLError = FPLError + direct_solver_parameters%set(key = pardiso_mkl_iparm,         value = iparm)
     check(FPLError == 0)
 
-    call parameter_list%print()
-    call direct_solver_parameters%print()
+    do i=1, iters
 
 #ifdef ENABLE_MKL
-    ! Direct solver: create and set properties
-    call direct_solver%set_type_from_pl(direct_solver_parameters)
-    call direct_solver%set_matrix(sparse_matrix)
-    call direct_solver%set_defaults()
-    call direct_solver%set_parameters_from_pl(direct_solver_parameters)
+        ! Direct solver: create and set properties
+        if(i==1) then
+            call direct_solver%set_type_from_pl(direct_solver_parameters)
+            call direct_solver%set_matrix(sparse_matrix)
+            call direct_solver%set_defaults()
+        endif
+        call direct_solver%set_parameters_from_pl(direct_solver_parameters)
 
-    ! Direct solver: analisys, factorization and solve
-    call direct_solver%symbolic_setup()
-    call direct_solver%numerical_setup()
-    call direct_solver%solve(x,y)
-    call direct_solver%log_info()
-    call y%print(6)
+        ! Direct solver: analisys, factorization and solve
+        call direct_solver%solve(x,y)
+        call direct_solver%log_info()
+        call y%print(6)
 #endif
+
+        if(i/=iters) then
+            print*, ''
+            print*, '!< =============================================='
+            print*, '!< UPDATE MATRIX WITH SAME_NONZERO_PATTERN:', mod(i,2)==0
+            print*, '!< =============================================='
+        endif
+
+        call direct_solver%update_matrix(sparse_matrix, same_nonzero_pattern=mod(i,2)==0)
+
+    enddo
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! UMFPACK
@@ -86,23 +98,33 @@ implicit none
     FPLError = FPLError + direct_solver_parameters%set(key = umfpack_control_params, value = control_params)
     check(FPLError == 0)
 
-    call parameter_list%print()
-    call direct_solver_parameters%print()
+    do i=1, iters
 
 #ifdef ENABLE_UMFPACK
-    ! Direct solver: create and set properties
-    call direct_solver%set_type_from_pl(direct_solver_parameters)
-    call direct_solver%set_matrix(sparse_matrix)
-    call direct_solver%set_defaults()
-    call direct_solver%set_parameters_from_pl(direct_solver_parameters)
-
-    ! Direct solver: analisys, factorization and solve
-    call direct_solver%symbolic_setup()
-    call direct_solver%numerical_setup()
-    call direct_solver%solve(x,y)
-    call direct_solver%log_info()
-    call y%print(6)
+        ! Direct solver: create and set properties
+        if(i==1) then
+            call direct_solver%set_type_from_pl(direct_solver_parameters)
+            call direct_solver%set_matrix(sparse_matrix)
+            call direct_solver%set_defaults()
+        endif
+        call direct_solver%set_parameters_from_pl(direct_solver_parameters)
+    
+        ! Direct solver: analisys, factorization and solve
+        call direct_solver%solve(x,y)
+        call direct_solver%log_info()
+        call y%print(6)
 #endif
+
+        if(i/=iters) then
+            print*, ''
+            print*, '!< =============================================='
+            print*, '!< UPDATE MATRIX WITH SAME_NONZERO_PATTERN:', mod(i,2)==0
+            print*, '!< =============================================='
+        endif
+
+        call direct_solver%update_matrix(sparse_matrix, same_nonzero_pattern=mod(i,2)==0)
+
+    enddo
 
     ! Free
     call parameter_list%free()
