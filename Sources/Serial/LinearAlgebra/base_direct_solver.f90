@@ -18,30 +18,37 @@ module base_direct_solver_names
   !-----------------------------------------------------------------
   ! State transition diagram for type(base_direct_solver_t)
   !-----------------------------------------------------------------
-  ! Note: all the child classes must implement this state diagram
+  ! Note: all subclasses must implement this state diagram
   !-----------------------------------------------------------------
   ! Input State         | Action                | Output State 
   !-----------------------------------------------------------------
   ! Start               | symbolic_setup        | Symbolic
-  ! Start               | numerical_setup       | Numeric           ! perform symbolic_setup()
-  ! Start               | solve                 | Numeric           ! perform numerical_setup()
+  ! Start               | numerical_setup       | Numeric          ! perform symbolic_setup()
+  ! Start               | solve                 | Numeric          ! perform numerical_setup()
   ! Start               | free_clean            | Start
-  ! Start               | free_symbolic         | Start             ! it does nothing
-  ! Start               | free_numeric          | Start             ! it does nothing
+  ! Start               | free_symbolic         | Start            ! it does nothing
+  ! Start               | free_numeric          | Start            ! it does nothing
+  ! Start               | set_matrix            | Start
+  ! Start               | update_matrix + *     | Start 
 
-  ! Symbolic            | symbolic_setup        | Symbolic
-  ! Symbolic            | numerical_setup       | Numeric           
-  ! Symbolic            | solve                 | Numeric           ! perform numerical_setup()
-  ! Symbolic            | free_clean            | Start
-  ! Symbolic            | free_symbolic         | Start
-  ! Symbolic            | free_numeric          | Start             ! it does nothing
-
-  ! Numeric             | symbolic_setup        | Symbolic
-  ! Numeric             | numeric_setup         | Numeric
-  ! Numeric             | solve                 | Numeric
-  ! Numeric             | free_numeric          | Symbolic
-  ! Numeric             | free_symbolic         | Start
-  ! Numeric             | free_clean            | Start
+  ! Symbolic            | symbolic_setup                        | Symbolic         ! it does nothing
+  ! Symbolic            | numerical_setup                       | Numeric           
+  ! Symbolic            | solve                                 | Numeric          ! perform numerical_setup()
+  ! Symbolic            | free_clean                            | Start
+  ! Symbolic            | free_symbolic                         | Start
+  ! Symbolic            | free_numeric                          | Symbolic         ! it does nothing
+  ! Symbolic            | update_matrix + same_nonzero_pattern  | Symbolic         ! Re-assigns matrix pointer
+  ! Symbolic            | update_matrix + !same_nonzero_pattern | Start            ! Re-assigns matrix pointer + performs free_symbolic()
+    
+    
+  ! Numeric             | symbolic_setup                        | Numeric          ! it does nothing
+  ! Numeric             | numeric_setup                         | Numeric          ! performs numerical_setup() iif numerical_setup_pending
+  ! Numeric             | solve                                 | Numeric          ! performs numerical_setup() iif numerical_setup_pending
+  ! Numeric             | free_numeric                          | Symbolic
+  ! Numeric             | free_symbolic                         | Start
+  ! Numeric             | free_clean                            | Start
+  ! Numeric             | update_matrix + same_nonzero_pattern  | Numeric          ! Re-assigns matrix pointer + activates numerical_setup_pending 
+  ! Numeric             | update_matrix + !same_nonzero_pattern | Start            ! Re-assigns matrix pointer + performs free_symbolic()  
 
   
 
