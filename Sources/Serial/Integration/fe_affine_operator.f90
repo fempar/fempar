@@ -40,6 +40,7 @@ module fe_affine_operator_names
   use matrix_names
   use discrete_integration_names
   use environment_names
+  use direct_solver_names
 
   implicit none
 # include "debug.i90"
@@ -126,6 +127,7 @@ contains
   procedure          :: get_range_vector_space      => fe_affine_operator_get_range_vector_space
   procedure          :: abort_if_not_in_range       => fe_affine_operator_abort_if_not_in_range
   procedure          :: abort_if_not_in_domain      => fe_affine_operator_abort_if_not_in_domain
+  procedure          :: create_direct_solver        => fe_affine_operator_create_direct_solver
   procedure, private :: fe_affine_operator_free_numerical_setup
   procedure, private :: fe_affine_operator_free_symbolic_setup
   procedure, private :: fe_affine_operator_free_clean
@@ -413,6 +415,16 @@ subroutine fe_affine_operator_fill_values(this)
     call this%discrete_integration%integrate( this%fe_space, this%matrix_array_assembler )
   end if  
 end subroutine fe_affine_operator_fill_values
+
+
+subroutine fe_affine_operator_create_direct_solver(this, name, direct_solver)
+  implicit none
+  class(fe_affine_operator_t), intent(in)    :: this
+  character(len=*),            intent(in)    :: name
+  type(direct_solver_t),       intent(inout) :: direct_solver
+  call direct_solver%set_type(name)
+  call direct_solver%set_matrix(this%matrix_array_assembler%get_matrix())
+end subroutine fe_affine_operator_create_direct_solver
 
 
 end module fe_affine_operator_names

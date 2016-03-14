@@ -5,6 +5,7 @@ module direct_solver_names
     USE base_direct_solver_names
     USE pardiso_mkl_direct_solver_names
     USE umfpack_direct_solver_names
+    USE matrix_names
     USE sparse_matrix_names, only: sparse_matrix_t
     USE serial_scalar_array_names
     USE FPL
@@ -122,10 +123,15 @@ contains
     !< Associate the concrete direct solver with a matrix
     !-----------------------------------------------------------------
         class(direct_solver_t),        intent(inout) :: this
-        type(sparse_matrix_t), target, intent(in)    :: matrix
+        class(matrix_t),       target, intent(in)    :: matrix
     !-----------------------------------------------------------------
         assert(associated(this%base_direct_solver))
-        call this%base_direct_solver%set_matrix(matrix)
+        select type(matrix)
+            type is (sparse_matrix_t)
+                call this%base_direct_solver%set_matrix(matrix)
+            class DEFAULT
+                assert(.false.)
+            end select
     end subroutine direct_solver_set_matrix
 
 
