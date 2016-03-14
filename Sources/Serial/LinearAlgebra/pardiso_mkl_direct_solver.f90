@@ -284,7 +284,7 @@ contains
         real(dp)                                          :: ddum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        if(this%state_is_numeric()) return
+        if(this%state_is_numeric() .and. .not. this%get_numerical_setup_pending()) return
 
         if(this%state_is_start()) call this%symbolic_setup()
 
@@ -326,6 +326,7 @@ contains
             class DEFAULT
                 check(.false.)
         end select
+        call this%set_numerical_setup_pending(.false.)
         call this%set_state_numeric()
 #else
         call this%not_enabled_error()
@@ -349,7 +350,7 @@ contains
         assert (op%state_is_start() .or. op%state_is_symbolic() .or. op%state_is_numeric())
         assert (op%number_of_rhs == 1)
 
-        if(.not. op%state_is_numeric()) call op%numerical_setup()
+        if(.not. op%state_is_numeric() .or. op%get_numerical_setup_pending()) call op%numerical_setup()
 
 !        print*, '(3) --> solve'
         ! (c) y  <- A^-1 * x

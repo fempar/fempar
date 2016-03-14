@@ -203,7 +203,7 @@ contains
         integer(ip)                                   :: status
 #ifdef ENABLE_UMFPACK
         assert ( .not. this%matrix%get_symmetric_storage() )
-        if(this%state_is_numeric()) return
+        if(this%state_is_numeric() .and. .not. this%get_numerical_setup_pending()) return
 
         if(this%state_is_start()) call this%symbolic_setup()
 
@@ -238,6 +238,7 @@ contains
             class DEFAULT
                 check(.false.)
         end select
+        call this%set_numerical_setup_pending(.false.)
         call this%set_state_numeric()    
 #else
         call this%not_enabled_error
@@ -261,7 +262,7 @@ contains
 #ifdef ENABLE_UMFPACK
         assert ( .not. op%matrix%get_symmetric_storage() )
 
-        if(.not. op%state_is_numeric()) call op%numerical_setup()
+        if(.not. op%state_is_numeric() .or. op%get_numerical_setup_pending()) call op%numerical_setup()
 
 !        print*, '(3) --> solve'
         matrix => op%matrix%get_pointer_to_base_matrix()

@@ -74,7 +74,6 @@ implicit none
         call direct_solver%solve(x,y)
         call direct_solver%log_info()
         call y%print(6)
-#endif
 
         if(i/=iters) then
             print*, ''
@@ -84,6 +83,7 @@ implicit none
         endif
 
         call direct_solver%update_matrix(sparse_matrix, same_nonzero_pattern=mod(i,2)==0)
+#endif
 
     enddo
 
@@ -113,7 +113,6 @@ implicit none
         call direct_solver%solve(x,y)
         call direct_solver%log_info()
         call y%print(6)
-#endif
 
         if(i/=iters) then
             print*, ''
@@ -123,6 +122,7 @@ implicit none
         endif
 
         call direct_solver%update_matrix(sparse_matrix, same_nonzero_pattern=mod(i,2)==0)
+#endif
 
     enddo
 
