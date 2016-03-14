@@ -146,9 +146,6 @@ subroutine set_up_boundary_conditions( this, boundary_conditions )
 
 end subroutine set_up_boundary_conditions
 
-
-
-
 subroutine serial_fe_space_fill_dof_info( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this 
