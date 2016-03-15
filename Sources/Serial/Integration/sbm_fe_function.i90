@@ -42,7 +42,6 @@
     class(serial_fe_space_t)   , intent(in)    :: fe_space
  
   call this%strong_dirichlet_values%free()
-  !allocate ( this%strong_dirichlet_values, mold = fe_space%strong_dirichlet_values )
   this%strong_dirichlet_values = fe_space%strong_dirichlet_values
   end subroutine fe_function_update_bc_values
   
