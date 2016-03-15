@@ -192,6 +192,14 @@ function quad_lagrangian_reference_fe_get_bc_component_node( this, node )
   quad_lagrangian_reference_fe_get_bc_component_node = this%node_component_array(node,2)
 end function quad_lagrangian_reference_fe_get_bc_component_node
 
+function quad_lagrangian_reference_fe_get_scalar_node( this, node )
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
+  integer(ip)                          , intent(in) :: node
+  integer(ip) :: quad_lagrangian_reference_fe_get_scalar_node
+  quad_lagrangian_reference_fe_get_scalar_node = this%node_component_array(node,1)
+end function quad_lagrangian_reference_fe_get_scalar_node
+
 subroutine quad_lagrangian_reference_fe_get_value_scalar( this, actual_cell_interpolation, ishape, qpoint, scalar_field )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
@@ -656,7 +664,7 @@ subroutine quad_lagrangian_reference_fe_set_vector_field_to_nodal_values (this, 
   integer(ip) :: i, icomp
 
   assert(size(nodal_values) == this%number_nodes)
-  assert(size(values) == this%number_nodes)
+  assert(size(values) == this%number_nodes_scalar)
 
   do icomp = 1, this%number_field_components
      do i = 1, this%number_nodes_scalar

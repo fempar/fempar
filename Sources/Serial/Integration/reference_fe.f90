@@ -261,6 +261,7 @@ module reference_fe_names
      procedure(update_interpolation_interface)          , deferred :: update_interpolation
      procedure(update_interpolation_face_interface)     , deferred :: update_interpolation_face
      procedure(get_bc_component_node_interface)         , deferred :: get_bc_component_node
+     procedure(get_scalar_node_interface)               , deferred :: get_scalar_node
      
      procedure(get_value_scalar_interface)           , deferred :: get_value_scalar
      procedure(get_value_vector_interface)           , deferred :: get_value_vector
@@ -431,6 +432,14 @@ module reference_fe_names
        integer(ip), intent(in) :: node
        integer(ip) :: get_bc_component_node_interface
      end function get_bc_component_node_interface
+ 
+     function get_scalar_node_interface( this, node )
+       import :: reference_fe_t, ip
+       implicit none
+       class(reference_fe_t), intent(in) :: this 
+       integer(ip), intent(in) :: node
+       integer(ip) :: get_scalar_node_interface
+     end function get_scalar_node_interface
 
      subroutine get_value_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,        &
           &                                 scalar_field )
@@ -660,6 +669,7 @@ module reference_fe_names
      procedure :: update_interpolation      => quad_lagrangian_reference_fe_update_interpolation
      procedure :: update_interpolation_face => quad_lagrangian_reference_fe_update_interpolation_face
      procedure :: get_bc_component_node     => quad_lagrangian_reference_fe_get_bc_component_node
+     procedure :: get_scalar_node           => quad_lagrangian_reference_fe_get_scalar_node
      procedure :: check_compatibility_of_vefs                                         &
           &                 => quad_lagrangian_reference_fe_check_compatibility_of_vefs 
 
