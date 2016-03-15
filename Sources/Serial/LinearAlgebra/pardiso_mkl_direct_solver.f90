@@ -178,7 +178,7 @@ contains
         is_present     = parameter_list%isPresent(Key=pardiso_mkl_matrix_type)
         if(is_present) then
             same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_matrix_type, mold=this%matrix_type)
-            shape          = parameter_list%getshape(Key=pardiso_mkl_matrix_type)
+            FPLError       = parameter_list%getshape(Key=pardiso_mkl_matrix_type, shape=shape)
             if(same_data_type .and. size(shape) == 0) then
 #endif
                 FPLError   = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=matrix_type)
@@ -201,7 +201,7 @@ contains
         is_present     = parameter_list%isPresent(Key=pardiso_mkl_iparm)
         if(is_present) then
             same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%pardiso_mkl_iparm)
-            shape          = parameter_list%getshape(Key=pardiso_mkl_iparm)
+            FPLError       = parameter_list%getshape(Key=pardiso_mkl_iparm, shape=shape)
             if(same_data_type .and. size(shape) == 1) then
                 if(shape(1) == 64) then
 #endif
@@ -220,7 +220,7 @@ contains
         is_present     = parameter_list%isPresent(Key=pardiso_mkl_message_level)
         if(is_present) then
             same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_message_level, mold=this%message_level)
-            shape          = parameter_list%getshape(Key=pardiso_mkl_message_level)
+            FPLError       = parameter_list%getshape(Key=pardiso_mkl_message_level, shape=shape)
             if(same_data_type .and. size(shape) == 0) then
 #endif
                 FPLError   = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)

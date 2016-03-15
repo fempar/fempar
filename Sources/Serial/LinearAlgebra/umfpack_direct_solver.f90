@@ -114,7 +114,7 @@ contains
         is_present     = parameter_list%isPresent(Key=umfpack_control_params)
         if(is_present) then
             same_data_type = parameter_list%isOfDataType(Key=umfpack_control_params, mold=this%Control)
-            shape          = parameter_list%getshape(Key=umfpack_control_params)
+            FPLError       = parameter_list%getshape(Key=umfpack_control_params, shape=shape)
             if(same_data_type .and. size(shape) == 1) then
                 if(shape(1) == UMFPACK_CONTROL) then
 #endif
