@@ -105,6 +105,8 @@ subroutine serial_fe_space_create( this, &
   end do
 
   call set_up_boundary_conditions( this, boundary_conditions )
+  
+  ! call update_from_function_t
 
 end subroutine serial_fe_space_create
 
@@ -142,7 +144,9 @@ subroutine set_up_boundary_conditions( this, boundary_conditions )
      offset_component = offset_component + fe%reference_fe_phy(j)%p%get_number_field_components()
   end do
 
-  call memalloc ( c, this%strong_dirichlet_data, __FILE__, __LINE__ ) ! One for all blocks / unknowns
+  call memalloc ( c, this%strong_dirichlet_codes, __FILE__, __LINE__ ) ! One for all blocks / unknowns
+  
+  ! Allocate blocks ... strong_dirichlet_values
 
 end subroutine set_up_boundary_conditions
 
@@ -235,11 +239,13 @@ subroutine serial_fe_space_free( this )
         call this%fe_array(i)%free()
      end do
      deallocate(this%fe_array)
-     
-     if (allocated(this%strong_dirichlet_data)) then 
-       deallocate ( this%strong_dirichlet_data, stat = istat )
+         
+    if (allocated(this%strong_dirichlet_codes)) then 
+       deallocate ( this%strong_dirichlet_codes, stat = istat )
        check(istat==0)
     end if
+    
+     call this%strong_dirichlet_values%free()
      
   end if
 
@@ -730,5 +736,53 @@ subroutine update_bc_value_tensor( this, analytical_function, bc_code, fe_space_
   call fe_map%free()
 
 end subroutine update_bc_value_tensor
+
+!===============================================================================================
+ subroutine serial_fe_space_create_fe_function_scalar ( this, fe_space_id, fe_function_scalar )
+    implicit none
+    class(serial_fe_space_t) , intent(in)    :: this
+    integer(ip)                 , intent(in)    :: fe_space_id
+    type(fe_function_scalar_t)  , intent(inout) :: fe_function_scalar
+
+    assert ( fe_space_id >=1 .and. fe_space_id <= this%number_fe_spaces )
+    assert ( this%reference_fe_phy_list(fe_space_id)%p%get_field_type() == field_type_scalar )
+    
+    call fe_function_scalar%create( fe_space_id, &
+                                & this%get_max_number_nodes(fe_space_id), &
+                                & this%get_max_number_quadrature_points() )
+ 
+ end subroutine serial_fe_space_create_fe_function_scalar
+
+ !===============================================================================================
+ subroutine serial_fe_space_create_fe_function_vector ( this, fe_space_id, fe_function_vector )
+    implicit none
+    class(serial_fe_space_t) , intent(in)    :: this
+    integer(ip)                 , intent(in)    :: fe_space_id
+    type(fe_function_vector_t)  , intent(inout) :: fe_function_vector
+
+    assert ( fe_space_id >=1 .and. fe_space_id <= this%number_fe_spaces )
+    assert ( this%reference_fe_phy_list(fe_space_id)%p%get_field_type() == field_type_vector )
+
+    call fe_function_vector%create( fe_space_id, &
+                                & this%get_max_number_nodes(fe_space_id), &
+                                & this%get_max_number_quadrature_points() )
+ 
+ end subroutine serial_fe_space_create_fe_function_vector
+
+ !===============================================================================================
+ subroutine serial_fe_space_create_fe_function_tensor ( this, fe_space_id, fe_function_tensor )
+    implicit none
+    class(serial_fe_space_t) , intent(in)    :: this
+    integer(ip)                 , intent(in)    :: fe_space_id
+    type(fe_function_tensor_t)  , intent(inout) :: fe_function_tensor
+
+    assert ( fe_space_id >=1 .and. fe_space_id <= this%number_fe_spaces )
+    assert ( this%reference_fe_phy_list(fe_space_id)%p%get_field_type() == field_type_tensor )
+
+    call fe_function_tensor%create( fe_space_id, &
+                                & this%get_max_number_nodes(fe_space_id), &
+                                & this%get_max_number_quadrature_points() )
+ 
+ end subroutine serial_fe_space_create_fe_function_tensor
 
 

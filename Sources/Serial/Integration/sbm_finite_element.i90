@@ -351,11 +351,11 @@ end function finite_element_compute_volume
 ! Update methods for fe_function_scalar/vector/tensor_t
 !**************************************************************************************************
 
-subroutine finite_element_update_scalar_values (this, fe_function_scalar, vector_dof_values)
+subroutine finite_element_update_scalar_values (this, fe_function_scalar, fe_function )
   implicit none
   class(finite_element_t), intent(in)    :: this
   type(fe_function_scalar_t), intent(inout) :: fe_function_scalar
-  class(vector_t)           , intent(in)    :: vector_dof_values
+  class(fe_function_t)           , intent(in)    :: fe_function
 
   real(rp), pointer :: nodal_values(:)
   real(rp), pointer :: quadrature_points_values(:)
@@ -375,9 +375,10 @@ subroutine finite_element_update_scalar_values (this, fe_function_scalar, vector
   quadrature_points_values => fe_function_scalar%get_quadrature_points_values()
   
   number_nodes_fe_space = this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
+  ! To be extracted from fe_function%strong_dirichlet_data
   nodal_values(1:number_nodes_fe_space) = this%bc_value(fe_space_id)%p(:)
 
-  call vector_dof_values%extract_subvector ( block_id, &
+  call fe_function%vector_dof_values%extract_subvector ( block_id, &
                                            & number_nodes_fe_space, &
                                            & this%elem2dof(fe_space_id)%p, &
                                            & nodal_values )

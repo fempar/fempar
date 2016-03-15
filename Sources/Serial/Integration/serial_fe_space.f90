@@ -183,7 +183,8 @@ module serial_fe_space_names
      character(:)           , allocatable :: fe_space_type(:)
      
      ! Strong Dirichlet data
-     real(rp), allocatable :: strong_dirichlet_data(:)
+     integer(ip), allocatable    :: strong_dirichlet_codes(:)
+     type(serial_scalar_array_t) :: strong_dirichlet_values
      
      type(triangulation_t)         , pointer     :: triangulation
      type(finite_element_t)        , allocatable :: fe_array(:)
@@ -269,6 +270,18 @@ module serial_fe_space_names
 
   public :: par_fe_space_t
   
+   type fe_function_t
+   private
+   class(vector_t), allocatable :: vector_dof_values
+   type(serial_scalar_array_t)  :: strong_dirichlet_values
+   
+  contains
+     !procedure, non_overridable, private :: create                      => fe_function_create
+     procedure, non_overridable, private :: update_dof_values      => fe_function_update_dof_values
+     procedure, non_overridable, private :: update_bc_values       => fe_function_update_bc_values
+     procedure, non_overridable :: free                                 => fe_function_free
+  end type fe_function_t 
+  
   type fe_function_scalar_t
    private
    integer(ip) :: fe_space_id
@@ -281,9 +294,6 @@ module serial_fe_space_names
    
    real(rp), allocatable :: nodal_values(:)  
    real(rp), allocatable :: quadrature_points_values(:)
-   
-   class(vector_t), allocatable :: vector_dof_values
-   real(rp)       , allocatable :: strong_dirichlet_data(:)
    
   contains
      procedure, non_overridable, private :: create                      => fe_function_scalar_create
@@ -364,8 +374,6 @@ contains
 #include "../../Par/Integration/sbm_par_fe_space.i90"
 
 #include "sbm_serial_fe_space_faces.i90"
-
-#include "sbm_serial_fe_space_fe_function.i90"
 
 #include "sbm_fe_function.i90"
 
