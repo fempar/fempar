@@ -41,22 +41,22 @@ implicit none
         integer(ip), allocatable :: p(:) 
         integer(ip), allocatable :: l(:) 
     contains
-        procedure, private :: list_assign
-        procedure, private :: list_get_full_list_iterator
-        procedure, private :: list_get_list_range_iterator
-        procedure, private :: list_get_list_index_iterator
-        procedure          :: create                     => list_create
-        procedure          :: get_num_pointers           => list_get_num_pointers
-        procedure          :: get_size                   => list_get_size
-        procedure          :: sum_to_pointer_index       => list_sum_to_pointer_index
-        procedure          :: calculate_header           => list_calculate_header
-        procedure          :: allocate_list_from_pointer => list_allocate_list_from_p
-        procedure          :: free                       => list_free
-        generic            :: get_iterator               => list_get_full_list_iterator,  &
-                                                            list_get_list_range_iterator, &
-                                                            list_get_list_index_iterator
-        generic            :: assignment(=)              => list_assign
-        procedure          :: print                      => list_print
+        procedure, non_overridable, private :: list_assign
+        procedure, non_overridable, private :: list_get_full_list_iterator
+        procedure, non_overridable, private :: list_get_list_range_iterator
+        procedure, non_overridable, private :: list_get_list_index_iterator
+        procedure, non_overridable          :: create                     => list_create
+        procedure, non_overridable          :: get_num_pointers           => list_get_num_pointers
+        procedure, non_overridable          :: get_size                   => list_get_size
+        procedure, non_overridable          :: sum_to_pointer_index       => list_sum_to_pointer_index
+        procedure, non_overridable          :: calculate_header           => list_calculate_header
+        procedure, non_overridable          :: allocate_list_from_pointer => list_allocate_list_from_p
+        procedure, non_overridable          :: free                       => list_free
+        generic                             :: get_iterator               => list_get_full_list_iterator,  &
+                                                                             list_get_list_range_iterator, &
+                                                                             list_get_list_index_iterator
+        generic                             :: assignment(=)              => list_assign
+        procedure, non_overridable          :: print                      => list_print
     end type list_t
 
     type list_2d_t
@@ -68,12 +68,12 @@ implicit none
         integer(ip), allocatable :: p(:) 
         integer(ip), allocatable :: l(:,:) 
     contains
-        procedure, private :: list_2d_assign
-        procedure          :: create                     => list_2d_create
-        procedure          :: allocate_list_from_pointer => list_2d_allocate_list_from_p
-        procedure          :: free                       => list_2d_free
-        generic            :: assignment(=)              => list_2d_assign
-        procedure          :: print                      => list_2d_print
+        procedure, non_overridable, private :: list_2d_assign
+        procedure, non_overridable          :: create                     => list_2d_create
+        procedure, non_overridable          :: allocate_list_from_pointer => list_2d_allocate_list_from_p
+        procedure, non_overridable          :: free                       => list_2d_free
+        generic                             :: assignment(=)              => list_2d_assign
+        procedure, non_overridable          :: print                      => list_2d_print
     end type list_2d_t
 
     type list_pointer_t
@@ -95,22 +95,22 @@ implicit none
         integer(ip)           :: last
     contains
     private
-        procedure         :: init                        => list_iterator_init
-        procedure         :: is_in_range                 => list_iterator_is_in_range
-        procedure, public :: is_lower_bound              => list_iterator_is_lower_bound
-        procedure, public :: is_upper_bound              => list_iterator_is_upper_bound
-        procedure, public :: has_previous                => list_iterator_has_previous
-        procedure, public :: has_next                    => list_iterator_has_next
-        procedure, public :: get_size                    => list_iterator_get_size
-        procedure, public :: get_distance_to_lower_bound => list_iterator_get_distance_to_lower_bound
-        procedure, public :: get_distance_to_upper_bound => list_iterator_get_distance_to_upper_bound
-        procedure, public :: begin                       => list_iterator_begin
-        procedure, public :: end                         => list_iterator_end
-        procedure, public :: previous                    => list_iterator_previous
-        procedure, public :: next                        => list_iterator_next
-        procedure, public :: get_current                 => list_iterator_get_current
-        procedure, public :: set_current                 => list_iterator_set_current
-        procedure, public :: reach_from_current          => list_iterator_reach_from_current
+        procedure, non_overridable         :: init                        => list_iterator_init
+        procedure, non_overridable         :: is_in_range                 => list_iterator_is_in_range
+        procedure, non_overridable, public :: is_lower_bound              => list_iterator_is_lower_bound
+        procedure, non_overridable, public :: is_upper_bound              => list_iterator_is_upper_bound
+        procedure, non_overridable, public :: has_previous                => list_iterator_has_previous
+        procedure, non_overridable, public :: has_next                    => list_iterator_has_next
+        procedure, non_overridable, public :: get_size                    => list_iterator_get_size
+        procedure, non_overridable, public :: get_distance_to_lower_bound => list_iterator_get_distance_to_lower_bound
+        procedure, non_overridable, public :: get_distance_to_upper_bound => list_iterator_get_distance_to_upper_bound
+        procedure, non_overridable, public :: begin                       => list_iterator_begin
+        procedure, non_overridable, public :: end                         => list_iterator_end
+        procedure, non_overridable, public :: previous                    => list_iterator_previous
+        procedure, non_overridable, public :: next                        => list_iterator_next
+        procedure, non_overridable, public :: get_current                 => list_iterator_get_current
+        procedure, non_overridable, public :: set_current                 => list_iterator_set_current
+        procedure, non_overridable, public :: reach_from_current          => list_iterator_reach_from_current
     end type list_iterator_t
 
 contains

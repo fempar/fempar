@@ -237,9 +237,10 @@ module reference_fe_names
      type(list_t)                   :: nodes_vef          ! all nodes per vef
      type(list_t)                   :: vertices_vef       ! vertices per vef
      type(list_t)                   :: vefs_vef           ! all vefs per vef
-     type(quadrature_t)             :: nodal_quadrature
      type(list_t)                   :: own_nodes_vef
      type(list_t)                   :: face_integration_coupling_nodes_face
+     type(quadrature_t)             :: nodal_quadrature
+
      
 
      integer(ip), allocatable :: number_rotations_per_dimension(:)

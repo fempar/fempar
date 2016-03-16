@@ -51,6 +51,8 @@
 
     call this%interior_nodes_vef%free()
     call this%nodes_vef%free()
+    call this%own_nodes_vef%free()
+    call this%face_integration_coupling_nodes_face%free()
     call this%vertices_vef%free()
     call this%vefs_vef%free()
     call this%orientation%free()
