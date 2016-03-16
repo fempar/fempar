@@ -16,6 +16,48 @@ implicit none
     check(coo_matrix%state_is_start())
 
 !------------------------------------------------------------------
+! EMPTY MATRIX (NNZ==0)
+!------------------------------------------------------------------
+
+    call coo_matrix%create(num_rows=5,num_cols=5, nz=0)
+    check(coo_matrix%state_is_created())
+
+    ! Copy coo_matrix (COO) -> coo_matrix_copy (COO)
+    call coo_matrix%copy_to_coo(coo_matrix_copy)
+    call compare_coo_matrix(coo_matrix, coo_matrix_copy)
+    ! Copy coo_matrix_copy (COO) <- coo_matrix (COO)
+    call coo_matrix_copy%copy_from_coo(coo_matrix)
+    call compare_coo_matrix(coo_matrix, coo_matrix_copy)
+    ! Copy coo_matrix (COO) -> coo_matrix_fmt (FMT)
+    call coo_matrix%copy_to_fmt(coo_matrix_copy)
+    call compare_coo_matrix(coo_matrix, coo_matrix_copy)
+    ! Copy coo_matrix (COO) <- coo_matrix_copy (FMT)
+    call coo_matrix_copy%copy_from_fmt(coo_matrix)
+    call compare_coo_matrix(coo_matrix, coo_matrix_copy)
+
+    ! Move coo_matrix (COO) -> coo_matrix_copy (COO)
+    call coo_matrix%move_to_coo(coo_matrix_copy)
+    check(coo_matrix%state_is_start())
+    ! Move coo_matrix (COO) <- coo_matrix_copy (COO)
+    call coo_matrix%move_from_coo(coo_matrix_copy)
+    check(coo_matrix_copy%state_is_start())
+    ! Move coo_matrix (COO) -> coo_matrix_copy (FMT)
+    call coo_matrix%move_to_fmt(coo_matrix_copy)
+    check(coo_matrix%state_is_start())
+    ! Move coo_matrix (COO) <- coo_matrix_copy (FMT)
+    call coo_matrix%move_from_fmt(coo_matrix_copy)
+    check(coo_matrix_copy%state_is_start())
+
+
+    call coo_matrix%free()
+
+    check(coo_matrix%state_is_start())
+
+    call coo_matrix_copy%free()
+
+    check(coo_matrix_copy%state_is_start())
+
+!------------------------------------------------------------------
 ! NUMERIC
 !------------------------------------------------------------------
 
@@ -129,8 +171,8 @@ contains
         check(a%get_sign()                == b%get_sign())
         check(a%get_sort_status()         == b%get_sort_status())
         check(a%get_state()               == b%get_state())
-        check(a%ia(a%get_nnz())           == b%ia(b%get_nnz()))
-        check(a%ja(a%get_nnz())           == b%ja(b%get_nnz()))
+        check(all(a%ia                    == b%ia))
+        check(all(a%ja                    == b%ja))
         check(allocated(a%val)           .eqv. allocated(b%val))
 
     end subroutine compare_coo_matrix

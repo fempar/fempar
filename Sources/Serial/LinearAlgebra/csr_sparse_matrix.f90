@@ -200,7 +200,6 @@ contains
         call memalloc(this%get_num_cols()+1, this%irp, __FILE__, __LINE__)
         if(nnz <= 0) then
             this%irp(:) = 1
-            return      
         else
             assert(nr>=itmp(nnz))
             this%irp(1) = 1
@@ -232,8 +231,8 @@ contains
                 i = i + 1
             end do
         endif 
-        call this%set_state(from%get_state())
         call memfree(itmp, __FILE__, __LINE__)
+        call this%set_state(from%get_state())
     end subroutine csr_sparse_matrix_copy_from_coo
 
 
@@ -295,14 +294,13 @@ contains
         if (.not. from%is_by_rows()) call from%sort_and_compress()
         nnz = from%get_nnz()
         call this%set_nnz(nnz)
-        call move_alloc(from%ia,itmp)
         call move_alloc(from%ja,this%ja)
         call move_alloc(from%val,this%val)
         call memalloc(this%get_num_rows()+1, this%irp, __FILE__, __LINE__)
         if(nnz <= 0) then
-            this%irp(:) = 1
-            return      
+            this%irp(:) = 1     
         else
+            call move_alloc(from%ia,itmp)
             assert(nr>=itmp(nnz))
             this%irp(1) = 1
 
@@ -332,9 +330,9 @@ contains
                 this%irp(i+1) = j
                 i = i + 1
             end do
+            call memfree(itmp, __FILE__, __LINE__)
         endif 
         call this%set_state(from%get_state())
-        call memfree(itmp, __FILE__, __LINE__)
         call from%free()
     end subroutine csr_sparse_matrix_move_from_coo
 
@@ -458,6 +456,7 @@ contains
             integer(ip)              :: ir,ic, iz
         !-------------------------------------------------------------
             y = 0.0_rp
+            if(size(ja)==0) return
             do ir = 1, num_rows
                do iz = irp(ir), irp(ir+1)-1
                   ic   = ja(iz)
@@ -482,6 +481,7 @@ contains
         !-------------------------------------------------------------
             assert(num_rows==num_cols)
             y = 0.0_rp
+            if(size(ja)==0) return
             do ir = 1, num_rows
                 y(ir) = y(ir) + x(ja(irp(ir)))*val(irp(ir))
                 do iz = irp(ir)+1, irp(ir+1)-1
@@ -2181,7 +2181,7 @@ contains
         call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
         if(           this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
-            new_nz=2*this%nnz-initial_num_rows+2*C_T_nz+sum(I_irp)
+            new_nz=max(this%nnz, 2*this%nnz-initial_num_rows)+2*C_T_nz+sum(I_irp)
         else if(.not. this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
             new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(I_irp)
@@ -2586,7 +2586,7 @@ contains
         call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
         if(           this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
-            new_nz=2*this%nnz-initial_num_rows+2*C_T_nz+sum(I_irp)
+            new_nz=max(this%nnz,2*this%nnz-initial_num_rows)+2*C_T_nz+sum(I_irp)
         else if(.not. this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
             new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(I_irp)
