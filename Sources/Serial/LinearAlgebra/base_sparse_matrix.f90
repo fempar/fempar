@@ -3450,7 +3450,11 @@ contains
             else
                 this%sort_status = COO_SPARSE_MATRIX_SORTED_BY_COLS
             endif
-            if(.not. allocated(this%val)) call memalloc(this%nnz, this%val, __FILE__, __LINE__)
+            if(allocated(this%val)) then
+                call memrealloc(this%nnz, this%val,  __FILE__, __LINE__)
+            else
+                call memalloc(this%nnz, this%val, __FILE__, __LINE__)
+            endif
             call memrealloc(this%nnz, this%ia,  __FILE__, __LINE__)
             call memrealloc(this%nnz, this%ja,  __FILE__, __LINE__)
             call this%set_state_assembled()
