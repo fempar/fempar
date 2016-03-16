@@ -21,7 +21,7 @@ implicit none
 
     check(coo_matrix%state_is_start())
 
-    call coo_matrix%create(num_rows_and_cols = 5,                          &
+    call coo_matrix%create(num_rows_and_cols = 0,                          &
                            symmetric_storage = .true.,                     &
                            is_symmetric      = .true.,                     &
                            sign              = SPARSE_MATRIX_SIGN_UNKNOWN, &

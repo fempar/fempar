@@ -19,7 +19,7 @@ implicit none
 ! EMPTY MATRIX (NNZ==0)
 !------------------------------------------------------------------
 
-    call coo_matrix%create(num_rows=5,num_cols=5, nz=0)
+    call coo_matrix%create(num_rows=0,num_cols=0, nz=0)
     check(coo_matrix%state_is_created())
 
     ! Copy coo_matrix (COO) -> coo_matrix_copy (COO)
