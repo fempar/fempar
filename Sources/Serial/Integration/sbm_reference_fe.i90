@@ -89,24 +89,22 @@
   write(*,*) 'orientation', reference_fe%orientation%a
 
   write(*,*) 'interior_nodes_vef'
-  do i=1,reference_fe%number_vefs+1
-     write(*,*) reference_fe%interior_nodes_vef%l(reference_fe%interior_nodes_vef%p(i):reference_fe%interior_nodes_vef%p(i+1)-1)
-  end do
+  call reference_fe%interior_nodes_vef%print(6)
 
   write(*,*) 'nodes_vef'
-  do i=1,reference_fe%number_vefs+1
-     write(*,*) reference_fe%nodes_vef%l(reference_fe%nodes_vef%p(i):reference_fe%nodes_vef%p(i+1)-1)
-  end do
+  call reference_fe%nodes_vef%print(6)
 
   write(*,*) 'corners_vef'
-  do i=1,reference_fe%number_vefs+1
-     write(*,*) reference_fe%vertices_vef%l(reference_fe%vertices_vef%p(i):reference_fe%vertices_vef%p(i+1)-1)
-  end do
+  call reference_fe%nodes_vef%print(6)
 
   write(*,*) 'vefs_vef'
-  do i=1,reference_fe%number_vefs+1
-     write(*,*) reference_fe%vefs_vef%l(reference_fe%vefs_vef%p(i):reference_fe%vefs_vef%p(i+1)-1)
-  end do
+  call reference_fe%vefs_vef%print(6)
+  
+  write(*,*) 'own_nodes_vef'
+  call reference_fe%own_nodes_vef%print(6)
+  
+  write(*,*) 'own_nodes_vef'
+  call reference_fe%own_nodes_vef%print(6)
 
 end subroutine reference_fe_print
 
@@ -126,6 +124,7 @@ subroutine reference_fe_set_common_data( this, number_dimensions, order, field_t
   else 
      this%continuity = .true.
   end if
+  
   if ( present( enable_face_integration ) ) then
      this%conformity = enable_face_integration
   else if ( .not. this%continuity ) then
@@ -133,6 +132,7 @@ subroutine reference_fe_set_common_data( this, number_dimensions, order, field_t
   else 
      this%conformity = .false.
   end if
+  
   this%field_type = field_type
   if( this%field_type == field_type_scalar ) then
      this%number_field_components = 1

@@ -791,8 +791,6 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   call this%nodes_vef%create(n=no)
   call this%vefs_vef%create(n=no)
   call this%vertices_vef%create(n=no)
-  !call this%continuity_coupling_nodes_vef%create(n=no)
-  !call this%face_integration_coupling_nodes_vef%create(n=no)
 
   call memalloc(nod,nd+1,obdla,__FILE__,__LINE__)
   call memalloc(no, node2ob,__FILE__,__LINE__)        ! Auxiliar array
@@ -1076,10 +1074,9 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
      this%vefs_vef%l(c5) = node2ob(this%vefs_vef%l(c5))
   end do
 
-  ! Create continuity_coupling_nodes_vef and face_integration_coupling_nodes_vef
+  ! Create face_integration_coupling_nodes_vef
   if ( this%continuity ) then
      this%own_nodes_vef = this%interior_nodes_vef
-     
      ! Create a void face_integration_coupling_nodes_face type(list_t)
      call this%face_integration_coupling_nodes_face%create(n=no)
      call this%face_integration_coupling_nodes_face%calculate_header()
@@ -1097,7 +1094,6 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
         call iterator%next()
     enddo
      
-     ! write (*,*) 'node_vef',this%own_nodes_vef     
      if ( this%conformity ) then
        ! Create a void face_integration_coupling_nodes_face type(list_t)
        call this%face_integration_coupling_nodes_face%create(n=no)
@@ -1108,12 +1104,6 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
      end if
   end if
 
-  ! Sort the array 
-  !do co = 1, no
-  !   call sort(obxob%p(co+1)-obxob%p(co),obxob%l(obxob%p(co):obxob%p(co+1)))
-  !end do
-
-  ! Deallocate OBDLA
   call memfree(obdla,__FILE__,__LINE__)
   call memfree(ob2node,__FILE__,__LINE__)
   call memfree(node2ob,__FILE__,__LINE__)
@@ -1125,41 +1115,6 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   call memfree( ijk, __FILE__, __LINE__ )
   call memfree( ijk_g, __FILE__, __LINE__ )
 
-
-  ! ! Create the face permutation of nodes
-  ! if (nd>2) then call memalloc(2*2**2,this%nodes_vef(3),o2n,__FILE__,__LINE__)
-
-  ! write(*,*) 'orientation vefs'
-  ! do od = 1,nd
-  !    write(*,*) 'dime', od, '--------------------------'
-  !    write(*,*) orientation(nvef_dim(od):nvef_dim(od+1)-1)
-  ! end do
-  ! write(*,*) 'no+1', no+1, 'ndxob%p'
-  ! do od = 1,no+1
-  !    write(*,*) ndxob%p(od), ', &'
-  ! end do
-  ! write(*,*) 'nn', nn, 'ndxob%l'
-  ! do od = 1,nn
-  !    write(*,*) ndxob%l(od), ', &'
-  ! end do
-
-  ! write(*,*) 'no+1', no+1, 'ntxob%p'
-  ! do od = 1,no+1
-  !    write(*,*) ntxob%p(od), ', &'
-  ! end do
-  ! write(*,*) 'nt', nt, 'ntxob%l'
-  ! do od = 1,nt
-  !    write(*,*) ntxob%l(od), ', &'
-  ! end do
-
-  ! write(*,*) 'no+1', no+1, 'crxob%p'
-  ! do od = 1,no+1
-  !    write(*,*) crxob%p(od), ', &'
-  ! end do
-  ! write(*,*) 'nc', nc, 'crxob%l'
-  ! do od = 1,nc
-  !    write(*,*) crxob%l(od), ', &'
-  ! end do
 end subroutine quad_lagrangian_reference_fe_fill_scalar
 
 !=================================================================================================
