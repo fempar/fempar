@@ -76,7 +76,7 @@ module rgmres_names
   end type rgmres_t
   
   ! Data types
-  public :: rgmres_t, create_rgmres
+  public :: rgmres_t, create_rgmres, rgmres_name
   public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
   public :: default_dkrymax, default_orthonorm_strat
   public :: mgsro, icgsro

@@ -65,7 +65,7 @@ module lgmres_names
   end type lgmres_t
   
   ! Data types
-  public :: lgmres_t, create_lgmres
+  public :: lgmres_t, create_lgmres, lgmres_name
   public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
   public :: default_dkrymax, default_orthonorm_strat
   public :: mgsro, icgsro

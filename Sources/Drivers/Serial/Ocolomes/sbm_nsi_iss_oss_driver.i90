@@ -150,6 +150,7 @@
      ! Update linear solver
      call iterative_linear_solver%create(senv)
      call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_type_from_string('RGMRES')
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%set_initial_solution(dof_values)
      call iterative_linear_solver%solve(dof_values)
@@ -184,6 +185,9 @@
   call fe_affine_operator%free()
 !!$  call iterative_linear_solver%free()
   call fe_space%free()
+  call reference_fe_array(1)%free()
+  call reference_fe_array(2)%free()
+  call reference_fe_array(3)%free()
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
   if(.not.is_structured_mesh) call mesh_free(f_mesh)
