@@ -199,6 +199,7 @@ contains
      class(iterative_linear_solver_t), intent(inout) :: this
      character(len=*)                , intent(in)    :: linear_solver_type
 
+     assert ( this%state == environment_set .or. this%state == solver_type_set )
      select case(linear_solver_type)
      case(richardson_name) 
         this%base_iterative_linear_solver => create_richardson(this%environment)
@@ -216,8 +217,12 @@ contains
         this%base_iterative_linear_solver => create_minres(this%environment)
      case(icg_name) 
         this%base_iterative_linear_solver => create_icg(this%environment)
+     case default
+        assert(.false.)
      end select
-
+     
+     assert ( this%base_iterative_linear_solver%get_state() == start )
+     this%state = solver_type_set
    end subroutine iterative_linear_solver_set_type_from_string
    
 end module iterative_linear_solver_names
