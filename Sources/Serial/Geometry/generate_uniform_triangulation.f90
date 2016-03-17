@@ -29,6 +29,7 @@ module generate_uniform_triangulation_names
   use types_names
   use memor_names
   use reference_fe_names
+  use reference_fe_factory_names
   use conditions_names
   use triangulation_names
   use mesh_distribution_names
@@ -53,7 +54,8 @@ module generate_uniform_triangulation_names
           nedir(3),            &         ! Number of elements in each direction
           npdir(3)=(/1,1,1/),  &         ! Number of parts on each direction           
           nsckt(3)=(/1,1,1/),  &         ! Number of parts on each socket and direction
-          isper(3)=(/0,0,0/)             ! Flag for periodic boundary conditions on each direction
+          isper(3)=(/0,0,0/),  &         ! Flag for periodic boundary conditions on each direction
+          pdegr=1                        ! Order of interpolation
 
      real(rp)               :: &
           xleng   = 1.0_rp,    &         ! Size of the domain in x
@@ -72,6 +74,11 @@ module generate_uniform_triangulation_names
           xlengbl = 0.0_rp,    &         ! Size of the boundary layer in x
           ylengbl = 0.0_rp,    &         ! Size of the boundary layer in y
           zlengbl = 0.0_rp               ! Size of the boundary layer in z
+   contains
+     procedure, non_overridable :: uniform_mesh_descriptor_create_from_cli
+     procedure, non_overridable :: uniform_mesh_descriptor_create_without_cli
+     generic :: create => uniform_mesh_descriptor_create_from_cli, &
+          &               uniform_mesh_descriptor_create_without_cli
   end type uniform_mesh_descriptor_t     
 
   type uniform_conditions_descriptor_t
@@ -79,6 +86,9 @@ module generate_uniform_triangulation_names
           poin,                &         ! Boundary conditions on geometry conrners
           line,                &         ! Boundary conditions on geometry edges
           surf                           ! Boundary conditions on geometry faces
+   contains
+     procedure, non_overridable :: create => uniform_conditions_descriptor_create
+     procedure, non_overridable :: free   => uniform_conditions_descriptor_free
   end type uniform_conditions_descriptor_t
   
   type geom_size_t 
@@ -139,8 +149,7 @@ module generate_uniform_triangulation_names
   public :: uniform_mesh_descriptor_t, uniform_conditions_descriptor_t
 
   ! Functions
-  public :: uniform_mesh_descriptor_create, uniform_conditions_descriptor_create, generate_uniform_triangulation
-  public :: uniform_conditions_descriptor_free
+  public :: generate_uniform_triangulation
 
 contains
 
@@ -152,7 +161,7 @@ contains
     !   This subroutine generates geometry data to construct a structured mesh                      !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(uniform_mesh_descriptor_t)      , intent(out) :: gdata
+    class(uniform_mesh_descriptor_t), intent(inout) :: gdata
     integer(ip)          , intent(in)  :: nex,ney,nez
     integer(ip), optional, intent(in)  :: npx,npy,npz,nsx,nsy,nsz
     integer(ip), optional, intent(in)  :: ntdix,ntdiy,ntdiz
@@ -242,7 +251,7 @@ contains
     !   This subroutine generates geometry data to construct a structured mesh                      !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(uniform_mesh_descriptor_t)  , intent(out)   :: gdata
+    class(uniform_mesh_descriptor_t) , intent(inout) :: gdata
     type(Type_Command_Line_Interface), intent(inout) :: cli
     character(*)                     , intent(in)    :: group
     ! Locals
@@ -294,6 +303,9 @@ contains
        end if
     end if 
 
+    ! Geometry order of interpolations
+    gdata%pdegr = 1
+
     ! Partition info
     gdata%nedir(1) = ne(1)
     gdata%nedir(2) = ne(2)
@@ -334,14 +346,14 @@ contains
   end subroutine uniform_mesh_descriptor_create_from_cli
 
   !==================================================================================================
-  subroutine uniform_conditions_descriptor_create(ncode,nvalu,ndime,bdata)
+  subroutine uniform_conditions_descriptor_create(this,ncode,nvalu,ndime)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generates boundary conditions for the geometrycal entities of a structured  !
     !   domain. By default, homogeneous Dirichlet BCs are condidered in all boundary                !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    integer(ip)     , intent(in)  :: ncode,nvalu,ndime
-    type(uniform_conditions_descriptor_t), intent(out) :: bdata
+    class(uniform_conditions_descriptor_t), intent(inout) :: this
+    integer(ip)                           , intent(in)    :: ncode,nvalu,ndime
 
     ! 2D:
     ! Points code: 1=bottom left; 2=top left;   3=bottom right; 4=top right
@@ -357,54 +369,68 @@ contains
     !               6=(1,y,z)
     
     ! Create fem conditions
-    call conditions_create(ncode,nvalu,2**ndime,bdata%poin)
-    call conditions_create(ncode,nvalu,2*(ndime-1)*ndime,bdata%line)
+    call conditions_create(ncode,nvalu,2**ndime,this%poin)
+    call conditions_create(ncode,nvalu,2*(ndime-1)*ndime,this%line)
     if(ndime==2) then
-       call conditions_create(ncode,nvalu,1,bdata%surf)
+       call conditions_create(ncode,nvalu,1,this%surf)
     else
-       call conditions_create(ncode,nvalu,2*ndime,bdata%surf)
+       call conditions_create(ncode,nvalu,2*ndime,this%surf)
     end if
     
     ! Initialize code and value
-    bdata%poin%code(:,:) = 1
-    bdata%line%code(:,:) = 1
-    bdata%surf%code(:,:) = 1
-    bdata%poin%valu(:,:) = 0.0_rp
-    bdata%line%valu(:,:) = 0.0_rp
-    bdata%surf%valu(:,:) = 0.0_rp   
+    this%poin%code(:,:) = 1
+    this%line%code(:,:) = 1
+    this%surf%code(:,:) = 1
+    this%poin%valu(:,:) = 0.0_rp
+    this%line%valu(:,:) = 0.0_rp
+    this%surf%valu(:,:) = 0.0_rp   
 
   end subroutine uniform_conditions_descriptor_create  
 
   !==================================================================================================
-  subroutine uniform_conditions_descriptor_free(bdata)
+  subroutine uniform_conditions_descriptor_free(this)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine deallocates boundary conditions for the geometrycal entities of a           !
     !   structured domain                                                                           !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(uniform_conditions_descriptor_t), intent(inout) :: bdata
+    class(uniform_conditions_descriptor_t), intent(inout) :: this
     
     ! Free fem conditions
-    call conditions_free(bdata%poin)
-    call conditions_free(bdata%line)
-    call conditions_free(bdata%surf)
+    call conditions_free(this%poin)
+    call conditions_free(this%line)
+    call conditions_free(this%surf)
 
   end subroutine uniform_conditions_descriptor_free
 
   !==================================================================================================
-  subroutine structured_geom_size_create(gdata,geo_reference_element,gsize)
+  subroutine uniform_mesh_create_reference_fe(geometry_data,reference_fe_geo_array)
+    implicit none
+    type(uniform_mesh_descriptor_t), intent(in)  :: geometry_data
+    type(p_reference_fe_t)         , intent(inout) :: reference_fe_geo_array(1)
+
+    reference_fe_geo_array(1) = make_reference_fe(topology      = topology_quad,       &
+         &                                    fe_type           = fe_type_lagrangian,  &
+         &                                    number_dimensions = geometry_data%ndime, &
+         &                                    order             = geometry_data%pdegr, &
+         &                                    field_type        = field_type_vector,   &
+         &                                    continuity        = .true.)
+    
+  end subroutine uniform_mesh_create_reference_fe
+
+  !==================================================================================================
+  subroutine structured_geom_size_create(gdata,gsize)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generates geom_size_t type from uniform_mesh_descriptor_t and reference_element_t types            !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    type(uniform_mesh_descriptor_t)     , intent(in)  :: gdata
-    class(reference_fe_t), intent(in)  :: geo_reference_element
-    type(geom_size_t)     , intent(out) :: gsize
+    type(uniform_mesh_descriptor_t), intent(in)  :: gdata
+    type(geom_size_t)              , intent(out) :: gsize
 
     ! Local variables
     integer(ip) :: pdegr,idime,jdime
 
-    pdegr = geo_reference_element%get_order()
+    pdegr = gdata%pdegr
 
     ! Directional sizes
     gsize%npdir = gdata%npdir
@@ -528,20 +554,18 @@ contains
   end subroutine structured_topo_size_create
   
   !==================================================================================================
-  subroutine generate_uniform_triangulation(lpart,gdata,bdata,geo_reference_element,trian,bcond,mater,mdist)
+  subroutine generate_uniform_triangulation(lpart,gdata,bdata,trian,bcond,mdist)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generates a triangulation, boundary conditions and mesh_distribution for a  !
     !   structured mesh                                                                             !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     integer(ip)                          , intent(in)  :: lpart
-    type(uniform_mesh_descriptor_t)                      , intent(in)  :: gdata
-    type(uniform_conditions_descriptor_t)                     , intent(in)  :: bdata
-    class(reference_fe_t)              , intent(in)  :: geo_reference_element
-    type(triangulation_t)              , intent(out) :: trian
-    type(conditions_t)                 , intent(out) :: bcond
-    integer(ip), allocatable             , intent(out) :: mater(:)
-    type(mesh_distribution_t), optional, intent(out) :: mdist
+    type(uniform_mesh_descriptor_t)      , intent(in)  :: gdata
+    type(uniform_conditions_descriptor_t), intent(in)  :: bdata
+    type(triangulation_t)                , intent(out) :: trian
+    type(conditions_t)                   , intent(out) :: bcond
+    type(mesh_distribution_t), optional  , intent(out) :: mdist
     
     ! Locals
     type(geom_size_t) :: gsize
@@ -552,11 +576,8 @@ contains
     integer(ip) , allocatable   :: pextn(:),lextp(:),lexte(:),lextm(:)
     integer(igp), allocatable   :: lextn(:)
 
-    ! Checks
-    check(geo_reference_element%get_topology() == topology_quad)
-
     ! Geometrical sizes
-    call structured_geom_size_create(gdata,geo_reference_element,gsize)
+    call structured_geom_size_create(gdata,gsize)
 
     ! Topological sizes
     call structured_topo_size_create(gdata,gsize,tsize)
@@ -573,14 +594,17 @@ contains
     trian%num_elems = gsize%nedomt
     trian%num_dims  = gdata%ndime
 
+    ! Create geometric reference element
+    call uniform_mesh_create_reference_fe(gdata,trian%reference_fe_geo_list(1))
+
     ! Triangulation, bcond and distribution generation
     if(present(mdist)) then
-       call structured_mesh_gen(ijkpart,gdata,gsize,tsize,geo_reference_element,bdata%poin,bdata%line,bdata%surf,    &
-            &                   trian,bcond,mater,nmap=mdist%nmap,emap=mdist%emap,pextn=mdist%pextn, &
+       call structured_mesh_gen(ijkpart,gdata,gsize,tsize,bdata%poin,bdata%line,bdata%surf,    &
+            &                   trian,bcond,nmap=mdist%nmap,emap=mdist%emap,pextn=mdist%pextn, &
             &                   lextn=mdist%lextn,lextp=mdist%lextp)
     else
-       call structured_mesh_gen(ijkpart,gdata,gsize,tsize,geo_reference_element,bdata%poin,bdata%line,bdata%surf, &
-            &                   trian,bcond,mater)
+       call structured_mesh_gen(ijkpart,gdata,gsize,tsize,bdata%poin,bdata%line,bdata%surf, &
+            &                   trian,bcond)
     end if
 
     ! Dual triangulation
@@ -605,22 +629,20 @@ contains
   end subroutine generate_uniform_triangulation
 
   !================================================================================================
-  subroutine structured_mesh_gen(ijkpart,gdata,gsize,tsize,geo_reference_element,poin,line,surf,trian,nodes,mater, &
+  subroutine structured_mesh_gen(ijkpart,gdata,gsize,tsize,poin,line,surf,trian,nodes, &
        &                         nmap,emap,pextn,lextn,lextp)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
     implicit none
     integer(ip)                        , intent(in)    :: ijkpart(3)
-    type(uniform_mesh_descriptor_t)                    , intent(in)    :: gdata
-    type(geom_size_t)                    , intent(in)    :: gsize
-    type(topo_size_t)                    , intent(in)    :: tsize
-    class(reference_fe_t)           , intent(in)    :: geo_reference_element
-    type(triangulation_t)            , intent(inout) :: trian
-    type(conditions_t)               , intent(in)    :: poin,line,surf
-    type(conditions_t)               , intent(out)   :: nodes
-    integer(ip), allocatable           , intent(out)   :: mater(:)
-    type(map_igp_t)            , optional, intent(inout) :: nmap,emap
+    type(uniform_mesh_descriptor_t)    , intent(in)    :: gdata
+    type(geom_size_t)                  , intent(in)    :: gsize
+    type(topo_size_t)                  , intent(in)    :: tsize
+    type(triangulation_t)              , intent(inout) :: trian
+    type(conditions_t)                 , intent(in)    :: poin,line,surf
+    type(conditions_t)                 , intent(out)   :: nodes
+    type(map_igp_t)          , optional, intent(inout) :: nmap,emap
     integer(ip) , allocatable, optional, intent(out)   :: pextn(:),lextp(:)
     integer(igp), allocatable, optional, intent(out)   :: lextn(:)
 
@@ -647,10 +669,6 @@ contains
     call memalloc(gsize%npdomt,npnumg,__FILE__,__LINE__)
     call memalloc(tsize%notot,npnumt,__FILE__,__LINE__)
     call memalloc(ndime,gsize%npdomt,coord,__FILE__,__LINE__)
-    call memalloc(gsize%nedomt,mater,__FILE__,__LINE__)
-    
-    ! Initialize material
-    mater = 1
 
     ! Initialize counter
     cnt(1) = 1; cnt(2) = 1; cnt(3) = 1
@@ -662,23 +680,23 @@ contains
     call conditions_create(poin%ncode,poin%nvalu,tsize%notot,nodes)
    
     ! Interior nodes/elements
-    call volu_loop(ijkpart,ndime,gsize,tsize,gdata,geo_reference_element,npnumg,npnumt,nenum,coord,cnt)
-    call face_loop(ijkpart,ndime,gsize,tsize,gdata,geo_reference_element,gdata%isper,surf,npnumg,npnumt,nenum,coord, &
+    call volu_loop(ijkpart,ndime,gsize,tsize,gdata,npnumg,npnumt,nenum,coord,cnt)
+    call face_loop(ijkpart,ndime,gsize,tsize,gdata,gdata%isper,surf,npnumg,npnumt,nenum,coord, &
          &         cnt,inter,nodes)
-    call edge_loop(ijkpart,ndime,gsize,tsize,gdata,geo_reference_element,gdata%isper,line,surf,npnumg,npnumt,nenum,  &
+    call edge_loop(ijkpart,ndime,gsize,tsize,gdata,gdata%isper,line,surf,npnumg,npnumt,nenum,  &
          &         coord,cnt,inter,nodes)
-    call corn_loop(ijkpart,ndime,gsize,tsize,gdata,geo_reference_element,gdata%isper,poin,line,surf,npnumg,npnumt,   &
+    call corn_loop(ijkpart,ndime,gsize,tsize,gdata,gdata%isper,poin,line,surf,npnumg,npnumt,   &
          &         nenum,coord,cnt,inter,nodes)
     !pni = cnt(3)-1
     pni = cnt(1)-1
     eni = cnt(2)-1
 
     ! Boundary nodes/elements
-    call face_loop(ijkpart,ndime,gsize,tsize,gdata,geo_reference_element,gdata%isper,surf,npnumg,npnumt,nenum,coord, &
+    call face_loop(ijkpart,ndime,gsize,tsize,gdata,gdata%isper,surf,npnumg,npnumt,nenum,coord, &
          &         cnt,bound)
-    call edge_loop(ijkpart,ndime,gsize,tsize,gdata,geo_reference_element,gdata%isper,line,surf,npnumg,npnumt,nenum,  &
+    call edge_loop(ijkpart,ndime,gsize,tsize,gdata,gdata%isper,line,surf,npnumg,npnumt,nenum,  &
          &         coord,cnt,bound,nodes)
-    call corn_loop(ijkpart,ndime,gsize,tsize,gdata,geo_reference_element,gdata%isper,poin,line,surf,npnumg,npnumt,   &
+    call corn_loop(ijkpart,ndime,gsize,tsize,gdata,gdata%isper,poin,line,surf,npnumg,npnumt,   &
          &         nenum,coord,cnt,bound,nodes)
     !pnb = cnt(3) - pni - 1
     pnb = cnt(1) - pni - 1
@@ -690,8 +708,8 @@ contains
     end do
 
     ! Calculate lnods, coord and l2g vector for emap and nmap
-    call generic_l2g(subgl,npnumg,npnumt,nenum,ndime,geo_reference_element%get_order(),gsize,tsize,gdata,l2ge,l2gp,trian, &
-         &           coord,mater)
+    call generic_l2g(subgl,npnumg,npnumt,nenum,ndime,gdata%pdegr,gsize,tsize,gdata,l2ge,l2gp,trian, &
+         &           coord)
 
     ! Fill nmap
     if(present(nmap)) then
@@ -748,18 +766,17 @@ contains
   end subroutine structured_mesh_gen
 
   !==================================================================================================
-  subroutine volu_loop(ijkpart,ndime,gsize,tsize,gdata,geo_reference_element,npnumg,npnumt,nenum,coord,cnt)
+  subroutine volu_loop(ijkpart,ndime,gsize,tsize,gdata,npnumg,npnumt,nenum,coord,cnt)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
     implicit none
-    integer(ip)         , intent(in)    :: ijkpart(3),ndime
-    type(geom_size_t)     , intent(in)    :: gsize
-    type(topo_size_t)     , intent(in)    :: tsize
-    type(uniform_mesh_descriptor_t)     , intent(in)    :: gdata
-    class(reference_fe_t), intent(in)    :: geo_reference_element
-    integer(ip)         , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
-    real(rp)            , intent(inout) :: coord(:,:)
+    integer(ip)                    , intent(in)    :: ijkpart(3),ndime
+    type(geom_size_t)              , intent(in)    :: gsize
+    type(topo_size_t)              , intent(in)    :: tsize
+    type(uniform_mesh_descriptor_t), intent(in)    :: gdata
+    integer(ip)                    , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
+    real(rp)                       , intent(inout) :: coord(:,:)
 
     integer(ip) :: i,j,k,ijkpoin(3),ijkelem(3),glnum,npdomk,nedomk,nddomk,aux_cnt
     integer(ip) :: pdime,ijkface(3),ijkedge(3),jdime
@@ -796,7 +813,7 @@ contains
 
              ! Coordinates
              call coord_ijk(ijkpoin,ijkpart,gsize%npdir,gsize%nedom,gsize%nedir, &
-                  &         ndime,gdata,geo_reference_element,coord(:,cnt(3)))
+                  &         ndime,gdata,coord(:,cnt(3)))
 
              ! Update counter
              cnt(1) = cnt(1) + 1
@@ -890,21 +907,20 @@ contains
   end subroutine volu_loop
 
   !==================================================================================================
-  subroutine face_loop(ijkpart,ndime,gsize,tsize,gdata,geo_reference_element,isper,surf,npnumg,npnumt,nenum,coord, &
+  subroutine face_loop(ijkpart,ndime,gsize,tsize,gdata,isper,surf,npnumg,npnumt,nenum,coord, &
        &               cnt,case,nodes)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
     implicit none
-    integer(ip)                   , intent(in)    :: ijkpart(3),isper(3),ndime,case
-    type(geom_size_t)               , intent(in)    :: gsize
-    type(topo_size_t)               , intent(in)    :: tsize
-    type(uniform_mesh_descriptor_t) , intent(in)    :: gdata
-    class(reference_fe_t)           , intent(in)    :: geo_reference_element
-    type(conditions_t)          , intent(in)    :: surf
-    integer(ip)                   , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
-    real(rp)                      , intent(inout) :: coord(:,:)
-    type(conditions_t), optional, intent(inout) :: nodes
+    integer(ip)                    , intent(in)    :: ijkpart(3),isper(3),ndime,case
+    type(geom_size_t)              , intent(in)    :: gsize
+    type(topo_size_t)              , intent(in)    :: tsize
+    type(uniform_mesh_descriptor_t), intent(in)    :: gdata
+    type(conditions_t)             , intent(in)    :: surf
+    integer(ip)                    , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
+    real(rp)                       , intent(inout) :: coord(:,:)
+    type(conditions_t), optional   , intent(inout) :: nodes
     
     integer(ip) :: auxv(3,2),i,j,k,pdime,iface,ijkpoin(3),ijkelem(3),ijkface(3),glnum,flag,neigh(2)
     integer(ip) :: lface(2),surf_cnt
@@ -945,7 +961,7 @@ contains
 
                       ! Coordinates
                       call coord_ijk(ijkpoin,ijkpart,gsize%npdir,gsize%nedom,gsize%nedir, &
-                           &         ndime,gdata,geo_reference_element,coord(:,cnt(3)))
+                           &         ndime,gdata,coord(:,cnt(3)))
 
                       ! Boundary conditions
                       if(case==inter) then
@@ -1172,21 +1188,20 @@ contains
   end subroutine face_loop_adj
 
   !==================================================================================================
-  subroutine edge_loop(ijkpart,ndime,gsize,tsize,gdata,geo_reference_element,isper,line,surf,npnumg,npnumt,nenum, &
+  subroutine edge_loop(ijkpart,ndime,gsize,tsize,gdata,isper,line,surf,npnumg,npnumt,nenum, &
        &               coord,cnt,case,nodes)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
     implicit none
-    integer(ip),          intent(in)    :: ijkpart(3),isper(3),ndime,case
-    type(geom_size_t),      intent(in)    :: gsize
-    type(topo_size_t),      intent(in)    :: tsize
-    type(uniform_mesh_descriptor_t),      intent(in)    :: gdata
-    class(reference_fe_t), intent(in)    :: geo_reference_element
-    type(conditions_t), intent(in)    :: line,surf
-    integer(ip),          intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
-    real(rp),             intent(inout) :: coord(:,:)
-    type(conditions_t), intent(inout) :: nodes
+    integer(ip)                    , intent(in)    :: ijkpart(3),isper(3),ndime,case
+    type(geom_size_t)              , intent(in)    :: gsize
+    type(topo_size_t)              , intent(in)    :: tsize
+    type(uniform_mesh_descriptor_t), intent(in)    :: gdata
+    type(conditions_t)             , intent(in)    :: line,surf
+    integer(ip)                    , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
+    real(rp)                       , intent(inout) :: coord(:,:)
+    type(conditions_t)             , intent(inout) :: nodes
  
     integer(ip) :: i,j,k,pdime,iedge,jedge,ijedge(2),ijkpoin(3),ijkelem(3),ijkvert(3),ijkedge(3)
     integer(ip) :: inipo,ledge(2,2),line_cnt,neigh(2*(ndime-1))
@@ -1246,7 +1261,7 @@ contains
 
                    ! Coordinates
                    call coord_ijk(ijkpoin,ijkpart,gsize%npdir,gsize%nedom,gsize%nedir, &
-                        &         ndime,gdata,geo_reference_element,coord(:,cnt(3)))
+                        &         ndime,gdata,coord(:,cnt(3)))
 
                    ! Boundary conditions
                    if(case==inter) then
@@ -1531,21 +1546,20 @@ contains
   end subroutine edge_loop_adj
 
   !================================================================================================
-  subroutine corn_loop(ijkpart,ndime,gsize,tsize,gdata,geo_reference_element,isper,poin,line,surf,npnumg,npnumt, & 
+  subroutine corn_loop(ijkpart,ndime,gsize,tsize,gdata,isper,poin,line,surf,npnumg,npnumt, & 
        &               nenum,coord,cnt,case,nodes)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
     implicit none
-    integer(ip)         , intent(in)    :: ijkpart(3),isper(3),ndime,case
-    type(geom_size_t)     , intent(in)    :: gsize
-    type(topo_size_t)     , intent(in)    :: tsize
-    type(uniform_mesh_descriptor_t)     , intent(in)    :: gdata
-    class(reference_fe_t), intent(in)    :: geo_reference_element
-    type(conditions_t), intent(in)    :: poin,line,surf
-    integer(ip)         , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
-    real(rp)            , intent(inout) :: coord(:,:)
-    type(conditions_t), intent(inout) :: nodes
+    integer(ip)                    , intent(in)    :: ijkpart(3),isper(3),ndime,case
+    type(geom_size_t)              , intent(in)    :: gsize
+    type(topo_size_t)              , intent(in)    :: tsize
+    type(uniform_mesh_descriptor_t), intent(in)    :: gdata
+    type(conditions_t)             , intent(in)    :: poin,line,surf
+    integer(ip)                    , intent(inout) :: npnumg(:),npnumt(:),nenum(:),cnt(3)
+    real(rp)                       , intent(inout) :: coord(:,:)
+    type(conditions_t)             , intent(inout) :: nodes
     
     integer(ip) :: ivert,jvert,kvert,ijkpoin(3),ijkvert(3),glnum,flag,neigh(2**ndime)
     integer(ip) :: i,j,k,lcorn(2,2,2),ijkelem(3)
@@ -1599,7 +1613,7 @@ contains
               
                 ! Coordinates
                 call coord_ijk(ijkpoin,ijkpart,gsize%npdir,gsize%nedom,gsize%nedir, &
-                     &         ndime,gdata,geo_reference_element,coord(:,cnt(3)))
+                     &         ndime,gdata,coord(:,cnt(3)))
 
                 ! Boundary conditions
                 if(case==inter) then
@@ -1834,16 +1848,15 @@ contains
   end subroutine corn_loop_adj
 
   !================================================================================================
-  subroutine coord_ijk(ijkpoin,ijkpart,npdir,nedom,nedir,ndime,msize,geo_reference_element,coord)
+  subroutine coord_ijk(ijkpoin,ijkpart,npdir,nedom,nedir,ndime,msize,coord)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
     implicit none
-    integer(ip)         , intent(in)    :: ijkpoin(3),ijkpart(3),npdir(3),nedom(3),nedir(3)
-    integer(ip)         , intent(in)    :: ndime
-    type(uniform_mesh_descriptor_t)     , intent(in)    :: msize
-    class(reference_fe_t), intent(in)    :: geo_reference_element
-    real(rp)            , intent(inout) :: coord(:)
+    integer(ip)                    , intent(in)    :: ijkpoin(3),ijkpart(3),npdir(3),nedom(3),nedir(3)
+    integer(ip)                    , intent(in)    :: ndime
+    type(uniform_mesh_descriptor_t), intent(in)    :: msize
+    real(rp)                       , intent(inout) :: coord(:)
 
     integer(ip) :: i,ntdis(3),pdegr,nebl(3)
     real(rp)    :: leng(3),coor0(3),stret(3),istret,lengbl(3)
@@ -1851,7 +1864,7 @@ contains
     real(rp)    :: newleng
 
     ! Unpack uniform_mesh_descriptor
-    pdegr   = geo_reference_element%get_order()
+    pdegr   = msize%pdegr
     leng(1) = msize%xleng
     leng(2) = msize%yleng
     leng(3) = msize%zleng
@@ -2126,20 +2139,19 @@ contains
 
   !==================================================================================================
   subroutine generic_l2g(subgl,npnumg,npnumt,nenum,ndime,pdegr,gsize,tsize,gdata,l2ge,l2gp,trian, &
-       &                 coord,mater)
+       &                 coord)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
     implicit none
-    integer(ip)             , intent(in)    :: subgl(ndime),ndime,pdegr
-    integer(ip)             , intent(in)    :: npnumg(:),npnumt(:),nenum(:)
-    type(geom_size_t)         , intent(in)    :: gsize
-    type(topo_size_t)         , intent(in)    :: tsize
-    type(uniform_mesh_descriptor_t)         , intent(in)    :: gdata
-    integer(igp)            , intent(out)   :: l2ge(:),l2gp(:)
-    type(triangulation_t) , intent(inout) :: trian
-    real(rp)                , intent(in)    :: coord(:,:)
-    integer(ip)             , intent(inout) :: mater(:)
+    integer(ip)                    , intent(in)    :: subgl(ndime),ndime,pdegr
+    integer(ip)                    , intent(in)    :: npnumg(:),npnumt(:),nenum(:)
+    type(geom_size_t)              , intent(in)    :: gsize
+    type(topo_size_t)              , intent(in)    :: tsize
+    type(uniform_mesh_descriptor_t), intent(in)    :: gdata
+    integer(igp)                   , intent(out)   :: l2ge(:),l2gp(:)
+    type(triangulation_t)          , intent(inout) :: trian
+    real(rp)                       , intent(in)    :: coord(:,:)
 
     integer(ip)               :: i,j,k,m,n,l,ijk(3),ijklnods(3),num,count,auxva((pdegr+1)**ndime)
     integer(ip)               :: ne_aux(3),np_aux(3),mcase,auxnum,nedir_l2g(ndime),nvef,aux_glb
@@ -2151,7 +2163,6 @@ contains
 
     ! Allocate
     call memalloc(gsize%nedomt,el_l2g,__FILE__,__LINE__)
-    !call memalloc(gsize%npdomt,po_l2g,__FILE__,__LINE__)
     call memalloc(tsize%notot ,po_l2g,__FILE__,__LINE__)
 
     ! Auxiliar vectro
@@ -2226,7 +2237,7 @@ contains
 
              ! Fill material
              if(mcase>0) then
-                call materialid(mcase,subgl_ijk,gsize%nedir,nelbl,mater(nenum(num)))
+                call materialid(mcase,subgl_ijk,gsize%nedir,nelbl,trian%elems(nenum(num))%subset_id)
              end if
 
              ! Allocate triangulation elemental objects

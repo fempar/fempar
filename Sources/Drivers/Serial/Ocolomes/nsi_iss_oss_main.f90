@@ -37,23 +37,40 @@ module command_line_parameters_names
   private
 
   type test_nsi_iss_oss_params_t
+     ! IO parameters
      character(len=:), allocatable :: default_dir_path
      character(len=:), allocatable :: default_prefix
      character(len=:), allocatable :: default_dir_path_out
-     character(len=:), allocatable :: default_structured_mesh
+     ! Mesh
+     character(len=:), allocatable :: default_structured_mesh        
+     character(len=:), allocatable :: default_number_elements        
+     character(len=:), allocatable :: default_number_parts           
+     character(len=:), allocatable :: default_number_sockets         
+     character(len=:), allocatable :: default_discretization_type    
+     character(len=:), allocatable :: default_domain_length          
+     character(len=:), allocatable :: default_periodic_boundaries    
+     character(len=:), allocatable :: default_origin                 
+     character(len=:), allocatable :: default_stretching_parameter   
+     character(len=:), allocatable :: default_elements_boundary_layer
+     character(len=:), allocatable :: default_size_boundary_layer    
+     character(len=:), allocatable :: default_material_case          
+     ! FE space
      character(len=:), allocatable :: default_velocity_order 
      character(len=:), allocatable :: default_pressure_order 
+     ! Problem
      character(len=:), allocatable :: default_viscosity            
      character(len=:), allocatable :: default_c1                   
      character(len=:), allocatable :: default_c2                   
      character(len=:), allocatable :: default_cc                   
      character(len=:), allocatable :: default_elemental_length_flag
      character(len=:), allocatable :: default_convection_activated 
+     ! Solution
      character(len=:), allocatable :: default_is_analytical
      character(len=:), allocatable :: default_is_initial
      character(len=:), allocatable :: default_is_temporal
      character(len=:), allocatable :: default_analytical_velocity_id
      character(len=:), allocatable :: default_analytical_pressure_id
+     ! Time integration
      character(len=:), allocatable :: default_initial_time
    contains
      procedure, non_overridable :: set_default    => set_default_params
@@ -197,9 +214,11 @@ program test_nsi_iss_oss
 #include "debug.i90"
 
   ! Geometry
-  type(mesh_t)          :: f_mesh
-  type(conditions_t)    :: f_cond
-  type(triangulation_t) :: f_trian
+  type(mesh_t)                          :: f_mesh
+  type(conditions_t)                    :: f_cond
+  type(triangulation_t)                 :: f_trian
+  type(uniform_mesh_descriptor_t)       :: geometry_data
+  type(uniform_conditions_descriptor_t) :: boundary_data
 
   ! Problem
   type(nsi_iss_oss_discrete_integration_t) :: nsi_iss_oss_integration
@@ -226,7 +245,7 @@ program test_nsi_iss_oss
   integer(ip)                       :: pressure_order
 
   ! Locals
-  integer(ip) :: number_dimensions
+  integer(ip) :: number_dimensions,number_unknowns
   integer(ip) :: istat
   integer(ip) :: max_nonlinear_iterations
   integer(ip) :: counter
@@ -266,5 +285,31 @@ contains
     call test_params%add_to_cli(cli,'analytical')
 
   end subroutine read_flap_cli_nsi_iss_oss
+
+  !==================================================================================================
+  subroutine set_structured_conditions_nsi_iss_oss(geometry_data,boundary_data)
+    implicit none
+    type(uniform_mesh_descriptor_t)      , intent(in)    :: geometry_data
+    type(uniform_conditions_descriptor_t), intent(inout) :: boundary_data
+    integer(ip) :: number_dimensions
+    
+    number_dimensions = geometry_data%ndime
+    
+    ! Pressure codes
+    boundary_data%poin%code(number_dimensions+1,1:2**number_dimensions-1) = 0
+    boundary_data%poin%code(number_dimensions+1,2**number_dimensions)     = 1
+    boundary_data%line%code(number_dimensions+1,:)                        = 0
+    boundary_data%surf%code(number_dimensions+1,:)                        = 0
+    ! Projection codes
+    boundary_data%poin%code(number_dimensions+2:2*number_dimensions+1,:)  = 0
+    boundary_data%line%code(number_dimensions+2:2*number_dimensions+1,:)  = 0
+    boundary_data%surf%code(number_dimensions+2:2*number_dimensions+1,:)  = 0
+    ! Velocity values
+    boundary_data%poin%valu(1:number_dimensions,:) = 1.0_rp
+    boundary_data%line%valu(1:number_dimensions,:) = 1.0_rp
+    ! Pressure values
+    boundary_data%poin%valu(number_dimensions+1,2**number_dimensions) = 0.0_rp
+
+  end subroutine set_structured_conditions_nsi_iss_oss  
 
 end program test_nsi_iss_oss

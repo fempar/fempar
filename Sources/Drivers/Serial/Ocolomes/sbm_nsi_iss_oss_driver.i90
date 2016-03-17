@@ -59,6 +59,22 @@
      ! Construct triangulation
      call mesh_to_triangulation(f_mesh,f_trian,gcond=f_cond)
 
+  else
+
+     ! Generate geometry data 
+     call geometry_data%create(cli,group)
+
+     ! Generate boundary data
+     number_dimensions = geometry_data%ndime
+     number_unknowns   = 2*number_dimensions+1
+     call boundary_data%create(number_unknowns,number_unknowns,number_dimensions)
+
+     ! Set non-default Navier-Stokes BCs
+     call set_structured_conditions_nsi_iss_oss(geometry_data,boundary_data)
+
+     ! Generate triangulation and boundary conditions
+     call generate_uniform_triangulation(1,geometry_data,boundary_data,f_trian,f_cond)
+
   end if structured_mesh
 
   !----------------------!
@@ -195,6 +211,7 @@
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
   if(.not.is_structured_mesh) call mesh_free(f_mesh)
+  if(is_structured_mesh) call boundary_data%free()
 
   ! Output memory status
   call memstatus

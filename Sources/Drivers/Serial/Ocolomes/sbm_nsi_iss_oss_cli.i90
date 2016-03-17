@@ -9,7 +9,18 @@ subroutine set_default_params(this)
   this%default_dir_path_out = 'output'
 
   ! Mesh
-  this%default_structured_mesh = '.false.'
+  this%default_structured_mesh         = '.true.'
+  this%default_number_elements         = '2 2'
+  this%default_number_parts            = '1 1'
+  this%default_number_sockets          = '1 1'
+  this%default_discretization_type     = '0 0'
+  this%default_domain_length           = '1.0 1.0'
+  this%default_periodic_boundaries     = '0 0'
+  this%default_origin                  = '0.0 0.0'
+  this%default_stretching_parameter    = '2.75 2.75'
+  this%default_elements_boundary_layer = '0 0'
+  this%default_size_boundary_layer     = '0.0 0.0'
+  this%default_material_case           = '0'
   
   ! FE space
   this%default_velocity_order = '2'
@@ -58,6 +69,41 @@ subroutine add_params_to_cli(this,cli,group)
   call cli%add(group=trim(group),switch='--structured_mesh',switch_ab='-str',                       &
        &       help='Structured mesh (.true., .false.)',required=.false., act='store',              &
        &       def=trim(this%default_structured_mesh),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--num_elements',switch_ab='-ne',                           &
+       &       help='Number of elements per direction',required=.false.,act='store',nargs='*',      &
+       &       def=trim(this%default_number_elements),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--num_parts',switch_ab='-np',                              &
+       &       help='Number of parts per direction',required=.false.,act='store',nargs='*',         &
+       &       def=trim(this%default_number_parts),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--num_sockets',switch_ab='-ns',                            &
+       &       help='Number of sockets per direction',required=.false.,act='store',nargs='*',       &
+       &       def=trim(this%default_number_sockets),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--discretization_type',                                    &
+       &       help='Discretization type per direction (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)', &
+       &       required=.false.,act='store',nargs='*',def=trim(this%default_discretization_type),   &
+       &       error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--domain_length',switch_ab='-dl',                          &
+       &       help='Domain length per direction',required=.false.,act='store',nargs='*',           &
+       &       def=trim(this%default_domain_length),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--periodicity',switch_ab='-peri',                          &
+       &       help='Periodicity per direction (0: No, 1: Yes)', required=.false.,act='store',      &
+       &       nargs='*',def=trim(this%default_periodic_boundaries),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--origin',switch_ab='-O',help='Origin coordinates',        &
+       &       required=.false.,act='store',nargs='*',def=trim(this%default_origin),error=error)
+  check(error==0)
+  call cli%add(group=trim(group),switch='--stretching',switch_ab='-st',help='Stretching parameter', &
+       &       required=.false.,act='store',nargs='*',def=trim(this%default_stretching_parameter),  &
+       &       error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--num_elements_bound_layer',switch_ab='-nb',               &
+       &       help='Number of elements in the boundary layer per direction',required=.false.,      &
+       &       act='store',nargs='*',def=trim(this%default_elements_boundary_layer),error=error)
+  check(error==0)
+  call cli%add(group=trim(group),switch='--size_bound_layer',switch_ab='-sb',                       &
+       &       help='Size of the boundary layer per direction',required=.false.,act='store',        &
+       &       nargs='*',def=trim(this%default_size_boundary_layer),error=error); check(error==0)
+  call cli%add(group=trim(group),switch='--material_case',switch_ab='-mc',help='Material case',     &
+       &       required=.false.,act='store',def=trim(this%default_material_case),error=error)
+  check(error==0)
 
   ! FE space
   call cli%add(group=trim(group),switch='--velocity_order',switch_ab='-vo',                         &
