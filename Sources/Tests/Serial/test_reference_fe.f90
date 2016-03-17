@@ -521,9 +521,14 @@ contains
 
      ! Create iterative linear solver, set operators and solve linear system
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_type_from_string("CG")
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%solve(computed_solution_vector)
+     
+     call iterative_linear_solver%set_type_from_string("RGMRES")
+     call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     call iterative_linear_solver%solve(computed_solution_vector)
+     
      call iterative_linear_solver%free() 
 
      !select type(computed_solution_vector)
@@ -601,7 +606,7 @@ contains
 
      ! Create iterative linear solver, set operators and solve linear system
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_type_from_string("CG")
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%solve(computed_solution_vector)
      call iterative_linear_solver%free() 
@@ -689,7 +694,7 @@ contains
 
      ! Create iterative linear solver, set operators and solve linear system
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_type_from_string("CG")
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%solve(computed_solution_vector)
      call iterative_linear_solver%free() 
