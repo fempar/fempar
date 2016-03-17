@@ -199,7 +199,7 @@ program par_test_reference_fe
   type(poisson_discrete_integration_t)            :: poisson_integration
   class(matrix_t)             , pointer           :: matrix
   class(vector_t)             , pointer           :: rhs
-  type(iterative_linear_solver_t)                           :: linear_solver
+  type(iterative_linear_solver_t)                 :: iterative_linear_solver
   class(vector_t)             , allocatable       :: vector
 
   
@@ -301,12 +301,12 @@ program par_test_reference_fe
   
   call fe_affine_operator%create_range_vector(vector)
 
-  ! Create linear solver, set operators and solve linear system
-  call linear_solver%create(par_env)
-  call linear_solver%set_type_and_parameters_from_pl()
-  call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-  call linear_solver%solve(vector)
-  call linear_solver%free() 
+  ! Create iterative linear solver, set operators and solve linear system
+  call iterative_linear_solver%create(par_env)
+  call iterative_linear_solver%set_type_and_parameters_from_pl()
+  call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+  call iterative_linear_solver%solve(vector)
+  call iterative_linear_solver%free() 
 
   select type(vector)
      class is(par_scalar_array_t)

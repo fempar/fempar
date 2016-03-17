@@ -478,8 +478,7 @@ contains
     type(serial_fe_space_t)              :: fe_space
     type(fe_affine_operator_t)           :: fe_affine_operator
     type(poisson_discrete_integration_t) :: poisson_integration
-    type(iterative_linear_solver_t)                :: linear_solver
-    type(vector_space_t), pointer        :: fe_affine_operator_range_vector_space
+    type(iterative_linear_solver_t)      :: iterative_linear_solver
     type(serial_environment_t)           :: senv
     class(vector_t), allocatable         :: computed_solution_vector, exact_solution_vector
     class(matrix_t)            , pointer :: matrix
@@ -516,17 +515,21 @@ contains
      !   call matrix%print_matrix_market(6)
      !end select
  
-     fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-     call fe_affine_operator_range_vector_space%create_vector(computed_solution_vector)
-     call fe_affine_operator_range_vector_space%create_vector(exact_solution_vector)
+     call fe_affine_operator%create_range_vector(computed_solution_vector)
+     call fe_affine_operator%create_range_vector(exact_solution_vector)
      call exact_solution_vector%init(1.0_rp)
 
-     ! Create linear solver, set operators and solve linear system
-     call linear_solver%create(senv)
-     call linear_solver%set_type_and_parameters_from_pl()
-     call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call linear_solver%solve(computed_solution_vector)
-     call linear_solver%free() 
+     ! Create iterative linear solver, set operators and solve linear system
+     call iterative_linear_solver%create(senv)
+     call iterative_linear_solver%set_type_from_string("CG")
+     call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     call iterative_linear_solver%solve(computed_solution_vector)
+     
+     call iterative_linear_solver%set_type_from_string("RGMRES")
+     call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     call iterative_linear_solver%solve(computed_solution_vector)
+     
+     call iterative_linear_solver%free() 
 
      !select type(computed_solution_vector)
      !  class is(serial_scalar_array_t)
@@ -560,8 +563,7 @@ contains
     type(serial_fe_space_t)                       :: fe_space
     type(fe_affine_operator_t)                    :: fe_affine_operator
     type(vector_laplacian_single_discrete_integration_t) :: vector_laplacian_integration
-    type(iterative_linear_solver_t)                         :: linear_solver
-    type(vector_space_t), pointer                 :: fe_affine_operator_range_vector_space
+    type(iterative_linear_solver_t)               :: iterative_linear_solver
     type(serial_environment_t)                    :: senv
     class(vector_t), allocatable                  :: computed_solution_vector, exact_solution_vector
     class(matrix_t)            , pointer          :: matrix
@@ -598,17 +600,16 @@ contains
      !   call matrix%print_matrix_market(6)
      !end select
  
-     fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-     call fe_affine_operator_range_vector_space%create_vector(computed_solution_vector)
-     call fe_affine_operator_range_vector_space%create_vector(exact_solution_vector)
+     call fe_affine_operator%create_range_vector(computed_solution_vector)
+     call fe_affine_operator%create_range_vector(exact_solution_vector)
      call exact_solution_vector%init(1.0_rp)
 
-     ! Create linear solver, set operators and solve linear system
-     call linear_solver%create(senv)
-     call linear_solver%set_type_and_parameters_from_pl()
-     call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call linear_solver%solve(computed_solution_vector)
-     call linear_solver%free() 
+     ! Create iterative linear solver, set operators and solve linear system
+     call iterative_linear_solver%create(senv)
+     call iterative_linear_solver%set_type_from_string("CG")
+     call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     call iterative_linear_solver%solve(computed_solution_vector)
+     call iterative_linear_solver%free() 
 
      !select type(computed_solution_vector)
      !  class is(serial_scalar_array_t)
@@ -641,8 +642,7 @@ contains
     type(serial_fe_space_t)                       :: fe_space
     type(fe_affine_operator_t)                    :: fe_affine_operator
     type(vector_laplacian_composite_discrete_integration_t) :: vector_laplacian_integration
-    type(iterative_linear_solver_t)                         :: linear_solver
-    type(vector_space_t), pointer                 :: fe_affine_operator_range_vector_space
+    type(iterative_linear_solver_t)               :: iterative_linear_solver
     type(serial_environment_t)                    :: senv
     class(vector_t), allocatable                  :: computed_solution_vector, exact_solution_vector
     class(matrix_t)            , pointer          :: matrix
@@ -688,17 +688,16 @@ contains
      !   call matrix%print_matrix_market(6)
      !end select
  
-     fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-     call fe_affine_operator_range_vector_space%create_vector(computed_solution_vector)
-     call fe_affine_operator_range_vector_space%create_vector(exact_solution_vector)
+     call fe_affine_operator%create_range_vector(computed_solution_vector)
+     call fe_affine_operator%create_range_vector(exact_solution_vector)
      call exact_solution_vector%init(1.0_rp)
 
-     ! Create linear solver, set operators and solve linear system
-     call linear_solver%create(senv)
-     call linear_solver%set_type_and_parameters_from_pl()
-     call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call linear_solver%solve(computed_solution_vector)
-     call linear_solver%free() 
+     ! Create iterative linear solver, set operators and solve linear system
+     call iterative_linear_solver%create(senv)
+     call iterative_linear_solver%set_type_from_string("CG")
+     call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     call iterative_linear_solver%solve(computed_solution_vector)
+     call iterative_linear_solver%free() 
 
      !select type(computed_solution_vector)
      !  class is(serial_scalar_array_t)
@@ -734,8 +733,7 @@ contains
     type(serial_fe_space_t)                       :: fe_space
     type(fe_affine_operator_t)                    :: fe_affine_operator
     type(vector_laplacian_composite_discrete_integration_t) :: vector_laplacian_integration
-    type(iterative_linear_solver_t)                         :: linear_solver
-    type(vector_space_t), pointer                 :: fe_affine_operator_range_vector_space
+    type(iterative_linear_solver_t)               :: iterative_linear_solver
     type(serial_environment_t)                    :: senv
     class(vector_t), allocatable                  :: computed_solution_vector, exact_solution_vector
     class(matrix_t)            , pointer          :: matrix
@@ -781,17 +779,16 @@ contains
      !   call matrix%print_matrix_market(6)
      !end select
  
-     fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-     call fe_affine_operator_range_vector_space%create_vector(computed_solution_vector)
-     call fe_affine_operator_range_vector_space%create_vector(exact_solution_vector)
+     call fe_affine_operator%create_range_vector(computed_solution_vector)
+     call fe_affine_operator%create_range_vector(exact_solution_vector)
      call exact_solution_vector%init(1.0_rp)
 
-     ! Create linear solver, set operators and solve linear system
-     call linear_solver%create(senv)
-     call linear_solver%set_type_and_parameters_from_pl()
-     call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call linear_solver%solve(computed_solution_vector)
-     call linear_solver%free() 
+     ! Create iterative linear solver, set operators and solve linear system
+     call iterative_linear_solver%create(senv)
+     call iterative_linear_solver%set_type_from_string("CG")
+     call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     call iterative_linear_solver%solve(computed_solution_vector)
+     call iterative_linear_solver%free() 
 
      !select type(computed_solution_vector)
      !  class is(serial_scalar_array_t)

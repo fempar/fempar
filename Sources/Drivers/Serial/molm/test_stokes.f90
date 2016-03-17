@@ -387,7 +387,7 @@ program test_reference_fe
   class(vector_t) , pointer :: x, y
   class(matrix_t) , pointer :: A
 
-  type(iterative_linear_solver_t)      :: linear_solver
+  type(iterative_linear_solver_t)      :: iterative_linear_solver
   type(serial_environment_t) :: senv
 
   ! Arguments
@@ -484,12 +484,12 @@ program test_reference_fe
   
   call fe_affine_operator%create_range_vector(vector)
 
-  ! Create linear solver, set operators and solve linear system: so far Richardson ,CG
-  call linear_solver%create(senv)
-  call linear_solver%set_type_and_parameters_from_pl()
-  call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-  call linear_solver%solve(vector)
-  call linear_solver%free() 
+  ! Create iterative linear solver, set operators and solve linear system: so far Richardson ,CG
+  call iterative_linear_solver%create(senv)
+  call iterative_linear_solver%set_type_and_parameters_from_pl()
+  call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+  call iterative_linear_solver%solve(vector)
+  call iterative_linear_solver%free() 
 
   select type(vector)
      class is(serial_scalar_array_t)

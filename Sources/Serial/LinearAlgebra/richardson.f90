@@ -35,14 +35,14 @@ module richardson_names
   use vector_space_names
   use operator_names
   use environment_names
-  use base_linear_solver_names
+  use base_iterative_linear_solver_names
 
   implicit none
 # include "debug.i90"
   private
   
   character(len=*), parameter :: richardson_name = 'RICHARDSON'
-  character(len=*), parameter :: ls_relaxation = 'linear_solver_relaxation'
+  character(len=*), parameter :: ils_relaxation = 'iterative_linear_solver_relaxation'
   
   integer (ip), parameter :: default_richardson_stopping_criteria = res_res
   real (rp)   , parameter :: default_richardson_relaxation        = 1.0_rp
@@ -62,7 +62,7 @@ module richardson_names
   end type
   
   ! Data types
-  public :: richardson_t, create_richardson
+  public :: richardson_t, create_richardson, richardson_name
   
 contains
   subroutine richardson_allocate_workspace(this)

@@ -35,7 +35,7 @@ module icg_names
   use vector_space_names
   use operator_names
   use environment_names
-  use base_linear_solver_names
+  use base_iterative_linear_solver_names
 
   implicit none
 # include "debug.i90"
@@ -62,7 +62,7 @@ module icg_names
   end type
   
   ! Data types
-  public :: icg_t, create_icg
+  public :: icg_t, create_icg, icg_name
   
 contains
   subroutine icg_allocate_workspace(this)

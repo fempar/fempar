@@ -38,8 +38,10 @@ module fe_affine_operator_names
   use matrix_array_assembler_names
   use array_names
   use matrix_names
+  use sparse_matrix_names, only: sparse_matrix_t
   use discrete_integration_names
   use environment_names
+  use direct_solver_names
 
   implicit none
 # include "debug.i90"
@@ -126,6 +128,8 @@ contains
   procedure          :: get_range_vector_space      => fe_affine_operator_get_range_vector_space
   procedure          :: abort_if_not_in_range       => fe_affine_operator_abort_if_not_in_range
   procedure          :: abort_if_not_in_domain      => fe_affine_operator_abort_if_not_in_domain
+  procedure          :: create_direct_solver        => fe_affine_operator_create_direct_solver
+  procedure          :: update_direct_solver_matrix => fe_affine_operator_update_direct_solver_matrix
   procedure, private :: fe_affine_operator_free_numerical_setup
   procedure, private :: fe_affine_operator_free_symbolic_setup
   procedure, private :: fe_affine_operator_free_clean
@@ -413,6 +417,35 @@ subroutine fe_affine_operator_fill_values(this)
     call this%discrete_integration%integrate( this%fe_space, this%matrix_array_assembler )
   end if  
 end subroutine fe_affine_operator_fill_values
+
+
+subroutine fe_affine_operator_create_direct_solver(this, name, direct_solver)
+  implicit none
+  class(fe_affine_operator_t), intent(in)    :: this
+  character(len=*),            intent(in)    :: name
+  type(direct_solver_t),       intent(inout) :: direct_solver
+  call direct_solver%set_type(name)
+  select type(matrix => this%matrix_array_assembler%get_matrix())
+    type is (sparse_matrix_t)
+      call direct_solver%set_matrix(matrix)
+    class DEFAULT
+      check(.false.)
+  end select
+end subroutine fe_affine_operator_create_direct_solver
+
+
+subroutine fe_affine_operator_update_direct_solver_matrix(this, same_nonzero_pattern, direct_solver)
+  implicit none
+  class(fe_affine_operator_t), intent(in)    :: this
+  logical,                     intent(in)    :: same_nonzero_pattern
+  type(direct_solver_t),       intent(inout) :: direct_solver
+  select type(matrix => this%matrix_array_assembler%get_matrix())
+    type is (sparse_matrix_t)
+      call direct_solver%update_matrix(matrix, same_nonzero_pattern)
+    class DEFAULT
+      check(.false.)
+  end select
+end subroutine fe_affine_operator_update_direct_solver_matrix
 
 
 end module fe_affine_operator_names

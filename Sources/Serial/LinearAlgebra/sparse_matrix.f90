@@ -52,6 +52,7 @@ private
         procedure, non_overridable ::                                           sparse_matrix_convert_sparse_matrix_mold
         procedure, non_overridable ::                                           sparse_matrix_convert_base_sparse_matrix_mold
         procedure, non_overridable ::         create_vector_spaces           => sparse_matrix_create_vector_spaces
+        procedure, non_overridable, public :: get_pointer_to_base_matrix     => sparse_matrix_get_pointer_to_base_matrix
         procedure, non_overridable, public :: get_nnz                        => sparse_matrix_get_nnz
         procedure, non_overridable, public :: get_sign                       => sparse_matrix_get_sign
         procedure, non_overridable, public :: get_num_rows                   => sparse_matrix_get_num_rows
@@ -107,6 +108,18 @@ private
 public :: sparse_matrix_t
 
 contains
+
+    function sparse_matrix_get_pointer_to_base_matrix(this) result(pointer_to_base_matrix)
+    !-----------------------------------------------------------------
+    !< Get the symmetry property of the matrix
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t),      target, intent(in) :: this
+        class(base_sparse_matrix_t), pointer            :: pointer_to_base_matrix
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        pointer_to_base_matrix => this%State
+    end function sparse_matrix_get_pointer_to_base_matrix
+
 
     function sparse_matrix_is_symmetric(this) result(is_symmetric)
     !-----------------------------------------------------------------
@@ -1079,23 +1092,7 @@ contains
             if(action == free_numerical_setup) then
                 call this%State%free_numeric()
             elseif(action == free_symbolic_setup) then
-                select type (matrix => this%State)
-                    class is (coo_sparse_matrix_t)
-                        call Matrix%free_symbolic()
-                    class DEFAULT
-                        nnz               = matrix%get_nnz()
-                        num_rows          = matrix%get_num_rows()
-                        num_cols          = matrix%get_num_cols()
-                        sign              = matrix%get_sign()
-                        symmetric         = matrix%is_symmetric()
-                        symmetric_storage = matrix%get_symmetric_storage()
-                        call matrix%free_clean()
-                        deallocate(this%State)
-                        call this%create(num_rows,num_cols,nnz)
-                        call this%State%set_sign(sign)
-                        call this%State%set_symmetry(symmetric)
-                        call this%State%set_symmetric_storage(symmetric_storage)
-                end select
+                call this%State%free_symbolic()
             elseif(action == free_clean) then
                 call this%State%free_clean()
                 call this%free_vector_spaces()
