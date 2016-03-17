@@ -72,22 +72,22 @@ subroutine serial_fe_space_create( this, &
   ! assuming we are going to use faces of 1 type
   allocate( this%quadrature(1), stat=istat )
   allocate( this%fe_map(1), stat=istat )
-  allocate( character(len=5)::this%fe_space_type(this%number_fe_spaces), stat=istat)
 
   allocate( this%volume_integrator(this%number_fe_spaces), stat=istat )
   allocate( this%reference_fe_phy_list(this%number_fe_spaces), stat=istat )
-
+  call memalloc ( this%number_fe_spaces, this%fe_space_type, __FILE__, __LINE__ )
+  
   call this%quadrature(1)%allocate()
   call this%fe_map(1)%allocate()
   do i  = 1, this%number_fe_spaces
      this%reference_fe_phy_list(i) = reference_fe_phy(i)
      call this%volume_integrator(i)%allocate()
      if ( reference_fe_phy(i)%p%get_continuity() ) then
-        this%fe_space_type = fe_space_type_cg
+        this%fe_space_type(i) = fe_space_type_cg
      else if ( reference_fe_phy(i)%p%get_conformity() ) then
-        this%fe_space_type = fe_space_type_dg_conforming
+        this%fe_space_type(i) = fe_space_type_dg_conforming
      else
-        this%fe_space_type = fe_space_type_dg
+        this%fe_space_type(i) = fe_space_type_dg
      end if
   end do
 
@@ -291,6 +291,7 @@ subroutine serial_fe_space_free( this )
      deallocate(this%face_map)
   end if
 
+  if (allocated(this%fe_space_type)) call memfree ( this%fe_space_type, __FILE__, __LINE__)
   if (allocated(this%number_dofs_per_block)) call memfree( this%number_dofs_per_block, __FILE__, __LINE__ )
   if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   this%number_fe_spaces = 0

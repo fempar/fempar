@@ -326,7 +326,7 @@ program test_heterogeneous_poisson
   class(fe_function_t), allocatable, target :: dof_values
   class(vector_t), allocatable, target      :: residual ! dof-stored
 
-  type(iterative_linear_solver_t)                :: linear_solver
+  type(iterative_linear_solver_t)      :: iterative_linear_solver
   type(serial_environment_t)           :: senv
 
   ! Arguments
@@ -448,12 +448,12 @@ program test_heterogeneous_poisson
   
   do  while (residual_nrm2 > tol .and. count <= max_number_iterations)
      
-     call linear_solver%create(senv)
-     call linear_solver%set_type_and_parameters_from_pl()
-     call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call linear_solver%set_initial_solution(dof_values)
-     call linear_solver%solve(dof_values)
-     call linear_solver%free()
+     call iterative_linear_solver%create(senv)
+     call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     call iterative_linear_solver%set_initial_solution(dof_values)
+     call iterative_linear_solver%solve(dof_values)
+     call iterative_linear_solver%free()
      
      call fe_affine_operator%free_in_stages(free_numerical_setup)
      call fe_affine_operator%numerical_setup()

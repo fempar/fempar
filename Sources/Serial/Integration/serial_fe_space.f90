@@ -166,9 +166,9 @@ module serial_fe_space_names
   public :: finite_face_t
 
   
-  character(*), parameter :: fe_space_type_cg = "cg_co"
-  character(*), parameter :: fe_space_type_dg  = "dg_nc"
-  character(*), parameter :: fe_space_type_dg_conforming = "dg_co"
+  integer(ip), parameter :: fe_space_type_cg            = 0 ! H^1 conforming FE space
+  integer(ip), parameter :: fe_space_type_dg            = 1 ! L^2 conforming FE space + .not. H^1 conforming (weakly imposed via face integration)
+  integer(ip), parameter :: fe_space_type_dg_conforming = 2 ! DG approximation of L^2 spaces (does not involve coupling by face)
   
   type :: serial_fe_space_t
      private
@@ -180,7 +180,7 @@ module serial_fe_space_names
      type(quadrature_t)            , allocatable :: face_quadrature(:)
      type(p_volume_integrator_t)   , allocatable :: volume_integrator(:)
      type(p_face_integrator_t)     , allocatable :: face_integrator(:)
-     character(:)           , allocatable :: fe_space_type(:)
+     integer(ip)                   , allocatable :: fe_space_type(:)
      
      ! Strong Dirichlet data
      integer(ip), allocatable    :: strong_dirichlet_codes(:)
