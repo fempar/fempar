@@ -66,7 +66,7 @@ module fgmres_names
   end type fgmres_t
   
   ! Data types
-  public :: fgmres_t, create_fgmres
+  public :: fgmres_t, create_fgmres, fgmres_name
   public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
   public :: default_dkrymax, default_orthonorm_strat
   public :: mgsro, icgsro

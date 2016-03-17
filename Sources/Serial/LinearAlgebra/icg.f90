@@ -62,7 +62,7 @@ module icg_names
   end type
   
   ! Data types
-  public :: icg_t, create_icg
+  public :: icg_t, create_icg, icg_name
   
 contains
   subroutine icg_allocate_workspace(this)

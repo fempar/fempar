@@ -66,7 +66,7 @@ module lfom_names
   end type lfom_t
   
   ! Data types
-  public :: lfom_t, create_lfom
+  public :: lfom_t, create_lfom, lfom_name
   public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
   public :: default_dkrymax, default_orthonorm_strat
   public :: mgsro, icgsro
