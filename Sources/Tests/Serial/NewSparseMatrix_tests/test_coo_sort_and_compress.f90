@@ -13,6 +13,33 @@ implicit none
     call meminit()
 
 !------------------------------------------------------------------
+! EMPTY MATRIX (NNZ==0)
+!------------------------------------------------------------------
+
+    check(coo_matrix%state_is_start())
+
+    call coo_matrix%create(num_rows_and_cols=0,             &
+                           symmetric_storage=.true.,        &
+                           is_symmetric=.true.,             &
+                           sign=SPARSE_MATRIX_SIGN_UNKNOWN, &
+                           nz=0)
+    check(coo_matrix%state_is_created())
+
+    call coo_matrix%print( 6 )
+
+    call coo_matrix%sort_and_compress(by_cols=.false.)
+
+    call coo_matrix%print( 6 )
+
+    call coo_matrix%sort_and_compress(by_cols=.true.)
+
+    call coo_matrix%print( 6 )
+
+    call coo_matrix%free()
+
+    check(coo_matrix%state_is_start())
+
+!------------------------------------------------------------------
 ! NUMERIC
 !------------------------------------------------------------------
 

@@ -3450,6 +3450,13 @@ contains
             else
                 this%sort_status = COO_SPARSE_MATRIX_SORTED_BY_COLS
             endif
+            if(allocated(this%val)) then
+                call memrealloc(this%nnz, this%val,  __FILE__, __LINE__)
+            else
+                call memalloc(this%nnz, this%val, __FILE__, __LINE__)
+            endif
+            call memrealloc(this%nnz, this%ia,  __FILE__, __LINE__)
+            call memrealloc(this%nnz, this%ja,  __FILE__, __LINE__)
             call this%set_state_assembled()
             return
         endif
@@ -4418,7 +4425,7 @@ contains
         to%nnz = nnz
         to%ia(1:nnz)  = this%ia(1:nnz)
         to%ja(1:nnz)  = this%ja(1:nnz)
-        if(.not. this%is_symbolic()) then
+        if(.not. this%is_symbolic() .and. .not. this%state_is_created()) then
             call to%allocate_values_body(nnz)
             to%val(1:nnz) = this%val(1:nnz)
         endif
@@ -4449,7 +4456,7 @@ contains
         this%nnz = nnz
         this%ia(1:nnz)  = from%ia(1:nnz)
         this%ja(1:nnz)  = from%ja(1:nnz)
-        if(.not. from%is_symbolic()) then
+        if(.not. from%is_symbolic() .and. .not. from%state_is_created()) then
             call this%allocate_values_body(nnz)
             this%val(1:nnz) = from%val(1:nnz)
         endif
@@ -4529,7 +4536,7 @@ contains
 
     subroutine coo_sparse_matrix_move_to_fmt(this, to)
     !-----------------------------------------------------------------
-    !< Move this (CSR) -> to (FMT)
+    !< Move this (COO) -> to (FMT)
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t),  intent(inout) :: this
         class(base_sparse_matrix_t), intent(inout) :: to
@@ -4622,7 +4629,7 @@ contains
         integer(ip), optional,      intent(in) :: ng
         integer(ip), optional,      intent(in) :: l2g (*)
         integer(ip) :: i, j
-        integer(ip) :: nr, nc
+        integer(ip) :: nr, nc, nnz
     !-----------------------------------------------------------------
         if ( present(ng) ) then 
             nr = ng
@@ -4631,10 +4638,11 @@ contains
             nr = this%num_rows
             nc = this%num_cols
         end if
+        nnz = this%nnz
 
         write (lunou,'(a)') '%%MatrixMarket matrix coordinate real general'
         if (.not. this%get_symmetric_storage()) then
-            write (lunou,*) nr,nc,this%get_nnz()
+            write (lunou,*) nr,nc,nnz
             do i=1,this%get_nnz()
                 if (present(l2g)) then
                     write(lunou,'(i12, i12, e32.25)') l2g(this%ia(i)), l2g(this%ja(i)), this%val(i)
@@ -4643,7 +4651,8 @@ contains
                 end if
             end do
         else 
-            write (lunou,*) nr,nc, 2*(this%nnz) - this%num_rows
+            if(nnz>0) nnz = 2*(nnz) - this%num_rows
+            write (lunou,*) nr,nc,nnz
 
             do i=1,this%get_nnz()
                 if (present(l2g)) then
