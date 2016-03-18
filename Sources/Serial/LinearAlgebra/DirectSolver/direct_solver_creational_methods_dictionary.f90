@@ -14,11 +14,11 @@ private
         type(ProcedureDictionary_t) :: CreationalMethods
     contains
     private
-        procedure, public :: Init          => DirectSolverCreationalMethodsDictionary_Init
-        procedure, public :: isInitialized => DirectSolverCreationalMethodsDictionary_isInitialized
-        procedure, public :: Set           => DirectSolverCreationalMethodsDictionary_Set
-        procedure, public :: Get           => DirectSolverCreationalMethodsDictionary_Get
-        procedure, public :: Free          => DirectSolverCreationalMethodsDictionary_Free
+        procedure, non_overridable, public :: Init          => DirectSolverCreationalMethodsDictionary_Init
+        procedure, non_overridable, public :: isInitialized => DirectSolverCreationalMethodsDictionary_isInitialized
+        procedure, non_overridable, public :: Set           => DirectSolverCreationalMethodsDictionary_Set
+        procedure, non_overridable, public :: Get           => DirectSolverCreationalMethodsDictionary_Get
+        procedure, non_overridable, public :: Free          => DirectSolverCreationalMethodsDictionary_Free
     end type
 
     type(DirectSolverCreationalMethodsDictionary_t) :: TheDirectSolverCreationalMethodsDictionary

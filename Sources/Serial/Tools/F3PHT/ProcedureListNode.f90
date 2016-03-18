@@ -30,21 +30,21 @@ private
         class(ProcedureListNode_t), pointer         :: Next => null()
     contains
     private
-        procedure, public :: Print            => ProcedureListNode_Print
-        procedure, public :: HasNext          => ProcedureListNode_HasNext
-        procedure, public :: SetNext          => ProcedureListNode_SetNext
-        procedure, public :: GetNext          => ProcedureListNode_GetNext
-        procedure, public :: NullifyNext      => ProcedureListNode_NullifyNext
-        procedure, public :: HasKey           => ProcedureListNode_HasKey
-        procedure, public :: SetKey           => ProcedureListNode_SetKey
-        procedure, public :: GetKey           => ProcedureListNode_GetKey
-        procedure, public :: DeallocateKey    => ProcedureListNode_DeallocateKey
-        procedure, public :: HasProcedure     => ProcedureListNode_HasProcedure
-        procedure, public :: SetProcedure     => ProcedureListNode_SetProcedure
-        procedure, public :: GetProcedure     => ProcedureListNode_GetProcedure
-        procedure, public :: NullifyProcedure => ProcedureListNode_NullifyProcedure
-        procedure, public :: Free             => ProcedureListNode_Free
-        final             ::                     ProcedureListNode_Finalize 
+        procedure, non_overridable, public :: Print            => ProcedureListNode_Print
+        procedure, non_overridable, public :: HasNext          => ProcedureListNode_HasNext
+        procedure, non_overridable, public :: SetNext          => ProcedureListNode_SetNext
+        procedure, non_overridable, public :: GetNext          => ProcedureListNode_GetNext
+        procedure, non_overridable, public :: NullifyNext      => ProcedureListNode_NullifyNext
+        procedure, non_overridable, public :: HasKey           => ProcedureListNode_HasKey
+        procedure, non_overridable, public :: SetKey           => ProcedureListNode_SetKey
+        procedure, non_overridable, public :: GetKey           => ProcedureListNode_GetKey
+        procedure, non_overridable, public :: DeallocateKey    => ProcedureListNode_DeallocateKey
+        procedure, non_overridable, public :: HasProcedure     => ProcedureListNode_HasProcedure
+        procedure, non_overridable, public :: SetProcedure     => ProcedureListNode_SetProcedure
+        procedure, non_overridable, public :: GetProcedure     => ProcedureListNode_GetProcedure
+        procedure, non_overridable, public :: NullifyProcedure => ProcedureListNode_NullifyProcedure
+        procedure, non_overridable, public :: Free             => ProcedureListNode_Free
+        final                              ::                     ProcedureListNode_Finalize 
     end type ProcedureListNode_t
 
 public :: ProcedureListNode_t

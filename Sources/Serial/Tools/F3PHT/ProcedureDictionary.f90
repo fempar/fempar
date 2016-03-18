@@ -32,16 +32,16 @@ save
         type(ProcedureHashTable_t) :: Dictionary
     contains
     private
-        procedure, public :: Set            => ProcedureDictionary_Set
-        procedure, public :: Get            => ProcedureDictionary_Get
-        procedure, public :: Del            => ProcedureDictionary_RemoveEntry
-        procedure, public :: Init           => ProcedureDictionary_Init
-        procedure, public :: isInitialized  => ProcedureDictionary_isInitialized
-        procedure, public :: isPresent      => ProcedureDictionary_isPresent
-        procedure, public :: Free           => ProcedureDictionary_Free
-        procedure, public :: Print          => ProcedureDictionary_Print
-        procedure, public :: Length         => ProcedureDictionary_Length
-        final             ::                   ProcedureDictionary_Finalize
+        procedure, non_overridable, public :: Set            => ProcedureDictionary_Set
+        procedure, non_overridable, public :: Get            => ProcedureDictionary_Get
+        procedure, non_overridable, public :: Del            => ProcedureDictionary_RemoveEntry
+        procedure, non_overridable, public :: Init           => ProcedureDictionary_Init
+        procedure, non_overridable, public :: isInitialized  => ProcedureDictionary_isInitialized
+        procedure, non_overridable, public :: isPresent      => ProcedureDictionary_isPresent
+        procedure, non_overridable, public :: Free           => ProcedureDictionary_Free
+        procedure, non_overridable, public :: Print          => ProcedureDictionary_Print
+        procedure, non_overridable, public :: Length         => ProcedureDictionary_Length
+        final                              ::                   ProcedureDictionary_Finalize
     end type ProcedureDictionary_t
 
 public :: ProcedureDictionary_t

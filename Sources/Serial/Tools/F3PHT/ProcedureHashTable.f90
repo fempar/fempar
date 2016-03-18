@@ -46,17 +46,17 @@ private
         integer                            :: Size = 0
     contains
     private
-        procedure         :: Hash          => ProcedureHashTable_Hash
-        procedure, public :: Init          => ProcedureHashTable_Init
-        procedure, public :: isInitialized => ProcedureHashTable_isInitialized
-        procedure, public :: Set           => ProcedureHashTable_Set
-        procedure, public :: Get           => ProcedureHashTable_Get
-        procedure, public :: Del           => ProcedureHashTable_Delete
-        procedure, public :: IsPresent     => ProcedureHashTable_IsPresent
-        procedure, public :: Length        => ProcedureHashTable_Length
-        procedure, public :: Print         => ProcedureHashTable_Print
-        procedure, public :: Free          => ProcedureHashTable_Free
-        final             ::                  ProcedureHashTable_Finalize
+        procedure, non_overridable         :: Hash          => ProcedureHashTable_Hash
+        procedure, non_overridable, public :: Init          => ProcedureHashTable_Init
+        procedure, non_overridable, public :: isInitialized => ProcedureHashTable_isInitialized
+        procedure, non_overridable, public :: Set           => ProcedureHashTable_Set
+        procedure, non_overridable, public :: Get           => ProcedureHashTable_Get
+        procedure, non_overridable, public :: Del           => ProcedureHashTable_Delete
+        procedure, non_overridable, public :: IsPresent     => ProcedureHashTable_IsPresent
+        procedure, non_overridable, public :: Length        => ProcedureHashTable_Length
+        procedure, non_overridable, public :: Print         => ProcedureHashTable_Print
+        procedure, non_overridable, public :: Free          => ProcedureHashTable_Free
+        final                              ::                  ProcedureHashTable_Finalize
     end type
 
 public :: ProcedureHashTable_t

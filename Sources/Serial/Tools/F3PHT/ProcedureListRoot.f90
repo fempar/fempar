@@ -30,21 +30,21 @@ private
         class(ProcedureListNode_t), pointer :: Root => null()
     contains
     private
-        procedure         :: Init             => ProcedureListRoot_Init
-        procedure         :: HasRoot          => ProcedureListRoot_HasRoot
-        procedure         :: SetRoot          => ProcedureListRoot_SetRoot
-        procedure         :: GetRoot          => ProcedureListRoot_GetRoot
-        procedure         :: NullifyRoot      => ProcedureListRoot_NullifyRoot
-        procedure         :: DeallocateRoot   => ProcedureListRoot_DeallocateRoot
-        procedure, public :: GetEntry         => ProcedureListRoot_GetEntry
-        procedure, public :: GetPreviousEntry => ProcedureListRoot_GetPreviousEntry
-        procedure, public :: Print            => ProcedureListRoot_Print
-        procedure, public :: isPresent        => ProcedureListRoot_isPresent
-        procedure, public :: Length           => ProcedureListRoot_Length
-        procedure, public :: RemoveEntry      => ProcedureListRoot_RemoveEntry
-        procedure, public :: AddEntry         => ProcedureListRoot_AddEntry
-        procedure, public :: Free             => ProcedureListRoot_Free
-        final             ::                     ProcedureListRoot_Finalize 
+        procedure, non_overridable        :: Init             => ProcedureListRoot_Init
+        procedure, non_overridable         :: HasRoot          => ProcedureListRoot_HasRoot
+        procedure, non_overridable         :: SetRoot          => ProcedureListRoot_SetRoot
+        procedure, non_overridable         :: GetRoot          => ProcedureListRoot_GetRoot
+        procedure, non_overridable         :: NullifyRoot      => ProcedureListRoot_NullifyRoot
+        procedure, non_overridable         :: DeallocateRoot   => ProcedureListRoot_DeallocateRoot
+        procedure, non_overridable, public :: GetEntry         => ProcedureListRoot_GetEntry
+        procedure, non_overridable, public :: GetPreviousEntry => ProcedureListRoot_GetPreviousEntry
+        procedure, non_overridable, public :: Print            => ProcedureListRoot_Print
+        procedure, non_overridable, public :: isPresent        => ProcedureListRoot_isPresent
+        procedure, non_overridable, public :: Length           => ProcedureListRoot_Length
+        procedure, non_overridable, public :: RemoveEntry      => ProcedureListRoot_RemoveEntry
+        procedure, non_overridable, public :: AddEntry         => ProcedureListRoot_AddEntry
+        procedure, non_overridable, public :: Free             => ProcedureListRoot_Free
+        final                              ::                     ProcedureListRoot_Finalize 
     end type
 
 
