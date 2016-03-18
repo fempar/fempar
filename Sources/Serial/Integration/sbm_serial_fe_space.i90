@@ -261,8 +261,7 @@ subroutine serial_fe_space_free( this )
      deallocate(this%fe_array)
          
     if (allocated(this%strong_dirichlet_codes)) then 
-       deallocate ( this%strong_dirichlet_codes, stat = istat )
-       check(istat==0)
+       call memfree ( this%strong_dirichlet_codes, __FILE__, __LINE__ )
     end if
     
      call this%strong_dirichlet_values%free()

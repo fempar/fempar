@@ -531,7 +531,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
         do idof_interior=1, finite_element%reference_fe_phy(fe_space_id)%p%get_number_own_nodes_vef(ivef)
            idof = finite_element%reference_fe_phy(fe_space_id)%p%get_own_node_vef(idof_interior,ivef)
            dof_lid = finite_element%elem2dof(fe_space_id)%p(idof)
-           if ( dof_lid == 0 ) cycle
+           if ( dof_lid <= 0 ) cycle
            if ( elem_gid >= max_elem_gid ) then
               max_elem_gid = elem_gid
               if ( local_idof(dof_lid) == 0 ) then
