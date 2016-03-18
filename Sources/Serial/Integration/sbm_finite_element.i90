@@ -87,7 +87,7 @@ subroutine finite_element_create ( this, &
       if (vef_gid /= -1) then
         do inode = 1, this%reference_fe_phy(j)%p%get_number_own_nodes_vef(ivef)
           jnode = this%reference_fe_phy(j)%p%get_own_node_vef(inode,ivef)
-          component = offset_component+reference_fe_phy(j)%p%get_bc_component_node(jnode)
+          component = offset_component+reference_fe_phy(j)%p%get_component_node(jnode)
           this%bc_code(j)%p(jnode) = boundary_conditions%code(component,vef_gid)
           this%bc_value(j)%p(jnode) = boundary_conditions%valu(component,vef_gid)
         end do
@@ -248,7 +248,7 @@ subroutine finite_element_fill_dofs_on_vef ( this, vef_local_id, fe_space_id, do
   ! Local variables
   integer(ip) :: inode, l_node
   
-  do inode = 1,this%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_number_nodes_face()!(vef_local_id)
+  do inode = 1,this%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_number_nodes_face()
     l_node = this%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_node_face(inode,vef_local_id)
     if ( this%bc_code(fe_space_id)%p(l_node) == 0 ) then
       dof_count = dof_count + 1
@@ -331,6 +331,24 @@ function finite_element_get_order ( this, i )
   integer(ip)                         :: finite_element_get_order
   finite_element_get_order = this%reference_fe_phy(i)%p%get_order()
 end function finite_element_get_order
+
+function finite_element_is_at_strong_dirichlet_boundary ( this, fe_space_id )
+  implicit none
+  class(finite_element_t), intent(in) :: this
+  integer(ip)            , intent(in) :: fe_space_id
+  logical                             :: finite_element_is_at_strong_dirichlet_boundary
+  
+  integer(ip) :: inode
+  
+  finite_element_is_at_strong_dirichlet_boundary = .false.
+  do inode=1, this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
+   if ( this%elem2dof(fe_space_id)%p(inode) < 0 ) then
+    finite_element_is_at_strong_dirichlet_boundary = .true.
+    return
+   end if
+ end do
+ 
+end function finite_element_is_at_strong_dirichlet_boundary
 
 function finite_element_compute_volume ( this )
   implicit none

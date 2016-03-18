@@ -95,8 +95,8 @@ module serial_fe_space_names
      type(fe_map_t)                , pointer     :: fe_map
      
      type(p_reference_fe_t)        , pointer     :: reference_fe_phy(:) 
-     type(quadrature_t)         , pointer     :: quadrature
-     type(p_volume_integrator_t), pointer     :: volume_integrator(:)
+     type(quadrature_t)            , pointer     :: quadrature
+     type(p_volume_integrator_t)   , pointer     :: volume_integrator(:)
      
      type(i1p_t)                   , allocatable :: elem2dof(:)
      type(i1p_t)                   , allocatable :: bc_code(:)
@@ -122,6 +122,9 @@ module serial_fe_space_names
      procedure, non_overridable :: get_number_nodes_per_field => finite_element_get_number_nodes_per_field
      procedure, non_overridable :: get_subset_id => finite_element_get_subset_id
      procedure, non_overridable :: get_order     => finite_element_get_order
+     procedure, non_overridable :: is_at_strong_dirichlet_boundary => finite_element_is_at_strong_dirichlet_boundary
+     
+     
      procedure, non_overridable :: compute_volume     => finite_element_compute_volume
      
      procedure, non_overridable, private :: update_scalar_values => finite_element_update_scalar_values
@@ -183,6 +186,7 @@ module serial_fe_space_names
      integer(ip)                   , allocatable :: fe_space_type(:)
      
      ! Strong Dirichlet data
+     integer(ip)                 :: number_strong_dirichlet_dofs
      integer(ip), allocatable    :: strong_dirichlet_codes(:)
      type(serial_scalar_array_t) :: strong_dirichlet_values
      
@@ -200,6 +204,7 @@ module serial_fe_space_names
    contains
      procedure, private         :: serial_fe_space_create
      generic                    :: create => serial_fe_space_create
+     procedure, non_overridable, private :: set_up_strong_dirichlet_bcs => serial_fe_space_set_up_strong_dirichlet_bcs
      procedure                  :: fill_dof_info => serial_fe_space_fill_dof_info
      procedure, non_overridable, private :: fill_elem2dof_and_count_dofs => serial_fe_space_fill_elem2dof_and_count_dofs
      procedure                  :: free => serial_fe_space_free

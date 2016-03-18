@@ -184,21 +184,21 @@ subroutine quad_lagrangian_reference_fe_update_interpolation_face( this,  local_
 
 end subroutine quad_lagrangian_reference_fe_update_interpolation_face
 
-function quad_lagrangian_reference_fe_get_bc_component_node( this, node )
+function quad_lagrangian_reference_fe_get_component_node( this, node )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in) :: this 
   integer(ip)                          , intent(in) :: node
-  integer(ip) :: quad_lagrangian_reference_fe_get_bc_component_node
-  quad_lagrangian_reference_fe_get_bc_component_node = this%node_component_array(node,2)
-end function quad_lagrangian_reference_fe_get_bc_component_node
+  integer(ip) :: quad_lagrangian_reference_fe_get_component_node
+  quad_lagrangian_reference_fe_get_component_node = this%node_component_array(node,2)
+end function quad_lagrangian_reference_fe_get_component_node
 
-function quad_lagrangian_reference_fe_get_scalar_node( this, node )
+function quad_lagrangian_reference_fe_get_scalar_from_vector_node( this, node )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in) :: this 
   integer(ip)                          , intent(in) :: node
-  integer(ip) :: quad_lagrangian_reference_fe_get_scalar_node
-  quad_lagrangian_reference_fe_get_scalar_node = this%node_component_array(node,1)
-end function quad_lagrangian_reference_fe_get_scalar_node
+  integer(ip) :: quad_lagrangian_reference_fe_get_scalar_from_vector_node
+  quad_lagrangian_reference_fe_get_scalar_from_vector_node = this%node_component_array(node,1)
+end function quad_lagrangian_reference_fe_get_scalar_from_vector_node
 
 subroutine quad_lagrangian_reference_fe_get_value_scalar( this, actual_cell_interpolation, ishape, qpoint, scalar_field )
   implicit none

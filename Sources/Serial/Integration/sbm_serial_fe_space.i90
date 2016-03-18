@@ -104,71 +104,69 @@ subroutine serial_fe_space_create( this, &
           boundary_conditions)
   end do
 
-  call set_up_boundary_conditions( this, boundary_conditions )
+  call this%set_up_strong_dirichlet_bcs( boundary_conditions )
 
 end subroutine serial_fe_space_create
 
-subroutine set_up_boundary_conditions( this, boundary_conditions )
+subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, boundary_conditions )
   implicit none
   class(serial_fe_space_t)        , intent(inout) :: this
   type(conditions_t)              , intent(in)    :: boundary_conditions
 
-  integer(ip) :: c, j, ielem, ivef, vef_gid, inode, jnode, component, offset_component
+  integer(ip) :: j, ielem, ivef, vef_gid, inode, jnode, component, offset_component
   type(finite_element_t), pointer :: fe
 
-  ! For every fe_space_component, we go through FEs (ON THE BOUNDARY) and
-  ! look for strong Dirichlet data nodes
-  c = 0  
-  offset_component = 0
+  ! For every fe_space_component, we go through all FEs and look for DoFs 
+  ! subject to strong Dirichlet BCs. It would be desirable (for efficiency) to 
+  ! know a priori which FEs have DoFs which are subject to strong Dirichlet BCs, 
+  ! but at the present moment we do not have any way to determine such a thing
 
-  ! The way this function is implemented is inefficient, extracting the same fe many times...
-  do j = 1, this%number_fe_spaces
-     do ielem = 1, this%get_number_elements()
-        fe => this%get_finite_element(ielem)
-        do ivef = 1,fe%cell%num_vefs
-           vef_gid = fe%cell%vefs(ivef)
-           if (vef_gid /= -1) then
-              do inode = 1, fe%reference_fe_phy(j)%p%get_number_own_nodes_vef(ivef)
-                 jnode = fe%reference_fe_phy(j)%p%get_own_node_vef(inode,ivef)
-                 component = offset_component+ fe%reference_fe_phy(j)%p%get_bc_component_node(jnode)
-                 if ( boundary_conditions%code(component,vef_gid) /= 0 ) then 
-                    c = c+1 
-                    fe%elem2dof(j)%p(jnode) = -1*c
-                 end if
-              end do
-           end if
+  ! Count number_strong_dirichlet_dofs
+  this%number_strong_dirichlet_dofs = 0  
+  do ielem = 1, this%get_number_elements()
+     fe => this%get_finite_element(ielem)
+     do ivef = 1,fe%cell%num_vefs
+        vef_gid = fe%cell%vefs(ivef)
+        offset_component = 0
+        do j = 1, this%number_fe_spaces
+           do inode = 1, fe%reference_fe_phy(j)%p%get_number_own_nodes_vef(ivef)
+              jnode = fe%reference_fe_phy(j)%p%get_own_node_vef(inode,ivef)
+              component = offset_component+ fe%reference_fe_phy(j)%p%get_component_node(jnode)
+              if ( boundary_conditions%code(component,vef_gid) /= 0 ) then 
+                 this%number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs+1 
+                 fe%elem2dof(j)%p(jnode) = -this%number_strong_dirichlet_dofs
+              end if
+           end do
+           offset_component = offset_component + fe%reference_fe_phy(j)%p%get_number_field_components()
         end do
      end do
-     offset_component = offset_component + fe%reference_fe_phy(j)%p%get_number_field_components()
   end do
 
-  call memalloc ( c, this%strong_dirichlet_codes, __FILE__, __LINE__ ) 
-  call this%strong_dirichlet_values%create_and_allocate(c)
+  call memalloc ( this%number_strong_dirichlet_dofs, this%strong_dirichlet_codes, __FILE__, __LINE__ ) 
+  call this%strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
 
   ! Fill strong_dirichlet_codes
-  c = 0  
-  offset_component = 0
-  do j = 1, this%number_fe_spaces
-     do ielem = 1, this%get_number_elements()
-        fe => this%get_finite_element(ielem)
-        do ivef = 1,fe%cell%num_vefs
-           vef_gid = fe%cell%vefs(ivef)
-           if (vef_gid /= -1) then
-              do inode = 1, fe%reference_fe_phy(j)%p%get_number_own_nodes_vef(ivef)
-                 jnode = fe%reference_fe_phy(j)%p%get_own_node_vef(inode,ivef)
-                 component = offset_component+ fe%reference_fe_phy(j)%p%get_bc_component_node(jnode)
-                 if ( boundary_conditions%code(component,vef_gid) /= 0 ) then 
-                    c = c+1 
-                    this%strong_dirichlet_codes(c) = boundary_conditions%code(component,vef_gid)
-                 end if
-              end do
-           end if
+  this%number_strong_dirichlet_dofs = 0
+  do ielem = 1, this%get_number_elements()
+     fe => this%get_finite_element(ielem)
+     do ivef = 1,fe%cell%num_vefs
+        vef_gid = fe%cell%vefs(ivef)
+        offset_component = 0
+        do j = 1, this%number_fe_spaces
+           do inode = 1, fe%reference_fe_phy(j)%p%get_number_own_nodes_vef(ivef)
+              jnode = fe%reference_fe_phy(j)%p%get_own_node_vef(inode,ivef)
+              component = offset_component+ fe%reference_fe_phy(j)%p%get_component_node(jnode)
+              if ( boundary_conditions%code(component,vef_gid) /= 0 ) then 
+                 this%number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs+1 
+                 this%strong_dirichlet_codes(this%number_strong_dirichlet_dofs) = boundary_conditions%code(component,vef_gid)
+              end if
+           end do
+           offset_component = offset_component + fe%reference_fe_phy(j)%p%get_number_field_components()
         end do
      end do
-     offset_component = offset_component + fe%reference_fe_phy(j)%p%get_number_field_components()
   end do
-
-end subroutine set_up_boundary_conditions
+  
+end subroutine serial_fe_space_set_up_strong_dirichlet_bcs
 
 subroutine serial_fe_space_fill_dof_info( this )
   implicit none
@@ -568,17 +566,17 @@ function serial_fe_space_get_max_number_quadrature_points( this )
   end do
 end function serial_fe_space_get_max_number_quadrature_points
 
-subroutine update_bc_value_scalar( this, analytical_function, bc_code, fe_space_component, time, unknown_component)
+subroutine update_bc_value_scalar( this, scalar_function, bc_code, fe_space_component, time, unknown_component)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this 
-  type(scalar_function_t) , intent(in)    :: analytical_function
+  class(scalar_function_t), intent(in)    :: scalar_function
   integer(ip)             , intent(in)    :: bc_code
   integer(ip)             , intent(in)    :: fe_space_component
   real(rp)   , optional   , intent(in)    :: time
   integer(ip), optional   , intent(in)    :: unknown_component
+  
   ! Locals
-  integer(ip) :: ielem, inode, istat, offset, global_boundary_node, jnode
-  integer(ip) :: number_quadrature_points, number_vertices
+  integer(ip)                 :: ielem, inode, inode_scalar, icomp, strong_dirichlet_dof_id, number_nodes
   real(rp)                    :: values
   type(fe_map_t)              :: fe_map
   type(quadrature_t), pointer :: nodal_quadrature
@@ -588,22 +586,13 @@ subroutine update_bc_value_scalar( this, analytical_function, bc_code, fe_space_
 
   ! Getters
   nodal_quadrature         => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
-  number_vertices          =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
-  number_quadrature_points =  nodal_quadrature%get_number_quadrature_points()
+  number_nodes             =  this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
 
   ! Create FE map
   call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
-
-  ! Compute offset in case of a given component of a vector field (assuming all unknown components have 
-  ! the same number of unknowns)
-  offset = 0
-  if(present(unknown_component)) then
-     offset = (unknown_component-1)*number_quadrature_points
-  end if
         
   ! Loop over elements
-  elements: do ielem = 1, this%triangulation%num_elems
-
+  elements: do ielem = 1, this%triangulation%num_elems  
      ! Interpolate coordinates
      vertex_coordinates => fe_map%get_coordinates()
      call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
@@ -614,172 +603,119 @@ subroutine update_bc_value_scalar( this, analytical_function, bc_code, fe_space_
      fe => this%get_finite_element(ielem)     
 
      ! Loop over nodes
-     nodes: do inode = 1, number_quadrature_points
-        jnode = inode + offset
+     nodes: do inode = 1, number_nodes
+        icomp = this%reference_fe_phy_list(fe_space_component)%p%get_component_node(inode)     
+        if ( present(unknown_component) ) then
+          if ( icomp /= unknown_component ) cycle
+        end if 
 
-        ! Check if is Dirichlet boundary
-        global_boundary_node = -1*fe%elem2dof(fe_space_component)%p(jnode)
-        if(global_boundary_node > 0) then
+        ! Check if current node is subject to strong Dirichlet boundary conditions
+        if(fe%elem2dof(fe_space_component)%p(inode) < 0) then
+           inode_scalar = this%reference_fe_phy_list(fe_space_component)%p%get_scalar_from_vector_node(inode)
+           strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
            
            ! Evaluate function
            if(present(time)) then
-              call analytical_function%get_value_space_time(nodal_coordinates(inode),time,values)
+              call scalar_function%get_value_space_time(nodal_coordinates(inode_scalar),time,values)
            else
-              call analytical_function%get_value_space(nodal_coordinates(inode),values)
+              call scalar_function%get_value_space(nodal_coordinates(inode_scalar),values)
            end if
 
            ! Update strong_dirichlet_values
-           if(this%strong_dirichlet_codes(global_boundary_node) == bc_code) then
-              call this%strong_dirichlet_values%insert(global_boundary_node,values)
+           if(this%strong_dirichlet_codes(strong_dirichlet_dof_id) == bc_code) then
+              call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values)
            end if
-
         end if
-        
      end do nodes
-     
   end do elements
 
   ! Free FE map
   call fe_map%free()
-
 end subroutine update_bc_value_scalar
 
-subroutine update_bc_value_vector( this, analytical_function, bc_code, fe_space_component, time)
+subroutine update_bc_value_vector( this, vector_function, bc_code, fe_space_component, time)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this 
-  type(vector_function_t) , intent(in)    :: analytical_function
+  class(vector_function_t), intent(in)    :: vector_function
   integer(ip)             , intent(in)    :: bc_code
   integer(ip)             , intent(in)    :: fe_space_component
   real(rp)   , optional   , intent(in)    :: time
+
   ! Locals
-  integer(ip) :: ielem, inode, icomp, istat, global_boundary_node, inode_scalar
-  integer(ip) :: number_quadrature_points, number_vertices, number_nodes
-  character(:), allocatable         :: field_type
+  integer(ip)                       :: istat, ielem, inode, icomp, strong_dirichlet_dof_id, inode_scalar, number_nodes
+  real(rp)                          :: time_(1)
+
   type(fe_map_t)                    :: fe_map
   type(quadrature_t)  , pointer     :: nodal_quadrature
   type(point_t)       , pointer     :: nodal_coordinates(:)
   type(point_t)       , pointer     :: vertex_coordinates(:)
-  type(vector_field_t)              :: values
+  type(vector_field_t), allocatable :: values(:,:)
   type(finite_element_t), pointer   :: fe
 
+
   ! Getters
-  field_type               =  this%reference_fe_phy_list(fe_space_component)%p%get_field_type()
   nodal_quadrature         => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
-  number_vertices          =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
   number_nodes             =  this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
-  number_quadrature_points =  nodal_quadrature%get_number_quadrature_points()
-  assert( field_type == field_type_vector )
+  assert( this%reference_fe_phy_list(fe_space_component)%p%get_field_type() == field_type_vector )
+
+  if ( present(time) ) time_(1) = time
 
   ! Create FE map
   call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
+  allocate ( values(nodal_quadrature%get_number_quadrature_points(),1), stat=istat)
+  check(istat==0)
 
   ! Loop over elements
   do ielem = 1, this%triangulation%num_elems
-
-     ! Interpolate coordinates
-     vertex_coordinates => fe_map%get_coordinates()
-     call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
-     call fe_map%compute_quadrature_coordinates()
-     nodal_coordinates => fe_map%get_quadrature_coordinates()
-
      ! Get Finite element elem2dof
      fe => this%get_finite_element(ielem)  
 
-     ! Loop over nodes
-     do inode = 1, number_nodes
-        icomp = this%reference_fe_phy_list(fe_space_component)%p%get_bc_component_node(inode)
-        inode_scalar = this%reference_fe_phy_list(fe_space_component)%p%get_scalar_node(inode)
+     if ( fe%is_at_strong_dirichlet_boundary(fe_space_component) ) then
+        ! Interpolate coordinates
+        vertex_coordinates => fe_map%get_coordinates()
+        call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
+        call fe_map%compute_quadrature_coordinates()
+        nodal_coordinates => fe_map%get_quadrature_coordinates()
 
-        ! Check if is Dirichlet boundary
-        global_boundary_node = -1*fe%elem2dof(fe_space_component)%p(inode)
-        if(global_boundary_node > 0) then
-
-           ! Evaluate function
-           if(present(time)) then
-              call analytical_function%get_value_space_time(nodal_coordinates(inode_scalar),time,values)
-           else
-              call analytical_function%get_value_space(nodal_coordinates(inode_scalar),values)
-           end if
-
-           ! Update strong_dirichlet_values
-           if(this%strong_dirichlet_codes(global_boundary_node) == bc_code) then
-              call this%strong_dirichlet_values%insert(global_boundary_node,values%get(icomp))
-           end if
-
+        ! Evaluate function on a set of points
+        if(present(time)) then
+           call vector_function%get_values_set_space_time(nodal_coordinates,time_,values)
+        else
+           call vector_function%get_values_set_space(nodal_coordinates,values(:,1))
         end if
 
-     end do
-
+        ! Loop over nodes
+        do inode = 1, number_nodes
+           ! Check if current node is subject to strong Dirichlet boundary conditions
+           if(fe%elem2dof(fe_space_component)%p(inode) < 0) then
+              icomp = this%reference_fe_phy_list(fe_space_component)%p%get_component_node(inode)
+              inode_scalar = this%reference_fe_phy_list(fe_space_component)%p%get_scalar_from_vector_node(inode)
+              strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
+              ! Update strong_dirichlet_values
+              if(this%strong_dirichlet_codes(strong_dirichlet_dof_id) == bc_code) then
+                 call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1)%get(icomp))
+              end if
+           end if
+        end do
+     end if
   end do
 
   ! Free FE map
   call fe_map%free()
+
+  deallocate ( values, stat=istat )
+  check(istat==0)
 
 end subroutine update_bc_value_vector
 
-subroutine update_bc_value_tensor( this, analytical_function, bc_code, fe_space_component, time)
+subroutine update_bc_value_tensor( this, tensor_function, bc_code, fe_space_component, time)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this 
-  type(tensor_function_t) , intent(in)    :: analytical_function
+  class(tensor_function_t), intent(in)    :: tensor_function
   integer(ip)             , intent(in)    :: bc_code
   integer(ip)             , intent(in)    :: fe_space_component
   real(rp)   , optional   , intent(in)    :: time
-  ! Locals
-  integer(ip) :: ielem, qpoin, istat
-  integer(ip) :: number_quadrature_points, number_vertices
-  real(rp)    :: time_(1)
-  character(:), allocatable   :: field_type
-  type(fe_map_t)              :: fe_map
-  type(quadrature_t), pointer :: nodal_quadrature
-  type(point_t), pointer      :: nodal_coordinates(:)
-  type(point_t), pointer      :: vertex_coordinates(:)
-  type(tensor_field_t), allocatable :: values(:,:)
-  type(finite_element_t), pointer   :: fe
-
-  ! Getters
-  field_type               =  this%reference_fe_phy_list(fe_space_component)%p%get_field_type()
-  nodal_quadrature         => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
-  number_vertices          =  this%reference_fe_phy_list(fe_space_component)%p%get_number_vertices()
-  number_quadrature_points =  nodal_quadrature%get_number_quadrature_points()
-  assert( field_type == field_type_tensor )
-
-  ! Auxiliar time as an array of dimension 1
-  if (present(time)) time_(1) = time 
-
-  ! Allocate nodal coordinates
-  allocate(values(number_quadrature_points,1), stat=istat); check(istat==0)
-
-  ! Create FE map
-  call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
-
-  ! Loop over elements
-  do ielem = 1, this%triangulation%num_elems
-
-     ! Interpolate coordinates
-     vertex_coordinates => fe_map%get_coordinates()
-     call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
-     call fe_map%compute_quadrature_coordinates()
-     nodal_coordinates => fe_map%get_quadrature_coordinates()
-
-     ! Evaluate function
-     if(present(time)) then
-        call analytical_function%get_values_set_space_time(nodal_coordinates,time_,values)
-     else
-        call analytical_function%get_values_set_space(nodal_coordinates,values(:,1))
-     end if
-
-     
-     write(*,*) ' ERROR in: ',__FILE__,__LINE__
-     write(*,*) ' Subroutine not implemented for tensor field unknowns '
-     check( .false. )
-
-  end do
-
-  deallocate(values)
-
-  ! Free FE map
-  call fe_map%free()
-
+  check( .false. )
 end subroutine update_bc_value_tensor
 
 !===============================================================================================
