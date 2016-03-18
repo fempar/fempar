@@ -72,6 +72,7 @@ subroutine finite_element_create ( this, &
   allocate( this%elem2dof(this%number_fe_spaces) )
   allocate( this%bc_code(this%number_fe_spaces) )
   allocate( this%bc_value(this%number_fe_spaces) )
+  call memalloc(this%number_fe_spaces,this%at_strong_dirichlet_boundary,__FILE__,__LINE__)
     
   offset_component = 0
   do j = 1, this%number_fe_spaces
@@ -82,6 +83,7 @@ subroutine finite_element_create ( this, &
     allocate( this%bc_value(j)%p(number_nodes) )
     this%bc_code(j)%p = 0
     this%bc_value(j)%p = 0.0_rp
+    this%at_strong_dirichlet_boundary(j) = .false.
     do ivef = 1,this%cell%num_vefs
       vef_gid = this%cell%vefs(ivef)
       if (vef_gid /= -1) then
@@ -149,6 +151,9 @@ subroutine finite_element_free( this )
   if ( allocated(this%elem2dof) ) deallocate( this%elem2dof )
   if ( allocated(this%bc_code) ) deallocate( this%bc_code )
   if ( allocated(this%bc_value) ) deallocate( this%bc_value )
+  if ( allocated(this%at_strong_dirichlet_boundary)) then
+     call memfree(this%at_strong_dirichlet_boundary,__FILE__,__LINE__)
+  end if
   
 end subroutine finite_element_free
 
@@ -183,7 +188,8 @@ subroutine finite_element_fill_own_dofs_on_vef ( this, vef_local_id, fe_space_id
 
   do inode = 1,this%reference_fe_phy(fe_space_id)%p%get_number_own_nodes_vef(vef_local_id)
     l_node = this%reference_fe_phy(fe_space_id)%p%get_own_node_vef(inode,vef_local_id)
-    if ( this%bc_code(fe_space_id)%p(l_node) == 0 ) then
+    assert ( this%elem2dof(fe_space_id)%p(l_node) <= 0 )
+    if ( this%elem2dof(fe_space_id)%p(l_node) == 0 ) then
       dof_count = dof_count + 1
       this%elem2dof(fe_space_id)%p(l_node) = dof_count
     end	if
@@ -229,7 +235,8 @@ subroutine finite_element_fill_own_dofs_on_vef_from_source_element ( this, &
         inode_source = source_ref_fe%get_own_node_vef(own_inode,source_vef_lid)
         inode_target = target_ref_fe%get_permuted_own_node_vef(own_inode,               &
              &                              target_vef_lid, relative_orientation,relative_rotation)
-        if ( this%bc_code(fe_space_id)%p(inode_target) == 0 ) then
+        assert ( this%elem2dof(fe_space_id)%p(inode_target) <= 0 )
+        if ( this%elem2dof(fe_space_id)%p(inode_target) == 0 ) then
            this%elem2dof(fe_space_id)%p(inode_target) = source_fe%elem2dof(fe_space_id)%p(inode_source)
         end	if
     end do 
@@ -250,7 +257,7 @@ subroutine finite_element_fill_dofs_on_vef ( this, vef_local_id, fe_space_id, do
   
   do inode = 1,this%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_number_nodes_face()
     l_node = this%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_node_face(inode,vef_local_id)
-    if ( this%bc_code(fe_space_id)%p(l_node) == 0 ) then
+    if ( this%elem2dof(fe_space_id)%p(l_node) == 0 ) then
       dof_count = dof_count + 1
       this%elem2dof(fe_space_id)%p(l_node) = dof_count
     end	if
@@ -306,6 +313,20 @@ function finite_element_get_bc_value( this )
   type(r1p_t), pointer :: finite_element_get_bc_value(:)
   finite_element_get_bc_value => this%bc_value
 end function finite_element_get_bc_value
+!!$function finite_element_get_bc_value( this, strong_dirichlet_values )
+!!$  implicit none
+!!$  class(finite_element_t), target, intent(in) :: this
+!!$  type(serial_scalar_array_t)    , intent(in) :: strong_dirichlet_values
+!!$  type(r1p_t), pointer :: finite_element_get_bc_value(:)
+!!$  integer(ip) :: i,iblock,number_nodes
+!!$  iblock = 1 ! strong_dirichlet_values is allways a serial_scalar_array
+!!$  do i = 1, this%number_fe_spaces
+!!$     finite_element_get_bc_value(i)%p = 0.0_rp
+!!$     number_nodes = this%reference_fe_phy(i)%p%get_number_nodes()
+!!$     call strong_dirichlet_values%extract_subvector(iblock,number_nodes,-this%elem2dof(i)%p, &
+!!$          &                                         finite_element_get_bc_value(i)%p)      
+!!$  end do
+!!$end function finite_element_get_bc_value
 
 subroutine finite_element_get_number_nodes_per_field ( this, number_nodes )
   implicit none
@@ -338,17 +359,10 @@ function finite_element_is_at_strong_dirichlet_boundary ( this, fe_space_id )
   integer(ip)            , intent(in) :: fe_space_id
   logical                             :: finite_element_is_at_strong_dirichlet_boundary
   
-  integer(ip) :: inode
-  
-  finite_element_is_at_strong_dirichlet_boundary = .false.
-  do inode=1, this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
-   if ( this%elem2dof(fe_space_id)%p(inode) < 0 ) then
-    finite_element_is_at_strong_dirichlet_boundary = .true.
-    return
-   end if
- end do
+  finite_element_is_at_strong_dirichlet_boundary = this%at_strong_dirichlet_boundary(fe_space_id)
  
 end function finite_element_is_at_strong_dirichlet_boundary
+
 
 function finite_element_compute_volume ( this )
   implicit none

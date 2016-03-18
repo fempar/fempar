@@ -135,6 +135,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, boundary_condition
               if ( boundary_conditions%code(component,vef_gid) /= 0 ) then 
                  this%number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs+1 
                  fe%elem2dof(j)%p(jnode) = -this%number_strong_dirichlet_dofs
+                 fe%at_strong_dirichlet_boundary(j) = .true.
               end if
            end do
            offset_component = offset_component + fe%reference_fe_phy(j)%p%get_number_field_components()
@@ -576,8 +577,9 @@ subroutine update_bc_value_scalar( this, scalar_function, bc_code, fe_space_comp
   integer(ip), optional   , intent(in)    :: unknown_component
   
   ! Locals
-  integer(ip)                 :: ielem, inode, inode_scalar, icomp, strong_dirichlet_dof_id, number_nodes
-  real(rp)                    :: values
+  integer(ip)                 :: istat, ielem, inode, inode_scalar, icomp, strong_dirichlet_dof_id, number_nodes
+  real(rp)                    :: time_(1)
+  real(rp), allocatable       :: values(:,:)
   type(fe_map_t)              :: fe_map
   type(quadrature_t), pointer :: nodal_quadrature
   type(point_t), pointer      :: nodal_coordinates(:)
@@ -585,52 +587,62 @@ subroutine update_bc_value_scalar( this, scalar_function, bc_code, fe_space_comp
   type(finite_element_t), pointer :: fe
 
   ! Getters
-  nodal_quadrature         => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
-  number_nodes             =  this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
+  nodal_quadrature => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
+  number_nodes     =  this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
+
+  if ( present(time) ) time_(1) = time
 
   ! Create FE map
   call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
+  allocate ( values(nodal_quadrature%get_number_quadrature_points(),1), stat=istat)
+  check(istat==0)
         
   ! Loop over elements
-  elements: do ielem = 1, this%triangulation%num_elems  
-     ! Interpolate coordinates
-     vertex_coordinates => fe_map%get_coordinates()
-     call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
-     call fe_map%compute_quadrature_coordinates()
-     nodal_coordinates => fe_map%get_quadrature_coordinates()
-
+  do ielem = 1, this%triangulation%num_elems  
      ! Get Finite element
-     fe => this%get_finite_element(ielem)     
+     fe => this%get_finite_element(ielem)   
 
-     ! Loop over nodes
-     nodes: do inode = 1, number_nodes
-        icomp = this%reference_fe_phy_list(fe_space_component)%p%get_component_node(inode)     
-        if ( present(unknown_component) ) then
-          if ( icomp /= unknown_component ) cycle
-        end if 
+     if ( fe%is_at_strong_dirichlet_boundary(fe_space_component) ) then
+        ! Interpolate coordinates
+        vertex_coordinates => fe_map%get_coordinates()
+        call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
+        call fe_map%compute_quadrature_coordinates()
+        nodal_coordinates => fe_map%get_quadrature_coordinates()
 
-        ! Check if current node is subject to strong Dirichlet boundary conditions
-        if(fe%elem2dof(fe_space_component)%p(inode) < 0) then
-           inode_scalar = this%reference_fe_phy_list(fe_space_component)%p%get_scalar_from_vector_node(inode)
-           strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
-           
-           ! Evaluate function
-           if(present(time)) then
-              call scalar_function%get_value_space_time(nodal_coordinates(inode_scalar),time,values)
-           else
-              call scalar_function%get_value_space(nodal_coordinates(inode_scalar),values)
-           end if
-
-           ! Update strong_dirichlet_values
-           if(this%strong_dirichlet_codes(strong_dirichlet_dof_id) == bc_code) then
-              call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values)
-           end if
+        ! Evaluate function
+        if(present(time)) then
+           call scalar_function%get_values_set_space_time(nodal_coordinates,time_,values)
+        else
+           call scalar_function%get_values_set_space(nodal_coordinates,values(:,1))
         end if
-     end do nodes
-  end do elements
+
+        ! Loop over nodes
+        do inode = 1, number_nodes
+           icomp = this%reference_fe_phy_list(fe_space_component)%p%get_component_node(inode)     
+           if ( present(unknown_component) ) then
+              if ( icomp /= unknown_component ) cycle
+           end if
+
+           ! Check if current node is subject to strong Dirichlet boundary conditions
+           if(fe%elem2dof(fe_space_component)%p(inode) < 0) then
+              inode_scalar = this%reference_fe_phy_list(fe_space_component)%p%get_scalar_from_vector_node(inode)
+              strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
+
+              ! Update strong_dirichlet_values
+              if(this%strong_dirichlet_codes(strong_dirichlet_dof_id) == bc_code) then
+                 call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1))
+              end if
+           end if
+        end do
+     end if
+  end do
 
   ! Free FE map
   call fe_map%free()
+
+  deallocate ( values, stat=istat )
+  check(istat==0)
+
 end subroutine update_bc_value_scalar
 
 subroutine update_bc_value_vector( this, vector_function, bc_code, fe_space_component, time)
@@ -654,8 +666,8 @@ subroutine update_bc_value_vector( this, vector_function, bc_code, fe_space_comp
 
 
   ! Getters
-  nodal_quadrature         => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
-  number_nodes             =  this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
+  nodal_quadrature => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
+  number_nodes     =  this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
   assert( this%reference_fe_phy_list(fe_space_component)%p%get_field_type() == field_type_vector )
 
   if ( present(time) ) time_(1) = time

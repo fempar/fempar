@@ -524,11 +524,6 @@ contains
      call iterative_linear_solver%set_type_from_string("CG")
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%solve(computed_solution_vector)
-     
-     call iterative_linear_solver%set_type_from_string("RGMRES")
-     call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call iterative_linear_solver%solve(computed_solution_vector)
-     
      call iterative_linear_solver%free() 
 
      !select type(computed_solution_vector)

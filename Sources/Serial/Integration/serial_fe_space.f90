@@ -101,6 +101,7 @@ module serial_fe_space_names
      type(i1p_t)                   , allocatable :: elem2dof(:)
      type(i1p_t)                   , allocatable :: bc_code(:)
      type(r1p_t)                   , allocatable :: bc_value(:)
+     logical                       , allocatable :: at_strong_dirichlet_boundary(:)
    contains
      
      procedure, non_overridable, private :: create =>  finite_element_create
@@ -121,10 +122,9 @@ module serial_fe_space_names
      procedure, non_overridable :: get_bc_value => finite_element_get_bc_value
      procedure, non_overridable :: get_number_nodes_per_field => finite_element_get_number_nodes_per_field
      procedure, non_overridable :: get_subset_id => finite_element_get_subset_id
-     procedure, non_overridable :: get_order     => finite_element_get_order
-     procedure, non_overridable :: is_at_strong_dirichlet_boundary => finite_element_is_at_strong_dirichlet_boundary
-     
-     
+     procedure, non_overridable :: get_order     => finite_element_get_order     
+     procedure, non_overridable, private :: is_at_strong_dirichlet_boundary => finite_element_is_at_strong_dirichlet_boundary
+
      procedure, non_overridable :: compute_volume     => finite_element_compute_volume
      
      procedure, non_overridable, private :: update_scalar_values => finite_element_update_scalar_values
