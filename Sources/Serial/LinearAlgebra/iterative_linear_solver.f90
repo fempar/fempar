@@ -166,7 +166,7 @@ contains
    subroutine iterative_linear_solver_set_type_and_parameters_from_pl ( this )
      implicit none
      class(iterative_linear_solver_t), intent(inout) :: this
-     call this%set_type_from_pl()
+     call this%set_type_from_pl( )
      call this%set_parameters_from_pl()
    end subroutine iterative_linear_solver_set_type_and_parameters_from_pl
    
@@ -199,6 +199,14 @@ contains
      class(iterative_linear_solver_t), intent(inout) :: this
      character(len=*)                , intent(in)    :: linear_solver_type
 
+     assert ( this%state == environment_set .or. this%state == solver_type_set )
+     
+     if ( this%state == solver_type_set ) then
+       ! PENDING: ONLY FREE IF THE TYPE SELECTED DOES NOT MATCH THE EXISTING ONE
+       call this%base_iterative_linear_solver%free()
+       deallocate ( this%base_iterative_linear_solver )
+     end if
+     
      select case(linear_solver_type)
      case(richardson_name) 
         this%base_iterative_linear_solver => create_richardson(this%environment)
@@ -216,8 +224,12 @@ contains
         this%base_iterative_linear_solver => create_minres(this%environment)
      case(icg_name) 
         this%base_iterative_linear_solver => create_icg(this%environment)
+     case default
+        assert(.false.)
      end select
-
+     
+     assert ( this%base_iterative_linear_solver%get_state() == start )
+     this%state = solver_type_set
    end subroutine iterative_linear_solver_set_type_from_string
    
 end module iterative_linear_solver_names
