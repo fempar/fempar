@@ -101,7 +101,7 @@ subroutine serial_fe_space_create( this, &
           this%volume_integrator,&
           this%number_blocks,&
           this%field_blocks,&
-          boundary_conditions)
+          this%strong_dirichlet_values)
   end do
 
   call this%set_up_strong_dirichlet_bcs( boundary_conditions )

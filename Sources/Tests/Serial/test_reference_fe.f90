@@ -174,8 +174,6 @@ contains
 
     integer(ip) :: ielem, iapprox, number_nodes
     type(i1p_t), pointer :: elem2dof(:)
-    type(i1p_t), pointer :: bc_code(:)
-    type(r1p_t), pointer :: bc_value(:)
     integer(ip), allocatable :: number_nodes_per_field(:)  
 
     number_fe_spaces = fe_space%get_number_fe_spaces()
@@ -203,8 +201,6 @@ contains
        fe_map   => fe%get_fe_map()
        vol_int  => fe%get_volume_integrator(1)
        elem2dof => fe%get_elem2dof()
-       bc_code  => fe%get_bc_code()
-       bc_value => fe%get_bc_value()
 
        do igaus = 1,ngaus
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
@@ -218,7 +214,7 @@ contains
        end do
        
        ! Apply boundary conditions
-       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
+       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )
     end do
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
@@ -268,8 +264,6 @@ contains
 
     integer(ip) :: ielem, number_nodes
     type(i1p_t), pointer :: elem2dof(:)
-    type(i1p_t), pointer :: bc_code(:)
-    type(r1p_t), pointer :: bc_value(:)
 
     number_fe_spaces = fe_space%get_number_fe_spaces()
     field_blocks => fe_space%get_field_blocks()
@@ -296,8 +290,6 @@ contains
        fe_map            => fe%get_fe_map()
        vol_int           => fe%get_volume_integrator(1)
        elem2dof          => fe%get_elem2dof()
-       bc_code           => fe%get_bc_code()
-       bc_value          => fe%get_bc_value()
 
        do igaus = 1,ngaus
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
@@ -310,7 +302,7 @@ contains
           end do
        end do
        
-       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
+       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
     end do
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
@@ -361,8 +353,6 @@ contains
 
     integer(ip) :: ielem, number_nodes
     type(i1p_t), pointer :: elem2dof(:)
-    type(i1p_t), pointer :: bc_code(:)
-    type(r1p_t), pointer :: bc_value(:)
 
     number_fe_spaces = fe_space%get_number_fe_spaces()
     field_blocks => fe_space%get_field_blocks()
@@ -390,8 +380,6 @@ contains
        vol_int_first_fe  => fe%get_volume_integrator(1)
        vol_int_second_fe => fe%get_volume_integrator(2)
        elem2dof          => fe%get_elem2dof()
-       bc_code           => fe%get_bc_code()
-       bc_value          => fe%get_bc_value()
 
        do igaus = 1,ngaus
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
@@ -414,8 +402,7 @@ contains
              end do
           end do
        end do
-       
-       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
+       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
     end do
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )

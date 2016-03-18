@@ -99,9 +99,14 @@ module serial_fe_space_names
      type(p_volume_integrator_t)   , pointer     :: volume_integrator(:)
      
      type(i1p_t)                   , allocatable :: elem2dof(:)
-     type(i1p_t)                   , allocatable :: bc_code(:)
-     type(r1p_t)                   , allocatable :: bc_value(:)
+     
      logical                       , allocatable :: at_strong_dirichlet_boundary(:)
+     ! The next member variable points to the counterpart one in type(serial_fe_space_t)
+     ! We would have like to add a pointer to the whole type(serial_fe_space_t) instead
+     ! of to a particular member variable, but we could not as this is not Fortran standard
+     ! conforming. This member variable is required to be able to impose strongly Dirichlet
+     ! boundary conditions in the local scope of type(finite_element_t).
+     type(serial_scalar_array_t)   , pointer     :: strong_dirichlet_values
    contains
      
      procedure, non_overridable, private :: create =>  finite_element_create
@@ -118,8 +123,6 @@ module serial_fe_space_names
      procedure, non_overridable :: get_quadrature => finite_element_get_quadrature
      procedure, non_overridable :: get_volume_integrator => finite_element_get_volume_integrator
      procedure, non_overridable :: get_elem2dof  => finite_element_get_elem2dof
-     procedure, non_overridable :: get_bc_code  => finite_element_get_bc_code
-     procedure, non_overridable :: get_bc_value => finite_element_get_bc_value
      procedure, non_overridable :: get_number_nodes_per_field => finite_element_get_number_nodes_per_field
      procedure, non_overridable :: get_subset_id => finite_element_get_subset_id
      procedure, non_overridable :: get_order     => finite_element_get_order     
@@ -133,7 +136,8 @@ module serial_fe_space_names
      generic :: update_values => update_scalar_values, &
                                & update_vector_values, &
                                & update_tensor_values
-     
+                               
+     procedure, non_overridable :: impose_strong_dirichlet_bcs => finite_element_impose_strong_dirichlet_bcs
   end type finite_element_t
 
   type :: p_finite_element_t
@@ -156,8 +160,6 @@ module serial_fe_space_names
      procedure, non_overridable :: free                => finite_face_free
      procedure, non_overridable :: is_boundary         => finite_face_is_boundary
      procedure, non_overridable :: number_neighbours   => finite_face_number_neighbours
-     procedure, non_overridable :: get_bc_code         => finite_face_get_bc_code
-     procedure, non_overridable :: get_bc_value        => finite_face_get_bc_value
      procedure, non_overridable :: get_elem2dof        => finite_face_get_elem2dof
      procedure, non_overridable :: get_map             => finite_face_get_map
      procedure, non_overridable :: get_quadrature      => finite_face_get_quadrature
@@ -241,7 +243,7 @@ module serial_fe_space_names
      procedure, non_overridable :: update_bc_value_tensor
      generic :: update_bc_value => update_bc_value_scalar, &
                                  & update_bc_value_vector, &
-                                 & update_bc_value_tensor
+                                 & update_bc_value_tensor                            
      
   end type serial_fe_space_t
 

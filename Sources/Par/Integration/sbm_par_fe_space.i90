@@ -65,7 +65,7 @@ subroutine par_fe_space_create( this, &
              this%volume_integrator,&
              this%number_blocks,&
              this%field_blocks,&
-             par_boundary_conditions%f_conditions)
+             this%serial_fe_space_t%strong_dirichlet_values)
      end do
   else
      ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
