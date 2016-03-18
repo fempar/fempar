@@ -8,6 +8,7 @@ module umfpack_direct_solver_names
     USE csr_sparse_matrix_names
     USE serial_scalar_array_names
     USE base_direct_solver_names
+    USE direct_solver_parameters
     USE umfpack_interface_names
     USE FPL
 
@@ -15,11 +16,6 @@ implicit none
 # include "debug.i90"
   
 private
-
-    ! Parameter strings to be used in the Parameter List
-    character(len=*), parameter :: umfpack_name             = 'UMFPACK'
-    character(len=*), parameter :: umfpack_control_params   = 'umfpack_control_params'
-
     !< Numbering format of matrix column and row indices
     integer(ip),      parameter :: C_NUMBERING       = 0
     integer(ip),      parameter :: FORTRAN_NUMBERING = 1
@@ -51,23 +47,23 @@ private
 #endif
     end type
 
-public :: create_umfpack_direct_solver, umfpack_name, umfpack_control_params
+public :: create_umfpack_direct_solver
 
 contains
 
-    function create_umfpack_direct_solver() result(umfpack_direct_solver)
+    subroutine create_umfpack_direct_solver(umfpack_direct_solver)
     !-----------------------------------------------------------------
     !< Creational function for umfpack direct solver
     !-----------------------------------------------------------------
-        class(base_direct_solver_t),   pointer :: umfpack_direct_solver
-        type(umfpack_direct_solver_t), pointer :: umfpack
+        class(base_direct_solver_t),   pointer, intent(inout) :: umfpack_direct_solver
+        type(umfpack_direct_solver_t), pointer                :: umfpack_instance
     !-----------------------------------------------------------------
-        allocate(umfpack)
-        call umfpack%set_name(umfpack_name)
-        call umfpack%initialize()
-        call umfpack%set_defaults()
-        umfpack_direct_solver => umfpack
-    end function create_umfpack_direct_solver
+        allocate(umfpack_instance)
+        call umfpack_instance%set_name(UMFPACK)
+        call umfpack_instance%initialize()
+        call umfpack_instance%set_defaults()
+        umfpack_direct_solver => umfpack_instance
+    end subroutine create_umfpack_direct_solver
 
     subroutine umfpack_direct_solver_initialize(this)
     !-----------------------------------------------------------------
@@ -111,15 +107,15 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
 #ifdef DEBUG
-        is_present     = parameter_list%isPresent(Key=umfpack_control_params)
+        is_present     = parameter_list%isPresent(Key=UMFPACK_CONTROL_PARAMS)
         if(is_present) then
-            same_data_type = parameter_list%isOfDataType(Key=umfpack_control_params, mold=this%Control)
-            FPLError       = parameter_list%getshape(Key=umfpack_control_params, shape=shape)
+            same_data_type = parameter_list%isOfDataType(Key=UMFPACK_CONTROL_PARAMS, mold=this%Control)
+            FPLError       = parameter_list%getshape(Key=UMFPACK_CONTROL_PARAMS, shape=shape)
             if(same_data_type .and. size(shape) == 1) then
                 if(shape(1) == UMFPACK_CONTROL) then
 #endif
                     ! UMFPACK control parameters
-                    FPLError = parameter_list%Get(Key=umfpack_control_params, Value=this%Control)
+                    FPLError = parameter_list%Get(Key=UMFPACK_CONTROL_PARAMS, Value=this%Control)
                     assert(FPLError == 0)
 #ifdef DEBUG
                 else

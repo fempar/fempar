@@ -3,18 +3,16 @@ module direct_solver_names
     USE types_names
     USE memor_names
     USE base_direct_solver_names
-    USE pardiso_mkl_direct_solver_names
-    USE umfpack_direct_solver_names
-    USE sparse_matrix_names, only: sparse_matrix_t
+    USE direct_solver_parameters
+    USE sparse_matrix_names,                               only: sparse_matrix_t
     USE serial_scalar_array_names
+    USE direct_solver_creational_methods_dictionary_names, only: TheDirectSolverCreationalMethodsDictionary
     USE FPL
 
 implicit none
 # include "debug.i90"
 
 private
-    ! Parameter strings to be used in the Parameter List
-    character(len=*), parameter :: direct_solver_type = 'direct_solver_name'
 
     type :: direct_solver_t
     private
@@ -34,7 +32,7 @@ private
         procedure, non_overridable, public :: free                    => direct_solver_free
     end type
 
-public :: direct_solver_t, direct_solver_type
+public :: direct_solver_t
 
 contains
 
@@ -42,20 +40,18 @@ contains
     !-----------------------------------------------------------------
     !< Allocate the concrete direct solver from a given solver name
     !-----------------------------------------------------------------
-        class(direct_solver_t), intent(inout) :: this
-        character(len=*),       intent(in)    :: name
+        class(direct_solver_t),                    intent(inout) :: this
+        character(len=*),                          intent(in)    :: name
+        procedure(create_direct_solver_interface), pointer       :: create
     !-----------------------------------------------------------------
         if(associated(this%base_direct_solver)) then
             call this%base_direct_solver%free_clean()
             deallocate(this%base_direct_solver)
         endif
-
-        select case (name)
-            case (pardiso_mkl_name)
-                this%base_direct_solver => create_pardiso_mkl_direct_solver()
-            case (umfpack_name)
-                this%base_direct_solver => create_umfpack_direct_solver()
-        end select
+        nullify(create)
+        assert(TheDirectSolverCreationalMethodsDictionary%isInitialized())
+        call TheDirectSolverCreationalMethodsDictionary%Get(Key=name,Proc=create)
+        if(associated(create)) call create(this%base_direct_solver)
     end subroutine direct_solver_set_type
 
 
@@ -74,17 +70,17 @@ contains
         logical                               :: is_string
         integer(ip), allocatable              :: shape(:)
     !-----------------------------------------------------------------
-        is_present = parameter_list%isPresent(Key=direct_solver_type)
-        is_string  = parameter_list%isOfDataType(Key=direct_solver_type, mold='string')
-        FPLError   = parameter_list%getshape(Key=direct_solver_type, shape=shape)
-        ! check if direct_solver_type is present and is a scalar string
+        is_present = parameter_list%isPresent(Key=DIRECT_SOLVER_TYPE)
+        is_string  = parameter_list%isOfDataType(Key=DIRECT_SOLVER_TYPE, mold='string')
+        FPLError   = parameter_list%getshape(Key=DIRECT_SOLVER_TYPE, shape=shape)
+        ! check if DIRECT_SOLVER_TYPE is present and is a scalar string
         ! in the given parameter list,
         assert(is_present .and. is_string .and. size(shape) == 0) 
 #endif
-        DataSizeInBytes = parameter_list%DataSizeInBytes(Key=direct_solver_type)
+        DataSizeInBytes = parameter_list%DataSizeInBytes(Key=DIRECT_SOLVER_TYPE)
         allocate(character(len=DataSizeInBytes) :: name, stat=FPLError)
         assert(FPLError == 0)
-        FPLError = parameter_list%Get(Key=direct_solver_type, Value=name)
+        FPLError = parameter_list%Get(Key=DIRECT_SOLVER_TYPE, Value=name)
         assert(FPLError == 0)
         call this%set_type(name)
     end subroutine direct_solver_set_type_from_pl

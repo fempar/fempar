@@ -5,8 +5,8 @@ USE memor_names
 USE serial_names
 USE sparse_matrix_names
 USE direct_solver_names
-USE pardiso_mkl_direct_solver_names
-USE umfpack_direct_solver_names
+USE direct_solver_parameters
+USE direct_solver_creational_methods_dictionary_names
 USE FPL
 USE IR_Precision
 use iso_c_binding
@@ -19,7 +19,7 @@ implicit none
     type(sparse_matrix_t)          :: sparse_matrix
     type(direct_solver_t)          :: direct_solver
     type(ParameterList_t)          :: parameter_list
-    type(ParameterList_t), pointer :: direct_solver_parameters
+    type(ParameterList_t), pointer :: direct_solver_params
     type(serial_scalar_array_t)    :: x
     type(serial_scalar_array_t)    :: y
     integer                        :: FPLError
@@ -30,6 +30,7 @@ implicit none
     call meminit()
     ! ParameterList: initialize
     call FPL_Init()
+    call TheDirectSolverCreationalMethodsDictionary%Init()
     call parameter_list%Init()
 
     ! Sparse matrix: create
@@ -51,14 +52,14 @@ implicit none
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! PARDISO MKL
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    direct_solver_parameters => parameter_list%NewSubList(Key=pardiso_mkl_name)
+    direct_solver_params => parameter_list%NewSubList(Key=PARDISO_MKL)
 
     ! ParameterList: set parameters
     FPLError = 0
-    FPLError = FPLError + direct_solver_parameters%set(key = direct_solver_type,        value = pardiso_mkl_name)
-    FPLError = FPLError + direct_solver_parameters%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uss)
-    FPLError = FPLError + direct_solver_parameters%set(key = pardiso_mkl_message_level, value = 0)
-    FPLError = FPLError + direct_solver_parameters%set(key = pardiso_mkl_iparm,         value = iparm)
+    FPLError = FPLError + direct_solver_params%set(key = DIRECT_SOLVER_TYPE,        value = PARDISO_MKL)
+    FPLError = FPLError + direct_solver_params%set(key = PARDISO_MKL_MATRIX_TYPE,   value = PARDISO_MKL_USS)
+    FPLError = FPLError + direct_solver_params%set(key = PARDISO_MKL_MESSAGE_LEVEL, value = 0)
+    FPLError = FPLError + direct_solver_params%set(key = PARDISO_MKL_IPARM,         value = iparm)
     check(FPLError == 0)
 
     do i=1, iters
@@ -66,10 +67,10 @@ implicit none
 #ifdef ENABLE_MKL
         ! Direct solver: create and set properties
         if(i==1) then
-            call direct_solver%set_type_from_pl(direct_solver_parameters)
+            call direct_solver%set_type_from_pl(direct_solver_params)
             call direct_solver%set_matrix(sparse_matrix)
         endif
-        call direct_solver%set_parameters_from_pl(direct_solver_parameters)
+        call direct_solver%set_parameters_from_pl(direct_solver_params)
 
         ! Direct solver: analisys, factorization and solve
         call direct_solver%solve(x,y)
@@ -91,12 +92,12 @@ implicit none
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! UMFPACK
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    direct_solver_parameters => parameter_list%NewSubList(Key=umfpack_name)
+    direct_solver_params => parameter_list%NewSubList(Key=UMFPACK)
 
     ! ParameterList: set parameters
     FPLError = 0
-    FPLError = FPLError + direct_solver_parameters%set(key = direct_solver_type,    value = umfpack_name)
-    FPLError = FPLError + direct_solver_parameters%set(key = umfpack_control_params, value = control_params)
+    FPLError = FPLError + direct_solver_params%set(key = DIRECT_SOLVER_TYPE,     value = UMFPACK)
+    FPLError = FPLError + direct_solver_params%set(key = UMFPACK_CONTROL_PARAMS, value = control_params)
     check(FPLError == 0)
 
     do i=1, iters
@@ -104,10 +105,10 @@ implicit none
 #ifdef ENABLE_UMFPACK
         ! Direct solver: create and set properties
         if(i==1) then
-            call direct_solver%set_type_from_pl(direct_solver_parameters)
+            call direct_solver%set_type_from_pl(direct_solver_params)
             call direct_solver%set_matrix(sparse_matrix)
         endif
-        call direct_solver%set_parameters_from_pl(direct_solver_parameters)
+        call direct_solver%set_parameters_from_pl(direct_solver_params)
     
         ! Direct solver: analisys, factorization and solve
         call direct_solver%solve(x,y)

@@ -107,6 +107,11 @@ module base_direct_solver_names
 
     interface
 
+        subroutine create_direct_solver_interface(base_direct_solver)
+            import base_direct_solver_t
+            class(base_direct_solver_t), pointer, intent(inout) :: base_direct_solver
+        end subroutine
+
         subroutine base_direct_solver_set_parameters_from_pl(this, parameter_list)
             import base_direct_solver_t
             import ParameterList_t
@@ -148,7 +153,7 @@ module base_direct_solver_names
         end subroutine base_direct_solver_free_numerical_body
     end interface
 
-public :: base_direct_solver_t
+public :: base_direct_solver_t, create_direct_solver_interface
 
 contains
 

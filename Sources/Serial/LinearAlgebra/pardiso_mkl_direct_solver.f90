@@ -10,6 +10,7 @@ module pardiso_mkl_direct_solver_names
     USE csr_sparse_matrix_names, only: csr_sparse_matrix_t
     USE serial_scalar_array_names
     USE base_direct_solver_names
+    USE direct_solver_parameters
     USE FPL
 #ifdef ENABLE_MKL
     USE mkl_pardiso
@@ -22,20 +23,6 @@ module pardiso_mkl_direct_solver_names
     private
     ! Parameters used in pardiso_mkl direct_solver
     integer, parameter :: dp              = 8   ! kind (1.0D0)
-    integer, parameter :: pardiso_mkl_spd =  2  ! Real Symmetric positive definite 
-    integer, parameter :: pardiso_mkl_sin = -2  ! Real Symmetric indefinite
-    integer, parameter :: pardiso_mkl_uss = 1   ! Real Unsymmetric, structurally symmetric
-    integer, parameter :: pardiso_mkl_uns = 11  ! Real Unsymmetric, structurally unsymmetric
-
-    ! Parameter strings to be used in the Parameter List
-    character(len=*), parameter :: pardiso_mkl_name             = 'PARDISO_MKL'
-    character(len=*), parameter :: pardiso_mkl_iparm            = 'pardiso_mkl_iparm'
-    character(len=*), parameter :: pardiso_mkl_matrix_type      = 'pardiso_mkl_matrix_type'
-    character(len=*), parameter :: pardiso_mkl_message_level    = 'pardiso_mkl_message_level'
-
-    integer, parameter :: default_pardiso_mkl_message_level = 0                ! Default pardiso_mkl parameters array
-    integer, parameter :: default_pardiso_mkl_iparm         = 0                ! Default pardiso_mkl parameters array
-    integer, parameter :: default_pardiso_mkl_matrix_type   = pardiso_mkl_uns  ! Default pardiso_mkl parameters array
 
     type, extends(base_direct_solver_t) :: pardiso_mkl_direct_solver_t
     private
@@ -68,24 +55,23 @@ module pardiso_mkl_direct_solver_names
     end type
 
 public :: create_pardiso_mkl_direct_solver
-public :: pardiso_mkl_name, pardiso_mkl_iparm, pardiso_mkl_matrix_type, pardiso_mkl_message_level
-public :: pardiso_mkl_spd, pardiso_mkl_sin, pardiso_mkl_uss, pardiso_mkl_uns
 
 contains
 
-    function create_pardiso_mkl_direct_solver() result(pardiso_mkl_direct_solver)
+    subroutine create_pardiso_mkl_direct_solver(base_direct_solver)
     !-----------------------------------------------------------------
     !< Creational function for pardiso_mkl direct solver
     !-----------------------------------------------------------------
-        class(base_direct_solver_t),       pointer :: pardiso_mkl_direct_solver
-        type(pardiso_mkl_direct_solver_t), pointer :: pardiso_mkl
+        class(base_direct_solver_t),       pointer, intent(inout) :: base_direct_solver
+        type(pardiso_mkl_direct_solver_t), pointer                :: pardiso_mkl_instance
     !-----------------------------------------------------------------
-        allocate(pardiso_mkl)
-        call pardiso_mkl%set_name(pardiso_mkl_name)
-        call pardiso_mkl%initialize()
-        call pardiso_mkl%set_defaults()
-        pardiso_mkl_direct_solver => pardiso_mkl
-    end function create_pardiso_mkl_direct_solver
+        assert(.not. associated(base_direct_solver))
+        allocate(pardiso_mkl_instance)
+        call pardiso_mkl_instance%set_name(PARDISO_MKL)
+        call pardiso_mkl_instance%initialize()
+        call pardiso_mkl_instance%set_defaults()
+        base_direct_solver => pardiso_mkl_instance
+    end subroutine create_pardiso_mkl_direct_solver
 
 
     subroutine pardiso_mkl_direct_solver_initialize(this)
@@ -122,9 +108,9 @@ contains
         this%max_number_of_factors = 1
         this%actual_matrix         = 1
         this%number_of_rhs         = 1
-        this%message_level         = default_pardiso_mkl_message_level
-        this%matrix_type           = default_pardiso_mkl_matrix_type
-        this%pardiso_mkl_iparm     = default_pardiso_mkl_iparm
+        this%message_level         = PARDISO_MKL_DEFAULT_MESSAGE_LEVEL
+        this%matrix_type           = PARDISO_MKL_DEFAULT_MATRIX_TYPE
+        this%pardiso_mkl_iparm     = PARDISO_MKL_DEFAULT_IPARM
 
         this%pardiso_mkl_iparm(18)     = -1 ! Output: number of nonzeros in the factor LU
         this%pardiso_mkl_iparm(19)     = -1 ! Output: Mflops for LU factorization
@@ -175,13 +161,13 @@ contains
 #ifdef ENABLE_MKL  
         ! Matrix type
 #ifdef DEBUG
-        is_present     = parameter_list%isPresent(Key=pardiso_mkl_matrix_type)
+        is_present     = parameter_list%isPresent(Key=PARDISO_MKL_MATRIX_TYPE)
         if(is_present) then
-            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_matrix_type, mold=this%matrix_type)
-            FPLError       = parameter_list%getshape(Key=pardiso_mkl_matrix_type, shape=shape)
+            same_data_type = parameter_list%isOfDataType(Key=PARDISO_MKL_MATRIX_TYPE, mold=this%matrix_type)
+            FPLError       = parameter_list%getshape(Key=PARDISO_MKL_MATRIX_TYPE, shape=shape)
             if(same_data_type .and. size(shape) == 0) then
 #endif
-                FPLError   = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=matrix_type)
+                FPLError   = parameter_list%Get(Key=PARDISO_MKL_MATRIX_TYPE, Value=matrix_type)
                 assert(FPLError == 0)
                 if(this%state_is_start()) then
                     ! Matrix cannot change in symbolic to numeric transition
@@ -198,32 +184,32 @@ contains
         endif
 
          ! iparm
-        is_present     = parameter_list%isPresent(Key=pardiso_mkl_iparm)
+        is_present     = parameter_list%isPresent(Key=PARDISO_MKL_IPARM)
         if(is_present) then
-            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%pardiso_mkl_iparm)
-            FPLError       = parameter_list%getshape(Key=pardiso_mkl_iparm, shape=shape)
+            same_data_type = parameter_list%isOfDataType(Key=PARDISO_MKL_IPARM, mold=this%pardiso_mkl_iparm)
+            FPLError       = parameter_list%getshape(Key=PARDISO_MKL_IPARM, shape=shape)
             if(same_data_type .and. size(shape) == 1) then
                 if(shape(1) == 64) then
 #endif
-                    FPLError =  parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
+                    FPLError =  parameter_list%Get(Key=PARDISO_MKL_IPARM, Value=this%pardiso_mkl_iparm)
                     assert(FPLError == 0)
 #ifdef DEBUG
                 else
-                    write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Expected size (64). '
+                    write(*,'(a)') ' Warning! pardiso_mkl_iparm ignored. Expected size (64). '
                 endif
             else
-                write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Wrong data type or shape. '
+                write(*,'(a)') ' Warning! pardiso_mkl_iparm ignored. Wrong data type or shape. '
             endif
         endif
 
          ! Message level
-        is_present     = parameter_list%isPresent(Key=pardiso_mkl_message_level)
+        is_present     = parameter_list%isPresent(Key=PARDISO_MKL_MESSAGE_LEVEL)
         if(is_present) then
-            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_message_level, mold=this%message_level)
-            FPLError       = parameter_list%getshape(Key=pardiso_mkl_message_level, shape=shape)
+            same_data_type = parameter_list%isOfDataType(Key=PARDISO_MKL_MESSAGE_LEVEL, mold=this%message_level)
+            FPLError       = parameter_list%getshape(Key=PARDISO_MKL_MESSAGE_LEVEL, shape=shape)
             if(same_data_type .and. size(shape) == 0) then
 #endif
-                FPLError   = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
+                FPLError   = parameter_list%Get(Key=PARDISO_MKL_MESSAGE_LEVEL, Value=this%message_level)
                 assert(FPLError == 0)
 #ifdef DEBUG
             else
