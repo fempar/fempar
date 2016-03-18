@@ -7,6 +7,3 @@
 [submodule "Sources/Serial/Tools/FPL"]
 	path = Sources/Serial/Tools/FPL
 	url = https://github.com/victorsndvg/FPL.git
-[submodule "Sources/Serial/Tools/F3PHT"]
-	path = Sources/Serial/Tools/F3PHT
-	url = git@servercomfus:LSSC/F3PHT.git
