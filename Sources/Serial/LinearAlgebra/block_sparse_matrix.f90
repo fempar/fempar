@@ -48,7 +48,7 @@ module block_sparse_matrix_names
   end type p_sparse_matrix_t
 
   type, extends(matrix_t):: block_sparse_matrix_t
-     ! private ! IBM XLF 14.1 bug
+     private 
      integer(ip) :: nblocks = -1
      type(p_sparse_matrix_t), allocatable :: blocks(:,:)
    contains
@@ -225,7 +225,8 @@ contains
     class(vector_t), intent(inout) :: y
     ! Locals
     integer(ip) :: ib,jb
-    type(serial_scalar_array_t) :: aux
+    type(serial_scalar_array_t)          :: aux
+    type(serial_scalar_array_t), pointer :: y_block
 
     call op%abort_if_not_in_domain(x)
     call op%abort_if_not_in_range(y)
@@ -237,13 +238,14 @@ contains
        select type(y)
           class is(serial_block_array_t)
           do ib=1,op%nblocks
-             call aux%clone(y%blocks(ib))
+             call aux%clone(y%get_block(ib))
+             y_block => y%get_block(ib)
              do jb=1,op%nblocks
                 if ( associated(op%blocks(ib,jb)%sparse_matrix) ) then
                    ! aux <- A(ib,jb) * x(jb)
-                   call op%blocks(ib,jb)%sparse_matrix%apply(x%blocks(jb),aux)
+                   call op%blocks(ib,jb)%sparse_matrix%apply(x%get_block(jb),aux)
                    ! y(ib) <- y(ib) + aux
-                   call y%blocks(ib)%axpby(1.0_rp,aux,1.0_rp)
+                   call y_block%axpby(1.0_rp,aux,1.0_rp)
                 end if
              end do
              call aux%free()

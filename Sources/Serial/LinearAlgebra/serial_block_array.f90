@@ -42,6 +42,7 @@ module serial_block_array_names
  
   ! vector
   type, extends(array_t) :: serial_block_array_t
+     private
      integer(ip)                              :: state = not_created
      integer(ip)                              :: nblocks = -1
      type(serial_scalar_array_t), allocatable :: blocks(:)
