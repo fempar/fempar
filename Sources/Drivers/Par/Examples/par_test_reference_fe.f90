@@ -301,7 +301,7 @@ program par_test_reference_fe
   call iterative_linear_solver%create(par_env)
   call iterative_linear_solver%set_type_and_parameters_from_pl()
   call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-  call iterative_linear_solver%solve(vector)
+  call iterative_linear_solver%solve(fe_affine_operator%get_translation(),vector)
   call iterative_linear_solver%free() 
 
   select type(vector)

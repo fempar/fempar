@@ -116,18 +116,19 @@ contains
    class(lgmres_t), intent(inout) :: this
   end subroutine lgmres_set_parameters_from_pl
   
-  subroutine lgmres_solve_body(this,x)
+  subroutine lgmres_solve_body(this,b,x)
 #ifdef ENABLE_BLAS
     use blas77_interfaces_names
 #endif
     implicit none
     class(lgmres_t)    , intent(inout) :: this
+    class(vector_t)    , intent(in)    :: b 
     class(vector_t)    , intent(inout) :: x 
 
     ! Local variables to store a copy/reference of the corresponding member variables of base class
     class(environment_t), pointer :: environment
     class(operator_t)   , pointer :: A, M 
-    class(vector_t)     , pointer :: initial_solution, b
+    class(vector_t)     , pointer :: initial_solution
     integer(ip)                   :: stopping_criteria, max_num_iterations, output_frequency, luout
     real(rp)                      :: atol, rtol
     logical                       :: track_convergence_history
@@ -149,7 +150,6 @@ contains
 
     environment               => this%get_environment()
     A                         => this%get_A()
-    b                         => this%get_rhs()
     M                         => this%get_M()
     initial_solution          => this%get_initial_solution()
     luout                     =  this%get_luout()

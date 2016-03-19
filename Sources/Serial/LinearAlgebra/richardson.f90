@@ -93,9 +93,10 @@ contains
    class(richardson_t), intent(inout) :: this
   end subroutine richardson_set_parameters_from_pl
   
-  subroutine richardson_solve_body(this,x)
+  subroutine richardson_solve_body(this,b,x)
     implicit none
-    class(richardson_t), intent(inout) :: this 
+    class(richardson_t), intent(inout) :: this
+    class(vector_t)    , intent(in)    :: b 
     class(vector_t)    , intent(inout) :: x 
     
     ! Locals
@@ -104,7 +105,7 @@ contains
     ! Local variables to store a copy/reference of the corresponding member variables of base class
     class(environment_t), pointer :: environment
     class(operator_t)   , pointer :: A, M 
-    class(vector_t)     , pointer :: b, initial_solution
+    class(vector_t)     , pointer :: initial_solution
     integer(ip)                   :: stopping_criteria, max_num_iterations, output_frequency, luout
     real(rp)                      :: atol, rtol
     logical                       :: track_convergence_history
@@ -117,7 +118,6 @@ contains
 
     environment               => this%get_environment()
     A                         => this%get_A()
-    b                         => this%get_rhs()
     M                         => this%get_M()
     initial_solution          => this%get_initial_solution()
     luout                     =  this%get_luout()
