@@ -213,25 +213,24 @@ subroutine finite_element_fill_own_dofs_on_vef_from_source_element ( this, &
  
 end subroutine finite_element_fill_own_dofs_on_vef_from_source_element
 
-subroutine finite_element_fill_dofs_on_vef ( this, vef_local_id, fe_space_id, dof_count )
+subroutine finite_element_fill_dofs_face_integration_coupling ( this, face_local_id, fe_space_id, dof_count )
   implicit none
   ! Parameters
-  class(finite_element_t), intent(inout)   :: this
-  integer(ip)               , intent(in)      :: vef_local_id
+  class(finite_element_t), intent(inout)      :: this
+  integer(ip)               , intent(in)      :: face_local_id
   integer(ip)               , intent(in)      :: fe_space_id
   integer(ip)               , intent(inout)   :: dof_count
 
   ! Local variables
   integer(ip) :: inode, l_node
   
+  assert ( this%reference_fe_phy(fe_space_id)%p%get_vef_dimension(face_local_id) == this%reference_fe_phy(fe_space_id)%p%get_number_dimensions()-1 )
   do inode = 1,this%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_number_nodes_face()
-    l_node = this%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_node_face(inode,vef_local_id)
-    if ( this%elem2dof(fe_space_id)%p(l_node) == 0 ) then
-      dof_count = dof_count + 1
-      this%elem2dof(fe_space_id)%p(l_node) = dof_count
-    end	if
+    l_node = this%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_node_face(inode,face_local_id)
+    dof_count = dof_count + 1
+    this%elem2dof(fe_space_id)%p(l_node) = dof_count
   end do
-end subroutine finite_element_fill_dofs_on_vef
+end subroutine finite_element_fill_dofs_face_integration_coupling
 
 function finite_element_get_number_nodes ( this )
   implicit none

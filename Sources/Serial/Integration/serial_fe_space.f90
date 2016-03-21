@@ -39,7 +39,6 @@ module serial_fe_space_names
   use conditions_names
   
   use reference_fe_names
-  use reference_fe_factory_names
   use field_names
   use function_names
   
@@ -116,7 +115,7 @@ module serial_fe_space_names
      procedure, non_overridable, private :: fill_own_dofs => finite_element_fill_own_dofs
      procedure, non_overridable, private :: fill_own_dofs_on_vef => finite_element_fill_own_dofs_on_vef
      procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_element => finite_element_fill_own_dofs_on_vef_from_source_element
-     procedure, non_overridable, private :: fill_dofs_on_vef => finite_element_fill_dofs_on_vef
+     procedure, non_overridable, private :: fill_dofs_face_integration_coupling => finite_element_fill_dofs_face_integration_coupling
      
      procedure, non_overridable :: get_number_nodes => finite_element_get_number_nodes
      procedure, non_overridable :: get_fe_map => finite_element_get_fe_map

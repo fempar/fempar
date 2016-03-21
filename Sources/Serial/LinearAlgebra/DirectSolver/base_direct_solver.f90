@@ -1,3 +1,31 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 module base_direct_solver_names
     ! Serial modules
     USE types_names
@@ -82,6 +110,7 @@ module base_direct_solver_names
         procedure, non_overridable, public :: reset                        => base_direct_solver_reset
         procedure, non_overridable, public :: set_name                     => base_direct_solver_set_name
         procedure, non_overridable, public :: set_matrix                   => base_direct_solver_set_matrix
+        procedure, non_overridable, public :: get_matrix                   => base_direct_solver_get_matrix
         procedure, non_overridable, public :: update_matrix                => base_direct_solver_update_matrix
         procedure, non_overridable, public :: matrix_is_set                => base_direct_solver_matrix_is_set
         procedure, non_overridable, public :: set_state_start              => base_direct_solver_set_state_start
@@ -105,7 +134,11 @@ module base_direct_solver_names
         procedure, non_overridable, public :: log_info                     => base_direct_solver_log_info
     end type
 
-    interface
+    abstract interface
+        subroutine create_direct_solver_interface(base_direct_solver)
+            import base_direct_solver_t
+            class(base_direct_solver_t), pointer, intent(inout) :: base_direct_solver
+        end subroutine
 
         subroutine base_direct_solver_set_parameters_from_pl(this, parameter_list)
             import base_direct_solver_t
@@ -127,9 +160,9 @@ module base_direct_solver_names
         subroutine base_direct_solver_solve_body(op, x, y)
             import base_direct_solver_t
             import serial_scalar_array_t
-            class(base_direct_solver_t),  intent(inout) :: op
-            class(serial_scalar_array_t), intent(in)    :: x
-            class(serial_scalar_array_t), intent(inout) :: y
+            class(base_direct_solver_t), intent(inout) :: op
+            type(serial_scalar_array_t), intent(in)    :: x
+            type(serial_scalar_array_t), intent(inout) :: y
         end subroutine base_direct_solver_solve_body
 
         subroutine  base_direct_solver_free_clean_body(this)
@@ -148,7 +181,7 @@ module base_direct_solver_names
         end subroutine base_direct_solver_free_numerical_body
     end interface
 
-public :: base_direct_solver_t
+public :: base_direct_solver_t, create_direct_solver_interface
 
 contains
 
@@ -175,11 +208,13 @@ contains
 
     subroutine base_direct_solver_solve(op, x, y)
         class(base_direct_solver_t),  intent(inout) :: op
-        class(serial_scalar_array_t), intent(in)    :: x
-        class(serial_scalar_array_t), intent(inout) :: y
+        type(serial_scalar_array_t), intent(in)    :: x
+        type(serial_scalar_array_t), intent(inout) :: y
         ! Check pre-conditions
         if(.not. op%state_is_numeric() .or. op%get_numerical_setup_pending()) call op%numerical_setup()
+        call x%GuardTemp()
         call op%solve_body(x, y)
+        call x%CleanTemp()
         ! post-conditions
     end subroutine base_direct_solver_solve
 
@@ -243,6 +278,13 @@ contains
         this%matrix => matrix
     end subroutine base_direct_solver_set_matrix
 
+    function base_direct_solver_get_matrix(this) result(matrix)
+        class(base_direct_solver_t),    intent(in) :: this
+        type(sparse_matrix_t), pointer             :: matrix
+        assert(this%matrix_is_set())
+        matrix => this%matrix
+    end function base_direct_solver_get_matrix
+
     subroutine base_direct_solver_update_matrix(this, matrix, same_nonzero_pattern)
     !-----------------------------------------------------------------
     !< Update matrix pointer 
@@ -264,8 +306,8 @@ contains
     end subroutine base_direct_solver_update_matrix
 
     function base_direct_solver_matrix_is_set(this) result(matrix_is_set)
-        class(base_direct_solver_t), intent(inout) :: this
-        logical                                    :: matrix_is_set
+        class(base_direct_solver_t), intent(in) :: this
+        logical                                 :: matrix_is_set
         matrix_is_set = associated(this%matrix)
     end function base_direct_solver_matrix_is_set
 
