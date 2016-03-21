@@ -26,125 +26,132 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !====================================================================================================
-subroutine initialize_from_cli(this,cli,group)
+subroutine nsi_iss_oss_analytical_functions_create(this,params)
   implicit none
   class(nsi_iss_oss_analytical_functions_t), intent(inout) :: this
-  type(Type_Command_Line_Interface)        , intent(inout) :: cli
-  character(len=:), allocatable            , intent(in)    :: group
-  ! Locals
-  integer(ip) :: istat
+  type(test_nsi_iss_oss_params_t)          , intent(in)    :: params
+
+  call this%free()
 
   ! Getters
-  call cli%get(group=trim(group),switch='-av',val=this%velocity_function_id,error=istat)
-  check(istat==0)
-  call cli%get(group=trim(group),switch='-ap',val=this%pressure_function_id,error=istat)
-  check(istat==0)
+  this%function_name = params%get_analytical_function_name()
 
-  this%velocity%switch          = this%velocity_function_id
-  this%dt_velocity%switch       = this%velocity_function_id
-  this%velocity_gradient%switch = this%velocity_function_id
-  this%velocity_grad_div%switch = this%velocity_function_id
-  this%pressure%switch          = this%pressure_function_id
-  this%pressure_gradient%switch = this%pressure_function_id
-
-end subroutine initialize_from_cli
-
-!====================================================================================================
-subroutine velocity_get_value_space_time(this,point,time,result)
-  implicit none
-  class(velocity_function_t), intent(in)    :: this
-  type(point_t)             , intent(in)    :: point
-  real(rp)                  , intent(in)    :: time
-  type(vector_field_t)      , intent(inout) :: result
-  
-  call result%init(0.0_rp)
-  select case(this%switch)
-     case(1) ! u = (x,-y,0)
-        call result%set(1,point%get(1))
-        call result%set(2,-1.0_rp*point%get(2))
-     case(2) ! u = (1.0,1.0,0)
-        call result%set(1,1.0_rp)
-        call result%set(2,1.0_rp)
+  select case(trim(this%function_name))
+  case(nsi_linear_steady)
+     allocate(linear_steady_velocity_function_t          :: this%velocity)
+     allocate(linear_steady_dt_velocity_function_t       :: this%dt_velocity)
+     allocate(linear_steady_velocity_gradient_function_t :: this%velocity_gradient)
+     allocate(linear_steady_velocity_grad_div_function_t :: this%velocity_grad_div)
+     allocate(linear_steady_pressure_gradient_function_t :: this%pressure_gradient)
+     allocate(linear_steady_pressure_function_t          :: this%pressure)
   end select
 
-end subroutine velocity_get_value_space_time
+end subroutine nsi_iss_oss_analytical_functions_create
 
 !====================================================================================================
-subroutine dt_velocity_get_value_space_time(this,point,time,result)
+subroutine nsi_iss_oss_analytical_functions_free(this)
   implicit none
-  class(dt_velocity_function_t), intent(in)    :: this
-  type(point_t)                , intent(in)    :: point
-  real(rp)                     , intent(in)    :: time
-  type(vector_field_t)         , intent(inout) :: result
-  
-  call result%init(0.0_rp)
-  select case(this%switch)
-     case(1) ! u = (x,-y,0)
-  end select
+  class(nsi_iss_oss_analytical_functions_t), intent(inout) :: this
 
-end subroutine dt_velocity_get_value_space_time
+  if(allocated(this%velocity)) deallocate(this%velocity)  
+  if(allocated(this%dt_velocity)) deallocate(this%dt_velocity)    
+  if(allocated(this%velocity_gradient)) deallocate(this%velocity_gradient)
+  if(allocated(this%velocity_grad_div)) deallocate(this%velocity_grad_div)
+  if(allocated(this%pressure_gradient)) deallocate(this%pressure_gradient)
+  if(allocated(this%pressure)) deallocate(this%pressure)      
+  if(allocated(this%function_name)) deallocate(this%function_name)    
+
+end subroutine nsi_iss_oss_analytical_functions_free
 
 !====================================================================================================
-subroutine velocity_gradient_get_value_space_time(this,point,time,result)
+function nsi_iss_oss_analytical_functions_get_velocity_function(this) result(velocity_function)
   implicit none
-  class(velocity_gradient_function_t), intent(in)    :: this
-  type(point_t)                      , intent(in)    :: point
-  real(rp)                           , intent(in)    :: time
-  type(tensor_field_t)               , intent(inout) :: result
-  
-  call result%init(0.0_rp)
-  select case(this%switch)
-     case(1) ! u = (x,-y,0)
-        call result%set(1,1,1.0_rp)
-        call result%set(2,2,-1.0_rp)
-  end select
+  class(nsi_iss_oss_analytical_functions_t), target, intent(in) :: this
+  class(vector_function_t), pointer :: velocity_function
 
-end subroutine velocity_gradient_get_value_space_time
+  velocity_function => this%velocity
+  
+end function nsi_iss_oss_analytical_functions_get_velocity_function
 
 !====================================================================================================
-subroutine velocity_grad_div_get_value_space_time(this,point,time,result)
+function nsi_iss_oss_analytical_functions_get_pressure_function(this) result(pressure_function)
   implicit none
-  class(velocity_grad_div_function_t), intent(in)    :: this
-  type(point_t)                      , intent(in)    :: point
-  real(rp)                           , intent(in)    :: time
-  type(vector_field_t)               , intent(inout) :: result
-  
-  call result%init(0.0_rp)
-  select case(this%switch)
-     case(1) ! u = (x,-y,0)
-  end select
+  class(nsi_iss_oss_analytical_functions_t), target, intent(in) :: this
+  class(scalar_function_t), pointer :: pressure_function
 
-end subroutine velocity_grad_div_get_value_space_time
+  pressure_function => this%pressure
+  
+end function nsi_iss_oss_analytical_functions_get_pressure_function
 
 !====================================================================================================
-subroutine pressure_get_value_space_time(this,point,time,result)
+subroutine nsi_iss_oss_analytical_functions_get_value_velocity(this,point,time,field)
   implicit none
-  class(pressure_function_t), intent(in)    :: this
-  type(point_t)             , intent(in)    :: point
-  real(rp)                  , intent(in)    :: time
-  real(rp)                  , intent(inout) :: result
-  
-  result = 0.0_rp
-  select case(this%switch)
-     case(1) ! p = x+y
-        result = point%get(1) + point%get(2)
-  end select
+  class(nsi_iss_oss_analytical_functions_t), intent(in)    :: this
+  type(point_t)                            , intent(in)    :: point
+  real(rp)                                 , intent(in)    :: time
+  type(vector_field_t)                     , intent(inout) :: field
 
-end subroutine pressure_get_value_space_time
+  call this%velocity%get_value_space_time(point,time,field)
+  
+end subroutine nsi_iss_oss_analytical_functions_get_value_velocity
 
 !====================================================================================================
-subroutine pressure_gradient_get_value_space_time(this,point,time,result)
+subroutine nsi_iss_oss_analytical_functions_get_value_dt_velocity(this,point,time,field)
   implicit none
-  class(pressure_gradient_function_t), intent(in)    :: this
-  type(point_t)                      , intent(in)    :: point
-  real(rp)                           , intent(in)    :: time
-  type(vector_field_t)               , intent(inout) :: result
-  
-  call result%init(0.0_rp)
-  select case(this%switch)
-     case(1) ! p = x+y
-        call result%set(1,1.0_rp)
-        call result%set(2,1.0_rp)
-  end select
+  class(nsi_iss_oss_analytical_functions_t), intent(in)    :: this
+  type(point_t)                            , intent(in)    :: point
+  real(rp)                                 , intent(in)    :: time
+  type(vector_field_t)                     , intent(inout) :: field
 
-end subroutine pressure_gradient_get_value_space_time
+  call this%dt_velocity%get_value_space_time(point,time,field)
+  
+end subroutine nsi_iss_oss_analytical_functions_get_value_dt_velocity
+
+
+!====================================================================================================
+subroutine nsi_iss_oss_analytical_functions_get_value_velocity_gradient(this,point,time,field)
+  implicit none
+  class(nsi_iss_oss_analytical_functions_t), intent(in)    :: this
+  type(point_t)                            , intent(in)    :: point
+  real(rp)                                 , intent(in)    :: time
+  type(tensor_field_t)                     , intent(inout) :: field
+
+  call this%velocity_gradient%get_value_space_time(point,time,field)
+  
+end subroutine nsi_iss_oss_analytical_functions_get_value_velocity_gradient
+
+!====================================================================================================
+subroutine nsi_iss_oss_analytical_functions_get_value_velocity_grad_div(this,point,time,field)
+  implicit none
+  class(nsi_iss_oss_analytical_functions_t), intent(in)    :: this
+  type(point_t)                            , intent(in)    :: point
+  real(rp)                                 , intent(in)    :: time
+  type(vector_field_t)                     , intent(inout) :: field
+
+  call this%velocity_grad_div%get_value_space_time(point,time,field)
+  
+end subroutine nsi_iss_oss_analytical_functions_get_value_velocity_grad_div
+
+!====================================================================================================
+subroutine nsi_iss_oss_analytical_functions_get_value_pressure_gradient(this,point,time,field)
+  implicit none
+  class(nsi_iss_oss_analytical_functions_t), intent(in) :: this
+  type(point_t)                            , intent(in)    :: point
+  real(rp)                                 , intent(in)    :: time
+  type(vector_field_t)                     , intent(inout) :: field
+
+  call this%pressure_gradient%get_value_space_time(point,time,field)
+  
+end subroutine nsi_iss_oss_analytical_functions_get_value_pressure_gradient
+
+!====================================================================================================
+subroutine nsi_iss_oss_analytical_functions_get_value_pressure(this,point,time,field)
+  implicit none
+  class(nsi_iss_oss_analytical_functions_t), intent(in)    :: this
+  type(point_t)                            , intent(in)    :: point
+  real(rp)                                 , intent(in)    :: time
+  real(rp)                                 , intent(inout) :: field
+
+  call this%pressure%get_value_space_time(point,time,field)
+  
+end subroutine nsi_iss_oss_analytical_functions_get_value_pressure

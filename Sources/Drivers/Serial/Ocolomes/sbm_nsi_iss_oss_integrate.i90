@@ -26,34 +26,35 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !====================================================================================================
-subroutine initialize_from_cli(this,cli,group)
+subroutine create(this,params)
   implicit none
   class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
-  type(Type_Command_Line_Interface)        , intent(inout) :: cli
-  character(len=:), allocatable            , intent(in)    :: group
-  ! Locals
-  integer(ip) :: istat
+  type(test_nsi_iss_oss_params_t)          , intent(in)    :: params
 
   ! Getters
-  call cli%get(group=trim(group),switch='-nu'   ,val=this%viscosity,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-c1'   ,val=this%c1       ,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-c2'   ,val=this%c2       ,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-cc'   ,val=this%cc       ,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-h_flg',val=this%elemental_length_flag,error=istat)
-  check(istat==0)
-  call cli%get(group=trim(group),switch='-cnv'  ,val=this%convection_activated ,error=istat)
-  check(istat==0)
-  call cli%get(group=trim(group),switch='-ana'  ,val=this%is_analytical_solution,error=istat)
-  check(istat==0)
-  call cli%get(group=trim(group),switch='-ini'  ,val=this%is_initial_solution,error=istat)
-  check(istat==0)
-  call cli%get(group=trim(group),switch='-tmp'  ,val=this%is_temporal_solution,error=istat)
-  check(istat==0)
-  call cli%get(group=trim(group),switch='-it'   ,val=this%current_time,error=istat); check(istat==0)
+  this%viscosity              = params%get_viscosity()              
+  this%c1                     = params%get_c1()                     
+  this%c2                     = params%get_c2()                     
+  this%cc                     = params%get_cc()                    
+  this%elemental_length_flag  = params%get_elemental_length_flag()  
+  this%convection_activated   = params%get_convection_activated()   
+  this%is_analytical_solution = params%get_is_analytical_solution() 
+  this%is_initial_solution    = params%get_is_initial_solution()    
+  this%is_temporal_solution   = params%get_is_temporal_solution()   
+  this%current_time           = params%get_initial_time()           
 
-  call this%analytical_functions%initialize_from_cli(cli,group)
+  call this%analytical_functions%create(params)
 
-end subroutine initialize_from_cli
+end subroutine create
+
+!====================================================================================================
+subroutine free(this)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+
+  call this%analytical_functions%free()
+
+end subroutine free
 
 !====================================================================================================
 subroutine integrate(this,fe_space,assembler)
@@ -493,15 +494,11 @@ function compute_analytical_force(this,point) result(source)
   type(vector_field_t) :: pressure_gradient
 
   ! Evaluate functions
-  call this%analytical_functions%velocity%get_value_space_time(point,this%current_time,velocity)
-  call this%analytical_functions%dt_velocity%get_value_space_time(point,this%current_time,       &
-       &                                                          dt_velocity)
-  call this%analytical_functions%velocity_gradient%get_value_space_time(point,this%current_time, &
-       &                                                                velocity_gradient)
-  call this%analytical_functions%velocity_grad_div%get_value_space_time(point,this%current_time, &
-       &                                                                velocity_grad_div)
-  call this%analytical_functions%pressure_gradient%get_value_space_time(point,this%current_time, &
-       &                                                                pressure_gradient)
+  call this%analytical_functions%get_value_velocity(point,this%current_time,velocity)
+  call this%analytical_functions%get_value_dt_velocity(point,this%current_time,dt_velocity)
+  call this%analytical_functions%get_value_velocity_gradient(point,this%current_time,velocity_gradient)
+  call this%analytical_functions%get_value_velocity_grad_div(point,this%current_time,velocity_grad_div)
+  call this%analytical_functions%get_value_pressure_gradient(point,this%current_time,pressure_gradient)
 
   ! Compute force  ( f = du/dt + u*grad(u) - nu * div( grad(u) + grad(u)T ) + grad(p) )
   if(this%convection_activated) then
@@ -521,16 +518,18 @@ subroutine update_boundary_conditions_analytical(this,fe_space,time)
   real(rp), optional                       , intent(in)    :: time
   ! Locals
   real(rp) :: time_
+  type(vector_function_t), pointer :: velocity_function
+  type(scalar_function_t), pointer :: pressure_function
 
   time_ = 0.0_rp
   if(present(time)) time_ = time
 
   ! Update velocity 
-  call fe_space%update_bc_value(this%analytical_functions%velocity,bc_code=1,fe_space_component=1, &
-       &                        time=time_)
+  velocity_function => this%analytical_functions%get_velocity_function()
+  call fe_space%update_bc_value(velocity_function,bc_code=1,fe_space_component=1,time=time_)
 
   ! Update pressure
-  call fe_space%update_bc_value(this%analytical_functions%pressure,bc_code=1,fe_space_component=2, &
-       &                        time=time_)
+  pressure_function => this%analytical_functions%get_pressure_function()
+  call fe_space%update_bc_value(pressure_function,bc_code=1,fe_space_component=2,time=time_)
 
 end subroutine update_boundary_conditions_analytical
