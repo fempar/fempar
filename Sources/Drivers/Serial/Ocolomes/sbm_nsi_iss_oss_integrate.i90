@@ -83,8 +83,6 @@ subroutine integrate(this,fe_space,assembler)
   type(volume_integrator_t), pointer :: vol_int_pressure_fe
   type(volume_integrator_t), pointer :: vol_int_projection_fe
   type(i1p_t)              , pointer :: elem2dof(:)
-  type(i1p_t)              , pointer :: bc_code(:)
-  type(r1p_t)              , pointer :: bc_value(:)
   class(vector_t)          , pointer :: vector_dof_values
   
   ! Getters
@@ -134,8 +132,6 @@ subroutine integrate(this,fe_space,assembler)
      vol_int_pressure_fe   => fe%get_volume_integrator(2)
      vol_int_projection_fe => fe%get_volume_integrator(3)
      elem2dof              => fe%get_elem2dof()
-     bc_code               => fe%get_bc_code()
-     bc_value              => fe%get_bc_value()
 
      ! Update discrete integration structures
      call this%compute_stabilization_parameters(fe,fe_velocity,tau_m,tau_c)
@@ -266,7 +262,7 @@ subroutine integrate(this,fe_space,assembler)
         
      end do gaus
     
-     call this%impose_strong_dirichlet_data(elmat,elvec,bc_code,bc_value,number_nodes_per_field,number_fe_spaces)
+     call fe%impose_strong_dirichlet_bcs( elmat, elvec )
      call assembler%assembly(number_fe_spaces,number_nodes_per_field,elem2dof,field_blocks,field_coupling,elmat,elvec)  
      
   end do element
