@@ -269,8 +269,8 @@ contains
     end subroutine base_direct_solver_set_name
 
     subroutine base_direct_solver_set_matrix(this, matrix)
-        class(base_direct_solver_t),    intent(inout) :: this
-        type(sparse_matrix_t), pointer, intent(in)    :: matrix
+        class(base_direct_solver_t),   intent(inout) :: this
+        type(sparse_matrix_t), target, intent(in)    :: matrix
         assert(.not. this%state_is_symbolic())
         assert(.not. this%state_is_numeric())
         this%matrix => matrix
