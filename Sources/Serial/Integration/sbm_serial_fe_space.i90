@@ -154,7 +154,6 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, boundary_condition
         vef_gid = fe%cell%vefs(ivef)
         offset_component = 0
         do j = 1, this%number_fe_spaces
-           write(*,*) ielem,ivef,j,fe%reference_fe_phy(j)%p%get_number_own_nodes_vef(ivef)
            do inode = 1, fe%reference_fe_phy(j)%p%get_number_own_nodes_vef(ivef)
               jnode = fe%reference_fe_phy(j)%p%get_own_node_vef(inode,ivef)
               component = offset_component+ fe%reference_fe_phy(j)%p%get_component_node(jnode)
