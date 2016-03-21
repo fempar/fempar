@@ -39,7 +39,6 @@ module serial_fe_space_names
   use conditions_names
   
   use reference_fe_names
-  use reference_fe_factory_names
   use field_names
   use function_names
   

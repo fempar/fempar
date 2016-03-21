@@ -80,7 +80,6 @@ module iterative_linear_solver_names
      procedure :: set_type_and_parameters_from_pl => iterative_linear_solver_set_type_and_parameters_from_pl
      procedure :: set_operators                   => iterative_linear_solver_set_operators
      procedure :: set_initial_solution            => iterative_linear_solver_set_initial_solution
-     procedure :: set_rhs                         => iterative_linear_solver_set_rhs
      procedure :: set_type_from_string            => iterative_linear_solver_set_type_from_string
   end type iterative_linear_solver_t
   
@@ -116,12 +115,13 @@ contains
      call this%base_iterative_linear_solver%print_convergence_history(file_path)
    end subroutine iterative_linear_solver_print_convergence_history
    
-   subroutine iterative_linear_solver_solve ( this, x )
+   subroutine iterative_linear_solver_solve ( this, b, x )
      implicit none
      class(iterative_linear_solver_t), intent(inout) :: this
+     class(vector_t)       , intent(in) :: b 
      class(vector_t)       , intent(inout) :: x 
      assert ( this%state == solver_type_set )
-     call this%base_iterative_linear_solver%solve(x)
+     call this%base_iterative_linear_solver%solve(b,x)
    end subroutine iterative_linear_solver_solve
 
    subroutine iterative_linear_solver_set_type_from_pl ( this )
@@ -177,15 +177,7 @@ contains
      assert ( this%state == solver_type_set )
      call this%base_iterative_linear_solver%set_operators(A,M)
    end subroutine iterative_linear_solver_set_operators
-   
-   subroutine iterative_linear_solver_set_rhs ( this, b )
-     implicit none
-     class(iterative_linear_solver_t), intent(inout) :: this
-     class(vector_t)       , intent(in)    :: b
-     assert ( this%state == solver_type_set )
-     call this%base_iterative_linear_solver%set_rhs(b)
-   end subroutine iterative_linear_solver_set_rhs
-   
+      
    subroutine iterative_linear_solver_set_initial_solution( this, initial_solution )
      implicit none
      class(iterative_linear_solver_t), intent(inout) :: this
