@@ -260,15 +260,17 @@ program par_test_reference_fe
                                                    number_dimensions = 2, &
                                                    order = 3, &
                                                    field_type = field_type_scalar, &
-                                                   continuity = .true. )
+                                                   continuity = .true., &
+                                                   enable_face_integration = .true. )
   
-  call reference_fe_array_one(1)%p%print()
+  !call reference_fe_array_one(1)%p%print()
   
   call par_fe_space%create( par_triangulation = par_triangulation, &
                             par_boundary_conditions = par_conditions, &
                             reference_fe_phy = reference_fe_array_one )
 
   call par_fe_space%fill_dof_info()
+  !call par_fe_space%print()
   
   call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                   diagonal_blocks_symmetric_storage=(/.true./), &
@@ -287,7 +289,7 @@ program par_test_reference_fe
  
   !select type(matrix)
   !  class is (par_sparse_matrix_t)
-  !    call matrix%print_matrix_market(6)
+  !    call matrix%print(6)
   !end select
   
   !select type(rhs)
