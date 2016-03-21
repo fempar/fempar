@@ -163,18 +163,20 @@ contains
     end subroutine direct_solver_update_matrix
 
 
-    subroutine direct_solver_create_vector_spaces ( this, matrix ) 
+    subroutine direct_solver_create_vector_spaces ( this ) 
     !-----------------------------------------------------------------
     !< Clone vector spaces from matrix vector spaces
     !-----------------------------------------------------------------
         class(direct_solver_t),          intent(inout) :: this
-        type(sparse_matrix_t),  pointer, intent(in)    :: matrix
+        type(sparse_matrix_t),  pointer                :: matrix
         type(vector_space_t),   pointer                :: matrix_domain_vector_space
         type(vector_space_t),   pointer                :: matrix_range_vector_space
         type(vector_space_t),   pointer                :: direct_solver_domain_vector_space
         type(vector_space_t),   pointer                :: direct_solver_range_vector_space
     !-----------------------------------------------------------------
         assert(.not. this%vector_spaces_are_created())
+        assert(this%base_direct_solver%matrix_is_set())
+        matrix => this%base_direct_solver%get_matrix()
         matrix_domain_vector_space        => matrix%get_domain_vector_space()
         matrix_range_vector_space         => matrix%get_range_vector_space()
         direct_solver_domain_vector_space => this%get_domain_vector_space()
@@ -194,7 +196,7 @@ contains
     !-----------------------------------------------------------------
         assert(associated(this%base_direct_solver))
         if(.not. this%vector_spaces_are_created()) &
-            call this%create_vector_spaces(this%base_direct_solver%get_matrix())
+            call this%create_vector_spaces()
         call this%base_direct_solver%symbolic_setup()
     end subroutine direct_solver_symbolic_setup
 
@@ -207,7 +209,7 @@ contains
     !-----------------------------------------------------------------
         assert(associated(this%base_direct_solver))
         if(.not. this%vector_spaces_are_created()) &
-            call this%create_vector_spaces(this%base_direct_solver%get_matrix())
+            call this%create_vector_spaces()
         call this%base_direct_solver%numerical_setup()
     end subroutine direct_solver_numerical_setup
 
@@ -233,7 +235,7 @@ contains
     !-----------------------------------------------------------------
         assert(associated(op%base_direct_solver))
         if(.not. op%vector_spaces_are_created()) &
-            call op%create_vector_spaces(op%base_direct_solver%get_matrix())
+            call op%create_vector_spaces()
         select type (x)
             type is (serial_scalar_array_t)
                 select type (y)
@@ -267,7 +269,7 @@ contains
         class(direct_solver_t), intent(in) :: op
         logical                            :: is_linear
     !-----------------------------------------------------------------
-        is_linear = .false.
+        is_linear = .true.
     end function direct_solver_is_linear
 
 

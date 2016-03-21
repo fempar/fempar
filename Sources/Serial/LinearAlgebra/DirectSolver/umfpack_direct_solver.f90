@@ -135,15 +135,15 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
 #ifdef DEBUG
-        is_present     = parameter_list%isPresent(Key=UMFPACK_CONTROL_PARAMS)
+        is_present     = parameter_list%isPresent(Key=umfpack_control_params)
         if(is_present) then
-            same_data_type = parameter_list%isOfDataType(Key=UMFPACK_CONTROL_PARAMS, mold=this%Control)
-            FPLError       = parameter_list%getshape(Key=UMFPACK_CONTROL_PARAMS, shape=shape)
+            same_data_type = parameter_list%isOfDataType(Key=umfpack_control_params, mold=this%Control)
+            FPLError       = parameter_list%getshape(Key=umfpack_control_params, shape=shape)
             if(same_data_type .and. size(shape) == 1) then
                 if(shape(1) == UMFPACK_CONTROL) then
 #endif
                     ! UMFPACK control parameters
-                    FPLError = parameter_list%Get(Key=UMFPACK_CONTROL_PARAMS, Value=this%Control)
+                    FPLError = parameter_list%Get(Key=umfpack_control_params, Value=this%Control)
                     assert(FPLError == 0)
 #ifdef DEBUG
                 else
@@ -272,7 +272,6 @@ contains
         integer(ip)                                   :: status
 #ifdef ENABLE_UMFPACK
         assert ( .not. op%matrix%get_symmetric_storage() )
-        call x%GuardTemp()
 !        print*, '(3) --> solve'
         matrix => op%matrix%get_pointer_to_base_matrix()
         select type (matrix)
@@ -303,7 +302,6 @@ contains
                 ! C to Fortran numbering 
                 call op%C_to_Fortran_numbering()
         end select
-        call x%CleanTemp()
 #else
         call op%not_enabled_error()
 #endif

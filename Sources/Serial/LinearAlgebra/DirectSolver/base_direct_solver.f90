@@ -212,7 +212,9 @@ contains
         type(serial_scalar_array_t), intent(inout) :: y
         ! Check pre-conditions
         if(.not. op%state_is_numeric() .or. op%get_numerical_setup_pending()) call op%numerical_setup()
+        call x%GuardTemp()
         call op%solve_body(x, y)
+        call x%CleanTemp()
         ! post-conditions
     end subroutine base_direct_solver_solve
 

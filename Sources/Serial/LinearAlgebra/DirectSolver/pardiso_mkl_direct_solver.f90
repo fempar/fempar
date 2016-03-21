@@ -136,9 +136,9 @@ contains
         this%max_number_of_factors = 1
         this%actual_matrix         = 1
         this%number_of_rhs         = 1
-        this%message_level         = PARDISO_MKL_DEFAULT_MESSAGE_LEVEL
-        this%matrix_type           = PARDISO_MKL_DEFAULT_MATRIX_TYPE
-        this%pardiso_mkl_iparm     = PARDISO_MKL_DEFAULT_IPARM
+        this%message_level         = pardiso_mkl_default_message_level
+        this%matrix_type           = pardiso_mkl_default_matrix_type
+        this%pardiso_mkl_iparm     = pardiso_mkl_default_iparm
 
         this%pardiso_mkl_iparm(18)     = -1 ! Output: number of nonzeros in the factor LU
         this%pardiso_mkl_iparm(19)     = -1 ! Output: Mflops for LU factorization
@@ -189,13 +189,13 @@ contains
 #ifdef ENABLE_MKL  
         ! Matrix type
 #ifdef DEBUG
-        is_present     = parameter_list%isPresent(Key=PARDISO_MKL_MATRIX_TYPE)
+        is_present     = parameter_list%isPresent(Key=pardiso_mkl_matrix_type)
         if(is_present) then
-            same_data_type = parameter_list%isOfDataType(Key=PARDISO_MKL_MATRIX_TYPE, mold=this%matrix_type)
-            FPLError       = parameter_list%getshape(Key=PARDISO_MKL_MATRIX_TYPE, shape=shape)
+            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_matrix_type, mold=this%matrix_type)
+            FPLError       = parameter_list%getshape(Key=pardiso_mkl_matrix_type, shape=shape)
             if(same_data_type .and. size(shape) == 0) then
 #endif
-                FPLError   = parameter_list%Get(Key=PARDISO_MKL_MATRIX_TYPE, Value=matrix_type)
+                FPLError   = parameter_list%Get(Key=pardiso_mkl_matrix_type, Value=matrix_type)
                 assert(FPLError == 0)
                 if(this%state_is_start()) then
                     ! Matrix cannot change in symbolic to numeric transition
@@ -212,14 +212,14 @@ contains
         endif
 
          ! iparm
-        is_present     = parameter_list%isPresent(Key=PARDISO_MKL_IPARM)
+        is_present     = parameter_list%isPresent(Key=pardiso_mkl_iparm)
         if(is_present) then
-            same_data_type = parameter_list%isOfDataType(Key=PARDISO_MKL_IPARM, mold=this%pardiso_mkl_iparm)
-            FPLError       = parameter_list%getshape(Key=PARDISO_MKL_IPARM, shape=shape)
+            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%pardiso_mkl_iparm)
+            FPLError       = parameter_list%getshape(Key=pardiso_mkl_iparm, shape=shape)
             if(same_data_type .and. size(shape) == 1) then
                 if(shape(1) == 64) then
 #endif
-                    FPLError =  parameter_list%Get(Key=PARDISO_MKL_IPARM, Value=this%pardiso_mkl_iparm)
+                    FPLError =  parameter_list%Get(Key=pardiso_mkl_iparm, Value=this%pardiso_mkl_iparm)
                     assert(FPLError == 0)
 #ifdef DEBUG
                 else
@@ -231,13 +231,13 @@ contains
         endif
 
          ! Message level
-        is_present     = parameter_list%isPresent(Key=PARDISO_MKL_MESSAGE_LEVEL)
+        is_present     = parameter_list%isPresent(Key=pardiso_mkl_message_level)
         if(is_present) then
-            same_data_type = parameter_list%isOfDataType(Key=PARDISO_MKL_MESSAGE_LEVEL, mold=this%message_level)
-            FPLError       = parameter_list%getshape(Key=PARDISO_MKL_MESSAGE_LEVEL, shape=shape)
+            same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_message_level, mold=this%message_level)
+            FPLError       = parameter_list%getshape(Key=pardiso_mkl_message_level, shape=shape)
             if(same_data_type .and. size(shape) == 0) then
 #endif
-                FPLError   = parameter_list%Get(Key=PARDISO_MKL_MESSAGE_LEVEL, Value=this%message_level)
+                FPLError   = parameter_list%Get(Key=pardiso_mkl_message_level, Value=this%message_level)
                 assert(FPLError == 0)
 #ifdef DEBUG
             else
@@ -374,7 +374,6 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         assert (op%number_of_rhs == 1)
-        call x%GuardTemp()
 !        print*, '(3) --> solve'
         ! (c) y  <- A^-1 * x
         op%phase = 33 ! only Fwd/Bck substitution
@@ -409,7 +408,6 @@ contains
             class DEFAULT
                 check(.false.)
         end select
-        call x%CleanTemp()
 #else
         call op%not_enabled_error()
 #endif
