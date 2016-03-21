@@ -280,9 +280,9 @@ contains
         integer(ip) :: i
     !----------------------------------------------------------------- 
         write(lunou,*) '****PRINT LIST****'
-        write(lunou,*) 'size total list:',this%n
+        write(lunou,*) 'n:',this%n
         do i = 1,this%n
-            write(lunou,'(a,i3,a,10i5)') 'l(',i,')',this%l(this%p(i):this%p(i+1)-1)
+            write(lunou,'(a,i3,a,1000i5)') 'l(',i,')',this%l(this%p(i):this%p(i+1)-1)
         end do
         write(lunou,*) '****END PRINT LIST****'
     end subroutine list_print

@@ -225,7 +225,8 @@ module reference_fe_names
 
      logical                  ::    &
           continuity,               &      ! CG(.true.)/DG(.false.)
-          conformity ! False for discontinuous L2 conforming spaces that do not require to enforce weakly continuity
+          conformity                       ! .true. for discontinuous L2 conforming spaces 
+                                           ! that do not require to enforce weakly continuity
 
      integer(ip)              ::    &
           number_vefs,              &        
@@ -341,22 +342,13 @@ module reference_fe_names
      procedure :: get_first_vef_id_of_dimension => reference_fe_get_first_vef_id_of_dimension 
      procedure :: get_number_nodes => reference_fe_get_number_nodes
      procedure :: get_vef_dimension  => reference_fe_get_vef_dimension
-     !procedure :: get_interior_nodes_vef  => reference_fe_get_interior_nodes_vef
-     !procedure :: get_nodes_vef  =>     reference_fe_get_nodes_vef
      procedure :: get_vertices_vef  =>   reference_fe_get_vertices_vef
      procedure :: get_vefs_vef   =>   reference_fe_get_vefs_vef
-     !procedure :: get_node_vef => reference_fe_get_node_vef
-     procedure :: get_face_integration_coupling_node_face => reference_fe_get_face_integration_coupling_node_face
-     !procedure :: get_interior_node_vef => reference_fe_get_interior_node_vef
-     procedure :: get_own_node_vef => reference_fe_get_own_node_vef
-     !procedure :: get_number_nodes_vef => reference_fe_get_number_nodes_vef
-     procedure :: get_face_integration_coupling_number_nodes_vef => reference_fe_get_face_integration_coupling_number_nodes_vef
-     procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
-     procedure :: get_number_own_nodes_vef => reference_fe_get_number_own_nodes_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
-     !procedure :: get_number_nodes_per_face => reference_fe_get_number_nodes_per_face
+     procedure :: get_number_own_nodes_vef => reference_fe_get_number_own_nodes_vef
+     procedure :: get_own_node_vef => reference_fe_get_own_node_vef
      procedure :: get_face_integration_coupling_number_nodes_face => reference_fe_get_face_integration_coupling_number_nodes_face
-     !procedure :: get_number_interior_nodes_per_face => reference_fe_get_number_interior_nodes_per_face
+     procedure :: get_face_integration_coupling_node_face => reference_fe_get_face_integration_coupling_node_face
      procedure :: get_orientation => reference_fe_get_orientation     
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
@@ -378,7 +370,7 @@ module reference_fe_names
        integer(ip)          , intent(in)    :: number_dimensions
        integer(ip)          , intent(in)    :: order
        character(*)         , intent(in)    :: field_type
-       logical, optional    , intent(in)    :: continuity
+       logical             , intent(in)    :: continuity
        logical, optional    , intent(in)    :: enable_face_integration
      end subroutine create_interface
      

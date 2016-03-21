@@ -219,13 +219,13 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id )
                  elem_id = this%triangulation%vefs(vef_lid)%elems_around(ielem)
                  ! Is elem_id a local element ?
                  if ( elem_id <= this%triangulation%num_elems ) then
-                    if ( this%fe_array(elem_id)%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
+                    !if ( this%fe_array(elem_id)%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
                        ! Find local position of vef_lid in elem_id            
                        ivef_in_elem_id = this%fe_array(elem_id)%cell%find_local_pos_from_vef_id(vef_lid) 
                        call this%ghost_fe_array(ighost)%fill_own_dofs_on_vef_from_source_element ( ivef, &
                             this%fe_array(elem_id), ivef_in_elem_id, fe_space_id )    
                        exit
-                    end if
+                    !end if
                  end if
               end do
            end if
@@ -240,7 +240,7 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id )
         do ivef = first_face_id, first_face_id+num_faces-1
            vef_lid = this%ghost_fe_array(ighost)%cell%vefs(ivef)
            if ( vef_lid /= -1 ) then
-              call this%ghost_fe_array(ighost)%fill_dofs_on_vef ( ivef, &
+              call this%ghost_fe_array(ighost)%fill_dofs_face_integration_coupling ( ivef, &
                    fe_space_id, current_dof_block )
            end if
         end do
@@ -293,6 +293,7 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
 
   call memalloc ( num_fe_spaces_in_iblock, ubound_num_itfc_couplings, __FILE__, __LINE__ )
   total_ubound_num_itfc_couplings = 0 
+  ubound_num_itfc_couplings = 0
   i = 1
   do fe_space_id = 1, this%number_fe_spaces
      if ( this%field_blocks(fe_space_id) == iblock ) then
@@ -317,14 +318,13 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   i = 1
   do fe_space_id = 1, this%number_fe_spaces
      if ( this%field_blocks(fe_space_id) == iblock ) then
-
-        if ( this%reference_fe_phy_list(fe_space_id)%p%get_continuity() ) then
+        if ( this%fe_space_type(fe_space_id) == fe_space_type_cg ) then
            total_num_itfc_couplings = total_num_itfc_couplings + & 
                 this%par_fe_space_compute_raw_interface_data_by_continuity(fe_space_id, &
                 ubound_num_itfc_couplings(i),&
                 dofs_lid(total_num_itfc_couplings+1),&
                 raw_interface_data(1,total_num_itfc_couplings+1) )
-        else if ( .not.this%reference_fe_phy_list(fe_space_id)%p%get_conformity() ) then
+        else if ( this%fe_space_type(fe_space_id) == fe_space_type_dg ) then
            total_num_itfc_couplings = total_num_itfc_couplings + & 
                 this%par_fe_space_compute_raw_interface_data_by_face_integ(fe_space_id, &
                 ubound_num_itfc_couplings(i),&
@@ -736,7 +736,7 @@ function par_fe_space_compute_raw_interface_data_by_face_integ (  this, &
            elem_gid = this%par_triangulation%elems(elem_lid)%globalID
            finite_element => this%get_finite_element(elem_lid)
            ivef = finite_element%cell%find_local_pos_from_vef_id(vef_lid)
-           do idof_face=1, finite_element%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_number_nodes_face()!ivef)
+           do idof_face=1, finite_element%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_number_nodes_face()
               idof = finite_element%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_node_face(idof_face,ivef)
               dof_lid = finite_element%elem2dof(fe_space_id)%p(idof)
               dofs_lid ( current_col ) = dof_lid 
