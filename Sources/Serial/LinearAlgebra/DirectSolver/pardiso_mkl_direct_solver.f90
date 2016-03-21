@@ -1,3 +1,31 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 #ifdef ENABLE_MKL
   include 'mkl_pardiso.f90'
 #endif
@@ -10,7 +38,7 @@ module pardiso_mkl_direct_solver_names
     USE csr_sparse_matrix_names, only: csr_sparse_matrix_t
     USE serial_scalar_array_names
     USE base_direct_solver_names
-    USE direct_solver_parameters
+    USE direct_solver_parameters_names
     USE FPL
 #ifdef ENABLE_MKL
     USE mkl_pardiso
@@ -67,7 +95,7 @@ contains
     !-----------------------------------------------------------------
         assert(.not. associated(base_direct_solver))
         allocate(pardiso_mkl_instance)
-        call pardiso_mkl_instance%set_name(PARDISO_MKL)
+        call pardiso_mkl_instance%set_name(pardiso_mkl)
         call pardiso_mkl_instance%initialize()
         call pardiso_mkl_instance%set_defaults()
         base_direct_solver => pardiso_mkl_instance
@@ -337,8 +365,8 @@ contains
     ! Computes y <- A^-1 * x, using previously computed LU factorization
     !-----------------------------------------------------------------
         class(pardiso_mkl_direct_solver_t), intent(inout) :: op
-        class(serial_scalar_array_t),       intent(in)    :: x
-        class(serial_scalar_array_t),       intent(inout) :: y
+        type(serial_scalar_array_t),        intent(in)    :: x
+        type(serial_scalar_array_t),        intent(inout) :: y
         real(rp), pointer                                 :: x_b(:)
         real(rp), pointer                                 :: y_b(:)
         integer                                           :: error
@@ -346,6 +374,7 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
         assert (op%number_of_rhs == 1)
+        call x%GuardTemp()
 !        print*, '(3) --> solve'
         ! (c) y  <- A^-1 * x
         op%phase = 33 ! only Fwd/Bck substitution
@@ -380,6 +409,7 @@ contains
             class DEFAULT
                 check(.false.)
         end select
+        call x%CleanTemp()
 #else
         call op%not_enabled_error()
 #endif

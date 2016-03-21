@@ -5,7 +5,7 @@ USE memor_names
 USE serial_names
 USE sparse_matrix_names
 USE direct_solver_names
-USE direct_solver_parameters
+USE direct_solver_parameters_names
 USE direct_solver_creational_methods_dictionary_names
 USE FPL
 USE IR_Precision
@@ -30,7 +30,7 @@ implicit none
     call meminit()
     ! ParameterList: initialize
     call FPL_Init()
-    call TheDirectSolverCreationalMethodsDictionary%Init()
+    call the_direct_solver_creational_methods_dictionary%Init()
     call parameter_list%Init()
 
     ! Sparse matrix: create
@@ -52,15 +52,16 @@ implicit none
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! PARDISO MKL
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    direct_solver_params => parameter_list%NewSubList(Key=PARDISO_MKL)
+    direct_solver_params => parameter_list%NewSubList(Key=pardiso_mkl)
 
     ! ParameterList: set parameters
     FPLError = 0
-    FPLError = FPLError + direct_solver_params%set(key = DIRECT_SOLVER_TYPE,        value = PARDISO_MKL)
-    FPLError = FPLError + direct_solver_params%set(key = PARDISO_MKL_MATRIX_TYPE,   value = PARDISO_MKL_USS)
-    FPLError = FPLError + direct_solver_params%set(key = PARDISO_MKL_MESSAGE_LEVEL, value = 0)
-    FPLError = FPLError + direct_solver_params%set(key = PARDISO_MKL_IPARM,         value = iparm)
+    FPLError = FPLError + direct_solver_params%set(key = direct_solver_type,        value = pardiso_mkl)
+    FPLError = FPLError + direct_solver_params%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uss)
+    FPLError = FPLError + direct_solver_params%set(key = pardiso_mkl_message_level, value = 0)
+    FPLError = FPLError + direct_solver_params%set(key = pardiso_mkl_iparm,         value = iparm)
     check(FPLError == 0)
+
 
     do i=1, iters
 

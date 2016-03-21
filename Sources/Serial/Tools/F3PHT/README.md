@@ -31,7 +31,7 @@ $ cmake ../
 $ make
 ```
 
-*To compile FPHT under Windows use de equivalent commands*
+*To compile FPHT under Windows use the equivalent commands*
 
 ## Getting started with F3PHT
 
@@ -41,11 +41,10 @@ $ make
 ```fortran
 USE F3PHT
 
-type(ProcedurePointer_t) :: My_Dictionary
 
 call My_Dictionary%Init()
 
-... [Program boddy]
+... [Program body]
 
 call My_Dictionary%Free()
 ```
