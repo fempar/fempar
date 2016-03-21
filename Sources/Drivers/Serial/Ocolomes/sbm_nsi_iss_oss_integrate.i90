@@ -518,18 +518,16 @@ subroutine update_boundary_conditions_analytical(this,fe_space,time)
   real(rp), optional                       , intent(in)    :: time
   ! Locals
   real(rp) :: time_
-  type(vector_function_t), pointer :: velocity_function
-  type(scalar_function_t), pointer :: pressure_function
 
   time_ = 0.0_rp
   if(present(time)) time_ = time
 
   ! Update velocity 
-  velocity_function => this%analytical_functions%get_velocity_function()
-  call fe_space%update_bc_value(velocity_function,bc_code=1,fe_space_component=1,time=time_)
+  call fe_space%update_bc_value(this%analytical_functions%get_velocity_function(),bc_code=1, &
+       &                        fe_space_component=1,time=time_)
 
   ! Update pressure
-  pressure_function => this%analytical_functions%get_pressure_function()
-  call fe_space%update_bc_value(pressure_function,bc_code=1,fe_space_component=2,time=time_)
+  call fe_space%update_bc_value(this%analytical_functions%get_pressure_function(),bc_code=1, &
+       &                        fe_space_component=2,time=time_)
 
 end subroutine update_boundary_conditions_analytical

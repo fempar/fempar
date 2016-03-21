@@ -44,6 +44,8 @@ subroutine nsi_iss_oss_analytical_functions_create(this,params)
      allocate(linear_steady_velocity_grad_div_function_t :: this%velocity_grad_div)
      allocate(linear_steady_pressure_gradient_function_t :: this%pressure_gradient)
      allocate(linear_steady_pressure_function_t          :: this%pressure)
+  case default
+     check(.false.)
   end select
 
 end subroutine nsi_iss_oss_analytical_functions_create
