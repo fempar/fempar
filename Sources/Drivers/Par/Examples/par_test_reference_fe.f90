@@ -118,8 +118,6 @@ contains
 
     integer(ip) :: ielem, iapprox, number_nodes
     type(i1p_t), pointer :: elem2dof(:)
-    type(i1p_t), pointer :: bc_code(:)
-    type(r1p_t), pointer :: bc_value(:)
     integer(ip), allocatable :: number_nodes_per_field(:)  
 
     number_fe_spaces = fe_space%get_number_fe_spaces()
@@ -147,8 +145,6 @@ contains
        fe_map   => fe%get_fe_map()
        vol_int  => fe%get_volume_integrator(1)
        elem2dof => fe%get_elem2dof()
-       bc_code  => fe%get_bc_code()
-       bc_value => fe%get_bc_value()
 
        do igaus = 1,ngaus
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
@@ -164,7 +160,7 @@ contains
        !write (*,*) elmat
        
        ! Apply boundary conditions
-       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
+       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )
     end do
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
@@ -262,9 +258,11 @@ program par_test_reference_fe
   reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = 2, &
-                                                   order = 1, &
+                                                   order = 3, &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
+  
+  call reference_fe_array_one(1)%p%print()
   
   call par_fe_space%create( par_triangulation = par_triangulation, &
                             par_boundary_conditions = par_conditions, &
@@ -303,7 +301,7 @@ program par_test_reference_fe
   call iterative_linear_solver%create(par_env)
   call iterative_linear_solver%set_type_and_parameters_from_pl()
   call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-  call iterative_linear_solver%solve(vector)
+  call iterative_linear_solver%solve(fe_affine_operator%get_translation(),vector)
   call iterative_linear_solver%free() 
 
   select type(vector)

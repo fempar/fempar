@@ -174,8 +174,6 @@ contains
 
     integer(ip) :: ielem, iapprox, number_nodes
     type(i1p_t), pointer :: elem2dof(:)
-    type(i1p_t), pointer :: bc_code(:)
-    type(r1p_t), pointer :: bc_value(:)
     integer(ip), allocatable :: number_nodes_per_field(:)  
 
     number_fe_spaces = fe_space%get_number_fe_spaces()
@@ -203,8 +201,6 @@ contains
        fe_map   => fe%get_fe_map()
        vol_int  => fe%get_volume_integrator(1)
        elem2dof => fe%get_elem2dof()
-       bc_code  => fe%get_bc_code()
-       bc_value => fe%get_bc_value()
 
        do igaus = 1,ngaus
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
@@ -218,7 +214,7 @@ contains
        end do
        
        ! Apply boundary conditions
-       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
+       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )
     end do
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
@@ -268,8 +264,6 @@ contains
 
     integer(ip) :: ielem, number_nodes
     type(i1p_t), pointer :: elem2dof(:)
-    type(i1p_t), pointer :: bc_code(:)
-    type(r1p_t), pointer :: bc_value(:)
 
     number_fe_spaces = fe_space%get_number_fe_spaces()
     field_blocks => fe_space%get_field_blocks()
@@ -296,8 +290,6 @@ contains
        fe_map            => fe%get_fe_map()
        vol_int           => fe%get_volume_integrator(1)
        elem2dof          => fe%get_elem2dof()
-       bc_code           => fe%get_bc_code()
-       bc_value          => fe%get_bc_value()
 
        do igaus = 1,ngaus
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
@@ -310,7 +302,7 @@ contains
           end do
        end do
        
-       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
+       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
     end do
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
@@ -361,8 +353,6 @@ contains
 
     integer(ip) :: ielem, number_nodes
     type(i1p_t), pointer :: elem2dof(:)
-    type(i1p_t), pointer :: bc_code(:)
-    type(r1p_t), pointer :: bc_value(:)
 
     number_fe_spaces = fe_space%get_number_fe_spaces()
     field_blocks => fe_space%get_field_blocks()
@@ -390,8 +380,6 @@ contains
        vol_int_first_fe  => fe%get_volume_integrator(1)
        vol_int_second_fe => fe%get_volume_integrator(2)
        elem2dof          => fe%get_elem2dof()
-       bc_code           => fe%get_bc_code()
-       bc_value          => fe%get_bc_value()
 
        do igaus = 1,ngaus
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
@@ -414,8 +402,7 @@ contains
              end do
           end do
        end do
-       
-       call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value, number_nodes_per_field, number_fe_spaces )
+       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
     end do
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
@@ -479,7 +466,6 @@ contains
     type(fe_affine_operator_t)           :: fe_affine_operator
     type(poisson_discrete_integration_t) :: poisson_integration
     type(iterative_linear_solver_t)      :: iterative_linear_solver
-    type(vector_space_t), pointer        :: fe_affine_operator_range_vector_space
     type(serial_environment_t)           :: senv
     class(vector_t), allocatable         :: computed_solution_vector, exact_solution_vector
     class(matrix_t)            , pointer :: matrix
@@ -516,16 +502,15 @@ contains
      !   call matrix%print_matrix_market(6)
      !end select
  
-     fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-     call fe_affine_operator_range_vector_space%create_vector(computed_solution_vector)
-     call fe_affine_operator_range_vector_space%create_vector(exact_solution_vector)
+     call fe_affine_operator%create_range_vector(computed_solution_vector)
+     call fe_affine_operator%create_range_vector(exact_solution_vector)
      call exact_solution_vector%init(1.0_rp)
 
      ! Create iterative linear solver, set operators and solve linear system
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_type_from_string("CG")
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call iterative_linear_solver%solve(computed_solution_vector)
+     call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
      call iterative_linear_solver%free() 
 
      !select type(computed_solution_vector)
@@ -561,7 +546,6 @@ contains
     type(fe_affine_operator_t)                    :: fe_affine_operator
     type(vector_laplacian_single_discrete_integration_t) :: vector_laplacian_integration
     type(iterative_linear_solver_t)               :: iterative_linear_solver
-    type(vector_space_t), pointer                 :: fe_affine_operator_range_vector_space
     type(serial_environment_t)                    :: senv
     class(vector_t), allocatable                  :: computed_solution_vector, exact_solution_vector
     class(matrix_t)            , pointer          :: matrix
@@ -598,16 +582,15 @@ contains
      !   call matrix%print_matrix_market(6)
      !end select
  
-     fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-     call fe_affine_operator_range_vector_space%create_vector(computed_solution_vector)
-     call fe_affine_operator_range_vector_space%create_vector(exact_solution_vector)
+     call fe_affine_operator%create_range_vector(computed_solution_vector)
+     call fe_affine_operator%create_range_vector(exact_solution_vector)
      call exact_solution_vector%init(1.0_rp)
 
      ! Create iterative linear solver, set operators and solve linear system
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_type_from_string("CG")
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call iterative_linear_solver%solve(computed_solution_vector)
+     call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
      call iterative_linear_solver%free() 
 
      !select type(computed_solution_vector)
@@ -642,7 +625,6 @@ contains
     type(fe_affine_operator_t)                    :: fe_affine_operator
     type(vector_laplacian_composite_discrete_integration_t) :: vector_laplacian_integration
     type(iterative_linear_solver_t)               :: iterative_linear_solver
-    type(vector_space_t), pointer                 :: fe_affine_operator_range_vector_space
     type(serial_environment_t)                    :: senv
     class(vector_t), allocatable                  :: computed_solution_vector, exact_solution_vector
     class(matrix_t)            , pointer          :: matrix
@@ -688,16 +670,15 @@ contains
      !   call matrix%print_matrix_market(6)
      !end select
  
-     fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-     call fe_affine_operator_range_vector_space%create_vector(computed_solution_vector)
-     call fe_affine_operator_range_vector_space%create_vector(exact_solution_vector)
+     call fe_affine_operator%create_range_vector(computed_solution_vector)
+     call fe_affine_operator%create_range_vector(exact_solution_vector)
      call exact_solution_vector%init(1.0_rp)
 
      ! Create iterative linear solver, set operators and solve linear system
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_type_from_string("CG")
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call iterative_linear_solver%solve(computed_solution_vector)
+     call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
      call iterative_linear_solver%free() 
 
      !select type(computed_solution_vector)
@@ -735,7 +716,6 @@ contains
     type(fe_affine_operator_t)                    :: fe_affine_operator
     type(vector_laplacian_composite_discrete_integration_t) :: vector_laplacian_integration
     type(iterative_linear_solver_t)               :: iterative_linear_solver
-    type(vector_space_t), pointer                 :: fe_affine_operator_range_vector_space
     type(serial_environment_t)                    :: senv
     class(vector_t), allocatable                  :: computed_solution_vector, exact_solution_vector
     class(matrix_t)            , pointer          :: matrix
@@ -781,16 +761,15 @@ contains
      !   call matrix%print_matrix_market(6)
      !end select
  
-     fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-     call fe_affine_operator_range_vector_space%create_vector(computed_solution_vector)
-     call fe_affine_operator_range_vector_space%create_vector(exact_solution_vector)
+     call fe_affine_operator%create_range_vector(computed_solution_vector)
+     call fe_affine_operator%create_range_vector(exact_solution_vector)
      call exact_solution_vector%init(1.0_rp)
 
      ! Create iterative linear solver, set operators and solve linear system
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_type_from_string("CG")
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call iterative_linear_solver%solve(computed_solution_vector)
+     call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
      call iterative_linear_solver%free() 
 
      !select type(computed_solution_vector)

@@ -1092,23 +1092,7 @@ contains
             if(action == free_numerical_setup) then
                 call this%State%free_numeric()
             elseif(action == free_symbolic_setup) then
-                select type (matrix => this%State)
-                    class is (coo_sparse_matrix_t)
-                        call Matrix%free_symbolic()
-                    class DEFAULT
-                        nnz               = matrix%get_nnz()
-                        num_rows          = matrix%get_num_rows()
-                        num_cols          = matrix%get_num_cols()
-                        sign              = matrix%get_sign()
-                        symmetric         = matrix%is_symmetric()
-                        symmetric_storage = matrix%get_symmetric_storage()
-                        call matrix%free_clean()
-                        deallocate(this%State)
-                        call this%create(num_rows,num_cols,nnz)
-                        call this%State%set_sign(sign)
-                        call this%State%set_symmetry(symmetric)
-                        call this%State%set_symmetric_storage(symmetric_storage)
-                end select
+                call this%State%free_symbolic()
             elseif(action == free_clean) then
                 call this%State%free_clean()
                 call this%free_vector_spaces()
