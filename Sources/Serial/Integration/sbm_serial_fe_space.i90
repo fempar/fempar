@@ -733,9 +733,9 @@ end subroutine update_bc_value_tensor
 !===============================================================================================
  subroutine serial_fe_space_create_fe_function_scalar ( this, fe_space_id, fe_function_scalar )
     implicit none
-    class(serial_fe_space_t) , intent(in)    :: this
-    integer(ip)                 , intent(in)    :: fe_space_id
-    type(fe_function_scalar_t)  , intent(inout) :: fe_function_scalar
+    class(serial_fe_space_t)  , intent(in)    :: this
+    integer(ip)               , intent(in)    :: fe_space_id
+    type(fe_function_scalar_t), intent(inout) :: fe_function_scalar
 
     assert ( fe_space_id >=1 .and. fe_space_id <= this%number_fe_spaces )
     assert ( this%reference_fe_phy_list(fe_space_id)%p%get_field_type() == field_type_scalar )
@@ -749,9 +749,9 @@ end subroutine update_bc_value_tensor
  !===============================================================================================
  subroutine serial_fe_space_create_fe_function_vector ( this, fe_space_id, fe_function_vector )
     implicit none
-    class(serial_fe_space_t) , intent(in)    :: this
-    integer(ip)                 , intent(in)    :: fe_space_id
-    type(fe_function_vector_t)  , intent(inout) :: fe_function_vector
+    class(serial_fe_space_t)  , intent(in)    :: this
+    integer(ip)               , intent(in)    :: fe_space_id
+    type(fe_function_vector_t), intent(inout) :: fe_function_vector
 
     assert ( fe_space_id >=1 .and. fe_space_id <= this%number_fe_spaces )
     assert ( this%reference_fe_phy_list(fe_space_id)%p%get_field_type() == field_type_vector )
@@ -765,9 +765,9 @@ end subroutine update_bc_value_tensor
  !===============================================================================================
  subroutine serial_fe_space_create_fe_function_tensor ( this, fe_space_id, fe_function_tensor )
     implicit none
-    class(serial_fe_space_t) , intent(in)    :: this
-    integer(ip)                 , intent(in)    :: fe_space_id
-    type(fe_function_tensor_t)  , intent(inout) :: fe_function_tensor
+    class(serial_fe_space_t)  , intent(in)    :: this
+    integer(ip)               , intent(in)    :: fe_space_id
+    type(fe_function_tensor_t), intent(inout) :: fe_function_tensor
 
     assert ( fe_space_id >=1 .and. fe_space_id <= this%number_fe_spaces )
     assert ( this%reference_fe_phy_list(fe_space_id)%p%get_field_type() == field_type_tensor )
