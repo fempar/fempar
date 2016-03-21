@@ -45,6 +45,7 @@ module vector_space_names
     class(vector_t), allocatable :: vector
    contains
      procedure :: create        => vector_space_create
+     procedure :: is_created    => vector_space_is_created
      procedure :: create_vector => vector_space_create_vector
      procedure :: belongs_to    => vector_space_belongs_to
      procedure :: equal_to      => vector_space_equal_to
@@ -65,6 +66,14 @@ contains
        allocate(this%vector, mold=vector)
        call this%vector%clone(vector)
      end subroutine vector_space_create
+
+
+     function vector_space_is_created(this) result(is_created)
+       implicit none
+       class(vector_space_t), intent(in) :: this
+       logical                           :: is_created
+       is_created = allocated(this%vector)
+     end function vector_space_is_created
 
      ! This method selects the dynamic type of class(vector_t) and allocates it, 
      ! following the FACTORY METHOD OOD pattern. As the method is responsible for

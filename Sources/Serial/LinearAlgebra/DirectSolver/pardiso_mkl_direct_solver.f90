@@ -1,3 +1,31 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 #ifdef ENABLE_MKL
   include 'mkl_pardiso.f90'
 #endif
@@ -10,6 +38,7 @@ module pardiso_mkl_direct_solver_names
     USE csr_sparse_matrix_names, only: csr_sparse_matrix_t
     USE serial_scalar_array_names
     USE base_direct_solver_names
+    USE direct_solver_parameters_names
     USE FPL
 #ifdef ENABLE_MKL
     USE mkl_pardiso
@@ -22,20 +51,6 @@ module pardiso_mkl_direct_solver_names
     private
     ! Parameters used in pardiso_mkl direct_solver
     integer, parameter :: dp              = 8   ! kind (1.0D0)
-    integer, parameter :: pardiso_mkl_spd =  2  ! Real Symmetric positive definite 
-    integer, parameter :: pardiso_mkl_sin = -2  ! Real Symmetric indefinite
-    integer, parameter :: pardiso_mkl_uss = 1   ! Real Unsymmetric, structurally symmetric
-    integer, parameter :: pardiso_mkl_uns = 11  ! Real Unsymmetric, structurally unsymmetric
-
-    ! Parameter strings to be used in the Parameter List
-    character(len=*), parameter :: pardiso_mkl_name             = 'PARDISO_MKL'
-    character(len=*), parameter :: pardiso_mkl_iparm            = 'pardiso_mkl_iparm'
-    character(len=*), parameter :: pardiso_mkl_matrix_type      = 'pardiso_mkl_matrix_type'
-    character(len=*), parameter :: pardiso_mkl_message_level    = 'pardiso_mkl_message_level'
-
-    integer, parameter :: default_pardiso_mkl_message_level = 0                ! Default pardiso_mkl parameters array
-    integer, parameter :: default_pardiso_mkl_iparm         = 0                ! Default pardiso_mkl parameters array
-    integer, parameter :: default_pardiso_mkl_matrix_type   = pardiso_mkl_uns  ! Default pardiso_mkl parameters array
 
     type, extends(base_direct_solver_t) :: pardiso_mkl_direct_solver_t
     private
@@ -68,24 +83,23 @@ module pardiso_mkl_direct_solver_names
     end type
 
 public :: create_pardiso_mkl_direct_solver
-public :: pardiso_mkl_name, pardiso_mkl_iparm, pardiso_mkl_matrix_type, pardiso_mkl_message_level
-public :: pardiso_mkl_spd, pardiso_mkl_sin, pardiso_mkl_uss, pardiso_mkl_uns
 
 contains
 
-    function create_pardiso_mkl_direct_solver() result(pardiso_mkl_direct_solver)
+    subroutine create_pardiso_mkl_direct_solver(base_direct_solver)
     !-----------------------------------------------------------------
     !< Creational function for pardiso_mkl direct solver
     !-----------------------------------------------------------------
-        class(base_direct_solver_t),       pointer :: pardiso_mkl_direct_solver
-        type(pardiso_mkl_direct_solver_t), pointer :: pardiso_mkl
+        class(base_direct_solver_t),       pointer, intent(inout) :: base_direct_solver
+        type(pardiso_mkl_direct_solver_t), pointer                :: pardiso_mkl_instance
     !-----------------------------------------------------------------
-        allocate(pardiso_mkl)
-        call pardiso_mkl%set_name(pardiso_mkl_name)
-        call pardiso_mkl%initialize()
-        call pardiso_mkl%set_defaults()
-        pardiso_mkl_direct_solver => pardiso_mkl
-    end function create_pardiso_mkl_direct_solver
+        assert(.not. associated(base_direct_solver))
+        allocate(pardiso_mkl_instance)
+        call pardiso_mkl_instance%set_name(pardiso_mkl)
+        call pardiso_mkl_instance%initialize()
+        call pardiso_mkl_instance%set_defaults()
+        base_direct_solver => pardiso_mkl_instance
+    end subroutine create_pardiso_mkl_direct_solver
 
 
     subroutine pardiso_mkl_direct_solver_initialize(this)
@@ -122,9 +136,9 @@ contains
         this%max_number_of_factors = 1
         this%actual_matrix         = 1
         this%number_of_rhs         = 1
-        this%message_level         = default_pardiso_mkl_message_level
-        this%matrix_type           = default_pardiso_mkl_matrix_type
-        this%pardiso_mkl_iparm     = default_pardiso_mkl_iparm
+        this%message_level         = pardiso_mkl_default_message_level
+        this%matrix_type           = pardiso_mkl_default_matrix_type
+        this%pardiso_mkl_iparm     = pardiso_mkl_default_iparm
 
         this%pardiso_mkl_iparm(18)     = -1 ! Output: number of nonzeros in the factor LU
         this%pardiso_mkl_iparm(19)     = -1 ! Output: Mflops for LU factorization
@@ -209,10 +223,10 @@ contains
                     assert(FPLError == 0)
 #ifdef DEBUG
                 else
-                    write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Expected size (64). '
+                    write(*,'(a)') ' Warning! pardiso_mkl_iparm ignored. Expected size (64). '
                 endif
             else
-                write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Wrong data type or shape. '
+                write(*,'(a)') ' Warning! pardiso_mkl_iparm ignored. Wrong data type or shape. '
             endif
         endif
 
@@ -351,8 +365,8 @@ contains
     ! Computes y <- A^-1 * x, using previously computed LU factorization
     !-----------------------------------------------------------------
         class(pardiso_mkl_direct_solver_t), intent(inout) :: op
-        class(serial_scalar_array_t),       intent(in)    :: x
-        class(serial_scalar_array_t),       intent(inout) :: y
+        type(serial_scalar_array_t),        intent(in)    :: x
+        type(serial_scalar_array_t),        intent(inout) :: y
         real(rp), pointer                                 :: x_b(:)
         real(rp), pointer                                 :: y_b(:)
         integer                                           :: error

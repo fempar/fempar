@@ -224,7 +224,9 @@ module reference_fe_names
           number_field_components
 
      logical                  ::    &
-          continuity                  ! CG(.true.)/DG(.false.)
+          continuity,               &      ! CG(.true.)/DG(.false.)
+          conformity                       ! .true. for discontinuous L2 conforming spaces 
+                                           ! that do not require to enforce weakly continuity
 
      integer(ip)              ::    &
           number_vefs,              &        
@@ -236,11 +238,15 @@ module reference_fe_names
      type(list_t)                   :: nodes_vef          ! all nodes per vef
      type(list_t)                   :: vertices_vef       ! vertices per vef
      type(list_t)                   :: vefs_vef           ! all vefs per vef
+     type(list_t)                   :: own_nodes_vef
+     type(list_t)                   :: face_integration_coupling_nodes_face
      type(quadrature_t)             :: nodal_quadrature
+
+     
 
      integer(ip), allocatable :: number_rotations_per_dimension(:)
      integer(ip), allocatable :: number_orientations_per_dimension(:)
-     type(allocatable_array_ip2_t), allocatable :: interior_node_permutations(:)
+     type(allocatable_array_ip2_t), allocatable :: own_node_permutations(:)
    contains
      ! TBPs
      ! Fill topology, fe_type, number_dimensions, order, continuity 
@@ -321,6 +327,7 @@ module reference_fe_names
      procedure :: get_number_dimensions => reference_fe_get_number_dimensions
      procedure :: get_order => reference_fe_get_order
      procedure :: get_continuity => reference_fe_get_continuity
+     procedure :: get_conformity => reference_fe_get_conformity
      procedure :: get_number_field_components => reference_fe_get_number_field_components
      procedure :: get_number_vefs => reference_fe_get_number_vefs
      procedure :: get_number_vertices => reference_fe_get_number_vertices
@@ -335,25 +342,18 @@ module reference_fe_names
      procedure :: get_first_vef_id_of_dimension => reference_fe_get_first_vef_id_of_dimension 
      procedure :: get_number_nodes => reference_fe_get_number_nodes
      procedure :: get_vef_dimension  => reference_fe_get_vef_dimension
-     procedure :: get_interior_nodes_vef  => reference_fe_get_interior_nodes_vef
-     procedure :: get_nodes_vef  =>     reference_fe_get_nodes_vef
      procedure :: get_vertices_vef  =>   reference_fe_get_vertices_vef
      procedure :: get_vefs_vef   =>   reference_fe_get_vefs_vef
-     procedure :: get_node_vef => reference_fe_get_node_vef
-     procedure :: get_interior_node_vef => reference_fe_get_interior_node_vef
-     procedure :: get_number_nodes_vef => reference_fe_get_number_nodes_vef
-     procedure :: get_number_interior_nodes_vef => reference_fe_get_number_interior_nodes_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
-     procedure :: get_number_nodes_per_vertex => reference_fe_get_number_nodes_per_vertex
-     procedure :: get_number_nodes_per_edge => reference_fe_get_number_nodes_per_edge
-     procedure :: get_number_interior_nodes_per_edge => reference_fe_get_number_interior_nodes_per_edge
-     procedure :: get_number_nodes_per_face => reference_fe_get_number_nodes_per_face
-     procedure :: get_number_interior_nodes_per_face => reference_fe_get_number_interior_nodes_per_face
+     procedure :: get_number_own_nodes_vef => reference_fe_get_number_own_nodes_vef
+     procedure :: get_own_node_vef => reference_fe_get_own_node_vef
+     procedure :: get_face_integration_coupling_number_nodes_face => reference_fe_get_face_integration_coupling_number_nodes_face
+     procedure :: get_face_integration_coupling_node_face => reference_fe_get_face_integration_coupling_node_face
      procedure :: get_orientation => reference_fe_get_orientation     
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
-     procedure :: get_permuted_interior_node_vef  => reference_fe_get_permuted_interior_node_vef
+     procedure :: get_permuted_own_node_vef  => reference_fe_get_permuted_own_node_vef
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -363,14 +363,15 @@ module reference_fe_names
   end type p_reference_fe_t
 
   abstract interface
-     subroutine create_interface ( this, number_dimensions, order, field_type, continuity )
+     subroutine create_interface ( this, number_dimensions, order, field_type, continuity, enable_face_integration )
        import :: reference_fe_t, ip
        implicit none 
        class(reference_fe_t), intent(inout) :: this 
        integer(ip)          , intent(in)    :: number_dimensions
        integer(ip)          , intent(in)    :: order
        character(*)         , intent(in)    :: field_type
-       logical, optional    , intent(in)    :: continuity
+       logical             , intent(in)    :: continuity
+       logical, optional    , intent(in)    :: enable_face_integration
      end subroutine create_interface
      
      subroutine create_quadrature_interface ( this, quadrature, max_order )
