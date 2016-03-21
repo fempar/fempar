@@ -83,7 +83,6 @@ subroutine integrate(this,fe_space,assembler)
   type(volume_integrator_t), pointer :: vol_int_pressure_fe
   type(volume_integrator_t), pointer :: vol_int_projection_fe
   type(i1p_t)              , pointer :: elem2dof(:)
-  class(vector_t)          , pointer :: vector_dof_values
   
   ! Getters
   fe                       => fe_space%get_finite_element(1)
@@ -107,7 +106,6 @@ subroutine integrate(this,fe_space,assembler)
   call fe_space%initialize_integration()
   call fe_space%create_fe_function(1,fe_velocity)
   call source_vector%init(0.0_rp)
-  vector_dof_values => this%dof_values
   
   ! Initialize discrete integration structures
   number_quadrature_points =  quad%get_number_quadrature_points()
@@ -124,7 +122,7 @@ subroutine integrate(this,fe_space,assembler)
      ! Update finite element structures
      fe => fe_space%get_finite_element(ielem)
      call fe%update_integration()
-     call fe%update_values(fe_velocity, vector_dof_values)
+     call fe%update_values(fe_velocity, this%fe_values)
      
      ! Elemental getters
      fe_map                => fe%get_fe_map()

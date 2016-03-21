@@ -26,32 +26,61 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
- subroutine fe_function_update_dof_values( this, vector_dof_values )
+
+
+!**************************************************************************************************
+! Methods associated to fe_function_t
+!*************************************************************************************************
+
+ !===============================================================================================
+ subroutine fe_function_create( this, strong_dirichlet_values, vector_dof_values )
     implicit none
-    class(fe_function_t), intent(inout) :: this
-    class(vector_t)     , intent(in)    :: vector_dof_values
+    class(fe_function_t)       , intent(inout) :: this
+    type(serial_scalar_array_t), intent(in)    :: strong_dirichlet_values
+    class(vector_t)    , target, intent(in)    :: vector_dof_values
+    integer(ip)                                :: istat
  
-  call this%vector_dof_values%free()
-  allocate ( this%vector_dof_values, mold = vector_dof_values )
-  this%vector_dof_values = vector_dof_values
-  end subroutine fe_function_update_dof_values
+    call this%free()
+    
+    this%vector_dof_values => vector_dof_values
+    call this%strong_dirichlet_values%clone(strong_dirichlet_values)
+    call this%strong_dirichlet_values%copy(strong_dirichlet_values)
+    
+  end subroutine fe_function_create
  
- subroutine fe_function_update_bc_values( this, fe_space )
+ !===============================================================================================
+ subroutine fe_function_copy_bc_values( this, strong_dirichlet_values )
     implicit none
-    class(fe_function_t), intent(inout) :: this 
-    class(serial_fe_space_t)   , intent(in)    :: fe_space
+    class(fe_function_t)       , intent(inout) :: this 
+    type(serial_scalar_array_t), intent(in)    :: strong_dirichlet_values
  
-  call this%strong_dirichlet_values%free()
-  this%strong_dirichlet_values = fe_space%strong_dirichlet_values
-  end subroutine fe_function_update_bc_values
+    call this%strong_dirichlet_values%copy(strong_dirichlet_values)
+  end subroutine fe_function_copy_bc_values
   
+ !===============================================================================================
+ function fe_function_get_vector_dof_values ( this )
+    implicit none
+    class(fe_function_t), target, intent(in) :: this 
+    class(vector_t), pointer :: fe_function_get_vector_dof_values
+    fe_function_get_vector_dof_values => this%vector_dof_values
+ end function fe_function_get_vector_dof_values
+ 
+ !===============================================================================================
+ function fe_function_get_strong_dirichlet_values ( this )
+    implicit none
+    class(fe_function_t), target, intent(in) :: this 
+    type(serial_scalar_array_t), pointer :: fe_function_get_strong_dirichlet_values
+    fe_function_get_strong_dirichlet_values => this%strong_dirichlet_values
+ end function fe_function_get_strong_dirichlet_values
   
+ !=============================================================================================== 
  subroutine fe_function_free( this )
     implicit none
-    class(fe_function_t), intent(inout) :: this 
-
-  call this%vector_dof_values%free()
-  call this%strong_dirichlet_values%free()
+    class(fe_function_t), intent(inout) :: this
+    
+    if( associated(this%vector_dof_values) ) nullify(this%vector_dof_values)
+    call this%strong_dirichlet_values%free()
+    
   end subroutine fe_function_free
   
 !**************************************************************************************************

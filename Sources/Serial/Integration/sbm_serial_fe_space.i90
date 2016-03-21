@@ -730,6 +730,27 @@ subroutine update_bc_value_tensor( this, tensor_function, bc_code, fe_space_comp
   check( .false. )
 end subroutine update_bc_value_tensor
 
+ !===============================================================================================
+ subroutine serial_fe_space_create_global_fe_function ( this, fe_function, vector_dof_values )
+    implicit none
+    class(serial_fe_space_t), intent(in)    :: this
+    type(fe_function_t)     , intent(inout) :: fe_function
+    class(vector_t)         , intent(in)    :: vector_dof_values
+
+    call fe_function%create(this%strong_dirichlet_values,vector_dof_values)
+
+ end subroutine serial_fe_space_create_global_fe_function
+
+ !===============================================================================================
+ subroutine serial_fe_space_copy_fe_function_bc_values ( this, fe_function )
+    implicit none
+    class(serial_fe_space_t), intent(in)    :: this
+    type(fe_function_t)     , intent(inout) :: fe_function
+
+    call fe_function%copy_bc_values(this%strong_dirichlet_values)
+ 
+ end subroutine serial_fe_space_copy_fe_function_bc_values
+
 !===============================================================================================
  subroutine serial_fe_space_create_fe_function_scalar ( this, fe_space_id, fe_function_scalar )
     implicit none

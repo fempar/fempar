@@ -232,6 +232,8 @@ module serial_fe_space_names
                                       & get_max_number_nodes_fe_space
      procedure, non_overridable :: get_max_number_quadrature_points => serial_fe_space_get_max_number_quadrature_points
      procedure, non_overridable :: create_face_array => serial_fe_space_create_face_array
+     procedure, non_overridable :: create_global_fe_function => serial_fe_space_create_global_fe_function
+     procedure, non_overridable :: copy_fe_function_bc_values => serial_fe_space_copy_fe_function_bc_values
      procedure, private         :: create_fe_function_scalar => serial_fe_space_create_fe_function_scalar
      procedure, private         :: create_fe_function_vector => serial_fe_space_create_fe_function_vector
      procedure, private         :: create_fe_function_tensor => serial_fe_space_create_fe_function_tensor
@@ -279,14 +281,15 @@ module serial_fe_space_names
   
    type fe_function_t
    private
-   class(vector_t), allocatable :: vector_dof_values
-   type(serial_scalar_array_t)  :: strong_dirichlet_values
+   class(vector_t)            , pointer  :: vector_dof_values
+   type(serial_scalar_array_t)           :: strong_dirichlet_values
    
   contains
-     !procedure, non_overridable, private :: create                      => fe_function_create
-     procedure, non_overridable, private :: update_dof_values      => fe_function_update_dof_values
-     procedure, non_overridable, private :: update_bc_values       => fe_function_update_bc_values
-     procedure, non_overridable :: free                                 => fe_function_free
+     procedure, non_overridable, private :: create                      => fe_function_create
+     procedure, non_overridable, private :: copy_bc_values              => fe_function_copy_bc_values
+     procedure, non_overridable          :: get_vector_dof_values       => fe_function_get_vector_dof_values
+     procedure, non_overridable          :: get_strong_dirichlet_values => fe_function_get_strong_dirichlet_values
+     procedure, non_overridable          :: free                        => fe_function_free
   end type fe_function_t 
   
   type fe_function_scalar_t
@@ -365,7 +368,7 @@ module serial_fe_space_names
      procedure, non_overridable :: free                                 => fe_function_tensor_free
   end type fe_function_tensor_t
   
-  public :: fe_function_scalar_t, fe_function_vector_t, fe_function_tensor_t
+  public :: fe_function_t, fe_function_scalar_t, fe_function_vector_t, fe_function_tensor_t
   
 contains
 
