@@ -66,12 +66,11 @@ module lfom_names
   end type lfom_t
   
   ! Data types
-  public :: lfom_t, create_lfom
+  public :: lfom_t, create_lfom, lfom_name
   public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
   public :: default_dkrymax, default_orthonorm_strat
   public :: mgsro, icgsro
   public :: modified_gs_reorthonorm, iterative_gs_reorthonorm, apply_givens_rotation
-  public :: lfom_name
   
 contains
   subroutine lfom_allocate_workspace(this)
@@ -111,18 +110,19 @@ contains
    class(lfom_t), intent(inout) :: this
   end subroutine lfom_set_parameters_from_pl
   
-  subroutine lfom_solve_body(this,x)
+  subroutine lfom_solve_body(this,b,x)
 #ifdef ENABLE_LAPACK
     use lapack77_interfaces_names
 #endif
     implicit none
-    class(lfom_t)    , intent(inout) :: this
+    class(lfom_t)      , intent(inout) :: this
+    class(vector_t)    , intent(in)    :: b
     class(vector_t)    , intent(inout) :: x 
 
     ! Local variables to store a copy/reference of the corresponding member variables of base class
     class(environment_t), pointer :: environment
     class(operator_t)   , pointer :: A, M 
-    class(vector_t)     , pointer :: initial_solution, b
+    class(vector_t)     , pointer :: initial_solution
     integer(ip)                   :: stopping_criteria, max_num_iterations, output_frequency, luout
     real(rp)                      :: atol, rtol
     logical                       :: track_convergence_history
@@ -144,7 +144,6 @@ contains
 
     environment               => this%get_environment()
     A                         => this%get_A()
-    b                         => this%get_rhs()
     M                         => this%get_M()
     initial_solution          => this%get_initial_solution()
     luout                     =  this%get_luout()

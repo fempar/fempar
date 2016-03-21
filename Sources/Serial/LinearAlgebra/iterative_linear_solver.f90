@@ -65,24 +65,23 @@ module iterative_linear_solver_names
   ! solver_type_set  | set_type_from_pl     | solver_type_set
   ! solver_type_set  | free                 | not_created
   type :: iterative_linear_solver_t
-    private
-    class(environment_t)       , pointer  :: environment
-    class(base_iterative_linear_solver_t), pointer  :: base_iterative_linear_solver
-    integer(ip)                           :: state = not_created
-  contains
-    ! Concrete TBPs
-    procedure :: create                          => iterative_linear_solver_create
-    procedure :: free                            => iterative_linear_solver_free
-    procedure :: solve                           => iterative_linear_solver_solve
-    procedure :: print_convergence_history       => iterative_linear_solver_print_convergence_history
-    procedure :: set_type_from_pl                => iterative_linear_solver_set_type_from_pl
-    procedure :: set_parameters_from_pl          => iterative_linear_solver_set_parameters_from_pl
-    procedure :: set_type_and_parameters_from_pl => iterative_linear_solver_set_type_and_parameters_from_pl
-    procedure :: set_operators                   => iterative_linear_solver_set_operators
-    procedure :: set_initial_solution            => iterative_linear_solver_set_initial_solution
-    procedure :: set_rhs                         => iterative_linear_solver_set_rhs
-    procedure :: set_type_from_string            => iterative_linear_solver_set_type_from_string
-  end type
+     private
+     class(environment_t)       , pointer  :: environment
+     class(base_iterative_linear_solver_t), pointer  :: base_iterative_linear_solver
+     integer(ip)                           :: state = not_created
+   contains
+     ! Concrete TBPs
+     procedure :: create                          => iterative_linear_solver_create
+     procedure :: free                            => iterative_linear_solver_free
+     procedure :: solve                           => iterative_linear_solver_solve
+     procedure :: print_convergence_history       => iterative_linear_solver_print_convergence_history
+     procedure :: set_type_from_pl                => iterative_linear_solver_set_type_from_pl
+     procedure :: set_parameters_from_pl          => iterative_linear_solver_set_parameters_from_pl
+     procedure :: set_type_and_parameters_from_pl => iterative_linear_solver_set_type_and_parameters_from_pl
+     procedure :: set_operators                   => iterative_linear_solver_set_operators
+     procedure :: set_initial_solution            => iterative_linear_solver_set_initial_solution
+     procedure :: set_type_from_string            => iterative_linear_solver_set_type_from_string
+  end type iterative_linear_solver_t
   
   ! Data types
   public :: iterative_linear_solver_t
@@ -116,12 +115,13 @@ contains
      call this%base_iterative_linear_solver%print_convergence_history(file_path)
    end subroutine iterative_linear_solver_print_convergence_history
    
-   subroutine iterative_linear_solver_solve ( this, x )
+   subroutine iterative_linear_solver_solve ( this, b, x )
      implicit none
      class(iterative_linear_solver_t), intent(inout) :: this
+     class(vector_t)       , intent(in) :: b 
      class(vector_t)       , intent(inout) :: x 
      assert ( this%state == solver_type_set )
-     call this%base_iterative_linear_solver%solve(x)
+     call this%base_iterative_linear_solver%solve(b,x)
    end subroutine iterative_linear_solver_solve
 
    subroutine iterative_linear_solver_set_type_from_pl ( this )
@@ -166,7 +166,7 @@ contains
    subroutine iterative_linear_solver_set_type_and_parameters_from_pl ( this )
      implicit none
      class(iterative_linear_solver_t), intent(inout) :: this
-     call this%set_type_from_pl()
+     call this%set_type_from_pl( )
      call this%set_parameters_from_pl()
    end subroutine iterative_linear_solver_set_type_and_parameters_from_pl
    
@@ -177,15 +177,7 @@ contains
      assert ( this%state == solver_type_set )
      call this%base_iterative_linear_solver%set_operators(A,M)
    end subroutine iterative_linear_solver_set_operators
-   
-   subroutine iterative_linear_solver_set_rhs ( this, b )
-     implicit none
-     class(iterative_linear_solver_t), intent(inout) :: this
-     class(vector_t)       , intent(in)    :: b
-     assert ( this%state == solver_type_set )
-     call this%base_iterative_linear_solver%set_rhs(b)
-   end subroutine iterative_linear_solver_set_rhs
-   
+      
    subroutine iterative_linear_solver_set_initial_solution( this, initial_solution )
      implicit none
      class(iterative_linear_solver_t), intent(inout) :: this
@@ -199,6 +191,14 @@ contains
      class(iterative_linear_solver_t), intent(inout) :: this
      character(len=*)                , intent(in)    :: linear_solver_type
 
+     assert ( this%state == environment_set .or. this%state == solver_type_set )
+     
+     if ( this%state == solver_type_set ) then
+       ! PENDING: ONLY FREE IF THE TYPE SELECTED DOES NOT MATCH THE EXISTING ONE
+       call this%base_iterative_linear_solver%free()
+       deallocate ( this%base_iterative_linear_solver )
+     end if
+     
      select case(linear_solver_type)
      case(richardson_name) 
         this%base_iterative_linear_solver => create_richardson(this%environment)
@@ -216,8 +216,12 @@ contains
         this%base_iterative_linear_solver => create_minres(this%environment)
      case(icg_name) 
         this%base_iterative_linear_solver => create_icg(this%environment)
+     case default
+        assert(.false.)
      end select
-
+     
+     assert ( this%base_iterative_linear_solver%get_state() == start )
+     this%state = solver_type_set
    end subroutine iterative_linear_solver_set_type_from_string
    
 end module iterative_linear_solver_names

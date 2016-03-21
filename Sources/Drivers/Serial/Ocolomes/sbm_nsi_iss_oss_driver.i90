@@ -112,9 +112,11 @@
   ! Create values vector
   call fe_affine_operator%create_range_vector(dof_values)
   call fe_affine_operator%create_range_vector(residual)   
-  nsi_iss_oss_integration%dof_values => dof_values
   call dof_values%init(0.0_rp)
-  call residual%init(0.0_rp)    
+  call residual%init(0.0_rp)  
+  ! Create FE function
+  call fe_space%create_global_fe_function(fe_values,dof_values)
+  nsi_iss_oss_integration%fe_values => fe_values
   ! Fill affine operator
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
@@ -145,7 +147,7 @@
      call iterative_linear_solver%set_type_from_string('RGMRES')
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%set_initial_solution(dof_values)
-     call iterative_linear_solver%solve(dof_values)
+     call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
      call iterative_linear_solver%free()
 
      ! Update affine operator and residual
@@ -174,6 +176,7 @@
   !------------!
   call dof_values%free()
   call residual%free()
+  call fe_values%free()
   call fe_affine_operator%free()
   call nsi_iss_oss_integration%free()
 !!$  call iterative_linear_solver%free()

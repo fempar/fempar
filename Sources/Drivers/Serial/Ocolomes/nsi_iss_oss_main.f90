@@ -226,17 +226,17 @@ module nsi_iss_oss_discrete_integration_names
   private
 
   type, extends(discrete_integration_t) :: nsi_iss_oss_discrete_integration_t
-     real(rp)                 :: viscosity
-     real(rp)                 :: c1
-     real(rp)                 :: c2
-     real(rp)                 :: cc
-     real(rp)                 :: current_time
-     integer(ip)              :: elemental_length_flag
-     logical                  :: convection_activated
-     logical                  :: is_analytical_solution
-     logical                  :: is_initial_solution
-     logical                  :: is_temporal_solution
-     class(vector_t), pointer :: dof_values => NULL() 
+     real(rp)                      :: viscosity
+     real(rp)                      :: c1
+     real(rp)                      :: c2
+     real(rp)                      :: cc
+     real(rp)                      :: current_time
+     integer(ip)                   :: elemental_length_flag
+     logical                       :: convection_activated
+     logical                       :: is_analytical_solution
+     logical                       :: is_initial_solution
+     logical                       :: is_temporal_solution
+     class(fe_function_t), pointer :: fe_values => NULL() 
      type(nsi_iss_oss_analytical_functions_t) :: analytical_functions
    contains
      procedure                  :: integrate
@@ -281,11 +281,12 @@ program test_nsi_iss_oss
   type(nsi_iss_oss_discrete_integration_t) :: nsi_iss_oss_integration
   
   ! Finite Elment
-  type(serial_fe_space_t)              :: fe_space
-  type(p_reference_fe_t)               :: reference_fe_array(3)
-  type(fe_affine_operator_t)           :: fe_affine_operator
-  class(vector_t), allocatable, target :: dof_values
-  class(vector_t), allocatable, target :: residual
+  type(serial_fe_space_t)                   :: fe_space
+  type(p_reference_fe_t)                    :: reference_fe_array(3)
+  type(fe_affine_operator_t)                :: fe_affine_operator
+  type(fe_function_t)              , target :: fe_values
+  class(vector_t)     , allocatable, target :: residual
+  class(vector_t)     , allocatable, target :: dof_values
 
   ! Solver
   type(iterative_linear_solver_t)      :: iterative_linear_solver
