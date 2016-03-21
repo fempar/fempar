@@ -470,8 +470,6 @@ subroutine finite_element_impose_strong_dirichlet_bcs ( this, elmat, elvec )
  integer(ip)                            :: inode, elmat_col, fe_space_id
  
  real(rp), pointer :: strong_dirichlet_values_entries(:)
-
- write(*,'(a,a,a,i5)') 'WARNING: finite_element_impose_strong_dirichlet_bcs is imposing f=1 on the Dirichlet Boundary at file ', __FILE__, ' line ', __LINE__
  
  strong_dirichlet_values_entries => this%strong_dirichlet_values%get_entries()
  elmat_col = 0
@@ -479,7 +477,7 @@ subroutine finite_element_impose_strong_dirichlet_bcs ( this, elmat, elvec )
    do inode = 1, this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
        elmat_col = elmat_col + 1
        if ( this%elem2dof(fe_space_id)%p(inode) < 0 ) then
-          elvec = elvec - elmat(:,elmat_col)!*strong_dirichlet_values_entries(-this%elem2dof(fe_space_id)%p(inode))
+          elvec = elvec - elmat(:,elmat_col)*strong_dirichlet_values_entries(-this%elem2dof(fe_space_id)%p(inode))
        end if
     end do
  end do
