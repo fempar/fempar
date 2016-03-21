@@ -45,14 +45,9 @@ implicit none
 
 private
 
-    integer(ip), parameter :: VECTOR_SPACES_STATE_NOT_CREATED = 0
-    integer(ip), parameter :: VECTOR_SPACES_STATE_CREATED     = 1
-    integer(ip), parameter :: VECTOR_SPACES_STATE_UPDATE      = 2
-
     type, extends(operator_t) :: direct_solver_t
     private
         class(base_direct_solver_t), pointer :: base_direct_solver  => NULL()
-        integer(ip)                          :: vector_spaces_state = VECTOR_SPACES_STATE_NOT_CREATED
     contains
     private
         procedure, non_overridable, public :: set_type                => direct_solver_set_type
@@ -149,8 +144,6 @@ contains
     !-----------------------------------------------------------------
         assert(associated(this%base_direct_solver))
         call this%base_direct_solver%set_matrix(matrix)
-        if(this%vector_spaces_state == VECTOR_SPACES_STATE_CREATED) &
-            this%vector_spaces_state = VECTOR_SPACES_STATE_UPDATE
     end subroutine direct_solver_set_matrix
 
 
@@ -166,8 +159,7 @@ contains
     !-----------------------------------------------------------------
         assert(associated(this%base_direct_solver))
         call this%base_direct_solver%update_matrix(matrix, same_nonzero_pattern)
-        if(this%vector_spaces_state == VECTOR_SPACES_STATE_CREATED .and. .not. same_nonzero_pattern) &
-            this%vector_spaces_state = VECTOR_SPACES_STATE_UPDATE
+        if(.not. same_nonzero_pattern) call this%free_vector_spaces()
     end subroutine direct_solver_update_matrix
 
 
@@ -182,6 +174,7 @@ contains
         type(vector_space_t),   pointer                :: direct_solver_domain_vector_space
         type(vector_space_t),   pointer                :: direct_solver_range_vector_space
     !-----------------------------------------------------------------
+        assert(.not. this%vector_spaces_are_created())
         matrix_domain_vector_space        => matrix%get_domain_vector_space()
         matrix_range_vector_space         => matrix%get_range_vector_space()
         direct_solver_domain_vector_space => this%get_domain_vector_space()
@@ -200,15 +193,8 @@ contains
         class(direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
         assert(associated(this%base_direct_solver))
-        if(this%vector_spaces_state == VECTOR_SPACES_STATE_NOT_CREATED) then
+        if(.not. this%vector_spaces_are_created()) &
             call this%create_vector_spaces(this%base_direct_solver%get_matrix())
-            this%vector_spaces_state = VECTOR_SPACES_STATE_CREATED
-        elseif(this%vector_spaces_state == VECTOR_SPACES_STATE_UPDATE) then
-            call this%free_vector_spaces()
-            call this%create_vector_spaces(this%base_direct_solver%get_matrix())
-            this%vector_spaces_state = VECTOR_SPACES_STATE_CREATED
-        endif
-        assert(this%vector_spaces_state == VECTOR_SPACES_STATE_CREATED)
         call this%base_direct_solver%symbolic_setup()
     end subroutine direct_solver_symbolic_setup
 
@@ -220,6 +206,8 @@ contains
         class(direct_solver_t), intent(inout) :: this
     !-----------------------------------------------------------------
         assert(associated(this%base_direct_solver))
+        if(.not. this%vector_spaces_are_created()) &
+            call this%create_vector_spaces(this%base_direct_solver%get_matrix())
         call this%base_direct_solver%numerical_setup()
     end subroutine direct_solver_numerical_setup
 
@@ -239,11 +227,13 @@ contains
     !-----------------------------------------------------------------
     !< Computes y <- A^-1 * x
     !-----------------------------------------------------------------
-        class(direct_solver_t), intent(in)    :: op
+        class(direct_solver_t)                :: op
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y
     !-----------------------------------------------------------------
         assert(associated(op%base_direct_solver))
+        if(.not. op%vector_spaces_are_created()) &
+            call op%create_vector_spaces(op%base_direct_solver%get_matrix())
         select type (x)
             type is (serial_scalar_array_t)
                 select type (y)
@@ -299,7 +289,6 @@ contains
                     call this%base_direct_solver%free_clean()
                     deallocate(this%base_direct_solver)
                     nullify(this%base_direct_solver)
-                    this%vector_spaces_state = VECTOR_SPACES_STATE_NOT_CREATED
                 case DEFAULT
                     assert(.false.)
             end select
