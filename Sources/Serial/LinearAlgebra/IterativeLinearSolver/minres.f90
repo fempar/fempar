@@ -283,13 +283,11 @@ module minres_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names
+  use iterative_linear_solver_parameters_names
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: minres_name = 'MINRES'
-  integer (ip)    , parameter :: default_minres_stopping_criteria = res_res
 
   type, extends(base_iterative_linear_solver_t) :: minres_t
     ! Working space vectors for type(minres_t)
@@ -307,7 +305,7 @@ module minres_names
   end type
   
   ! Data types
-  public :: minres_t, create_minres, minres_name
+  public :: create_minres
   
 contains
   subroutine minres_allocate_workspace(this)

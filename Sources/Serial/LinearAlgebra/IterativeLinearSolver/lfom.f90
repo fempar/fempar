@@ -36,15 +36,14 @@ module lfom_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names  
+  use iterative_linear_solver_utils_names
+  use iterative_linear_solver_parameters_names
   use multivector_names
   use rgmres_names
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: lfom_name = 'LFOM'
-  integer (ip)    , parameter :: default_lfom_stopping_criteria = res_res
   
   type, extends(base_iterative_linear_solver_t) :: lfom_t
      ! Parameters
@@ -65,12 +64,7 @@ module lfom_names
      procedure          :: get_default_stopping_criteria => lfom_get_default_stopping_criteria
   end type lfom_t
   
-  ! Data types
-  public :: lfom_t, create_lfom, lfom_name
-  public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
-  public :: default_dkrymax, default_orthonorm_strat
-  public :: mgsro, icgsro
-  public :: modified_gs_reorthonorm, iterative_gs_reorthonorm, apply_givens_rotation
+  public :: create_lfom
   
 contains
   subroutine lfom_allocate_workspace(this)

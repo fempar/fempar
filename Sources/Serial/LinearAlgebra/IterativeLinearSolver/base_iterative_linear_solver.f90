@@ -35,30 +35,11 @@ module base_iterative_linear_solver_names
   use vector_space_names
   use operator_names
   use environment_names
+  use iterative_linear_solver_parameters_names
 
   implicit none
 # include "debug.i90"
   private
-  
-  ! String parameters with the names of the parameters for iterative linear solvers
-  character(len=*), parameter :: ils_type                      = 'iterative_linear_solver_type'
-  character(len=*), parameter :: ils_rtol                      = 'iterative_linear_solver_rtol'
-  character(len=*), parameter :: ils_atol                      = 'iterative_linear_solver_atol'
-  character(len=*), parameter :: ils_stopping_criteria         = 'iterative_linear_solver_stopping_criteria'
-  character(len=*), parameter :: ils_output_frequency          = 'iterative_linear_solver_output_frequency'
-  character(len=*), parameter :: ils_max_num_iterations        = 'iterative_linear_solver_max_num_iterations'
-  character(len=*), parameter :: ils_track_convergence_history = 'iterative_linear_solver_track_convergence_history'
-  
-  ! Default values for implementors of class(base_iterative_linear_solver_t) parameters
-  ! A default value for stopping criteria is not declared here as the set of
-  ! supported stopping criteria is highly dependent on the particular implementor
-  ! of class(base_iterative_linear_solver_t)
-  integer (ip), parameter :: default_luout                      = 6
-  real    (rp), parameter :: default_rtol                       = 1.0e-06_rp
-  real    (rp), parameter :: default_atol                       = 0.0_rp
-  integer (ip), parameter :: default_output_frequency           = 1 
-  integer (ip), parameter :: default_max_num_iterations         = 1000
-  logical     , parameter :: default_track_convergence_history  = .false.
   
   integer(ip), parameter :: start               = 0  ! All parameters set with values, environment and name set
   integer(ip), parameter :: operators_set       = 1  ! Matrix A and preconditioner M already set
@@ -78,21 +59,7 @@ module base_iterative_linear_solver_names
   ! workspace_allocated | solve                  | workspace_allocated
   ! workspace_allocated | set_parameters_from_pl | workspace_allocated
   ! workspace_allocated | free                   | start 
-  
-  ! List of convergence criteria available for iterative solvers 
-  integer(ip), parameter :: res_nrmgiven_rhs_nrmgiven  = 1  ! ||  r(i) ||g <= rtol*||  b    ||g + atol 
-  integer(ip), parameter :: res_nrmgiven_res_nrmgiven  = 2  ! ||  r(i) ||g <= rtol*||  r(0) ||g + atol   
-  integer(ip), parameter :: delta_rhs                  = 3  ! || dx(i) ||  <= rtol*||  b  || + atol
-  integer(ip), parameter :: delta_delta                = 4  ! || dx(i) ||  <= rtol*||dx(1)|| + atol
-  integer(ip), parameter :: res_res                    = 5  ! ||  r(i) ||  <= rtol*|| r(0)|| + atol
-  integer(ip), parameter :: res_rhs                    = 6  ! ||  r(i) ||  <= rtol*||  b  || + atol
-  integer(ip), parameter :: delta_rhs_and_res_res      = 7  ! delta_rhs    AND res_res
-  integer(ip), parameter :: delta_rhs_and_res_rhs      = 8  ! delta_rhs    AND res_rhs
-  integer(ip), parameter :: delta_delta_and_res_res    = 9  ! delta_delta  AND res_res
-  integer(ip), parameter :: delta_delta_and_res_rhs    = 10 ! delta_delta  AND res_rhs 
-                                                            ! ||.|| is the 2-norm, dx(i) = x(i) - x(i-1),
-                                                            ! r(i) is the residual at the i-th iteration
-  
+    
   type, abstract :: base_iterative_linear_solver_t
     private
     
@@ -237,17 +204,10 @@ module base_iterative_linear_solver_names
     end function get_default_stopping_criteria_interface
   end interface
   
-  ! Data types
   public :: base_iterative_linear_solver_t
   
   ! State constants
   public :: start, operators_set, workspace_allocated
-  
-  ! Default value constants
-  public :: default_rtol, default_atol, default_output_frequency, default_max_num_iterations, default_track_convergence_history
-  
-  public :: res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven, delta_rhs, delta_delta
-  public :: res_res, res_rhs, delta_rhs_and_res_res, delta_rhs_and_res_rhs, delta_delta_and_res_res, delta_delta_and_res_rhs
   
 contains
     subroutine set_environment(this,environment)

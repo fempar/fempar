@@ -36,13 +36,11 @@ module cg_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names
+  use iterative_linear_solver_parameters_names
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: cg_name = 'CG'
-  integer (ip)    , parameter :: default_cg_stopping_criteria = res_res
 
   type, extends(base_iterative_linear_solver_t) :: cg_t
     ! Working space vectors for type(cg_t)
@@ -61,8 +59,7 @@ module cg_names
     procedure,private  :: update_convergence_data_and_evaluate_stopping_criteria 
   end type
   
-  ! Data types
-  public :: cg_t, create_cg, cg_name
+  public :: create_cg
   
 contains
   subroutine cg_allocate_workspace(this)

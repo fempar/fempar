@@ -43,6 +43,7 @@ module iterative_linear_solver_names
   use vector_names
   use operator_names
   use base_iterative_linear_solver_names
+  use iterative_linear_solver_parameters_names
   use environment_names
   
   implicit none
@@ -83,7 +84,6 @@ module iterative_linear_solver_names
      procedure :: set_type_from_string            => iterative_linear_solver_set_type_from_string
   end type iterative_linear_solver_t
   
-  ! Data types
   public :: iterative_linear_solver_t
   
 contains    

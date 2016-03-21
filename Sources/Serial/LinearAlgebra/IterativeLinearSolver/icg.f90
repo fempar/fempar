@@ -36,13 +36,11 @@ module icg_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names
+  use iterative_linear_solver_parameters_names
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: icg_name = 'ICG'
-  integer (ip)    , parameter :: default_icg_stopping_criteria = res_res
 
   type, extends(base_iterative_linear_solver_t) :: icg_t
     ! Working space vectors for type(icg_t)
@@ -61,8 +59,7 @@ module icg_names
     procedure,private  :: update_convergence_data_and_evaluate_stopping_criteria 
   end type
   
-  ! Data types
-  public :: icg_t, create_icg, icg_name
+  public :: create_icg
   
 contains
   subroutine icg_allocate_workspace(this)

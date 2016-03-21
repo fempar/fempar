@@ -36,16 +36,15 @@ module lgmres_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names  
+  use iterative_linear_solver_utils_names
+  use iterative_linear_solver_parameters_names
   use multivector_names
   use rgmres_names
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: lgmres_name = 'LGMRES'
-  integer (ip)    , parameter :: default_lgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
-  
+   
   type, extends(base_iterative_linear_solver_t) :: lgmres_t
      ! Parameters
      integer(ip)                    :: dkrymax
@@ -64,12 +63,7 @@ module lgmres_names
      procedure          :: get_default_stopping_criteria => lgmres_get_default_stopping_criteria
   end type lgmres_t
   
-  ! Data types
-  public :: lgmres_t, create_lgmres, lgmres_name
-  public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
-  public :: default_dkrymax, default_orthonorm_strat
-  public :: mgsro, icgsro
-  public :: modified_gs_reorthonorm, iterative_gs_reorthonorm, apply_givens_rotation
+  public :: create_lgmres
   
 contains
   subroutine lgmres_allocate_workspace(this)

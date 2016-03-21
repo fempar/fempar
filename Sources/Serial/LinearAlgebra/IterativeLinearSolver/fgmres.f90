@@ -36,15 +36,13 @@ module fgmres_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names  
+  use iterative_linear_solver_utils_names
+  use iterative_linear_solver_parameters_names
   use multivector_names
-  use rgmres_names
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: fgmres_name = 'FGMRES'
-  integer (ip)    , parameter :: default_fgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
   
   type, extends(base_iterative_linear_solver_t) :: fgmres_t
      ! Parameters
@@ -65,12 +63,7 @@ module fgmres_names
      procedure          :: get_default_stopping_criteria => fgmres_get_default_stopping_criteria
   end type fgmres_t
   
-  ! Data types
-  public :: fgmres_t, create_fgmres, fgmres_name
-  public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
-  public :: default_dkrymax, default_orthonorm_strat
-  public :: mgsro, icgsro
-  public :: modified_gs_reorthonorm, iterative_gs_reorthonorm, apply_givens_rotation
+  public :: create_fgmres
   
 contains
   subroutine fgmres_allocate_workspace(this)
