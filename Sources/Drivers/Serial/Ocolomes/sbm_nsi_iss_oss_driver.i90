@@ -51,9 +51,14 @@
      call mesh_to_triangulation(f_mesh,f_trian,gcond=f_cond)
 
   else
+     
+     ! Create structured mesh parameters from CLI
+     call fpl_init()
+     call mesh_parameters%init()
+     call params%create_parameter_list_for_structured_mesh(mesh_parameters)
 
      ! Generate geometry data 
-     call geometry_data%create(cli,group)
+     call geometry_data%create(mesh_parameters)
 
      ! Generate boundary data
      number_dimensions = geometry_data%ndime
@@ -203,7 +208,11 @@
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
   if(.not.params%get_is_structured_mesh()) call mesh_free(f_mesh)
-  if(params%get_is_structured_mesh) call boundary_data%free()
+  if(params%get_is_structured_mesh()) then
+     call boundary_data%free()
+     call mesh_parameters%free()
+     call fpl_finalize()
+  end if
   call params%free()
 
   ! Output memory status

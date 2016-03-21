@@ -32,6 +32,7 @@
 module command_line_parameters_names
   use types_names
   use Data_Type_Command_Line_Interface
+  use FPL
 # include "debug.i90"
   implicit none
   private
@@ -76,34 +77,63 @@ module command_line_parameters_names
      ! CLI
      type(Type_Command_Line_Interface) :: cli
      ! Parameters
-     character(len=2014) :: dir_path
-     character(len=2014) :: prefix
-     character(len=2014) :: dir_path_out
-     logical             :: is_structured_mesh
-     integer(ip)         :: velocity_order
-     integer(ip)         :: pressure_order    
-     real(rp)            :: viscosity
-     real(rp)            :: c1
-     real(rp)            :: c2
-     real(rp)            :: cc
-     integer(ip)         :: elemental_length_flag
-     logical             :: convection_activated
-     logical             :: is_analytical_solution
-     logical             :: is_initial_solution
-     logical             :: is_temporal_solution
-     character(len=2014) :: analytical_function_name
-     real(rp)            :: initial_time
+     ! IO parameters
+     character(len=2014)      :: dir_path
+     character(len=2014)      :: prefix
+     character(len=2014)      :: dir_path_out
+     ! Mesh
+     logical                  :: is_structured_mesh
+     integer(ip), allocatable :: number_elements(:)
+     integer(ip), allocatable :: number_parts(:)
+     integer(ip), allocatable :: number_sockets(:)
+     integer(ip), allocatable :: discretization_type(:)
+     integer(ip), allocatable :: periodic_boundaries(:)
+     integer(ip), allocatable :: number_elements_boundary(:)
+     integer(ip)              :: material_case
+     real(rp)   , allocatable :: domain_length(:)
+     real(rp)   , allocatable :: origin(:)
+     real(rp)   , allocatable :: stretching_parameter(:)
+     real(rp)   , allocatable :: size_boundary(:) 
+     ! FE space
+     integer(ip)              :: velocity_order
+     integer(ip)              :: pressure_order   
+     ! Problem 
+     real(rp)                 :: viscosity
+     real(rp)                 :: c1
+     real(rp)                 :: c2
+     real(rp)                 :: cc
+     integer(ip)              :: elemental_length_flag
+     logical                  :: convection_activated
+     ! Solution
+     logical                  :: is_analytical_solution
+     logical                  :: is_initial_solution
+     logical                  :: is_temporal_solution
+     character(len=2014)      :: analytical_function_name
+     ! Time integration
+     real(rp)                 :: initial_time
    contains
      procedure, non_overridable          :: create
      procedure, non_overridable, private :: set_default
      procedure, non_overridable, private :: add_to_cli 
      procedure, non_overridable          :: parse
      procedure, non_overridable          :: free  
+     procedure, non_overridable          :: create_parameter_list_for_structured_mesh
      ! Getters
      procedure, non_overridable :: get_dir_path
      procedure, non_overridable :: get_prefix
      procedure, non_overridable :: get_dir_path_out
      procedure, non_overridable :: get_is_structured_mesh
+     procedure, non_overridable :: get_number_elements
+     procedure, non_overridable :: get_number_parts
+     procedure, non_overridable :: get_number_sockets
+     procedure, non_overridable :: get_discretization_type
+     procedure, non_overridable :: get_periodic_boundaries
+     procedure, non_overridable :: get_number_elements_boundary
+     procedure, non_overridable :: get_material_case
+     procedure, non_overridable :: get_domain_length
+     procedure, non_overridable :: get_origin
+     procedure, non_overridable :: get_stretching_parameter
+     procedure, non_overridable :: get_size_boundary
      procedure, non_overridable :: get_velocity_order
      procedure, non_overridable :: get_pressure_order    
      procedure, non_overridable :: get_viscosity
@@ -286,6 +316,7 @@ program test_nsi_iss_oss
   use serial_names
   use command_line_parameters_names
   use nsi_iss_oss_discrete_integration_names
+  use FPL
   implicit none
 #include "debug.i90"
 
@@ -313,6 +344,7 @@ program test_nsi_iss_oss
 
   ! Arguments
   type(test_nsi_iss_oss_params_t) :: params
+  type(parameterlist_t)           :: mesh_parameters
 
   ! Locals
   integer(ip) :: number_dimensions,number_unknowns

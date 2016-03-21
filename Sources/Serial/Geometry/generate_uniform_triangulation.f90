@@ -36,6 +36,7 @@ module generate_uniform_triangulation_names
   use materials_names
   use map_names
   use Data_Type_Command_Line_Interface
+  use FPL
   implicit none
 # include "debug.i90"
   private
@@ -246,31 +247,56 @@ contains
   end subroutine uniform_mesh_descriptor_create_without_cli 
 
   !==================================================================================================
-  subroutine uniform_mesh_descriptor_create_from_cli(gdata,cli,group)
+  subroutine uniform_mesh_descriptor_create_from_cli(gdata,parameter_list)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generates geometry data to construct a structured mesh                      !
     !-----------------------------------------------------------------------------------------------!
     implicit none
-    class(uniform_mesh_descriptor_t) , intent(inout) :: gdata
-    type(Type_Command_Line_Interface), intent(inout) :: cli
-    character(*)                     , intent(in)    :: group
+    class(uniform_mesh_descriptor_t), intent(inout) :: gdata
+    type(ParameterList_t)           , intent(in)    :: parameter_list
     ! Locals
-    integer(ip)              :: error,mc
+    integer(ip)          :: istat,mc
+    integer(ip), allocatable :: ne_size(:),np_size(:),ns_size(:),disc_size(:),peri_size(:),nb_size(:)
+    integer(ip), allocatable :: dl_size(:),o_size(:),st_size(:),sb_size(:)
     integer(ip), allocatable :: ne(:),np(:),ns(:),disc(:),peri(:),nb(:)
     real(rp)   , allocatable :: dl(:),o(:),st(:),sb(:)
 
     ! Fill uniform_mesh_descriptor
-    call cli%get_varying(group=trim(group),switch='-ne',val=ne,error=error)                    ; if(error/=0) then; check(.false.); end if
-    call cli%get_varying(group=trim(group),switch='-np',val=np,error=error)                    ; if(error/=0) then; check(.false.); end if
-    call cli%get_varying(group=trim(group),switch='-ns',val=ns,error=error)                    ; if(error/=0) then; check(.false.); end if
-    call cli%get_varying(group=trim(group),switch='--discretization_type',val=disc,error=error); if(error/=0) then; check(.false.); end if
-    call cli%get_varying(group=trim(group),switch='-dl',val=dl,error=error)                    ; if(error/=0) then; check(.false.); end if
-    call cli%get_varying(group=trim(group),switch='-peri',val=peri,error=error)                ; if(error/=0) then; check(.false.); end if
-    call cli%get_varying(group=trim(group),switch='-O',val=o,error=error)                      ; if(error/=0) then; check(.false.); end if
-    call cli%get_varying(group=trim(group),switch='-st',val=st,error=error)                    ; if(error/=0) then; check(.false.); end if
-    call cli%get_varying(group=trim(group),switch='-nb',val=nb,error=error)                    ; if(error/=0) then; check(.false.); end if
-    call cli%get_varying(group=trim(group),switch='-sb',val=sb,error=error)                    ; if(error/=0) then; check(.false.); end if
-    call cli%get(group=trim(group),switch='-mc',val=mc,error=error)                            ; if(error/=0) then; check(.false.); end if
+    istat = 0
+    istat = istat + parameter_list%getshape(key = 'number_elements', shape = ne_size)
+    istat = istat + parameter_list%getshape(key = 'number_parts', shape = np_size)
+    istat = istat + parameter_list%getshape(key = 'number_sockets', shape = ns_size)
+    istat = istat + parameter_list%getshape(key = 'discretization_type', shape = disc_size)
+    istat = istat + parameter_list%getshape(key = 'periodic_boundaries', shape = peri_size)
+    istat = istat + parameter_list%getshape(key = 'number_elements_boundary', shape = nb_size)
+    istat = istat + parameter_list%get(key = 'material_case', value = mc)
+    istat = istat + parameter_list%getshape(key = 'domain_length', shape = dl_size)
+    istat = istat + parameter_list%getshape(key = 'origin', shape = o_size)
+    istat = istat + parameter_list%getshape(key = 'stretching_parameter', shape = st_size)
+    istat = istat + parameter_list%getshape(key = 'size_boundary', shape = sb_size)
+    check(istat==0)      
+    call memalloc(ne_size(1),ne,__FILE__,__LINE__)
+    call memalloc(np_size(1),np,__FILE__,__LINE__)
+    call memalloc(ns_size(1),ns,__FILE__,__LINE__)
+    call memalloc(disc_size(1),disc,__FILE__,__LINE__)
+    call memalloc(peri_size(1),peri,__FILE__,__LINE__)
+    call memalloc(nb_size(1),nb,__FILE__,__LINE__)
+    call memalloc(dl_size(1),dl,__FILE__,__LINE__)
+    call memalloc(o_size(1),o,__FILE__,__LINE__)
+    call memalloc(st_size(1),st,__FILE__,__LINE__)
+    call memalloc(sb_size(1),sb,__FILE__,__LINE__)
+    istat = 0
+    istat = istat + parameter_list%get(key = 'number_elements', value = ne)
+    istat = istat + parameter_list%get(key = 'number_parts', value = np)
+    istat = istat + parameter_list%get(key = 'number_sockets', value = ns)
+    istat = istat + parameter_list%get(key = 'discretization_type', value = disc)
+    istat = istat + parameter_list%get(key = 'periodic_boundaries', value = peri)
+    istat = istat + parameter_list%get(key = 'number_elements_boundary', value = nb)
+    istat = istat + parameter_list%get(key = 'domain_length', value = dl)
+    istat = istat + parameter_list%get(key = 'origin', value = o)
+    istat = istat + parameter_list%get(key = 'stretching_parameter', value = st)
+    istat = istat + parameter_list%get(key = 'size_boundary', value = sb)
+    check(istat==0)
 
     gdata%ntdix   = disc(1) ! Type of discretization in x (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
     gdata%ntdiy   = disc(2) ! Type of discretization in y (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
@@ -332,16 +358,26 @@ contains
     if(size(peri,1)==3) gdata%isper(3) = peri(3)   
 
     ! Deallocate
-    deallocate(ne)
-    deallocate(np)
-    deallocate(ns)
-    deallocate(disc)
-    deallocate(peri)
-    deallocate(nb)
-    deallocate(dl)
-    deallocate(o)
-    deallocate(st)
-    deallocate(sb)
+    deallocate(ne_size)
+    deallocate(np_size)
+    deallocate(ns_size)
+    deallocate(disc_size)
+    deallocate(peri_size)
+    deallocate(nb_size)
+    deallocate(dl_size)
+    deallocate(o_size)
+    deallocate(st_size)
+    deallocate(sb_size)
+    call memfree(ne,__FILE__,__LINE__)
+    call memfree(np,__FILE__,__LINE__)
+    call memfree(ns,__FILE__,__LINE__)
+    call memfree(disc,__FILE__,__LINE__)
+    call memfree(peri,__FILE__,__LINE__)
+    call memfree(nb,__FILE__,__LINE__)
+    call memfree(dl,__FILE__,__LINE__)
+    call memfree(o,__FILE__,__LINE__)
+    call memfree(st,__FILE__,__LINE__)
+    call memfree(sb,__FILE__,__LINE__)
     
   end subroutine uniform_mesh_descriptor_create_from_cli
 
