@@ -257,18 +257,19 @@ contains
   end function cg_get_default_stopping_criteria
   
   
-  function create_cg(environment)
+  subroutine create_cg(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_cg
-    type(cg_t), pointer :: cg
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(cg_t),                            pointer                :: cg
+    assert(.not. associated(base_iterative_linear_solver))
     allocate(cg)
     call cg%set_environment(environment)
     call cg%set_name(cg_name)
     call cg%set_defaults()
     call cg%set_state(start)
-    create_cg => cg
-  end function create_cg
+    base_iterative_linear_solver => cg
+  end subroutine create_cg
 
   subroutine init_convergence_data ( this, b, r, nrm_b_given, nrm_r_given )
     implicit none

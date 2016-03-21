@@ -162,6 +162,14 @@ module base_iterative_linear_solver_names
   end type
   
   abstract interface
+    subroutine create_iterative_linear_solver_interface(environment, base_iterative_linear_solver)
+      import environment_t
+      import base_iterative_linear_solver_t
+      implicit none
+      class(environment_t),                           intent(in)    :: environment
+      class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    end subroutine create_iterative_linear_solver_interface
+
     subroutine allocate_workspace_interface(this)
      import :: base_iterative_linear_solver_t
      implicit none
@@ -205,6 +213,7 @@ module base_iterative_linear_solver_names
   end interface
   
   public :: base_iterative_linear_solver_t
+  public :: create_iterative_linear_solver_interface
   
   ! State constants
   public :: start, operators_set, workspace_allocated

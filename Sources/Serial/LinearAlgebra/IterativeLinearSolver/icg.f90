@@ -264,18 +264,18 @@ contains
   end function icg_get_default_stopping_criteria
   
   
-  function create_icg(environment)
+  subroutine create_icg(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_icg
-    type(icg_t), pointer :: icg
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(icg_t),                           pointer                :: icg
     allocate(icg)
     call icg%set_environment(environment)
     call icg%set_name(icg_name)
     call icg%set_defaults()
     call icg%set_state(start)
-    create_icg => icg
-  end function create_icg
+    base_iterative_linear_solver => icg
+  end subroutine create_icg
 
   subroutine init_convergence_data ( this, b, r, nrm_b_given, nrm_r_given )
     implicit none

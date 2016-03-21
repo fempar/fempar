@@ -351,11 +351,12 @@ contains
     lfom_get_default_stopping_criteria = default_lfom_stopping_criteria
   end function lfom_get_default_stopping_criteria
   
-  function create_lfom(environment)
+  subroutine create_lfom(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_lfom
-    type(lfom_t), pointer :: lfom
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(lfom_t),                          pointer                :: lfom
+    assert(.not. associated(base_iterative_linear_solver))
     allocate(lfom)
     call lfom%set_environment(environment)
     call lfom%set_name(lfom_name)
@@ -363,7 +364,7 @@ contains
     lfom%dkrymax = default_dkrymax
     lfom%orthonorm_strat = default_orthonorm_strat
     call lfom%set_state(start)
-    create_lfom => lfom
-  end function create_lfom
+    base_iterative_linear_solver => lfom
+  end subroutine create_lfom
   
 end module lfom_names

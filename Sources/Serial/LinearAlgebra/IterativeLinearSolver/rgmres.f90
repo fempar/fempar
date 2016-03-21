@@ -360,11 +360,12 @@ contains
     rgmres_get_default_stopping_criteria = default_rgmres_stopping_criteria
   end function rgmres_get_default_stopping_criteria
   
-  function create_rgmres(environment)
+  subroutine create_rgmres(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_rgmres
-    type(rgmres_t), pointer :: rgmres
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(rgmres_t),                        pointer                :: rgmres
+    assert(.not. associated(base_iterative_linear_solver))
     allocate(rgmres)
     call rgmres%set_environment(environment)
     call rgmres%set_name(rgmres_name)
@@ -372,7 +373,7 @@ contains
     rgmres%dkrymax = default_dkrymax
     rgmres%orthonorm_strat = default_orthonorm_strat
     call rgmres%set_state(start)
-    create_rgmres => rgmres
-  end function create_rgmres
+    base_iterative_linear_solver => rgmres
+  end subroutine create_rgmres
     
 end module rgmres_names

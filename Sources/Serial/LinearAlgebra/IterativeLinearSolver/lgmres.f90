@@ -452,11 +452,12 @@ contains
     lgmres_get_default_stopping_criteria = default_lgmres_stopping_criteria
   end function lgmres_get_default_stopping_criteria
   
-  function create_lgmres(environment)
+  subroutine create_lgmres(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_lgmres
-    type(lgmres_t), pointer :: lgmres
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(lgmres_t),                        pointer                :: lgmres
+    assert(.not. associated(base_iterative_linear_solver))
     allocate(lgmres)
     call lgmres%set_environment(environment)
     call lgmres%set_name(lgmres_name)
@@ -464,7 +465,7 @@ contains
     lgmres%dkrymax = default_dkrymax
     lgmres%orthonorm_strat = default_orthonorm_strat
     call lgmres%set_state(start)
-    create_lgmres => lgmres
-  end function create_lgmres
+    base_iterative_linear_solver => lgmres
+  end subroutine create_lgmres
   
 end module lgmres_names

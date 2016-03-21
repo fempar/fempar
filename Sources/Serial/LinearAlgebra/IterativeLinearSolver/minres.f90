@@ -775,17 +775,18 @@ contains
   end function minres_get_default_stopping_criteria
   
   
-  function create_minres(environment)
+  subroutine create_minres(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_minres
-    type(minres_t), pointer :: minres
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(minres_t),                        pointer                :: minres
+    assert(.not. associated(base_iterative_linear_solver))
     allocate(minres)
     call minres%set_environment(environment)
     call minres%set_name(minres_name)
     call minres%set_defaults()
     call minres%set_state(start)
-    create_minres => minres
-  end function create_minres
+    base_iterative_linear_solver => minres
+  end subroutine create_minres
   
 end module minres_names

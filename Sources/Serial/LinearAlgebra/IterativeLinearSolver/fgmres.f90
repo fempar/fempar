@@ -360,11 +360,12 @@ contains
     fgmres_get_default_stopping_criteria = default_fgmres_stopping_criteria
   end function fgmres_get_default_stopping_criteria
   
-  function create_fgmres(environment)
+  subroutine create_fgmres(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_fgmres
-    type(fgmres_t), pointer :: fgmres
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(fgmres_t),                        pointer                :: fgmres
+    assert(.not. associated(base_iterative_linear_solver))
     allocate(fgmres)
     call fgmres%set_environment(environment)
     call fgmres%set_name(fgmres_name)
@@ -372,7 +373,7 @@ contains
     fgmres%dkrymax = default_dkrymax
     fgmres%orthonorm_strat = default_orthonorm_strat
     call fgmres%set_state(start)
-    create_fgmres => fgmres
-  end function create_fgmres
+    base_iterative_linear_solver => fgmres
+  end subroutine create_fgmres
   
 end module fgmres_names
