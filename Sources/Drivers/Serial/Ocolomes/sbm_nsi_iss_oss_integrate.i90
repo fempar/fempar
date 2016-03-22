@@ -236,21 +236,21 @@ subroutine integrate(this,fe_space,assembler)
            end do
         end do
 
-!!$        !-----------!
-!!$        ! BLOCK E-U !
-!!$        !-----------!
-!!$        ! Velocity gradient projection term: (tau_m*eta,u*grad(u))
-!!$        if(this%convection_activated) then
-!!$           do inode = 1, number_nodes_per_field(3) 
-!!$              ioffset = number_nodes_per_field(1 )+ number_nodes_per_field(2) + inode
-!!$              call vol_int_projection_fe%get_value(inode,qpoin,test_vector)
-!!$              do jnode = 1, number_nodes_per_field(1) 
-!!$                 call vol_int_velocity_fe%get_gradient(jnode,qpoin,grad_trial_vector)  
-!!$                 trial_vector = advection_vector * grad_trial_vector
-!!$                 elmat(ioffset,jnode) = elmat(ioffset,jnode) + tau_m(qpoin) * dvolume * test_vector * trial_vector
-!!$              end do
-!!$           end do          
-!!$        end if
+        !-----------!
+        ! BLOCK E-U !
+        !-----------!
+        ! Velocity gradient projection term: (tau_m*eta,u*grad(u))
+        if(this%convection_activated) then
+           do inode = 1, number_nodes_per_field(3) 
+              ioffset = number_nodes_per_field(1 )+ number_nodes_per_field(2) + inode
+              call vol_int_projection_fe%get_value(inode,qpoin,test_vector)
+              do jnode = 1, number_nodes_per_field(1) 
+                 call vol_int_velocity_fe%get_gradient(jnode,qpoin,grad_trial_vector)  
+                 trial_vector = advection_vector * grad_trial_vector
+                 elmat(ioffset,jnode) = elmat(ioffset,jnode) + tau_m(qpoin) * dvolume * test_vector * trial_vector
+              end do
+           end do          
+        end if
                 
         !-----------!
         ! BLOCK E-X !
