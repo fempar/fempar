@@ -1,13 +1,35 @@
-subroutine array_get_component_value_space( this, result, point, component )
+subroutine array_function_create( this, number_dimensions, number_components )
+  class(array_function_t), intent(inout) :: this
+  integer(ip)            , intent(in)    :: number_dimensions
+  integer(ip)            , intent(in)    :: number_components
+  this%number_dimensions = number_dimensions
+  this%number_components = number_components
+end subroutine array_function_create
+
+function array_function_get_number_dimensions( this )
+  class(array_function_t), intent(in) :: this
+  integer(ip) :: array_function_get_number_dimensions
+  assert ( this%number_dimensions >= 1 .and. this%number_dimensions <= 3  )
+  array_function_get_number_dimensions = this%number_dimensions
+end function array_function_get_number_dimensions
+
+function array_function_get_number_components( this )
+  class(array_function_t), intent(in) :: this
+  integer(ip) :: array_function_get_number_components
+  assert ( this%number_components >= 1  )
+  array_function_get_number_components = this%number_components
+end function array_function_get_number_components
+
+subroutine array_function_get_component_value_space( this, point, component, result )
   class(array_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point
   integer(ip), intent(in)             :: component
   real(rp), intent(inout)             :: result
   ! Error: Function f(x) not implemented 
   assert( .false. )
-end subroutine array_get_component_value_space
+end subroutine array_function_get_component_value_space
 
-subroutine array_get_component_value_space_time( this, result, point, time, component )
+subroutine array_function_get_component_value_space_time( this, point, time, component, result )
   class(array_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point
   real(rp), intent(in)                :: time
@@ -15,9 +37,9 @@ subroutine array_get_component_value_space_time( this, result, point, time, comp
   real(rp), intent(inout)             :: result
   ! Error: Function f(x,t) not implemented 
   assert( .false. )
-end subroutine array_get_component_value_space_time
+end subroutine array_function_get_component_value_space_time
 
-subroutine array_get_component_values_set_space( this, result, point, component )
+subroutine array_function_get_component_values_set_space( this, point, component, result )
   class(array_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point(:)
   integer(ip), intent(in)             :: component
@@ -25,11 +47,11 @@ subroutine array_get_component_values_set_space( this, result, point, component 
   integer(ip) :: i, num_points
   num_points = size(point)
   do i = 1, num_points
-     call this%get_component_value_space( result(i), point(i), component )
+     call this%get_component_value_space( point(i), component, result(i) )
   end do
-end subroutine array_get_component_values_set_space
+end subroutine array_function_get_component_values_set_space
 
-subroutine array_get_component_values_set_space_time( this, result, point, time, component )
+subroutine array_function_get_component_values_set_space_time( this, point, time, component, result )
   class(array_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point(:)
   real(rp), intent(in)                :: time(:)
@@ -40,59 +62,51 @@ subroutine array_get_component_values_set_space_time( this, result, point, time,
   num_time_steps = size(time)
   do j = 1, num_time_steps
      do i = 1, num_points
-        call this%get_component_value_space_time( result(i,j), point(i), time(j), component )
+        call this%get_component_value_space_time( point(i), time(j), component, result(i,j) )
      end do
   end do
-end subroutine array_get_component_values_set_space_time
+end subroutine array_function_get_component_values_set_space_time
 
-subroutine array_get_value_space( this, result, point )
-  !import :: point_t, rp
+subroutine array_function_get_value_space( this, result, point )
   class(array_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point
   real(rp), intent(inout)             :: result(:)
   integer(ip) :: i
   do i = 1, this%number_components
-     call this%get_component_value_space( result(i), point, i )
+     call this%get_component_value_space( point, i, result(i) )
   end do
-end subroutine array_get_value_space
+end subroutine array_function_get_value_space
 
-subroutine array_get_value_space_time( this, result, point, time )
-  !import :: point_t, rp
+subroutine array_function_get_value_space_time( this, point, time, result )
   class(array_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point
   real(rp), intent(in)                :: time
   real(rp), intent(inout)             :: result(:)
   integer(ip) :: i
   do i = 1, this%number_components
-     call this%get_component_value_space_time( result(i), point, time, i )
+     call this%get_component_value_space_time( point, time, i, result(i) )
   end do
-end subroutine array_get_value_space_time
+end subroutine array_function_get_value_space_time
 
-subroutine array_get_values_set_space( this, result, point )
-  !import :: point_t, rp
+subroutine array_function_get_values_set_space( this, point, result )
   class(array_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point(:)
   real(rp), intent(inout)             :: result(:,:)
   integer(ip) :: i
   do i = 1, this%number_components
-     call this%get_component_values_set_space( result(i,:), point, i )
+     call this%get_component_values_set_space( point, i, result(i,:) )
   end do
-end subroutine array_get_values_set_space
+end subroutine array_function_get_values_set_space
 
-subroutine array_get_values_set_space_time( this, result, point, time )
-  !import :: point_t, rp
+subroutine array_function_get_values_set_space_time( this, point, time, result )
   class(array_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point(:)
   real(rp), intent(in)                :: time(:)
   real(rp), intent(inout)             :: result(:,:,:)
   integer(ip) :: i
   do i = 1, this%number_components
-     call this%get_component_values_set_space_time( result(i,:,:), point, time, i )
+     call this%get_component_values_set_space_time( point, time, i, result(i,:,:) )
   end do
-end subroutine array_get_values_set_space_time
+end subroutine array_function_get_values_set_space_time
 
-subroutine array_set_number_components( this, number_components )
-  class(array_function_t), intent(inout) :: this
-  integer(ip), intent(in)          :: number_components
-  this%number_components = number_components
-end subroutine array_set_number_components
+

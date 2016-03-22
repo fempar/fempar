@@ -567,7 +567,7 @@ function serial_fe_space_get_max_number_quadrature_points( this )
   end do
 end function serial_fe_space_get_max_number_quadrature_points
 
-subroutine update_bc_value_scalar( this, scalar_function, bc_code, fe_space_component, time, unknown_component)
+subroutine serial_fe_space_update_bc_value_scalar( this, scalar_function, bc_code, fe_space_component, time, unknown_component)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this 
   class(scalar_function_t), intent(in)    :: scalar_function
@@ -643,9 +643,9 @@ subroutine update_bc_value_scalar( this, scalar_function, bc_code, fe_space_comp
   deallocate ( values, stat=istat )
   check(istat==0)
 
-end subroutine update_bc_value_scalar
+end subroutine serial_fe_space_update_bc_value_scalar
 
-subroutine update_bc_value_vector( this, vector_function, bc_code, fe_space_component, time)
+subroutine serial_fe_space_update_bc_value_vector( this, vector_function, bc_code, fe_space_component, time)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this 
   class(vector_function_t), intent(in)    :: vector_function
@@ -718,9 +718,9 @@ subroutine update_bc_value_vector( this, vector_function, bc_code, fe_space_comp
   deallocate ( values, stat=istat )
   check(istat==0)
 
-end subroutine update_bc_value_vector
+end subroutine serial_fe_space_update_bc_value_vector
 
-subroutine update_bc_value_tensor( this, tensor_function, bc_code, fe_space_component, time)
+subroutine serial_fe_space_update_bc_value_tensor( this, tensor_function, bc_code, fe_space_component, time)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this 
   class(tensor_function_t), intent(in)    :: tensor_function
@@ -728,7 +728,7 @@ subroutine update_bc_value_tensor( this, tensor_function, bc_code, fe_space_comp
   integer(ip)             , intent(in)    :: fe_space_component
   real(rp)   , optional   , intent(in)    :: time
   check( .false. )
-end subroutine update_bc_value_tensor
+end subroutine serial_fe_space_update_bc_value_tensor
 
  !===============================================================================================
  subroutine serial_fe_space_create_global_fe_function ( this, fe_function, vector_dof_values )
