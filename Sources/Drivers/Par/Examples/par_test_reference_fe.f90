@@ -258,10 +258,10 @@ program par_test_reference_fe
   reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = 2, &
-                                                   order = 3, &
+                                                   order = 1, &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true., &
-                                                   enable_face_integration = .true. )
+                                                   enable_face_integration = .false. )
   
   !call reference_fe_array_one(1)%p%print()
   
@@ -270,7 +270,7 @@ program par_test_reference_fe
                             reference_fe_phy = reference_fe_array_one )
 
   call par_fe_space%fill_dof_info()
-  !call par_fe_space%print()
+  call par_fe_space%print()
   
   call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                   diagonal_blocks_symmetric_storage=(/.true./), &
