@@ -826,13 +826,50 @@ subroutine par_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
   implicit none
   class(par_fe_space_t)        , intent(in)    :: this
   class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
-  ! Polymorphic matrix 
-  class(matrix_t), pointer :: matrix
-
-  matrix => matrix_array_assembler%get_matrix()
-  select type(matrix)
-     class is(par_sparse_matrix_t)
-     class default
-     check(.false.)
-  end select
 end subroutine par_fe_space_symbolic_setup_assembler
+
+subroutine par_fe_space_update_bc_value_scalar( this, scalar_function, bc_code, fe_space_component, time, unknown_component)
+  implicit none
+  class(par_fe_space_t)   , intent(inout) :: this 
+  class(scalar_function_t), intent(in)    :: scalar_function
+  integer(ip)             , intent(in)    :: bc_code
+  integer(ip)             , intent(in)    :: fe_space_component
+  real(rp)   , optional   , intent(in)    :: time
+  integer(ip), optional   , intent(in)    :: unknown_component
+ 
+  assert ( associated (this%par_triangulation) )
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+    call this%serial_fe_space_t%update_bc_value(scalar_function, bc_code, fe_space_component, time, unknown_component)
+  end if
+
+end subroutine par_fe_space_update_bc_value_scalar
+
+subroutine par_fe_space_update_bc_value_vector( this, vector_function, bc_code, fe_space_component, time)
+  implicit none
+  class(par_fe_space_t)   , intent(inout) :: this 
+  class(vector_function_t), intent(in)    :: vector_function
+  integer(ip)             , intent(in)    :: bc_code
+  integer(ip)             , intent(in)    :: fe_space_component
+  real(rp)   , optional   , intent(in)    :: time
+
+  assert ( associated (this%par_triangulation) )
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+    call this%serial_fe_space_t%update_bc_value(vector_function, bc_code, fe_space_component, time)
+  end if
+end subroutine par_fe_space_update_bc_value_vector
+
+subroutine par_fe_space_update_bc_value_tensor( this, tensor_function, bc_code, fe_space_component, time)
+  implicit none
+  class(par_fe_space_t)   , intent(inout) :: this 
+  class(tensor_function_t), intent(in)    :: tensor_function
+  integer(ip)             , intent(in)    :: bc_code
+  integer(ip)             , intent(in)    :: fe_space_component
+  real(rp)   , optional   , intent(in)    :: time
+  
+  assert ( associated (this%par_triangulation) )
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+    call this%serial_fe_space_t%update_bc_value(tensor_function, bc_code, fe_space_component, time)
+  end if
+  
+end subroutine par_fe_space_update_bc_value_tensor
+

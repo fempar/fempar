@@ -269,6 +269,10 @@ program par_test_reference_fe
                             par_boundary_conditions = par_conditions, &
                             reference_fe_phy = reference_fe_array_one )
 
+  call par_fe_space%update_bc_value (scalar_function=constant_scalar_function_t(2,1.0_rp), &
+                                     bc_code = 1, &
+                                     fe_space_component = 1 )
+  
   call par_fe_space%fill_dof_info()
   call par_fe_space%print()
   
