@@ -239,12 +239,12 @@ module serial_fe_space_names
      generic :: create_fe_function => create_fe_function_scalar, &
                                     & create_fe_function_vector, &
                                     & create_fe_function_tensor
-     procedure, non_overridable :: update_bc_value_scalar
-     procedure, non_overridable :: update_bc_value_vector
-     procedure, non_overridable :: update_bc_value_tensor
-     generic :: update_bc_value => update_bc_value_scalar, &
-                                 & update_bc_value_vector, &
-                                 & update_bc_value_tensor                            
+     procedure :: serial_fe_space_update_bc_value_scalar
+     procedure :: serial_fe_space_update_bc_value_vector
+     procedure :: serial_fe_space_update_bc_value_tensor
+     generic :: update_bc_value => serial_fe_space_update_bc_value_scalar, &
+                                 & serial_fe_space_update_bc_value_vector, &
+                                 & serial_fe_space_update_bc_value_tensor                            
      
   end type serial_fe_space_t
 
