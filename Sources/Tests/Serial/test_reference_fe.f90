@@ -429,7 +429,6 @@ end module vector_laplacian_composite_discrete_integration_names
 program test_reference_fe
   use serial_names
   use command_line_parameters_names
-  use iterative_linear_solver_creational_methods_dictionary_names
   implicit none
 #include "debug.i90"
 
