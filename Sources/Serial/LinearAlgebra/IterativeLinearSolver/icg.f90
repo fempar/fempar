@@ -37,6 +37,7 @@ module icg_names
   use environment_names
   use base_iterative_linear_solver_names
   use iterative_linear_solver_parameters_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
@@ -95,9 +96,11 @@ contains
     deallocate(this%p)
   end subroutine icg_free_workspace
 
-  subroutine icg_set_parameters_from_pl(this) 
+  subroutine icg_set_parameters_from_pl(this, parameter_list) 
    implicit none
-   class(icg_t), intent(inout) :: this
+   class(icg_t),          intent(inout) :: this
+   type(ParameterList_t), intent(in)    :: parameter_list
+   call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
   end subroutine icg_set_parameters_from_pl
 
   subroutine icg_solve_body(this,b,x)

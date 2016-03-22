@@ -36,6 +36,7 @@ module base_iterative_linear_solver_names
   use operator_names
   use environment_names
   use iterative_linear_solver_parameters_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
@@ -182,10 +183,12 @@ module base_iterative_linear_solver_names
      class(base_iterative_linear_solver_t), intent(inout) :: this
     end subroutine free_workspace_interface
    
-    subroutine set_parameters_from_pl_interface(this) ! Parameter List still missing
+    subroutine set_parameters_from_pl_interface(this, parameter_list) ! Parameter List still missing
      import :: base_iterative_linear_solver_t
+     import :: ParameterList_t
      implicit none
      class(base_iterative_linear_solver_t), intent(inout) :: this
+     type(ParameterList_t),                 intent(in)    :: parameter_list
     end subroutine set_parameters_from_pl_interface
     
     subroutine solve_body_interface(this,b,x)
@@ -691,10 +694,101 @@ contains
       this%stopping_criteria         = this%get_default_stopping_criteria()
     end subroutine set_defaults
     
-    subroutine base_iterative_linear_solver_set_parameters_from_pl ( this )
+    subroutine base_iterative_linear_solver_set_parameters_from_pl ( this, parameter_list )
       implicit none
       ! Parameters
       class(base_iterative_linear_solver_t), intent(inout) :: this
+      type(ParameterList_t),                 intent(in)    :: parameter_list
+      integer(ip)                                          :: FPLError
+      logical                                              :: is_present
+      logical                                              :: same_data_type
+      integer(ip), allocatable                             :: shape(:)
+      ! Rtol
+#ifdef DEBUG
+      is_present     = parameter_list%isPresent(Key=ils_rtol)
+      if(is_present) then
+        same_data_type = parameter_list%isOfDataType(Key=ils_rtol, mold=this%rtol)
+        FPLError       = parameter_list%getshape(Key=ils_rtol, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+          FPLError   = parameter_list%Get(Key=ils_rtol, Value=this%rtol)
+          assert(FPLError == 0)
+#ifdef DEBUG
+        else
+          write(*,'(a)') ' Warning! ils_rtol ignored. Wrong data type or shape. '
+        endif
+      endif
+      ! Atol
+      is_present     = parameter_list%isPresent(Key=ils_atol)
+      if(is_present) then
+        same_data_type = parameter_list%isOfDataType(Key=ils_atol, mold=this%atol)
+        FPLError       = parameter_list%getshape(Key=ils_atol, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+          FPLError   = parameter_list%Get(Key=ils_atol, Value=this%atol)
+          assert(FPLError == 0)
+#ifdef DEBUG
+        else
+          write(*,'(a)') ' Warning! ils_atol ignored. Wrong data type or shape. '
+        endif
+      endif
+      ! Stopping criterias
+      is_present     = parameter_list%isPresent(Key=ils_stopping_criteria)
+      if(is_present) then
+        same_data_type = parameter_list%isOfDataType(Key=ils_stopping_criteria, mold=this%stopping_criteria)
+        FPLError       = parameter_list%getshape(Key=ils_stopping_criteria, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+          FPLError   = parameter_list%Get(Key=ils_stopping_criteria, Value=this%stopping_criteria)
+          assert(FPLError == 0)
+#ifdef DEBUG
+        else
+          write(*,'(a)') ' Warning! ils_stopping_criteria ignored. Wrong data type or shape. '
+        endif
+      endif
+      ! Output frequency
+      is_present     = parameter_list%isPresent(Key=ils_output_frequency)
+      if(is_present) then
+        same_data_type = parameter_list%isOfDataType(Key=ils_output_frequency, mold=this%output_frequency)
+        FPLError       = parameter_list%getshape(Key=ils_output_frequency, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+          FPLError   = parameter_list%Get(Key=ils_output_frequency, Value=this%output_frequency)
+          assert(FPLError == 0)
+#ifdef DEBUG
+        else
+          write(*,'(a)') ' Warning! ils_output_frequency ignored. Wrong data type or shape. '
+        endif
+      endif
+      ! Max num iterations
+      is_present     = parameter_list%isPresent(Key=ils_max_num_iterations)
+      if(is_present) then
+        same_data_type = parameter_list%isOfDataType(Key=ils_max_num_iterations, mold=this%max_num_iterations)
+        FPLError       = parameter_list%getshape(Key=ils_max_num_iterations, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+          FPLError   = parameter_list%Get(Key=ils_max_num_iterations, Value=this%max_num_iterations)
+          assert(FPLError == 0)
+#ifdef DEBUG
+        else
+          write(*,'(a)') ' Warning! ils_max_num_iterations ignored. Wrong data type or shape. '
+        endif
+      endif
+      ! Track convergence history
+      is_present     = parameter_list%isPresent(Key=ils_track_convergence_history)
+      if(is_present) then
+        same_data_type = parameter_list%isOfDataType(Key=ils_track_convergence_history, mold=this%track_convergence_history)
+        FPLError       = parameter_list%getshape(Key=ils_track_convergence_history, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+          FPLError   = parameter_list%Get(Key=ils_track_convergence_history, Value=this%track_convergence_history)
+          assert(FPLError == 0)
+#ifdef DEBUG
+        else
+          write(*,'(a)') ' Warning! ils_track_convergence_history ignored. Wrong data type or shape. '
+        endif
+      endif
+#endif
     end subroutine base_iterative_linear_solver_set_parameters_from_pl
     
     subroutine base_iterative_linear_solver_free(this)

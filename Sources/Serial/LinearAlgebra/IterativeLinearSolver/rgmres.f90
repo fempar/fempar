@@ -39,6 +39,7 @@ module rgmres_names
   use iterative_linear_solver_utils_names
   use iterative_linear_solver_parameters_names
   use multivector_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
@@ -96,9 +97,45 @@ contains
     call memfree(this%cs,__FILE__,__LINE__)
   end subroutine rgmres_free_workspace
 
-  subroutine rgmres_set_parameters_from_pl(this) 
+  subroutine rgmres_set_parameters_from_pl(this, parameter_list) 
    implicit none
-   class(rgmres_t), intent(inout) :: this
+   class(rgmres_t),       intent(inout) :: this
+   type(ParameterList_t), intent(in)    :: parameter_list
+   integer(ip)                          :: FPLError
+   logical                              :: is_present
+   logical                              :: same_data_type
+   integer(ip), allocatable             :: shape(:)
+   call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
+   ! Dkrymax
+#ifdef DEBUG
+   is_present     = parameter_list%isPresent(Key=ils_dkrymax)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_dkrymax, mold=this%dkrymax)
+      FPLError       = parameter_list%getshape(Key=ils_dkrymax, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_dkrymax, Value=this%dkrymax)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(*,'(a)') ' Warning! ils_dkrymax ignored. Wrong data type or shape. '
+      endif
+   endif
+   ! Orthonorm strat
+   is_present     = parameter_list%isPresent(Key=ils_orthonorm_strat)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_orthonorm_strat, mold=this%orthonorm_strat)
+      FPLError       = parameter_list%getshape(Key=ils_orthonorm_strat, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_orthonorm_strat, Value=this%orthonorm_strat)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(*,'(a)') ' Warning! ils_orthonorm_strat ignored. Wrong data type or shape. '
+         endif
+   endif
+#endif
   end subroutine rgmres_set_parameters_from_pl
   
   subroutine rgmres_solve_body(this,b,x)

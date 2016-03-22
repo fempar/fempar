@@ -39,6 +39,7 @@ module fgmres_names
   use iterative_linear_solver_utils_names
   use iterative_linear_solver_parameters_names
   use multivector_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
@@ -98,9 +99,11 @@ contains
     call memfree(this%cs,__FILE__,__LINE__)
   end subroutine fgmres_free_workspace
 
-  subroutine fgmres_set_parameters_from_pl(this) 
+  subroutine fgmres_set_parameters_from_pl(this, parameter_list) 
    implicit none
-   class(fgmres_t), intent(inout) :: this
+   class(fgmres_t),       intent(inout) :: this
+   type(ParameterList_t), intent(in)    :: parameter_list
+   call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
   end subroutine fgmres_set_parameters_from_pl
   
   subroutine fgmres_solve_body(this,b,x)

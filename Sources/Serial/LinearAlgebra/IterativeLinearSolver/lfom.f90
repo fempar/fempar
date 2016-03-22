@@ -40,6 +40,7 @@ module lfom_names
   use iterative_linear_solver_parameters_names
   use multivector_names
   use rgmres_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
@@ -99,9 +100,11 @@ contains
     call memfree(this%ipiv,__FILE__,__LINE__)
   end subroutine lfom_free_workspace
 
-  subroutine lfom_set_parameters_from_pl(this) 
+  subroutine lfom_set_parameters_from_pl(this, parameter_list) 
    implicit none
-   class(lfom_t), intent(inout) :: this
+   class(lfom_t),         intent(inout) :: this
+   type(ParameterList_t), intent(in)    :: parameter_list
+   call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
   end subroutine lfom_set_parameters_from_pl
   
   subroutine lfom_solve_body(this,b,x)

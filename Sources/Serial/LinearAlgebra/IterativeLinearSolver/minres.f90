@@ -284,6 +284,7 @@ module minres_names
   use environment_names
   use base_iterative_linear_solver_names
   use iterative_linear_solver_parameters_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
@@ -350,9 +351,11 @@ contains
     deallocate(this%w2)
   end subroutine minres_free_workspace
 
-  subroutine minres_set_parameters_from_pl(this) 
+  subroutine minres_set_parameters_from_pl(this, parameter_list) 
    implicit none
-   class(minres_t), intent(inout) :: this
+   class(minres_t),       intent(inout) :: this
+   type(ParameterList_t), intent(in)    :: parameter_list
+   call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
   end subroutine minres_set_parameters_from_pl
   
   subroutine minres_solve_body(this,b,x)

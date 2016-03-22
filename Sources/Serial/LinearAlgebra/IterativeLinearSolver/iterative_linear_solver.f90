@@ -142,11 +142,12 @@ contains
      call this%set_type_from_string (iterative_linear_solver_type)
    end subroutine iterative_linear_solver_set_type_from_pl
    
-   subroutine iterative_linear_solver_set_parameters_from_pl ( this )
+   subroutine iterative_linear_solver_set_parameters_from_pl ( this, parameter_list )
      implicit none
      class(iterative_linear_solver_t), intent(inout) :: this
+     type(ParameterList_t),            intent(in)    :: parameter_list
      assert ( this%state == solver_type_set )
-     call this%base_iterative_linear_solver%set_parameters_from_pl()
+     call this%base_iterative_linear_solver%set_parameters_from_pl(parameter_list)
    end subroutine iterative_linear_solver_set_parameters_from_pl
    
    subroutine iterative_linear_solver_set_type_and_parameters_from_pl ( this, parameter_list )
@@ -154,7 +155,7 @@ contains
      class(iterative_linear_solver_t), intent(inout) :: this
      type(ParameterList_t),            intent(in)    :: parameter_list
      call this%set_type_from_pl( parameter_list )
-     call this%set_parameters_from_pl()
+     call this%set_parameters_from_pl(parameter_list)
    end subroutine iterative_linear_solver_set_type_and_parameters_from_pl
    
    subroutine iterative_linear_solver_set_operators ( this, A, M )
