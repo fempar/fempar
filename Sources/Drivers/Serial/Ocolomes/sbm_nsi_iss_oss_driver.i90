@@ -138,6 +138,10 @@
   ! Create FE function
   call fe_space%create_global_fe_function(fe_values,dof_values)
   nsi_iss_oss_integration%fe_values => fe_values
+  ! Interpolate fe_function
+  if(nsi_iss_oss_integration%is_initial_solution) then
+     call nsi_iss_oss_integration%interpolate_fe_function_analytical(fe_space)
+  end if
   ! Fill affine operator
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()

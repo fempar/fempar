@@ -236,21 +236,21 @@ subroutine integrate(this,fe_space,assembler)
            end do
         end do
 
-        !-----------!
-        ! BLOCK E-U !
-        !-----------!
-        ! Velocity gradient projection term: (tau_m*eta,u*grad(u))
-        if(this%convection_activated) then
-           do inode = 1, number_nodes_per_field(3) 
-              ioffset = number_nodes_per_field(1 )+ number_nodes_per_field(2) + inode
-              call vol_int_projection_fe%get_value(inode,qpoin,test_vector)
-              do jnode = 1, number_nodes_per_field(1) 
-                 call vol_int_velocity_fe%get_gradient(jnode,qpoin,grad_trial_vector)  
-                 trial_vector = advection_vector * grad_trial_vector
-                 elmat(ioffset,jnode) = elmat(ioffset,jnode) + tau_m(qpoin) * dvolume * test_vector * trial_vector
-              end do
-           end do          
-        end if
+!!$        !-----------!
+!!$        ! BLOCK E-U !
+!!$        !-----------!
+!!$        ! Velocity gradient projection term: (tau_m*eta,u*grad(u))
+!!$        if(this%convection_activated) then
+!!$           do inode = 1, number_nodes_per_field(3) 
+!!$              ioffset = number_nodes_per_field(1 )+ number_nodes_per_field(2) + inode
+!!$              call vol_int_projection_fe%get_value(inode,qpoin,test_vector)
+!!$              do jnode = 1, number_nodes_per_field(1) 
+!!$                 call vol_int_velocity_fe%get_gradient(jnode,qpoin,grad_trial_vector)  
+!!$                 trial_vector = advection_vector * grad_trial_vector
+!!$                 elmat(ioffset,jnode) = elmat(ioffset,jnode) + tau_m(qpoin) * dvolume * test_vector * trial_vector
+!!$              end do
+!!$           end do          
+!!$        end if
                 
         !-----------!
         ! BLOCK E-X !
@@ -525,3 +525,25 @@ subroutine update_boundary_conditions_analytical(this,fe_space,time)
        &                        fe_space_component=2,time=time_)
 
 end subroutine update_boundary_conditions_analytical
+  
+!====================================================================================================
+subroutine interpolate_fe_function_analytical(this,fe_space,time)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+  class(serial_fe_space_t)                 , intent(in)    :: fe_space
+  real(rp), optional                       , intent(in)    :: time
+  ! Locals
+  real(rp) :: time_
+
+  time_ = 0.0_rp
+  if(present(time)) time_ = time
+
+  ! Update velocity 
+  call fe_space%interpolate_fe_function(this%analytical_functions%get_velocity_function(),bc_code=1, &
+       &                                fe_space_component=1,fe_function=this%fe_values,time=time_)
+
+  ! Update pressure
+  call fe_space%interpolate_fe_function(this%analytical_functions%get_pressure_function(),bc_code=1, &
+       &                                fe_space_component=2,fe_function=this%fe_values,time=time_)
+
+end subroutine interpolate_fe_function_analytical

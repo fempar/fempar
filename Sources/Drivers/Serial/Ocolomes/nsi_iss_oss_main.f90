@@ -293,6 +293,7 @@ module nsi_iss_oss_discrete_integration_names
      procedure, non_overridable :: compute_mean_elemental_velocity
      procedure, non_overridable :: compute_analytical_force
      procedure, non_overridable :: update_boundary_conditions_analytical
+     procedure, non_overridable :: interpolate_fe_function_analytical
      procedure, non_overridable :: free
   end type nsi_iss_oss_discrete_integration_t
 

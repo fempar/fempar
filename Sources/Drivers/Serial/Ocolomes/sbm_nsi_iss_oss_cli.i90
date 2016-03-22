@@ -19,7 +19,7 @@ subroutine create(this)
        &        description =                                                                     &
        & 'Serial FEMPAR driver to solve the Navier-Stokes Incompressible problem with Inf-Sup stable discretization using Orthogonal Subscales stabilization.',   &
        &        examples    = ['nsi_iss_oss_main            -h ',                                 &
-       'nsi_iss_oss_main analytical -h ' ]) 
+       &                       'nsi_iss_oss_main analytical -h ' ]) 
 
   ! Set Command Line Arguments Groups, i.e. commands
   call this%cli%add_group(group='analytical',description='Solve a problem with an analytical solution')
