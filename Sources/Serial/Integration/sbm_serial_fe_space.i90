@@ -804,7 +804,7 @@ end subroutine update_bc_value_tensor
       &                                                     fe_space_component, fe_function, &
       &                                                     time, unknown_component)
    implicit none
-   class(serial_fe_space_t), intent(inout) :: this 
+   class(serial_fe_space_t), intent(in)    :: this 
    class(scalar_function_t), intent(in)    :: scalar_function
    integer(ip)             , intent(in)    :: bc_code
    integer(ip)             , intent(in)    :: fe_space_component
@@ -888,7 +888,7 @@ end subroutine update_bc_value_tensor
  subroutine serial_fe_space_interpolate_fe_function_vector( this, vector_function, bc_code,  &
       &                                                     fe_space_component, fe_function, time)
    implicit none
-   class(serial_fe_space_t), intent(inout) :: this 
+   class(serial_fe_space_t), intent(in)    :: this 
    class(vector_function_t), intent(in)    :: vector_function
    integer(ip)             , intent(in)    :: bc_code
    type(fe_function_t)     , intent(inout) :: fe_function
@@ -979,7 +979,7 @@ end subroutine update_bc_value_tensor
  subroutine serial_fe_space_interpolate_fe_function_tensor( this, tensor_function, bc_code, &
       &                                                     fe_function, fe_space_component, time)
    implicit none
-   class(serial_fe_space_t), intent(inout) :: this 
+   class(serial_fe_space_t), intent(in)    :: this 
    class(tensor_function_t), intent(in)    :: tensor_function
    integer(ip)             , intent(in)    :: bc_code
    type(fe_function_t)     , intent(inout) :: fe_function
