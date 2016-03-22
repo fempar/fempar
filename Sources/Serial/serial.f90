@@ -36,6 +36,7 @@ module serial_names
   use environment_names
   use serial_environment_names
   use Data_Type_Command_Line_Interface
+  use FPL
 
   ! Geometry
   use map_names
@@ -82,6 +83,9 @@ module serial_names
   use block_preconditioner_lu_names
   use block_operator_names
   use block_vector_names
+  use direct_solver_names
+  use direct_solver_parameters_names
+  use direct_solver_creational_methods_dictionary_names
   
   ! Integration 
   use reference_fe_names
