@@ -44,8 +44,9 @@ module vector_names
      procedure (nrm2_interface), deferred     :: nrm2
      procedure (clone_interface), deferred    :: clone
      procedure (same_vector_space_interface), deferred :: same_vector_space
-					procedure (get_number_blocks_interface), deferred :: get_number_blocks
+     procedure (get_number_blocks_interface), deferred :: get_number_blocks
      procedure (vector_extract_subvector_interface), deferred :: extract_subvector 
+     procedure (vector_insert_subvector_interface) , deferred :: insert_subvector 
      
 					procedure :: sum_vector
      procedure :: sub_vector
@@ -155,6 +156,20 @@ module vector_names
        integer(ip)    , intent(in)     :: indices(size_indices)
        real(rp)       , intent(inout)  :: values(*)
      end subroutine vector_extract_subvector_interface
+     ! Insert subvector from a subset of indices of a vector
+     subroutine vector_insert_subvector_interface( this, &
+                                                  & iblock, &
+                                                  & size_indices, &
+                                                  & indices, &
+                                                  & values )
+       import :: vector_t, ip, rp
+       implicit none
+       class(vector_t), intent(inout)  :: this 
+       integer(ip)    , intent(in)     :: iblock
+       integer(ip)    , intent(in)     :: size_indices
+       integer(ip)    , intent(in)     :: indices(size_indices)
+       real(rp)       , intent(in)     :: values(*)
+     end subroutine vector_insert_subvector_interface
   end interface
 
   public :: vector_t
