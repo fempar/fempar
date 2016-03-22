@@ -76,6 +76,7 @@ module par_block_array_names
      procedure :: free_in_stages    => par_block_array_free_in_stages
      procedure :: get_number_blocks => par_block_array_get_number_blocks
      procedure :: extract_subvector => par_block_array_extract_subvector
+     procedure :: insert_subvector  => par_block_array_insert_subvector
   end type par_block_array_t
 
   ! Types
@@ -472,5 +473,22 @@ contains
    assert( .false. )
    
   end subroutine par_block_array_extract_subvector
+
+  !=============================================================================
+  subroutine par_block_array_insert_subvector( this, &
+                                             & iblock, &
+                                             & size_indices, &
+                                             & indices, &
+                                             & values )
+   implicit none
+   class(par_block_array_t), intent(inout) :: this 
+   integer(ip)             , intent(in)    :: iblock
+   integer(ip)             , intent(in)    :: size_indices
+   integer(ip)             , intent(in)    :: indices(size_indices)
+   real(rp)                , intent(in)    :: values(*)
+
+   assert( .false. )
+   
+ end subroutine par_block_array_insert_subvector
  
 end module par_block_array_names
