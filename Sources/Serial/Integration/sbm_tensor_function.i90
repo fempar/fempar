@@ -25,24 +25,37 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine tensor_get_value_space( this, point, result )
+subroutine tensor_function_create( this, number_dimensions )
+  class(tensor_function_t), intent(inout) :: this
+  integer(ip)             , intent(in) :: number_dimensions
+  this%number_dimensions = number_dimensions
+end subroutine tensor_function_create
+
+function tensor_function_get_number_dimensions( this )
+  class(tensor_function_t), intent(in) :: this
+  integer(ip) :: tensor_function_get_number_dimensions
+  assert ( this%number_dimensions >= 1 .and. this%number_dimensions <= 3  )
+  tensor_function_get_number_dimensions = this%number_dimensions
+end function tensor_function_get_number_dimensions
+
+subroutine tensor_function_get_value_space( this, point, result )
   !import :: point_t, rp
   class(tensor_function_t), intent(in) :: this
   type(point_t), intent(in)            :: point
   type(tensor_field_t), intent(inout)  :: result
   assert( .false. )
-end subroutine tensor_get_value_space
+end subroutine tensor_function_get_value_space
 
-subroutine tensor_get_value_space_time( this, point, time, result )
+subroutine tensor_function_get_value_space_time( this, point, time, result )
   !import :: point_t, rp
   class(tensor_function_t), intent(in) :: this
   type(point_t), intent(in)            :: point
   real(rp), intent(in)                 :: time
   type(tensor_field_t), intent(inout)  :: result
   assert( .false. )
-end subroutine tensor_get_value_space_time
+end subroutine tensor_function_get_value_space_time
 
-subroutine tensor_get_values_set_space( this, point, result )
+subroutine tensor_function_get_values_set_space( this, point, result )
   !import :: point_t, rp
   class(tensor_function_t), intent(in) :: this
   type(point_t), intent(in)            :: point(:)
@@ -52,9 +65,9 @@ subroutine tensor_get_values_set_space( this, point, result )
   do i = 1, num_points
      call this%get_value_space( point(i), result(i) )
   end do
-end subroutine tensor_get_values_set_space
+end subroutine tensor_function_get_values_set_space
 
-subroutine tensor_get_values_set_space_time( this, point, time, result )
+subroutine tensor_function_get_values_set_space_time( this, point, time, result )
   !import :: point_t, rp
   class(tensor_function_t), intent(in) :: this
   type(point_t), intent(in)            :: point(:)
@@ -68,4 +81,4 @@ subroutine tensor_get_values_set_space_time( this, point, time, result )
         call this%get_value_space_time( point(i), time(j), result(i,j) )
      end do
   end do
-end subroutine tensor_get_values_set_space_time
+end subroutine tensor_function_get_values_set_space_time
