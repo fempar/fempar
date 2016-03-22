@@ -49,6 +49,7 @@
   ! Assembled           | Insert (2-values)     | * Error
   ! Assembled           | Insert (3-values)     | Update
   !-----------------------------------------------------------------```
+```
 
 # Sparse Matrix: Basic usage
 
