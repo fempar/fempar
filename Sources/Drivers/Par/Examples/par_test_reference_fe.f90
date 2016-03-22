@@ -169,6 +169,106 @@ contains
   end subroutine integrate
 end module poisson_discrete_integration_names
 
+module vector_laplacian_composite_discrete_integration_names
+use serial_names
+
+implicit none
+# include "debug.i90"
+private
+type, extends(discrete_integration_t) :: vector_laplacian_composite_discrete_integration_t
+integer(ip) :: viscosity 
+contains
+procedure :: integrate
+end type vector_laplacian_composite_discrete_integration_t
+
+public :: vector_laplacian_composite_discrete_integration_t
+
+contains
+  subroutine integrate ( this, fe_space, assembler )
+    implicit none
+    class(vector_laplacian_composite_discrete_integration_t), intent(in)    :: this
+    class(serial_fe_space_t)                   , intent(inout) :: fe_space
+    class(assembler_t)                         , intent(inout) :: assembler
+
+    type(finite_element_t), pointer :: fe
+    type(volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
+    real(rp), allocatable :: elmat(:,:), elvec(:)
+    type(fe_map_t), pointer :: fe_map
+    type(quadrature_t), pointer :: quad
+    integer(ip), allocatable :: number_nodes_per_field(:)
+
+    integer(ip)  :: igaus,inode,jnode,ioffset,joffset,ngaus
+    real(rp) :: factor
+
+    type(vector_field_t) :: grad_test_scalar, grad_trial_scalar
+    type(tensor_field_t) :: grad_test_vector, grad_trial_vector
+    
+    integer(ip) :: i, number_fe_spaces
+
+    integer(ip), pointer :: field_blocks(:)
+    logical, pointer :: field_coupling(:,:)
+
+    integer(ip) :: ielem, number_nodes
+    type(i1p_t), pointer :: elem2dof(:)
+
+    number_fe_spaces = fe_space%get_number_fe_spaces()
+    field_blocks => fe_space%get_field_blocks()
+    field_coupling => fe_space%get_field_coupling()
+
+    fe => fe_space%get_finite_element(1)
+    number_nodes = fe%get_number_nodes()
+    call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
+    call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
+    call memalloc ( number_fe_spaces, number_nodes_per_field, __FILE__, __LINE__ )
+    call fe%get_number_nodes_per_field( number_nodes_per_field )
+    
+    call fe_space%initialize_integration()
+    
+    quad  => fe%get_quadrature()
+    ngaus = quad%get_number_quadrature_points()
+    do ielem = 1, fe_space%get_number_elements()
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+
+       fe => fe_space%get_finite_element(ielem)
+       call fe%update_integration()
+       
+       fe_map            => fe%get_fe_map()
+       vol_int_first_fe  => fe%get_volume_integrator(1)
+       vol_int_second_fe => fe%get_volume_integrator(2)
+       elem2dof          => fe%get_elem2dof()
+
+       do igaus = 1,ngaus
+          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          do inode = 1, number_nodes_per_field(1)
+             call vol_int_first_fe%get_gradient(inode,igaus,grad_trial_scalar)
+             do jnode = 1, number_nodes_per_field(1)
+                call vol_int_first_fe%get_gradient(jnode,igaus,grad_test_scalar)
+                elmat(inode,jnode) = elmat(inode,jnode) + factor * grad_test_scalar * grad_trial_scalar
+             end do
+          end do
+
+          do inode = 1, number_nodes_per_field(2)
+             ioffset = number_nodes_per_field(1)+inode
+             call vol_int_second_fe%get_gradient(inode,igaus,grad_trial_scalar)
+             ! write(*,*) inode, grad_trial_vector%value
+             do jnode = 1, number_nodes_per_field(2)
+                joffset = number_nodes_per_field(1)+jnode
+                call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_scalar)
+                elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor * grad_test_scalar * grad_trial_scalar
+             end do
+          end do
+       end do
+       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
+       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
+    end do
+    call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
+    call memfree ( elmat, __FILE__, __LINE__ )
+    call memfree ( elvec, __FILE__, __LINE__ )
+  end subroutine integrate
+
+end module vector_laplacian_composite_discrete_integration_names
+
 
 program par_test_reference_fe
   !----------------------------------------------------------
@@ -178,6 +278,7 @@ program par_test_reference_fe
   use par_names
   use command_line_parameters_names
   use poisson_discrete_integration_names
+  use vector_laplacian_composite_discrete_integration_names
 
 
   implicit none
@@ -190,9 +291,10 @@ program par_test_reference_fe
   type(par_conditions_t)                          :: par_conditions
   type(par_triangulation_t)                       :: par_triangulation
   type(par_fe_space_t)                            :: par_fe_space
-  type(p_reference_fe_t)                          :: reference_fe_array_one(1)
+  type(p_reference_fe_t)                          :: reference_fe_array_one(2)
   type(fe_affine_operator_t)                      :: fe_affine_operator
   type(poisson_discrete_integration_t)            :: poisson_integration
+  type(vector_laplacian_composite_discrete_integration_t) :: vector_laplacian_integration
   class(matrix_t)             , pointer           :: matrix
   class(vector_t)             , pointer           :: rhs
   type(iterative_linear_solver_t)                 :: iterative_linear_solver
@@ -261,7 +363,15 @@ program par_test_reference_fe
                                                    order = 1, &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true., &
-                                                   enable_face_integration = .false. )
+                                                   enable_face_integration = .true. )
+  
+    reference_fe_array_one(2) =  make_reference_fe ( topology = topology_quad, &
+                                                   fe_type = fe_type_lagrangian, &
+                                                   number_dimensions = 2, &
+                                                   order = -1, &
+                                                   field_type = field_type_scalar, &
+                                                   continuity = .true., &
+                                                   enable_face_integration = .true. )
   
   !call reference_fe_array_one(1)%p%print()
   
@@ -273,34 +383,24 @@ program par_test_reference_fe
                                      bc_code = 1, &
                                      fe_space_component = 1 )
   
+    call par_fe_space%update_bc_value (scalar_function=constant_scalar_function_t(2,1.0_rp), &
+                                     bc_code = 1, &
+                                     fe_space_component = 2 )
+  
   call par_fe_space%fill_dof_info()
   call par_fe_space%print()
-  
+    
   call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                   diagonal_blocks_symmetric_storage=(/.true./), &
                                   diagonal_blocks_symmetric=(/.true./), &
                                   diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
                                   environment=par_env, &
                                   fe_space=par_fe_space, &
-                                  discrete_integration=poisson_integration )
+                                  discrete_integration=vector_laplacian_integration )
 
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
-  
     
-  !matrix => fe_affine_operator%get_matrix()
-  !rhs    => fe_affine_operator%get_array()
- 
-  !select type(matrix)
-  !  class is (par_sparse_matrix_t)
-  !    call matrix%print(6)
-  !end select
-  
-  !select type(rhs)
-  !  class is (par_scalar_array_t)
-  !    call rhs%print_matrix_market(6)
-  !end select
-  
   call fe_affine_operator%create_range_vector(vector)
 
   ! Create iterative linear solver, set operators and solve linear system
@@ -328,6 +428,8 @@ program par_test_reference_fe
   call fe_affine_operator%free()
   call par_fe_space%free()
   call reference_fe_array_one(1)%free()
+  call reference_fe_array_one(2)%free()
+
   
   call par_triangulation_free(par_triangulation)
   call par_conditions_free (par_conditions)

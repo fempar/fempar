@@ -300,7 +300,7 @@ module serial_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes             ! Not being used
+   integer(ip) :: current_number_nodes             
    integer(ip) :: current_number_quadrature_points
    
    integer(ip) :: max_number_nodes  
@@ -324,7 +324,7 @@ module serial_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes             ! Not being used
+   integer(ip) :: current_number_nodes             
    integer(ip) :: current_number_quadrature_points           
    
    integer(ip) :: max_number_quadrature_points
@@ -348,7 +348,7 @@ module serial_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes             ! Not being used
+   integer(ip) :: current_number_nodes            
    integer(ip) :: current_number_quadrature_points     
    
    integer(ip) :: max_number_nodes    
