@@ -343,6 +343,7 @@ program test_nsi_iss_oss
   ! Solver
   type(iterative_linear_solver_t) :: iterative_linear_solver
   type(serial_environment_t)      :: senv
+  type(parameterlist_t)           :: solver_parameters
 
   ! Arguments
   type(test_nsi_iss_oss_params_t) :: params

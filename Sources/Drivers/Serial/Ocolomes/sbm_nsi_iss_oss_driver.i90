@@ -28,6 +28,7 @@
 
   ! Initialize memory structures
   call meminit
+  call fpl_init()
 
   !----------------!
   ! READ ARGUMENTS !
@@ -53,7 +54,6 @@
   else
      
      ! Create structured mesh parameters from CLI
-     call fpl_init()
      call mesh_parameters%init()
      call params%create_parameter_list_for_structured_mesh(mesh_parameters)
 
@@ -120,7 +120,7 @@
   ! Update initial boundary conditions
   if(nsi_iss_oss_integration%is_analytical_solution.or.nsi_iss_oss_integration%is_initial_solution) then
      call nsi_iss_oss_integration%update_boundary_conditions_analytical(fe_space)
-     call fe_space%update_global_fe_function_bcs(fe_values)
+     !call fe_space%update_global_fe_function_bcs(fe_values)
   end if  
   ! Interpolate initial fe_function
   if(nsi_iss_oss_integration%is_initial_solution) then
@@ -143,7 +143,6 @@
   ! Create residual values vector
   call fe_affine_operator%create_range_vector(residual)   
   call residual%init(0.0_rp)    
-  call dof_values%init(0.0_rp)  
   ! Fill affine operator
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
@@ -155,6 +154,8 @@
 !!$  call iterative_linear_solver%create(senv)
 !!$  call iterative_linear_solver%set_type_and_parameters_from_pl()
 !!$  call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+  call solver_parameters%init()
+  call solver_parameters%set(key=ils_output_frequency,value=0)  
 
   !----------------!
   ! NONLINEAR LOOP !
@@ -170,7 +171,7 @@
 
      ! Update linear solver
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_type_and_parameters_from_pl(solver_parameters)
      call iterative_linear_solver%set_type_from_string('RGMRES')
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%set_initial_solution(dof_values)
@@ -209,6 +210,7 @@
   call fe_affine_operator%free()
   call nsi_iss_oss_integration%free()
 !!$  call iterative_linear_solver%free()
+  call solver_parameters%free()
   call fe_space%free()
   call reference_fe_array(1)%free()
   call reference_fe_array(2)%free()
@@ -219,9 +221,9 @@
   if(params%get_is_structured_mesh()) then
      call boundary_data%free()
      call mesh_parameters%free()
-     call fpl_finalize()
   end if
   call params%free()
+  call fpl_finalize()
 
   ! Output memory status
   call memstatus
