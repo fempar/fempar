@@ -196,7 +196,7 @@ module base_iterative_linear_solver_names
      class(base_iterative_linear_solver_t), intent(inout) :: this
     end subroutine free_workspace_interface
    
-    subroutine set_parameters_from_pl_interface(this, parameter_list) ! Parameter List still missing
+    subroutine set_parameters_from_pl_interface(this, parameter_list)
      import :: base_iterative_linear_solver_t
      import :: ParameterList_t
      implicit none
