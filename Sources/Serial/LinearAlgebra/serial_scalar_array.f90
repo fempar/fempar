@@ -104,6 +104,7 @@ module serial_scalar_array_names
      procedure :: default_initialization => serial_scalar_array_default_init
      procedure :: get_number_blocks      => serial_scalar_array_get_number_blocks
      procedure :: extract_subvector      => serial_scalar_array_extract_subvector
+     procedure :: insert_subvector       => serial_scalar_array_insert_subvector
   end type serial_scalar_array_t
 
   ! Types
@@ -502,5 +503,30 @@ contains
       end if
     end do 
   end subroutine serial_scalar_array_extract_subvector
+ 
+  !=============================================================================
+  subroutine serial_scalar_array_insert_subvector( this, &
+                                                 & iblock, &
+                                                 & size_indices, &
+                                                 & indices, &
+                                                 & values )
+    implicit none
+    class(serial_scalar_array_t), intent(inout) :: this 
+    integer(ip)                 , intent(in)    :: iblock
+    integer(ip)                 , intent(in)    :: size_indices
+    integer(ip)                 , intent(in)    :: indices(size_indices)
+    real(rp)                    , intent(in)    :: values(*)
+    integer(ip)                                 :: i
+
+    assert(this%state == entries_ready)
+    assert(iblock == 1)
+        
+    do i=1, size_indices
+      assert ( indices(i) <= this%size )
+      if ( indices(i) > 0 ) then
+        this%b(indices(i)) = values(i)
+      end if
+    end do 
+  end subroutine serial_scalar_array_insert_subvector
 
 end module serial_scalar_array_names
