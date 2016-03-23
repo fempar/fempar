@@ -327,7 +327,7 @@ subroutine finite_element_update_scalar_values (this, fe_function_scalar, fe_fun
   implicit none
   class(finite_element_t)   , intent(in)    :: this
   type(fe_function_scalar_t), intent(inout) :: fe_function_scalar
-  class(fe_function_t)      , intent(in)    :: fe_function
+  type(fe_function_t)       , intent(in)    :: fe_function
   
   real(rp), pointer :: strong_dirichlet_values_entries(:)
   
@@ -350,7 +350,7 @@ subroutine finite_element_update_scalar_values (this, fe_function_scalar, fe_fun
   quadrature_points_values => fe_function_scalar%get_quadrature_points_values()
   
   ! Extract nodal values associated to dirichlet bcs
-  strong_dirichlet_values_entries => this%strong_dirichlet_values%get_entries()
+  strong_dirichlet_values_entries => fe_function%strong_dirichlet_values%get_entries()
   do inode = 1, number_nodes_fe_space
      if ( this%elem2dof(fe_space_id)%p(inode) < 0 ) then
         nodal_values(inode) = strong_dirichlet_values_entries(-this%elem2dof(fe_space_id)%p(inode))
@@ -358,7 +358,7 @@ subroutine finite_element_update_scalar_values (this, fe_function_scalar, fe_fun
   end do
   
   ! Extract nodal values associated to dofs
-  call fe_function%vector_dof_values%extract_subvector ( block_id, &
+  call fe_function%dof_values%extract_subvector ( block_id, &
                                                        & number_nodes_fe_space, &
                                                        & this%elem2dof(fe_space_id)%p, &
                                                        & nodal_values )
@@ -373,7 +373,7 @@ subroutine finite_element_update_vector_values (this, fe_function_vector, fe_fun
   implicit none
   class(finite_element_t)   , intent(in)    :: this
   type(fe_function_vector_t), intent(inout) :: fe_function_vector
-  class(fe_function_t)      , intent(in)    :: fe_function
+  type(fe_function_t)       , intent(in)    :: fe_function
 
   real(rp)            , pointer :: strong_dirichlet_values_entries(:)
   
@@ -396,7 +396,7 @@ subroutine finite_element_update_vector_values (this, fe_function_vector, fe_fun
   quadrature_points_values => fe_function_vector%get_quadrature_points_values()
 
   ! Extract nodal values associated to dirichlet bcs
-  strong_dirichlet_values_entries => this%strong_dirichlet_values%get_entries()
+  strong_dirichlet_values_entries => fe_function%strong_dirichlet_values%get_entries()
   do inode = 1, number_nodes_fe_space
      if ( this%elem2dof(fe_space_id)%p(inode) < 0 ) then
         nodal_values(inode) = strong_dirichlet_values_entries(-this%elem2dof(fe_space_id)%p(inode))
@@ -404,7 +404,7 @@ subroutine finite_element_update_vector_values (this, fe_function_vector, fe_fun
   end do
   
   ! Extract nodal values associated to dofs
-  call fe_function%vector_dof_values%extract_subvector ( block_id, &
+  call fe_function%dof_values%extract_subvector ( block_id, &
                                                        & number_nodes_fe_space, &
                                                        & this%elem2dof(fe_space_id)%p, &
                                                        & nodal_values )
@@ -419,7 +419,7 @@ subroutine finite_element_update_tensor_values (this, fe_function_tensor, fe_fun
   implicit none
   class(finite_element_t)   , intent(in)    :: this
   type(fe_function_tensor_t), intent(inout) :: fe_function_tensor
-  class(fe_function_t)      , intent(in)    :: fe_function
+  type(fe_function_t)       , intent(in)    :: fe_function
 
   real(rp)            , pointer :: strong_dirichlet_values_entries(:)
   
@@ -442,7 +442,7 @@ subroutine finite_element_update_tensor_values (this, fe_function_tensor, fe_fun
   quadrature_points_values => fe_function_tensor%get_quadrature_points_values()
 
   ! Extract nodal values associated to dirichlet bcs
-  strong_dirichlet_values_entries => this%strong_dirichlet_values%get_entries()
+  strong_dirichlet_values_entries => fe_function%strong_dirichlet_values%get_entries()
   do inode = 1, number_nodes_fe_space
      if ( this%elem2dof(fe_space_id)%p(inode) < 0 ) then
         nodal_values(inode) = strong_dirichlet_values_entries(-this%elem2dof(fe_space_id)%p(inode))
@@ -450,7 +450,7 @@ subroutine finite_element_update_tensor_values (this, fe_function_tensor, fe_fun
   end do
   
   ! Extract nodal values associated to dofs
-  call fe_function%vector_dof_values%extract_subvector ( block_id, &
+  call fe_function%dof_values%extract_subvector ( block_id, &
                                                        & number_nodes_fe_space, &
                                                        & this%elem2dof(fe_space_id)%p, &
                                                        & nodal_values )
