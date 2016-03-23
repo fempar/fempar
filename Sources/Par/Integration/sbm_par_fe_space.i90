@@ -47,10 +47,10 @@ subroutine par_fe_space_create( this, &
   this%par_triangulation => par_triangulation
   if ( par_triangulation%p_env%p_context%iam >= 0 ) then
      call this%serial_fe_space_t%create( par_triangulation%f_trian, &
-          par_boundary_conditions%f_conditions, &
-          reference_fe_phy, &
-          field_blocks, &
-          field_coupling )       
+                                         par_boundary_conditions%f_conditions, &
+                                         reference_fe_phy, &
+                                         field_blocks, &
+                                         field_coupling )       
 
      num_elems  = par_triangulation%num_elems
      num_ghosts = par_triangulation%num_ghosts
@@ -65,13 +65,17 @@ subroutine par_fe_space_create( this, &
              this%volume_integrator,&
              this%number_blocks,&
              this%field_blocks,&
-             par_boundary_conditions%f_conditions)
+             this%serial_fe_space_t%strong_dirichlet_values)
      end do
   else
      ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
      ! requires that coarse-grid tasks also know how many blocks there are
      this%number_blocks = 1
      if (present(field_blocks)) this%number_blocks = maxval(field_blocks)
+     
+     ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
+     ! requires that strong_dirichlet_values is created and allocated
+     call this%serial_fe_space_t%strong_dirichlet_values%create_and_allocate(0)
   end if
 
 end subroutine par_fe_space_create
@@ -114,6 +118,10 @@ subroutine par_fe_space_free( this )
         ! requires that this%blocks_dof_import is allocated 
         this%number_blocks = 0
         deallocate ( this%blocks_dof_import )
+        
+        ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
+        ! requires that strong_dirichlet_values is created and allocated
+        call this%serial_fe_space_t%strong_dirichlet_values%free()
      end if
      nullify(this%par_triangulation)
   end if
@@ -321,15 +329,17 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
         if ( this%fe_space_type(fe_space_id) == fe_space_type_cg ) then
            total_num_itfc_couplings = total_num_itfc_couplings + & 
                 this%par_fe_space_compute_raw_interface_data_by_continuity(fe_space_id, &
-                ubound_num_itfc_couplings(i),&
-                dofs_lid(total_num_itfc_couplings+1),&
-                raw_interface_data(1,total_num_itfc_couplings+1) )
+                                                                           total_num_itfc_couplings, &
+                                                                           ubound_num_itfc_couplings(i),&
+                                                                           dofs_lid,&
+                                                                           raw_interface_data )
         else if ( this%fe_space_type(fe_space_id) == fe_space_type_dg ) then
            total_num_itfc_couplings = total_num_itfc_couplings + & 
                 this%par_fe_space_compute_raw_interface_data_by_face_integ(fe_space_id, &
-                ubound_num_itfc_couplings(i),&
-                dofs_lid(total_num_itfc_couplings+1),&
-                raw_interface_data(1,total_num_itfc_couplings+1) )      
+                                                                           total_num_itfc_couplings, &
+                                                                           ubound_num_itfc_couplings(i),&
+                                                                           dofs_lid,&
+                                                                           raw_interface_data )      
         end if
 
         i=i+1                                  
@@ -454,16 +464,18 @@ function par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ( this, fe_
 end function par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
 
 function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
-     fe_space_id, &
-     ubound_num_itfc_couplings, &
-     dofs_lid, &
-     raw_interface_data ) result(num_itfc_couplings)
+                                                                  fe_space_id, &
+                                                                  offset, &
+                                                                  ubound_num_itfc_couplings, &
+                                                                  dofs_lid, &
+                                                                  raw_interface_data ) result(num_itfc_couplings)
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: fe_space_id
+  integer(ip)          , intent(in)    :: offset
   integer(ip)          , intent(in)    :: ubound_num_itfc_couplings
-  integer(ip)          , intent(inout) :: dofs_lid(ubound_num_itfc_couplings)
-  integer(igp)         , intent(inout) :: raw_interface_data(num_rows_raw_interface_data, ubound_num_itfc_couplings)
+  integer(ip)          , intent(inout) :: dofs_lid(:)
+  integer(igp)         , intent(inout) :: raw_interface_data(:, :)
   integer(ip)                          :: num_itfc_couplings
 
   ! Locals
@@ -491,8 +503,8 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   assert ( this%par_triangulation%p_env%p_context%iam >= 0 )
 
   ! Allocate touch arrays (we could reduce memory consumption by using hash tables here)
-  call memalloc ( this%number_dofs_per_field(fe_space_id), local_idof, __FILE__, __LINE__ )
-  call memalloc ( this%number_dofs_per_field(fe_space_id), lst_dofs_current_vef, __FILE__, __LINE__ )
+  call memalloc ( this%number_dofs_per_block(this%field_blocks(fe_space_id)), local_idof, __FILE__, __LINE__ )
+  call memalloc ( this%number_dofs_per_block(this%field_blocks(fe_space_id)), lst_dofs_current_vef, __FILE__, __LINE__ )
   call memalloc ( ubound_num_itfc_couplings, dofs_max_part_id, __FILE__, __LINE__ )
 
   call memalloc ( this%par_triangulation%element_import%get_number_neighbours(), &
@@ -506,7 +518,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
 
   mypart_id = this%par_triangulation%p_env%p_context%iam + 1 
 
-  current_col  = 1
+  current_col  = offset + 1
   local_idof   = 0
 
   ! Traverse vefs on the interface
@@ -530,7 +542,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
         do idof_interior=1, finite_element%reference_fe_phy(fe_space_id)%p%get_number_own_nodes_vef(ivef)
            idof = finite_element%reference_fe_phy(fe_space_id)%p%get_own_node_vef(idof_interior,ivef)
            dof_lid = finite_element%elem2dof(fe_space_id)%p(idof)
-           if ( dof_lid == 0 ) cycle
+           if ( dof_lid <= 0 ) cycle
            if ( elem_gid >= max_elem_gid ) then
               max_elem_gid = elem_gid
               if ( local_idof(dof_lid) == 0 ) then
@@ -558,7 +570,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
         do ipart=1, num_parts
            part_id = parts_visited(ipart)
            dofs_lid ( current_col ) = dof_lid 
-           dofs_max_part_id ( current_col ) = max_part_id
+           dofs_max_part_id ( current_col-offset ) = max_part_id
            raw_interface_data(neighbor_part_id_row, current_col) = part_id
            raw_interface_data(max_egid_row, current_col) = max_elem_gid
            raw_interface_data(lpos_dof_max_egid_row, current_col) = local_idof(dof_lid)
@@ -575,10 +587,11 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   call memfree ( parts_visited, __FILE__, __LINE__ )
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
 
-  call this%par_fe_space_raw_interface_data_by_continuity_decide_owner (current_col-1, &
-       raw_interface_data,&
-       dofs_max_part_id,&
-       dofs_lid)
+  call this%par_fe_space_raw_interface_data_by_continuity_decide_owner (offset, &
+                                                                        current_col-1, &
+                                                                        raw_interface_data,&
+                                                                        dofs_max_part_id,&
+                                                                        dofs_lid)
 
   call memfree ( dofs_max_part_id, __FILE__, __LINE__ )
 
@@ -586,16 +599,18 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
 end function par_fe_space_compute_raw_interface_data_by_continuity
 
 subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
-     num_cols, &
-     raw_interface_data, &
-     dofs_max_part_id,  &
-     dofs_lid)
+                                                                        offset, &
+                                                                        num_cols, &
+                                                                        raw_interface_data, &
+                                                                        dofs_max_part_id,  &
+                                                                        dofs_lid)
   implicit none
   class(par_fe_space_t), intent(in)    :: this
+  integer(ip)          , intent(in)    :: offset
   integer(ip)          , intent(in)    :: num_cols
-  integer(igp)         , intent(inout) :: raw_interface_data(num_rows_raw_interface_data,num_cols)
-  integer(ip)          , intent(inout) :: dofs_max_part_id(num_cols)
-  integer(ip)          , intent(inout) :: dofs_lid(num_cols)
+  integer(igp)         , intent(inout) :: raw_interface_data(:,:)
+  integer(ip)          , intent(inout) :: dofs_max_part_id(:)
+  integer(ip)          , intent(inout) :: dofs_lid(:)
 
 
   integer(igp)               :: l1(num_rows_raw_interface_data), l2(num_rows_raw_interface_data)
@@ -608,30 +623,32 @@ subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
   !end do 
   !write(*,*) '============================================================================='
 
-  call memalloc ( num_cols, aux, __FILE__, __LINE__ )
-  call memalloc ( num_cols, perm, __FILE__, __LINE__ )
-  do col=1, num_cols
+  if ( num_cols-offset == 0 ) return
+  
+  call memalloc ( num_cols-offset, aux, __FILE__, __LINE__ )
+  call memalloc ( num_cols-offset, perm, __FILE__, __LINE__ )
+  do col=1, num_cols-offset
      perm(col) = col
   end do
 
   ! Re-number interface DoF couplings in increasing order by neighbour part id, the
   ! number of neighbour parts around, and e_max + local_pos_dof_in_emax
   call sort_array_cols_by_row_section( num_rows_raw_interface_data, &
-       num_rows_raw_interface_data, &
-       num_cols, &
-       raw_interface_data, &
-       perm, &
-       l1, &
-       l2)
+                                       num_rows_raw_interface_data, &
+                                       num_cols-offset, &
+                                       raw_interface_data(1:,offset+1:num_cols), &
+                                       perm, &
+                                       l1, &
+                                       l2)
 
-  aux = dofs_max_part_id
-  do col=1, num_cols
+  aux = dofs_max_part_id(1:num_cols-offset)
+  do col=1, num_cols-offset
      dofs_max_part_id(col) = aux(perm(col))
   end do
 
-  aux = dofs_lid
-  do col=1, num_cols
-     dofs_lid(col) = aux(perm(col))
+  aux = dofs_lid(offset+1:num_cols)
+  do col=1, num_cols-offset
+     dofs_lid(offset+col) = aux(perm(col))
   end do
 
   call memfree ( perm, __FILE__, __LINE__ )
@@ -639,7 +656,7 @@ subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
 
   mypart_id = this%par_triangulation%p_env%p_context%iam + 1
 
-  col = 1
+  col = offset + 1
   do while ( col <= num_cols ) 
      if ( raw_interface_data ( owner_flag_row, col ) == 2 ) then
         start_col = col
@@ -649,7 +666,7 @@ subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
         end do
         end_col = col - 1
 
-        ipart_max = dofs_max_part_id(start_col)
+        ipart_max = dofs_max_part_id(start_col-offset)
         size = end_col - start_col + 1
         if ( mypart_id == ipart_max ) then
            do j= start_col, start_col + size/2 -1
@@ -667,10 +684,10 @@ subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
            end do
         end if
      else
-        if ( mypart_id == dofs_max_part_id(col) ) then
+        if ( mypart_id == dofs_max_part_id(col-offset) ) then
            raw_interface_data ( owner_flag_row, col) = owner
         else
-           if ( raw_interface_data ( neighbor_part_id_row, col) == dofs_max_part_id(col) ) then
+           if ( raw_interface_data ( neighbor_part_id_row, col) == dofs_max_part_id(col-offset) ) then
               raw_interface_data ( owner_flag_row, col) = non_owner
            else
               raw_interface_data ( owner_flag_row, col) = uncoupled
@@ -687,17 +704,19 @@ subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
 
 end subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner
 
-function par_fe_space_compute_raw_interface_data_by_face_integ (  this, &
-     fe_space_id, &
-     ubound_num_itfc_couplings, &
-     dofs_lid, &
-     raw_interface_data ) result(num_itfc_couplings)
+function par_fe_space_compute_raw_interface_data_by_face_integ ( this, &
+                                                                 fe_space_id, &
+                                                                 offset, &
+                                                                 ubound_num_itfc_couplings, &
+                                                                 dofs_lid, &
+                                                                 raw_interface_data) result(num_itfc_couplings)
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: fe_space_id
+  integer(ip)          , intent(in)    :: offset
   integer(ip)          , intent(in)    :: ubound_num_itfc_couplings
-  integer(ip)          , intent(inout) :: dofs_lid(ubound_num_itfc_couplings)
-  integer(igp)         , intent(inout) :: raw_interface_data(num_rows_raw_interface_data, ubound_num_itfc_couplings)
+  integer(ip)          , intent(inout) :: dofs_lid(:)
+  integer(igp)         , intent(inout) :: raw_interface_data(:, :)
   integer(ip)                          :: num_itfc_couplings
 
   ! Locals
@@ -716,7 +735,7 @@ function par_fe_space_compute_raw_interface_data_by_face_integ (  this, &
   assert ( this%par_triangulation%p_env%p_context%iam >= 0 )
 
   mypart_id = this%par_triangulation%p_env%p_context%iam + 1 
-  current_col = 1
+  current_col = offset + 1
 
   ! Traverse vefs on the interface
   do ivef_itfc = 1, this%par_triangulation%num_itfc_vefs
@@ -754,18 +773,19 @@ function par_fe_space_compute_raw_interface_data_by_face_integ (  this, &
      end if
   end do
 
-  num_itfc_couplings = current_col-1
+  num_itfc_couplings = current_col-offset-1
 
-
-  ! Re-number interface DoF couplings in increasing order by neighbour part id, the
-  ! number of neighbour parts around, and e_max + local_pos_dof_in_emax
-  call sort_array_cols_by_row_section( num_rows_raw_interface_data, &
-       num_rows_raw_interface_data, &
-       num_itfc_couplings, &
-       raw_interface_data, &
-       dofs_lid, &
-       l1, &
-       l2)
+  if ( num_itfc_couplings > 0 ) then
+     ! Re-number interface DoF couplings in increasing order by neighbour part id, the
+     ! number of neighbour parts around, and e_max + local_pos_dof_in_emax
+     call sort_array_cols_by_row_section( num_rows_raw_interface_data, &
+                                          num_rows_raw_interface_data, &
+                                          num_itfc_couplings, &
+                                          raw_interface_data(1:,offset+1:current_col-1), &
+                                          dofs_lid(offset+1:current_col-1), &
+                                          l1, &
+                                          l2)
+  end if                                        
   !do current_col=1,num_itfc_couplings 
   !  write(*,"(10i10)") current_col, dofs_lid(current_col), raw_interface_data(:,current_col)
   !end do 
@@ -824,13 +844,82 @@ subroutine par_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
   implicit none
   class(par_fe_space_t)        , intent(in)    :: this
   class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
-  ! Polymorphic matrix 
-  class(matrix_t), pointer :: matrix
-
-  matrix => matrix_array_assembler%get_matrix()
-  select type(matrix)
-     class is(par_sparse_matrix_t)
-     class default
-     check(.false.)
-  end select
 end subroutine par_fe_space_symbolic_setup_assembler
+
+subroutine par_fe_space_update_bc_value_scalar( this, scalar_function, bc_code, fe_space_component, time, unknown_component)
+  implicit none
+  class(par_fe_space_t)   , intent(inout) :: this 
+  class(scalar_function_t), intent(in)    :: scalar_function
+  integer(ip)             , intent(in)    :: bc_code
+  integer(ip)             , intent(in)    :: fe_space_component
+  real(rp)   , optional   , intent(in)    :: time
+  integer(ip), optional   , intent(in)    :: unknown_component
+ 
+  assert ( associated (this%par_triangulation) )
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+    call this%serial_fe_space_t%update_bc_value(scalar_function, bc_code, fe_space_component, time, unknown_component)
+  end if
+
+end subroutine par_fe_space_update_bc_value_scalar
+
+subroutine par_fe_space_update_bc_value_vector( this, vector_function, bc_code, fe_space_component, time)
+  implicit none
+  class(par_fe_space_t)   , intent(inout) :: this 
+  class(vector_function_t), intent(in)    :: vector_function
+  integer(ip)             , intent(in)    :: bc_code
+  integer(ip)             , intent(in)    :: fe_space_component
+  real(rp)   , optional   , intent(in)    :: time
+
+  assert ( associated (this%par_triangulation) )
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+    call this%serial_fe_space_t%update_bc_value(vector_function, bc_code, fe_space_component, time)
+  end if
+end subroutine par_fe_space_update_bc_value_vector
+
+subroutine par_fe_space_update_bc_value_tensor( this, tensor_function, bc_code, fe_space_component, time)
+  implicit none
+  class(par_fe_space_t)   , intent(inout) :: this 
+  class(tensor_function_t), intent(in)    :: tensor_function
+  integer(ip)             , intent(in)    :: bc_code
+  integer(ip)             , intent(in)    :: fe_space_component
+  real(rp)   , optional   , intent(in)    :: time
+  
+  assert ( associated (this%par_triangulation) )
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+    call this%serial_fe_space_t%update_bc_value(tensor_function, bc_code, fe_space_component, time)
+  end if
+  
+end subroutine par_fe_space_update_bc_value_tensor
+
+ !===============================================================================================
+ subroutine par_fe_space_create_global_fe_function ( this, fe_function )
+    implicit none
+    class(par_fe_space_t), intent(in)    :: this
+    type(fe_function_t)     , intent(inout) :: fe_function
+    
+    class(vector_t), allocatable :: dof_values
+    
+    assert ( associated (this%par_triangulation) )
+    if (this%number_blocks == 1) then
+       allocate ( par_scalar_array_t  :: dof_values )
+       select type(dof_values)
+       class is(par_scalar_array_t)
+          call dof_values%create_and_allocate(this%par_triangulation%p_env, this%blocks_dof_import(1))
+       class default
+       check(.false.)
+       end select
+    else
+       check(.false.)
+    end if
+    call fe_function%create(this%strong_dirichlet_values, dof_values)
+ end subroutine par_fe_space_create_global_fe_function
+
+ !===============================================================================================
+ subroutine par_fe_space_update_global_fe_function_bcs ( this, fe_function )
+    implicit none
+    class(par_fe_space_t), intent(in)    :: this
+    type(fe_function_t)     , intent(inout) :: fe_function
+    assert ( associated (this%par_triangulation) )  
+    call fe_function%copy_bc_values(this%strong_dirichlet_values)
+ end subroutine par_fe_space_update_global_fe_function_bcs
+

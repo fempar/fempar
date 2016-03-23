@@ -210,7 +210,7 @@ contains
     class(serial_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: i
     real(rp)                    , intent(in)    :: val
-    assert ( i==0 .or. (i>=1 .and. i<= this%size) )
+    assert ( i<=0 .or. (i>=1 .and. i<= this%size) )
     if ( i > 0 ) this%b(i) = val 
   end subroutine serial_scalar_array_insert_single_entry
   
@@ -225,7 +225,7 @@ contains
     
     do i=1, num_entries
       j = ia(i) 
-      assert ( j == 0 .or. (j >=1 .and. j <= this%size) )
+      assert ( j <= 0 .or. (j >=1 .and. j <= this%size) )
       if (j > 0) this%b(j) = val(i+ioffset) 
     end do
   end subroutine serial_scalar_array_insert_multiple_entries
@@ -235,7 +235,7 @@ contains
     class(serial_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: i
     real(rp)                    , intent(in)    :: val
-    assert ( i==0 .or. (i>=1 .and. i<= this%size) )
+    assert ( i<=0 .or. (i>=1 .and. i<= this%size) )
     if ( i > 0 ) this%b(i) = this%b(i) + val
   end subroutine serial_scalar_array_add_single_entry
   
@@ -250,7 +250,7 @@ contains
     
     do i=1, num_entries
       j = ia(i) 
-      assert ( j == 0 .or. (j >=1 .and. j <= this%size) )
+      assert ( j <= 0 .or. (j >=1 .and. j <= this%size) )
       if (j > 0) this%b(j) = this%b(j) + val(i+ioffset) 
     end do
     

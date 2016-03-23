@@ -27,19 +27,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module field_names
   use types_names
-  use memor_names
   implicit none
 # include "debug.i90"
 
   private
-
-  type :: scalar_field_t
-     private
-     real(rp) :: value
-   contains
-     procedure, non_overridable :: init  => scalar_field_init
-     procedure, non_overridable :: set   => scalar_field_set
-  end type scalar_field_t
 
   type :: vector_field_t
      private
@@ -51,6 +42,10 @@ module field_names
      procedure, non_overridable :: add   => vector_field_add
      procedure, non_overridable :: nrm2  => vector_field_nrm2
   end type vector_field_t
+  
+  interface vector_field_t
+    module procedure vector_field_constructor
+  end interface
 
   type :: tensor_field_t
      private
@@ -61,7 +56,7 @@ module field_names
      procedure, non_overridable :: get   => tensor_field_get
      procedure, non_overridable :: add   => tensor_field_add
   end type tensor_field_t
-
+  
   type :: symmetric_tensor_field_t
      private
      real(rp)  :: value(number_space_dimensions,number_space_dimensions)
@@ -96,26 +91,11 @@ module field_names
      module procedure double_contract_tensor_tensor
   end interface double_contract
 
-  !public :: scalar_field_t (not actually needed, used real(rp) instead)
   public :: vector_field_t, tensor_field_t, symmetric_tensor_field_t, point_t 
   public :: operator(*), operator(+), assignment(=)
   public :: double_contract
 contains
   
-  subroutine scalar_field_init(this,value)
-    implicit none
-    class(scalar_field_t), intent(inout) :: this
-    real(rp)             , intent(in)    :: value
-    this%value = value
-  end subroutine scalar_field_init
-
-  subroutine scalar_field_set(this,value)
-    implicit none
-    class(scalar_field_t), intent(inout) :: this
-    real(rp)             , intent(in)    :: value
-    this%value = value
-  end subroutine scalar_field_set
-
   subroutine vector_field_init(this,value)
     implicit none
     class(vector_field_t), intent(inout) :: this
@@ -154,6 +134,21 @@ contains
     vector_field_nrm2 = this * this
     vector_field_nrm2 = sqrt(vector_field_nrm2)
   end function vector_field_nrm2
+  
+  ! This constructor should be used with care. In a 2D simulation,
+  ! and assuming that FEMPAR was compiled with parameter constant
+  ! number_space_dimensions == 3, then this function will also fill
+  ! with a nonzero value the third component of new_vector_field
+  ! (obviously if value/= 0.0_rp). This may cause trouble if the
+  ! code that consumes the resulting type(vector_field_t) also 
+  ! accesses the third component, as e.g., happens with all operations
+  ! among vectors and tensors (single_contration, double_contraction,etc.).
+  function vector_field_constructor(value) result(new_vector_field)
+    implicit none
+    real(rp), intent(in) :: value
+    type(vector_field_t) :: new_vector_field
+    call new_vector_field%init(value)
+  end function vector_field_constructor
 
   subroutine tensor_field_init(this,value)
     implicit none

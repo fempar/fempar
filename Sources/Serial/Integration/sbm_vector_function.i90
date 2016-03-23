@@ -25,25 +25,36 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine vector_get_value_space( this, point, result )
-  !import :: point_t, rp
+
+subroutine vector_function_create( this, number_dimensions )
+  class(vector_function_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: number_dimensions
+  this%number_dimensions = number_dimensions
+end subroutine vector_function_create
+
+function vector_function_get_number_dimensions( this )
+  class(vector_function_t), intent(in) :: this
+  integer(ip) :: vector_function_get_number_dimensions
+  assert ( this%number_dimensions >= 1 .and. this%number_dimensions <= 3  )
+  vector_function_get_number_dimensions = this%number_dimensions
+end function vector_function_get_number_dimensions
+
+subroutine vector_function_get_value_space( this, point, result )
   class(vector_function_t), intent(in) :: this
   type(point_t), intent(in)            :: point
   type(vector_field_t), intent(inout)  :: result
   assert( .false. )
-end subroutine vector_get_value_space
+end subroutine vector_function_get_value_space
 
-subroutine vector_get_value_space_time( this, point, time, result )
-  !import :: point_t, rp
+subroutine vector_function_get_value_space_time( this, point, time, result )
   class(vector_function_t), intent(in) :: this
   type(point_t), intent(in)            :: point
   real(rp), intent(in)                 :: time
   type(vector_field_t), intent(inout)  :: result
   assert( .false. )
-end subroutine vector_get_value_space_time
+end subroutine vector_function_get_value_space_time
 
-subroutine vector_get_values_set_space( this, point, result )
-  !import :: point_t, rp
+subroutine vector_function_get_values_set_space( this, point, result )
   class(vector_function_t), intent(in) :: this
   type(point_t), intent(in)            :: point(:)
   type(vector_field_t), intent(inout)  :: result(:)
@@ -52,10 +63,9 @@ subroutine vector_get_values_set_space( this, point, result )
   do i = 1, num_points
      call this%get_value_space( point(i), result(i) )
   end do
-end subroutine vector_get_values_set_space
+end subroutine vector_function_get_values_set_space
 
-subroutine vector_get_values_set_space_time( this, point, time, result )
-  !import :: point_t, rp
+subroutine vector_function_get_values_set_space_time( this, point, time, result )
   class(vector_function_t), intent(in) :: this
   type(point_t), intent(in)            :: point(:)
   real(rp), intent(in)                 :: time(:)
@@ -68,5 +78,5 @@ subroutine vector_get_values_set_space_time( this, point, time, result )
         call this%get_value_space_time( point(i), time(j), result(i,j) )
      end do
   end do
-end subroutine vector_get_values_set_space_time
+end subroutine vector_function_get_values_set_space_time
 

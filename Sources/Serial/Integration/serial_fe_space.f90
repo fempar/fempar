@@ -88,18 +88,24 @@ module serial_fe_space_names
      integer(ip)                                 :: number_fe_spaces
      
      integer(ip)                                 :: number_blocks
-     integer(ip), pointer                        :: field_blocks(:)
+     integer(ip), pointer                        :: field_blocks(:)         => NULL()
      
-     type(elem_topology_t)         , pointer     :: cell 
-     type(fe_map_t)                , pointer     :: fe_map
+     type(elem_topology_t)         , pointer     :: cell                    => NULL()
+     type(fe_map_t)                , pointer     :: fe_map                  => NULL()
      
-     type(p_reference_fe_t)        , pointer     :: reference_fe_phy(:) 
-     type(quadrature_t)         , pointer     :: quadrature
-     type(p_volume_integrator_t), pointer     :: volume_integrator(:)
+     type(p_reference_fe_t)        , pointer     :: reference_fe_phy(:)     => NULL()
+     type(quadrature_t)            , pointer     :: quadrature              => NULL()
+     type(p_volume_integrator_t)   , pointer     :: volume_integrator(:)    => NULL()
      
      type(i1p_t)                   , allocatable :: elem2dof(:)
-     type(i1p_t)                   , allocatable :: bc_code(:)
-     type(r1p_t)                   , allocatable :: bc_value(:)
+     
+     logical                       , allocatable :: at_strong_dirichlet_boundary(:)
+     ! The next member variable points to the counterpart one in type(serial_fe_space_t)
+     ! We would have like to add a pointer to the whole type(serial_fe_space_t) instead
+     ! of to a particular member variable, but we could not as this is not Fortran standard
+     ! conforming. This member variable is required to be able to impose strongly Dirichlet
+     ! boundary conditions in the local scope of type(finite_element_t).
+     type(serial_scalar_array_t)   , pointer     :: strong_dirichlet_values => NULL()
    contains
      
      procedure, non_overridable, private :: create =>  finite_element_create
@@ -116,11 +122,11 @@ module serial_fe_space_names
      procedure, non_overridable :: get_quadrature => finite_element_get_quadrature
      procedure, non_overridable :: get_volume_integrator => finite_element_get_volume_integrator
      procedure, non_overridable :: get_elem2dof  => finite_element_get_elem2dof
-     procedure, non_overridable :: get_bc_code  => finite_element_get_bc_code
-     procedure, non_overridable :: get_bc_value => finite_element_get_bc_value
      procedure, non_overridable :: get_number_nodes_per_field => finite_element_get_number_nodes_per_field
      procedure, non_overridable :: get_subset_id => finite_element_get_subset_id
-     procedure, non_overridable :: get_order     => finite_element_get_order
+     procedure, non_overridable :: get_order     => finite_element_get_order     
+     procedure, non_overridable, private :: is_at_strong_dirichlet_boundary => finite_element_is_at_strong_dirichlet_boundary
+
      procedure, non_overridable :: compute_volume     => finite_element_compute_volume
      
      procedure, non_overridable, private :: update_scalar_values => finite_element_update_scalar_values
@@ -129,11 +135,12 @@ module serial_fe_space_names
      generic :: update_values => update_scalar_values, &
                                & update_vector_values, &
                                & update_tensor_values
-     
+                               
+     procedure, non_overridable :: impose_strong_dirichlet_bcs => finite_element_impose_strong_dirichlet_bcs
   end type finite_element_t
 
   type :: p_finite_element_t
-     type(finite_element_t), pointer :: p
+     type(finite_element_t), pointer :: p => NULL()
   end type p_finite_element_t
 
   public :: finite_element_t, p_finite_element_t
@@ -141,10 +148,10 @@ module serial_fe_space_names
   type :: finite_face_t
      private
      integer(ip)                            :: number_fe_spaces
-     type(face_topology_t)    , pointer     :: face_topology
+     type(face_topology_t)    , pointer     :: face_topology    =>   NULL()
      type(p_finite_element_t)               :: neighbour_fe(2)
-     type(face_map_t)         , pointer     :: map
-     type(quadrature_t)       , pointer     :: quadrature
+     type(face_map_t)         , pointer     :: map              =>   NULL()
+     type(quadrature_t)       , pointer     :: quadrature       =>   NULL() 
      type(p_face_integrator_t), allocatable :: face_integrator(:)
    contains
      procedure, non_overridable :: create              => finite_face_create
@@ -152,8 +159,6 @@ module serial_fe_space_names
      procedure, non_overridable :: free                => finite_face_free
      procedure, non_overridable :: is_boundary         => finite_face_is_boundary
      procedure, non_overridable :: number_neighbours   => finite_face_number_neighbours
-     procedure, non_overridable :: get_bc_code         => finite_face_get_bc_code
-     procedure, non_overridable :: get_bc_value        => finite_face_get_bc_value
      procedure, non_overridable :: get_elem2dof        => finite_face_get_elem2dof
      procedure, non_overridable :: get_map             => finite_face_get_map
      procedure, non_overridable :: get_quadrature      => finite_face_get_quadrature
@@ -181,7 +186,12 @@ module serial_fe_space_names
      type(p_face_integrator_t)     , allocatable :: face_integrator(:)
      integer(ip)                   , allocatable :: fe_space_type(:)
      
-     type(triangulation_t)         , pointer     :: triangulation
+     ! Strong Dirichlet data
+     integer(ip)                 :: number_strong_dirichlet_dofs
+     integer(ip), allocatable    :: strong_dirichlet_codes(:)
+     type(serial_scalar_array_t) :: strong_dirichlet_values
+     
+     type(triangulation_t)         , pointer     :: triangulation =>  NULL()
      type(finite_element_t)        , allocatable :: fe_array(:)
      type(finite_face_t)           , allocatable :: face_array(:)
      
@@ -195,6 +205,7 @@ module serial_fe_space_names
    contains
      procedure, private         :: serial_fe_space_create
      generic                    :: create => serial_fe_space_create
+     procedure, non_overridable, private :: set_up_strong_dirichlet_bcs => serial_fe_space_set_up_strong_dirichlet_bcs
      procedure                  :: fill_dof_info => serial_fe_space_fill_dof_info
      procedure, non_overridable, private :: fill_elem2dof_and_count_dofs => serial_fe_space_fill_elem2dof_and_count_dofs
      procedure                  :: free => serial_fe_space_free
@@ -220,18 +231,23 @@ module serial_fe_space_names
                                       & get_max_number_nodes_fe_space
      procedure, non_overridable :: get_max_number_quadrature_points => serial_fe_space_get_max_number_quadrature_points
      procedure, non_overridable :: create_face_array => serial_fe_space_create_face_array
+
+     procedure :: update_bc_value_scalar => serial_fe_space_update_bc_value_scalar
+     procedure :: update_bc_value_vector => serial_fe_space_update_bc_value_vector
+     procedure :: update_bc_value_tensor => serial_fe_space_update_bc_value_tensor
+     generic :: update_bc_value => update_bc_value_scalar, &
+                                 & update_bc_value_vector, &
+                                 & update_bc_value_tensor 
+     
+     procedure                  :: create_global_fe_function => serial_fe_space_create_global_fe_function
+     procedure                  :: update_global_fe_function_bcs => serial_fe_space_update_global_fe_function_bcs
      procedure, private         :: create_fe_function_scalar => serial_fe_space_create_fe_function_scalar
      procedure, private         :: create_fe_function_vector => serial_fe_space_create_fe_function_vector
      procedure, private         :: create_fe_function_tensor => serial_fe_space_create_fe_function_tensor
      generic :: create_fe_function => create_fe_function_scalar, &
                                     & create_fe_function_vector, &
                                     & create_fe_function_tensor
-     procedure, non_overridable :: update_bc_value_scalar
-     procedure, non_overridable :: update_bc_value_vector
-     procedure, non_overridable :: update_bc_value_tensor
-     generic :: update_bc_value => update_bc_value_scalar, &
-                                 & update_bc_value_vector, &
-                                 & update_bc_value_tensor
+                           
      
   end type serial_fe_space_t
 
@@ -239,15 +255,15 @@ module serial_fe_space_names
   
   type, extends(serial_fe_space_t) :: par_fe_space_t
      private
-     type(par_triangulation_t), pointer     :: par_triangulation
+     type(par_triangulation_t), pointer     :: par_triangulation => NULL()
      type(finite_element_t)   , allocatable :: ghost_fe_array(:)
      type(dof_import_t)       , allocatable :: blocks_dof_import(:)
   contains
      
      procedure, non_overridable, private :: par_fe_space_create
-     procedure, non_overridable, private :: serial_fe_space_create   => par_fe_space_serial_fe_space_create
-     generic                             :: create                   => par_fe_space_create
-     procedure, non_overridable          :: fill_dof_info            => par_fe_space_fill_dof_info
+     procedure, non_overridable, private :: serial_fe_space_create       => par_fe_space_serial_fe_space_create
+     generic                             :: create                       => par_fe_space_create
+     procedure                           :: fill_dof_info                => par_fe_space_fill_dof_info
      procedure, non_overridable, private :: par_fe_space_fill_elem2dof_and_count_dofs
      procedure, non_overridable, private :: par_fe_space_compute_blocks_dof_import
      procedure, non_overridable, private :: par_fe_space_compute_dof_import
@@ -256,20 +272,39 @@ module serial_fe_space_names
      procedure, non_overridable, private :: par_fe_space_compute_raw_interface_data_by_face_integ
      procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
      procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
-     procedure, non_overridable          :: get_finite_element       => par_fe_space_get_finite_element
-     procedure, non_overridable          :: print                    => par_fe_space_print
-     procedure, non_overridable          :: free                     => par_fe_space_free
-     procedure, non_overridable          :: create_assembler         => par_fe_space_create_assembler
-     procedure, non_overridable          :: symbolic_setup_assembler => par_fe_space_symbolic_setup_assembler
+     procedure                           :: get_finite_element            => par_fe_space_get_finite_element
+     procedure                           :: print                         => par_fe_space_print
+     procedure                           :: free                          => par_fe_space_free
+     procedure                           :: create_assembler              => par_fe_space_create_assembler
+     procedure                           :: symbolic_setup_assembler      => par_fe_space_symbolic_setup_assembler
+     procedure                           :: update_bc_value_scalar        => par_fe_space_update_bc_value_scalar
+     procedure                           :: update_bc_value_vector        => par_fe_space_update_bc_value_vector
+     procedure                           :: update_bc_value_tensor        => par_fe_space_update_bc_value_tensor
+     procedure                           :: create_global_fe_function     => par_fe_space_create_global_fe_function
+     procedure                           :: update_global_fe_function_bcs => par_fe_space_update_global_fe_function_bcs
   end type
 
   public :: par_fe_space_t
+  
+   type fe_function_t
+   private
+   class(vector_t), allocatable  :: dof_values
+   type(serial_scalar_array_t)   :: strong_dirichlet_values
+  contains
+     procedure, non_overridable, private :: create                      => fe_function_create
+     procedure, non_overridable, private :: copy_bc_values              => fe_function_copy_bc_values
+     procedure, non_overridable          :: copy                        => fe_function_copy
+     procedure, non_overridable          :: get_dof_values              => fe_function_get_dof_values
+     procedure, non_overridable          :: get_strong_dirichlet_values => fe_function_get_strong_dirichlet_values
+     procedure, non_overridable          :: free                        => fe_function_free
+     generic                             :: assignment(=)               => copy
+  end type fe_function_t 
   
   type fe_function_scalar_t
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes             ! Not being used
+   integer(ip) :: current_number_nodes             
    integer(ip) :: current_number_quadrature_points
    
    integer(ip) :: max_number_nodes  
@@ -277,7 +312,7 @@ module serial_fe_space_names
    
    real(rp), allocatable :: nodal_values(:)  
    real(rp), allocatable :: quadrature_points_values(:)
-
+   
   contains
      procedure, non_overridable, private :: create                      => fe_function_scalar_create
      procedure, non_overridable :: get_fe_space_id                      => fe_function_scalar_get_fe_space_id
@@ -293,7 +328,7 @@ module serial_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes             ! Not being used
+   integer(ip) :: current_number_nodes             
    integer(ip) :: current_number_quadrature_points           
    
    integer(ip) :: max_number_quadrature_points
@@ -301,7 +336,7 @@ module serial_fe_space_names
    
    real(rp)            , allocatable :: nodal_values(:)  
    type(vector_field_t), allocatable :: quadrature_points_values(:)
-
+   
   contains
      procedure, non_overridable, private :: create                      => fe_function_vector_create
      procedure, non_overridable :: get_fe_space_id                      => fe_function_vector_get_fe_space_id
@@ -317,7 +352,7 @@ module serial_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes             ! Not being used
+   integer(ip) :: current_number_nodes            
    integer(ip) :: current_number_quadrature_points     
    
    integer(ip) :: max_number_nodes    
@@ -337,7 +372,7 @@ module serial_fe_space_names
      procedure, non_overridable :: free                                 => fe_function_tensor_free
   end type fe_function_tensor_t
   
-  public :: fe_function_scalar_t, fe_function_vector_t, fe_function_tensor_t
+  public :: fe_function_t, fe_function_scalar_t, fe_function_vector_t, fe_function_tensor_t
   
 contains
 
@@ -353,8 +388,6 @@ contains
 #include "../../Par/Integration/sbm_par_fe_space.i90"
 
 #include "sbm_serial_fe_space_faces.i90"
-
-#include "sbm_serial_fe_space_fe_function.i90"
 
 #include "sbm_fe_function.i90"
 
