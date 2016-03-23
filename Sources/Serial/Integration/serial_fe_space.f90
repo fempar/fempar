@@ -88,14 +88,14 @@ module serial_fe_space_names
      integer(ip)                                 :: number_fe_spaces
      
      integer(ip)                                 :: number_blocks
-     integer(ip), pointer                        :: field_blocks(:)
+     integer(ip), pointer                        :: field_blocks(:)         => NULL()
      
-     type(elem_topology_t)         , pointer     :: cell 
-     type(fe_map_t)                , pointer     :: fe_map
+     type(elem_topology_t)         , pointer     :: cell                    => NULL()
+     type(fe_map_t)                , pointer     :: fe_map                  => NULL()
      
-     type(p_reference_fe_t)        , pointer     :: reference_fe_phy(:) 
-     type(quadrature_t)            , pointer     :: quadrature
-     type(p_volume_integrator_t)   , pointer     :: volume_integrator(:)
+     type(p_reference_fe_t)        , pointer     :: reference_fe_phy(:)     => NULL()
+     type(quadrature_t)            , pointer     :: quadrature              => NULL()
+     type(p_volume_integrator_t)   , pointer     :: volume_integrator(:)    => NULL()
      
      type(i1p_t)                   , allocatable :: elem2dof(:)
      
@@ -105,7 +105,7 @@ module serial_fe_space_names
      ! of to a particular member variable, but we could not as this is not Fortran standard
      ! conforming. This member variable is required to be able to impose strongly Dirichlet
      ! boundary conditions in the local scope of type(finite_element_t).
-     type(serial_scalar_array_t)   , pointer     :: strong_dirichlet_values
+     type(serial_scalar_array_t)   , pointer     :: strong_dirichlet_values => NULL()
    contains
      
      procedure, non_overridable, private :: create =>  finite_element_create
@@ -140,7 +140,7 @@ module serial_fe_space_names
   end type finite_element_t
 
   type :: p_finite_element_t
-     type(finite_element_t), pointer :: p
+     type(finite_element_t), pointer :: p => NULL()
   end type p_finite_element_t
 
   public :: finite_element_t, p_finite_element_t
@@ -148,10 +148,10 @@ module serial_fe_space_names
   type :: finite_face_t
      private
      integer(ip)                            :: number_fe_spaces
-     type(face_topology_t)    , pointer     :: face_topology
+     type(face_topology_t)    , pointer     :: face_topology    =>   NULL()
      type(p_finite_element_t)               :: neighbour_fe(2)
-     type(face_map_t)         , pointer     :: map
-     type(quadrature_t)       , pointer     :: quadrature
+     type(face_map_t)         , pointer     :: map              =>   NULL()
+     type(quadrature_t)       , pointer     :: quadrature       =>   NULL() 
      type(p_face_integrator_t), allocatable :: face_integrator(:)
    contains
      procedure, non_overridable :: create              => finite_face_create
@@ -191,7 +191,7 @@ module serial_fe_space_names
      integer(ip), allocatable    :: strong_dirichlet_codes(:)
      type(serial_scalar_array_t) :: strong_dirichlet_values
      
-     type(triangulation_t)         , pointer     :: triangulation
+     type(triangulation_t)         , pointer     :: triangulation =>  NULL()
      type(finite_element_t)        , allocatable :: fe_array(:)
      type(finite_face_t)           , allocatable :: face_array(:)
      
@@ -252,7 +252,7 @@ module serial_fe_space_names
   
   type, extends(serial_fe_space_t) :: par_fe_space_t
      private
-     type(par_triangulation_t), pointer     :: par_triangulation
+     type(par_triangulation_t), pointer     :: par_triangulation => NULL()
      type(finite_element_t)   , allocatable :: ghost_fe_array(:)
      type(dof_import_t)       , allocatable :: blocks_dof_import(:)
   contains
@@ -260,7 +260,7 @@ module serial_fe_space_names
      procedure, non_overridable, private :: par_fe_space_create
      procedure, non_overridable, private :: serial_fe_space_create   => par_fe_space_serial_fe_space_create
      generic                             :: create                   => par_fe_space_create
-     procedure, non_overridable          :: fill_dof_info            => par_fe_space_fill_dof_info
+     procedure                           :: fill_dof_info            => par_fe_space_fill_dof_info
      procedure, non_overridable, private :: par_fe_space_fill_elem2dof_and_count_dofs
      procedure, non_overridable, private :: par_fe_space_compute_blocks_dof_import
      procedure, non_overridable, private :: par_fe_space_compute_dof_import
@@ -269,15 +269,15 @@ module serial_fe_space_names
      procedure, non_overridable, private :: par_fe_space_compute_raw_interface_data_by_face_integ
      procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
      procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
-     procedure, non_overridable          :: get_finite_element       => par_fe_space_get_finite_element
-     procedure, non_overridable          :: print                    => par_fe_space_print
-     procedure, non_overridable          :: free                     => par_fe_space_free
-     procedure, non_overridable          :: create_assembler         => par_fe_space_create_assembler
-     procedure, non_overridable          :: symbolic_setup_assembler => par_fe_space_symbolic_setup_assembler
+     procedure                           :: get_finite_element       => par_fe_space_get_finite_element
+     procedure                           :: print                    => par_fe_space_print
+     procedure                           :: free                     => par_fe_space_free
+     procedure                           :: create_assembler         => par_fe_space_create_assembler
+     procedure                           :: symbolic_setup_assembler => par_fe_space_symbolic_setup_assembler
      
-     procedure, non_overridable          :: update_bc_value_scalar   => par_fe_space_update_bc_value_scalar
-     procedure, non_overridable          :: update_bc_value_vector   => par_fe_space_update_bc_value_vector
-     procedure, non_overridable          :: update_bc_value_tensor   => par_fe_space_update_bc_value_tensor
+     procedure                           :: update_bc_value_scalar   => par_fe_space_update_bc_value_scalar
+     procedure                           :: update_bc_value_vector   => par_fe_space_update_bc_value_vector
+     procedure                           :: update_bc_value_tensor   => par_fe_space_update_bc_value_tensor
   end type
 
   public :: par_fe_space_t
