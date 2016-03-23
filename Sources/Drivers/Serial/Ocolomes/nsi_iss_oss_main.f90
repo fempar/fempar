@@ -333,12 +333,12 @@ program test_nsi_iss_oss
   type(nsi_iss_oss_discrete_integration_t) :: nsi_iss_oss_integration
   
   ! Finite Elment
-  type(serial_fe_space_t)                   :: fe_space
-  type(p_reference_fe_t)                    :: reference_fe_array(3)
-  type(fe_affine_operator_t)                :: fe_affine_operator
-  type(fe_function_t)              , target :: fe_values
-  class(vector_t)     , allocatable, target :: residual
-  class(vector_t)     , allocatable, target :: dof_values
+  type(serial_fe_space_t)              :: fe_space
+  type(p_reference_fe_t)               :: reference_fe_array(3)
+  type(fe_affine_operator_t)           :: fe_affine_operator
+  type(fe_function_t)         , target :: fe_values
+  class(vector_t), allocatable, target :: residual
+  class(vector_t)            , pointer :: dof_values => null()
 
   ! Solver
   type(iterative_linear_solver_t) :: iterative_linear_solver
