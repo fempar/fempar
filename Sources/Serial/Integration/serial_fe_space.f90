@@ -231,6 +231,14 @@ module serial_fe_space_names
                                       & get_max_number_nodes_fe_space
      procedure, non_overridable :: get_max_number_quadrature_points => serial_fe_space_get_max_number_quadrature_points
      procedure, non_overridable :: create_face_array => serial_fe_space_create_face_array
+
+     procedure :: update_bc_value_scalar => serial_fe_space_update_bc_value_scalar
+     procedure :: update_bc_value_vector => serial_fe_space_update_bc_value_vector
+     procedure :: update_bc_value_tensor => serial_fe_space_update_bc_value_tensor
+     generic :: update_bc_value => update_bc_value_scalar, &
+                                 & update_bc_value_vector, &
+                                 & update_bc_value_tensor 
+     
      procedure                  :: create_global_fe_function => serial_fe_space_create_global_fe_function
      procedure                  :: update_global_fe_function_bcs => serial_fe_space_update_global_fe_function_bcs
      procedure, private         :: create_fe_function_scalar => serial_fe_space_create_fe_function_scalar
@@ -239,12 +247,7 @@ module serial_fe_space_names
      generic :: create_fe_function => create_fe_function_scalar, &
                                     & create_fe_function_vector, &
                                     & create_fe_function_tensor
-     procedure :: update_bc_value_scalar => serial_fe_space_update_bc_value_scalar
-     procedure :: update_bc_value_vector => serial_fe_space_update_bc_value_vector
-     procedure :: update_bc_value_tensor => serial_fe_space_update_bc_value_tensor
-     generic :: update_bc_value => update_bc_value_scalar, &
-                                 & update_bc_value_vector, &
-                                 & update_bc_value_tensor                            
+                           
      
   end type serial_fe_space_t
 
@@ -274,11 +277,11 @@ module serial_fe_space_names
      procedure                           :: free                          => par_fe_space_free
      procedure                           :: create_assembler              => par_fe_space_create_assembler
      procedure                           :: symbolic_setup_assembler      => par_fe_space_symbolic_setup_assembler
-     procedure                           :: create_global_fe_function     => par_fe_space_create_global_fe_function
-     procedure                           :: update_global_fe_function_bcs => par_fe_space_update_global_fe_function_bcs
      procedure                           :: update_bc_value_scalar        => par_fe_space_update_bc_value_scalar
      procedure                           :: update_bc_value_vector        => par_fe_space_update_bc_value_vector
      procedure                           :: update_bc_value_tensor        => par_fe_space_update_bc_value_tensor
+     procedure                           :: create_global_fe_function     => par_fe_space_create_global_fe_function
+     procedure                           :: update_global_fe_function_bcs => par_fe_space_update_global_fe_function_bcs
   end type
 
   public :: par_fe_space_t
