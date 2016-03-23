@@ -70,6 +70,8 @@ module serial_names
 
   ! Linear Algebra
   use iterative_linear_solver_names
+  use iterative_linear_solver_parameters_names
+  use iterative_linear_solver_creational_methods_dictionary_names
   use sparse_matrix_names
   use serial_scalar_array_names
   use serial_block_array_names
