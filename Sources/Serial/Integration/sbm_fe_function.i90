@@ -26,26 +26,19 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-
 !**************************************************************************************************
 ! Methods associated to fe_function_t
 !*************************************************************************************************
-
  !===============================================================================================
- subroutine fe_function_create( this, strong_dirichlet_values, vector_dof_values )
+ subroutine fe_function_create( this, strong_dirichlet_values, dof_values )
     implicit none
-    class(fe_function_t)       , intent(inout) :: this
-    type(serial_scalar_array_t), intent(in)    :: strong_dirichlet_values
-    class(vector_t)    , target, intent(in)    :: vector_dof_values
-    integer(ip)                                :: istat
- 
+    class(fe_function_t)            , intent(inout) :: this
+    type(serial_scalar_array_t)     , intent(in)    :: strong_dirichlet_values
+    class(vector_t)    , allocatable, intent(inout) :: dof_values
     call this%free()
-    
-    this%vector_dof_values => vector_dof_values
+    call move_alloc(from=dof_values, to=this%dof_values)
     call this%strong_dirichlet_values%clone(strong_dirichlet_values)
     call this%strong_dirichlet_values%copy(strong_dirichlet_values)
-    
   end subroutine fe_function_create
  
  !===============================================================================================
@@ -53,16 +46,23 @@
     implicit none
     class(fe_function_t)       , intent(inout) :: this 
     type(serial_scalar_array_t), intent(in)    :: strong_dirichlet_values
- 
     call this%strong_dirichlet_values%copy(strong_dirichlet_values)
   end subroutine fe_function_copy_bc_values
+  
+  subroutine fe_function_copy(this,other) 
+    implicit none
+    class(fe_function_t), intent(inout) :: this
+    type (fe_function_t), intent(in)    :: other
+    this%strong_dirichlet_values = other%strong_dirichlet_values
+    this%dof_values       = other%dof_values
+  end subroutine fe_function_copy
   
  !===============================================================================================
  function fe_function_get_vector_dof_values ( this )
     implicit none
     class(fe_function_t), target, intent(in) :: this 
     class(vector_t), pointer :: fe_function_get_vector_dof_values
-    fe_function_get_vector_dof_values => this%vector_dof_values
+    fe_function_get_vector_dof_values => this%dof_values
  end function fe_function_get_vector_dof_values
  
  !===============================================================================================
@@ -77,10 +77,13 @@
  subroutine fe_function_free( this )
     implicit none
     class(fe_function_t), intent(inout) :: this
-    
-    if( associated(this%vector_dof_values) ) nullify(this%vector_dof_values)
+    integer(ip)                         :: istat
+    if( allocated(this%dof_values) ) then
+      call this%dof_values%free()
+      deallocate ( this%dof_values, stat=istat )
+      check (istat == 0)
+    end if
     call this%strong_dirichlet_values%free()
-    
   end subroutine fe_function_free
   
 !**************************************************************************************************

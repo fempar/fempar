@@ -25,25 +25,35 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine scalar_get_value_space( this, point, result )
-  !import :: point_t, rp
+subroutine scalar_function_create( this, number_dimensions )
+  class(scalar_function_t), intent(inout) :: this
+  integer(ip)             , intent(in) :: number_dimensions
+  this%number_dimensions = number_dimensions
+end subroutine scalar_function_create
+
+function scalar_function_get_number_dimensions( this )
+  class(scalar_function_t), intent(in) :: this
+  integer(ip) :: scalar_function_get_number_dimensions
+  assert ( this%number_dimensions >= 1 .and. this%number_dimensions <= 3  )
+  scalar_function_get_number_dimensions = this%number_dimensions
+end function scalar_function_get_number_dimensions
+
+subroutine scalar_function_get_value_space( this, point, result )
   class(scalar_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point
   real(rp), intent(inout)             :: result
   assert( .false. )
-end subroutine scalar_get_value_space
+end subroutine scalar_function_get_value_space
 
-subroutine scalar_get_value_space_time( this, point, time, result )
-  !import :: point_t, rp
+subroutine scalar_function_get_value_space_time( this, point, time, result )
   class(scalar_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point
   real(rp), intent(in)                :: time
   real(rp), intent(inout)             :: result
   assert( .false. )
-end subroutine scalar_get_value_space_time
+end subroutine scalar_function_get_value_space_time
 
-subroutine scalar_get_values_set_space( this, point, result )
-  !import :: point_t, rp
+subroutine scalar_function_get_values_set_space( this, point, result )
   class(scalar_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point(:)
   real(rp), intent(inout)             :: result(:)
@@ -52,10 +62,9 @@ subroutine scalar_get_values_set_space( this, point, result )
   do i = 1, num_points
      call this%get_value_space( point(i), result(i) )
   end do
-end subroutine scalar_get_values_set_space
+end subroutine scalar_function_get_values_set_space
 
-subroutine scalar_get_values_set_space_time( this, point, time, result )
-  !import :: point_t, rp
+subroutine scalar_function_get_values_set_space_time( this, point, time, result )
   class(scalar_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point(:)
   real(rp), intent(in)                :: time(:)
@@ -68,4 +77,4 @@ subroutine scalar_get_values_set_space_time( this, point, time, result )
         call this%get_value_space_time( point(i), time(j), result(i,j) )
      end do
   end do
-end subroutine scalar_get_values_set_space_time
+end subroutine scalar_function_get_values_set_space_time

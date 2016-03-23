@@ -483,6 +483,10 @@ contains
                            boundary_conditions = f_cond, &
                            reference_fe_phy = reference_fe_array )
      
+     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(f_trian%num_dims,1.0_rp), &
+                                    bc_code = 1, &
+                                    fe_space_component = 1 )
+     
      call fe_space%fill_dof_info() 
      
      call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
@@ -562,6 +566,10 @@ contains
      call fe_space%create( triangulation = f_trian, &
                            boundary_conditions = f_cond, &
                            reference_fe_phy = reference_fe_array )
+     
+     call fe_space%update_bc_value (vector_function=constant_vector_function_t(f_trian%num_dims,vector_field_t(1.0_rp)), &
+                                    bc_code = 1, &
+                                    fe_space_component = 1 )
      
      call fe_space%fill_dof_info() 
      
@@ -650,6 +658,14 @@ contains
                            reference_fe_phy = reference_fe_array, &
                            field_blocks = (/1,1/), &
                            field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
+     
+     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(f_trian%num_dims,1.0_rp), &
+                                    bc_code = 1, &
+                                    fe_space_component = 1 )
+     
+     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(f_trian%num_dims,1.0_rp), &
+                                    bc_code = 1, &
+                                    fe_space_component = 2 )
      
      call fe_space%fill_dof_info() 
      
@@ -741,6 +757,14 @@ contains
                            reference_fe_phy = reference_fe_array, &
                            field_blocks = (/1,2/), &
                            field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
+     
+     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(f_trian%num_dims,1.0_rp), &
+                                    bc_code = 1, &
+                                    fe_space_component = 1 )
+     
+     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(f_trian%num_dims,1.0_rp), &
+                                    bc_code = 1, &
+                                    fe_space_component = 2 )
      
      call fe_space%fill_dof_info() 
      

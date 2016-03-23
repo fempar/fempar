@@ -27,75 +27,78 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module function_names
   use types_names
-  !use memor_names
   use field_names
 
   implicit none
 # include "debug.i90"
 
   private
-  ! Abstract array function
   type :: array_function_t
      private
-     integer(ip)  :: number_components = 1
-     !character(*) :: function_type = 'space' ! 'space' or 'space_time'  
+     integer(ip)  :: number_dimensions = -1
+     integer(ip)  :: number_components = -1
    contains
-     procedure, non_overridable  :: set_number_components => array_set_number_components
-     
-     procedure :: get_component_value_space => array_get_component_value_space
-     procedure :: get_component_value_space_time => array_get_component_value_space_time
-     generic   :: get_component_value => get_component_value_space, get_component_value_space_time
-
-     procedure :: get_component_values_set_space => array_get_component_values_set_space
-     procedure :: get_component_values_set_space_time => array_get_component_values_set_space_time
-     generic   :: get_component_values_set => get_component_values_set_space, get_component_values_set_space_time
-
-     procedure :: get_value_space => array_get_value_space
-     procedure :: get_value_space_time => array_get_value_space_time
-     generic   :: get_value => get_value_space, get_value_space_time
-
-     procedure :: get_values_set_space => array_get_values_set_space
-     procedure :: get_values_set_space_time => array_get_values_set_space_time
-     generic   :: get_values_set => get_values_set_space, get_values_set_space_time     
+     procedure  :: array_function_create
+     generic    :: create                                 => array_function_create
+     procedure, non_overridable :: get_number_dimensions  => array_function_get_number_dimensions
+     procedure, non_overridable :: get_number_components  => array_function_get_number_components
+     procedure  :: get_component_value_space              => array_function_get_component_value_space
+     procedure  :: get_component_value_space_time         => array_function_get_component_value_space_time
+     generic    :: get_component_value                    => get_component_value_space, get_component_value_space_time
+     procedure  :: get_component_values_set_space         => array_function_get_component_values_set_space
+     procedure  :: get_component_values_set_space_time    => array_function_get_component_values_set_space_time
+     generic    :: get_component_values_set               => get_component_values_set_space, get_component_values_set_space_time
+     procedure  :: get_value_space                        => array_function_get_value_space
+     procedure  :: get_value_space_time                   => array_function_get_value_space_time
+     generic    :: get_value                              => get_value_space, get_value_space_time
+     procedure  :: get_values_set_space                   => array_function_get_values_set_space
+     procedure  :: get_values_set_space_time              => array_function_get_values_set_space_time
+     generic    :: get_values_set                         => get_values_set_space, get_values_set_space_time     
   end type array_function_t
 
   type :: scalar_function_t
      private
-     !character(*) :: function_type = 'space' ! 'space' or 'space_time'  
+     integer(ip)  :: number_dimensions = -1
    contains
-     procedure :: get_value_space => scalar_get_value_space
-     procedure :: get_value_space_time => scalar_get_value_space_time
-     generic   :: get_value => get_value_space, get_value_space_time
-
-     procedure :: get_values_set_space => scalar_get_values_set_space
-     procedure :: get_values_set_space_time => scalar_get_values_set_space_time
-     generic   :: get_values_set => get_values_set_space, get_values_set_space_time     
+     procedure                  :: scalar_function_create
+     generic                    :: create                    => scalar_function_create
+     procedure, non_overridable :: get_number_dimensions     => scalar_function_get_number_dimensions
+     procedure                  :: get_value_space           => scalar_function_get_value_space
+     procedure                  :: get_value_space_time      => scalar_function_get_value_space_time
+     generic                    :: get_value                 => get_value_space, get_value_space_time
+     procedure                  :: get_values_set_space      => scalar_function_get_values_set_space
+     procedure                  :: get_values_set_space_time => scalar_function_get_values_set_space_time
+     generic                    :: get_values_set            => get_values_set_space, get_values_set_space_time     
   end type scalar_function_t
 
   type :: vector_function_t
      private
-     !character(*) :: function_type = 'space' ! 'space' or 'space_time'  
+     integer(ip)  :: number_dimensions = -1
    contains
-     procedure :: get_value_space => vector_get_value_space
-     procedure :: get_value_space_time => vector_get_value_space_time
-     generic   :: get_value => get_value_space, get_value_space_time
-
-     procedure :: get_values_set_space => vector_get_values_set_space
-     procedure :: get_values_set_space_time => vector_get_values_set_space_time
-     generic   :: get_values_set => get_values_set_space, get_values_set_space_time     
+     procedure                  :: vector_function_create
+     generic                    :: create                    => vector_function_create
+     procedure, non_overridable :: get_number_dimensions     => vector_function_get_number_dimensions
+     procedure                  :: get_value_space           => vector_function_get_value_space
+     procedure                  :: get_value_space_time      => vector_function_get_value_space_time
+     generic                    :: get_value                 => get_value_space, get_value_space_time
+     procedure                  :: get_values_set_space      => vector_function_get_values_set_space
+     procedure                  :: get_values_set_space_time => vector_function_get_values_set_space_time
+     generic                    :: get_values_set            => get_values_set_space, get_values_set_space_time     
   end type vector_function_t
 
   type :: tensor_function_t
      private
-     !character(*) :: function_type = 'space' ! 'space' or 'space_time'  
+     integer(ip)  :: number_dimensions = -1
    contains
-     procedure :: get_value_space => tensor_get_value_space
-     procedure :: get_value_space_time => tensor_get_value_space_time
-     generic   :: get_value => get_value_space, get_value_space_time
-
-     procedure :: get_values_set_space => tensor_get_values_set_space
-     procedure :: get_values_set_space_time => tensor_get_values_set_space_time
-     generic   :: get_values_set => get_values_set_space, get_values_set_space_time     
+     procedure                  :: tensor_function_create
+     generic                    :: create                    => tensor_function_create
+     procedure, non_overridable :: get_number_dimensions     => tensor_function_get_number_dimensions
+     procedure                  :: get_value_space           => tensor_function_get_value_space
+     procedure                  :: get_value_space_time      => tensor_function_get_value_space_time
+     generic                    :: get_value                 => get_value_space, get_value_space_time
+     procedure                  :: get_values_set_space      => tensor_function_get_values_set_space
+     procedure                  :: get_values_set_space_time => tensor_function_get_values_set_space_time
+     generic                    :: get_values_set            => get_values_set_space, get_values_set_space_time     
   end type tensor_function_t
 
   public :: array_function_t, scalar_function_t, vector_function_t, tensor_function_t
