@@ -577,6 +577,6 @@ subroutine compute_error_norms(this,fe_space,environment)
 
   ! Print error norms
   write(*,*) 'Velocity error L2-norm: ', velocity_error
-  write(*,*) 'Pressire error L2-norm: ', pressure_error
+  write(*,*) 'Pressure error L2-norm: ', pressure_error
 
 end subroutine compute_error_norms

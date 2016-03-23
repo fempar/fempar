@@ -29,6 +29,7 @@
   ! Initialize memory structures
   call meminit
   call fpl_init()
+  call the_iterative_linear_solver_creational_methods_dictionary%init()
 
   !----------------!
   ! READ ARGUMENTS !
@@ -155,7 +156,10 @@
 !!$  call iterative_linear_solver%set_type_and_parameters_from_pl()
 !!$  call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
   call solver_parameters%init()
-  call solver_parameters%set(key=ils_output_frequency,value=0)  
+  istat = 0
+  istat = istat + solver_parameters%set(key=ils_output_frequency,value=0)  
+  istat = istat + solver_parameters%set(key=ils_type,value=rgmres_name)  
+  check(istat==0)
 
   !----------------!
   ! NONLINEAR LOOP !
@@ -172,7 +176,7 @@
      ! Update linear solver
      call iterative_linear_solver%create(senv)
      call iterative_linear_solver%set_type_and_parameters_from_pl(solver_parameters)
-     call iterative_linear_solver%set_type_from_string('RGMRES')
+     !call iterative_linear_solver%set_type_from_string('RGMRES')
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%set_initial_solution(dof_values)
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
