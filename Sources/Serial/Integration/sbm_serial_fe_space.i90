@@ -813,7 +813,3 @@ end subroutine serial_fe_space_update_bc_value_tensor
                                 & this%get_max_number_quadrature_points() )
  
  end subroutine serial_fe_space_create_fe_function_tensor
-   
-   
-
-
