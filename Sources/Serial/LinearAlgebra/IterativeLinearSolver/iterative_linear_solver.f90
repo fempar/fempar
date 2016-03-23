@@ -29,21 +29,14 @@ module iterative_linear_solver_names
   use types_names
   use stdio_names
   
-  ! Concrete modules
-  use richardson_names
-  use cg_names
-  use rgmres_names
-  use lgmres_names 
-  use fgmres_names
-  use lfom_names
-  use minres_names
-  use icg_names 
-  
   ! Abstract modules
   use vector_names
   use operator_names
   use base_iterative_linear_solver_names
+  use iterative_linear_solver_parameters_names
+  use iterative_linear_solver_creational_methods_dictionary_names
   use environment_names
+  use ParameterList
   
   implicit none
 # include "debug.i90"
@@ -66,9 +59,9 @@ module iterative_linear_solver_names
   ! solver_type_set  | free                 | not_created
   type :: iterative_linear_solver_t
      private
-     class(environment_t)       , pointer  :: environment
-     class(base_iterative_linear_solver_t), pointer  :: base_iterative_linear_solver
-     integer(ip)                           :: state = not_created
+     class(environment_t)       ,           pointer  :: environment                  => NULL()
+     class(base_iterative_linear_solver_t), pointer  :: base_iterative_linear_solver => NULL()
+     integer(ip)                                     :: state = not_created
    contains
      ! Concrete TBPs
      procedure :: create                          => iterative_linear_solver_create
@@ -83,7 +76,6 @@ module iterative_linear_solver_names
      procedure :: set_type_from_string            => iterative_linear_solver_set_type_from_string
   end type iterative_linear_solver_t
   
-  ! Data types
   public :: iterative_linear_solver_t
   
 contains    
@@ -124,50 +116,46 @@ contains
      call this%base_iterative_linear_solver%solve(b,x)
    end subroutine iterative_linear_solver_solve
 
-   subroutine iterative_linear_solver_set_type_from_pl ( this )
+   subroutine iterative_linear_solver_set_type_from_pl ( this, parameter_list )
      implicit none
      class(iterative_linear_solver_t), intent(inout) :: this
-     character(len=:)      , allocatable   :: iterative_linear_solver_type
-     
-     assert ( this%state == environment_set .or. this%state == solver_type_set )
-     
-     if ( this%state == solver_type_set ) then
-       ! PENDING: ONLY FREE IF THE TYPE SELECTED DOES NOT MATCH THE EXISTING ONE
-       call this%base_iterative_linear_solver%free()
-       deallocate ( this%base_iterative_linear_solver )
-     end if
-     
-     ! PENDING
-     ! 1. Get val associated to key="iterative_linear_solver_type" from type(ParameterList)
-     ! 2. Select Factory Method associated to val from "global" (and dynamically built) dictionary of Factory Methods
-     ! 3. Only create if this%state == environment_set or if base_iterative_linear_solver was freed in the block of code above
-  
-  ! SELECT MANUALLY ITERATIVE LINEAR SOLVER TYPE: 
-     !this%base_iterative_linear_solver => create_richardson(this%environment)
-     this%base_iterative_linear_solver => create_cg(this%environment)
-     !this%base_iterative_linear_solver => create_rgmres(this%environment)
-     !this%base_iterative_linear_solver => create_lgmres(this%environment)
-     !this%base_iterative_linear_solver => create_fgmres(this%environment)
-     !this%base_iterative_linear_solver => create_lfom(this%environment) 
-     !this%base_iterative_linear_solver => create_minres(this%environment)
-     !this%base_iterative_linear_solver => create_icg(this%environment)
-     
-     assert ( this%base_iterative_linear_solver%get_state() == start )
-     this%state = solver_type_set
+     type(ParameterList_t),            intent(in)    :: parameter_list
+     character(len=:)      , allocatable             :: iterative_linear_solver_type
+     integer(ip)                                     :: DataSizeInBytes
+     integer                                         :: FPLError
+#ifdef DEBUG
+     logical                                         :: is_present
+     logical                                         :: is_string
+     integer(ip), allocatable                        :: shape(:)
+     is_present = parameter_list%isPresent   (Key = ils_type)
+     is_string  = parameter_list%isOfDataType(Key = ils_type, mold  = 'string')
+     FPLError   = parameter_list%getshape    (Key = ils_type, shape = shape)
+     ! check if ITERATIVE_LINEAR_SOLVER_TYPE is present and is a scalar string
+     ! in the given parameter list,
+     assert(is_present .and. is_string .and. size(shape) == 0) 
+#endif
+     DataSizeInBytes = parameter_list%DataSizeInBytes(Key=ils_type)
+     allocate(character(len=DataSizeInBytes) :: iterative_linear_solver_type, stat=FPLError)
+     assert(FPLError == 0)
+     FPLError = parameter_list%Get(Key=ils_type, Value=iterative_linear_solver_type)
+     assert(FPLError == 0)
+     call this%set_type_from_string (iterative_linear_solver_type)
    end subroutine iterative_linear_solver_set_type_from_pl
    
-   subroutine iterative_linear_solver_set_parameters_from_pl ( this )
+   subroutine iterative_linear_solver_set_parameters_from_pl ( this, parameter_list )
      implicit none
      class(iterative_linear_solver_t), intent(inout) :: this
+     type(ParameterList_t),            intent(in)    :: parameter_list
      assert ( this%state == solver_type_set )
-     call this%base_iterative_linear_solver%set_parameters_from_pl()
+     call this%base_iterative_linear_solver%set_parameters_from_pl(parameter_list)
    end subroutine iterative_linear_solver_set_parameters_from_pl
    
-   subroutine iterative_linear_solver_set_type_and_parameters_from_pl ( this )
+   subroutine iterative_linear_solver_set_type_and_parameters_from_pl ( this, parameter_list )
      implicit none
      class(iterative_linear_solver_t), intent(inout) :: this
-     call this%set_type_from_pl( )
-     call this%set_parameters_from_pl()
+     type(ParameterList_t),            intent(in)    :: parameter_list
+     call this%set_type_from_pl( parameter_list )
+     call this%set_parameters_from_pl(parameter_list)
    end subroutine iterative_linear_solver_set_type_and_parameters_from_pl
    
    subroutine iterative_linear_solver_set_operators ( this, A, M )
@@ -186,10 +174,11 @@ contains
      call this%base_iterative_linear_solver%set_initial_solution(initial_solution)
    end subroutine iterative_linear_solver_set_initial_solution
 
-   subroutine iterative_linear_solver_set_type_from_string (this, linear_solver_type)
+   subroutine iterative_linear_solver_set_type_from_string (this, iterative_linear_solver_type)
      implicit none
-     class(iterative_linear_solver_t), intent(inout) :: this
-     character(len=*)                , intent(in)    :: linear_solver_type
+     class(iterative_linear_solver_t),                    intent(inout) :: this
+     character(len=*)                ,                    intent(in)    :: iterative_linear_solver_type
+     procedure(create_iterative_linear_solver_interface), pointer       :: create
 
      assert ( this%state == environment_set .or. this%state == solver_type_set )
      
@@ -198,27 +187,12 @@ contains
        call this%base_iterative_linear_solver%free()
        deallocate ( this%base_iterative_linear_solver )
      end if
-     
-     select case(linear_solver_type)
-     case(richardson_name) 
-        this%base_iterative_linear_solver => create_richardson(this%environment)
-     case(cg_name) 
-        this%base_iterative_linear_solver => create_cg(this%environment)
-     case(rgmres_name) 
-        this%base_iterative_linear_solver => create_rgmres(this%environment)
-     case(lgmres_name) 
-        this%base_iterative_linear_solver => create_lgmres(this%environment)
-     case(fgmres_name) 
-        this%base_iterative_linear_solver => create_fgmres(this%environment)
-     case(lfom_name) 
-        this%base_iterative_linear_solver => create_lfom(this%environment) 
-     case(minres_name) 
-        this%base_iterative_linear_solver => create_minres(this%environment)
-     case(icg_name) 
-        this%base_iterative_linear_solver => create_icg(this%environment)
-     case default
-        assert(.false.)
-     end select
+
+     nullify(create)
+     assert(the_iterative_linear_solver_creational_methods_dictionary%isInitialized())
+     assert(the_iterative_linear_solver_creational_methods_dictionary%isPresent(Key=iterative_linear_solver_type))
+     call the_iterative_linear_solver_creational_methods_dictionary%Get(Key=iterative_linear_solver_type,Proc=create)
+     if(associated(create)) call create(this%environment, this%base_iterative_linear_solver)
      
      assert ( this%base_iterative_linear_solver%get_state() == start )
      this%state = solver_type_set
