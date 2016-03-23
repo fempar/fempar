@@ -36,26 +36,18 @@ module rgmres_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names  
+  use iterative_linear_solver_utils_names
+  use iterative_linear_solver_parameters_names
   use multivector_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: rgmres_name = 'RGMRES'
-  character(len=*), parameter :: ils_dkrymax                   = 'iterative_linear_solver_dkrymax'
-  character(len=*), parameter :: ils_orthonorm_strat           = 'iterative_linear_solver_orthonorm_strat'
-  character(len=*), parameter :: orthonorm_strat_icgsro       = 'ICGSRO' 
-  character(len=*), parameter :: orthonorm_strat_mgsro        = 'MGSRO'
-  
-  integer (ip), parameter :: mgsro  = 1 ! mgs : Modified Gram-Schmidt 
-                                        !       (appropriate for serial GMRES)
-  integer (ip), parameter :: icgsro = 2 ! icgs: Iterative Classical Gram-Schmidt 
-                                        !       (appropriate for distributed GMRES)
-  
-  integer (ip)    , parameter :: default_rgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
-  integer (ip)    , parameter :: default_dkrymax           = 1000
-  integer (ip)    , parameter :: default_orthonorm_strat   = icgsro
+
+  integer (ip), parameter :: default_rgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
+  integer (ip), parameter :: default_dkrymax                  = 1000
+  integer (ip), parameter :: default_orthonorm_strat          = icgsro
   
   type, extends(base_iterative_linear_solver_t) :: rgmres_t
      ! Parameters
@@ -76,11 +68,7 @@ module rgmres_names
   end type rgmres_t
   
   ! Data types
-  public :: rgmres_t, create_rgmres, rgmres_name
-  public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
-  public :: default_dkrymax, default_orthonorm_strat
-  public :: mgsro, icgsro
-  public :: modified_gs_reorthonorm, iterative_gs_reorthonorm, apply_givens_rotation
+  public :: create_rgmres
   
 contains
   subroutine rgmres_allocate_workspace(this)
@@ -113,9 +101,45 @@ contains
     call memfree(this%cs,__FILE__,__LINE__)
   end subroutine rgmres_free_workspace
 
-  subroutine rgmres_set_parameters_from_pl(this) 
+  subroutine rgmres_set_parameters_from_pl(this, parameter_list) 
    implicit none
-   class(rgmres_t), intent(inout) :: this
+   class(rgmres_t),       intent(inout) :: this
+   type(ParameterList_t), intent(in)    :: parameter_list
+   integer(ip)                          :: FPLError
+   logical                              :: is_present
+   logical                              :: same_data_type
+   integer(ip), allocatable             :: shape(:)
+   call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
+   ! Dkrymax
+#ifdef DEBUG
+   is_present     = parameter_list%isPresent(Key=ils_dkrymax)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_dkrymax, mold=this%dkrymax)
+      FPLError       = parameter_list%getshape(Key=ils_dkrymax, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_dkrymax, Value=this%dkrymax)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(0,'(a)') ' Warning! ils_dkrymax ignored. Wrong data type or shape. '
+      endif
+   endif
+   ! Orthonorm strat
+   is_present     = parameter_list%isPresent(Key=ils_orthonorm_strat)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_orthonorm_strat, mold=this%orthonorm_strat)
+      FPLError       = parameter_list%getshape(Key=ils_orthonorm_strat, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_orthonorm_strat, Value=this%orthonorm_strat)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(0,'(a)') ' Warning! ils_orthonorm_strat ignored. Wrong data type or shape. '
+         endif
+   endif
+#endif
   end subroutine rgmres_set_parameters_from_pl
   
   subroutine rgmres_solve_body(this,b,x)
@@ -377,11 +401,12 @@ contains
     rgmres_get_default_stopping_criteria = default_rgmres_stopping_criteria
   end function rgmres_get_default_stopping_criteria
   
-  function create_rgmres(environment)
+  subroutine create_rgmres(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_rgmres
-    type(rgmres_t), pointer :: rgmres
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(rgmres_t),                        pointer                :: rgmres
+    assert(.not. associated(base_iterative_linear_solver))
     allocate(rgmres)
     call rgmres%set_environment(environment)
     call rgmres%set_name(rgmres_name)
@@ -389,220 +414,7 @@ contains
     rgmres%dkrymax = default_dkrymax
     rgmres%orthonorm_strat = default_orthonorm_strat
     call rgmres%set_state(start)
-    create_rgmres => rgmres
-  end function create_rgmres
-  
-  
-    !=============================================================================
-  !
-  ! Modified GS with re-orthogonalization
-  ! (ideal for serial machines)
-  !     ierrc   -- error code
-  !                0 : successful return
-  !               -1: zero input vector
-  !               -2: input vector contains abnormal numbers
-  !               -3: input vector is a linear combination of others
-  subroutine modified_gs_reorthonorm(luout,m,bkry,hh,ierrc)
-    implicit none
-    ! Parameters
-    integer(ip)               , intent(in)    :: luout
-    integer(ip)               , intent(in)    :: m
-    class(multivector_t)      , intent(inout) :: bkry
-    real(rp)                  , intent(inout) :: hh(m)
-    integer(ip)               , intent(out)   :: ierrc  
-
-    ! Locals
-    integer(ip)              :: i
-    real(rp)                 :: norm, thr, fct
-    real(rp), parameter      :: reorth = 0.98, rzero = 0.0_rp, rone = 1.0_rp
-    class(vector_t), pointer :: bkrym, bkryi
-
-    bkrym => bkry%get(m) 
+    base_iterative_linear_solver => rgmres
+  end subroutine create_rgmres
     
-    ! The last vector is orthogonalized against the others
-    norm = bkrym%dot(bkrym)
-
-    if (norm <= rzero) then
-       ierrc = -1
-       write (luout,*) '** Warning: mgsro: zero input vector'
-       return
-    else if ( norm > rzero .and. rone/norm > rzero ) then
-       ierrc =  0
-    else
-       ierrc = -2
-       write (luout,*) '** Warning: mgsro: input vector contains abnormal numbers' 
-       return
-    endif
-
-    thr = norm*reorth
-
-    ! Orthogonalize against all the others 
-    do i = 1,m-1
-       bkryi => bkry%get(i)
-       fct =  bkrym%dot(bkryi)
-       hh(i) = fct
-       call bkrym%axpby(-fct,bkryi,rone)
-       ! Reorthogonalization if it is 'too parallel' to the previous vector
-       if (fct*fct > thr) then
-          fct = bkrym%dot(bkryi)
-          hh(i) = hh(i) + fct
-          call bkrym%axpby(-fct,bkryi,rone)
-       endif
-       norm = norm - hh(i)*hh(i)
-       if (norm < rzero) norm = rzero
-       thr = norm*reorth
-    enddo
-
-    ! Normalize
-    hh(m) = bkrym%nrm2()
-
-    if ( hh(m) <= rzero ) then
-       write (luout,*) '** Warning: mgsro: input vector is a linear combination of previous vectors'
-       ierrc = -3
-       return
-    end if
-
-    call bkrym%scal(rone/hh(m),bkrym)
-  end subroutine modified_gs_reorthonorm
-
-  !=============================================================================
-  !
-  ! Iterative Classical Gram-Schmidt (ideal for distributed-memory machines)
-  !
-  ! Taken from Figure 5 of the following paper: 
-  ! Efficient Gram-Schmidt orthonormalisation on parallel computers
-  ! F. Commun. Numer. Meth. Engng. 2000; 16:57-66
-  !
-  ! *** IMPORTANT NOTE ***: It would be fine to have an implementation
-  ! of icgs that allows to exploit level 2 BLAS for the following 2 operations
-  ! (see below):
-  !    x  p <- Q_k^T * Q(k)
-  !    x  Q(k) <- Q(k) - Q_k * p
-  ! This implementation would imply defining a generic
-  ! data structure for storing Krylov subspace bases.
-  !     ierrc   -- error code
-  !                0 : successful return
-  !               -1: zero input vector
-  !               -2: input vector contains abnormal numbers
-  !               -3: input vector is a linear combination of others
-  subroutine iterative_gs_reorthonorm (luout, k, Q, s, ierrc)
-    implicit none
-    ! Parameters  
-    integer(ip), intent(in)                   :: luout
-    integer(ip)               , intent(in)    :: k
-    class(multivector_t)      , intent(inout) :: Q
-    real(rp)                  , intent(inout) :: s(k)
-    integer(ip)               , intent(out)   :: ierrc  
-
-
-    ! Locals 
-    real(rp), parameter              :: alpha = 0.5_rp, rone = 1.0_rp, rzero = 0.0_rp
-    logical, parameter               :: debug = .false.
-    integer(ip)                      :: i, j, m
-    real(rp)                         :: p(k-1)
-    real(rp)                         :: delta_i, delta_i_mone, beta_i
-    class(vector_t), pointer         :: q_k
-
-    s = 0.0_rp
-    i = 1 
-
-
-    q_k => Q%get(k)
-    delta_i_mone = q_k%nrm2()
-
-    if (delta_i_mone <= rzero) then
-       ierrc = -1	
-       write (luout,*) '** Warning: icgsro: zero input vector'
-       return
-    else if ( delta_i_mone > rzero .and. rone/delta_i_mone > rzero ) then
-       ierrc =  0
-    else
-       ierrc = -2
-       write (luout,*) '** Warning: icgsro: input vector contains abnormal numbers' 
-       return
-    endif
-
-    loop_icgs: do
-       ! p <- Q_k^T * Q(k), with Q_k = (Q(1), Q(2), .. Q(k-1))  
-       call Q%multidot(k-1,q_k,p)
-       
-       ! q_k <- q_k - Q_k * p 
-       call Q%multiaxpy(k-1,q_k,-1.0_rp,p)
-
-       s(1:k-1) = s(1:k-1) + p(1:k-1)
-
-       ! OPTION 1: estimate ||q_k^{i+1}||
-       ! ** IMPORTANT NOTE **: I have observed,
-       ! for element-based data decompositions, when
-       ! q_k^{i+1} is very close to zero, that this estimation
-       ! becomes zero.
-       ! beta_i = 1 - ||p||^2/(delta_i_mone^2)
-       ! beta_i = 1 - (dot_product(p, p))/(delta_i_mone*delta_i_mone)
-       ! delta_i = delta_i_mone * sqrt ( abs (beta_i) )
-
-       ! OPTION 2: calculate ||q_k^{i+1}||
-       ! write (*,*) i, k, 'xxx', aux,  delta_i      ! DBG:
-       delta_i = q_k%nrm2()
-
-       if ( delta_i > delta_i_mone * alpha .or. delta_i == rzero ) exit loop_icgs
-       i = i + 1
-       delta_i_mone = delta_i 
-    end do loop_icgs
-
-    if (debug) then
-       write(luout,'(a,i1,a)') 'ICGS: ', i, ' ortho. iterations'
-       write(luout,*) delta_i, delta_i_mone * alpha
-    end if
-    if (i>2)   write(luout,*) '** Warning: icgsro: required more than two iterations!'
-
-    ! Normalize
-    s(k) = delta_i 
-    if ( s(k) <= rzero ) then
-       write (luout,*) '** Warning: icgsro: input vector is a linear combination of previous vectors'
-       ierrc = -3
-       return
-    end if
-
-    call q_k%scal(rone/s(k),q_k)
-    
-  end subroutine iterative_gs_reorthonorm
-  
-  ! Source: SPARSKIT
-  ! Given x and y, this subroutine generates a Givens' rotation c, s.
-  ! And apply the rotation on (x,y) ==> (sqrt(x**2 + y**2), 0).
-  ! (See P 202 of "matrix computations" by Golub and van Loan)
-  subroutine apply_givens_rotation(x,y,c,s)
-    implicit none
-    real(rp), intent(inout) :: x
-    real(rp), intent(inout) :: y
-    real(rp), intent(inout) :: c
-    real(rp), intent(inout) :: s
-
-    real(rp) :: t, one, rzero
-    parameter (rzero=0.0_rp,one=1.0_rp)
-
-    if (x.eq.rzero .and. y.eq.rzero) then
-       c = one
-       s = rzero
-    else if (abs(y).gt.abs(x)) then
-       t = x / y
-       x = sqrt(one+t*t)
-       s = sign(one / x, y)
-       c = t*s
-    else if (abs(y).le.abs(x)) then
-       t = y / x
-       y = sqrt(one+t*t)
-       c = sign(one / y, x)
-       s = t*c
-    else
-       ! X or Y must be an invalid floating-point number, set both to zero
-       x = rzero
-       y = rzero
-       c = one
-       s = rzero
-    endif
-    x = abs(x*y)
-    y = rzero
-  end subroutine apply_givens_rotation
-  
 end module rgmres_names

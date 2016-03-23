@@ -427,7 +427,7 @@ program test_reference_fe
   integer(ip) :: problem_id
  
   call meminit
-
+  call the_iterative_linear_solver_creational_methods_dictionary%init()
   call params%create()
   call params%parse()
 
@@ -512,7 +512,7 @@ contains
 
      ! Create iterative linear solver, set operators and solve linear system
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_from_string("CG")
+     call iterative_linear_solver%set_type_from_string(cg_name)
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
      call iterative_linear_solver%free() 
@@ -596,7 +596,7 @@ contains
 
      ! Create iterative linear solver, set operators and solve linear system
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_from_string("CG")
+     call iterative_linear_solver%set_type_from_string(cg_name)
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
      call iterative_linear_solver%free() 
@@ -692,7 +692,7 @@ contains
 
      ! Create iterative linear solver, set operators and solve linear system
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_from_string("CG")
+     call iterative_linear_solver%set_type_from_string(cg_name)
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
      call iterative_linear_solver%free() 
@@ -791,7 +791,7 @@ contains
 
      ! Create iterative linear solver, set operators and solve linear system
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_from_string("CG")
+     call iterative_linear_solver%set_type_from_string(cg_name)
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
      call iterative_linear_solver%free() 

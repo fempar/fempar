@@ -37,20 +37,20 @@ module base_sparse_matrix_names
   ! Start               | Free_clean            | Start
   ! Start               | Free_symbolic         | Start
   ! Start               | Free_numeric          | Start
-  
+  !-----------------------------------------------------------------
   ! Created             | Insert (2-values)     | Build_symbolic
   ! Created             | Insert (3-values)     | Build_numeric
   ! Created             | Free_clean            | Start
   ! Created             | Free_symbolic         | Created
   ! Created             | Free_numeric          | Assembled_symbolic
-  
+  !-----------------------------------------------------------------
   ! Build_symbolic      | Insert (2-values)     | Build_symbolic
-  ! Build_symbolic      | Insert (2-values)     | * Error
+  ! Build_symbolic      | Insert (3-values)     | * Error
   ! Build_symbolic      | convert               | Assembled_symbolic
   ! Build_symbolic      | Free_clean            | Start
   ! Build_symbolic      | Free_symbolic         | Created
   ! Build_symbolic      | Free_numeric          | Created
-  
+  !-----------------------------------------------------------------
   ! Build_numeric       | Insert (2-values)     | * Error
   ! Build_numeric       | Insert (3-values)     | Build_numeric
   ! Build_numeric       | convert               | Assembled
@@ -58,18 +58,24 @@ module base_sparse_matrix_names
   ! Build_numeric       | Free_symbolic         | Created
   ! Build_numeric       | Free_numeric          | Created
   !-----------------------------------------------------------------
-  ! Under development
+  ! Assembled           | Free_clean            | Start
+  ! Assembled           | Free_symbolic         | Created
+  ! Assembled           | Free_numeric          | Assembled_symbolic
+  ! Assembled           | Insert (2-values)     | * Error
+  ! Assembled           | Insert (3-values)     | Update
+  !-----------------------------------------------------------------
+  ! Assembled_symbolic  | Free_clean            | Start
+  ! Assembled_symbolic  | Free_symbolic         | Created
+  ! Assembled_symbolic  | Free_numeric          | Assembed_symbolic
+  ! Assembled_symbolic  | Insert (2-values)     | * Error
+  ! Assembled_symbolic  | Insert (3-values)     | Update
   !-----------------------------------------------------------------
   ! Assembled           | Free_clean            | Start
   ! Assembled           | Free_symbolic         | Created
-  ! Assembled           | Free_numeric          | Assembled_numeric
-  ! Assembled           | Set                   | Update
-  
-  ! Assembled_symbolic  | Free_clean            | Start
-  ! Assembled_symbolic  | Set                   | Update
-  
-  ! Update              | Free_clean            | Start
-  
+  ! Assembled           | Free_numeric          | Assembled_symbolic
+  ! Assembled           | Insert (2-values)     | * Error
+  ! Assembled           | Insert (3-values)     | Update
+  !-----------------------------------------------------------------
   
   ! Matrix sign
   integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE     = 0

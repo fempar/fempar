@@ -309,6 +309,8 @@ program par_test_reference_fe
 
 
   call meminit
+  call the_iterative_linear_solver_creational_methods_dictionary%init()
+
 
   ! Start parallel execution
   call par_context_create (w_context)
@@ -405,7 +407,7 @@ program par_test_reference_fe
 
   ! Create iterative linear solver, set operators and solve linear system
   call iterative_linear_solver%create(par_env)
-  call iterative_linear_solver%set_type_and_parameters_from_pl()
+  call iterative_linear_solver%set_type_from_string(cg_name)
   call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
   call iterative_linear_solver%solve(fe_affine_operator%get_translation(),vector)
   call iterative_linear_solver%free() 

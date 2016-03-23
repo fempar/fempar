@@ -283,13 +283,14 @@ module minres_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names
+  use iterative_linear_solver_parameters_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: minres_name = 'MINRES'
-  integer (ip)    , parameter :: default_minres_stopping_criteria = res_res
+
+  integer (ip), parameter :: default_minres_stopping_criteria = res_res
 
   type, extends(base_iterative_linear_solver_t) :: minres_t
     ! Working space vectors for type(minres_t)
@@ -307,7 +308,7 @@ module minres_names
   end type
   
   ! Data types
-  public :: minres_t, create_minres, minres_name
+  public :: create_minres
   
 contains
   subroutine minres_allocate_workspace(this)
@@ -352,9 +353,11 @@ contains
     deallocate(this%w2)
   end subroutine minres_free_workspace
 
-  subroutine minres_set_parameters_from_pl(this) 
+  subroutine minres_set_parameters_from_pl(this, parameter_list) 
    implicit none
-   class(minres_t), intent(inout) :: this
+   class(minres_t),       intent(inout) :: this
+   type(ParameterList_t), intent(in)    :: parameter_list
+   call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
   end subroutine minres_set_parameters_from_pl
   
   subroutine minres_solve_body(this,b,x)
@@ -777,17 +780,18 @@ contains
   end function minres_get_default_stopping_criteria
   
   
-  function create_minres(environment)
+  subroutine create_minres(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_minres
-    type(minres_t), pointer :: minres
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(minres_t),                        pointer                :: minres
+    assert(.not. associated(base_iterative_linear_solver))
     allocate(minres)
     call minres%set_environment(environment)
     call minres%set_name(minres_name)
     call minres%set_defaults()
     call minres%set_state(start)
-    create_minres => minres
-  end function create_minres
+    base_iterative_linear_solver => minres
+  end subroutine create_minres
   
 end module minres_names

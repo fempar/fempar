@@ -36,16 +36,20 @@ module lgmres_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names  
+  use iterative_linear_solver_utils_names
+  use iterative_linear_solver_parameters_names
   use multivector_names
   use rgmres_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: lgmres_name = 'LGMRES'
-  integer (ip)    , parameter :: default_lgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
-  
+
+  integer (ip), parameter :: default_lgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
+  integer (ip), parameter :: default_dkrymax                  = 1000
+  integer (ip), parameter :: default_orthonorm_strat          = icgsro
+
   type, extends(base_iterative_linear_solver_t) :: lgmres_t
      ! Parameters
      integer(ip)                    :: dkrymax
@@ -64,12 +68,7 @@ module lgmres_names
      procedure          :: get_default_stopping_criteria => lgmres_get_default_stopping_criteria
   end type lgmres_t
   
-  ! Data types
-  public :: lgmres_t, create_lgmres, lgmres_name
-  public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
-  public :: default_dkrymax, default_orthonorm_strat
-  public :: mgsro, icgsro
-  public :: modified_gs_reorthonorm, iterative_gs_reorthonorm, apply_givens_rotation
+  public :: create_lgmres
   
 contains
   subroutine lgmres_allocate_workspace(this)
@@ -111,9 +110,45 @@ contains
       end if
   end subroutine lgmres_free_workspace
 
-  subroutine lgmres_set_parameters_from_pl(this) 
+  subroutine lgmres_set_parameters_from_pl(this, parameter_list) 
    implicit none
-   class(lgmres_t), intent(inout) :: this
+   class(lgmres_t),       intent(inout) :: this
+   type(ParameterList_t), intent(in)    :: parameter_list
+   integer(ip)                          :: FPLError
+   logical                              :: is_present
+   logical                              :: same_data_type
+   integer(ip), allocatable             :: shape(:)
+   call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
+   ! Dkrymax
+#ifdef DEBUG
+   is_present     = parameter_list%isPresent(Key=ils_dkrymax)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_dkrymax, mold=this%dkrymax)
+      FPLError       = parameter_list%getshape(Key=ils_dkrymax, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_dkrymax, Value=this%dkrymax)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(0,'(a)') ' Warning! ils_dkrymax ignored. Wrong data type or shape. '
+      endif
+   endif
+   ! Orthonorm strat
+   is_present     = parameter_list%isPresent(Key=ils_orthonorm_strat)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_orthonorm_strat, mold=this%orthonorm_strat)
+      FPLError       = parameter_list%getshape(Key=ils_orthonorm_strat, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_orthonorm_strat, Value=this%orthonorm_strat)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(0,'(a)') ' Warning! ils_orthonorm_strat ignored. Wrong data type or shape. '
+         endif
+   endif
+#endif
   end subroutine lgmres_set_parameters_from_pl
   
   subroutine lgmres_solve_body(this,b,x)
@@ -458,11 +493,12 @@ contains
     lgmres_get_default_stopping_criteria = default_lgmres_stopping_criteria
   end function lgmres_get_default_stopping_criteria
   
-  function create_lgmres(environment)
+  subroutine create_lgmres(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_lgmres
-    type(lgmres_t), pointer :: lgmres
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(lgmres_t),                        pointer                :: lgmres
+    assert(.not. associated(base_iterative_linear_solver))
     allocate(lgmres)
     call lgmres%set_environment(environment)
     call lgmres%set_name(lgmres_name)
@@ -470,7 +506,7 @@ contains
     lgmres%dkrymax = default_dkrymax
     lgmres%orthonorm_strat = default_orthonorm_strat
     call lgmres%set_state(start)
-    create_lgmres => lgmres
-  end function create_lgmres
+    base_iterative_linear_solver => lgmres
+  end subroutine create_lgmres
   
 end module lgmres_names
