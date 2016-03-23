@@ -43,6 +43,9 @@ module richardson_names
 # include "debug.i90"
   private
 
+  integer (ip), parameter :: default_richardson_stopping_criteria = res_res
+  real (rp),    parameter :: default_richardson_relaxation        = 1.0_rp
+
   type, extends(base_iterative_linear_solver_t) :: richardson_t
     ! Working space vectors for type(richardson_t)
     class(vector_t), allocatable :: r
@@ -88,7 +91,27 @@ contains
    implicit none
    class(richardson_t),   intent(inout) :: this
    type(ParameterList_t), intent(in)    :: parameter_list
+   integer(ip)                          :: FPLError
+   logical                              :: is_present
+   logical                              :: same_data_type
+   integer(ip), allocatable             :: shape(:)
    call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
+   ! Relaxation
+#ifdef DEBUG
+   is_present     = parameter_list%isPresent(Key=ils_relaxation)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_relaxation, mold=this%relaxation)
+      FPLError       = parameter_list%getshape(Key=ils_relaxation, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_relaxation, Value=this%relaxation)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(0,'(a)') ' Warning! ils_relaxation ignored. Wrong data type or shape. '
+      endif
+   endif
+#endif
   end subroutine richardson_set_parameters_from_pl
   
   subroutine richardson_solve_body(this,b,x)

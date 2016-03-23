@@ -73,82 +73,32 @@
   character(len=*), parameter :: ils_max_num_iterations        = 'iterative_linear_solver_max_num_iterations'
   character(len=*), parameter :: ils_track_convergence_history = 'iterative_linear_solver_track_convergence_history'
 
-  !-------------------------------------------------------------------
-  ! Default values for implementors of class(base_iterative_linear_solver_t) parameters
-  ! A default value for stopping criteria is not declared here as the set of
-  ! supported stopping criteria is highly dependent on the particular implementor
-  ! of class(base_iterative_linear_solver_t)
-  !-------------------------------------------------------------------
-  integer (ip), parameter :: default_luout                      = 6
-  real    (rp), parameter :: default_rtol                       = 1.0e-06_rp
-  real    (rp), parameter :: default_atol                       = 0.0_rp
-  integer (ip), parameter :: default_output_frequency           = 1 
-  integer (ip), parameter :: default_max_num_iterations         = 1000
-  logical     , parameter :: default_track_convergence_history  = .false.
+  !-----------------------------------------------------------------
+  ! Iterative linear solver names
+  !-----------------------------------------------------------------
+  character(len=*), parameter :: cg_name         = 'CG'         ! CG iterative linear solver
+  character(len=*), parameter :: fgmres_name     = 'FGMRES'     ! FGMREs iterative linear solver
+  character(len=*), parameter :: icg_name        = 'ICG'        ! ICG iterative linear solver
+  character(len=*), parameter :: lfom_name       = 'LFOM'       ! LFOM iterative linear solver
+  character(len=*), parameter :: lgmres_name     = 'LGMRES'     ! LGMRES iterative linear solver
+  character(len=*), parameter :: minres_name     = 'MINRES'     ! MINRES iterative linear solver
+  character(len=*), parameter :: rgmres_name     = 'RGMRES'     ! RGMRES iterative linear solver
+  character(len=*), parameter :: richardson_name = 'RICHARDSON' ! RICHARDSON iterative linear solver
 
 
   !-----------------------------------------------------------------
-  ! Parameters used in CG iterative linear solver
+  ! Some common parameters to FGMRES, LFOM, LGMRES and RGMRES iterative linear solvers
   !-----------------------------------------------------------------
-  character(len=*), parameter :: cg_name     = 'CG'
-  integer (ip)    , parameter :: default_cg_stopping_criteria = res_res
-
-
-  !-----------------------------------------------------------------
-  ! Parameters used in FGMREs iterative linear solver
-  !-----------------------------------------------------------------
-  character(len=*), parameter :: fgmres_name = 'FGMRES'
-  integer (ip)    , parameter :: default_fgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
-
-  !-----------------------------------------------------------------
-  ! Parameters used in ICD iterative linear solver
-  !-----------------------------------------------------------------
-  character(len=*), parameter :: icg_name = 'ICG'
-  integer (ip)    , parameter :: default_icg_stopping_criteria = res_res
-
-  !-----------------------------------------------------------------
-  ! Parameters used in LFOM iterative linear solver
-  !-----------------------------------------------------------------
-  character(len=*), parameter :: lfom_name = 'LFOM'
-  integer (ip)    , parameter :: default_lfom_stopping_criteria = res_res
-
-  !-----------------------------------------------------------------
-  ! Parameters used in LGMRES iterative linear solver
-  !-----------------------------------------------------------------
-  character(len=*), parameter :: lgmres_name = 'LGMRES'
-  integer (ip)    , parameter :: default_lgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
-
-  !-----------------------------------------------------------------
-  ! Parameters used in MINRES iterative linear solver
-  !-----------------------------------------------------------------
-  character(len=*), parameter :: minres_name = 'MINRES'
-  integer (ip)    , parameter :: default_minres_stopping_criteria = res_res
-
-  !-----------------------------------------------------------------
-  ! Parameters used in RGMRES iterative linear solver
-  !-----------------------------------------------------------------
-  character(len=*), parameter :: rgmres_name             = 'RGMRES'
   character(len=*), parameter :: ils_dkrymax             = 'iterative_linear_solver_dkrymax'
   character(len=*), parameter :: ils_orthonorm_strat     = 'iterative_linear_solver_orthonorm_strat'
   character(len=*), parameter :: orthonorm_strat_icgsro  = 'ICGSRO' 
   character(len=*), parameter :: orthonorm_strat_mgsro   = 'MGSRO'
   
-  integer (ip), parameter :: mgsro  = 1 ! mgs : Modified Gram-Schmidt 
-                                        !       (appropriate for serial GMRES)
-  integer (ip), parameter :: icgsro = 2 ! icgs: Iterative Classical Gram-Schmidt 
-                                        !       (appropriate for distributed GMRES)
-  
-  integer (ip)    , parameter :: default_rgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
-  integer (ip)    , parameter :: default_dkrymax                  = 1000
-  integer (ip)    , parameter :: default_orthonorm_strat          = icgsro
-
+  integer (ip), parameter :: mgsro  = 1 ! mgs : Modified Gram-Schmidt (appropriate for serial GMRES)
+  integer (ip), parameter :: icgsro = 2 ! icgs: Iterative Classical Gram-Schmidt (appropriate for distributed GMRES)
 
   !-----------------------------------------------------------------
-  ! Parameters used in RICHARDSON iterative linear solver
+  ! Parameters used in RICHARDSON iterative linear solvers
   !-----------------------------------------------------------------
-  character(len=*), parameter :: richardson_name = 'RICHARDSON'
   character(len=*), parameter :: ils_relaxation = 'iterative_linear_solver_relaxation'
-  
-  integer (ip), parameter :: default_richardson_stopping_criteria = res_res
-  real (rp)   , parameter :: default_richardson_relaxation        = 1.0_rp
 ```

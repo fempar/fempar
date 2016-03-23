@@ -290,6 +290,8 @@ module minres_names
 # include "debug.i90"
   private
 
+  integer (ip), parameter :: default_minres_stopping_criteria = res_res
+
   type, extends(base_iterative_linear_solver_t) :: minres_t
     ! Working space vectors for type(minres_t)
     class(vector_t), allocatable :: r1, r2

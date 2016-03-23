@@ -45,6 +45,10 @@ module lfom_names
   implicit none
 # include "debug.i90"
   private
+
+  integer (ip), parameter :: default_lfom_stopping_criteria = res_res
+  integer (ip), parameter :: default_dkrymax                = 1000
+  integer (ip), parameter :: default_orthonorm_strat        = icgsro
   
   type, extends(base_iterative_linear_solver_t) :: lfom_t
      ! Parameters
@@ -104,7 +108,41 @@ contains
    implicit none
    class(lfom_t),         intent(inout) :: this
    type(ParameterList_t), intent(in)    :: parameter_list
+   integer(ip)                          :: FPLError
+   logical                              :: is_present
+   logical                              :: same_data_type
+   integer(ip), allocatable             :: shape(:)
    call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
+   ! Dkrymax
+#ifdef DEBUG
+   is_present     = parameter_list%isPresent(Key=ils_dkrymax)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_dkrymax, mold=this%dkrymax)
+      FPLError       = parameter_list%getshape(Key=ils_dkrymax, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_dkrymax, Value=this%dkrymax)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(0,'(a)') ' Warning! ils_dkrymax ignored. Wrong data type or shape. '
+      endif
+   endif
+   ! Orthonorm strat
+   is_present     = parameter_list%isPresent(Key=ils_orthonorm_strat)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_orthonorm_strat, mold=this%orthonorm_strat)
+      FPLError       = parameter_list%getshape(Key=ils_orthonorm_strat, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_orthonorm_strat, Value=this%orthonorm_strat)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(0,'(a)') ' Warning! ils_orthonorm_strat ignored. Wrong data type or shape. '
+         endif
+   endif
+#endif
   end subroutine lfom_set_parameters_from_pl
   
   subroutine lfom_solve_body(this,b,x)

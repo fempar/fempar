@@ -45,6 +45,19 @@ module base_iterative_linear_solver_names
   integer(ip), parameter :: start               = 0  ! All parameters set with values, environment and name set
   integer(ip), parameter :: operators_set       = 1  ! Matrix A and preconditioner M already set
   integer(ip), parameter :: workspace_allocated = 2  ! All workspace required by solve TBP available 
+
+  !-------------------------------------------------------------------
+  ! Default values for implementors of class(base_iterative_linear_solver_t) parameters
+  ! A default value for stopping criteria is not declared here as the set of
+  ! supported stopping criteria is highly dependent on the particular implementor
+  ! of class(base_iterative_linear_solver_t)
+  !-------------------------------------------------------------------
+  integer (ip), parameter :: default_luout                      = 6
+  real    (rp), parameter :: default_rtol                       = 1.0e-06_rp
+  real    (rp), parameter :: default_atol                       = 0.0_rp
+  integer (ip), parameter :: default_output_frequency           = 1 
+  integer (ip), parameter :: default_max_num_iterations         = 1000
+  logical,      parameter :: default_track_convergence_history  = .false.
   
   ! State transition diagram for type(base_iterative_linear_solver_t)
   ! -----------------------------------------------------------
