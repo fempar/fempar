@@ -232,7 +232,7 @@ module serial_fe_space_names
      procedure, non_overridable :: get_max_number_quadrature_points => serial_fe_space_get_max_number_quadrature_points
      procedure, non_overridable :: create_face_array => serial_fe_space_create_face_array
      procedure, non_overridable :: create_global_fe_function => serial_fe_space_create_global_fe_function
-     procedure, non_overridable :: copy_fe_function_bc_values => serial_fe_space_copy_fe_function_bc_values
+     procedure, non_overridable :: update_global_fe_function_bcs => serial_fe_space_update_global_fe_function_bcs
      procedure, private         :: create_fe_function_scalar => serial_fe_space_create_fe_function_scalar
      procedure, private         :: create_fe_function_vector => serial_fe_space_create_fe_function_vector
      procedure, private         :: create_fe_function_tensor => serial_fe_space_create_fe_function_tensor
@@ -280,28 +280,33 @@ module serial_fe_space_names
      procedure, non_overridable          :: free                     => par_fe_space_free
      procedure, non_overridable          :: create_assembler         => par_fe_space_create_assembler
      procedure, non_overridable          :: symbolic_setup_assembler => par_fe_space_symbolic_setup_assembler
+     
+     procedure, non_overridable          :: update_bc_value_scalar   => par_fe_space_update_bc_value_scalar
+     procedure, non_overridable          :: update_bc_value_vector   => par_fe_space_update_bc_value_vector
+     procedure, non_overridable          :: update_bc_value_tensor   => par_fe_space_update_bc_value_tensor
   end type
 
   public :: par_fe_space_t
   
    type fe_function_t
    private
-   class(vector_t)            , pointer  :: vector_dof_values
-   type(serial_scalar_array_t)           :: strong_dirichlet_values
-   
+   class(vector_t), allocatable  :: dof_values
+   type(serial_scalar_array_t)   :: strong_dirichlet_values
   contains
      procedure, non_overridable, private :: create                      => fe_function_create
      procedure, non_overridable, private :: copy_bc_values              => fe_function_copy_bc_values
+     procedure, non_overridable          :: copy                        => fe_function_copy
      procedure, non_overridable          :: get_vector_dof_values       => fe_function_get_vector_dof_values
      procedure, non_overridable          :: get_strong_dirichlet_values => fe_function_get_strong_dirichlet_values
      procedure, non_overridable          :: free                        => fe_function_free
+     generic                             :: assignment(=)               => copy
   end type fe_function_t 
   
   type fe_function_scalar_t
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes             ! Not being used
+   integer(ip) :: current_number_nodes             
    integer(ip) :: current_number_quadrature_points
    
    integer(ip) :: max_number_nodes  
@@ -325,7 +330,7 @@ module serial_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes             ! Not being used
+   integer(ip) :: current_number_nodes             
    integer(ip) :: current_number_quadrature_points           
    
    integer(ip) :: max_number_quadrature_points
@@ -334,8 +339,6 @@ module serial_fe_space_names
    real(rp)            , allocatable :: nodal_values(:)  
    type(vector_field_t), allocatable :: quadrature_points_values(:)
    
-   class(vector_t), allocatable :: vector_dof_values
-
   contains
      procedure, non_overridable, private :: create                      => fe_function_vector_create
      procedure, non_overridable :: get_fe_space_id                      => fe_function_vector_get_fe_space_id
@@ -351,7 +354,7 @@ module serial_fe_space_names
    private
    integer(ip) :: fe_space_id
    
-   integer(ip) :: current_number_nodes             ! Not being used
+   integer(ip) :: current_number_nodes            
    integer(ip) :: current_number_quadrature_points     
    
    integer(ip) :: max_number_nodes    
@@ -359,8 +362,6 @@ module serial_fe_space_names
    
    real(rp)            , allocatable :: nodal_values(:)
    type(tensor_field_t), allocatable :: quadrature_points_values(:)
-   
-   class(vector_t), allocatable :: vector_dof_values
    
   contains
      procedure, non_overridable, private :: create                      => fe_function_tensor_create
