@@ -294,6 +294,7 @@ module nsi_iss_oss_discrete_integration_names
      procedure, non_overridable :: compute_analytical_force
      procedure, non_overridable :: update_boundary_conditions_analytical
      procedure, non_overridable :: interpolate_fe_function_analytical
+     procedure, non_overridable :: compute_error_norms
      procedure, non_overridable :: free
   end type nsi_iss_oss_discrete_integration_t
 
@@ -340,8 +341,8 @@ program test_nsi_iss_oss
   class(vector_t)     , allocatable, target :: dof_values
 
   ! Solver
-  type(iterative_linear_solver_t)      :: iterative_linear_solver
-  type(serial_environment_t) :: senv
+  type(iterative_linear_solver_t) :: iterative_linear_solver
+  type(serial_environment_t)      :: senv
 
   ! Arguments
   type(test_nsi_iss_oss_params_t) :: params
@@ -354,7 +355,7 @@ program test_nsi_iss_oss
   integer(ip) :: counter
   real(rp)    :: nonlinear_tolerance
   real(rp)    :: residual_norm  
-  
+
 # include "sbm_nsi_iss_oss_driver.i90"
  
 contains

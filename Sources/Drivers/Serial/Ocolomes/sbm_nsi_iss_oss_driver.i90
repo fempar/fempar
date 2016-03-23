@@ -189,12 +189,14 @@
   !---------!
   ! Nonlinear output
   write(*,*) 'Fixed-point algorithm converged in',counter,'iterations'
-  select type(dof_values)
-     class is(serial_block_array_t)
-     call dof_values%print(6)
-     class default
-     check(.false.) 
-  end select
+  ! Error norm
+  call nsi_iss_oss_integration%compute_error_norms(fe_space,senv)
+!!$  select type(dof_values)
+!!$     class is(serial_block_array_t)
+!!$     call dof_values%print(6)
+!!$     class default
+!!$     check(.false.) 
+!!$  end select
 
   !------------!
   ! DEALLOCATE !
