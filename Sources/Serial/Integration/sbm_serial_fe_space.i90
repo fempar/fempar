@@ -886,9 +886,9 @@ end subroutine serial_fe_space_update_bc_value_tensor
       end do
 
       ! Update vector_dof_values
-      call fe_function%vector_dof_values%insert_subvector(block_id,number_nodes,             &
-           &                                              fe%elem2dof(fe_space_component)%p, &
-           &                                              values(:,1))
+      call fe_function%dof_values%insert_subvector(block_id,number_nodes,             &
+           &                                       fe%elem2dof(fe_space_component)%p, &
+           &                                       values(:,1))
    end do
 
    ! Free FE map
@@ -976,9 +976,9 @@ end subroutine serial_fe_space_update_bc_value_tensor
       end do
 
       ! Update vector_dof_values
-      call fe_function%vector_dof_values%insert_subvector(block_id,number_nodes,             &
-           &                                              fe%elem2dof(fe_space_component)%p, &
-           &                                              nodal_values)
+      call fe_function%dof_values%insert_subvector(block_id,number_nodes,             &
+           &                                       fe%elem2dof(fe_space_component)%p, &
+           &                                       nodal_values)
 
    end do
 

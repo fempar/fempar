@@ -102,6 +102,11 @@
   !---------!
   ! PROBLEM !
   !---------!
+  ! Create FE function
+  call fe_space%create_global_fe_function(fe_values)
+  nsi_iss_oss_integration%fe_values => fe_values
+  dof_values => fe_values%get_vector_dof_values()
+  ! Fill problem parameters
   call nsi_iss_oss_integration%initialize_from_cli(cli,group)
 
   !-----------------!
@@ -118,13 +123,9 @@
        fe_space=fe_space,                                               &
        discrete_integration=nsi_iss_oss_integration )
   ! Create values vector
-  call fe_affine_operator%create_range_vector(dof_values)
   call fe_affine_operator%create_range_vector(residual)   
-  call dof_values%init(0.0_rp)
   call residual%init(0.0_rp)  
-  ! Create FE function
-  call fe_space%create_global_fe_function(fe_values,dof_values)
-  nsi_iss_oss_integration%fe_values => fe_values
+  call dof_values%init(0.0_rp)
   ! Fill affine operator
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
@@ -182,7 +183,7 @@
   !------------!
   ! DEALLOCATE !
   !------------!
-  call dof_values%free()
+  nullify(dof_values)
   call residual%free()
   call fe_values%free()
   call fe_affine_operator%free()
