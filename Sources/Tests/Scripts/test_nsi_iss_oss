@@ -1,0 +1,49 @@
+#!/bin/sh
+TEST_BINARY_PATH="$1"
+TEST_INPUT_DATA_PATH="$2"
+final_exit_code=0
+if [ -f "$TEST_BINARY_PATH" ]
+then
+    # STOKES test
+    rm -Rf $PWD/output_test_nsi_iss_oss_stokes.txt
+    $TEST_BINARY_PATH analytical -cnv .false. -ne 4 4 -af NSI-LINEAR-STEADY >> $PWD/output_test_nsi_iss_oss_stokes.txt
+
+    # NAVIER-STOKES test
+    rm -Rf $PWD/output_test_nsi_iss_oss_navierstokes.txt
+    for number_elements in 2 4 8
+    do
+	$TEST_BINARY_PATH analytical -cnv .true. -ne $number_elements $number_elements -af NSI-LINEAR-STEADY >> $PWD/output_test_nsi_iss_oss_navierstokes.txt
+    done
+    
+    # Python script
+    aux=$(python $TEST_INPUT_DATA_PATH/test_nsi_iss_oss.py)
+    echo $aux
+    final_exit_code=$( echo -n $aux | tail -c 1 )
+
+    
+
+    
+   #    for order in 1 2 3 4 5
+   #    do
+   #      $TEST_BINARY_PATH --dir_path $TEST_INPUT_DATA_PATH/square_4x4_scalar.gid/data/ --prefix square_4x4_scalar -o $order -lt scalar 
+   #    done
+
+   #    for order in 1 2 3 4 5
+   #    do 
+   #      $TEST_BINARY_PATH --dir_path $TEST_INPUT_DATA_PATH/square_4x4_vector.gid/data/ --prefix square_4x4_vector -o $order -lt vector
+   #    done 
+ 
+   #    if [ $? -ne 0 ] 
+   #    then
+   #       final_exit_code=1
+   #    fi
+   # else
+   #    echo "$0: input data directory not found!"
+   #    final_exit_code=1
+   # fi
+else
+  echo "$0: BINARY not found! Value PROVIDED: $1."
+  final_exit_code=1
+fi
+rm -Rf $TEST_INPUT_FILE
+exit $final_exit_code 

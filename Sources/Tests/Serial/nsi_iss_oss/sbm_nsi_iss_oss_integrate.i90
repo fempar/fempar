@@ -1,0 +1,582 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!====================================================================================================
+subroutine create(this,params)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+  type(test_nsi_iss_oss_params_t)          , intent(in)    :: params
+
+  ! Getters
+  this%viscosity              = params%get_viscosity()              
+  this%c1                     = params%get_c1()                     
+  this%c2                     = params%get_c2()                     
+  this%cc                     = params%get_cc()                    
+  this%elemental_length_flag  = params%get_elemental_length_flag()  
+  this%convection_activated   = params%get_convection_activated()   
+  this%is_analytical_solution = params%get_is_analytical_solution() 
+  this%is_initial_solution    = params%get_is_initial_solution()    
+  this%is_temporal_solution   = params%get_is_temporal_solution()   
+  this%current_time           = params%get_initial_time()           
+
+  call this%analytical_functions%create(params)
+
+end subroutine create
+
+!====================================================================================================
+subroutine free(this)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+
+  call this%analytical_functions%free()
+
+end subroutine free
+
+!====================================================================================================
+subroutine integrate(this,fe_space,assembler)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
+  class(serial_fe_space_t)                 , intent(inout) :: fe_space
+  class(assembler_t)                       , intent(inout) :: assembler
+  ! Integers
+  integer(ip)              :: number_fe_spaces, number_nodes, number_elements
+  integer(ip)              :: number_dimensions, velocity_order
+  integer(ip)              :: number_quadrature_points
+  integer(ip)              :: ielem,qpoin,inode,jnode
+  integer(ip)              :: ioffset,joffset
+  integer(ip), pointer     :: field_blocks(:)
+  integer(ip), allocatable :: number_nodes_per_field(:)
+  ! Reals
+  real(rp)              :: velocity_gp
+  real(rp)              :: test_scalar, trial_scalar
+  real(rp)              :: dvolume
+  real(rp), allocatable :: tau_m(:), tau_c(:)
+  real(rp), allocatable :: elmat(:,:)
+  real(rp), allocatable :: elvec(:)
+  ! Logicals
+  logical, pointer :: field_coupling(:,:)
+  ! Types
+  type(vector_field_t)               :: test_vector, trial_vector
+  type(vector_field_t)               :: advection_vector
+  type(vector_field_t)               :: source_vector
+  type(vector_field_t)               :: grad_test_scalar, grad_trial_scalar
+  type(tensor_field_t)               :: grad_test_vector, grad_trial_vector
+  type(fe_function_vector_t)         :: fe_velocity
+  type(finite_element_t)   , pointer :: fe
+  type(quadrature_t)       , pointer :: quad
+  type(fe_map_t)           , pointer :: fe_map
+  type(volume_integrator_t), pointer :: vol_int_velocity_fe
+  type(volume_integrator_t), pointer :: vol_int_pressure_fe
+  type(volume_integrator_t), pointer :: vol_int_projection_fe
+  type(i1p_t)              , pointer :: elem2dof(:)
+  type(point_t)            , pointer :: quadrature_coordinate(:)
+  
+  ! Getters
+  fe                       => fe_space%get_finite_element(1)
+  field_blocks             => fe_space%get_field_blocks()
+  field_coupling           => fe_space%get_field_coupling()
+  number_fe_spaces         =  fe_space%get_number_fe_spaces()
+  number_nodes             =  fe%get_number_nodes()
+  number_elements          =  fe_space%get_number_elements()
+  quad                     => fe%get_quadrature()
+  call memalloc(number_fe_spaces,number_nodes_per_field,__FILE__,__LINE__)
+  call fe%get_number_nodes_per_field(number_nodes_per_field)
+
+  ! Asserts
+  assert(number_fe_spaces == 3) ! Velocity + Pressure + Projection
+
+  ! Allocate elemental matrix and vector (same for all elements)
+  call memalloc(number_nodes,number_nodes,elmat,__FILE__,__LINE__)
+  call memalloc(number_nodes,elvec,__FILE__,__LINE__)
+
+  ! Initialize integration
+  call fe_space%initialize_integration()
+  call fe_space%create_fe_function(1,fe_velocity)
+  call source_vector%init(0.0_rp)
+  
+  ! Initialize discrete integration structures
+  number_quadrature_points =  quad%get_number_quadrature_points()
+  number_dimensions        =  quad%get_number_dimensions()
+  call allocate_stabilization_parameters(number_quadrature_points,tau_m,tau_c)
+
+  ! Loop over elements
+  element: do ielem = 1, number_elements
+
+     ! Initialize matrix and vector
+     elmat = 0.0_rp
+     elvec = 0.0_rp
+
+     ! Update finite element structures
+     fe => fe_space%get_finite_element(ielem)
+     call fe%update_integration()
+     call fe%update_values(fe_velocity, this%fe_values)
+     
+     ! Elemental getters
+     fe_map                => fe%get_fe_map()
+     vol_int_velocity_fe   => fe%get_volume_integrator(1)
+     vol_int_pressure_fe   => fe%get_volume_integrator(2)
+     vol_int_projection_fe => fe%get_volume_integrator(3)
+     elem2dof              => fe%get_elem2dof()
+     quadrature_coordinate => fe_map%get_quadrature_coordinates() 
+
+     ! Update discrete integration structures
+     call this%compute_stabilization_parameters(fe,fe_velocity,tau_m,tau_c)
+     
+     ! Loop over Gauss points
+     gauss: do qpoin = 1, number_quadrature_points
+        
+        ! |J]*wg
+        dvolume = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
+
+        ! Velocity at Gauss point
+        call fe_velocity%get_value(qpoin,advection_vector)
+
+        ! Compute source vector for an analytical solution
+        if(this%is_analytical_solution) then
+           source_vector = this%compute_analytical_force(quadrature_coordinate(qpoin))
+        end if
+        
+        !-----------!
+        ! BLOCK V-U !
+        !-----------!
+        ! Diffusive term: (nu*grad(v),grad(u))
+        do inode = 1, number_nodes_per_field(1) 
+           call vol_int_velocity_fe%get_gradient(inode,qpoin,grad_test_vector)  
+           do jnode = 1, number_nodes_per_field(1)
+              call vol_int_velocity_fe%get_gradient(jnode,qpoin,grad_trial_vector)  
+              elmat(inode,jnode) = elmat(inode,jnode) + this%viscosity * dvolume * &
+                   &               double_contract(grad_test_vector,grad_trial_vector)
+           end do
+        end do
+        
+        ! Convective term: (v,u*grad(u))
+        if(this%convection_activated) then
+           do jnode = 1, number_nodes_per_field(1) 
+              call vol_int_velocity_fe%get_gradient(jnode,qpoin,grad_trial_vector)  
+              trial_vector = advection_vector * grad_trial_vector
+              do inode = 1, number_nodes_per_field(1) 
+                 call vol_int_velocity_fe%get_value(inode,qpoin,test_vector)
+                 elmat(inode,jnode) = elmat(inode,jnode) + dvolume * test_vector * trial_vector
+              end do
+           end do
+        end if
+
+        ! Grad-div term: (tau_c*div(v),div(u))
+        do inode = 1, number_nodes_per_field(1) 
+           call vol_int_velocity_fe%get_divergence(inode,qpoin,test_scalar)
+           do jnode = 1, number_nodes_per_field(1) 
+              call vol_int_velocity_fe%get_divergence(jnode,qpoin,trial_scalar)
+              elmat(inode,jnode) = elmat(inode,jnode) + tau_c(qpoin) * dvolume * test_scalar * trial_scalar
+           end do
+        end do            
+        
+        !-----------!
+        ! BLOCK V-P !
+        !-----------!
+        ! Pressure gradient term: -(div(v),p)
+        do inode = 1, number_nodes_per_field(1) 
+           call vol_int_velocity_fe%get_divergence(inode,qpoin,test_scalar)
+           do jnode = 1, number_nodes_per_field(2)
+              call vol_int_pressure_fe%get_value(jnode,qpoin,trial_scalar)
+              joffset = number_nodes_per_field(1)+jnode
+              elmat(inode,joffset) = elmat(inode,joffset) - dvolume * test_scalar * trial_scalar
+           end do
+        end do
+
+        !-----------!
+        ! BLOCK V-X !
+        !-----------!
+        ! Projection term: -(tau_m*u*grad(v),xi)
+        if(this%convection_activated) then
+           do inode = 1, number_nodes_per_field(1) 
+              call vol_int_velocity_fe%get_gradient(inode,qpoin,grad_test_vector)  
+              test_vector = advection_vector * grad_test_vector
+              do jnode = 1, number_nodes_per_field(3) 
+                 call vol_int_projection_fe%get_value(jnode,qpoin,trial_vector)
+                 joffset = number_nodes_per_field(1) + number_nodes_per_field(2) + jnode
+                 elmat(inode,joffset) = elmat(inode,joffset) - tau_m(qpoin) * dvolume * test_vector * trial_vector
+              end do
+           end do
+        end if
+
+        !-----------!
+        ! BLOCK Q-U !
+        !-----------!
+        ! Velocity divergence term: (q,div(u))
+        do inode = 1, number_nodes_per_field(2)
+           call vol_int_pressure_fe%get_value(inode,qpoin,test_scalar)
+           ioffset = number_nodes_per_field(1)+inode
+           do jnode = 1, number_nodes_per_field(1) 
+              call vol_int_velocity_fe%get_divergence(jnode,qpoin,trial_scalar)
+              elmat(ioffset,jnode) = elmat(ioffset,jnode) + dvolume * test_scalar * trial_scalar
+           end do
+        end do
+
+        !-----------!
+        ! BLOCK E-U !
+        !-----------!
+        ! Velocity gradient projection term: (tau_m*eta,u*grad(u))
+        if(this%convection_activated) then
+           do inode = 1, number_nodes_per_field(3) 
+              ioffset = number_nodes_per_field(1 )+ number_nodes_per_field(2) + inode
+              call vol_int_projection_fe%get_value(inode,qpoin,test_vector)
+              do jnode = 1, number_nodes_per_field(1) 
+                 call vol_int_velocity_fe%get_gradient(jnode,qpoin,grad_trial_vector)  
+                 trial_vector = advection_vector * grad_trial_vector
+                 elmat(ioffset,jnode) = elmat(ioffset,jnode) + tau_m(qpoin) * dvolume * test_vector * trial_vector
+              end do
+           end do          
+        end if
+                
+        !-----------!
+        ! BLOCK E-X !
+        !-----------!
+        ! Projection mass term: -(tau_m*eta,xi)
+        do inode = 1, number_nodes_per_field(3) 
+           ioffset = number_nodes_per_field(1 )+ number_nodes_per_field(2) + inode
+           call vol_int_projection_fe%get_value(inode,qpoin,test_vector)
+           do jnode = 1, number_nodes_per_field(3) 
+              joffset = number_nodes_per_field(1 )+ number_nodes_per_field(2) + jnode
+              call vol_int_projection_fe%get_value(jnode,qpoin,trial_vector)
+              elmat(ioffset,joffset) = elmat(ioffset,joffset) - tau_m(qpoin) * dvolume * test_vector * trial_vector
+           end do
+        end do
+        
+        !-----------!
+        ! BLOCK U   !
+        !-----------!
+        ! Source term: (v,f)    
+        do inode = 1, number_nodes_per_field(1) 
+           call vol_int_velocity_fe%get_value(inode,qpoin,test_vector)
+           elvec(inode) = elvec(inode) + dvolume * test_vector * source_vector
+        end do
+        
+     end do gauss
+    
+     call fe%impose_strong_dirichlet_bcs( elmat, elvec )
+     call assembler%assembly(number_fe_spaces,number_nodes_per_field,elem2dof,field_blocks,field_coupling,elmat,elvec)  
+     
+  end do element
+
+  ! Deallocate
+  call memfree(number_nodes_per_field,__FILE__,__LINE__)
+  call memfree(elmat,__FILE__,__LINE__)
+  call memfree(elvec,__FILE__,__LINE__)
+  call fe_velocity%free()
+  
+  ! Finalize discrete integration structures
+  call deallocate_stabilization_parameters(tau_m,tau_c)
+  
+end subroutine integrate
+
+!====================================================================================================
+subroutine allocate_stabilization_parameters(number_quadrature_points,tau_m,tau_c)
+  implicit none
+  integer(ip)          , intent(in)    :: number_quadrature_points
+  real(rp), allocatable, intent(inout) :: tau_m(:)
+  real(rp), allocatable, intent(inout) :: tau_c(:)
+
+  ! Allocate $\tau_m$ and $\tau_c$
+  call deallocate_stabilization_parameters(tau_m,tau_c)
+  call memalloc(number_quadrature_points,tau_m,__FILE__,__LINE__)
+  call memalloc(number_quadrature_points,tau_c,__FILE__,__LINE__)
+
+end subroutine allocate_stabilization_parameters
+
+!====================================================================================================
+subroutine deallocate_stabilization_parameters(tau_m,tau_c)
+  implicit none
+  real(rp), allocatable, intent(inout) :: tau_m(:)
+  real(rp), allocatable, intent(inout) :: tau_c(:)
+
+  ! Dellocate $\tau_m$ and $\tau_c$
+  if(allocated(tau_m)) call memfree(tau_m,__FILE__,__LINE__)
+  if(allocated(tau_c)) call memfree(tau_c,__FILE__,__LINE__)
+
+end subroutine deallocate_stabilization_parameters
+
+!====================================================================================================
+subroutine compute_stabilization_parameters(this,fe,fe_velocity,tau_m,tau_c)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
+  type(finite_element_t)                   , intent(in)    :: fe
+  type(fe_function_vector_t)               , intent(in)    :: fe_velocity
+  real(rp)                                 , intent(inout) :: tau_m(:)
+  real(rp)                                 , intent(inout) :: tau_c(:)
+  ! Locals
+  integer(ip)                 :: qpoin,idime
+  integer(ip)                 :: velocity_order,number_quadrature_points
+  real(rp)                    :: gp_velocity
+  real(rp)                    :: h_vol,h_flow
+  real(rp)                    :: inv_tau_m
+  type(vector_field_t)        :: velocity_vector
+  type(vector_field_t)        :: mean_velocity_vector
+  type(fe_map_t)    , pointer :: fe_map
+  type(quadrature_t), pointer :: quad
+
+  ! Getters
+  fe_map         => fe%get_fe_map()
+  quad           => fe%get_quadrature()
+  velocity_order =  fe%get_order(1)
+  number_quadrature_points = quad%get_number_quadrature_points()
+
+  ! Initiealize
+  assert(size(tau_m,1) == number_quadrature_points)
+  assert(size(tau_c,1) == number_quadrature_points)
+  tau_m = 0.0_rp
+  tau_c = 0.0_rp
+
+  ! Get mean elemental velocity
+  call this%compute_mean_elemental_velocity(fe,fe_velocity,mean_velocity_vector)
+
+  ! Loop over Gauss points
+  do qpoin = 1, number_quadrature_points
+
+     ! Velocity norm at Gauss point
+     call fe_velocity%get_value(qpoin,velocity_vector)
+     gp_velocity = velocity_vector%nrm2()
+
+     ! Characteristic element length
+     call this%compute_characteristic_length(fe_map,mean_velocity_vector,velocity_order,qpoin, &
+          &                                  h_vol,h_flow)
+
+     ! $\tau_m$
+     inv_tau_m = this%c1*this%viscosity/(h_vol**2) + this%c2*gp_velocity/h_flow
+     if(inv_tau_m.ge.1.0e-8_rp) tau_m(qpoin) = 1.0_rp/inv_tau_m
+     
+     ! $\tau_c$
+     if(this%c1.ge.1.0e-8_rp) tau_c(qpoin) = this%cc*(this%viscosity + this%c2/this%c1*gp_velocity*h_vol)
+     
+  end do  
+
+end subroutine compute_stabilization_parameters
+
+!====================================================================================================
+subroutine compute_characteristic_length(this,fe_map,mean_velocity_vector,velocity_order,qpoin, &
+     &                                   h_vol,h_flow)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
+  type(fe_map_t)                           , intent(in)    :: fe_map
+  type(vector_field_t)                     , intent(inout) :: mean_velocity_vector
+  integer(ip)                              , intent(in)    :: velocity_order
+  integer(ip)                              , intent(in)    :: qpoin
+  real(rp)                                 , intent(out)   :: h_vol,h_flow
+  ! Locals
+  real(rp)             :: h_min,h_max,h_ref
+  real(rp)             :: v1_norm,v2_norm
+  type(vector_field_t) :: mean_velocity
+  type(vector_field_t) :: aux_tensor_vector_product
+
+  ! Get elemental lengths
+  h_vol = fe_map%compute_h(qpoin)          ! Volumetric
+  h_min = fe_map%compute_h_min(qpoin)      ! Minimum
+  h_max = fe_map%compute_h_max(qpoin)      ! Maximum
+  h_ref = fe_map%get_reference_h()         ! Reference
+
+  ! Length in the flow direction
+  if(this%convection_activated) then
+
+     ! Compute inv_J * mean_velocity
+     aux_tensor_vector_product = fe_map%apply_inv_jacobian(qpoin,mean_velocity_vector)
+     
+     ! Compute Euclidean norms
+     v1_norm = aux_tensor_vector_product%nrm2()
+     v2_norm = mean_velocity_vector%nrm2()
+
+     ! Compute h_flow
+     if(v1_norm>1.0e-16) then
+        h_flow = h_ref*v2_norm/v1_norm
+     else
+        h_flow = h_vol
+     end if
+
+  else
+     h_flow = h_vol
+  end if
+
+  ! Restrictions
+  if(this%elemental_length_flag == minimum_elemental_length) then
+     h_vol  = h_min
+     h_flow = h_min
+  elseif(this%elemental_length_flag == maximum_elemental_length) then
+     h_vol  = h_max
+     h_flow = h_max
+  end if
+
+  ! Divide by p**2
+  h_vol  = h_vol/real(velocity_order**2,rp)
+  h_flow = h_flow/real(velocity_order**2,rp)  
+  
+end subroutine compute_characteristic_length
+
+!====================================================================================================
+subroutine compute_mean_elemental_velocity(this,fe,fe_velocity,mean_velocity_vector)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
+  type(finite_element_t)                   , intent(in)    :: fe
+  type(fe_function_vector_t)               , intent(in)    :: fe_velocity
+  type(vector_field_t)                     , intent(inout) :: mean_velocity_vector
+  ! Locals
+  real(rp)                    :: volume,alpha,dvolume
+  integer(ip)                 :: qpoin,idime
+  integer(ip)                 :: number_quadrature_points,number_dimensions
+  type(vector_field_t)        :: velocity_vector
+  type(fe_map_t)    , pointer :: fe_map
+  type(quadrature_t), pointer :: quad
+
+  ! Getters
+  fe_map => fe%get_fe_map()
+  quad   => fe%get_quadrature()
+  volume =  fe%compute_volume()
+  number_quadrature_points = quad%get_number_quadrature_points()
+  number_dimensions        = quad%get_number_dimensions()
+
+  ! Compute mean velocity vector 
+  ! \bar{v} = \frac{ \sum w_{gp} v_{gp} |J|}{ \sum w_{gp} |J|} = \frac{ \int_K v}{\int_K 1} 
+  call mean_velocity_vector%init(0.0_rp)
+  do qpoin = 1, number_quadrature_points
+
+     ! |J]*wg
+     dvolume = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
+
+     ! Velocity norm at Gauss point
+     call fe_velocity%get_value(qpoin,velocity_vector)
+
+     ! Add to mean vector
+     mean_velocity_vector = mean_velocity_vector + (dvolume * velocity_vector)
+
+  end do
+  alpha = 1.0_rp/volume
+  mean_velocity_vector = alpha * mean_velocity_vector
+
+end subroutine compute_mean_elemental_velocity
+
+!====================================================================================================
+function compute_analytical_force(this,point) result(source)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(in) :: this
+  type(point_t)                            , intent(in) :: point
+  type(vector_field_t) :: source
+  type(vector_field_t) :: velocity
+  type(vector_field_t) :: dt_velocity
+  type(vector_field_t) :: velocity_grad_div
+  type(tensor_field_t) :: velocity_gradient
+  type(vector_field_t) :: pressure_gradient
+
+  ! Evaluate functions
+  call this%analytical_functions%get_value_velocity(point,this%current_time,velocity)
+  call this%analytical_functions%get_value_dt_velocity(point,this%current_time,dt_velocity)
+  call this%analytical_functions%get_value_velocity_gradient(point,this%current_time,velocity_gradient)
+  call this%analytical_functions%get_value_velocity_grad_div(point,this%current_time,velocity_grad_div)
+  call this%analytical_functions%get_value_pressure_gradient(point,this%current_time,pressure_gradient)
+
+  ! Compute force  ( f = du/dt + u*grad(u) - nu * div( grad(u) + grad(u)T ) + grad(p) )
+  if(this%convection_activated) then
+     source = dt_velocity + velocity * velocity_gradient + (-1.0_rp*this%viscosity) * velocity_grad_div &
+          & + pressure_gradient
+  else
+     source = dt_velocity + (-1.0_rp*this%viscosity) * velocity_grad_div + pressure_gradient
+  end if
+  
+end function compute_analytical_force
+  
+!====================================================================================================
+subroutine update_boundary_conditions_analytical(this,fe_space,time)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
+  class(serial_fe_space_t)                 , intent(inout) :: fe_space
+  real(rp), optional                       , intent(in)    :: time
+  ! Locals
+  real(rp) :: time_
+
+  time_ = 0.0_rp
+  if(present(time)) time_ = time
+
+  ! Update velocity 
+  call fe_space%update_bc_value(this%analytical_functions%get_velocity_function(),bc_code=1, &
+       &                        fe_space_component=1,time=time_)
+
+  ! Update pressure
+  call fe_space%update_bc_value(this%analytical_functions%get_pressure_function(),bc_code=1, &
+       &                        fe_space_component=2,time=time_)
+
+end subroutine update_boundary_conditions_analytical
+  
+!====================================================================================================
+subroutine interpolate_fe_function_analytical(this,fe_space,time)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+  class(serial_fe_space_t)                 , intent(in)    :: fe_space
+  real(rp), optional                       , intent(in)    :: time
+  ! Locals
+  real(rp) :: time_
+
+  time_ = 0.0_rp
+  if(present(time)) time_ = time
+
+  ! Update velocity 
+  call fe_space%interpolate_fe_function(this%analytical_functions%get_velocity_function(),bc_code=1, &
+       &                                fe_space_component=1,fe_function=this%fe_values,time=time_)
+
+  ! Update pressure
+  call fe_space%interpolate_fe_function(this%analytical_functions%get_pressure_function(),bc_code=1, &
+       &                                fe_space_component=2,fe_function=this%fe_values,time=time_)
+
+end subroutine interpolate_fe_function_analytical
+  
+!====================================================================================================
+subroutine compute_error_norms(this,fe_space,environment)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+  class(serial_fe_space_t)         , target, intent(in)    :: fe_space
+  class(environment_t)             , target, intent(in)    :: environment
+  ! Locals
+  real(rp) :: velocity_error, pressure_error
+  type(error_norm_t) :: velocity_error_norm
+  type(error_norm_t) :: pressure_error_norm
+
+  ! Create error norms
+  call velocity_error_norm%create(fe_space,environment,1,l2_norm)
+  call pressure_error_norm%create(fe_space,environment,2,l2_norm)
+  
+  ! Compute error norms
+  velocity_error =  velocity_error_norm%compute(this%fe_values,                                    &
+       &                                        this%analytical_functions%get_velocity_function(), &
+       &                                        this%current_time)
+  pressure_error =  pressure_error_norm%compute(this%fe_values,                                    &
+       &                                        this%analytical_functions%get_pressure_function(), &
+       &                                        this%current_time)
+
+  ! Free error norms
+  call velocity_error_norm%free()
+  call pressure_error_norm%free()
+
+  ! Print error norms
+  write(*,*) 'Velocity error L2-norm: ', velocity_error
+  write(*,*) 'Pressure error L2-norm: ', pressure_error
+
+end subroutine compute_error_norms
