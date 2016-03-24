@@ -1002,7 +1002,3 @@ end subroutine serial_fe_space_update_bc_value_tensor
    real(rp)   , optional   , intent(in)    :: time
    check( .false. )
  end subroutine serial_fe_space_interpolate_fe_function_tensor
-
-
-
-
