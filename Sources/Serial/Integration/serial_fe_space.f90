@@ -231,20 +231,23 @@ module serial_fe_space_names
                                       & get_max_number_nodes_fe_space
      procedure, non_overridable :: get_max_number_quadrature_points => serial_fe_space_get_max_number_quadrature_points
      procedure, non_overridable :: create_face_array => serial_fe_space_create_face_array
-     procedure, non_overridable :: create_global_fe_function => serial_fe_space_create_global_fe_function
-     procedure, non_overridable :: update_global_fe_function_bcs => serial_fe_space_update_global_fe_function_bcs
+
+     procedure :: update_bc_value_scalar => serial_fe_space_update_bc_value_scalar
+     procedure :: update_bc_value_vector => serial_fe_space_update_bc_value_vector
+     procedure :: update_bc_value_tensor => serial_fe_space_update_bc_value_tensor
+     generic :: update_bc_value => update_bc_value_scalar, &
+                                 & update_bc_value_vector, &
+                                 & update_bc_value_tensor 
+     
+     procedure                  :: create_global_fe_function => serial_fe_space_create_global_fe_function
+     procedure                  :: update_global_fe_function_bcs => serial_fe_space_update_global_fe_function_bcs
      procedure, private         :: create_fe_function_scalar => serial_fe_space_create_fe_function_scalar
      procedure, private         :: create_fe_function_vector => serial_fe_space_create_fe_function_vector
      procedure, private         :: create_fe_function_tensor => serial_fe_space_create_fe_function_tensor
      generic :: create_fe_function => create_fe_function_scalar, &
                                     & create_fe_function_vector, &
                                     & create_fe_function_tensor
-     procedure :: serial_fe_space_update_bc_value_scalar
-     procedure :: serial_fe_space_update_bc_value_vector
-     procedure :: serial_fe_space_update_bc_value_tensor
-     generic :: update_bc_value => serial_fe_space_update_bc_value_scalar, &
-                                 & serial_fe_space_update_bc_value_vector, &
-                                 & serial_fe_space_update_bc_value_tensor  
+
      procedure, non_overridable :: interpolate_fe_function_scalar => serial_fe_space_interpolate_fe_function_scalar
      procedure, non_overridable :: interpolate_fe_function_vector => serial_fe_space_interpolate_fe_function_vector
      procedure, non_overridable :: interpolate_fe_function_tensor => serial_fe_space_interpolate_fe_function_tensor
@@ -264,9 +267,9 @@ module serial_fe_space_names
   contains
      
      procedure, non_overridable, private :: par_fe_space_create
-     procedure, non_overridable, private :: serial_fe_space_create   => par_fe_space_serial_fe_space_create
-     generic                             :: create                   => par_fe_space_create
-     procedure                           :: fill_dof_info            => par_fe_space_fill_dof_info
+     procedure, non_overridable, private :: serial_fe_space_create       => par_fe_space_serial_fe_space_create
+     generic                             :: create                       => par_fe_space_create
+     procedure                           :: fill_dof_info                => par_fe_space_fill_dof_info
      procedure, non_overridable, private :: par_fe_space_fill_elem2dof_and_count_dofs
      procedure, non_overridable, private :: par_fe_space_compute_blocks_dof_import
      procedure, non_overridable, private :: par_fe_space_compute_dof_import
@@ -275,15 +278,16 @@ module serial_fe_space_names
      procedure, non_overridable, private :: par_fe_space_compute_raw_interface_data_by_face_integ
      procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
      procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
-     procedure                           :: get_finite_element       => par_fe_space_get_finite_element
-     procedure                           :: print                    => par_fe_space_print
-     procedure                           :: free                     => par_fe_space_free
-     procedure                           :: create_assembler         => par_fe_space_create_assembler
-     procedure                           :: symbolic_setup_assembler => par_fe_space_symbolic_setup_assembler
-     
-     procedure                           :: update_bc_value_scalar   => par_fe_space_update_bc_value_scalar
-     procedure                           :: update_bc_value_vector   => par_fe_space_update_bc_value_vector
-     procedure                           :: update_bc_value_tensor   => par_fe_space_update_bc_value_tensor
+     procedure                           :: get_finite_element            => par_fe_space_get_finite_element
+     procedure                           :: print                         => par_fe_space_print
+     procedure                           :: free                          => par_fe_space_free
+     procedure                           :: create_assembler              => par_fe_space_create_assembler
+     procedure                           :: symbolic_setup_assembler      => par_fe_space_symbolic_setup_assembler
+     procedure                           :: update_bc_value_scalar        => par_fe_space_update_bc_value_scalar
+     procedure                           :: update_bc_value_vector        => par_fe_space_update_bc_value_vector
+     procedure                           :: update_bc_value_tensor        => par_fe_space_update_bc_value_tensor
+     procedure                           :: create_global_fe_function     => par_fe_space_create_global_fe_function
+     procedure                           :: update_global_fe_function_bcs => par_fe_space_update_global_fe_function_bcs
   end type
 
   public :: par_fe_space_t
@@ -296,7 +300,7 @@ module serial_fe_space_names
      procedure, non_overridable, private :: create                      => fe_function_create
      procedure, non_overridable, private :: copy_bc_values              => fe_function_copy_bc_values
      procedure, non_overridable          :: copy                        => fe_function_copy
-     procedure, non_overridable          :: get_vector_dof_values       => fe_function_get_vector_dof_values
+     procedure, non_overridable          :: get_dof_values              => fe_function_get_dof_values
      procedure, non_overridable          :: get_strong_dirichlet_values => fe_function_get_strong_dirichlet_values
      procedure, non_overridable          :: free                        => fe_function_free
      generic                             :: assignment(=)               => copy

@@ -298,7 +298,7 @@ program par_test_reference_fe
   class(matrix_t)             , pointer           :: matrix
   class(vector_t)             , pointer           :: rhs
   type(iterative_linear_solver_t)                 :: iterative_linear_solver
-  class(vector_t)             , allocatable       :: vector
+  type(fe_function_t)                             :: fe_function
 
   
 
@@ -309,6 +309,8 @@ program par_test_reference_fe
 
 
   call meminit
+  call the_iterative_linear_solver_creational_methods_dictionary%init()
+
 
   ! Start parallel execution
   call par_context_create (w_context)
@@ -401,30 +403,20 @@ program par_test_reference_fe
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
     
-  call fe_affine_operator%create_range_vector(vector)
-
+  
+  call par_fe_space%create_global_fe_function(fe_function)
+  
+  
   ! Create iterative linear solver, set operators and solve linear system
   call iterative_linear_solver%create(par_env)
-  call iterative_linear_solver%set_type_and_parameters_from_pl()
+  call iterative_linear_solver%set_type_from_string(cg_name)
   call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-  call iterative_linear_solver%solve(fe_affine_operator%get_translation(),vector)
+  call iterative_linear_solver%solve(fe_affine_operator%get_translation(),fe_function%get_dof_values())
   call iterative_linear_solver%free() 
-
-  select type(vector)
-     class is(par_scalar_array_t)
-        !p_unk => vector
-     call vector%print( 6 )
-     class is(par_block_array_t)
-     call vector%print(6)
-     class default
-     check(.false.) 
-  end select
-  
-  call vector%free()
-		deallocate(vector)
   
   !call p_fe_space%par_fe_space_print()
   
+  call fe_function%free()
   call fe_affine_operator%free()
   call par_fe_space%free()
   call reference_fe_array_one(1)%free()

@@ -115,7 +115,7 @@
   ! Create FE function
   call fe_space%create_global_fe_function(fe_values)
   nsi_iss_oss_integration%fe_values => fe_values
-  dof_values => fe_values%get_vector_dof_values()
+  dof_values => fe_values%get_dof_values()
   ! Fill problem parameters
   call nsi_iss_oss_integration%create(params)
   ! Update initial boundary conditions
@@ -123,6 +123,10 @@
      call nsi_iss_oss_integration%update_boundary_conditions_analytical(fe_space)
      !call fe_space%update_global_fe_function_bcs(fe_values)
   end if  
+  ! Interpolate initial fe_function
+  if(nsi_iss_oss_integration%is_initial_solution) then
+     call nsi_iss_oss_integration%interpolate_fe_function_analytical(fe_space)
+  end if
   ! Interpolate initial fe_function
   if(nsi_iss_oss_integration%is_initial_solution) then
      call nsi_iss_oss_integration%interpolate_fe_function_analytical(fe_space)
@@ -175,8 +179,13 @@
 
      ! Update linear solver
      call iterative_linear_solver%create(senv)
+<<<<<<< HEAD
      call iterative_linear_solver%set_type_and_parameters_from_pl(solver_parameters)
      !call iterative_linear_solver%set_type_from_string('RGMRES')
+=======
+     !call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_type_from_string('RGMRES')
+>>>>>>> e8d7b169fd50599d60eee706c100643ef08a3662
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%set_initial_solution(dof_values)
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
