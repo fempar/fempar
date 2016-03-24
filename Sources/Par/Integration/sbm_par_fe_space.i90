@@ -47,10 +47,10 @@ subroutine par_fe_space_create( this, &
   this%par_triangulation => par_triangulation
   if ( par_triangulation%p_env%p_context%iam >= 0 ) then
      call this%serial_fe_space_t%create( par_triangulation%f_trian, &
-          par_boundary_conditions%f_conditions, &
-          reference_fe_phy, &
-          field_blocks, &
-          field_coupling )       
+                                         par_boundary_conditions%f_conditions, &
+                                         reference_fe_phy, &
+                                         field_blocks, &
+                                         field_coupling )       
 
      num_elems  = par_triangulation%num_elems
      num_ghosts = par_triangulation%num_ghosts
@@ -72,6 +72,10 @@ subroutine par_fe_space_create( this, &
      ! requires that coarse-grid tasks also know how many blocks there are
      this%number_blocks = 1
      if (present(field_blocks)) this%number_blocks = maxval(field_blocks)
+     
+     ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
+     ! requires that strong_dirichlet_values is created and allocated
+     call this%serial_fe_space_t%strong_dirichlet_values%create_and_allocate(0)
   end if
 
 end subroutine par_fe_space_create
@@ -114,6 +118,10 @@ subroutine par_fe_space_free( this )
         ! requires that this%blocks_dof_import is allocated 
         this%number_blocks = 0
         deallocate ( this%blocks_dof_import )
+        
+        ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
+        ! requires that strong_dirichlet_values is created and allocated
+        call this%serial_fe_space_t%strong_dirichlet_values%free()
      end if
      nullify(this%par_triangulation)
   end if
@@ -882,4 +890,36 @@ subroutine par_fe_space_update_bc_value_tensor( this, tensor_function, bc_code, 
   end if
   
 end subroutine par_fe_space_update_bc_value_tensor
+
+ !===============================================================================================
+ subroutine par_fe_space_create_global_fe_function ( this, fe_function )
+    implicit none
+    class(par_fe_space_t), intent(in)    :: this
+    type(fe_function_t)     , intent(inout) :: fe_function
+    
+    class(vector_t), allocatable :: dof_values
+    
+    assert ( associated (this%par_triangulation) )
+    if (this%number_blocks == 1) then
+       allocate ( par_scalar_array_t  :: dof_values )
+       select type(dof_values)
+       class is(par_scalar_array_t)
+          call dof_values%create_and_allocate(this%par_triangulation%p_env, this%blocks_dof_import(1))
+       class default
+       check(.false.)
+       end select
+    else
+       check(.false.)
+    end if
+    call fe_function%create(this%strong_dirichlet_values, dof_values)
+ end subroutine par_fe_space_create_global_fe_function
+
+ !===============================================================================================
+ subroutine par_fe_space_update_global_fe_function_bcs ( this, fe_function )
+    implicit none
+    class(par_fe_space_t), intent(in)    :: this
+    type(fe_function_t)     , intent(inout) :: fe_function
+    assert ( associated (this%par_triangulation) )  
+    call fe_function%copy_bc_values(this%strong_dirichlet_values)
+ end subroutine par_fe_space_update_global_fe_function_bcs
 
