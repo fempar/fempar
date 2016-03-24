@@ -36,15 +36,18 @@ module fgmres_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names  
+  use iterative_linear_solver_utils_names
+  use iterative_linear_solver_parameters_names
   use multivector_names
-  use rgmres_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: fgmres_name = 'FGMRES'
-  integer (ip)    , parameter :: default_fgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
+
+  integer (ip), parameter :: default_fgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
+  integer (ip), parameter :: default_dkrymax                  = 1000
+  integer (ip), parameter :: default_orthonorm_strat          = icgsro
   
   type, extends(base_iterative_linear_solver_t) :: fgmres_t
      ! Parameters
@@ -65,12 +68,7 @@ module fgmres_names
      procedure          :: get_default_stopping_criteria => fgmres_get_default_stopping_criteria
   end type fgmres_t
   
-  ! Data types
-  public :: fgmres_t, create_fgmres, fgmres_name
-  public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
-  public :: default_dkrymax, default_orthonorm_strat
-  public :: mgsro, icgsro
-  public :: modified_gs_reorthonorm, iterative_gs_reorthonorm, apply_givens_rotation
+  public :: create_fgmres
   
 contains
   subroutine fgmres_allocate_workspace(this)
@@ -105,9 +103,45 @@ contains
     call memfree(this%cs,__FILE__,__LINE__)
   end subroutine fgmres_free_workspace
 
-  subroutine fgmres_set_parameters_from_pl(this) 
+  subroutine fgmres_set_parameters_from_pl(this, parameter_list) 
    implicit none
-   class(fgmres_t), intent(inout) :: this
+   class(fgmres_t),       intent(inout) :: this
+   type(ParameterList_t), intent(in)    :: parameter_list
+   integer(ip)                          :: FPLError
+   logical                              :: is_present
+   logical                              :: same_data_type
+   integer(ip), allocatable             :: shape(:)
+   call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
+   ! Dkrymax
+#ifdef DEBUG
+   is_present     = parameter_list%isPresent(Key=ils_dkrymax)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_dkrymax, mold=this%dkrymax)
+      FPLError       = parameter_list%getshape(Key=ils_dkrymax, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_dkrymax, Value=this%dkrymax)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(0,'(a)') ' Warning! ils_dkrymax ignored. Wrong data type or shape. '
+      endif
+   endif
+   ! Orthonorm strat
+   is_present     = parameter_list%isPresent(Key=ils_orthonorm_strat)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_orthonorm_strat, mold=this%orthonorm_strat)
+      FPLError       = parameter_list%getshape(Key=ils_orthonorm_strat, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_orthonorm_strat, Value=this%orthonorm_strat)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(0,'(a)') ' Warning! ils_orthonorm_strat ignored. Wrong data type or shape. '
+         endif
+   endif
+#endif
   end subroutine fgmres_set_parameters_from_pl
   
   subroutine fgmres_solve_body(this,b,x)
@@ -367,11 +401,12 @@ contains
     fgmres_get_default_stopping_criteria = default_fgmres_stopping_criteria
   end function fgmres_get_default_stopping_criteria
   
-  function create_fgmres(environment)
+  subroutine create_fgmres(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_fgmres
-    type(fgmres_t), pointer :: fgmres
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(fgmres_t),                        pointer                :: fgmres
+    assert(.not. associated(base_iterative_linear_solver))
     allocate(fgmres)
     call fgmres%set_environment(environment)
     call fgmres%set_name(fgmres_name)
@@ -379,7 +414,7 @@ contains
     fgmres%dkrymax = default_dkrymax
     fgmres%orthonorm_strat = default_orthonorm_strat
     call fgmres%set_state(start)
-    create_fgmres => fgmres
-  end function create_fgmres
+    base_iterative_linear_solver => fgmres
+  end subroutine create_fgmres
   
 end module fgmres_names

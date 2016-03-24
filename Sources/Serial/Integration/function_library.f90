@@ -39,12 +39,12 @@ module function_library_names
      private
      real(rp) :: function_value
    contains
-     procedure, non_overridable :: constant_scalar_function_create
-     generic                    :: create                    => constant_scalar_function_create
-     procedure, non_overridable :: get_value_space           => constant_scalar_function_get_value_space
-     procedure, non_overridable :: get_value_space_time      => constant_scalar_function_get_value_space_time
-     procedure, non_overridable :: get_values_set_space      => constant_scalar_function_get_values_set_space
-     procedure, non_overridable :: get_values_set_space_time => constant_scalar_function_get_values_set_space_time
+     procedure :: constant_scalar_function_create
+     generic   :: create                    => constant_scalar_function_create
+     procedure :: get_value_space           => constant_scalar_function_get_value_space
+     procedure :: get_value_space_time      => constant_scalar_function_get_value_space_time
+     procedure :: get_values_set_space      => constant_scalar_function_get_values_set_space
+     procedure :: get_values_set_space_time => constant_scalar_function_get_values_set_space_time
   end type constant_scalar_function_t
   
   interface constant_scalar_function_t
@@ -55,12 +55,12 @@ module function_library_names
      private
      type(vector_field_t) :: function_value
    contains
-     procedure, non_overridable :: constant_vector_function_create
-     generic                    :: create                    => constant_vector_function_create
-     procedure, non_overridable :: get_value_space           => constant_vector_function_get_value_space
-     procedure, non_overridable :: get_value_space_time      => constant_vector_function_get_value_space_time
-     procedure, non_overridable :: get_values_set_space      => constant_vector_function_get_values_set_space
-     procedure, non_overridable :: get_values_set_space_time => constant_vector_function_get_values_set_space_time
+     procedure :: constant_vector_function_create
+     generic   :: create                    => constant_vector_function_create
+     procedure :: get_value_space           => constant_vector_function_get_value_space
+     procedure :: get_value_space_time      => constant_vector_function_get_value_space_time
+     procedure :: get_values_set_space      => constant_vector_function_get_values_set_space
+     procedure :: get_values_set_space_time => constant_vector_function_get_values_set_space_time
   end type constant_vector_function_t
   
   interface constant_vector_function_t

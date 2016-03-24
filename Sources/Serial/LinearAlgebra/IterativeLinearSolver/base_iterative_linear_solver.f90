@@ -35,34 +35,29 @@ module base_iterative_linear_solver_names
   use vector_space_names
   use operator_names
   use environment_names
+  use iterative_linear_solver_parameters_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
   private
   
-  ! String parameters with the names of the parameters for iterative linear solvers
-  character(len=*), parameter :: ils_type                      = 'iterative_linear_solver_type'
-  character(len=*), parameter :: ils_rtol                      = 'iterative_linear_solver_rtol'
-  character(len=*), parameter :: ils_atol                      = 'iterative_linear_solver_atol'
-  character(len=*), parameter :: ils_stopping_criteria         = 'iterative_linear_solver_stopping_criteria'
-  character(len=*), parameter :: ils_output_frequency          = 'iterative_linear_solver_output_frequency'
-  character(len=*), parameter :: ils_max_num_iterations        = 'iterative_linear_solver_max_num_iterations'
-  character(len=*), parameter :: ils_track_convergence_history = 'iterative_linear_solver_track_convergence_history'
-  
+  integer(ip), parameter :: start               = 0  ! All parameters set with values, environment and name set
+  integer(ip), parameter :: operators_set       = 1  ! Matrix A and preconditioner M already set
+  integer(ip), parameter :: workspace_allocated = 2  ! All workspace required by solve TBP available 
+
+  !-------------------------------------------------------------------
   ! Default values for implementors of class(base_iterative_linear_solver_t) parameters
   ! A default value for stopping criteria is not declared here as the set of
   ! supported stopping criteria is highly dependent on the particular implementor
   ! of class(base_iterative_linear_solver_t)
+  !-------------------------------------------------------------------
   integer (ip), parameter :: default_luout                      = 6
   real    (rp), parameter :: default_rtol                       = 1.0e-06_rp
   real    (rp), parameter :: default_atol                       = 0.0_rp
   integer (ip), parameter :: default_output_frequency           = 1 
   integer (ip), parameter :: default_max_num_iterations         = 1000
-  logical     , parameter :: default_track_convergence_history  = .false.
-  
-  integer(ip), parameter :: start               = 0  ! All parameters set with values, environment and name set
-  integer(ip), parameter :: operators_set       = 1  ! Matrix A and preconditioner M already set
-  integer(ip), parameter :: workspace_allocated = 2  ! All workspace required by solve TBP available 
+  logical,      parameter :: default_track_convergence_history  = .false.
   
   ! State transition diagram for type(base_iterative_linear_solver_t)
   ! -----------------------------------------------------------
@@ -78,21 +73,7 @@ module base_iterative_linear_solver_names
   ! workspace_allocated | solve                  | workspace_allocated
   ! workspace_allocated | set_parameters_from_pl | workspace_allocated
   ! workspace_allocated | free                   | start 
-  
-  ! List of convergence criteria available for iterative solvers 
-  integer(ip), parameter :: res_nrmgiven_rhs_nrmgiven  = 1  ! ||  r(i) ||g <= rtol*||  b    ||g + atol 
-  integer(ip), parameter :: res_nrmgiven_res_nrmgiven  = 2  ! ||  r(i) ||g <= rtol*||  r(0) ||g + atol   
-  integer(ip), parameter :: delta_rhs                  = 3  ! || dx(i) ||  <= rtol*||  b  || + atol
-  integer(ip), parameter :: delta_delta                = 4  ! || dx(i) ||  <= rtol*||dx(1)|| + atol
-  integer(ip), parameter :: res_res                    = 5  ! ||  r(i) ||  <= rtol*|| r(0)|| + atol
-  integer(ip), parameter :: res_rhs                    = 6  ! ||  r(i) ||  <= rtol*||  b  || + atol
-  integer(ip), parameter :: delta_rhs_and_res_res      = 7  ! delta_rhs    AND res_res
-  integer(ip), parameter :: delta_rhs_and_res_rhs      = 8  ! delta_rhs    AND res_rhs
-  integer(ip), parameter :: delta_delta_and_res_res    = 9  ! delta_delta  AND res_res
-  integer(ip), parameter :: delta_delta_and_res_rhs    = 10 ! delta_delta  AND res_rhs 
-                                                            ! ||.|| is the 2-norm, dx(i) = x(i) - x(i-1),
-                                                            ! r(i) is the residual at the i-th iteration
-  
+    
   type, abstract :: base_iterative_linear_solver_t
     private
     
@@ -195,6 +176,14 @@ module base_iterative_linear_solver_names
   end type
   
   abstract interface
+    subroutine create_iterative_linear_solver_interface(environment, base_iterative_linear_solver)
+      import environment_t
+      import base_iterative_linear_solver_t
+      implicit none
+      class(environment_t),                           intent(in)    :: environment
+      class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    end subroutine create_iterative_linear_solver_interface
+
     subroutine allocate_workspace_interface(this)
      import :: base_iterative_linear_solver_t
      implicit none
@@ -207,10 +196,12 @@ module base_iterative_linear_solver_names
      class(base_iterative_linear_solver_t), intent(inout) :: this
     end subroutine free_workspace_interface
    
-    subroutine set_parameters_from_pl_interface(this) ! Parameter List still missing
+    subroutine set_parameters_from_pl_interface(this, parameter_list)
      import :: base_iterative_linear_solver_t
+     import :: ParameterList_t
      implicit none
      class(base_iterative_linear_solver_t), intent(inout) :: this
+     type(ParameterList_t),                 intent(in)    :: parameter_list
     end subroutine set_parameters_from_pl_interface
     
     subroutine solve_body_interface(this,b,x)
@@ -237,17 +228,11 @@ module base_iterative_linear_solver_names
     end function get_default_stopping_criteria_interface
   end interface
   
-  ! Data types
   public :: base_iterative_linear_solver_t
+  public :: create_iterative_linear_solver_interface
   
   ! State constants
   public :: start, operators_set, workspace_allocated
-  
-  ! Default value constants
-  public :: default_rtol, default_atol, default_output_frequency, default_max_num_iterations, default_track_convergence_history
-  
-  public :: res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven, delta_rhs, delta_delta
-  public :: res_res, res_rhs, delta_rhs_and_res_res, delta_rhs_and_res_rhs, delta_delta_and_res_res, delta_delta_and_res_rhs
   
 contains
     subroutine set_environment(this,environment)
@@ -722,10 +707,101 @@ contains
       this%stopping_criteria         = this%get_default_stopping_criteria()
     end subroutine set_defaults
     
-    subroutine base_iterative_linear_solver_set_parameters_from_pl ( this )
+    subroutine base_iterative_linear_solver_set_parameters_from_pl ( this, parameter_list )
       implicit none
       ! Parameters
       class(base_iterative_linear_solver_t), intent(inout) :: this
+      type(ParameterList_t),                 intent(in)    :: parameter_list
+      integer(ip)                                          :: FPLError
+      logical                                              :: is_present
+      logical                                              :: same_data_type
+      integer(ip), allocatable                             :: shape(:)
+      ! Rtol
+#ifdef DEBUG
+      is_present     = parameter_list%isPresent(Key=ils_rtol)
+      if(is_present) then
+        same_data_type = parameter_list%isOfDataType(Key=ils_rtol, mold=this%rtol)
+        FPLError       = parameter_list%getshape(Key=ils_rtol, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+          FPLError   = parameter_list%Get(Key=ils_rtol, Value=this%rtol)
+          assert(FPLError == 0)
+#ifdef DEBUG
+        else
+          write(*,'(a)') ' Warning! ils_rtol ignored. Wrong data type or shape. '
+        endif
+      endif
+      ! Atol
+      is_present     = parameter_list%isPresent(Key=ils_atol)
+      if(is_present) then
+        same_data_type = parameter_list%isOfDataType(Key=ils_atol, mold=this%atol)
+        FPLError       = parameter_list%getshape(Key=ils_atol, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+          FPLError   = parameter_list%Get(Key=ils_atol, Value=this%atol)
+          assert(FPLError == 0)
+#ifdef DEBUG
+        else
+          write(*,'(a)') ' Warning! ils_atol ignored. Wrong data type or shape. '
+        endif
+      endif
+      ! Stopping criterias
+      is_present     = parameter_list%isPresent(Key=ils_stopping_criteria)
+      if(is_present) then
+        same_data_type = parameter_list%isOfDataType(Key=ils_stopping_criteria, mold=this%stopping_criteria)
+        FPLError       = parameter_list%getshape(Key=ils_stopping_criteria, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+          FPLError   = parameter_list%Get(Key=ils_stopping_criteria, Value=this%stopping_criteria)
+          assert(FPLError == 0)
+#ifdef DEBUG
+        else
+          write(*,'(a)') ' Warning! ils_stopping_criteria ignored. Wrong data type or shape. '
+        endif
+      endif
+      ! Output frequency
+      is_present     = parameter_list%isPresent(Key=ils_output_frequency)
+      if(is_present) then
+        same_data_type = parameter_list%isOfDataType(Key=ils_output_frequency, mold=this%output_frequency)
+        FPLError       = parameter_list%getshape(Key=ils_output_frequency, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+          FPLError   = parameter_list%Get(Key=ils_output_frequency, Value=this%output_frequency)
+          assert(FPLError == 0)
+#ifdef DEBUG
+        else
+          write(*,'(a)') ' Warning! ils_output_frequency ignored. Wrong data type or shape. '
+        endif
+      endif
+      ! Max num iterations
+      is_present     = parameter_list%isPresent(Key=ils_max_num_iterations)
+      if(is_present) then
+        same_data_type = parameter_list%isOfDataType(Key=ils_max_num_iterations, mold=this%max_num_iterations)
+        FPLError       = parameter_list%getshape(Key=ils_max_num_iterations, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+          FPLError   = parameter_list%Get(Key=ils_max_num_iterations, Value=this%max_num_iterations)
+          assert(FPLError == 0)
+#ifdef DEBUG
+        else
+          write(*,'(a)') ' Warning! ils_max_num_iterations ignored. Wrong data type or shape. '
+        endif
+      endif
+      ! Track convergence history
+      is_present     = parameter_list%isPresent(Key=ils_track_convergence_history)
+      if(is_present) then
+        same_data_type = parameter_list%isOfDataType(Key=ils_track_convergence_history, mold=this%track_convergence_history)
+        FPLError       = parameter_list%getshape(Key=ils_track_convergence_history, shape=shape)
+        if(same_data_type .and. size(shape) == 0) then
+#endif
+          FPLError   = parameter_list%Get(Key=ils_track_convergence_history, Value=this%track_convergence_history)
+          assert(FPLError == 0)
+#ifdef DEBUG
+        else
+          write(*,'(a)') ' Warning! ils_track_convergence_history ignored. Wrong data type or shape. '
+        endif
+      endif
+#endif
     end subroutine base_iterative_linear_solver_set_parameters_from_pl
     
     subroutine base_iterative_linear_solver_free(this)

@@ -434,7 +434,7 @@ program test_heterogeneous_poisson
                                    fe_space=fe_space, &
                                    discrete_integration=heterogeneous_poisson_integration )
   
-  call fe_affine_operator%create_range_vector(dof_values%get_vector_dof_values())
+  call fe_affine_operator%create_range_vector(dof_values%get_dof_values())
   
   ! It must be a FE function now
   heterogeneous_poisson_integration%dof_values => dof_values

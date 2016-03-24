@@ -36,15 +36,19 @@ module lfom_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names  
+  use iterative_linear_solver_utils_names
+  use iterative_linear_solver_parameters_names
   use multivector_names
   use rgmres_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: lfom_name = 'LFOM'
-  integer (ip)    , parameter :: default_lfom_stopping_criteria = res_res
+
+  integer (ip), parameter :: default_lfom_stopping_criteria = res_res
+  integer (ip), parameter :: default_dkrymax                = 1000
+  integer (ip), parameter :: default_orthonorm_strat        = icgsro
   
   type, extends(base_iterative_linear_solver_t) :: lfom_t
      ! Parameters
@@ -65,12 +69,7 @@ module lfom_names
      procedure          :: get_default_stopping_criteria => lfom_get_default_stopping_criteria
   end type lfom_t
   
-  ! Data types
-  public :: lfom_t, create_lfom, lfom_name
-  public :: ils_dkrymax, ils_orthonorm_strat, orthonorm_strat_icgsro, orthonorm_strat_mgsro
-  public :: default_dkrymax, default_orthonorm_strat
-  public :: mgsro, icgsro
-  public :: modified_gs_reorthonorm, iterative_gs_reorthonorm, apply_givens_rotation
+  public :: create_lfom
   
 contains
   subroutine lfom_allocate_workspace(this)
@@ -105,9 +104,45 @@ contains
     call memfree(this%ipiv,__FILE__,__LINE__)
   end subroutine lfom_free_workspace
 
-  subroutine lfom_set_parameters_from_pl(this) 
+  subroutine lfom_set_parameters_from_pl(this, parameter_list) 
    implicit none
-   class(lfom_t), intent(inout) :: this
+   class(lfom_t),         intent(inout) :: this
+   type(ParameterList_t), intent(in)    :: parameter_list
+   integer(ip)                          :: FPLError
+   logical                              :: is_present
+   logical                              :: same_data_type
+   integer(ip), allocatable             :: shape(:)
+   call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
+   ! Dkrymax
+#ifdef DEBUG
+   is_present     = parameter_list%isPresent(Key=ils_dkrymax)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_dkrymax, mold=this%dkrymax)
+      FPLError       = parameter_list%getshape(Key=ils_dkrymax, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_dkrymax, Value=this%dkrymax)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(0,'(a)') ' Warning! ils_dkrymax ignored. Wrong data type or shape. '
+      endif
+   endif
+   ! Orthonorm strat
+   is_present     = parameter_list%isPresent(Key=ils_orthonorm_strat)
+   if(is_present) then
+      same_data_type = parameter_list%isOfDataType(Key=ils_orthonorm_strat, mold=this%orthonorm_strat)
+      FPLError       = parameter_list%getshape(Key=ils_orthonorm_strat, shape=shape)
+      if(same_data_type .and. size(shape) == 0) then
+#endif
+         FPLError   = parameter_list%Get(Key=ils_orthonorm_strat, Value=this%orthonorm_strat)
+         assert(FPLError == 0)
+#ifdef DEBUG
+      else
+         write(0,'(a)') ' Warning! ils_orthonorm_strat ignored. Wrong data type or shape. '
+         endif
+   endif
+#endif
   end subroutine lfom_set_parameters_from_pl
   
   subroutine lfom_solve_body(this,b,x)
@@ -357,11 +392,12 @@ contains
     lfom_get_default_stopping_criteria = default_lfom_stopping_criteria
   end function lfom_get_default_stopping_criteria
   
-  function create_lfom(environment)
+  subroutine create_lfom(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_lfom
-    type(lfom_t), pointer :: lfom
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(lfom_t),                          pointer                :: lfom
+    assert(.not. associated(base_iterative_linear_solver))
     allocate(lfom)
     call lfom%set_environment(environment)
     call lfom%set_name(lfom_name)
@@ -369,7 +405,7 @@ contains
     lfom%dkrymax = default_dkrymax
     lfom%orthonorm_strat = default_orthonorm_strat
     call lfom%set_state(start)
-    create_lfom => lfom
-  end function create_lfom
+    base_iterative_linear_solver => lfom
+  end subroutine create_lfom
   
 end module lfom_names

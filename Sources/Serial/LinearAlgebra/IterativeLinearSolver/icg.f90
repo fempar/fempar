@@ -36,13 +36,14 @@ module icg_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names
+  use iterative_linear_solver_parameters_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: icg_name = 'ICG'
-  integer (ip)    , parameter :: default_icg_stopping_criteria = res_res
+
+  integer (ip), parameter :: default_icg_stopping_criteria = res_res
 
   type, extends(base_iterative_linear_solver_t) :: icg_t
     ! Working space vectors for type(icg_t)
@@ -61,8 +62,7 @@ module icg_names
     procedure,private  :: update_convergence_data_and_evaluate_stopping_criteria 
   end type
   
-  ! Data types
-  public :: icg_t, create_icg, icg_name
+  public :: create_icg
   
 contains
   subroutine icg_allocate_workspace(this)
@@ -98,9 +98,11 @@ contains
     deallocate(this%p)
   end subroutine icg_free_workspace
 
-  subroutine icg_set_parameters_from_pl(this) 
+  subroutine icg_set_parameters_from_pl(this, parameter_list) 
    implicit none
-   class(icg_t), intent(inout) :: this
+   class(icg_t),          intent(inout) :: this
+   type(ParameterList_t), intent(in)    :: parameter_list
+   call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
   end subroutine icg_set_parameters_from_pl
 
   subroutine icg_solve_body(this,b,x)
@@ -267,18 +269,18 @@ contains
   end function icg_get_default_stopping_criteria
   
   
-  function create_icg(environment)
+  subroutine create_icg(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_icg
-    type(icg_t), pointer :: icg
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(icg_t),                           pointer                :: icg
     allocate(icg)
     call icg%set_environment(environment)
     call icg%set_name(icg_name)
     call icg%set_defaults()
     call icg%set_state(start)
-    create_icg => icg
-  end function create_icg
+    base_iterative_linear_solver => icg
+  end subroutine create_icg
 
   subroutine init_convergence_data ( this, b, r, nrm_b_given, nrm_r_given )
     implicit none

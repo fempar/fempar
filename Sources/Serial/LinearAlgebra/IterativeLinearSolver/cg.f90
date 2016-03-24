@@ -36,13 +36,14 @@ module cg_names
   use operator_names
   use environment_names
   use base_iterative_linear_solver_names
+  use iterative_linear_solver_parameters_names
+  use ParameterList
 
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: cg_name = 'CG'
-  integer (ip)    , parameter :: default_cg_stopping_criteria = res_res
+
+  integer (ip), parameter :: default_cg_stopping_criteria = res_res
 
   type, extends(base_iterative_linear_solver_t) :: cg_t
     ! Working space vectors for type(cg_t)
@@ -61,8 +62,7 @@ module cg_names
     procedure,private  :: update_convergence_data_and_evaluate_stopping_criteria 
   end type
   
-  ! Data types
-  public :: cg_t, create_cg, cg_name
+  public :: create_cg
   
 contains
   subroutine cg_allocate_workspace(this)
@@ -93,9 +93,11 @@ contains
     deallocate(this%p)
   end subroutine cg_free_workspace
 
-  subroutine cg_set_parameters_from_pl(this) 
+  subroutine cg_set_parameters_from_pl(this, parameter_list) 
    implicit none
-   class(cg_t), intent(inout) :: this
+   class(cg_t),           intent(inout) :: this
+   type(ParameterList_t), intent(in)    :: parameter_list
+   call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
   end subroutine cg_set_parameters_from_pl
   
   subroutine cg_solve_body(this,b,x)
@@ -260,18 +262,19 @@ contains
   end function cg_get_default_stopping_criteria
   
   
-  function create_cg(environment)
+  subroutine create_cg(environment, base_iterative_linear_solver)
     implicit none
-    class(environment_t), intent(in) :: environment
-    class(base_iterative_linear_solver_t), pointer :: create_cg
-    type(cg_t), pointer :: cg
+    class(environment_t),                           intent(in)    :: environment
+    class(base_iterative_linear_solver_t), pointer, intent(inout) :: base_iterative_linear_solver
+    type(cg_t),                            pointer                :: cg
+    assert(.not. associated(base_iterative_linear_solver))
     allocate(cg)
     call cg%set_environment(environment)
     call cg%set_name(cg_name)
     call cg%set_defaults()
     call cg%set_state(start)
-    create_cg => cg
-  end function create_cg
+    base_iterative_linear_solver => cg
+  end subroutine create_cg
 
   subroutine init_convergence_data ( this, b, r, nrm_b_given, nrm_r_given )
     implicit none

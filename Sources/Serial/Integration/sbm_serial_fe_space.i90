@@ -731,25 +731,40 @@ subroutine serial_fe_space_update_bc_value_tensor( this, tensor_function, bc_cod
 end subroutine serial_fe_space_update_bc_value_tensor
 
  !===============================================================================================
- subroutine serial_fe_space_create_global_fe_function ( this, fe_function, vector_dof_values )
+ subroutine serial_fe_space_create_global_fe_function ( this, fe_function )
     implicit none
     class(serial_fe_space_t), intent(in)    :: this
     type(fe_function_t)     , intent(inout) :: fe_function
-    class(vector_t)         , intent(in)    :: vector_dof_values
+    
+    class(vector_t), allocatable :: dof_values
 
-    call fe_function%create(this%strong_dirichlet_values,vector_dof_values)
-
+  if (this%number_blocks == 1) then
+     allocate ( serial_scalar_array_t  :: dof_values )
+     select type(dof_values)
+        class is(serial_scalar_array_t)
+        call dof_values%create_and_allocate(this%number_dofs_per_block(1))
+        class default
+        check(.false.)
+     end select
+  else
+     allocate ( serial_block_array_t  :: dof_values )
+     select type(dof_values)
+        class is(serial_block_array_t)
+        call dof_values%create_and_allocate(this%number_blocks,this%number_dofs_per_block)
+        class default
+        check(.false.)
+     end select
+  end if
+  call fe_function%create(this%strong_dirichlet_values, dof_values)
  end subroutine serial_fe_space_create_global_fe_function
 
  !===============================================================================================
- subroutine serial_fe_space_copy_fe_function_bc_values ( this, fe_function )
+ subroutine serial_fe_space_update_global_fe_function_bcs ( this, fe_function )
     implicit none
     class(serial_fe_space_t), intent(in)    :: this
     type(fe_function_t)     , intent(inout) :: fe_function
-
     call fe_function%copy_bc_values(this%strong_dirichlet_values)
- 
- end subroutine serial_fe_space_copy_fe_function_bc_values
+ end subroutine serial_fe_space_update_global_fe_function_bcs
 
 !===============================================================================================
  subroutine serial_fe_space_create_fe_function_scalar ( this, fe_space_id, fe_function_scalar )
@@ -871,9 +886,9 @@ end subroutine serial_fe_space_update_bc_value_tensor
       end do
 
       ! Update vector_dof_values
-      call fe_function%vector_dof_values%insert_subvector(block_id,number_nodes,             &
-           &                                              fe%elem2dof(fe_space_component)%p, &
-           &                                              values(:,1))
+      call fe_function%dof_values%insert_subvector(block_id,number_nodes,             &
+           &                                       fe%elem2dof(fe_space_component)%p, &
+           &                                       values(:,1))
    end do
 
    ! Free FE map
@@ -961,9 +976,9 @@ end subroutine serial_fe_space_update_bc_value_tensor
       end do
 
       ! Update vector_dof_values
-      call fe_function%vector_dof_values%insert_subvector(block_id,number_nodes,             &
-           &                                              fe%elem2dof(fe_space_component)%p, &
-           &                                              nodal_values)
+      call fe_function%dof_values%insert_subvector(block_id,number_nodes,             &
+           &                                       fe%elem2dof(fe_space_component)%p, &
+           &                                       nodal_values)
 
    end do
 
@@ -987,7 +1002,3 @@ end subroutine serial_fe_space_update_bc_value_tensor
    real(rp)   , optional   , intent(in)    :: time
    check( .false. )
  end subroutine serial_fe_space_interpolate_fe_function_tensor
-
-
-
-
