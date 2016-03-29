@@ -247,7 +247,13 @@ module serial_fe_space_names
      generic :: create_fe_function => create_fe_function_scalar, &
                                     & create_fe_function_vector, &
                                     & create_fe_function_tensor
-                           
+
+     procedure, non_overridable :: interpolate_fe_function_scalar => serial_fe_space_interpolate_fe_function_scalar
+     procedure, non_overridable :: interpolate_fe_function_vector => serial_fe_space_interpolate_fe_function_vector
+     procedure, non_overridable :: interpolate_fe_function_tensor => serial_fe_space_interpolate_fe_function_tensor
+     generic :: interpolate_fe_function => interpolate_fe_function_scalar, &
+                                         & interpolate_fe_function_vector, &
+                                         & interpolate_fe_function_tensor    
      
   end type serial_fe_space_t
 

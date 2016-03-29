@@ -97,6 +97,7 @@ module par_scalar_array_names
      procedure :: default_initialization => par_scalar_array_default_init
      procedure :: get_number_blocks      => par_scalar_array_get_number_blocks
      procedure :: extract_subvector      => par_scalar_array_extract_subvector
+     procedure :: insert_subvector       => par_scalar_array_insert_subvector
   end type par_scalar_array_t
 
 
@@ -670,6 +671,21 @@ contains
    real(rp)                 , intent(inout) :: values(*)
    check( .false. )
   end subroutine par_scalar_array_extract_subvector
+
+  !=============================================================================
+  subroutine par_scalar_array_insert_subvector( this, &
+                                              & iblock, &
+                                              & size_indices, &
+                                              & indices, &
+                                              & values )
+   implicit none
+   class(par_scalar_array_t), intent(inout) :: this 
+   integer(ip)              , intent(in)    :: iblock
+   integer(ip)              , intent(in)    :: size_indices
+   integer(ip)              , intent(in)    :: indices(size_indices)
+   real(rp)                 , intent(in)    :: values(*)
+   check( .false. )
+ end subroutine par_scalar_array_insert_subvector
   
 
 end module par_scalar_array_names

@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   ! Initialize memory structures
-  call meminit
+  call fempar_init()
 
   !----------------!
   ! READ ARGUMENTS !
@@ -102,6 +102,11 @@
   !---------!
   ! PROBLEM !
   !---------!
+  ! Create FE function
+  call fe_space%create_global_fe_function(fe_values)
+  nsi_iss_oss_integration%fe_values => fe_values
+  dof_values => fe_values%get_dof_values()
+  ! Fill problem parameters
   call nsi_iss_oss_integration%initialize_from_cli(cli,group)
 
   !-----------------!
@@ -118,13 +123,9 @@
        fe_space=fe_space,                                               &
        discrete_integration=nsi_iss_oss_integration )
   ! Create values vector
-  call fe_affine_operator%create_range_vector(dof_values)
   call fe_affine_operator%create_range_vector(residual)   
-  call dof_values%init(0.0_rp)
   call residual%init(0.0_rp)  
-  ! Create FE function
-  call fe_space%create_global_fe_function(fe_values,dof_values)
-  nsi_iss_oss_integration%fe_values => fe_values
+  call dof_values%init(0.0_rp)
   ! Fill affine operator
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
@@ -151,8 +152,8 @@
 
      ! Update linear solver
      call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_and_parameters_from_pl()
-     call iterative_linear_solver%set_type_from_string('RGMRES')
+     !call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_type_from_string(rgmres_name)
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%set_initial_solution(dof_values)
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
@@ -182,7 +183,7 @@
   !------------!
   ! DEALLOCATE !
   !------------!
-  call dof_values%free()
+  nullify(dof_values)
   call residual%free()
   call fe_values%free()
   call fe_affine_operator%free()
@@ -195,5 +196,5 @@
   call conditions_free(f_cond)
   if(.not.is_structured_mesh) call mesh_free(f_mesh)
 
-  ! Output memory status
-  call memstatus
+  ! Finalize fempar
+  call fempar_finalize()

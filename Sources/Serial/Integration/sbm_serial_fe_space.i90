@@ -813,3 +813,192 @@ end subroutine serial_fe_space_update_bc_value_tensor
                                 & this%get_max_number_quadrature_points() )
  
  end subroutine serial_fe_space_create_fe_function_tensor
+
+ !===============================================================================================
+ subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function, bc_code,  &
+      &                                                     fe_space_component, fe_function, &
+      &                                                     time, unknown_component)
+   implicit none
+   class(serial_fe_space_t), intent(in)    :: this 
+   class(scalar_function_t), intent(in)    :: scalar_function
+   integer(ip)             , intent(in)    :: bc_code
+   integer(ip)             , intent(in)    :: fe_space_component
+   type(fe_function_t)     , intent(inout) :: fe_function
+   real(rp)   , optional   , intent(in)    :: time
+   integer(ip), optional   , intent(in)    :: unknown_component
+
+   ! Locals
+   integer(ip)                 :: istat, ielem, inode, inode_scalar, icomp
+   integer(ip)                 :: strong_dirichlet_dof_id, number_nodes, block_id
+   real(rp)                    :: time_(1)
+   real(rp), allocatable       :: values(:,:)
+   type(fe_map_t)              :: fe_map
+   type(quadrature_t), pointer :: nodal_quadrature
+   type(point_t), pointer      :: nodal_coordinates(:)
+   type(point_t), pointer      :: vertex_coordinates(:)
+   type(finite_element_t), pointer :: fe
+
+   ! Getters
+   nodal_quadrature => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
+   number_nodes     =  this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
+
+   if ( present(time) ) time_(1) = time
+
+   ! Create FE map
+   call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
+   allocate ( values(nodal_quadrature%get_number_quadrature_points(),1), stat=istat)
+   check(istat==0)
+
+   ! Loop over elements
+   do ielem = 1, this%triangulation%num_elems  
+      ! Get Finite element
+      fe => this%get_finite_element(ielem)   
+      block_id = fe%field_blocks(fe_space_component)
+
+      ! Interpolate coordinates
+      vertex_coordinates => fe_map%get_coordinates()
+      call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
+      call fe_map%compute_quadrature_coordinates()
+      nodal_coordinates => fe_map%get_quadrature_coordinates()
+
+      ! Evaluate function
+      if(present(time)) then
+         call scalar_function%get_values_set_space_time(nodal_coordinates,time_,values)
+      else
+         call scalar_function%get_values_set_space(nodal_coordinates,values(:,1))
+      end if
+
+      ! Loop over nodes
+      do inode = 1, number_nodes
+         icomp = this%reference_fe_phy_list(fe_space_component)%p%get_component_node(inode)    
+         if ( present(unknown_component) ) then
+            if ( icomp /= unknown_component ) cycle
+         end if
+         ! Check if current node is subject to strong Dirichlet boundary conditions
+         if(fe%elem2dof(fe_space_component)%p(inode) < 0) then
+            inode_scalar = this%reference_fe_phy_list(fe_space_component)%p%get_scalar_from_vector_node(inode) 
+            strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
+            ! Update strong_dirichlet_values
+            if(this%strong_dirichlet_codes(strong_dirichlet_dof_id) == bc_code) then
+               call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1))
+            end if
+         end if
+      end do
+
+      ! Update vector_dof_values
+      call fe_function%dof_values%insert_subvector(block_id,number_nodes,             &
+           &                                       fe%elem2dof(fe_space_component)%p, &
+           &                                       values(:,1))
+   end do
+
+   ! Free FE map
+   call fe_map%free()
+
+   deallocate ( values, stat=istat )
+   check(istat==0)
+
+ end subroutine serial_fe_space_interpolate_fe_function_scalar
+
+ !===============================================================================================
+ subroutine serial_fe_space_interpolate_fe_function_vector( this, vector_function, bc_code,  &
+      &                                                     fe_space_component, fe_function, time)
+   implicit none
+   class(serial_fe_space_t), intent(in)    :: this 
+   class(vector_function_t), intent(in)    :: vector_function
+   integer(ip)             , intent(in)    :: bc_code
+   type(fe_function_t)     , intent(inout) :: fe_function
+   integer(ip)             , intent(in)    :: fe_space_component
+   real(rp)   , optional   , intent(in)    :: time
+
+   ! Locals
+   integer(ip)                       :: istat, ielem, inode, icomp, inode_scalar
+   integer(ip)                       :: strong_dirichlet_dof_id, number_nodes, block_id
+   real(rp)                          :: time_(1)
+
+   type(fe_map_t)                    :: fe_map
+   type(quadrature_t)  , pointer     :: nodal_quadrature
+   type(point_t)       , pointer     :: nodal_coordinates(:)
+   type(point_t)       , pointer     :: vertex_coordinates(:)
+   type(vector_field_t), allocatable :: values(:,:)
+   real(rp)            , allocatable :: nodal_values(:)
+   type(finite_element_t), pointer   :: fe
+
+
+   ! Getters
+   nodal_quadrature => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
+   number_nodes     =  this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
+   assert( this%reference_fe_phy_list(fe_space_component)%p%get_field_type() == field_type_vector )
+
+   if ( present(time) ) time_(1) = time
+
+   ! Create FE map
+   call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
+   call memalloc(number_nodes,nodal_values,__FILE__,__LINE__)
+   allocate ( values(nodal_quadrature%get_number_quadrature_points(),1), stat=istat)
+   check(istat==0)
+
+   ! Loop over elements
+   do ielem = 1, this%triangulation%num_elems
+      ! Get Finite element elem2dof
+      fe => this%get_finite_element(ielem)  
+      block_id = fe%field_blocks(fe_space_component)
+
+      ! Interpolate coordinates
+      vertex_coordinates => fe_map%get_coordinates()
+      call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
+      call fe_map%compute_quadrature_coordinates()
+      nodal_coordinates => fe_map%get_quadrature_coordinates()
+
+      ! Evaluate function on a set of points
+      if(present(time)) then
+         call vector_function%get_values_set_space_time(nodal_coordinates,time_,values)
+      else
+         call vector_function%get_values_set_space(nodal_coordinates,values(:,1))
+      end if
+
+      ! Loop over nodes
+      nodal_values = 0.0_rp
+      do inode = 1, number_nodes
+         
+         ! Fill nodal values
+         icomp = this%reference_fe_phy_list(fe_space_component)%p%get_component_node(inode)
+         inode_scalar = this%reference_fe_phy_list(fe_space_component)%p%get_scalar_from_vector_node(inode)
+         nodal_values(inode) = values(inode_scalar,1)%get(icomp)
+
+         ! Check if current node is subject to strong Dirichlet boundary conditions
+         if(fe%elem2dof(fe_space_component)%p(inode) < 0) then
+            strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
+            ! Update strong_dirichlet_values
+            if(this%strong_dirichlet_codes(strong_dirichlet_dof_id) == bc_code) then
+               call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1)%get(icomp))
+            end if
+         end if
+      end do
+
+      ! Update vector_dof_values
+      call fe_function%dof_values%insert_subvector(block_id,number_nodes,             &
+           &                                       fe%elem2dof(fe_space_component)%p, &
+           &                                       nodal_values)
+
+   end do
+
+   ! Free FE map
+   call fe_map%free()
+   call memfree(nodal_values,__FILE__,__LINE__)
+   deallocate ( values, stat=istat )
+   check(istat==0)
+
+ end subroutine serial_fe_space_interpolate_fe_function_vector
+
+ !===============================================================================================
+ subroutine serial_fe_space_interpolate_fe_function_tensor( this, tensor_function, bc_code, &
+      &                                                     fe_function, fe_space_component, time)
+   implicit none
+   class(serial_fe_space_t), intent(in)    :: this 
+   class(tensor_function_t), intent(in)    :: tensor_function
+   integer(ip)             , intent(in)    :: bc_code
+   type(fe_function_t)     , intent(inout) :: fe_function
+   integer(ip)             , intent(in)    :: fe_space_component
+   real(rp)   , optional   , intent(in)    :: time
+   check( .false. )
+ end subroutine serial_fe_space_interpolate_fe_function_tensor

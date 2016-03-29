@@ -99,8 +99,9 @@ module block_vector_names
      procedure :: nrm2 => block_vector_nrm2
      procedure :: clone => block_vector_clone
      procedure :: same_vector_space => block_vector_same_vector_space
-					procedure :: get_number_blocks
+     procedure :: get_number_blocks
      procedure :: extract_subvector => block_vector_extract_subvector
+     procedure :: insert_subvector => block_vector_insert_subvector
   end type block_vector_t
 
   ! Types
@@ -448,5 +449,22 @@ contains
    assert( .false. )
    
   end subroutine block_vector_extract_subvector
+ 
+  !=============================================================================
+  subroutine block_vector_insert_subvector( this, &
+                                          & iblock, &
+                                          & size_indices, &
+                                          & indices, &
+                                          & values )
+   implicit none
+   class(block_vector_t), intent(inout) :: this 
+   integer(ip)          , intent(in)    :: iblock
+   integer(ip)          , intent(in)    :: size_indices
+   integer(ip)          , intent(in)    :: indices(size_indices)
+   real(rp)             , intent(in)    :: values(*)
+
+   assert( .false. )
+   
+ end subroutine block_vector_insert_subvector
  
 end module block_vector_names
