@@ -27,8 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   ! Initialize memory structures
-  call meminit
-  call the_iterative_linear_solver_creational_methods_dictionary%init()
+  call fempar_init()
 
   !----------------!
   ! READ ARGUMENTS !
@@ -154,7 +153,7 @@
      ! Update linear solver
      call iterative_linear_solver%create(senv)
      !call iterative_linear_solver%set_type_and_parameters_from_pl()
-     call iterative_linear_solver%set_type_from_string('RGMRES')
+     call iterative_linear_solver%set_type_from_string(rgmres_name)
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%set_initial_solution(dof_values)
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
@@ -197,5 +196,5 @@
   call conditions_free(f_cond)
   if(.not.is_structured_mesh) call mesh_free(f_mesh)
 
-  ! Output memory status
-  call memstatus
+  ! Finalize fempar
+  call fempar_finalize()
