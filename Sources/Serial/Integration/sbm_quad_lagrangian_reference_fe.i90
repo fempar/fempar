@@ -26,19 +26,21 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order, field_type, continuity )
+subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order, field_type, continuity, enable_face_integration )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(inout) :: this
   integer(ip)                          , intent(in)    :: number_dimensions
   integer(ip)                          , intent(in)    :: order
   character(*)                         , intent(in)    :: field_type
-  logical                    , optional, intent(in)    :: continuity
+  logical                              , intent(in)    :: continuity
+  logical                    , optional, intent(in)    :: enable_face_integration
 
   call this%free()
-  call this%set_common_data ( number_dimensions, order, field_type, continuity )
+  call this%set_common_data ( number_dimensions, order, field_type, continuity, enable_face_integration )
   call this%set_topology ( topology_quad )
   call this%set_fe_type ( fe_type_lagrangian )
   call this%fill( )
+  call this%set_nodal_quadrature ()
 end subroutine quad_lagrangian_reference_fe_create
 
 subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, max_order )
@@ -93,9 +95,9 @@ subroutine quad_lagrangian_reference_fe_create_interpolation ( this, quadrature,
   end do
 
   call interpolation%create( this%number_dimensions, this%number_nodes_scalar, &
-                             quadrature%number_evaluation_points, ntens, compute_hessian )
+                             quadrature%number_quadrature_points, ntens, compute_hessian )
 
-  nlocs = int(real(quadrature%number_evaluation_points)**(1.0_rp/real(this%number_dimensions)))
+  nlocs = int(real(quadrature%number_quadrature_points)**(1.0_rp/real(this%number_dimensions)))
   
   call fill_interpolation( interpolation, this%order, this%number_dimensions, &
                            nlocs, ntens, quadrature%coordinates )
@@ -114,10 +116,9 @@ subroutine quad_lagrangian_reference_fe_create_face_interpolation( this,local_fa
   type(interpolation_t)             , intent(inout) :: face_interpolation
 
   integer(ip) :: number_faces
-  
   ! Allocate the arrays of the interpolation
   call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar,              &
-       &                    local_quadrature%number_evaluation_points, 0 )
+       &                    local_quadrature%number_quadrature_points, 0 )
 
   ! Fill the values of the shape functions
   call face_interpolation_shape_fill (this,face_interpolation,local_quadrature,local_face_id)
@@ -145,10 +146,10 @@ subroutine quad_lagrangian_reference_fe_create_face_local_interpolation ( this, 
 
   ! Allocate the arrays of the interpolation
   call interpolation%create( number_dimensions_face, number_nodes_face_scalar, &
-                             quadrature%number_evaluation_points, 0)
+                             quadrature%number_quadrature_points, 0)
 
   ! Fill the values with the common routine for filling an interpolation
-  nlocs = int(real(quadrature%number_evaluation_points)**(1.0_rp/real( number_dimensions_face)))
+  nlocs = int(real(quadrature%number_quadrature_points)**(1.0_rp/real( number_dimensions_face)))
   call fill_interpolation( interpolation, face_order, number_dimensions_face, &
                            nlocs, 0, quadrature%coordinates )
 
@@ -183,13 +184,21 @@ subroutine quad_lagrangian_reference_fe_update_interpolation_face( this,  local_
 
 end subroutine quad_lagrangian_reference_fe_update_interpolation_face
 
-function quad_lagrangian_reference_fe_get_bc_component_node( this, node )
+function quad_lagrangian_reference_fe_get_component_node( this, node )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in) :: this 
   integer(ip)                          , intent(in) :: node
-  integer(ip) :: quad_lagrangian_reference_fe_get_bc_component_node
-  quad_lagrangian_reference_fe_get_bc_component_node = this%node_component_array(node,2)
-end function quad_lagrangian_reference_fe_get_bc_component_node
+  integer(ip) :: quad_lagrangian_reference_fe_get_component_node
+  quad_lagrangian_reference_fe_get_component_node = this%node_component_array(node,2)
+end function quad_lagrangian_reference_fe_get_component_node
+
+function quad_lagrangian_reference_fe_get_scalar_from_vector_node( this, node )
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
+  integer(ip)                          , intent(in) :: node
+  integer(ip) :: quad_lagrangian_reference_fe_get_scalar_from_vector_node
+  quad_lagrangian_reference_fe_get_scalar_from_vector_node = this%node_component_array(node,1)
+end function quad_lagrangian_reference_fe_get_scalar_from_vector_node
 
 subroutine quad_lagrangian_reference_fe_get_value_scalar( this, actual_cell_interpolation, ishape, qpoint, scalar_field )
   implicit none
@@ -310,6 +319,32 @@ subroutine quad_lagrangian_reference_fe_get_curl_vector( this, actual_cell_inter
 
 end subroutine quad_lagrangian_reference_fe_get_curl_vector
 
+subroutine quad_lagrangian_reference_fe_interpolate_nodal_values( this, &
+                                                               &  nodal_interpolation, &
+                                                               &  nodal_values_origin, &
+                                                               &  nodal_values_destination)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)                , intent(in)    :: nodal_interpolation
+  real(rp)                             , intent(in)    :: nodal_values_origin(:)
+  real(rp)                             , intent(inout) :: nodal_values_destination(:)
+  integer(ip) :: qpoint, ishape, icomp, c_dest
+
+  c_dest = 0
+  do icomp = 1, this%number_field_components
+     do qpoint = 1, nodal_interpolation%number_quadrature_points
+        c_dest = c_dest + 1
+        nodal_values_destination(c_dest) = 0.0_rp
+        do ishape = 1, nodal_interpolation%number_shape_functions
+           nodal_values_destination(c_dest) = nodal_values_destination(c_dest) + & 
+                & nodal_interpolation%shape_functions(ishape,qpoint) *           &
+                & nodal_values_origin(this%node_array_component(ishape,icomp))
+        end do
+     end do
+  end do
+
+end subroutine quad_lagrangian_reference_fe_interpolate_nodal_values
+
 !**************************************************************************************************
 ! Evaluate methods for fe_function_scalar/vector/tensor_t
 !**************************************************************************************************
@@ -325,7 +360,7 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_scalar( this, &
   real(rp)                             , intent(inout) :: quadrature_points_values(:)
   integer(ip)                                          :: qpoint, ishape
 
-  do qpoint = 1, actual_cell_interpolation%number_evaluation_points
+  do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      quadrature_points_values(qpoint) = 0.0_rp
      do ishape = 1, actual_cell_interpolation%number_shape_functions
         quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
@@ -346,7 +381,7 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_vector( this, &
   type(vector_field_t)                 , intent(inout) :: quadrature_points_values(:)
   integer(ip)                                          :: qpoint, inode, icomp, inode_scalar
   
-  do qpoint = 1, actual_cell_interpolation%number_evaluation_points
+  do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      call quadrature_points_values(qpoint)%init(0.0_rp)
      do inode = 1, this%number_nodes
         inode_scalar = this%node_component_array(inode,1)
@@ -372,61 +407,202 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor( this, &
 
 end subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor
 
-!=================================================================================================
-! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
-! and a delay 'r' wrt to a refence element sharing the same vef.
-subroutine  quad_lagrangian_reference_fe_permute_order_vef( this,o2n,p,o,r,nd )
+!==================================================================================================
+function quad_lagrangian_reference_fe_check_compatibility_of_vefs                   &
+     &                      (target_reference_fe,source_reference_fe, source_vef_id,target_vef_id)
   implicit none
-  class(quad_lagrangian_reference_fe_t), intent(in) :: this 
-  integer(ip), intent(in)    :: p,o,r,nd
-  integer(ip), intent(inout) :: o2n(:)
+  class(quad_lagrangian_reference_fe_t), intent(in)  :: target_reference_fe
+  class(reference_fe_t)                , intent(in)  :: source_reference_fe
+  integer(ip)                          , intent(in)  :: source_vef_id ! Local vef ID
+  integer(ip)                          , intent(in)  :: target_vef_id ! Local vef ID
+  logical :: quad_lagrangian_reference_fe_check_compatibility_of_vefs 
 
-  if     (nd == 0) then
-     o2n(1) = 1
-  elseif (nd == 1) then
-     call permute_or_1d(o2n(1:p+1),p,r)
-  elseif (nd == 2) then
-     call permute_or_2d(o2n(1:int((p+1)**2)),p,o,r)
+  select type(source_reference_fe)
+     class is(quad_lagrangian_reference_fe_t)
+
+        ! Get number nodes per dimension
+        assert (target_reference_fe%order == source_reference_fe%order)
+        assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
+        assert (target_reference_fe%get_vef_dimension(target_vef_id) == source_reference_fe%get_vef_dimension(source_vef_id))
+        assert (target_reference_fe%get_vef_dimension(target_vef_id) < 3)
+        assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
+        assert (target_reference_fe%get_number_own_nodes_vef(target_vef_id) == source_reference_fe%get_number_own_nodes_vef(source_vef_id))
+        quad_lagrangian_reference_fe_check_compatibility_of_vefs = .true.
+     class default
+        quad_lagrangian_reference_fe_check_compatibility_of_vefs = .false.
+  end select
+ 
+end function quad_lagrangian_reference_fe_check_compatibility_of_vefs
+
+!==================================================================================================
+subroutine quad_lagrangian_reference_fe_fill_interior_points_permutation(this,&
+                                                                         dimension,&
+                                                                         number_interior_points,&
+                                                                         interior_points_permutation )
+  implicit none
+  class(quad_lagrangian_reference_fe_t) , intent(inout) :: this 
+  integer(ip)                           , intent(in)    :: dimension
+  integer(ip)                           , intent(in)    :: number_interior_points
+  integer(ip)      , allocatable        , intent(inout) :: interior_points_permutation(:,:)
+
+  integer(ip) :: number_interior_points_x_dim
+  integer(ip) :: number_of_possible_permutations
+  
+  if ( this%number_dimensions == 2 ) then
+    assert ( dimension == 1 )
+  else if ( this%number_dimensions == 3) then
+    assert ( dimension == 1 .or. dimension == 2)
   else
-     write(*,*) __FILE__,__LINE__,'WARNING! Permutations not given for nd>3'
+    check(.false.)
   end if
-end subroutine quad_lagrangian_reference_fe_permute_order_vef
+  
+  if ( allocated(interior_points_permutation) ) call memfree(interior_points_permutation,__FILE__,__LINE__)
+  
+  number_interior_points_x_dim = int(real(number_interior_points,rp)**(1.0_rp/real(dimension,rp)),ip)
+  
+  number_of_possible_permutations = this%number_rotations_per_dimension(dimension) * &
+                                    this%number_orientations_per_dimension(dimension)
+  
+  call memalloc (number_interior_points, &
+                 number_of_possible_permutations, &
+                 interior_points_permutation, &
+                 __FILE__,__LINE__)
+  
+  call fill_permutation_array(this, &
+                              dimension,&
+                              number_interior_points_x_dim,&
+                              interior_points_permutation)
+end subroutine quad_lagrangian_reference_fe_fill_interior_points_permutation
 
+
+!==================================================================================================
 subroutine quad_lagrangian_reference_fe_fill (this)
   implicit none
   ! Parameters
   class(quad_lagrangian_reference_fe_t), intent(inout) :: this
-  integer(ip) :: c, i, j
-
+  integer(ip) :: c, i, j, dimension, number_interior_nodes, number_interior_nodes_scalar
+  integer(ip) :: column, inode, idime, inode_scalar, num_columns
+  
   call quad_lagrangian_reference_fe_fill_scalar (this)
+  
+  call memalloc (this%number_dimensions-1,this%number_rotations_per_dimension,__FILE__,__LINE__)
+  call memalloc (this%number_dimensions-1,this%number_orientations_per_dimension,__FILE__,__LINE__)
+  
+  if ( this%continuity ) allocate(this%own_node_permutations(this%number_dimensions-1))
+  
+  do dimension = 1, this%number_dimensions-1
+     this%number_rotations_per_dimension(dimension) = 2**(dimension)
+     this%number_orientations_per_dimension(dimension) = dimension
+     
+     if ( this%continuity ) then
+       ! Compute the number of interior nodes X (edge or face)
+       j = this%get_first_vef_id_of_dimension(dimension)
+       number_interior_nodes = this%get_number_own_nodes_vef(j)
+          
+       call this%fill_interior_points_permutation(dimension, &
+                                                  number_interior_nodes, &
+                                                  this%own_node_permutations(dimension)%a)
+     end if
+  end do
+    
   if ( this%number_field_components /= 1 ) then
      call quad_lagrangian_reference_fe_fill_field_components( this )
+     if ( this%continuity ) then
+       do dimension = 1, this%number_dimensions-1
+          ! Compute the number of interior nodes x edge or face
+          j = this%get_first_vef_id_of_dimension(dimension)
+          number_interior_nodes        = this%get_number_own_nodes_vef(j)
+          number_interior_nodes_scalar = number_interior_nodes/this%number_field_components
+          num_columns = this%number_rotations_per_dimension(dimension) * &
+                        this%number_orientations_per_dimension(dimension) 
+          call memrealloc ( number_interior_nodes, &
+                            num_columns, &
+                            this%own_node_permutations(dimension)%a, &
+                            __FILE__, &
+                            __LINE__  )
+          do column = 1, num_columns
+             ! Fill the rest of components
+             inode = number_interior_nodes_scalar
+             do idime = 2, this%number_field_components
+                ! This is taking advantage of the face that we know how the DoF are ordered
+                ! in case this ordering change, this will not work anymore.
+                do inode_scalar = 1, number_interior_nodes_scalar
+                   inode = inode + 1
+                   this%own_node_permutations(dimension)%a(inode,column) = number_interior_nodes_scalar * &
+                        (idime-1) +  this%own_node_permutations(dimension)%a(inode_scalar,column)
+                end do
+             end do
+          end do
+       end do
+     end if
   else
      this%number_nodes_scalar = this%number_nodes
   end if
-
+  
   call memalloc( this%number_nodes, 2, this%node_component_array, __FILE__, __LINE__ )
+  call memalloc( this%number_nodes_scalar, this%number_field_components, this%node_array_component, __FILE__, __LINE__ )
 
   c = 1
   do i = 1, this%number_field_components
      do j = 1, this%number_nodes_scalar
         this%node_component_array(c,1) = j
         this%node_component_array(c,2) = i   
+        this%node_array_component(j,i) = c
         c = c+1
      end do
   end do
+  
 end subroutine quad_lagrangian_reference_fe_fill
+!==================================================================================================
+
+!==================================================================================================
+subroutine fill_permutation_array(this, &
+                                  dimension, &
+                                  number_nodes_x_dim, &
+                                  permutation_array)
+  implicit none 
+  class(quad_lagrangian_reference_fe_t), intent(inout) :: this 
+  integer(ip)                          , intent(in)    :: dimension
+  integer(ip)                          , intent(in)    :: number_nodes_x_dim
+  integer(ip)                          , intent(inout) :: permutation_array(:,:)
+  
+
+  integer(ip) :: irotation, iorientation, column
+
+  column = 1
+  do iorientation = 1, this%number_orientations_per_dimension(dimension)
+     do irotation = 1, this%number_rotations_per_dimension(dimension)
+        if (dimension == 1) then
+           call permute_or_1d(permutation_array(:,column), &
+                              number_nodes_x_dim, &
+                              irotation)
+        elseif (dimension == 2) then
+           call permute_or_2d(permutation_array(:, column), &
+                              number_nodes_x_dim, &
+                              iorientation, &
+                              irotation)
+        else 
+           check (.false.)
+        end if
+        column = column + 1
+     end do
+  end do
+end subroutine fill_permutation_array
+!==================================================================================================
 
 subroutine quad_lagrangian_reference_fe_free ( this )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(inout) :: this 
 
-  call reference_fe_free ( this )
+  integer(ip) :: i
   
   ! quad_lagrangian_reference_fe_t variables
   if(allocated(this%node_component_array)) & 
        call memfree(this%node_component_array,__FILE__,__LINE__)
+  if(allocated(this%node_array_component)) & 
+       call memfree(this%node_array_component,__FILE__,__LINE__)
   this%number_nodes_scalar = 0
+  call reference_fe_free ( this )
 end subroutine quad_lagrangian_reference_fe_free
 
 function quad_lagrangian_reference_fe_get_characteristic_length ( this )
@@ -442,9 +618,87 @@ subroutine quad_lagrangian_reference_fe_fill_field_components (this)
   class(quad_lagrangian_reference_fe_t), intent(inout) :: this
   call extend_list_components( this, this%nodes_vef)
   call extend_list_components( this, this%interior_nodes_vef)
+  call extend_list_components( this, this%own_nodes_vef )
+  call extend_list_components( this, this%face_integration_coupling_nodes_face )
   this%number_nodes_scalar = this%number_nodes
   this%number_nodes = this%number_nodes_scalar * this%number_field_components
 end subroutine quad_lagrangian_reference_fe_fill_field_components
+
+subroutine quad_lagrangian_reference_fe_set_nodal_quadrature (this)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
+  
+  ! Create nodal quadrature
+  call this%nodal_quadrature%create(this%number_dimensions,this%number_nodes_scalar)
+
+  ! Fill nodal quadrature
+  call fill_nodal_quadrature ( this%nodal_quadrature )
+end subroutine quad_lagrangian_reference_fe_set_nodal_quadrature
+
+subroutine quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values (this, code, values, &
+     &     nodal_codes, nodal_values, unknown_component)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: code
+  real(rp)                             , intent(in)    :: values(:)
+  integer(ip)                          , intent(in)    :: nodal_codes(:)
+  real(rp)                             , intent(inout) :: nodal_values(:)
+  integer(ip), optional                , intent(in)    :: unknown_component
+  integer(ip) :: i, icomp
+
+  assert(size(nodal_values) == this%number_nodes)
+  assert(size(values) == this%number_nodes_scalar)
+
+  icomp = 1
+  if(present(unknown_component)) icomp = unknown_component
+
+  do i = 1, this%number_nodes_scalar
+     if(nodal_codes(this%node_array_component(i,icomp)) == code) then
+        nodal_values(this%node_array_component(i,icomp)) = values(i)
+     end if
+  end do
+     
+end subroutine quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values
+
+subroutine quad_lagrangian_reference_fe_set_vector_field_to_nodal_values (this, code, values, &
+     &     nodal_codes, nodal_values)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: code
+  type(vector_field_t)                 , intent(in)    :: values(:)
+  integer(ip)                          , intent(in)    :: nodal_codes(:)
+  real(rp)                             , intent(inout) :: nodal_values(:)
+  integer(ip) :: i, icomp
+
+  assert(size(nodal_values) == this%number_nodes)
+  assert(size(values) == this%number_nodes_scalar)
+
+  do icomp = 1, this%number_field_components
+     do i = 1, this%number_nodes_scalar
+        if(nodal_codes(this%node_array_component(i,icomp)) == code) then
+           nodal_values(this%node_array_component(i,icomp)) = values(i)%get(icomp)
+        end if
+     end do
+  end do
+     
+end subroutine quad_lagrangian_reference_fe_set_vector_field_to_nodal_values
+
+subroutine quad_lagrangian_reference_fe_set_tensor_field_to_nodal_values (this, code, values, &
+     &     nodal_codes, nodal_values)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: code
+  type(tensor_field_t)                 , intent(in)    :: values(:)
+  integer(ip)                          , intent(in)    :: nodal_codes(:)
+  real(rp)                             , intent(inout) :: nodal_values(:)
+  integer(ip) :: i, icomp, jcomp
+
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for tensor field unknowns '
+  check( .false. )
+
+end subroutine quad_lagrangian_reference_fe_set_tensor_field_to_nodal_values
+
 
 subroutine extend_list_components(this, list_1d)
   implicit none
@@ -503,8 +757,8 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   integer(ip)               :: nod ! #corners in the quad. nod = 2^(nd)
   integer(ip), allocatable  :: auxt1(:,:),auxt2(:,:),auxt3(:,:),auxt4(:,:),auxt5(:,:), auxt6(:,:)
   integer(ip), allocatable  :: obdla(:,:),node2ob(:),ob2node(:)
-
   integer(ip), allocatable  :: aux(:),idm(:),fdm(:),ijk(:),ijk_g(:)
+  type(list_iterator_t)     :: iterator
 
   !  ! Initilize values
   nd = this%number_dimensions
@@ -552,6 +806,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   call this%nodes_vef%create(n=no)
   call this%vefs_vef%create(n=no)
   call this%vertices_vef%create(n=no)
+
   call memalloc(nod,nd+1,obdla,__FILE__,__LINE__)
   call memalloc(no, node2ob,__FILE__,__LINE__)        ! Auxiliar array
   call memalloc(no, ob2node,__FILE__,__LINE__)        ! Auxiliar array
@@ -561,11 +816,15 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   this%nodes_vef%p(1) = 1
   this%vefs_vef%p(1) = 1
   this%vertices_vef%p(1) = 1
-
+    
   !Loop over dimensions
   do k = 0,nd
      aux1 = int(((p-1)**k)) ! interior nodes for an vef of dim k
      aux3 = int(((p+1)**k)) ! Total nodes for an vef of dim k
+     if ( p == -1 ) then    ! Void fe
+        aux1 = 0
+        aux3 = 0
+     end if
      aux2 = int(2**k)       ! Corners for an vef of dim k
      aux4 = int((3**k)) ! Corners for an vef of dim k (idem p=2)
 
@@ -726,6 +985,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
 
         ! Interior node numbering
         ! Loop over the translations
+        if ( p > 0 ) then ! Do nothing for void fe
         do l = 1,2**(nd-od)
            !ijk_g(jdm) will contain the translations from 1 vef to another; must be scaled by p
            !ijk_g(idm) will contain the variations inside the vef
@@ -761,6 +1021,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
               this%nodes_vef%l(c4) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ntxob%l
            end do
         end do
+        end if
 
         ! obxob array and auxiliar ob2node array 
 
@@ -833,13 +1094,39 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   do c5 = 1, nt2
      this%vefs_vef%l(c5) = node2ob(this%vefs_vef%l(c5))
   end do
+  
+  ! Create face_integration_coupling_nodes_vef
+  if ( this%continuity ) then
+     this%own_nodes_vef = this%interior_nodes_vef
+     ! Create a void face_integration_coupling_nodes_face type(list_t)
+     call this%face_integration_coupling_nodes_face%create(n=no)
+     call this%face_integration_coupling_nodes_face%calculate_header()
+     call this%face_integration_coupling_nodes_face%allocate_list_from_pointer()
+  else
+     call this%own_nodes_vef%create(n=no)
+     call this%own_nodes_vef%sum_to_pointer_index(this%own_nodes_vef%get_num_pointers(), this%number_nodes)
+     call this%own_nodes_vef%calculate_header()
+     call this%own_nodes_vef%allocate_list_from_pointer()
+     
+     iterator = this%own_nodes_vef%get_iterator()
+     i=1
+     do while(.not. iterator%is_upper_bound())
+        call iterator%set_current(i)
+        call iterator%next()
+        i = i + 1 
+    enddo
+     
+     if ( this%conformity ) then
+       ! Create a void face_integration_coupling_nodes_face type(list_t)
+       call this%face_integration_coupling_nodes_face%create(n=no)
+       call this%face_integration_coupling_nodes_face%calculate_header()
+       call this%face_integration_coupling_nodes_face%allocate_list_from_pointer()
+     else
+        this%face_integration_coupling_nodes_face = this%nodes_vef
+     end if
+  end if
+  
 
-  ! Sort the array 
-  !do co = 1, no
-  !   call sort(obxob%p(co+1)-obxob%p(co),obxob%l(obxob%p(co):obxob%p(co+1)))
-  !end do
-
-  ! Deallocate OBDLA
   call memfree(obdla,__FILE__,__LINE__)
   call memfree(ob2node,__FILE__,__LINE__)
   call memfree(node2ob,__FILE__,__LINE__)
@@ -851,41 +1138,6 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   call memfree( ijk, __FILE__, __LINE__ )
   call memfree( ijk_g, __FILE__, __LINE__ )
 
-
-  ! ! Create the face permutation of nodes
-  ! if (nd>2) then call memalloc(2*2**2,this%nodes_vef(3),o2n,__FILE__,__LINE__)
-
-  ! write(*,*) 'orientation vefs'
-  ! do od = 1,nd
-  !    write(*,*) 'dime', od, '--------------------------'
-  !    write(*,*) orientation(nvef_dim(od):nvef_dim(od+1)-1)
-  ! end do
-  ! write(*,*) 'no+1', no+1, 'ndxob%p'
-  ! do od = 1,no+1
-  !    write(*,*) ndxob%p(od), ', &'
-  ! end do
-  ! write(*,*) 'nn', nn, 'ndxob%l'
-  ! do od = 1,nn
-  !    write(*,*) ndxob%l(od), ', &'
-  ! end do
-
-  ! write(*,*) 'no+1', no+1, 'ntxob%p'
-  ! do od = 1,no+1
-  !    write(*,*) ntxob%p(od), ', &'
-  ! end do
-  ! write(*,*) 'nt', nt, 'ntxob%l'
-  ! do od = 1,nt
-  !    write(*,*) ntxob%l(od), ', &'
-  ! end do
-
-  ! write(*,*) 'no+1', no+1, 'crxob%p'
-  ! do od = 1,no+1
-  !    write(*,*) crxob%p(od), ', &'
-  ! end do
-  ! write(*,*) 'nc', nc, 'crxob%l'
-  ! do od = 1,nc
-  !    write(*,*) crxob%l(od), ', &'
-  ! end do
 end subroutine quad_lagrangian_reference_fe_fill_scalar
 
 !=================================================================================================
@@ -1030,10 +1282,10 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
   implicit none
   type(quadrature_t), intent(inout)  :: quadrature
   real(rp)                 :: posgl(20),weigl(20)
-  integer(ip)              :: nlocs,igaus,ilocs,jlocs,klocs,ndime,ngaus
+  integer(ip)              :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,ngaus
 
   ndime = quadrature%number_dimensions
-  ngaus = quadrature%number_evaluation_points
+  ngaus = quadrature%number_quadrature_points
 
   if(ndime==1) then
      nlocs=ngaus
@@ -1502,38 +1754,96 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
   end if
 
   if(ndime==1) then
-     igaus=0
+     qpoin=0
      do ilocs=1,nlocs
-        igaus=igaus+1
-        quadrature%weight(  igaus)=weigl(ilocs)
-        quadrature%coordinates(1,igaus)=posgl(ilocs)
+        qpoin=qpoin+1
+        quadrature%weight(  qpoin)=weigl(ilocs)
+        quadrature%coordinates(1,qpoin)=posgl(ilocs)
      end do
   else if(ndime==2) then
-     igaus=0
+     qpoin=0
      do jlocs=1,nlocs
         do ilocs=1,nlocs
-           igaus=igaus+1
-           quadrature%weight(  igaus)=weigl(ilocs)*weigl(jlocs)
-           quadrature%coordinates(1,igaus)=posgl(ilocs)
-           quadrature%coordinates(2,igaus)=posgl(jlocs)
+           qpoin=qpoin+1
+           quadrature%weight(  qpoin)=weigl(ilocs)*weigl(jlocs)
+           quadrature%coordinates(1,qpoin)=posgl(ilocs)
+           quadrature%coordinates(2,qpoin)=posgl(jlocs)
         end do
      end do
   else if(ndime==3) then
-     igaus=0
+     qpoin=0
      do klocs=1,nlocs
         do jlocs=1,nlocs
            do ilocs=1,nlocs
-              igaus=igaus+1
-              quadrature%weight(  igaus)=weigl(ilocs)*weigl(jlocs)*weigl(klocs)
-              quadrature%coordinates(1,igaus)=posgl(ilocs)
-              quadrature%coordinates(2,igaus)=posgl(jlocs)
-              quadrature%coordinates(3,igaus)=posgl(klocs)
+              qpoin=qpoin+1
+              quadrature%weight(  qpoin)=weigl(ilocs)*weigl(jlocs)*weigl(klocs)
+              quadrature%coordinates(1,qpoin)=posgl(ilocs)
+              quadrature%coordinates(2,qpoin)=posgl(jlocs)
+              quadrature%coordinates(3,qpoin)=posgl(klocs)
            end do
         end do
      end do
   end if
 
 end subroutine fill_quadrature
+
+!-----------------------------------------------------------------------
+subroutine fill_nodal_quadrature ( quadrature ) 
+  implicit none
+  type(quadrature_t), intent(inout)  :: quadrature
+  real(rp)                 :: posgl(20),weigl(20)
+  integer(ip)              :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,nquad
+
+  ndime = quadrature%number_dimensions
+  nquad = quadrature%number_quadrature_points
+
+  if(ndime==1) then
+     nlocs=nquad
+  else if(ndime==2) then
+     nlocs=nint(sqrt(real(nquad,rp)))
+  else
+     nlocs=nint(real(nquad,rp)**(1.0_rp/3.0_rp))
+  end if
+
+  posgl(1) = -1.0_rp
+  do ilocs=1,nlocs-1
+     posgl(ilocs+1) = -1.0_rp + ilocs*2.0_rp/(nlocs-1)
+  end do
+  weigl = 1.0_rp
+
+  if(ndime==1) then
+     qpoin=0
+     do ilocs=1,nlocs
+        qpoin=qpoin+1
+        quadrature%weight(  qpoin)=weigl(ilocs)
+        quadrature%coordinates(1,qpoin)=posgl(ilocs)
+     end do
+  else if(ndime==2) then
+     qpoin=0
+     do jlocs=1,nlocs
+        do ilocs=1,nlocs
+           qpoin=qpoin+1
+           quadrature%weight(  qpoin)=weigl(ilocs)*weigl(jlocs)
+           quadrature%coordinates(1,qpoin)=posgl(ilocs)
+           quadrature%coordinates(2,qpoin)=posgl(jlocs)
+        end do
+     end do
+  else if(ndime==3) then
+     qpoin=0
+     do klocs=1,nlocs
+        do jlocs=1,nlocs
+           do ilocs=1,nlocs
+              qpoin=qpoin+1
+              quadrature%weight(  qpoin)=weigl(ilocs)*weigl(jlocs)*weigl(klocs)
+              quadrature%coordinates(1,qpoin)=posgl(ilocs)
+              quadrature%coordinates(2,qpoin)=posgl(jlocs)
+              quadrature%coordinates(3,qpoin)=posgl(klocs)
+           end do
+        end do
+     end do
+  end if
+
+end subroutine fill_nodal_quadrature
 
 subroutine fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coord_ip ) !ndime,ngaus,posgp,weigp)
   implicit none 
@@ -1758,16 +2068,16 @@ end subroutine Q_ijkg
 subroutine  permute_or_1d( o2n,p,r )
   implicit none
   integer(ip), intent(in)    :: p,r
-  integer(ip), intent(inout) :: o2n(p+1)
+  integer(ip), intent(inout) :: o2n(p)
 
   ! Local variables
   integer(ip) :: i
 
   ! Generic loop+rotation identifier  
   if (r==1) then
-     o2n = (/(i,i=1,p+1)/)
+     o2n = (/(i,i=1,p)/)
   elseif (r==2) then
-     o2n = (/(p+1-i,i=0,p)/)
+     o2n = (/(p-i,i=0,p-1)/)
   else
      write(*,*) __FILE__,__LINE__,'Q_permute_or_1d:: ERROR! Delay cannot be >1 for edges'
   end if
@@ -1777,7 +2087,7 @@ end subroutine permute_or_1d
 subroutine permute_or_2d( o2n,p,o,r )
   implicit none
   integer(ip), intent(in)    :: p,o,r
-  integer(ip), intent(inout) :: o2n((p+1)**2)
+  integer(ip), intent(inout) :: o2n(p**2)
 
   ! Local variables
   integer(ip) :: o_r,i,j,ij_q(4) ! ij_q = (i,j,p-i,p-j)
@@ -1786,19 +2096,19 @@ subroutine permute_or_2d( o2n,p,o,r )
        &                                     (/2,8/))
 
   ! Generic loop+rotation identifier
-  o_r = 4*o+r
-  do j = 0,p
+  o_r = 4*(o-1)+r
+  do j = 0,p-1
      ij_q(2) = j
-     ij_q(4) = p-j
-     do i = 0,p
+     ij_q(4) = p-1-j
+     do i = 0,p-1
         ij_q(1) = i
-        ij_q(3) = p-i
+        ij_q(3) = p-1-i
         ! Get the global numbering of node (i,j)
-        go = Q_gijk(ij_q(1:2),2,p)
+        go = Q_gijk(ij_q(1:2),2,p-1)
         ! i,j coordinates for the o_r permutation
         ij_n(1:2) = ij_q(ij_perm_quad(1:2,o_r)) 
         ! Get the global numbering of node ij_n
-        o2n(go) = Q_gijk(ij_n,2,p)
+        o2n(go) = Q_gijk(ij_n,2,p-1)
      end do
   end do
 end subroutine permute_or_2d
@@ -1815,6 +2125,8 @@ subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadratu
   type(quadrature_t)    :: nodal_coordinates_1D
   integer(ip)              :: order_of_approximation
   type(quad_lagrangian_reference_fe_t) :: face_reference_fe, reference_fe_1D
+
+  write(*,*) __FILE__,__LINE__,'Creation of 2 reference_FE!!'
 
   ! Create a 1D interpolation evaluated on the corners
   call nodal_coordinates_1D%create(1,2)
@@ -1833,7 +2145,7 @@ subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadratu
        &           local_interpolation%shape_functions,local_interpolation%shape_derivatives,  &
        &           interp_1D_corners%shape_functions,interp_1D_corners%shape_derivatives,      &
        &           face_interpolation%number_dimensions,order_of_approximation,                &
-       &           face_interpolation%number_evaluation_points,local_face_id)
+       &           face_interpolation%number_quadrature_points,local_face_id)
 
   call face_reference_fe%free()
   call reference_fe_1D%free
@@ -1927,7 +2239,7 @@ end subroutine face_shapen
 
     ndime = ref%number_dimensions
     ntens = ref%number_entries_symmetric_tensor
-    nlocs = ref%number_evaluation_points
+    nlocs = ref%number_quadrature_points
     !nnode = ref%number_shape_functions
     nnode = size(ref%shape_functions,1)
 
@@ -1937,7 +2249,7 @@ end subroutine face_shapen
     ! First derivatives do
     !if(phy%kder==1) then
     phy%shape_derivatives=0.0_rp
-    do ilocs=1,phy%number_evaluation_points
+    do ilocs=1,phy%number_quadrature_points
        do inode=1,size(phy%shape_functions,1)!phy%number_shape_functions
           do idime=1,ndime
              do jdime=1,ndime

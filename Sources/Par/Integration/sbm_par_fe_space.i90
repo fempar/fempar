@@ -1,0 +1,925 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine par_fe_space_create( this, &
+     par_triangulation, &
+     par_boundary_conditions, &
+     reference_fe_phy, &
+     field_blocks, &
+     field_coupling )
+  implicit none
+  class(par_fe_space_t)           , intent(inout) :: this
+  type(par_triangulation_t),target, intent(in)    :: par_triangulation
+  type(par_conditions_t)          , intent(in)    :: par_boundary_conditions
+  type(p_reference_fe_t)  , target, intent(in)    :: reference_fe_phy(:)
+  integer(ip)           , optional, intent(in)    :: field_blocks(:)
+  logical               , optional, intent(in)    :: field_coupling(:,:)
+
+  integer(ip) :: i
+  integer(ip) :: num_elems, num_ghosts
+
+  call this%free()
+
+  this%par_triangulation => par_triangulation
+  if ( par_triangulation%p_env%p_context%iam >= 0 ) then
+     call this%serial_fe_space_t%create( par_triangulation%f_trian, &
+                                         par_boundary_conditions%f_conditions, &
+                                         reference_fe_phy, &
+                                         field_blocks, &
+                                         field_coupling )       
+
+     num_elems  = par_triangulation%num_elems
+     num_ghosts = par_triangulation%num_ghosts
+
+     allocate(this%ghost_fe_array(num_ghosts))
+     do i=1, num_ghosts
+        call this%ghost_fe_array(i)%create (this%triangulation%elems(num_elems+i),&
+             this%number_fe_spaces,&
+             this%reference_fe_phy_list, &
+             this%quadrature(1)%p,&
+             this%fe_map(1)%p,&
+             this%volume_integrator,&
+             this%number_blocks,&
+             this%field_blocks,&
+             this%serial_fe_space_t%strong_dirichlet_values)
+     end do
+  else
+     ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
+     ! requires that coarse-grid tasks also know how many blocks there are
+     this%number_blocks = 1
+     if (present(field_blocks)) this%number_blocks = maxval(field_blocks)
+     
+     ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
+     ! requires that strong_dirichlet_values is created and allocated
+     call this%serial_fe_space_t%strong_dirichlet_values%create_and_allocate(0)
+  end if
+
+end subroutine par_fe_space_create
+
+subroutine par_fe_space_serial_fe_space_create( this, &
+     triangulation, &
+     boundary_conditions, &
+     reference_fe_phy, &
+     field_blocks, &
+     field_coupling )
+  implicit none
+  class(par_fe_space_t)        , intent(inout)    :: this
+  type(triangulation_t)   , target, intent(in)    :: triangulation
+  type(conditions_t)              , intent(in)    :: boundary_conditions
+  type(p_reference_fe_t)  , target, intent(in)    :: reference_fe_phy(:)
+  integer(ip)           , optional, intent(in)    :: field_blocks(:)
+  logical               , optional, intent(in)    :: field_coupling(:,:)
+  check(.false.)
+end subroutine par_fe_space_serial_fe_space_create
+
+
+subroutine par_fe_space_free( this )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip) :: i
+
+  if ( associated (this%par_triangulation) ) then
+     if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+        do i=1, this%par_triangulation%num_ghosts
+           call this%ghost_fe_array(i)%free()
+        end do
+        deallocate(this%ghost_fe_array)
+        do i=1, this%number_blocks
+           call this%blocks_dof_import(i)%free()
+        end do
+        deallocate(this%blocks_dof_import) 
+        call this%serial_fe_space_t%free()
+     else
+        ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
+        ! requires that this%blocks_dof_import is allocated 
+        this%number_blocks = 0
+        deallocate ( this%blocks_dof_import )
+        
+        ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
+        ! requires that strong_dirichlet_values is created and allocated
+        call this%serial_fe_space_t%strong_dirichlet_values%free()
+     end if
+     nullify(this%par_triangulation)
+  end if
+
+end subroutine par_fe_space_free
+
+function par_fe_space_get_finite_element( this, ielem )
+  implicit none
+  class(par_fe_space_t), target, intent(in) :: this
+  integer(ip)                  , intent(in) :: ielem
+  type(finite_element_t), pointer           :: par_fe_space_get_finite_element
+  integer(ip) :: num_local_elems
+
+  assert ( associated (this%par_triangulation) )
+  nullify (par_fe_space_get_finite_element)
+
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+     num_local_elems = this%par_triangulation%num_elems  
+     if ( ielem <= num_local_elems ) then
+        par_fe_space_get_finite_element => this%fe_array(ielem)
+     else
+        par_fe_space_get_finite_element => this%ghost_fe_array(ielem-num_local_elems)
+     end if
+  end if
+end function par_fe_space_get_finite_element
+
+
+subroutine par_fe_space_print ( this )
+  class(par_fe_space_t), intent(in) :: this 
+  integer(ip) :: i,j
+
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+     call this%serial_fe_space_t%print()
+     do i = 1, this%par_triangulation%num_ghosts
+        write(*,*) '********* GHOST ELEMENT: ',i,'********'
+        write(*,*) '********* ELEMENT 2 DOF********'
+        do j = 1, this%number_fe_spaces
+           write(*,*) '********* FE COMPONENT: ',j,'********'
+           write(*,*) this%ghost_fe_array(i)%elem2dof(j)%p
+        end do
+     end do
+  end if
+
+  !do i  = 1, this%triangulation%number_interior_faces
+  !   write(*,*) '--------------------- Face: ',i,'-------------------------'
+  !   write(*,*) '-- Elem 1 --'
+  !   write(*,*) this%face_array(i)%neighbour_fe(1)%p%elem2dof(1)%p
+  !   write(*,*) '-- Elem 2 --'
+  !   write(*,*) this%face_array(i)%neighbour_fe(2)%p%elem2dof(1)%p
+  !end do
+
+end subroutine par_fe_space_print
+
+
+subroutine par_fe_space_fill_dof_info( this )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this 
+  integer(ip) :: iblock, fe_space_id
+
+  assert ( associated (this%par_triangulation) )
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+     call this%serial_fe_space_t%fill_dof_info()
+     do fe_space_id = 1, this%number_fe_spaces
+        call this%par_fe_space_fill_elem2dof_and_count_dofs( fe_space_id )
+     end do
+     call this%par_fe_space_compute_blocks_dof_import()
+  else
+     ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
+     ! requires that this%blocks_dof_import is allocated 
+     allocate ( this%blocks_dof_import(this%number_blocks) )
+  end if
+
+end subroutine par_fe_space_fill_dof_info
+
+subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id ) 
+  implicit none
+  ! Parameters
+  class(par_fe_space_t)      , intent(inout) :: this 
+  integer(ip)                , intent(in)    :: fe_space_id
+
+  ! Local variables
+  integer(ip) :: ivef, vef_lid, ighost, ielem, elem_id, ivef_in_elem_id
+  integer(ip) :: num_elems, num_ghosts
+  integer(ip) :: first_face_id, num_faces
+  integer(ip) :: iblock, init_dof_block, current_dof_block
+
+  assert ( associated (this%par_triangulation) )
+  assert ( this%par_triangulation%p_env%p_context%iam >= 0 )
+
+  iblock            = this%field_blocks(fe_space_id)
+  init_dof_block    = this%number_dofs_per_block(iblock)
+  current_dof_block = init_dof_block
+
+  if ( this%fe_space_type(fe_space_id) == fe_space_type_cg ) then
+     do ighost = 1, this%par_triangulation%num_ghosts
+        ! Fill elem2dof on ghost elements from the elem2dof 
+        ! already computed on neighbouring local elements
+        do ivef = 1, this%ghost_fe_array(ighost)%cell%num_vefs
+           vef_lid = this%ghost_fe_array(ighost)%cell%vefs(ivef)
+           if ( vef_lid /= -1 ) then
+              ! Find local element around vef_lid in elem_id
+              do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
+                 elem_id = this%triangulation%vefs(vef_lid)%elems_around(ielem)
+                 ! Is elem_id a local element ?
+                 if ( elem_id <= this%triangulation%num_elems ) then
+                    !if ( this%fe_array(elem_id)%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
+                       ! Find local position of vef_lid in elem_id            
+                       ivef_in_elem_id = this%fe_array(elem_id)%cell%find_local_pos_from_vef_id(vef_lid) 
+                       call this%ghost_fe_array(ighost)%fill_own_dofs_on_vef_from_source_element ( ivef, &
+                            this%fe_array(elem_id), ivef_in_elem_id, fe_space_id )    
+                       exit
+                    !end if
+                 end if
+              end do
+           end if
+        end do
+     end do
+  else if ( this%fe_space_type(fe_space_id) == fe_space_type_dg ) then
+     do ighost = 1, this%par_triangulation%num_ghosts
+        ! Fill elem2dof on ghost elements by assigning new dof identifiers
+        ! to all DoFs placed on local faces
+        first_face_id = this%ghost_fe_array(ighost)%cell%reference_fe_geo%get_first_face_id()
+        num_faces     = this%ghost_fe_array(ighost)%cell%reference_fe_geo%get_number_faces()
+        do ivef = first_face_id, first_face_id+num_faces-1
+           vef_lid = this%ghost_fe_array(ighost)%cell%vefs(ivef)
+           if ( vef_lid /= -1 ) then
+              call this%ghost_fe_array(ighost)%fill_dofs_face_integration_coupling ( ivef, &
+                   fe_space_id, current_dof_block )
+           end if
+        end do
+     end do
+  end if
+
+  this%number_dofs_per_field(fe_space_id) = this%number_dofs_per_field(fe_space_id) + & 
+       (current_dof_block - init_dof_block)
+  this%number_dofs_per_block(iblock) = this%number_dofs_per_block(iblock) + &
+       (current_dof_block - init_dof_block) 
+end subroutine par_fe_space_fill_elem2dof_and_count_dofs
+
+subroutine par_fe_space_compute_blocks_dof_import ( this )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)                          :: iblock
+  assert ( associated (this%par_triangulation) )
+  assert ( this%par_triangulation%p_env%p_context%iam >= 0 )     
+  allocate ( this%blocks_dof_import(this%number_blocks) )
+  do iblock=1, this%number_blocks
+     call this%par_fe_space_compute_dof_import(iblock)
+  end do
+end subroutine par_fe_space_compute_blocks_dof_import
+
+
+subroutine par_fe_space_compute_dof_import ( this, iblock )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: iblock
+
+  ! Local raw data
+  integer(igp), allocatable :: raw_interface_data(:,:)
+  integer(ip) , allocatable :: dofs_lid(:)
+  integer(ip)               :: total_ubound_num_itfc_couplings
+  integer(ip)               :: total_num_itfc_couplings
+  integer(ip), allocatable  :: ubound_num_itfc_couplings(:)
+  integer(ip)               :: num_fe_spaces_in_iblock
+  integer(ip)               :: i, fe_space_id
+
+  assert ( associated (this%par_triangulation) )
+  assert ( this%par_triangulation%p_env%p_context%iam >= 0 )
+  assert ( iblock >= 1 .and. iblock <= this%number_blocks )
+
+  num_fe_spaces_in_iblock = 0
+  do fe_space_id = 1, this%number_fe_spaces
+     if ( this%field_blocks(fe_space_id) == iblock ) then
+        num_fe_spaces_in_iblock = num_fe_spaces_in_iblock + 1
+     end if
+  end do
+
+  call memalloc ( num_fe_spaces_in_iblock, ubound_num_itfc_couplings, __FILE__, __LINE__ )
+  total_ubound_num_itfc_couplings = 0 
+  ubound_num_itfc_couplings = 0
+  i = 1
+  do fe_space_id = 1, this%number_fe_spaces
+     if ( this%field_blocks(fe_space_id) == iblock ) then
+        if ( this%fe_space_type(fe_space_id) == fe_space_type_cg ) then
+           ubound_num_itfc_couplings (i) = this%par_fe_space_compute_ubound_num_itfc_couplings_by_continuity(fe_space_id)
+        else if ( this%fe_space_type(fe_space_id) == fe_space_type_dg ) then
+           ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
+                this%par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ(fe_space_id)
+        end if
+        total_ubound_num_itfc_couplings = total_ubound_num_itfc_couplings + ubound_num_itfc_couplings (i)
+        i=i+1                                  
+     end if
+  end do
+
+  call memalloc ( num_rows_raw_interface_data, &
+       total_ubound_num_itfc_couplings, &
+       raw_interface_data, __FILE__, __LINE__ )
+
+  call memalloc ( total_ubound_num_itfc_couplings, dofs_lid, __FILE__, __LINE__)
+
+  total_num_itfc_couplings = 0
+  i = 1
+  do fe_space_id = 1, this%number_fe_spaces
+     if ( this%field_blocks(fe_space_id) == iblock ) then
+        if ( this%fe_space_type(fe_space_id) == fe_space_type_cg ) then
+           total_num_itfc_couplings = total_num_itfc_couplings + & 
+                this%par_fe_space_compute_raw_interface_data_by_continuity(fe_space_id, &
+                                                                           total_num_itfc_couplings, &
+                                                                           ubound_num_itfc_couplings(i),&
+                                                                           dofs_lid,&
+                                                                           raw_interface_data )
+        else if ( this%fe_space_type(fe_space_id) == fe_space_type_dg ) then
+           total_num_itfc_couplings = total_num_itfc_couplings + & 
+                this%par_fe_space_compute_raw_interface_data_by_face_integ(fe_space_id, &
+                                                                           total_num_itfc_couplings, &
+                                                                           ubound_num_itfc_couplings(i),&
+                                                                           dofs_lid,&
+                                                                           raw_interface_data )      
+        end if
+
+        i=i+1                                  
+     end if
+  end do
+
+  call this%blocks_dof_import(iblock)%create(this%par_triangulation%p_env%p_context%iam+1, &
+       this%par_triangulation%p_env%p_context%np, &
+       this%number_dofs_per_block(iblock), &
+       total_num_itfc_couplings, &
+       dofs_lid, &
+       raw_interface_data )
+
+  call memfree ( ubound_num_itfc_couplings, __FILE__, __LINE__ )                
+  call memfree ( raw_interface_data, __FILE__, __LINE__ )
+  call memfree ( dofs_lid, __FILE__, __LINE__ )
+end subroutine par_fe_space_compute_dof_import
+
+function par_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, fe_space_id )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: fe_space_id
+  integer(ip)                          :: par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
+
+  integer(ip)  :: mypart_id, part_id, local_part_id
+  integer(ip)  :: elem_lid
+  integer(ip)  :: ivef, ivef_itfc, ielem, vef_lid
+  type(finite_element_t), pointer :: finite_element
+
+  integer(ip)          :: result
+  logical, allocatable :: touched_neighbours(:)
+  logical              :: vef_active
+
+  assert ( associated (this%par_triangulation) )
+  assert ( this%par_triangulation%p_env%p_context%iam >= 0 )
+
+  mypart_id = this%par_triangulation%p_env%p_context%iam + 1 
+
+  call memalloc ( this%par_triangulation%element_import%get_number_neighbours(), &
+       touched_neighbours, &
+       __FILE__, __LINE__ )
+
+  result = 0 
+  ! Traverse vefs on the interface
+  do ivef_itfc = 1, this%par_triangulation%num_itfc_vefs
+     vef_lid = this%par_triangulation%lst_itfc_vefs(ivef_itfc)  
+     touched_neighbours = .false.
+
+     vef_active = .false. 
+
+     do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
+        elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
+        finite_element => this%get_finite_element(elem_lid)
+        !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
+        ! alert: something has to be done for null FEs
+        ! if ( .not.finite_element%is_void ) 
+        part_id = this%par_triangulation%elems(elem_lid)%mypart    
+        if ( part_id == mypart_id ) then
+           vef_active = .true.
+           exit
+        end if
+        !end if
+     end do
+
+     if ( vef_active ) then
+        do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
+           elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
+           finite_element => this%get_finite_element(elem_lid)
+           !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
+           part_id = this%par_triangulation%elems(elem_lid)%mypart
+           if ( part_id /= mypart_id ) then
+              local_part_id = this%par_triangulation%element_import%get_local_neighbour_id(part_id)
+              if (.not. touched_neighbours (local_part_id)) then
+                 touched_neighbours (local_part_id) = .true.
+                 ivef = finite_element%cell%find_local_pos_from_vef_id(vef_lid)
+                 result = result + finite_element%reference_fe_phy(fe_space_id)%p%get_number_own_nodes_vef(ivef)
+              end if
+           end if
+           !end if
+        end do
+     end if
+  end do
+  par_fe_space_compute_ubound_num_itfc_couplings_by_continuity = result
+
+  call memfree ( touched_neighbours, __FILE__, __LINE__ )
+end function par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
+
+
+function par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ( this, fe_space_id )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: fe_space_id
+  integer(ip)                          :: par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
+
+  integer(ip)  :: elem_lid
+  integer(ip)  :: ivef_itfc, ielem, vef_lid
+  type(finite_element_t), pointer :: finite_element
+
+  integer(ip) :: result
+
+  assert ( associated (this%par_triangulation) )
+  assert ( this%par_triangulation%p_env%p_context%iam >= 0 )
+
+  result = 0 
+  ! Traverse vefs on the interface
+  do ivef_itfc = 1, this%par_triangulation%num_itfc_vefs
+     vef_lid = this%par_triangulation%lst_itfc_vefs(ivef_itfc)
+     ! Is current vef_lid a face ?
+     if ( this%triangulation%vefs(vef_lid)%dimension == this%triangulation%num_dims-1 ) then
+        do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
+           elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
+           finite_element => this%get_finite_element(elem_lid)
+           !if ( .not. finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() .and. &
+           !     .not. finite_element%reference_fe_phy(fe_space_id)%p%get_conformity() ) then
+           result = result + finite_element%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_number_nodes_face( )
+           !end if
+        end do
+     end if
+     par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ = result
+  end do
+
+end function par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
+
+function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
+                                                                  fe_space_id, &
+                                                                  offset, &
+                                                                  ubound_num_itfc_couplings, &
+                                                                  dofs_lid, &
+                                                                  raw_interface_data ) result(num_itfc_couplings)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: fe_space_id
+  integer(ip)          , intent(in)    :: offset
+  integer(ip)          , intent(in)    :: ubound_num_itfc_couplings
+  integer(ip)          , intent(inout) :: dofs_lid(:)
+  integer(igp)         , intent(inout) :: raw_interface_data(:, :)
+  integer(ip)                          :: num_itfc_couplings
+
+  ! Locals
+  integer(ip)  :: ivef, ivef_itfc, ielem, vef_lid
+  integer(igp) :: elem_gid
+  integer(ip)  :: mypart_id, part_id
+  integer(ip)  :: ivef_in_elem_id, elem_lid, max_elem_lid
+  integer(ip)  :: idof, idof_interior, dof_lid
+  integer(ip)  :: num_dofs_current_vef
+  integer(ip)  :: col, init_col, current_col
+  integer(ip)  :: num_parts, local_part_id, ipart
+
+  integer(igp)              :: max_elem_gid
+  integer(ip)               :: max_part_id
+  integer(ip) , allocatable :: local_idof(:)  
+  integer(ip) , allocatable :: lst_dofs_current_vef(:)
+  integer(ip) , allocatable :: dofs_max_part_id(:)
+  logical     , allocatable :: touched_neighbours(:)
+  integer(ip), allocatable  :: parts_visited(:)
+
+  type(finite_element_t), pointer :: finite_element
+
+
+  assert ( associated (this%par_triangulation) )
+  assert ( this%par_triangulation%p_env%p_context%iam >= 0 )
+
+  ! Allocate touch arrays (we could reduce memory consumption by using hash tables here)
+  call memalloc ( this%number_dofs_per_block(this%field_blocks(fe_space_id)), local_idof, __FILE__, __LINE__ )
+  call memalloc ( this%number_dofs_per_block(this%field_blocks(fe_space_id)), lst_dofs_current_vef, __FILE__, __LINE__ )
+  call memalloc ( ubound_num_itfc_couplings, dofs_max_part_id, __FILE__, __LINE__ )
+
+  call memalloc ( this%par_triangulation%element_import%get_number_neighbours(), &
+       touched_neighbours, &
+       __FILE__, __LINE__ )
+
+  call memalloc ( this%par_triangulation%element_import%get_number_neighbours(), &
+       parts_visited, &
+       __FILE__, __LINE__ )
+
+
+  mypart_id = this%par_triangulation%p_env%p_context%iam + 1 
+
+  current_col  = offset + 1
+  local_idof   = 0
+
+  ! Traverse vefs on the interface
+  do ivef_itfc = 1, this%par_triangulation%num_itfc_vefs
+     vef_lid = this%par_triangulation%lst_itfc_vefs(ivef_itfc)
+     touched_neighbours = .false.
+     num_parts = 0
+     max_part_id = mypart_id
+     max_elem_gid = 0
+
+     num_dofs_current_vef = 0
+     ! Identify the total set of dofs in current vef
+     do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
+        elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
+        finite_element => this%get_finite_element(elem_lid)
+        !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
+        part_id = this%par_triangulation%elems(elem_lid)%mypart   
+        elem_gid = this%par_triangulation%elems(elem_lid)%globalID
+        part_id = this%par_triangulation%elems(elem_lid)%mypart
+        ivef = finite_element%cell%find_local_pos_from_vef_id(vef_lid)
+        do idof_interior=1, finite_element%reference_fe_phy(fe_space_id)%p%get_number_own_nodes_vef(ivef)
+           idof = finite_element%reference_fe_phy(fe_space_id)%p%get_own_node_vef(idof_interior,ivef)
+           dof_lid = finite_element%elem2dof(fe_space_id)%p(idof)
+           if ( dof_lid <= 0 ) cycle
+           if ( elem_gid >= max_elem_gid ) then
+              max_elem_gid = elem_gid
+              if ( local_idof(dof_lid) == 0 ) then
+                 num_dofs_current_vef = num_dofs_current_vef + 1    
+                 lst_dofs_current_vef (num_dofs_current_vef) = dof_lid
+              end if
+              local_idof(dof_lid) = idof
+           end if
+           if ( part_id /= mypart_id ) then 
+              local_part_id = this%par_triangulation%element_import%get_local_neighbour_id(part_id)
+              if ( .not. touched_neighbours(local_part_id) ) then
+                 touched_neighbours (local_part_id) = .true.
+                 num_parts = num_parts + 1
+                 parts_visited (num_parts) = part_id
+                 max_part_id = max(part_id, max_part_id)
+              end if
+           end if
+        end do
+        !end if
+     end do
+
+     init_col = current_col
+     do idof=1, num_dofs_current_vef
+        dof_lid = lst_dofs_current_vef(idof)
+        do ipart=1, num_parts
+           part_id = parts_visited(ipart)
+           dofs_lid ( current_col ) = dof_lid 
+           dofs_max_part_id ( current_col-offset ) = max_part_id
+           raw_interface_data(neighbor_part_id_row, current_col) = part_id
+           raw_interface_data(max_egid_row, current_col) = max_elem_gid
+           raw_interface_data(lpos_dof_max_egid_row, current_col) = local_idof(dof_lid)
+           raw_interface_data(owner_flag_row, current_col) = num_parts + 1
+           current_col = current_col + 1
+        end do
+     end do
+  end do
+
+
+  ! Free touch arrays
+  call memfree ( local_idof, __FILE__, __LINE__ )
+  call memfree ( lst_dofs_current_vef, __FILE__, __LINE__ )
+  call memfree ( parts_visited, __FILE__, __LINE__ )
+  call memfree ( touched_neighbours, __FILE__, __LINE__ )
+
+  call this%par_fe_space_raw_interface_data_by_continuity_decide_owner (offset, &
+                                                                        current_col-1, &
+                                                                        raw_interface_data,&
+                                                                        dofs_max_part_id,&
+                                                                        dofs_lid)
+
+  call memfree ( dofs_max_part_id, __FILE__, __LINE__ )
+
+  num_itfc_couplings = current_col-1 
+end function par_fe_space_compute_raw_interface_data_by_continuity
+
+subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
+                                                                        offset, &
+                                                                        num_cols, &
+                                                                        raw_interface_data, &
+                                                                        dofs_max_part_id,  &
+                                                                        dofs_lid)
+  implicit none
+  class(par_fe_space_t), intent(in)    :: this
+  integer(ip)          , intent(in)    :: offset
+  integer(ip)          , intent(in)    :: num_cols
+  integer(igp)         , intent(inout) :: raw_interface_data(:,:)
+  integer(ip)          , intent(inout) :: dofs_max_part_id(:)
+  integer(ip)          , intent(inout) :: dofs_lid(:)
+
+
+  integer(igp)               :: l1(num_rows_raw_interface_data), l2(num_rows_raw_interface_data)
+  integer(ip) , allocatable  :: perm(:)
+  integer(ip) , allocatable  :: aux(:)
+  integer(ip)                :: start_col, end_col, col, mypart_id, ipart_max, j, size
+
+  !do col=1,num_cols
+  !  write(*,"(10i10)") col, dofs_lid(col), dofs_max_part_id(col), raw_interface_data(:,col)
+  !end do 
+  !write(*,*) '============================================================================='
+
+  if ( num_cols-offset == 0 ) return
+  
+  call memalloc ( num_cols-offset, aux, __FILE__, __LINE__ )
+  call memalloc ( num_cols-offset, perm, __FILE__, __LINE__ )
+  do col=1, num_cols-offset
+     perm(col) = col
+  end do
+
+  ! Re-number interface DoF couplings in increasing order by neighbour part id, the
+  ! number of neighbour parts around, and e_max + local_pos_dof_in_emax
+  call sort_array_cols_by_row_section( num_rows_raw_interface_data, &
+                                       num_rows_raw_interface_data, &
+                                       num_cols-offset, &
+                                       raw_interface_data(1:,offset+1:num_cols), &
+                                       perm, &
+                                       l1, &
+                                       l2)
+
+  aux = dofs_max_part_id(1:num_cols-offset)
+  do col=1, num_cols-offset
+     dofs_max_part_id(col) = aux(perm(col))
+  end do
+
+  aux = dofs_lid(offset+1:num_cols)
+  do col=1, num_cols-offset
+     dofs_lid(offset+col) = aux(perm(col))
+  end do
+
+  call memfree ( perm, __FILE__, __LINE__ )
+  call memfree ( aux, __FILE__, __LINE__ )
+
+  mypart_id = this%par_triangulation%p_env%p_context%iam + 1
+
+  col = offset + 1
+  do while ( col <= num_cols ) 
+     if ( raw_interface_data ( owner_flag_row, col ) == 2 ) then
+        start_col = col
+        do while  (raw_interface_data ( owner_flag_row, col ) == 2)
+           col = col + 1
+           if ( col > num_cols ) exit
+        end do
+        end_col = col - 1
+
+        ipart_max = dofs_max_part_id(start_col-offset)
+        size = end_col - start_col + 1
+        if ( mypart_id == ipart_max ) then
+           do j= start_col, start_col + size/2 -1
+              raw_interface_data ( owner_flag_row, j) = owner
+           end do
+           do j= start_col + size/2,  end_col
+              raw_interface_data ( owner_flag_row, j) = non_owner
+           end do
+        else
+           do j= start_col, start_col + size/2 -1
+              raw_interface_data ( owner_flag_row, j) = non_owner
+           end do
+           do j= start_col + size/2,  end_col
+              raw_interface_data ( owner_flag_row, j) = owner
+           end do
+        end if
+     else
+        if ( mypart_id == dofs_max_part_id(col-offset) ) then
+           raw_interface_data ( owner_flag_row, col) = owner
+        else
+           if ( raw_interface_data ( neighbor_part_id_row, col) == dofs_max_part_id(col-offset) ) then
+              raw_interface_data ( owner_flag_row, col) = non_owner
+           else
+              raw_interface_data ( owner_flag_row, col) = uncoupled
+           end if
+        end if
+        col = col +1
+     end if
+
+  end do
+
+  !do col=1,num_cols
+  !  write(*,"(10i10)") col, dofs_lid(col), dofs_max_part_id(col), raw_interface_data(:,col)
+  !end do 
+
+end subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner
+
+function par_fe_space_compute_raw_interface_data_by_face_integ ( this, &
+                                                                 fe_space_id, &
+                                                                 offset, &
+                                                                 ubound_num_itfc_couplings, &
+                                                                 dofs_lid, &
+                                                                 raw_interface_data) result(num_itfc_couplings)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: fe_space_id
+  integer(ip)          , intent(in)    :: offset
+  integer(ip)          , intent(in)    :: ubound_num_itfc_couplings
+  integer(ip)          , intent(inout) :: dofs_lid(:)
+  integer(igp)         , intent(inout) :: raw_interface_data(:, :)
+  integer(ip)                          :: num_itfc_couplings
+
+  ! Locals
+  integer(ip)  :: ivef, ivef_itfc, ielem, vef_lid
+  integer(igp) :: elem_gid
+  integer(ip)  :: mypart_id, part_id
+  integer(ip)  :: elem_lid, max_elem_lid
+  integer(ip)  :: idof, idof_face, dof_lid
+  integer(ip)  :: current_col
+  integer(igp) :: l1(num_rows_raw_interface_data), l2(num_rows_raw_interface_data)
+
+
+  type(finite_element_t), pointer :: finite_element
+
+  assert ( associated (this%par_triangulation) )
+  assert ( this%par_triangulation%p_env%p_context%iam >= 0 )
+
+  mypart_id = this%par_triangulation%p_env%p_context%iam + 1 
+  current_col = offset + 1
+
+  ! Traverse vefs on the interface
+  do ivef_itfc = 1, this%par_triangulation%num_itfc_vefs
+     vef_lid = this%par_triangulation%lst_itfc_vefs(ivef_itfc)
+
+     ! Is current vef_lid a face ?
+     if ( this%triangulation%vefs(vef_lid)%dimension == this%triangulation%num_dims-1 ) then
+        do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
+           elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
+           if ( this%par_triangulation%elems(elem_lid)%mypart /= mypart_id ) then
+              part_id = this%par_triangulation%elems(elem_lid)%mypart
+           end if
+        end do
+
+        do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
+           elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
+           elem_gid = this%par_triangulation%elems(elem_lid)%globalID
+           finite_element => this%get_finite_element(elem_lid)
+           ivef = finite_element%cell%find_local_pos_from_vef_id(vef_lid)
+           do idof_face=1, finite_element%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_number_nodes_face()
+              idof = finite_element%reference_fe_phy(fe_space_id)%p%get_face_integration_coupling_node_face(idof_face,ivef)
+              dof_lid = finite_element%elem2dof(fe_space_id)%p(idof)
+              dofs_lid ( current_col ) = dof_lid 
+              raw_interface_data(neighbor_part_id_row, current_col) = part_id
+              raw_interface_data(max_egid_row, current_col) = elem_gid
+              raw_interface_data(lpos_dof_max_egid_row, current_col) = idof
+              if ( mypart_id == this%par_triangulation%elems(elem_lid)%mypart ) then
+                 raw_interface_data(owner_flag_row,current_col) = owner
+              else
+                 raw_interface_data(owner_flag_row,current_col) = non_owner
+              end if
+              current_col = current_col + 1
+           end do
+        end do
+     end if
+  end do
+
+  num_itfc_couplings = current_col-offset-1
+
+  if ( num_itfc_couplings > 0 ) then
+     ! Re-number interface DoF couplings in increasing order by neighbour part id, the
+     ! number of neighbour parts around, and e_max + local_pos_dof_in_emax
+     call sort_array_cols_by_row_section( num_rows_raw_interface_data, &
+                                          num_rows_raw_interface_data, &
+                                          num_itfc_couplings, &
+                                          raw_interface_data(1:,offset+1:current_col-1), &
+                                          dofs_lid(offset+1:current_col-1), &
+                                          l1, &
+                                          l2)
+  end if                                        
+  !do current_col=1,num_itfc_couplings 
+  !  write(*,"(10i10)") current_col, dofs_lid(current_col), raw_interface_data(:,current_col)
+  !end do 
+
+end function par_fe_space_compute_raw_interface_data_by_face_integ
+
+
+function par_fe_space_create_assembler(this, &
+     diagonal_blocks_symmetric_storage,&
+     diagonal_blocks_symmetric, & 
+     diagonal_blocks_sign)
+  implicit none
+  class(par_fe_space_t)             , intent(in) :: this
+  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
+  logical                           , intent(in) :: diagonal_blocks_symmetric(:)
+  integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
+  class(matrix_array_assembler_t)   , pointer    :: par_fe_space_create_assembler
+
+  ! Locals
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
+  logical, allocatable :: blocks_coupling(:,:)
+  integer(ip)          :: ife_space, jfe_space
+  integer(ip)          :: iblock, jblock
+
+  if (this%number_blocks == 1) then
+     allocate ( par_sparse_matrix_array_assembler_t :: par_fe_space_create_assembler )
+     allocate ( par_sparse_matrix_t :: matrix )
+     allocate ( par_scalar_array_t  :: array )
+     select type(matrix)
+        class is(par_sparse_matrix_t)
+        call matrix%create(this%par_triangulation%p_env, &
+             this%blocks_dof_import(1), &
+             diagonal_blocks_symmetric_storage(1),&
+             diagonal_blocks_symmetric(1),&
+             diagonal_blocks_sign(1))
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(par_scalar_array_t)
+        call array%create(this%par_triangulation%p_env, &
+             this%blocks_dof_import(1))
+        class default
+        check(.false.)
+     end select
+  else
+     check(.false.)
+  end if
+  call par_fe_space_create_assembler%set_matrix(matrix)
+  call par_fe_space_create_assembler%set_array(array)
+end function par_fe_space_create_assembler
+
+
+subroutine par_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
+  implicit none
+  class(par_fe_space_t)        , intent(in)    :: this
+  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+end subroutine par_fe_space_symbolic_setup_assembler
+
+subroutine par_fe_space_update_bc_value_scalar( this, scalar_function, bc_code, fe_space_component, time, unknown_component)
+  implicit none
+  class(par_fe_space_t)   , intent(inout) :: this 
+  class(scalar_function_t), intent(in)    :: scalar_function
+  integer(ip)             , intent(in)    :: bc_code
+  integer(ip)             , intent(in)    :: fe_space_component
+  real(rp)   , optional   , intent(in)    :: time
+  integer(ip), optional   , intent(in)    :: unknown_component
+ 
+  assert ( associated (this%par_triangulation) )
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+    call this%serial_fe_space_t%update_bc_value(scalar_function, bc_code, fe_space_component, time, unknown_component)
+  end if
+
+end subroutine par_fe_space_update_bc_value_scalar
+
+subroutine par_fe_space_update_bc_value_vector( this, vector_function, bc_code, fe_space_component, time)
+  implicit none
+  class(par_fe_space_t)   , intent(inout) :: this 
+  class(vector_function_t), intent(in)    :: vector_function
+  integer(ip)             , intent(in)    :: bc_code
+  integer(ip)             , intent(in)    :: fe_space_component
+  real(rp)   , optional   , intent(in)    :: time
+
+  assert ( associated (this%par_triangulation) )
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+    call this%serial_fe_space_t%update_bc_value(vector_function, bc_code, fe_space_component, time)
+  end if
+end subroutine par_fe_space_update_bc_value_vector
+
+subroutine par_fe_space_update_bc_value_tensor( this, tensor_function, bc_code, fe_space_component, time)
+  implicit none
+  class(par_fe_space_t)   , intent(inout) :: this 
+  class(tensor_function_t), intent(in)    :: tensor_function
+  integer(ip)             , intent(in)    :: bc_code
+  integer(ip)             , intent(in)    :: fe_space_component
+  real(rp)   , optional   , intent(in)    :: time
+  
+  assert ( associated (this%par_triangulation) )
+  if ( this%par_triangulation%p_env%p_context%iam >= 0 ) then
+    call this%serial_fe_space_t%update_bc_value(tensor_function, bc_code, fe_space_component, time)
+  end if
+  
+end subroutine par_fe_space_update_bc_value_tensor
+
+ !===============================================================================================
+ subroutine par_fe_space_create_global_fe_function ( this, fe_function )
+    implicit none
+    class(par_fe_space_t), intent(in)    :: this
+    type(fe_function_t)     , intent(inout) :: fe_function
+    
+    class(vector_t), allocatable :: dof_values
+    
+    assert ( associated (this%par_triangulation) )
+    if (this%number_blocks == 1) then
+       allocate ( par_scalar_array_t  :: dof_values )
+       select type(dof_values)
+       class is(par_scalar_array_t)
+          call dof_values%create_and_allocate(this%par_triangulation%p_env, this%blocks_dof_import(1))
+       class default
+       check(.false.)
+       end select
+    else
+       check(.false.)
+    end if
+    call fe_function%create(this%strong_dirichlet_values, dof_values)
+ end subroutine par_fe_space_create_global_fe_function
+
+ !===============================================================================================
+ subroutine par_fe_space_update_global_fe_function_bcs ( this, fe_function )
+    implicit none
+    class(par_fe_space_t), intent(in)    :: this
+    type(fe_function_t)     , intent(inout) :: fe_function
+    assert ( associated (this%par_triangulation) )  
+    call fe_function%copy_bc_values(this%strong_dirichlet_values)
+ end subroutine par_fe_space_update_global_fe_function_bcs
+

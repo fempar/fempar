@@ -1,0 +1,31 @@
+PROBLEM DATA
+TITLE: Data
+QUESTION: Title:
+VALUE: name
+QUESTION: Problem_1_state:#CB#(On,Off)
+VALUE: On
+DEPENDENCIES: (Off,HIDE,Problem_1_title,#CURRENT#,HIDE,Problem_1_ncode,#CURRENT#,HIDE,Problem_1_nvalu,#CURRENT#,HIDE,Problem_1_mat,#CURRENT#)
+DEPENDENCIES: (On,RESTORE,Problem_1_title,#CURRENT#,RESTORE,Problem_1_ncode,#CURRENT#,RESTORE,Problem_1_nvalu,#CURRENT#,RESTORE,Problem_1_mat,#CURRENT#)
+QUESTION: Problem_1_title
+VALUE: problem_1
+QUESTION: Problem_1_ncode
+VALUE: 1
+QUESTION: Problem_1_nvalu
+VALUE: 1
+QUESTION: Problem_1_mat
+VALUE: 1
+QUESTION: Problem_2_state:#CB#(On,Off)
+VALUE: Off
+DEPENDENCIES: (Off,HIDE,Problem_2_title,#CURRENT#,HIDE,Problem_2_ncode,#CURRENT#,HIDE,Problem_2_nvalu,#CURRENT#,HIDE,Problem_2_mat,#CURRENT#)
+DEPENDENCIES: (On,RESTORE,Problem_2_title,#CURRENT#,RESTORE,Problem_2_ncode,#CURRENT#,RESTORE,Problem_2_nvalu,#CURRENT#,RESTORE,Problem_2_mat,#CURRENT#)
+QUESTION: Problem_2_title
+VALUE: problem_2
+QUESTION: Problem_2_ncode
+VALUE: 1
+QUESTION: Problem_2_nvalu
+VALUE: 1
+QUESTION: Problem_2_mat
+VALUE: 1
+END PROBLEM DATA
+INTERVAL DATA
+END INTERVAL DATA

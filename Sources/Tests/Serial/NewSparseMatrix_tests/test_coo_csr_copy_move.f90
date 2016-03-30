@@ -14,6 +14,54 @@ implicit none
 
     call meminit()
 
+
+!------------------------------------------------------------------
+! EMPTY MATRIX (NNZ==0)
+!------------------------------------------------------------------
+
+    check(coo_matrix%state_is_start())
+
+    call coo_matrix%create(num_rows_and_cols = 0,                          &
+                           symmetric_storage = .true.,                     &
+                           is_symmetric      = .true.,                     &
+                           sign              = SPARSE_MATRIX_SIGN_UNKNOWN, &
+                           nz                = 0)
+
+    check(coo_matrix%state_is_created())
+
+    call coo_matrix%sort_and_compress()
+
+    ! Copy coo_matrix (COO) -> csr_matrix (CSR)
+    call coo_matrix%copy_to_fmt(csr_matrix)
+    call compare_coo_csr_matrix(coo_matrix, csr_matrix)
+    ! Copy csr_matrix (CSR) -> coo_matrix (COO)
+    call csr_matrix%copy_to_fmt(coo_matrix)
+    call compare_coo_csr_matrix(coo_matrix, csr_matrix)
+    ! Copy csr_matrix (CSR) <- coo_matrix (COO)
+    call csr_matrix%copy_from_coo(coo_matrix)
+    call compare_coo_csr_matrix(coo_matrix, csr_matrix)
+    ! Copy csr_matrix (CSR) -> coo_matrix (COO)
+    call csr_matrix%copy_to_coo(coo_matrix)
+    call compare_coo_csr_matrix(coo_matrix, csr_matrix)
+
+
+    ! Move coo_matrix (COO) -> csr_matrix (CSR)
+    call coo_matrix%move_to_fmt(csr_matrix)
+    check(coo_matrix%state_is_start())
+    ! Move coo_matrix (COO) <- csr_matrix_copy (CSR)
+    call coo_matrix%move_from_fmt(csr_matrix)
+    check(csr_matrix%state_is_start())
+    ! Move coo_matrix (COO) -> csr_matrix (CSR)
+    call csr_matrix%move_from_coo(coo_matrix)
+    check(coo_matrix%state_is_start())
+    ! Move coo_matrix (COO) <- coo_matrix_copy (CSR)
+    call csr_matrix%move_to_coo(coo_matrix)
+    check(csr_matrix%state_is_start())
+
+    call coo_matrix%free()
+
+    check(coo_matrix%state_is_start())
+
 !------------------------------------------------------------------
 ! NUMERIC
 !------------------------------------------------------------------
@@ -137,11 +185,7 @@ contains
         check(a%get_sign()                == b%get_sign())
         check(a%is_by_rows()             .eqv. b%is_by_rows())
         check(a%get_state()               == b%get_state())
-! private components
-!        check(a%get_nnz()+1               == b%irp(a%get_num_rows()+1))
-!        check(a%ja(a%get_nnz())           == b%ja(b%get_nnz()))
-!        check(allocated(a%val)           .eqv. allocated(b%val))
-
+        check(a%get_nnz()+1               == b%irp(a%get_num_rows()+1))
     end subroutine compare_coo_csr_matrix
 
 end program

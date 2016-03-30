@@ -36,6 +36,7 @@ module serial_names
   use environment_names
   use serial_environment_names
   use Data_Type_Command_Line_Interface
+  use FPL
 
   ! Geometry
   use map_names
@@ -67,7 +68,9 @@ module serial_names
   use migratory_element_names
 
   ! Linear Algebra
-  use linear_solver_names
+  use iterative_linear_solver_names
+  use iterative_linear_solver_parameters_names
+  use iterative_linear_solver_creational_methods_dictionary_names
   use sparse_matrix_names
   use serial_scalar_array_names
   use serial_block_array_names
@@ -81,6 +84,9 @@ module serial_names
   use block_preconditioner_lu_names
   use block_operator_names
   use block_vector_names
+  use direct_solver_names
+  use direct_solver_parameters_names
+  use direct_solver_creational_methods_dictionary_names
   
   ! Integration 
   use reference_fe_names
@@ -90,4 +96,29 @@ module serial_names
   use discrete_integration_names
   use assembler_names
   use fe_affine_operator_names
+  use function_names
+  use function_library_names
+
+contains
+
+  subroutine FEMPAR_INIT()
+#ifdef DEBUG
+    call meminit()
+#endif
+    call FPL_Init()                                                       ! FPL Wrapper factory list initialization
+    call the_direct_solver_creational_methods_dictionary%Init()           ! Direct solver creational methods dictionary initialization
+    call the_iterative_linear_solver_creational_methods_dictionary%Init() ! Iterative linear solver creational methods dictionary initialization
+  end subroutine
+
+
+  subroutine FEMPAR_FINALIZE()
+    call FPL_Finalize()                                                   ! Free FPL Wrapper factory list
+    call the_direct_solver_creational_methods_dictionary%Free()           ! Free Direct solver creational methods dictionary
+    call the_iterative_linear_solver_creational_methods_dictionary%Free() ! Free Iterative linear solver creational methods dictionary
+#ifdef DEBUG
+    call memstatus()
+#endif
+  end subroutine
+
+
 end module serial_names

@@ -284,7 +284,7 @@ contains
     call source%init(2.0_rp)
 
     quad  => fe%get_quadrature()
-    ngaus = quad%get_number_evaluation_points()
+    ngaus = quad%get_number_quadrature_points()
     do ielem = 1, fe_space%get_number_elements()
        elmat = 0.0_rp
        elvec = 0.0_rp
@@ -402,10 +402,8 @@ program test_reference_fe
   class(vector_t) , allocatable, target :: vector, initial_solution
   class(vector_t) , pointer :: rhs
  
-
-  type(linear_solver_t)                           :: linear_solver
-  type(vector_space_t)    , pointer               :: fe_affine_operator_range_vector_space
-  type(serial_environment_t)         :: senv
+  type(iterative_linear_solver_t)      :: iterative_linear_solver
+  type(serial_environment_t) :: senv
 
   ! Arguments
   character(len=256)       :: dir_path, dir_path_out
@@ -492,7 +490,7 @@ program test_reference_fe
                                     (/.true.,.true./), &
                                     (/.true.,.true./), &
                                     (/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/),&
-                                    f_trian, &
+                                    senv, &
                                     fe_space, &
                                     maxwell_integration )
   
@@ -507,16 +505,15 @@ program test_reference_fe
       call matrix%print_matrix_market(6)
   end select
   
-  fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-  call fe_affine_operator_range_vector_space%create_vector(vector)
+  call fe_affine_operator%create_range_vector(vector)
 
-  ! Create linear solver, set operators and solve linear system
-    call linear_solver%create(senv)
-    call linear_solver%set_type_and_parameters_from_pl()
-    call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-    call linear_solver%solve(vector)
-  !  call linear_solver%print_convergence_history('csic')
-    call linear_solver%free() 
+  ! Create iterative linear solver, set operators and solve linear system
+    call iterative_linear_solver%create(senv)
+    call iterative_linear_solver%set_type_and_parameters_from_pl()
+    call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+    call iterative_linear_solver%solve(vector)
+  !  call iterative_linear_solver%print_convergence_history('csic')
+    call iterative_linear_solver%free() 
 
    select type(vector)
      class is(serial_block_array_t)
@@ -534,6 +531,8 @@ program test_reference_fe
   deallocate(vector)
   call fe_affine_operator%free()
   call fe_space%free()
+  call composite_reference_array(1)%free()
+  call composite_reference_array(2)%free()
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)

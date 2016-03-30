@@ -31,8 +31,6 @@ module par_scalar_array_names
   use memor_names
   use stdio_names
   use serial_scalar_array_names
-  use array_names
-  use vector_names
 
 #ifdef ENABLE_BLAS       
   use blas77_interfaces_names
@@ -45,35 +43,45 @@ module par_scalar_array_names
   ! Parallel modules
   use par_context_names
   use par_environment_names
-  use dof_distribution_names
+  use dof_import_names
   use psb_penv_mod_names
+  use par_sparse_global_collectives_names
 
   ! Abstract types
   use vector_names
-
+  use array_names
 
   implicit none
 # include "debug.i90"
   private
 
-  ! Distributed Vector
+  ! Distributed-memory scalar array
   type, extends(array_t) :: par_scalar_array_t
-     ! Data structure which stores the local part 
-     ! of the vector mapped to the current processor.
-     type( serial_scalar_array_t ) :: serial_scalar_array
-     ! Parallel DoF distribution control info.
-     type ( dof_distribution_t ), pointer  :: dof_dist => NULL()
-     type ( par_environment_t ) , pointer  :: p_env => NULL()
+     private
+     type ( serial_scalar_array_t )        :: serial_scalar_array
+     type ( par_environment_t ) , pointer  :: p_env      => NULL()     
+     type ( dof_import_t )      , pointer  :: dof_import => NULL()
    contains
-     procedure :: create_and_allocate    => par_scalar_array_create_and_allocate
-     procedure :: create                 => par_scalar_array_create
-     procedure :: allocate               => par_scalar_array_allocate
-     procedure :: create_view            => par_scalar_array_create_view
-     procedure :: set_view_entries       => par_scalar_array_set_view_entries
-     procedure :: weight                 => par_scalar_array_weight
-     procedure :: print                  => par_scalar_array_print
-     procedure :: print_market_market    => par_scalar_array_print_matrix_market
-
+     procedure :: create_and_allocate     => par_scalar_array_create_and_allocate
+     procedure :: create                  => par_scalar_array_create
+     procedure :: allocate                => par_scalar_array_allocate
+     procedure :: create_view             => par_scalar_array_create_view
+     procedure :: set_view_entries        => par_scalar_array_set_view_entries
+     procedure :: print                   => par_scalar_array_print
+     procedure :: print_matrix_market     => par_scalar_array_print_matrix_market
+     procedure :: get_par_environment     => par_scalar_array_get_par_environment
+     procedure :: get_serial_scalar_array => par_scalar_array_get_serial_scalar_array
+    
+     procedure, private :: par_scalar_array_insert_single_entry
+     procedure, private :: par_scalar_array_insert_multiple_entries
+     procedure, private :: par_scalar_array_add_single_entry
+     procedure, private :: par_scalar_array_add_multiple_entries                      
+    
+     generic :: insert                  => par_scalar_array_insert_single_entry, &
+                                             par_scalar_array_insert_multiple_entries
+     generic :: add                     => par_scalar_array_add_single_entry, &
+                                             par_scalar_array_add_multiple_entries
+     
      ! Provide type bound procedures (tbp) implementors
      procedure :: dot                    => par_scalar_array_dot
      procedure :: local_dot              => par_scalar_array_local_dot
@@ -89,6 +97,7 @@ module par_scalar_array_names
      procedure :: default_initialization => par_scalar_array_default_init
      procedure :: get_number_blocks      => par_scalar_array_get_number_blocks
      procedure :: extract_subvector      => par_scalar_array_extract_subvector
+     procedure :: insert_subvector       => par_scalar_array_insert_subvector
   end type par_scalar_array_t
 
 
@@ -124,38 +133,35 @@ contains
     class(par_scalar_array_t), intent(inout) :: this
 
     call this%serial_scalar_array%default_initialization()
-    nullify(this%dof_dist)
+    nullify(this%dof_import)
     nullify(this%p_env)
     call this%NullifyTemporary()
   end subroutine par_scalar_array_default_init
 
   !=============================================================================
-  subroutine par_scalar_array_create_and_allocate (this, dof_dist, p_env)
+  subroutine par_scalar_array_create_and_allocate (this, p_env, dof_import)
     implicit none
     ! Parameters
-    class(par_scalar_array_t), intent(out) :: this
-    type(dof_distribution_t) , intent(in)  :: dof_dist
-    type(par_environment_t)  , intent(in)  :: p_env
-
-    call this%create(dof_dist, p_env)
+    class(par_scalar_array_t), intent(inout) :: this
+    type(par_environment_t)  , intent(in)    :: p_env
+    type(dof_import_t)       , intent(in)    :: dof_import
+    call this%free()
+    call this%create(p_env, dof_import)
     call this%allocate()
   end subroutine par_scalar_array_create_and_allocate
   
   !=============================================================================
-  subroutine par_scalar_array_create (this, dof_dist, p_env)
+  subroutine par_scalar_array_create (this, p_env, dof_import)
     implicit none
     ! Parameters
-    class(par_scalar_array_t)       , intent(out) :: this
-    type(dof_distribution_t), target, intent(in)  :: dof_dist
-    type(par_environment_t) , target, intent(in)  :: p_env
-
-    ! p_env%p_context is required within this subroutine
-    assert ( associated(p_env%p_context) )
-    assert ( p_env%p_context%created .eqv. .true.)
-    this%dof_dist => dof_dist
-    this%p_env    => p_env 
+    class(par_scalar_array_t)       , intent(inout) :: this
+    type(par_environment_t) , target, intent(in)    :: p_env
+    type(dof_import_t)      , target, intent(in)    :: dof_import
+    call this%free()
+    this%p_env      => p_env 
+    this%dof_import => dof_import
     if(this%p_env%p_context%iam<0) return
-    call this%serial_scalar_array%create (dof_dist%nl)
+    call this%serial_scalar_array%create (dof_import%get_number_dofs())
   end subroutine par_scalar_array_create
   
   !=============================================================================
@@ -166,7 +172,7 @@ contains
     ! p_env%p_context is required within this subroutine
     assert ( associated(this%p_env%p_context) )
     assert ( this%p_env%p_context%created .eqv. .true.) 
-    assert ( associated(this%dof_dist) )
+    assert ( associated(this%dof_import) )
     if(this%p_env%p_context%iam<0) return
     call this%serial_scalar_array%allocate ()
   end subroutine par_scalar_array_allocate
@@ -179,11 +185,11 @@ contains
     integer(ip)     , intent(in)         :: end
     type(par_scalar_array_t), intent(out)        :: t_p_vec
     ! The routine requires the partition/context info
-    assert ( associated( this%dof_dist ) )
+    assert ( associated( this%dof_import ) )
     assert ( associated( this%p_env%p_context ) )
     assert ( this%p_env%p_context%created .eqv. .true.)
     ! Associate dof distribution and parallel environment 
-    t_p_vec%dof_dist => this%dof_dist
+    t_p_vec%dof_import => this%dof_import
     t_p_vec%p_env    => this%p_env
     if(this%p_env%p_context%iam<0) return
     ! Call vector_create_view
@@ -196,7 +202,7 @@ contains
     class(par_scalar_array_t), intent(inout) ::  this
     real(rp)        , target, intent(in)     ::  entries(:)
     ! The routine requires the partition/context info
-    assert ( associated( this%dof_dist ) )
+    assert ( associated( this%dof_import ) )
     assert ( associated( this%p_env%p_context ) )
     assert ( this%p_env%p_context%created .eqv. .true.)
     if(this%p_env%p_context%iam<0) return
@@ -205,149 +211,75 @@ contains
   end subroutine par_scalar_array_set_view_entries
 
   !=============================================================================
-  ! VERY IMPORTANT: comm_interface is well-defined if and only if p_vec is a 
-  !                 vector on the interface
+  function par_scalar_array_get_par_environment( this )
+   implicit none
+   class(par_scalar_array_t), target, intent(in) :: this 
+   type(par_environment_t)  , pointer            :: par_scalar_array_get_par_environment
+   par_scalar_array_get_par_environment => this%p_env
+  end function par_scalar_array_get_par_environment
+  
+  
   !=============================================================================
-  subroutine comm_interface (p_vec)
-    use par_sparse_global_collectives_names
+  function par_scalar_array_get_serial_scalar_array( this )
+   implicit none
+   class(par_scalar_array_t), target, intent(in) :: this 
+   type(serial_scalar_array_t)  , pointer        :: par_scalar_array_get_serial_scalar_array
+   par_scalar_array_get_serial_scalar_array => this%serial_scalar_array
+  end function par_scalar_array_get_serial_scalar_array
+  
+  subroutine par_scalar_array_insert_single_entry (this, i, val)
     implicit none
-
-    ! Parameters
-    type(par_scalar_array_t), intent(inout)         :: p_vec
-
-    ! Pointer to part/context object is required
-    assert ( associated(p_vec%dof_dist) )
-    assert ( associated(p_vec%p_env%p_context) )
-    assert ( p_vec%p_env%p_context%created .eqv. .true.)
-    if(p_vec%p_env%p_context%iam<0) return
-
-
-    ! call import_print (6, p_vec%dof_dist%dof_import)
-    ! write(*,*) 'SE 1', size(p_vec%serial_scalar_array%b)
-    ! call vector_print ( 6, p_vec%serial_scalar_array )
-
-    ! First stage: owners receive/reduce, non-owners send
-    call single_exchange ( p_vec%p_env%p_context%icontxt, &
-         p_vec%dof_dist%dof_import%num_rcv,    &
-         p_vec%dof_dist%dof_import%list_rcv,   &
-         p_vec%dof_dist%dof_import%rcv_ptrs,   &
-         p_vec%dof_dist%dof_import%unpack_idx, &
-         p_vec%dof_dist%dof_import%num_snd,    &
-         p_vec%dof_dist%dof_import%list_snd,   &
-         p_vec%dof_dist%dof_import%snd_ptrs,   &
-         p_vec%dof_dist%dof_import%pack_idx,   &
-         1.0_rp,                         &
-         1.0_rp,                         &
-         p_vec%serial_scalar_array%b ) 
-
-    ! write(*,*) 'SE 2'
-
-    ! Second stage: owners send, non-owners receive/insert
-    call single_exchange ( p_vec%p_env%p_context%icontxt, &
-         p_vec%dof_dist%dof_import%num_snd,    &
-         p_vec%dof_dist%dof_import%list_snd,   &
-         p_vec%dof_dist%dof_import%snd_ptrs,   &
-         p_vec%dof_dist%dof_import%pack_idx,   &
-         p_vec%dof_dist%dof_import%num_rcv,    &
-         p_vec%dof_dist%dof_import%list_rcv,   &
-         p_vec%dof_dist%dof_import%rcv_ptrs,   &
-         p_vec%dof_dist%dof_import%unpack_idx, &
-         1.0_rp,                         &
-         0.0_rp,                         &
-         p_vec%serial_scalar_array%b )
-
-  end subroutine comm_interface
-
-  !=============================================================================
-  subroutine par_scalar_array_weight ( this, weight )
-    implicit none
-    ! Parameters
     class(par_scalar_array_t), intent(inout) :: this
-    real(rp)        , intent(in), target, optional :: weight(*)
-
-    ! Local variables
-    integer(ip)      :: ni 
-    type(par_scalar_array_t) :: p_vec_G
-
-    ! Pointer to part/context object is required
-    assert ( associated(this%dof_dist) )
+    integer(ip)                 , intent(in)    :: i
+    real(rp)                    , intent(in)    :: val
+    assert ( associated(this%dof_import   ) )
     assert ( associated(this%p_env%p_context) )
     assert ( this%p_env%p_context%created .eqv. .true.)
     if(this%p_env%p_context%iam<0) return
-
-
-    ni = this%serial_scalar_array%size - this%dof_dist%nb
-    call this%create_view ( ni+1, this%serial_scalar_array%size, p_vec_G )
-    call weight_interface ( p_vec_G, weight )
-  end subroutine par_scalar_array_weight
-
-  !=============================================================================
-  ! VERY IMPORTANT: weight_interface is well-defined if and only if p_vec is a 
-  !                 vector on the interface
-  !=============================================================================
-  subroutine weight_interface ( p_vec, weight )
-    implicit none
-    ! Parameters
-    type(par_scalar_array_t), intent(inout)                :: p_vec
-    real(rp)        , intent(in), target, optional :: weight(*)
-
-    ! Local variables
-    integer(ip) :: iobj, i, i1, i2 
-    real(rp)    :: weigt
-
-    ! Pointer to part/context object is required
-    assert ( associated(p_vec%dof_dist) )
-    assert ( associated(p_vec%p_env%p_context) )
-    assert ( p_vec%p_env%p_context%created .eqv. .true.)
-    if(p_vec%p_env%p_context%iam<0) return
-
-
-    if ( present(weight) ) then
-       i1 = 1
-       i2 = p_vec%dof_dist%nb
-       do i=i1,i2
-          p_vec%serial_scalar_array%b(i) =  p_vec%serial_scalar_array%b(i) * weight(i)
-       end do
-    else 
-
-       do iobj=2, p_vec%dof_dist%nobjs
-          weigt=1.0_rp/real(p_vec%dof_dist%lobjs(4,iobj))
-          i1 = p_vec%dof_dist%lobjs(2,iobj) - p_vec%dof_dist%ni
-          i2 = p_vec%dof_dist%lobjs(3,iobj) - p_vec%dof_dist%ni
-#ifdef ENABLE_BLAS
-          call dscal ( (i2-i1+1), weigt, p_vec%serial_scalar_array%b(i1:i2), 1 )
-#else
-          p_vec%serial_scalar_array%b(i1:i2) = weigt * p_vec%serial_scalar_array%b(i1:i2)
-#endif 
-       end do
-
-    end if
-  end subroutine weight_interface
-
-  !=============================================================================
-  ! VERY IMPORTANT: dot_interface is well-defined if and only if x/y are 
-  !                 vectors on the interface
-  !============================================================================= 
-  subroutine dot_interface(x,y,t)
-    implicit none
-    ! Parameters  
-    type(par_scalar_array_t), intent(in)  :: x
-    type(par_scalar_array_t), intent(in)  :: y
-    real(rp)                , intent(out) :: t
-
-    ! Locals 
-    integer(ip)                :: ierrc
-    type(par_scalar_array_t)   :: ws_vec
-
-    ! Pointer to part/context object is required
-    assert ( associated(x%dof_dist   ) )
-    assert ( associated(x%p_env%p_context) )
-    assert ( associated(y%dof_dist   ) )
-    assert ( associated(y%p_env%p_context) )
-    
-    call weighted_dot (x, y, t)
-  end subroutine dot_interface
+    call this%serial_scalar_array%insert(i,val)
+  end subroutine par_scalar_array_insert_single_entry
   
+  subroutine par_scalar_array_insert_multiple_entries (this, num_entries, ia, ioffset, val)
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: this
+    integer(ip)                 , intent(in) :: num_entries
+    integer(ip)                 , intent(in) :: ia(num_entries)
+    integer(ip)                 , intent(in) :: ioffset
+    real(rp)                    , intent(in) :: val(:)
+    assert ( associated(this%dof_import   ) )
+    assert ( associated(this%p_env%p_context) )
+    assert ( this%p_env%p_context%created .eqv. .true.)
+    if(this%p_env%p_context%iam<0) return
+    call this%serial_scalar_array%insert(num_entries,ia,ioffset,val)
+  end subroutine par_scalar_array_insert_multiple_entries
+  
+  subroutine par_scalar_array_add_single_entry (this, i, val)
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: this
+    integer(ip)                 , intent(in)    :: i
+    real(rp)                    , intent(in)    :: val
+    assert ( associated(this%dof_import   ) )
+    assert ( associated(this%p_env%p_context) )
+    assert ( this%p_env%p_context%created .eqv. .true.)
+    if(this%p_env%p_context%iam<0) return
+    call this%serial_scalar_array%add(i,val)
+  end subroutine par_scalar_array_add_single_entry
+  
+  subroutine par_scalar_array_add_multiple_entries (this, num_entries, ia, ioffset, val)
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: this
+    integer(ip)                 , intent(in) :: num_entries
+    integer(ip)                 , intent(in) :: ia(num_entries)
+    integer(ip)                 , intent(in) :: ioffset
+    real(rp)                    , intent(in) :: val(:)
+    assert ( associated(this%dof_import   ) )
+    assert ( associated(this%p_env%p_context) )
+    assert ( this%p_env%p_context%created .eqv. .true.)
+    if (this%p_env%p_context%iam<0) return
+    call this%serial_scalar_array%add(num_entries,ia,ioffset,val)
+  end subroutine par_scalar_array_add_multiple_entries
+  
+    
   !=============================================================================
   subroutine par_scalar_array_print ( this, luout )
     implicit none
@@ -355,59 +287,28 @@ contains
     integer(ip)              , intent(in) :: luout
 
     ! Pointer to part/context object is required
-    assert ( associated(this%dof_dist   ) )
+    assert ( associated(this%dof_import   ) )
     assert ( associated(this%p_env%p_context) )
     assert ( this%p_env%p_context%created .eqv. .true.)
     if(this%p_env%p_context%iam<0) return
     write(luout,'(a)') '*** begin par_scalar_array_t data structure ***'
-    call  dof_distribution_print (luout, this%dof_dist)
+    call  this%dof_import%print(luout)
     call  this%serial_scalar_array%print(luout)
     write(luout,'(a)') '*** end par_scalar_array_t data structure ***'
   end subroutine par_scalar_array_print
   
   !=============================================================================
-  subroutine par_scalar_array_print_matrix_market ( this, dir_path, prefix )
+  subroutine par_scalar_array_print_matrix_market ( this, luout )
     implicit none
     ! Parameters
     class(par_scalar_array_t), intent(in)  :: this
-    character (*)            , intent(in)  :: dir_path
-    character (*)            , intent(in)  :: prefix
+    integer(ip)              , intent(in)  :: luout
 
-    ! Locals
-    integer         :: iam, num_procs, lunou
-    integer(ip)     :: j, ndigs_iam, ndigs_num_procs, id_map
-    character(256)  :: name 
-    character(256)  :: zeros
-    character(256)  :: part_id
-
-    assert ( associated(this%dof_dist   ) )
+    assert ( associated(this%dof_import   ) )
     assert ( associated(this%p_env%p_context) )
     assert ( this%p_env%p_context%created .eqv. .true.)
-    if(this%p_env%p_context%iam<0) return
-
-    name = trim(prefix) // '.par_vector' // '.mtx'
-
-    ! Get context info
-    call par_context_info ( this%p_env%p_context, iam, num_procs )
-
-    ! Form the file_path of the partition object to be read
-    iam = iam + 1 ! Partition identifers start from 1 !!
-
-    ndigs_num_procs = count_digits_par_vector (num_procs)
-    zeros = ' '   
-    ndigs_iam = count_digits_par_vector ( iam )
-
-    ! write(*,*) ndgs_num_procs, ndigs_iam DBG
-
-    do j=1,  ndigs_num_procs - ndigs_iam
-       zeros (j:j) = '0'
-    end do
-    part_id = ch(iam)
-
-    ! Read partition data from path_file file
-    lunou =  io_open (trim(dir_path) // '/' // trim(name) // '.' // trim(zeros) // trim(part_id), 'write')       
-    call this%serial_scalar_array%print_matrix_market (lunou)
-    call io_close (lunou)
+    if(this%p_env%p_context%iam<0) return      
+    call this%serial_scalar_array%print_matrix_market (luout)
   end subroutine par_scalar_array_print_matrix_market
 
   !=============================================================================
@@ -428,65 +329,14 @@ contains
     end do
   end function count_digits_par_vector
 
-  ! Auxiliary (module private) routine
-  ! for computing dot products and euclidean
-  ! norms for element-based data distributions 
-  subroutine weighted_dot (x,y,t)
-    implicit none
-    ! Parameters  
-    type(par_scalar_array_t), intent(in)  :: x
-    type(par_scalar_array_t), intent(in)  :: y
-    real(rp)    , intent(out)     :: t
 
-    ! Local variables
-    integer(ip)                   :: iobj, i, id, i1, i2 
-    real(rp)                      :: weigt
-
-    ! Pointer to part/context object is required
-    assert ( associated(x%dof_dist   ) )
-    assert ( associated(x%p_env%p_context) )
-    assert ( associated(y%dof_dist   ) )
-    assert ( associated(y%p_env%p_context) )
-
-    t = 0.0_rp 
-    do iobj=2, x%dof_dist%nobjs
-       weigt=1.0_rp/real(x%dof_dist%lobjs(4,iobj))
-       i1=x%dof_dist%lobjs(2,iobj) - x%dof_dist%ni
-       i2=x%dof_dist%lobjs(3,iobj) - x%dof_dist%ni
-       call flat_weighted_dot ( i1, i2, & 
-            & x%serial_scalar_array%b, y%serial_scalar_array%b, weigt, t) 
-    end do
-  end subroutine weighted_dot
-
-  ! Auxiliary (module private) routine
-  ! for computing dot products and euclidean
-  ! norms for element-based data distributions 
-  subroutine flat_weighted_dot ( i1, i2, x, y, weigt, t)
-    implicit none
-    ! Parameters  
-    integer(ip), intent(in)    :: i1, i2
-    real(rp),    intent(in)    :: x(*), y(*), weigt
-    real(rp),    intent(inout) :: t
-
-    ! Locals   
-    integer(ip)                :: i, id
-
-    do i=i1,i2
-       t = t + weigt * x(i) * y(i)
-    end do
-  end subroutine flat_weighted_dot
 
   ! alpha <- op1^T * op2
   function par_scalar_array_dot(op1,op2) result(alpha)
     implicit none
-    class(par_scalar_array_t), intent(in)    :: op1
-    class(vector_t), intent(in)  :: op2
-    real(rp) :: alpha
-
-    ! Locals 
-    integer(ip)                   :: ni 
-    type(par_scalar_array_t)              :: x_I, x_G, y_I, y_G
-    real(rp)                      :: s
+    class(par_scalar_array_t), intent(in)  :: op1
+    class(vector_t)          , intent(in)  :: op2
+    real(rp)                               :: alpha
 
     ! Alpha should be defined in all tasks (not only in coarse-grid ones)
     alpha = 0.0_rp
@@ -496,28 +346,17 @@ contains
     select type(op2)
        class is (par_scalar_array_t)
           ! Pointer to part/context object is required
-       assert ( associated(op1%dof_dist   ) )
+       assert ( associated(op1%dof_import   ) )
        assert ( associated(op1%p_env%p_context) )
-       assert ( associated(op2%dof_dist   ) )
+       assert ( associated(op2%dof_import   ) )
        assert ( associated(op2%p_env%p_context) )
        assert ( op1%p_env%p_context%created .eqv. .true.)
        if(op1%p_env%p_context%iam<0) return
 
-       ni = op1%serial_scalar_array%size - op1%dof_dist%nb
-       if ( ni > 0 ) then
-          call op1%create_view (1, ni, x_I)
-          call op2%create_view (1, ni, y_I)
-          alpha = x_I%serial_scalar_array%dot ( y_I%serial_scalar_array )
-       else
-          alpha = 0.0_rp
-       end if
-
-       call op1%create_view(ni+1, op1%serial_scalar_array%size, x_G )
-       call op2%create_view(ni+1, op2%serial_scalar_array%size, y_G )
-       call dot_interface          ( x_G, y_G, s )
-
-       alpha = alpha + s
-
+       alpha = flat_weighted_dot ( op1%serial_scalar_array%get_entries(), &
+                                   op2%serial_scalar_array%get_entries(), &
+                                   op1%dof_import%get_weight() )
+    
        ! Reduce-sum local dot products on all processes
        call psb_sum ( op2%p_env%p_context%icontxt, alpha )
        class default
@@ -528,17 +367,31 @@ contains
     call op2%CleanTemp()
   end function par_scalar_array_dot
   
+  ! Auxiliary (module private) routine
+  ! for computing dot products and euclidean
+  ! norms for element-based data distributions 
+  function flat_weighted_dot ( x, y, weigt) result(t)
+    implicit none
+    ! Parameters
+    real(rp), intent(in)    :: x(:), y(:), weigt(:)
+    real(rp) :: t
+
+    ! Locals   
+    integer(ip)                :: i
+    
+    t=0.0_rp
+    do i=1, size(x)
+       t = t + weigt(i) * x(i) * y(i)
+    end do
+    
+  end function flat_weighted_dot
+  
     ! alpha <- op1^T * op2 without final allreduce
   function par_scalar_array_local_dot(op1,op2) result(alpha)
     implicit none
     class(par_scalar_array_t), intent(in)    :: op1
     class(vector_t), intent(in)  :: op2
     real(rp) :: alpha
-
-    ! Locals 
-    integer(ip)                   :: ni 
-    type(par_scalar_array_t)      :: x_I, x_G, y_I, y_G
-    real(rp)                      :: s
 
     ! Alpha should be defined in all tasks (not only in coarse-grid ones)
     alpha = 0.0_rp
@@ -548,28 +401,15 @@ contains
     select type(op2)
        class is (par_scalar_array_t)
           ! Pointer to part/context object is required
-       assert ( associated(op1%dof_dist   ) )
+       assert ( associated(op1%dof_import   ) )
        assert ( associated(op1%p_env%p_context) )
-       assert ( associated(op2%dof_dist   ) )
+       assert ( associated(op2%dof_import   ) )
        assert ( associated(op2%p_env%p_context) )
        assert ( op1%p_env%p_context%created .eqv. .true.)
        if(op1%p_env%p_context%iam<0) return
-
-       ni = op1%serial_scalar_array%size - op1%dof_dist%nb
-       if ( ni > 0 ) then
-          call op1%create_view (1, ni, x_I)
-          call op2%create_view (1, ni, y_I)
-          alpha = x_I%serial_scalar_array%dot ( y_I%serial_scalar_array )
-       else
-          alpha = 0.0_rp
-       end if
-
-       call op1%create_view(ni+1, op1%serial_scalar_array%size, x_G )
-       call op2%create_view(ni+1, op2%serial_scalar_array%size, y_G )
-       call dot_interface          ( x_G, y_G, s )
-
-       alpha = alpha + s
-       
+       alpha = flat_weighted_dot ( op1%serial_scalar_array%get_entries(), &
+                                   op2%serial_scalar_array%get_entries(), &
+                                   op1%dof_import%get_weight() )
        class default
        write(0,'(a)') 'par_scalar_array_t%dot: unsupported op2 class'
        check(1==0)
@@ -588,9 +428,9 @@ contains
     select type(op2)
        class is (par_scalar_array_t)
           ! Pointer to part/context object is required
-       assert ( associated(op2%dof_dist   ) )
+       assert ( associated(op2%dof_import   ) )
        assert ( associated(op2%p_env%p_context) )
-       assert ( associated(op1%dof_dist   ) )
+       assert ( associated(op1%dof_import   ) )
        assert ( associated(op1%p_env%p_context) )
        assert ( op2%p_env%p_context%created .eqv. .true.)
        if(op2%p_env%p_context%iam<0) return
@@ -615,9 +455,9 @@ contains
     select type(op2)
        class is (par_scalar_array_t)
           ! Pointer to part/context object is required
-       assert ( associated(op2%dof_dist   ) )
+       assert ( associated(op2%dof_import   ) )
        assert ( associated(op2%p_env%p_context) )
-       assert ( associated(op1%dof_dist   ) )
+       assert ( associated(op1%dof_import   ) )
        assert ( associated(op1%p_env%p_context) )
        assert ( op1%p_env%p_context%created .eqv. .true.)
        if(op1%p_env%p_context%iam<0) return
@@ -637,7 +477,7 @@ contains
     real(rp), intent(in) :: alpha
 
     ! Pointer to part/context object is required
-    assert ( associated(op%dof_dist   ) )
+    assert ( associated(op%dof_import   ) )
     assert ( associated(op%p_env%p_context) )
     assert ( op%p_env%p_context%created .eqv. .true.)
     if(op%p_env%p_context%iam<0) return
@@ -658,9 +498,9 @@ contains
     select type(op2)
        class is (par_scalar_array_t)
           ! Pointer to part/context object is required
-       assert ( associated(op2%dof_dist   ) )
+       assert ( associated(op2%dof_import   ) )
        assert ( associated(op2%p_env%p_context) )
-       assert ( associated(op1%dof_dist   ) )
+       assert ( associated(op1%dof_import   ) )
        assert ( associated(op1%p_env%p_context) )
        assert ( op1%p_env%p_context%created )
        if(op1%p_env%p_context%iam<0) return
@@ -685,7 +525,7 @@ contains
     select type(op)
        class is (par_scalar_array_t)
           ! p_env%p_context is required within this subroutine 
-       assert ( associated(op%dof_dist) )
+       assert ( associated(op%dof_import) )
        assert ( associated(op%p_env%p_context) )
        assert ( op%p_env%p_context%created )
        if(op%p_env%p_context%iam<0) return
@@ -708,11 +548,11 @@ contains
     select type(op2)
        class is (par_scalar_array_t)
           ! p_env%p_context is required within this subroutine 
-       assert ( associated(op2%dof_dist) )
+       assert ( associated(op2%dof_import) )
        assert ( associated(op2%p_env%p_context) )
        assert ( op2%p_env%p_context%created )
        call op1%free()
-       call op1%create(op2%dof_dist,op2%p_env)
+       call op1%create(op2%p_env, op2%dof_import)
        if(op2%p_env%p_context%iam<0) return
        call op1%serial_scalar_array%clone ( op2%serial_scalar_array )
        class default
@@ -726,19 +566,44 @@ contains
   subroutine par_scalar_array_comm(op)
     implicit none
     class(par_scalar_array_t), intent(inout) :: op
-
-    ! Local variables
-    integer(ip)      :: ni 
-    type(par_scalar_array_t) :: op_G
-
+    real(rp), pointer :: data(:)
+    
     ! Pointer to part/context object is required
-    assert ( associated(op%dof_dist) )
+    assert ( associated(op%dof_import) )
     assert ( associated(op%p_env%p_context) )
     assert ( op%p_env%p_context%created .eqv. .true.)
     if(op%p_env%p_context%iam<0) return
-    ni = op%serial_scalar_array%size - op%dof_dist%nb
-    call op%create_view(ni+1, op%serial_scalar_array%size, op_G)
-    call comm_interface ( op_G )
+    
+    data => op%serial_scalar_array%get_entries()
+    
+    ! First stage: owners receive/reduce, non-owners send
+    call single_exchange ( op%p_env%p_context%icontxt, &
+                           op%dof_import%get_num_rcv(),    &
+                           op%dof_import%get_list_rcv(),   &
+                           op%dof_import%get_rcv_ptrs(),   &
+                           op%dof_import%get_unpack_idx(), &
+                           op%dof_import%get_num_snd(),    &
+                           op%dof_import%get_list_snd(),   &
+                           op%dof_import%get_snd_ptrs(),   &
+                           op%dof_import%get_pack_idx(),   &
+                           1.0_rp,                         &
+                           1.0_rp,                         &
+                           data ) 
+
+    ! Second stage: owners send, non-owners receive/insert
+    call single_exchange ( op%p_env%p_context%icontxt, &
+                           op%dof_import%get_num_snd(),    &
+                           op%dof_import%get_list_snd(),   &
+                           op%dof_import%get_snd_ptrs(),   &
+                           op%dof_import%get_pack_idx(),   &
+                           op%dof_import%get_num_rcv(),    &
+                           op%dof_import%get_list_rcv(),   &
+                           op%dof_import%get_rcv_ptrs(),   &
+                           op%dof_import%get_unpack_idx(), &
+                           1.0_rp,                         &
+                           0.0_rp,                         &
+                           data )
+    
   end subroutine par_scalar_array_comm
 
   !=============================================================================
@@ -752,7 +617,7 @@ contains
     if ( associated ( this%p_env ) ) then
       if(this%p_env%p_context%iam<0) then 
          if ( action == free_clean ) then
-            nullify ( this%dof_dist )
+            nullify ( this%dof_import )
             nullify ( this%p_env )
          end if
          return
@@ -763,7 +628,7 @@ contains
     call this%serial_scalar_array%free_in_stages(action)
     if ( associated ( this%p_env ) ) then
       if ( action == free_clean ) then
-         nullify ( this%dof_dist )
+         nullify ( this%dof_import )
          nullify ( this%p_env )
       end if
     end if
@@ -775,10 +640,12 @@ contains
    class(par_scalar_array_t), intent(in) :: this
    class(vector_t)             , intent(in) :: vector
    logical :: par_scalar_array_same_vector_space
-   par_scalar_array_same_vector_space = .false.
+   par_scalar_array_same_vector_space = .true.
    select type(vector)
    class is (par_scalar_array_t)
-     par_scalar_array_same_vector_space = (this%dof_dist%nl == vector%dof_dist%nl)
+     if(this%p_env%p_context%iam>=0) then
+        par_scalar_array_same_vector_space = (this%dof_import%get_number_dofs() == vector%dof_import%get_number_dofs())
+     end if   
    end select
   end function par_scalar_array_same_vector_space
   
@@ -802,9 +669,23 @@ contains
    integer(ip)              , intent(in)    :: size_indices
    integer(ip)              , intent(in)    :: indices(size_indices)
    real(rp)                 , intent(inout) :: values(*)
-
-   assert( .false. )
-   
+   check( .false. )
   end subroutine par_scalar_array_extract_subvector
+
+  !=============================================================================
+  subroutine par_scalar_array_insert_subvector( this, &
+                                              & iblock, &
+                                              & size_indices, &
+                                              & indices, &
+                                              & values )
+   implicit none
+   class(par_scalar_array_t), intent(inout) :: this 
+   integer(ip)              , intent(in)    :: iblock
+   integer(ip)              , intent(in)    :: size_indices
+   integer(ip)              , intent(in)    :: indices(size_indices)
+   real(rp)                 , intent(in)    :: values(*)
+   check( .false. )
+ end subroutine par_scalar_array_insert_subvector
+  
 
 end module par_scalar_array_names

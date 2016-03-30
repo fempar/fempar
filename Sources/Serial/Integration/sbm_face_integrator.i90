@@ -37,16 +37,12 @@ subroutine fe_map_face_restriction_create( this, quadrature, reference_fe_geomet
   integer(ip)           :: local_face_id, istat
 
   call this%free()
-
   this%number_faces = reference_fe_geometry%get_number_faces()
-
   allocate(this%fe_map(this%number_faces),stat = istat)
   check(istat == 0)
-
   do local_face_id = 1,  this%number_faces
      call this%fe_map(local_face_id)%create_on_face(local_face_id,quadrature,reference_fe_geometry)
   end do
-
 end subroutine fe_map_face_restriction_create
 
 !==================================================================================================
@@ -107,6 +103,7 @@ subroutine face_map_create(this,left_geo_reference_fe,right_geo_reference_fe, qu
 
   this%is_boundary = (.not. associated(right_geo_reference_fe))
 
+  this%number_dimensions = quadrature%get_number_dimensions()
   call this%face_map%fe_map_face_map_create(quadrature,left_geo_reference_fe)
   call this%fe_maps(1)%create(quadrature,left_geo_reference_fe)
   if (associated(right_geo_reference_fe)) then
@@ -149,10 +146,10 @@ subroutine face_map_update(this,local_face_id,face_quadrature,left_reference_fe_
 end subroutine face_map_update
 
 !==================================================================================================
-function face_map_compute_characteristic_length(this,igaus, number_neighbours)
+function face_map_compute_characteristic_length(this,qpoin, number_neighbours)
   implicit none
   class(face_map_t), target, intent(in) :: this
-  integer(ip)              , intent(in) :: igaus, number_neighbours
+  integer(ip)              , intent(in) :: qpoin, number_neighbours
   real(rp) :: face_map_compute_characteristic_length
 
   real(rp)    :: h
@@ -160,12 +157,12 @@ function face_map_compute_characteristic_length(this,igaus, number_neighbours)
   type(fe_map_t), pointer :: fe_map
   
   fe_map => this%fe_maps(1)%fe_map(this%fe_maps(1)%active_face_id)
-  face_map_compute_characteristic_length = fe_map%compute_h(igaus)
+  face_map_compute_characteristic_length = fe_map%compute_h(qpoin)
 
   if (.not. this%is_boundary) then
      i = 2
      fe_map => this%fe_maps(i)%fe_map(this%fe_maps(i)%active_face_id)
-     h = fe_map%compute_h(igaus) 
+     h = fe_map%compute_h(qpoin) 
      face_map_compute_characteristic_length = min(face_map_compute_characteristic_length, h)
   end if
 
@@ -215,7 +212,7 @@ subroutine face_map_get_normals (this, qpoint, normal)
   integer(ip) :: idime
   call normal(1)%init(0.0_rp)
   call normal(2)%init(0.0_rp)
-  do idime = 1, size(this%face_map%normals,dim=1)
+  do idime = 1, this%number_dimensions
      call normal(1)%set(idime,this%face_map%normals(idime,qpoint))
      call normal(2)%set(idime,- this%face_map%normals(idime,qpoint))
   end do
@@ -246,7 +243,7 @@ subroutine interpolation_face_restriction_create(this, local_quadrature, referen
   this%active_face_id = -1
 
   this%number_shape_functions   = reference_fe_phy%number_nodes
-  this%number_evaluation_points = local_quadrature%number_evaluation_points
+  this%number_quadrature_points = local_quadrature%number_quadrature_points
   this%number_faces             = reference_fe_phy%get_number_faces()
 
   allocate(this%interpolation(this%number_faces),stat = istat)
@@ -278,7 +275,7 @@ subroutine interpolation_face_restriction_free(this)
      check (istat == 0)
   end if
   this%number_shape_functions   = 0
-  this%number_evaluation_points = 0
+  this%number_quadrature_points = 0
   this%number_faces             = 0
 
 end subroutine interpolation_face_restriction_free
@@ -289,7 +286,7 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   implicit none
   ! Parameters
   class(face_integrator_t)      , intent(inout) :: this
-  type(quadrature_t)         , intent(in)    :: quadrature
+  type(quadrature_t)            , intent(in)    :: quadrature
   class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
 
   call this%free()
@@ -302,6 +299,11 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
      this%reference_fe(2)%p => right_reference_fe
      call this%interpolation_face_restriction(2)%create(quadrature,this%reference_fe(2)%p)
   end if
+
+  this%current_qpoints_perm_cols = 1
+  call left_reference_fe%fill_interior_points_permutation(quadrature%number_dimensions,&
+                                                          quadrature%number_quadrature_points,&
+       &                                                  this%qpoints_perm)
 end subroutine face_integrator_create
 
 !==================================================================================================
@@ -317,20 +319,28 @@ subroutine face_integrator_free(this)
      call this%interpolation_face_restriction(i)%free()
   end do
 
+  if (allocated(this%qpoints_perm)) then
+     call memfree (this%qpoints_perm, __FILE__,__LINE__)
+  end if
+
 end subroutine face_integrator_free
 
 !==================================================================================================
-subroutine face_integrator_update(this,local_face_id,face_map)
+subroutine face_integrator_update(this,local_face_id,face_map,relative_orientation,relative_rotation)
   implicit none
   ! Parameters
   class(face_integrator_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: local_face_id(2)
+  integer(ip)             , intent(in)    :: relative_orientation,relative_rotation
   type(face_map_t)        , intent(in)    :: face_map
 
   call this%reference_fe(1)%p%update_interpolation_face(local_face_id(1),face_map%fe_maps(1),     &
        &                                                this%interpolation_face_restriction(1))
 
   if (.not. this%is_boundary) then
+     this%current_qpoints_perm_cols(2) = relative_rotation +                                        &
+         & this%reference_fe(2)%p%number_rotations_per_dimension(this%reference_fe(2)%p%number_dimensions-1)  &
+         & * relative_orientation
      call this%reference_fe(2)%p%update_interpolation_face(local_face_id(2),face_map%fe_maps(2),  &
        &                                                   this%interpolation_face_restriction(2))
   end if
@@ -345,13 +355,14 @@ subroutine face_integrator_get_value_scalar (this, ishape, qpoint, ineigh, scala
   integer(ip)             , intent(in)    :: ineigh
   real(rp)                , intent(out)   :: scalar_field
 
-  integer(ip) :: active_face_id
+  integer(ip) :: active_face_id, actual_qpoint
   assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
 
+  actual_qpoint = this%qpoints_perm(qpoint,this%current_qpoints_perm_cols(ineigh))
   active_face_id = this%interpolation_face_restriction(ineigh)%active_face_id
   scalar_field =  this%interpolation_face_restriction(ineigh)%interpolation(active_face_id)%                  &
-       &          shape_functions(ishape,qpoint)
+       &          shape_functions(ishape,actual_qpoint)
 end subroutine face_integrator_get_value_scalar
 
 !=================================================================================================
@@ -362,8 +373,12 @@ subroutine face_integrator_get_gradient_scalar (this, ishape, qpoint, ineigh, ve
   integer(ip)             , intent(in)    :: qpoint
   integer(ip)             , intent(in)    :: ineigh
   type(vector_field_t)    , intent(out)   :: vector_field
+  
+  integer(ip) :: actual_qpoint
   assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
+
+  actual_qpoint = this%qpoints_perm(qpoint,this%current_qpoints_perm_cols(ineigh))
   call this%reference_fe(ineigh)%p%get_gradient(this%interpolation_face_restriction(ineigh)%interpolation_o_map,   &
-       &                                            ishape,qpoint,vector_field)
+       &                                            ishape,actual_qpoint,vector_field)
 end subroutine face_integrator_get_gradient_scalar

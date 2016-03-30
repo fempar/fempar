@@ -284,7 +284,7 @@ contains
     call fe_space%initialize_integration()
     
     quad => fe%get_quadrature()
-    ngaus = quad%get_number_evaluation_points()
+    ngaus = quad%get_number_quadrature_points()
     do ielem = 1, fe_space%get_number_elements()
        elmat = 0.0_rp
        elvec = 0.0_rp
@@ -295,6 +295,7 @@ contains
        fe_map   => fe%get_fe_map()
        vol_int  => fe%get_volume_integrator(1)
        elem2dof => fe%get_elem2dof()
+      
        bc_code  => fe%get_bc_code()
        bc_value => fe%get_bc_value()
 
@@ -402,8 +403,9 @@ contains
     call fe_space%initialize_integration()
     
     quad  => fe%get_quadrature()
-    ngaus = quad%get_number_evaluation_points()
+    ngaus = quad%get_number_quadrature_points()
     do ielem = 1, fe_space%get_number_elements()
+       write(*,*) __FILE__,__LINE__,ielem,'------------------'
        elmat = 0.0_rp
        elvec = 0.0_rp
 
@@ -434,22 +436,22 @@ contains
              do jnode = 1, number_nodes_per_field(2)
                 joffset = number_nodes_per_field(1)+jnode
                 call vol_int_second_fe%get_gradient(jnode,igaus,grad_test_vector)
+               
                 elmat(ioffset,joffset) = elmat(ioffset,joffset) + factor *                        &
                      &          this%viscosity*double_contract(grad_test_vector,grad_trial_vector)
              end do
           end do
        end do
-       
-       
+      
        call this%impose_strong_dirichlet_data( elmat, elvec, bc_code, bc_value,                   &
             &                                  number_nodes_per_field, number_fe_spaces )
        call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks, &
             &                   field_coupling, elmat, elvec )      
     end do
-    do inode = 1, number_nodes_per_field(1)
-       write(*,*) inode, '+++++'
-       write(*,*) elmat(1:4,inode)
-    end do
+    ! do inode = 1, number_nodes_per_field(1)
+    !    write(*,*) inode, '+++++'
+    !    write(*,*) elmat(1:4,inode)
+    ! end do
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
 
@@ -459,7 +461,6 @@ contains
     call memalloc ( number_nodes, 2,facevec, __FILE__, __LINE__ )
 
     !call fe_space%initialize_face_integration()
-    write(*,*) __FILE__,__LINE__,fe_space%get_number_interior_faces()
     do iface = 1, fe_space%get_number_interior_faces()
 
        facemat = 0.0_rp
@@ -471,7 +472,7 @@ contains
        call face%update_integration()
       
        quad   => face%get_quadrature()
-       ngaus = quad%get_number_evaluation_points()
+       ngaus = quad%get_number_quadrature_points()
        face_map => face%get_map()
 
        j = 1
@@ -514,14 +515,14 @@ contains
        end do
     end do
 
-    do inode = 1, number_nodes_per_field(j)
-       write(*,*) inode, '-------'
-       write(*,*) facemat(1:4,inode,1,1),  facemat(1:4,inode,2,1)
-    end do
-    do inode = 1, number_nodes_per_field(j)
-       write(*,*) number_nodes_per_field(j)+inode, '-------'
-       write(*,*) facemat(1:4,inode,1,2),  facemat(1:4,inode,2,2)
-    end do
+    ! do inode = 1, number_nodes_per_field(j)
+    !    write(*,*) inode, '-------'
+    !    write(*,*) facemat(1:4,inode,1,1),  facemat(1:4,inode,2,1)
+    ! end do
+    ! do inode = 1, number_nodes_per_field(j)
+    !    write(*,*) number_nodes_per_field(j)+inode, '-------'
+    !    write(*,*) facemat(1:4,inode,1,2),  facemat(1:4,inode,2,2)
+    ! end do
 
     do iface = fe_space%get_number_interior_faces() + 1, fe_space%get_number_interior_faces() +   &
          &                                               fe_space%get_number_boundary_faces()
@@ -536,7 +537,7 @@ contains
 
        face_map => face%get_map()
        quad   => face%get_quadrature()
-       ngaus = quad%get_number_evaluation_points()
+       ngaus = quad%get_number_quadrature_points()
 
        j = 1
        face_int => face%get_face_integrator(j)
@@ -647,7 +648,7 @@ program test_cdr
 
 
   ! To be erased
-  call test_reference_face_stuff(f_trian,f_cond)
+  call test_reference_face_stuff(f_trian,f_cond,cli,group)
 
   call triangulation_free ( f_trian )
   call conditions_free ( f_cond )
@@ -655,7 +656,7 @@ program test_cdr
   call memstatus
 contains
   !==================================================================================================
-  subroutine  test_reference_face_stuff(f_trian, f_cond)
+  subroutine  test_reference_face_stuff(f_trian, f_cond,cli,group)
     use serial_names
     use CDR_discrete_integration_names
     use vector_dG_CDR_discrete_integration_names
@@ -663,33 +664,41 @@ contains
 
     implicit none
 
-    type(triangulation_t), intent(inout) :: f_trian
-    type(conditions_t)   , intent(in)    :: f_cond
-
+    type(triangulation_t)            , intent(inout) :: f_trian
+    type(conditions_t)               , intent(in)    :: f_cond
+    type(Type_Command_Line_Interface), intent(inout) :: cli 
+    character(*)                     , intent(inout) :: group
+  
     type(serial_fe_space_t)                       :: fe_space
     type(p_reference_fe_t)                        :: reference_fe_array_two(2)
     type(p_reference_fe_t)                        :: reference_fe_array_one(1)
     type(fe_affine_operator_t)                    :: fe_affine_operator
     type(vector_dG_CDR_discrete_integration_t)    :: vector_dG_CDR_integration
     type(CDR_discrete_integration_t)              :: CDR_integration
-    type(vector_space_t)    , pointer             :: fe_affine_operator_range_vector_space 
     class(vector_t)         , allocatable, target :: vector
-    type(interpolation_face_restriction_t)                    :: face_interpolation
+    type(interpolation_face_restriction_t)        :: face_interpolation
 
     class(matrix_t), pointer :: matrix
     type(sparse_matrix_t), pointer :: my_matrix
     logical                  :: diagonal_blocks_symmetric_storage(2)
     logical                  :: diagonal_blocks_symmetric(2)
-    integer(ip)              :: diagonal_blocks_sign(2)
+    integer(ip)              :: diagonal_blocks_sign(2), order
     
+     call cli%get(group=trim(group),switch='-p',val=order,error=istat); check(istat==0)
     ! Composite case
-    reference_fe_array_two(1) = make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian,      &
-         &                      number_dimensions = 2, order = 1, field_type = field_type_scalar,            &
-         &                      continuity = .false. )
+    reference_fe_array_two(1) = make_reference_fe ( topology = topology_quad,                       &
+         &                                          fe_type  = fe_type_lagrangian,                  &
+         &                                          number_dimensions = f_trian%num_dims,           &
+         &                                          order = order,                                  &
+         &                                          field_type = field_type_scalar,                 &
+         &                                          continuity = .true. )
 
-    reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian,      &
-         &                      number_dimensions = 2, order = 1, field_type = field_type_vector,            &
-         &                      continuity = .false. )
+    reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad,                       &
+         &                                          fe_type = fe_type_lagrangian,                   &
+         &                                          number_dimensions = f_trian%num_dims,           &
+         &                                          order = order,                                  &
+         &                                          field_type = field_type_vector,                 &
+         &                                          continuity = .true. )
 
     call fe_space%create( triangulation = f_trian, boundary_conditions = f_cond,                    &
          &                reference_fe_phy = reference_fe_array_two,                                &
@@ -697,6 +706,7 @@ contains
          &                field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
 
     call fe_space%create_face_array()
+
     call fe_space%fill_dof_info() 
 
      call vector_dG_CDR_integration%set_problem( viscosity = 1.0_rp, C_IP = 10.0_rp, xi = 0.0_Rp)
@@ -704,36 +714,39 @@ contains
     diagonal_blocks_symmetric_storage = .false.
     diagonal_blocks_symmetric         = .false.
     diagonal_blocks_sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE
+
     call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                       &
-         &                          diagonal_blocks_symmetric,diagonal_blocks_sign, f_trian,        &
-         &                          fe_space, vector_dG_CDR_integration)
+         &                          diagonal_blocks_symmetric,diagonal_blocks_sign,         &
+         &                          senv, fe_space, vector_dG_CDR_integration)
     call fe_affine_operator%symbolic_setup()
+
     call fe_affine_operator%numerical_setup()
+
     matrix => fe_affine_operator%get_matrix()
     select type(matrix)
      class is(block_sparse_matrix_t)
         !my_matrix => matrix
-        do i = 1,1! matrix%nblocks
+        do i = 2,2! matrix%nblocks
            write(*,*) i,i,'+++++++++++++++++++++++++++++++'
            write(*,*) __FILE__,__LINE__
            my_matrix => matrix%blocks(i,i)%sparse_matrix
            write(*,*) __FILE__,__LINE__
-           !call my_matrix%print_matrix_market(6)
+           call my_matrix%print_matrix_market(6)
            write(*,*) __FILE__,__LINE__
         end do
      class default
         check(.false.)
      end select
 
-     !fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-     !call fe_affine_operator_range_vector_space%create_vector(vector)
-     !fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
+     !call fe_affine_operator%create_range_vector(vector)
 
     !call fe_space%print()
     !call reference_fe_array_two(1)%free
     !call reference_fe_array_two(2)%free
     call fe_affine_operator%free()
     call fe_space%free()
+    call reference_fe_array_two(1)%free()
+    call reference_fe_array_two(2)%free()
   end subroutine test_reference_face_stuff
 
   !==================================================================================================

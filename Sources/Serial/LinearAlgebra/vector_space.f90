@@ -45,6 +45,7 @@ module vector_space_names
     class(vector_t), allocatable :: vector
    contains
      procedure :: create        => vector_space_create
+     procedure :: is_created    => vector_space_is_created
      procedure :: create_vector => vector_space_create_vector
      procedure :: belongs_to    => vector_space_belongs_to
      procedure :: equal_to      => vector_space_equal_to
@@ -59,11 +60,20 @@ contains
 
      subroutine vector_space_create(this,vector)
        implicit none
-       class(vector_space_t), intent(out) :: this
-       class(vector_t)      , intent(in)  :: vector
+       class(vector_space_t), intent(inout) :: this
+       class(vector_t)      , intent(in)    :: vector
+       call this%free()
        allocate(this%vector, mold=vector)
        call this%vector%clone(vector)
      end subroutine vector_space_create
+
+
+     function vector_space_is_created(this) result(is_created)
+       implicit none
+       class(vector_space_t), intent(in) :: this
+       logical                           :: is_created
+       is_created = allocated(this%vector)
+     end function vector_space_is_created
 
      ! This method selects the dynamic type of class(vector_t) and allocates it, 
      ! following the FACTORY METHOD OOD pattern. As the method is responsible for
@@ -80,8 +90,14 @@ contains
      ! the allocate(*,source=*) calls overloaded assignment or not. 
      subroutine vector_space_create_vector(this,vector) 
        implicit none
-       class(vector_space_t)             , intent(in)  :: this
-       class(vector_t)      , allocatable, intent(out) :: vector
+       class(vector_space_t)             , intent(in)    :: this
+       class(vector_t)      , allocatable, intent(inout) :: vector
+       
+       if (allocated(vector)) then
+          call vector%free()
+          deallocate(vector)
+       end if
+       
        allocate(vector, mold=this%vector)
        call vector%clone(this%vector)
        call vector%allocate()
@@ -93,8 +109,9 @@ contains
      ! relantionship among operator_t and vector_space_t
      subroutine vector_space_clone(this,vector_space)
        implicit none
-       class(vector_space_t), intent(in)  :: this
-       type(vector_space_t), intent(out)  :: vector_space
+       class(vector_space_t), intent(in)    :: this
+       type(vector_space_t), intent(inout)  :: vector_space
+       call vector_space%free()
        allocate (vector_space%vector, mold=this%vector)
        call vector_space%vector%clone(this%vector)
      end subroutine vector_space_clone
@@ -121,8 +138,10 @@ contains
      subroutine vector_space_free(this)
        implicit none
        class(vector_space_t), intent(inout) :: this
-       call this%vector%free()
-       deallocate(this%vector)
+       if (allocated(this%vector)) then
+         call this%vector%free()
+         deallocate(this%vector)
+       end if  
      end subroutine vector_space_free
 					
 			function get_number_blocks(this) result(res)
