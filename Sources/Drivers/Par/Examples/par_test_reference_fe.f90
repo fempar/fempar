@@ -307,10 +307,7 @@ program par_test_reference_fe
   
   type(par_test_reference_fe_parameters_t) :: test_params
 
-
-  call meminit
-  call the_iterative_linear_solver_creational_methods_dictionary%init()
-
+  call fempar_init()
 
   ! Start parallel execution
   call par_context_create (w_context)
@@ -436,6 +433,6 @@ program par_test_reference_fe
   call par_context_free ( q_context, .false. )
   call par_context_free ( w_context )
 
-  call memstatus
+  call fempar_finalize()
 
 end program par_test_reference_fe
