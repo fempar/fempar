@@ -312,6 +312,9 @@ module reference_fe_names
 
      procedure (interpolate_nodal_values_interface), deferred :: interpolate_nodal_values
 
+     procedure (get_number_subelements_interface),       deferred :: get_number_subelements
+     procedure (get_subelements_connectivity_interface), deferred :: get_subelements_connectivity
+
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
      procedure :: print => reference_fe_print
@@ -635,7 +638,20 @@ module reference_fe_names
        real(rp)             , intent(in)    :: nodal_values_origin(:)
        real(rp)             , intent(inout) :: nodal_values_destination(:)
      end subroutine interpolate_nodal_values_interface
-       
+     
+     function get_number_subelements_interface(this) result(number_subelements)
+     import :: reference_fe_t, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       integer(ip)                          :: number_subelements
+     end function get_number_subelements_interface
+
+     subroutine get_subelements_connectivity_interface(this, connectivity)
+     import :: reference_fe_t, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       integer(ip),           intent(inout) :: connectivity(:,:)
+     end subroutine get_subelements_connectivity_interface
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -693,6 +709,8 @@ module reference_fe_names
           
      procedure :: fill_interior_points_permutation &
           &                   => quad_lagrangian_reference_fe_fill_interior_points_permutation     
+     procedure :: get_subelements_connectivity => quad_lagrangian_get_subelements_connectivity
+     procedure :: get_number_subelements => quad_lagrangian_get_number_subelements
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t

@@ -347,10 +347,7 @@ subroutine serial_fe_space_initialize_quadrature( this, max_order )
   if ( present(max_order) ) then
      max_order_ = max_order
   else
-     max_order_ = 0
-     do i = 1, this%number_fe_spaces
-        max_order_ = max( max_order_, this%reference_fe_phy_list(i)%p%get_order() )
-     end do
+     max_order_ = this%get_max_order()
   end if
   do i = 1, size(this%quadrature)
      call this%reference_fe_phy_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order_ )
@@ -1002,3 +999,60 @@ end subroutine serial_fe_space_update_bc_value_tensor
    real(rp)   , optional   , intent(in)    :: time
    check( .false. )
  end subroutine serial_fe_space_interpolate_fe_function_tensor
+ 
+ !===============================================================================================
+ function serial_fe_space_get_order( this, fe_space_component ) result(order)
+ implicit none
+   class(serial_fe_space_t), intent(in) :: this 
+   integer(ip)                          :: fe_space_component
+   integer(ip)                          :: order
+   assert(fe_space_component <= this%number_fe_spaces)
+   order = this%reference_fe_phy_list(fe_space_component)%p%get_order() 
+ end function serial_fe_space_get_order
+ 
+ !===============================================================================================
+ function serial_fe_space_get_max_order( this ) result(max_order)
+ implicit none
+   class(serial_fe_space_t), intent(in) :: this 
+   integer(ip)                          :: max_order
+   integer(ip)                          :: fe_space_component
+   max_order = 0
+   do fe_space_component = 1, this%number_fe_spaces
+      max_order = max( max_order, this%get_order(fe_space_component) )
+   end do
+ end function serial_fe_space_get_max_order
+ 
+ !===============================================================================================
+ function serial_fe_space_get_nodal_quadrature( this, fe_space_component) result(nodal_quadrature)
+   class(serial_fe_space_t), intent(in)    :: this 
+   integer(ip)             , intent(in)    :: fe_space_component
+   type(quadrature_t), pointer :: nodal_quadrature
+   nodal_quadrature => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
+ end function serial_fe_space_get_nodal_quadrature
+ 
+ !===============================================================================================
+ function serial_fe_space_get_number_subelements( this, fe_space_component) result(number_subelements)
+   class(serial_fe_space_t), intent(in)    :: this 
+   integer(ip)             , intent(in)    :: fe_space_component
+   integer(ip)                             :: number_subelements
+   
+   number_subelements = this%reference_fe_phy_list(fe_space_component)%p%get_number_subelements()
+ end function serial_fe_space_get_number_subelements
+ 
+ !===============================================================================================
+ function serial_fe_space_get_number_nodes( this, fe_space_component) result(number_nodes)
+   class(serial_fe_space_t), intent(in)    :: this 
+   integer(ip)             , intent(in)    :: fe_space_component
+   integer(ip)                             :: number_nodes
+   
+   number_nodes = this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
+ end function serial_fe_space_get_number_nodes
+ 
+ !===============================================================================================
+ subroutine serial_fe_space_get_subelements_connectivity( this, fe_space_component, connectivity)
+   class(serial_fe_space_t), intent(in)    :: this 
+   integer(ip)             , intent(in)    :: fe_space_component
+   integer(ip)             , intent(inout) :: connectivity(:,:)
+   
+   call this%reference_fe_phy_list(fe_space_component)%p%get_subelements_connectivity(connectivity)
+ end subroutine serial_fe_space_get_subelements_connectivity

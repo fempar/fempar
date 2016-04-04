@@ -483,4 +483,33 @@ subroutine finite_element_impose_strong_dirichlet_bcs ( this, elmat, elvec )
  
 end subroutine finite_element_impose_strong_dirichlet_bcs
 
+function finite_element_get_reference_fe_geo( this) result(reference_fe_geo)
+ implicit none
+ class(finite_element_t), intent(in)    :: this
+ class(reference_fe_t), pointer         :: reference_fe_geo
+ reference_fe_geo => this%cell%reference_fe_geo
+end function finite_element_get_reference_fe_geo
+
+function finite_element_get_number_vertices( this) result(number_vertices)
+ implicit none
+ class(finite_element_t), intent(in)    :: this
+ integer(ip)                            :: number_vertices 
+ number_vertices = this%cell%reference_fe_geo%get_number_vertices()
+end function finite_element_get_number_vertices
+
+function finite_element_get_number_subelements( this, inode ) result(number_subelements)
+ implicit none
+ class(finite_element_t), intent(in) :: this
+ integer(ip)            , intent(in) :: inode
+ integer(ip)                         :: number_subelements
+ number_subelements = this%reference_fe_phy(inode)%p%get_number_subelements()
+end function finite_element_get_number_subelements
+
+subroutine finite_element_get_cell_coordinates(this, coordinates)
+ implicit none
+ class(finite_element_t), intent(in) :: this
+ type(point_t),           intent(inout):: coordinates(:)
+ call this%cell%get_coordinates(coordinates)
+end subroutine finite_element_get_cell_coordinates
+
 
