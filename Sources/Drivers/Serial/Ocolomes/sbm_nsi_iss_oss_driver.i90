@@ -177,13 +177,7 @@
 
      ! Update linear solver
      call iterative_linear_solver%create(senv)
-<<<<<<< HEAD
      call iterative_linear_solver%set_type_and_parameters_from_pl(solver_parameters)
-     !call iterative_linear_solver%set_type_from_string('RGMRES')
-=======
-     !call iterative_linear_solver%set_type_and_parameters_from_pl()
-     call iterative_linear_solver%set_type_from_string(rgmres_name)
->>>>>>> 77546e47e83145b87aeab4a69c9630fc7c6fa69b
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%set_initial_solution(dof_values)
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
