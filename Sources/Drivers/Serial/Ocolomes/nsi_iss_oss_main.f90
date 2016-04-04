@@ -37,6 +37,8 @@ module command_line_parameters_names
   private
 
   type test_nsi_iss_oss_params_t
+     private
+     ! Defaults
      character(len=:), allocatable :: default_dir_path
      character(len=:), allocatable :: default_prefix
      character(len=:), allocatable :: default_dir_path_out
@@ -49,10 +51,55 @@ module command_line_parameters_names
      character(len=:), allocatable :: default_cc                   
      character(len=:), allocatable :: default_elemental_length_flag
      character(len=:), allocatable :: default_convection_activated 
+     character(len=:), allocatable :: default_is_analytical
+     character(len=:), allocatable :: default_is_initial
+     character(len=:), allocatable :: default_is_temporal
+     character(len=:), allocatable :: default_analytical_function_name
+     character(len=:), allocatable :: default_initial_time
+     ! CLI
+     type(Type_Command_Line_Interface) :: cli
+     ! Parameters
+     character(len=2014) :: dir_path
+     character(len=2014) :: prefix
+     character(len=2014) :: dir_path_out
+     logical             :: is_structured_mesh
+     integer(ip)         :: velocity_order
+     integer(ip)         :: pressure_order    
+     real(rp)            :: viscosity
+     real(rp)            :: c1
+     real(rp)            :: c2
+     real(rp)            :: cc
+     integer(ip)         :: elemental_length_flag
+     logical             :: convection_activated
+     logical             :: is_analytical_solution
+     logical             :: is_initial_solution
+     logical             :: is_temporal_solution
+     character(len=2014) :: analytical_function_name
+     real(rp)            :: initial_time
    contains
-     procedure :: set_default    => set_default_params
-     !procedure :: set_analytical => set_default_analytical_params
-     procedure :: add_to_cli     => add_params_to_cli
+     procedure, non_overridable          :: create
+     procedure, non_overridable, private :: set_default
+     procedure, non_overridable, private :: add_to_cli 
+     procedure, non_overridable          :: parse
+     procedure, non_overridable          :: free  
+     ! Getters
+     procedure, non_overridable :: get_dir_path
+     procedure, non_overridable :: get_prefix
+     procedure, non_overridable :: get_dir_path_out
+     procedure, non_overridable :: get_is_structured_mesh
+     procedure, non_overridable :: get_velocity_order
+     procedure, non_overridable :: get_pressure_order    
+     procedure, non_overridable :: get_viscosity
+     procedure, non_overridable :: get_c1
+     procedure, non_overridable :: get_c2
+     procedure, non_overridable :: get_cc
+     procedure, non_overridable :: get_elemental_length_flag
+     procedure, non_overridable :: get_convection_activated
+     procedure, non_overridable :: get_is_analytical_solution
+     procedure, non_overridable :: get_is_initial_solution
+     procedure, non_overridable :: get_is_temporal_solution
+     procedure, non_overridable :: get_analytical_function_name
+     procedure, non_overridable :: get_initial_time     
   end type test_nsi_iss_oss_params_t
 
   ! Types
@@ -65,12 +112,115 @@ contains
 end module command_line_parameters_names
 
 !***************************************************************************************************!
+! ANALYTICAL LINEAR-STEADY FUNCTION                                                                 !
+! Definition of the linear-steady analytical function for the NSI_ISS_OSS problem.                  !
+!***************************************************************************************************!
+module nsi_iss_oss_analytical_linear_steady_functions_names
+  use serial_names
+# include "debug.i90"
+  implicit none
+  private
+
+  ! u = (x,-y,0)
+  ! p = (x+y)
+
+  type, extends(vector_function_t) :: linear_steady_velocity_function_t
+     integer(ip) :: random = 3
+   contains
+     procedure, non_overridable :: get_value_space_time => linear_steady_velocity_get_value_space_time
+  end type linear_steady_velocity_function_t
+
+  type, extends(vector_function_t) :: linear_steady_dt_velocity_function_t
+   contains
+     procedure, non_overridable :: get_value_space_time => linear_steady_dt_velocity_get_value_space_time
+  end type linear_steady_dt_velocity_function_t
+
+  type, extends(tensor_function_t) :: linear_steady_velocity_gradient_function_t
+   contains
+     procedure, non_overridable :: get_value_space_time => linear_steady_velocity_gradient_get_value_space_time
+  end type linear_steady_velocity_gradient_function_t
+
+  type, extends(vector_function_t) :: linear_steady_velocity_grad_div_function_t
+   contains
+     procedure, non_overridable :: get_value_space_time => linear_steady_velocity_grad_div_get_value_space_time
+  end type linear_steady_velocity_grad_div_function_t
+
+  type, extends(scalar_function_t) :: linear_steady_pressure_function_t
+   contains
+     procedure, non_overridable :: get_value_space_time => linear_steady_pressure_get_value_space_time
+  end type linear_steady_pressure_function_t
+
+  type, extends(vector_function_t) :: linear_steady_pressure_gradient_function_t
+   contains
+     procedure, non_overridable :: get_value_space_time => linear_steady_pressure_gradient_get_value_space_time
+  end type linear_steady_pressure_gradient_function_t
+
+  public :: linear_steady_velocity_function_t
+  public :: linear_steady_dt_velocity_function_t
+  public :: linear_steady_velocity_gradient_function_t
+  public :: linear_steady_velocity_grad_div_function_t
+  public :: linear_steady_pressure_gradient_function_t
+  public :: linear_steady_pressure_function_t
+
+contains
+
+# include "sbm_nsi_iss_oss_analytical_linear_steady.i90"
+
+end module nsi_iss_oss_analytical_linear_steady_functions_names
+
+!***************************************************************************************************!
+! ANALYTICAL FUNCTIONS                                                                              ! 
+! Definition of the analytical functions for the NSI_ISS_OSS problem.                               !
+!***************************************************************************************************!
+module nsi_iss_oss_analytical_functions_names
+  use serial_names
+  use command_line_parameters_names
+  use nsi_iss_oss_analytical_linear_steady_functions_names
+# include "debug.i90"
+  implicit none
+  private
+
+  type nsi_iss_oss_analytical_functions_t
+     private
+     class(vector_function_t), allocatable :: velocity
+     class(vector_function_t), allocatable :: dt_velocity
+     class(tensor_function_t), allocatable :: velocity_gradient
+     class(vector_function_t), allocatable :: velocity_grad_div
+     class(scalar_function_t), allocatable :: pressure
+     class(vector_function_t), allocatable :: pressure_gradient
+     character(len=:)        , allocatable :: function_name
+   contains
+     procedure, non_overridable :: create                      => nsi_iss_oss_analytical_functions_create
+     procedure, non_overridable :: free                        => nsi_iss_oss_analytical_functions_free
+     procedure, non_overridable :: get_velocity_function       => nsi_iss_oss_analytical_functions_get_velocity_function
+     procedure, non_overridable :: get_pressure_function       => nsi_iss_oss_analytical_functions_get_pressure_function
+     procedure, non_overridable :: get_value_velocity          => nsi_iss_oss_analytical_functions_get_value_velocity
+     procedure, non_overridable :: get_value_dt_velocity       => nsi_iss_oss_analytical_functions_get_value_dt_velocity
+     procedure, non_overridable :: get_value_velocity_gradient => nsi_iss_oss_analytical_functions_get_value_velocity_gradient
+     procedure, non_overridable :: get_value_velocity_grad_div => nsi_iss_oss_analytical_functions_get_value_velocity_grad_div
+     procedure, non_overridable :: get_value_pressure_gradient => nsi_iss_oss_analytical_functions_get_value_pressure_gradient
+     procedure, non_overridable :: get_value_pressure          => nsi_iss_oss_analytical_functions_get_value_pressure
+  end type nsi_iss_oss_analytical_functions_t
+
+  character(len=*), parameter :: nsi_linear_steady = 'NSI-LINEAR-STEADY'
+
+  ! Types
+  public :: nsi_iss_oss_analytical_functions_t
+
+contains
+
+# include "sbm_nsi_iss_oss_analytical.i90"
+  
+end module nsi_iss_oss_analytical_functions_names
+
+!***************************************************************************************************!
 ! DISCRETE INTEGRATION: NSI_ISS_OSS                                                                 ! 
 ! Navier-Stokes with Inf-Sup stable discretization using Orthogonal Subscales stabilization.        !
 !***************************************************************************************************!
 module nsi_iss_oss_discrete_integration_names
   use serial_names
   use command_line_parameters_names
+  use nsi_iss_oss_analytical_functions_names
 # include "debug.i90"
   implicit none
   private
@@ -80,15 +230,23 @@ module nsi_iss_oss_discrete_integration_names
      real(rp)                      :: c1
      real(rp)                      :: c2
      real(rp)                      :: cc
+     real(rp)                      :: current_time
      integer(ip)                   :: elemental_length_flag
      logical                       :: convection_activated
+     logical                       :: is_analytical_solution
+     logical                       :: is_initial_solution
+     logical                       :: is_temporal_solution
      class(fe_function_t), pointer :: fe_values => NULL() 
+     type(nsi_iss_oss_analytical_functions_t) :: analytical_functions
    contains
      procedure                  :: integrate
-     procedure, non_overridable :: initialize_from_cli
+     procedure, non_overridable :: create
      procedure, non_overridable :: compute_stabilization_parameters
      procedure, non_overridable :: compute_characteristic_length
      procedure, non_overridable :: compute_mean_elemental_velocity
+     procedure, non_overridable :: compute_analytical_force
+     procedure, non_overridable :: update_boundary_conditions_analytical
+     procedure, non_overridable :: free
   end type nsi_iss_oss_discrete_integration_t
 
   integer(ip), parameter :: characteristic_elemental_length = 0
@@ -135,14 +293,7 @@ program test_nsi_iss_oss
   type(serial_environment_t) :: senv
 
   ! Arguments
-  type(Type_Command_Line_Interface) :: cli
-  character(len=:), allocatable     :: group
-  character(len=256)                :: dir_path
-  character(len=256)                :: prefix
-  character(len=256)                :: dir_path_out
-  logical                           :: is_structured_mesh
-  integer(ip)                       :: velocity_order
-  integer(ip)                       :: pressure_order
+  type(test_nsi_iss_oss_params_t) :: params
 
   ! Locals
   integer(ip) :: number_dimensions
@@ -156,34 +307,6 @@ program test_nsi_iss_oss
  
 contains
   
-  !==================================================================================================
-  subroutine read_flap_cli_nsi_iss_oss(cli)
-    implicit none
-    type(Type_Command_Line_Interface), intent(out) :: cli
-    ! Locals
-    type(test_nsi_iss_oss_params_t) :: test_params
-    logical                         :: authors_print
-    integer(ip)                     :: error
 
-    authors_print = .false.
-
-    ! Initialize Command Line Interface
-    call cli%init(progname    = 'nsi_iss_oss_main',                                                 &
-         &        version     = '',                                                                 &
-         &        authors     = '',                                                                 & 
-         &        license     = '',                                                                 &
-         &        description =                                                                     &
-         & 'Serial FEMPAR driver to solve the Navier-Stokes Incompressible problem with Inf-Sup stable discretization using Orthogonal Subscales stabilization.',   &
-         &        examples    = ['nsi_iss_oss_main            -h ',                                 &
-                                 'nsi_iss_oss_main analytical -h ' ]) 
-
-    ! Set Command Line Arguments Groups, i.e. commands
-    call cli%add_group(group='analytical',description='Solve a problem with an analytical solution')
-
-    ! Set Command Line Arguments for each group
-    call test_params%set_default()
-    call test_params%add_to_cli(cli,'analytical')
-
-  end subroutine read_flap_cli_nsi_iss_oss
 
 end program test_nsi_iss_oss
