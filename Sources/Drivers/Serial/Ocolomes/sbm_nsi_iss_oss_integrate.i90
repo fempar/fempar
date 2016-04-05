@@ -556,8 +556,8 @@ subroutine compute_error_norms(this,fe_space,environment)
   class(environment_t)             , target, intent(in)    :: environment
   ! Locals
   real(rp) :: velocity_error, pressure_error
-  type(error_norm_t) :: velocity_error_norm
-  type(error_norm_t) :: pressure_error_norm
+  type(error_norm_vector_t) :: velocity_error_norm
+  type(error_norm_scalar_t) :: pressure_error_norm
 
   ! Create error norms
   call velocity_error_norm%create(fe_space,environment,1,l2_norm)

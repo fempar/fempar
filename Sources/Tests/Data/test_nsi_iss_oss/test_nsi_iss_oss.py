@@ -1,6 +1,5 @@
 #! /usr/bin/python
 
-import numpy as np
 import os
 import math
 import sys
