@@ -134,7 +134,6 @@ module generate_uniform_triangulation_names
   end type topo_size_t
 
   ! Declare constants
-  integer(ip), parameter :: geom =0, topo=1 
   integer(ip), parameter :: inter=0, bound=1
   integer(ip), parameter :: do_count=0, do_list=1
 
