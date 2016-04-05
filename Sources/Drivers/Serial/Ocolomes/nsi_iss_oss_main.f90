@@ -30,10 +30,7 @@
 ! COMAND LINE PARAMETERS:                                                                           !
 !***************************************************************************************************!
 module command_line_parameters_names
-  use types_names
-  use Data_Type_Command_Line_Interface
-  use FPL
-  use generate_uniform_triangulation_names
+  use serial_names
 # include "debug.i90"
   implicit none
   private
@@ -295,6 +292,7 @@ module nsi_iss_oss_discrete_integration_names
      procedure, non_overridable :: compute_analytical_force
      procedure, non_overridable :: update_boundary_conditions_analytical
      procedure, non_overridable :: interpolate_fe_function_analytical
+     procedure, non_overridable :: compute_error_norms
      procedure, non_overridable :: free
   end type nsi_iss_oss_discrete_integration_t
 
@@ -318,7 +316,6 @@ program test_nsi_iss_oss
   use serial_names
   use command_line_parameters_names
   use nsi_iss_oss_discrete_integration_names
-  use FPL
   implicit none
 #include "debug.i90"
 
@@ -341,8 +338,9 @@ program test_nsi_iss_oss
   class(vector_t)            , pointer :: dof_values => null()
 
   ! Solver
-  type(iterative_linear_solver_t)      :: iterative_linear_solver
-  type(serial_environment_t) :: senv
+  type(iterative_linear_solver_t) :: iterative_linear_solver
+  type(serial_environment_t)      :: senv
+  type(parameterlist_t)           :: solver_parameters
 
   ! Arguments
   type(test_nsi_iss_oss_params_t) :: params
@@ -355,7 +353,7 @@ program test_nsi_iss_oss
   integer(ip) :: counter
   real(rp)    :: nonlinear_tolerance
   real(rp)    :: residual_norm  
-  
+
 # include "sbm_nsi_iss_oss_driver.i90"
  
 contains
