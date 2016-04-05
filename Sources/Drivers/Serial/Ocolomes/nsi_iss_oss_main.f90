@@ -30,10 +30,7 @@
 ! COMAND LINE PARAMETERS:                                                                           !
 !***************************************************************************************************!
 module command_line_parameters_names
-  use types_names
-  use Data_Type_Command_Line_Interface
-  use FPL
-  use generate_uniform_triangulation_names
+  use serial_names
 # include "debug.i90"
   implicit none
   private
@@ -319,7 +316,6 @@ program test_nsi_iss_oss
   use serial_names
   use command_line_parameters_names
   use nsi_iss_oss_discrete_integration_names
-  use FPL
   implicit none
 #include "debug.i90"
 

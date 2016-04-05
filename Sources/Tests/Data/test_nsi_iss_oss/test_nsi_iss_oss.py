@@ -75,11 +75,13 @@ pressure_rate.append(math.log10(pressure_norm[1]/pressure_norm[0])/math.log10(2)
 pressure_rate.append(math.log10(pressure_norm[2]/pressure_norm[1])/math.log10(2))
 
 for i in range(len(velocity_rate)):
-    if(abs(3.0-abs(velocity_rate[i])) > 0.05):
-        print "test_nsi_iss_oss with Stokes problem FAILS!"
-        print "ERROR: Velocity error L2-norm convergence rate < 3"
-    if(abs(2.0-abs(pressure_rate[i])) > 0.05):
-        print "test_nsi_iss_oss with Stokes problem FAILS!"
-        print "ERROR: Pressure error L2-norm convergence rate < 2"
+    if(abs(3.0-abs(velocity_rate[i])) > 0.1):
+        print "test_nsi_iss_oss with Navier-Stokes problem FAILS!"
+        print "ERROR: Velocity error L2-norm convergence rate < 3", abs(velocity_rate[i])
+        istat = 1
+    if(abs(2.0-abs(pressure_rate[i])) > 0.1):
+        print "test_nsi_iss_oss with Navier-Stokes problem FAILS!"
+        print "ERROR: Pressure error L2-norm convergence rate < 2", abs(pressure_rate[i])
+        istat = 1
 
 print istat
