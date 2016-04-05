@@ -327,7 +327,7 @@ subroutine create_parameter_list_for_structured_mesh(this,parameter_list)
   
   ! Set structured mesh parameter list
   istat = 0
-  istat = istat + parameter_list%set(key = number_elements_name, value = this%number_elements)
+  istat = istat + parameter_list%set(key = number_elements_name, value = this%number_elements )
   istat = istat + parameter_list%set(key = number_parts_name, value = this%number_parts)
   istat = istat + parameter_list%set(key = number_sockets_name, value = this%number_sockets)
   istat = istat + parameter_list%set(key = discretization_type_name, value = this%discretization_type)
