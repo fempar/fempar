@@ -32,6 +32,8 @@
 module command_line_parameters_names
   use types_names
   use Data_Type_Command_Line_Interface
+  use FPL
+  use generate_uniform_triangulation_names
 # include "debug.i90"
   implicit none
   private
@@ -39,54 +41,100 @@ module command_line_parameters_names
   type test_nsi_iss_oss_params_t
      private
      ! Defaults
+     ! IO parameters
      character(len=:), allocatable :: default_dir_path
      character(len=:), allocatable :: default_prefix
      character(len=:), allocatable :: default_dir_path_out
-     character(len=:), allocatable :: default_structured_mesh
+     ! Mesh
+     character(len=:), allocatable :: default_structured_mesh        
+     character(len=:), allocatable :: default_number_elements        
+     character(len=:), allocatable :: default_number_parts           
+     character(len=:), allocatable :: default_number_sockets         
+     character(len=:), allocatable :: default_discretization_type    
+     character(len=:), allocatable :: default_domain_length          
+     character(len=:), allocatable :: default_periodic_boundaries    
+     character(len=:), allocatable :: default_origin                 
+     character(len=:), allocatable :: default_stretching_parameter   
+     character(len=:), allocatable :: default_elements_boundary_layer
+     character(len=:), allocatable :: default_size_boundary_layer    
+     character(len=:), allocatable :: default_material_case          
+     ! FE space
      character(len=:), allocatable :: default_velocity_order 
      character(len=:), allocatable :: default_pressure_order 
+     ! Problem
      character(len=:), allocatable :: default_viscosity            
      character(len=:), allocatable :: default_c1                   
      character(len=:), allocatable :: default_c2                   
      character(len=:), allocatable :: default_cc                   
      character(len=:), allocatable :: default_elemental_length_flag
      character(len=:), allocatable :: default_convection_activated 
+     ! Solution
      character(len=:), allocatable :: default_is_analytical
      character(len=:), allocatable :: default_is_initial
      character(len=:), allocatable :: default_is_temporal
      character(len=:), allocatable :: default_analytical_function_name
+     ! Time integration
      character(len=:), allocatable :: default_initial_time
      ! CLI
      type(Type_Command_Line_Interface) :: cli
      ! Parameters
-     character(len=2014) :: dir_path
-     character(len=2014) :: prefix
-     character(len=2014) :: dir_path_out
-     logical             :: is_structured_mesh
-     integer(ip)         :: velocity_order
-     integer(ip)         :: pressure_order    
-     real(rp)            :: viscosity
-     real(rp)            :: c1
-     real(rp)            :: c2
-     real(rp)            :: cc
-     integer(ip)         :: elemental_length_flag
-     logical             :: convection_activated
-     logical             :: is_analytical_solution
-     logical             :: is_initial_solution
-     logical             :: is_temporal_solution
-     character(len=2014) :: analytical_function_name
-     real(rp)            :: initial_time
+     ! IO parameters
+     character(len=2014)      :: dir_path
+     character(len=2014)      :: prefix
+     character(len=2014)      :: dir_path_out
+     ! Mesh
+     logical                  :: is_structured_mesh
+     integer(ip), allocatable :: number_elements(:)
+     integer(ip), allocatable :: number_parts(:)
+     integer(ip), allocatable :: number_sockets(:)
+     integer(ip), allocatable :: discretization_type(:)
+     integer(ip), allocatable :: periodic_boundaries(:)
+     integer(ip), allocatable :: number_elements_boundary(:)
+     integer(ip)              :: material_case
+     real(rp)   , allocatable :: domain_length(:)
+     real(rp)   , allocatable :: origin(:)
+     real(rp)   , allocatable :: stretching_parameter(:)
+     real(rp)   , allocatable :: size_boundary(:) 
+     ! FE space
+     integer(ip)              :: velocity_order
+     integer(ip)              :: pressure_order   
+     ! Problem 
+     real(rp)                 :: viscosity
+     real(rp)                 :: c1
+     real(rp)                 :: c2
+     real(rp)                 :: cc
+     integer(ip)              :: elemental_length_flag
+     logical                  :: convection_activated
+     ! Solution
+     logical                  :: is_analytical_solution
+     logical                  :: is_initial_solution
+     logical                  :: is_temporal_solution
+     character(len=2014)      :: analytical_function_name
+     ! Time integration
+     real(rp)                 :: initial_time
    contains
      procedure, non_overridable          :: create
      procedure, non_overridable, private :: set_default
      procedure, non_overridable, private :: add_to_cli 
      procedure, non_overridable          :: parse
      procedure, non_overridable          :: free  
+     procedure, non_overridable          :: create_parameter_list_for_structured_mesh
      ! Getters
      procedure, non_overridable :: get_dir_path
      procedure, non_overridable :: get_prefix
      procedure, non_overridable :: get_dir_path_out
      procedure, non_overridable :: get_is_structured_mesh
+     procedure, non_overridable :: get_number_elements
+     procedure, non_overridable :: get_number_parts
+     procedure, non_overridable :: get_number_sockets
+     procedure, non_overridable :: get_discretization_type
+     procedure, non_overridable :: get_periodic_boundaries
+     procedure, non_overridable :: get_number_elements_boundary
+     procedure, non_overridable :: get_material_case
+     procedure, non_overridable :: get_domain_length
+     procedure, non_overridable :: get_origin
+     procedure, non_overridable :: get_stretching_parameter
+     procedure, non_overridable :: get_size_boundary
      procedure, non_overridable :: get_velocity_order
      procedure, non_overridable :: get_pressure_order    
      procedure, non_overridable :: get_viscosity
@@ -127,32 +175,32 @@ module nsi_iss_oss_analytical_linear_steady_functions_names
   type, extends(vector_function_t) :: linear_steady_velocity_function_t
      integer(ip) :: random = 3
    contains
-     procedure, non_overridable :: get_value_space_time => linear_steady_velocity_get_value_space_time
+     procedure :: get_value_space_time => linear_steady_velocity_get_value_space_time
   end type linear_steady_velocity_function_t
 
   type, extends(vector_function_t) :: linear_steady_dt_velocity_function_t
    contains
-     procedure, non_overridable :: get_value_space_time => linear_steady_dt_velocity_get_value_space_time
+     procedure :: get_value_space_time => linear_steady_dt_velocity_get_value_space_time
   end type linear_steady_dt_velocity_function_t
 
   type, extends(tensor_function_t) :: linear_steady_velocity_gradient_function_t
    contains
-     procedure, non_overridable :: get_value_space_time => linear_steady_velocity_gradient_get_value_space_time
+     procedure :: get_value_space_time => linear_steady_velocity_gradient_get_value_space_time
   end type linear_steady_velocity_gradient_function_t
 
   type, extends(vector_function_t) :: linear_steady_velocity_grad_div_function_t
    contains
-     procedure, non_overridable :: get_value_space_time => linear_steady_velocity_grad_div_get_value_space_time
+     procedure :: get_value_space_time => linear_steady_velocity_grad_div_get_value_space_time
   end type linear_steady_velocity_grad_div_function_t
 
   type, extends(scalar_function_t) :: linear_steady_pressure_function_t
    contains
-     procedure, non_overridable :: get_value_space_time => linear_steady_pressure_get_value_space_time
+     procedure :: get_value_space_time => linear_steady_pressure_get_value_space_time
   end type linear_steady_pressure_function_t
 
   type, extends(vector_function_t) :: linear_steady_pressure_gradient_function_t
    contains
-     procedure, non_overridable :: get_value_space_time => linear_steady_pressure_gradient_get_value_space_time
+     procedure :: get_value_space_time => linear_steady_pressure_gradient_get_value_space_time
   end type linear_steady_pressure_gradient_function_t
 
   public :: linear_steady_velocity_function_t
@@ -246,6 +294,7 @@ module nsi_iss_oss_discrete_integration_names
      procedure, non_overridable :: compute_mean_elemental_velocity
      procedure, non_overridable :: compute_analytical_force
      procedure, non_overridable :: update_boundary_conditions_analytical
+     procedure, non_overridable :: interpolate_fe_function_analytical
      procedure, non_overridable :: free
   end type nsi_iss_oss_discrete_integration_t
 
@@ -269,13 +318,16 @@ program test_nsi_iss_oss
   use serial_names
   use command_line_parameters_names
   use nsi_iss_oss_discrete_integration_names
+  use FPL
   implicit none
 #include "debug.i90"
 
   ! Geometry
-  type(mesh_t)          :: f_mesh
-  type(conditions_t)    :: f_cond
-  type(triangulation_t) :: f_trian
+  type(mesh_t)                          :: f_mesh
+  type(conditions_t)                    :: f_cond
+  type(triangulation_t)                 :: f_trian
+  type(uniform_mesh_descriptor_t)       :: geometry_data
+  type(uniform_conditions_descriptor_t) :: boundary_data
 
   ! Problem
   type(nsi_iss_oss_discrete_integration_t) :: nsi_iss_oss_integration
@@ -294,9 +346,10 @@ program test_nsi_iss_oss
 
   ! Arguments
   type(test_nsi_iss_oss_params_t) :: params
+  type(parameterlist_t)           :: mesh_parameters
 
   ! Locals
-  integer(ip) :: number_dimensions
+  integer(ip) :: number_dimensions,number_unknowns
   integer(ip) :: istat
   integer(ip) :: max_nonlinear_iterations
   integer(ip) :: counter
@@ -308,5 +361,31 @@ program test_nsi_iss_oss
 contains
   
 
+
+  !==================================================================================================
+  subroutine set_structured_conditions_nsi_iss_oss(geometry_data,boundary_data)
+    implicit none
+    type(uniform_mesh_descriptor_t)      , intent(in)    :: geometry_data
+    type(uniform_conditions_descriptor_t), intent(inout) :: boundary_data
+    integer(ip) :: number_dimensions
+    
+    number_dimensions = geometry_data%ndime
+    
+    ! Pressure codes
+    boundary_data%poin%code(number_dimensions+1,1:2**number_dimensions-1) = 0
+    boundary_data%poin%code(number_dimensions+1,2**number_dimensions)     = 1
+    boundary_data%line%code(number_dimensions+1,:)                        = 0
+    boundary_data%surf%code(number_dimensions+1,:)                        = 0
+    ! Projection codes
+    boundary_data%poin%code(number_dimensions+2:2*number_dimensions+1,:)  = 0
+    boundary_data%line%code(number_dimensions+2:2*number_dimensions+1,:)  = 0
+    boundary_data%surf%code(number_dimensions+2:2*number_dimensions+1,:)  = 0
+    ! Velocity values
+    boundary_data%poin%valu(1:number_dimensions,:) = 1.0_rp
+    boundary_data%line%valu(1:number_dimensions,:) = 1.0_rp
+    ! Pressure values
+    boundary_data%poin%valu(number_dimensions+1,2**number_dimensions) = 0.0_rp
+
+  end subroutine set_structured_conditions_nsi_iss_oss  
 
 end program test_nsi_iss_oss

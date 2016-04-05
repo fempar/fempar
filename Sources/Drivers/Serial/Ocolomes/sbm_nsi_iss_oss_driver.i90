@@ -50,6 +50,27 @@
      ! Construct triangulation
      call mesh_to_triangulation(f_mesh,f_trian,gcond=f_cond)
 
+  else
+     
+     ! Create structured mesh parameters from CLI
+     call fpl_init()
+     call mesh_parameters%init()
+     call params%create_parameter_list_for_structured_mesh(mesh_parameters)
+
+     ! Generate geometry data 
+     call geometry_data%create(mesh_parameters)
+
+     ! Generate boundary data
+     number_dimensions = geometry_data%ndime
+     number_unknowns   = 2*number_dimensions+1
+     call boundary_data%create(number_unknowns,number_unknowns,number_dimensions)
+
+     ! Set non-default Navier-Stokes BCs
+     call set_structured_conditions_nsi_iss_oss(geometry_data,boundary_data)
+
+     ! Generate triangulation and boundary conditions
+     call generate_uniform_triangulation(1,geometry_data,boundary_data,f_trian,f_cond)
+
   end if structured_mesh
 
   !----------------------!
@@ -101,6 +122,10 @@
      call nsi_iss_oss_integration%update_boundary_conditions_analytical(fe_space)
      call fe_space%update_global_fe_function_bcs(fe_values)
   end if
+  ! Interpolate initial fe_function
+  if(nsi_iss_oss_integration%is_initial_solution) then
+     call nsi_iss_oss_integration%interpolate_fe_function_analytical(fe_space)
+  end if
 
   !-----------------!
   ! AFFINE OPERATOR !
@@ -118,7 +143,6 @@
   ! Create residual values vector
   call fe_affine_operator%create_range_vector(residual)   
   call residual%init(0.0_rp)    
-  call dof_values%init(0.0_rp)  
   ! Fill affine operator
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
@@ -189,6 +213,11 @@
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
   if(.not.params%get_is_structured_mesh()) call mesh_free(f_mesh)
+  if(params%get_is_structured_mesh()) then
+     call boundary_data%free()
+     call mesh_parameters%free()
+     call fpl_finalize()
+  end if
   call params%free()
 
   ! Finalize fempar

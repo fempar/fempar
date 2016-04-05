@@ -525,3 +525,25 @@ subroutine update_boundary_conditions_analytical(this,fe_space,time)
        &                        fe_space_component=2,time=time_)
 
 end subroutine update_boundary_conditions_analytical
+  
+!====================================================================================================
+subroutine interpolate_fe_function_analytical(this,fe_space,time)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+  class(serial_fe_space_t)                 , intent(in)    :: fe_space
+  real(rp), optional                       , intent(in)    :: time
+  ! Locals
+  real(rp) :: time_
+
+  time_ = 0.0_rp
+  if(present(time)) time_ = time
+
+  ! Update velocity 
+  call fe_space%interpolate_fe_function(this%analytical_functions%get_velocity_function(),bc_code=1, &
+       &                                fe_space_component=1,fe_function=this%fe_values,time=time_)
+
+  ! Update pressure
+  call fe_space%interpolate_fe_function(this%analytical_functions%get_pressure_function(),bc_code=1, &
+       &                                fe_space_component=2,fe_function=this%fe_values,time=time_)
+
+end subroutine interpolate_fe_function_analytical
