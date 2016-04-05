@@ -39,22 +39,14 @@ USE serial_fe_space_names,       only: serial_fe_space_t, finite_element_t
 USE reference_fe_names,          only: reference_fe_t, quad_lagrangian_reference_fe_t, fe_map_t, quadrature_t
 USE field_names,                 only: point_t
 USE allocatable_array_ip2_names, only: allocatable_array_ip2_t
-USE Lib_VTK_IO
 USE reference_fe_names,          only: topology_quad, topology_tet, fe_type_lagrangian
+USE vtk_mesh
 
 
 implicit none
-# include "debug.i90"
+#include "debug.i90"
 
 private
-
-    ! STATE PARAMETERS
-    integer(ip), parameter :: VTK_STATE_UNKNOWN          = 0
-    integer(ip), parameter :: VTK_STATE_WRITE_STARTED    = 1
-    integer(ip), parameter :: VTK_STATE_POINTDATA_OPENED = 2
-    integer(ip), parameter :: VTK_STATE_POINTDATA_CLOSED = 3
-    integer(ip), parameter :: VTK_STATE_ENDED            = 4
-    integer(ip), parameter :: VTK_STATE_READ_STARTED     = 5
   
     interface
         function mkdir_recursive(path) bind(c,name="mkdir_recursive")
@@ -62,37 +54,7 @@ private
             integer(kind=c_int) :: mkdir_recursive
             character(kind=c_char,len=1), intent(IN) :: path(*)
         end function mkdir_recursive
-    end interface
-
-    ! Type for storing field descriptors
-    type vtk_field_t
-    private
-        character(len=:), allocatable :: var_location   ! 'Node' or 'Cell' field
-        character(len=:), allocatable :: var_name       ! Name of the field
-        character(len=:), allocatable :: field_type     ! Field data type 'Float32', 'Float64', 'Int32', etc.
-        integer(ip)                   :: num_comp = 0   ! Number of components
-        logical                       :: filled = .False.
-    end type vtk_field_t
-    
-    ! Type for storing mesh data
-    type vtk_mesh_t
-    private
-        character(len=:), allocatable :: directory_path        ! Directory where the results are going to be stored
-        character(len=:), allocatable :: name_prefix           ! Name prefix of the VTK files
-        real(rp)   , allocatable      :: X(:),Y(:),Z(:)        ! Coordinates of the mesh
-        integer(ip), allocatable      :: connectivities(:)     ! Connectivity matrix
-        integer(ip), allocatable      :: offset(:)             ! VTK element offset
-        integer(1) , allocatable      :: cell_types(:)         ! VTK element type
-        integer(ip)                   :: number_of_nodes       ! Number of nodes
-        integer(ip)                   :: number_of_elements    ! Number of nodes
-        integer(ip)                   :: dimensions            ! Dimensions of the mesh
-        type(vtk_field_t), allocatable:: unknowns(:)           ! Array storing field_ts info
-        type(vtk_field_t), allocatable:: postprocess_fields(:) ! Array storing postprocess field_ts info
-        logical                       :: linear_order = .False.
-        logical                       :: filled = .False.
-        integer(ip), allocatable      :: subelements_connectivity(:,:)
-        integer(ip)                   :: status = VTK_STATE_UNKNOWN      ! Status of the write process
-    end type vtk_mesh_t
+    end interface  
 
     ! Type for storing several mesh data with its field descriptors
     ! It also contains information about the number of parts (PVTK) and time steps (PVD)
@@ -108,26 +70,26 @@ private
          integer(ip)                         :: num_parts = 0      ! Number of parts
          integer(ip)                         :: root_proc = 0      ! Root processor
     contains
-        procedure          :: initialize               => vtk_initialize
-        procedure          :: free                     => VTK_free
-        procedure          :: begin_write              => vtk_begin_write
-        procedure          :: end_write                => vtk_end_write
-        procedure          :: begin_read               => vtk_begin_read
-        procedure          :: end_read                 => vtk_end_read
-        procedure, private :: reallocate_meshes        => vtk_reallocate_meshes
-        procedure, private :: fill_mesh_linear_order   => vtk_fill_mesh_linear_order
-        procedure, private :: fill_mesh_superlinear_order   => vtk_fill_mesh_superlinear_order
-        procedure, private :: get_VTK_time_output_path => vtk_get_VTK_time_output_path
-        procedure, private :: get_PVD_time_output_path => vtk_get_PVD_time_output_path
-        procedure, private :: get_VTK_filename         => vtk_get_VTK_filename
-        procedure, private :: get_PVTK_filename        => vtk_get_PVTK_filename
-        procedure, private :: set_root_proc            => vtk_set_root_proc
-        procedure, private :: set_num_steps            => vtk_set_num_steps
-        procedure, private :: set_num_parts            => vtk_set_num_parts
-        procedure, private :: set_path                 => vtk_set_path
-        procedure, private :: set_prefix               => vtk_set_prefix
-        procedure, private :: append_step              => vtk_append_step
-        procedure, private :: create_directory         => vtk_create_dir_hierarchy_on_root_process
+        procedure          :: initialize                  => vtk_initialize
+        procedure          :: free                        => VTK_free
+        procedure          :: begin_write                 => vtk_begin_write
+        procedure          :: end_write                   => vtk_end_write
+!        procedure          :: begin_read                  => vtk_begin_read
+!        procedure          :: end_read                    => vtk_end_read
+        procedure, private :: reallocate_meshes           => vtk_reallocate_meshes
+        procedure, private :: fill_mesh_linear_order      => vtk_fill_mesh_linear_order
+        procedure, private :: fill_mesh_superlinear_order => vtk_fill_mesh_superlinear_order
+        procedure, private :: get_VTK_time_output_path    => vtk_get_VTK_time_output_path
+        procedure, private :: get_PVD_time_output_path    => vtk_get_PVD_time_output_path
+        procedure, private :: get_VTK_filename            => vtk_get_VTK_filename
+        procedure, private :: get_PVTK_filename           => vtk_get_PVTK_filename
+        procedure, private :: set_root_proc               => vtk_set_root_proc
+        procedure, private :: set_num_steps               => vtk_set_num_steps
+        procedure, private :: set_num_parts               => vtk_set_num_parts
+        procedure, private :: set_path                    => vtk_set_path
+        procedure, private :: set_prefix                  => vtk_set_prefix
+        procedure, private :: append_step                 => vtk_append_step
+        procedure, private :: create_directory            => vtk_create_dir_hierarchy_on_root_process
     end type vtk_t
 
     character(len=5) :: time_prefix = 'time_'
@@ -150,7 +112,7 @@ contains
         integer(ip)                          :: nm = 1
     !-----------------------------------------------------------------
         if(present(mesh_number)) nm = mesh_number
-        this%mesh(nm)%directory_path = path
+        call this%mesh(nm)%set_path(path=path)
     end subroutine vtk_set_path
 
 
@@ -164,7 +126,7 @@ contains
         integer(ip)                          :: nm = 1
     !-----------------------------------------------------------------
         if(present(mesh_number)) nm = mesh_number
-        this%mesh(nm)%name_prefix = prefix
+        call this%mesh(nm)%set_prefix(prefix=prefix)
     end subroutine vtk_set_prefix
 
 
@@ -215,7 +177,7 @@ contains
         ts = this%num_steps
         if(present(time_step)) ts = time_step 
 
-        fp = this%mesh(nm)%directory_path
+        call this%mesh(nm)%get_path(fp)
         if(present(path)) fp = path
 
         dp = trim(adjustl(fp))//'/'//time_prefix//trim(adjustl(str(no_sign=.true., n=ts)))//'/'
@@ -259,7 +221,7 @@ contains
         np = me
         if(present(part_number)) np = part_number
 
-        fp = this%mesh(nm)%name_prefix
+        call this%mesh(nm)%get_prefix(fp)
         if(present(prefix)) fp = prefix
 
         fn = trim(adjustl(fp))//'_'//trim(adjustl(str(no_sign=.true., n=nm)))//'_'//trim(adjustl(str(no_sign=.true., n=np)))//vtk_ext
@@ -291,7 +253,7 @@ contains
         endif
         if(present(time_step)) ts = time_step
 
-        fp = this%mesh(nm)%name_prefix
+        call this%mesh(nm)%get_prefix(fp)
         if(present(prefix)) fp = prefix
 
         fn = trim(adjustl(fp))//'_'//trim(adjustl(str(no_sign=.true., n=nm)))//'_'//trim(adjustl(str(no_sign=.true., n=ts)))//pvtk_ext
@@ -356,7 +318,7 @@ contains
 
     subroutine vtk_reallocate_meshes(this)
     !-----------------------------------------------------------------
-    !< Set the number of parts of the partitioned mesh to be writen in the PVTK
+    !< Reallocate meshes array to fit a new mesh
     !-----------------------------------------------------------------
         class(vtk_t), intent(INOUT)   :: this
         type(vtk_mesh_t), allocatable :: f_vtk_tmp(:)
@@ -452,65 +414,59 @@ contains
         integer(ip), optional, intent(OUT)   :: mesh_number
         integer(ip)                          :: i
         integer(ip)                          :: j
-        integer(ip)                          :: tnnod
+        integer(ip)                          :: number_nodes
         integer(ip)                          :: counter
         character(:), pointer                :: topology
     !-----------------------------------------------------------------
         call this%reallocate_meshes()
         if(present(mesh_number)) mesh_number = this%num_meshes
-        this%mesh(this%num_meshes)%linear_order = .True.
+        call this%mesh(this%num_meshes)%set_linear_order(.True.)
 
-        this%mesh(this%num_meshes)%number_of_elements = triangulation%num_elems
-
-        call memalloc ( this%mesh(this%num_meshes)%number_of_elements, this%mesh(this%num_meshes)%cell_types, __FILE__,__LINE__)
-        call memalloc ( this%mesh(this%num_meshes)%number_of_elements, this%mesh(this%num_meshes)%offset, __FILE__,__LINE__)
-        this%mesh(this%num_meshes)%cell_types = 0; this%mesh(this%num_meshes)%offset = 0
+        call this%mesh(this%num_meshes)%set_dimensions(triangulation%num_dims)
+        call this%mesh(this%num_meshes)%set_number_elements(triangulation%num_elems)
+        call this%mesh(this%num_meshes)%allocate_elemental_arrays()
 
         ! Fill VTK cell type and offset arrays and and count nodes
-        tnnod = 0
-        do i=1, this%mesh(this%num_meshes)%number_of_elements
+        number_nodes = 0
+        do i=1, this%mesh(this%num_meshes)%get_number_elements()
             topology => triangulation%elems(i)%reference_fe_geo%get_topology()
             if(topology == topology_quad) then
-                this%mesh(this%num_meshes)%cell_types(i) = 8 ! VTK_VOXEL
+                call this%mesh(this%num_meshes)%set_cell_type(index=i, type=8) ! VTK_VOXEL
             else
                 write(*,*) 'fill_mesh_from_triangulation: Topology not supported -> ', topology
                 check(.false.)
             endif
-            tnnod = tnnod + triangulation%elems(i)%reference_fe_geo%get_number_vertices()
-            this%mesh(this%num_meshes)%offset(i:) = tnnod
+            number_nodes = number_nodes + triangulation%elems(i)%reference_fe_geo%get_number_vertices()
+            call this%mesh(this%num_meshes)%set_offset(i, number_nodes)
         enddo
-        this%mesh(this%num_meshes)%number_of_nodes = tnnod
-        this%mesh(this%num_meshes)%dimensions = triangulation%num_dims
+        call this%mesh(this%num_meshes)%set_number_nodes(number_nodes)
+        call this%mesh(this%num_meshes)%allocate_nodal_arrays()
 
-        call memalloc ( tnnod, this%mesh(this%num_meshes)%connectivities, __FILE__,__LINE__)
-        call memalloc ( tnnod, this%mesh(this%num_meshes)%X, __FILE__,__LINE__)
-        call memalloc ( tnnod, this%mesh(this%num_meshes)%Y, __FILE__,__LINE__)
-        call memalloc ( tnnod, this%mesh(this%num_meshes)%Z, __FILE__,__LINE__)
-        this%mesh(this%num_meshes)%X = 0._rp; this%mesh(this%num_meshes)%Y = 0._rp; this%mesh(this%num_meshes)%Z = 0._rp
+
         counter = 1
-        tnnod = 0
+        number_nodes = 0
 
         ! Fill VTK coordinate arrays
-        do i=1, this%mesh(this%num_meshes)%number_of_elements
+        do i=1, this%mesh(this%num_meshes)%get_number_elements()
             do j=1, triangulation%elems(i)%reference_fe_geo%get_number_vertices()
-                this%mesh(this%num_meshes)%connectivities(tnnod+j) = j + tnnod - 1
-                if (triangulation%num_dims >=1) this%mesh(this%num_meshes)%X(counter) = triangulation%elems(i)%coordinates(1,j)
-                if (triangulation%num_dims >=2) this%mesh(this%num_meshes)%Y(counter) = triangulation%elems(i)%coordinates(2,j)
-                if (triangulation%num_dims >=3) this%mesh(this%num_meshes)%Z(counter) = triangulation%elems(i)%coordinates(3,j)
+                call this%mesh(this%num_meshes)%set_connectivity(number_nodes+j, j+number_nodes-1)
+                if (triangulation%num_dims >=1) call this%mesh(this%num_meshes)%set_x_coordinate(counter, triangulation%elems(i)%coordinates(1,j))
+                if (triangulation%num_dims >=2) call this%mesh(this%num_meshes)%set_y_coordinate(counter, triangulation%elems(i)%coordinates(2,j))
+                if (triangulation%num_dims >=3) call this%mesh(this%num_meshes)%set_z_coordinate(counter, triangulation%elems(i)%coordinates(3,j))
                 counter = counter + 1
             enddo
-            tnnod = tnnod + triangulation%elems(i)%reference_fe_geo%get_number_vertices()
+            number_nodes = number_nodes + triangulation%elems(i)%reference_fe_geo%get_number_vertices()
         enddo
-        this%mesh(this%num_meshes)%filled = .True.
+        call this%mesh(this%num_meshes)%set_filled(.true.)
     end subroutine vtk_fill_mesh_linear_order
 
 
-    subroutine vtk_fill_mesh_superlinear_order(f_vtk,fe_space, nmesh)
+    subroutine vtk_fill_mesh_superlinear_order(this, fe_space, nmesh)
     !-----------------------------------------------------------------
     !< Store a superlinear_order mesh in a vtk_t derived type from a fe_space
     !-----------------------------------------------------------------
         implicit none
-        class(vtk_t),                   intent(inout) :: f_vtk
+        class(vtk_t),                   intent(inout) :: this
         type(serial_fe_space_t),        intent(inout) :: fe_space
         integer(ip), optional,          intent(out)   :: nmesh
         type(point_t),          pointer               :: vertex_coordinates(:)
@@ -518,6 +474,7 @@ contains
         type(quadrature_t),     pointer               :: nodal_quadrature
         class(reference_fe_t),  pointer               :: reference_fe_geo
         type(finite_element_t), pointer               :: fe
+        integer(ip),            pointer               :: subelements_connectivity(:,:)
         type(fe_map_t)                                :: fe_map
         integer(ip)                                   :: num_elements
         integer(ip)                                   :: num_nodes_per_element
@@ -534,15 +491,16 @@ contains
         integer(ip)                                   :: max_order_fe_space_index
         integer(ip)                                   :: nodes_counter
     !-----------------------------------------------------------------
-        call f_vtk%reallocate_meshes()
-        if(present(nmesh)) nmesh = f_vtk%num_meshes
-        f_vtk%mesh(f_vtk%num_meshes)%linear_order = .False.
+        call this%reallocate_meshes()
+        if(present(nmesh)) nmesh = this%num_meshes
+        call this%mesh(this%num_meshes)%set_linear_order(.false.)
 
 
         ! Get dimensions from the geometric reference finite element
         fe => fe_space%get_finite_element(1)
         reference_fe_geo => fe%get_reference_fe_geo()
         dimensions = reference_fe_geo%get_number_dimensions()
+        call this%mesh(this%num_meshes)%set_dimensions(dimensions)
 
         ! Get max order and its fe_space_index
         max_order = 0
@@ -559,21 +517,18 @@ contains
         num_nodes_per_element = fe_space%get_number_nodes(max_order_fe_space_index)
         num_vertices_per_element = reference_fe_geo%get_number_vertices()
         num_subelements_per_element = fe_space%get_number_subelements(max_order_fe_space_index)
-        f_vtk%mesh(f_vtk%num_meshes)%number_of_elements = num_elements * num_subelements_per_element
-        f_vtk%mesh(f_vtk%num_meshes)%number_of_nodes = num_vertices_per_element * f_vtk%mesh(f_vtk%num_meshes)%number_of_elements
+        call this%mesh(this%num_meshes)%set_number_elements(num_elements * num_subelements_per_element)
+        call this%mesh(this%num_meshes)%set_number_nodes(num_vertices_per_element * this%mesh(this%num_meshes)%get_number_elements())
 
         ! Allocate VTK geometry and connectivity data
-        call memalloc ( f_vtk%mesh(f_vtk%num_meshes)%number_of_nodes, f_vtk%mesh(f_vtk%num_meshes)%X, __FILE__,__LINE__)
-        call memalloc ( f_vtk%mesh(f_vtk%num_meshes)%number_of_nodes, f_vtk%mesh(f_vtk%num_meshes)%Y, __FILE__,__LINE__)
-        call memalloc ( f_vtk%mesh(f_vtk%num_meshes)%number_of_nodes, f_vtk%mesh(f_vtk%num_meshes)%Z, __FILE__,__LINE__)    
-        call memalloc ( f_vtk%mesh(f_vtk%num_meshes)%number_of_nodes, f_vtk%mesh(f_vtk%num_meshes)%connectivities, __FILE__,__LINE__)    
-        call memalloc ( f_vtk%mesh(f_vtk%num_meshes)%number_of_elements, f_vtk%mesh(f_vtk%num_meshes)%cell_types, __FILE__,__LINE__)    
-        call memalloc ( f_vtk%mesh(f_vtk%num_meshes)%number_of_elements, f_vtk%mesh(f_vtk%num_meshes)%offset, __FILE__,__LINE__) 
-        f_vtk%mesh(f_vtk%num_meshes)%X = 0._rp; f_vtk%mesh(f_vtk%num_meshes)%Y = 0._rp; f_vtk%mesh(f_vtk%num_meshes)%Z = 0._rp
+        call this%mesh(this%num_meshes)%allocate_nodal_arrays()
+        call this%mesh(this%num_meshes)%allocate_elemental_arrays()
+        
 
         ! Get the connectivity of the subelements
-        call memalloc(num_vertices_per_element, num_subelements_per_element,  f_vtk%mesh(f_vtk%num_meshes)%subelements_connectivity, __FILE__, __LINE__)
-        call fe_space%get_subelements_connectivity(max_order_fe_space_index, f_vtk%mesh(f_vtk%num_meshes)%subelements_connectivity)
+        call this%mesh(this%num_meshes)%allocate_subelements_connectivity(num_vertices_per_element, num_subelements_per_element)
+        subelements_connectivity => this%mesh(this%num_meshes)%get_subelements_connectivity_pointer()
+        call fe_space%get_subelements_connectivity(max_order_fe_space_index, subelements_connectivity)
 
         ! Create FE map
         call fe_map%create(nodal_quadrature, reference_fe_geo)
@@ -595,19 +550,19 @@ contains
             do subelement_index = 1, num_subelements_per_element
                 elements_counter = elements_counter + 1
                 do vertex = 1, num_vertices_per_element
-                    subelement_vertex = f_vtk%mesh(f_vtk%num_meshes)%subelements_connectivity(vertex, subelement_index)
+                    subelement_vertex = subelements_connectivity(vertex, subelement_index)
                     nodes_counter = nodes_counter + 1
-                    if (dimensions >= 1) f_vtk%mesh(f_vtk%num_meshes)%X(nodes_counter) = nodal_coordinates(subelement_vertex)%get(1)
-                    if (dimensions >= 2) f_vtk%mesh(f_vtk%num_meshes)%Y(nodes_counter) = nodal_coordinates(subelement_vertex)%get(2)
-                    if (dimensions >= 3) f_vtk%mesh(f_vtk%num_meshes)%Z(nodes_counter) = nodal_coordinates(subelement_vertex)%get(3)
-                    f_vtk%mesh(f_vtk%num_meshes)%connectivities(nodes_counter) = nodes_counter-1
+                    if (dimensions >= 1) call this%mesh(this%num_meshes)%set_x_coordinate(nodes_counter, nodal_coordinates(subelement_vertex)%get(1))
+                    if (dimensions >= 2) call this%mesh(this%num_meshes)%set_y_coordinate(nodes_counter, nodal_coordinates(subelement_vertex)%get(2))
+                    if (dimensions >= 3) call this%mesh(this%num_meshes)%set_z_coordinate(nodes_counter, nodal_coordinates(subelement_vertex)%get(3))
+                    call this%mesh(this%num_meshes)%set_connectivity(nodes_counter, nodes_counter-1)
                 end do
 
                 ! Store the type of element
-                f_vtk%mesh(f_vtk%num_meshes)%cell_types(elements_counter) = 8  ! VTK_VOXEL
+                call this%mesh(this%num_meshes)%set_cell_type(elements_counter, 8)  ! VTK_VOXEL
 
                 ! Fill offset
-                f_vtk%mesh(f_vtk%num_meshes)%offset(elements_counter) = nodes_counter
+                call this%mesh(this%num_meshes)%set_offset(elements_counter, nodes_counter)
             end do
         end do
 
@@ -629,6 +584,8 @@ contains
         integer(ip),      optional, intent(IN)    :: mesh_number !< Number of the MESH
         character(len=*), optional, intent(IN)    :: format      !< Ouput ForMaT
         integer(ip),      optional, intent(OUT)   :: f_id        !< File ID
+        character(len=:), allocatable             :: path        !< Directory path
+        character(len=:), allocatable             :: prefix      !< Filename prefix
         character(len=:), allocatable             :: fn          !< Real File Name
         character(len=:), allocatable             :: dp          !< Real Directory Path
         character(len=:), allocatable             :: of          !< Real Output Format
@@ -662,41 +619,19 @@ contains
             if(present(time_step)) ts = time_step 
             call this%append_step(ts)
 
+            call this%mesh(nm)%get_path(path)
+            call this%mesh(nm)%get_prefix(prefix)
+            dp = this%get_VTK_time_output_path(path=path, time_step=ts, mesh_number=nm)
+            fn = this%get_VTK_filename(prefix=prefix, part_number=np, mesh_number=nm)
+            fn = dp//fn
 
-            if(this%mesh(nm)%status == VTK_STATE_UNKNOWN .or. this%mesh(nm)%status == VTK_STATE_ENDED) then
-        
-                dp = this%get_VTK_time_output_path(path=this%mesh(nm)%directory_path, time_step=ts, mesh_number=nm)
-                fn = this%get_VTK_filename(prefix=this%mesh(nm)%name_prefix, part_number=np, mesh_number=nm)
-                fn = dp//fn
-                if(present(file_name)) fn = file_name
+            if(present(file_name)) fn = file_name
 
-                if( this%create_directory(dp,issue_final_barrier=.True.) == 0) then    
-                    of = 'raw'
-                    if(present(format)) of = trim(adjustl(format))
-            
-                    nnods = this%mesh(nm)%number_of_nodes
-                    nels = size(this%mesh(nm)%cell_types, dim=1)
-
-                    E_IO = VTK_INI_XML(output_format = trim(adjustl(of)),  &
-                                       filename = trim(adjustl(fn)),       &
-                                       mesh_topology = 'UnstructuredGrid', &
-                                       cf=fid)
-                    E_IO = VTK_GEO_XML(NN = nnods,           &
-                                       NC = nels,            &
-                                       X  = this%mesh(nm)%X, &
-                                       Y  = this%mesh(nm)%Y, &
-                                       Z  = this%mesh(nm)%Z, &
-                                       cf = fid)
-                    E_IO = VTK_CON_XML(NC = nels,                                &
-                                       connect   = this%mesh(nm)%connectivities, &
-                                       offset    = this%mesh(nm)%offset,         &
-                                       cell_type = this%mesh(nm)%cell_types,     &
-                                       cf        = fid)
-                    this%mesh(nm)%status = VTK_STATE_WRITE_STARTED
-                endif
+            if( this%create_directory(dp,issue_final_barrier=.True.) == 0) then    
+                E_IO = this%mesh(nm)%begin_write(fn, np, ts, format, f_id)
             endif
-            if(present(f_id)) f_id = fid
 
+            if(present(f_id)) f_id = fid
         endif
     end function vtk_begin_write
 
@@ -720,133 +655,12 @@ contains
         E_IO = 0
 
         if (ft) then
-           
            nm = this%num_meshes
            if(present(mesh_number)) nm = mesh_number
            
-           if ((this%mesh(nm)%status >= VTK_STATE_WRITE_STARTED) .and. (this%mesh(nm)%status /= VTK_STATE_ENDED)) then
-              
-              if(this%mesh(nm)%status == VTK_STATE_POINTDATA_OPENED) then
-                 if(present(f_id)) then
-                    E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=f_id)
-                 else
-                    E_IO = VTK_DAT_XML(var_location='node',var_block_action='close')
-                 endif
-                 this%mesh(nm)%status = VTK_STATE_POINTDATA_CLOSED
-              endif
-              
-              if(present(f_id)) then       
-                 E_IO = VTK_GEO_XML(cf=f_id)
-                 E_IO = VTK_END_XML(cf=f_id)
-              else
-                 E_IO = VTK_GEO_XML()
-                 E_IO = VTK_END_XML()
-              endif
-              
-              this%mesh(nm)%status = VTK_STATE_ENDED
-           endif
+           E_IO = this%mesh(nm)%end_write()
         endif
     end function vtk_end_write
-
-
-    function vtk_begin_read(this, filename, part_number, time_step, mesh_number, format, f_id) result(E_IO)
-    !-----------------------------------------------------------------
-    !< Begin the reading of a single VTK file to disk (if I am fine MPI task)
-    !-----------------------------------------------------------------
-        class(vtk_t),             intent(INOUT)   :: this        !< VTK_t derived type
-        character(len=*), optional, intent(IN)    :: filename    !< VTK File NAME
-        integer(ip),      optional, intent(IN)    :: part_number !< Number of the PART
-        real(rp),         optional, intent(IN)    :: time_step   !< Time STEP value
-        integer(ip),      optional, intent(IN)    :: mesh_number !< Number of the MESH
-        character(len=*), optional, intent(IN)    :: format      !< Ouput ForMaT
-        integer(ip),      optional, intent(OUT)   :: f_id        !< File ID
-        character(len=:), allocatable             :: fn          !< Real File Name
-        character(len=:), allocatable             :: dp          !< Real Directory Path
-        character(len=:), allocatable             :: of          !< Real Output Format
-        real(rp)                                  :: ts          !< Real Time Step
-        logical                                   :: ft          !< Fine Task
-        integer(ip)                               :: nm          !< Real Number of the Mesh
-        integer(ip)                               :: np          !< Real Number of the Part
-        integer(ip)                               :: me          !< Task identifier
-        integer(ip)                               :: fid         !< Real File ID
-        integer(ip)                               :: nnods       !< Number of NODeS
-        integer(ip)                               :: nels        !< Number of ELementS
-        integer(ip)                               :: E_IO        !< Error IO
-    !-----------------------------------------------------------------
-        check(associated(this%env))
-     
-        ft =  this%env%am_i_fine_task() 
-
-        E_IO = 0
-        fid = -1
-        
-        if(ft) then
-            me = 0; np = 1
-            call this%env%info(me,np) 
-            np = me
-            if(present(part_number)) np = part_number
-
-            nm = this%num_meshes
-            if(present(mesh_number)) nm = mesh_number
-        
-            ts = 0._rp
-            if(present(time_step)) ts = time_step
-            call this%append_step(ts)
-
-            if(this%mesh(nm)%status == VTK_STATE_UNKNOWN .or. this%mesh(nm)%status == VTK_STATE_ENDED) then
-        
-                dp = this%get_VTK_time_output_path(path=this%mesh(nm)%directory_path, time_step=ts, mesh_number=nm)
-                fn = this%get_VTK_filename(prefix=this%mesh(nm)%name_prefix, part_number=np, mesh_number=nm)
-                fn = dp//fn
-                if(present(filename)) fn = filename
-
-                if( this%create_directory(dp,issue_final_barrier=.True.) == 0) then    
-                    of = 'raw'
-                    if(present(format)) of = trim(adjustl(format))
-            
-                    nnods = this%mesh(nm)%number_of_nodes
-                    nels = size(this%mesh(nm)%cell_types, dim=1)
-            
-                    E_IO = VTK_INI_XML_READ(input_format = trim(adjustl(of)), filename = trim(adjustl(fn)), mesh_topology = 'UnstructuredGrid', cf=fid)
-                    this%mesh(nm)%status = VTK_STATE_READ_STARTED
-                endif
-            endif
-            if(present(f_id)) f_id = fid
-
-        endif
-    end function  vtk_begin_read
-
-
-    function vtk_end_read(this, mesh_number, f_id) result(E_IO)
-    !-----------------------------------------------------------------
-    !< End the reading of a single VTK file to disk (if I am fine MPI task)
-    !-----------------------------------------------------------------
-        class(vtk_t),               intent(INOUT) :: this        !< VTK_t derived type
-        integer(ip),      optional, intent(IN)    :: mesh_number !< Number of MESH
-        integer(ip),      optional, intent(INOUT) :: f_id        !< File ID
-        integer(ip)                               :: nm          !< Real Number of Mesh
-        integer(ip)                               :: E_IO        !< IO Error
-        logical                                   :: ft          !< Fine Task
-    !-----------------------------------------------------------------
-        check(associated(this%env))
-        ft =  this%env%am_i_fine_task() 
-
-        E_IO = 0
-
-        nm = this%num_meshes
-        if(present(mesh_number)) nm = mesh_number
-        
-        if(ft .and. (this%mesh(nm)%status >= VTK_STATE_READ_STARTED) .and. (this%mesh(nm)%status /= VTK_STATE_ENDED)) then
-
-            if(present(f_id)) then       
-                E_IO = VTK_END_XML_READ(cf=f_id)
-            else
-                E_IO = VTK_END_XML_READ()
-            endif
-
-            this%mesh(nm)%status = VTK_STATE_ENDED
-        endif
-    end function vtk_end_read
 
 
     subroutine VTK_free (this)
@@ -865,23 +679,7 @@ contains
     
             if(allocated(this%mesh)) then
                 do i=1, size(this%mesh,1)
-                    call memfree(this%mesh(i)%X, __FILE__,__LINE__)
-                    call memfree(this%mesh(i)%Y, __FILE__,__LINE__)
-                    call memfree(this%mesh(i)%Z, __FILE__,__LINE__)
-                    call memfree(this%mesh(i)%connectivities, __FILE__,__LINE__)
-                    call memfree(this%mesh(i)%offset, __FILE__,__LINE__)
-                    call memfree(this%mesh(i)%cell_types, __FILE__,__LINE__)
-                    if(allocated(this%mesh(i)%subelements_connectivity)) call memfree(this%mesh(i)%subelements_connectivity, __FILE__,__LINE__) 
-                    if(allocated(this%mesh(i)%unknowns)) then
-                        do j=1, size(this%mesh(i)%unknowns)
-                            if(allocated(this%mesh(i)%unknowns(j)%var_location)) deallocate(this%mesh(i)%unknowns(j)%var_location)
-                            if(allocated(this%mesh(i)%unknowns(j)%var_name)) deallocate(this%mesh(i)%unknowns(j)%var_name)
-                            if(allocated(this%mesh(i)%unknowns(j)%field_type)) deallocate(this%mesh(i)%unknowns(j)%field_type)
-                            this%mesh(i)%unknowns(j)%filled = .False.
-                        enddo
-                        deallocate(this%mesh(i)%unknowns)
-                    endif
-                    this%mesh(i)%filled = .False.
+                    call this%mesh(i)%free()
                 enddo
                 deallocate(this%mesh)
             endif
