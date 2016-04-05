@@ -323,20 +323,21 @@ subroutine create_parameter_list_for_structured_mesh(this,parameter_list)
   class(test_nsi_iss_oss_params_t), intent(in)    :: this
   type(ParameterList_t)           , intent(inout) :: parameter_list
   integer(ip) :: istat
+
   
   ! Set structured mesh parameter list
   istat = 0
-  istat = istat + parameter_list%set(key = 'number_elements', value = this%get_number_elements())
-  istat = istat + parameter_list%set(key = 'number_parts', value = this%get_number_parts())
-  istat = istat + parameter_list%set(key = 'number_sockets', value = this%get_number_sockets())
-  istat = istat + parameter_list%set(key = 'discretization_type', value = this%get_discretization_type())
-  istat = istat + parameter_list%set(key = 'periodic_boundaries', value = this%get_periodic_boundaries())
-  istat = istat + parameter_list%set(key = 'number_elements_boundary', value = this%get_number_elements_boundary())
-  istat = istat + parameter_list%set(key = 'material_case', value = this%get_material_case())
-  istat = istat + parameter_list%set(key = 'domain_length', value = this%get_domain_length())
-  istat = istat + parameter_list%set(key = 'origin', value = this%get_origin())
-  istat = istat + parameter_list%set(key = 'stretching_parameter', value = this%get_stretching_parameter())
-  istat = istat + parameter_list%set(key = 'size_boundary', value = this%get_size_boundary())
+  istat = istat + parameter_list%set(key = number_elements_name, value = this%number_elements)
+  istat = istat + parameter_list%set(key = number_parts_name, value = this%number_parts)
+  istat = istat + parameter_list%set(key = number_sockets_name, value = this%number_sockets)
+  istat = istat + parameter_list%set(key = discretization_type_name, value = this%discretization_type)
+  istat = istat + parameter_list%set(key = periodic_boundaries_name, value = this%periodic_boundaries)
+  istat = istat + parameter_list%set(key = number_elements_boundary_name, value = this%number_elements_boundary)
+  istat = istat + parameter_list%set(key = material_case_name, value = this%material_case)
+  istat = istat + parameter_list%set(key = domain_length_name, value = this%domain_length)
+  istat = istat + parameter_list%set(key = origin_name, value = this%origin)
+  istat = istat + parameter_list%set(key = stretching_parameter_name, value = this%stretching_parameter)
+  istat = istat + parameter_list%set(key = size_boundary_name, value = this%size_boundary)
   check(istat==0)
 end subroutine create_parameter_list_for_structured_mesh
 

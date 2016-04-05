@@ -33,6 +33,7 @@ module command_line_parameters_names
   use types_names
   use Data_Type_Command_Line_Interface
   use FPL
+  use generate_uniform_triangulation_names
 # include "debug.i90"
   implicit none
   private

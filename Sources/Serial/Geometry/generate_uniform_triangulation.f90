@@ -137,6 +137,19 @@ module generate_uniform_triangulation_names
   integer(ip), parameter :: inter=0, bound=1
   integer(ip), parameter :: do_count=0, do_list=1
 
+  ! Parameter list names
+  character(len=*), parameter :: number_elements_name          = 'number_elements'          
+  character(len=*), parameter :: number_parts_name             = 'number_parts'             
+  character(len=*), parameter :: number_sockets_name           = 'number_sockets'           
+  character(len=*), parameter :: discretization_type_name      = 'discretization_type'      
+  character(len=*), parameter :: periodic_boundaries_name      = 'periodic_boundaries'      
+  character(len=*), parameter :: number_elements_boundary_name = 'number_elements_boundary' 
+  character(len=*), parameter :: material_case_name            = 'material_case'            
+  character(len=*), parameter :: domain_length_name            = 'domain_length'            
+  character(len=*), parameter :: origin_name                   = 'origin'                   
+  character(len=*), parameter :: stretching_parameter_name     = 'stretching_parameter'     
+  character(len=*), parameter :: size_boundary_name            = 'size_boundary'            
+
   interface globalid
      module procedure globalid_ip, globalid_igp
   end interface
@@ -150,6 +163,11 @@ module generate_uniform_triangulation_names
 
   ! Functions
   public :: generate_uniform_triangulation
+
+  ! Names
+  public :: number_elements_name,number_parts_name,number_sockets_name,discretization_type_name, &
+       &    periodic_boundaries_name,number_elements_boundary_name,material_case_name,           &
+       &    domain_length_name,origin_name,stretching_parameter_name,size_boundary_name
 
 contains
 
@@ -262,17 +280,17 @@ contains
 
     ! Fill uniform_mesh_descriptor
     istat = 0
-    istat = istat + parameter_list%getshape(key = 'number_elements', shape = ne_size)
-    istat = istat + parameter_list%getshape(key = 'number_parts', shape = np_size)
-    istat = istat + parameter_list%getshape(key = 'number_sockets', shape = ns_size)
-    istat = istat + parameter_list%getshape(key = 'discretization_type', shape = disc_size)
-    istat = istat + parameter_list%getshape(key = 'periodic_boundaries', shape = peri_size)
-    istat = istat + parameter_list%getshape(key = 'number_elements_boundary', shape = nb_size)
-    istat = istat + parameter_list%get(key = 'material_case', value = mc)
-    istat = istat + parameter_list%getshape(key = 'domain_length', shape = dl_size)
-    istat = istat + parameter_list%getshape(key = 'origin', shape = o_size)
-    istat = istat + parameter_list%getshape(key = 'stretching_parameter', shape = st_size)
-    istat = istat + parameter_list%getshape(key = 'size_boundary', shape = sb_size)
+    istat = istat + parameter_list%getshape(key = number_elements_name, shape = ne_size)
+    istat = istat + parameter_list%getshape(key = number_parts_name, shape = np_size)
+    istat = istat + parameter_list%getshape(key = number_sockets_name, shape = ns_size)
+    istat = istat + parameter_list%getshape(key = discretization_type_name, shape = disc_size)
+    istat = istat + parameter_list%getshape(key = periodic_boundaries_name, shape = peri_size)
+    istat = istat + parameter_list%getshape(key = number_elements_boundary_name, shape = nb_size)
+    istat = istat + parameter_list%get(key = material_case_name, value = mc)
+    istat = istat + parameter_list%getshape(key = domain_length_name, shape = dl_size)
+    istat = istat + parameter_list%getshape(key = origin_name, shape = o_size)
+    istat = istat + parameter_list%getshape(key = stretching_parameter_name, shape = st_size)
+    istat = istat + parameter_list%getshape(key = size_boundary_name, shape = sb_size)
     check(istat==0)      
     call memalloc(ne_size(1),ne,__FILE__,__LINE__)
     call memalloc(np_size(1),np,__FILE__,__LINE__)
