@@ -424,10 +424,9 @@ program test_reference_fe
   type(triangulation_t)                 :: f_trian
   type(conditions_t)                    :: f_cond
   type(test_reference_fe_params_t)      :: params
-  integer(ip) :: problem_id
- 
-  call meminit
-  call the_iterative_linear_solver_creational_methods_dictionary%init()
+
+  call fempar_init()  
+  
   call params%create()
   call params%parse()
 
@@ -454,7 +453,7 @@ program test_reference_fe
   call mesh_free (f_mesh)
   call params%free()
 
-  call memstatus
+  call fempar_finalize()
 
 contains  
   
