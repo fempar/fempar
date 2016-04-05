@@ -33,6 +33,7 @@ module command_line_parameters_names
   use types_names
   use Data_Type_Command_Line_Interface
   use FPL
+  use generate_uniform_triangulation_names
 # include "debug.i90"
   implicit none
   private
@@ -174,32 +175,32 @@ module nsi_iss_oss_analytical_linear_steady_functions_names
   type, extends(vector_function_t) :: linear_steady_velocity_function_t
      integer(ip) :: random = 3
    contains
-     procedure, non_overridable :: get_value_space_time => linear_steady_velocity_get_value_space_time
+     procedure :: get_value_space_time => linear_steady_velocity_get_value_space_time
   end type linear_steady_velocity_function_t
 
   type, extends(vector_function_t) :: linear_steady_dt_velocity_function_t
    contains
-     procedure, non_overridable :: get_value_space_time => linear_steady_dt_velocity_get_value_space_time
+     procedure :: get_value_space_time => linear_steady_dt_velocity_get_value_space_time
   end type linear_steady_dt_velocity_function_t
 
   type, extends(tensor_function_t) :: linear_steady_velocity_gradient_function_t
    contains
-     procedure, non_overridable :: get_value_space_time => linear_steady_velocity_gradient_get_value_space_time
+     procedure :: get_value_space_time => linear_steady_velocity_gradient_get_value_space_time
   end type linear_steady_velocity_gradient_function_t
 
   type, extends(vector_function_t) :: linear_steady_velocity_grad_div_function_t
    contains
-     procedure, non_overridable :: get_value_space_time => linear_steady_velocity_grad_div_get_value_space_time
+     procedure :: get_value_space_time => linear_steady_velocity_grad_div_get_value_space_time
   end type linear_steady_velocity_grad_div_function_t
 
   type, extends(scalar_function_t) :: linear_steady_pressure_function_t
    contains
-     procedure, non_overridable :: get_value_space_time => linear_steady_pressure_get_value_space_time
+     procedure :: get_value_space_time => linear_steady_pressure_get_value_space_time
   end type linear_steady_pressure_function_t
 
   type, extends(vector_function_t) :: linear_steady_pressure_gradient_function_t
    contains
-     procedure, non_overridable :: get_value_space_time => linear_steady_pressure_gradient_get_value_space_time
+     procedure :: get_value_space_time => linear_steady_pressure_gradient_get_value_space_time
   end type linear_steady_pressure_gradient_function_t
 
   public :: linear_steady_velocity_function_t
