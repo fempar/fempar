@@ -31,123 +31,301 @@ module dof_import_names
   implicit none
   private
 
-  ! Import
-  ! Host for data needed to perform communications for
-  ! element-based data distributions (similar to epetra_import)
+  ! Number of rows raw_interface_data(:,:)
+  integer(ip), parameter :: num_rows_raw_interface_data = 4
+  
+  ! Row identifiers for accessing raw_interface_data(:,:)
+  ! (generated from type(par_fe_space_t))
+  integer(ip), parameter :: neighbor_part_id_row  = 1
+  integer(ip), parameter :: owner_flag_row        = 2 
+  integer(ip), parameter :: max_egid_row          = 3
+  integer(ip), parameter :: lpos_dof_max_egid_row = 4
+  
+  ! Possible values for owner_flag column
+  integer(igp), parameter :: uncoupled            = -1
+  integer(igp), parameter :: owner                = -2  
+  integer(igp), parameter :: non_owner            = -3
+  
+  integer(ip), parameter :: estimation_nparts_around_part = 100
+  
+  ! Host for data needed to perform nearest neighbour communication
   type dof_import_t
-     integer(ip)       ::          &
-        ipart,                     &    ! Part identifier
-        nparts                          ! Number of parts
-
-     integer(ip), allocatable ::   &
-        owner(:)                        ! Specifies for each node of the local interface
-                                        ! which part is the owner
+     private
+     
+     integer(ip)              :: part_id        ! Part identifier
+     integer(ip)              :: number_parts   ! Number of parts
+     
+     integer(ip)              :: number_dofs    ! Number of local dofs
+     real(rp)   , allocatable :: weight(:)      ! Weight operator for weighted dots, i.e., "<x,y> = y^t W x"
       
-     integer :: num_rcv                 ! From how many neighbours does the part receive data ?
-     integer, allocatable ::     &           
-        list_rcv(:),             &      ! From which neighbours does the part receive data ?
-        rcv_ptrs(:)                     ! How much data does the part receive from each neighbour ?
-     integer(ip), allocatable :: &           
-        unpack_idx(:)                   ! Where the data received from each neighbour is copied/added 
-                                        ! on the local vectors of the part ?
+     integer                  :: num_rcv        ! From how many neighbours does the part receive data ?
+     integer    , allocatable :: list_rcv(:)    ! From which neighbours does the part receive data ?
+     integer    , allocatable :: rcv_ptrs(:)    ! How much data does the part receive from each neighbour ?
+     integer(ip), allocatable :: unpack_idx(:)  ! Where the data received from each neighbour is copied/added 
+                                                ! on the local vectors of the part ?
 
-     integer :: num_snd                 ! To how many neighbours does the part send data ? 
-     integer, allocatable ::     &           
-        list_snd(:),             &      ! To which neighbours does the part send data ?
-        snd_ptrs(:)                     ! How much data does the part send to each neighbour?
-     integer(ip), allocatable :: & 
-        pack_idx(:)                     ! Where is located the data to be sent to 
-                                        ! each neighbour on the local vectors of the part ?
+     integer                  :: num_snd        ! To how many neighbours does the part send data ? 
+     integer    , allocatable :: list_snd(:)    ! To which neighbours does the part send data ?
+     integer(ip), allocatable :: snd_ptrs(:)    ! How much data does the part send to each neighbour?
+     integer(ip), allocatable :: pack_idx(:)    ! Where is located the data to be sent to 
+                                                ! each neighbour on the local vectors of the part ?
+  contains
+    procedure, non_overridable :: create          => dof_import_create
+    procedure, non_overridable :: free            => dof_import_free
+    procedure, non_overridable :: print           => dof_import_print
+    procedure, non_overridable :: get_number_dofs => dof_import_get_number_dofs
+    procedure, non_overridable :: get_weight      => dof_import_get_weight
+    procedure, non_overridable :: get_num_rcv     => dof_import_get_num_rcv
+    procedure, non_overridable :: get_list_rcv    => dof_import_get_list_rcv
+    procedure, non_overridable :: get_rcv_ptrs    => dof_import_get_rcv_ptrs
+    procedure, non_overridable :: get_unpack_idx  => dof_import_get_unpack_idx
+    procedure, non_overridable :: get_num_snd     => dof_import_get_num_snd
+    procedure, non_overridable :: get_list_snd    => dof_import_get_list_snd
+    procedure, non_overridable :: get_snd_ptrs    => dof_import_get_snd_ptrs
+    procedure, non_overridable :: get_pack_idx    => dof_import_get_pack_idx    
   end type dof_import_t
 
   ! Types
   public :: dof_import_t
 
-  ! Functions
-  public :: dof_import_free, dof_import_print
+ 
+  public :: num_rows_raw_interface_data
+  public :: neighbor_part_id_row, owner_flag_row, max_egid_row, lpos_dof_max_egid_row
+  public :: uncoupled, owner, non_owner
 
 contains
+  !=============================================================================
+  subroutine dof_import_create ( this, part_id, number_parts, number_dofs, num_itfc_couplings, dofs_lid, raw_interface_data )
+    implicit none
+    class(dof_import_t), intent(inout)  :: this
+    integer(ip)        , intent(in)     :: part_id
+    integer(ip)        , intent(in)     :: number_parts
+    integer(ip)        , intent(in)     :: number_dofs
+    integer(ip)        , intent(in)     :: num_itfc_couplings
+    integer(ip)        , intent(in)     :: dofs_lid(num_itfc_couplings)
+    integer(igp)       , intent(in)     :: raw_interface_data(num_rows_raw_interface_data, num_itfc_couplings)
+    
+    integer(ip), allocatable :: parts_rcv_visited(:)
+    integer(ip), allocatable :: parts_snd_visited(:)
+    integer(ip)              :: col, neighbor_part_id, i
+
+    this%part_id      = part_id
+    this%number_parts = number_parts
+    this%number_dofs  = number_dofs
+    
+    call memalloc ( number_dofs, this%weight, __FILE__, __LINE__ )
+    this%weight = 1.0_rp
+    
+    call memalloc ( this%number_parts, parts_rcv_visited, __FILE__, __LINE__ )
+    parts_rcv_visited = 0
+    call memalloc ( this%number_parts, parts_snd_visited, __FILE__, __LINE__ )
+    parts_snd_visited = 0
+    call memalloc ( this%number_parts, this%list_rcv, __FILE__, __LINE__ )
+    call memalloc ( this%number_parts, this%list_snd, __FILE__, __LINE__ )
+    call memalloc ( this%number_parts+1, this%snd_ptrs, __FILE__, __LINE__ )
+    this%snd_ptrs = 0
+    call memalloc ( this%number_parts+1, this%rcv_ptrs, __FILE__, __LINE__ )
+    this%rcv_ptrs = 0
+    
+    this%num_rcv = 0
+    this%num_snd = 0
+    do col=1, num_itfc_couplings
+       neighbor_part_id = raw_interface_data( neighbor_part_id_row, col)
+       if ( raw_interface_data(owner_flag_row,col) == owner ) then
+         if ( parts_rcv_visited(neighbor_part_id) == 0 ) then
+            this%num_rcv = this%num_rcv + 1
+            parts_rcv_visited(neighbor_part_id) = this%num_rcv
+            this%list_rcv(this%num_rcv) = neighbor_part_id
+         end if
+         this%rcv_ptrs(parts_rcv_visited(neighbor_part_id)+1) = this%rcv_ptrs(parts_rcv_visited(neighbor_part_id)+1) + 1 
+       else if ( raw_interface_data(owner_flag_row,col) == non_owner ) then
+         if ( parts_snd_visited(neighbor_part_id) == 0 ) then
+            this%num_snd = this%num_snd + 1
+            parts_snd_visited(neighbor_part_id) = this%num_snd
+            this%list_snd(this%num_snd) = neighbor_part_id
+         end if
+         this%snd_ptrs(parts_snd_visited(neighbor_part_id)+1) = this%snd_ptrs(parts_snd_visited(neighbor_part_id)+1) + 1        
+       end if
+    end do
+    
+    this%rcv_ptrs(1) = 1 
+    do i=1, this%num_rcv
+      this%rcv_ptrs(i+1) = this%rcv_ptrs(i+1) + this%rcv_ptrs(i)
+    end do
+    
+    this%snd_ptrs(1) = 1 
+    do i=1, this%num_snd
+      this%snd_ptrs(i+1) = this%snd_ptrs(i+1) + this%snd_ptrs(i)
+    end do
+    
+    call memrealloc ( this%num_snd+1, this%snd_ptrs, __FILE__, __LINE__ )
+    call memrealloc ( this%num_rcv+1, this%rcv_ptrs, __FILE__, __LINE__ )
+    call memrealloc ( this%num_snd, this%list_snd, __FILE__, __LINE__ )
+    call memrealloc ( this%num_rcv, this%list_rcv, __FILE__, __LINE__ )    
+    
+    call memalloc ( this%snd_ptrs(this%num_snd+1)-1, this%pack_idx, __FILE__, __LINE__ )
+    call memalloc ( this%rcv_ptrs(this%num_rcv+1)-1, this%unpack_idx, __FILE__, __LINE__ )
+    
+    do col=1, num_itfc_couplings
+       neighbor_part_id = raw_interface_data( neighbor_part_id_row, col)
+       if ( raw_interface_data(owner_flag_row,col) == owner ) then
+         this%unpack_idx(this%rcv_ptrs(parts_rcv_visited(neighbor_part_id))) = dofs_lid(col)
+         this%rcv_ptrs(parts_rcv_visited(neighbor_part_id)) = this%rcv_ptrs(parts_rcv_visited(neighbor_part_id)) + 1 
+       else if ( raw_interface_data(owner_flag_row,col) == non_owner ) then
+         this%pack_idx(this%snd_ptrs(parts_snd_visited(neighbor_part_id))) = dofs_lid(col)
+         this%snd_ptrs(parts_snd_visited(neighbor_part_id)) = this%snd_ptrs(parts_snd_visited(neighbor_part_id)) + 1 
+         this%weight(dofs_lid(col)) = 0.0_rp
+       end if
+    end do
+    
+    call memfree ( parts_rcv_visited, __FILE__, __LINE__ )
+    call memfree ( parts_snd_visited, __FILE__, __LINE__ )
+     
+    do i=this%num_snd, 2, -1
+      this%snd_ptrs(i) = this%snd_ptrs(i-1) 
+    end do
+    this%snd_ptrs(1) = 1 
+    
+    do i=this%num_rcv, 2, -1
+      this%rcv_ptrs(i) = this%rcv_ptrs(i-1) 
+    end do
+    this%rcv_ptrs(1) = 1
+    
+    call this%print(6)
+    
+  end subroutine dof_import_create
 
   !=============================================================================
-  subroutine dof_import_free ( import )
-    !-----------------------------------------------------------------------
-    ! This routine frees an import object
-    !-----------------------------------------------------------------------
+  subroutine dof_import_free ( this )
     implicit none
-
-    ! Parameters
-    type(dof_import_t), intent(inout)  :: import
-
-    ! Free owner vector
-    call memfree ( import%owner,__FILE__,__LINE__)
-
-    ! Free snd/rcv info.
-    call memfree ( import%list_rcv,__FILE__,__LINE__)
-    call memfree ( import%rcv_ptrs,__FILE__,__LINE__)
-    call memfree ( import%unpack_idx,__FILE__,__LINE__)
-
-    call memfree ( import%list_snd,__FILE__,__LINE__)
-    call memfree ( import%snd_ptrs,__FILE__,__LINE__)
-    call memfree ( import%pack_idx,__FILE__,__LINE__)
- 
-    return
-
+    class(dof_import_t), intent(inout)  :: this
+    this%part_id  = 0
+    this%number_parts = 0
+    this%number_dofs = 0
+    this%num_rcv = 0
+    this%num_snd = 0
+    if (allocated(this%weight)) call memfree ( this%weight,__FILE__,__LINE__)
+    if (allocated(this%list_rcv)) call memfree ( this%list_rcv,__FILE__,__LINE__)
+    if (allocated(this%rcv_ptrs)) call memfree ( this%rcv_ptrs,__FILE__,__LINE__)
+    if (allocated(this%unpack_idx)) call memfree ( this%unpack_idx,__FILE__,__LINE__)
+    if (allocated(this%list_snd)) call memfree ( this%list_snd,__FILE__,__LINE__)
+    if (allocated(this%snd_ptrs)) call memfree ( this%snd_ptrs,__FILE__,__LINE__)
+    if (allocated(this%pack_idx)) call memfree ( this%pack_idx,__FILE__,__LINE__)
   end subroutine dof_import_free
 
   !=============================================================================
-  subroutine dof_import_print (lu_out, import)
-    !-----------------------------------------------------------------------
-    ! This routine prints an import object
-    !-----------------------------------------------------------------------
+  subroutine dof_import_print (this, lu_out)
     implicit none
-
-
-    ! Parameters
-    type(dof_import_t)   , intent(in)  :: import
-    integer(ip)        , intent(in)  :: lu_out
-
-    ! Local variables
-    integer (ip) :: i, j
+    class(dof_import_t)   , intent(in)  :: this
+    integer(ip)          , intent(in)  :: lu_out
 
     if(lu_out>0) then
-
        write(lu_out,'(a)') '*** begin dof_import_t data structure ***'
-
        write(lu_out,'(a,i10)') 'Number of parts:', &
-            &  import%nparts
-
-!!$       write(lu_out,'(a)') 'Owner of each interface point:'
-!!$       write(lu_out,'(10i10)') import%owner(:)
-
+            &  this%number_parts
        write(lu_out,'(a,i10)') 'Number of parts I have to receive from:', &
-            &  import%num_rcv
-
+            &  this%num_rcv
+       write(lu_out,'(a,i10)') 'Number dofs:', &
+            &  this%number_dofs
+       write(lu_out,'(a,10F6.1)') 'Weight:', &
+            &  this%weight         
        write(lu_out,'(a)') 'List of parts I have to receive from:'
-       write(lu_out,'(10i10)') import%list_rcv(1:import%num_rcv)
-
+       write(lu_out,'(10i10)') this%list_rcv(1:this%num_rcv)
        write(lu_out,'(a)') 'Rcv_ptrs:'
-       write(lu_out,'(10i10)') import%rcv_ptrs(1:import%num_rcv+1)
+       write(lu_out,'(10i10)') this%rcv_ptrs(1:this%num_rcv+1)
+       write(lu_out,'(a)') 'Unpack:'
+       write(lu_out,'(10i10)') this%unpack_idx(1:this%rcv_ptrs(this%num_rcv+1)-1)
 
-!!$       write(lu_out,'(a)') 'Unpack:'
-!!$       write(lu_out,'(10i10)') import%unpack_idx(1:import%rcv_ptrs(import%num_rcv+1)-1)
-!!$
        write(lu_out,'(a,i10)') 'Number of parts I have send to:', &
-            &  import%num_snd
-
+            &  this%num_snd
        write(lu_out,'(a)') 'List of parts I have to send to:'
-       write(lu_out,'(10i10)') import%list_snd(1:import%num_snd)
-
+       write(lu_out,'(10i10)') this%list_snd(1:this%num_snd)
        write(lu_out,'(a)') 'Snd_ptrs::'
-       write(lu_out,'(10i10)') import%snd_ptrs(1:import%num_snd+1)
-
-!!$       write(lu_out,'(a)') 'Pack:'
-!!$       write(lu_out,'(10i10)') import%pack_idx(1:import%snd_ptrs(import%num_snd+1)-1)
-!!$       write(lu_out,'(a)') '*** end dof_import_t data structure ***'
-
+       write(lu_out,'(10i10)') this%snd_ptrs(1:this%num_snd+1)
+       write(lu_out,'(a)') 'Pack:'
+       write(lu_out,'(10i10)') this%pack_idx(1:this%snd_ptrs(this%num_snd+1)-1)
+       write(lu_out,'(a)') '*** end dof_import_t data structure ***'
     end if
-
-    return
-
   end subroutine dof_import_print
+  
+  function dof_import_get_number_dofs(this)
+    implicit none
+    class(dof_import_t), intent(in) :: this
+    integer(ip)                     :: dof_import_get_number_dofs
+    dof_import_get_number_dofs = this%number_dofs
+  end function dof_import_get_number_dofs
+  
+  function dof_import_get_weight(this) 
+    implicit none
+    class(dof_import_t), target, intent(in) :: this
+    real(rp)           , pointer            :: dof_import_get_weight(:)
+    
+    dof_import_get_weight => this%weight
+  end function dof_import_get_weight
+  
+  function dof_import_get_num_rcv(this) 
+    implicit none
+    class(dof_import_t), intent(in) :: this
+    integer(ip)                     :: dof_import_get_num_rcv
+    
+    dof_import_get_num_rcv = this%num_rcv
+  end function dof_import_get_num_rcv
+  
+  function dof_import_get_list_rcv(this) 
+    implicit none
+    class(dof_import_t), target, intent(in) :: this
+    integer(ip)        , pointer            :: dof_import_get_list_rcv(:)
+    
+    dof_import_get_list_rcv => this%list_rcv
+  end function dof_import_get_list_rcv
+  
+  function dof_import_get_rcv_ptrs(this) 
+    implicit none
+    class(dof_import_t), target, intent(in) :: this
+    integer(ip)        , pointer            :: dof_import_get_rcv_ptrs(:)
+    
+    dof_import_get_rcv_ptrs => this%rcv_ptrs
+  end function dof_import_get_rcv_ptrs
+  
+  function dof_import_get_unpack_idx(this) 
+    implicit none
+    class(dof_import_t), target, intent(in) :: this
+    integer(ip)        , pointer            :: dof_import_get_unpack_idx(:)
+    
+    dof_import_get_unpack_idx => this%unpack_idx
+  end function dof_import_get_unpack_idx
+  
+  function dof_import_get_num_snd(this) 
+    implicit none
+    class(dof_import_t), intent(in) :: this
+    integer(ip)                     :: dof_import_get_num_snd
+    
+    dof_import_get_num_snd = this%num_snd
+  end function dof_import_get_num_snd
+  
+  function dof_import_get_list_snd(this) 
+    implicit none
+    class(dof_import_t), target, intent(in) :: this
+    integer(ip)        , pointer            :: dof_import_get_list_snd(:)
+    
+    dof_import_get_list_snd => this%list_snd
+  end function dof_import_get_list_snd
+  
+  function dof_import_get_snd_ptrs(this) 
+    implicit none
+    class(dof_import_t), target, intent(in) :: this
+    integer(ip)        , pointer            :: dof_import_get_snd_ptrs(:)
+    
+    dof_import_get_snd_ptrs => this%snd_ptrs
+  end function dof_import_get_snd_ptrs
+  
+  function dof_import_get_pack_idx(this) 
+    implicit none
+    class(dof_import_t), target, intent(in) :: this
+    integer(ip)        , pointer            :: dof_import_get_pack_idx(:)
+    
+    dof_import_get_pack_idx => this%pack_idx
+  end function dof_import_get_pack_idx
+  
 
 end module dof_import_names

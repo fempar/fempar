@@ -42,6 +42,7 @@ module serial_block_array_names
  
   ! vector
   type, extends(array_t) :: serial_block_array_t
+     private
      integer(ip)                              :: state = not_created
      integer(ip)                              :: nblocks = -1
      type(serial_scalar_array_t), allocatable :: blocks(:)
@@ -70,6 +71,7 @@ module serial_block_array_names
      procedure :: free_in_stages    => serial_block_array_free_in_stages
      procedure :: get_number_blocks => serial_block_array_get_number_blocks
      procedure :: extract_subvector => serial_block_array_extract_subvector
+     procedure :: insert_subvector  => serial_block_array_insert_subvector
   end type serial_block_array_t
   
   ! Types
@@ -421,5 +423,26 @@ contains
                                               & values )
     
   end subroutine serial_block_array_extract_subvector
+  
+  !=============================================================================
+  subroutine serial_block_array_insert_subvector( this, &
+                                                & iblock, &
+                                                & size_indices, &
+                                                & indices, &
+                                                & values )
+    implicit none
+    class(serial_block_array_t), intent(inout) :: this 
+    integer(ip)                , intent(in)    :: iblock
+    integer(ip)                , intent(in)    :: size_indices
+    integer(ip)                , intent(in)    :: indices(size_indices)
+    real(rp)                   , intent(in)    :: values(*)
+
+    assert(iblock <= this%nblocks)
+    call this%blocks(iblock)%insert_subvector( 1, &
+                                             & size_indices, &
+                                             & indices, &
+                                             & values )
+    
+  end subroutine serial_block_array_insert_subvector
 
 end module serial_block_array_names

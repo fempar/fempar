@@ -95,8 +95,8 @@ module par_triangulation_names
      integer(ip), allocatable                :: lst_itfc_vefs(:)    ! List of vefs local IDs in the interface among subdomains 
      integer(ip)                             :: num_itfc_elems= -1  ! Number of elements in the interface
      integer(ip), allocatable                :: lst_itfc_elems(:)   ! List of elements local IDs in the interface
-     type(par_environment_t), pointer        :: p_env => NULL()     ! Parallel environment describing MPI tasks among which par_triangulation is distributed
-     type(element_import_t)                  :: f_el_import         ! Vef describing the layout in distributed-memory of the dual graph
+     type(par_environment_t),   pointer       :: p_env => NULL()     ! Parallel environment describing MPI tasks among which par_triangulation is distributed
+     type(element_import_t)                   :: element_import         ! Vef describing the layout in distributed-memory of the dual graph
                                                                     ! (It is required for nearest neighbour comms on this graph)
      integer(ip)                             :: max_nparts          ! Maximum number of parts around any vef communication vef
      integer(ip)                             :: nobjs               ! Number of local vef communication vefs
@@ -107,7 +107,7 @@ module par_triangulation_names
   public :: par_triangulation_t, par_elem_topology_t
 
   ! Functions
-  public :: par_triangulation_free, par_triangulation_to_dual
+  public :: par_triangulation_free, par_triangulation_print, par_triangulation_to_dual
 
   ! Auxiliary Subroutines (should only be used by modules that have control over type(par_triangulation))
   public :: free_par_elem_topology, free_par_vef_topology, par_triangulation_free_elems_data, par_triangulation_free_objs_data 
@@ -116,6 +116,18 @@ module par_triangulation_names
   public :: par_triangulation_not_created, par_triangulation_filled
 
 contains
+
+  subroutine par_triangulation_print ( lunou,  p_trian ) ! (SBmod)
+    implicit none
+    ! Parameters
+    integer(ip)              , intent(in) :: lunou
+    type(par_triangulation_t), intent(in) :: p_trian
+    if(p_trian%p_env%p_context%iam>=0) then
+       call triangulation_print ( lunou, p_trian%f_trian, p_trian%num_elems + p_trian%num_ghosts ) 
+    end if
+
+  end subroutine par_triangulation_print
+
 
   !=============================================================================
   subroutine par_triangulation_free(p_trian)
@@ -184,7 +196,7 @@ contains
        p_trian%num_itfc_elems = -1
        call memfree ( p_trian%lst_itfc_elems, __FILE__, __LINE__ )
        
-       call element_import_free ( p_trian%f_el_import )
+       call element_import_free ( p_trian%element_import )
        
        ! Deallocate the element structure array */
        deallocate(p_trian%mig_elems, stat=istat)

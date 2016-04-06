@@ -66,6 +66,7 @@ module serial_scalar_array_names
   ! entries_ready | free_numerical_setup | created
   ! entries_ready | free                 | not_created
   type, extends(array_t) :: serial_scalar_array_t
+     private
      integer(ip)                :: size  = 0
      integer(ip)                :: state = not_created 
      logical                    :: is_a_view  = .false.
@@ -78,6 +79,17 @@ module serial_scalar_array_names
      procedure :: set_view_entries       => serial_scalar_array_set_view_entries
      procedure :: print                  => serial_scalar_array_print
      procedure :: print_matrix_market    => serial_scalar_array_print_matrix_market
+     procedure :: get_entries            => serial_scalar_array_get_entries
+     
+     procedure, private :: serial_scalar_array_insert_single_entry
+     procedure, private :: serial_scalar_array_insert_multiple_entries
+     procedure, private :: serial_scalar_array_add_single_entry
+     procedure, private :: serial_scalar_array_add_multiple_entries
+     
+     generic  :: insert                  => serial_scalar_array_insert_single_entry, &
+                                            serial_scalar_array_insert_multiple_entries
+     generic  :: add                     => serial_scalar_array_add_single_entry, &
+                                            serial_scalar_array_add_multiple_entries
 
      procedure :: dot                    => serial_scalar_array_dot
      procedure :: local_dot              => serial_scalar_array_dot
@@ -92,6 +104,7 @@ module serial_scalar_array_names
      procedure :: default_initialization => serial_scalar_array_default_init
      procedure :: get_number_blocks      => serial_scalar_array_get_number_blocks
      procedure :: extract_subvector      => serial_scalar_array_extract_subvector
+     procedure :: insert_subvector       => serial_scalar_array_insert_subvector
   end type serial_scalar_array_t
 
   ! Types
@@ -189,9 +202,69 @@ contains
     write (luout,'(a)') '%%MatrixMarket matrix array real general'
     write (luout,*) this%size , 1
     do i=1,this%size 
-       write (luout,*) this%b( i )
+       write (luout,'(e32.25)') this%b( i )
     end do
   end subroutine serial_scalar_array_print_matrix_market
+  
+  subroutine serial_scalar_array_insert_single_entry (this, i, val)
+    implicit none
+    class(serial_scalar_array_t), intent(inout) :: this
+    integer(ip)                 , intent(in)    :: i
+    real(rp)                    , intent(in)    :: val
+    assert ( i<=0 .or. (i>=1 .and. i<= this%size) )
+    if ( i > 0 ) this%b(i) = val 
+  end subroutine serial_scalar_array_insert_single_entry
+  
+  subroutine serial_scalar_array_insert_multiple_entries (this, num_entries, ia, ioffset, val)
+    implicit none
+    class(serial_scalar_array_t), intent(inout) :: this
+    integer(ip)                 , intent(in)    :: num_entries
+    integer(ip)                 , intent(in)    :: ia(num_entries)
+    integer(ip)                 , intent(in)    :: ioffset
+    real(rp)                    , intent(in)    :: val(:)
+    integer(ip) :: i, j
+    
+    do i=1, num_entries
+      j = ia(i) 
+      assert ( j <= 0 .or. (j >=1 .and. j <= this%size) )
+      if (j > 0) this%b(j) = val(i+ioffset) 
+    end do
+  end subroutine serial_scalar_array_insert_multiple_entries
+  
+  subroutine serial_scalar_array_add_single_entry (this, i, val)
+    implicit none
+    class(serial_scalar_array_t), intent(inout) :: this
+    integer(ip)                 , intent(in)    :: i
+    real(rp)                    , intent(in)    :: val
+    assert ( i<=0 .or. (i>=1 .and. i<= this%size) )
+    if ( i > 0 ) this%b(i) = this%b(i) + val
+  end subroutine serial_scalar_array_add_single_entry
+  
+    subroutine serial_scalar_array_add_multiple_entries (this, num_entries, ia, ioffset, val)
+    implicit none
+    class(serial_scalar_array_t), intent(inout) :: this
+    integer(ip)                 , intent(in)    :: num_entries
+    integer(ip)                 , intent(in)    :: ia(num_entries)
+    integer(ip)                 , intent(in)    :: ioffset
+    real(rp)                    , intent(in)    :: val(:)
+    integer(ip) :: i, j
+    
+    do i=1, num_entries
+      j = ia(i) 
+      assert ( j <= 0 .or. (j >=1 .and. j <= this%size) )
+      if (j > 0) this%b(j) = this%b(j) + val(i+ioffset) 
+    end do
+    
+  end subroutine serial_scalar_array_add_multiple_entries
+  
+  !=============================================================================
+  function serial_scalar_array_get_entries ( this )
+    implicit none
+    class(serial_scalar_array_t), target, intent(in) :: this
+    real(rp)                    , pointer            :: serial_scalar_array_get_entries(:)
+    assert ( this%state == entries_ready )
+    serial_scalar_array_get_entries => this%b
+  end function serial_scalar_array_get_entries
 
   ! alpha <- op1^T * op2
   function serial_scalar_array_dot(op1,op2) result(alpha)
@@ -430,5 +503,30 @@ contains
       end if
     end do 
   end subroutine serial_scalar_array_extract_subvector
+ 
+  !=============================================================================
+  subroutine serial_scalar_array_insert_subvector( this, &
+                                                 & iblock, &
+                                                 & size_indices, &
+                                                 & indices, &
+                                                 & values )
+    implicit none
+    class(serial_scalar_array_t), intent(inout) :: this 
+    integer(ip)                 , intent(in)    :: iblock
+    integer(ip)                 , intent(in)    :: size_indices
+    integer(ip)                 , intent(in)    :: indices(size_indices)
+    real(rp)                    , intent(in)    :: values(*)
+    integer(ip)                                 :: i
+
+    assert(this%state == entries_ready)
+    assert(iblock == 1)
+        
+    do i=1, size_indices
+      assert ( indices(i) <= this%size )
+      if ( indices(i) > 0 ) then
+        this%b(indices(i)) = values(i)
+      end if
+    end do 
+  end subroutine serial_scalar_array_insert_subvector
 
 end module serial_scalar_array_names

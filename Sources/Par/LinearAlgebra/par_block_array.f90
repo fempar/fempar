@@ -46,6 +46,7 @@ module par_block_array_names
   integer(ip), parameter :: blocks_container_created = 1
   
   type, extends(array_t) :: par_block_array_t
+     private
      integer(ip) :: state = not_created
      integer(ip) :: nblocks = 0
      type(par_scalar_array_t), allocatable :: blocks(:)
@@ -58,7 +59,6 @@ module par_block_array_names
      procedure :: allocate => par_block_array_create_blocks_allocate_blocks						  
 
      procedure :: create_view       => par_block_array_create_view
-     procedure :: weight            => par_block_array_weight
      procedure :: print             => par_block_array_print
      procedure :: get_block         => par_block_array_get_block
      procedure :: get_nblocks       => par_block_array_get_nblocks
@@ -76,6 +76,7 @@ module par_block_array_names
      procedure :: free_in_stages    => par_block_array_free_in_stages
      procedure :: get_number_blocks => par_block_array_get_number_blocks
      procedure :: extract_subvector => par_block_array_extract_subvector
+     procedure :: insert_subvector  => par_block_array_insert_subvector
   end type par_block_array_t
 
   ! Types
@@ -155,17 +156,6 @@ contains
   end subroutine par_block_array_create_view
 
   !=============================================================================
-  subroutine par_block_array_weight ( p_vec )
-    implicit none
-    class(par_block_array_t), intent(inout) :: p_vec
-    integer(ip) :: ib
-    assert(p_vec%state == blocks_container_created)
-    do ib=1, p_vec%nblocks
-       call p_vec%blocks(ib)%weight()
-    end do
-  end subroutine par_block_array_weight
-
-  !=============================================================================
   subroutine par_block_array_print (this,luout)
     implicit none
     class(par_block_array_t), intent(in) :: this
@@ -206,8 +196,10 @@ contains
     implicit none
     ! Parameters
     class(par_block_array_t), intent(in)  :: op1
-    class(vector_t)    , intent(in)  :: op2
-    real(rp) :: alpha
+    class(vector_t)         , intent(in)  :: op2
+    real(rp)                              :: alpha
+    
+    type(par_environment_t), pointer      :: p_env
 
     ! Locals
     real(rp)    :: aux
@@ -224,7 +216,8 @@ contains
           aux = op1%blocks(ib)%local_dot(op2%blocks(ib))
           alpha = alpha + aux
        end do
-       call op1%blocks(1)%p_env%first_level_sum(alpha)
+       p_env => op1%blocks(1)%get_par_environment()
+       call p_env%first_level_sum(alpha)
        class default
        write(0,'(a)') 'par_block_array_t%dot: unsupported op2 class'
        check(1==0)
@@ -480,5 +473,22 @@ contains
    assert( .false. )
    
   end subroutine par_block_array_extract_subvector
+
+  !=============================================================================
+  subroutine par_block_array_insert_subvector( this, &
+                                             & iblock, &
+                                             & size_indices, &
+                                             & indices, &
+                                             & values )
+   implicit none
+   class(par_block_array_t), intent(inout) :: this 
+   integer(ip)             , intent(in)    :: iblock
+   integer(ip)             , intent(in)    :: size_indices
+   integer(ip)             , intent(in)    :: indices(size_indices)
+   real(rp)                , intent(in)    :: values(*)
+
+   assert( .false. )
+   
+ end subroutine par_block_array_insert_subvector
  
 end module par_block_array_names

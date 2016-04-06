@@ -36,12 +36,14 @@ module reference_fe_factory_names
 
 contains
 
-  function make_reference_fe ( topology, fe_type, number_dimensions, order, field_type, continuity )
+  function make_reference_fe ( topology, fe_type, number_dimensions, order, field_type, continuity, enable_face_integration )
     implicit none 
     character(*)          , intent(in) :: topology, fe_type
     integer(ip)           , intent(in) :: number_dimensions, order
-    character(*), optional, intent(in) :: field_type
-    logical     , optional, intent(in) :: continuity
+    character(*)          , intent(in) :: field_type
+    logical               , intent(in) :: continuity
+    logical , optional    , intent(in) :: enable_face_integration
+    
     type(p_reference_fe_t)             :: make_reference_fe
     
     assert ( topology == topology_quad )
@@ -52,7 +54,7 @@ contains
           allocate ( quad_lagrangian_reference_fe_t :: make_reference_fe%p )
        end if
     end if
-    call make_reference_fe%p%create( number_dimensions, order, field_type, continuity )
+    call make_reference_fe%p%create( number_dimensions, order, field_type, continuity, enable_face_integration )
   end function make_reference_fe
 
 end module reference_fe_factory_names

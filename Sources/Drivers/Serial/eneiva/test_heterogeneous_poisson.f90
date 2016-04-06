@@ -112,14 +112,7 @@ contains
 end module command_line_parameters_names
 
 module heterogeneous_poisson_discrete_integration_names
-
-  use assembler_names
-  use serial_fe_space_names
-  use discrete_integration_names
-  use reference_fe_names
-  use types_names
-  use memor_names
-  use vector_names
+  use serial_names
   
   implicit none
 # include "debug.i90"
@@ -130,7 +123,7 @@ module heterogeneous_poisson_discrete_integration_names
      integer(ip)                :: nvalu
      real(rp), allocatable      :: data_points(:)
      real(rp), allocatable      :: property_values(:)
-     class(vector_t), pointer   :: dof_values => NULL()                    
+     class(fe_function_t), pointer   :: dof_values => NULL()                    
    contains
      procedure                  :: integrate
      procedure, non_overridable :: interpolate_property
@@ -180,7 +173,7 @@ contains
     real(rp)                              :: viscosity_scalar
     type(tensor_field_t)                  :: viscosity_matrix
 
-    class(vector_t), pointer              :: vector_dof_values
+    class(vector_t), pointer              :: free_dof_values
 				
     number_fe_spaces = fe_space%get_number_fe_spaces()
     field_blocks    => fe_space%get_field_blocks()
@@ -196,12 +189,12 @@ contains
     call fe_space%initialize_integration()
     
     quad => fe%get_quadrature()
-    ngaus = quad%get_number_evaluation_points()
+    ngaus = quad%get_number_quadrature_points()
     
     call fe_space%create_fe_function(1,fe_unknown_scalar)
     call fe_space%create_fe_function(2,fe_unknown_vector)
     
-    vector_dof_values => this%dof_values
+    free_dof_values => this%dof_values%free_dof_values
     
     do ielem = 1, fe_space%get_number_elements()
        elmat = 0.0_rp
@@ -217,8 +210,8 @@ contains
        bc_code           => fe%get_bc_code()
        bc_value          => fe%get_bc_value()
 						
-       call fe%update_values(fe_unknown_scalar, vector_dof_values)
-       call fe%update_values(fe_unknown_vector, vector_dof_values)
+       call fe%update_values(fe_unknown_scalar, free_dof_values)
+       call fe%update_values(fe_unknown_vector, free_dof_values)
        
        do igaus = 1,ngaus
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
@@ -330,10 +323,10 @@ program test_heterogeneous_poisson
   type(conditions_t)                   :: f_cond_tri
   type(triangulation_t)                :: f_trian
 		
-  class(vector_t), allocatable, target :: dof_values, residual ! dof-stored
+  class(fe_function_t), allocatable, target :: dof_values
+  class(vector_t), allocatable, target      :: residual ! dof-stored
 
-  type(linear_solver_t)                :: linear_solver
-  type(vector_space_t) , pointer       :: fe_affine_operator_range_vector_space
+  type(iterative_linear_solver_t)      :: iterative_linear_solver
   type(serial_environment_t)           :: senv
 
   ! Arguments
@@ -437,15 +430,16 @@ program test_heterogeneous_poisson
                                    diagonal_blocks_symmetric_storage=(/.true./), &
                                    diagonal_blocks_symmetric=(/.true./), &
                                    diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
-                                   triangulation=f_trian, &
+                                   environment=senv, &
                                    fe_space=fe_space, &
                                    discrete_integration=heterogeneous_poisson_integration )
   
-  fe_affine_operator_range_vector_space => fe_affine_operator%get_range_vector_space()
-  call fe_affine_operator_range_vector_space%create_vector(dof_values)
+  call fe_affine_operator%create_range_vector(dof_values%get_dof_values())
+  
+  ! It must be a FE function now
   heterogeneous_poisson_integration%dof_values => dof_values
   call dof_values%init(0.0_rp)
-  call fe_affine_operator_range_vector_space%create_vector(residual)   
+  call fe_affine_operator%create_range_vector(residual)
   
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
@@ -454,12 +448,12 @@ program test_heterogeneous_poisson
   
   do  while (residual_nrm2 > tol .and. count <= max_number_iterations)
      
-     call linear_solver%create(senv)
-     call linear_solver%set_type_and_parameters_from_pl()
-     call linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call linear_solver%set_initial_solution(dof_values)
-     call linear_solver%solve(dof_values)
-     call linear_solver%free()
+     call iterative_linear_solver%create(senv)
+     call iterative_linear_solver%set_type_and_parameters_from_pl()
+     call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     call iterative_linear_solver%set_initial_solution(dof_values)
+     call iterative_linear_solver%solve(dof_values)
+     call iterative_linear_solver%free()
      
      call fe_affine_operator%free_in_stages(free_numerical_setup)
      call fe_affine_operator%numerical_setup()
@@ -486,6 +480,8 @@ program test_heterogeneous_poisson
   call residual%free()
   call fe_affine_operator%free()
   call fe_space%free()
+  call reference_fe_array(1)%free()
+  call reference_fe_array(2)%free()
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
   call conditions_free(f_cond_tri)

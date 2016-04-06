@@ -1,0 +1,567 @@
+!==================================================================================================
+subroutine create(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(inout) :: this
+  ! Locals
+  type(test_nsi_iss_oss_params_t) :: test_params
+  logical                         :: authors_print
+  integer(ip)                     :: error
+
+  authors_print = .false.
+
+  call this%free()
+
+  ! Initialize Command Line Interface
+  call this%cli%init(progname    = 'nsi_iss_oss_main',                                            &
+       &        version     = '',                                                                 &
+       &        authors     = '',                                                                 & 
+       &        license     = '',                                                                 &
+       &        description =                                                                     &
+       & 'Serial FEMPAR driver to solve the Navier-Stokes Incompressible problem with Inf-Sup stable discretization using Orthogonal Subscales stabilization.',   &
+       &        examples    = ['nsi_iss_oss_main            -h ',                                 &
+       &                       'nsi_iss_oss_main analytical -h ' ]) 
+
+  ! Set Command Line Arguments Groups, i.e. commands
+  call this%cli%add_group(group='analytical',description='Solve a problem with an analytical solution')
+
+  ! Set Command Line Arguments for each group
+  call this%set_default()
+  call this%add_to_cli('analytical')
+
+end subroutine create
+
+!==================================================================================================
+subroutine free(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(inout) :: this
+     
+  if(allocated(this%default_dir_path))                 deallocate(this%default_dir_path)              
+  if(allocated(this%default_prefix))                   deallocate(this%default_prefix)                    
+  if(allocated(this%default_dir_path_out))             deallocate(this%default_dir_path_out)
+  if(allocated(this%default_structured_mesh))          deallocate(this%default_structured_mesh)            
+  if(allocated(this%default_number_elements))          deallocate(this%default_number_elements)            
+  if(allocated(this%default_number_parts))             deallocate(this%default_number_parts)              
+  if(allocated(this%default_number_sockets))           deallocate(this%default_number_sockets)             
+  if(allocated(this%default_discretization_type))      deallocate(this%default_discretization_type)        
+  if(allocated(this%default_domain_length))            deallocate(this%default_domain_length)         
+  if(allocated(this%default_periodic_boundaries))      deallocate(this%default_periodic_boundaries)
+  if(allocated(this%default_origin))                   deallocate(this%default_origin)         
+  if(allocated(this%default_stretching_parameter))     deallocate(this%default_stretching_parameter) 
+  if(allocated(this%default_elements_boundary_layer))  deallocate(this%default_elements_boundary_layer)   
+  if(allocated(this%default_size_boundary_layer))      deallocate(this%default_size_boundary_layer)     
+  if(allocated(this%default_material_case))            deallocate(this%default_material_case)         
+  if(allocated(this%default_velocity_order))           deallocate(this%default_velocity_order)             
+  if(allocated(this%default_pressure_order))           deallocate(this%default_pressure_order)             
+  if(allocated(this%default_viscosity))                deallocate(this%default_viscosity)              
+  if(allocated(this%default_c1))                       deallocate(this%default_c1)                   
+  if(allocated(this%default_c2))                       deallocate(this%default_c2)                         
+  if(allocated(this%default_cc))                       deallocate(this%default_cc)                         
+  if(allocated(this%default_elemental_length_flag))    deallocate(this%default_elemental_length_flag)
+  if(allocated(this%default_convection_activated))     deallocate(this%default_convection_activated)       
+  if(allocated(this%default_is_analytical))            deallocate(this%default_is_analytical)        
+  if(allocated(this%default_is_initial))               deallocate(this%default_is_initial)               
+  if(allocated(this%default_is_temporal))              deallocate(this%default_is_temporal)         
+  if(allocated(this%default_analytical_function_name)) deallocate(this%default_analytical_function_name)
+  if(allocated(this%default_initial_time))             deallocate(this%default_initial_time)     
+                                                                                                           
+  if(allocated(this%number_elements))                  deallocate(this%number_elements)                
+  if(allocated(this%number_elements))                  deallocate(this%number_elements)                     
+  if(allocated(this%number_parts))                     deallocate(this%number_parts)                          
+  if(allocated(this%number_sockets))                   deallocate(this%number_sockets)                          
+  if(allocated(this%discretization_type))              deallocate(this%discretization_type)                     
+  if(allocated(this%periodic_boundaries))              deallocate(this%periodic_boundaries)                     
+  if(allocated(this%number_elements_boundary))         deallocate(this%number_elements_boundary)             
+  if(allocated(this%domain_length))                    deallocate(this%domain_length)                 
+  if(allocated(this%origin))                           deallocate(this%origin)                            
+  if(allocated(this%stretching_parameter))             deallocate(this%stretching_parameter)
+  if(allocated(this%size_boundary))                    deallocate(this%size_boundary)                     
+
+end subroutine free
+
+!==================================================================================================
+subroutine set_default(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), intent(inout) :: this
+
+  ! IO parameters
+  this%default_dir_path     = 'data'
+  this%default_prefix       = 'test'
+  this%default_dir_path_out = 'output'
+
+  ! Mesh
+  this%default_structured_mesh         = '.true.'
+  this%default_number_elements         = '2 2'
+  this%default_number_parts            = '1 1'
+  this%default_number_sockets          = '1 1'
+  this%default_discretization_type     = '0 0'
+  this%default_domain_length           = '1.0 1.0'
+  this%default_periodic_boundaries     = '0 0'
+  this%default_origin                  = '0.0 0.0'
+  this%default_stretching_parameter    = '2.75 2.75'
+  this%default_elements_boundary_layer = '0 0'
+  this%default_size_boundary_layer     = '0.0 0.0'
+  this%default_material_case           = '0'
+  
+  ! FE space
+  this%default_velocity_order = '2'
+  this%default_pressure_order = '1'
+
+  ! Problem
+  this%default_viscosity             = '1.0'
+  this%default_c1                    = '12.0'
+  this%default_c2                    = '4.0'
+  this%default_cc                    = '1.0'
+  this%default_elemental_length_flag = '0'
+  this%default_convection_activated  = '.true.'
+
+  ! Solution
+  this%default_is_analytical            = '.true.'
+  this%default_is_initial               = '.true.'
+  this%default_is_temporal              = '.false.'
+  this%default_analytical_function_name = 'NSI-LINEAR-STEADY'
+
+  ! Time integration
+  this%default_initial_time = '0.0'
+
+end subroutine set_default
+
+!==================================================================================================
+subroutine add_to_cli(this,group)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(inout) :: this
+  character(*)                     , intent(in)    :: group
+  ! Locals
+  integer(ip) :: error
+
+  ! IO parameters
+  call this%cli%add(group=trim(group),switch='--dir_path',switch_ab='-pwd_in',                      &
+       &       help='Directory of the source files',required=.false., act='store',                  &
+       &       def=trim(this%default_dir_path),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--prefix',switch_ab='-prf',help='Prefix',             &
+       &       required=.false.,act='store',def=trim(this%default_prefix),error=error)
+  check(error==0)
+  call this%cli%add(group=trim(group),switch='--dir_path_out',switch_ab='-pwd_out',                 &
+       &       help='Output Directory',required=.false.,act='store',                                &
+       &       def=trim(this%default_dir_path_out),error=error); check(error==0)
+
+  ! Mesh
+  call this%cli%add(group=trim(group),switch='--structured_mesh',switch_ab='-str',                  &
+       &       help='Structured mesh (.true., .false.)',required=.false., act='store',              &
+       &       def=trim(this%default_structured_mesh),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--num_elements',switch_ab='-ne',                      &
+       &       help='Number of elements per direction',required=.false.,act='store',nargs='*',      &
+       &       def=trim(this%default_number_elements),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--num_parts',switch_ab='-np',                         &
+       &       help='Number of parts per direction',required=.false.,act='store',nargs='*',         &
+       &       def=trim(this%default_number_parts),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--num_sockets',switch_ab='-ns',                       &
+       &       help='Number of sockets per direction',required=.false.,act='store',nargs='*',       &
+       &       def=trim(this%default_number_sockets),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--discretization_type',                               &
+       &       help='Discretization type per direction (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)', &
+       &       required=.false.,act='store',nargs='*',def=trim(this%default_discretization_type),   &
+       &       error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--domain_length',switch_ab='-dl',                     &
+       &       help='Domain length per direction',required=.false.,act='store',nargs='*',           &
+       &       def=trim(this%default_domain_length),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--periodicity',switch_ab='-peri',                     &
+       &       help='Periodicity per direction (0: No, 1: Yes)', required=.false.,act='store',      &
+       &       nargs='*',def=trim(this%default_periodic_boundaries),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--origin',switch_ab='-O',help='Origin coordinates',   &
+       &       required=.false.,act='store',nargs='*',def=trim(this%default_origin),error=error)
+  check(error==0)
+  call this%cli%add(group=trim(group),switch='--stretching',switch_ab='-st',                        &
+       &       help='Stretching parameter',required=.false.,act='store',nargs='*',                  &
+       &       def=trim(this%default_stretching_parameter),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--num_elements_bound_layer',switch_ab='-nb',          &
+       &       help='Number of elements in the boundary layer per direction',required=.false.,      &
+       &       act='store',nargs='*',def=trim(this%default_elements_boundary_layer),error=error)
+  check(error==0)
+  call this%cli%add(group=trim(group),switch='--size_bound_layer',switch_ab='-sb',                  &
+       &       help='Size of the boundary layer per direction',required=.false.,act='store',        &
+       &       nargs='*',def=trim(this%default_size_boundary_layer),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--material_case',switch_ab='-mc',                     &
+       &       help='Material case',required=.false.,act='store',                                   &
+       &       def=trim(this%default_material_case),error=error); check(error==0)
+
+  ! FE space
+  call this%cli%add(group=trim(group),switch='--velocity_order',switch_ab='-vo',                    &
+       &       help='Velocity interpolation order',required=.false., act='store',                   &
+       &       def=trim(this%default_velocity_order),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--pressure_order',switch_ab='-po',                    &
+       &       help='Pressure interpolation order',required=.false., act='store',                   &
+       &       def=trim(this%default_pressure_order),error=error); check(error==0)
+
+  ! Problem
+  call this%cli%add(group=trim(group),switch='--viscosity',switch_ab='-nu',help='Viscosity',        &
+       &       required=.false., act='store',def=trim(this%default_viscosity),error=error) 
+  check(error==0)
+  call this%cli%add(group=trim(group),switch='--c1',switch_ab='-c1',                                &
+       &       help='c1 stabilization constant',required=.false., act='store',                      &
+       &       def=trim(this%default_c1),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--c2',switch_ab='-c2',                                &
+       &       help='c2 stabilization constant',required=.false., act='store',                      &
+       &       def=trim(this%default_c2),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--cc',switch_ab='-cc',                                &
+       &       help='cc stabilization constant',required=.false., act='store',                      &
+       &       def=trim(this%default_cc),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--elemental_length',switch_ab='-h_flg',               &
+       &       help='Elemental length computation (0: standard, 1: minimum, 2: maximum)',           &
+       &       required=.false., choices='0,1,2',act='store',                                       &
+       &       def=trim(this%default_elemental_length_flag),error=error); check(error==0)
+  call this%cli%add(group=trim(group),switch='--convection',switch_ab='-cnv',                       &
+       &       help='Activate convection',required=.false., act='store',                            &
+       &       def=trim(this%default_convection_activated),error=error); check(error==0)  
+
+  ! Solution
+  call this%cli%add(group=trim(group),switch='--analytical_solution',switch_ab='-ana',              &
+       &       help='Is it an analytical solution?',required=.false., act='store',                  &
+       &       def=trim(this%default_is_analytical),error=error); check(error==0)  
+  call this%cli%add(group=trim(group),switch='--initial_solution',switch_ab='-ini',                 &
+       &       help='Is it an initial solution?',required=.false., act='store',                     &
+       &       def=trim(this%default_is_initial),error=error); check(error==0)  
+  call this%cli%add(group=trim(group),switch='--temporal_solution',switch_ab='-tmp',                &
+       &       help='Is it a temporal solution?',required=.false., act='store',                     &
+       &       def=trim(this%default_is_temporal),error=error); check(error==0)  
+  call this%cli%add(group=trim(group),switch='--analytical_function',switch_ab='-af',               &
+       &       help='Analytical function name',required=.false., act='store',                       &
+       &       def=trim(this%default_analytical_function_name),error=error); check(error==0)  
+
+  ! Time integration
+  call this%cli%add(group=trim(group),switch='--initial_time',switch_ab='-it',help='Initial time',  &
+       &       required=.false., act='store',def=trim(this%default_initial_time),error=error)
+  check(error==0)  
+
+end subroutine add_to_cli
+
+!==================================================================================================
+subroutine parse(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(inout) :: this
+  ! Locals
+  integer(ip) :: istat
+  character(len=:), allocatable :: group
+  
+  call this%cli%parse(error=istat)
+  if(this%cli%run_command('analytical')) then
+     group = 'analytical'
+  end if
+
+  ! IO parameters
+  call this%cli%get(group=trim(group),switch='-pwd_in',val=this%dir_path,error=istat)
+  check(istat==0)
+  call this%cli%get(group=trim(group),switch='-prf',val=this%prefix,error=istat)
+  check(istat==0)
+  call this%cli%get(group=trim(group),switch='-pwd_out',val=this%dir_path_out,error=istat)
+  check(istat==0)
+
+  ! Mesh
+  call this%cli%get(group=trim(group),switch='-str',val=this%is_structured_mesh,error=istat)
+  check(istat==0)
+  call this%cli%get_varying(group=trim(group),switch='-ne',val=this%number_elements,error=istat)   
+  check(istat==0)           
+  call this%cli%get_varying(group=trim(group),switch='-np',val=this%number_parts,error=istat)     
+  check(istat==0)             
+  call this%cli%get_varying(group=trim(group),switch='-ns',val=this%number_sockets,error=istat)  
+  check(istat==0)                 
+  call this%cli%get_varying(group=trim(group),switch='--discretization_type',val=this%discretization_type,error=istat)
+  check(istat==0)
+  call this%cli%get_varying(group=trim(group),switch='-dl',val=this%domain_length,error=istat)           
+  check(istat==0)         
+  call this%cli%get_varying(group=trim(group),switch='-peri',val=this%periodic_boundaries,error=istat)   
+  check(istat==0)          
+  call this%cli%get_varying(group=trim(group),switch='-O',val=this%origin,error=istat)          
+  check(istat==0)           
+  call this%cli%get_varying(group=trim(group),switch='-st',val=this%stretching_parameter,error=istat)    
+  check(istat==0)    
+  call this%cli%get_varying(group=trim(group),switch='-nb',val=this%number_elements_boundary,error=istat)  
+  check(istat==0)
+  call this%cli%get_varying(group=trim(group),switch='-sb',val=this%size_boundary,error=istat)    
+  check(istat==0)
+  call this%cli%get(group=trim(group),switch='-mc',val=this%material_case,error=istat) 
+  check(istat==0)
+
+  ! FE space
+  call this%cli%get(group=trim(group),switch='-vo',val=this%velocity_order,error=istat)
+  check(istat==0)
+  call this%cli%get(group=trim(group),switch='-po',val=this%pressure_order,error=istat)
+  check(istat==0)
+
+  ! Problem
+  call this%cli%get(group=trim(group),switch='-nu',val=this%viscosity,error=istat)
+  check(istat==0)
+  call this%cli%get(group=trim(group),switch='-c1',val=this%c1,error=istat)
+  check(istat==0)
+  call this%cli%get(group=trim(group),switch='-c2',val=this%c2,error=istat) 
+  check(istat==0)
+  call this%cli%get(group=trim(group),switch='-cc',val=this%cc,error=istat) 
+  check(istat==0)
+  call this%cli%get(group=trim(group),switch='-h_flg',val=this%elemental_length_flag,error=istat)
+  check(istat==0)
+  call this%cli%get(group=trim(group),switch='-cnv',val=this%convection_activated,error=istat)
+  check(istat==0)
+  call this%cli%get(group=trim(group),switch='-ana',val=this%is_analytical_solution,error=istat)
+  check(istat==0)
+  call this%cli%get(group=trim(group),switch='-ini',val=this%is_initial_solution,error=istat)
+  check(istat==0)
+  call this%cli%get(group=trim(group),switch='-tmp',val=this%is_temporal_solution,error=istat)
+  check(istat==0)
+
+  ! Solution
+  call this%cli%get(group=trim(group),switch='-af',val=this%analytical_function_name,error=istat)
+  check(istat==0)
+
+  ! Time integration
+  call this%cli%get(group=trim(group),switch='-it',val=this%initial_time,error=istat)
+  check(istat==0)
+
+end subroutine parse
+
+!==================================================================================================
+subroutine create_parameter_list_for_structured_mesh(this,parameter_list)
+  implicit none
+  class(test_nsi_iss_oss_params_t), intent(in)    :: this
+  type(ParameterList_t)           , intent(inout) :: parameter_list
+  integer(ip) :: istat
+
+  
+  ! Set structured mesh parameter list
+  istat = 0
+  istat = istat + parameter_list%set(key = number_elements_name, value = this%number_elements )
+  istat = istat + parameter_list%set(key = number_parts_name, value = this%number_parts)
+  istat = istat + parameter_list%set(key = number_sockets_name, value = this%number_sockets)
+  istat = istat + parameter_list%set(key = discretization_type_name, value = this%discretization_type)
+  istat = istat + parameter_list%set(key = periodic_boundaries_name, value = this%periodic_boundaries)
+  istat = istat + parameter_list%set(key = number_elements_boundary_name, value = this%number_elements_boundary)
+  istat = istat + parameter_list%set(key = material_case_name, value = this%material_case)
+  istat = istat + parameter_list%set(key = domain_length_name, value = this%domain_length)
+  istat = istat + parameter_list%set(key = origin_name, value = this%origin)
+  istat = istat + parameter_list%set(key = stretching_parameter_name, value = this%stretching_parameter)
+  istat = istat + parameter_list%set(key = size_boundary_name, value = this%size_boundary)
+  check(istat==0)
+end subroutine create_parameter_list_for_structured_mesh
+
+!==================================================================================================
+function get_dir_path(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  character(len=2014) :: get_dir_path
+  get_dir_path = this%dir_path
+end function get_dir_path
+
+!==================================================================================================
+function get_prefix(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  character(len=2014) :: get_prefix
+  get_prefix = this%prefix
+end function get_prefix
+
+!==================================================================================================
+function get_dir_path_out(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  character(len=2014) :: get_dir_path_out
+  get_dir_path_out = this%dir_path_out
+end function get_dir_path_out
+
+!==================================================================================================
+function get_is_structured_mesh(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  logical :: get_is_structured_mesh
+  get_is_structured_mesh = this%is_structured_mesh
+end function get_is_structured_mesh
+
+!==================================================================================================
+function get_number_elements(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), target, intent(in) :: this
+  integer(ip), pointer :: get_number_elements(:)
+  get_number_elements => this%number_elements
+end function get_number_elements
+
+!==================================================================================================
+function get_number_parts(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), target, intent(in) :: this
+  integer(ip), pointer :: get_number_parts(:)
+  get_number_parts => this%number_parts
+end function get_number_parts
+
+!==================================================================================================
+function get_number_sockets(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), target, intent(in) :: this
+  integer(ip), pointer :: get_number_sockets(:)
+  get_number_sockets => this%number_sockets
+end function get_number_sockets
+
+!==================================================================================================
+function get_discretization_type(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), target, intent(in) :: this
+  integer(ip), pointer :: get_discretization_type(:)
+  get_discretization_type => this%discretization_type
+end function get_discretization_type
+
+!==================================================================================================
+function get_periodic_boundaries(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), target, intent(in) :: this
+  integer(ip), pointer :: get_periodic_boundaries(:)
+  get_periodic_boundaries => this%periodic_boundaries
+end function get_periodic_boundaries
+
+!==================================================================================================
+function get_number_elements_boundary(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), target, intent(in) :: this
+  integer(ip), pointer :: get_number_elements_boundary(:)
+  get_number_elements_boundary => this%number_elements_boundary
+end function get_number_elements_boundary
+
+!==================================================================================================
+function get_material_case(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), intent(in) :: this
+  integer(ip) :: get_material_case
+  get_material_case = this%material_case
+end function get_material_case
+
+!==================================================================================================
+function get_domain_length(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), target, intent(in) :: this
+  real(rp), pointer :: get_domain_length(:)
+  get_domain_length => this%domain_length
+end function get_domain_length
+
+!==================================================================================================
+function get_origin(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), target, intent(in) :: this
+  real(rp), pointer :: get_origin(:)
+  get_origin => this%origin
+end function get_origin
+
+!==================================================================================================
+function get_stretching_parameter(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), target, intent(in) :: this
+  real(rp), pointer :: get_stretching_parameter(:)
+  get_stretching_parameter => this%stretching_parameter
+end function get_stretching_parameter
+
+!==================================================================================================
+function get_size_boundary(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), target, intent(in) :: this
+  real(rp), pointer :: get_size_boundary(:)
+  get_size_boundary => this%size_boundary
+end function get_size_boundary
+
+!==================================================================================================
+function get_velocity_order(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  integer(ip) :: get_velocity_order
+  get_velocity_order = this%velocity_order
+end function get_velocity_order
+
+!==================================================================================================
+function get_pressure_order(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  integer(ip) :: get_pressure_order
+  get_pressure_order = this%pressure_order
+end function get_pressure_order
+
+!==================================================================================================
+function get_viscosity(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  real(rp) :: get_viscosity
+  get_viscosity = this%viscosity
+end function get_viscosity
+
+!==================================================================================================
+function get_c1(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  real(rp) :: get_c1
+  get_c1 = this%c1
+end function get_c1
+
+!==================================================================================================
+function get_c2(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  real(rp) :: get_c2
+  get_c2 = this%c2
+end function get_c2
+
+!==================================================================================================
+function get_cc(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  real(rp) :: get_cc
+  get_cc = this%cc
+end function get_cc
+
+!==================================================================================================
+function get_elemental_length_flag(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  integer(ip) :: get_elemental_length_flag
+  get_elemental_length_flag = this%elemental_length_flag
+end function get_elemental_length_flag
+
+!==================================================================================================
+function get_convection_activated(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  logical :: get_convection_activated
+  get_convection_activated = this%convection_activated
+end function get_convection_activated
+
+!==================================================================================================
+function get_is_analytical_solution(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  logical :: get_is_analytical_solution
+  get_is_analytical_solution = this%is_analytical_solution
+end function get_is_analytical_solution
+
+!==================================================================================================
+function get_is_initial_solution(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  logical :: get_is_initial_solution
+  get_is_initial_solution = this%is_initial_solution
+end function get_is_initial_solution
+
+!==================================================================================================
+function get_is_temporal_solution(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  logical :: get_is_temporal_solution
+  get_is_temporal_solution = this%is_temporal_solution
+end function get_is_temporal_solution
+
+!==================================================================================================
+function get_analytical_function_name(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  character(len=2014) :: get_analytical_function_name
+  get_analytical_function_name = this%analytical_function_name
+end function get_analytical_function_name
+
+!==================================================================================================
+function get_initial_time(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t) , intent(in) :: this
+  real(rp) :: get_initial_time
+  get_initial_time = this%initial_time
+end function get_initial_time
+  

@@ -179,16 +179,14 @@ subroutine element_serial_scalar_array_assembly( array, number_fe_spaces, number
  
  integer(ip) :: inode, idof, ielvec, ife_space
  
-  ielvec = 0
-  do ife_space = 1, number_fe_spaces
-     do inode = 1, number_nodes(ife_space)
-        idof = elem2dof(ife_space)%p(inode) 
-        ielvec = ielvec+1
-        if ( idof  > 0 ) then
-           array%b(idof) =  array%b(idof) + elvec(ielvec)
-        end if
-     end do
-  end do
+ ielvec = 0
+ do ife_space = 1, number_fe_spaces
+   call array%add( number_nodes(ife_space), &
+                   elem2dof(ife_space)%p, &
+                   ielvec, &
+                   elvec )
+   ielvec = ielvec + number_nodes(ife_space)
+ end do
 end subroutine element_serial_scalar_array_assembly
 
 !====================================================================================================

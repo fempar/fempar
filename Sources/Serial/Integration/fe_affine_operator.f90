@@ -28,8 +28,6 @@
 module fe_affine_operator_names
   use types_names
   use memor_names
-
-  ! Abstract types
   use triangulation_names
   use vector_space_names
   use reference_fe_names
@@ -40,8 +38,10 @@ module fe_affine_operator_names
   use matrix_array_assembler_names
   use array_names
   use matrix_names
-
+  use sparse_matrix_names, only: sparse_matrix_t
   use discrete_integration_names
+  use environment_names
+  use direct_solver_names
 
   implicit none
 # include "debug.i90"
@@ -107,11 +107,11 @@ module fe_affine_operator_names
   private
   integer(ip)                                     :: state  = start
   character(:)                      , allocatable :: sparse_matrix_storage_format
-  type(triangulation_t)             , pointer     :: triangulation          => NULL()
-  class(serial_fe_space_t)       , pointer     :: fe_space               => NULL() ! trial_fe_space
-  class(serial_fe_space_t)       , pointer     :: test_fe_space          => NULL() ! To be used in the future
+  class(environment_t)              , pointer     :: environment
+  class(serial_fe_space_t)          , pointer     :: fe_space               => NULL() ! trial_fe_space
+  class(serial_fe_space_t)          , pointer     :: test_fe_space          => NULL() ! To be used in the future
   class(discrete_integration_t)     , pointer     :: discrete_integration   => NULL()
-  class(matrix_array_assembler_t), pointer     :: matrix_array_assembler => NULL()
+  class(matrix_array_assembler_t)   , pointer     :: matrix_array_assembler => NULL()
 contains
   procedure          :: create                      => fe_affine_operator_create
   procedure          :: symbolic_setup              => fe_affine_operator_symbolic_setup
@@ -128,6 +128,8 @@ contains
   procedure          :: get_range_vector_space      => fe_affine_operator_get_range_vector_space
   procedure          :: abort_if_not_in_range       => fe_affine_operator_abort_if_not_in_range
   procedure          :: abort_if_not_in_domain      => fe_affine_operator_abort_if_not_in_domain
+  procedure          :: create_direct_solver        => fe_affine_operator_create_direct_solver
+  procedure          :: update_direct_solver_matrix => fe_affine_operator_update_direct_solver_matrix
   procedure, private :: fe_affine_operator_free_numerical_setup
   procedure, private :: fe_affine_operator_free_symbolic_setup
   procedure, private :: fe_affine_operator_free_clean
@@ -145,7 +147,7 @@ subroutine fe_affine_operator_create (this, &
                                       diagonal_blocks_symmetric_storage,&
                                       diagonal_blocks_symmetric,&
                                       diagonal_blocks_sign,&
-                                      triangulation,&
+                                      environment,  &
                                       fe_space,&
                                       discrete_integration )
  implicit none
@@ -154,14 +156,14 @@ subroutine fe_affine_operator_create (this, &
  logical                                     , intent(in)  :: diagonal_blocks_symmetric_storage(:)
  logical                                     , intent(in)  :: diagonal_blocks_symmetric(:)
  integer(ip)                                 , intent(in)  :: diagonal_blocks_sign(:)
- type(triangulation_t)               , target, intent(in)  :: triangulation
+ class(environment_t)             , target,  intent(in) :: environment
  class(serial_fe_space_t)         , target, intent(in)  :: fe_space
  class(discrete_integration_t)    , target, intent(in)  :: discrete_integration
 
  assert(this%state == start)
 
  this%sparse_matrix_storage_format = sparse_matrix_storage_format
- this%triangulation                => triangulation
+ this%environment                  => environment
  this%fe_space                     => fe_space
  this%discrete_integration         => discrete_integration
  this%matrix_array_assembler       => fe_space%create_assembler(diagonal_blocks_symmetric_storage, &
@@ -236,7 +238,8 @@ subroutine fe_affine_operator_free_clean(this)
  implicit none
  class(fe_affine_operator_t), intent(inout) :: this
  integer(ip) :: istat
- nullify(this%triangulation)
+ deallocate(this%sparse_matrix_storage_format)
+ nullify(this%environment)
  nullify(this%fe_space)
  nullify(this%test_fe_space)
  nullify(this%discrete_integration)
@@ -410,8 +413,39 @@ end subroutine fe_affine_operator_setup
 subroutine fe_affine_operator_fill_values(this)
   implicit none
   class(fe_affine_operator_t), intent(inout) :: this
-  call this%discrete_integration%integrate( this%fe_space, this%matrix_array_assembler )
+  if ( this%environment%am_i_fine_task() ) then
+    call this%discrete_integration%integrate( this%fe_space, this%matrix_array_assembler )
+  end if  
 end subroutine fe_affine_operator_fill_values
+
+
+subroutine fe_affine_operator_create_direct_solver(this, name, direct_solver)
+  implicit none
+  class(fe_affine_operator_t), intent(in)    :: this
+  character(len=*),            intent(in)    :: name
+  type(direct_solver_t),       intent(inout) :: direct_solver
+  call direct_solver%set_type(name)
+  select type(matrix => this%matrix_array_assembler%get_matrix())
+    type is (sparse_matrix_t)
+      call direct_solver%set_matrix(matrix)
+    class DEFAULT
+      check(.false.)
+  end select
+end subroutine fe_affine_operator_create_direct_solver
+
+
+subroutine fe_affine_operator_update_direct_solver_matrix(this, same_nonzero_pattern, direct_solver)
+  implicit none
+  class(fe_affine_operator_t), intent(in)    :: this
+  logical,                     intent(in)    :: same_nonzero_pattern
+  type(direct_solver_t),       intent(inout) :: direct_solver
+  select type(matrix => this%matrix_array_assembler%get_matrix())
+    type is (sparse_matrix_t)
+      call direct_solver%update_matrix(matrix, same_nonzero_pattern)
+    class DEFAULT
+      check(.false.)
+  end select
+end subroutine fe_affine_operator_update_direct_solver_matrix
 
 
 end module fe_affine_operator_names

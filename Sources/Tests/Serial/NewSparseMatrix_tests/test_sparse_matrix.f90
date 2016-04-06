@@ -19,6 +19,39 @@ implicit none
 
     call meminit()
 
+
+!------------------------------------------------------------------
+! EMPTY MATRIX (NNZ==0)
+!------------------------------------------------------------------
+    ! Create: START=>CREATE
+    call sparse_matrix%create(num_rows=5,num_cols=5)
+    call sparse_matrix%print( 6)
+
+    ! Convert: CREATE=>ASSEMBLED
+    call sparse_matrix%convert('CSR')
+    call sparse_matrix%print( 6)
+    call sparse_matrix%convert(mold=csr_matrix)
+
+    ! Apply
+    call x%create_and_allocate(sparse_matrix%get_num_rows())
+    call y%create_and_allocate(sparse_matrix%get_num_cols())
+    call x%init(1.0_rp)
+    call sparse_matrix%apply(x,y)
+    call x%print(6)
+    call y%print(6)
+
+    ! Free: ASSEMBLED=>ASSEMBLED_SYMBOLIC
+    call sparse_matrix%free_in_stages(free_numerical_setup)
+
+    ! Free: ASSEMBLED_SYMBOLIC=>CREATED
+    call sparse_matrix%free_in_stages(free_symbolic_setup)
+
+    ! Free: CREATED=>START
+    call sparse_matrix%free_in_stages(free_clean)
+
+    call x%free()
+    call y%free()
+
 !------------------------------------------------------------------
 ! NUMERIC
 !------------------------------------------------------------------
@@ -58,10 +91,10 @@ implicit none
     call sparse_matrix%print( 6)
     ! Update: UPDATE=>ASSEMBLED
     call sparse_matrix%convert(mold=csr_matrix)
-    call x%create_and_allocate(sparse_matrix%get_num_rows())
     ! Apply
-    call x%init(1.0_rp)
+    call x%create_and_allocate(sparse_matrix%get_num_rows())
     call y%create_and_allocate(sparse_matrix%get_num_cols())
+    call x%init(1.0_rp)
     call sparse_matrix%apply(x,y)
     call x%print(6)
     call y%print(6)
@@ -81,6 +114,9 @@ implicit none
     call sparse_matrix%free_in_stages(free_symbolic_setup)
     ! Free: CREATED=>START
     call sparse_matrix%free_in_stages(free_clean)
+
+    call x%free()
+    call y%free()
 
 !------------------------------------------------------------------
 ! SYMBOLIC
@@ -115,9 +151,6 @@ implicit none
     call sparse_matrix%free_in_stages(free_symbolic_setup)
     ! Free: CREATED=>START
     call sparse_matrix%free_in_stages(free_clean)
-
-    call x%free()
-    call y%free()
 
     call memstatus()
 

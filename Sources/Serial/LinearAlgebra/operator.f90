@@ -53,6 +53,9 @@ module operator_names
      procedure :: get_tangent                             => operator_get_tangent
      procedure :: get_translation                         => operator_get_translation
      procedure :: free_vector_spaces                      => operator_free_vector_spaces
+     procedure :: create_domain_vector                    => operator_create_domain_vector
+     procedure :: create_range_vector                     => operator_create_range_vector
+     procedure :: vector_spaces_are_created               => operator_vector_spaces_are_created
      procedure :: get_domain_vector_space                 => operator_get_domain_vector_space
      procedure :: get_range_vector_space                  => operator_get_range_vector_space
      procedure :: abort_if_not_in_range                   => operator_abort_if_not_in_range
@@ -184,6 +187,30 @@ module operator_names
             operator_abort_if_not_in_domain, operator_abort_if_not_in_range
 
 contains
+
+  subroutine operator_create_domain_vector ( this, vector )
+    implicit none
+    class(operator_t), target, intent(in) :: this
+    class(vector_t), allocatable, intent(inout) :: vector
+    assert(this%domain_vector_space%is_created())
+    call this%domain_vector_space%create_vector(vector)
+  end subroutine operator_create_domain_vector
+
+  subroutine operator_create_range_vector ( this, vector )
+    implicit none
+    class(operator_t), target, intent(in) :: this
+    class(vector_t), allocatable, intent(inout) :: vector
+    assert(this%range_vector_space%is_created())
+    call this%range_vector_space%create_vector(vector)
+  end subroutine operator_create_range_vector
+
+  function operator_vector_spaces_are_created( this ) result(vector_spaces_are_created)
+    implicit none
+    class(operator_t), target, intent(in) :: this
+    logical                               :: vector_spaces_are_created
+    vector_spaces_are_created = &
+        (this%domain_vector_space%is_created() .and. this%range_vector_space%is_created())
+  end function operator_vector_spaces_are_created
 
   function operator_get_domain_vector_space ( this )
     implicit none
