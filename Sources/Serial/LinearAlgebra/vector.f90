@@ -48,7 +48,7 @@ module vector_names
      procedure (vector_extract_subvector_interface), deferred :: extract_subvector 
      procedure (vector_insert_subvector_interface) , deferred :: insert_subvector 
      
-					procedure :: sum_vector
+     procedure :: sum_vector
      procedure :: sub_vector
      procedure :: minus_vector
      procedure, pass(left)  :: scal_left_vector

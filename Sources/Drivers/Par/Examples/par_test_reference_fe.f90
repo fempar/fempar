@@ -295,10 +295,9 @@ program par_test_reference_fe
   type(fe_affine_operator_t)                      :: fe_affine_operator
   type(poisson_discrete_integration_t)            :: poisson_integration
   type(vector_laplacian_composite_discrete_integration_t) :: vector_laplacian_integration
-  class(matrix_t)             , pointer           :: matrix
-  class(vector_t)             , pointer           :: rhs
   type(iterative_linear_solver_t)                 :: iterative_linear_solver
   type(fe_function_t)                             :: fe_function
+  class(vector_t), pointer                        :: dof_values
 
   
 
@@ -408,7 +407,8 @@ program par_test_reference_fe
   call iterative_linear_solver%create(par_env)
   call iterative_linear_solver%set_type_from_string(cg_name)
   call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-  call iterative_linear_solver%solve(fe_affine_operator%get_translation(),fe_function%get_dof_values())
+  dof_values => fe_function%get_dof_values()
+  call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
   call iterative_linear_solver%free() 
   
   !call p_fe_space%par_fe_space_print()

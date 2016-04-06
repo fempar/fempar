@@ -26,25 +26,35 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !====================================================================================================
-subroutine initialize_from_cli(this,cli,group)
+subroutine create(this,params)
   implicit none
   class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
-  type(Type_Command_Line_Interface)        , intent(inout) :: cli
-  character(len=:), allocatable            , intent(in)    :: group
-  ! Locals
-  integer(ip) :: istat
+  type(test_nsi_iss_oss_params_t)          , intent(in)    :: params
 
   ! Getters
-  call cli%get(group=trim(group),switch='-nu'   ,val=this%viscosity,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-c1'   ,val=this%c1       ,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-c2'   ,val=this%c2       ,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-cc'   ,val=this%cc       ,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-h_flg',val=this%elemental_length_flag,error=istat)
-  check(istat==0)
-  call cli%get(group=trim(group),switch='-cnv'  ,val=this%convection_activated ,error=istat)
-  check(istat==0)
+  this%viscosity              = params%get_viscosity()              
+  this%c1                     = params%get_c1()                     
+  this%c2                     = params%get_c2()                     
+  this%cc                     = params%get_cc()                    
+  this%elemental_length_flag  = params%get_elemental_length_flag()  
+  this%convection_activated   = params%get_convection_activated()   
+  this%is_analytical_solution = params%get_is_analytical_solution() 
+  this%is_initial_solution    = params%get_is_initial_solution()    
+  this%is_temporal_solution   = params%get_is_temporal_solution()   
+  this%current_time           = params%get_initial_time()           
 
-end subroutine initialize_from_cli
+  call this%analytical_functions%create(params)
+
+end subroutine create
+
+!====================================================================================================
+subroutine free(this)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+
+  call this%analytical_functions%free()
+
+end subroutine free
 
 !====================================================================================================
 subroutine integrate(this,fe_space,assembler)
@@ -83,6 +93,7 @@ subroutine integrate(this,fe_space,assembler)
   type(volume_integrator_t), pointer :: vol_int_pressure_fe
   type(volume_integrator_t), pointer :: vol_int_projection_fe
   type(i1p_t)              , pointer :: elem2dof(:)
+  type(point_t)            , pointer :: quadrature_coordinate(:)
   
   ! Getters
   fe                       => fe_space%get_finite_element(1)
@@ -130,18 +141,24 @@ subroutine integrate(this,fe_space,assembler)
      vol_int_pressure_fe   => fe%get_volume_integrator(2)
      vol_int_projection_fe => fe%get_volume_integrator(3)
      elem2dof              => fe%get_elem2dof()
+     quadrature_coordinate => fe_map%get_quadrature_coordinates() 
 
      ! Update discrete integration structures
      call this%compute_stabilization_parameters(fe,fe_velocity,tau_m,tau_c)
      
      ! Loop over Gauss points
-     gaus: do qpoin = 1, number_quadrature_points
+     gauss: do qpoin = 1, number_quadrature_points
         
         ! |J]*wg
         dvolume = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
 
         ! Velocity at Gauss point
         call fe_velocity%get_value(qpoin,advection_vector)
+
+        ! Compute source vector for an analytical solution
+        if(this%is_analytical_solution) then
+           source_vector = this%compute_analytical_force(quadrature_coordinate(qpoin))
+        end if
         
         !-----------!
         ! BLOCK V-U !
@@ -258,7 +275,7 @@ subroutine integrate(this,fe_space,assembler)
            elvec(inode) = elvec(inode) + dvolume * test_vector * source_vector
         end do
         
-     end do gaus
+     end do gauss
     
      call fe%impose_strong_dirichlet_bcs( elmat, elvec )
      call assembler%assembly(number_fe_spaces,number_nodes_per_field,elem2dof,field_blocks,field_coupling,elmat,elvec)  
@@ -269,6 +286,7 @@ subroutine integrate(this,fe_space,assembler)
   call memfree(number_nodes_per_field,__FILE__,__LINE__)
   call memfree(elmat,__FILE__,__LINE__)
   call memfree(elvec,__FILE__,__LINE__)
+  call fe_velocity%free()
   
   ! Finalize discrete integration structures
   call deallocate_stabilization_parameters(tau_m,tau_c)
@@ -456,3 +474,109 @@ subroutine compute_mean_elemental_velocity(this,fe,fe_velocity,mean_velocity_vec
   mean_velocity_vector = alpha * mean_velocity_vector
 
 end subroutine compute_mean_elemental_velocity
+
+!====================================================================================================
+function compute_analytical_force(this,point) result(source)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(in) :: this
+  type(point_t)                            , intent(in) :: point
+  type(vector_field_t) :: source
+  type(vector_field_t) :: velocity
+  type(vector_field_t) :: dt_velocity
+  type(vector_field_t) :: velocity_grad_div
+  type(tensor_field_t) :: velocity_gradient
+  type(vector_field_t) :: pressure_gradient
+
+  ! Evaluate functions
+  call this%analytical_functions%get_value_velocity(point,this%current_time,velocity)
+  call this%analytical_functions%get_value_dt_velocity(point,this%current_time,dt_velocity)
+  call this%analytical_functions%get_value_velocity_gradient(point,this%current_time,velocity_gradient)
+  call this%analytical_functions%get_value_velocity_grad_div(point,this%current_time,velocity_grad_div)
+  call this%analytical_functions%get_value_pressure_gradient(point,this%current_time,pressure_gradient)
+
+  ! Compute force  ( f = du/dt + u*grad(u) - nu * div( grad(u) + grad(u)T ) + grad(p) )
+  if(this%convection_activated) then
+     source = dt_velocity + velocity * velocity_gradient + (-1.0_rp*this%viscosity) * velocity_grad_div &
+          & + pressure_gradient
+  else
+     source = dt_velocity + (-1.0_rp*this%viscosity) * velocity_grad_div + pressure_gradient
+  end if
+  
+end function compute_analytical_force
+  
+!====================================================================================================
+subroutine update_boundary_conditions_analytical(this,fe_space,time)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
+  class(serial_fe_space_t)                 , intent(inout) :: fe_space
+  real(rp), optional                       , intent(in)    :: time
+  ! Locals
+  real(rp) :: time_
+
+  time_ = 0.0_rp
+  if(present(time)) time_ = time
+
+  ! Update velocity 
+  call fe_space%update_bc_value(this%analytical_functions%get_velocity_function(),bc_code=1, &
+       &                        fe_space_component=1,time=time_)
+
+  ! Update pressure
+  call fe_space%update_bc_value(this%analytical_functions%get_pressure_function(),bc_code=1, &
+       &                        fe_space_component=2,time=time_)
+
+end subroutine update_boundary_conditions_analytical
+  
+!====================================================================================================
+subroutine interpolate_fe_function_analytical(this,fe_space,time)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+  class(serial_fe_space_t)                 , intent(in)    :: fe_space
+  real(rp), optional                       , intent(in)    :: time
+  ! Locals
+  real(rp) :: time_
+
+  time_ = 0.0_rp
+  if(present(time)) time_ = time
+
+  ! Update velocity 
+  call fe_space%interpolate_fe_function(this%analytical_functions%get_velocity_function(),bc_code=1, &
+       &                                fe_space_component=1,fe_function=this%fe_values,time=time_)
+
+  ! Update pressure
+  call fe_space%interpolate_fe_function(this%analytical_functions%get_pressure_function(),bc_code=1, &
+       &                                fe_space_component=2,fe_function=this%fe_values,time=time_)
+
+end subroutine interpolate_fe_function_analytical
+  
+!====================================================================================================
+subroutine compute_error_norms(this,fe_space,environment)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+  class(serial_fe_space_t)         , target, intent(in)    :: fe_space
+  class(environment_t)             , target, intent(in)    :: environment
+  ! Locals
+  real(rp) :: velocity_error, pressure_error
+  type(error_norm_vector_t) :: velocity_error_norm
+  type(error_norm_scalar_t) :: pressure_error_norm
+
+  ! Create error norms
+  call velocity_error_norm%create(fe_space,environment,1,l2_norm)
+  call pressure_error_norm%create(fe_space,environment,2,l2_norm)
+  
+  ! Compute error norms
+  velocity_error =  velocity_error_norm%compute(this%fe_values,                                    &
+       &                                        this%analytical_functions%get_velocity_function(), &
+       &                                        this%current_time)
+  pressure_error =  pressure_error_norm%compute(this%fe_values,                                    &
+       &                                        this%analytical_functions%get_pressure_function(), &
+       &                                        this%current_time)
+
+  ! Free error norms
+  call velocity_error_norm%free()
+  call pressure_error_norm%free()
+
+  ! Print error norms
+  write(*,*) 'Velocity error L2-norm: ', velocity_error
+  write(*,*) 'Pressure error L2-norm: ', pressure_error
+
+end subroutine compute_error_norms
