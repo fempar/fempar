@@ -188,9 +188,9 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL  
         ! Matrix type
-#ifdef DEBUG
         is_present     = parameter_list%isPresent(Key=pardiso_mkl_matrix_type)
         if(is_present) then
+#ifdef DEBUG
             same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_matrix_type, mold=this%matrix_type)
             FPLError       = parameter_list%getshape(Key=pardiso_mkl_matrix_type, shape=shape)
             if(same_data_type .and. size(shape) == 0) then
@@ -204,16 +204,17 @@ contains
                 else
                     write(*,'(a)') ' Warning! pardiso_mkl_matrix_type ignored. It cannot be changed after analysis phase'
                 endif
-
 #ifdef DEBUG
             else
                 write(*,'(a)') ' Warning! pardiso_mkl_matrix_type ignored. Wrong data type or shape. '
             endif
+#endif
         endif
 
          ! iparm
         is_present     = parameter_list%isPresent(Key=pardiso_mkl_iparm)
         if(is_present) then
+#ifdef DEBUG
             same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_iparm, mold=this%pardiso_mkl_iparm)
             FPLError       = parameter_list%getshape(Key=pardiso_mkl_iparm, shape=shape)
             if(same_data_type .and. size(shape) == 1) then
@@ -228,11 +229,13 @@ contains
             else
                 write(*,'(a)') ' Warning! pardiso_mkl_iparm ignored. Wrong data type or shape. '
             endif
+#endif
         endif
 
          ! Message level
         is_present     = parameter_list%isPresent(Key=pardiso_mkl_message_level)
         if(is_present) then
+#ifdef DEBUG
             same_data_type = parameter_list%isOfDataType(Key=pardiso_mkl_message_level, mold=this%message_level)
             FPLError       = parameter_list%getshape(Key=pardiso_mkl_message_level, shape=shape)
             if(same_data_type .and. size(shape) == 0) then
@@ -243,8 +246,8 @@ contains
             else
                 write(*,'(a)') ' Warning! pardiso_mkl_message_level ignored. Wrong data type or shape. '
             endif
-        endif
 #endif
+        endif
 #else
         call this%not_enabled_error()
 #endif

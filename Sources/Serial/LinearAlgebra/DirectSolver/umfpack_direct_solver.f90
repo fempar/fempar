@@ -134,9 +134,9 @@ contains
         integer(ip), allocatable                       :: shape(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
-#ifdef DEBUG
         is_present     = parameter_list%isPresent(Key=umfpack_control_params)
         if(is_present) then
+#ifdef DEBUG
             same_data_type = parameter_list%isOfDataType(Key=umfpack_control_params, mold=this%Control)
             FPLError       = parameter_list%getshape(Key=umfpack_control_params, shape=shape)
             if(same_data_type .and. size(shape) == 1) then
@@ -152,8 +152,8 @@ contains
             else
                 write(*,'(a)') ' Warning! pardiso_mkl_iparam ignored. Wrong data type or shape. '
             endif
-        endif
 #endif
+        endif
 #else
         call this%not_enabled_error()
 #endif
