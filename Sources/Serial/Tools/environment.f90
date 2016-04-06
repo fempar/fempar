@@ -32,58 +32,58 @@ module environment_names
 
   type, abstract :: environment_t
    contains
-     procedure (info_interface), deferred  :: info
-     procedure (am_i_fine_task_interface), deferred  :: am_i_fine_task
-     procedure (bcast_interface), deferred  :: bcast
-     procedure (first_level_barrier_interface), deferred  :: first_level_barrier
-     procedure (first_level_sum_real_scalar_interface), private, deferred  :: first_level_sum_real_scalar
-     procedure (first_level_sum_real_vector_interface), private, deferred  :: first_level_sum_real_vector
-     generic  :: first_level_sum => first_level_sum_real_scalar, first_level_sum_real_vector
+     procedure (info_interface)                       , deferred  :: info
+     procedure (am_i_l1_task_interface)               , deferred  :: am_i_l1_task
+     procedure (bcast_interface)                      , deferred  :: bcast
+     procedure (l1_barrier_interface)                 , deferred  :: l1_barrier
+     procedure (l1_sum_real_scalar_interface), private, deferred  :: l1_sum_real_scalar
+     procedure (l1_sum_real_vector_interface), private, deferred  :: l1_sum_real_vector
+     generic  :: l1_sum                                           => l1_sum_real_scalar, l1_sum_real_vector
   end type environment_t
 
   ! Abstract interfaces
   abstract interface
-     subroutine info_interface(env,me,np) 
+     subroutine info_interface(this,me,np) 
        import :: environment_t, ip
        implicit none
-       class(environment_t),intent(in)  :: env
-       integer(ip)                ,intent(out) :: me
-       integer(ip)                ,intent(out) :: np
+       class(environment_t),intent(in)  :: this
+       integer(ip)         ,intent(out) :: me
+       integer(ip)         ,intent(out) :: np
      end subroutine info_interface
 
-     function am_i_fine_task_interface(env) 
+     function am_i_l1_task_interface(this) 
        import :: environment_t, ip
        implicit none
-       class(environment_t) ,intent(in)  :: env
-       logical                                  :: am_i_fine_task_interface 
-     end function am_i_fine_task_interface
+       class(environment_t) ,intent(in)  :: this
+       logical                           :: am_i_l1_task_interface 
+     end function am_i_l1_task_interface
 
-     subroutine bcast_interface (env, condition)
+     subroutine bcast_interface (this, condition)
        import :: environment_t
        implicit none
-       class(environment_t) ,intent(in)    :: env
-       logical                     ,intent(inout) :: condition
+       class(environment_t) ,intent(in)    :: this
+       logical              ,intent(inout) :: condition
      end subroutine bcast_interface
 
-     subroutine first_level_barrier_interface (env)
+     subroutine l1_barrier_interface (this)
        import :: environment_t
        implicit none
-       class(environment_t) ,intent(in)    :: env
-     end subroutine first_level_barrier_interface
+       class(environment_t) ,intent(in)    :: this
+     end subroutine l1_barrier_interface
      
-     subroutine first_level_sum_real_scalar_interface (env,alpha)
+     subroutine l1_sum_real_scalar_interface (this,alpha)
        import :: environment_t, rp
        implicit none
-       class(environment_t) , intent(in)    :: env
+       class(environment_t) , intent(in)    :: this
        real(rp)             , intent(inout) :: alpha
-     end subroutine first_level_sum_real_scalar_interface
+     end subroutine l1_sum_real_scalar_interface
      
-     subroutine first_level_sum_real_vector_interface(env,alpha)
+     subroutine l1_sum_real_vector_interface(this,alpha)
        import :: environment_t, rp
        implicit none
-       class(environment_t) , intent(in)    :: env
+       class(environment_t) , intent(in)    :: this
        real(rp)             , intent(inout) :: alpha(:) 
-     end subroutine first_level_sum_real_vector_interface
+     end subroutine l1_sum_real_vector_interface
   end interface
 
   public :: environment_t

@@ -36,6 +36,7 @@ module par_mesh_names
   ! Parallel modules
   use par_io_names
   use par_environment_names
+  use par_context_names
 
   implicit none
 # include "debug.i90"
@@ -89,9 +90,9 @@ contains
 
     ! Parallel environment MUST BE already created
     assert ( associated(p_mesh%p_env) )
-    assert ( p_mesh%p_env%created )
+    assert ( p_mesh%p_env%created() )
 
-    if(p_mesh%p_env%p_context%iam<0) return
+    if( .not. p_mesh%p_env%am_i_l1_task() ) return
 
     if ( mode == free_clean ) then
        nullify (p_mesh%p_env)
@@ -112,7 +113,7 @@ contains
     type(par_mesh_t)               , intent(out) :: p_mesh
     
     ! Parallel environment MUST BE already created
-    assert ( p_env%created )
+    assert ( p_env%created() )
     
     p_mesh%p_env => p_env
   end subroutine par_mesh_create
@@ -121,30 +122,29 @@ contains
   subroutine par_mesh_read ( dir_path, prefix, p_env, p_mesh )
     implicit none 
     ! Parameters
-    character (*)                , intent(in)  :: dir_path
-    character (*)                , intent(in)  :: prefix
-    type(par_environment_t), target, intent(in)  :: p_env
-    type(par_mesh_t)               , intent(out) :: p_mesh
+    character (*)                  , intent(in)    :: dir_path
+    character (*)                  , intent(in)    :: prefix
+    type(par_environment_t), target, intent(in)    :: p_env
+    type(par_mesh_t)               , intent(inout) :: p_mesh
 
     ! Locals
     integer                        :: iam, num_procs
     integer(ip)                    :: j, ndigs_iam, ndigs_num_procs, lunio
     character(len=:), allocatable  :: name 
 
-    ! Parallel environment MUST BE already created
-    assert ( p_env%created )
+    assert ( p_env%created() )
 
     p_mesh%p_env => p_env
-    if(p_env%p_context%iam>=0) then
+    if(p_env%am_i_l1_task()) then
        call mesh_compose_name ( prefix, name )
-       call par_filename( p_mesh%p_env%p_context, name )
+       call par_filename( p_env%get_l1_context(), name )
        ! Read mesh
        lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
        call mesh_read_file ( lunio, p_mesh%f_mesh, permute_c2z = .false. )
        call io_close(lunio)
 
        call mesh_distribution_compose_name ( prefix, name )
-       call par_filename( p_mesh%p_env%p_context, name )
+       call par_filename( p_env%get_l1_context(), name )
        ! Read mesh distribution control data
        lunio = io_open (trim(dir_path) // '/' // trim(name))
        call mesh_distribution_read ( lunio, p_mesh%f_mesh_dist )

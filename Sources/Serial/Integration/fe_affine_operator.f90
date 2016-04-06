@@ -413,7 +413,7 @@ end subroutine fe_affine_operator_setup
 subroutine fe_affine_operator_fill_values(this)
   implicit none
   class(fe_affine_operator_t), intent(inout) :: this
-  if ( this%environment%am_i_fine_task() ) then
+  if ( this%environment%am_i_l1_task() ) then
     call this%discrete_integration%integrate( this%fe_space, this%matrix_array_assembler )
   end if  
 end subroutine fe_affine_operator_fill_values

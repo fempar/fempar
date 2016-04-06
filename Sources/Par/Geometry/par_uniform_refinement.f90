@@ -112,10 +112,11 @@ contains
     
     class(reference_fe_t), pointer :: reference_fe_geo
     type(list_t)         , pointer :: vertices_vef
+    type(par_context_t)  , pointer :: l1_context
     
     p_mesh%p_env => p_trian%p_env
-
-    if ( p_trian%p_env%am_i_fine_task() ) then
+    l1_context   => p_trian%p_env%get_l1_context()
+    if ( p_trian%p_env%am_i_l1_task() ) then
        ! The triangulation must have only a single element type in triangulation
        assert ( size(p_trian%f_trian%reference_fe_geo_list) == 1 )
 
@@ -140,7 +141,7 @@ contains
           if (p_trian%f_trian%vefs(ivef)%dimension < 2) then
              old2new_vefs(ivef) = num_vertices+1
              num_vertices = num_vertices + 1
-             if ( p_trian%vefs(ivef)%interface /= 0 ) then ! Interface vef
+             if ( p_trian%vefs(ivef)%interface /= 0 ) then 
                 max_mypart = 0 
                 do ielem=1, p_trian%f_trian%vefs(ivef)%num_elems_around
                    elem_lid = p_trian%f_trian%vefs(ivef)%elems_around(ielem)
@@ -148,7 +149,7 @@ contains
                       max_mypart = p_trian%elems(elem_lid)%mypart
                    end if
                 end do
-                if ( max_mypart == p_trian%p_env%p_context%iam+1) then
+                if ( max_mypart == l1_context%get_rank()+1) then
                    num_vertices_i_am_owner = num_vertices_i_am_owner + 1
                 end if
              else ! Interior vef
@@ -159,7 +160,7 @@ contains
 
        ! Determine number of global vertices in refined mesh
        call MPI_Allreduce(num_vertices_i_am_owner, num_global_vertices, 1, &
-                          mpi_integer8, mpi_sum, p_trian%p_env%p_context%icontxt, ierr)
+                          mpi_integer8, mpi_sum, l1_context%get_icontxt(), ierr)
        check(ierr==0)
 
        ! Allocate vertices map
@@ -170,8 +171,8 @@ contains
        p_mesh%f_mesh%npoin = num_vertices 
        p_mesh%f_mesh%ndime = p_trian%f_trian%num_dims 
 
-       p_mesh%f_mesh_dist%ipart  = p_trian%p_env%p_context%iam + 1 
-       p_mesh%f_mesh_dist%nparts = p_trian%p_env%p_context%np
+       p_mesh%f_mesh_dist%ipart  = l1_context%get_rank() + 1 
+       p_mesh%f_mesh_dist%nparts = l1_context%get_size()
 
        p_cond%f_conditions%ncond = p_mesh%f_mesh%npoin
 
@@ -262,7 +263,7 @@ contains
        ptr_num_subelems_per_part(1)=1
        call mpi_allgather(int(p_mesh%f_mesh%nelem,igp), 1, MPI_INTEGER8, &
                           ptr_num_subelems_per_part(2), 1, MPI_INTEGER8, & 
-                          p_trian%p_env%p_context%icontxt, ierr)
+                          l1_context%get_icontxt(), ierr)
        check(ierr==0)
        do i=1, p_mesh%f_mesh_dist%nparts
           ptr_num_subelems_per_part(i+1)=ptr_num_subelems_per_part(i)+ptr_num_subelems_per_part(i+1) 
@@ -305,7 +306,7 @@ contains
        call memalloc ( p_mesh%f_mesh_dist%nebou, p_mesh%f_mesh_dist%lebou, __FILE__, __LINE__ )
        call memalloc ( p_mesh%f_mesh_dist%nebou+1, p_mesh%f_mesh_dist%pextn, __FILE__, __LINE__ )
 
-       call ghost_elements_exchange( p_trian%p_env%p_context%icontxt, p_trian%element_import, data )
+       call ghost_elements_exchange( l1_context%get_icontxt(), p_trian%element_import, data )
 
        ! List interface subelems and count its neighbours
        num_subelems_interface = 0

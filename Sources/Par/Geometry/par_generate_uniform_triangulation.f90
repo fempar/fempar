@@ -37,9 +37,11 @@ module par_generate_uniform_triangulation_names
   use reference_fe_names
   
   use par_environment_names
+  use par_context_names
   use par_triangulation_names
   use par_conditions_names
   use par_element_exchange_names
+  
   implicit none
 # include "debug.i90"
   private
@@ -62,28 +64,30 @@ contains
     type(par_conditions_t)           , intent(out) :: p_cond
     integer(ip), allocatable       , intent(out) :: material(:)
     ! Locals
-    type(mesh_distribution_t) :: mdist
-    type (hash_table_igp_ip_t)    :: hash
-    integer(ip)                 :: num_elems, num_ghosts, aux_val
-    integer(ip)                 :: istat, ielem, iobj, jobj, state
-    integer(ip)                 :: ilele, nvert, jelem, jlele, idime, count, ivere 
-    integer(igp), allocatable   :: aux_igp(:)
-    integer(ip) , allocatable   :: aux(:)
-    type(list_t), pointer :: vertices_vef
+    type(mesh_distribution_t)    :: mdist
+    type (hash_table_igp_ip_t)   :: hash
+    integer(ip)                  :: num_elems, num_ghosts, aux_val
+    integer(ip)                  :: istat, ielem, iobj, jobj, state
+    integer(ip)                  :: ilele, nvert, jelem, jlele, idime, count, ivere 
+    integer(igp), allocatable    :: aux_igp(:)
+    integer(ip) , allocatable    :: aux(:)
+    type(list_t), pointer        :: vertices_vef
+    type(par_context_t), pointer :: l1_context
     
     ! Assign environment
     p_trian%p_env => p_env
     p_cond%p_env  => p_env
+    l1_context    => p_env%get_l1_context()
 
-    if(p_trian%p_env%p_context%iam >= 0) then
+    if(p_trian%p_env%am_i_l1_task()) then
        
        ! Checks
        state = p_trian%state
        check(state == par_triangulation_not_created)
 
        ! Create Local triangulation and mesh_distribution
-       call generate_uniform_triangulation(p_trian%p_env%p_context%iam+1,gdata,bdata,geo_reference_element,p_trian%f_trian, &
-            &                 p_cond%f_conditions,material,mdist)
+       call generate_uniform_triangulation(l1_context%get_rank()+1,gdata,bdata,geo_reference_element,p_trian%f_trian, &
+            &                              p_cond%f_conditions,material,mdist)
 
        ! Create element_import
        call element_import_create(mdist,p_trian%element_import)
@@ -115,7 +119,7 @@ contains
 
        ! Fill array of elements (local ones)
        do ielem=1, num_elems
-          p_trian%elems(ielem)%mypart      = p_trian%p_env%p_context%iam + 1
+          p_trian%elems(ielem)%mypart      = l1_context%get_rank() + 1
           p_trian%elems(ielem)%globalID    = mdist%emap%l2g(ielem)
           p_trian%elems(ielem)%num_vefs = p_trian%f_trian%elems(ielem)%num_vefs
           call memalloc(p_trian%elems(ielem)%num_vefs, p_trian%elems(ielem)%vefs_GIDs, __FILE__, __LINE__ )
@@ -126,7 +130,7 @@ contains
        end do
 
        ! Get vefs_GIDs from ghost elements
-       call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%element_import, p_trian%elems )
+       call ghost_elements_exchange ( l1_context%get_icontxt(), p_trian%element_import, p_trian%elems )
 
        ! Allocate elem_topology in triangulation for ghost elements  (SBmod)
        do ielem = num_elems+1, num_elems+num_ghosts       

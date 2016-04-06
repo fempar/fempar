@@ -110,7 +110,7 @@ contains
     do j=1, n
       s(j) = vector%local_dot(this%vectors(j))
     end do
-    call this%environment%first_level_sum(s)
+    call this%environment%l1_sum(s)
   end subroutine multivector_multidot  
   
   ! vector <- vector +  alpha*this_n^T*s, with this_n = (this(1), this(2), ..., this(n))

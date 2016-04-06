@@ -36,6 +36,7 @@ module par_environment_names
   ! Parallel modules
   use psb_penv_mod_names
   use par_context_names
+  
 #ifdef MPI_MOD
   use mpi
 #endif
@@ -43,99 +44,214 @@ module par_environment_names
 #ifdef MPI_H
   include 'mpif.h'
 #endif
+  
 # include "debug.i90"
   private
 
   type, extends(environment_t) ::  par_environment_t
-     logical                        :: created             ! Has the parallel environment been created?
-     type (par_context_t), pointer  :: p_context => NULL() ! Fine process
-     type (par_context_t), pointer  :: q_context => NULL() ! Available (unused) processes 
-     type (par_context_t), pointer  :: b_context => NULL() ! Intercommunicator betwen p_context and q_context (bcast and recursive call)
-     type (par_context_t), pointer  :: w_context => NULL() ! World communicator (all process involved).
+     private 
+     logical                          :: has_been_created  ! Has the parallel environment been created?
+     type (par_context_t)             :: l1_context        ! 1st lev MPI tasks context
+     type (par_context_t)             :: lgt1_context      ! > 1st lev MPI tasks context
+     type (par_context_t)             :: l1_lgt1_context   ! Intercommunicator among l1 and lgt1 context
+     type (par_context_t)             :: l1_to_l2_context  ! Subcommunicators for l1 to/from l2 data transfers
      
      ! Number of levels in the multilevel hierarchy of MPI tasks
-     integer(ip) :: num_levels = -1 
+     integer(ip)                      :: num_levels = 0
+     integer(ip), allocatable         :: parts_mapping(:), num_parts_per_level(:)
      
-     integer(ip), allocatable ::     &
-          id_parts(:),               &    ! Part identifier
-          num_parts(:)                    ! Number of parts
-
+     type(par_environment_t), pointer :: next_level 
    contains
-     
-     procedure :: par_environment_create_single_level 
-     procedure :: par_environment_create_multilevel
-     generic :: create =>  par_environment_create_single_level, &
-                           par_environment_create_multilevel
-     
-     procedure :: par_environment_bcast_logical
+     procedure :: create                      => par_environment_create
+     procedure :: free                        => par_environment_free
+     procedure :: print                       => par_environment_print
+     procedure :: created                     => par_environment_created
+     procedure :: get_l1_context              => par_environment_get_l1_context
+     procedure :: get_lgt1_context            => par_environment_get_l1_context
+     procedure :: am_i_lgt1_task              => par_environment_am_i_lgt1_task
 
-     
-     procedure :: info                => par_environment_info
-     procedure :: am_i_fine_task      => par_environment_am_i_fine_task
-     procedure :: bcast               => par_environment_bcast_logical
-     procedure :: first_level_barrier => par_environment_first_level_barrier
-     procedure :: first_level_sum_real_scalar => par_environment_first_level_sum_real_scalar
-     procedure :: first_level_sum_real_vector => par_environment_first_level_sum_real_vector
+     ! Deferred TBPs inherited from class(environment_t)
+     procedure :: info                        => par_environment_info
+     procedure :: am_i_l1_task                => par_environment_am_i_l1_task
+     procedure :: bcast                       => par_environment_bcast
+     procedure :: l1_barrier                  => par_environment_l1_barrier
+     procedure :: l1_sum_real_scalar          => par_environment_l1_sum_real_scalar
+     procedure :: l1_sum_real_vector          => par_environment_l1_sum_real_vector
   end type par_environment_t
-  
-
-  interface par_environment_create
-     module procedure par_environment_create_single_level, par_environment_create_multilevel
-  end interface par_environment_create
 
   ! Types
-  public :: par_environment_t, par_environment_create, par_environment_free
+  public :: par_environment_t
 
 contains
 
-  subroutine par_environment_first_level_barrier(env) 
+  !=============================================================================
+  recursive subroutine par_environment_create ( this, world_context, num_levels, num_parts_per_level, parts_mapping)
+    implicit none 
+    ! Parameters
+    class(par_environment_t)   , intent(inout) :: this
+    type(par_context_t)        , intent(in)    :: world_context
+    integer(ip)                , intent(in)    :: num_levels
+    integer(ip)                , intent(in)    :: num_parts_per_level(num_levels)
+    integer(ip)                , intent(in)    :: parts_mapping(num_levels)
+    integer                                    :: my_color
+    integer(ip)                                :: istat
+    
+    assert ( num_levels >= 1 )
+    assert ( world_context%get_rank() >= 0 )
+    
+    call this%free()
+    
+    this%num_levels = num_levels
+    call memalloc(this%num_levels, this%parts_mapping,__FILE__,__LINE__ )
+    call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__ )
+    this%parts_mapping = parts_mapping
+    this%num_parts_per_level = num_parts_per_level
+    
+    ! Create this%l1_context and this%lgt1_context by splitting world_context
+    call world_context%split ( world_context%get_rank() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
+
+    ! Create l1_to_l2_context, where inter-level data transfers actually occur
+    if ( this%num_levels > 1 ) then
+      if(this%l1_context%get_rank() >= 0) then
+         my_color = this%parts_mapping(2)
+      else if( this%lgt1_context%get_rank() < this%num_parts_per_level(2)  ) then
+         my_color = this%lgt1_context%get_rank()+1
+      else
+         my_color = mpi_undefined
+      end if
+      call world_context%split ( my_color, this%l1_to_l2_context )
+    else
+      call this%l1_to_l2_context%nullify()
+    end if
+    
+    ! Create l1_lgt1_context as an intercommunicator among l1_context <=> lgt1_context 
+    if ( this%num_levels > 1 ) then
+      call this%l1_lgt1_context%create ( world_context, this%l1_context, this%lgt1_context )
+    else
+      call this%l1_lgt1_context%nullify()
+    end if
+
+    if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
+      allocate(this%next_level, stat=istat)
+      check(istat == 0)
+      call this%next_level%create( this%lgt1_context, &
+                                   this%num_levels-1, &
+                                   this%num_parts_per_level(2:), &
+                                   this%parts_mapping(2:) )
+    else
+      nullify(this%next_level)
+    end if
+    
+    this%has_been_created = .true. 
+  end subroutine par_environment_create
+
+  !=============================================================================
+  recursive subroutine par_environment_free ( this )
+    implicit none 
+    ! Parameters
+    class(par_environment_t), intent(inout) :: this
+    integer(ip)                             :: istat
+
+    if (this%has_been_created) then
+       if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
+         call this%next_level%free()
+         deallocate ( this%next_level, stat = istat )
+         assert ( istat == 0 )
+       end if       
+       this%num_levels = 0
+       call memfree(this%parts_mapping , __FILE__, __LINE__ )
+       call memfree(this%num_parts_per_level, __FILE__, __LINE__ )
+       call this%l1_context%free(finalize=.false.)
+       call this%lgt1_context%free(finalize=.false.)
+       call this%l1_lgt1_context%free(finalize=.false.)
+       call this%l1_to_l2_context%free(finalize=.false.)
+       this%has_been_created = .false.
+    end if
+  end subroutine par_environment_free
+  
+  !=============================================================================
+  recursive subroutine par_environment_print ( this )
+    implicit none 
+    ! Parameters
+    class(par_environment_t), intent(in) :: this
+    integer(ip)                          :: istat
+
+    if (this%has_been_created) then
+      write(*,*) 'LEVELS: ', this%num_levels, 'l1_context      : ',this%l1_context%get_rank(), this%l1_context%get_size()
+      write(*,*) 'LEVELS: ', this%num_levels, 'lgt1_context    : ',this%lgt1_context%get_rank(), this%lgt1_context%get_size()
+      write(*,*) 'LEVELS: ', this%num_levels, 'l1_lgt1_context : ',this%l1_lgt1_context%get_rank(), this%l1_lgt1_context%get_size()
+      write(*,*) 'LEVELS: ', this%num_levels, 'l1_to_l2_context: ',this%l1_to_l2_context%get_rank(), this%l1_to_l2_context%get_size()
+   
+      if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
+        call this%next_level%print()
+      end if
+    end if
+  end subroutine par_environment_print
+
+  !=============================================================================
+  function par_environment_created ( this )
+    implicit none 
+    ! Parameters
+    class(par_environment_t), intent(in) :: this
+    logical                              :: par_environment_created
+    par_environment_created =  this%has_been_created 
+  end function par_environment_created
+  
+  !=============================================================================
+  function par_environment_get_l1_context ( this )
+    implicit none 
+    ! Parameters
+    class(par_environment_t), target,  intent(in) :: this
+    type(par_context_t)     , pointer             :: par_environment_get_l1_context
+    par_environment_get_l1_context => this%l1_context
+  end function par_environment_get_l1_context
+  
+  !=============================================================================
+  function par_environment_am_i_lgt1_task(this) 
+    implicit none
+    class(par_environment_t) ,intent(in)  :: this
+    logical                               :: par_environment_am_i_lgt1_task 
+    assert ( this%created() )
+    par_environment_am_i_lgt1_task = (this%lgt1_context%get_rank() >= 0)
+  end function par_environment_am_i_lgt1_task
+
+  subroutine par_environment_l1_barrier(this) 
     implicit none
     ! Dummy arguments
-    class(par_environment_t),intent(in)  :: env
+    class(par_environment_t),intent(in)  :: this
 
     ! Local variables
     integer :: mpi_comm_p, ierr
 
     ! Parallel environment MUST BE already created
-    assert ( env%created )
-    assert ( associated(env%p_context) )
+    assert ( this%created() )
 
-    ! Get MPI communicator associated to icontxt_b (in
-    ! the current implementation of our wrappers
-    ! to the MPI library icontxt and mpi_comm are actually 
-    ! the same)
-    call psb_get_mpicomm (env%p_context%icontxt, mpi_comm_p)
-    call mpi_barrier ( mpi_comm_p, ierr)
-    check ( ierr == 0 )
-  end subroutine par_environment_first_level_barrier
+    if ( this%am_i_l1_task() ) then
+      call psb_get_mpicomm (this%l1_context%get_icontxt(), mpi_comm_p)
+      call mpi_barrier ( mpi_comm_p, ierr)
+      check ( ierr == 0 )
+    end if
+  end subroutine par_environment_l1_barrier
 
-  subroutine par_environment_info(env,me,np) 
+  subroutine par_environment_info(this,me,np) 
     implicit none
-    class(par_environment_t),intent(in)  :: env
+    class(par_environment_t),intent(in)  :: this
     integer(ip)           ,intent(out) :: me
     integer(ip)           ,intent(out) :: np
-
-    ! Parallel environment MUST BE already created
-    assert ( env%created )
-
-    me = env%p_context%iam 
-    np = env%p_context%np
-
+    assert ( this%created() )
+    me = this%l1_context%get_rank()
+    np = this%l1_context%get_size()
   end subroutine par_environment_info
   
-  function par_environment_am_i_fine_task(env) 
+  function par_environment_am_i_l1_task(this) 
     implicit none
-    class(par_environment_t) ,intent(in)  :: env
-    logical                             :: par_environment_am_i_fine_task 
+    class(par_environment_t) ,intent(in)  :: this
+    logical                             :: par_environment_am_i_l1_task 
+    assert ( this%created() )
+    par_environment_am_i_l1_task = (this%l1_context%get_rank() >= 0)
+  end function par_environment_am_i_l1_task
 
-    ! Parallel environment MUST BE already created
-    assert ( env%created )
-
-    par_environment_am_i_fine_task = (env%p_context%iam >= 0)
-
-  end function par_environment_am_i_fine_task
-
-  subroutine par_environment_bcast_logical(env,condition)
+  subroutine par_environment_bcast(this,condition)
 #ifdef MPI_MOD
     use mpi
 #endif
@@ -144,15 +260,12 @@ contains
     include 'mpif.h'
 #endif
     ! Parameters
-    class(par_environment_t), intent(in)    :: env
-    logical               , intent(inout) :: condition
-
+    class(par_environment_t), intent(in)    :: this
+    logical                 , intent(inout) :: condition
     ! Locals
     integer :: mpi_comm_b, info
-
-    assert ( env%created )
-
-    if ( env%num_levels > 1 ) then
+    assert ( this%created() )
+    if ( this%num_levels > 1 ) then
        ! b_context is an intercomm among p_context & q_context
        ! Therefore the semantics of the mpi_bcast subroutine slightly changes
        ! P_0 in p_context is responsible for bcasting condition to all the processes
@@ -162,127 +275,39 @@ contains
        ! the current implementation of our wrappers
        ! to the MPI library icontxt and mpi_comm are actually 
        ! the same)
-       call psb_get_mpicomm (env%b_context%icontxt, mpi_comm_b)
+       call psb_get_mpicomm (this%l1_lgt1_context%get_icontxt(), mpi_comm_b)
        
-       if (env%p_context%iam >=0) then
-          if ( env%p_context%iam == psb_root_ ) then
+       if (this%l1_context%get_rank() >=0) then
+          if ( this%l1_context%get_rank() == psb_root_ ) then
              call mpi_bcast(condition,1,MPI_LOGICAL,MPI_ROOT,mpi_comm_b,info)
              check( info == mpi_success )
           else
              call mpi_bcast(condition,1,MPI_LOGICAL,MPI_PROC_NULL,mpi_comm_b,info)
              check( info == mpi_success )
           end if
-       else if (env%q_context%iam >=0) then
+       else if (this%lgt1_context%get_rank() >=0) then
           call mpi_bcast(condition,1,MPI_LOGICAL,psb_root_,mpi_comm_b,info)
           check( info == mpi_success )
        end if
     end if
-
-  end subroutine par_environment_bcast_logical
-
-  !=============================================================================
-  subroutine par_environment_create_single_level ( p_env, p_context )
-    implicit none 
-    ! Parameters
-    class(par_environment_t)        , intent(out) :: p_env
-    type(par_context_t)    , target , intent(in)  :: p_context
-
-    assert(p_context%created)
-    p_env%p_context => p_context
-
-    nullify(p_env%w_context)
-    nullify(p_env%q_context)
-    nullify(p_env%b_context)
-
-    p_env%num_levels = 1 
-    call memalloc(p_env%num_levels, p_env%id_parts, __FILE__, __LINE__ )
-    p_env%id_parts(1) = p_context%iam + 1 
-
-    call memalloc(p_env%num_levels, p_env%num_parts, __FILE__, __LINE__ )
-    p_env%num_parts(1) = p_context%np
-
-    p_env%created = .true. 
-  end subroutine par_environment_create_single_level
+  end subroutine par_environment_bcast
   
-  !=============================================================================
-  subroutine par_environment_create_multilevel ( p_env,      & ! Parallel environment
-                                                 w_context,  & ! Intracomm including p & q
-                                                 p_context,  & ! Fine-tasks intracomm
-                                                 q_context,  & ! Rest-of-tasks intracomm
-                                                 b_context,  & ! Intercomm p<=>q
-                                                 num_levels, &
-                                                 id_parts,   &
-                                                 num_parts )
-    implicit none 
-    ! Parameters
-    class(par_environment_t)   , intent(out)   :: p_env
-    type(par_context_t), target, intent(in)    :: w_context
-    type(par_context_t), target, intent(in)    :: p_context
-    type(par_context_t), target, intent(in)    :: q_context
-    type(par_context_t), target, intent(in)    :: b_context
-    integer(ip)              , intent(in)    :: num_levels
-    integer(ip)              , intent(in)    :: id_parts(:)
-    integer(ip)              , intent(in)    :: num_parts(:)
-
-    assert(p_context%created .eqv. .true.)
-    p_env%p_context => p_context
-
-    assert(w_context%created .eqv. .true.)
-    p_env%w_context => w_context
-
-    assert(q_context%created .eqv. .true.)
-    p_env%q_context => q_context
-
-    assert(b_context%created .eqv. .true.)
-    p_env%b_context => b_context
-
-    assert(size(id_parts) == num_levels) 
-    assert(size(num_parts) == num_levels)
-    p_env%num_levels = num_levels
-    call memalloc(p_env%num_levels, p_env%id_parts,__FILE__,__LINE__ )
-    call memalloc(p_env%num_levels, p_env%num_parts,__FILE__,__LINE__ )
-    p_env%id_parts = id_parts
-    p_env%num_parts = num_parts
-
-    p_env%created = .true. 
-  end subroutine par_environment_create_multilevel
-
-  !=============================================================================
-  subroutine par_environment_free ( p_env )
-    implicit none 
-    ! Parameters
-    type(par_environment_t), intent(inout) :: p_env
-
-    ! Parallel environment MUST BE already created
-    assert ( p_env%created .eqv. .true.)
-
-    call memfree(p_env%id_parts , __FILE__, __LINE__ )
-    call memfree(p_env%num_parts, __FILE__, __LINE__ )
-
-    nullify ( p_env%w_context ) 
-    nullify ( p_env%p_context )
-    nullify ( p_env%q_context ) 
-    nullify ( p_env%b_context )
-
-    p_env%created = .false. 
-  end subroutine par_environment_free
-  
-  subroutine par_environment_first_level_sum_real_scalar (env,alpha)
+  subroutine par_environment_l1_sum_real_scalar (this,alpha)
     implicit none
-    class(par_environment_t) , intent(in)    :: env
+    class(par_environment_t) , intent(in)    :: this
     real(rp)                 , intent(inout) :: alpha
-    if ( env%am_i_fine_task() ) then
-      call psb_sum(env%p_context%icontxt, alpha)
+    if ( this%am_i_l1_task() ) then
+      call psb_sum(this%l1_context%get_icontxt(), alpha)
     end if
-  end subroutine par_environment_first_level_sum_real_scalar
+  end subroutine par_environment_l1_sum_real_scalar
      
- subroutine par_environment_first_level_sum_real_vector(env,alpha)
+ subroutine par_environment_l1_sum_real_vector(this,alpha)
     implicit none
-    class(par_environment_t) , intent(in)    :: env
+    class(par_environment_t) , intent(in)    :: this
     real(rp)                 , intent(inout) :: alpha(:) 
-    if ( env%am_i_fine_task() ) then
-      call psb_sum(env%p_context%icontxt, alpha)
+    if ( this%am_i_l1_task() ) then
+      call psb_sum(this%l1_context%get_icontxt(), alpha)
     end if
- end subroutine par_environment_first_level_sum_real_vector
+ end subroutine par_environment_l1_sum_real_vector
 
 end module par_environment_names

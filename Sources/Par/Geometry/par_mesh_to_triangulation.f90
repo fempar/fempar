@@ -42,6 +42,7 @@ module par_mesh_to_triangulation_names
   use par_mesh_names
   use par_element_exchange_names
   use par_conditions_names
+  use par_context_names
 
   implicit none
 # include "debug.i90"
@@ -68,12 +69,13 @@ contains
     integer(ip), allocatable :: aux(:)
     integer(ip) :: aux_val
     type(list_t), pointer :: vertices_vef
+    type(par_context_t), pointer :: l1_context
     
     ! Set a reference to the type(par_environment_t) instance describing the set of MPI tasks
     ! among which this type(par_triangulation) instance is going to be distributed 
     p_trian%p_env => p_gmesh%p_env
-
-    if(p_trian%p_env%p_context%iam >= 0) then
+    l1_context    => p_trian%p_env%get_l1_context()
+    if(p_trian%p_env%am_i_l1_task()) then
 
        state = p_trian%state
        assert(state == par_triangulation_not_created .or. state == par_triangulation_filled )
@@ -133,7 +135,7 @@ contains
 
        ! Fill array of elements (local ones)
        do ielem=1, num_elems
-          p_trian%elems(ielem)%mypart      = p_trian%p_env%p_context%iam + 1
+          p_trian%elems(ielem)%mypart      = l1_context%get_rank() + 1
           p_trian%elems(ielem)%globalID    = p_gmesh%f_mesh_dist%emap%l2g(ielem)
           p_trian%elems(ielem)%num_vefs = p_trian%f_trian%elems(ielem)%num_vefs
           call memalloc( p_trian%elems(ielem)%num_vefs, p_trian%elems(ielem)%vefs_GIDs, __FILE__, __LINE__ )
@@ -150,7 +152,7 @@ contains
        end do
 
        ! Get vefs_GIDs from ghost elements
-       call ghost_elements_exchange ( p_trian%p_env%p_context%icontxt, p_trian%element_import, p_trian%elems )
+       call ghost_elements_exchange ( l1_context%get_icontxt(), p_trian%element_import, p_trian%elems )
 
        ! Allocate elem_topology in triangulation for ghost elements  (SBmod)
        do ielem = num_elems+1, num_elems+num_ghosts       

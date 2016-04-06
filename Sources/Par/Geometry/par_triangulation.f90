@@ -119,7 +119,7 @@ contains
     ! Parameters
     integer(ip)              , intent(in) :: lunou
     type(par_triangulation_t), intent(in) :: p_trian
-    if(p_trian%p_env%p_context%iam>=0) then
+    if(p_trian%p_env%am_i_l1_task()) then
        call triangulation_print ( lunou, p_trian%f_trian, p_trian%num_elems + p_trian%num_ghosts ) 
     end if
 
@@ -135,7 +135,7 @@ contains
     ! Locals
     integer(ip) :: iobj, istat, ielem
 
-    if(p_trian%p_env%p_context%iam<0) return
+    if(.not. p_trian%p_env%am_i_l1_task()) return
 
     assert(p_trian%state == par_triangulation_filled) 
     
@@ -290,9 +290,11 @@ contains
     integer(igp), allocatable :: sort_parts_per_itfc_obj_l2 (:)
     type(hash_table_ip_ip_t)    :: ws_parts_visited
     integer(ip), parameter    :: tbl_length = 100
+    type(par_context_t), pointer :: l1_context
 
-   
-    ipart = p_trian%p_env%p_context%iam + 1
+    l1_context => p_trian%p_env%get_l1_context()
+    
+    ipart = l1_context%get_rank() + 1
 
     ! Compute an estimation (upper bound) of the maximum number of parts around any local interface vef.
     ! This estimation assumes that all elements around all local interface vefs are associated to different parts.

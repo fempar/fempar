@@ -217,7 +217,7 @@ contains
           alpha = alpha + aux
        end do
        p_env => op1%blocks(1)%get_par_environment()
-       call p_env%first_level_sum(alpha)
+       call p_env%l1_sum(alpha)
        class default
        write(0,'(a)') 'par_block_array_t%dot: unsupported op2 class'
        check(1==0)

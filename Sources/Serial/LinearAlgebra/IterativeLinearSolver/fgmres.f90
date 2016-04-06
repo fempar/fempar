@@ -240,7 +240,7 @@ contains
         ! Normalize residual direction (i.e., v_1 = r/||r||_2)
         bkryv => this%bkry%get(1)
         call bkryv%clone(x)
-        if ( environment%am_i_fine_task() ) then 
+        if ( environment%am_i_l1_task() ) then 
         if (res_norm /= 0.0_rp) call bkryv%scal(1.0_rp/res_norm, this%r)
         end if 
 
@@ -265,7 +265,7 @@ contains
             call bkryv%clone(x)
             call A%apply(bkryzv,bkryv)
         
-            if ( environment%am_i_fine_task() ) then
+            if ( environment%am_i_l1_task() ) then
                 ! Orthogonalize
                 select case( this%orthonorm_strat )
                     case ( mgsro )
@@ -323,7 +323,7 @@ contains
         end do inner
         
         if ( kloc > 0 ) then
-            if ( environment%am_i_fine_task() ) then
+            if ( environment%am_i_l1_task() ) then
                 if ( ierrc == -2 ) then
                     write (luout,*) '** Warning: FGMRES: ortho failed due to abnormal numbers, no way to proceed'
                     ! The coarse-grid task should exit 

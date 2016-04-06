@@ -70,11 +70,11 @@ contains
     type(par_conditions_t)         , intent(inout) :: cnd
 
     ! Parallel environment MUST BE already created
-    assert ( p_env%created )
+    assert ( p_env%created() )
 
     cnd%p_env => p_env
 
-    if( p_env%p_context%iam >= 0 ) then
+    if( p_env%am_i_l1_task() >= 0 ) then
        call conditions_create ( ncode,nvalu,ncond,cnd%f_conditions)
     end if
 
@@ -87,11 +87,11 @@ contains
     type(par_conditions_t)        , intent(inout) :: cnd_new
 
     ! Parallel environment MUST BE already created
-    assert ( cnd_old%p_env%created )
+    assert ( cnd_old%p_env%created() )
     
     cnd_new%p_env => cnd_old%p_env
 
-    if( cnd_new%p_env%p_context%iam >= 0 ) then
+    if( cnd_new%p_env%am_i_l1_task() >= 0 ) then
        call conditions_copy ( cnd_old%f_conditions, cnd_new%f_conditions )
     end if
 
@@ -104,9 +104,9 @@ contains
     type(par_conditions_t), intent(inout)  :: cnd
     
     ! Parallel environment MUST BE already created
-    assert ( cnd%p_env%created )
+    assert ( cnd%p_env%created() )
     
-    if( cnd%p_env%p_context%iam >= 0 ) then
+    if( cnd%p_env%am_i_l1_task() >= 0 ) then
        call conditions_apply_renumbering ( renumbering, cnd%f_conditions )
     end if
 
@@ -118,9 +118,9 @@ contains
     type(par_conditions_t), intent(inout) :: cnd
 
     ! Parallel environment MUST BE already created
-    assert ( cnd%p_env%created )
+    assert ( cnd%p_env%created() )
     
-    if( cnd%p_env%p_context%iam >= 0 ) then
+    if( cnd%p_env%am_i_l1_task() ) then
        call conditions_free ( cnd%f_conditions )
     end if
     
@@ -141,12 +141,12 @@ contains
     integer(ip) :: lunio
     
     ! Parallel environment MUST BE already created
-    assert ( p_env%created )
+    assert ( p_env%created() )
     
     p_conditions%p_env => p_env
-    if(p_env%p_context%iam>=0) then
+    if(p_env%am_i_l1_task()) then
        call conditions_compose_name ( prefix, name )
-       call par_filename( p_conditions%p_env%p_context, name )
+       call par_filename( p_conditions%p_env%get_l1_context(), name )
        
        ! Read conditions
        lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )

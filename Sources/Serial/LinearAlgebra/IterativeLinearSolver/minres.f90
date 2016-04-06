@@ -482,7 +482,7 @@ contains
         go to 900
     end if
 
-    if ( environment%am_i_fine_task() ) then ! Am I a fine task ?
+    if ( environment%am_i_l1_task() ) then ! Am I a fine task ?
         beta1  = sqrt( beta1 )         ! Normalize y to get v1 later.
     end if
 
@@ -513,7 +513,7 @@ contains
     do
         num_iterations = num_iterations + 1               ! k = itn = 1 first time through
 
-        if ( environment%am_i_fine_task() ) then
+        if ( environment%am_i_l1_task() ) then
             !----------------------------------------------------------------
             ! Obtain quantities for the next Lanczos vector vk+1, k = 1, 2,...
             ! The general iteration is similar to the case k = 1 with v0 = 0:
