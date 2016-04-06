@@ -55,14 +55,10 @@ implicit none
     call mesh_print(mesh)
     call mesh_to_triangulation(mesh, triangulation)
     call triangulation_print(6, triangulation)
+
     call vtk_file%initialize(triangulation, fe_space, environment, path, prefix, linear_order=.true.)
     err = vtk_file%begin_write()
     err = vtk_file%end_write()
-    call vtk_file%free()
-
-    call vtk_file%initialize(triangulation, fe_space, environment, path, prefix, linear_order=.true.)
-    err = vtk_file%begin_read()
-    err = vtk_file%end_read()
 
     call vtk_file%free()
     call mesh_free(mesh)

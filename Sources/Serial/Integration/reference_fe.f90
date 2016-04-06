@@ -174,6 +174,7 @@ module reference_fe_names
      procedure, non_overridable :: apply_inv_jacobian             => fe_map_apply_inv_jacobian
      procedure, non_overridable :: compute_quadrature_coordinates => fe_map_compute_quadrature_coordinates
      procedure, non_overridable :: get_quadrature_coordinates     => fe_map_get_quadrature_coordinates
+     procedure, non_overridable :: get_interpolation_geometry     => fe_map_get_interpolation_geometry
   end type fe_map_t
 
   type p_fe_map_t
@@ -314,6 +315,7 @@ module reference_fe_names
 
      procedure (get_number_subelements_interface),       deferred :: get_number_subelements
      procedure (get_subelements_connectivity_interface), deferred :: get_subelements_connectivity
+     procedure (get_number_nodes_scalar_interface),      deferred :: get_number_nodes_scalar
 
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
@@ -645,6 +647,13 @@ module reference_fe_names
        class(reference_fe_t), intent(in)    :: this
        integer(ip)                          :: number_subelements
      end function get_number_subelements_interface
+     
+     function get_number_nodes_scalar_interface(this) result(number_nodes_scalar)
+     import :: reference_fe_t, ip
+       implicit none
+       class(reference_fe_t), intent(in) :: this
+       integer(ip)                       :: number_nodes_scalar
+     end function get_number_nodes_scalar_interface
 
      subroutine get_subelements_connectivity_interface(this, connectivity)
      import :: reference_fe_t, ip
@@ -709,8 +718,9 @@ module reference_fe_names
           
      procedure :: fill_interior_points_permutation &
           &                   => quad_lagrangian_reference_fe_fill_interior_points_permutation     
-     procedure :: get_subelements_connectivity => quad_lagrangian_get_subelements_connectivity
-     procedure :: get_number_subelements => quad_lagrangian_get_number_subelements
+     procedure :: get_subelements_connectivity => quad_lagrangian_reference_fe_get_subelements_connectivity
+     procedure :: get_number_subelements => quad_lagrangian_reference_fe_get_number_subelements
+     procedure :: get_number_nodes_scalar => quad_lagrangian_reference_fe_get_number_nodes_scalar
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t

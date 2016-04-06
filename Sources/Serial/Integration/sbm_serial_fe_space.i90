@@ -1047,6 +1047,33 @@ end subroutine serial_fe_space_update_bc_value_tensor
    
    number_nodes = this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
  end function serial_fe_space_get_number_nodes
+
+ !===============================================================================================
+ function serial_fe_space_get_number_nodes_scalar( this, fe_space_component) result(number_nodes_scalar)
+   class(serial_fe_space_t), intent(in)    :: this 
+   integer(ip)             , intent(in)    :: fe_space_component
+   integer(ip)                             :: number_nodes_scalar
+   
+   number_nodes_scalar = this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes_scalar()
+ end function serial_fe_space_get_number_nodes_scalar
+ 
+ !===============================================================================================
+ function serial_fe_space_get_number_field_components( this, fe_space_component) result(number_components)
+   class(serial_fe_space_t), intent(in)    :: this 
+   integer(ip)             , intent(in)    :: fe_space_component
+   integer(ip)                             :: number_components
+   
+   number_components = this%reference_fe_phy_list(fe_space_component)%p%get_number_field_components()
+ end function serial_fe_space_get_number_field_components
+ 
+ !===============================================================================================
+ function serial_fe_space_get_reference_fe_phy( this, fe_space_component) result(reference_fe_phy)
+   class(serial_fe_space_t), intent(in)    :: this 
+   integer(ip)             , intent(in)    :: fe_space_component
+   class(reference_fe_t), pointer           :: reference_fe_phy
+   
+   reference_fe_phy => this%reference_fe_phy_list(fe_space_component)%p
+ end function serial_fe_space_get_reference_fe_phy
  
  !===============================================================================================
  subroutine serial_fe_space_get_subelements_connectivity( this, fe_space_component, connectivity)

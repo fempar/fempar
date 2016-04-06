@@ -526,6 +526,14 @@ function fe_map_get_quadrature_coordinates(this)
 
 end function fe_map_get_quadrature_coordinates
 
+!==================================================================================================
+function fe_map_get_interpolation_geometry(this)
+  implicit none
+  class(fe_map_t)   , target, intent(in) :: this
+  type(interpolation_t), pointer :: fe_map_get_interpolation_geometry
+  fe_map_get_interpolation_geometry => this%interpolation_geometry
+end function fe_map_get_interpolation_geometry
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_fe_map_t type procedures
 subroutine p_fe_map_allocate( this )

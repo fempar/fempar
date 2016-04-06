@@ -264,7 +264,10 @@ module serial_fe_space_names
      procedure, non_overridable :: get_nodal_quadrature => serial_fe_space_get_nodal_quadrature
      procedure, non_overridable :: get_number_subelements => serial_fe_space_get_number_subelements
      procedure, non_overridable :: get_number_nodes => serial_fe_space_get_number_nodes
+     procedure, non_overridable :: get_number_nodes_scalar => serial_fe_space_get_number_nodes_scalar
+     procedure, non_overridable :: get_number_field_components => serial_fe_space_get_number_field_components
      procedure, non_overridable :: get_subelements_connectivity => serial_fe_space_get_subelements_connectivity
+     procedure, non_overridable :: get_reference_fe_phy => serial_fe_space_get_reference_fe_phy
      
   end type serial_fe_space_t
 

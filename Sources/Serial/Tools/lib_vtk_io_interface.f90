@@ -33,10 +33,12 @@ USE iso_c_binding
 USE types_names
 USE memor_names
 USE ir_precision,                only: str
+USE vector_names,                only: vector_t
 USE environment_names,           only: environment_t
 USE triangulation_names,         only: triangulation_t
-USE serial_fe_space_names,       only: serial_fe_space_t, finite_element_t
-USE reference_fe_names,          only: reference_fe_t, quad_lagrangian_reference_fe_t, fe_map_t, quadrature_t
+USE serial_fe_space_names,       only: serial_fe_space_t, finite_element_t, fe_function_t
+USE serial_scalar_array_names,   only: serial_scalar_array_t
+USE reference_fe_names,          only: reference_fe_t, quad_lagrangian_reference_fe_t, fe_map_t, quadrature_t, interpolation_t
 USE field_names,                 only: point_t
 USE allocatable_array_ip2_names, only: allocatable_array_ip2_t
 USE reference_fe_names,          only: topology_quad, topology_tet, fe_type_lagrangian
@@ -514,7 +516,7 @@ contains
      
         ! Calculate the number of subelems and points for the postprocess
         num_elements = fe_space%get_number_elements()
-        num_nodes_per_element = fe_space%get_number_nodes(max_order_fe_space_index)
+        !num_nodes_per_element = fe_space%get_number_nodes(max_order_fe_space_index)
         num_vertices_per_element = reference_fe_geo%get_number_vertices()
         num_subelements_per_element = fe_space%get_number_subelements(max_order_fe_space_index)
         call this%mesh(this%num_meshes)%set_number_elements(num_elements * num_subelements_per_element)
@@ -634,6 +636,143 @@ contains
             if(present(f_id)) f_id = fid
         endif
     end function vtk_begin_write
+
+
+  ! Write a single VTK file to disk (if I am fine MPI task) for high order interpolation
+  function vtk_mesh_write_field_superlinear(this, fe_function, nm, f_id) result(E_IO)
+  ! ----------------------------------------------------------------------------------
+    implicit none
+    class(vtk_t),               intent(INOUT) :: this          !< VTK_t derived type
+    class(fe_function_t),        intent(inout) :: fe_function    !< Postprocess field structure to be written
+    integer(ip),                intent(IN)    :: nm             !< Real Number of Mesh
+    integer(ip),      optional, intent(IN)    :: f_id           !< File ID
+    real(rp), allocatable                     :: field(:,:)     !< FIELD(ncomp,nnod)
+    integer(ip)                               :: tidx           !< Actual Time InDeX
+    integer(ip)                               :: nnods          !< Number of NODes
+    integer(ip)                               :: nels           !< Number of ELementS
+    integer(ip)                               :: nsubels        !< Number of sub_ELementS
+    integer(ip)                               :: tnnod          !< Total Number of NODes
+    integer(ip)                               :: curr_ncomp     !< CURRent Number of COMPonent
+    integer(ip)                               :: number_components !< Total Number of COMPonents
+    integer(ip)                               :: number_nodes_scalar !< Total Number of scalar nodes
+    integer(ip)                               :: number_nodes_fe_space !< Total Number of scalar nodes
+    integer(ip)                               :: fe_space_index
+    integer(ip)                               :: element_index
+    integer(ip)                               :: node_index
+    integer(ip)                               :: component_index
+    integer(ip)                               :: subelement_index
+    integer(ip)                               :: nodes_counter
+    integer(ip)                               :: max_order
+    integer(ip)                               :: max_order_fe_space_index
+    integer(ip)                               :: block_id
+    integer(ip)                               :: tncomp         !< Total Number of COMPonents
+    integer(ip)                               :: nnode, gnode   !< NODE Number
+    integer(ip)                               :: ndime          !< Physical dimensions
+    integer(ip)                               :: elnnod         !< Number of NODes per ELement
+    integer(ip)                               :: i, j, f, idx   !< Indices
+    integer(ip)                               :: subelem, icomp !< Indices
+    integer(ip)                               :: order          !< Order of interpolation
+    integer(ip)                               :: E_IO           !< IO Error
+    logical                                   :: ft             !< Fine Task
+    integer(ip)                               :: f_type, pos_voint, istat, v_key, ltype(2)
+    real(rp), allocatable                     :: nodal_values_target(:)
+    real(rp), allocatable                     :: nodal_values_origin(:)
+    type(quadrature_t), pointer :: nodal_quadrature_target
+    type(serial_scalar_array_t), pointer :: strong_dirichlet_values
+    type(fe_map_t) :: fe_map
+    type(finite_element_t), pointer :: fe
+    class(reference_fe_t), pointer :: reference_fe_phy_origin
+    class(vector_t), pointer :: fe_function_dof_values
+    type(i1p_t), pointer :: elem2dof(:)
+    type(interpolation_t), pointer :: interpolation_geometry
+    integer(ip), pointer :: subelements_connectivity(:,:)
+    integer(ip), pointer :: field_blocks(:)
+    real(rp)            , pointer :: strong_dirichlet_values_entries(:)
+  ! ----------------------------------------------------------------------------------
+
+    ! Get max order and its fe_space_index
+    max_order = 0
+    do fe_space_index=1,this%fe_space%get_number_fe_spaces()
+        if(max_order<this%fe_space%get_order(fe_space_index)) max_order_fe_space_index = fe_space_index
+        max_order = max(max_order,this%fe_space%get_order(fe_space_index))
+    end do
+
+    ! Getters
+    nodal_quadrature_target => this%fe_space%get_nodal_quadrature(max_order_fe_space_index)
+
+    ! Calculate number nodes of target field given a certain order of interpolation, the fe_type and the number of components
+    number_components = this%fe_space%get_number_field_components(max_order_fe_space_index)
+    number_nodes_scalar = this%fe_space%get_number_nodes_scalar(max_order_fe_space_index)
+    call memalloc(number_nodes_scalar*number_components, nodal_values_target, __FILE__, __LINE__)
+
+    subelements_connectivity => this%mesh(nm)%get_subelements_connectivity_pointer()
+    
+    do fe_space_index=1, this%fe_space%get_number_fe_spaces()
+
+        number_nodes_fe_space = this%fe_space%get_number_nodes(fe_space_index)
+        call memalloc(number_nodes_fe_space, nodal_values_origin, __FILE__, __LINE__)
+
+        reference_fe_phy_origin => this%fe_space%get_reference_fe_phy(fe_space_index)
+        call fe_map%create(nodal_quadrature_target, reference_fe_phy_origin)
+
+        field_blocks => this%fe_space%get_field_blocks()
+        block_id = field_blocks(fe_space_index)
+
+        do element_index=1, this%fe_space%get_number_elements()
+
+            ! Extract nodal values associated to dirichlet bcs
+            strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
+            strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+            fe => this%fe_space%get_finite_element(element_index)  
+            elem2dof => fe%get_elem2dof()
+
+            do node_index = 1, number_nodes_scalar ! this%fe_space%get_number_nodes(max_order_fe_space_index)
+                if ( elem2dof(element_index)%p(node_index) < 0 ) then
+                    nodal_values_origin(node_index) = strong_dirichlet_values_entries(elem2dof(element_index)%p(node_index))
+                end if
+            end do
+
+             ! Extract nodal values associated to dofs
+            fe_function_dof_values => fe_function%get_dof_values()
+            call fe_function_dof_values%extract_subvector ( block_id, &
+                                                            & this%fe_space%get_number_nodes(fe_space_index), &
+                                                            & elem2dof(fe_space_index)%p, &
+                                                            & nodal_values_origin )
+!            mesh_order = this%mesh(nm)%get_order()
+
+             ! interpolate if needed ?
+            if(this%fe_space%get_order(fe_space_index) /= max_order) then
+                interpolation_geometry => fe_map%get_interpolation_geometry()
+                call reference_fe_phy_origin%interpolate_nodal_values( &
+                                                    interpolation_geometry, &
+                                                    nodal_values_origin, &
+                                                    nodal_values_target ) 
+            else
+                assert(this%fe_space%get_number_nodes(fe_space_index)==number_nodes_scalar*number_components)
+                nodal_values_target=nodal_values_origin
+            endif
+
+             ! Build field in VTK-like format
+             ! Loop over number of components
+            do component_index=1, number_components
+                nodes_counter = 0
+                ! Loop over subelements
+                do subelement_index = 1, this%fe_space%get_number_subelements(fe_space_index)
+                    ! Loop over geometrical nodes in subelement
+                    do node_index=1, number_nodes_scalar
+                        idx = subelements_connectivity(node_index,subelement_index)
+!                        field(component_index ,node_index+nodes_counter) = nodal_values_target(idx, tncomp+1:tncomp+f_vtk%mesh(nm)%postprocess_fields(f)%num_comp)
+                        field(component_index ,node_index+nodes_counter) = nodal_values_target(idx*subelement_index*component_index)
+                        nodes_counter = nodes_counter + node_index
+                    enddo
+                end do
+            end do
+        enddo
+        call fe_map%free()
+    enddo
+  end function vtk_mesh_write_field_superlinear
+
+
 
 
     function vtk_end_write(this, mesh_number, f_id) result(E_IO)
