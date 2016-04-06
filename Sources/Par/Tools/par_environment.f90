@@ -50,11 +50,11 @@ module par_environment_names
 
   type, extends(environment_t) ::  par_environment_t
      private 
-     logical                          :: has_been_created  ! Has the parallel environment been created?
-     type (par_context_t)             :: l1_context        ! 1st lev MPI tasks context
-     type (par_context_t)             :: lgt1_context      ! > 1st lev MPI tasks context
-     type (par_context_t)             :: l1_lgt1_context   ! Intercommunicator among l1 and lgt1 context
-     type (par_context_t)             :: l1_to_l2_context  ! Subcommunicators for l1 to/from l2 data transfers
+     logical                          :: has_been_created = .false.  ! Has the parallel environment been created?
+     type (par_context_t)             :: l1_context                  ! 1st lev MPI tasks context
+     type (par_context_t)             :: lgt1_context                ! > 1st lev MPI tasks context
+     type (par_context_t)             :: l1_lgt1_context             ! Intercommunicator among l1 and lgt1 context
+     type (par_context_t)             :: l1_to_l2_context            ! Subcommunicators for l1 to/from l2 data transfers
      
      ! Number of levels in the multilevel hierarchy of MPI tasks
      integer(ip)                      :: num_levels = 0

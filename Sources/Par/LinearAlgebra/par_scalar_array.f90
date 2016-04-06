@@ -571,7 +571,7 @@ contains
    par_scalar_array_same_vector_space = .true.
    select type(vector)
    class is (par_scalar_array_t)
-     if(this%p_env%am_i_l1_task()>=0) then
+     if(this%p_env%am_i_l1_task()) then
         par_scalar_array_same_vector_space = (this%dof_import%get_number_dofs() == vector%dof_import%get_number_dofs())
      end if   
    end select

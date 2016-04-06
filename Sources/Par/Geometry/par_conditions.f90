@@ -74,7 +74,7 @@ contains
 
     cnd%p_env => p_env
 
-    if( p_env%am_i_l1_task() >= 0 ) then
+    if( p_env%am_i_l1_task() ) then
        call conditions_create ( ncode,nvalu,ncond,cnd%f_conditions)
     end if
 
@@ -91,7 +91,7 @@ contains
     
     cnd_new%p_env => cnd_old%p_env
 
-    if( cnd_new%p_env%am_i_l1_task() >= 0 ) then
+    if( cnd_new%p_env%am_i_l1_task() ) then
        call conditions_copy ( cnd_old%f_conditions, cnd_new%f_conditions )
     end if
 
@@ -106,7 +106,7 @@ contains
     ! Parallel environment MUST BE already created
     assert ( cnd%p_env%created() )
     
-    if( cnd%p_env%am_i_l1_task() >= 0 ) then
+    if( cnd%p_env%am_i_l1_task() ) then
        call conditions_apply_renumbering ( renumbering, cnd%f_conditions )
     end if
 
