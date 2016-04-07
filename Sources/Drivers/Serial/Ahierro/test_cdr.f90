@@ -195,7 +195,7 @@ contains
     params%default_react               = '0.0'  ! Reaction
     params%default_diffu               = '1.0'  ! Diffusion
     params%default_space_solution_flag = '2'
-    params%default_source_term_flag    = '2'
+    params%default_source_term_flag    = '3'
 
   end subroutine set_default_params_analytical
   !==================================================================================================
@@ -238,6 +238,13 @@ module analytical_functions_names
      procedure, non_overridable ::  get_value_space_time => solution_field_get_value_space_time
   end type solution_field_function_t
 
+
+  type, extends(vector_function_t) :: convection_field_function_t
+     integer(ip) :: switch
+   contains
+     procedure, non_overridable ::  get_value_space => convection_field_get_value_space
+  end type convection_field_function_t
+
   type, extends(scalar_function_t) :: source_term_function_t 
      integer(ip) :: switch
    contains
@@ -247,6 +254,7 @@ module analytical_functions_names
   ! Types
   type ::  CDR_analytical_functions_t 
      type(solution_field_function_t), pointer       :: solution_field 
+     type(convection_field_function_t)              :: convection_field 
      type(source_term_function_t)   , pointer       :: source_term
   end type CDR_analytical_functions_t
 
@@ -282,6 +290,34 @@ contains
   end subroutine solution_field_get_value_space_time
 
   ! =================================================================================================
+  subroutine convection_field_get_value_space(this,point,result)
+    implicit none
+    class(convection_field_function_t), intent(in)    :: this
+    type(point_t)                     , intent(in)    :: point
+    type(vector_field_t)              , intent(inout) :: result
+
+    ! Locals 
+    real(rp)      :: x,y
+
+    x = point%get(1)
+    y = point%get(2) 
+
+    write(*,*) __FILE__,__LINE__,this%switch
+    select case ( this%switch )
+    case (0)     
+       call result%set(1, 0.0_rp)
+       call result%set(2, 0.0_rp)
+    case (1)     
+       call result%set(1, 1.0_rp)
+       call result%set(2, 1.0_rp)
+    case default 
+       write(*,*) __FILE__,__LINE__,'Error:: Select a convection field case'
+       assert(.false.) 
+    end select
+
+  end subroutine convection_field_get_value_space
+
+  ! =================================================================================================
   subroutine source_term_get_value_space_time(this,point,time, result)
     implicit none
     class(source_term_function_t), intent(in)    :: this
@@ -301,6 +337,8 @@ contains
        result = 0.0_rp
     case (2) 
        result = -4.0_rp
+    case (3) 
+       result = -4.0_rp + 2.0_rp*x + 2.0_rp*y
      case default 
        write(*,*) __FILE__,__LINE__,'Error:: Select a source term case'
        assert(.false.)  
@@ -318,7 +356,7 @@ module dG_CDR_discrete_integration_names
 # include "debug.i90"
   private
   type, extends(discrete_integration_t) :: dG_CDR_discrete_integration_t
-     integer(ip)                      :: viscosity 
+     real(rp)                         :: viscosity 
      real(rp)                         :: C_IP ! Interior Penalty constant
      ! DG symmetric parameter: (0-Symmetric, 1/2-Incomplete, 1-Antisymmetric)
      real(rp)                         :: xi   
@@ -333,19 +371,21 @@ module dG_CDR_discrete_integration_names
   
 contains
   
-  subroutine set_problem(this, viscosity, C_IP, xi, solution_field_function, source_term_function,  &
-       &                 solution_flag, source_term_flag)
+  subroutine set_problem(this, viscosity, convection_flag, C_IP, xi, solution_field_function,       &
+       &                 source_term_function,solution_flag, source_term_flag)
     implicit none
     class(dG_CDR_discrete_integration_t)   , intent(inout) :: this
     real(rp)                               , intent(in)    :: viscosity 
+    integer(rp)                            , intent(in)    :: convection_flag
     real(rp)                               , intent(in)    :: C_IP 
     real(rp)                               , intent(in)    :: xi
     type(solution_field_function_t), target, intent(in)    :: solution_field_function
     type(source_term_function_t)   , target, intent(in)    :: source_term_function
     integer(ip)                            , intent(in)    :: solution_flag
     integer(ip)                            , intent(in)    :: source_term_flag
-    
+  
     this%viscosity = viscosity
+    this%analytical_functions%convection_field%switch = convection_flag
     this%C_IP      = C_IP
     this%xi        = xi
     this%analytical_functions%solution_field => solution_field_function
@@ -371,11 +411,12 @@ contains
     type(quadrature_t)       , pointer :: quad
 
     integer(ip)          :: igaus,inode,jnode,ngaus
-    real(rp)             :: factor, h_length, bcvalue, source
+    real(rp)             :: factor, h_length, bcvalue, source, outflow
 
     real(rp)             :: shape_test_scalar, shape_trial_scalar
     type(vector_field_t) :: grad_test_scalar, grad_trial_scalar
     type(vector_field_t) :: normal(2)
+    type(vector_field_t) :: convection
 
     integer(ip)          :: i, j, number_fe_spaces
 
@@ -431,17 +472,19 @@ contains
        do igaus = 1,ngaus
           call this%analytical_functions%source_term%get_value_space_time(coordinates(igaus),0.0_rp,&
                                                                           source)
-          write(*,*) __FILE__,__LINE__,source
+          call this%analytical_functions%convection_field%get_value_space(coordinates(igaus),       &
+                                                                          convection)
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
           do inode = 1, number_nodes
              call vol_int%get_gradient(inode,igaus,grad_test_scalar)
              call vol_int%get_value(inode,igaus,shape_test_scalar)
              do jnode = 1, number_nodes
                 call vol_int%get_gradient(jnode,igaus,grad_trial_scalar)
+                call vol_int%get_value(jnode,igaus,shape_trial_scalar)
                 elmat(inode,jnode) = elmat(inode,jnode) +                                           &
-                     &               factor * this%viscosity * grad_trial_scalar * grad_test_scalar
+                     &               factor * (this%viscosity*grad_trial_scalar*grad_test_scalar    &
+                     &               -convection*grad_test_scalar*shape_trial_scalar)
              end do
-             write(*,*) __FILE__,__LINE__,source
              elvec(inode) = elvec(inode) + factor * source * shape_test_scalar
           end do
        end do
@@ -476,11 +519,14 @@ contains
 
        j = 1
        face_int => face%get_face_integrator(j)
-       
+       coordinates => face_map%get_quadrature_coordinates()
+
        do igaus = 1, ngaus
           call face_map%get_normals(igaus,normal)
           h_length = face_map%compute_characteristic_length(igaus,number_neighbours)
           factor = face_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
+          call this%analytical_functions%convection_field%get_value_space(coordinates(igaus),      &
+                                                                          convection)
           do ineigh = 1, number_neighbours
              do inode = 1, number_nodes_per_field(j)
                 !ioffset = number_nodes_per_field(j)*(ineigh-1) + inode
@@ -493,26 +539,19 @@ contains
                       call face_int%get_gradient(jnode,igaus,jneigh,grad_trial_scalar)
                       !- mu*({{grad u}}[[v]] + xi*[[u]]{{grad v}} ) + C*mu*p^2/h * [[u]] [[v]]
                       facemat(inode,jnode,ineigh,jneigh) = facemat(inode,jnode,ineigh,jneigh) +     &
-                           &  factor * this%viscosity *                                             &
-                           &  (-0.5_rp*grad_trial_scalar*normal(ineigh)*shape_test_scalar          &
-                           &   -this%xi*0.5_rp*grad_test_scalar*normal(jneigh)*shape_trial_scalar  &
-                           &   + this%c_IP / h_length * shape_trial_scalar*shape_test_scalar *     &
-                           &   normal(ineigh)*normal(jneigh))
+                           &  factor * (this%viscosity *                                             &
+                           &  (-0.5_rp*grad_trial_scalar*normal(ineigh)*shape_test_scalar           &
+                           &   -this%xi*0.5_rp*grad_test_scalar*normal(jneigh)*shape_trial_scalar   &
+                           &   + this%c_IP / h_length * shape_trial_scalar*shape_test_scalar *      &
+                           &   normal(ineigh)*normal(jneigh))                                       &
+                           & + 0.5_rp*convection*normal(ineigh)*shape_test_scalar*shape_trial_scalar&
+                           & + 0.5_rp*convection%nrm2()*shape_trial_scalar*shape_test_scalar *      &
+                           &   normal(ineigh)*normal(jneigh))                         
                    end do
                 end do
              end do
           end do
        end do
-!!$       write(*,*) facemat(:,:,1,1)
-!!$       write(*,*) '*************************'
-!!$
-!!$       write(*,*) facemat(:,:,1,2)
-!!$       write(*,*) '*************************'
-!!$
-!!$       write(*,*) facemat(:,:,2,1)
-!!$       write(*,*) '*************************'
-!!$       write(*,*) facemat(:,:,2,2)
-!!$       write(*,*) '*************************'
        do ineigh = 1, number_neighbours
           trial_elem2dof => face%get_elem2dof(ineigh)
           do jneigh = 1, number_neighbours
@@ -551,7 +590,13 @@ contains
           factor = face_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
           call this%analytical_functions%solution_field%get_value_space_time(coordinates(igaus),    &
                &                                                             0.0_rp,bcvalue)
-         
+          call this%analytical_functions%convection_field%get_value_space(coordinates(igaus),       &
+                                                                          convection)
+          if (convection * normal(1) > 0 ) then
+             outflow = 1.0_rp
+          else
+             outflow = 0.0_rp
+          end if
           do ineigh = 1, number_neighbours
              do inode = 1, number_nodes_per_field(j)
                 call face_int%get_value(inode,igaus,ineigh,shape_test_scalar)
@@ -561,15 +606,20 @@ contains
                       call face_int%get_value(jnode,igaus,jneigh,shape_trial_scalar)
                       call face_int%get_gradient(jnode,igaus,jneigh,grad_trial_scalar)
                       facemat(inode,jnode,ineigh,jneigh) = facemat(inode,jnode,ineigh,jneigh) +     &
-                           &  factor * this%viscosity *   &
+                           &  factor * (this%viscosity *   &
                            &  (- grad_trial_scalar*normal(ineigh)*shape_test_scalar                 &
                            &  - this%xi*grad_test_scalar*normal(jneigh)*shape_trial_scalar          &
-                           &   + this%c_IP / h_length * shape_trial_scalar*shape_test_scalar)
+                           &   + this%c_IP / h_length * shape_trial_scalar*shape_test_scalar *      &
+                           &   normal(ineigh)*normal(jneigh))                                       &
+                           &  + outflow * convection * normal(ineigh) *                             &
+                           &  shape_test_scalar*shape_trial_scalar)
                    end do
                 end do
-                facevec(inode,ineigh) = facevec(inode,ineigh) + factor * this%viscosity *           &
-                     &                  (+ this%xi* bcvalue * grad_test_scalar*normal(jneigh) +     &
-                     &                  this%c_IP/h_length * bcvalue * shape_test_scalar )
+                facevec(inode,ineigh) = facevec(inode,ineigh) + factor * (this%viscosity *          &
+                     &                  (+ this%xi* bcvalue * grad_test_scalar*normal(jneigh)       &
+                     &                  - this%c_IP/h_length * bcvalue * shape_test_scalar )        &
+                     &                  - (1.0_rp-outflow) * convection *normal(ineigh) *           &
+                     &                  bcvalue*shape_test_scalar)
              end do
           end do
        end do
@@ -630,7 +680,7 @@ program test_cdr
   character(len=256)       :: prefix, filename
   integer(ip)              :: i, j, vars_prob(1) = 1, ierror, iblock
 
-  integer(ip)                                   :: space_solution_flag,source_term_flag
+  integer(ip)                                   :: space_solution_flag,source_term_flag, convection_flag
   type(solution_field_function_t), target       :: solution_field
   type(source_term_function_t)   , target       :: source_term 
 
@@ -709,16 +759,17 @@ program test_cdr
   ! Construc triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
-  call triangulation_construct_faces ( f_trian )
+  !call triangulation_construct_faces ( f_trian )
 
   call cli%get(group=trim(group),switch='-p',val=order,error=istat); check(istat==0)
+
   ! Composite case
   reference_fe_array_one(1) = make_reference_fe ( topology = topology_quad,                         &
        &                                          fe_type  = fe_type_lagrangian,                    &
        &                                          number_dimensions = f_trian%num_dims,             &
        &                                          order = order,                                    &
        &                                          field_type = field_type_scalar,                   &
-       &                                          continuity = .false. )
+       &                                          continuity = .true. )
 
   call fe_space%create( triangulation = f_trian, boundary_conditions = f_cond,                      &
        &                reference_fe_phy = reference_fe_array_one,                                  &
@@ -728,11 +779,11 @@ program test_cdr
   call fe_space%create_face_array()
 
   call fe_space%fill_dof_info() 
-  call cli%get(group=trim(group),switch='-ssol',val=space_solution_flag,error=istat); 
-  check(istat==0)
-  call cli%get(group=trim(group),switch='-f'   ,val=source_term_flag,   error=istat); 
-  check(istat==0)
-  call dG_CDR_integration%set_problem( viscosity = 1.0_rp, C_IP = 10.0_rp, xi = 1.0_Rp,             &
+  call cli%get(group=trim(group),switch='-ssol' ,val=space_solution_flag,error=istat);check(istat==0)
+  call cli%get(group=trim(group),switch='-kconv',val=convection_flag,error=istat); check(istat==0)
+  call cli%get(group=trim(group),switch='-f'    ,val=source_term_flag,   error=istat);check(istat==0)
+  call dG_CDR_integration%set_problem( viscosity = 1.0_rp, convection_flag = convection_flag,       &
+       &                               C_IP = 10.0_rp, xi = 1.0_Rp,                                 &
        &                               solution_field_function = solution_field,                    &
        &                               source_term_function = source_term,                          &
        &                               solution_flag = space_solution_flag,                         &
