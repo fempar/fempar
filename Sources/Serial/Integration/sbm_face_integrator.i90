@@ -179,6 +179,16 @@ function face_map_get_face_coordinates(this)
 end function face_map_get_face_coordinates
 
 !==================================================================================================
+function face_map_get_quadrature_coordinates(this)
+  implicit none
+  ! Parameters
+  class(face_map_t), target, intent(in) :: this
+  type(point_t), pointer :: face_map_get_quadrature_coordinates(:)
+  
+  face_map_get_quadrature_coordinates => this%face_map%get_quadrature_coordinates()
+end function face_map_get_quadrature_coordinates
+
+!==================================================================================================
 function face_map_get_coordinates_neighbour(this,neighbour_id,local_face_id)
   implicit none
   ! Parameters
@@ -212,7 +222,7 @@ subroutine face_map_get_normals (this, qpoint, normal)
   integer(ip) :: idime
   call normal(1)%init(0.0_rp)
   call normal(2)%init(0.0_rp)
-  do idime = 1, this%number_dimensions
+  do idime = 1, this%number_dimensions+1
      call normal(1)%set(idime,this%face_map%normals(idime,qpoint))
      call normal(2)%set(idime,- this%face_map%normals(idime,qpoint))
   end do
