@@ -44,8 +44,6 @@ module par_scalar_array_names
   use par_environment_names
   use par_context_names
   use dof_import_names
-  use psb_penv_mod_names
-  use par_sparse_global_collectives_names
 
   ! Abstract types
   use vector_names
@@ -497,41 +495,35 @@ contains
     implicit none
     class(par_scalar_array_t), intent(inout) :: op
     real(rp)           , pointer             :: data(:)
-    type(par_context_t), pointer             :: l1_context
     
     if(.not. op%p_env%am_i_l1_task()) return
     
-    data       => op%serial_scalar_array%get_entries()
-    l1_context => op%p_env%get_l1_context()
-    
-    ! First stage: owners receive/reduce, non-owners send
-    call single_exchange ( l1_context%get_icontxt(), &
-                           op%dof_import%get_num_rcv(),    &
-                           op%dof_import%get_list_rcv(),   &
-                           op%dof_import%get_rcv_ptrs(),   &
-                           op%dof_import%get_unpack_idx(), &
-                           op%dof_import%get_num_snd(),    &
-                           op%dof_import%get_list_snd(),   &
-                           op%dof_import%get_snd_ptrs(),   &
-                           op%dof_import%get_pack_idx(),   &
-                           1.0_rp,                         &
-                           1.0_rp,                         &
-                           data ) 
+    data => op%serial_scalar_array%get_entries()
+
+    call op%p_env%l1_neighbours_exchange ( op%dof_import%get_num_rcv(),    &
+                                           op%dof_import%get_list_rcv(),   &
+                                           op%dof_import%get_rcv_ptrs(),   &
+                                           op%dof_import%get_unpack_idx(), &
+                                           op%dof_import%get_num_snd(),    &
+                                           op%dof_import%get_list_snd(),   &
+                                           op%dof_import%get_snd_ptrs(),   &
+                                           op%dof_import%get_pack_idx(),   &
+                                           1.0_rp,                         &
+                                           1.0_rp,                         &
+                                           data ) 
 
     ! Second stage: owners send, non-owners receive/insert
-    call single_exchange ( l1_context%get_icontxt(), &
-                           op%dof_import%get_num_snd(),    &
-                           op%dof_import%get_list_snd(),   &
-                           op%dof_import%get_snd_ptrs(),   &
-                           op%dof_import%get_pack_idx(),   &
-                           op%dof_import%get_num_rcv(),    &
-                           op%dof_import%get_list_rcv(),   &
-                           op%dof_import%get_rcv_ptrs(),   &
-                           op%dof_import%get_unpack_idx(), &
-                           1.0_rp,                         &
-                           0.0_rp,                         &
-                           data )
-    
+    call op%p_env%l1_neighbours_exchange ( op%dof_import%get_num_snd(),    &
+                                           op%dof_import%get_list_snd(),   &
+                                           op%dof_import%get_snd_ptrs(),   &
+                                           op%dof_import%get_pack_idx(),   &
+                                           op%dof_import%get_num_rcv(),    &
+                                           op%dof_import%get_list_rcv(),   &
+                                           op%dof_import%get_rcv_ptrs(),   &
+                                           op%dof_import%get_unpack_idx(), &
+                                           1.0_rp,                         &
+                                           0.0_rp,                         &
+                                           data )
   end subroutine par_scalar_array_comm
 
   !=============================================================================

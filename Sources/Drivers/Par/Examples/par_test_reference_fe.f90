@@ -305,6 +305,8 @@ program par_test_reference_fe
   integer(ip)              :: npsoc(3), npdir(3)
   
   type(par_test_reference_fe_parameters_t) :: test_params
+  
+  integer(ip), allocatable :: data(:)
 
   call fempar_init()
 
@@ -345,12 +347,24 @@ program par_test_reference_fe
   
   ! Read mesh
   call par_mesh_read ( test_params%dir_path, test_params%prefix, par_env, par_mesh )
-
+  
   ! Read boundary conditions
   call par_conditions_read(test_params%dir_path, test_params%prefix, par_mesh%f_mesh%npoin, par_env, par_conditions)
 
   ! Generate triangulation
   call par_mesh_to_triangulation (par_mesh, par_triangulation, par_conditions)
+  
+  !if ( par_env%am_i_l1_task() ) then
+  !   call memalloc (par_triangulation%element_import%npadj, data, __FILE__, __LINE__) 
+  !   call par_env%l1_neighbours_exchange(par_triangulation%element_import%npadj,&
+  !                                       par_triangulation%element_import%lpadj,&
+  !                                       w_context%get_rank(), &
+  !                                       data)
+  !   
+  !   write (*,*) 'XXX', data
+  !   
+  !   call memfree (data, __FILE__, __LINE__ ) 
+  !end if
   
   ! Simple case
   reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &

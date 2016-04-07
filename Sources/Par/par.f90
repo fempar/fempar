@@ -28,11 +28,7 @@
 module par_names
   ! Tools
   use par_context_names
-  use psb_penv_mod_names
-  use par_sparse_global_collectives_names
-  use par_element_exchange_names
   use par_timer_names
-  use par_io_names
   use par_environment_names
 
   ! Geometry
