@@ -34,7 +34,7 @@ module environment_names
    contains
      procedure (info_interface)                       , deferred  :: info
      procedure (am_i_l1_task_interface)               , deferred  :: am_i_l1_task
-     procedure (bcast_interface)                      , deferred  :: bcast
+     procedure (bcast_interface)                      , deferred  :: l1_lgt1_bcast
      procedure (l1_barrier_interface)                 , deferred  :: l1_barrier
      procedure (l1_sum_real_scalar_interface), private, deferred  :: l1_sum_real_scalar
      procedure (l1_sum_real_vector_interface), private, deferred  :: l1_sum_real_vector

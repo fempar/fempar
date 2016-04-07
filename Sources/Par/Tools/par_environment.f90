@@ -72,16 +72,24 @@ module par_environment_names
      
      procedure, private :: par_environment_l1_neighbours_exchange_real
      procedure, private :: par_environment_l1_neighbours_exchange_integer
-     procedure, private :: par_environment_l1_neighbours_exchange_single_integer
-     
+     procedure, private :: par_environment_l1_neighbours_exchange_single_integer     
      generic   :: l1_neighbours_exchange      => par_environment_l1_neighbours_exchange_real, &
                                                  par_environment_l1_neighbours_exchange_integer,&
                                                  par_environment_l1_neighbours_exchange_single_integer
+     
+     procedure, private :: par_environment_l1_scatter_scalar_integer
+     generic   :: l1_scatter => par_environment_l1_scatter_scalar_integer                                                 
+     
+     procedure, private :: par_environment_l1_gather_scalar_integer
+     generic   :: l1_gather => par_environment_l1_gather_scalar_integer 
+     
+     procedure, private :: par_environment_l1_bcast_scalar_integer
+     generic   :: l1_bcast => par_environment_l1_bcast_scalar_integer 
                                                  
      ! Deferred TBPs inherited from class(environment_t)
      procedure :: info                        => par_environment_info
      procedure :: am_i_l1_task                => par_environment_am_i_l1_task
-     procedure :: bcast                       => par_environment_bcast
+     procedure :: l1_lgt1_bcast               => par_environment_l1_lgt1_bcast
      procedure :: l1_barrier                  => par_environment_l1_barrier
      procedure :: l1_sum_real_scalar          => par_environment_l1_sum_real_scalar
      procedure :: l1_sum_real_vector          => par_environment_l1_sum_real_vector
@@ -237,7 +245,7 @@ contains
     if ( this%am_i_l1_task() ) then
       call psb_get_mpicomm (this%l1_context%get_icontxt(), mpi_comm_p)
       call mpi_barrier ( mpi_comm_p, ierr)
-      check ( ierr == 0 )
+      check ( ierr == mpi_success )
     end if
   end subroutine par_environment_l1_barrier
 
@@ -259,7 +267,7 @@ contains
     par_environment_am_i_l1_task = (this%l1_context%get_rank() >= 0)
   end function par_environment_am_i_l1_task
 
-  subroutine par_environment_bcast(this,condition)
+  subroutine par_environment_l1_lgt1_bcast(this,condition)
     implicit none 
     ! Parameters
     class(par_environment_t), intent(in)    :: this
@@ -292,7 +300,7 @@ contains
           check( info == mpi_success )
        end if
     end if
-  end subroutine par_environment_bcast
+  end subroutine par_environment_l1_lgt1_bcast
   
   subroutine par_environment_l1_sum_real_scalar (this,alpha)
     implicit none
@@ -388,11 +396,7 @@ contains
             call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
                  &  psb_mpi_real, proc_to_comm, &
                  &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
-
-            if ( iret /= mpi_success ) then
-               write (0,*) 'Error: mpi_irecv returned != mpi_success'
-               call psb_abort (icontxt)    
-            end if
+            check ( iret == mpi_success )
          end if
       end do
 
@@ -410,11 +414,7 @@ contains
             call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
                  & psb_mpi_real, proc_to_comm,    &
                  & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
-
-            if ( iret /= mpi_success ) then
-               write (0,*) 'Error: mpi_isend returned != mpi_success'
-               call psb_abort (icontxt)    
-            end if
+            check ( iret == mpi_success )
          end if
       end do
 
@@ -430,11 +430,7 @@ contains
 
          if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
             call mpi_wait(rcvhd(i), p2pstat, iret)
-
-            if ( iret /= mpi_success ) then
-               write (0,*) 'Error: mpi_wait returned != mpi_success'
-               call psb_abort (icontxt)    
-            end if
+            
          else if ( list_rcv(i)-1 == my_pid ) then
             if ( sizmsg /= snd_ptrs(i+1)-snd_ptrs(i) ) then 
                write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
@@ -458,10 +454,7 @@ contains
 
          if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then
             call mpi_wait(sndhd(i), p2pstat, iret)
-            if ( iret /= mpi_success ) then
-               write (0,*) 'Error: mpi_wait returned != mpi_success'
-               call psb_abort (icontxt)    
-            end if
+            check ( iret == mpi_success )
          end if
       end do
 
@@ -551,11 +544,7 @@ contains
             call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
                  &  psb_mpi_integer, proc_to_comm, &
                  &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
-
-            if ( iret /= mpi_success ) then
-               write (0,*) 'Error: mpi_irecv returned != mpi_success'
-               call psb_abort (icontxt)    
-            end if
+            check ( iret == mpi_success )
          end if
       end do
 
@@ -573,11 +562,7 @@ contains
             call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
                  & psb_mpi_integer, proc_to_comm,    &
                  & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
-
-            if ( iret /= mpi_success ) then
-               write (0,*) 'Error: mpi_isend returned != mpi_success'
-               call psb_abort (icontxt)    
-            end if
+            check ( iret == mpi_success )
          end if
       end do
 
@@ -593,11 +578,7 @@ contains
 
          if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
             call mpi_wait(rcvhd(i), p2pstat, iret)
-
-            if ( iret /= mpi_success ) then
-               write (0,*) 'Error: mpi_wait returned != mpi_success'
-               call psb_abort (icontxt)    
-            end if
+            check ( iret == mpi_success )
          else if ( list_rcv(i)-1 == my_pid ) then
             if ( sizmsg /= snd_ptrs(i+1)-snd_ptrs(i) ) then 
                write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
@@ -621,10 +602,7 @@ contains
 
          if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then
             call mpi_wait(sndhd(i), p2pstat, iret)
-            if ( iret /= mpi_success ) then
-               write (0,*) 'Error: mpi_wait returned != mpi_success'
-               call psb_abort (icontxt)    
-            end if
+            check ( iret == mpi_success )
          end if
       end do
       
@@ -683,10 +661,6 @@ contains
    
      call memalloc ( num_neighbours+1, buffer, __FILE__, __LINE__ )
      buffer(1) = input_data
-     
-     write(*,*) 'ptrs', ptrs
-     write(*,*) 'pack_idx', pack_idx
-     write(*,*) 'unpack_idx', unpack_idx
      
      call this%l1_neighbours_exchange ( num_neighbours,    &
                                         list_neighbours,   &
@@ -837,5 +811,57 @@ contains
      end do
      
    end subroutine unpack_integer
+   
+   subroutine par_environment_l1_gather_scalar_integer ( this, root, input_data, output_data )
+      implicit none
+      class(par_environment_t), intent(in)   :: this
+      integer(ip)             , intent(in)   :: root
+      integer(ip)             , intent(in)   :: input_data
+      integer(ip)             , intent(out)  :: output_data(*)
+      
+      integer(ip) :: icontxt
+      integer     :: mpi_comm, iret
+      
+      if ( this%am_i_l1_task() ) then
+        icontxt = this%l1_context%get_icontxt()
+        call psb_get_mpicomm (icontxt, mpi_comm)
+        call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, mpi_comm, iret)
+        check( iret == mpi_success )
+      end if
+   end subroutine par_environment_l1_gather_scalar_integer
+   
+   subroutine par_environment_l1_scatter_scalar_integer ( this, root, input_data, output_data )
+      implicit none
+      class(par_environment_t), intent(in)   :: this
+      integer(ip)             , intent(in)   :: root
+      integer(ip)             , intent(in)   :: input_data(*)
+      integer(ip)             , intent(out)  :: output_data
+      
+      integer(ip) :: icontxt
+      integer     :: mpi_comm, iret
+      
+      if ( this%am_i_l1_task() ) then
+        icontxt = this%l1_context%get_icontxt()
+        call psb_get_mpicomm (icontxt, mpi_comm)
+        call mpi_scatter( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, mpi_comm, iret)
+        check( iret == mpi_success )
+      end if
+   end subroutine par_environment_l1_scatter_scalar_integer
+   
+   subroutine par_environment_l1_bcast_scalar_integer ( this, root, data )
+      implicit none
+      class(par_environment_t), intent(in)    :: this
+      integer(ip)             , intent(in)    :: root
+      integer(ip)             , intent(inout) :: data
+      
+      integer(ip) :: icontxt
+      integer     :: mpi_comm, iret
+      
+      if ( this%am_i_l1_task() ) then
+        icontxt = this%l1_context%get_icontxt()
+        call psb_bcast ( icontxt, data, root=root)
+      end if
+   end subroutine par_environment_l1_bcast_scalar_integer
+   
    
 end module par_environment_names

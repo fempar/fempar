@@ -217,7 +217,7 @@ contains
        call this%print_convergence_history_new_line(luout)
        
        ! Send did_converge to coarse-grid tasks
-       call environment%bcast(did_converge)
+       call environment%l1_lgt1_bcast(did_converge)
 
        if(did_converge .or.(num_iterations>=max_num_iterations)) exit loop_icg
 

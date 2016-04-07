@@ -218,7 +218,7 @@ contains
     end if
     exit_loop = (error_estimate_convergence_test <= rhs_convergence_test)
     ! Send converged to coarse-grid tasks
-    call environment%bcast(exit_loop)
+    call environment%l1_lgt1_bcast(exit_loop)
 
     call this%print_convergence_history_header(luout)
 
@@ -281,7 +281,7 @@ contains
                     ! The coarse-grid task should exit 
                     ! the inner-do loop. Send signal.
                     exit_loop = .true.
-                    call environment%bcast(exit_loop)
+                    call environment%l1_lgt1_bcast(exit_loop)
                     exit inner ! Exit inner do-loop
                 end if
 
@@ -317,7 +317,7 @@ contains
             end if
             exit_loop = (error_estimate_convergence_test <= rhs_convergence_test) 
             ! Send converged to coarse-grid tasks
-            call environment%bcast(exit_loop)
+            call environment%l1_lgt1_bcast(exit_loop)
 
             call this%print_convergence_history_new_line(luout)
         end do inner
@@ -329,7 +329,7 @@ contains
                     ! The coarse-grid task should exit 
                     ! the outer-do loop. Send signal. 
                     exit_loop = .true.
-                    call environment%bcast(exit_loop)
+                    call environment%l1_lgt1_bcast(exit_loop)
                     exit outer ! Exit main do-loop
                 end if
 
@@ -344,7 +344,7 @@ contains
                 if ( kloc <= 0 ) then
                     write (luout,*) '** Warning: FGMRES: triangular system in FGMRES has null rank'
                     exit_loop = .true.
-                    call environment%bcast(exit_loop)
+                    call environment%l1_lgt1_bcast(exit_loop)
                     exit outer    
                 end if
 #ifdef ENABLE_BLAS       
@@ -375,13 +375,13 @@ contains
             exit_loop = (error_estimate_convergence_test <= rhs_convergence_test) 
 
             ! Send converged to coarse-grid tasks
-            call environment%bcast(exit_loop)
+            call environment%l1_lgt1_bcast(exit_loop)
 
         end if
     end do outer
     did_converge = (error_estimate_convergence_test <= rhs_convergence_test)
     ! Send converged to coarse-grid tasks
-    call environment%bcast(did_converge)
+    call environment%l1_lgt1_bcast(did_converge)
     call this%print_convergence_history_footer(luout)
   end subroutine fgmres_solve_body
 

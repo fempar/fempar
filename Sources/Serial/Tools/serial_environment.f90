@@ -36,7 +36,7 @@ use types_names
    contains
      procedure :: info                        => serial_environment_info
      procedure :: am_i_l1_task                => serial_environment_am_i_l1_task
-     procedure :: bcast                       => serial_environment_bcast
+     procedure :: l1_lgt1_bcast               => serial_environment_l1_lgt1_bcast
      procedure :: l1_barrier                  => serial_environment_l1_barrier
      procedure :: l1_sum_real_scalar          => serial_environment_l1_sum_real_scalar
      procedure :: l1_sum_real_vector          => serial_environment_l1_sum_real_vector
@@ -67,11 +67,11 @@ contains
     serial_environment_am_i_l1_task = .true.
   end function serial_environment_am_i_l1_task
   
-  subroutine serial_environment_bcast (this, condition)
+  subroutine serial_environment_l1_lgt1_bcast (this, condition)
     implicit none
     class(serial_environment_t) ,intent(in)    :: this
     logical                     ,intent(inout) :: condition
-  end subroutine serial_environment_bcast
+  end subroutine serial_environment_l1_lgt1_bcast
   
   subroutine serial_environment_l1_sum_real_scalar (this,alpha)
     implicit none

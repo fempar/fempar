@@ -184,7 +184,7 @@ contains
     did_converge = (error_estimate_convergence_test <= rhs_convergence_test)
 
     ! Send converged to coarse-grid tasks
-    call environment%bcast(did_converge)
+    call environment%l1_lgt1_bcast(did_converge)
 
     num_iterations = 0
     loop_prichard: do while( (.not.did_converge) .and. (num_iterations < max_num_iterations))
