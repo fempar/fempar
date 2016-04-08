@@ -651,7 +651,6 @@ program test_cdr
   use command_line_parameters_names
   use serial_names
   use dG_CDR_discrete_integration_names
-  !use vector_dG_CDR_discrete_integration_names
   use block_sparse_matrix_names
   use direct_solver_names
   use FPL
