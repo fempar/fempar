@@ -28,6 +28,7 @@
 module par_triangulation_names
   ! Serial modules
   use types_names
+  use list_types_names
   use memor_names
   use sort_names
   use migratory_element_names
@@ -82,7 +83,7 @@ module par_triangulation_names
 
   type :: par_triangulation_t
      integer(ip)                             :: state = par_triangulation_not_created  
-     type(triangulation_t)                 :: f_trian             ! Data common with a centralized (serial) triangulation
+     type(triangulation_t)                 :: triangulation             ! Data common with a centralized (serial) triangulation
      integer(ip)                             :: num_elems   = -1    ! should it match f_trian%num_elems or not? 
      integer(ip)                             :: num_ghosts  = -1    ! number of ghost elements (remote neighbors)
      class(migratory_element_t), allocatable   :: mig_elems(:)        ! Migratory elements list_t
@@ -93,11 +94,14 @@ module par_triangulation_names
      integer(ip)                             :: num_itfc_elems= -1  ! Number of elements in the interface
      integer(ip), allocatable                :: lst_itfc_elems(:)   ! List of elements local IDs in the interface
      type(par_environment_t),   pointer       :: p_env => NULL()     ! Parallel environment describing MPI tasks among which par_triangulation is distributed
-     type(element_import_t)                   :: element_import         ! Vef describing the layout in distributed-memory of the dual graph
-                                                                    ! (It is required for nearest neighbour comms on this graph)
-     integer(ip)                             :: max_nparts          ! Maximum number of parts around any vef communication vef
-     integer(ip)                             :: nobjs               ! Number of local vef communication vefs
-     integer(ip), allocatable                :: lobjs(:,:)          ! List of local vef communication vefs
+     type(element_import_t)                   :: element_import         ! Data type describing the layout in distributed-memory of the dual graph
+                                                                    ! (It is required, e.g., for nearest neighbour comms on this graph)
+     
+     integer(ip), allocatable                :: objects_gids(:)
+     type(list_t)                            :: vefs_object
+     type(list_t)                            :: parts_object
+  contains
+     procedure, private :: setup_vefs_and_parts_object => par_triangulation_setup_vefs_and_parts_object
   end type par_triangulation_t
 
   ! Types
@@ -120,7 +124,7 @@ contains
     integer(ip)              , intent(in) :: lunou
     type(par_triangulation_t), intent(in) :: p_trian
     if(p_trian%p_env%am_i_l1_task()) then
-       call triangulation_print ( lunou, p_trian%f_trian, p_trian%num_elems + p_trian%num_ghosts ) 
+       call triangulation_print ( lunou, p_trian%triangulation, p_trian%num_elems + p_trian%num_ghosts ) 
     end if
 
   end subroutine par_triangulation_print
@@ -143,7 +147,7 @@ contains
     call par_triangulation_free_elems_data(p_trian)
     
     ! Free local portion of triangulation
-    call triangulation_free(p_trian%f_trian)
+    call triangulation_free(p_trian%triangulation)
 
     p_trian%state = par_triangulation_not_created
 
@@ -159,16 +163,15 @@ contains
     integer(ip) :: iobj, istat
 
     if ( p_trian%state == par_triangulation_filled ) then
-       do iobj=1, p_trian%f_trian%num_vefs 
+       do iobj=1, p_trian%triangulation%num_vefs 
           call free_par_vef_topology(p_trian%vefs(iobj)) 
        end do
        
        p_trian%num_itfc_vefs = -1
        call memfree ( p_trian%lst_itfc_vefs, __FILE__, __LINE__ )
-       
-       p_trian%max_nparts = -1 
-       p_trian%nobjs      = -1 
-       call memfree ( p_trian%lobjs, __FILE__, __LINE__ )
+        
+       call p_trian%vefs_object%free()
+       call p_trian%parts_object%free()
        
        ! Deallocate the vef structure array 
        deallocate(p_trian%vefs, stat=istat)
@@ -186,7 +189,7 @@ contains
     integer(ip) :: ielem, istat
 
     if ( p_trian%state == par_triangulation_filled ) then
-       do ielem=1, p_trian%f_trian%elem_array_len 
+       do ielem=1, p_trian%triangulation%elem_array_len 
           call free_par_elem_topology(p_trian%elems(ielem)) 
        end do
        
@@ -216,21 +219,21 @@ contains
     ! Locals
     integer(ip)              :: ielem, iobj, jobj, istat
 
-    call triangulation_to_dual ( p_trian%f_trian, p_trian%num_elems+p_trian%num_ghosts )
+    call triangulation_to_dual ( p_trian%triangulation, p_trian%num_elems+p_trian%num_ghosts )
 
     ! Allocate p_trian%vefs array
-    allocate(p_trian%vefs(p_trian%f_trian%num_vefs), stat=istat)
+    allocate(p_trian%vefs(p_trian%triangulation%num_vefs), stat=istat)
     check(istat==0)
 
     ! Initialize par_vef_topology vefs
-    do iobj=1, p_trian%f_trian%num_vefs 
+    do iobj=1, p_trian%triangulation%num_vefs 
        call initialize_par_vef_topology(p_trian%vefs(iobj)) 
     end do
 
     ! Assign global ID for all local vefs
-    do ielem=1, p_trian%f_trian%num_elems
+    do ielem=1, p_trian%triangulation%num_elems
        do iobj=1, p_trian%elems(ielem)%num_vefs
-          jobj = p_trian%f_trian%elems(ielem)%vefs(iobj)
+          jobj = p_trian%triangulation%elems(ielem)%vefs(iobj)
           if ( jobj /= -1 ) then
              ! write(*,*) 'ZZZ', p_trian%elems(ielem)%vefs_GIDs(iobj)
              p_trian%vefs(jobj)%globalID = p_trian%elems(ielem)%vefs_GIDs(iobj)
@@ -242,8 +245,8 @@ contains
     p_trian%num_itfc_vefs = 0
     ! Traverse local view of ghost elements (all the interface vefs are there!!!)
     do ielem=p_trian%num_elems+1, p_trian%num_ghosts+p_trian%num_elems
-       do iobj=1, p_trian%f_trian%elems(ielem)%num_vefs
-          jobj = p_trian%f_trian%elems(ielem)%vefs(iobj)
+       do iobj=1, p_trian%triangulation%elems(ielem)%num_vefs
+          jobj = p_trian%triangulation%elems(ielem)%vefs(iobj)
           if ( jobj /= -1 ) then
              if (p_trian%vefs(jobj)%interface == -1) then
                 p_trian%num_itfc_vefs = p_trian%num_itfc_vefs + 1
@@ -258,8 +261,8 @@ contains
     p_trian%num_itfc_vefs = 0 
     ! Traverse local view of ghost elements (all the interface vefs are there!!!)
     do ielem=p_trian%num_elems+1, p_trian%num_ghosts+p_trian%num_elems
-       do iobj=1, p_trian%f_trian%elems(ielem)%num_vefs
-          jobj = p_trian%f_trian%elems(ielem)%vefs(iobj)
+       do iobj=1, p_trian%triangulation%elems(ielem)%num_vefs
+          jobj = p_trian%triangulation%elems(ielem)%vefs(iobj)
           if ( jobj /= -1 ) then
              if (p_trian%vefs(jobj)%interface == (p_trian%num_itfc_vefs + 1)) then
                 p_trian%num_itfc_vefs = p_trian%num_itfc_vefs + 1
@@ -271,155 +274,159 @@ contains
 
     ! Compute p_trian%max_nparts, p_trian%nobjs, p_trian%lobjs
     ! Re-order (permute) p_trian%lst_itfc_vefs accordingly
-    call par_triangulation_create_lobjs(p_trian)
+    call p_trian%setup_vefs_and_parts_object()
 
   end subroutine par_triangulation_to_dual
-
-  !=============================================================================
-  subroutine par_triangulation_create_lobjs(p_trian)
+  
+  subroutine par_triangulation_setup_vefs_and_parts_object(this)
     implicit none
-    ! Parameters
-    type(par_triangulation_t), intent(inout) :: p_trian
+    class(par_triangulation_t), intent(inout) :: this
+    integer(ip)                               :: num_neighbours
+    logical, allocatable                      :: touched_neighbours(:)
+    integer(ip)                               :: nparts_around, mypart_id, part_id, local_part_id
+    integer(ip)                               :: ivef, ivef_itfc, ielem, vef_lid, init_vef, end_vef
+    integer(ip)                               :: iobj, ipart
+    integer(ip)                               :: elem_lid
 
-    ! Locals
-    integer(ip)               :: i, j, k, iobj, jelem, est_max_nparts
-    integer(ip)               :: ipart, istat, count , touch
-    integer(igp), allocatable :: lst_parts_per_itfc_obj (:,:)
-    integer(igp), allocatable :: ws_lobjs_temp (:,:)
-    integer(igp), allocatable :: sort_parts_per_itfc_obj_l1 (:)
-    integer(igp), allocatable :: sort_parts_per_itfc_obj_l2 (:)
-    type(hash_table_ip_ip_t)    :: ws_parts_visited
-    integer(ip), parameter    :: tbl_length = 100
-    type(par_context_t), pointer :: l1_context
+    type(par_context_t), pointer           :: l1_context
+    integer(ip)                            :: num_rows_parts_itfc_vefs
+    integer(ip)        , allocatable       :: parts_itfc_vefs (:,:)
+    integer(ip)        , allocatable       :: work1(:), work2(:), perm_itfc_vefs(:)
+    integer(ip)                            :: number_objects
+    type(list_iterator_t)                  :: vefs_object_iterator, parts_object_iterator
 
-    l1_context => p_trian%p_env%get_l1_context()
+
+    assert ( this%p_env%am_i_l1_task() )
+    mypart_id = this%p_env%get_l1_rank() + 1 
+   
+    num_neighbours = this%element_import%get_number_neighbours()    
+    call memalloc ( num_neighbours, touched_neighbours, __FILE__, __LINE__ )
     
-    ipart = l1_context%get_rank() + 1
-
-    ! Compute an estimation (upper bound) of the maximum number of parts around any local interface vef.
-    ! This estimation assumes that all elements around all local interface vefs are associated to different parts.
-    est_max_nparts = 0
-    do i=1, p_trian%num_itfc_vefs
-       iobj = p_trian%lst_itfc_vefs(i)
-       est_max_nparts = max(p_trian%f_trian%vefs(iobj)%num_elems_around, est_max_nparts)
+    ! The two extra rows in parts_per_itfc_vef are required in order to: (1) hold the number of parts around an interface vef
+    !                                                                    (2) to hold mypart_id, which should be also listed among 
+    !                                                                        the parts around each vef
+    num_rows_parts_itfc_vefs = num_neighbours + 2
+    call memalloc ( num_rows_parts_itfc_vefs, this%num_itfc_vefs, parts_itfc_vefs, __FILE__, __LINE__ )
+    parts_itfc_vefs = 0
+    
+    do ivef_itfc = 1, this%num_itfc_vefs
+      vef_lid = this%lst_itfc_vefs(ivef_itfc)
+      touched_neighbours = .false.
+      
+      nparts_around = 1 
+      parts_itfc_vefs(nparts_around+1,ivef_itfc) = mypart_id
+      
+      do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
+        elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
+        part_id = this%elems(elem_lid)%mypart
+        
+        if ( part_id /= mypart_id ) then
+         local_part_id = this%element_import%get_local_neighbour_id(part_id)
+         if (.not. touched_neighbours (local_part_id)) then
+           touched_neighbours (local_part_id) = .true.
+           nparts_around = nparts_around + 1 
+           parts_itfc_vefs(nparts_around+1,ivef_itfc) = part_id
+         end if
+        end if
+      end do
+      parts_itfc_vefs(1,ivef_itfc) = nparts_around
+      ! Sort list of parts in increasing order by part identifiers
+      ! This is required by the call to icomp subroutine below 
+      call sort ( nparts_around, parts_itfc_vefs(2:nparts_around+1, ivef_itfc) )
+      
     end do
-
-    call memalloc ( est_max_nparts+2, p_trian%num_itfc_vefs, lst_parts_per_itfc_obj, __FILE__,__LINE__ )
-
-    touch = 1
-    p_trian%max_nparts = 0
-    lst_parts_per_itfc_obj = 0
-    do i=1, p_trian%num_itfc_vefs
-       call ws_parts_visited%init(tbl_length)
-       !call ws_parts_visited%put(key=ipart,val=1,stat=istat)
-       call ws_parts_visited%put(key=ipart,val=touch,stat=istat)
-
-       lst_parts_per_itfc_obj (2,i) = ipart
-       count = 1
-
-       iobj = p_trian%lst_itfc_vefs(i)
-
-       ! Count/list parts around iobj 
-       do j=1, p_trian%f_trian%vefs(iobj)%num_elems_around 
-          jelem=p_trian%f_trian%vefs(iobj)%elems_around(j)
-          !call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=1,stat=istat)
-          call ws_parts_visited%put(key=p_trian%elems(jelem)%mypart,val=touch,stat=istat)
-          if ( istat == now_stored ) then
-               count = count + 1
-               lst_parts_per_itfc_obj (count+1,i) = p_trian%elems(jelem)%mypart 
-          end if
-       end do
-
-       ! Finish a new column by setting up first and last entries
-       lst_parts_per_itfc_obj(1,i) = count
-       lst_parts_per_itfc_obj(est_max_nparts+2,i) = p_trian%vefs(iobj)%globalID 
-
-       ! Sort list of parts in increasing order by part identifiers
-       ! This is required by the call to icomp subroutine below 
-       call sort ( count, lst_parts_per_itfc_obj( 2:(count+1), i) )
-
-       p_trian%max_nparts = max(p_trian%max_nparts, count)
-       call ws_parts_visited%free
+    
+    call memalloc ( this%num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
+    do ivef_itfc = 1, this%num_itfc_vefs
+      perm_itfc_vefs(ivef_itfc) = ivef_itfc 
     end do
-
-
+    
+    
     ! Re-number vefs in increasing order by the number of parts that share them, 
     ! and among vefs sharing the same list of parts, in increasing order by the list 
     ! of parts shared by the vef 
-    call memalloc ( est_max_nparts+2, sort_parts_per_itfc_obj_l1, __FILE__,__LINE__ )
-    call memalloc ( est_max_nparts+2, sort_parts_per_itfc_obj_l2, __FILE__,__LINE__ )
-    call sort_array_cols_by_row_section( est_max_nparts+2,           & ! Rows of lst_parts_per_itfc_obj 
-       &                                 est_max_nparts+2,           & ! LD of lst_parts_per_itfc_obj
-       &                                 p_trian%num_itfc_vefs,      & ! Cols of lst_parts_per_itfc_obj
-       &                                 lst_parts_per_itfc_obj,     & 
-       &                                 p_trian%lst_itfc_vefs,      &
-       &                                 sort_parts_per_itfc_obj_l1, &
-       &                                 sort_parts_per_itfc_obj_l2 )
-    call memfree ( sort_parts_per_itfc_obj_l2, __FILE__,__LINE__ )
-    call memfree ( sort_parts_per_itfc_obj_l1, __FILE__,__LINE__ )
-
-    ! Re-compute p_trian%vefs(:)%interface to reflect the new status of p_trian%lst_itfc_vefs
-    do i=1, p_trian%num_itfc_vefs
-       iobj = p_trian%lst_itfc_vefs(i)
-       assert ( p_trian%vefs(iobj)%interface /= -1 )
-       p_trian%vefs(iobj)%interface = i
-    end do
-
-    ! Identify communication vefs 
-    call memalloc ( p_trian%max_nparts+4, p_trian%num_itfc_vefs, ws_lobjs_temp, __FILE__,__LINE__ )
+    call memalloc ( num_rows_parts_itfc_vefs, work1, __FILE__,__LINE__ )
+    call memalloc ( num_rows_parts_itfc_vefs, work2, __FILE__,__LINE__ )
+    call sort_array_cols_by_row_section( num_rows_parts_itfc_vefs, & 
+       &                                 num_rows_parts_itfc_vefs, & 
+       &                                 this%num_itfc_vefs, & 
+       &                                 parts_itfc_vefs, & 
+       &                                 perm_itfc_vefs, &
+       &                                 work1, &
+       &                                 work2 ) 
+    call memfree ( work2, __FILE__,__LINE__ )
+    call memfree ( work1, __FILE__,__LINE__ )
     
-    p_trian%nobjs=1
-
-    ! Prepare first vef
-    ws_lobjs_temp(1, p_trian%nobjs)= -1  ! Unused entry (maintained for historical reasons) 
-    ws_lobjs_temp(2, p_trian%nobjs) = 1  ! Begin obj
-
-    k  = 1 
-    do i=1,p_trian%num_itfc_vefs-1
-       if(icomp(p_trian%max_nparts+1,lst_parts_per_itfc_obj(:,i),lst_parts_per_itfc_obj(:,i+1)) /= 0) then
-          ! Complete current vef
-          ws_lobjs_temp(3,p_trian%nobjs)=k ! end obj
-          ws_lobjs_temp(4,p_trian%nobjs)=lst_parts_per_itfc_obj(1,i)
-          ws_lobjs_temp(5:4+lst_parts_per_itfc_obj(1,i),p_trian%nobjs) = &
-               & lst_parts_per_itfc_obj(2:1+lst_parts_per_itfc_obj(1,i),i)
-          ws_lobjs_temp(4+lst_parts_per_itfc_obj(1,i)+1:,p_trian%nobjs) = 0 
-
-          ! Prepare next vef
-          p_trian%nobjs=p_trian%nobjs+1
-          ws_lobjs_temp(1,p_trian%nobjs)=-1     ! Unused entry (maintained for historical reasons) 
-          ws_lobjs_temp(2,p_trian%nobjs)=k+1    ! begin obj
-       end if
-       k=k+1
+    do ivef_itfc=1,this%num_itfc_vefs
+      write(6,'(10i10)') ivef_itfc, this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)), parts_itfc_vefs(:, ivef_itfc) 
     end do
-
-    ! Complete last vef
-    ws_lobjs_temp(3,p_trian%nobjs)=k        ! end obj
-    ws_lobjs_temp(4,p_trian%nobjs)=lst_parts_per_itfc_obj(1,i)
-    ws_lobjs_temp(5:4+lst_parts_per_itfc_obj(1,i),p_trian%nobjs) = &
-         & lst_parts_per_itfc_obj(2:1+lst_parts_per_itfc_obj(1,i),i)
-    ws_lobjs_temp(4+lst_parts_per_itfc_obj(1,i)+1:,p_trian%nobjs) = 0 
-
-    ! Reallocate lobjs and add internal vef first
-    call memalloc (p_trian%max_nparts+4, p_trian%nobjs, p_trian%lobjs, __FILE__, __LINE__)
-
-    ! Copy ws_lobjs_temp to lobjs ...
-    do i=1,p_trian%nobjs
-       p_trian%lobjs(:,i)=ws_lobjs_temp(:,i)
+    
+    ! Count number_objects
+    ivef_itfc = 1
+    number_objects = 0
+    do while ( ivef_itfc <= this%num_itfc_vefs ) 
+      if ( ivef_itfc < this%num_itfc_vefs ) then
+        do while (icomp(num_rows_parts_itfc_vefs,parts_itfc_vefs(:,ivef_itfc),parts_itfc_vefs(:,ivef_itfc+1)) == 0)
+          ivef_itfc = ivef_itfc + 1
+          if ( ivef_itfc == this%num_itfc_vefs  ) exit
+        end do
+      end if  
+      number_objects = number_objects + 1
+      ivef_itfc = ivef_itfc + 1
     end do
-
-    call memfree ( ws_lobjs_temp, __FILE__,__LINE__ )
-    call memfree ( lst_parts_per_itfc_obj, __FILE__,__LINE__ )
-
-
-    !write(*,'(a,i10)') 'Number of local vefs:', &
-    !   &  p_trian%nobjs
-
-    !write(*,'(a)') 'List of local vefs:'
-    !do i=1,p_trian%nobjs 
-    !   write(*,'(10i10)') i, p_trian%lobjs(:,i)
-    !end do
-
-  end subroutine par_triangulation_create_lobjs
+        
+    ! Count number_vefs_per_object and number_parts_per_object
+    call this%vefs_object%create(n=number_objects)
+    call this%parts_object%create(n=number_objects)
+    ivef_itfc = 1
+    number_objects = 0
+    do while ( ivef_itfc <= this%num_itfc_vefs ) 
+      init_vef = ivef_itfc
+      if ( ivef_itfc < this%num_itfc_vefs ) then
+        do while (icomp(num_rows_parts_itfc_vefs,parts_itfc_vefs(:,ivef_itfc),parts_itfc_vefs(:,ivef_itfc+1)) == 0)
+          ivef_itfc = ivef_itfc + 1
+          if ( ivef_itfc == this%num_itfc_vefs  ) exit
+        end do
+      end if  
+      end_vef = ivef_itfc
+      nparts_around = parts_itfc_vefs(1,end_vef)
+      number_objects = number_objects + 1
+      call this%parts_object%sum_to_pointer_index(number_objects, nparts_around)
+      call this%vefs_object%sum_to_pointer_index(number_objects, end_vef-init_vef+1 )
+      ivef_itfc = ivef_itfc + 1
+    end do
+    
+    call this%vefs_object%calculate_header()
+    call this%parts_object%calculate_header()
+    call this%vefs_object%allocate_list_from_pointer()
+    call this%parts_object%allocate_list_from_pointer()
+    
+    ! List number_vefs_per_object and number_parts_per_object
+    ivef_itfc=1
+    do iobj=1, this%vefs_object%get_num_pointers()
+       vefs_object_iterator = this%vefs_object%get_iterator(iobj)
+       parts_object_iterator = this%parts_object%get_iterator(iobj)
+       
+       nparts_around = parts_itfc_vefs(1,ivef_itfc)
+       do ipart=1, nparts_around
+         call parts_object_iterator%set_current(parts_itfc_vefs(1+ipart,ivef_itfc))
+         call parts_object_iterator%next()
+       end do
+       
+       do while(.not. vefs_object_iterator%is_upper_bound())
+        call vefs_object_iterator%set_current(this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)))
+        call vefs_object_iterator%next()
+        ivef_itfc = ivef_itfc + 1
+       end do
+    end do
+    
+    call this%vefs_object%print(6)
+    call this%parts_object%print(6)
+    
+    call memfree ( touched_neighbours, __FILE__, __LINE__ )
+    call memfree ( parts_itfc_vefs, __FILE__, __LINE__ )
+    call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )
+  end subroutine par_triangulation_setup_vefs_and_parts_object
    
 
   !=============================================================================

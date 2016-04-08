@@ -118,12 +118,12 @@ contains
     l1_context   => p_trian%p_env%get_l1_context()
     if ( p_trian%p_env%am_i_l1_task() ) then
        ! The triangulation must have only a single element type in triangulation
-       assert ( size(p_trian%f_trian%reference_fe_geo_list) == 1 )
+       assert ( size(p_trian%triangulation%reference_fe_geo_list) == 1 )
 
        ! Element type must be triangles or tetrahedra
-       assert ( p_trian%f_trian%reference_fe_geo_list(1)%p%get_topology() == topology_tet )
+       assert ( p_trian%triangulation%reference_fe_geo_list(1)%p%get_topology() == topology_tet )
        
-       reference_fe_geo => p_trian%f_trian%reference_fe_geo_list(1)%p
+       reference_fe_geo => p_trian%triangulation%reference_fe_geo_list(1)%p
        vertices_vef     => reference_fe_geo%get_vertices_vef()
        
        call generate_data_subelems ( reference_fe_geo, &
@@ -132,19 +132,19 @@ contains
                                      subelem_vertices, &
                                      subelems_around_vertices )
 
-       call memalloc (p_trian%f_trian%num_vefs, old2new_vefs, __FILE__, __LINE__)
+       call memalloc (p_trian%triangulation%num_vefs, old2new_vefs, __FILE__, __LINE__)
        old2new_vefs = -1
 
        num_vertices = 0
        num_vertices_i_am_owner = 0
-       do ivef=1, p_trian%f_trian%num_vefs
-          if (p_trian%f_trian%vefs(ivef)%dimension < 2) then
+       do ivef=1, p_trian%triangulation%num_vefs
+          if (p_trian%triangulation%vefs(ivef)%dimension < 2) then
              old2new_vefs(ivef) = num_vertices+1
              num_vertices = num_vertices + 1
              if ( p_trian%vefs(ivef)%interface /= 0 ) then 
                 max_mypart = 0 
-                do ielem=1, p_trian%f_trian%vefs(ivef)%num_elems_around
-                   elem_lid = p_trian%f_trian%vefs(ivef)%elems_around(ielem)
+                do ielem=1, p_trian%triangulation%vefs(ivef)%num_elems_around
+                   elem_lid = p_trian%triangulation%vefs(ivef)%elems_around(ielem)
                    if ( p_trian%elems(elem_lid)%mypart > max_mypart ) then
                       max_mypart = p_trian%elems(elem_lid)%mypart
                    end if
@@ -166,10 +166,10 @@ contains
        ! Allocate vertices map
        call map_alloc( num_vertices, num_global_vertices, p_mesh%f_mesh_dist%nmap )
 
-       p_mesh%f_mesh%nelem = p_trian%f_trian%num_elems * num_subelems
+       p_mesh%f_mesh%nelem = p_trian%triangulation%num_elems * num_subelems
        p_mesh%f_mesh%nnode = num_vertices_per_subelem
        p_mesh%f_mesh%npoin = num_vertices 
-       p_mesh%f_mesh%ndime = p_trian%f_trian%num_dims 
+       p_mesh%f_mesh%ndime = p_trian%triangulation%num_dims 
 
        p_mesh%f_mesh_dist%ipart  = l1_context%get_rank() + 1 
        p_mesh%f_mesh_dist%nparts = l1_context%get_size()
@@ -200,13 +200,13 @@ contains
                        valu, __FILE__, __LINE__)
 
        offset = 1
-       do ielem=1, p_trian%f_trian%num_elems
+       do ielem=1, p_trian%triangulation%num_elems
           do isubelem=1, num_subelems
              do ivertex=1, num_vertices_per_subelem
-                vef_lid = p_trian%f_trian%elems(ielem)%vefs(subelem_vertices(ivertex,isubelem))
-                vef_dimension = p_trian%f_trian%vefs(vef_lid)%dimension
+                vef_lid = p_trian%triangulation%elems(ielem)%vefs(subelem_vertices(ivertex,isubelem))
+                vef_dimension = p_trian%triangulation%vefs(vef_lid)%dimension
                 p_mesh%f_mesh%lnods(offset) = old2new_vefs(vef_lid)
-                if ( p_trian%f_trian%vefs(vef_lid)%border /= 0 ) then
+                if ( p_trian%triangulation%vefs(vef_lid)%border /= 0 ) then
                    code(:,old2new_vefs(vef_lid)) = p_cond%f_conditions%code(:,vef_lid)
                    valu(:,old2new_vefs(vef_lid)) = p_cond%f_conditions%valu(:,vef_lid)
                 else
@@ -216,15 +216,15 @@ contains
                 p_mesh%f_mesh_dist%nmap%l2g(old2new_vefs(vef_lid)) = p_trian%elems(ielem)%vefs_GIDs(subelem_vertices(ivertex,isubelem))
                 if ( vef_dimension == 0 ) then ! Vef is a vertex
                    p_mesh%f_mesh%coord(:,old2new_vefs(vef_lid)) = & 
-                        p_trian%f_trian%elems(ielem)%coordinates(:,subelem_vertices(ivertex,isubelem))
+                        p_trian%triangulation%elems(ielem)%coordinates(:,subelem_vertices(ivertex,isubelem))
                 else if ( vef_dimension == 1 ) then ! Vef is an edge
                    ! Extract local ids (within reference element) of vertices of current edge
                    vertex1 = vertices_vef%l(vertices_vef%p(subelem_vertices(ivertex,isubelem)))
                    vertex2 = vertices_vef%l(vertices_vef%p(subelem_vertices(ivertex,isubelem))+1)
                    do idime=1, p_mesh%f_mesh%ndime
                       p_mesh%f_mesh%coord(idime,old2new_vefs(vef_lid))= &
-                           (p_trian%f_trian%elems(ielem)%coordinates(idime,vertex1) + &
-                           p_trian%f_trian%elems(ielem)%coordinates(idime,vertex2))*0.5_rp
+                           (p_trian%triangulation%elems(ielem)%coordinates(idime,vertex1) + &
+                           p_trian%triangulation%elems(ielem)%coordinates(idime,vertex2))*0.5_rp
                    end do
                 else
                    assert(.false.)
@@ -239,7 +239,7 @@ contains
        num_local_vertices_interface = 0 
        do ivef=1, p_trian%num_itfc_vefs
           vef_lid = p_trian%lst_itfc_vefs(ivef)
-          vef_dimension = p_trian%f_trian%vefs(vef_lid)%dimension
+          vef_dimension = p_trian%triangulation%vefs(vef_lid)%dimension
           if ( vef_dimension < 2 ) then
              num_local_vertices_interface = num_local_vertices_interface + 1
           end if
@@ -251,7 +251,7 @@ contains
        num_local_vertices_interface = 0 
        do ivef=1, p_trian%num_itfc_vefs
           vef_lid = p_trian%lst_itfc_vefs(ivef)
-          vef_dimension = p_trian%f_trian%vefs(vef_lid)%dimension
+          vef_dimension = p_trian%triangulation%vefs(vef_lid)%dimension
           if ( vef_dimension < 2 ) then
              num_local_vertices_interface = num_local_vertices_interface + 1
              p_mesh%f_mesh_dist%lnbou(num_local_vertices_interface) = old2new_vefs(vef_lid) 
@@ -293,7 +293,7 @@ contains
           do isubelem = 1, num_subelems
              data(elem_lid)%subelems_GIDs(isubelem) = p_mesh%f_mesh_dist%emap%l2g(offset+isubelem)
              do ivertex=1, num_vertices_per_subelem
-                vef_lid = p_trian%f_trian%elems(elem_lid)%vefs(subelem_vertices(ivertex,isubelem))
+                vef_lid = p_trian%triangulation%elems(elem_lid)%vefs(subelem_vertices(ivertex,isubelem))
                 if ( p_trian%vefs(vef_lid)%interface /= 0 ) then
                    num_subelems_interface = num_subelems_interface + 1 
                    exit 
@@ -320,7 +320,7 @@ contains
              call subelems_visited%init(20)
              subelem_visited = .false.
              do ivertex=1, num_vertices_per_subelem
-                vef_lid = p_trian%f_trian%elems(elem_lid)%vefs(subelem_vertices(ivertex,isubelem))
+                vef_lid = p_trian%triangulation%elems(elem_lid)%vefs(subelem_vertices(ivertex,isubelem))
                 if ( p_trian%vefs(vef_lid)%interface /= 0 ) then
                    if ( .not. subelem_visited ) then
                       num_subelems_interface = num_subelems_interface + 1
@@ -328,8 +328,8 @@ contains
                       subelem_visited = .true.
                    end if
                    ! Traverse (ghost) elements around vef_lid and count with hash_table
-                   do jelem=1, p_trian%f_trian%vefs(vef_lid)%num_elems_around
-                      jelem_lid = p_trian%f_trian%vefs(vef_lid)%elems_around(jelem)
+                   do jelem=1, p_trian%triangulation%vefs(vef_lid)%num_elems_around
+                      jelem_lid = p_trian%triangulation%vefs(vef_lid)%elems_around(jelem)
                       if ( p_mesh%f_mesh_dist%ipart /= p_trian%elems(jelem_lid)%mypart ) then
                          ! Identify position of vef_lid in ghost element
                          vef_gid = p_trian%vefs(vef_lid)%globalID
@@ -382,7 +382,7 @@ contains
              call subelems_visited%init(20)
              subelem_visited = .false.
              do ivertex=1, num_vertices_per_subelem
-                vef_lid = p_trian%f_trian%elems(elem_lid)%vefs(subelem_vertices(ivertex,isubelem))
+                vef_lid = p_trian%triangulation%elems(elem_lid)%vefs(subelem_vertices(ivertex,isubelem))
                 if ( p_trian%vefs(vef_lid)%interface /= 0 ) then
                    if ( .not. subelem_visited ) then
                       num_subelems_interface = num_subelems_interface + 1
@@ -390,8 +390,8 @@ contains
                       subelem_visited = .true.
                    end if
                    ! Traverse (ghost) elements around vef_lid and count with hash_table
-                   do jelem=1, p_trian%f_trian%vefs(vef_lid)%num_elems_around
-                      jelem_lid = p_trian%f_trian%vefs(vef_lid)%elems_around(jelem)
+                   do jelem=1, p_trian%triangulation%vefs(vef_lid)%num_elems_around
+                      jelem_lid = p_trian%triangulation%vefs(vef_lid)%elems_around(jelem)
                       if ( p_mesh%f_mesh_dist%ipart /= p_trian%elems(jelem_lid)%mypart ) then
                          ! Identify position of vef_lid in ghost element
                          vef_gid = p_trian%vefs(vef_lid)%globalID

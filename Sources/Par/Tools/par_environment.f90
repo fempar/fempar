@@ -66,8 +66,10 @@ module par_environment_names
      procedure :: free                        => par_environment_free
      procedure :: print                       => par_environment_print
      procedure :: created                     => par_environment_created
+     procedure :: get_l1_rank                 => par_environment_get_l1_rank 
+     procedure :: get_lgt1_rank               => par_environment_get_lgt1_rank
      procedure :: get_l1_context              => par_environment_get_l1_context
-     procedure :: get_lgt1_context            => par_environment_get_l1_context
+     procedure :: get_lgt1_context            => par_environment_get_lgt1_context
      procedure :: am_i_lgt1_task              => par_environment_am_i_lgt1_task
      
      procedure, private :: par_environment_l1_neighbours_exchange_real
@@ -213,6 +215,25 @@ contains
     par_environment_created =  this%has_been_created 
   end function par_environment_created
   
+  
+  !=============================================================================
+  function par_environment_get_l1_rank ( this )
+    implicit none 
+    ! Parameters
+    class(par_environment_t), target,  intent(in) :: this
+    integer                                       :: par_environment_get_l1_rank
+    par_environment_get_l1_rank = this%l1_context%get_rank()
+  end function par_environment_get_l1_rank
+  
+  !=============================================================================
+  function par_environment_get_lgt1_rank ( this )
+    implicit none 
+    ! Parameters
+    class(par_environment_t), target,  intent(in) :: this
+    integer                                       :: par_environment_get_lgt1_rank
+    par_environment_get_lgt1_rank = this%lgt1_context%get_rank()
+  end function par_environment_get_lgt1_rank
+  
   !=============================================================================
   function par_environment_get_l1_context ( this )
     implicit none 
@@ -221,6 +242,15 @@ contains
     type(par_context_t)     , pointer             :: par_environment_get_l1_context
     par_environment_get_l1_context => this%l1_context
   end function par_environment_get_l1_context
+  
+  !=============================================================================
+  function par_environment_get_lgt1_context ( this )
+    implicit none 
+    ! Parameters
+    class(par_environment_t), target,  intent(in) :: this
+    type(par_context_t)     , pointer             :: par_environment_get_lgt1_context
+    par_environment_get_lgt1_context => this%lgt1_context
+  end function par_environment_get_lgt1_context
   
   !=============================================================================
   function par_environment_am_i_lgt1_task(this) 

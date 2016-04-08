@@ -106,7 +106,7 @@ contains
        p_trian%num_elems  = num_elems
 
        ! Fill local portion with local data
-       call mesh_to_triangulation_fill_elements ( p_gmesh%f_mesh, p_trian%f_trian, num_elems + num_ghosts, p_cond%f_conditions )
+       call mesh_to_triangulation_fill_elements ( p_gmesh%f_mesh, p_trian%triangulation, num_elems + num_ghosts, p_cond%f_conditions )
 
        ! p_trian%f_trian%num_elems = num_elems+num_ghosts
        ! **IMPORTANT NOTE**: the code that comes assumes that edges and faces in p_trian%f_trian are numbered after vertices.
@@ -137,10 +137,10 @@ contains
        do ielem=1, num_elems
           p_trian%elems(ielem)%mypart      = l1_context%get_rank() + 1
           p_trian%elems(ielem)%globalID    = p_gmesh%f_mesh_dist%emap%l2g(ielem)
-          p_trian%elems(ielem)%num_vefs = p_trian%f_trian%elems(ielem)%num_vefs
+          p_trian%elems(ielem)%num_vefs = p_trian%triangulation%elems(ielem)%num_vefs
           call memalloc( p_trian%elems(ielem)%num_vefs, p_trian%elems(ielem)%vefs_GIDs, __FILE__, __LINE__ )
           do iobj=1, p_trian%elems(ielem)%num_vefs
-             jobj = p_trian%f_trian%elems(ielem)%vefs(iobj)
+             jobj = p_trian%triangulation%elems(ielem)%vefs(iobj)
              if ( jobj <= num_verts ) then ! It is a corner => re-use global ID
                 p_trian%elems(ielem)%vefs_GIDs(iobj) = p_gmesh%f_mesh_dist%nmap%l2g(jobj)
              else ! It is an edge or face => generate new local-global ID (non-consistent, non-consecutive)
@@ -156,15 +156,15 @@ contains
 
        ! Allocate elem_topology in triangulation for ghost elements  (SBmod)
        do ielem = num_elems+1, num_elems+num_ghosts       
-          p_trian%f_trian%elems(ielem)%num_vefs = p_trian%elems(ielem)%num_vefs
-          call memalloc(p_trian%f_trian%elems(ielem)%num_vefs, p_trian%f_trian%elems(ielem)%vefs, &
+          p_trian%triangulation%elems(ielem)%num_vefs = p_trian%elems(ielem)%num_vefs
+          call memalloc(p_trian%triangulation%elems(ielem)%num_vefs, p_trian%triangulation%elems(ielem)%vefs, &
                & __FILE__, __LINE__)
-          p_trian%f_trian%elems(ielem)%vefs = -1
+          p_trian%triangulation%elems(ielem)%vefs = -1
        end do
 
        ! Put the topology info in the ghost elements
        do ielem= num_elems+1, num_elems+num_ghosts
-          call put_topology_element_triangulation ( ielem, p_trian%f_trian )
+          call put_topology_element_triangulation ( ielem, p_trian%triangulation )
        end do
 
        ! Hash table global to local for ghost elements
@@ -178,7 +178,7 @@ contains
           ! Step 1: Put LID of vertices in the ghost elements (f_mesh_dist)
           ilele = p_gmesh%f_mesh_dist%lebou(ielem) ! local ID element
           ! aux : array of ilele (LID) vertices in GID
-          nvert  = p_trian%f_trian%elems(ilele)%reference_fe_geo%get_number_vertices()
+          nvert  = p_trian%triangulation%elems(ilele)%reference_fe_geo%get_number_vertices()
           call memalloc( nvert, aux_igp, __FILE__, __LINE__  )
           do iobj = 1, nvert                        ! vertices only
              aux_igp(iobj) = p_trian%elems(ilele)%vefs_GIDs(iobj) ! extract GIDs vertices
@@ -186,12 +186,12 @@ contains
           do jelem = p_gmesh%f_mesh_dist%pextn(ielem), & 
                p_gmesh%f_mesh_dist%pextn(ielem+1)-1  ! external neighbor elements
              call hash%get(key = p_gmesh%f_mesh_dist%lextn(jelem), val=jlele, stat=istat) ! LID external element
-             do jobj = 1, p_trian%f_trian%elems(jlele)%reference_fe_geo%get_number_vertices() ! vertices external 
-                if ( p_trian%f_trian%elems(jlele)%vefs(jobj) == -1) then
+             do jobj = 1, p_trian%triangulation%elems(jlele)%reference_fe_geo%get_number_vertices() ! vertices external 
+                if ( p_trian%triangulation%elems(jlele)%vefs(jobj) == -1) then
                    do iobj = 1, nvert
                       if ( aux_igp(iobj) == p_trian%elems(jlele)%vefs_GIDs(jobj) ) then
                          ! Put LID of vertices for ghost_elements
-                         p_trian%f_trian%elems(jlele)%vefs(jobj) =  p_trian%f_trian%elems(ilele)%vefs(iobj)
+                         p_trian%triangulation%elems(jlele)%vefs(jobj) =  p_trian%triangulation%elems(ilele)%vefs(iobj)
                       end if
                    end do
                 end if
@@ -206,17 +206,17 @@ contains
           do jelem = p_gmesh%f_mesh_dist%pextn(ielem), &
                p_gmesh%f_mesh_dist%pextn(ielem+1)-1  ! external neighbor elements
              call hash%get(key = p_gmesh%f_mesh_dist%lextn(jelem), val=jlele, stat=istat) ! LID external element
-             vertices_vef => p_trian%f_trian%elems(jlele)%reference_fe_geo%get_vertices_vef()
+             vertices_vef => p_trian%triangulation%elems(jlele)%reference_fe_geo%get_vertices_vef()
              ! loop over all efs of external elements
-             do idime =2,p_trian%f_trian%num_dims
-                do iobj = p_trian%f_trian%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime-1), &
-                     p_trian%f_trian%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime)-1 
-                   if ( p_trian%f_trian%elems(jlele)%vefs(iobj) == -1) then ! efs not assigned yet
+             do idime =2,p_trian%triangulation%num_dims
+                do iobj = p_trian%triangulation%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime-1), &
+                     p_trian%triangulation%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime)-1 
+                   if ( p_trian%triangulation%elems(jlele)%vefs(iobj) == -1) then ! efs not assigned yet
                       count = 1
                       ! loop over vertices of every ef
                       do jobj = vertices_vef%p(iobj), vertices_vef%p(iobj+1)-1    
                          ivere = vertices_vef%l(jobj)
-                         if (p_trian%f_trian%elems(jlele)%vefs(ivere) == -1) then
+                         if (p_trian%triangulation%elems(jlele)%vefs(ivere) == -1) then
                             count = 0 ! not an vef of the local triangulation
                             exit
                          end if
@@ -227,11 +227,11 @@ contains
                          count = 1
                          do jobj = vertices_vef%p(iobj), vertices_vef%p(iobj+1)-1
                             ivere = vertices_vef%l(jobj)
-                            aux(count) = p_trian%f_trian%elems(jlele)%vefs(ivere)
+                            aux(count) = p_trian%triangulation%elems(jlele)%vefs(ivere)
                             count = count+1
                          end do
-                         call local_id_from_vertices( p_trian%f_trian%elems(ilele), idime, aux, nvert, &
-                              p_trian%f_trian%elems(jlele)%vefs(iobj) )
+                         call local_id_from_vertices( p_trian%triangulation%elems(ilele), idime, aux, nvert, &
+                              p_trian%triangulation%elems(jlele)%vefs(iobj) )
                          call memfree(aux, __FILE__, __LINE__) 
                       end if
                    end if
@@ -268,18 +268,18 @@ contains
        ! write (*,*) '*********************************'
 
        ! Step 3: Make GID consistent among processors (p_part%elems%vefs_GIDs)
-       do iobj = 1, p_trian%f_trian%num_vefs 
+       do iobj = 1, p_trian%triangulation%num_vefs 
           if ( (p_trian%vefs(iobj)%interface .ne. -1) .and. &
-               (p_trian%f_trian%vefs(iobj)%dimension >= 1) ) then
-             idime = p_trian%f_trian%vefs(iobj)%dimension+1
+               (p_trian%triangulation%vefs(iobj)%dimension >= 1) ) then
+             idime = p_trian%triangulation%vefs(iobj)%dimension+1
              iobjg = -1
 
-             do jelem = 1,p_trian%f_trian%vefs(iobj)%num_elems_around
-                jlele = p_trian%f_trian%vefs(iobj)%elems_around(jelem)
+             do jelem = 1,p_trian%triangulation%vefs(iobj)%num_elems_around
+                jlele = p_trian%triangulation%vefs(iobj)%elems_around(jelem)
 
-                do jobj = p_trian%f_trian%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime-1), &
-                     & p_trian%f_trian%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime)-1 ! efs of neighbor els
-                   if ( p_trian%f_trian%elems(jlele)%vefs(jobj) == iobj ) then
+                do jobj = p_trian%triangulation%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime-1), &
+                     & p_trian%triangulation%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime)-1 ! efs of neighbor els
+                   if ( p_trian%triangulation%elems(jlele)%vefs(jobj) == iobj ) then
                       if ( iobjg == -1 ) then 
                          iobjg  = p_trian%elems(jlele)%vefs_GIDs(jobj)
                       else
@@ -292,11 +292,11 @@ contains
              end do
 
 
-             do jelem = 1,p_trian%f_trian%vefs(iobj)%num_elems_around
-                jlele = p_trian%f_trian%vefs(iobj)%elems_around(jelem)
-                do jobj = p_trian%f_trian%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime-1), &
-                     & p_trian%f_trian%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime)-1 ! efs of neighbor els
-                   if ( p_trian%f_trian%elems(jlele)%vefs(jobj) == iobj) then
+             do jelem = 1,p_trian%triangulation%vefs(iobj)%num_elems_around
+                jlele = p_trian%triangulation%vefs(iobj)%elems_around(jelem)
+                do jobj = p_trian%triangulation%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime-1), &
+                     & p_trian%triangulation%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime)-1 ! efs of neighbor els
+                   if ( p_trian%triangulation%elems(jlele)%vefs(jobj) == iobj) then
                       p_trian%elems(jlele)%vefs_GIDs(jobj) = iobjg
                       exit
                    end if

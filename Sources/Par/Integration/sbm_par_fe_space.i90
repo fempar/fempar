@@ -46,7 +46,7 @@ subroutine par_fe_space_create( this, &
 
   this%par_triangulation => par_triangulation
   if ( par_triangulation%p_env%am_i_l1_task() ) then
-     call this%serial_fe_space_t%create( par_triangulation%f_trian, &
+     call this%serial_fe_space_t%create( par_triangulation%triangulation, &
                                          par_boundary_conditions%f_conditions, &
                                          reference_fe_phy, &
                                          field_blocks, &
