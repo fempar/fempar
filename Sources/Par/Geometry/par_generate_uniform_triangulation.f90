@@ -49,7 +49,7 @@ module par_generate_uniform_triangulation_names
 contains
   
   !==================================================================================================
-  subroutine par_generate_uniform_triangulation(p_env,gdata,bdata,geo_reference_element,p_trian,p_cond,material)
+  subroutine par_generate_uniform_triangulation(p_env,gdata,bdata,p_trian,p_cond)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generates a parallel triangulation.                                         !
     !-----------------------------------------------------------------------------------------------!
@@ -57,10 +57,8 @@ contains
     type(par_environment_t)  , target, intent(in)  :: p_env
     type(uniform_mesh_descriptor_t)                , intent(in)  :: gdata
     type(uniform_conditions_descriptor_t)               , intent(in)  :: bdata
-    class(reference_fe_t)           , intent(in)  :: geo_reference_element
     type(par_triangulation_t), target, intent(out) :: p_trian 
     type(par_conditions_t)           , intent(out) :: p_cond
-    integer(ip), allocatable       , intent(out) :: material(:)
     ! Locals
     type(mesh_distribution_t) :: mdist
     type (hash_table_igp_ip_t)    :: hash
@@ -82,8 +80,8 @@ contains
        check(state == par_triangulation_not_created)
 
        ! Create Local triangulation and mesh_distribution
-       call generate_uniform_triangulation(p_trian%p_env%p_context%iam+1,gdata,bdata,geo_reference_element,p_trian%f_trian, &
-            &                 p_cond%f_conditions,material,mdist)
+       call generate_uniform_triangulation(p_trian%p_env%p_context%iam+1,gdata,bdata,p_trian%f_trian, &
+            &                 p_cond%f_conditions,mdist)
 
        ! Create element_import
        call element_import_create(mdist,p_trian%element_import)
@@ -221,9 +219,6 @@ contains
 
        p_trian%state = par_triangulation_filled
 
-    else
-       call memalloc(0,material,__FILE__,__LINE__)
-       ! AFM: TODO: Partially broadcast p_trian%f_trian from 1st level tasks to 2nd level tasks (e.g., num_dims)
     end if
     
   end subroutine par_generate_uniform_triangulation

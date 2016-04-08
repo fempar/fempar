@@ -525,3 +525,58 @@ subroutine update_boundary_conditions_analytical(this,fe_space,time)
        &                        fe_space_component=2,time=time_)
 
 end subroutine update_boundary_conditions_analytical
+  
+!====================================================================================================
+subroutine interpolate_fe_function_analytical(this,fe_space,time)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+  class(serial_fe_space_t)                 , intent(in)    :: fe_space
+  real(rp), optional                       , intent(in)    :: time
+  ! Locals
+  real(rp) :: time_
+
+  time_ = 0.0_rp
+  if(present(time)) time_ = time
+
+  ! Update velocity 
+  call fe_space%interpolate_fe_function(this%analytical_functions%get_velocity_function(),bc_code=1, &
+       &                                fe_space_component=1,fe_function=this%fe_values,time=time_)
+
+  ! Update pressure
+  call fe_space%interpolate_fe_function(this%analytical_functions%get_pressure_function(),bc_code=1, &
+       &                                fe_space_component=2,fe_function=this%fe_values,time=time_)
+
+end subroutine interpolate_fe_function_analytical
+  
+!====================================================================================================
+subroutine compute_error_norms(this,fe_space,environment)
+  implicit none
+  class(nsi_iss_oss_discrete_integration_t), intent(inout) :: this
+  class(serial_fe_space_t)         , target, intent(in)    :: fe_space
+  class(environment_t)             , target, intent(in)    :: environment
+  ! Locals
+  real(rp) :: velocity_error, pressure_error
+  type(error_norm_vector_t) :: velocity_error_norm
+  type(error_norm_scalar_t) :: pressure_error_norm
+
+  ! Create error norms
+  call velocity_error_norm%create(fe_space,environment,1,l2_norm)
+  call pressure_error_norm%create(fe_space,environment,2,l2_norm)
+  
+  ! Compute error norms
+  velocity_error =  velocity_error_norm%compute(this%fe_values,                                    &
+       &                                        this%analytical_functions%get_velocity_function(), &
+       &                                        this%current_time)
+  pressure_error =  pressure_error_norm%compute(this%fe_values,                                    &
+       &                                        this%analytical_functions%get_pressure_function(), &
+       &                                        this%current_time)
+
+  ! Free error norms
+  call velocity_error_norm%free()
+  call pressure_error_norm%free()
+
+  ! Print error norms
+  write(*,*) 'Velocity error L2-norm: ', velocity_error
+  write(*,*) 'Pressure error L2-norm: ', pressure_error
+
+end subroutine compute_error_norms

@@ -50,6 +50,26 @@
      ! Construct triangulation
      call mesh_to_triangulation(f_mesh,f_trian,gcond=f_cond)
 
+  else
+     
+     ! Create structured mesh parameters from CLI
+     call mesh_parameters%init()
+     call params%create_parameter_list_for_structured_mesh(mesh_parameters)
+
+     ! Generate geometry data 
+     call geometry_data%create(mesh_parameters)
+
+     ! Generate boundary data
+     number_dimensions = geometry_data%ndime
+     number_unknowns   = 2*number_dimensions+1
+     call boundary_data%create(number_unknowns,number_unknowns,number_dimensions)
+
+     ! Set non-default Navier-Stokes BCs
+     call set_structured_conditions_nsi_iss_oss(geometry_data,boundary_data)
+
+     ! Generate triangulation and boundary conditions
+     call generate_uniform_triangulation(1,geometry_data,boundary_data,f_trian,f_cond)
+
   end if structured_mesh
 
   !----------------------!
@@ -99,7 +119,15 @@
   ! Update initial boundary conditions
   if(nsi_iss_oss_integration%is_analytical_solution.or.nsi_iss_oss_integration%is_initial_solution) then
      call nsi_iss_oss_integration%update_boundary_conditions_analytical(fe_space)
-     call fe_space%update_global_fe_function_bcs(fe_values)
+     !call fe_space%update_global_fe_function_bcs(fe_values)
+  end if  
+  ! Interpolate initial fe_function
+  if(nsi_iss_oss_integration%is_initial_solution) then
+     call nsi_iss_oss_integration%interpolate_fe_function_analytical(fe_space)
+  end if
+  ! Interpolate initial fe_function
+  if(nsi_iss_oss_integration%is_initial_solution) then
+     call nsi_iss_oss_integration%interpolate_fe_function_analytical(fe_space)
   end if
 
   !-----------------!
@@ -118,7 +146,6 @@
   ! Create residual values vector
   call fe_affine_operator%create_range_vector(residual)   
   call residual%init(0.0_rp)    
-  call dof_values%init(0.0_rp)  
   ! Fill affine operator
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
@@ -130,6 +157,11 @@
 !!$  call iterative_linear_solver%create(senv)
 !!$  call iterative_linear_solver%set_type_and_parameters_from_pl()
 !!$  call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+  call solver_parameters%init()
+  istat = 0
+  istat = istat + solver_parameters%set(key=ils_output_frequency,value=0)  
+  istat = istat + solver_parameters%set(key=ils_type,value=rgmres_name)  
+  check(istat==0)
 
   !----------------!
   ! NONLINEAR LOOP !
@@ -145,8 +177,7 @@
 
      ! Update linear solver
      call iterative_linear_solver%create(senv)
-     !call iterative_linear_solver%set_type_and_parameters_from_pl()
-     call iterative_linear_solver%set_type_from_string(rgmres_name)
+     call iterative_linear_solver%set_type_and_parameters_from_pl(solver_parameters)
      call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
      call iterative_linear_solver%set_initial_solution(dof_values)
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
@@ -166,12 +197,14 @@
   !---------!
   ! Nonlinear output
   write(*,*) 'Fixed-point algorithm converged in',counter,'iterations'
-  select type(dof_values)
-     class is(serial_block_array_t)
-     call dof_values%print(6)
-     class default
-     check(.false.) 
-  end select
+  ! Error norm
+  call nsi_iss_oss_integration%compute_error_norms(fe_space,senv)
+!!$  select type(dof_values)
+!!$     class is(serial_block_array_t)
+!!$     call dof_values%print(6)
+!!$     class default
+!!$     check(.false.) 
+!!$  end select
 
   !------------!
   ! DEALLOCATE !
@@ -182,6 +215,7 @@
   call fe_affine_operator%free()
   call nsi_iss_oss_integration%free()
 !!$  call iterative_linear_solver%free()
+  call solver_parameters%free()
   call fe_space%free()
   call reference_fe_array(1)%free()
   call reference_fe_array(2)%free()
@@ -189,7 +223,12 @@
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
   if(.not.params%get_is_structured_mesh()) call mesh_free(f_mesh)
+  if(params%get_is_structured_mesh()) then
+     call boundary_data%free()
+     call mesh_parameters%free()
+  end if
   call params%free()
+  call fpl_finalize()
 
   ! Finalize fempar
   call fempar_finalize()
