@@ -812,13 +812,12 @@ end subroutine serial_fe_space_update_bc_value_tensor
  end subroutine serial_fe_space_create_fe_function_tensor
 
  !===============================================================================================
- subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function, bc_code,  &
+ subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function,           &
       &                                                     fe_space_component, fe_function, &
       &                                                     time, unknown_component)
    implicit none
    class(serial_fe_space_t), intent(in)    :: this 
    class(scalar_function_t), intent(in)    :: scalar_function
-   integer(ip)             , intent(in)    :: bc_code
    integer(ip)             , intent(in)    :: fe_space_component
    type(fe_function_t)     , intent(inout) :: fe_function
    real(rp)   , optional   , intent(in)    :: time
@@ -876,9 +875,7 @@ end subroutine serial_fe_space_update_bc_value_tensor
             inode_scalar = this%reference_fe_phy_list(fe_space_component)%p%get_scalar_from_vector_node(inode) 
             strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
             ! Update strong_dirichlet_values
-            if(this%strong_dirichlet_codes(strong_dirichlet_dof_id) == bc_code) then
-               call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1))
-            end if
+            call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1))
          end if
       end do
 
@@ -897,12 +894,11 @@ end subroutine serial_fe_space_update_bc_value_tensor
  end subroutine serial_fe_space_interpolate_fe_function_scalar
 
  !===============================================================================================
- subroutine serial_fe_space_interpolate_fe_function_vector( this, vector_function, bc_code,  &
+ subroutine serial_fe_space_interpolate_fe_function_vector( this, vector_function, &
       &                                                     fe_space_component, fe_function, time)
    implicit none
    class(serial_fe_space_t), intent(in)    :: this 
    class(vector_function_t), intent(in)    :: vector_function
-   integer(ip)             , intent(in)    :: bc_code
    type(fe_function_t)     , intent(inout) :: fe_function
    integer(ip)             , intent(in)    :: fe_space_component
    real(rp)   , optional   , intent(in)    :: time
@@ -966,9 +962,7 @@ end subroutine serial_fe_space_update_bc_value_tensor
          if(fe%elem2dof(fe_space_component)%p(inode) < 0) then
             strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
             ! Update strong_dirichlet_values
-            if(this%strong_dirichlet_codes(strong_dirichlet_dof_id) == bc_code) then
-               call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1)%get(icomp))
-            end if
+            call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1)%get(icomp))
          end if
       end do
 
