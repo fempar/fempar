@@ -193,7 +193,7 @@ contains
     !----------------------------------------------------------------- 
     !< Allocate list_t%l using the pointer info
     !----------------------------------------------------------------- 
-        class(list_t), target, intent(inout) :: this
+        class(list_t), target, intent(in)    :: this
         type(list_iterator_t)                :: list_iterator
     !----------------------------------------------------------------- 
 !        assert(this%state == LIST_STATE_LIST_STATE_LIST_ALLOCATED)
@@ -205,7 +205,7 @@ contains
     !----------------------------------------------------------------- 
     !< Allocate list_t%l using the pointer info
     !----------------------------------------------------------------- 
-        class(list_t), target, intent(inout) :: this
+        class(list_t), target, intent(in)    :: this
         integer(ip),           intent(in)    :: start
         integer(ip),           intent(in)    :: end
         type(list_iterator_t)                :: list_iterator
@@ -220,7 +220,7 @@ contains
     !----------------------------------------------------------------- 
     !< Allocate list_t%l using the pointer info
     !----------------------------------------------------------------- 
-        class(list_t), target, intent(inout) :: this
+        class(list_t), target, intent(in)    :: this
         integer(ip),           intent(in)    :: index
         type(list_iterator_t)                :: list_iterator
     !----------------------------------------------------------------- 
@@ -251,7 +251,7 @@ contains
     !-----------------------------------------------------------------
     !< Return the number of pointers
     !----------------------------------------------------------------- 
-        class(list_t), intent(inout) :: this
+        class(list_t), intent(in)    :: this
         integer(ip)                  :: num_pointers
     !----------------------------------------------------------------- 
 !        assert(this%state == LIST_STATE_CREATED)
@@ -263,7 +263,7 @@ contains
     !-----------------------------------------------------------------
     !< Return the size of the list
     !----------------------------------------------------------------- 
-        class(list_t), intent(inout) :: this
+        class(list_t), intent(in)    :: this
         integer(ip)                  :: list_size
     !----------------------------------------------------------------- 
 !        assert(this%state == LIST_STATE_LIST_ALLOCATED)

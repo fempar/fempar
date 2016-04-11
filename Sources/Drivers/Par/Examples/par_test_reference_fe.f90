@@ -372,16 +372,14 @@ program par_test_reference_fe
                                                    number_dimensions = 2, &
                                                    order = 1, &
                                                    field_type = field_type_scalar, &
-                                                   continuity = .true., &
-                                                   enable_face_integration = .true. )
+                                                   continuity = .true. )
   
     reference_fe_array_one(2) =  make_reference_fe ( topology = topology_quad, &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = 2, &
                                                    order = -1, &
                                                    field_type = field_type_scalar, &
-                                                   continuity = .true., &
-                                                   enable_face_integration = .true. )
+                                                   continuity = .true. )
   
   !call reference_fe_array_one(1)%p%print()
   

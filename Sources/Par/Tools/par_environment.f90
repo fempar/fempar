@@ -66,7 +66,8 @@ module par_environment_names
      procedure :: free                        => par_environment_free
      procedure :: print                       => par_environment_print
      procedure :: created                     => par_environment_created
-     procedure :: get_l1_rank                 => par_environment_get_l1_rank 
+     procedure :: get_l1_rank                 => par_environment_get_l1_rank
+     procedure :: get_l1_size                 => par_environment_get_l1_size
      procedure :: get_lgt1_rank               => par_environment_get_lgt1_rank
      procedure :: get_l1_context              => par_environment_get_l1_context
      procedure :: get_lgt1_context            => par_environment_get_lgt1_context
@@ -215,7 +216,6 @@ contains
     par_environment_created =  this%has_been_created 
   end function par_environment_created
   
-  
   !=============================================================================
   function par_environment_get_l1_rank ( this )
     implicit none 
@@ -224,6 +224,15 @@ contains
     integer                                       :: par_environment_get_l1_rank
     par_environment_get_l1_rank = this%l1_context%get_rank()
   end function par_environment_get_l1_rank
+  
+  !=============================================================================
+  function par_environment_get_l1_size ( this )
+    implicit none 
+    ! Parameters
+    class(par_environment_t), target,  intent(in) :: this
+    integer                                       :: par_environment_get_l1_size
+    par_environment_get_l1_size = this%l1_context%get_size()
+  end function par_environment_get_l1_size
   
   !=============================================================================
   function par_environment_get_lgt1_rank ( this )
@@ -845,7 +854,7 @@ contains
    subroutine par_environment_l1_gather_scalar_integer ( this, root, input_data, output_data )
       implicit none
       class(par_environment_t), intent(in)   :: this
-      integer(ip)             , intent(in)   :: root
+      integer                 , intent(in)   :: root
       integer(ip)             , intent(in)   :: input_data
       integer(ip)             , intent(out)  :: output_data(*)
       
@@ -863,7 +872,7 @@ contains
    subroutine par_environment_l1_scatter_scalar_integer ( this, root, input_data, output_data )
       implicit none
       class(par_environment_t), intent(in)   :: this
-      integer(ip)             , intent(in)   :: root
+      integer                 , intent(in)   :: root
       integer(ip)             , intent(in)   :: input_data(*)
       integer(ip)             , intent(out)  :: output_data
       
@@ -881,7 +890,7 @@ contains
    subroutine par_environment_l1_bcast_scalar_integer ( this, root, data )
       implicit none
       class(par_environment_t), intent(in)    :: this
-      integer(ip)             , intent(in)    :: root
+      integer                 , intent(in)    :: root
       integer(ip)             , intent(inout) :: data
       
       integer(ip) :: icontxt

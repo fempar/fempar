@@ -82,26 +82,35 @@ module par_triangulation_names
   end type par_elem_topology_t
 
   type :: par_triangulation_t
-     integer(ip)                             :: state = par_triangulation_not_created  
-     type(triangulation_t)                 :: triangulation             ! Data common with a centralized (serial) triangulation
-     integer(ip)                             :: num_elems   = -1    ! should it match f_trian%num_elems or not? 
-     integer(ip)                             :: num_ghosts  = -1    ! number of ghost elements (remote neighbors)
-     class(migratory_element_t), allocatable   :: mig_elems(:)        ! Migratory elements list_t
-     type(par_elem_topology_t),   pointer      :: elems(:) => NULL()  ! Array of elements in the mesh
-     type(par_vef_topology_t), allocatable  :: vefs(:)          ! array of vefs in the mesh
-     integer(ip)                             :: num_itfc_vefs = -1  ! Number of vefs in the interface among subdomains
-     integer(ip), allocatable                :: lst_itfc_vefs(:)    ! List of vefs local IDs in the interface among subdomains 
-     integer(ip)                             :: num_itfc_elems= -1  ! Number of elements in the interface
-     integer(ip), allocatable                :: lst_itfc_elems(:)   ! List of elements local IDs in the interface
+     integer(ip)                              :: state = par_triangulation_not_created  
+     type(triangulation_t)                    :: triangulation             ! Data common with a centralized (serial) triangulation
+     integer(ip)                              :: num_elems   = -1    ! should it match f_trian%num_elems or not? 
+     integer(ip)                              :: num_ghosts  = -1    ! number of ghost elements (remote neighbors)
+     class(migratory_element_t), allocatable  :: mig_elems(:)        ! Migratory elements list_t
+     type(par_elem_topology_t),   pointer     :: elems(:) => NULL()  ! Array of elements in the mesh
+     type(par_vef_topology_t), allocatable    :: vefs(:)          ! array of vefs in the mesh
+     integer(ip)                              :: num_itfc_vefs = -1  ! Number of vefs in the interface among subdomains
+     integer(ip), allocatable                 :: lst_itfc_vefs(:)    ! List of vefs local IDs in the interface among subdomains 
+     integer(ip)                              :: num_itfc_elems= -1  ! Number of elements in the interface
+     integer(ip), allocatable                 :: lst_itfc_elems(:)   ! List of elements local IDs in the interface
      type(par_environment_t),   pointer       :: p_env => NULL()     ! Parallel environment describing MPI tasks among which par_triangulation is distributed
      type(element_import_t)                   :: element_import         ! Data type describing the layout in distributed-memory of the dual graph
                                                                     ! (It is required, e.g., for nearest neighbour comms on this graph)
      
+     ! Perhaps the following three member variables should be packed within type(map_t) ?
+     ! I didn't do that because type(map_t) has extra members that do not make sense anymore
+     ! for the current situation with objects (i.e., interior, boundary, external) etc.
+     integer(ip)                             :: number_global_objects
+     integer(ip)                             :: number_objects
      integer(ip), allocatable                :: objects_gids(:)
+     
      type(list_t)                            :: vefs_object
      type(list_t)                            :: parts_object
   contains
-     procedure, private :: setup_vefs_and_parts_object => par_triangulation_setup_vefs_and_parts_object
+     procedure, private :: compute_parts_itfc_vefs                      => par_triangulation_compute_parts_itfc_vefs
+     procedure, private :: compute_vefs_and_parts_object                => par_triangulation_compute_vefs_and_parts_object
+     procedure, private :: compute_objects_neighbours_exchange_data     => par_triangulation_compute_objects_neighbours_exchange_data
+     procedure, private :: compute_number_global_objects_and_their_gids => par_triangulation_compute_number_global_objects_and_their_gids
   end type par_triangulation_t
 
   ! Types
@@ -170,8 +179,12 @@ contains
        p_trian%num_itfc_vefs = -1
        call memfree ( p_trian%lst_itfc_vefs, __FILE__, __LINE__ )
         
+       p_trian%number_objects        = -1
        call p_trian%vefs_object%free()
        call p_trian%parts_object%free()
+       
+       p_trian%number_global_objects = -1
+       call memfree ( p_trian%objects_gids, __FILE__, __LINE__ )
        
        ! Deallocate the vef structure array 
        deallocate(p_trian%vefs, stat=istat)
@@ -274,29 +287,29 @@ contains
 
     ! Compute p_trian%max_nparts, p_trian%nobjs, p_trian%lobjs
     ! Re-order (permute) p_trian%lst_itfc_vefs accordingly
-    call p_trian%setup_vefs_and_parts_object()
-
+    call p_trian%compute_vefs_and_parts_object()
+    call p_trian%compute_number_global_objects_and_their_gids()
   end subroutine par_triangulation_to_dual
-  
-  subroutine par_triangulation_setup_vefs_and_parts_object(this)
+ 
+  subroutine par_triangulation_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     implicit none
-    class(par_triangulation_t), intent(inout) :: this
+    class(par_triangulation_t), intent(in)    :: this
+    integer(ip), allocatable  , intent(inout) :: parts_itfc_vefs(:,:)
+    integer(ip), allocatable  , intent(inout) :: perm_itfc_vefs(:)
+    
     integer(ip)                               :: num_neighbours
     logical, allocatable                      :: touched_neighbours(:)
     integer(ip)                               :: nparts_around, mypart_id, part_id, local_part_id
-    integer(ip)                               :: ivef, ivef_itfc, ielem, vef_lid, init_vef, end_vef
-    integer(ip)                               :: iobj, ipart
+    integer(ip)                               :: ivef_itfc, ielem, vef_lid
     integer(ip)                               :: elem_lid
-
-    type(par_context_t), pointer           :: l1_context
-    integer(ip)                            :: num_rows_parts_itfc_vefs
-    integer(ip)        , allocatable       :: parts_itfc_vefs (:,:)
-    integer(ip)        , allocatable       :: work1(:), work2(:), perm_itfc_vefs(:)
-    integer(ip)                            :: number_objects
-    type(list_iterator_t)                  :: vefs_object_iterator, parts_object_iterator
-
-
+    integer(ip)                               :: num_rows_parts_itfc_vefs
+    integer(ip), allocatable                  :: work1(:), work2(:)
+    
     assert ( this%p_env%am_i_l1_task() )
+    
+    if (allocated(parts_itfc_vefs)) call memfree(parts_itfc_vefs,__FILE__,__LINE__)
+    if (allocated(perm_itfc_vefs)) call memfree(perm_itfc_vefs,__FILE__,__LINE__)
+    
     mypart_id = this%p_env%get_l1_rank() + 1 
    
     num_neighbours = this%element_import%get_number_neighbours()    
@@ -333,7 +346,6 @@ contains
       ! Sort list of parts in increasing order by part identifiers
       ! This is required by the call to icomp subroutine below 
       call sort ( nparts_around, parts_itfc_vefs(2:nparts_around+1, ivef_itfc) )
-      
     end do
     
     call memalloc ( this%num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
@@ -356,14 +368,32 @@ contains
        &                                 work2 ) 
     call memfree ( work2, __FILE__,__LINE__ )
     call memfree ( work1, __FILE__,__LINE__ )
+    call memfree ( touched_neighbours, __FILE__, __LINE__ )
     
     do ivef_itfc=1,this%num_itfc_vefs
       write(6,'(10i10)') ivef_itfc, this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)), parts_itfc_vefs(:, ivef_itfc) 
     end do
+  end subroutine par_triangulation_compute_parts_itfc_vefs
+  
+  subroutine par_triangulation_compute_vefs_and_parts_object(this)
+    implicit none
+    class(par_triangulation_t), intent(inout) :: this
+    integer(ip)                               :: nparts_around
+    integer(ip)                               :: ivef_itfc, init_vef, end_vef
+    integer(ip)                               :: iobj, ipart
+    integer(ip)                               :: num_rows_parts_itfc_vefs
+    integer(ip), allocatable                  :: parts_itfc_vefs (:,:)
+    integer(ip), allocatable                  :: perm_itfc_vefs(:)
+    type(list_iterator_t)                     :: vefs_object_iterator, parts_object_iterator
+
+    assert ( this%p_env%am_i_l1_task() )
+    
+    call this%compute_parts_itfc_vefs(parts_itfc_vefs,perm_itfc_vefs)
+    num_rows_parts_itfc_vefs = size(parts_itfc_vefs,1)
     
     ! Count number_objects
     ivef_itfc = 1
-    number_objects = 0
+    this%number_objects = 0
     do while ( ivef_itfc <= this%num_itfc_vefs ) 
       if ( ivef_itfc < this%num_itfc_vefs ) then
         do while (icomp(num_rows_parts_itfc_vefs,parts_itfc_vefs(:,ivef_itfc),parts_itfc_vefs(:,ivef_itfc+1)) == 0)
@@ -371,15 +401,15 @@ contains
           if ( ivef_itfc == this%num_itfc_vefs  ) exit
         end do
       end if  
-      number_objects = number_objects + 1
+      this%number_objects = this%number_objects + 1
       ivef_itfc = ivef_itfc + 1
     end do
         
     ! Count number_vefs_per_object and number_parts_per_object
-    call this%vefs_object%create(n=number_objects)
-    call this%parts_object%create(n=number_objects)
+    call this%vefs_object%create(n=this%number_objects)
+    call this%parts_object%create(n=this%number_objects)
     ivef_itfc = 1
-    number_objects = 0
+    this%number_objects = 0
     do while ( ivef_itfc <= this%num_itfc_vefs ) 
       init_vef = ivef_itfc
       if ( ivef_itfc < this%num_itfc_vefs ) then
@@ -390,9 +420,9 @@ contains
       end if  
       end_vef = ivef_itfc
       nparts_around = parts_itfc_vefs(1,end_vef)
-      number_objects = number_objects + 1
-      call this%parts_object%sum_to_pointer_index(number_objects, nparts_around)
-      call this%vefs_object%sum_to_pointer_index(number_objects, end_vef-init_vef+1 )
+      this%number_objects = this%number_objects + 1
+      call this%parts_object%sum_to_pointer_index(this%number_objects, nparts_around)
+      call this%vefs_object%sum_to_pointer_index(this%number_objects, end_vef-init_vef+1 )
       ivef_itfc = ivef_itfc + 1
     end do
     
@@ -423,11 +453,254 @@ contains
     call this%vefs_object%print(6)
     call this%parts_object%print(6)
     
-    call memfree ( touched_neighbours, __FILE__, __LINE__ )
     call memfree ( parts_itfc_vefs, __FILE__, __LINE__ )
     call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )
-  end subroutine par_triangulation_setup_vefs_and_parts_object
+  end subroutine par_triangulation_compute_vefs_and_parts_object
+  
+  subroutine par_triangulation_compute_objects_neighbours_exchange_data ( this, &
+                                                                          num_rcv,&
+                                                                          list_rcv, &
+                                                                          rcv_ptrs,&
+                                                                          unpack_idx, &
+                                                                          num_snd, &
+                                                                          list_snd,&
+                                                                          snd_ptrs,&
+                                                                          pack_idx )
+    implicit none
+    class(par_triangulation_t), intent(in)    :: this
+    integer(ip)               , intent(out)   :: num_rcv
+    integer(ip), allocatable  , intent(inout) :: list_rcv(:)    
+    integer(ip), allocatable  , intent(inout) :: rcv_ptrs(:)
+    integer(ip), allocatable  , intent(inout) :: unpack_idx(:)
+    integer(ip)               , intent(out)   :: num_snd
+    integer(ip), allocatable  , intent(inout) :: list_snd(:)    
+    integer(ip), allocatable  , intent(inout) :: snd_ptrs(:)
+    integer(ip), allocatable  , intent(inout) :: pack_idx(:)
+    
+    ! Locals
+    integer(ip)                 :: part_id, my_part_id, num_neighbours
+    integer(ip)                 :: i, iobj, istat
+    type(list_iterator_t)       :: parts_object_iterator
+    type(position_hash_table_t) :: position_parts_rcv
+    integer(ip)                 :: current_position_parts_rcv
+    type(position_hash_table_t) :: position_parts_snd
+    integer(ip)                 :: current_position_parts_snd
+    
+    assert ( this%p_env%am_i_l1_task() )
+    
+    if (allocated(list_rcv)) call memfree(list_rcv,__FILE__,__LINE__)
+    if (allocated(rcv_ptrs)) call memfree(rcv_ptrs,__FILE__,__LINE__)
+    if (allocated(unpack_idx)) call memfree(unpack_idx,__FILE__,__LINE__)
+    if (allocated(list_snd)) call memfree(list_snd,__FILE__,__LINE__)
+    if (allocated(snd_ptrs)) call memfree(snd_ptrs,__FILE__,__LINE__)
+    if (allocated(pack_idx)) call memfree(pack_idx,__FILE__,__LINE__)
+    
+    my_part_id     = this%p_env%get_l1_rank() + 1
+    num_neighbours = this%element_import%get_number_neighbours()  
+    
+    call position_parts_rcv%init(num_neighbours)
+    call position_parts_snd%init(num_neighbours)
+    call memalloc ( num_neighbours  , list_rcv, __FILE__, __LINE__ )
+    call memalloc ( num_neighbours+1, rcv_ptrs, __FILE__, __LINE__ )
+    rcv_ptrs = 0 
+    
+    call memalloc ( num_neighbours  , list_snd, __FILE__, __LINE__ )
+    call memalloc ( num_neighbours+1, snd_ptrs, __FILE__, __LINE__ )
+    snd_ptrs = 0
+    
+    num_rcv = 0
+    num_snd = 0
+    do iobj=1, this%number_objects
+       parts_object_iterator = this%parts_object%get_iterator(iobj)
+       part_id = parts_object_iterator%get_current()
+       if ( my_part_id == part_id ) then
+         ! I am owner of the present object
+         call parts_object_iterator%next()
+         do while ( .not. parts_object_iterator%is_upper_bound() ) 
+            part_id = parts_object_iterator%get_current()
+            ! Insert part_id in the list of parts I have to send data
+            ! Increment by +1 the amount of data I have to send to part_id
+            call position_parts_snd%get(key=part_id, val=current_position_parts_snd, stat=istat)
+            if ( istat == new_index ) then
+              list_snd ( current_position_parts_snd ) = part_id
+            end if
+            snd_ptrs(current_position_parts_snd+1) = snd_ptrs(current_position_parts_snd+1)+1
+            call parts_object_iterator%next()
+         end do
+       else
+         ! I am non-owner of the present object
+         call position_parts_rcv%get(key=part_id, val=current_position_parts_rcv, stat=istat)
+         if ( istat == new_index ) then
+           list_rcv ( current_position_parts_rcv ) = part_id
+         end if
+         rcv_ptrs(current_position_parts_rcv+1) = rcv_ptrs(current_position_parts_rcv+1)+1 
+       end if
+    end do
    
+    num_rcv = position_parts_rcv%last()
+    num_snd = position_parts_snd%last() 
+    rcv_ptrs(1) = 1 
+    do i=1, num_rcv
+      rcv_ptrs(i+1) = rcv_ptrs(i+1) + rcv_ptrs(i)
+    end do
+    
+    snd_ptrs(1) = 1 
+    do i=1, num_snd
+      snd_ptrs(i+1) = snd_ptrs(i+1) + snd_ptrs(i)
+    end do
+    
+    call memrealloc ( num_snd+1, snd_ptrs, __FILE__, __LINE__ )
+    call memrealloc ( num_rcv+1, rcv_ptrs, __FILE__, __LINE__ )
+    call memrealloc ( num_snd, list_snd, __FILE__, __LINE__ )
+    call memrealloc ( num_rcv, list_rcv, __FILE__, __LINE__ )
+    call memalloc ( snd_ptrs(num_snd+1)-1, pack_idx, __FILE__, __LINE__ )
+    call memalloc ( rcv_ptrs(num_rcv+1)-1, unpack_idx, __FILE__, __LINE__ )
+    
+    do iobj=1, this%number_objects
+       parts_object_iterator = this%parts_object%get_iterator(iobj)
+       part_id = parts_object_iterator%get_current()
+       if ( my_part_id == part_id ) then
+         ! I am owner of the present object
+         call parts_object_iterator%next()
+         do while ( .not. parts_object_iterator%is_upper_bound() ) 
+           part_id = parts_object_iterator%get_current()
+           call position_parts_snd%get(key=part_id, val=current_position_parts_snd, stat=istat)
+           pack_idx (snd_ptrs(current_position_parts_snd)) = iobj
+           snd_ptrs(current_position_parts_snd) = snd_ptrs(current_position_parts_snd)+1
+           call parts_object_iterator%next()
+         end do
+       else
+         ! I am non-owner of the present object
+         call position_parts_rcv%get(key=part_id, val=current_position_parts_rcv, stat=istat)
+         unpack_idx (rcv_ptrs(current_position_parts_rcv)) = iobj
+         rcv_ptrs(current_position_parts_rcv) = rcv_ptrs(current_position_parts_rcv)+1 
+       end if
+    end do
+    
+    do i=num_snd, 2, -1
+      snd_ptrs(i) = snd_ptrs(i-1) 
+    end do
+    snd_ptrs(1) = 1 
+    
+    do i=num_rcv, 2, -1
+      rcv_ptrs(i) = rcv_ptrs(i-1) 
+    end do
+    rcv_ptrs(1) = 1
+    
+    call position_parts_rcv%free()
+    call position_parts_snd%free()
+  end subroutine par_triangulation_compute_objects_neighbours_exchange_data 
+  
+  subroutine par_triangulation_compute_number_global_objects_and_their_gids ( this )
+    implicit none
+    class(par_triangulation_t), intent(inout) :: this
+
+    integer(ip)               :: num_rcv
+    integer(ip), allocatable  :: list_rcv(:)    
+    integer(ip), allocatable  :: rcv_ptrs(:)
+    integer(ip), allocatable  :: unpack_idx(:)
+    
+    integer(ip)               :: num_snd
+    integer(ip), allocatable  :: list_snd(:)    
+    integer(ip), allocatable  :: snd_ptrs(:)
+    integer(ip), allocatable  :: pack_idx(:)
+   
+    integer(ip)               :: number_local_objects_with_gid
+    integer(ip), allocatable  :: local_objects_with_gid(:)
+    integer(ip), allocatable  :: per_rank_objects_with_gid(:)
+    integer(ip)               :: start_object_gid
+    type(list_iterator_t)     :: parts_object_iterator
+    integer(ip)               :: my_part_id, number_parts
+    integer(ip)               :: i, iobj
+    integer                   :: my_rank
+    
+    integer       , parameter :: root_pid = 0
+    integer(ip)               :: dummy_integer_array(1)
+
+    assert ( this%p_env%am_i_l1_task() )
+    my_rank      = this%p_env%get_l1_rank() 
+    my_part_id   = my_rank + 1 
+    number_parts = this%p_env%get_l1_size()
+    
+    ! 1. Count/list how many local objects I am responsible to assign a global ID
+    call memalloc ( this%number_objects, local_objects_with_gid, __FILE__, __LINE__ )
+    number_local_objects_with_gid = 0
+    do iobj=1, this%number_objects
+      parts_object_iterator = this%parts_object%get_iterator(iobj)
+      if ( my_part_id == parts_object_iterator%get_current() ) then
+        number_local_objects_with_gid = number_local_objects_with_gid + 1
+        local_objects_with_gid (number_local_objects_with_gid) = iobj
+      end if
+    end do
+    
+    ! 2. Gather + Scatter
+    if ( my_rank == root_pid ) then
+      call memalloc( number_parts+1, per_rank_objects_with_gid, __FILE__,__LINE__ )
+      call this%p_env%l1_gather (root=root_pid, &
+                                 input_data=number_local_objects_with_gid, &
+                                 output_data=per_rank_objects_with_gid(2:) ) 
+       ! Transform length to header
+       per_rank_objects_with_gid(1)=1 
+       do i=1, number_parts
+          per_rank_objects_with_gid(i+1) = per_rank_objects_with_gid(i) + per_rank_objects_with_gid(i+1) 
+       end do
+       this%number_global_objects = per_rank_objects_with_gid(number_parts+1)-1 
+    else
+      call this%p_env%l1_gather (root=root_pid, &
+                                 input_data=number_local_objects_with_gid, &
+                                 output_data=dummy_integer_array ) 
+    end if
+    
+    call this%p_env%l1_bcast (root=root_pid, data = this%number_global_objects )
+    
+    if ( my_rank == root_pid ) then
+      call this%p_env%l1_scatter (root=root_pid, &
+                                  input_data=per_rank_objects_with_gid, &
+                                  output_data=start_object_gid) 
+      call memfree( per_rank_objects_with_gid, __FILE__,__LINE__ )
+    else
+      call this%p_env%l1_scatter (root=root_pid, &
+                                  input_data=dummy_integer_array, &
+                                  output_data=start_object_gid) 
+    end if
+    
+    
+    call memalloc (this%number_objects, this%objects_gids)
+    do i=1, number_local_objects_with_gid
+      this%objects_gids ( local_objects_with_gid(i) ) = start_object_gid
+      start_object_gid = start_object_gid + 1 
+    end do
+    
+    ! Set-up objects nearest neighbour exchange data
+    ! num_rcv, rcv_ptrs, lst_rcv, unpack_idx
+    ! num_snd, snd_ptrs, lst_snd, pack_idx    
+    call this%compute_objects_neighbours_exchange_data ( num_rcv, &
+                                                         list_rcv,&
+                                                         rcv_ptrs,&
+                                                         unpack_idx,&
+                                                         num_snd,&
+                                                         list_snd,&
+                                                         snd_ptrs,&
+                                                         pack_idx )
+    
+    call this%p_env%l1_neighbours_exchange ( num_rcv, &
+                                             list_rcv,&
+                                             rcv_ptrs,&
+                                             unpack_idx,&
+                                             num_snd,&
+                                             list_snd,&
+                                             snd_ptrs,&
+                                             pack_idx,&
+                                             this%objects_gids )
+    
+    call memfree ( list_rcv, __FILE__, __LINE__ )
+    call memfree ( rcv_ptrs, __FILE__, __LINE__ )
+    call memfree ( unpack_idx, __FILE__, __LINE__ )
+    call memfree ( list_snd, __FILE__, __LINE__ )
+    call memfree ( snd_ptrs, __FILE__, __LINE__ )
+    call memfree ( pack_idx, __FILE__, __LINE__ )
+    call memfree ( local_objects_with_gid, __FILE__, __LINE__ )
+  end subroutine par_triangulation_compute_number_global_objects_and_their_gids
 
   !=============================================================================
   ! Auxiliary subroutines
