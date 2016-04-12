@@ -539,11 +539,11 @@ subroutine interpolate_fe_function_analytical(this,fe_space,time)
   if(present(time)) time_ = time
 
   ! Update velocity 
-  call fe_space%interpolate_fe_function(this%analytical_functions%get_velocity_function(),bc_code=1, &
+  call fe_space%interpolate_fe_function(this%analytical_functions%get_velocity_function(), &
        &                                fe_space_component=1,fe_function=this%fe_values,time=time_)
 
   ! Update pressure
-  call fe_space%interpolate_fe_function(this%analytical_functions%get_pressure_function(),bc_code=1, &
+  call fe_space%interpolate_fe_function(this%analytical_functions%get_pressure_function(), &
        &                                fe_space_component=2,fe_function=this%fe_values,time=time_)
 
 end subroutine interpolate_fe_function_analytical
