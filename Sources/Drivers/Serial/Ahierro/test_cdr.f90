@@ -43,7 +43,7 @@ module command_line_parameters_names
      character(len=:), allocatable :: default_kfl_react 
      character(len=:), allocatable :: default_react
      character(len=:), allocatable :: default_diffu 
-     character(len=:), allocatable :: default_space_solution_flag 
+     character(len=:), allocatable :: default_space_solution_name 
      character(len=:), allocatable :: default_source_term_flag 
 
      character(len=:), allocatable :: default_kfl_stab
@@ -82,7 +82,7 @@ contains
     params%default_kfl_react           = '0' ! Non analytical reaction
     params%default_react               = '0.0'  ! Reaction
     params%default_diffu               = '1.0'  ! Diffusion
-    params%default_space_solution_flag = '1'
+    params%default_space_solution_name = '1'
     params%default_source_term_flag    = '0'
 
     ! Solver parameter
@@ -140,9 +140,9 @@ contains
          &       help='Constant Diffusion Value',required=.false.,act='store',                      &
          &       def=trim(params%default_diffu),error=error)
     check(error==0)
-    call cli%add(group=trim(group),switch='--space_solution_flag',switch_ab='-ssol',                &
+    call cli%add(group=trim(group),switch='--space_solution_name',switch_ab='-ssol',                &
          &       help='Space analytical solution',required=.false.,act='store',                     &
-         &       def=trim(params%default_space_solution_flag),error=error)
+         &       def=trim(params%default_space_solution_name),error=error)
     check(error==0)
     call cli%add(group=trim(group),switch='--source_term_flag',switch_ab='-f',                      &
          &       help='Temporal analytical solution',required=.false.,act='store',                  &
@@ -194,7 +194,7 @@ contains
     params%default_kfl_react           = '0'    ! Non analytical reaction
     params%default_react               = '0.0'  ! Reaction
     params%default_diffu               = '1.0'  ! Diffusion
-    params%default_space_solution_flag = '2'
+    params%default_space_solution_name = 'CDR-LINEAR'
     params%default_source_term_flag    = '3'
 
   end subroutine set_default_params_analytical
@@ -210,7 +210,7 @@ contains
     params%default_kfl_react           = '0'    ! Non analytical reaction
     params%default_react               = '0.0'  ! Reaction
     params%default_diffu               = '1.0'  ! Diffusion
-    params%default_space_solution_flag = '1'
+    params%default_space_solution_name = 'CDR-LINEAR'
     params%default_source_term_flag    = '1'
     params%default_itime               = '0'
     params%default_ftime               = '1'
@@ -224,134 +224,231 @@ contains
 
 end module command_line_parameters_names
 
-!****************************************************************************************************
-module analytical_functions_names 
+!***************************************************************************************************!
+! ANALYTICAL LINEAR-STEADY FUNCTION                                                                 !
+! Definition of the linear-steady analytical function for the CDR problem.                          !
+!***************************************************************************************************!
+module CDR_analytical_linear_functions_names  
   use serial_names 
   use function_names
 # include "debug.i90"
   implicit none 
   private 
-
-  type, extends(scalar_function_t) :: solution_field_function_t
-     integer(ip) :: switch
+  type, extends(scalar_function_t) :: linear_solution_field_t
+     integer(ip) :: random = 3
    contains
-     procedure, non_overridable ::  get_value_space_time => solution_field_get_value_space_time
-  end type solution_field_function_t
+     procedure :: get_value_space_time => linear_solution_get_value_space_time
+  end type linear_solution_field_t
 
-
-  type, extends(vector_function_t) :: convection_field_function_t
-     integer(ip) :: switch
+  type, extends(scalar_function_t) :: linear_dt_solution_field_t
    contains
-     procedure, non_overridable ::  get_value_space => convection_field_get_value_space
-  end type convection_field_function_t
+     procedure :: get_value_space_time => linear_dt_solution_get_value_space_time
+  end type linear_dt_solution_field_t
 
-  type, extends(scalar_function_t) :: source_term_function_t 
-     integer(ip) :: switch
+  type, extends(vector_function_t) :: linear_solution_gradient_field_t
    contains
-     procedure, non_overridable :: get_value_space_time => source_term_get_value_space_time
-  end type source_term_function_t
+     procedure :: get_value_space_time => linear_solution_gradient_get_value_space_time
+  end type linear_solution_gradient_field_t
+
+  type, extends(scalar_function_t) :: linear_solution_laplacian_field_t
+   contains
+     procedure :: get_value_space_time => linear_solution_laplacian_get_value_space_time
+  end type linear_solution_laplacian_field_t
+
+  type, extends(vector_function_t) :: linear_convection_field_t
+   contains
+     procedure :: get_value_space_time => linear_convection_get_value_space_time
+  end type linear_convection_field_t
+
+  public :: linear_solution_field_t
+  public :: linear_dt_solution_field_t
+  public :: linear_solution_gradient_field_t
+  public :: linear_solution_laplacian_field_t
+  public :: linear_convection_field_t
+contains
+
+# include "sbm_cdr_analytical_linear_solution.i90"
+
+end module CDR_analytical_linear_functions_names
+
+!***************************************************************************************************!
+! ANALYTICAL FUNCTIONS                                                                              ! 
+! Definition of the analytical functions for the CDR problem.                                       !
+!***************************************************************************************************!
+module cdr_analytical_functions_names
+  use serial_names
+  use command_line_parameters_names
+  use cdr_analytical_linear_functions_names
+# include "debug.i90"
+  implicit none
+  private
+
+  type cdr_analytical_functions_t
+     private
+     class(scalar_function_t), allocatable :: solution
+     class(scalar_function_t), allocatable :: dt_solution
+     class(vector_function_t), allocatable :: solution_gradient
+     class(scalar_function_t), allocatable :: solution_laplacian
+     class(vector_function_t), allocatable :: convection
+     character(len=:)        , allocatable :: function_name
+   contains
+     procedure, non_overridable :: create                      => cdr_analytical_functions_create
+     procedure, non_overridable :: free                        => cdr_analytical_functions_free
+     procedure, non_overridable :: get_solution_function       &
+          &                                  => cdr_analytical_functions_get_solution_function
+     procedure, non_overridable :: get_value_convection        &
+          &                                  => cdr_analytical_functions_get_value_convection
+     procedure, non_overridable :: get_value_solution          &
+          &                                  => cdr_analytical_functions_get_value_solution
+     procedure, non_overridable :: get_value_dt_solution        &
+          &                                  => cdr_analytical_functions_get_value_dt_solution
+     procedure, non_overridable :: get_value_solution_gradient &
+          &                                  => cdr_analytical_functions_get_value_solution_gradient
+     procedure, non_overridable :: get_value_solution_laplacian &
+          &                                  => cdr_analytical_functions_get_value_solution_laplacian
+  end type cdr_analytical_functions_t
+
+  character(len=*), parameter :: cdr_linear = 'CDR-LINEAR'
 
   ! Types
-  type ::  CDR_analytical_functions_t 
-     type(solution_field_function_t), pointer       :: solution_field 
-     type(convection_field_function_t)              :: convection_field 
-     type(source_term_function_t)   , pointer       :: source_term
-  end type CDR_analytical_functions_t
+  public :: cdr_analytical_functions_t
 
-  public :: CDR_analytical_functions_t, solution_field_function_t, source_term_function_t
+contains
 
-contains 
-
-  subroutine solution_field_get_value_space_time(this,point,time, result)
-    implicit none
-    class(solution_field_function_t), intent(in)    :: this
-    type(point_t)                   , intent(in)    :: point
-    real(rp)                        , intent(in)    :: time
-    real(rp)                        , intent(inout) :: result
-
-    ! Locals 
-    real(rp)      :: x,y,t 
-
-    x = point%get(1)
-    y = point%get(2) 
-    t = time 
-    select case ( this%switch )
-    case (1)    ! u = x + y
-       result = x + y
-    case (2)    ! u = x^2 + y^2
-       result = x*x + y*y
-    case (3)    ! u = x^2 + y^2
-       result = x*y
-    case default 
-       write(*,*) __FILE__,__LINE__,'Error:: Select a solution field case'
-       assert(.false.) 
-    end select
-
-  end subroutine solution_field_get_value_space_time
-
-  ! =================================================================================================
-  subroutine convection_field_get_value_space(this,point,result)
-    implicit none
-    class(convection_field_function_t), intent(in)    :: this
-    type(point_t)                     , intent(in)    :: point
-    type(vector_field_t)              , intent(inout) :: result
-
-    ! Locals 
-    real(rp)      :: x,y
-
-    x = point%get(1)
-    y = point%get(2) 
-
-    write(*,*) __FILE__,__LINE__,this%switch
-    select case ( this%switch )
-    case (0)     
-       call result%set(1, 0.0_rp)
-       call result%set(2, 0.0_rp)
-    case (1)     
-       call result%set(1, 1.0_rp)
-       call result%set(2, 1.0_rp)
-    case default 
-       write(*,*) __FILE__,__LINE__,'Error:: Select a convection field case'
-       assert(.false.) 
-    end select
-
-  end subroutine convection_field_get_value_space
-
-  ! =================================================================================================
-  subroutine source_term_get_value_space_time(this,point,time, result)
-    implicit none
-    class(source_term_function_t), intent(in)    :: this
-    type(point_t)                , intent(in)    :: point
-    real(rp)                     , intent(in)    :: time
-    real(rp)                     , intent(inout) :: result
-
-    ! Locals 
-    real(rp)      :: x,y,t 
-
-    x = point%get(1)
-    y = point%get(2)   
-    t = time
-
-    select case (this%switch) 
-    case (1) 
-       result = 0.0_rp
-    case (2) 
-       result = -4.0_rp
-    case (3) 
-       result = -4.0_rp + 2.0_rp*x + 2.0_rp*y
-     case default 
-       write(*,*) __FILE__,__LINE__,'Error:: Select a source term case'
-       assert(.false.)  
-    end select
-
-  end subroutine source_term_get_value_space_time
-
-end module analytical_functions_names
+# include "sbm_cdr_analytical.i90"
+  
+end module cdr_analytical_functions_names
+!!$
+!!$module analytical_functions_names 
+!!$  use serial_names 
+!!$  use function_names
+!!$# include "debug.i90"
+!!$  implicit none 
+!!$  private 
+!!$
+!!$  type, extends(scalar_function_t) :: solution_field_function_t
+!!$     integer(ip) :: switch
+!!$   contains
+!!$     procedure, non_overridable ::  get_value_space_time => solution_field_get_value_space_time
+!!$  end type solution_field_function_t
+!!$
+!!$
+!!$  type, extends(vector_function_t) :: convection_field_function_t
+!!$     integer(ip) :: switch
+!!$   contains
+!!$     procedure, non_overridable ::  get_value_space => convection_field_get_value_space
+!!$  end type convection_field_function_t
+!!$
+!!$  type, extends(scalar_function_t) :: source_term_function_t 
+!!$     integer(ip) :: switch
+!!$   contains
+!!$     procedure, non_overridable :: get_value_space_time => source_term_get_value_space_time
+!!$  end type source_term_function_t
+!!$
+!!$  ! Types
+!!$  type ::  CDR_analytical_function_t 
+!!$     type(solution_field_function_t), pointer       :: solution_field 
+!!$     type(convection_field_function_t)              :: convection_field 
+!!$     type(source_term_function_t)   , pointer       :: source_term
+!!$  end type CDR_analytical_function_t
+!!$
+!!$  public :: CDR_analytical_function_t, solution_field_function_t, source_term_function_t
+!!$
+!!$contains 
+!!$
+!!$  subroutine solution_field_get_value_space_time(this,point,time, result)
+!!$    implicit none
+!!$    class(solution_field_function_t), intent(in)    :: this
+!!$    type(point_t)                   , intent(in)    :: point
+!!$    real(rp)                        , intent(in)    :: time
+!!$    real(rp)                        , intent(inout) :: result
+!!$
+!!$    ! Locals 
+!!$    real(rp)      :: x,y,t 
+!!$
+!!$    x = point%get(1)
+!!$    y = point%get(2) 
+!!$    t = time 
+!!$    select case ( this%switch )
+!!$    case (1)    ! u = x + y
+!!$       result = x + y
+!!$    case (2)    ! u = x^2 + y^2
+!!$       result = x*x + y*y
+!!$    case (3)    ! u = x^2 + y^2
+!!$       result = x*y
+!!$    case default 
+!!$       write(*,*) __FILE__,__LINE__,'Error:: Select a solution field case'
+!!$       assert(.false.) 
+!!$    end select
+!!$
+!!$  end subroutine solution_field_get_value_space_time
+!!$
+!!$  ! =================================================================================================
+!!$  subroutine convection_field_get_value_space(this,point,result)
+!!$    implicit none
+!!$    class(convection_field_function_t), intent(in)    :: this
+!!$    type(point_t)                     , intent(in)    :: point
+!!$    type(vector_field_t)              , intent(inout) :: result
+!!$
+!!$    ! Locals 
+!!$    real(rp)      :: x,y
+!!$
+!!$    x = point%get(1)
+!!$    y = point%get(2) 
+!!$
+!!$    write(*,*) __FILE__,__LINE__,this%switch
+!!$    select case ( this%switch )
+!!$    case (0)     
+!!$       call result%set(1, 0.0_rp)
+!!$       call result%set(2, 0.0_rp)
+!!$    case (1)     
+!!$       call result%set(1, 1.0_rp)
+!!$       call result%set(2, 1.0_rp)
+!!$    case default 
+!!$       write(*,*) __FILE__,__LINE__,'Error:: Select a convection field case'
+!!$       assert(.false.) 
+!!$    end select
+!!$
+!!$  end subroutine convection_field_get_value_space
+!!$
+!!$  ! =================================================================================================
+!!$  subroutine source_term_get_value_space_time(this,point,time, result)
+!!$    implicit none
+!!$    class(source_term_function_t), intent(in)    :: this
+!!$    type(point_t)                , intent(in)    :: point
+!!$    real(rp)                     , intent(in)    :: time
+!!$    real(rp)                     , intent(inout) :: result
+!!$
+!!$    ! Locals 
+!!$    real(rp)      :: x,y,t 
+!!$
+!!$    x = point%get(1)
+!!$    y = point%get(2)   
+!!$    t = time
+!!$
+!!$    select case (this%switch) 
+!!$    case (1) 
+!!$       result = 0.0_rp
+!!$    case (2) 
+!!$       result = -4.0_rp
+!!$    case (3) 
+!!$       result = -4.0_rp + 2.0_rp*x + 2.0_rp*y
+!!$    case (4) 
+!!$       result = 2.0_rp
+!!$     case default 
+!!$       write(*,*) __FILE__,__LINE__,'Error:: Select a source term case'
+!!$       assert(.false.)  
+!!$    end select
+!!$
+!!$  end subroutine source_term_get_value_space_time
+!!$
+!!$end module analytical_functions_names
 
 !****************************************************************************************************
 module dG_CDR_discrete_integration_names
  use serial_names
  use analytical_functions_names 
+ use cdr_analytical_functions_names 
   implicit none
 # include "debug.i90"
   private
@@ -360,40 +457,51 @@ module dG_CDR_discrete_integration_names
      real(rp)                         :: C_IP ! Interior Penalty constant
      ! DG symmetric parameter: (0-Symmetric, 1/2-Incomplete, 1-Antisymmetric)
      real(rp)                         :: xi   
+     real(rp)                         :: current_time = 0.0_rp
      class(fe_function_t)   , pointer :: fe_function        => NULL()
      type(CDR_analytical_functions_t) :: analytical_functions
    contains
-     procedure :: set_problem
-     procedure :: integrate
+     procedure, non_overridable :: set_problem
+     procedure, non_overridable :: integrate
+     procedure, non_overridable :: compute_analytical_force
   end type DG_CDR_discrete_integration_t
   
   public :: dG_CDR_discrete_integration_t
   
 contains
   
-  subroutine set_problem(this, viscosity, convection_flag, C_IP, xi, solution_field_function,       &
-       &                 source_term_function,solution_flag, source_term_flag)
+  subroutine set_problem(this, viscosity, C_IP, xi, solution_field_name)
     implicit none
     class(dG_CDR_discrete_integration_t)   , intent(inout) :: this
     real(rp)                               , intent(in)    :: viscosity 
-    integer(rp)                            , intent(in)    :: convection_flag
     real(rp)                               , intent(in)    :: C_IP 
     real(rp)                               , intent(in)    :: xi
-    type(solution_field_function_t), target, intent(in)    :: solution_field_function
-    type(source_term_function_t)   , target, intent(in)    :: source_term_function
-    integer(ip)                            , intent(in)    :: solution_flag
-    integer(ip)                            , intent(in)    :: source_term_flag
-  
+    character(len=1024)                    , intent(in)    :: solution_field_name
+
     this%viscosity = viscosity
-    this%analytical_functions%convection_field%switch = convection_flag
     this%C_IP      = C_IP
     this%xi        = xi
-    this%analytical_functions%solution_field => solution_field_function
-    this%analytical_functions%source_term    => source_term_function
-    this%analytical_functions%solution_field%switch = solution_flag
-    this%analytical_functions%source_term%switch   = source_term_flag
+    call this%analytical_functions%create(solution_field_name)
   end subroutine set_problem
   
+  !==================================================================================================
+  function compute_analytical_force(this,point) result(source)
+    implicit none
+    class(dG_cdr_discrete_integration_t), intent(in) :: this
+    type(point_t)                       , intent(in) :: point
+    real(rp) :: source
+    real(rp) :: laplacian
+    type(vector_field_t) :: gradient
+    type(vector_field_t) :: convection
+    real(rp) :: dt_solution
+
+    call this%analytical_functions%get_value_solution_laplacian(point,this%current_time,laplacian)
+    call this%analytical_functions%get_value_solution_gradient(point,this%current_time,gradient)
+    call this%analytical_functions%get_value_convection(point,this%current_time,convection)
+    call this%analytical_functions%get_value_dt_solution(point,this%current_time,dt_solution)
+    
+    source = dt_solution - this%viscosity*laplacian + convection*gradient 
+  end function compute_analytical_force
   !==================================================================================================
   subroutine integrate ( this, fe_space, assembler )
     implicit none
@@ -442,11 +550,9 @@ contains
     call memalloc ( number_fe_spaces, number_nodes_per_field, __FILE__, __LINE__ )
     call fe%get_number_nodes_per_field( number_nodes_per_field )
 
+    call fe_space%update_bc_value_scalar(this%analytical_functions%get_solution_function(),         &
+         &                               bc_code=1,fe_space_component=1, time=0.0_rp )
     
-    ! Update Dirichlet Boundary conditions with the corresponding analytical function
-    call fe_space%update_bc_value_scalar(this%analytical_functions%solution_field, bc_code=1,       & 
-                                         fe_space_component=1, time=0.0_rp )
-
     ! ------------------------------------ LOOP OVER THE ELEMENTS -----------------------------------
     call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
     call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
@@ -470,10 +576,8 @@ contains
        coordinates => fe_map%get_quadrature_coordinates() 
 
        do igaus = 1,ngaus
-          call this%analytical_functions%source_term%get_value_space_time(coordinates(igaus),0.0_rp,&
-                                                                          source)
-          call this%analytical_functions%convection_field%get_value_space(coordinates(igaus),       &
-                                                                          convection)
+          source = this%compute_analytical_force(coordinates(igaus))
+          call this%analytical_functions%get_value_convection(coordinates(igaus),0.0_rp,convection)
           factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
           do inode = 1, number_nodes
              call vol_int%get_gradient(inode,igaus,grad_test_scalar)
@@ -525,8 +629,9 @@ contains
           call face_map%get_normals(igaus,normal)
           h_length = face_map%compute_characteristic_length(igaus,number_neighbours)
           factor = face_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
-          call this%analytical_functions%convection_field%get_value_space(coordinates(igaus),      &
-                                                                          convection)
+          !call this%analytical_function%convection_field%get_value_space(coordinates(igaus),      &
+          !                                                                convection)
+          call this%analytical_functions%get_value_convection(coordinates(igaus),0.0_rp,convection)
           do ineigh = 1, number_neighbours
              do inode = 1, number_nodes_per_field(j)
                 !ioffset = number_nodes_per_field(j)*(ineigh-1) + inode
@@ -588,10 +693,12 @@ contains
           call face_map%get_normals(igaus,normal)
           h_length = face_map%compute_characteristic_length(igaus,number_neighbours)
           factor = face_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
-          call this%analytical_functions%solution_field%get_value_space_time(coordinates(igaus),    &
-               &                                                             0.0_rp,bcvalue)
-          call this%analytical_functions%convection_field%get_value_space(coordinates(igaus),       &
-                                                                          convection)
+          !call this%analytical_function%solution_field%get_value_space_time(coordinates(igaus),    &
+          !     &                                                             0.0_rp,bcvalue)
+          !call this%analytical_function%convection_field%get_value_space(coordinates(igaus),       &
+          !                                                                convection)
+          call this%analytical_functions%get_value_solution(coordinates(igaus),0.0_rp,bcvalue)
+          call this%analytical_functions%get_value_convection(coordinates(igaus),0.0_rp,convection)
           if (convection * normal(1) > 0 ) then
              outflow = 1.0_rp
           else
@@ -679,9 +786,7 @@ program test_cdr
   character(len=256)       :: prefix, filename
   integer(ip)              :: i, j, vars_prob(1) = 1, ierror, iblock
 
-  integer(ip)                                   :: space_solution_flag,source_term_flag, convection_flag
-  type(solution_field_function_t), target       :: solution_field
-  type(source_term_function_t)   , target       :: source_term 
+  character(len=1024)                           :: space_solution_name
 
   integer(ip)                     , allocatable :: material(:), problem(:)
 
@@ -778,15 +883,9 @@ program test_cdr
   call fe_space%create_face_array()
 
   call fe_space%fill_dof_info() 
-  call cli%get(group=trim(group),switch='-ssol' ,val=space_solution_flag,error=istat);check(istat==0)
-  call cli%get(group=trim(group),switch='-kconv',val=convection_flag,error=istat); check(istat==0)
-  call cli%get(group=trim(group),switch='-f'    ,val=source_term_flag,   error=istat);check(istat==0)
-  call dG_CDR_integration%set_problem( viscosity = 1.0_rp, convection_flag = convection_flag,       &
-       &                               C_IP = 10.0_rp, xi = 1.0_Rp,                                 &
-       &                               solution_field_function = solution_field,                    &
-       &                               source_term_function = source_term,                          &
-       &                               solution_flag = space_solution_flag,                         &
-       &                               source_term_flag = source_term_flag)
+  call cli%get(group=trim(group),switch='-ssol' ,val=space_solution_name,error=istat);check(istat==0)
+  call dG_CDR_integration%set_problem( viscosity = 1.0_rp, C_IP = 10.0_rp, xi = 1.0_rp,             &
+       &                               solution_field_name = space_solution_name)
   ! Create the operator
   diagonal_blocks_symmetric_storage = .false.
   diagonal_blocks_symmetric         = .false.
@@ -871,6 +970,7 @@ program test_cdr
   end select
 
   !call fe_space%print()
+  call dG_CDR_integration%analytical_functions%free()
   call fe_affine_operator%free()
   call fe_space%free()
   call reference_fe_array_one(1)%free()
