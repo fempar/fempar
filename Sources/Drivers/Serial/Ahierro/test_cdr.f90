@@ -447,7 +447,6 @@ end module cdr_analytical_functions_names
 !****************************************************************************************************
 module dG_CDR_discrete_integration_names
  use serial_names
- use analytical_functions_names 
  use cdr_analytical_functions_names 
   implicit none
 # include "debug.i90"
@@ -763,7 +762,7 @@ program test_cdr
   use FPL
   use pardiso_mkl_direct_solver_names
   use umfpack_direct_solver_names
-  use analytical_functions_names 
+  use cdr_analytical_functions_names 
 
   implicit none
 #include "debug.i90"
