@@ -743,10 +743,11 @@ contains
 
             field_blocks => this%fe_space%get_field_blocks()
 
+            ! Extract nodal values associated to dirichlet bcs
+            strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
+            strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+
             do element_index=1, number_elements
-                ! Extract nodal values associated to dirichlet bcs
-                strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
-                strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
                 fe => this%fe_space%get_finite_element(element_index)  
                 elem2dof => fe%get_elem2dof()
 
@@ -758,7 +759,7 @@ contains
                                                                 & nodal_values_origin )
 
                 ! Fill nodal values with strong dirichlet values
-                do node_index = 1, number_nodes_scalar
+                do node_index = 1, number_nodes_fe_space
                     if ( elem2dof(fe_space_index)%p(node_index) < 0 ) then
                         nodal_values_origin(node_index) = strong_dirichlet_values_entries(abs(elem2dof(fe_space_index)%p(node_index)))
                     end if
@@ -784,9 +785,8 @@ contains
                         ! Loop over geometrical nodes in subelement
                         do node_index=1, number_vertices
                             idx = subelements_connectivity(node_index,subelement_index)
-print*, fe_space_index, element_index, component_index, subelement_index, node_index, idx
                             subnode_index=( (element_index-1)*number_subelements+(subelement_index-1) )*number_vertices+node_index
-                            field(component_index , subnode_index) = nodal_values_target(idx*component_index)
+                            field(component_index , subnode_index) = nodal_values_target(idx+(component_index-1)*number_nodes_scalar)
                         enddo
                     end do
                 end do
