@@ -31,7 +31,6 @@ module vtk_mesh
 
 USE types_names
 USE memor_names
-USE vtk_field
 USE Lib_VTK_IO
 
 implicit none
@@ -61,8 +60,6 @@ private
         integer(ip),       allocatable :: offset(:)                              ! VTK element offset
         integer(ip),       allocatable :: cell_types(:)                          ! VTK element type
         integer(ip),       allocatable :: subelements_connectivity(:,:)          ! Connectivities of subelements (If not linear_order)
-        type(vtk_field_t), allocatable :: unknowns(:)                            ! Array storing field_ts info
-        type(vtk_field_t), allocatable :: postprocess_fields(:)                  ! Array storing postprocess field_ts info
         integer(ip)                    :: number_of_nodes    = 0                 ! Number of nodes
         integer(ip)                    :: number_of_elements = 0                 ! Number of elements
         integer(ip)                    :: dimensions         = 0                 ! Dimensions of the mesh
@@ -615,20 +612,6 @@ contains
         if(allocated(this%offset))                   call memfree(this%offset, __FILE__, __LINE__)
         if(allocated(this%cell_types))               call memfree(this%cell_types, __FILE__, __LINE__)
         if(allocated(this%subelements_connectivity)) call memfree(this%subelements_connectivity, __FILE__, __LINE__)
-        if(allocated(this%unknowns)) then
-            do i=1, size(this%unknowns)
-                call this%unknowns(i)%free()
-            enddo
-            deallocate(this%unknowns, stat=error)
-            assert(error==0)
-        endif
-        if(allocated(this%postprocess_fields)) then
-            do i=1, size(this%postprocess_fields)
-                call this%postprocess_fields(i)%free()
-            enddo
-            deallocate(this%postprocess_fields, stat=error)
-            assert(error==0)
-        endif
         this%number_of_nodes    = 0
         this%number_of_elements = 0
         this%linear_order       = .false.

@@ -833,7 +833,8 @@ print*, fe_space_index, element_index, component_index, subelement_index, node_i
     !< Free the vtk_handler_t derived type
     !-----------------------------------------------------------------
         class(vtk_handler_t), intent(inout) :: this
-        integer(ip)                         :: i, j ,ft
+        integer(ip)                         :: i, j 
+        logical                             :: ft
     !-----------------------------------------------------------------
         check(associated(this%env))
         ft = this%env%am_i_fine_task() 
