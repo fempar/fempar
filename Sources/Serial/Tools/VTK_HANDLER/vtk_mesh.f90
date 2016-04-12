@@ -71,39 +71,40 @@ private
         integer(ip)                    :: status             = VTK_STATE_UNKNOWN ! Status of the write process
     contains
     private
-        procedure, non_overridable, public :: free             => vtk_mesh_free
-        procedure, non_overridable, public :: set_path         => vtk_mesh_set_path
-        procedure, non_overridable, public :: get_path         => vtk_mesh_get_path
-        procedure, non_overridable, public :: set_prefix       => vtk_mesh_set_prefix
-        procedure, non_overridable, public :: get_prefix       => vtk_mesh_get_prefix
-        procedure, non_overridable, public :: set_linear_order => vtk_mesh_set_linear_order
-        procedure, non_overridable, public :: is_linear_order  => vtk_mesh_is_linear_order
-        procedure, non_overridable, public :: set_filled => vtk_mesh_set_filled
-        procedure, non_overridable, public :: is_filled  => vtk_mesh_is_filled
-        procedure, non_overridable, public :: set_number_nodes  => vtk_mesh_set_number_nodes
-        procedure, non_overridable, public :: get_number_nodes  => vtk_mesh_get_number_nodes
-        procedure, non_overridable, public :: set_number_elements  => vtk_mesh_set_number_elements
-        procedure, non_overridable, public :: get_number_elements  => vtk_mesh_get_number_elements
-        procedure, non_overridable, public :: set_dimensions       => vtk_mesh_set_dimensions
-        procedure, non_overridable, public :: get_dimensions       => vtk_mesh_get_dimensions
-        procedure, non_overridable, public :: set_cell_type       => vtk_mesh_set_cell_type
-        procedure, non_overridable, public :: get_cell_type       => vtk_mesh_get_cell_type
-        procedure, non_overridable, public :: set_offset       => vtk_mesh_set_offset
-        procedure, non_overridable, public :: get_offset       => vtk_mesh_get_offset
-        procedure, non_overridable, public :: set_connectivity       => vtk_mesh_set_connectivity
-        procedure, non_overridable, public :: get_connectivity       => vtk_mesh_get_connectivity
-        procedure, non_overridable, public :: set_x_coordinate       => vtk_mesh_set_x_coordinate
-        procedure, non_overridable, public :: get_x_coordinate       => vtk_mesh_get_x_coordinate
-        procedure, non_overridable, public :: set_y_coordinate       => vtk_mesh_set_y_coordinate
-        procedure, non_overridable, public :: get_y_coordinate       => vtk_mesh_get_y_coordinate
-        procedure, non_overridable, public :: set_z_coordinate       => vtk_mesh_set_z_coordinate
-        procedure, non_overridable, public :: get_z_coordinate       => vtk_mesh_get_z_coordinate
-        procedure, non_overridable, public :: get_subelements_connectivity_pointer       => vtk_mesh_get_subelements_connectivity_pointer
-        procedure, non_overridable, public :: allocate_nodal_arrays       => vtk_mesh_allocate_nodal_arrays
-        procedure, non_overridable, public :: allocate_elemental_arrays       => vtk_mesh_allocate_elemental_arrays
-        procedure, non_overridable, public :: allocate_subelements_connectivity       => vtk_mesh_allocate_subelements_connectivity
-        procedure, non_overridable, public :: begin_write       => vtk_mesh_begin_write
-        procedure, non_overridable, public :: end_write       => vtk_mesh_end_write
+        procedure, non_overridable, public :: set_path                          => vtk_mesh_set_path
+        procedure, non_overridable, public :: get_path                          => vtk_mesh_get_path
+        procedure, non_overridable, public :: set_prefix                        => vtk_mesh_set_prefix
+        procedure, non_overridable, public :: get_prefix                        => vtk_mesh_get_prefix
+        procedure, non_overridable, public :: set_linear_order                  => vtk_mesh_set_linear_order
+        procedure, non_overridable, public :: is_linear_order                   => vtk_mesh_is_linear_order
+        procedure, non_overridable, public :: set_filled                        => vtk_mesh_set_filled
+        procedure, non_overridable, public :: is_filled                         => vtk_mesh_is_filled
+        procedure, non_overridable, public :: set_number_nodes                  => vtk_mesh_set_number_nodes
+        procedure, non_overridable, public :: get_number_nodes                  => vtk_mesh_get_number_nodes
+        procedure, non_overridable, public :: set_number_elements               => vtk_mesh_set_number_elements
+        procedure, non_overridable, public :: get_number_elements               => vtk_mesh_get_number_elements
+        procedure, non_overridable, public :: set_dimensions                    => vtk_mesh_set_dimensions
+        procedure, non_overridable, public :: get_dimensions                    => vtk_mesh_get_dimensions
+        procedure, non_overridable, public :: set_cell_type                     => vtk_mesh_set_cell_type
+        procedure, non_overridable, public :: get_cell_type                     => vtk_mesh_get_cell_type
+        procedure, non_overridable, public :: set_offset                        => vtk_mesh_set_offset
+        procedure, non_overridable, public :: get_offset                        => vtk_mesh_get_offset
+        procedure, non_overridable, public :: set_connectivity                  => vtk_mesh_set_connectivity
+        procedure, non_overridable, public :: get_connectivity                  => vtk_mesh_get_connectivity
+        procedure, non_overridable, public :: set_x_coordinate                  => vtk_mesh_set_x_coordinate
+        procedure, non_overridable, public :: get_x_coordinate                  => vtk_mesh_get_x_coordinate
+        procedure, non_overridable, public :: set_y_coordinate                  => vtk_mesh_set_y_coordinate
+        procedure, non_overridable, public :: get_y_coordinate                  => vtk_mesh_get_y_coordinate
+        procedure, non_overridable, public :: set_z_coordinate                  => vtk_mesh_set_z_coordinate
+        procedure, non_overridable, public :: get_z_coordinate                  => vtk_mesh_get_z_coordinate
+        procedure, non_overridable, public :: get_subelements_connectivity      => vtk_mesh_get_subelements_connectivity
+        procedure, non_overridable, public :: allocate_nodal_arrays             => vtk_mesh_allocate_nodal_arrays
+        procedure, non_overridable, public :: allocate_elemental_arrays         => vtk_mesh_allocate_elemental_arrays
+        procedure, non_overridable, public :: allocate_subelements_connectivity => vtk_mesh_allocate_subelements_connectivity
+        procedure, non_overridable, public :: begin_write                       => vtk_mesh_begin_write
+        procedure, non_overridable, public :: write_node_field                  => vtk_mesh_write_node_field
+        procedure, non_overridable, public :: end_write                         => vtk_mesh_end_write
+        procedure, non_overridable, public :: free                              => vtk_mesh_free
     end type vtk_mesh_t
 
 public :: vtk_mesh_t
@@ -123,7 +124,7 @@ contains
 
     subroutine vtk_mesh_get_path(this, path)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Get the name of the output directory
     !-----------------------------------------------------------------
         class(vtk_mesh_t),             intent(IN)    :: this
         character(len=:), allocatable, intent(INOUT) :: path
@@ -136,7 +137,7 @@ contains
 
     subroutine vtk_mesh_set_prefix(this, prefix)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Set the file name prefix
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         character(len=*),      intent(IN)    :: prefix
@@ -147,7 +148,7 @@ contains
 
     subroutine vtk_mesh_get_prefix(this, prefix)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Get the filename prefix
     !-----------------------------------------------------------------
         class(vtk_mesh_t),             intent(IN)    :: this
         character(len=:), allocatable, intent(INOUT) :: prefix
@@ -160,7 +161,7 @@ contains
 
     subroutine vtk_mesh_set_filled(this, filled)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< True if the mesh data is already filled
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         logical,               intent(IN)    :: filled
@@ -168,9 +169,10 @@ contains
         this%filled = filled
     end subroutine vtk_mesh_set_filled
 
+
     function vtk_mesh_is_filled(this) result(filled)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Ask if the mesh data is filled
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         logical                              :: filled
@@ -181,7 +183,7 @@ contains
 
     subroutine vtk_mesh_set_linear_order(this, linear_order)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Set linear order
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         logical,               intent(IN)    :: linear_order
@@ -189,9 +191,10 @@ contains
         this%linear_order = linear_order
     end subroutine vtk_mesh_set_linear_order
 
+
     function vtk_mesh_is_linear_order(this) result(linear_order)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Ask if the stored mesh data is from linear order mesh
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         logical                              :: linear_order
@@ -202,7 +205,7 @@ contains
 
     subroutine vtk_mesh_set_number_nodes(this, number_nodes)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Set the number of nodes
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: number_nodes
@@ -213,7 +216,7 @@ contains
 
     function vtk_mesh_get_number_nodes(this) result(number_nodes)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Return the number of nodes
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip)                          :: number_nodes
@@ -224,7 +227,7 @@ contains
 
     subroutine vtk_mesh_set_number_elements(this, number_elements)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Set the number of elements
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: number_elements
@@ -235,7 +238,7 @@ contains
 
     function vtk_mesh_get_number_elements(this) result(number_elements)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Return the number of elements
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip)                          :: number_elements
@@ -246,7 +249,7 @@ contains
 
     subroutine vtk_mesh_set_dimensions(this, dimensions)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Set the space dimensions of the mesh
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: dimensions
@@ -257,7 +260,7 @@ contains
 
     function vtk_mesh_get_dimensions(this) result(dimensions)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Return the space dimensions of the mesh
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip)                          :: dimensions
@@ -268,7 +271,7 @@ contains
 
     subroutine vtk_mesh_set_cell_type(this, index, type)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Set the cell types given the index
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: index
@@ -282,7 +285,7 @@ contains
 
     function vtk_mesh_get_cell_type(this, index) result(type)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Return cell type given the cell index of 
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip)                          :: index
@@ -296,7 +299,7 @@ contains
 
     subroutine vtk_mesh_set_offset(this, index, offset)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Set the offset given the cellindex
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: index
@@ -310,7 +313,7 @@ contains
 
     function vtk_mesh_get_offset(this, index) result(offset)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Return the offset given the cellindex
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip)                          :: index
@@ -324,7 +327,7 @@ contains
 
     subroutine vtk_mesh_set_connectivity(this, index, node)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Set element connectivities
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: index
@@ -338,7 +341,7 @@ contains
 
     function vtk_mesh_get_connectivity(this, index) result(node)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Return element connectivities given index
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip)                          :: index
@@ -352,7 +355,7 @@ contains
 
     subroutine vtk_mesh_set_x_coordinate(this, index, coordinate)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Set the x coordinate given the node index
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: index
@@ -366,7 +369,7 @@ contains
 
     function vtk_mesh_get_x_coordinate(this, index) result(coordinate)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Return x coordinate given the node index
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip)                          :: index
@@ -380,7 +383,7 @@ contains
 
     subroutine vtk_mesh_set_y_coordinate(this, index, coordinate)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Set the y coordinate given the node index
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: index
@@ -394,7 +397,7 @@ contains
 
     function vtk_mesh_get_y_coordinate(this, index) result(coordinate)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Return the y coordinate given the node index
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip)                          :: index
@@ -408,7 +411,7 @@ contains
 
     subroutine vtk_mesh_set_z_coordinate(this, index, coordinate)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Set the z coordinate given the node index
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: index
@@ -422,7 +425,7 @@ contains
 
     function vtk_mesh_get_z_coordinate(this, index) result(coordinate)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Return the Z coordinate given the node index
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip)                          :: index
@@ -434,21 +437,22 @@ contains
     end function vtk_mesh_get_z_coordinate
 
 
-    function vtk_mesh_get_subelements_connectivity_pointer(this) result(subelements_connectivity)
+    function vtk_mesh_get_subelements_connectivity(this) result(subelements_connectivity)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Return a pointer to the subelements connectivity array
     !-----------------------------------------------------------------
         class(vtk_mesh_t), target, intent(INOUT) :: this
-        integer(ip),       pointer               :: subelements_connectivity(:,:)
+        integer(ip),       pointer               :: subelements_connectivity(:,:) 
     !-----------------------------------------------------------------
         assert(allocated(this%subelements_connectivity))
+        nullify(subelements_connectivity)
         subelements_connectivity => this%subelements_connectivity
-    end function vtk_mesh_get_subelements_connectivity_pointer
+    end function vtk_mesh_get_subelements_connectivity
 
 
     subroutine vtk_mesh_allocate_elemental_arrays(this)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Allocate all arrays of size number of elements
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
     !-----------------------------------------------------------------
@@ -461,7 +465,7 @@ contains
 
     subroutine vtk_mesh_allocate_nodal_arrays(this)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Allocate all arrays with size number of nodes
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
     !-----------------------------------------------------------------
@@ -478,7 +482,7 @@ contains
 
     subroutine vtk_mesh_allocate_subelements_connectivity(this, number_vertices, number_subelements)
     !-----------------------------------------------------------------
-    !< Set the name of the output directory
+    !< Allocate subelements connectivity array
     !-----------------------------------------------------------------
         class(vtk_mesh_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: number_vertices
@@ -533,6 +537,28 @@ contains
     end function vtk_mesh_begin_write
 
 
+    function vtk_mesh_write_node_field(this, field, field_name, f_id) result(E_IO)
+    !-----------------------------------------------------------------
+    !< Writes a VTK field ( VTK_DAT_XML )
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t),          intent(INOUT) :: this        !< VTK_t derived type
+        character(len=*),           intent(IN)    :: field_name  !< VTK field NAME
+        real(rp),                   intent(IN)    :: field(:,:)  !< Field to write
+        integer(ip),      optional, intent(IN)    :: f_id        !< File ID
+        integer(ip)                               :: E_IO        !< Error IO
+    !-----------------------------------------------------------------
+        if((this%status == VTK_STATE_WRITE_STARTED) .or. (this%status < VTK_STATE_POINTDATA_OPENED)) then
+            if(this%status == VTK_STATE_WRITE_STARTED) then
+                if(present(f_id)) then
+                    E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=f_id)
+                else
+                    E_IO = VTK_DAT_XML(var_location='node',var_block_action='open')
+                endif
+                this%status = VTK_STATE_POINTDATA_OPENED
+            endif
+            E_IO = VTK_VAR_XML(NC_NN=this%number_of_nodes,N_COL=size(field,1), varname=field_name, var=field, cf=f_id)
+        endif
+    end function vtk_mesh_write_node_field
 
 
     function vtk_mesh_end_write(this, f_id) result(E_IO)
