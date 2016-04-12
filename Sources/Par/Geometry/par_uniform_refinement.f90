@@ -279,7 +279,7 @@ contains
        end do
   
        ! Communicate global identifiers of my refined elements to my neighbours
-       allocate ( data(p_trian%element_import%nelem + p_trian%element_import%nghost), stat=istat )
+       allocate ( data(p_trian%triangulation%num_elems + p_trian%element_import%get_number_ghost_elements()), stat=istat )
        check(istat==0)
 
        ! Count interface subelems
@@ -445,7 +445,7 @@ contains
           call memfree( data(elem_lid)%subelems_GIDs, __FILE__, __LINE__ )
        end do
 
-       do ielem = p_trian%element_import%nelem+1, p_trian%element_import%nelem + p_trian%element_import%nghost
+       do ielem = p_trian%triangulation%num_elems+1, p_trian%triangulation%num_elems + p_trian%element_import%get_number_ghost_elements()
           call memfree( data(ielem)%subelems_GIDs, __FILE__, __LINE__ )
        end do
 

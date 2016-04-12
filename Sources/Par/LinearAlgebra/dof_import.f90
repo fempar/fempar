@@ -199,11 +199,11 @@ contains
   subroutine dof_import_free ( this )
     implicit none
     class(dof_import_t), intent(inout)  :: this
-    this%part_id  = 0
-    this%number_parts = 0
-    this%number_dofs = 0
-    this%num_rcv = 0
-    this%num_snd = 0
+    this%part_id  = -1
+    this%number_parts = -1
+    this%number_dofs = -1
+    this%num_rcv = -1
+    this%num_snd = -1
     if (allocated(this%weight)) call memfree ( this%weight,__FILE__,__LINE__)
     if (allocated(this%list_rcv)) call memfree ( this%list_rcv,__FILE__,__LINE__)
     if (allocated(this%rcv_ptrs)) call memfree ( this%rcv_ptrs,__FILE__,__LINE__)

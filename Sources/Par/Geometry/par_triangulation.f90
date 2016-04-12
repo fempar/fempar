@@ -209,7 +209,7 @@ contains
        p_trian%num_itfc_elems = -1
        call memfree ( p_trian%lst_itfc_elems, __FILE__, __LINE__ )
        
-       call element_import_free ( p_trian%element_import )
+       call p_trian%element_import%free()
        
        ! Deallocate the element structure array */
        deallocate(p_trian%mig_elems, stat=istat)
@@ -701,6 +701,15 @@ contains
     call memfree ( pack_idx, __FILE__, __LINE__ )
     call memfree ( local_objects_with_gid, __FILE__, __LINE__ )
   end subroutine par_triangulation_compute_number_global_objects_and_their_gids
+  
+  subroutine par_triangulation_XXX( this )
+    implicit none
+    class(par_triangulation_t), intent(in) :: this
+    
+    
+    
+    
+  end subroutine par_triangulation_XXX
 
   !=============================================================================
   ! Auxiliary subroutines

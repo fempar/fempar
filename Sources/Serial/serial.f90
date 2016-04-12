@@ -51,7 +51,6 @@ module serial_names
   use generate_uniform_triangulation_names
 
   use element_import_names
-  use element_import_create_names
   use conditions_names
   use conditions_io_names
   use materials_names

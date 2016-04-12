@@ -62,16 +62,17 @@ module par_environment_names
      
      type(par_environment_t), pointer :: next_level 
    contains
-     procedure :: create                      => par_environment_create
-     procedure :: free                        => par_environment_free
-     procedure :: print                       => par_environment_print
-     procedure :: created                     => par_environment_created
-     procedure :: get_l1_rank                 => par_environment_get_l1_rank
-     procedure :: get_l1_size                 => par_environment_get_l1_size
-     procedure :: get_lgt1_rank               => par_environment_get_lgt1_rank
-     procedure :: get_l1_context              => par_environment_get_l1_context
-     procedure :: get_lgt1_context            => par_environment_get_lgt1_context
-     procedure :: am_i_lgt1_task              => par_environment_am_i_lgt1_task
+     procedure :: create                       => par_environment_create
+     procedure :: free                         => par_environment_free
+     procedure :: print                        => par_environment_print
+     procedure :: created                      => par_environment_created
+     procedure :: get_l1_rank                  => par_environment_get_l1_rank
+     procedure :: get_l1_size                  => par_environment_get_l1_size
+     procedure :: get_lgt1_rank                => par_environment_get_lgt1_rank
+     procedure :: get_l1_context               => par_environment_get_l1_context
+     procedure :: get_lgt1_context             => par_environment_get_lgt1_context
+     procedure :: am_i_lgt1_task               => par_environment_am_i_lgt1_task
+     procedure :: get_l2_part_id_iam_mapped_to => par_environment_get_l2_part_id_iam_mapped_to
      
      procedure, private :: par_environment_l1_neighbours_exchange_real
      procedure, private :: par_environment_l1_neighbours_exchange_integer
@@ -269,6 +270,15 @@ contains
     assert ( this%created() )
     par_environment_am_i_lgt1_task = (this%lgt1_context%get_rank() >= 0)
   end function par_environment_am_i_lgt1_task
+  
+  !=============================================================================
+  function par_environment_get_l2_part_id_iam_mapped_to (this)
+    implicit none
+    class(par_environment_t), intent(in) :: this
+    integer(ip) :: par_environment_get_l2_part_id_iam_mapped_to 
+    assert ( this%num_levels >= 2 )
+    par_environment_get_l2_part_id_iam_mapped_to = this%parts_mapping(2) 
+  end function par_environment_get_l2_part_id_iam_mapped_to 
 
   subroutine par_environment_l1_barrier(this) 
     implicit none
@@ -371,11 +381,11 @@ contains
    class(par_environment_t), intent(in) :: this
      
    ! Control info to receive
-   integer                 , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+   integer(ip)             , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
    integer(ip)             , intent(in) :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
 
    ! Control info to send
-   integer                 , intent(in) :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+   integer(ip)             , intent(in) :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
    integer(ip)             , intent(in) :: pack_idx (snd_ptrs(num_snd+1)-1)
 
    ! Floating point data
@@ -520,11 +530,11 @@ contains
    class(par_environment_t), intent(in) :: this
      
    ! Control info to receive
-   integer                 , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+   integer(ip)             , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
    integer(ip)             , intent(in) :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
 
    ! Control info to send
-   integer                 , intent(in) :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+   integer(ip)             , intent(in) :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
    integer(ip)             , intent(in) :: pack_idx (snd_ptrs(num_snd+1)-1)
 
    ! Floating point data

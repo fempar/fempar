@@ -40,24 +40,30 @@ module par_element_exchange_names
    public :: ghost_elements_exchange
 contains
 
-  !*** Abstract implementation of ghost element exchange ***!
-  subroutine ghost_elements_exchange ( icontxt, f_el_import, data )
+  subroutine ghost_elements_exchange ( icontxt, element_import, data )
     implicit none
-    ! Locals 
-    integer(ip)              :: icontxt
-    type(element_import_t) :: f_el_import
-    ! Data is an array of polymorphic entries     
-    class(migratory_element_t) :: data(f_el_import%nelem + f_el_import%nghost)
+    integer(ip)               , intent(in)    :: icontxt
+    type(element_import_t)    , intent(in)    :: element_import
+    class(migratory_element_t), intent(inout) :: data(:)
    
-    call plain_ghost_element_exchange ( icontxt, f_el_import%npadj, f_el_import%lpadj, &
-                                        f_el_import%rcv_ptrs, f_el_import%snd_ptrs, f_el_import%snd_leids, &
-                                        f_el_import%nelem, f_el_import%nghost, data)
-
+    call plain_ghost_element_exchange ( icontxt, &
+                                        element_import%get_number_neighbours(), &
+                                        element_import%get_neighbours_ids(), &
+                                        element_import%get_rcv_ptrs(), &
+                                        element_import%get_rcv_leids(), &
+                                        element_import%get_snd_ptrs(), &
+                                        element_import%get_snd_leids(), &
+                                        data)
   end subroutine ghost_elements_exchange
 
-  subroutine plain_ghost_element_exchange ( icontxt, npadj, lpadj, &
-                                            rcv_ptrs, snd_ptrs, snd_leids, &
-                                            nelem, nghost, data)
+  subroutine plain_ghost_element_exchange ( icontxt, &
+                                            number_neighbours, &
+                                            neighbour_ids, &
+                                            rcv_ptrs, &
+                                            rcv_leids,&
+                                            snd_ptrs, &
+                                            snd_leids, &
+                                            data)
                                              
     use psb_const_mod_names
     use psb_penv_mod_names
@@ -68,25 +74,15 @@ contains
 #ifdef MPI_H
      include 'mpif.h'
 #endif
-     
      ! Parameters
-     integer, intent(in) :: icontxt 
-     
-     ! **IMPORTANT NOTE**: I will assume that both 
-     ! list_rcv and list_snd hold process identifiers 
-     ! starting from one. However, the underlying
-     ! message-passing library identifies processes 
-     ! starting from zero ...
-
-     ! Control info to receive
-     integer    , intent(in)    :: npadj, lpadj(npadj), rcv_ptrs(npadj+1)
-
-     ! Control info to send
-     integer    , intent(in)    :: snd_ptrs(npadj+1)
-     integer(ip), intent(in)    :: snd_leids(snd_ptrs(npadj+1)-1)
-
-     integer(ip), intent(in)    :: nelem, nghost
-     class(migratory_element_t), intent(inout) :: data(nelem+nghost) 
+     integer(ip)               , intent(in)    :: icontxt 
+     integer(ip)               , intent(in)    :: number_neighbours
+     integer(ip)               , intent(in)    :: neighbour_ids(number_neighbours)
+     integer(ip)               , intent(in)    :: rcv_ptrs(number_neighbours+1)
+     integer(ip)               , intent(in)    :: rcv_leids(rcv_ptrs(number_neighbours+1)-1)
+     integer(ip)               , intent(in)    :: snd_ptrs(number_neighbours+1)
+     integer(ip)               , intent(in)    :: snd_leids(snd_ptrs(number_neighbours+1)-1)   
+     class(migratory_element_t), intent(inout) :: data(:) 
      
      ! Communication related locals 
      integer :: my_pid, num_procs, i, proc_to_comm, sizmsg
@@ -119,22 +115,22 @@ contains
      call data(snd_leids(1))%size(elemsize)
 
      ! Prepare room for sndbuf
-     call memalloc ((snd_ptrs(npadj+1)-snd_ptrs(1))*elemsize, sndbuf, __FILE__,__LINE__)
+     call memalloc ((snd_ptrs(number_neighbours+1)-snd_ptrs(1))*elemsize, sndbuf, __FILE__,__LINE__)
 
      ! Prepare room for rcvbuf
-     call memalloc ((rcv_ptrs(npadj+1)-rcv_ptrs(1))*elemsize, rcvbuf, __FILE__,__LINE__)
+     call memalloc ((rcv_ptrs(number_neighbours+1)-rcv_ptrs(1))*elemsize, rcvbuf, __FILE__,__LINE__)
 
      ! Pack data items into send buffer
-     do i=1, snd_ptrs(npadj+1)-1
+     do i=1, snd_ptrs(number_neighbours+1)-1
         call data(snd_leids(i))%pack(elemsize,sndbuf((i-1)*elemsize+1)) 
      end do
 
-     call memalloc (npadj, rcvhd, __FILE__,__LINE__)
-     call memalloc (npadj, sndhd, __FILE__,__LINE__)
+     call memalloc (number_neighbours, rcvhd, __FILE__,__LINE__)
+     call memalloc (number_neighbours, sndhd, __FILE__,__LINE__)
 
      ! First post all the non blocking receives   
-     do i=1, npadj
-       proc_to_comm = lpadj(i)
+     do i=1, number_neighbours
+       proc_to_comm = neighbour_ids(i)
          
        ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
        call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
@@ -142,7 +138,7 @@ contains
        ! Message size to be received
        sizmsg = (rcv_ptrs(i+1)-rcv_ptrs(i))*elemsize
       
-       if ( (sizmsg > 0) .and. (lpadj(i)-1 /= my_pid) ) then
+       if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= my_pid) ) then
           call mpi_irecv(  rcvbuf((rcv_ptrs(i)-1)*elemsize+1), sizmsg, &
                         &  psb_mpi_integer1, proc_to_comm, &
                         &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
@@ -155,8 +151,8 @@ contains
      end do
 
      ! Secondly post all non-blocking sends
-     do i=1, npadj
-        proc_to_comm = lpadj(i)
+     do i=1, number_neighbours
+        proc_to_comm = neighbour_ids(i)
           
         ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
         call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
@@ -164,7 +160,7 @@ contains
         ! Message size to be sent
         sizmsg = (snd_ptrs(i+1)-snd_ptrs(i))*elemsize
     
-        if ( (sizmsg > 0) .and. (lpadj(i)-1 /= my_pid) ) then 
+        if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= my_pid) ) then 
              call mpi_isend(sndbuf((snd_ptrs(i)-1)*elemsize+1), sizmsg, &
                      & psb_mpi_integer1, proc_to_comm, &
                      & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
@@ -177,8 +173,8 @@ contains
        end do
 
      ! Wait on all non-blocking receives
-     do i=1, npadj
-       proc_to_comm = lpadj(i)
+     do i=1, number_neighbours
+       proc_to_comm = neighbour_ids(i)
          
        ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
        call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
@@ -186,14 +182,14 @@ contains
        ! Message size to be received
        sizmsg = (rcv_ptrs(i+1)-rcv_ptrs(i))*elemsize
       
-       if ( (sizmsg > 0) .and. (lpadj(i)-1 /= my_pid) ) then
+       if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= my_pid) ) then
           call mpi_wait(rcvhd(i), p2pstat, iret)
 
           if ( iret /= mpi_success ) then
              write (0,*) 'Error: mpi_wait returned != mpi_success'
              call psb_abort (icontxt)    
           end if
-       else if ( lpadj(i)-1 == my_pid ) then
+       else if ( neighbour_ids(i)-1 == my_pid ) then
           if ( sizmsg /= (snd_ptrs(i+1)-snd_ptrs(i))*elemsize ) then 
              write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
                      & sizmsg, (snd_ptrs(i+1)-snd_ptrs(i) )*elemsize
@@ -205,8 +201,8 @@ contains
     end do
 
      ! Finally wait on all non-blocking sends
-     do i=1, npadj
-        proc_to_comm = lpadj(i)
+     do i=1, number_neighbours
+        proc_to_comm = neighbour_ids(i)
           
         ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
         call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
@@ -214,7 +210,7 @@ contains
         ! Message size to be received
         sizmsg = (snd_ptrs(i+1)-snd_ptrs(i))*elemsize
       
-        if ( (sizmsg > 0) .and. (lpadj(i)-1 /= my_pid) ) then
+        if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= my_pid) ) then
           call mpi_wait(sndhd(i), p2pstat, iret)
           if ( iret /= mpi_success ) then
               write (0,*) 'Error: mpi_wait returned != mpi_success'
@@ -224,8 +220,8 @@ contains
      end do
 
      ! Unpack data items into send buffer
-     do i=1, rcv_ptrs(npadj+1)-1
-        call data(nelem+i)%unpack(elemsize,rcvbuf((i-1)*elemsize+1)) 
+     do i=1, rcv_ptrs(number_neighbours+1)-1
+        call data(rcv_leids(i))%unpack(elemsize,rcvbuf((i-1)*elemsize+1)) 
      end do
 
      call memfree (rcvhd ,__FILE__,__LINE__) 

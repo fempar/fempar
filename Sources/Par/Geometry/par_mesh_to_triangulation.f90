@@ -32,7 +32,6 @@ module par_mesh_to_triangulation_names
   use memor_names
   use triangulation_names
   use element_import_names
-  use element_import_create_names
   use hash_table_names
   use mesh_to_triangulation_names
   use psi_penv_mod_names
@@ -74,33 +73,26 @@ contains
     ! Set a reference to the type(par_environment_t) instance describing the set of MPI tasks
     ! among which this type(par_triangulation) instance is going to be distributed 
     p_trian%p_env => p_gmesh%p_env
-    l1_context    => p_trian%p_env%get_l1_context()
     if(p_trian%p_env%am_i_l1_task()) then
-
+       l1_context    => p_trian%p_env%get_l1_context()
        state = p_trian%state
        assert(state == par_triangulation_not_created .or. state == par_triangulation_filled )
 
        if ( state == par_triangulation_filled ) call par_triangulation_free(p_trian)
 
-       ! Create element_import from geometry mesh partition data
-       ! AFM: CURRENTLY element_import_create is the only way to create a type(element_import) instance.
-       !      I have stored it inside type(par_triangulation) as I do not have a better guess.
-       !      In the future, we should get rid of finite_element_t_import_create, and provide a new
-       !      subroutine which allows to create this instance using the dual graph and the gluing
-       !      data describing its distributed-memory layout. Both the dual graph and associated gluing
-       !      data are to be stored in type(par_neighborhood) according to Javier's UML diagram (i.e., fempar.dia). 
-       !      From this point of view, type(par_neighborhood) should somehow aggregate/reference an instance of 
-       !      type(element_import) and manage its creation. However, this is not currently reflected in fempar.dia, 
-       !      which defines a type(triangulation_partition) which in turn includes an instance of type(element_import) inside. 
-       !      Assuming we agree in the first option, how type(par_triangulation) is going to access type(par_neighbourhood) ??? 
-       !      This is related with a parallel discussion about the possibility of enriching type(par_triangulation) with the dual graph 
-       !      and associated gluing data. Does it make sense? If yes, does type(par_neighborhood) still makes any sense?
-       call element_import_create ( p_gmesh%f_mesh_dist, p_trian%element_import )
+       call p_trian%element_import%create  ( p_trian%p_env%get_l1_rank()+1, &
+                                             p_trian%p_env%get_l1_size(), &
+                                             p_gmesh%f_mesh%nelem, &
+                                             p_gmesh%f_mesh_dist%nebou, &
+                                             p_gmesh%f_mesh_dist%lebou, &
+                                             p_gmesh%f_mesh_dist%pextn, &
+                                             p_gmesh%f_mesh_dist%lextn, &
+                                             p_gmesh%f_mesh_dist%lextp)
 
        ! Now we are sure that the local portion of p_trian, i.e., p_trian%f_trian is in triangulation_not_created state
        ! Let's create and fill it
-       num_elems  = p_trian%element_import%nelem
-       num_ghosts = p_trian%element_import%nghost
+       num_elems  = p_gmesh%f_mesh%nelem
+       num_ghosts = p_trian%element_import%get_number_ghost_elements()
 
        p_trian%num_ghosts = num_ghosts
        p_trian%num_elems  = num_elems

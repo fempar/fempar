@@ -32,7 +32,6 @@ module par_generate_uniform_triangulation_names
   use triangulation_names
   use generate_uniform_triangulation_names
   use mesh_distribution_names
-  use element_import_create_names
   use hash_table_names
   use reference_fe_names
   
@@ -90,9 +89,17 @@ contains
             &                              p_cond%f_conditions,material,mdist)
 
        ! Create element_import
-       call element_import_create(mdist,p_trian%element_import)
-       num_elems  = p_trian%element_import%nelem
-       num_ghosts = p_trian%element_import%nghost
+       call p_trian%element_import%create  ( p_trian%p_env%get_l1_rank()+1, &
+                                             p_trian%p_env%get_l1_size(), &
+                                             p_trian%triangulation%num_elems, &
+                                             mdist%nebou, &
+                                             mdist%lebou, &
+                                             mdist%pextn, &
+                                             mdist%lextn, &
+                                             mdist%lextp)
+       
+       num_elems  = p_trian%triangulation%num_elems
+       num_ghosts = p_trian%element_import%get_number_ghost_elements()
        p_trian%num_ghosts = num_ghosts
        p_trian%num_elems  = num_elems
 
