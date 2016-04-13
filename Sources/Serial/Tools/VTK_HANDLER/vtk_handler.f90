@@ -31,6 +31,7 @@ module vtk_handler_names
 
 USE iso_c_binding
 USE types_names
+USE list_types_names
 USE memor_names
 USE ir_precision,                only: str
 USE vector_names,                only: vector_t
@@ -63,7 +64,6 @@ private
     ! It stores the directory path and the prefix where to write in disk
     type vtk_handler_t
     private
-        type(serial_fe_space_t),    pointer :: fe_space => NULL() ! Poins to fe_space_t
         class(environment_t),       pointer :: env      => NULL() ! Poins to fe_space_t
         type(vtk_mesh_t), allocatable       :: mesh(:)            ! VTK mesh data and field_t descriptors
         real(rp),         allocatable       :: steps(:)           ! Array of parameters (time, eigenvalues,etc.)
@@ -82,6 +82,7 @@ private
         procedure         :: reallocate_meshes            => vtk_reallocate_meshes
         procedure         :: fill_mesh_linear_order       => vtk_fill_mesh_linear_order
         procedure         :: fill_mesh_superlinear_order  => vtk_fill_mesh_superlinear_order
+        procedure         :: write_node_field_linear      => vtk_write_node_field_linear
         procedure         :: write_node_field_superlinear => vtk_write_node_field_superlinear
         procedure         :: get_VTK_time_output_path     => vtk_get_VTK_time_output_path
         procedure         :: get_PVD_time_output_path     => vtk_get_PVD_time_output_path
@@ -320,11 +321,12 @@ contains
     end subroutine vtk_set_num_parts
 
 
-    subroutine vtk_reallocate_meshes(this)
+    subroutine vtk_reallocate_meshes(this, mesh_number)
     !-----------------------------------------------------------------
     !< Reallocate meshes array to fit a new mesh
     !-----------------------------------------------------------------
         class(vtk_handler_t), intent(INOUT) :: this
+        integer(ip),          intent(OUT)   :: mesh_number
         type(vtk_mesh_t), allocatable       :: f_vtk_tmp(:)
     !-----------------------------------------------------------------
         ! Meshes allocation
@@ -339,31 +341,34 @@ contains
             this%mesh(1:size(f_vtk_tmp,dim=1)) = f_vtk_tmp(:)
             deallocate(f_vtk_tmp)
         endif
+        mesh_number = this%num_meshes
     end subroutine vtk_reallocate_meshes
 
 
-    subroutine vtk_initialize(this, triangulation, fe_space, env, path, prefix, root_proc, number_of_parts, number_of_steps, mesh_number, linear_order)
+    subroutine vtk_initialize(this, fe_space, env, path, prefix, root_proc, number_of_parts, number_of_steps, mesh_number, linear_order)
     !-----------------------------------------------------------------
     !< Initialize the vtk_handler_t derived type
     !-----------------------------------------------------------------
-        class(vtk_handler_t),            intent(INOUT) :: this
-        type(triangulation_t),           intent(IN)    :: triangulation
-        type(serial_fe_space_t), target, intent(INOUT) :: fe_space
-        class(environment_t),    target, intent(IN)    :: env
-        character(len=*),                intent(IN)    :: path
-        character(len=*),                intent(IN)    :: prefix  
-        integer(ip),      optional,      intent(IN)    :: root_proc
-        integer(ip),      optional,      intent(IN)    :: number_of_parts
-        integer(ip),      optional,      intent(IN)    :: number_of_steps
-        logical,          optional,      intent(IN)    :: linear_order
-        integer(ip),      optional,      intent(OUT)   :: mesh_number
-        integer(ip)                                    :: nm = 1
-        logical                                        :: lo = .False., ft = .False.
-        integer(ip)                                    :: me, np, st, rp
+        class(vtk_handler_t),             intent(INOUT) :: this
+        class(serial_fe_space_t), target, intent(INOUT) :: fe_space
+        class(environment_t),     target, intent(IN)    :: env
+        character(len=*),                 intent(IN)    :: path
+        character(len=*),                 intent(IN)    :: prefix  
+        integer(ip),      optional,       intent(IN)    :: root_proc
+        integer(ip),      optional,       intent(IN)    :: number_of_parts
+        integer(ip),      optional,       intent(IN)    :: number_of_steps
+        logical,          optional,       intent(IN)    :: linear_order
+        integer(ip),      optional,       intent(OUT)   :: mesh_number
+        integer(ip)                                     :: nm
+        logical                                         :: lo, ft
+        integer(ip)                                     :: me, np, st, rp
     !-----------------------------------------------------------------
+        nm = 1       !< Default number of mesh = 1
+        lo = .False. !< Default linear order = .false.
+        ft = .False. !< Default fine task = .false.
+
         if(present(linear_order)) lo = linear_order
 
-        this%fe_space => fe_space
         this%env => env
 
         me = 0; np = 1; rp = 0
@@ -375,12 +380,15 @@ contains
         call this%set_root_proc(rp)
 
         if(ft) then
-            if(lo) then 
-                call this%fill_mesh_linear_order(triangulation=triangulation, mesh_number=nm)
+            call this%reallocate_meshes(nm)
+            call this%mesh(nm)%set_fe_space(fe_space)
+            call this%mesh(nm)%set_linear_order(lo)
+
+            if(this%mesh(nm)%is_linear_order()) then 
+                call this%fill_mesh_linear_order(mesh_number=nm)
             else
-                call this%fill_mesh_superlinear_order(fe_space=fe_space, nmesh=nm)
+                call this%fill_mesh_superlinear_order(mesh_number=nm)
             endif
-            if(present(mesh_number)) mesh_number = nm
 
             call this%set_path(path,nm)
             call this%set_prefix(prefix,nm)
@@ -390,147 +398,127 @@ contains
             if(present(number_of_steps)) st = number_of_steps
             call this%set_num_steps(st)
 
+            if(present(mesh_number)) mesh_number = nm
         endif
     end subroutine vtk_initialize
 
 
-    subroutine initialize_linear_order(this, triangulation, mesh_number)
-    !-----------------------------------------------------------------
-    !< vtk_handler_t derived type linear order initialization
-    !-----------------------------------------------------------------
-        class(vtk_handler_t),  intent(INOUT) :: this
-        type(triangulation_t), intent(IN)    :: triangulation
-        integer(ip), optional, intent(OUT)   :: mesh_number
-        integer(ip)                          :: nm
-    !-----------------------------------------------------------------
-        call this%fill_mesh_linear_order(triangulation, nm)
-        if(present(mesh_number)) mesh_number = nm
-    end subroutine initialize_linear_order
-
-
-    subroutine vtk_fill_mesh_linear_order(this, triangulation, mesh_number)
+    subroutine vtk_fill_mesh_linear_order(this, mesh_number)
     !-----------------------------------------------------------------
     !< Store a linear_order mesh in a vtk_handler_t derived type from a triangulation
     !-----------------------------------------------------------------
-        class(vtk_handler_t),  intent(INOUT) :: this
-        type(triangulation_t), intent(IN)    :: triangulation
-        integer(ip), optional, intent(OUT)   :: mesh_number
-        integer(ip)                          :: i
-        integer(ip)                          :: j
-        integer(ip)                          :: number_nodes
-        integer(ip)                          :: counter
-        character(:), pointer                :: topology
+        class(vtk_handler_t),             intent(INOUT) :: this
+        integer(ip),                      intent(IN)    :: mesh_number
+        type(triangulation_t), pointer                  :: triangulation
+        integer(ip)                                     :: i
+        integer(ip)                                     :: j
+        integer(ip)                                     :: number_nodes
+        integer(ip)                                     :: counter
+        character(:), pointer                           :: topology
     !-----------------------------------------------------------------
-        call this%reallocate_meshes()
-        if(present(mesh_number)) mesh_number = this%num_meshes
-        call this%mesh(this%num_meshes)%set_linear_order(.True.)
+        triangulation => this%mesh(mesh_number)%get_triangulation()
+        check(associated(triangulation))
 
-        call this%mesh(this%num_meshes)%set_dimensions(triangulation%num_dims)
-        call this%mesh(this%num_meshes)%set_number_elements(triangulation%num_elems)
-        call this%mesh(this%num_meshes)%allocate_elemental_arrays()
+        call this%mesh(mesh_number)%set_dimensions(triangulation%num_dims)
+        call this%mesh(mesh_number)%set_number_elements(triangulation%num_elems)
+        call this%mesh(mesh_number)%allocate_elemental_arrays()
 
         ! Fill VTK cell type and offset arrays and and count nodes
         number_nodes = 0
-        do i=1, this%mesh(this%num_meshes)%get_number_elements()
+        do i=1, this%mesh(mesh_number)%get_number_elements()
             topology => triangulation%elems(i)%reference_fe_geo%get_topology()
             if(topology == topology_quad) then
-                call this%mesh(this%num_meshes)%set_cell_type(index=i, type=8) ! VTK_VOXEL
+                call this%mesh(mesh_number)%set_cell_type(index=i, type=8) ! VTK_VOXEL
             else
                 write(*,*) 'fill_mesh_from_triangulation: Topology not supported -> ', topology
                 check(.false.)
             endif
             number_nodes = number_nodes + triangulation%elems(i)%reference_fe_geo%get_number_vertices()
-            call this%mesh(this%num_meshes)%set_offset(i, number_nodes)
+            call this%mesh(mesh_number)%set_offset(i, number_nodes)
         enddo
-        call this%mesh(this%num_meshes)%set_number_nodes(number_nodes)
-        call this%mesh(this%num_meshes)%allocate_nodal_arrays()
+        call this%mesh(mesh_number)%set_number_nodes(number_nodes)
+        call this%mesh(mesh_number)%allocate_nodal_arrays()
 
 
         counter = 1
         number_nodes = 0
 
         ! Fill VTK coordinate arrays
-        do i=1, this%mesh(this%num_meshes)%get_number_elements()
+        do i=1, this%mesh(mesh_number)%get_number_elements()
             do j=1, triangulation%elems(i)%reference_fe_geo%get_number_vertices()
-                call this%mesh(this%num_meshes)%set_connectivity(number_nodes+j, j+number_nodes-1)
-                if (triangulation%num_dims >=1) call this%mesh(this%num_meshes)%set_x_coordinate(counter, triangulation%elems(i)%coordinates(1,j))
-                if (triangulation%num_dims >=2) call this%mesh(this%num_meshes)%set_y_coordinate(counter, triangulation%elems(i)%coordinates(2,j))
-                if (triangulation%num_dims >=3) call this%mesh(this%num_meshes)%set_z_coordinate(counter, triangulation%elems(i)%coordinates(3,j))
+                call this%mesh(mesh_number)%set_connectivity(number_nodes+j, j+number_nodes-1)
+                if (triangulation%num_dims >=1) call this%mesh(mesh_number)%set_x_coordinate(counter, triangulation%elems(i)%coordinates(1,j))
+                if (triangulation%num_dims >=2) call this%mesh(mesh_number)%set_y_coordinate(counter, triangulation%elems(i)%coordinates(2,j))
+                if (triangulation%num_dims >=3) call this%mesh(mesh_number)%set_z_coordinate(counter, triangulation%elems(i)%coordinates(3,j))
                 counter = counter + 1
             enddo
             number_nodes = number_nodes + triangulation%elems(i)%reference_fe_geo%get_number_vertices()
         enddo
-        call this%mesh(this%num_meshes)%set_filled(.true.)
+        call this%mesh(mesh_number)%set_filled(.true.)
     end subroutine vtk_fill_mesh_linear_order
 
 
-    subroutine vtk_fill_mesh_superlinear_order(this, fe_space, nmesh)
+    subroutine vtk_fill_mesh_superlinear_order(this, mesh_number)
     !-----------------------------------------------------------------
     !< Store a superlinear_order mesh in a vtk_handler_t derived type from a fe_space
     !-----------------------------------------------------------------
-        class(vtk_handler_t),           intent(inout) :: this
-        type(serial_fe_space_t),        intent(inout) :: fe_space
-        integer(ip), optional,          intent(out)   :: nmesh
-        type(point_t),          pointer               :: vertex_coordinates(:) => null()
-        type(point_t),          pointer               :: nodal_coordinates(:) => null()
-        type(quadrature_t),     pointer               :: nodal_quadrature => null()
-        class(reference_fe_t),  pointer               :: reference_fe_geo => null()
-        type(finite_element_t), pointer               :: fe => null()
-        integer(ip),            pointer               :: subelements_connectivity(:,:) => null()
-        type(fe_map_t)                                :: fe_map
-        integer(ip)                                   :: num_elements
-        integer(ip)                                   :: num_nodes_per_element
-        integer(ip)                                   :: num_vertices_per_element
-        integer(ip)                                   :: num_subelements_per_element
-        integer(ip)                                   :: elements_counter
-        integer(ip)                                   :: vertex
-        integer(ip)                                   :: max_order
-        integer(ip)                                   :: dimensions
-        integer(ip)                                   :: subelement_vertex
-        integer(ip)                                   :: fe_space_index
-        integer(ip)                                   :: element_index
-        integer(ip)                                   :: subelement_index
-        integer(ip)                                   :: max_order_fe_space_index
-        integer(ip)                                   :: nodes_counter
+        class(vtk_handler_t),             intent(INOUT) :: this
+        integer(ip), optional,            intent(IN)    :: mesh_number
+        class(serial_fe_space_t), pointer               :: fe_space
+        type(point_t),            pointer               :: vertex_coordinates(:) => null()
+        type(point_t),            pointer               :: nodal_coordinates(:) => null()
+        type(quadrature_t),       pointer               :: nodal_quadrature => null()
+        class(reference_fe_t),    pointer               :: reference_fe_geo => null()
+        type(finite_element_t),   pointer               :: fe => null()
+        class(reference_fe_t),    pointer               :: max_order_reference_fe_phy => null() 
+        integer(ip),              pointer               :: subelements_connectivity(:,:) => null()
+        type(fe_map_t)                                  :: fe_map
+        integer(ip)                                     :: num_elements
+        integer(ip)                                     :: num_nodes_per_element
+        integer(ip)                                     :: num_vertices_per_element
+        integer(ip)                                     :: num_subelements_per_element
+        integer(ip)                                     :: elements_counter
+        integer(ip)                                     :: vertex
+        integer(ip)                                     :: max_order
+        integer(ip)                                     :: dimensions
+        integer(ip)                                     :: subelement_vertex
+        integer(ip)                                     :: fe_space_index
+        integer(ip)                                     :: element_index
+        integer(ip)                                     :: subelement_index
+        integer(ip)                                     :: max_order_fe_space_index
+        integer(ip)                                     :: nodes_counter
     !-----------------------------------------------------------------
-        call this%reallocate_meshes()
-        if(present(nmesh)) nmesh = this%num_meshes
-        call this%mesh(this%num_meshes)%set_linear_order(.false.)
-
-
-        ! Get dimensions from the geometric reference finite element
-        fe => fe_space%get_finite_element(1)
-        reference_fe_geo => fe%get_reference_fe_geo()
-        dimensions = reference_fe_geo%get_number_dimensions()
-        call this%mesh(this%num_meshes)%set_dimensions(dimensions)
+        fe_space => this%mesh(mesh_number)%get_fe_space()
+        check(associated(fe_space))
 
         ! Get max order and its fe_space_index
-        max_order = 0
-        do fe_space_index=1,fe_space%get_number_fe_spaces()
-            if(max_order<fe_space%get_order(fe_space_index)) max_order_fe_space_index = fe_space_index
-            max_order = max(max_order,fe_space%get_order(fe_space_index))
-        end do
-
+        max_order                = fe_space%get_max_order()
+        max_order_fe_space_index = fe_space%get_max_order_fe_space_component()
+        
         ! Getters
-        nodal_quadrature => fe_space%get_nodal_quadrature(max_order_fe_space_index)
+        max_order_reference_fe_phy => fe_space%get_reference_fe_phy(max_order_fe_space_index)
+        reference_fe_geo           => fe_space%get_reference_fe_geo()
+        nodal_quadrature           => max_order_reference_fe_phy%get_nodal_quadrature()
+
+        ! Get dimensions from the geometric reference finite element
+        dimensions = reference_fe_geo%get_number_dimensions()
+        call this%mesh(mesh_number)%set_dimensions(dimensions)
      
         ! Calculate the number of subelems and points for the postprocess
-        num_elements = fe_space%get_number_elements()
-        !num_nodes_per_element = fe_space%get_number_nodes(max_order_fe_space_index)
-        num_vertices_per_element = reference_fe_geo%get_number_vertices()
-        num_subelements_per_element = fe_space%get_number_subelements(max_order_fe_space_index)
-        call this%mesh(this%num_meshes)%set_number_elements(num_elements * num_subelements_per_element)
-        call this%mesh(this%num_meshes)%set_number_nodes(num_vertices_per_element * this%mesh(this%num_meshes)%get_number_elements())
+        num_elements                = fe_space%get_number_elements()
+        num_vertices_per_element    = reference_fe_geo%get_number_vertices()
+        num_subelements_per_element = max_order_reference_fe_phy%get_number_subelements()
+        call this%mesh(mesh_number)%set_number_elements(num_elements * num_subelements_per_element)
+        call this%mesh(mesh_number)%set_number_nodes(num_vertices_per_element * this%mesh(mesh_number)%get_number_elements())
 
         ! Allocate VTK geometry and connectivity data
-        call this%mesh(this%num_meshes)%allocate_nodal_arrays()
-        call this%mesh(this%num_meshes)%allocate_elemental_arrays()
+        call this%mesh(mesh_number)%allocate_nodal_arrays()
+        call this%mesh(mesh_number)%allocate_elemental_arrays()
         
-
         ! Get the connectivity of the subelements
-        call this%mesh(this%num_meshes)%allocate_subelements_connectivity(num_vertices_per_element, num_subelements_per_element)
-        subelements_connectivity => this%mesh(this%num_meshes)%get_subelements_connectivity()
-        call fe_space%get_subelements_connectivity(max_order_fe_space_index, subelements_connectivity)
+        call this%mesh(mesh_number)%allocate_subelements_connectivity(num_vertices_per_element, num_subelements_per_element)
+        subelements_connectivity => this%mesh(mesh_number)%get_subelements_connectivity()
+        call max_order_reference_fe_phy%get_subelements_connectivity(subelements_connectivity)
 
         ! Create FE map
         call fe_map%create(nodal_quadrature, reference_fe_geo)
@@ -554,17 +542,17 @@ contains
                 do vertex = 1, num_vertices_per_element
                     subelement_vertex = subelements_connectivity(vertex, subelement_index)
                     nodes_counter = nodes_counter + 1
-                    if (dimensions >= 1) call this%mesh(this%num_meshes)%set_x_coordinate(nodes_counter, nodal_coordinates(subelement_vertex)%get(1))
-                    if (dimensions >= 2) call this%mesh(this%num_meshes)%set_y_coordinate(nodes_counter, nodal_coordinates(subelement_vertex)%get(2))
-                    if (dimensions >= 3) call this%mesh(this%num_meshes)%set_z_coordinate(nodes_counter, nodal_coordinates(subelement_vertex)%get(3))
-                    call this%mesh(this%num_meshes)%set_connectivity(nodes_counter, nodes_counter-1)
+                    call this%mesh(mesh_number)%set_x_coordinate(nodes_counter, nodal_coordinates(subelement_vertex)%get(1))
+                    call this%mesh(mesh_number)%set_y_coordinate(nodes_counter, nodal_coordinates(subelement_vertex)%get(2))
+                    call this%mesh(mesh_number)%set_z_coordinate(nodes_counter, nodal_coordinates(subelement_vertex)%get(3))
+                    call this%mesh(mesh_number)%set_connectivity(nodes_counter, nodes_counter-1)
                 end do
 
                 ! Store the type of element
-                call this%mesh(this%num_meshes)%set_cell_type(elements_counter, 8)  ! VTK_VOXEL
+                call this%mesh(mesh_number)%set_cell_type(elements_counter, 8)  ! VTK_VOXEL
 
                 ! Fill offset
-                call this%mesh(this%num_meshes)%set_offset(elements_counter, nodes_counter)
+                call this%mesh(mesh_number)%set_offset(elements_counter, nodes_counter)
             end do
         end do
 
@@ -637,12 +625,13 @@ contains
     end function vtk_begin_write
 
 
-    function vtk_write_node_field(this, fe_function, field_name, mesh_number, f_id) result(E_IO)
+    function vtk_write_node_field(this, fe_function, fe_space_index, field_name, mesh_number, f_id) result(E_IO)
     !-----------------------------------------------------------------
     !< Write node field to file
     !-----------------------------------------------------------------
         class(vtk_handler_t),       intent(INOUT) :: this           !< vtk_handler_t derived type
         type(fe_function_t),        intent(INOUT) :: fe_function    !< fe_function containing the field to be written
+        integer(ip),                intent(IN)    :: fe_space_index !< Fe space index
         character(len=*), optional, intent(IN)    :: field_name     !< name of the field
         integer(ip),      optional, intent(IN)    :: mesh_number    !< Real Number of Mesh
         integer(ip),      optional, intent(IN)    :: f_id           !< File ID
@@ -651,6 +640,7 @@ contains
         logical                                   :: ft             !< Fine Task
         integer(ip)                               :: E_IO           !< IO Error
     !-----------------------------------------------------------------
+        check(associated(this%env))
         E_IO = 0
         ft =  this%env%am_i_fine_task() 
         if(ft) then        
@@ -661,47 +651,137 @@ contains
            if(present(field_name)) fn = field_name
 
             if(this%mesh(nm)%is_linear_order()) then
-!                E_IO = this%write_field_linear(this, fe_function, mesh_number, f_id)
-                check(.false.)
+                E_IO = this%write_node_field_linear(fe_function, fe_space_index, fn, nm, f_id)
             else
-                E_IO = this%write_node_field_superlinear(fe_function, fn, nm, f_id)
+                E_IO = this%write_node_field_superlinear(fe_function, fe_space_index, fn, nm, f_id)
             endif
 
         endif
     end function vtk_write_node_field
 
 
-    function vtk_write_node_field_superlinear(this, fe_function, field_name, mesh_number, f_id) result(E_IO)
+    function vtk_write_node_field_linear(this, fe_function, fe_space_index, field_name, mesh_number, f_id) result(E_IO)
+    !-----------------------------------------------------------------
+    !< Write linear field to file
+    !-----------------------------------------------------------------
+        implicit none
+        class(vtk_handler_t),       intent(INOUT) :: this                                         !< vtk_handler_t derived type
+        type(fe_function_t),        intent(INOUT) :: fe_function                                  !< Postprocess field structure to be written
+        integer(ip),                intent(IN)    :: fe_space_index                               !< Fe space index
+        character(len=*), optional, intent(IN)    :: field_name                                   !< name of the field
+        integer(ip),      optional, intent(IN)    :: mesh_number                                  !< Real Number of Mesh
+        integer(ip),      optional, intent(IN)    :: f_id                                         !< File ID
+        real(rp), allocatable                     :: field(:,:)                                   !< FIELD(ncomp,nnod)
+        real(rp), allocatable                     :: nodal_values(:)                              !< nodal values
+        class(serial_fe_space_t),    pointer      :: fe_space                           => null() !< fe space
+        type(serial_scalar_array_t), pointer      :: strong_dirichlet_values            => null() !< Strong dirichlet values
+        type(finite_element_t),      pointer      :: fe                                 => null() !< finite element
+        class(reference_fe_t),       pointer      :: reference_fe_phy_origin            => null() !< reference finite element
+        class(vector_t),             pointer      :: fe_function_dof_values             => null() !< dof values of the fe_function
+        type(i1p_t),                 pointer      :: elem2dof(:)                        => null() !< element 2 dof translator
+        integer(ip),                 pointer      :: field_blocks(:)                    => null() !< field blocks
+        real(rp),                    pointer      :: strong_dirichlet_values_entries(:) => null() !< strong dirichlet values
+        type(list_t),                pointer      :: nodes_list                                   !< list of reference_fe_phy nodes
+        type(list_iterator_t)                     :: vertex_iterator                              !< iterator on vertex of the reference_fe_phy
+        integer(ip)                               :: number_elements                              !< number of elements
+        integer(ip)                               :: number_vertices                              !< number of geo vertex
+        integer(ip)                               :: number_components                            !< number of components
+        integer(ip)                               :: number_nodes                                 !< number of nodes per fe space
+        integer(ip)                               :: element_index                                !< element index
+        integer(ip)                               :: component_index                              !< component index
+        integer(ip)                               :: vertex_index                                 !< vertex index
+        integer(ip)                               :: node_index                                   !< node index
+        integer(ip)                               :: E_IO                                         !< IO Error
+    !-----------------------------------------------------------------
+        fe_space => this%mesh(mesh_number)%get_fe_space()
+        check(associated(fe_space))
+        check(this%mesh(mesh_number)%is_linear_order())
+
+        ! Point to some fe_space content
+        reference_fe_phy_origin => fe_space%get_reference_fe_phy(fe_space_index)
+        field_blocks            => fe_space%get_field_blocks()
+        nodes_list              => reference_fe_phy_origin%get_nodes_vef()
+
+
+        ! Extract nodal values associated to dirichlet bcs and dof values
+        strong_dirichlet_values         => fe_function%get_strong_dirichlet_values()
+        strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+        fe_function_dof_values          => fe_function%get_dof_values()
+
+        ! Get number components, elements, nodes and vertices
+        number_elements   = fe_space%get_number_elements()
+        number_components = reference_fe_phy_origin%get_number_field_components()
+        number_nodes      = reference_fe_phy_origin%get_number_nodes()
+        number_vertices   = reference_fe_phy_origin%get_number_vertices()
+
+        ! Allocate nodal values per finite element and VTK field
+        call memalloc(number_nodes, nodal_values, __FILE__, __LINE__)
+        call memalloc(number_components, number_elements*number_vertices , field, __FILE__, __LINE__)
+
+        do element_index=1, number_elements
+            fe => fe_space%get_finite_element(element_index)  
+            elem2dof => fe%get_elem2dof()
+
+            ! Extract nodal values associated to dofs
+            call fe_function_dof_values%extract_subvector ( field_blocks(fe_space_index), number_nodes, elem2dof(fe_space_index)%p, nodal_values )
+
+            ! Build field in VTK-like format
+            ! Loop on geometrical nodes in subelement
+            do vertex_index=1, number_vertices
+                vertex_iterator = nodes_list%get_iterator(vertex_index)
+                assert(vertex_iterator%get_size() == number_components)
+                ! Loop on field components
+                do component_index=1, number_components
+                    node_index = vertex_iterator%get_current()
+                    if ( elem2dof(fe_space_index)%p(node_index) < 0 ) then
+                        ! Fill field with strong dirichlet values
+                        field(component_index , (element_index-1)*number_vertices+vertex_index) = strong_dirichlet_values_entries(-elem2dof(fe_space_index)%p(node_index))
+                    else
+                        ! Fill field with nodal values
+                        field(component_index , (element_index-1)*number_vertices+vertex_index) = nodal_values(node_index)
+                    endif
+                    call vertex_iterator%next()
+                end do
+            end do
+        enddo
+
+        E_IO = this%mesh(mesh_number)%write_node_field(field, field_name, f_id)
+        call memfree(nodal_values, __FILE__, __LINE__)
+        call memfree(field, __FILE__, __LINE__)
+    end function vtk_write_node_field_linear
+
+
+    function vtk_write_node_field_superlinear(this, fe_function, fe_space_index, field_name, mesh_number, f_id) result(E_IO)
     !-----------------------------------------------------------------
     !< Write superlinear field to file
     !-----------------------------------------------------------------
         implicit none
         class(vtk_handler_t),       intent(INOUT) :: this                                         !< vtk_handler_t derived type
         type(fe_function_t),        intent(INOUT) :: fe_function                                  !< Postprocess field structure to be written
+        integer(ip),                intent(IN)    :: fe_space_index                               !< Fe space index
         character(len=*), optional, intent(IN)    :: field_name                                   !< name of the field
-        integer(ip),                intent(IN)    :: mesh_number                                  !< Real Number of Mesh
+        integer(ip),      optional, intent(IN)    :: mesh_number                                  !< Real Number of Mesh
         integer(ip),      optional, intent(IN)    :: f_id                                         !< File ID
         real(rp), allocatable                     :: field(:,:)                                   !< FIELD(ncomp,nnod)
         real(rp), allocatable                     :: nodal_values_origin(:)                       !< nodal values of the origin fe_space
         real(rp), allocatable                     :: nodal_values_target(:)                       !< nodal values for the interpolation
+        class(serial_fe_space_t),    pointer      :: fe_space                           => null() !< fe space
         type(quadrature_t),          pointer      :: nodal_quadrature_target            => null() !< Nodal quadrature
         type(serial_scalar_array_t), pointer      :: strong_dirichlet_values            => null() !< Strong dirichlet values
         type(finite_element_t),      pointer      :: fe                                 => null() !< finite element
         class(reference_fe_t),       pointer      :: reference_fe_phy_origin            => null() !< reference finite element
         class(vector_t),             pointer      :: fe_function_dof_values             => null() !< dof values of the fe_function
         type(i1p_t),                 pointer      :: elem2dof(:)                        => null() !< element 2 dof translator
-        type(interpolation_t),       pointer      :: interpolation_geometry             => null() !< interpolator
+        type(interpolation_t)                     :: interpolation                                !< interpolator
         integer(ip),                 pointer      :: subelements_connectivity(:,:)      => null() !< connectivity of subelements
         integer(ip),                 pointer      :: field_blocks(:)                    => null() !< field blocks
         real(rp),                    pointer      :: strong_dirichlet_values_entries(:) => null() !< strong dirichlet values
-        type(fe_map_t)                            :: fe_map                                       !< fe map
         integer(ip)                               :: number_elements                              !< number of elements
         integer(ip)                               :: number_subelements                           !< number of subelements per element
         integer(ip)                               :: number_vertices                              !< number of geo vertex
         integer(ip)                               :: number_components                            !< number of components
         integer(ip)                               :: number_nodes_scalar                          !< number of scalar nodes
-        integer(ip)                               :: number_nodes_fe_space                        !< number of nodes per fe space
-        integer(ip)                               :: fe_space_index                               !< fe_space index
+        integer(ip)                               :: number_nodes                                 !< number of nodes per fe space
         integer(ip)                               :: element_index                                !< element index
         integer(ip)                               :: component_index                              !< component index
         integer(ip)                               :: node_index                                   !< node index
@@ -713,90 +793,83 @@ contains
         integer(ip)                               :: E_IO                                         !< IO Error
         logical                                   :: ft                                           !< Fine Task
     !-----------------------------------------------------------------
-        ! Get max order and its fe_space_index
-        max_order = 0
-        do fe_space_index=1,this%fe_space%get_number_fe_spaces()
-            if(max_order<this%fe_space%get_order(fe_space_index)) max_order_fe_space_index = fe_space_index
-            max_order = max(max_order,this%fe_space%get_order(fe_space_index))
-        end do
+        fe_space => this%mesh(mesh_number)%get_fe_space()
+        check(associated(fe_space))
+        check(.not. this%mesh(mesh_number)%is_linear_order())
 
-        ! Getters
-        nodal_quadrature_target => this%fe_space%get_nodal_quadrature(max_order_fe_space_index)
-
-        ! Calculate number nodes of target field given a certain order of interpolation, the fe_type and the number of components
-        number_components = this%fe_space%get_number_field_components(max_order_fe_space_index)
-        number_elements = this%fe_space%get_number_elements()
-        number_subelements = this%fe_space%get_number_subelements(max_order_fe_space_index)
-        number_nodes_scalar = this%fe_space%get_number_nodes_scalar(max_order_fe_space_index)
-        call memalloc(number_nodes_scalar*number_components, nodal_values_target, __FILE__, __LINE__)
-
+        ! Point physical referece fe, field blocks, nodal quadrature and subelements connectivity
+        reference_fe_phy_origin  => fe_space%get_reference_fe_phy(fe_space_index)
+        field_blocks             => fe_space%get_field_blocks()
+        nodal_quadrature_target  => reference_fe_phy_origin%get_nodal_quadrature()
         subelements_connectivity => this%mesh(mesh_number)%get_subelements_connectivity()
 
-        do fe_space_index=1, this%fe_space%get_number_fe_spaces()
-            number_nodes_fe_space = this%fe_space%get_number_nodes(fe_space_index)
-            call memalloc(number_nodes_fe_space, nodal_values_origin, __FILE__, __LINE__)
+        ! Extract nodal values associated to dirichlet bcs and dof values
+        strong_dirichlet_values         => fe_function%get_strong_dirichlet_values()
+        strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+        fe_function_dof_values          => fe_function%get_dof_values()
+        
+        ! Get max order and its fe_space_index
+        max_order = fe_space%get_max_order()
+        max_order_fe_space_index = fe_space%get_max_order_fe_space_component()
 
-            reference_fe_phy_origin => this%fe_space%get_reference_fe_phy(fe_space_index)
-            number_vertices = reference_fe_phy_origin%get_number_vertices()
-            call fe_map%create(nodal_quadrature_target, reference_fe_phy_origin)
-            call memalloc(number_components, number_subelements*number_elements*number_vertices , field, __FILE__, __LINE__)
+        ! Calculate number nodes of target field given a certain order of interpolation, the fe_type and the number of components
+        number_elements     = fe_space%get_number_elements()
+        number_components   = reference_fe_phy_origin%get_number_field_components()
+        number_subelements  = reference_fe_phy_origin%get_number_subelements()
+        number_nodes_scalar = reference_fe_phy_origin%get_number_nodes_scalar()
+        number_nodes        = reference_fe_phy_origin%get_number_nodes()
+        number_vertices     = reference_fe_phy_origin%get_number_vertices()
 
-            field_blocks => this%fe_space%get_field_blocks()
+        ! Allocate VTK field, origin and target nodal values
+        call memalloc(number_nodes, nodal_values_origin, __FILE__, __LINE__)
+        call memalloc(reference_fe_phy_origin%get_number_nodes(), nodal_values_target, __FILE__, __LINE__)
+        call memalloc(number_components, number_subelements*number_elements*number_vertices , field, __FILE__, __LINE__)
 
-            ! Extract nodal values associated to dirichlet bcs
-            strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
-            strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+        ! Create interpolation from nodal quadrature
+        call reference_fe_phy_origin%create_interpolation(nodal_quadrature_target, interpolation)
+        
+        ! Loop on elements
+        do element_index=1, number_elements
+            fe => fe_space%get_finite_element(element_index)  
+            elem2dof => fe%get_elem2dof()
 
-            do element_index=1, number_elements
-                fe => this%fe_space%get_finite_element(element_index)  
-                elem2dof => fe%get_elem2dof()
+            ! Extract nodal values associated to dofs
+            call fe_function_dof_values%extract_subvector ( field_blocks(fe_space_index), number_nodes, elem2dof(fe_space_index)%p, nodal_values_origin )
 
-                 ! Extract nodal values associated to dofs
-                fe_function_dof_values => fe_function%get_dof_values()
-                call fe_function_dof_values%extract_subvector ( field_blocks(fe_space_index), &
-                                                                & number_nodes_fe_space,      &
-                                                                & elem2dof(fe_space_index)%p, &
-                                                                & nodal_values_origin )
+            ! Fill nodal values with strong dirichlet values
+            do node_index = 1, number_nodes
+                if ( elem2dof(fe_space_index)%p(node_index) < 0 ) then
+                    nodal_values_origin(node_index) = strong_dirichlet_values_entries(-elem2dof(fe_space_index)%p(node_index))
+                end if
+            end do
 
-                ! Fill nodal values with strong dirichlet values
-                do node_index = 1, number_nodes_fe_space
-                    if ( elem2dof(fe_space_index)%p(node_index) < 0 ) then
-                        nodal_values_origin(node_index) = strong_dirichlet_values_entries(abs(elem2dof(fe_space_index)%p(node_index)))
-                    end if
+            ! interpolate nodal values if needed
+            if(fe_space%get_order(fe_space_index) /= max_order) then
+                call reference_fe_phy_origin%interpolate_nodal_values( interpolation, nodal_values_origin, nodal_values_target ) 
+            else
+                assert(number_nodes==number_nodes_scalar*number_components)
+                nodal_values_target=nodal_values_origin
+            endif
+
+            ! Build field in VTK-like format
+            ! Loop on components
+            do component_index=1, number_components
+                ! Loop on subelements
+                do subelement_index = 1, number_subelements
+                    ! Loop on geometrical nodes per subelement
+                    do node_index=1, number_vertices
+                        idx = subelements_connectivity(node_index,subelement_index)
+                        subnode_index=( (element_index-1)*number_subelements+(subelement_index-1) )*number_vertices+node_index
+                        field(component_index , subnode_index) = nodal_values_target(idx+(component_index-1)*number_nodes_scalar)
+                    enddo
                 end do
-
-                ! interpolate nodal values if needed
-                if(this%fe_space%get_order(fe_space_index) /= max_order) then
-                    interpolation_geometry => fe_map%get_interpolation_geometry()
-                    call reference_fe_phy_origin%interpolate_nodal_values( &
-                                                        interpolation_geometry, &
-                                                        nodal_values_origin, &
-                                                        nodal_values_target ) 
-                else
-                    assert(number_nodes_fe_space==number_nodes_scalar*number_components)
-                    nodal_values_target=nodal_values_origin
-                endif
-
-                ! Build field in VTK-like format
-                ! Loop over number of components
-                do component_index=1, number_components
-                    ! Loop over subelements
-                    do subelement_index = 1, number_subelements
-                        ! Loop over geometrical nodes in subelement
-                        do node_index=1, number_vertices
-                            idx = subelements_connectivity(node_index,subelement_index)
-                            subnode_index=( (element_index-1)*number_subelements+(subelement_index-1) )*number_vertices+node_index
-                            field(component_index , subnode_index) = nodal_values_target(idx+(component_index-1)*number_nodes_scalar)
-                        enddo
-                    end do
-                end do
-            enddo
-
-            call fe_map%free()
-            E_IO = this%mesh(mesh_number)%write_node_field(field, field_name, f_id)
-            call memfree(nodal_values_origin, __FILE__, __LINE__)
-            call memfree(field, __FILE__, __LINE__)
+            end do
         enddo
+
+        E_IO = this%mesh(mesh_number)%write_node_field(field, field_name, f_id)
+        call interpolation%free()
+        call memfree(nodal_values_origin, __FILE__, __LINE__)
+        call memfree(field, __FILE__, __LINE__)
         call memfree(nodal_values_target, __FILE__, __LINE__)
     end function vtk_write_node_field_superlinear
 
@@ -853,7 +926,6 @@ contains
         this%num_steps = 0
         this%num_parts = 0
         this%root_proc = 0
-        this%fe_space => NULL()
         this%env => NULL()
     end subroutine VTK_free
 

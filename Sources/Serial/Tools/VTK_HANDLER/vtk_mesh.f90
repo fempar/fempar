@@ -29,6 +29,8 @@
 
 module vtk_mesh
 
+USE triangulation_names,         only: triangulation_t
+USE serial_fe_space_names,       only: serial_fe_space_t
 USE types_names
 USE memor_names
 USE Lib_VTK_IO
@@ -51,23 +53,27 @@ private
     ! Type for storing mesh data
     type vtk_mesh_t
     private
-        character(len=:),  allocatable :: directory_path                         ! Directory where the results are going to be stored
-        character(len=:),  allocatable :: name_prefix                            ! Name prefix of the VTK files
-        real(rp),          allocatable :: X(:)                                   ! Mesh X coordintates
-        real(rp),          allocatable :: Y(:)                                   ! Mesh Y coordintates
-        real(rp),          allocatable :: Z(:)                                   ! Mesh Z coordintates
-        integer(ip),       allocatable :: connectivities(:)                      ! Connectivity matrix
-        integer(ip),       allocatable :: offset(:)                              ! VTK element offset
-        integer(ip),       allocatable :: cell_types(:)                          ! VTK element type
-        integer(ip),       allocatable :: subelements_connectivity(:,:)          ! Connectivities of subelements (If not linear_order)
-        integer(ip)                    :: number_of_nodes    = 0                 ! Number of nodes
-        integer(ip)                    :: number_of_elements = 0                 ! Number of elements
-        integer(ip)                    :: dimensions         = 0                 ! Dimensions of the mesh
-        logical                        :: linear_order       = .false.           ! Order 1 (.true.) or higher
-        logical                        :: filled             = .false.           ! Mesh data was already filled
-        integer(ip)                    :: status             = VTK_STATE_UNKNOWN ! Status of the write process
+        class(serial_fe_space_t), pointer :: fe_space      => NULL()                ! Poins to fe_space_t
+        character(len=:),  allocatable    :: directory_path                         ! Directory where the results are going to be stored
+        character(len=:),  allocatable    :: name_prefix                            ! Name prefix of the VTK files
+        real(rp),          allocatable    :: X(:)                                   ! Mesh X coordintates
+        real(rp),          allocatable    :: Y(:)                                   ! Mesh Y coordintates
+        real(rp),          allocatable    :: Z(:)                                   ! Mesh Z coordintates
+        integer(ip),       allocatable    :: connectivities(:)                      ! Connectivity matrix
+        integer(ip),       allocatable    :: offset(:)                              ! VTK element offset
+        integer(ip),       allocatable    :: cell_types(:)                          ! VTK element type
+        integer(ip),       allocatable    :: subelements_connectivity(:,:)          ! Connectivities of subelements (If not linear_order)
+        integer(ip)                       :: number_of_nodes    = 0                 ! Number of nodes
+        integer(ip)                       :: number_of_elements = 0                 ! Number of elements
+        integer(ip)                       :: dimensions         = 0                 ! Dimensions of the mesh
+        logical                           :: linear_order       = .false.           ! Order 1 (.true.) or higher
+        logical                           :: filled             = .false.           ! Mesh data was already filled
+        integer(ip)                       :: status             = VTK_STATE_UNKNOWN ! Status of the write process
     contains
     private
+        procedure, non_overridable, public :: set_fe_space                      => vtk_mesh_set_fe_space
+        procedure, non_overridable, public :: get_fe_space                      => vtk_mesh_get_fe_space
+        procedure, non_overridable, public :: get_triangulation                 => vtk_mesh_get_triangulation
         procedure, non_overridable, public :: set_path                          => vtk_mesh_set_path
         procedure, non_overridable, public :: get_path                          => vtk_mesh_get_path
         procedure, non_overridable, public :: set_prefix                        => vtk_mesh_set_prefix
@@ -108,6 +114,39 @@ public :: vtk_mesh_t
 
 contains
 
+    subroutine vtk_mesh_set_fe_space(this, fe_space)
+    !-----------------------------------------------------------------
+    !< Set the fe_space
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t),                intent(INOUT) :: this
+        class(serial_fe_space_t), target, intent(IN)    :: fe_space
+    !-----------------------------------------------------------------
+        this%fe_space => fe_space
+    end subroutine vtk_mesh_set_fe_space
+
+
+    function vtk_mesh_get_fe_space(this) result(fe_space)
+    !-----------------------------------------------------------------
+    !< Get the fe_space pointer
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t),                intent(IN) :: this
+        class(serial_fe_space_t), pointer            :: fe_space
+    !-----------------------------------------------------------------
+        fe_space => this%fe_space
+    end function vtk_mesh_get_fe_space
+
+
+    function vtk_mesh_get_triangulation(this) result(triangulation)
+    !-----------------------------------------------------------------
+    !< Get the fe_space pointer
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t),             intent(IN) :: this
+        type(triangulation_t), pointer            :: triangulation
+    !-----------------------------------------------------------------
+        triangulation => this%fe_space%get_triangulation()
+    end function vtk_mesh_get_triangulation
+
+
     subroutine vtk_mesh_set_path(this, path)
     !-----------------------------------------------------------------
     !< Set the name of the output directory
@@ -125,7 +164,6 @@ contains
     !-----------------------------------------------------------------
         class(vtk_mesh_t),             intent(IN)    :: this
         character(len=:), allocatable, intent(INOUT) :: path
-        integer(ip)                                  :: error
     !-----------------------------------------------------------------
         assert(allocated(this%directory_path))
         path = this%directory_path
@@ -149,7 +187,6 @@ contains
     !-----------------------------------------------------------------
         class(vtk_mesh_t),             intent(IN)    :: this
         character(len=:), allocatable, intent(INOUT) :: prefix
-        integer(ip)                                  :: error
     !-----------------------------------------------------------------
         assert(allocated(this%name_prefix))
         prefix = this%name_prefix
@@ -416,7 +453,7 @@ contains
     !-----------------------------------------------------------------
         assert(allocated(this%Z))
         assert(index>0 .and. index<=this%number_of_nodes)
-        this%Y(index) = coordinate
+        this%Z(index) = coordinate
     end subroutine vtk_mesh_set_z_coordinate
 
 
@@ -430,7 +467,7 @@ contains
     !-----------------------------------------------------------------
         assert(allocated(this%Z))
         assert(index>0 .and. index<=this%number_of_nodes)
-        coordinate = this%Y(index)
+        coordinate = this%Z(index)
     end function vtk_mesh_get_z_coordinate
 
 
@@ -612,6 +649,7 @@ contains
         if(allocated(this%offset))                   call memfree(this%offset, __FILE__, __LINE__)
         if(allocated(this%cell_types))               call memfree(this%cell_types, __FILE__, __LINE__)
         if(allocated(this%subelements_connectivity)) call memfree(this%subelements_connectivity, __FILE__, __LINE__)
+        nullify(this%fe_space)
         this%number_of_nodes    = 0
         this%number_of_elements = 0
         this%linear_order       = .false.

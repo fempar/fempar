@@ -174,7 +174,6 @@ module reference_fe_names
      procedure, non_overridable :: apply_inv_jacobian             => fe_map_apply_inv_jacobian
      procedure, non_overridable :: compute_quadrature_coordinates => fe_map_compute_quadrature_coordinates
      procedure, non_overridable :: get_quadrature_coordinates     => fe_map_get_quadrature_coordinates
-     procedure, non_overridable :: get_interpolation_geometry     => fe_map_get_interpolation_geometry
   end type fe_map_t
 
   type p_fe_map_t
@@ -349,6 +348,7 @@ module reference_fe_names
      procedure :: get_number_nodes => reference_fe_get_number_nodes
      procedure :: get_vef_dimension  => reference_fe_get_vef_dimension
      procedure :: get_vertices_vef  =>   reference_fe_get_vertices_vef
+     procedure :: get_nodes_vef   =>   reference_fe_get_nodes_vef
      procedure :: get_vefs_vef   =>   reference_fe_get_vefs_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
      procedure :: get_number_own_nodes_vef => reference_fe_get_number_own_nodes_vef

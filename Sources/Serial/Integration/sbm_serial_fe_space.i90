@@ -1016,64 +1016,42 @@ end subroutine serial_fe_space_update_bc_value_tensor
    end do
  end function serial_fe_space_get_max_order
  
- !===============================================================================================
- function serial_fe_space_get_nodal_quadrature( this, fe_space_component) result(nodal_quadrature)
-   class(serial_fe_space_t), intent(in)    :: this 
-   integer(ip)             , intent(in)    :: fe_space_component
-   type(quadrature_t), pointer :: nodal_quadrature
-   nodal_quadrature => this%reference_fe_phy_list(fe_space_component)%p%get_nodal_quadrature()
- end function serial_fe_space_get_nodal_quadrature
- 
- !===============================================================================================
- function serial_fe_space_get_number_subelements( this, fe_space_component) result(number_subelements)
-   class(serial_fe_space_t), intent(in)    :: this 
-   integer(ip)             , intent(in)    :: fe_space_component
-   integer(ip)                             :: number_subelements
-   
-   number_subelements = this%reference_fe_phy_list(fe_space_component)%p%get_number_subelements()
- end function serial_fe_space_get_number_subelements
- 
- !===============================================================================================
- function serial_fe_space_get_number_nodes( this, fe_space_component) result(number_nodes)
-   class(serial_fe_space_t), intent(in)    :: this 
-   integer(ip)             , intent(in)    :: fe_space_component
-   integer(ip)                             :: number_nodes
-   
-   number_nodes = this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
- end function serial_fe_space_get_number_nodes
+  !===============================================================================================
+ function serial_fe_space_get_max_order_fe_space_component( this ) result(max_order_fe_space_component)
+ implicit none
+   class(serial_fe_space_t), intent(in) :: this 
+   integer(ip)                          :: max_order
+   integer(ip)                          :: max_order_fe_space_component
+   integer(ip)                          :: fe_space_component
+   max_order = 0
+   do fe_space_component = 1, this%number_fe_spaces
+      if(max_order<this%get_order(fe_space_component)) max_order_fe_space_component = fe_space_component
+      max_order = max( max_order, this%get_order(fe_space_component) )
+   end do
+ end function serial_fe_space_get_max_order_fe_space_component
 
  !===============================================================================================
- function serial_fe_space_get_number_nodes_scalar( this, fe_space_component) result(number_nodes_scalar)
+ function serial_fe_space_get_triangulation( this) result(triangulation)
    class(serial_fe_space_t), intent(in)    :: this 
-   integer(ip)             , intent(in)    :: fe_space_component
-   integer(ip)                             :: number_nodes_scalar
+   class(triangulation_t), pointer         :: triangulation
    
-   number_nodes_scalar = this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes_scalar()
- end function serial_fe_space_get_number_nodes_scalar
- 
- !===============================================================================================
- function serial_fe_space_get_number_field_components( this, fe_space_component) result(number_components)
-   class(serial_fe_space_t), intent(in)    :: this 
-   integer(ip)             , intent(in)    :: fe_space_component
-   integer(ip)                             :: number_components
-   
-   number_components = this%reference_fe_phy_list(fe_space_component)%p%get_number_field_components()
- end function serial_fe_space_get_number_field_components
- 
+   triangulation => this%triangulation
+ end function serial_fe_space_get_triangulation
+  
  !===============================================================================================
  function serial_fe_space_get_reference_fe_phy( this, fe_space_component) result(reference_fe_phy)
    class(serial_fe_space_t), intent(in)    :: this 
    integer(ip)             , intent(in)    :: fe_space_component
-   class(reference_fe_t), pointer           :: reference_fe_phy
+   class(reference_fe_t), pointer          :: reference_fe_phy
    
    reference_fe_phy => this%reference_fe_phy_list(fe_space_component)%p
  end function serial_fe_space_get_reference_fe_phy
  
  !===============================================================================================
- subroutine serial_fe_space_get_subelements_connectivity( this, fe_space_component, connectivity)
+ function serial_fe_space_get_reference_fe_geo( this) result(reference_fe_geo)
    class(serial_fe_space_t), intent(in)    :: this 
-   integer(ip)             , intent(in)    :: fe_space_component
-   integer(ip)             , intent(inout) :: connectivity(:,:)
+   class(reference_fe_t), pointer          :: reference_fe_geo
    
-   call this%reference_fe_phy_list(fe_space_component)%p%get_subelements_connectivity(connectivity)
- end subroutine serial_fe_space_get_subelements_connectivity
+   reference_fe_geo => this%triangulation%reference_fe_geo_list(1)%p
+ end function serial_fe_space_get_reference_fe_geo
+ 

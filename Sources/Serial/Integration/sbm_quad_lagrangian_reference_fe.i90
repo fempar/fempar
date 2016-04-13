@@ -2218,6 +2218,7 @@ subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
   end do
 
 end subroutine face_shapen
+
 !==============================================================================
   subroutine femap_apply_to_interp(map,ref,phy)
     implicit none
@@ -2313,8 +2314,7 @@ end subroutine face_shapen
     end if
   end subroutine femap_apply_to_interp
 
-
-  !-----------------------------------------------------------------------
+!==================================================================================================
   subroutine matove(xmatr,vecto,ndime,ntens)
     !-----------------------------------------------------------------------
     !                                      
@@ -2340,7 +2340,8 @@ end subroutine face_shapen
     end if
 
   end subroutine matove
-  
+
+!==================================================================================================
   subroutine quad_lagrangian_reference_fe_get_subelements_connectivity(this, connectivity)
     implicit none
     class(quad_lagrangian_reference_fe_t), intent(in)    :: this
@@ -2368,6 +2369,7 @@ end subroutine face_shapen
     end do
   end subroutine quad_lagrangian_reference_fe_get_subelements_connectivity
 
+!==================================================================================================
   function quad_lagrangian_reference_fe_get_number_subelements(this) result(number_subelements)
     implicit none
     class(quad_lagrangian_reference_fe_t), intent(in)    :: this
@@ -2376,7 +2378,7 @@ end subroutine face_shapen
     number_subelements = int((this%order)**this%number_dimensions) 
   end function quad_lagrangian_reference_fe_get_number_subelements
   
-  
+!==================================================================================================
   function quad_lagrangian_reference_fe_get_number_nodes_scalar(this) result(number_nodes_scalar)
     implicit none
     class(quad_lagrangian_reference_fe_t), intent(in)    :: this
