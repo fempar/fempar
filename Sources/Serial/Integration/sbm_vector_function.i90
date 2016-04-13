@@ -25,20 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-subroutine vector_function_create( this, number_dimensions )
-  class(vector_function_t), intent(inout) :: this
-  integer(ip)             , intent(in)    :: number_dimensions
-  this%number_dimensions = number_dimensions
-end subroutine vector_function_create
-
-function vector_function_get_number_dimensions( this )
-  class(vector_function_t), intent(in) :: this
-  integer(ip) :: vector_function_get_number_dimensions
-  assert ( this%number_dimensions >= 1 .and. this%number_dimensions <= 3  )
-  vector_function_get_number_dimensions = this%number_dimensions
-end function vector_function_get_number_dimensions
-
 subroutine vector_function_get_value_space( this, point, result )
   class(vector_function_t), intent(in) :: this
   type(point_t), intent(in)            :: point

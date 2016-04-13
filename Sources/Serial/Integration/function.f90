@@ -35,12 +35,9 @@ module function_names
   private
   type :: array_function_t
      private
-     integer(ip)  :: number_dimensions = -1
-     integer(ip)  :: number_components = -1
+     integer(ip)  :: number_components = 1
    contains
-     procedure  :: array_function_create
-     generic    :: create                                 => array_function_create
-     procedure, non_overridable :: get_number_dimensions  => array_function_get_number_dimensions
+     procedure, non_overridable :: set_number_components  => array_set_number_components
      procedure, non_overridable :: get_number_components  => array_function_get_number_components
      procedure  :: get_component_value_space              => array_function_get_component_value_space
      procedure  :: get_component_value_space_time         => array_function_get_component_value_space_time
@@ -58,11 +55,7 @@ module function_names
 
   type :: scalar_function_t
      private
-     integer(ip)  :: number_dimensions = -1
    contains
-     procedure                  :: scalar_function_create
-     generic                    :: create                    => scalar_function_create
-     procedure, non_overridable :: get_number_dimensions     => scalar_function_get_number_dimensions
      procedure                  :: get_value_space           => scalar_function_get_value_space
      procedure                  :: get_value_space_time      => scalar_function_get_value_space_time
      generic                    :: get_value                 => get_value_space, get_value_space_time
@@ -73,11 +66,7 @@ module function_names
 
   type :: vector_function_t
      private
-     integer(ip)  :: number_dimensions = -1
    contains
-     procedure                  :: vector_function_create
-     generic                    :: create                    => vector_function_create
-     procedure, non_overridable :: get_number_dimensions     => vector_function_get_number_dimensions
      procedure                  :: get_value_space           => vector_function_get_value_space
      procedure                  :: get_value_space_time      => vector_function_get_value_space_time
      generic                    :: get_value                 => get_value_space, get_value_space_time
@@ -88,11 +77,7 @@ module function_names
 
   type :: tensor_function_t
      private
-     integer(ip)  :: number_dimensions = -1
    contains
-     procedure                  :: tensor_function_create
-     generic                    :: create                    => tensor_function_create
-     procedure, non_overridable :: get_number_dimensions     => tensor_function_get_number_dimensions
      procedure                  :: get_value_space           => tensor_function_get_value_space
      procedure                  :: get_value_space_time      => tensor_function_get_value_space_time
      generic                    :: get_value                 => get_value_space, get_value_space_time
