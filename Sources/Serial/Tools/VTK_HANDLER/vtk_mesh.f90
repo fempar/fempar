@@ -56,6 +56,7 @@ private
         class(serial_fe_space_t), pointer :: fe_space      => NULL()                ! Poins to fe_space_t
         character(len=:),  allocatable    :: directory_path                         ! Directory where the results are going to be stored
         character(len=:),  allocatable    :: name_prefix                            ! Name prefix of the VTK files
+        integer(ip)                       :: file_id = 0                            ! File descriptor (unit)
         real(rp),          allocatable    :: X(:)                                   ! Mesh X coordintates
         real(rp),          allocatable    :: Y(:)                                   ! Mesh Y coordintates
         real(rp),          allocatable    :: Z(:)                                   ! Mesh Z coordintates
@@ -100,6 +101,7 @@ private
         procedure, non_overridable, public :: get_y_coordinate                  => vtk_mesh_get_y_coordinate
         procedure, non_overridable, public :: set_z_coordinate                  => vtk_mesh_set_z_coordinate
         procedure, non_overridable, public :: get_z_coordinate                  => vtk_mesh_get_z_coordinate
+        procedure, non_overridable, public :: initialize_coordinates            => vtk_mesh_initialize_coordinates
         procedure, non_overridable, public :: get_subelements_connectivity      => vtk_mesh_get_subelements_connectivity
         procedure, non_overridable, public :: allocate_nodal_arrays             => vtk_mesh_allocate_nodal_arrays
         procedure, non_overridable, public :: allocate_elemental_arrays         => vtk_mesh_allocate_elemental_arrays
@@ -471,6 +473,21 @@ contains
     end function vtk_mesh_get_z_coordinate
 
 
+    subroutine vtk_mesh_initialize_coordinates(this)
+    !-----------------------------------------------------------------
+    !< Set the z coordinate given the node index
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t),     intent(INOUT) :: this
+    !-----------------------------------------------------------------
+        assert(allocated(this%X))
+        assert(allocated(this%Y))
+        assert(allocated(this%Z))
+        this%X = 0.0_rp
+        this%Y = 0.0_rp
+        this%Z = 0.0_rp
+    end subroutine vtk_mesh_initialize_coordinates
+
+
     function vtk_mesh_get_subelements_connectivity(this) result(subelements_connectivity)
     !-----------------------------------------------------------------
     !< Return a pointer to the subelements connectivity array
@@ -527,7 +544,7 @@ contains
     end subroutine vtk_mesh_allocate_subelements_connectivity
 
 
-    function vtk_mesh_begin_write(this, file_name, part_number, time_step, format, f_id) result(E_IO)
+    function vtk_mesh_begin_write(this, file_name, part_number, time_step, format) result(E_IO)
     !-----------------------------------------------------------------
     !< Start the writing of a single VTK file to disk (if I am fine MPI task)
     !< Writes connectivities and coordinates ( VTK_INI_XML, 
@@ -538,9 +555,7 @@ contains
         integer(ip),                intent(IN)    :: part_number !< Number of the PART
         real(rp),                   intent(IN)    :: time_step   !< Time STEP value
         character(len=*), optional, intent(IN)    :: format      !< Ouput ForMaT
-        integer(ip),      optional, intent(OUT)   :: f_id        !< File ID
         character(len=:), allocatable             :: of          !< Real Output Format
-        integer(ip)                               :: fid         !< Real File ID
         integer(ip)                               :: nnods       !< Number of NODeS
         integer(ip)                               :: nels        !< Number of ELementS
         integer(ip)                               :: E_IO        !< Error IO
@@ -552,78 +567,62 @@ contains
             E_IO = VTK_INI_XML(output_format = trim(adjustl(of)),   &
                                filename = trim(adjustl(file_name)), &
                                mesh_topology = 'UnstructuredGrid',  &
-                               cf=fid)
+                               cf=this%file_id)
             E_IO = VTK_GEO_XML(NN = this%number_of_nodes,    &
                                NC = this%number_of_elements, &
                                X  = this%X,                  &
                                Y  = this%Y,                  &
                                Z  = this%Z,                  &
-                               cf = fid)
+                               cf = this%file_id)
             E_IO = VTK_CON_XML(NC = this%number_of_elements,    &
                                connect   = this%connectivities, &
                                offset    = this%offset,         &
                                cell_type = int(this%cell_types,1),     &
-                               cf        = fid)
+                               cf        = this%file_id)
 
             this%status = VTK_STATE_WRITE_STARTED
-            if(present(f_id)) f_id = fid
         endif
     end function vtk_mesh_begin_write
 
 
-    function vtk_mesh_write_node_field(this, field, field_name, f_id) result(E_IO)
+    function vtk_mesh_write_node_field(this, field, field_name) result(E_IO)
     !-----------------------------------------------------------------
     !< Writes a VTK field ( VTK_DAT_XML )
     !-----------------------------------------------------------------
         class(vtk_mesh_t),          intent(INOUT) :: this        !< VTK_t derived type
         character(len=*),           intent(IN)    :: field_name  !< VTK field NAME
         real(rp),                   intent(IN)    :: field(:,:)  !< Field to write
-        integer(ip),      optional, intent(IN)    :: f_id        !< File ID
         integer(ip)                               :: E_IO        !< Error IO
     !-----------------------------------------------------------------
-        if((this%status == VTK_STATE_WRITE_STARTED) .or. (this%status < VTK_STATE_POINTDATA_OPENED)) then
+        if((this%status == VTK_STATE_WRITE_STARTED) .or. (this%status == VTK_STATE_POINTDATA_OPENED)) then
             if(this%status == VTK_STATE_WRITE_STARTED) then
-                if(present(f_id)) then
-                    E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=f_id)
-                else
-                    E_IO = VTK_DAT_XML(var_location='node',var_block_action='open')
-                endif
+                E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=this%file_id)
                 this%status = VTK_STATE_POINTDATA_OPENED
             endif
-            E_IO = VTK_VAR_XML(NC_NN=this%number_of_nodes,N_COL=size(field,1), varname=field_name, var=field, cf=f_id)
+            E_IO = VTK_VAR_XML(NC_NN=this%number_of_nodes,N_COL=size(field,1), varname=field_name, var=field, cf=this%file_id)
         endif
     end function vtk_mesh_write_node_field
 
 
-    function vtk_mesh_end_write(this, f_id) result(E_IO)
+    function vtk_mesh_end_write(this) result(E_IO)
     !-----------------------------------------------------------------
     !< Ends the writing of a single VTK file to disk (if I am fine MPI task)
     !< Closes geometry ( VTK_END_XML, VTK_GEO_XML )
     !-----------------------------------------------------------------
         implicit none
         class(vtk_mesh_t),          intent(INOUT) :: this        !< VTK_t derived type
-        integer(ip),      optional, intent(INOUT) :: f_id        !< File ID
         integer(ip)                               :: nm          !< Real Number of Mesh
         integer(ip)                               :: E_IO        !< IO Error
         logical                                   :: ft          !< Fine Task
     ! -----------------------------------------------------------------
         if ((this%status >= VTK_STATE_WRITE_STARTED) .and. (this%status /= VTK_STATE_ENDED)) then
             if(this%status == VTK_STATE_POINTDATA_OPENED) then
-                if(present(f_id)) then
-                    E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=f_id)
-                else
-                    E_IO = VTK_DAT_XML(var_location='node',var_block_action='close')
-                endif
+                E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=this%file_id)
                 this%status = VTK_STATE_POINTDATA_CLOSED
             endif
               
-            if(present(f_id)) then       
-                E_IO = VTK_GEO_XML(cf=f_id)
-                E_IO = VTK_END_XML(cf=f_id)
-            else
-                E_IO = VTK_GEO_XML()
-                E_IO = VTK_END_XML()
-            endif
+            E_IO = VTK_GEO_XML(cf=this%file_id)
+            E_IO = VTK_END_XML(cf=this%file_id)
               
             this%status = VTK_STATE_ENDED
        endif

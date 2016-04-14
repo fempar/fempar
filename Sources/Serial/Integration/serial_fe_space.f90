@@ -256,7 +256,6 @@ module serial_fe_space_names
                                          & interpolate_fe_function_vector, &
                                          & interpolate_fe_function_tensor    
 
-     procedure, non_overridable :: get_order => serial_fe_space_get_order
      procedure, non_overridable :: get_max_order => serial_fe_space_get_max_order
      procedure, non_overridable :: get_max_order_fe_space_component => serial_fe_space_get_max_order_fe_space_component
      procedure, non_overridable :: get_triangulation => serial_fe_space_get_triangulation

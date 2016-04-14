@@ -995,16 +995,6 @@ end subroutine serial_fe_space_update_bc_value_tensor
  end subroutine serial_fe_space_interpolate_fe_function_tensor
  
  !===============================================================================================
- function serial_fe_space_get_order( this, fe_space_component ) result(order)
- implicit none
-   class(serial_fe_space_t), intent(in) :: this 
-   integer(ip)                          :: fe_space_component
-   integer(ip)                          :: order
-   assert(fe_space_component <= this%number_fe_spaces)
-   order = this%reference_fe_phy_list(fe_space_component)%p%get_order() 
- end function serial_fe_space_get_order
- 
- !===============================================================================================
  function serial_fe_space_get_max_order( this ) result(max_order)
  implicit none
    class(serial_fe_space_t), intent(in) :: this 
@@ -1012,7 +1002,7 @@ end subroutine serial_fe_space_update_bc_value_tensor
    integer(ip)                          :: fe_space_component
    max_order = 0
    do fe_space_component = 1, this%number_fe_spaces
-      max_order = max( max_order, this%get_order(fe_space_component) )
+      max_order = max( max_order, this%reference_fe_phy_list(fe_space_component)%p%get_order() )
    end do
  end function serial_fe_space_get_max_order
  
@@ -1025,8 +1015,8 @@ end subroutine serial_fe_space_update_bc_value_tensor
    integer(ip)                          :: fe_space_component
    max_order = 0
    do fe_space_component = 1, this%number_fe_spaces
-      if(max_order<this%get_order(fe_space_component)) max_order_fe_space_component = fe_space_component
-      max_order = max( max_order, this%get_order(fe_space_component) )
+      if(max_order<this%reference_fe_phy_list(fe_space_component)%p%get_order()) max_order_fe_space_component = fe_space_component
+      max_order = max( max_order, this%reference_fe_phy_list(fe_space_component)%p%get_order() )
    end do
  end function serial_fe_space_get_max_order_fe_space_component
 
