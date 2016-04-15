@@ -45,7 +45,6 @@ module par_uniform_refinement_names
   use par_environment_names
   use par_mesh_names
   use par_triangulation_names
-  use par_mesh_to_triangulation_names
   use par_conditions_names
   use par_element_exchange_names
 

@@ -34,7 +34,6 @@ module par_names
   ! Geometry
   use par_mesh_names
   use par_triangulation_names
-  use par_mesh_to_triangulation_names
   use par_conditions_names
   use par_generate_uniform_triangulation_names
   use par_uniform_refinement_names

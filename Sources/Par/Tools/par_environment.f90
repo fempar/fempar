@@ -62,17 +62,23 @@ module par_environment_names
      
      type(par_environment_t), pointer :: next_level 
    contains
-     procedure :: create                       => par_environment_create
-     procedure :: free                         => par_environment_free
-     procedure :: print                        => par_environment_print
-     procedure :: created                      => par_environment_created
-     procedure :: get_l1_rank                  => par_environment_get_l1_rank
-     procedure :: get_l1_size                  => par_environment_get_l1_size
-     procedure :: get_lgt1_rank                => par_environment_get_lgt1_rank
-     procedure :: get_l1_context               => par_environment_get_l1_context
-     procedure :: get_lgt1_context             => par_environment_get_lgt1_context
-     procedure :: am_i_lgt1_task               => par_environment_am_i_lgt1_task
-     procedure :: get_l2_part_id_iam_mapped_to => par_environment_get_l2_part_id_iam_mapped_to
+     procedure :: create                              => par_environment_create
+     procedure :: free                                => par_environment_free
+     procedure :: print                               => par_environment_print
+     procedure :: created                             => par_environment_created
+     procedure :: get_l1_rank                         => par_environment_get_l1_rank
+     procedure :: get_l1_size                         => par_environment_get_l1_size
+     procedure :: get_l1_to_l2_rank                   => par_environment_get_l1_to_l2_rank
+     procedure :: get_l1_to_l2_size                   => par_environment_get_l1_to_l2_size
+     
+     procedure :: get_lgt1_rank                       => par_environment_get_lgt1_rank
+     procedure :: get_l1_context                      => par_environment_get_l1_context
+     procedure :: get_lgt1_context                    => par_environment_get_lgt1_context
+     procedure :: am_i_lgt1_task                      => par_environment_am_i_lgt1_task
+     procedure :: am_i_l1_to_l2_task                  => par_environment_am_i_l1_to_l2_task
+     procedure :: am_i_l1_to_l2_root                  => par_environment_am_i_l1_to_l2_root
+     
+     procedure :: get_l2_part_id_l1_task_is_mapped_to => par_environment_get_l2_part_id_l1_task_is_mapped_to
      
      procedure, private :: par_environment_l1_neighbours_exchange_real
      procedure, private :: par_environment_l1_neighbours_exchange_integer
@@ -87,8 +93,14 @@ module par_environment_names
      procedure, private :: par_environment_l1_gather_scalar_integer
      generic   :: l1_gather => par_environment_l1_gather_scalar_integer 
      
+     procedure, private :: par_environment_l2_from_l1_gather_integer
+     procedure, private :: par_environment_l2_from_l1_gather_integer_1D_array
+     generic   :: l2_from_l1_gather => par_environment_l2_from_l1_gather_integer, &
+                                       par_environment_l2_from_l1_gather_integer_1D_array
+     
      procedure, private :: par_environment_l1_bcast_scalar_integer
      generic   :: l1_bcast => par_environment_l1_bcast_scalar_integer 
+     
                                                  
      ! Deferred TBPs inherited from class(environment_t)
      procedure :: info                        => par_environment_info
@@ -221,8 +233,8 @@ contains
   function par_environment_get_l1_rank ( this )
     implicit none 
     ! Parameters
-    class(par_environment_t), target,  intent(in) :: this
-    integer                                       :: par_environment_get_l1_rank
+    class(par_environment_t), intent(in) :: this
+    integer                              :: par_environment_get_l1_rank
     par_environment_get_l1_rank = this%l1_context%get_rank()
   end function par_environment_get_l1_rank
   
@@ -230,17 +242,35 @@ contains
   function par_environment_get_l1_size ( this )
     implicit none 
     ! Parameters
-    class(par_environment_t), target,  intent(in) :: this
-    integer                                       :: par_environment_get_l1_size
+    class(par_environment_t), intent(in) :: this
+    integer                              :: par_environment_get_l1_size
     par_environment_get_l1_size = this%l1_context%get_size()
   end function par_environment_get_l1_size
+  
+    !=============================================================================
+  function par_environment_get_l1_to_l2_rank ( this )
+    implicit none 
+    ! Parameters
+    class(par_environment_t), intent(in) :: this
+    integer                              :: par_environment_get_l1_to_l2_rank
+    par_environment_get_l1_to_l2_rank = this%l1_to_l2_context%get_rank()
+  end function par_environment_get_l1_to_l2_rank
+  
+  !=============================================================================
+  function par_environment_get_l1_to_l2_size ( this )
+    implicit none 
+    ! Parameters
+    class(par_environment_t), intent(in) :: this
+    integer                              :: par_environment_get_l1_to_l2_size
+    par_environment_get_l1_to_l2_size = this%l1_to_l2_context%get_size()
+  end function par_environment_get_l1_to_l2_size
   
   !=============================================================================
   function par_environment_get_lgt1_rank ( this )
     implicit none 
     ! Parameters
-    class(par_environment_t), target,  intent(in) :: this
-    integer                                       :: par_environment_get_lgt1_rank
+    class(par_environment_t), intent(in) :: this
+    integer                              :: par_environment_get_lgt1_rank
     par_environment_get_lgt1_rank = this%lgt1_context%get_rank()
   end function par_environment_get_lgt1_rank
   
@@ -271,14 +301,30 @@ contains
     par_environment_am_i_lgt1_task = (this%lgt1_context%get_rank() >= 0)
   end function par_environment_am_i_lgt1_task
   
-  !=============================================================================
-  function par_environment_get_l2_part_id_iam_mapped_to (this)
+  function par_environment_am_i_l1_to_l2_task(this)
     implicit none
     class(par_environment_t), intent(in) :: this
-    integer(ip) :: par_environment_get_l2_part_id_iam_mapped_to 
-    assert ( this%num_levels >= 2 )
-    par_environment_get_l2_part_id_iam_mapped_to = this%parts_mapping(2) 
-  end function par_environment_get_l2_part_id_iam_mapped_to 
+    logical                              :: par_environment_am_i_l1_to_l2_task 
+    assert ( this%created() )
+    par_environment_am_i_l1_to_l2_task = (this%l1_to_l2_context%get_rank() >= 0)
+  end function par_environment_am_i_l1_to_l2_task
+  
+  function par_environment_am_i_l1_to_l2_root(this)
+    implicit none
+    class(par_environment_t), intent(in) :: this
+    logical                              :: par_environment_am_i_l1_to_l2_root
+    
+    par_environment_am_i_l1_to_l2_root = (this%l1_to_l2_context%get_rank() == this%l1_to_l2_context%get_size()-1)
+  end function par_environment_am_i_l1_to_l2_root
+  
+  !=============================================================================
+  function par_environment_get_l2_part_id_l1_task_is_mapped_to (this)
+    implicit none
+    class(par_environment_t), intent(in) :: this
+    integer(ip) :: par_environment_get_l2_part_id_l1_task_is_mapped_to 
+    assert (this%am_i_l1_task())
+    par_environment_get_l2_part_id_l1_task_is_mapped_to = this%parts_mapping(2) 
+  end function par_environment_get_l2_part_id_l1_task_is_mapped_to 
 
   subroutine par_environment_l1_barrier(this) 
     implicit none
@@ -680,7 +726,6 @@ contains
         
    integer                 , intent(in)    :: num_neighbours
    integer(ip)             , intent(in)    :: list_neighbours (num_neighbours)
-
    integer(ip)             , intent(in)    :: input_data
    integer(ip)             , intent(inout) :: output_data(num_neighbours)
    
@@ -866,7 +911,7 @@ contains
       class(par_environment_t), intent(in)   :: this
       integer                 , intent(in)   :: root
       integer(ip)             , intent(in)   :: input_data
-      integer(ip)             , intent(out)  :: output_data(*)
+      integer(ip)             , intent(out)  :: output_data(this%l1_context%get_size())
       
       integer(ip) :: icontxt
       integer     :: mpi_comm, iret
@@ -883,7 +928,7 @@ contains
       implicit none
       class(par_environment_t), intent(in)   :: this
       integer                 , intent(in)   :: root
-      integer(ip)             , intent(in)   :: input_data(*)
+      integer(ip)             , intent(in)   :: input_data(this%l1_context%get_size())
       integer(ip)             , intent(out)  :: output_data
       
       integer(ip) :: icontxt
@@ -904,13 +949,54 @@ contains
       integer(ip)             , intent(inout) :: data
       
       integer(ip) :: icontxt
-      integer     :: mpi_comm, iret
       
       if ( this%am_i_l1_task() ) then
         icontxt = this%l1_context%get_icontxt()
         call psb_bcast ( icontxt, data, root=root)
       end if
    end subroutine par_environment_l1_bcast_scalar_integer
+   
+   subroutine par_environment_l2_from_l1_gather_integer ( this, input_data, output_data )
+      implicit none
+      class(par_environment_t), intent(in)   :: this
+      integer(ip)             , intent(in)   :: input_data
+      integer(ip)             , intent(out)  :: output_data(this%l1_to_l2_context%get_size())
+      
+      integer(ip)            :: icontxt
+      integer                :: mpi_comm, iret, root
+      
+      if ( this%am_i_l1_to_l2_task() ) then
+        root    = this%l1_to_l2_context%get_size() - 1 
+        icontxt = this%l1_to_l2_context%get_icontxt()
+        call psb_get_mpicomm (icontxt, mpi_comm)
+        call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, mpi_comm, iret)
+        check( iret == mpi_success )
+      end if
+   end subroutine par_environment_l2_from_l1_gather_integer
+   
+   subroutine par_environment_l2_from_l1_gather_integer_1D_array ( this, input_data_size, input_data, recv_counts, displs, output_data )
+      implicit none
+      class(par_environment_t), intent(in)   :: this
+      integer(ip)             , intent(in)   :: input_data_size
+      integer(ip)             , intent(in)   :: input_data(input_data_size)
+      integer(ip)             , intent(in)   :: recv_counts(this%l1_to_l2_context%get_size())
+      integer(ip)             , intent(in)   :: displs(this%l1_to_l2_context%get_size())
+      integer(ip)             , intent(out)  :: output_data(*)
+      
+      integer(ip)            :: icontxt
+      integer                :: mpi_comm, iret, root
+      
+      if ( this%am_i_l1_to_l2_task() ) then
+        root    = this%l1_to_l2_context%get_size() - 1 
+        icontxt = this%l1_to_l2_context%get_icontxt()
+        call psb_get_mpicomm (icontxt, mpi_comm)
+        call mpi_gatherv( input_data, input_data_size, psb_mpi_integer, &
+                          output_data, recv_counts, displs, psb_mpi_integer, &
+                          root, mpi_comm, iret)
+        check( iret == mpi_success )
+      end if
+   end subroutine par_environment_l2_from_l1_gather_integer_1D_array
+   
    
    
 end module par_environment_names
