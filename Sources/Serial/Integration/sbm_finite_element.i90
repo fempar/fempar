@@ -484,3 +484,11 @@ subroutine finite_element_impose_strong_dirichlet_bcs ( this, elmat, elvec )
 end subroutine finite_element_impose_strong_dirichlet_bcs
 
 
+subroutine finite_element_get_cell_coordinates(this, coordinates)
+ implicit none
+ class(finite_element_t), intent(in) :: this
+ type(point_t),           intent(inout):: coordinates(:)
+ call this%cell%get_coordinates(coordinates)
+end subroutine finite_element_get_cell_coordinates
+
+

@@ -200,6 +200,14 @@ function quad_lagrangian_reference_fe_get_scalar_from_vector_node( this, node )
   quad_lagrangian_reference_fe_get_scalar_from_vector_node = this%node_component_array(node,1)
 end function quad_lagrangian_reference_fe_get_scalar_from_vector_node
 
+function quad_lagrangian_reference_fe_get_number_nodes_scalar(this) result(number_nodes_scalar)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                                          :: number_nodes_scalar
+
+  number_nodes_scalar = this%number_nodes_scalar
+end function quad_lagrangian_reference_fe_get_number_nodes_scalar
+
 subroutine quad_lagrangian_reference_fe_get_value_scalar( this, actual_cell_interpolation, ishape, qpoint, scalar_field )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
@@ -2218,6 +2226,7 @@ subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
   end do
 
 end subroutine face_shapen
+
 !==============================================================================
   subroutine femap_apply_to_interp(map,ref,phy)
     implicit none
@@ -2313,8 +2322,7 @@ end subroutine face_shapen
     end if
   end subroutine femap_apply_to_interp
 
-
-  !-----------------------------------------------------------------------
+!==================================================================================================
   subroutine matove(xmatr,vecto,ndime,ntens)
     !-----------------------------------------------------------------------
     !                                      
@@ -2340,3 +2348,41 @@ end subroutine face_shapen
     end if
 
   end subroutine matove
+
+!==================================================================================================
+  subroutine quad_lagrangian_reference_fe_get_subelements_connectivity(this, connectivity)
+    implicit none
+    class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+    integer(ip),                           intent(inout) :: connectivity(:, :)
+    integer(ip)                                          :: num_subelems
+    integer(ip)                                          :: subelem
+    integer(ip)                                          :: geo_nnodes
+    integer(ip)                                          :: local_node
+    integer(ip)                                          :: first_coord(this%number_dimensions)
+    integer(ip)                                          :: local_coord(this%number_dimensions)
+    integer(ip)                                          :: global_coord(this%number_dimensions)
+   
+    num_subelems = this%get_number_subelements()
+    geo_nnodes = this%get_number_vertices()
+    assert(size(connectivity,1) == geo_nnodes)
+    assert(size(connectivity,2) == num_subelems)
+
+    do subelem = 1, num_subelems
+      call Q_ijkg(first_coord,subelem,this%number_dimensions,this%order-1)
+      do local_node = 1, geo_nnodes
+        call Q_ijkg(local_coord,local_node,this%number_dimensions,1)
+        global_coord = first_coord + local_coord
+        connectivity(local_node, subelem) = Q_gijk(global_coord,this%number_dimensions,this%order)
+      end do
+    end do
+  end subroutine quad_lagrangian_reference_fe_get_subelements_connectivity
+
+!==================================================================================================
+  function quad_lagrangian_reference_fe_get_number_subelements(this) result(number_subelements)
+    implicit none
+    class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+    integer(ip)                                          :: number_subelements
+
+    number_subelements = this%order**this%number_dimensions
+  end function quad_lagrangian_reference_fe_get_number_subelements
+  

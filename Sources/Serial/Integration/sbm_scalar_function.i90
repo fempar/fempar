@@ -25,19 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine scalar_function_create( this, number_dimensions )
-  class(scalar_function_t), intent(inout) :: this
-  integer(ip)             , intent(in) :: number_dimensions
-  this%number_dimensions = number_dimensions
-end subroutine scalar_function_create
-
-function scalar_function_get_number_dimensions( this )
-  class(scalar_function_t), intent(in) :: this
-  integer(ip) :: scalar_function_get_number_dimensions
-  assert ( this%number_dimensions >= 1 .and. this%number_dimensions <= 3  )
-  scalar_function_get_number_dimensions = this%number_dimensions
-end function scalar_function_get_number_dimensions
-
 subroutine scalar_function_get_value_space( this, point, result )
   class(scalar_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point

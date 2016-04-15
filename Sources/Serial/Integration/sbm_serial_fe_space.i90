@@ -347,10 +347,7 @@ subroutine serial_fe_space_initialize_quadrature( this, max_order )
   if ( present(max_order) ) then
      max_order_ = max_order
   else
-     max_order_ = 0
-     do i = 1, this%number_fe_spaces
-        max_order_ = max( max_order_, this%reference_fe_phy_list(i)%p%get_order() )
-     end do
+     max_order_ = this%get_max_order()
   end if
   do i = 1, size(this%quadrature)
      call this%reference_fe_phy_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order_ )
@@ -996,3 +993,55 @@ end subroutine serial_fe_space_update_bc_value_tensor
    real(rp)   , optional   , intent(in)    :: time
    check( .false. )
  end subroutine serial_fe_space_interpolate_fe_function_tensor
+ 
+ !===============================================================================================
+ function serial_fe_space_get_max_order( this ) result(max_order)
+ implicit none
+   class(serial_fe_space_t), intent(in) :: this 
+   integer(ip)                          :: max_order
+   integer(ip)                          :: fe_space_component
+   max_order = 0
+   do fe_space_component = 1, this%number_fe_spaces
+      max_order = max( max_order, this%reference_fe_phy_list(fe_space_component)%p%get_order() )
+   end do
+ end function serial_fe_space_get_max_order
+ 
+  !===============================================================================================
+ function serial_fe_space_get_max_order_fe_space_component( this ) result(max_order_fe_space_component)
+ implicit none
+   class(serial_fe_space_t), intent(in) :: this 
+   integer(ip)                          :: max_order
+   integer(ip)                          :: max_order_fe_space_component
+   integer(ip)                          :: fe_space_component
+   max_order = 0
+   do fe_space_component = 1, this%number_fe_spaces
+      if(max_order<this%reference_fe_phy_list(fe_space_component)%p%get_order()) max_order_fe_space_component = fe_space_component
+      max_order = max( max_order, this%reference_fe_phy_list(fe_space_component)%p%get_order() )
+   end do
+ end function serial_fe_space_get_max_order_fe_space_component
+
+ !===============================================================================================
+ function serial_fe_space_get_triangulation( this) result(triangulation)
+   class(serial_fe_space_t), intent(in)    :: this 
+   class(triangulation_t), pointer         :: triangulation
+   
+   triangulation => this%triangulation
+ end function serial_fe_space_get_triangulation
+  
+ !===============================================================================================
+ function serial_fe_space_get_reference_fe_phy( this, fe_space_component) result(reference_fe_phy)
+   class(serial_fe_space_t), intent(in)    :: this 
+   integer(ip)             , intent(in)    :: fe_space_component
+   class(reference_fe_t), pointer          :: reference_fe_phy
+   
+   reference_fe_phy => this%reference_fe_phy_list(fe_space_component)%p
+ end function serial_fe_space_get_reference_fe_phy
+ 
+ !===============================================================================================
+ function serial_fe_space_get_reference_fe_geo( this) result(reference_fe_geo)
+   class(serial_fe_space_t), intent(in)    :: this 
+   class(reference_fe_t), pointer          :: reference_fe_geo
+   
+   reference_fe_geo => this%triangulation%reference_fe_geo_list(1)%p
+ end function serial_fe_space_get_reference_fe_geo
+ 
