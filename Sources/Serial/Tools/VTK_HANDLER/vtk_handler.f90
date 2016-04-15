@@ -350,6 +350,7 @@ contains
         class(vtk_handler_t), intent(INOUT) :: this
         integer(ip),          intent(OUT)   :: mesh_number
         type(vtk_mesh_t), allocatable       :: f_vtk_tmp(:)
+        integer(ip)                         :: i
     !-----------------------------------------------------------------
         ! Meshes allocation
         if(this%num_meshes == 0) then 
@@ -357,10 +358,17 @@ contains
             if(allocated(this%mesh)) deallocate(this%mesh)
             allocate(this%mesh(this%num_meshes))
         else
+            allocate(f_vtk_tmp(this%num_meshes))
+            do i=1, this%num_meshes
+                call this%mesh(i)%move_to(f_vtk_tmp(i))
+            enddo
+            deallocate(this%mesh)
+
+            allocate(this%mesh(this%num_meshes+1))
+            do i=1, this%num_meshes
+                call f_vtk_tmp(i)%move_to(this%mesh(i))
+            enddo
             this%num_meshes = this%num_meshes + 1 
-            call move_alloc(from=this%mesh, to=f_vtk_tmp)
-            allocate(this%mesh(this%num_meshes))
-            this%mesh(1:size(f_vtk_tmp,dim=1)) = f_vtk_tmp(:)
             deallocate(f_vtk_tmp)
         endif
         mesh_number = this%num_meshes

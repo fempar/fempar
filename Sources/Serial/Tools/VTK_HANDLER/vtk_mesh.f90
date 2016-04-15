@@ -72,6 +72,7 @@ private
         integer(ip)                       :: status             = VTK_STATE_UNKNOWN ! Status of the write process
     contains
     private
+        procedure, non_overridable, public :: move_to                           => vtk_mesh_move_to
         procedure, non_overridable, public :: set_fe_space                      => vtk_mesh_set_fe_space
         procedure, non_overridable, public :: get_fe_space                      => vtk_mesh_get_fe_space
         procedure, non_overridable, public :: get_triangulation                 => vtk_mesh_get_triangulation
@@ -115,6 +116,34 @@ private
 public :: vtk_mesh_t
 
 contains
+
+    subroutine vtk_mesh_move_to(this, mesh)
+    !-----------------------------------------------------------------
+    !< Move this to other mesh host
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t), intent(INOUT) :: this                      ! Input mesh
+        type(vtk_mesh_t),  intent(INOUT) :: mesh                      ! Output mesh
+    !-----------------------------------------------------------------
+        call mesh%free()
+        if(associated(this%fe_space)) mesh%fe_space => this%fe_space
+        if(allocated(this%directory_path)) mesh%directory_path = this%directory_path
+        if(allocated(this%name_prefix)) mesh%name_prefix = this%name_prefix
+        if(allocated(this%X)) call memmovealloc(this%X, mesh%X, __FILE__, __LINE__)
+        if(allocated(this%Y)) call memmovealloc(this%Y, mesh%Y, __FILE__, __LINE__)
+        if(allocated(this%Z)) call memmovealloc(this%Z, mesh%Z, __FILE__, __LINE__)
+        if(allocated(this%offset)) call memmovealloc(this%offset, mesh%offset, __FILE__, __LINE__)
+        if(allocated(this%cell_types)) call memmovealloc(this%cell_types, mesh%cell_types, __FILE__, __LINE__)
+        if(allocated(this%subelements_connectivity)) call memmovealloc(this%subelements_connectivity, mesh%subelements_connectivity, __FILE__, __LINE__)
+        mesh%file_id = this%file_id
+        mesh%number_of_nodes = this%number_of_nodes
+        mesh%number_of_elements = this%number_of_elements
+        mesh%dimensions = this%dimensions
+        mesh%linear_order = this%linear_order
+        mesh%filled = this%filled
+        mesh%status = this%status
+        call this%free()
+    end subroutine vtk_mesh_move_to
+
 
     subroutine vtk_mesh_set_fe_space(this, fe_space)
     !-----------------------------------------------------------------
@@ -637,6 +666,7 @@ contains
         integer(ip)                      :: i
         integer(ip)                      :: error
     !-----------------------------------------------------------------
+        error = 0
         if(allocated(this%directory_path))           deallocate(this%directory_path, stat=error)
         assert(error==0)
         if(allocated(this%name_prefix))              deallocate(this%name_prefix, stat=error)
