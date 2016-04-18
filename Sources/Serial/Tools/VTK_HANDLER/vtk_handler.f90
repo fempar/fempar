@@ -45,6 +45,7 @@ USE field_names,                 only: point_t
 USE allocatable_array_ip2_names, only: allocatable_array_ip2_t
 USE reference_fe_names,          only: topology_quad, topology_tet, fe_type_lagrangian
 USE vtk_mesh
+USE lib_vtk_io
 
 
 implicit none
@@ -100,6 +101,8 @@ private
         procedure, public :: begin_write                  => vtk_begin_write
         procedure, public :: write_node_field             => vtk_write_node_field
         procedure, public :: end_write                    => vtk_end_write
+        procedure, public :: write_pvtk                   => vtk_write_pvtk
+        procedure, public :: write_pvd                    => vtk_write_pvd
         procedure, public :: free                         => vtk_free
         procedure         :: reallocate_meshes            => vtk_reallocate_meshes
         procedure         :: fill_mesh_linear_order       => vtk_fill_mesh_linear_order
@@ -779,7 +782,7 @@ contains
             end do
         enddo
 
-        E_IO = this%mesh(mesh_number)%write_node_field(field, field_name)
+        E_IO = this%mesh(mesh_number)%write_node_field(fe_space_index, field, field_name)
         call memfree(nodal_values, __FILE__, __LINE__)
         call memfree(field, __FILE__, __LINE__)
     end function vtk_write_node_field_linear
@@ -916,7 +919,7 @@ contains
             end do
         enddo
 
-        E_IO = this%mesh(mesh_number)%write_node_field(field, field_name)
+        E_IO = this%mesh(mesh_number)%write_node_field(fe_space_index, field, field_name)
         call interpolation%free()
         call memfree(nodal_values_origin, __FILE__, __LINE__)
         call memfree(field, __FILE__, __LINE__)
@@ -929,7 +932,6 @@ contains
     !< Ends the writing of a single VTK file to disk (if I am fine MPI task)
     !< Closes geometry ( VTK_END_XML, VTK_GEO_XML )
     !-----------------------------------------------------------------
-        implicit none
         class(vtk_handler_t),       intent(INOUT) :: this        !< vtk_handler_t derived type
         integer(ip),      optional, intent(IN)    :: mesh_number !< Number of MESH
         integer(ip)                               :: nm          !< Real Number of Mesh
@@ -948,6 +950,131 @@ contains
            E_IO = this%mesh(nm)%end_write()
         endif
     end function vtk_end_write
+
+
+    function vtk_write_PVTK(this, file_name, mesh_number, time_step) result(E_IO)
+    !-----------------------------------------------------------------
+    !< Write the PVTK file containing the number of parts
+    !-----------------------------------------------------------------
+        class(vtk_handler_t),       intent(INOUT) :: this
+        character(len=*), optional, intent(IN)    :: file_name
+        integer(ip),      optional, intent(IN)    :: mesh_number
+        real(rp),         optional, intent(IN)    :: time_step
+        integer(ip)                               :: nm, rf
+        character(len=:),allocatable              :: path
+        character(len=:),allocatable              :: prefix
+        character(len=:),allocatable              :: var_name
+        character(len=:),allocatable              :: field_type
+        character(len=:),allocatable              :: fn ,dp
+        real(rp)                                  :: ts
+        integer(ip)                               :: i, fid, nnods, nels, E_IO
+        integer(ip)                               :: me, np
+        logical                                   :: isDir
+    !-----------------------------------------------------------------
+
+        me = 0; np = 1
+        check(associated(this%env))
+        call this%env%info(me,np) 
+
+        E_IO = 0
+
+        if( this%env%am_i_fine_task() .and. me == this%root_proc) then
+
+            nm = this%num_meshes
+            if(present(mesh_number)) nm = mesh_number
+            ts = 0_rp
+            if(allocated(this%steps)) then
+                if(this%steps_counter >0 .and. this%steps_counter <= size(this%steps,1)) &
+                    ts = this%steps(this%steps_counter)
+            endif
+            if(present(time_step)) ts = time_step 
+
+            call this%mesh(nm)%get_path(path)
+            call this%mesh(nm)%get_prefix(prefix)
+
+            dp = this%get_VTK_time_output_path(path=path, time_step=ts, mesh_number=nm)
+            fn = this%get_PVTK_filename(prefix=prefix, mesh_number=nm, time_step=ts)
+            fn = dp//fn
+            if(present(file_name)) fn = file_name
+
+            nnods = this%mesh(nm)%get_number_nodes()
+            nels = this%mesh(nm)%get_number_elements()
+
+    !        inquire( file=trim(dp)//'/.', exist=isDir ) 
+            if(this%create_directory(trim(dp), issue_final_barrier=.False.) == 0) then
+                ! pvtu
+                E_IO = PVTK_INI_XML(filename = trim(adjustl(fn)), mesh_topology = 'PUnstructuredGrid', tp='Float64', cf=rf)
+                do i=0, this%num_parts-1
+                    E_IO = PVTK_GEO_XML(source=trim(adjustl(this%get_VTK_filename(prefix=prefix, part_number=i, mesh_number=nm))), cf=rf)
+                enddo
+
+                E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN', cf=rf)
+                ! Write fields point data
+                do i=1, this%mesh(nm)%get_number_fields()
+                    if(this%mesh(nm)%field_is_filled(i)) then
+                        call this%mesh(nm)%get_field_name(i, var_name)
+                        call this%mesh(nm)%get_field_type(i, field_type)
+                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(field_type)), Nc=this%mesh(nm)%get_field_number_components(i) , cf=rf)
+                    endif
+                enddo
+                E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE', cf=rf)
+                E_IO = PVTK_END_XML(cf=rf)
+            endif
+
+        endif
+    end function vtk_write_PVTK
+
+
+    function vtk_write_PVD(this, file_name, mesh_number) result(E_IO)
+    !-----------------------------------------------------------------
+    !< Write the PVD file referencing several PVTK files in a timeline
+    !< (only root processor)
+    !-----------------------------------------------------------------
+        class(vtk_handler_t),       intent(INOUT) :: this
+        character(len=*), optional, intent(IN)    :: file_name
+        integer(ip),      optional, intent(IN)    :: mesh_number
+        integer(ip)                               :: nm, rf
+        character(len=:),allocatable              :: path
+        character(len=:),allocatable              :: prefix
+        character(len=:),allocatable              :: var_name
+        character(len=:),allocatable              :: pvdfn, pvtkfn ,dp
+        integer(ip)                               :: i, fid, nnods, nels, ts, E_IO
+        integer(ip)                               :: me, np
+        logical                                   :: isDir
+    !-----------------------------------------------------------------
+        me = 0; np = 1
+        check(associated(this%env))
+        call this%env%info(me,np) 
+
+        E_IO = 0
+
+        if(this%env%am_i_fine_task() .and. me == this%root_proc) then
+            nm = this%num_meshes
+            if(present(mesh_number)) nm = mesh_number
+
+            call this%mesh(nm)%get_path(path)
+            call this%mesh(nm)%get_prefix(prefix)
+        
+            pvdfn = trim(adjustl(path))//'/'//trim(adjustl(prefix))//pvd_ext
+            if(present(file_name)) pvdfn = file_name
+
+    !        inquire( file=trim(adjustl(this%mesh(nm)%dir_path))//'/.', exist=isDir )
+            if(this%create_directory(trim(adjustl(path)), issue_final_barrier=.False.) == 0) then
+                if(allocated(this%steps)) then
+                    if(size(this%steps,1) >= min(this%num_steps,this%steps_counter)) then
+                        E_IO = PVD_INI_XML(filename=trim(adjustl(pvdfn)),cf=rf)
+                        do ts=1, min(this%num_steps,this%steps_counter)
+                            dp = this%get_PVD_time_output_path(path=path, time_step=this%steps(ts))
+                            pvtkfn = this%get_PVTK_filename(prefix=prefix, mesh_number=nm, time_step=this%steps(ts))
+                            pvtkfn = dp//pvtkfn
+                            E_IO = PVD_DAT_XML(filename=trim(adjustl(pvtkfn)),timestep=ts, cf=rf)
+                        enddo
+                        E_IO = PVD_END_XML(cf=rf)
+                    endif
+                endif
+            endif
+        endif
+    end function vtk_write_PVD
 
 
     subroutine VTK_free (this)
