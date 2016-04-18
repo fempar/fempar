@@ -197,21 +197,21 @@ contains
     size = p_context%size
   end subroutine par_context_info
   
-  function par_context_get_icontxt (this)
+  pure function par_context_get_icontxt (this)
     implicit none
     class(par_context_t), intent(in) :: this
     integer :: par_context_get_icontxt
     par_context_get_icontxt = this%icontxt
   end function par_context_get_icontxt
   
-  function par_context_get_rank (this)
+  pure function par_context_get_rank (this)
     implicit none
     class(par_context_t), intent(in) :: this
     integer :: par_context_get_rank
     par_context_get_rank = this%rank
   end function par_context_get_rank
   
-  function par_context_get_size (this)
+  pure function par_context_get_size (this)
     implicit none
     class(par_context_t), intent(in) :: this
     integer :: par_context_get_size

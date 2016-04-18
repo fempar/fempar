@@ -257,7 +257,7 @@ contains
   end function par_environment_get_l1_to_l2_rank
   
   !=============================================================================
-  function par_environment_get_l1_to_l2_size ( this )
+  pure function par_environment_get_l1_to_l2_size ( this )
     implicit none 
     ! Parameters
     class(par_environment_t), intent(in) :: this
@@ -296,8 +296,7 @@ contains
   function par_environment_am_i_lgt1_task(this) 
     implicit none
     class(par_environment_t) ,intent(in)  :: this
-    logical                               :: par_environment_am_i_lgt1_task 
-    assert ( this%created() )
+    logical                               :: par_environment_am_i_lgt1_task
     par_environment_am_i_lgt1_task = (this%lgt1_context%get_rank() >= 0)
   end function par_environment_am_i_lgt1_task
   
@@ -305,7 +304,6 @@ contains
     implicit none
     class(par_environment_t), intent(in) :: this
     logical                              :: par_environment_am_i_l1_to_l2_task 
-    assert ( this%created() )
     par_environment_am_i_l1_to_l2_task = (this%l1_to_l2_context%get_rank() >= 0)
   end function par_environment_am_i_l1_to_l2_task
   
@@ -313,7 +311,6 @@ contains
     implicit none
     class(par_environment_t), intent(in) :: this
     logical                              :: par_environment_am_i_l1_to_l2_root
-    
     par_environment_am_i_l1_to_l2_root = (this%l1_to_l2_context%get_rank() == this%l1_to_l2_context%get_size()-1)
   end function par_environment_am_i_l1_to_l2_root
   
@@ -322,7 +319,6 @@ contains
     implicit none
     class(par_environment_t), intent(in) :: this
     integer(ip) :: par_environment_get_l2_part_id_l1_task_is_mapped_to 
-    assert (this%am_i_l1_task())
     par_environment_get_l2_part_id_l1_task_is_mapped_to = this%parts_mapping(2) 
   end function par_environment_get_l2_part_id_l1_task_is_mapped_to 
 
@@ -333,9 +329,6 @@ contains
 
     ! Local variables
     integer :: mpi_comm_p, ierr
-
-    ! Parallel environment MUST BE already created
-    assert ( this%created() )
 
     if ( this%am_i_l1_task() ) then
       call psb_get_mpicomm (this%l1_context%get_icontxt(), mpi_comm_p)
@@ -349,7 +342,6 @@ contains
     class(par_environment_t),intent(in)  :: this
     integer(ip)           ,intent(out) :: me
     integer(ip)           ,intent(out) :: np
-    assert ( this%created() )
     me = this%l1_context%get_rank()
     np = this%l1_context%get_size()
   end subroutine par_environment_info
@@ -358,7 +350,6 @@ contains
     implicit none
     class(par_environment_t) ,intent(in)  :: this
     logical                             :: par_environment_am_i_l1_task 
-    assert ( this%created() )
     par_environment_am_i_l1_task = (this%l1_context%get_rank() >= 0)
   end function par_environment_am_i_l1_task
 
