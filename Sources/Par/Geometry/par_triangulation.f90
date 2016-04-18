@@ -108,17 +108,19 @@ module par_triangulation_names
      integer(ip)                             :: number_global_objects
      integer(ip)                             :: number_objects
      integer(ip), allocatable                :: objects_gids(:)
-     
      type(list_t)                            :: vefs_object
      type(list_t)                            :: parts_object
   contains
-     procedure, private :: compute_parts_itfc_vefs                      => par_triangulation_compute_parts_itfc_vefs
-     procedure, private :: compute_vefs_and_parts_object                => par_triangulation_compute_vefs_and_parts_object
-     procedure, private :: compute_objects_neighbours_exchange_data     => par_triangulation_compute_objects_neighbours_exchange_data
-     procedure, private :: compute_number_global_objects_and_their_gids => par_triangulation_compute_number_global_objects_and_their_gids
-     procedure, private :: gather_coarse_triangulation                  => par_triangulation_gather_coarse_triangulation
-     procedure, private :: gather_coarse_vefs_rcv_counts_and_displs     => par_triangulation_gather_coarse_vefs_rcv_counts_and_displs
-     procedure, private :: gather_lst_gids_coarse_vefs                  => par_triangulation_gather_lst_gids_coarse_vefs
+     procedure, private :: compute_parts_itfc_vefs                        => par_triangulation_compute_parts_itfc_vefs
+     procedure, private :: compute_vefs_and_parts_object                  => par_triangulation_compute_vefs_and_parts_object
+     procedure, private :: compute_objects_neighbours_exchange_data       => par_triangulation_compute_objects_neighbours_exchange_data
+     procedure, private :: compute_number_global_objects_and_their_gids   => par_triangulation_compute_number_global_objects_and_their_gids
+     procedure, private :: gather_coarse_triangulation                    => par_triangulation_gather_coarse_triangulation
+     procedure, private :: gather_coarse_vefs_rcv_counts_and_displs       => par_triangulation_gather_coarse_vefs_rcv_counts_and_displs
+     procedure, private :: gather_coarse_vefs_gids                        => par_triangulation_gather_coarse_vefs_gids
+     procedure, private :: fetch_l2_part_id_neighbours                    => par_triangulation_fetch_l2_part_id_neighbours
+     procedure, private :: gather_coarse_dgraph_rcv_counts_and_displs     => par_triangulation_gather_coarse_dgraph_rcv_counts_and_displs
+     procedure, private :: gather_coarse_dgraph_lextn_and_lextp           => par_triangulation_gather_coarse_dgraph_lextn_and_lextp
   end type par_triangulation_t
 
   ! Types
@@ -980,13 +982,39 @@ contains
     integer(ip)               , allocatable   :: coarse_vefs_recv_counts(:)
     integer(ip)               , allocatable   :: coarse_vefs_displs(:)
     integer(ip)               , allocatable   :: lst_gids_coarse_vefs(:)
+    integer(ip)               , allocatable   :: l2_part_id_neighbours(:)
+    integer(ip)               , allocatable   :: coarse_dgraph_recv_counts(:)
+    integer(ip)               , allocatable   :: coarse_dgraph_displs(:)
+    integer(ip)               , allocatable   :: lextn(:)
+    integer(ip)               , allocatable   :: lextp(:)
     
     if ( this%p_env%am_i_l1_to_l2_task() ) then
       call this%gather_coarse_vefs_rcv_counts_and_displs (coarse_vefs_recv_counts, coarse_vefs_displs)
-      call this%gather_lst_gids_coarse_vefs (coarse_vefs_recv_counts, coarse_vefs_displs, lst_gids_coarse_vefs)
+      call this%gather_coarse_vefs_gids (coarse_vefs_recv_counts, coarse_vefs_displs, lst_gids_coarse_vefs)
+      call this%fetch_l2_part_id_neighbours(l2_part_id_neighbours)
+      call this%gather_coarse_dgraph_rcv_counts_and_displs ( l2_part_id_neighbours, &
+                                                             coarse_dgraph_recv_counts, &
+                                                             coarse_dgraph_displs )
+      write(*,*) 'coarse_dgraph_recv_counts', coarse_dgraph_recv_counts
+      write(*,*) 'coarse_dgraph_displs', coarse_dgraph_displs
+      
+      call this%gather_coarse_dgraph_lextn_and_lextp ( l2_part_id_neighbours, &
+                                                       coarse_dgraph_recv_counts, &
+                                                       coarse_dgraph_displs, &
+                                                       lextn, &
+                                                       lextp )
+      
+      write(*,*) 'lextn', lextn
+      write(*,*) 'lextp', lextp
+      
       call memfree (coarse_vefs_recv_counts, __FILE__, __LINE__)
       call memfree (coarse_vefs_displs, __FILE__, __LINE__)
       call memfree (lst_gids_coarse_vefs, __FILE__, __LINE__)
+      call memfree (l2_part_id_neighbours, __FILE__, __LINE__)
+      call memfree (coarse_dgraph_recv_counts, __FILE__, __LINE__)
+      call memfree (coarse_dgraph_displs, __FILE__, __LINE__)
+      call memfree (lextn, __FILE__, __LINE__)
+      call memfree (lextp, __FILE__, __LINE__)
     end if
   end subroutine par_triangulation_gather_coarse_triangulation
   
@@ -1017,7 +1045,7 @@ contains
     end if
   end subroutine par_triangulation_gather_coarse_vefs_rcv_counts_and_displs
   
-  subroutine par_triangulation_gather_lst_gids_coarse_vefs ( this, recv_counts, displs, lst_gids )
+  subroutine par_triangulation_gather_coarse_vefs_gids ( this, recv_counts, displs, lst_gids )
     implicit none
     class(par_triangulation_t), intent(in)    :: this
     integer(ip)               , intent(in)    :: recv_counts(this%p_env%get_l1_to_l2_size())
@@ -1029,7 +1057,7 @@ contains
     assert ( this%p_env%am_i_l1_to_l2_task() )
     if ( this%p_env%am_i_l1_to_l2_root() ) then
       l1_to_l2_size = this%p_env%get_l1_to_l2_size()
-      call memalloc ( displs(l1_to_l2_size)+recv_counts(l1_to_l2_size)-1, lst_gids, __FILE__, __LINE__ )
+      call memalloc ( displs(l1_to_l2_size), lst_gids, __FILE__, __LINE__ )
       call this%p_env%l2_from_l1_gather( input_data_size = 0, &
                                          input_data      = dummy_integer_array, &
                                          recv_counts     = recv_counts, &
@@ -1043,7 +1071,158 @@ contains
                                          displs          = dummy_integer_array, &
                                          output_data     = dummy_integer_array )
     end if    
-  end subroutine par_triangulation_gather_lst_gids_coarse_vefs
+  end subroutine par_triangulation_gather_coarse_vefs_gids
+  
+  subroutine par_triangulation_fetch_l2_part_id_neighbours ( this, l2_part_id_neighbours )    
+    implicit none
+    class(par_triangulation_t), intent(in)    :: this
+    integer(ip) , allocatable , intent(inout) :: l2_part_id_neighbours(:)
+    integer(ip) :: my_l2_part_id
+    integer(ip) :: num_neighbours
+    assert ( this%p_env%am_i_l1_to_l2_task() )
+    if (this%p_env%am_i_l1_task()) then
+      num_neighbours = this%element_import%get_number_neighbours()
+      my_l2_part_id  = this%p_env%get_l2_part_id_l1_task_is_mapped_to()
+      
+      call memalloc ( num_neighbours, l2_part_id_neighbours, __FILE__, __LINE__ )
+      call this%p_env%l1_neighbours_exchange ( num_neighbours  = num_neighbours, &
+                                               list_neighbours = this%element_import%get_neighbours_ids(), &
+                                               input_data      = my_l2_part_id,&
+                                               output_data     = l2_part_id_neighbours)
+    else
+      call memalloc ( 0, l2_part_id_neighbours, __FILE__, __LINE__ )
+    end if
+  end subroutine par_triangulation_fetch_l2_part_id_neighbours
+  
+  subroutine par_triangulation_gather_coarse_dgraph_rcv_counts_and_displs ( this, &
+                                                                            l2_part_id_neighbours, &
+                                                                            recv_counts, &
+                                                                            displs )
+    implicit none
+    class(par_triangulation_t), intent(in)    :: this
+    integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%element_import%get_number_neighbours())
+    integer(ip) , allocatable , intent(inout) :: recv_counts(:) 
+    integer(ip) , allocatable , intent(inout) :: displs(:)
+    integer(ip) :: i
+    integer(ip) :: l1_to_l2_size 
+    integer(ip) :: my_l2_part_id
+    integer(ip) :: num_neighbours
+    integer(ip) :: num_external_l2_elements
+    
+    assert ( this%p_env%am_i_l1_to_l2_task() )
+    if ( this%p_env%am_i_l1_to_l2_root() ) then
+      l1_to_l2_size = this%p_env%get_l1_to_l2_size()
+      call memalloc ( l1_to_l2_size, recv_counts, __FILE__, __LINE__ )
+      call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
+      call this%p_env%l2_from_l1_gather( input_data = 0, &
+                                         output_data = recv_counts ) 
+      displs(1) = 0
+      do i=2, l1_to_l2_size
+        displs(i) = displs(i-1) + recv_counts(i-1)
+      end do
+    else
+      assert ( this%p_env%am_i_l1_task() )
+      call memalloc ( 0, recv_counts, __FILE__, __LINE__ )
+      call memalloc ( 0, displs, __FILE__, __LINE__ )
+      num_neighbours = this%element_import%get_number_neighbours()
+      my_l2_part_id  = this%p_env%get_l2_part_id_l1_task_is_mapped_to()
+      num_external_l2_elements = 0
+      do i = 1, num_neighbours
+        if ( my_l2_part_id /= l2_part_id_neighbours(i) ) then
+          num_external_l2_elements = num_external_l2_elements + 1
+        end if
+      end do
+            
+      call this%p_env%l2_from_l1_gather( input_data = num_external_l2_elements, &
+                                         output_data = recv_counts ) 
+    end if
+  end subroutine par_triangulation_gather_coarse_dgraph_rcv_counts_and_displs 
+  
+  subroutine par_triangulation_gather_coarse_dgraph_lextn_and_lextp( this,                  & 
+                                                                     l2_part_id_neighbours, &
+                                                                     recv_counts,           &
+                                                                     displs,                &
+                                                                     lextn,                 &
+                                                                     lextp)
+    implicit none
+    class(par_triangulation_t), intent(in)    :: this
+    integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%element_import%get_number_neighbours())
+    integer(ip)               , intent(in)    :: recv_counts(this%p_env%get_l1_to_l2_size()) 
+    integer(ip)               , intent(in)    :: displs(this%p_env%get_l1_to_l2_size())
+    integer(ip), allocatable  , intent(inout) :: lextn(:)
+    integer(ip), allocatable  , intent(inout) :: lextp(:)
+    
+    integer(ip)              :: i
+    integer(ip)              :: l1_to_l2_size 
+    integer(ip)              :: my_l2_part_id
+    integer(ip)              :: num_neighbours
+    integer(ip), pointer     :: neighbours_ids(:)
+    integer(ip)              :: num_external_l2_elements
+    integer(ip), allocatable :: lst_external_l2_element_gids(:)
+    integer(ip), allocatable :: lst_external_l2_part_ids(:)
+    integer(ip)              :: dummy_integer_array(0)
+    
+    assert ( this%p_env%am_i_l1_to_l2_task() )
+    if ( this%p_env%am_i_l1_to_l2_root() ) then
+      l1_to_l2_size = this%p_env%get_l1_to_l2_size()
+      call memalloc ( displs(l1_to_l2_size), lextn, __FILE__, __LINE__ )
+      call memalloc ( displs(l1_to_l2_size), lextp, __FILE__, __LINE__ )
+      
+      ! Gather lextn
+      call this%p_env%l2_from_l1_gather( input_data_size = 0, &
+                                         input_data      = dummy_integer_array, &
+                                         recv_counts     = recv_counts, &
+                                         displs          = displs, &
+                                         output_data     = lextn )
+      ! Gather lextp
+      call this%p_env%l2_from_l1_gather( input_data_size = 0, &
+                                         input_data      = dummy_integer_array, &
+                                         recv_counts     = recv_counts, &
+                                         displs          = displs, &
+                                         output_data     = lextp )
+    else
+      assert ( this%p_env%am_i_l1_task() )
+      num_neighbours =  this%element_import%get_number_neighbours()
+      neighbours_ids => this%element_import%get_neighbours_ids()
+      my_l2_part_id  = this%p_env%get_l2_part_id_l1_task_is_mapped_to()
+      num_external_l2_elements = 0
+      do i = 1, num_neighbours
+        if ( my_l2_part_id /= l2_part_id_neighbours(i) ) then
+          num_external_l2_elements = num_external_l2_elements + 1
+        end if
+      end do
+      
+      call memalloc (num_external_l2_elements, lst_external_l2_part_ids, __FILE__, __LINE__)
+      call memalloc (num_external_l2_elements, lst_external_l2_element_gids,__FILE__, __LINE__)
+      num_external_l2_elements = 0
+      neighbours_ids => this%element_import%get_neighbours_ids()
+      do i = 1, num_neighbours
+        if ( my_l2_part_id /= l2_part_id_neighbours(i) ) then
+          num_external_l2_elements = num_external_l2_elements + 1
+          lst_external_l2_element_gids(num_external_l2_elements) = neighbours_ids(i)
+          lst_external_l2_part_ids(num_external_l2_elements) = l2_part_id_neighbours(i)
+        end if
+      end do
+      
+      call memalloc ( 0, lextn, __FILE__, __LINE__ )
+      call memalloc ( 0, lextp, __FILE__, __LINE__ )
+      call this%p_env%l2_from_l1_gather( input_data_size = num_external_l2_elements, &
+                                         input_data      = lst_external_l2_element_gids, &
+                                         recv_counts     = dummy_integer_array, &
+                                         displs          = dummy_integer_array, &
+                                         output_data     = dummy_integer_array )
+      
+      call this%p_env%l2_from_l1_gather( input_data_size = num_external_l2_elements, &
+                                         input_data      = lst_external_l2_part_ids, &
+                                         recv_counts     = dummy_integer_array, &
+                                         displs          = dummy_integer_array, &
+                                         output_data     = dummy_integer_array )
+      
+      call memfree (lst_external_l2_part_ids   , __FILE__, __LINE__)
+      call memfree (lst_external_l2_element_gids,__FILE__, __LINE__)
+    end if
+  end subroutine par_triangulation_gather_coarse_dgraph_lextn_and_lextp 
+  
   
   !=============================================================================
   ! Auxiliary subroutines

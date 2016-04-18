@@ -329,14 +329,14 @@ contains
     end if
   end subroutine element_import_print
 
-  function element_import_get_number_ghost_elements ( this )
+  pure function element_import_get_number_ghost_elements ( this )
     implicit none
     class(element_import_t), intent(in) :: this
     integer(ip)                      :: element_import_get_number_ghost_elements
     element_import_get_number_ghost_elements = this%number_ghost_elements
   end function element_import_get_number_ghost_elements
   
-  function element_import_get_number_neighbours ( this )
+  pure function element_import_get_number_neighbours ( this )
     implicit none
     class(element_import_t), intent(in) :: this
     integer(ip)                      :: element_import_get_number_neighbours

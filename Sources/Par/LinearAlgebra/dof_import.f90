@@ -58,14 +58,14 @@ module dof_import_names
      integer(ip)              :: number_dofs    ! Number of local dofs
      real(rp)   , allocatable :: weight(:)      ! Weight operator for weighted dots, i.e., "<x,y> = y^t W x"
       
-     integer                  :: num_rcv        ! From how many neighbours does the part receive data ?
-     integer    , allocatable :: list_rcv(:)    ! From which neighbours does the part receive data ?
-     integer    , allocatable :: rcv_ptrs(:)    ! How much data does the part receive from each neighbour ?
+     integer(ip)              :: num_rcv        ! From how many neighbours does the part receive data ?
+     integer(ip), allocatable :: list_rcv(:)    ! From which neighbours does the part receive data ?
+     integer(ip), allocatable :: rcv_ptrs(:)    ! How much data does the part receive from each neighbour ?
      integer(ip), allocatable :: unpack_idx(:)  ! Where the data received from each neighbour is copied/added 
                                                 ! on the local vectors of the part ?
 
-     integer                  :: num_snd        ! To how many neighbours does the part send data ? 
-     integer    , allocatable :: list_snd(:)    ! To which neighbours does the part send data ?
+     integer(ip)              :: num_snd        ! To how many neighbours does the part send data ? 
+     integer(ip), allocatable :: list_snd(:)    ! To which neighbours does the part send data ?
      integer(ip), allocatable :: snd_ptrs(:)    ! How much data does the part send to each neighbour?
      integer(ip), allocatable :: pack_idx(:)    ! Where is located the data to be sent to 
                                                 ! each neighbour on the local vectors of the part ?
@@ -227,7 +227,7 @@ contains
             &  this%num_rcv
        write(lu_out,'(a,i10)') 'Number dofs:', &
             &  this%number_dofs
-       write(lu_out,'(a,10F6.1)') 'Weight:', &
+       write(lu_out,*) 'Weight:', &
             &  this%weight         
        write(lu_out,'(a)') 'List of parts I have to receive from:'
        write(lu_out,'(10i10)') this%list_rcv(1:this%num_rcv)

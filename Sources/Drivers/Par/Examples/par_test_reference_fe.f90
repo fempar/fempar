@@ -318,12 +318,17 @@ program par_test_reference_fe
   call test_params%parse()
 
   ! This test only works with two levels.
-   num_levels = 2
+   num_levels = 3
    call memalloc(num_levels, parts_mapping , __FILE__, __LINE__)
    call memalloc(num_levels, num_parts_per_level, __FILE__, __LINE__)
-   num_parts_per_level = (/test_params%nparts, 1/)
-   parts_mapping       = (/w_context%get_rank()+1, 1/)
-  
+   
+   num_parts_per_level = (/test_params%nparts, 2, 1/)
+   if ( w_context%get_rank() < test_params%nparts ) then
+     parts_mapping       = (/w_context%get_rank()+1, w_context%get_rank()/2+1, 1/)
+   else if ( w_context%get_rank() >= test_params%nparts) then
+     parts_mapping       = (/w_context%get_rank()+1, w_context%get_rank()+1-test_params%nparts, 1/)
+   end if
+    
   !num_levels = 3
   !call memalloc(num_levels, parts_mapping , __FILE__, __LINE__)
   !call memalloc(num_levels, num_parts_per_level, __FILE__, __LINE__)
@@ -354,18 +359,6 @@ program par_test_reference_fe
   ! Generate triangulation
   call par_mesh_to_triangulation (par_mesh, par_triangulation, par_conditions)
   
-  !if ( par_env%am_i_l1_task() ) then
-  !   call memalloc (par_triangulation%element_import%npadj, data, __FILE__, __LINE__) 
-  !   call par_env%l1_neighbours_exchange(par_triangulation%element_import%npadj,&
-  !                                       par_triangulation%element_import%lpadj,&
-  !                                       w_context%get_rank(), &
-  !                                       data)
-  !   
-  !   write (*,*) 'XXX', data
-  !   
-  !   call memfree (data, __FILE__, __LINE__ ) 
-  !end if
-  
   ! Simple case
   reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
                                                    fe_type = fe_type_lagrangian, &
@@ -374,10 +367,10 @@ program par_test_reference_fe
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
   
-    reference_fe_array_one(2) =  make_reference_fe ( topology = topology_quad, &
+  reference_fe_array_one(2) =  make_reference_fe ( topology = topology_quad, &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = 2, &
-                                                   order = -1, &
+                                                   order = 1, &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
   
@@ -391,12 +384,12 @@ program par_test_reference_fe
                                      bc_code = 1, &
                                      fe_space_component = 1 )
   
-    call par_fe_space%update_bc_value (scalar_function=constant_scalar_function_t(2,1.0_rp), &
+  call par_fe_space%update_bc_value (scalar_function=constant_scalar_function_t(2,1.0_rp), &
                                      bc_code = 1, &
                                      fe_space_component = 2 )
   
   call par_fe_space%fill_dof_info()
-  call par_fe_space%print()
+  ! call par_fe_space%print()
     
   call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                   diagonal_blocks_symmetric_storage=(/.true./), &
