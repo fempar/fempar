@@ -50,7 +50,11 @@ module element_import_names
      integer(ip), allocatable  :: snd_ptrs(:)                ! How many elements does the part send to each neighbour?
      integer(ip), allocatable  :: snd_leids(:)               ! Local elements IDs of the elements to be sent to each neighbour ?
   contains
-     procedure, non_overridable :: create                                 => element_import_create
+     
+     procedure, private, non_overridable :: element_import_create_ip
+     procedure, private, non_overridable :: element_import_create_igp
+     generic                             :: create => element_import_create_ip, &
+                                                      element_import_create_igp
      procedure, private, non_overridable :: compute_number_neighbours     => element_import_compute_number_neighbours
      procedure, private, non_overridable :: compute_neighbours_ids        => element_import_compute_neighbour_ids
      procedure, private, non_overridable :: compute_snd_rcv_ptrs          => element_import_compute_snd_rcv_ptrs
@@ -76,42 +80,102 @@ module element_import_names
 
 contains
 
-  subroutine element_import_create (this,            & ! Passed-object dummy argument
-                                    part_id,         & ! My part identifier
-                                    number_parts,    & ! Number of parts
-                                    number_elements, & ! Number of local elements
-                                    nebou,           & ! Number of (local) itfc elements
-                                    lebou,           & ! Local IDs of itfc elements
-                                    pextn,           & ! Pointers to start-end of the list of the external neighbours of each itfc element
-                                    lextn,           & ! List of GIDs of external neighbours
-                                    lextp )            ! Part IDs the external neighbours are mapped to
+  subroutine element_import_create_igp (this,                                 & ! Passed-object dummy argument
+                                        part_id,                              & ! My part identifier
+                                        number_parts,                         & ! Number of parts
+                                        number_elements,                      & ! Number of local elements
+                                        num_itfc_elems,                       & ! Number of (local) itfc elements
+                                        lst_itfc_elems,                       & ! Local IDs of itfc elements
+                                        ptr_ext_neighs_per_itfc_elem,         & ! Ptrs to start-end of lst of external neighbours per itfc elem
+                                        lst_ext_neighs_gids,    & ! List of GIDs of external neighbours
+                                        lst_ext_neighs_part_ids ) ! Part IDs the external neighbours are mapped to
     implicit none
     class(element_import_t)  , intent(inout) :: this
     integer(ip)              , intent(in)    :: part_id
     integer(ip)              , intent(in)    :: number_parts
     integer(ip)              , intent(in)    :: number_elements
-    integer(ip)              , intent(in)    :: nebou
-    integer(ip)              , intent(in)    :: lebou(nebou)
-    integer(ip)              , intent(in)    :: pextn(nebou+1)
-    integer(igp)             , intent(in)    :: lextn(pextn(nebou+1)-1)
-    integer(ip)              , intent(in)    :: lextp(pextn(nebou+1)-1)
+    integer(ip)              , intent(in)    :: num_itfc_elems
+    integer(ip)              , intent(in)    :: lst_itfc_elems(num_itfc_elems)
+    integer(ip)              , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
+    integer(igp)             , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)              , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
     
     call this%free()    
     this%part_id = part_id
     this%number_parts  = number_parts
-    call this%compute_number_neighbours( nebou, pextn, lextp )
-    call this%compute_neighbours_ids ( nebou, pextn, lextp )
-    call this%compute_snd_rcv_ptrs (nebou, lebou, pextn, lextn, lextp )
-    call this%compute_snd_rcv_leids (number_elements, nebou, lebou, pextn, lextn, lextp)
+    call this%compute_number_neighbours( num_itfc_elems, &
+                                         ptr_ext_neighs_per_itfc_elem, &
+                                         lst_ext_neighs_part_ids )
+    
+    call this%compute_neighbours_ids ( num_itfc_elems, &
+                                       ptr_ext_neighs_per_itfc_elem, &
+                                       lst_ext_neighs_part_ids )
+    
+    call this%compute_snd_rcv_ptrs (num_itfc_elems, &
+                                    lst_itfc_elems, &
+                                    ptr_ext_neighs_per_itfc_elem, &
+                                    lst_ext_neighs_gids, &
+                                    lst_ext_neighs_part_ids )
+    
+    call this%compute_snd_rcv_leids (number_elements, &
+                                     num_itfc_elems, &
+                                     lst_itfc_elems, &
+                                     ptr_ext_neighs_per_itfc_elem, &
+                                     lst_ext_neighs_gids, &
+                                     lst_ext_neighs_part_ids)
+    
     this%number_ghost_elements = this%rcv_ptrs(this%number_neighbours+1)-1    
-  end subroutine element_import_create
-
-  subroutine element_import_compute_number_neighbours ( this, nebou, pextn, lextp)
+  end subroutine element_import_create_igp
+  
+  subroutine element_import_create_ip (this,                                 & ! Passed-object dummy argument
+                                       part_id,                              & ! My part identifier
+                                       number_parts,                         & ! Number of parts
+                                       number_elements,                      & ! Number of local elements
+                                       num_itfc_elems,                       & ! Number of (local) itfc elements
+                                       lst_itfc_elems,                       & ! Local IDs of itfc elements
+                                       ptr_ext_neighs_per_itfc_elem,         & ! Ptrs to start-end of lst of external neighbours per itfc elem
+                                       lst_ext_neighs_gids,                  & ! List of GIDs of external neighbours
+                                       lst_ext_neighs_part_ids )               ! Part IDs the external neighbours are mapped to
+    implicit none
+    class(element_import_t)  , intent(inout) :: this
+    integer(ip)              , intent(in)    :: part_id
+    integer(ip)              , intent(in)    :: number_parts
+    integer(ip)              , intent(in)    :: number_elements
+    integer(ip)              , intent(in)    :: num_itfc_elems
+    integer(ip)              , intent(in)    :: lst_itfc_elems(num_itfc_elems)
+    integer(ip)              , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
+    integer(ip)              , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)              , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
+    
+    integer(igp), allocatable :: lst_ext_neighs_gids_igp(:)
+    
+    call memalloc ( ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1, &
+                    lst_ext_neighs_gids_igp, &
+                    __FILE__, __LINE__ )
+    
+    lst_ext_neighs_gids_igp = lst_ext_neighs_gids
+    
+    call this%element_import_create_igp ( part_id, & 
+                                          number_parts, & 
+                                          number_elements, & 
+                                          num_itfc_elems, & 
+                                          lst_itfc_elems, & 
+                                          ptr_ext_neighs_per_itfc_elem, & 
+                                          lst_ext_neighs_gids_igp, & 
+                                          lst_ext_neighs_part_ids )
+    
+    call memfree ( lst_ext_neighs_gids_igp, __FILE__, __LINE__)
+  end subroutine element_import_create_ip
+  
+  subroutine element_import_compute_number_neighbours ( this, &
+                                                        num_itfc_elems, &
+                                                        ptr_ext_neighs_per_itfc_elem, &
+                                                        lst_ext_neighs_part_ids)
     implicit none
     class(element_import_t), intent(inout) :: this
-    integer(ip)            , intent(in)    :: nebou
-    integer(ip)            , intent(in)    :: pextn(nebou+1)
-    integer(ip)            , intent(in)    :: lextp(pextn(nebou+1)-1)
+    integer(ip)            , intent(in)    :: num_itfc_elems
+    integer(ip)            , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
+    integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
 
     ! Locals
     type(hash_table_ip_ip_t)   :: parts_visited
@@ -122,20 +186,23 @@ contains
     call parts_visited%init(20)
 
     this%number_neighbours = 0
-    do i=1, pextn(nebou+1)-1
-       call parts_visited%put(key=lextp(i),val=1,stat=istat)
+    do i=1, ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1
+       call parts_visited%put(key=lst_ext_neighs_part_ids(i),val=1,stat=istat)
        if(istat==now_stored) this%number_neighbours = this%number_neighbours + 1 
     end do
     call parts_visited%free()
 
   end subroutine element_import_compute_number_neighbours
 
-  subroutine element_import_compute_neighbour_ids ( this, nebou, pextn, lextp)
+  subroutine element_import_compute_neighbour_ids ( this, &
+                                                    num_itfc_elems, &
+                                                    ptr_ext_neighs_per_itfc_elem, &
+                                                    lst_ext_neighs_part_ids)
     implicit none
     class(element_import_t), intent(inout) :: this
-    integer(ip)            , intent(in)    :: nebou
-    integer(ip)            , intent(in)    :: pextn(nebou+1)
-    integer(ip)            , intent(in)    :: lextp(pextn(nebou+1)-1)
+    integer(ip)            , intent(in)    :: num_itfc_elems
+    integer(ip)            , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
+    integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
 
     ! Locals
     type(hash_table_ip_ip_t)   :: parts_visited
@@ -144,24 +211,29 @@ contains
     call memalloc ( this%number_neighbours, this%neighbours_ids, __FILE__, __LINE__ )
     call parts_visited%init(this%number_neighbours)
     j = 1
-    do i=1, pextn(nebou+1)-1
-       call parts_visited%put(key=lextp(i),val=1,stat=istat)
+    do i=1, ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1
+       call parts_visited%put(key=lst_ext_neighs_part_ids(i),val=1,stat=istat)
        if(istat==now_stored) then
-          this%neighbours_ids(j) = lextp(i)
+          this%neighbours_ids(j) = lst_ext_neighs_part_ids(i)
           j = j + 1
        end if
     end do
     call parts_visited%free()
   end subroutine element_import_compute_neighbour_ids
 
-  subroutine element_import_compute_snd_rcv_ptrs (this, nebou, lebou, pextn, lextn, lextp)
+  subroutine element_import_compute_snd_rcv_ptrs (this, &
+                                                  num_itfc_elems, &
+                                                  lst_itfc_elems, &
+                                                  ptr_ext_neighs_per_itfc_elem, &
+                                                  lst_ext_neighs_gids, &
+                                                  lst_ext_neighs_part_ids)
     implicit none
     class(element_import_t), intent(inout) :: this
-    integer(ip)            , intent(in)    :: nebou
-    integer(ip)            , intent(in)    :: lebou(nebou)
-    integer(ip)            , intent(in)    :: pextn(nebou+1)
-    integer(igp)           , intent(in)    :: lextn(pextn(nebou+1)-1)
-    integer(ip)            , intent(in)    :: lextp(pextn(nebou+1)-1)
+    integer(ip)            , intent(in)    :: num_itfc_elems
+    integer(ip)            , intent(in)    :: lst_itfc_elems(num_itfc_elems)
+    integer(ip)            , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
+    integer(igp)           , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
 
     ! Locals
     integer(ip)                            :: i, j, istat, local_neighbour_id
@@ -174,12 +246,12 @@ contains
     do local_neighbour_id=1, this%number_neighbours
        ! Assume that nebou elements will be sent to each processor, 
        ! and take its 10% for the size of the hash table
-       call snd_lids_per_proc(local_neighbour_id)%init(max( int( real(nebou,rp)*0.1_rp, ip), 5))
+       call snd_lids_per_proc(local_neighbour_id)%init(max( int( real(num_itfc_elems,rp)*0.1_rp, ip), 5))
 
        ! Assume that as many elements will be received from each processor
        ! as the number of remote edges communicating elements in this part
        ! and any other remote part, and take its 5%
-       call rcv_gids_per_proc(local_neighbour_id)%init( max ( int( real(pextn(nebou+1),rp)*0.05_rp,ip), 5) )
+       call rcv_gids_per_proc(local_neighbour_id)%init( max ( int( real(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1),rp)*0.05_rp,ip), 5) )
     end do
 
     call memalloc ( this%number_neighbours+1, this%rcv_ptrs, __FILE__, __LINE__)
@@ -187,14 +259,14 @@ contains
     this%snd_ptrs = 0
     this%rcv_ptrs = 0
     
-    do i=1, nebou
-       do j=pextn(i), pextn(i+1)-1
-          local_neighbour_id = this%get_local_neighbour_id(lextp(j))
-          call snd_lids_per_proc(local_neighbour_id)%put(key=lebou(i), val=1, stat=istat)
+    do i=1, num_itfc_elems
+       do j=ptr_ext_neighs_per_itfc_elem(i), ptr_ext_neighs_per_itfc_elem(i+1)-1
+          local_neighbour_id = this%get_local_neighbour_id(lst_ext_neighs_part_ids(j))
+          call snd_lids_per_proc(local_neighbour_id)%put(key=lst_itfc_elems(i), val=1, stat=istat)
           if ( istat == now_stored ) then
              this%snd_ptrs(local_neighbour_id+1) =  this%snd_ptrs(local_neighbour_id+1) + 1
           end if 
-          call rcv_gids_per_proc(local_neighbour_id)%put(key=lextn(j), val=1, stat=istat) 
+          call rcv_gids_per_proc(local_neighbour_id)%put(key=lst_ext_neighs_gids(j), val=1, stat=istat) 
           if ( istat == now_stored ) then
              this%rcv_ptrs(local_neighbour_id+1) =  this%rcv_ptrs(local_neighbour_id+1) + 1
           end if
@@ -212,15 +284,21 @@ contains
 
   end subroutine element_import_compute_snd_rcv_ptrs
 
-  subroutine element_import_compute_snd_rcv_leids (this, number_elements, nebou, lebou, pextn, lextn, lextp)
+  subroutine element_import_compute_snd_rcv_leids (this, &
+                                                   number_elements, &
+                                                   num_itfc_elems, &
+                                                   lst_itfc_elems, &
+                                                   ptr_ext_neighs_per_itfc_elem, &
+                                                   lst_ext_neighs_gids, &
+                                                   lst_ext_neighs_part_ids)
     implicit none
     class(element_import_t), intent(inout) :: this
     integer(ip)            , intent(in)    :: number_elements
-    integer(ip)            , intent(in)    :: nebou
-    integer(ip)            , intent(in)    :: lebou(nebou)
-    integer(ip)            , intent(in)    :: pextn(nebou+1)
-    integer(igp)           , intent(in)    :: lextn(pextn(nebou+1)-1)
-    integer(ip)            , intent(in)    :: lextp(pextn(nebou+1)-1)
+    integer(ip)            , intent(in)    :: num_itfc_elems
+    integer(ip)            , intent(in)    :: lst_itfc_elems(num_itfc_elems)
+    integer(ip)            , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
+    integer(igp)           , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
+    integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
 
     ! Locals
     integer(ip)                            :: i, j, istat, local_neighbour_id
@@ -233,28 +311,28 @@ contains
     do i=1, this%number_neighbours
        ! Assume that nebou elements will be sent to each processor, 
        ! and take its 10% for the size of the hash table
-       call snd_lids_per_proc(i)%init(max(int(real(nebou,rp)*0.1_rp,ip),5))
+       call snd_lids_per_proc(i)%init(max(int(real(num_itfc_elems,rp)*0.1_rp,ip),5))
 
        ! Assume that as many elements will be received from each processor
        ! as the number of remote edges communicating elements in this part
        ! and any other remote part, and take its 5%
-       call rcv_gids_per_proc(i)%init(max(int(real(pextn(nebou+1),rp)*0.05_rp,ip),5))
+       call rcv_gids_per_proc(i)%init(max(int(real(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1),rp)*0.05_rp,ip),5))
     end do
 
     call memalloc ( this%rcv_ptrs(this%number_neighbours+1)-1, this%rcv_leids, __FILE__, __LINE__)
     call memalloc ( this%snd_ptrs(this%number_neighbours+1)-1, this%snd_leids, __FILE__, __LINE__)
     
     number_elements_to_be_received = 0
-    do i=1, nebou
-       do j=pextn(i), pextn(i+1)-1
-          local_neighbour_id = this%get_local_neighbour_id(lextp(j))
-          call snd_lids_per_proc(local_neighbour_id)%put(key=lebou(i), val=1, stat=istat)
+    do i=1, num_itfc_elems
+       do j=ptr_ext_neighs_per_itfc_elem(i), ptr_ext_neighs_per_itfc_elem(i+1)-1
+          local_neighbour_id = this%get_local_neighbour_id(lst_ext_neighs_part_ids(j))
+          call snd_lids_per_proc(local_neighbour_id)%put(key=lst_itfc_elems(i), val=1, stat=istat)
           if ( istat == now_stored ) then
-             this%snd_leids(this%snd_ptrs(local_neighbour_id)) = lebou(i)
+             this%snd_leids(this%snd_ptrs(local_neighbour_id)) = lst_itfc_elems(i)
              this%snd_ptrs(local_neighbour_id) = this%snd_ptrs(local_neighbour_id) + 1
           end if 
           
-          call rcv_gids_per_proc(local_neighbour_id)%put(key=lextn(j), val=1, stat=istat) 
+          call rcv_gids_per_proc(local_neighbour_id)%put(key=lst_ext_neighs_gids(j), val=1, stat=istat) 
           if ( istat == now_stored ) then
              number_elements_to_be_received = number_elements_to_be_received + 1 
              this%rcv_leids(this%rcv_ptrs(local_neighbour_id)) = number_elements + number_elements_to_be_received

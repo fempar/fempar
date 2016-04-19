@@ -65,6 +65,56 @@ module par_triangulation_names
   integer(ip), parameter :: par_triangulation_not_created  = 0 ! Initial state
   integer(ip), parameter :: par_triangulation_filled       = 1 ! Elems + Vefs arrays allocated and filled 
 
+  
+  type coarse_cell_t
+    private
+    integer(ip)              :: gid         = -1
+    integer(ip)              :: mypart      = -1
+    integer(ip)              :: number_vefs = -1
+    integer(ip), allocatable :: vefs_lids(:)
+    integer(ip), allocatable :: vefs_gids(:)
+  contains
+    procedure :: create => coarse_cell_create
+    procedure :: free   => coarse_cell_free
+  end type coarse_cell_t
+  
+  type coarse_vef_t
+     private
+     integer(ip)              :: gid      = -1  
+     integer(ip)              :: itfc_lid = -1
+     integer(ip)              :: num_cells_around
+     integer(ip), allocatable :: cells_around(:)   
+  end type coarse_vef_t
+  
+  type coarse_triangulation_t
+     integer(ip)                              :: num_local_cells = -1
+     integer(ip)                              :: num_ghost_cells = -1  
+     type(coarse_cell_t), allocatable         :: cells(:)
+     
+     integer(ip)                              :: num_local_vefs = -1
+     type(coarse_vef_t) , allocatable         :: vefs(:)
+
+     integer(ip)                              :: num_itfc_vefs = -1  ! Number of vefs in the interface among subdomains
+     integer(ip), allocatable                 :: lst_itfc_vefs(:)    ! List of vefs local IDs in the interface among subdomains 
+
+     integer(ip)                              :: num_itfc_cells= -1  ! Number of cells in the interface
+     integer(ip), allocatable                 :: lst_itfc_cells(:)   ! List of cells local IDs in the interface
+ 
+     type(par_environment_t),   pointer       :: p_env => NULL()     ! Parallel environment describing MPI tasks among which par_triangulation is distributed
+     type(element_import_t)                   :: element_import      ! Data type describing the layout in distributed-memory of the dual graph
+                                                                     ! (It is required, e.g., for nearest neighbour comms on this graph)
+     
+     type(coarse_triangulation_t), pointer    :: next
+  contains
+     procedure          :: create                 => coarse_triangulation_create
+     procedure          :: free                   => coarse_triangulation_free
+     procedure, private :: allocate_cell_array    => coarse_triangulation_allocate_cell_array
+     procedure, private :: free_cell_array        => coarse_triangulation_free_cell_array
+     procedure, private :: fill_local_cells       => coarse_triangulation_fill_local_cells
+     procedure, private :: fill_ghost_cells       => coarse_triangulation_fill_ghost_cells
+  end type coarse_triangulation_t
+  
+  
 
   type par_vef_topology_t
      integer(ip)  :: interface  = -1 ! Interface local id of this vef
@@ -85,7 +135,7 @@ module par_triangulation_names
      procedure :: pack   => par_elem_topology_pack
      procedure :: unpack => par_elem_topology_unpack
   end type par_elem_topology_t
-
+  
   type :: par_triangulation_t
      integer(ip)                              :: state = par_triangulation_not_created  
      type(triangulation_t)                    :: triangulation             ! Data common with a centralized (serial) triangulation
@@ -108,8 +158,11 @@ module par_triangulation_names
      integer(ip)                             :: number_global_objects
      integer(ip)                             :: number_objects
      integer(ip), allocatable                :: objects_gids(:)
+     
      type(list_t)                            :: vefs_object
      type(list_t)                            :: parts_object
+     
+     type(coarse_triangulation_t)            :: coarse_triangulation
   contains
      procedure, private :: compute_parts_itfc_vefs                        => par_triangulation_compute_parts_itfc_vefs
      procedure, private :: compute_vefs_and_parts_object                  => par_triangulation_compute_vefs_and_parts_object
@@ -122,7 +175,7 @@ module par_triangulation_names
      procedure, private :: gather_coarse_dgraph_rcv_counts_and_displs     => par_triangulation_gather_coarse_dgraph_rcv_counts_and_displs
      procedure, private :: gather_coarse_dgraph_lextn_and_lextp           => par_triangulation_gather_coarse_dgraph_lextn_and_lextp
   end type par_triangulation_t
-
+  
   ! Types
   public :: par_triangulation_t, par_elem_topology_t
 
@@ -137,6 +190,163 @@ module par_triangulation_names
 
 contains
 
+  subroutine coarse_triangulation_create ( this, &
+                                           par_environment, &
+                                           num_local_cells, &
+                                           cell_gids, &
+                                           ptr_vefs_per_cell, &
+                                           lst_vefs_gids, &
+                                           num_itfc_cells, &
+                                           lst_itfc_cells, &
+                                           ptr_ext_neighs_per_itfc_cell, &
+                                           lst_ext_neighs_gids, &
+                                           lst_ext_neighs_part_ids)
+    implicit none
+    class(coarse_triangulation_t)      , intent(inout) :: this
+    type(par_environment_t)     ,target, intent(in)    :: par_environment
+    integer(ip)                        , intent(in)    :: num_local_cells
+    integer(ip)                        , intent(in)    :: cell_gids(num_local_cells)
+    integer(ip)                        , intent(in)    :: ptr_vefs_per_cell(num_local_cells+1)
+    integer(ip)                        , intent(in)    :: lst_vefs_gids(ptr_vefs_per_cell(num_local_cells+1)-1)
+    integer(ip)                        , intent(in)    :: num_itfc_cells
+    integer(ip)                        , intent(in)    :: lst_itfc_cells(num_itfc_cells)
+    integer(ip)                        , intent(in)    :: ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)
+    integer(ip)                        , intent(in)    :: lst_ext_neighs_gids(ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1)
+    integer(ip)                        , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1)
+  
+    call this%free()
+    
+    this%p_env => par_environment
+    if(this%p_env%am_i_l1_task()) then
+      call this%element_import%create  ( this%p_env%get_l1_rank()+1, &
+                                         this%p_env%get_l1_size(), &
+                                         num_local_cells, &
+                                         num_itfc_cells, &
+                                         lst_itfc_cells, &
+                                         ptr_ext_neighs_per_itfc_cell, &
+                                         lst_ext_neighs_gids, &
+                                         lst_ext_neighs_part_ids)
+      
+      this%num_local_cells = num_local_cells
+      this%num_ghost_cells = this%element_import%get_number_ghost_elements()
+      call this%allocate_cell_array()
+      call this%fill_local_cells ( cell_gids, &
+                                   ptr_vefs_per_cell, &
+                                   lst_vefs_gids )
+      call this%fill_ghost_cells()
+    end if
+
+  end subroutine coarse_triangulation_create
+  
+  subroutine coarse_triangulation_allocate_cell_array ( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    integer(ip) :: istat
+    assert ( associated ( this%p_env ) )
+    assert ( this%p_env%am_i_l1_task() )
+    call this%free_cell_array()
+    allocate ( this%cells(this%num_local_cells+this%num_ghost_cells), stat=istat)
+    check(istat == 0)
+  end subroutine coarse_triangulation_allocate_cell_array 
+  
+  subroutine coarse_triangulation_free_cell_array ( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    integer(ip) :: istat
+    assert ( associated ( this%p_env ) )
+    assert ( this%p_env%am_i_l1_task() )
+    if (allocated(this%cells)) then
+      deallocate (this%cells, stat=istat)
+      check(istat==0)
+    end if
+  end subroutine coarse_triangulation_free_cell_array 
+  
+  subroutine coarse_triangulation_fill_local_cells ( this, &
+                                                     cell_gids, &
+                                                     ptr_vefs_per_cell,&
+                                                     lst_vefs_gids)                                                     
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    integer(ip)                  , intent(in)    :: cell_gids(this%num_local_cells)
+    integer(ip)                  , intent(in)    :: ptr_vefs_per_cell(this%num_local_cells+1)
+    integer(ip)                  , intent(in)    :: lst_vefs_gids(ptr_vefs_per_cell(this%num_local_cells+1)-1)
+    type(position_hash_table_t) :: next_vef_lid_avail
+    integer(ip), allocatable :: lst_vefs_lids(:)
+    integer(ip)              :: icell, istat, j, init_pos, end_pos                    
+
+    assert ( associated ( this%p_env ) )
+    assert ( this%p_env%am_i_l1_task() )
+    assert ( this%num_local_cells>=0)
+
+    call memalloc ( ptr_vefs_per_cell(this%num_local_cells+1)-1, lst_vefs_lids, __FILE__, __LINE__ )
+    call next_vef_lid_avail%init ( max(int(real(ptr_vefs_per_cell(this%num_local_cells+1)-1,rp)*0.1_rp),5) )
+    do icell=1, this%num_local_cells
+      init_pos = ptr_vefs_per_cell(icell)
+      end_pos  = ptr_vefs_per_cell(icell+1)-1
+      do j=init_pos, end_pos
+        call next_vef_lid_avail%get(key=lst_vefs_gids(j), val=lst_vefs_lids(j), stat=istat)
+      end do
+      call this%cells(icell)%create(cell_gids(icell), &
+                                    this%p_env%get_l1_rank()+1, &
+                                    end_pos-init_pos+1, &
+                                    lst_vefs_lids(init_pos:end_pos), &
+                                    lst_vefs_gids(init_pos:end_pos) )
+    end do
+    call next_vef_lid_avail%free()
+    call memfree ( lst_vefs_lids, __FILE__, __LINE__ )
+  end subroutine coarse_triangulation_fill_local_cells 
+  
+  subroutine coarse_triangulation_fill_ghost_cells ( this )
+   implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+  end subroutine coarse_triangulation_fill_ghost_cells
+  
+  subroutine coarse_triangulation_free ( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    integer(ip) :: icell
+    if ( associated(this%p_env) ) then
+      if (this%p_env%am_i_l1_task()) then
+        do icell=1, this%num_local_cells + this%num_ghost_cells
+          call this%cells(icell)%free()
+        end do
+        call this%free_cell_array()
+        call this%element_import%free()
+        this%num_local_cells = -1
+        this%num_ghost_cells = -1
+      end if
+      nullify(this%p_env)
+    end if 
+  end subroutine coarse_triangulation_free
+
+  subroutine coarse_cell_create ( this, globalID, mypart, num_vefs, vefs_lids, vefs_gids )
+    implicit none
+    class(coarse_cell_t), intent(inout) :: this
+    integer(ip)         , intent(in)    :: globalID
+    integer(ip)         , intent(in)    :: mypart
+    integer(ip)         , intent(in)    :: num_vefs
+    integer(ip)         , intent(in)    :: vefs_lids(num_vefs)
+    integer(ip)         , intent(in)    :: vefs_gids(num_vefs)
+    call this%free()
+    this%gid = globalID
+    this%mypart = mypart
+    this%number_vefs = num_vefs
+    call memalloc ( num_vefs, this%vefs_lids, __FILE__, __LINE__ ) 
+    call memalloc ( num_vefs, this%vefs_gids, __FILE__, __LINE__ )
+    this%vefs_lids = vefs_lids
+    this%vefs_gids = vefs_gids
+  end subroutine coarse_cell_create
+  
+  subroutine coarse_cell_free ( this)
+    implicit none
+    class(coarse_cell_t), intent(inout) :: this
+    this%gid = -1
+    this%mypart = -1
+    this%number_vefs = -1
+    if ( allocated (this%vefs_lids) ) call memfree ( this%vefs_lids, __FILE__, __LINE__)
+    if ( allocated (this%vefs_gids) ) call memfree ( this%vefs_gids, __FILE__, __LINE__)
+ end subroutine coarse_cell_free
+  
   subroutine par_triangulation_print ( lunou,  p_trian ) ! (SBmod)
     implicit none
     ! Parameters
@@ -145,9 +355,7 @@ contains
     if(p_trian%p_env%am_i_l1_task()) then
        call triangulation_print ( lunou, p_trian%triangulation, p_trian%num_elems + p_trian%num_ghosts ) 
     end if
-
   end subroutine par_triangulation_print
-
 
   !=============================================================================
   subroutine par_triangulation_free(p_trian)
