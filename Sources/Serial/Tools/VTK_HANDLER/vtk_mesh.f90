@@ -27,19 +27,49 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module vtk_mesh
+module mediator_mesh
 
-USE triangulation_names,         only: triangulation_t
-USE serial_fe_space_names,       only: serial_fe_space_t
 USE types_names
 USE memor_names
-USE Lib_VTK_IO
+USE IR_Precision,                only: I1P
+USE list_types_names
+USE iso_fortran_env,             only: error_unit
+USE field_names,                 only: point_t
+USE vector_names,                only: vector_t
+USE triangulation_names,         only: triangulation_t
+USE serial_scalar_array_names,   only: serial_scalar_array_t
+USE serial_fe_space_names,       only: serial_fe_space_t, finite_element_t, fe_function_t
+USE reference_fe_names,          only: reference_fe_t, quad_lagrangian_reference_fe_t, fe_map_t,   &
+                                       quadrature_t, interpolation_t, topology_quad, topology_tet, &
+                                       fe_type_lagrangian
 
 implicit none
 
 #include "debug.i90"
 
 private
+
+
+    ! VTK cell type parameters
+    integer(ip), parameter :: vtk_vertex               = 1_I1P
+    integer(ip), parameter :: vtk_poly_vertex          = 2_I1P
+    integer(ip), parameter :: vtk_line                 = 3_I1P
+    integer(ip), parameter :: vtk_poly_line            = 4_I1P
+    integer(ip), parameter :: vtk_triangle             = 5_I1P
+    integer(ip), parameter :: vtk_triangle_strip       = 6_I1P
+    integer(ip), parameter :: vtk_polygon              = 7_I1P
+    integer(ip), parameter :: vtk_pixel                = 8_I1P
+    integer(ip), parameter :: vtk_quad                 = 9_I1P
+    integer(ip), parameter :: vtk_tetra                = 10_I1P
+    integer(ip), parameter :: vtk_voxel                = 11_I1P
+    integer(ip), parameter :: vtk_hexahedron           = 12_I1P
+    integer(ip), parameter :: vtk_wedge                = 13_I1P
+    integer(ip), parameter :: vtk_pyramid              = 14_I1P
+    integer(ip), parameter :: vtk_quadratic_edge       = 21_I1P
+    integer(ip), parameter :: vtk_quadratic_triangle   = 22_I1P
+    integer(ip), parameter :: vtk_quadratic_quad       = 23_I1P
+    integer(ip), parameter :: vtk_quadratic_tetra      = 24_I1P
+    integer(ip), parameter :: vtk_quadratic_hexahedron = 25_I1P
 
 
     ! STATE PARAMETERS
@@ -67,19 +97,16 @@ private
     end type
 
     ! Type for storing mesh data
-    type vtk_mesh_t
+    type mediator_mesh_t
     private
         class(serial_fe_space_t), pointer :: fe_space      => NULL()                ! Poins to fe_space_t
         type(vtk_field_t), allocatable    :: field(:)                               ! VTK field_t descriptor
-        character(len=:),  allocatable    :: directory_path                         ! Directory where the results are going to be stored
-        character(len=:),  allocatable    :: name_prefix                            ! Name prefix of the VTK files
-        integer(ip)                       :: file_id = 0                            ! File descriptor (unit)
         real(rp),          allocatable    :: X(:)                                   ! Mesh X coordintates
         real(rp),          allocatable    :: Y(:)                                   ! Mesh Y coordintates
         real(rp),          allocatable    :: Z(:)                                   ! Mesh Z coordintates
         integer(ip),       allocatable    :: connectivities(:)                      ! Connectivity matrix
         integer(ip),       allocatable    :: offset(:)                              ! VTK element offset
-        integer(ip),       allocatable    :: cell_types(:)                          ! VTK element type
+        integer(I1P),      allocatable    :: cell_types(:)                          ! VTK element type
         integer(ip),       allocatable    :: subelements_connectivity(:,:)          ! Connectivities of subelements (If not linear_order)
         integer(ip)                       :: number_of_nodes    = 0                 ! Number of nodes
         integer(ip)                       :: number_of_elements = 0                 ! Number of elements
@@ -89,54 +116,33 @@ private
         integer(ip)                       :: status             = VTK_STATE_UNKNOWN ! Status of the write process
     contains
     private
-        procedure, non_overridable, public :: move_to                           => vtk_mesh_move_to
-        procedure, non_overridable, public :: set_fe_space                      => vtk_mesh_set_fe_space
-        procedure, non_overridable, public :: get_fe_space                      => vtk_mesh_get_fe_space
-        procedure, non_overridable, public :: get_triangulation                 => vtk_mesh_get_triangulation
-        procedure, non_overridable, public :: set_path                          => vtk_mesh_set_path
-        procedure, non_overridable, public :: get_path                          => vtk_mesh_get_path
-        procedure, non_overridable, public :: set_prefix                        => vtk_mesh_set_prefix
-        procedure, non_overridable, public :: get_prefix                        => vtk_mesh_get_prefix
-        procedure, non_overridable, public :: set_linear_order                  => vtk_mesh_set_linear_order
-        procedure, non_overridable, public :: is_linear_order                   => vtk_mesh_is_linear_order
-        procedure, non_overridable, public :: set_filled                        => vtk_mesh_set_filled
-        procedure, non_overridable, public :: is_filled                         => vtk_mesh_is_filled
-        procedure, non_overridable, public :: field_is_filled                   => vtk_mesh_field_is_filled
-        procedure, non_overridable, public :: get_field_type                    => vtk_mesh_get_field_type
-        procedure, non_overridable, public :: get_field_name                    => vtk_mesh_get_field_name
-        procedure, non_overridable, public :: get_field_number_components       => vtk_mesh_get_field_number_components
-        procedure, non_overridable, public :: set_number_nodes                  => vtk_mesh_set_number_nodes
-        procedure, non_overridable, public :: get_number_nodes                  => vtk_mesh_get_number_nodes
-        procedure, non_overridable, public :: set_number_elements               => vtk_mesh_set_number_elements
-        procedure, non_overridable, public :: get_number_elements               => vtk_mesh_get_number_elements
-        procedure, non_overridable, public :: set_dimensions                    => vtk_mesh_set_dimensions
-        procedure, non_overridable, public :: get_dimensions                    => vtk_mesh_get_dimensions
-        procedure, non_overridable, public :: set_cell_type                     => vtk_mesh_set_cell_type
-        procedure, non_overridable, public :: get_cell_type                     => vtk_mesh_get_cell_type
-        procedure, non_overridable, public :: set_offset                        => vtk_mesh_set_offset
-        procedure, non_overridable, public :: get_offset                        => vtk_mesh_get_offset
-        procedure, non_overridable, public :: set_connectivity                  => vtk_mesh_set_connectivity
-        procedure, non_overridable, public :: get_connectivity                  => vtk_mesh_get_connectivity
-        procedure, non_overridable, public :: set_x_coordinate                  => vtk_mesh_set_x_coordinate
-        procedure, non_overridable, public :: get_x_coordinate                  => vtk_mesh_get_x_coordinate
-        procedure, non_overridable, public :: set_y_coordinate                  => vtk_mesh_set_y_coordinate
-        procedure, non_overridable, public :: get_y_coordinate                  => vtk_mesh_get_y_coordinate
-        procedure, non_overridable, public :: set_z_coordinate                  => vtk_mesh_set_z_coordinate
-        procedure, non_overridable, public :: get_z_coordinate                  => vtk_mesh_get_z_coordinate
-        procedure, non_overridable, public :: get_number_fields                 => vtk_mesh_get_number_fields
-        procedure, non_overridable, public :: initialize_coordinates            => vtk_mesh_initialize_coordinates
-        procedure, non_overridable, public :: get_subelements_connectivity      => vtk_mesh_get_subelements_connectivity
-        procedure, non_overridable, public :: allocate_nodal_arrays             => vtk_mesh_allocate_nodal_arrays
-        procedure, non_overridable, public :: allocate_elemental_arrays         => vtk_mesh_allocate_elemental_arrays
-        procedure, non_overridable, public :: allocate_subelements_connectivity => vtk_mesh_allocate_subelements_connectivity
-        procedure, non_overridable, public :: open_vtu                          => vtk_mesh_open_vtu
-        procedure, non_overridable, public :: write_vtu_mesh                    => vtk_mesh_write_vtu_mesh
-        procedure, non_overridable, public :: write_vtu_node_field              => vtk_mesh_write_vtu_node_field
-        procedure, non_overridable, public :: close_vtu                         => vtk_mesh_close_vtu
-        procedure, non_overridable, public :: free                              => vtk_mesh_free
-    end type vtk_mesh_t
+        procedure, non_overridable, public :: move_to                           => mediator_mesh_move_to
+        procedure, non_overridable, public :: set_fe_space                      => mediator_mesh_set_fe_space
+        procedure, non_overridable, public :: set_linear_order                  => mediator_mesh_set_linear_order
+        procedure, non_overridable, public :: field_is_filled                   => mediator_mesh_field_is_filled
+        procedure, non_overridable, public :: get_field_type                    => mediator_mesh_get_field_type
+        procedure, non_overridable, public :: get_field_name                    => mediator_mesh_get_field_name
+        procedure, non_overridable, public :: get_field_number_components       => mediator_mesh_get_field_number_components
+        procedure, non_overridable, public :: get_number_nodes                  => mediator_mesh_get_number_nodes
+        procedure, non_overridable, public :: get_number_elements               => mediator_mesh_get_number_elements
+        procedure, non_overridable, public :: get_number_fields                 => mediator_mesh_get_number_fields
+        procedure, non_overridable, public :: get_X_coordinates                 => mediator_mesh_get_X_coordinates
+        procedure, non_overridable, public :: get_Y_coordinates                 => mediator_mesh_get_Y_coordinates
+        procedure, non_overridable, public :: get_Z_coordinates                 => mediator_mesh_get_Z_coordinates
+        procedure, non_overridable, public :: get_connectivities                => mediator_mesh_get_connectivities
+        procedure, non_overridable, public :: get_offset                        => mediator_mesh_get_offset
+        procedure, non_overridable, public :: get_cell_types                    => mediator_mesh_get_cell_types
+        procedure, non_overridable, public :: initialize_coordinates            => mediator_mesh_initialize_coordinates
+        procedure, non_overridable, public :: allocate_nodal_arrays             => mediator_mesh_allocate_nodal_arrays
+        procedure, non_overridable, public :: allocate_elemental_arrays         => mediator_mesh_allocate_elemental_arrays
+        procedure, non_overridable, public :: allocate_subelements_connectivity => mediator_mesh_allocate_subelements_connectivity
+        procedure, non_overridable         :: generate_mesh                     => mediator_mesh_generate_mesh
+        procedure, non_overridable, public :: generate_linear_mesh              => mediator_mesh_generate_linear_mesh
+        procedure, non_overridable, public :: generate_superlinear_mesh         => mediator_mesh_generate_superlinear_mesh
+        procedure, non_overridable, public :: free                              => mediator_mesh_free
+    end type mediator_mesh_t
 
-public :: vtk_mesh_t
+public :: mediator_mesh_t
 
 contains
 
@@ -213,24 +219,21 @@ contains
     end subroutine vtk_field_free
 
 
-    subroutine vtk_mesh_move_to(this, mesh)
+    subroutine mediator_mesh_move_to(this, mesh)
     !-----------------------------------------------------------------
     !< Move this to other mesh host
     !-----------------------------------------------------------------
-        class(vtk_mesh_t), intent(INOUT) :: this                      ! Input mesh
-        type(vtk_mesh_t),  intent(INOUT) :: mesh                      ! Output mesh
+        class(mediator_mesh_t), intent(INOUT) :: this                      ! Input mesh
+        type(mediator_mesh_t),  intent(INOUT) :: mesh                      ! Output mesh
     !-----------------------------------------------------------------
         call mesh%free()
         if(associated(this%fe_space)) mesh%fe_space => this%fe_space
-        if(allocated(this%directory_path)) mesh%directory_path = this%directory_path
-        if(allocated(this%name_prefix)) mesh%name_prefix = this%name_prefix
         if(allocated(this%X)) call memmovealloc(this%X, mesh%X, __FILE__, __LINE__)
         if(allocated(this%Y)) call memmovealloc(this%Y, mesh%Y, __FILE__, __LINE__)
         if(allocated(this%Z)) call memmovealloc(this%Z, mesh%Z, __FILE__, __LINE__)
         if(allocated(this%offset)) call memmovealloc(this%offset, mesh%offset, __FILE__, __LINE__)
         if(allocated(this%cell_types)) call memmovealloc(this%cell_types, mesh%cell_types, __FILE__, __LINE__)
         if(allocated(this%subelements_connectivity)) call memmovealloc(this%subelements_connectivity, mesh%subelements_connectivity, __FILE__, __LINE__)
-        mesh%file_id = this%file_id
         mesh%number_of_nodes = this%number_of_nodes
         mesh%number_of_elements = this%number_of_elements
         mesh%dimensions = this%dimensions
@@ -238,372 +241,176 @@ contains
         mesh%filled = this%filled
         mesh%status = this%status
         call this%free()
-    end subroutine vtk_mesh_move_to
+    end subroutine mediator_mesh_move_to
 
 
-    subroutine vtk_mesh_set_fe_space(this, fe_space)
+    subroutine mediator_mesh_set_fe_space(this, fe_space)
     !-----------------------------------------------------------------
     !< Set the fe_space
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),                intent(INOUT) :: this
+        class(mediator_mesh_t),                intent(INOUT) :: this
         class(serial_fe_space_t), target, intent(IN)    :: fe_space
     !-----------------------------------------------------------------
         this%fe_space => fe_space
         allocate(this%field(fe_space%get_number_fe_spaces()))
-    end subroutine vtk_mesh_set_fe_space
+    end subroutine mediator_mesh_set_fe_space
 
 
-    function vtk_mesh_get_fe_space(this) result(fe_space)
+    function mediator_mesh_get_fe_space(this) result(fe_space)
     !-----------------------------------------------------------------
     !< Get the fe_space pointer
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),                intent(IN) :: this
+        class(mediator_mesh_t),                intent(IN) :: this
         class(serial_fe_space_t), pointer            :: fe_space
     !-----------------------------------------------------------------
         fe_space => this%fe_space
-    end function vtk_mesh_get_fe_space
+    end function mediator_mesh_get_fe_space
 
 
-    function vtk_mesh_get_triangulation(this) result(triangulation)
-    !-----------------------------------------------------------------
-    !< Get the fe_space pointer
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),             intent(IN) :: this
-        type(triangulation_t), pointer            :: triangulation
-    !-----------------------------------------------------------------
-        triangulation => this%fe_space%get_triangulation()
-    end function vtk_mesh_get_triangulation
-
-
-    subroutine vtk_mesh_set_path(this, path)
-    !-----------------------------------------------------------------
-    !< Set the name of the output directory
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        character(len=*),      intent(IN)    :: path
-    !-----------------------------------------------------------------
-        this%directory_path = path
-    end subroutine vtk_mesh_set_path
-
-
-    subroutine vtk_mesh_get_path(this, path)
-    !-----------------------------------------------------------------
-    !< Get the name of the output directory
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),             intent(IN)    :: this
-        character(len=:), allocatable, intent(INOUT) :: path
-    !-----------------------------------------------------------------
-        assert(allocated(this%directory_path))
-        path = this%directory_path
-    end subroutine vtk_mesh_get_path
-
-
-    subroutine vtk_mesh_set_prefix(this, prefix)
-    !-----------------------------------------------------------------
-    !< Set the file name prefix
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        character(len=*),      intent(IN)    :: prefix
-    !-----------------------------------------------------------------
-        this%name_prefix = prefix
-    end subroutine vtk_mesh_set_prefix
-
-
-    subroutine vtk_mesh_get_prefix(this, prefix)
-    !-----------------------------------------------------------------
-    !< Get the filename prefix
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),             intent(IN)    :: this
-        character(len=:), allocatable, intent(INOUT) :: prefix
-    !-----------------------------------------------------------------
-        assert(allocated(this%name_prefix))
-        prefix = this%name_prefix
-    end subroutine vtk_mesh_get_prefix
-
-
-    subroutine vtk_mesh_set_filled(this, filled)
-    !-----------------------------------------------------------------
-    !< True if the mesh data is already filled
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        logical,               intent(IN)    :: filled
-    !-----------------------------------------------------------------
-        this%filled = filled
-    end subroutine vtk_mesh_set_filled
-
-
-    function vtk_mesh_is_filled(this) result(filled)
+    function mediator_mesh_is_filled(this) result(filled)
     !-----------------------------------------------------------------
     !< Ask if the mesh data is filled
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
-        logical                           :: filled
+        class(mediator_mesh_t), intent(IN) :: this
+        logical                            :: filled
     !-----------------------------------------------------------------
         filled = this%filled
-    end function vtk_mesh_is_filled
+    end function mediator_mesh_is_filled
 
 
-    subroutine vtk_mesh_set_linear_order(this, linear_order)
+    subroutine mediator_mesh_set_linear_order(this, linear_order)
     !-----------------------------------------------------------------
     !< Set linear order
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        logical,               intent(IN)    :: linear_order
+        class(mediator_mesh_t), intent(INOUT) :: this
+        logical,                intent(IN)    :: linear_order
     !-----------------------------------------------------------------
         this%linear_order = linear_order
-    end subroutine vtk_mesh_set_linear_order
+    end subroutine mediator_mesh_set_linear_order
 
 
-    function vtk_mesh_is_linear_order(this) result(linear_order)
-    !-----------------------------------------------------------------
-    !< Ask if the stored mesh data is from linear order mesh
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
-        logical                           :: linear_order
-    !-----------------------------------------------------------------
-        linear_order = this%linear_order
-    end function vtk_mesh_is_linear_order
-
-
-    subroutine vtk_mesh_set_number_nodes(this, number_nodes)
-    !-----------------------------------------------------------------
-    !< Set the number of nodes
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip),           intent(IN)    :: number_nodes
-    !-----------------------------------------------------------------
-        this%number_of_nodes = number_nodes
-    end subroutine vtk_mesh_set_number_nodes
-
-
-    function vtk_mesh_get_number_nodes(this) result(number_nodes)
+    function mediator_mesh_get_number_nodes(this) result(number_nodes)
     !-----------------------------------------------------------------
     !< Return the number of nodes
+    !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
-        integer(ip)                       :: number_nodes
+        class(mediator_mesh_t), intent(INOUT) :: this
+        integer(ip)                           :: number_nodes
     !-----------------------------------------------------------------
+        if(.not. this%filled) call this%generate_mesh()
         number_nodes = this%number_of_nodes
-    end function vtk_mesh_get_number_nodes
+    end function mediator_mesh_get_number_nodes
 
 
-    subroutine vtk_mesh_set_number_elements(this, number_elements)
-    !-----------------------------------------------------------------
-    !< Set the number of elements
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip),           intent(IN)    :: number_elements
-    !-----------------------------------------------------------------
-        this%number_of_elements = number_elements
-    end subroutine vtk_mesh_set_number_elements
-
-
-    function vtk_mesh_get_number_elements(this) result(number_elements)
+    function mediator_mesh_get_number_elements(this) result(number_elements)
     !-----------------------------------------------------------------
     !< Return the number of elements
+    !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
-        integer(ip)                       :: number_elements
+        class(mediator_mesh_t), intent(INOUT) :: this
+        integer(ip)                           :: number_elements
     !-----------------------------------------------------------------
+        if(.not. this%filled) call this%generate_mesh()
         number_elements = this%number_of_elements
-    end function vtk_mesh_get_number_elements
+    end function mediator_mesh_get_number_elements
 
 
-    subroutine vtk_mesh_set_dimensions(this, dimensions)
-    !-----------------------------------------------------------------
-    !< Set the space dimensions of the mesh
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip),           intent(IN)    :: dimensions
-    !-----------------------------------------------------------------
-        this%dimensions = dimensions
-    end subroutine vtk_mesh_set_dimensions
-
-
-    function vtk_mesh_get_dimensions(this) result(dimensions)
+    function mediator_mesh_get_dimensions(this) result(dimensions)
     !-----------------------------------------------------------------
     !< Return the space dimensions of the mesh
+    !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
-        integer(ip)                       :: dimensions
+        class(mediator_mesh_t), intent(INOUT) :: this
+        integer(ip)                        :: dimensions
     !-----------------------------------------------------------------
+        if(.not. this%filled) call this%generate_mesh()
         dimensions = this%dimensions
-    end function vtk_mesh_get_dimensions
+    end function mediator_mesh_get_dimensions
 
 
-    subroutine vtk_mesh_set_cell_type(this, index, type)
+    function mediator_mesh_get_X_coordinates(this) result(X)
     !-----------------------------------------------------------------
-    !< Set the cell types given the index
+    !< Return a pointer to the X coordinates array
+    !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip),           intent(IN)    :: index
-        integer(ip),           intent(IN)    :: type
+        class(mediator_mesh_t), target, intent(INOUT) :: this
+        real(rp),               pointer               :: X(:)
     !-----------------------------------------------------------------
-        assert(allocated(this%cell_types))
-        assert(index>0 .and. index<=this%number_of_elements)
-        this%cell_types(index) = type
-    end subroutine vtk_mesh_set_cell_type
+        if(.not. this%filled) call this%generate_mesh()
+        X => this%X
+    end function mediator_mesh_get_X_coordinates
 
 
-    function vtk_mesh_get_cell_type(this, index) result(type)
+    function mediator_mesh_get_Y_coordinates(this) result(Y)
     !-----------------------------------------------------------------
-    !< Return cell type given the cell index of 
+    !< Return a pointer to the Y coordinates array
+    !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
-        integer(ip)                       :: index
-        integer(ip)                       :: type
+        class(mediator_mesh_t), target, intent(INOUT) :: this
+        real(rp),               pointer               :: Y(:)
     !-----------------------------------------------------------------
-        assert(allocated(this%cell_types))
-        assert(index>0 .and. index<=this%number_of_elements)
-        type = this%cell_types(index)
-    end function vtk_mesh_get_cell_type
+        if(.not. this%filled) call this%generate_mesh()
+        Y => this%Y
+    end function mediator_mesh_get_Y_coordinates
 
 
-    subroutine vtk_mesh_set_offset(this, index, offset)
+    function mediator_mesh_get_Z_coordinates(this) result(Z)
     !-----------------------------------------------------------------
-    !< Set the offset given the cellindex
+    !< Return a pointer to the Z coordinates array
+    !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip),           intent(IN)    :: index
-        integer(ip),           intent(IN)    :: offset
+        class(mediator_mesh_t), target, intent(INOUT) :: this
+        real(rp),               pointer               :: Z(:)
     !-----------------------------------------------------------------
-        assert(allocated(this%offset))
-        assert(index>0 .and. index<=this%number_of_elements)
-        this%offset(index) = offset
-    end subroutine vtk_mesh_set_offset
+        if(.not. this%filled) call this%generate_mesh()
+        Z => this%Z
+    end function mediator_mesh_get_Z_coordinates
 
 
-    function vtk_mesh_get_offset(this, index) result(offset)
+    function mediator_mesh_get_connectivities(this) result(connectivities)
     !-----------------------------------------------------------------
-    !< Return the offset given the cellindex
+    !< Return a pointer to the connectivities array
+    !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
-        integer(ip)                       :: index
-        integer(ip)                       :: offset
+        class(mediator_mesh_t), target, intent(INOUT) :: this
+        integer(ip),            pointer               :: connectivities(:)
     !-----------------------------------------------------------------
-        assert(allocated(this%offset))
-        assert(index>0 .and. index<=this%number_of_elements)
-        offset = this%offset(index)
-    end function vtk_mesh_get_offset
+        if(.not. this%filled) call this%generate_mesh()
+        connectivities => this%connectivities
+    end function mediator_mesh_get_connectivities
 
 
-    subroutine vtk_mesh_set_connectivity(this, index, node)
+    function mediator_mesh_get_offset(this) result(offset)
     !-----------------------------------------------------------------
-    !< Set element connectivities
+    !< Return a pointer to the offset array
+    !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip),           intent(IN)    :: index
-        integer(ip),           intent(IN)    :: node
+        class(mediator_mesh_t), target, intent(INOUT) :: this
+        integer(ip),            pointer               :: offset(:)
     !-----------------------------------------------------------------
-        assert(allocated(this%connectivities))
-        assert(index>0 .and. index<=this%number_of_nodes)
-        this%connectivities(index) = node
-    end subroutine vtk_mesh_set_connectivity
+        if(.not. this%filled) call this%generate_mesh()
+        offset => this%offset
+    end function mediator_mesh_get_offset
 
 
-    function vtk_mesh_get_connectivity(this, index) result(node)
+    function mediator_mesh_get_cell_types(this) result(cell_types)
     !-----------------------------------------------------------------
-    !< Return element connectivities given index
+    !< Return a pointer to the cell_types array
+    !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
-        integer(ip)                       :: index
-        integer(ip)                       :: node
+        class(mediator_mesh_t), target, intent(INOUT) :: this
+        integer(I1P),           pointer               :: cell_types(:)
     !-----------------------------------------------------------------
-        assert(allocated(this%connectivities))
-        assert(index>0 .and. index<=this%number_of_nodes)
-        node = this%connectivities(index)
-    end function vtk_mesh_get_connectivity
+        if(.not. this%filled) call this%generate_mesh()
+        cell_types => this%cell_types
+    end function mediator_mesh_get_cell_types
 
 
-    subroutine vtk_mesh_set_x_coordinate(this, index, coordinate)
-    !-----------------------------------------------------------------
-    !< Set the x coordinate given the node index
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip),           intent(IN)    :: index
-        real(rp),              intent(IN)    :: coordinate
-    !-----------------------------------------------------------------
-        assert(allocated(this%X))
-        assert(index>0 .and. index<=this%number_of_nodes)
-        this%X(index) = coordinate
-    end subroutine vtk_mesh_set_x_coordinate
-
-
-    function vtk_mesh_get_x_coordinate(this, index) result(coordinate)
-    !-----------------------------------------------------------------
-    !< Return x coordinate given the node index
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
-        integer(ip)                       :: index
-        real(rp)                          :: coordinate
-    !-----------------------------------------------------------------
-        assert(allocated(this%X))
-        assert(index>0 .and. index<=this%number_of_nodes)
-        coordinate = this%X(index)
-    end function vtk_mesh_get_x_coordinate
-
-
-    subroutine vtk_mesh_set_y_coordinate(this, index, coordinate)
-    !-----------------------------------------------------------------
-    !< Set the y coordinate given the node index
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip),           intent(IN)    :: index
-        real(rp),              intent(IN)    :: coordinate
-    !-----------------------------------------------------------------
-        assert(allocated(this%Y))
-        assert(index>0 .and. index<=this%number_of_nodes)
-        this%Y(index) = coordinate
-    end subroutine vtk_mesh_set_y_coordinate
-
-
-    function vtk_mesh_get_y_coordinate(this, index) result(coordinate)
-    !-----------------------------------------------------------------
-    !< Return the y coordinate given the node index
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
-        integer(ip)                       :: index
-        real(rp)                          :: coordinate
-    !-----------------------------------------------------------------
-        assert(allocated(this%Y))
-        assert(index>0 .and. index<=this%number_of_nodes)
-        coordinate = this%Y(index)
-    end function vtk_mesh_get_y_coordinate
-
-
-    subroutine vtk_mesh_set_z_coordinate(this, index, coordinate)
+    subroutine mediator_mesh_initialize_coordinates(this)
     !-----------------------------------------------------------------
     !< Set the z coordinate given the node index
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip),           intent(IN)    :: index
-        real(rp),              intent(IN)    :: coordinate
-    !-----------------------------------------------------------------
-        assert(allocated(this%Z))
-        assert(index>0 .and. index<=this%number_of_nodes)
-        this%Z(index) = coordinate
-    end subroutine vtk_mesh_set_z_coordinate
-
-
-    function vtk_mesh_get_z_coordinate(this, index) result(coordinate)
-    !-----------------------------------------------------------------
-    !< Return the Z coordinate given the node index
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
-        integer(ip)                       :: index
-        real(rp)                          :: coordinate
-    !-----------------------------------------------------------------
-        assert(allocated(this%Z))
-        assert(index>0 .and. index<=this%number_of_nodes)
-        coordinate = this%Z(index)
-    end function vtk_mesh_get_z_coordinate
-
-
-    subroutine vtk_mesh_initialize_coordinates(this)
-    !-----------------------------------------------------------------
-    !< Set the z coordinate given the node index
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
+        class(mediator_mesh_t),     intent(INOUT) :: this
     !-----------------------------------------------------------------
         assert(allocated(this%X))
         assert(allocated(this%Y))
@@ -611,104 +418,91 @@ contains
         this%X = 0.0_rp
         this%Y = 0.0_rp
         this%Z = 0.0_rp
-    end subroutine vtk_mesh_initialize_coordinates
+    end subroutine mediator_mesh_initialize_coordinates
 
 
-    function vtk_mesh_get_number_fields(this) result(number_fields)
+    function mediator_mesh_get_number_fields(this) result(number_fields)
     !-----------------------------------------------------------------
     !< Return the number of fields 
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
-        integer(ip)                          :: number_fields
+        class(mediator_mesh_t), intent(IN) :: this
+        integer(ip)                           :: number_fields
     !-----------------------------------------------------------------
         number_fields = 0
         if(allocated(this%field)) number_fields = size(this%field,1)
-    end function vtk_mesh_get_number_fields
+    end function mediator_mesh_get_number_fields
 
 
-    function vtk_mesh_field_is_filled(this, field_index) result(filled)
+    function mediator_mesh_field_is_filled(this, field_index) result(filled)
     !-----------------------------------------------------------------
     !< Check if the field with field_index is filled
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(IN) :: this
+        class(mediator_mesh_t),     intent(IN) :: this
         integer(ip),           intent(IN) :: field_index
         logical                           :: filled
     !-----------------------------------------------------------------
         filled = .false.
         if(allocated(this%field)) filled = this%field(field_index)%is_filled()
-    end function vtk_mesh_field_is_filled
+    end function mediator_mesh_field_is_filled
 
 
-    subroutine vtk_mesh_get_field_type(this, field_index, field_type)
+    subroutine mediator_mesh_get_field_type(this, field_index, field_type)
     !-----------------------------------------------------------------
     !< Return the field data type given its index
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),             intent(IN)    :: this
+        class(mediator_mesh_t),             intent(IN)    :: this
         integer(ip),                   intent(IN)    :: field_index
         character(len=:), allocatable, intent(INOUT) :: field_type
     !-----------------------------------------------------------------
         assert(this%field(field_index)%is_filled())
         call this%field(field_index)%get_type(field_type)
-    end subroutine vtk_mesh_get_field_type
+    end subroutine mediator_mesh_get_field_type
 
 
-    subroutine vtk_mesh_get_field_name(this, field_index, field_name)
+    subroutine mediator_mesh_get_field_name(this, field_index, field_name)
     !-----------------------------------------------------------------
     !< Return the field name given its index
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),             intent(IN)    :: this
+        class(mediator_mesh_t),             intent(IN)    :: this
         integer(ip),                   intent(IN)    :: field_index
         character(len=:), allocatable, intent(INOUT) :: field_name
     !-----------------------------------------------------------------
         assert(this%field(field_index)%is_filled())
         call this%field(field_index)%get_name(field_name)
-    end subroutine vtk_mesh_get_field_name
+    end subroutine mediator_mesh_get_field_name
 
 
-    function vtk_mesh_get_field_number_components(this, field_index) result(number_components)
+    function mediator_mesh_get_field_number_components(this, field_index) result(number_components)
     !-----------------------------------------------------------------
     !< Return the number of components of a field given its index
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),             intent(IN)    :: this
+        class(mediator_mesh_t),             intent(IN)    :: this
         integer(ip),                   intent(IN)    :: field_index
         integer(ip)                                  :: number_components
     !-----------------------------------------------------------------
         assert(this%field(field_index)%is_filled())
         number_components = this%field(field_index)%get_number_components()
-    end function vtk_mesh_get_field_number_components
+    end function mediator_mesh_get_field_number_components
 
 
-    function vtk_mesh_get_subelements_connectivity(this) result(subelements_connectivity)
-    !-----------------------------------------------------------------
-    !< Return a pointer to the subelements connectivity array
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t), target, intent(INOUT) :: this
-        integer(ip),       pointer               :: subelements_connectivity(:,:) 
-    !-----------------------------------------------------------------
-        assert(allocated(this%subelements_connectivity))
-        nullify(subelements_connectivity)
-        subelements_connectivity => this%subelements_connectivity
-    end function vtk_mesh_get_subelements_connectivity
-
-
-    subroutine vtk_mesh_allocate_elemental_arrays(this)
+    subroutine mediator_mesh_allocate_elemental_arrays(this)
     !-----------------------------------------------------------------
     !< Allocate all arrays of size number of elements
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
+        class(mediator_mesh_t),     intent(INOUT) :: this
     !-----------------------------------------------------------------
         assert(.not. allocated(this%offset))
         assert(.not. allocated(this%cell_types))
         call memalloc(this%number_of_elements, this%offset, __FILE__, __LINE__)
         call memalloc(this%number_of_elements, this%cell_types, __FILE__, __LINE__)
-    end subroutine vtk_mesh_allocate_elemental_arrays
+    end subroutine mediator_mesh_allocate_elemental_arrays
 
 
-    subroutine vtk_mesh_allocate_nodal_arrays(this)
+    subroutine mediator_mesh_allocate_nodal_arrays(this)
     !-----------------------------------------------------------------
     !< Allocate all arrays with size number of nodes
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
+        class(mediator_mesh_t),     intent(INOUT) :: this
     !-----------------------------------------------------------------
         assert(.not. allocated(this%connectivities))
         assert(.not. allocated(this%X))
@@ -718,135 +512,425 @@ contains
         call memalloc (this%number_of_nodes, this%X, __FILE__,__LINE__)
         call memalloc (this%number_of_nodes, this%Y, __FILE__,__LINE__)
         call memalloc (this%number_of_nodes, this%Z, __FILE__,__LINE__)
-    end subroutine vtk_mesh_allocate_nodal_arrays
+    end subroutine mediator_mesh_allocate_nodal_arrays
 
 
-    subroutine vtk_mesh_allocate_subelements_connectivity(this, number_vertices, number_subelements)
+    subroutine mediator_mesh_allocate_subelements_connectivity(this, number_vertices, number_subelements)
     !-----------------------------------------------------------------
     !< Allocate subelements connectivity array
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
+        class(mediator_mesh_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: number_vertices
         integer(ip),           intent(IN)    :: number_subelements
     !-----------------------------------------------------------------
         assert(.not. allocated(this%subelements_connectivity))
         call memalloc(number_vertices, number_subelements, this%subelements_connectivity, __FILE__, __LINE__)
-    end subroutine vtk_mesh_allocate_subelements_connectivity
+    end subroutine mediator_mesh_allocate_subelements_connectivity
 
 
-    function vtk_mesh_open_vtu(this, file_name, time_step, format) result(E_IO)
+    subroutine mediator_mesh_generate_mesh(this)
     !-----------------------------------------------------------------
-    !< Start the writing of a single VTK file to disk (if I am fine MPI task)
-    !< Writes connectivities and coordinates ( VTK_INI_XML, 
-    !< VTK_GEO_XML, VTK_CON_XML )
+    !< Generate the mesh data from fe_space
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),          intent(INOUT) :: this        !< VTK_t derived type
-        character(len=*),           intent(IN)    :: file_name   !< VTK File NAME
-        real(rp),                   intent(IN)    :: time_step   !< Time STEP value
-        character(len=*), optional, intent(IN)    :: format      !< Ouput ForMaT
-        character(len=:), allocatable             :: of          !< Real Output Format
-        integer(ip)                               :: E_IO        !< Error IO
-      ! ----------------------------------------------------------------------------------
-        if(this%status == VTK_STATE_UNKNOWN .or. this%status == VTK_STATE_ENDED) then
-            of = 'raw'
-            if(present(format)) of = trim(adjustl(format))
-
-            E_IO = VTK_INI_XML(output_format = trim(adjustl(of)),   &
-                               filename = trim(adjustl(file_name)), &
-                               mesh_topology = 'UnstructuredGrid',  &
-                               cf=this%file_id)
-            this%status = VTK_STATE_WRITE_STARTED
+        class(mediator_mesh_t), intent(INOUT) :: this
+    !-----------------------------------------------------------------
+        assert(.not. this%filled)
+        if(this%linear_order) then
+            call this%generate_linear_mesh()
+        else
+            call this%generate_superlinear_mesh()
         endif
-    end function vtk_mesh_open_vtu
+    end subroutine mediator_mesh_generate_mesh
 
 
-    function vtk_mesh_write_vtu_mesh(this) result(E_IO)
+    subroutine mediator_mesh_generate_linear_mesh(this)
     !-----------------------------------------------------------------
-    !< Start the writing of a single VTK file to disk (if I am fine MPI task)
-    !< Writes connectivities and coordinates ( VTK_INI_XML, 
-    !< VTK_GEO_XML, VTK_CON_XML )
+    !< Store a linear_order mesh in a vtk_handler_t derived type from a triangulation
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),          intent(INOUT) :: this        !< VTK_t derived type
-        integer(ip)                               :: E_IO        !< Error IO
-      ! ----------------------------------------------------------------------------------
-        if(this%status == VTK_STATE_WRITE_STARTED .or. this%status == VTK_STATE_ENDED) then
-            E_IO = VTK_GEO_XML(NN = this%number_of_nodes,    &
-                               NC = this%number_of_elements, &
-                               X  = this%X,                  &
-                               Y  = this%Y,                  &
-                               Z  = this%Z,                  &
-                               cf = this%file_id)
-            E_IO = VTK_CON_XML(NC = this%number_of_elements,    &
-                               connect   = this%connectivities, &
-                               offset    = this%offset,         &
-                               cell_type = int(this%cell_types,1),     &
-                               cf        = this%file_id)
+        class(mediator_mesh_t),                intent(INOUT) :: this
+        type(triangulation_t), pointer                  :: triangulation
+        integer(ip)                                     :: i
+        integer(ip)                                     :: j
+        integer(ip)                                     :: number_nodes
+        integer(ip)                                     :: counter
+    !-----------------------------------------------------------------
+        triangulation => this%fe_space%get_triangulation()
+        assert(associated(triangulation))
 
-            this%status = VTK_STATE_WRITE_STARTED
-        endif
-    end function vtk_mesh_write_vtu_mesh
+        this%dimensions = triangulation%num_dims
+        this%number_of_elements = triangulation%num_elems
+        call this%allocate_elemental_arrays()
 
-
-    function vtk_mesh_write_vtu_node_field(this, fe_space_index, field, field_name) result(E_IO)
-    !-----------------------------------------------------------------
-    !< Writes a VTK field ( VTK_DAT_XML )
-    !-----------------------------------------------------------------
-        class(vtk_mesh_t),          intent(INOUT) :: this           !< VTK_t derived type
-        integer(ip),                intent(IN)    :: fe_space_index !< Index of the fe_space
-        character(len=*),           intent(IN)    :: field_name     !< VTK field NAME
-        real(rp),                   intent(IN)    :: field(:,:)     !< Field to write
-        integer(ip)                               :: E_IO           !< Error IO
-    !-----------------------------------------------------------------
-        assert(fe_space_index>0 .and. fe_space_index<=this%fe_space%get_number_fe_spaces())
-        if((this%status == VTK_STATE_WRITE_STARTED) .or. (this%status == VTK_STATE_POINTDATA_OPENED)) then
-            if(this%status == VTK_STATE_WRITE_STARTED) then
-                E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=this%file_id)
-                this%status = VTK_STATE_POINTDATA_OPENED
+        ! Fill VTK cell type and offset arrays and and count nodes
+        number_nodes = 0
+        do i=1, this%number_of_elements
+            if(triangulation%elems(i)%reference_fe_geo%get_topology() == topology_quad) then
+                this%cell_types(i) = vtk_pixel
+            else
+                write(error_unit,*) 'fill_mesh_from_triangulation: Topology not supported'
+                check(.false.)
             endif
-            E_IO = VTK_VAR_XML(NC_NN=this%number_of_nodes,N_COL=size(field,1), varname=field_name, var=field, cf=this%file_id)
-            call this%field(fe_space_index)%set(field_name, 'Float64', size(field,1))
-        endif
-    end function vtk_mesh_write_vtu_node_field
+            number_nodes = number_nodes + triangulation%elems(i)%reference_fe_geo%get_number_vertices()
+            this%offset(i) = number_nodes
+        enddo
+        this%number_of_nodes = number_nodes
+        call this%allocate_nodal_arrays()
+        call this%initialize_coordinates()
+
+        ! Fill VTK coordinate arrays
+        counter = 1
+        do i=1, this%number_of_elements
+            do j=1, triangulation%elems(i)%reference_fe_geo%get_number_vertices()
+                this%connectivities(counter) = counter-1
+                if (triangulation%num_dims >=1) this%X(counter) = triangulation%elems(i)%coordinates(1,j)
+                if (triangulation%num_dims >=2) this%Y(counter) = triangulation%elems(i)%coordinates(2,j)
+                if (triangulation%num_dims >=3) this%Z(counter) = triangulation%elems(i)%coordinates(3,j)
+                counter = counter + 1
+            enddo
+            number_nodes = number_nodes + triangulation%elems(i)%reference_fe_geo%get_number_vertices()
+        enddo
+        this%filled  = .true.
+    end subroutine mediator_mesh_generate_linear_mesh
 
 
-    function vtk_mesh_close_vtu(this) result(E_IO)
+    subroutine mediator_mesh_generate_superlinear_mesh(this)
     !-----------------------------------------------------------------
-    !< Ends the writing of a single VTK file to disk (if I am fine MPI task)
-    !< Closes geometry ( VTK_END_XML, VTK_GEO_XML )
+    !< Store a superlinear_order mesh in a vtk_handler_t derived type from a fe_space
+    !-----------------------------------------------------------------
+        class(mediator_mesh_t),                intent(INOUT) :: this
+        type(point_t),            pointer               :: vertex_coordinates(:)
+        type(point_t),            pointer               :: nodal_coordinates(:)
+        type(quadrature_t),       pointer               :: nodal_quadrature
+        class(reference_fe_t),    pointer               :: reference_fe_geo
+        type(finite_element_t),   pointer               :: fe
+        class(reference_fe_t),    pointer               :: max_order_reference_fe_phy
+        type(fe_map_t)                                  :: fe_map
+        integer(ip)                                     :: num_elements
+        integer(ip)                                     :: num_nodes_per_element
+        integer(ip)                                     :: num_vertices_per_element
+        integer(ip)                                     :: num_subelements_per_element
+        integer(ip)                                     :: elements_counter
+        integer(ip)                                     :: vertex
+        integer(ip)                                     :: max_order
+        integer(ip)                                     :: dimensions
+        integer(ip)                                     :: subelement_vertex
+        integer(ip)                                     :: fe_space_index
+        integer(ip)                                     :: element_index
+        integer(ip)                                     :: subelement_index
+        integer(ip)                                     :: max_order_fe_space_index
+        integer(ip)                                     :: nodes_counter
+    !-----------------------------------------------------------------
+        assert(associated(this%fe_space))
+
+        nullify(vertex_coordinates)
+        nullify(nodal_coordinates)
+        nullify(nodal_quadrature)
+        nullify(reference_fe_geo)
+        nullify(fe)
+        nullify(max_order_reference_fe_phy)
+
+        ! Get max order and its fe_space_index
+        max_order                = this%fe_space%get_max_order()
+        max_order_fe_space_index = this%fe_space%get_max_order_fe_space_component()
+        
+        ! Getters
+        max_order_reference_fe_phy => this%fe_space%get_reference_fe_phy(max_order_fe_space_index)
+        reference_fe_geo           => this%fe_space%get_reference_fe_geo()
+        nodal_quadrature           => max_order_reference_fe_phy%get_nodal_quadrature()
+
+        ! Get dimensions from the geometric reference finite element
+        dimensions = reference_fe_geo%get_number_dimensions()
+        this%dimensions = dimensions
+     
+        ! Calculate the number of subelems and points for the postprocess
+        num_elements                = this%fe_space%get_number_elements()
+        num_vertices_per_element    = reference_fe_geo%get_number_vertices()
+        num_subelements_per_element = max_order_reference_fe_phy%get_number_subelements()
+        this%number_of_elements = num_elements * num_subelements_per_element
+        this%number_of_nodes = num_vertices_per_element * this%number_of_elements
+
+        ! Allocate VTK geometry and connectivity data
+        call this%allocate_elemental_arrays()
+        call this%allocate_nodal_arrays()
+        call this%initialize_coordinates()
+        
+        ! Get the connectivity of the subelements
+        call this%allocate_subelements_connectivity(num_vertices_per_element, num_subelements_per_element)
+        call max_order_reference_fe_phy%get_subelements_connectivity(this%subelements_connectivity)
+
+        ! Create FE map
+        call fe_map%create(nodal_quadrature, reference_fe_geo)
+
+        ! Translate coordinates and connectivities to VTK format
+        nodes_counter = 0
+        elements_counter = 0
+        do element_index = 1, num_elements
+            ! Get Finite element
+            fe => this%fe_space%get_finite_element(element_index)  
+
+            ! Interpolate coordinates
+            vertex_coordinates => fe_map%get_coordinates()
+            call fe%get_cell_coordinates(vertex_coordinates)
+            call fe_map%compute_quadrature_coordinates()
+            nodal_coordinates => fe_map%get_quadrature_coordinates()
+
+            ! Fill VTK mesh
+            do subelement_index = 1, num_subelements_per_element
+                elements_counter = elements_counter + 1
+                do vertex = 1, num_vertices_per_element
+                    subelement_vertex = this%subelements_connectivity(vertex, subelement_index)
+                    nodes_counter = nodes_counter + 1
+                    if(dimensions>=1) this%X(nodes_counter) = nodal_coordinates(subelement_vertex)%get(1)
+                    if(dimensions>=2) this%Y(nodes_counter) = nodal_coordinates(subelement_vertex)%get(2)
+                    if(dimensions>=3) this%Z(nodes_counter) = nodal_coordinates(subelement_vertex)%get(3)
+                    this%connectivities(nodes_counter) = nodes_counter-1
+                end do
+
+                ! Store the type of element
+                this%cell_types(elements_counter) = vtk_pixel
+
+                ! Fill offset
+                this%offset(elements_counter) = nodes_counter
+            end do
+        end do
+        this%filled  = .true.
+        call fe_map%free()
+    end subroutine mediator_mesh_generate_superlinear_mesh
+
+
+    function mediator_mesh_generate_linear_field(this, fe_function, fe_space_index, field_name, field) result(E_IO)
+    !-----------------------------------------------------------------
+    !< Write linear field to file
     !-----------------------------------------------------------------
         implicit none
-        class(vtk_mesh_t),          intent(INOUT) :: this        !< VTK_t derived type
-        integer(ip)                               :: nm          !< Real Number of Mesh
-        integer(ip)                               :: E_IO        !< IO Error
-        logical                                   :: ft          !< Fine Task
-    ! -----------------------------------------------------------------
-        if ((this%status >= VTK_STATE_WRITE_STARTED) .and. (this%status /= VTK_STATE_ENDED)) then
-            if(this%status == VTK_STATE_POINTDATA_OPENED) then
-                E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=this%file_id)
-                this%status = VTK_STATE_POINTDATA_CLOSED
+        class(mediator_mesh_t),          intent(INOUT) :: this                                    !< mediator_mesh_t derived type
+        type(fe_function_t),        intent(IN)    :: fe_function                                  !< Postprocess field structure to be written
+        integer(ip),                intent(IN)    :: fe_space_index                               !< Fe space index
+        character(len=*),           intent(IN)    :: field_name                                   !< name of the field
+        real(rp), allocatable,      intent(INOUT) :: field(:,:)                                   !< FIELD(ncomp,nnod)
+        real(rp), allocatable                     :: nodal_values(:)                              !< nodal values
+        type(serial_scalar_array_t), pointer      :: strong_dirichlet_values                      !< Strong dirichlet values
+        type(finite_element_t),      pointer      :: fe                                           !< finite element
+        class(reference_fe_t),       pointer      :: reference_fe_phy_origin                      !< reference finite element
+        class(vector_t),             pointer      :: fe_function_dof_values                       !< dof values of the fe_function
+        type(i1p_t),                 pointer      :: elem2dof(:)                                  !< element 2 dof translator
+        integer(ip),                 pointer      :: field_blocks(:)                              !< field blocks
+        real(rp),                    pointer      :: strong_dirichlet_values_entries(:)           !< strong dirichlet values
+        type(list_t),                pointer      :: nodes_vef                                    !< list of reference_fe_phy nodes
+        type(list_iterator_t)                     :: nodes_vertex_iterator                        !< iterator on vertex nodes of the reference_fe_phy
+        integer(ip)                               :: number_elements                              !< number of elements
+        integer(ip)                               :: number_vertices                              !< number of geo vertex
+        integer(ip)                               :: number_components                            !< number of components
+        integer(ip)                               :: number_nodes                                 !< number of nodes per fe space
+        integer(ip)                               :: element_index                                !< element index
+        integer(ip)                               :: component_index                              !< component index
+        integer(ip)                               :: vertex_index                                 !< vertex index
+        integer(ip)                               :: node_index                                   !< node index
+        integer(ip)                               :: E_IO                                         !< IO Error
+    !-----------------------------------------------------------------
+        assert(associated(this%fe_space))
+        assert(this%linear_order)
+
+        nullify(strong_dirichlet_values)
+        nullify(fe)
+        nullify(reference_fe_phy_origin)
+        nullify(fe_function_dof_values)
+        nullify(elem2dof)
+        nullify(field_blocks)
+        nullify(strong_dirichlet_values_entries)
+
+        ! Point to some fe_space content
+        reference_fe_phy_origin => this%fe_space%get_reference_fe_phy(fe_space_index)
+        field_blocks            => this%fe_space%get_field_blocks()
+        nodes_vef               => reference_fe_phy_origin%get_nodes_vef()
+
+
+        ! Extract nodal values associated to dirichlet bcs and dof values
+        strong_dirichlet_values         => fe_function%get_strong_dirichlet_values()
+        strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+        fe_function_dof_values          => fe_function%get_dof_values()
+
+        ! Get number components, elements, nodes and vertices
+        number_elements   = this%fe_space%get_number_elements()
+        number_components = reference_fe_phy_origin%get_number_field_components()
+        number_nodes      = reference_fe_phy_origin%get_number_nodes()
+        number_vertices   = reference_fe_phy_origin%get_number_vertices()
+
+        ! Allocate nodal values per finite element and VTK field
+        if(allocated(field)) call memfree(field, __FILE__, __LINE__)
+        call memalloc(number_nodes, nodal_values, __FILE__, __LINE__)
+        call memalloc(number_components, number_elements*number_vertices , field, __FILE__, __LINE__)
+
+        do element_index=1, number_elements
+            fe => this%fe_space%get_finite_element(element_index)  
+            elem2dof => fe%get_elem2dof()
+
+            ! Extract nodal values associated to dofs
+            call fe_function_dof_values%extract_subvector ( field_blocks(fe_space_index), number_nodes, elem2dof(fe_space_index)%p, nodal_values )
+
+            ! Build field in VTK-like format
+            ! Loop on geometrical nodes in subelement
+            do vertex_index=1, number_vertices
+                nodes_vertex_iterator = nodes_vef%get_iterator(vertex_index)
+                assert(nodes_vertex_iterator%get_size() == number_components)
+                ! Loop on field components
+                do while(.not. nodes_vertex_iterator%is_upper_bound())
+                    node_index = nodes_vertex_iterator%get_current()
+                    if ( elem2dof(fe_space_index)%p(node_index) < 0 ) then
+                        ! Fill field with strong dirichlet values
+                        field(reference_fe_phy_origin%get_component_node(node_index), (element_index-1)*number_vertices+vertex_index) = &
+                            strong_dirichlet_values_entries(-elem2dof(fe_space_index)%p(node_index))
+                    else
+                        ! Fill field with nodal values
+                        field(reference_fe_phy_origin%get_component_node(node_index), (element_index-1)*number_vertices+vertex_index) = nodal_values(node_index)
+                    endif
+                    call nodes_vertex_iterator%next()
+                end do
+            end do
+        enddo
+
+        call memfree(nodal_values, __FILE__, __LINE__)
+    end function mediator_mesh_generate_linear_field
+
+
+    function mediator_mesh_generate_superlinear_field(this, fe_function, fe_space_index, field_name, field) result(E_IO)
+    !-----------------------------------------------------------------
+    !< Write superlinear field to file
+    !-----------------------------------------------------------------
+        implicit none
+        class(mediator_mesh_t),          intent(INOUT) :: this                                         !< vtk_handler_t derived type
+        type(fe_function_t),        intent(IN)    :: fe_function                                  !< Postprocess field structure to be written
+        integer(ip),                intent(IN)    :: fe_space_index                               !< Fe space index
+        character(len=*),           intent(IN)    :: field_name                                   !< name of the field
+        real(rp), allocatable,      intent(INOUT) :: field(:,:)                                   !< FIELD(ncomp,nnod)
+        real(rp), allocatable                     :: nodal_values_origin(:)                       !< nodal values of the origin fe_space
+        real(rp), allocatable                     :: nodal_values_target(:)                       !< nodal values for the interpolation
+        type(quadrature_t),          pointer      :: nodal_quadrature_target                      !< Nodal quadrature
+        type(serial_scalar_array_t), pointer      :: strong_dirichlet_values                      !< Strong dirichlet values
+        type(finite_element_t),      pointer      :: fe                                           !< finite element
+        class(reference_fe_t),       pointer      :: reference_fe_phy_origin                      !< reference finite element
+        class(reference_fe_t),       pointer      :: reference_fe_phy_target                      !< reference finite element
+        class(vector_t),             pointer      :: fe_function_dof_values                       !< dof values of the fe_function
+        type(i1p_t),                 pointer      :: elem2dof(:)                                  !< element 2 dof translator
+        type(interpolation_t)                     :: interpolation                                !< interpolator
+        integer(ip),                 pointer      :: field_blocks(:)                              !< field blocks
+        real(rp),                    pointer      :: strong_dirichlet_values_entries(:)           !< strong dirichlet values
+        integer(ip)                               :: number_elements                              !< number of elements
+        integer(ip)                               :: number_subelements                           !< number of subelements per element
+        integer(ip)                               :: number_vertices                              !< number of geo vertex
+        integer(ip)                               :: number_components                            !< number of components
+        integer(ip)                               :: number_nodes_scalar                          !< number of scalar nodes
+        integer(ip)                               :: number_nodes                                 !< number of nodes per fe space
+        integer(ip)                               :: element_index                                !< element index
+        integer(ip)                               :: component_index                              !< component index
+        integer(ip)                               :: node_index                                   !< node index
+        integer(ip)                               :: subelement_index                             !< subelement index
+        integer(ip)                               :: subnode_index                                !< subelement node index
+        integer(ip)                               :: order                                        !< current fe_space order
+        integer(ip)                               :: max_order                                    !< max fe_space order
+        integer(ip)                               :: max_order_fe_space_index                     !< index of the fe_space with max order
+        integer(ip)                               :: idx                                          !< Indices
+        integer(ip)                               :: E_IO                                         !< IO Error
+        logical                                   :: ft                                           !< Fine Task
+    !-----------------------------------------------------------------
+        assert(associated(this%fe_space))
+        assert(.not. this%linear_order)
+
+        nullify(nodal_quadrature_target)
+        nullify(strong_dirichlet_values)
+        nullify(fe)
+        nullify(reference_fe_phy_origin)
+        nullify(reference_fe_phy_target)
+        nullify(fe_function_dof_values)
+        nullify(elem2dof)
+        nullify(field_blocks)
+        nullify(strong_dirichlet_values_entries)
+
+        ! Get max order and its fe_space_index
+        max_order = this%fe_space%get_max_order()
+        max_order_fe_space_index = this%fe_space%get_max_order_fe_space_component()
+
+        ! Point physical referece fe, field blocks, nodal quadrature and subelements connectivity
+        reference_fe_phy_origin  => this%fe_space%get_reference_fe_phy(fe_space_index)
+        reference_fe_phy_target  => this%fe_space%get_reference_fe_phy(max_order_fe_space_index)
+        field_blocks             => this%fe_space%get_field_blocks()
+        nodal_quadrature_target  => reference_fe_phy_target%get_nodal_quadrature()
+
+        ! Extract nodal values associated to dirichlet bcs and dof values
+        strong_dirichlet_values         => fe_function%get_strong_dirichlet_values()
+        strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+        fe_function_dof_values          => fe_function%get_dof_values()
+        
+        ! Calculate number nodes of target field given a certain order of interpolation, the fe_type and the number of components
+        number_elements     = this%fe_space%get_number_elements()
+        number_components   = reference_fe_phy_origin%get_number_field_components()
+        number_subelements  = reference_fe_phy_target%get_number_subelements()
+        number_nodes_scalar = reference_fe_phy_origin%get_number_nodes_scalar()
+        number_nodes        = reference_fe_phy_origin%get_number_nodes()
+        number_vertices     = reference_fe_phy_target%get_number_vertices()
+        order               = reference_fe_phy_origin%get_order()
+
+        ! Allocate VTK field, origin and target nodal values
+        if(allocated(field)) call memfree(field, __FILE__, __LINE__)
+        call memalloc(number_nodes, nodal_values_origin, __FILE__, __LINE__)
+        call memalloc(number_components*nodal_quadrature_target%get_number_quadrature_points(), nodal_values_target, __FILE__, __LINE__)
+        call memalloc(number_components, number_subelements*number_elements*number_vertices , field, __FILE__, __LINE__)
+
+        ! Create interpolation from nodal quadrature
+        call reference_fe_phy_origin%create_interpolation(nodal_quadrature_target, interpolation)
+        
+        ! Loop on elements
+        subnode_index=1
+        do element_index=1, number_elements
+            fe => this%fe_space%get_finite_element(element_index)  
+            elem2dof => fe%get_elem2dof()
+
+            ! Extract nodal values associated to dofs
+            call fe_function_dof_values%extract_subvector ( field_blocks(fe_space_index), number_nodes, elem2dof(fe_space_index)%p, nodal_values_origin )
+
+            ! Fill nodal values with strong dirichlet values
+            do node_index = 1, number_nodes
+                if ( elem2dof(fe_space_index)%p(node_index) < 0 ) then
+                    nodal_values_origin(node_index) = strong_dirichlet_values_entries(-elem2dof(fe_space_index)%p(node_index))
+                end if
+            end do
+
+            ! interpolate nodal values if needed
+            if(order /= max_order) then
+                call reference_fe_phy_origin%interpolate_nodal_values( interpolation, nodal_values_origin, nodal_values_target ) 
+            else
+                nodal_values_target=nodal_values_origin
             endif
-              
-            E_IO = VTK_GEO_XML(cf=this%file_id)
-            E_IO = VTK_END_XML(cf=this%file_id)
-              
-            this%status = VTK_STATE_ENDED
-       endif
-    end function vtk_mesh_close_vtu
+
+            ! Build field in VTK-like format
+            ! Loop on subelements
+            do subelement_index = 1, number_subelements
+                ! Loop on geometrical nodes per subelement
+                do node_index=1, number_vertices
+                    ! Loop on components
+                    do component_index=1, number_components
+                        idx = this%subelements_connectivity(node_index,subelement_index) + (component_index-1)*number_nodes_scalar
+                        field(reference_fe_phy_target%get_component_node(idx) , subnode_index) = nodal_values_target(idx)
+                    enddo
+                    subnode_index=subnode_index+1
+                end do
+            end do
+        enddo
+
+        call interpolation%free()
+        call memfree(nodal_values_origin, __FILE__, __LINE__)
+        call memfree(field, __FILE__, __LINE__)
+        call memfree(nodal_values_target, __FILE__, __LINE__)
+    end function mediator_mesh_generate_superlinear_field
 
 
-    subroutine vtk_mesh_free(this) 
+    subroutine mediator_mesh_free(this) 
     !-----------------------------------------------------------------
-    !< Free the vtk_mesh_t derived type
+    !< Free the mediator_mesh_t derived type
     !-----------------------------------------------------------------
-        class(vtk_mesh_t), intent(inout) :: this
+        class(mediator_mesh_t), intent(inout) :: this
         integer(ip)                      :: i
-        integer(ip)                      :: error
     !-----------------------------------------------------------------
-        error = 0
-        if(allocated(this%directory_path))           deallocate(this%directory_path, stat=error)
-        assert(error==0)
-        if(allocated(this%name_prefix))              deallocate(this%name_prefix, stat=error)
-        assert(error==0)
         if(allocated(this%X))                        call memfree(this%X, __FILE__, __LINE__)
         if(allocated(this%Y))                        call memfree(this%Y, __FILE__, __LINE__)
         if(allocated(this%Z))                        call memfree(this%Z, __FILE__, __LINE__)
@@ -868,4 +952,4 @@ contains
         this%status             = VTK_STATE_UNKNOWN
     end subroutine
 
-end module vtk_mesh
+end module mediator_mesh
