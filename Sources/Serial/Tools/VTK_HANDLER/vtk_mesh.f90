@@ -71,15 +71,6 @@ private
     integer(ip), parameter :: vtk_quadratic_tetra      = 24_I1P
     integer(ip), parameter :: vtk_quadratic_hexahedron = 25_I1P
 
-
-    ! STATE PARAMETERS
-    integer(ip), parameter :: VTK_STATE_UNKNOWN          = 0
-    integer(ip), parameter :: VTK_STATE_WRITE_STARTED    = 1
-    integer(ip), parameter :: VTK_STATE_POINTDATA_OPENED = 2
-    integer(ip), parameter :: VTK_STATE_POINTDATA_CLOSED = 3
-    integer(ip), parameter :: VTK_STATE_ENDED            = 4
-    integer(ip), parameter :: VTK_STATE_READ_STARTED     = 5
-
     ! Type for storing field data
     type vtk_field_t
     private
@@ -113,7 +104,6 @@ private
         integer(ip)                       :: dimensions         = 0                 ! Dimensions of the mesh
         logical                           :: linear_order       = .false.           ! Order 1 (.true.) or higher
         logical                           :: filled             = .false.           ! Mesh data was already filled
-        integer(ip)                       :: status             = VTK_STATE_UNKNOWN ! Status of the write process
     contains
     private
         procedure, non_overridable, public :: move_to                           => mediator_mesh_move_to
@@ -132,13 +122,13 @@ private
         procedure, non_overridable, public :: get_connectivities                => mediator_mesh_get_connectivities
         procedure, non_overridable, public :: get_offset                        => mediator_mesh_get_offset
         procedure, non_overridable, public :: get_cell_types                    => mediator_mesh_get_cell_types
-        procedure, non_overridable, public :: initialize_coordinates            => mediator_mesh_initialize_coordinates
-        procedure, non_overridable, public :: allocate_nodal_arrays             => mediator_mesh_allocate_nodal_arrays
-        procedure, non_overridable, public :: allocate_elemental_arrays         => mediator_mesh_allocate_elemental_arrays
-        procedure, non_overridable, public :: allocate_subelements_connectivity => mediator_mesh_allocate_subelements_connectivity
+        procedure, non_overridable         :: initialize_coordinates            => mediator_mesh_initialize_coordinates
+        procedure, non_overridable         :: allocate_nodal_arrays             => mediator_mesh_allocate_nodal_arrays
+        procedure, non_overridable         :: allocate_elemental_arrays         => mediator_mesh_allocate_elemental_arrays
+        procedure, non_overridable         :: allocate_subelements_connectivity => mediator_mesh_allocate_subelements_connectivity
         procedure, non_overridable         :: generate_mesh                     => mediator_mesh_generate_mesh
-        procedure, non_overridable, public :: generate_linear_mesh              => mediator_mesh_generate_linear_mesh
-        procedure, non_overridable, public :: generate_superlinear_mesh         => mediator_mesh_generate_superlinear_mesh
+        procedure, non_overridable         :: generate_linear_mesh              => mediator_mesh_generate_linear_mesh
+        procedure, non_overridable         :: generate_superlinear_mesh         => mediator_mesh_generate_superlinear_mesh
         procedure, non_overridable, public :: free                              => mediator_mesh_free
     end type mediator_mesh_t
 
@@ -239,7 +229,6 @@ contains
         mesh%dimensions = this%dimensions
         mesh%linear_order = this%linear_order
         mesh%filled = this%filled
-        mesh%status = this%status
         call this%free()
     end subroutine mediator_mesh_move_to
 
@@ -285,6 +274,7 @@ contains
         class(mediator_mesh_t), intent(INOUT) :: this
         logical,                intent(IN)    :: linear_order
     !-----------------------------------------------------------------
+        assert(.not. this%filled)
         this%linear_order = linear_order
     end subroutine mediator_mesh_set_linear_order
 
@@ -949,7 +939,6 @@ contains
         this%number_of_elements = 0
         this%linear_order       = .false.
         this%filled             = .false.
-        this%status             = VTK_STATE_UNKNOWN
     end subroutine
 
 end module mediator_mesh

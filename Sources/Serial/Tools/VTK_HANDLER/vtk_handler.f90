@@ -52,6 +52,17 @@ private
         end function mkdir_recursive
     end interface  
 
+
+    ! STATE PARAMETERS
+    integer(ip), parameter :: vtk_handler_state_start                 = 0
+    integer(ip), parameter :: vtk_handler_state_initialized           = 1
+    integer(ip), parameter :: vtk_handler_state_write_open            = 2
+    integer(ip), parameter :: vtk_handler_state_write_geo_open        = 3
+    integer(ip), parameter :: vtk_handler_state_write_pointdata_open  = 4
+    integer(ip), parameter :: vtk_handler_state_write_pointdata_close = 5
+    integer(ip), parameter :: vtk_handler_state_write_geo_close       = 6
+    integer(ip), parameter :: vtk_handler_state_write_close           = 7
+
     ! Type for storing several mesh data with its field descriptors
     ! It also contains information about the number of parts (PVTU) and time steps (PVD)
     ! It stores the directory path and the prefix where to write in disk
@@ -68,6 +79,7 @@ private
         integer(ip)                         :: num_steps     = 0  ! Number of time steps
         integer(ip)                         :: num_parts     = 0  ! Number of parts
         integer(ip)                         :: root_proc     = 0  ! Root processor
+        integer(ip)                         :: state         = vtk_handler_state_start
     contains
     private
         procedure, public :: initialize                       => vtk_handler_initialize
@@ -269,6 +281,7 @@ contains
         logical                                         :: lo, ft
         integer(ip)                                     :: me, np, st, rp
     !-----------------------------------------------------------------
+        assert(this%state == vtk_handler_state_start)
         lo = .False. !< Default linear order = .false.
         ft = .False. !< Default fine task = .false.
 
@@ -288,19 +301,15 @@ contains
             call this%mesh%set_fe_space(fe_space)
             call this%mesh%set_linear_order(lo)
 
-!            if(this%mesh%is_linear_order()) then 
-!                call this%mesh%fill_mesh_linear_order()
-!            else
-!                call this%mesh%fill_mesh_superlinear_order()
-!            endif
-
             this%path = path
             this%prefix = prefix
             call this%set_num_parts(np)
+
             st = 1
             if(present(number_of_steps)) st = number_of_steps
             call this%set_num_steps(st)
         endif
+        this%state = vtk_handler_state_initialized
     end subroutine vtk_handler_initialize
 
 
@@ -322,6 +331,8 @@ contains
         integer(ip)                               :: np          !< Number of processors
         integer(ip)                               :: E_IO        !< Error IO
     !-----------------------------------------------------------------
+print*, this%state
+        assert(this%state == vtk_handler_state_initialized .or. this%state == vtk_handler_state_write_close)
         assert(associated(this%env))
         assert(allocated(this%path))
         assert(allocated(this%prefix))
@@ -355,7 +366,7 @@ contains
             endif
 
         endif
-
+        this%state = vtk_handler_state_write_open
     end function vtk_handler_open_vtu
 
 
@@ -367,6 +378,7 @@ contains
         logical                                   :: ft          !< Fine Task
         integer(ip)                               :: E_IO        !< Error IO
       ! ----------------------------------------------------------------------------------
+        assert(this%state == vtk_handler_state_write_open)
         assert(associated(this%env))
         ft =  this%env%am_i_fine_task() 
         E_IO = 0
@@ -385,6 +397,7 @@ contains
                                cell_type = this%mesh%get_cell_types(),      &
                                cf        = this%file_id)
         endif
+        this%state = vtk_handler_state_write_geo_open
     end function vtk_handler_write_vtu_mesh
 
 
@@ -399,12 +412,14 @@ contains
         logical                                   :: ft             !< Fine Task
         integer(ip)                               :: E_IO           !< IO Error
     !-----------------------------------------------------------------
+        assert(this%state == vtk_handler_state_write_geo_open .or. this%state == vtk_handler_state_write_pointdata_open)
         assert(associated(this%env))
         E_IO = 0
         ft =  this%env%am_i_fine_task() 
         if(ft) then        
 !            E_IO = this%get_node_field_buffer(fe_function, fe_space_index, field_name)
         endif
+        this%state = vtk_handler_state_write_pointdata_open
     end function vtk_handler_write_vtu_node_field
 
 
@@ -423,13 +438,16 @@ contains
         E_IO = 0
 
         if (ft) then
-!            if(this%status == VTK_STATE_POINTDATA_OPENED) then
-!                E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=this%file_id)
-!                this%status = VTK_STATE_POINTDATA_CLOSED
-!            endif
+            if(this%state == vtk_handler_state_write_pointdata_open) then
+                E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=this%file_id)
+                this%state = vtk_handler_state_write_pointdata_close
+            endif
+            assert(this%state == vtk_handler_state_write_geo_open .or. this%state == vtk_handler_state_write_pointdata_close)
             E_IO = VTK_GEO_XML(cf=this%file_id)
             E_IO = VTK_END_XML(cf=this%file_id)
+            this%state = vtk_handler_state_write_geo_close
         endif
+        this%state = vtk_handler_state_write_close
     end function vtk_handler_close_vtu
 
 
@@ -494,7 +512,6 @@ contains
                 E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE', cf=rf)
                 E_IO = PVTK_END_XML(cf=rf)
             endif
-
         endif
     end function vtk_handler_write_pvtu
 
@@ -551,18 +568,20 @@ contains
         integer(ip)                         :: i, j 
         logical                             :: ft
     !-----------------------------------------------------------------
-        assert(associated(this%env))
         ft = this%env%am_i_fine_task() 
-    
         if(ft) then
             call this%mesh%free()
             if (allocated(this%steps)) call memfree(this%steps, __FILE__,__LINE__)
         endif
+        if(allocated(this%path)) deallocate(this%path)
+        if(allocated(this%prefix)) deallocate(this%prefix)
+        nullify(this%env)
         this%num_meshes = 0
         this%num_steps = 0
         this%num_parts = 0
         this%root_proc = 0
         this%env => NULL()
+        this%state = vtk_handler_state_start
     end subroutine VTK_handler_free
 
 
