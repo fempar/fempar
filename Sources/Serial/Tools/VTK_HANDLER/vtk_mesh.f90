@@ -734,7 +734,7 @@ contains
     end subroutine vtk_mesh_allocate_subelements_connectivity
 
 
-    function vtk_mesh_open_vtu(this, file_name, part_number, time_step, format) result(E_IO)
+    function vtk_mesh_open_vtu(this, file_name, time_step, format) result(E_IO)
     !-----------------------------------------------------------------
     !< Start the writing of a single VTK file to disk (if I am fine MPI task)
     !< Writes connectivities and coordinates ( VTK_INI_XML, 
@@ -742,7 +742,6 @@ contains
     !-----------------------------------------------------------------
         class(vtk_mesh_t),          intent(INOUT) :: this        !< VTK_t derived type
         character(len=*),           intent(IN)    :: file_name   !< VTK File NAME
-        integer(ip),                intent(IN)    :: part_number !< Number of the PART
         real(rp),                   intent(IN)    :: time_step   !< Time STEP value
         character(len=*), optional, intent(IN)    :: format      !< Ouput ForMaT
         character(len=:), allocatable             :: of          !< Real Output Format

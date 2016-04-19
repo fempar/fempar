@@ -328,7 +328,7 @@ contains
     end subroutine vtk_set_num_parts
 
 
-    subroutine vtk_initialize(this, fe_space, env, path, prefix, root_proc, number_of_parts, number_of_steps, linear_order)
+    subroutine vtk_initialize(this, fe_space, env, path, prefix, root_proc, number_of_steps, linear_order)
     !-----------------------------------------------------------------
     !< Initialize the vtk_handler_t derived type
     !-----------------------------------------------------------------
@@ -338,7 +338,6 @@ contains
         character(len=*),                 intent(IN)    :: path
         character(len=*),                 intent(IN)    :: prefix  
         integer(ip),      optional,       intent(IN)    :: root_proc
-        integer(ip),      optional,       intent(IN)    :: number_of_parts
         integer(ip),      optional,       intent(IN)    :: number_of_steps
         logical,          optional,       intent(IN)    :: linear_order
         logical                                         :: lo, ft
@@ -371,7 +370,6 @@ contains
 
             call this%set_path(path)
             call this%set_prefix(prefix)
-            if(present(number_of_parts)) np = number_of_parts
             call this%set_num_parts(np)
             st = 1
             if(present(number_of_steps)) st = number_of_steps
@@ -540,14 +538,13 @@ contains
     end subroutine vtk_fill_mesh_superlinear_order
 
 
-    function vtk_open_vtu(this, file_name, part_number, time_step, format) result(E_IO)
+    function vtk_open_vtu(this, file_name, time_step, format) result(E_IO)
     !-----------------------------------------------------------------
     !< Start the writing of a single VTK file to disk ( VTK_INI_XML)
     !< (only if it's a fine MPI task)
     !-----------------------------------------------------------------
         class(vtk_handler_t),       intent(INOUT) :: this        !< vtk_handler_t derived type
         character(len=*), optional, intent(IN)    :: file_name   !< VTK File NAME
-        integer(ip),      optional, intent(IN)    :: part_number !< Number of the PART
         real(rp),         optional, intent(IN)    :: time_step   !< Time STEP value
         character(len=*), optional, intent(IN)    :: format      !< Ouput ForMaT
         character(len=:), allocatable             :: path        !< Directory path
@@ -557,11 +554,9 @@ contains
         character(len=:), allocatable             :: of          !< Real Output Format
         real(rp)                                  :: ts          !< Real Time Step
         logical                                   :: ft          !< Fine Task
-        integer(ip)                               :: np          !< Real Number of the Part
         integer(ip)                               :: me          !< Task identifier
+        integer(ip)                               :: np          !< Number of processors
         integer(ip)                               :: fid         !< Real File ID
-        integer(ip)                               :: nnods       !< Number of NODeS
-        integer(ip)                               :: nels        !< Number of ELementS
         integer(ip)                               :: E_IO        !< Error IO
       ! ----------------------------------------------------------------------------------
         assert(associated(this%env))
@@ -574,8 +569,6 @@ contains
         if(ft) then
             me = 0; np = 1
             call this%env%info(me,np) 
-            np = me
-            if(present(part_number)) np = part_number
         
             ts = 0._rp
             if(present(time_step)) ts = time_step 
@@ -584,13 +577,13 @@ contains
             call this%mesh%get_path(path)
             call this%mesh%get_prefix(prefix)
             dp = this%get_VTK_time_output_path(path=path, time_step=ts)
-            fn = this%get_VTK_filename(prefix=prefix, part_number=np)
+            fn = this%get_VTK_filename(prefix=prefix, part_number=me)
             fn = dp//fn
 
             if(present(file_name)) fn = file_name
 
             if( this%create_directory(dp,issue_final_barrier=.True.) == 0) then    
-                E_IO = this%mesh%open_vtu(fn, np, ts, format)
+                E_IO = this%mesh%open_vtu(fn, ts, format)
             endif
         endif
     end function vtk_open_vtu
