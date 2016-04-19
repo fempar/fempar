@@ -1,7 +1,7 @@
 # VTK handler: Basic usage
 
 
-## Steady mesh and field IO
+## Stationary simulation
 
 ```fortran
 ...
@@ -18,7 +18,7 @@
 ...
 ```
 
-## Transient mesh and field IO
+## Transient simulation 
 
 ```fortran
      call  vtk_handler%initialize(fe_space, senv, output_path, prefix, number_of_steps=number_time_steps)
@@ -28,5 +28,5 @@
          err = vtk_handler%end_write()
          err = vtk_handler%write_pvtk()
      enddo
-     err = vtk_handler%write_pvtk()
+     err = vtk_handler%write_pvd()
 ```
