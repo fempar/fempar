@@ -97,29 +97,30 @@ private
         integer(ip)                         :: root_proc     = 0  ! Root processor
     contains
     private
-        procedure, public :: initialize                   => vtk_initialize
-        procedure, public :: begin_write                  => vtk_begin_write
-        procedure, public :: write_node_field             => vtk_write_node_field
-        procedure, public :: end_write                    => vtk_end_write
-        procedure, public :: write_pvtk                   => vtk_write_pvtk
-        procedure, public :: write_pvd                    => vtk_write_pvd
-        procedure, public :: free                         => vtk_free
-        procedure         :: reallocate_meshes            => vtk_reallocate_meshes
-        procedure         :: fill_mesh_linear_order       => vtk_fill_mesh_linear_order
-        procedure         :: fill_mesh_superlinear_order  => vtk_fill_mesh_superlinear_order
-        procedure         :: write_node_field_linear      => vtk_write_node_field_linear
-        procedure         :: write_node_field_superlinear => vtk_write_node_field_superlinear
-        procedure         :: get_VTK_time_output_path     => vtk_get_VTK_time_output_path
-        procedure         :: get_PVD_time_output_path     => vtk_get_PVD_time_output_path
-        procedure         :: get_VTK_filename             => vtk_get_VTK_filename
-        procedure         :: get_PVTK_filename            => vtk_get_PVTK_filename
-        procedure         :: set_root_proc                => vtk_set_root_proc
-        procedure         :: set_num_steps                => vtk_set_num_steps
-        procedure         :: set_num_parts                => vtk_set_num_parts
-        procedure         :: set_path                     => vtk_set_path
-        procedure         :: set_prefix                   => vtk_set_prefix
-        procedure         :: append_step                  => vtk_append_step
-        procedure         :: create_directory             => vtk_create_dir_hierarchy_on_root_process
+        procedure, public :: initialize                       => vtk_initialize
+        procedure, public :: open_vtu                         => vtk_open_vtu
+        procedure, public :: write_vtu_mesh                   => vtk_write_vtu_mesh
+        procedure, public :: write_vtu_node_field             => vtk_write_vtu_node_field
+        procedure, public :: close_vtu                        => vtk_close_vtu
+        procedure, public :: write_pvtk                       => vtk_write_pvtk
+        procedure, public :: write_pvd                        => vtk_write_pvd
+        procedure, public :: free                             => vtk_free
+        procedure         :: reallocate_meshes                => vtk_reallocate_meshes
+        procedure         :: fill_mesh_linear_order           => vtk_fill_mesh_linear_order
+        procedure         :: fill_mesh_superlinear_order      => vtk_fill_mesh_superlinear_order
+        procedure         :: write_vtu_node_field_linear      => vtk_write_vtu_node_field_linear
+        procedure         :: write_vtu_node_field_superlinear => vtk_write_vtu_node_field_superlinear
+        procedure         :: get_VTK_time_output_path         => vtk_get_VTK_time_output_path
+        procedure         :: get_PVD_time_output_path         => vtk_get_PVD_time_output_path
+        procedure         :: get_VTK_filename                 => vtk_get_VTK_filename
+        procedure         :: get_PVTK_filename                => vtk_get_PVTK_filename
+        procedure         :: set_root_proc                    => vtk_set_root_proc
+        procedure         :: set_num_steps                    => vtk_set_num_steps
+        procedure         :: set_num_parts                    => vtk_set_num_parts
+        procedure         :: set_path                         => vtk_set_path
+        procedure         :: set_prefix                       => vtk_set_prefix
+        procedure         :: append_step                      => vtk_append_step
+        procedure         :: create_directory                 => vtk_create_dir_hierarchy_on_root_process
     end type vtk_handler_t
 
     character(len=5) :: time_prefix = 'time_'
@@ -597,11 +598,10 @@ contains
     end subroutine vtk_fill_mesh_superlinear_order
 
 
-    function vtk_begin_write(this, file_name, part_number, time_step, mesh_number, format) result(E_IO)
+    function vtk_open_vtu(this, file_name, part_number, time_step, mesh_number, format) result(E_IO)
     !-----------------------------------------------------------------
-    !< Start the writing of a single VTK file to disk (if I am fine MPI task)
-    !< Writes connectivities and coordinates ( VTK_INI_XML, 
-    !< VTK_GEO_XML, VTK_CON_XML )
+    !< Start the writing of a single VTK file to disk ( VTK_INI_XML)
+    !< (only if it's a fine MPI task)
     !-----------------------------------------------------------------
         class(vtk_handler_t),       intent(INOUT) :: this        !< vtk_handler_t derived type
         character(len=*), optional, intent(IN)    :: file_name   !< VTK File NAME
@@ -653,13 +653,32 @@ contains
             if(present(file_name)) fn = file_name
 
             if( this%create_directory(dp,issue_final_barrier=.True.) == 0) then    
-                E_IO = this%mesh(nm)%begin_write(fn, np, ts, format)
+                E_IO = this%mesh(nm)%open_vtu(fn, np, ts, format)
             endif
         endif
-    end function vtk_begin_write
+    end function vtk_open_vtu
 
 
-    function vtk_write_node_field(this, fe_function, fe_space_index, field_name, mesh_number) result(E_IO)
+    function vtk_write_vtu_mesh(this, mesh_number) result(E_IO)
+    !-----------------------------------------------------------------
+    !< Write VTU mesh (VTK_GEO_XML, VTK_CON_XML )
+    !-----------------------------------------------------------------
+        class(vtk_handler_t),       intent(INOUT) :: this        !< vtk_handler_t derived type
+        integer(ip),     optional,  intent(IN)    :: mesh_number !< Number of mesh
+        logical                                   :: ft          !< Fine Task
+        integer(ip)                               :: nm             !< Aux number of mesh
+        integer(ip)                               :: E_IO        !< Error IO
+      ! ----------------------------------------------------------------------------------
+        assert(associated(this%env))
+        nm = this%num_meshes
+        if(present(mesh_number)) nm = mesh_number
+        ft =  this%env%am_i_fine_task() 
+        E_IO = 0
+        if(ft) E_IO = this%mesh(nm)%write_vtu_mesh()
+    end function vtk_write_vtu_mesh
+
+
+    function vtk_write_vtu_node_field(this, fe_function, fe_space_index, field_name, mesh_number) result(E_IO)
     !-----------------------------------------------------------------
     !< Write node field to file
     !-----------------------------------------------------------------
@@ -680,16 +699,16 @@ contains
            if(present(mesh_number)) nm = mesh_number
 
             if(this%mesh(nm)%is_linear_order()) then
-                E_IO = this%write_node_field_linear(fe_function, fe_space_index, field_name, nm)
+                E_IO = this%write_vtu_node_field_linear(fe_function, fe_space_index, field_name, nm)
             else
-                E_IO = this%write_node_field_superlinear(fe_function, fe_space_index, field_name, nm)
+                E_IO = this%write_vtu_node_field_superlinear(fe_function, fe_space_index, field_name, nm)
             endif
 
         endif
-    end function vtk_write_node_field
+    end function vtk_write_vtu_node_field
 
 
-    function vtk_write_node_field_linear(this, fe_function, fe_space_index, field_name, mesh_number) result(E_IO)
+    function vtk_write_vtu_node_field_linear(this, fe_function, fe_space_index, field_name, mesh_number) result(E_IO)
     !-----------------------------------------------------------------
     !< Write linear field to file
     !-----------------------------------------------------------------
@@ -782,13 +801,13 @@ contains
             end do
         enddo
 
-        E_IO = this%mesh(mesh_number)%write_node_field(fe_space_index, field, field_name)
+        E_IO = this%mesh(mesh_number)%write_vtu_node_field(fe_space_index, field, field_name)
         call memfree(nodal_values, __FILE__, __LINE__)
         call memfree(field, __FILE__, __LINE__)
-    end function vtk_write_node_field_linear
+    end function vtk_write_vtu_node_field_linear
 
 
-    function vtk_write_node_field_superlinear(this, fe_function, fe_space_index, field_name, mesh_number) result(E_IO)
+    function vtk_write_vtu_node_field_superlinear(this, fe_function, fe_space_index, field_name, mesh_number) result(E_IO)
     !-----------------------------------------------------------------
     !< Write superlinear field to file
     !-----------------------------------------------------------------
@@ -919,15 +938,15 @@ contains
             end do
         enddo
 
-        E_IO = this%mesh(mesh_number)%write_node_field(fe_space_index, field, field_name)
+        E_IO = this%mesh(mesh_number)%write_vtu_node_field(fe_space_index, field, field_name)
         call interpolation%free()
         call memfree(nodal_values_origin, __FILE__, __LINE__)
         call memfree(field, __FILE__, __LINE__)
         call memfree(nodal_values_target, __FILE__, __LINE__)
-    end function vtk_write_node_field_superlinear
+    end function vtk_write_vtu_node_field_superlinear
 
 
-    function vtk_end_write(this, mesh_number) result(E_IO)
+    function vtk_close_vtu(this, mesh_number) result(E_IO)
     !-----------------------------------------------------------------
     !< Ends the writing of a single VTK file to disk (if I am fine MPI task)
     !< Closes geometry ( VTK_END_XML, VTK_GEO_XML )
@@ -947,9 +966,9 @@ contains
            nm = this%num_meshes
            if(present(mesh_number)) nm = mesh_number
            
-           E_IO = this%mesh(nm)%end_write()
+           E_IO = this%mesh(nm)%close_vtu()
         endif
-    end function vtk_end_write
+    end function vtk_close_vtu
 
 
     function vtk_write_PVTK(this, file_name, mesh_number, time_step) result(E_IO)

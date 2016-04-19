@@ -129,9 +129,10 @@ private
         procedure, non_overridable, public :: allocate_nodal_arrays             => vtk_mesh_allocate_nodal_arrays
         procedure, non_overridable, public :: allocate_elemental_arrays         => vtk_mesh_allocate_elemental_arrays
         procedure, non_overridable, public :: allocate_subelements_connectivity => vtk_mesh_allocate_subelements_connectivity
-        procedure, non_overridable, public :: begin_write                       => vtk_mesh_begin_write
-        procedure, non_overridable, public :: write_node_field                  => vtk_mesh_write_node_field
-        procedure, non_overridable, public :: end_write                         => vtk_mesh_end_write
+        procedure, non_overridable, public :: open_vtu                          => vtk_mesh_open_vtu
+        procedure, non_overridable, public :: write_vtu_mesh                    => vtk_mesh_write_vtu_mesh
+        procedure, non_overridable, public :: write_vtu_node_field              => vtk_mesh_write_vtu_node_field
+        procedure, non_overridable, public :: close_vtu                         => vtk_mesh_close_vtu
         procedure, non_overridable, public :: free                              => vtk_mesh_free
     end type vtk_mesh_t
 
@@ -733,7 +734,7 @@ contains
     end subroutine vtk_mesh_allocate_subelements_connectivity
 
 
-    function vtk_mesh_begin_write(this, file_name, part_number, time_step, format) result(E_IO)
+    function vtk_mesh_open_vtu(this, file_name, part_number, time_step, format) result(E_IO)
     !-----------------------------------------------------------------
     !< Start the writing of a single VTK file to disk (if I am fine MPI task)
     !< Writes connectivities and coordinates ( VTK_INI_XML, 
@@ -745,8 +746,6 @@ contains
         real(rp),                   intent(IN)    :: time_step   !< Time STEP value
         character(len=*), optional, intent(IN)    :: format      !< Ouput ForMaT
         character(len=:), allocatable             :: of          !< Real Output Format
-        integer(ip)                               :: nnods       !< Number of NODeS
-        integer(ip)                               :: nels        !< Number of ELementS
         integer(ip)                               :: E_IO        !< Error IO
       ! ----------------------------------------------------------------------------------
         if(this%status == VTK_STATE_UNKNOWN .or. this%status == VTK_STATE_ENDED) then
@@ -757,6 +756,21 @@ contains
                                filename = trim(adjustl(file_name)), &
                                mesh_topology = 'UnstructuredGrid',  &
                                cf=this%file_id)
+            this%status = VTK_STATE_WRITE_STARTED
+        endif
+    end function vtk_mesh_open_vtu
+
+
+    function vtk_mesh_write_vtu_mesh(this) result(E_IO)
+    !-----------------------------------------------------------------
+    !< Start the writing of a single VTK file to disk (if I am fine MPI task)
+    !< Writes connectivities and coordinates ( VTK_INI_XML, 
+    !< VTK_GEO_XML, VTK_CON_XML )
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t),          intent(INOUT) :: this        !< VTK_t derived type
+        integer(ip)                               :: E_IO        !< Error IO
+      ! ----------------------------------------------------------------------------------
+        if(this%status == VTK_STATE_WRITE_STARTED .or. this%status == VTK_STATE_ENDED) then
             E_IO = VTK_GEO_XML(NN = this%number_of_nodes,    &
                                NC = this%number_of_elements, &
                                X  = this%X,                  &
@@ -771,10 +785,10 @@ contains
 
             this%status = VTK_STATE_WRITE_STARTED
         endif
-    end function vtk_mesh_begin_write
+    end function vtk_mesh_write_vtu_mesh
 
 
-    function vtk_mesh_write_node_field(this, fe_space_index, field, field_name) result(E_IO)
+    function vtk_mesh_write_vtu_node_field(this, fe_space_index, field, field_name) result(E_IO)
     !-----------------------------------------------------------------
     !< Writes a VTK field ( VTK_DAT_XML )
     !-----------------------------------------------------------------
@@ -793,10 +807,10 @@ contains
             E_IO = VTK_VAR_XML(NC_NN=this%number_of_nodes,N_COL=size(field,1), varname=field_name, var=field, cf=this%file_id)
             call this%field(fe_space_index)%set(field_name, 'Float64', size(field,1))
         endif
-    end function vtk_mesh_write_node_field
+    end function vtk_mesh_write_vtu_node_field
 
 
-    function vtk_mesh_end_write(this) result(E_IO)
+    function vtk_mesh_close_vtu(this) result(E_IO)
     !-----------------------------------------------------------------
     !< Ends the writing of a single VTK file to disk (if I am fine MPI task)
     !< Closes geometry ( VTK_END_XML, VTK_GEO_XML )
@@ -818,7 +832,7 @@ contains
               
             this%status = VTK_STATE_ENDED
        endif
-    end function vtk_mesh_end_write
+    end function vtk_mesh_close_vtu
 
 
     subroutine vtk_mesh_free(this) 
