@@ -286,7 +286,7 @@ contains
         if(.not.allocated(this%steps)) then
             call memalloc ( this%num_steps, this%steps, __FILE__,__LINE__)
         elseif(size(this%steps)<this%num_steps) then
-            call memrealloc (this%num_steps, this%steps, __FILE__,__LINE__)
+            call memrealloc (int(size(this%steps)*1.5), this%steps, __FILE__,__LINE__)
         endif        
         this%steps(this%steps_counter) = current_step
     end subroutine vtk_handler_append_step
@@ -516,7 +516,7 @@ contains
         integer(ip)                               :: me, np
         logical                                   :: isDir
     !-----------------------------------------------------------------
-        assert(this%state == vtk_handler_state_initialized)
+        assert(.not. this%state == vtk_handler_state_start)
         check(associated(this%env))
         check(allocated(this%path))
         check(allocated(this%prefix))
@@ -574,7 +574,7 @@ contains
         integer(ip)                               :: me, np
         logical                                   :: isDir
     !-----------------------------------------------------------------
-        assert(this%state == vtk_handler_state_initialized)
+        assert(.not. this%state == vtk_handler_state_start)
         me = 0; np = 1
         check(associated(this%env))
         call this%env%info(me,np) 
