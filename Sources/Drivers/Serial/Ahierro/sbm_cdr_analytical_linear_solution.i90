@@ -26,70 +26,110 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!------------------------------------------------------
-!Subroutines related to the analytical functions for  -
-!                 u = x + y                           -
-!------------------------------------------------------
-!====================================================================================================
-subroutine linear_solution_get_value_space_time(this,point,time,result)
-  implicit none
-  class(linear_solution_field_t), intent(in)    :: this
-  type(point_t)                 , intent(in)    :: point
-  real(rp)                      , intent(in)    :: time
-  real(rp)                      , intent(inout) :: result
+!----------------------------------------------------------------------------------------------------
+!                          Subroutines related to the analytical functions for                      -
+!                                             u = x + y                                             -
+!----------------------------------------------------------------------------------------------------
+module CDR_analytical_linear_functions_names  
+  use serial_names 
+  use function_names
+# include "debug.i90"
+  implicit none 
+  private 
+  type, extends(scalar_function_t) :: linear_solution_field_t
+     integer(ip) :: random = 3
+   contains
+     procedure :: get_value_space_time => linear_solution_get_value_space_time
+  end type linear_solution_field_t
 
-  result = point%get(1) + point%get(2)
+  type, extends(scalar_function_t) :: linear_dt_solution_field_t
+   contains
+     procedure :: get_value_space_time => linear_dt_solution_get_value_space_time
+  end type linear_dt_solution_field_t
 
-end subroutine linear_solution_get_value_space_time
+  type, extends(vector_function_t) :: linear_solution_gradient_field_t
+   contains
+     procedure :: get_value_space_time => linear_solution_gradient_get_value_space_time
+  end type linear_solution_gradient_field_t
 
-!====================================================================================================
-subroutine linear_dt_solution_get_value_space_time(this,point,time,result)
-  implicit none
-  class(linear_dt_solution_field_t), intent(in)    :: this
-  type(point_t)                    , intent(in)    :: point
-  real(rp)                         , intent(in)    :: time
-  real(rp)                         , intent(inout) :: result
+  type, extends(scalar_function_t) :: linear_solution_laplacian_field_t
+   contains
+     procedure :: get_value_space_time => linear_solution_laplacian_get_value_space_time
+  end type linear_solution_laplacian_field_t
 
-  result = 0.0_rp
+  type, extends(vector_function_t) :: linear_convection_field_t
+   contains
+     procedure :: get_value_space_time => linear_convection_get_value_space_time
+  end type linear_convection_field_t
 
-end subroutine linear_dt_solution_get_value_space_time
+  public :: linear_solution_field_t
+  public :: linear_dt_solution_field_t
+  public :: linear_solution_gradient_field_t
+  public :: linear_solution_laplacian_field_t
+  public :: linear_convection_field_t
+contains
+  !==================================================================================================
+  subroutine linear_solution_get_value_space_time(this,point,time,result)
+    implicit none
+    class(linear_solution_field_t), intent(in)    :: this
+    type(point_t)                 , intent(in)    :: point
+    real(rp)                      , intent(in)    :: time
+    real(rp)                      , intent(inout) :: result
 
-!====================================================================================================
-subroutine linear_solution_gradient_get_value_space_time(this,point,time,result)
-  implicit none
-  class(linear_solution_gradient_field_t), intent(in)    :: this
-  type(point_t)                          , intent(in)    :: point
-  real(rp)                               , intent(in)    :: time
-  type(vector_field_t)                   , intent(inout) :: result
+    result = point%get(1) + point%get(2)
 
-  call result%init(0.0_rp)
-  call result%set(1,1.0_rp)
-  call result%set(2,1.0_rp)
+  end subroutine linear_solution_get_value_space_time
 
-end subroutine linear_solution_gradient_get_value_space_time
+  !==================================================================================================
+  subroutine linear_dt_solution_get_value_space_time(this,point,time,result)
+    implicit none
+    class(linear_dt_solution_field_t), intent(in)    :: this
+    type(point_t)                    , intent(in)    :: point
+    real(rp)                         , intent(in)    :: time
+    real(rp)                         , intent(inout) :: result
 
-!====================================================================================================
-subroutine linear_solution_laplacian_get_value_space_time(this,point,time,result)
-  implicit none
-  class(linear_solution_laplacian_field_t), intent(in)    :: this
-  type(point_t)                           , intent(in)    :: point
-  real(rp)                                , intent(in)    :: time
-  real(rp)                                , intent(inout) :: result
+    result = 0.0_rp
 
-  result = 0.0_rp
+  end subroutine linear_dt_solution_get_value_space_time
 
-end subroutine linear_solution_laplacian_get_value_space_time
+  !==================================================================================================
+  subroutine linear_solution_gradient_get_value_space_time(this,point,time,result)
+    implicit none
+    class(linear_solution_gradient_field_t), intent(in)    :: this
+    type(point_t)                          , intent(in)    :: point
+    real(rp)                               , intent(in)    :: time
+    type(vector_field_t)                   , intent(inout) :: result
 
-!====================================================================================================
-subroutine linear_convection_get_value_space_time(this,point,time,result)
-  implicit none
-  class(linear_convection_field_t), intent(in)    :: this
-  type(point_t)                   , intent(in)    :: point
-  real(rp)                        , intent(in)    :: time
-  type(vector_field_t)            , intent(inout) :: result
+    call result%init(0.0_rp)
+    call result%set(1,1.0_rp)
+    call result%set(2,1.0_rp)
 
-  call result%init(0.0_rp)
-  call result%set(1,1.0_rp)
-  call result%set(2,1.0_rp)
+  end subroutine linear_solution_gradient_get_value_space_time
 
-end subroutine linear_convection_get_value_space_time
+  !==================================================================================================
+  subroutine linear_solution_laplacian_get_value_space_time(this,point,time,result)
+    implicit none
+    class(linear_solution_laplacian_field_t), intent(in)    :: this
+    type(point_t)                           , intent(in)    :: point
+    real(rp)                                , intent(in)    :: time
+    real(rp)                                , intent(inout) :: result
+
+    result = 0.0_rp
+
+  end subroutine linear_solution_laplacian_get_value_space_time
+
+  !==================================================================================================
+  subroutine linear_convection_get_value_space_time(this,point,time,result)
+    implicit none
+    class(linear_convection_field_t), intent(in)    :: this
+    type(point_t)                   , intent(in)    :: point
+    real(rp)                        , intent(in)    :: time
+    type(vector_field_t)            , intent(inout) :: result
+
+    call result%init(0.0_rp)
+    call result%set(1,1.0_rp)
+    call result%set(2,1.0_rp)
+
+  end subroutine linear_convection_get_value_space_time
+
+end module CDR_analytical_linear_functions_names

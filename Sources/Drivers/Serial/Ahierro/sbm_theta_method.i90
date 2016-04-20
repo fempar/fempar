@@ -1,0 +1,136 @@
+! This module has been take from molm
+module theta_method_names
+  use Data_Type_Command_Line_Interface
+  use command_line_parameters_names
+  use vector_names
+  use types_names
+  use memor_names
+  implicit none
+# include "debug.i90"
+  private
+
+  type :: theta_method_t
+     real(rp)    :: theta
+     real(rp)    :: initial_time      
+     real(rp)    :: final_time        
+     real(rp)    :: time_step         
+     integer(ip) :: number_of_steps        
+     real(rp)    :: current_time 
+     integer(ip) :: current_step      
+     logical     :: finished
+     real(rp)    :: initial_value ! Should be a scalar function for generality
+     real(rp)    :: time_factor
+   contains
+     procedure, non_overridable :: read                => theta_method_read
+     procedure, non_overridable :: initialize          => theta_method_initialize
+     procedure, non_overridable :: read_and_initialize => theta_method_read_and_initialize
+     procedure, non_overridable :: update_solutions    => theta_method_update_solutions
+     procedure, non_overridable :: update_integration  => theta_method_update_integration
+     procedure, non_overridable :: print               => theta_method_print
+  end type theta_method_t
+
+  public :: theta_method_t
+
+contains
+
+  !===============================================================================================
+  subroutine theta_method_read ( this, cli, group )
+    implicit none
+    class(theta_method_t)                         , intent(inout) :: this
+    type(Type_Command_Line_Interface)             , intent(inout) :: cli 
+    character(len=:)                 , allocatable, intent(in)    :: group
+    integer(ip)                                                   :: istat
+
+    call cli%get(group=trim(group), &
+         switch='--itime', &
+         val=this%initial_time, &
+         error=istat); check(istat==0)
+    call cli%get(group=trim(group), &
+         switch='--ftime', &
+         val=this%final_time, &
+         error=istat); check(istat==0)   
+    call cli%get(group=trim(group), &
+         switch='--nstep', &
+         val=this%number_of_steps, &
+         error=istat); check(istat==0)
+    call cli%get(group=trim(group), &
+         switch='--theta', &
+         val=this%theta, &
+         error=istat); check(istat==0)
+
+  end subroutine theta_method_read
+
+  !===============================================================================================
+  subroutine theta_method_initialize(this)
+    implicit none
+    class(theta_method_t), intent(out) :: this
+
+    if (this%number_of_steps > 0) then
+       this%time_step    = ( this%final_time - this%initial_time ) / real(this%number_of_steps)
+       this%time_factor  = 1.0_rp/(this%theta*this%time_step)
+    else
+       this%number_of_steps = 0
+       this%time_factor  = 0.0_rp
+    end if
+    this%current_time = this%time_step
+    this%current_step = 1
+    this%finished     = .false.
+
+  end subroutine theta_method_initialize
+
+  !===============================================================================================
+  subroutine theta_method_read_and_initialize ( this, cli, group )
+    implicit none
+    class(theta_method_t)                         , intent(inout) :: this
+    type(Type_Command_Line_Interface)             , intent(inout) :: cli 
+    character(len=:)                 , allocatable, intent(in)    :: group
+
+    call this%read(cli,group)
+    call this%initialize()
+
+  end subroutine theta_method_read_and_initialize
+
+  !===============================================================================================
+  subroutine theta_method_update_solutions( this, current_solution, previous_solution )
+    implicit none
+    class(theta_method_t), intent(in)    :: this
+    class(vector_t)      , intent(inout) :: current_solution
+    class(vector_t)      , intent(inout) :: previous_solution
+
+    assert( (this%theta .le. 1) .and. (this%theta .gt. 0) )
+
+    ! u^{n+1} = ( 1/theta ) * ( u^{n+theta} - (1-theta) * u^n )
+    current_solution  = (1/this%theta) * (current_solution - (1-this%theta) * previous_solution)
+
+    ! u^n <- u^{n+1}
+    previous_solution = current_solution
+
+  end subroutine theta_method_update_solutions
+
+  !===============================================================================================
+  subroutine theta_method_update_integration(this)
+    implicit none
+    class(theta_method_t), intent(out) :: this
+
+    if ( this%current_step >= this%number_of_steps ) then
+       this%finished = .true.
+    else
+       this%current_time = this%current_time + this%time_step
+       this%current_step = this%current_step + 1
+    end if
+
+  end subroutine theta_method_update_integration
+
+  !===============================================================================================
+  subroutine theta_method_print(this,luout)
+    implicit none
+    class(theta_method_t), intent(in) :: this
+    integer(ip)          , intent(in) :: luout
+
+    write(luout,*) '========================================================================'
+    write(luout,'(a10,i6,a1,i6)') 'Time step ', this%current_step ,'/',this%number_of_steps 
+    write(luout,*) 'Current time', this%current_time, '/', this%number_of_steps*this%time_step
+
+  end subroutine theta_method_print
+
+end module theta_method_names

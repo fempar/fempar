@@ -20,110 +20,161 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!====================================================================================================
-subroutine cdr_analytical_functions_create(this,analytical_function_name)
+
+module cdr_analytical_functions_names
+  use serial_names
+  use command_line_parameters_names
+  use cdr_analytical_linear_functions_names
+  use cdr_analytical_linear_transient_functions_names
+# include "debug.i90"
   implicit none
-  class(cdr_analytical_functions_t), intent(inout) :: this
-  character(len=1024)              , intent(in)    :: analytical_function_name
+  private
 
-  call this%free()
+  type cdr_analytical_functions_t
+     private
+     class(scalar_function_t), allocatable :: solution
+     class(scalar_function_t), allocatable :: dt_solution
+     class(vector_function_t), allocatable :: solution_gradient
+     class(scalar_function_t), allocatable :: solution_laplacian
+     class(vector_function_t), allocatable :: convection
+     character(len=:)        , allocatable :: function_name
+   contains
+     procedure, non_overridable :: create                      => cdr_analytical_functions_create
+     procedure, non_overridable :: free                        => cdr_analytical_functions_free
+     procedure, non_overridable :: get_solution_function       &
+          &                                  => cdr_analytical_functions_get_solution_function
+     procedure, non_overridable :: get_value_convection        &
+          &                                  => cdr_analytical_functions_get_value_convection
+     procedure, non_overridable :: get_value_solution          &
+          &                                  => cdr_analytical_functions_get_value_solution
+     procedure, non_overridable :: get_value_dt_solution        &
+          &                                  => cdr_analytical_functions_get_value_dt_solution
+     procedure, non_overridable :: get_value_solution_gradient &
+          &                                  => cdr_analytical_functions_get_value_solution_gradient
+     procedure, non_overridable :: get_value_solution_laplacian &
+          &                                  => cdr_analytical_functions_get_value_solution_laplacian
+  end type cdr_analytical_functions_t
 
-  ! Getters
-  this%function_name = analytical_function_name
+  character(len=*), parameter :: cdr_linear           = 'CDR-LINEAR'
+  character(len=*), parameter :: cdr_linear_transient = 'CDR-LINEAR-TRANSIENT'
 
-  select case(trim(this%function_name))
-  case(cdr_linear)
-     allocate(linear_solution_field_t           :: this%solution)
-     allocate(linear_dt_solution_field_t        :: this%dt_solution)
-     allocate(linear_solution_gradient_field_t  :: this%solution_gradient)
-     allocate(linear_solution_laplacian_field_t :: this%solution_laplacian)
-     allocate(linear_convection_field_t         :: this%convection)
-  case default
-     check(.false.)
-  end select
+  ! Types
+  public :: cdr_analytical_functions_t
 
-end subroutine cdr_analytical_functions_create
+contains
 
-!====================================================================================================
-subroutine cdr_analytical_functions_free(this)
-  implicit none
-  class(cdr_analytical_functions_t), intent(inout) :: this
+  !==================================================================================================
+  subroutine cdr_analytical_functions_create(this,analytical_function_name)
+    implicit none
+    class(cdr_analytical_functions_t), intent(inout) :: this
+    character(len=1024)              , intent(in)    :: analytical_function_name
 
-  if(allocated(this%solution)) deallocate(this%solution)  
-  if(allocated(this%dt_solution)) deallocate(this%dt_solution)    
-  if(allocated(this%solution_gradient)) deallocate(this%solution_gradient)
-  if(allocated(this%solution_laplacian)) deallocate(this%solution_laplacian)
-  if(allocated(this%function_name)) deallocate(this%function_name) 
-  if(allocated(this%convection)) deallocate(this%convection)     
+    call this%free()
 
-end subroutine cdr_analytical_functions_free
+    ! Getters
+    this%function_name = analytical_function_name
 
-!====================================================================================================
-function cdr_analytical_functions_get_solution_function(this) result(solution_function)
-  implicit none
-  class(cdr_analytical_functions_t), target, intent(in) :: this
-  class(scalar_function_t), pointer :: solution_function
+    select case(trim(this%function_name))
+    case(cdr_linear)
+       allocate(linear_solution_field_t           :: this%solution)
+       allocate(linear_dt_solution_field_t        :: this%dt_solution)
+       allocate(linear_solution_gradient_field_t  :: this%solution_gradient)
+       allocate(linear_solution_laplacian_field_t :: this%solution_laplacian)
+       allocate(linear_convection_field_t         :: this%convection)
+    case(cdr_linear_transient)
+       allocate(linear_transient_solution_field_t           :: this%solution)
+       allocate(linear_transient_dt_solution_field_t        :: this%dt_solution)
+       allocate(linear_transient_solution_gradient_field_t  :: this%solution_gradient)
+       allocate(linear_transient_solution_laplacian_field_t :: this%solution_laplacian)
+       allocate(linear_transient_convection_field_t         :: this%convection)
+    case default
+       check(.false.)
+    end select
 
-  solution_function => this%solution
-  
-end function cdr_analytical_functions_get_solution_function
+  end subroutine cdr_analytical_functions_create
 
-!====================================================================================================
-subroutine cdr_analytical_functions_get_value_convection(this,point,time,field)
-  implicit none
-  class(cdr_analytical_functions_t), intent(in)    :: this
-  type(point_t)                    , intent(in)    :: point
-  real(rp)                         , intent(in)    :: time
-  type(vector_field_t)             , intent(inout) :: field
+  !==================================================================================================
+  subroutine cdr_analytical_functions_free(this)
+    implicit none
+    class(cdr_analytical_functions_t), intent(inout) :: this
 
-  call this%convection%get_value_space_time(point,time,field)
-  
-end subroutine cdr_analytical_functions_get_value_convection
+    if(allocated(this%solution)) deallocate(this%solution)  
+    if(allocated(this%dt_solution)) deallocate(this%dt_solution)    
+    if(allocated(this%solution_gradient)) deallocate(this%solution_gradient)
+    if(allocated(this%solution_laplacian)) deallocate(this%solution_laplacian)
+    if(allocated(this%function_name)) deallocate(this%function_name) 
+    if(allocated(this%convection)) deallocate(this%convection)     
 
-!====================================================================================================
-subroutine cdr_analytical_functions_get_value_solution(this,point,time,field)
-  implicit none
-  class(cdr_analytical_functions_t), intent(in)    :: this
-  type(point_t)                    , intent(in)    :: point
-  real(rp)                         , intent(in)    :: time
-  real(rp)                         , intent(inout) :: field
+  end subroutine cdr_analytical_functions_free
 
-  call this%solution%get_value_space_time(point,time,field)
-  
-end subroutine cdr_analytical_functions_get_value_solution
+  !==================================================================================================
+  function cdr_analytical_functions_get_solution_function(this) result(solution_function)
+    implicit none
+    class(cdr_analytical_functions_t), target, intent(in) :: this
+    class(scalar_function_t), pointer :: solution_function
 
-!====================================================================================================
-subroutine cdr_analytical_functions_get_value_solution_laplacian(this,point,time,field)
-  implicit none
-  class(cdr_analytical_functions_t), intent(in)    :: this
-  type(point_t)                    , intent(in)    :: point
-  real(rp)                         , intent(in)    :: time
-  real(rp)                         , intent(inout) :: field
+    solution_function => this%solution
 
-  call this%solution_laplacian%get_value_space_time(point,time,field)
-  
-end subroutine cdr_analytical_functions_get_value_solution_laplacian
+  end function cdr_analytical_functions_get_solution_function
 
-!====================================================================================================
-subroutine cdr_analytical_functions_get_value_solution_gradient(this,point,time,field)
-  implicit none
-  class(cdr_analytical_functions_t), intent(in)    :: this
-  type(point_t)                    , intent(in)    :: point
-  real(rp)                         , intent(in)    :: time
-  type(vector_field_t)             , intent(inout) :: field
+  !==================================================================================================
+  subroutine cdr_analytical_functions_get_value_convection(this,point,time,field)
+    implicit none
+    class(cdr_analytical_functions_t), intent(in)    :: this
+    type(point_t)                    , intent(in)    :: point
+    real(rp)                         , intent(in)    :: time
+    type(vector_field_t)             , intent(inout) :: field
 
-  call this%solution_gradient%get_value_space_time(point,time,field)
-  
-end subroutine cdr_analytical_functions_get_value_solution_gradient
+    call this%convection%get_value_space_time(point,time,field)
 
-!====================================================================================================
-subroutine cdr_analytical_functions_get_value_dt_solution(this,point,time,field)
-  implicit none
-  class(cdr_analytical_functions_t), intent(in)    :: this
-  type(point_t)                    , intent(in)    :: point
-  real(rp)                         , intent(in)    :: time
-  real(rp)                         , intent(inout) :: field
+  end subroutine cdr_analytical_functions_get_value_convection
 
-  call this%dt_solution%get_value_space_time(point,time,field)
-  
-end subroutine cdr_analytical_functions_get_value_dt_solution
+  !==================================================================================================
+  subroutine cdr_analytical_functions_get_value_solution(this,point,time,field)
+    implicit none
+    class(cdr_analytical_functions_t), intent(in)    :: this
+    type(point_t)                    , intent(in)    :: point
+    real(rp)                         , intent(in)    :: time
+    real(rp)                         , intent(inout) :: field
+
+    call this%solution%get_value_space_time(point,time,field)
+
+  end subroutine cdr_analytical_functions_get_value_solution
+
+  !==================================================================================================
+  subroutine cdr_analytical_functions_get_value_solution_laplacian(this,point,time,field)
+    implicit none
+    class(cdr_analytical_functions_t), intent(in)    :: this
+    type(point_t)                    , intent(in)    :: point
+    real(rp)                         , intent(in)    :: time
+    real(rp)                         , intent(inout) :: field
+
+    call this%solution_laplacian%get_value_space_time(point,time,field)
+
+  end subroutine cdr_analytical_functions_get_value_solution_laplacian
+
+  !==================================================================================================
+  subroutine cdr_analytical_functions_get_value_solution_gradient(this,point,time,field)
+    implicit none
+    class(cdr_analytical_functions_t), intent(in)    :: this
+    type(point_t)                    , intent(in)    :: point
+    real(rp)                         , intent(in)    :: time
+    type(vector_field_t)             , intent(inout) :: field
+
+    call this%solution_gradient%get_value_space_time(point,time,field)
+
+  end subroutine cdr_analytical_functions_get_value_solution_gradient
+
+  !==================================================================================================
+  subroutine cdr_analytical_functions_get_value_dt_solution(this,point,time,field)
+    implicit none
+    class(cdr_analytical_functions_t), intent(in)    :: this
+    type(point_t)                    , intent(in)    :: point
+    real(rp)                         , intent(in)    :: time
+    real(rp)                         , intent(inout) :: field
+
+    call this%dt_solution%get_value_space_time(point,time,field)
+
+  end subroutine cdr_analytical_functions_get_value_dt_solution
+
+end module cdr_analytical_functions_names

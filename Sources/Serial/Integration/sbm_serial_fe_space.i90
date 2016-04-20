@@ -558,7 +558,6 @@ function serial_fe_space_get_max_number_quadrature_points( this )
   integer(ip) :: serial_fe_space_get_max_number_quadrature_points, iquad
   serial_fe_space_get_max_number_quadrature_points = 0
   do iquad = 1, size(this%quadrature)
-
      serial_fe_space_get_max_number_quadrature_points = max(this%quadrature(iquad)%p%get_number_quadrature_points(), &
           serial_fe_space_get_max_number_quadrature_points)
   end do
@@ -772,7 +771,7 @@ end subroutine serial_fe_space_update_bc_value_tensor
 
     assert ( fe_space_id >=1 .and. fe_space_id <= this%number_fe_spaces )
     assert ( this%reference_fe_phy_list(fe_space_id)%p%get_field_type() == field_type_scalar )
-    
+
     call fe_function_scalar%create( fe_space_id, &
                                 & this%get_max_number_nodes(fe_space_id), &
                                 & this%get_max_number_quadrature_points() )
