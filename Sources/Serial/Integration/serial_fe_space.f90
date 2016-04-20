@@ -137,6 +137,7 @@ module serial_fe_space_names
                                & update_tensor_values
                                
      procedure, non_overridable :: impose_strong_dirichlet_bcs => finite_element_impose_strong_dirichlet_bcs
+     procedure, non_overridable :: get_cell_coordinates => finite_element_get_cell_coordinates
   end type finite_element_t
 
   type :: p_finite_element_t
@@ -254,6 +255,12 @@ module serial_fe_space_names
      generic :: interpolate_fe_function => interpolate_fe_function_scalar, &
                                          & interpolate_fe_function_vector, &
                                          & interpolate_fe_function_tensor    
+
+     procedure, non_overridable :: get_max_order => serial_fe_space_get_max_order
+     procedure, non_overridable :: get_max_order_fe_space_component => serial_fe_space_get_max_order_fe_space_component
+     procedure, non_overridable :: get_triangulation => serial_fe_space_get_triangulation
+     procedure, non_overridable :: get_reference_fe_geo => serial_fe_space_get_reference_fe_geo
+     procedure, non_overridable :: get_reference_fe_phy => serial_fe_space_get_reference_fe_phy
      
   end type serial_fe_space_t
 

@@ -34,7 +34,7 @@ module field_names
 
   type :: vector_field_t
      private
-     real(rp) :: value(number_space_dimensions)
+     real(rp) :: value(number_space_dimensions) = 0.0_rp
    contains
      procedure, non_overridable :: init  => vector_field_init
      procedure, non_overridable :: set   => vector_field_set
@@ -49,7 +49,7 @@ module field_names
 
   type :: tensor_field_t
      private
-     real(rp)  :: value(number_space_dimensions,number_space_dimensions)
+     real(rp)  :: value(number_space_dimensions,number_space_dimensions) = 0.0_rp
    contains
      procedure, non_overridable :: init  => tensor_field_init
      procedure, non_overridable :: set   => tensor_field_set

@@ -37,10 +37,9 @@ module function_library_names
 
   type, extends(scalar_function_t) :: constant_scalar_function_t
      private
-     real(rp) :: function_value
+     real(rp)    :: function_value
    contains
-     procedure :: constant_scalar_function_create
-     generic   :: create                    => constant_scalar_function_create
+     procedure :: create                    => constant_scalar_function_create
      procedure :: get_value_space           => constant_scalar_function_get_value_space
      procedure :: get_value_space_time      => constant_scalar_function_get_value_space_time
      procedure :: get_values_set_space      => constant_scalar_function_get_values_set_space
@@ -55,8 +54,7 @@ module function_library_names
      private
      type(vector_field_t) :: function_value
    contains
-     procedure :: constant_vector_function_create
-     generic   :: create                    => constant_vector_function_create
+     procedure :: create                    => constant_vector_function_create
      procedure :: get_value_space           => constant_vector_function_get_value_space
      procedure :: get_value_space_time      => constant_vector_function_get_value_space_time
      procedure :: get_values_set_space      => constant_vector_function_get_values_set_space
@@ -70,11 +68,9 @@ module function_library_names
   public :: constant_scalar_function_t, constant_vector_function_t
 
 contains
-  subroutine constant_scalar_function_create( this, number_dimensions, function_value )
+  subroutine constant_scalar_function_create( this, function_value )
     class(constant_scalar_function_t), intent(inout)     :: this
-    integer(ip)                      , intent(in)        :: number_dimensions
     real(rp)                         , intent(in)        :: function_value
-    call this%create(number_dimensions)
     this%function_value = function_value
   end subroutine constant_scalar_function_create
 
@@ -108,24 +104,16 @@ contains
     result = this%function_value
   end subroutine constant_scalar_function_get_values_set_space_time
   
-  function constant_scalar_function_constructor ( number_dimensions, function_value ) result(new_scalar_constant_function)
-    integer(ip), intent(in) :: number_dimensions
+  function constant_scalar_function_constructor ( function_value ) result(new_scalar_constant_function)
     real(rp)   , intent(in) :: function_value
     type(constant_scalar_function_t) :: new_scalar_constant_function
-    call new_scalar_constant_function%create(number_dimensions, function_value)
+    call new_scalar_constant_function%create(function_value)
   end function constant_scalar_function_constructor
   
-  subroutine constant_vector_function_create( this, number_dimensions, function_value )
+  subroutine constant_vector_function_create( this, function_value )
     class(constant_vector_function_t), intent(inout)     :: this
-    integer(ip)                      , intent(in)        :: number_dimensions
     type(vector_field_t)             , intent(in)        :: function_value
-    integer(ip)                                          :: idime
-    
-    call this%create(number_dimensions)
-    call this%function_value%init(0.0_rp)
-    do idime = 1, this%get_number_dimensions()
-      call this%function_value%set(idime,function_value%get(idime))
-    end do
+    this%function_value = function_value
   end subroutine constant_vector_function_create
 
   subroutine constant_vector_function_get_value_space( this, point, result )
@@ -158,11 +146,10 @@ contains
     result = this%function_value
   end subroutine constant_vector_function_get_values_set_space_time
   
-  function constant_vector_function_constructor ( number_dimensions, function_value ) result(new_vector_constant_function)
-    integer(ip)         , intent(in) :: number_dimensions
+  function constant_vector_function_constructor ( function_value ) result(new_vector_constant_function)
     type(vector_field_t), intent(in) :: function_value
     type(constant_vector_function_t) :: new_vector_constant_function
-    call new_vector_constant_function%create(number_dimensions, function_value)
+    call new_vector_constant_function%create(function_value)
   end function constant_vector_function_constructor
   
 end module function_library_names
