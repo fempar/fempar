@@ -40,6 +40,42 @@
     class(template_element_t)          , pointer :: p(:)
     p => this%elements
   end function get_elements
+  
+  !=============================================================================
+  !subroutine get_plain_set(this,id,p,stat)
+  !  class(plain_template_element_set_t), target, intent(in)  :: this
+  !  integer(ip)                        , intent(in)  :: id
+  !  class(template_element_t), pointer , intent(out) :: p
+  !  integer(ip)              , optional, intent(out) :: stat     
+  !  
+  !  if( id <= this%num_elements ) then
+  !     p => this%elements(id)
+  !     if(present(stat)) stat = key_found
+  !  else if(present(stat)) then
+  !     stat = key_not_found
+  !  end if
+  !  
+  !end subroutine get_plain_set
+
+    function get_plain_set(this,id,stat) result(p)
+    class(plain_template_element_set_t), target, intent(in)  :: this
+    integer(ip)                        , intent(in)  :: id
+    !class(template_element_t), pointer , intent(out) :: p
+    class(template_element_t), pointer :: p
+    integer(ip)              , optional, intent(out) :: stat     
+    
+    if( id <= this%num_elements ) then
+       p => this%elements(id)
+       if(present(stat)) stat = key_found
+    else if(present(stat)) then
+       p => null()
+       stat = key_not_found
+    end if
+    
+  end function get_plain_set
+
+  
+  
   !=============================================================================
   !=============================================================================
   !=============================================================================
@@ -130,21 +166,14 @@
     if(allocated(res)) deallocate(res)
   end subroutine plain_iterator_free_id
   !=============================================================================
-  subroutine plain_iterator_get_id(this,res)
+  subroutine plain_iterator_get_local_id(this,id)
     implicit none
     class(plain_template_element_iterator_t), intent(in)    :: this
-    class(element_id_t)                     , intent(inout) :: res
-    call res%set_index(this%ielem)
-  end subroutine plain_iterator_get_id
-  !=============================================================================
-  function plain_iterator_get (this,id) result(p)
-    implicit none
-    class(plain_template_element_iterator_t), intent(in) :: this
-    class(element_id_t)                     , intent(in) :: id
-    class(template_element_t)               , pointer    :: p
-    assert( id%get_index() <= this%plain_template_element_set%num_elements )
-    p => this%plain_template_element_set%elements(id%get_index())
-  end function plain_iterator_get
+    integer(ip), intent(out) :: id
+    !class(element_id_t)                     , intent(inout) :: res
+    !call res%set_index(this%ielem)
+    id = this%ielem
+    end subroutine plain_iterator_get_local_id
 
   !=============================================================================
   !=============================================================================

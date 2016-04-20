@@ -15,16 +15,13 @@
      integer(ip)                                 :: ielem=0
      type(plain_template_element_set_t), pointer :: plain_template_element_set
    contains
-     procedure :: begin      => plain_iterator_begin
-     procedure :: finished   => plain_iterator_finished
-     procedure :: next       => plain_iterator_next
-     procedure :: current    => plain_iterator_current
-     procedure :: create_id  => plain_iterator_create_id
-     procedure :: free_id    => plain_iterator_free_id
-     procedure :: get_id     => plain_iterator_get_id
-     procedure :: get        => plain_iterator_get
-     procedure :: set_first  => plain_iterator_set_first
-     procedure :: set_last   => plain_iterator_set_last
+     procedure :: begin         => plain_iterator_begin
+     procedure :: finished      => plain_iterator_finished
+     procedure :: next          => plain_iterator_next
+     procedure :: current       => plain_iterator_current
+     procedure :: set_first     => plain_iterator_set_first
+     procedure :: set_last      => plain_iterator_set_last
+     procedure :: get_local_id  => plain_iterator_get_local_id
   end type plain_template_element_iterator_t
 
   ! This iterator permits to iterate on a subset 
@@ -33,11 +30,6 @@
      integer(ip)           :: list_size=0
      integer(ip), pointer  :: list(:)
    contains
-     ! procedure :: begin      => plain_iterator_begin
-     ! procedure :: next       => plain_iterator_next
-     ! procedure :: create_id  => plain_iterator_create_id
-     ! procedure :: free_id    => plain_iterator_free_id
-     ! procedure :: get        => plain_iterator_get
      procedure :: finished   => plain_subset_iterator_finished
      procedure :: current    => plain_subset_iterator_current
      procedure :: get_id     => plain_subset_iterator_get_id
@@ -48,10 +40,11 @@
      integer(ip)                            :: num_elements= -1  ! Number of elements in the set
      class(template_element_t), allocatable :: elements(:)       ! array of template_elements
    contains
-     procedure :: create => create_plain_set
-     procedure :: free   => free_plain_set
+     procedure :: create          => create_plain_set
+     procedure :: free            => free_plain_set
      procedure :: create_iterator => create_plain_iterator
      procedure :: free_iterator   => free_plain_iterator
+     procedure :: get             => get_plain_set 
      procedure :: create_subset_iterator => create_plain_subset_iterator
      procedure :: free_subset_iterator   => free_plain_subset_iterator
      procedure :: get_elements

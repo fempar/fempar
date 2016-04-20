@@ -61,8 +61,8 @@ module JP_triangulation_names
      integer(ip)               :: border     = -1       ! Border local id of this vef (only for faces)
      integer(ip)               :: dimension  =  0       ! Vef dimension (SBmod)
      integer(ip)               :: num_elems_around = -1 ! Number of elements around vef 
-     !integer(ip), allocatable  :: elems_around(:)              ! List of elements around vef 
-     class(element_id_t), allocatable  :: elems_around(:)       ! List of elements around vef 
+     integer(ip), allocatable  :: elems_around(:)              ! List of elements around vef 
+     !class(element_id_t), allocatable  :: elems_around(:)       ! List of elements around vef 
      !class(migratory_element_pointer), allocatable :: elems_around(:) ! We can get any type of element around!?
    contains
      procedure :: create => vef_topology_create
@@ -75,10 +75,15 @@ module JP_triangulation_names
      integer(ip)                            :: num_vefs  = -1  ! number of vefs (vertices, edges, and faces) 
      integer(ip)                            :: num_elems = -1  ! number of elements
      integer(ip)                            :: num_dims  = -1  ! number of dimensions
+     ! The element numbering need not to be contiguous, making insertion and deletion easier.
+     integer(ip)                            :: first_element
+     integer(ip)                            :: last_element
+     integer(ip)                            :: next_element
+     
      class(migratory_element_set_t)     , allocatable :: element_set
      class(migratory_element_iterator_t), allocatable :: element_iterator
      class(vef_topology_t)              , allocatable :: vefs(:) ! array of vefs in the mesh.
-     
+
      type(position_hash_table_t)            :: reference_fe_geo_type
      type(p_reference_fe_t)                 :: reference_fe_geo_list(3)
      integer(ip)                            :: num_boundary_faces ! Number of faces in the boundary 
@@ -90,6 +95,7 @@ module JP_triangulation_names
      procedure :: print   => JP_triangulation_print
      procedure :: create_element_iterator
      procedure :: free_element_iterator
+     !procedure :: get
      !procedure(create_element_iterator_interface)      , deferred :: create_element_iterator
      !procedure(free_element_iterator_interface)        , deferred :: free_element_iterator
      !procedure(get_element_topology_pointer_interface) , deferred :: get_element_topology_pointer
@@ -148,6 +154,26 @@ contains
     class(JP_triangulation_t), intent(inout)  :: this
     call this%element_set%free_iterator(this%element_iterator)
   end subroutine free_element_iterator
+ !=============================================================================
+ ! This function should be overwritten to make p a pointer to an extension
+ ! of JP_element_topology
+  ! function get(ielem) result(p)
+  !   implicit none
+  !   class(JP_triangulation_t)   , intent(inout)        :: this
+  !   integer(ip)                  , intent(in)          :: ielem
+  !   class(migratory_element_t)   , pointer, intent(in) :: p_abstract
+  !   class(JP_element_topology_t) , pointer             :: p
+
+  !   p_abstract => call this%element_set%get(this,ielem)
+    
+  !   select type(p_abstract)
+  !   class is(JP_element_topology_t)
+  !      this => p_abstract
+  !   class default
+  !      write(*,*) 'Cannot downcast to element_topology'
+  !      check(.false.)
+  !   end select
+  ! end function get
 
   !=============================================================================
   !=============================================================================
@@ -168,7 +194,8 @@ contains
     ! Initialize all of the element structs (using the iterator)
     call trian%element_iterator%begin()
     do while(.not.trian%element_iterator%finished())
-       elem => downcast_to_element_topology( trian%element_iterator%current() )
+       !elem => downcast_to_element_topology( trian%element_iterator%current() )
+       !call trian%element_iterator%current(elem)
        call elem%create
        call trian%element_iterator%next()
     end do
@@ -250,7 +277,7 @@ contains
     type(hash_table_ip_ip_t) :: visited
     integer(ip)                 , allocatable :: elems_around_pos(:)
     class(JP_element_topology_t), pointer     :: elem
-    class(element_id_t)         , allocatable :: elem_id
+    integer(ip)                               :: elem_id
 
     associate( element_iterator =>  trian%element_iterator)
 
@@ -292,18 +319,17 @@ contains
       !call JP_triangulation_print( 6, trian, length_trian_ )
       
       ! List elements and add vef dimension
-      call element_iterator%create_id(elem_id)
       call element_iterator%begin()
       do while(.not.element_iterator%finished())
          elem => downcast_to_element_topology( element_iterator%current() )
-         call element_iterator%get_id(elem_id)
+         call element_iterator%get_local_id(elem_id)
             do iobj = 1, elem%num_vefs
                jobj = elem%vefs(iobj)
                if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
                   trian%vefs(jobj)%dimension = idime-1
                   if (elems_around_pos(jobj) == 1) then
-                     allocate( trian%vefs(jobj)%elems_around (trian%vefs(jobj)%num_elems_around), mold=elem_id )
-                     !call memalloc( trian%vefs(jobj)%num_elems_around, trian%vefs(jobj)%elems_around, __FILE__, __LINE__ )
+                     !allocate( trian%vefs(jobj)%elems_around (trian%vefs(jobj)%num_elems_around), mold=elem_id )
+                     call memalloc( trian%vefs(jobj)%num_elems_around, trian%vefs(jobj)%elems_around, __FILE__, __LINE__ )
                   end if
                   trian%vefs(jobj)%elems_around(elems_around_pos(jobj)) = elem_id ! elem%get_id() ! ielem
                   elems_around_pos(jobj) = elems_around_pos(jobj) + 1 
@@ -311,7 +337,6 @@ contains
             end do
          call element_iterator%next()
       end do
-      call element_iterator%free_id(elem_id)
       
     end associate
 
@@ -398,7 +423,7 @@ contains
     class(JP_triangulation_t)  , intent(inout) :: trian
     ! Locals
     class(JP_element_topology_t), pointer      :: elem
-    class(element_id_t)         , allocatable  :: elem_id
+    integer(ip)                 , allocatable  :: elem_id
     integer(ip)                                :: iobje, ielem
 
     assert(trian%state == JP_triangulation_vefs_filled) 
@@ -409,18 +434,17 @@ contains
     write (lunou,*) 'num_elems:'     , trian%num_elems
     write (lunou,*) 'num_dims:'      , trian%num_dims
 
-    call trian%element_iterator%create_id(elem_id)
     call trian%element_iterator%begin()
     do while(.not.trian%element_iterator%finished())
        elem => downcast_to_element_topology( trian%element_iterator%current() )
        write (lunou,*) '****PRINT ELEMENT INFO****'
-       call trian%element_iterator%get_id(elem_id)
-       call elem_id%print(lunou)
+       call trian%element_iterator%get_local_id(elem_id)
+       write(lunou,'(a,i10)') 'Eelement ID: ',elem_id
+       !call elem_id%print(lunou)
        call elem%print(lunou)
        write (lunou,*) '****END PRINT ELEMENT INFO****'
        call trian%element_iterator%next()
     end do
-    call trian%element_iterator%free_id(elem_id)
 
     do iobje = 1, trian%num_vefs
        write (lunou,*) '****PRINT VEF ',iobje,' INFO****'
@@ -444,8 +468,8 @@ contains
     implicit none
     class(vef_topology_t), intent(inout) :: vef
     if (allocated(vef%elems_around)) then
-       !call memfree(vef%elems_around, __FILE__, __LINE__)
-       deallocate(vef%elems_around)
+       call memfree(vef%elems_around, __FILE__, __LINE__)
+       !deallocate(vef%elems_around)
     end if
     vef%num_elems_around = -1
   end subroutine vef_topology_free
@@ -459,7 +483,8 @@ contains
     write (lunou,*) 'dimension', vef%dimension
     write (lunou,*) 'num_elems_around', vef%num_elems_around
     do ielem = 1,vef%num_elems_around
-       call  vef%elems_around(ielem)%print(lunou)
+       write (lunou,*) 'num_elems_around', vef%elems_around
+       !call  vef%elems_around(ielem)%print(lunou)
     end do
   end subroutine vef_topology_print
 

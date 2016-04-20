@@ -123,7 +123,7 @@ contains
        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
        !
        ! From now onwards, the code is valid for a par_triangulation based on a plain element_set. It is the legacy
-       ! code with minor modification (renaming of elems)
+       ! code with minor modifications (renaming of elems)
        !
        select type( set => p_trian%element_set )
        class is(plain_migratory_element_set_t)
@@ -298,7 +298,7 @@ contains
              iobjg = -1
 
              do jelem = 1,vefs(iobj)%num_elems_around
-                jlele = vefs(iobj)%elems_around(jelem)%get_index()
+                jlele = vefs(iobj)%elems_around(jelem) ! %get_index()
 
                 do jobj = elements(jlele)%geo_reference_element%get_first_vef_id_of_dimension(idime-1), &
                      & elements(jlele)%geo_reference_element%get_first_vef_id_of_dimension(idime)-1 ! efs of neighbor els
@@ -316,7 +316,7 @@ contains
 
 
              do jelem = 1,vefs(iobj)%num_elems_around
-                jlele = vefs(iobj)%elems_around(jelem)%get_index()
+                jlele = vefs(iobj)%elems_around(jelem) ! %get_index()
                 do jobj = elements(jlele)%geo_reference_element%get_first_vef_id_of_dimension(idime-1), &
                      & elements(jlele)%geo_reference_element%get_first_vef_id_of_dimension(idime)-1 ! efs of neighbor els
                    if ( elements(jlele)%vefs(jobj) == iobj) then

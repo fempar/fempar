@@ -333,7 +333,7 @@ contains
           ! Count/list parts around iobj 
           do j=1, vefs(iobj)%num_elems_around 
              !call ws_parts_visited%put(key=trian%elems(jelem)%mypart,val=1,stat=istat)
-             elem => downcast_to_par_element_topology( trian%element_iterator%get( vefs(iobj)%elems_around(j) ) )
+             elem => downcast_to_par_element_topology( trian%element_set%get( vefs(iobj)%elems_around(j) ) )
              call ws_parts_visited%put(key=elem%mypart,val=touch,stat=istat)
              if ( istat == now_stored ) then
                 count = count + 1
