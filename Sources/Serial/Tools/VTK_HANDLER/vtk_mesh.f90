@@ -50,10 +50,27 @@ private
     integer(ip), parameter :: VTK_STATE_ENDED            = 4
     integer(ip), parameter :: VTK_STATE_READ_STARTED     = 5
 
+    ! Type for storing field data
+    type vtk_field_t
+    private
+        character(len=:), allocatable :: type
+        character(len=:), allocatable :: name
+        integer(ip)                   :: number_components
+        logical                       :: filled =.false.
+    contains
+        procedure, non_overridable    :: set                   => vtk_field_set
+        procedure, non_overridable    :: is_filled             => vtk_field_is_filled
+        procedure, non_overridable    :: get_type              => vtk_field_get_type
+        procedure, non_overridable    :: get_name              => vtk_field_get_name
+        procedure, non_overridable    :: get_number_components => vtk_field_get_number_components
+        procedure, non_overridable    :: free                  => vtk_field_free
+    end type
+
     ! Type for storing mesh data
     type vtk_mesh_t
     private
         class(serial_fe_space_t), pointer :: fe_space      => NULL()                ! Poins to fe_space_t
+        type(vtk_field_t), allocatable    :: field(:)                               ! VTK field_t descriptor
         character(len=:),  allocatable    :: directory_path                         ! Directory where the results are going to be stored
         character(len=:),  allocatable    :: name_prefix                            ! Name prefix of the VTK files
         integer(ip)                       :: file_id = 0                            ! File descriptor (unit)
@@ -72,6 +89,7 @@ private
         integer(ip)                       :: status             = VTK_STATE_UNKNOWN ! Status of the write process
     contains
     private
+        procedure, non_overridable, public :: move_to                           => vtk_mesh_move_to
         procedure, non_overridable, public :: set_fe_space                      => vtk_mesh_set_fe_space
         procedure, non_overridable, public :: get_fe_space                      => vtk_mesh_get_fe_space
         procedure, non_overridable, public :: get_triangulation                 => vtk_mesh_get_triangulation
@@ -83,6 +101,10 @@ private
         procedure, non_overridable, public :: is_linear_order                   => vtk_mesh_is_linear_order
         procedure, non_overridable, public :: set_filled                        => vtk_mesh_set_filled
         procedure, non_overridable, public :: is_filled                         => vtk_mesh_is_filled
+        procedure, non_overridable, public :: field_is_filled                   => vtk_mesh_field_is_filled
+        procedure, non_overridable, public :: get_field_type                    => vtk_mesh_get_field_type
+        procedure, non_overridable, public :: get_field_name                    => vtk_mesh_get_field_name
+        procedure, non_overridable, public :: get_field_number_components       => vtk_mesh_get_field_number_components
         procedure, non_overridable, public :: set_number_nodes                  => vtk_mesh_set_number_nodes
         procedure, non_overridable, public :: get_number_nodes                  => vtk_mesh_get_number_nodes
         procedure, non_overridable, public :: set_number_elements               => vtk_mesh_set_number_elements
@@ -101,6 +123,7 @@ private
         procedure, non_overridable, public :: get_y_coordinate                  => vtk_mesh_get_y_coordinate
         procedure, non_overridable, public :: set_z_coordinate                  => vtk_mesh_set_z_coordinate
         procedure, non_overridable, public :: get_z_coordinate                  => vtk_mesh_get_z_coordinate
+        procedure, non_overridable, public :: get_number_fields                 => vtk_mesh_get_number_fields
         procedure, non_overridable, public :: initialize_coordinates            => vtk_mesh_initialize_coordinates
         procedure, non_overridable, public :: get_subelements_connectivity      => vtk_mesh_get_subelements_connectivity
         procedure, non_overridable, public :: allocate_nodal_arrays             => vtk_mesh_allocate_nodal_arrays
@@ -116,6 +139,107 @@ public :: vtk_mesh_t
 
 contains
 
+    subroutine vtk_field_set(this, name, type, number_components)
+    !-----------------------------------------------------------------
+    !< Set the data of the field
+    !-----------------------------------------------------------------
+        class(vtk_field_t), intent(INOUT) :: this
+        character(len=*) ,  intent(IN)    :: type
+        character(len=*) ,  intent(IN)    :: name
+        integer(ip) ,       intent(IN)    :: number_components
+    !-----------------------------------------------------------------
+        this%type = type
+        this%name = name
+        this%number_components = number_components
+        this%filled = .true.
+    end subroutine vtk_field_set
+
+
+    function vtk_field_is_filled(this) result(filled)
+    !-----------------------------------------------------------------
+    !< Check if field was filled
+    !-----------------------------------------------------------------
+        class(vtk_field_t), intent(IN) :: this
+        logical                        :: filled
+    !-----------------------------------------------------------------
+        filled = this%filled
+    end function vtk_field_is_filled
+
+
+    subroutine vtk_field_get_type(this, type)
+    !-----------------------------------------------------------------
+    !< Return the field data type
+    !-----------------------------------------------------------------
+        class(vtk_field_t),              intent(IN)    :: this
+        character(len=:) ,  allocatable, intent(INOUT) :: type
+    !-----------------------------------------------------------------
+        type = this%type
+    end subroutine vtk_field_get_type
+
+
+    subroutine vtk_field_get_name(this, name)
+    !-----------------------------------------------------------------
+    !< Return the name of the field
+    !-----------------------------------------------------------------
+        class(vtk_field_t),              intent(IN)    :: this
+        character(len=:) ,  allocatable, intent(INOUT) :: name
+    !-----------------------------------------------------------------
+        name = this%name
+    end subroutine vtk_field_get_name
+
+
+    function vtk_field_get_number_components(this) result(number_components)
+    !-----------------------------------------------------------------
+    !< Return the number of components of the field
+    !-----------------------------------------------------------------
+        class(vtk_field_t), intent(IN) :: this
+        integer(ip)                    :: number_components
+    !-----------------------------------------------------------------
+        number_components = this%number_components
+    end function vtk_field_get_number_components
+
+
+    subroutine vtk_field_free(this)
+    !-----------------------------------------------------------------
+    !< Return the name of the field
+    !-----------------------------------------------------------------
+        class(vtk_field_t), intent(INOUT) :: this
+    !-----------------------------------------------------------------
+        if(allocated(this%name)) deallocate(this%name)
+        if(allocated(this%type)) deallocate(this%type)
+        this%number_components = 0
+        this%filled = .false.
+    end subroutine vtk_field_free
+
+
+    subroutine vtk_mesh_move_to(this, mesh)
+    !-----------------------------------------------------------------
+    !< Move this to other mesh host
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t), intent(INOUT) :: this                      ! Input mesh
+        type(vtk_mesh_t),  intent(INOUT) :: mesh                      ! Output mesh
+    !-----------------------------------------------------------------
+        call mesh%free()
+        if(associated(this%fe_space)) mesh%fe_space => this%fe_space
+        if(allocated(this%directory_path)) mesh%directory_path = this%directory_path
+        if(allocated(this%name_prefix)) mesh%name_prefix = this%name_prefix
+        if(allocated(this%X)) call memmovealloc(this%X, mesh%X, __FILE__, __LINE__)
+        if(allocated(this%Y)) call memmovealloc(this%Y, mesh%Y, __FILE__, __LINE__)
+        if(allocated(this%Z)) call memmovealloc(this%Z, mesh%Z, __FILE__, __LINE__)
+        if(allocated(this%offset)) call memmovealloc(this%offset, mesh%offset, __FILE__, __LINE__)
+        if(allocated(this%cell_types)) call memmovealloc(this%cell_types, mesh%cell_types, __FILE__, __LINE__)
+        if(allocated(this%subelements_connectivity)) call memmovealloc(this%subelements_connectivity, mesh%subelements_connectivity, __FILE__, __LINE__)
+        mesh%file_id = this%file_id
+        mesh%number_of_nodes = this%number_of_nodes
+        mesh%number_of_elements = this%number_of_elements
+        mesh%dimensions = this%dimensions
+        mesh%linear_order = this%linear_order
+        mesh%filled = this%filled
+        mesh%status = this%status
+        call this%free()
+    end subroutine vtk_mesh_move_to
+
+
     subroutine vtk_mesh_set_fe_space(this, fe_space)
     !-----------------------------------------------------------------
     !< Set the fe_space
@@ -124,6 +248,7 @@ contains
         class(serial_fe_space_t), target, intent(IN)    :: fe_space
     !-----------------------------------------------------------------
         this%fe_space => fe_space
+        allocate(this%field(fe_space%get_number_fe_spaces()))
     end subroutine vtk_mesh_set_fe_space
 
 
@@ -210,8 +335,8 @@ contains
     !-----------------------------------------------------------------
     !< Ask if the mesh data is filled
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        logical                              :: filled
+        class(vtk_mesh_t),     intent(IN) :: this
+        logical                           :: filled
     !-----------------------------------------------------------------
         filled = this%filled
     end function vtk_mesh_is_filled
@@ -232,8 +357,8 @@ contains
     !-----------------------------------------------------------------
     !< Ask if the stored mesh data is from linear order mesh
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        logical                              :: linear_order
+        class(vtk_mesh_t),     intent(IN) :: this
+        logical                           :: linear_order
     !-----------------------------------------------------------------
         linear_order = this%linear_order
     end function vtk_mesh_is_linear_order
@@ -254,8 +379,8 @@ contains
     !-----------------------------------------------------------------
     !< Return the number of nodes
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip)                          :: number_nodes
+        class(vtk_mesh_t),     intent(IN) :: this
+        integer(ip)                       :: number_nodes
     !-----------------------------------------------------------------
         number_nodes = this%number_of_nodes
     end function vtk_mesh_get_number_nodes
@@ -276,8 +401,8 @@ contains
     !-----------------------------------------------------------------
     !< Return the number of elements
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip)                          :: number_elements
+        class(vtk_mesh_t),     intent(IN) :: this
+        integer(ip)                       :: number_elements
     !-----------------------------------------------------------------
         number_elements = this%number_of_elements
     end function vtk_mesh_get_number_elements
@@ -298,8 +423,8 @@ contains
     !-----------------------------------------------------------------
     !< Return the space dimensions of the mesh
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip)                          :: dimensions
+        class(vtk_mesh_t),     intent(IN) :: this
+        integer(ip)                       :: dimensions
     !-----------------------------------------------------------------
         dimensions = this%dimensions
     end function vtk_mesh_get_dimensions
@@ -323,9 +448,9 @@ contains
     !-----------------------------------------------------------------
     !< Return cell type given the cell index of 
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip)                          :: index
-        integer(ip)                          :: type
+        class(vtk_mesh_t),     intent(IN) :: this
+        integer(ip)                       :: index
+        integer(ip)                       :: type
     !-----------------------------------------------------------------
         assert(allocated(this%cell_types))
         assert(index>0 .and. index<=this%number_of_elements)
@@ -351,9 +476,9 @@ contains
     !-----------------------------------------------------------------
     !< Return the offset given the cellindex
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip)                          :: index
-        integer(ip)                          :: offset
+        class(vtk_mesh_t),     intent(IN) :: this
+        integer(ip)                       :: index
+        integer(ip)                       :: offset
     !-----------------------------------------------------------------
         assert(allocated(this%offset))
         assert(index>0 .and. index<=this%number_of_elements)
@@ -379,9 +504,9 @@ contains
     !-----------------------------------------------------------------
     !< Return element connectivities given index
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip)                          :: index
-        integer(ip)                          :: node
+        class(vtk_mesh_t),     intent(IN) :: this
+        integer(ip)                       :: index
+        integer(ip)                       :: node
     !-----------------------------------------------------------------
         assert(allocated(this%connectivities))
         assert(index>0 .and. index<=this%number_of_nodes)
@@ -407,9 +532,9 @@ contains
     !-----------------------------------------------------------------
     !< Return x coordinate given the node index
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip)                          :: index
-        real(rp)                             :: coordinate
+        class(vtk_mesh_t),     intent(IN) :: this
+        integer(ip)                       :: index
+        real(rp)                          :: coordinate
     !-----------------------------------------------------------------
         assert(allocated(this%X))
         assert(index>0 .and. index<=this%number_of_nodes)
@@ -435,9 +560,9 @@ contains
     !-----------------------------------------------------------------
     !< Return the y coordinate given the node index
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip)                          :: index
-        real(rp)                             :: coordinate
+        class(vtk_mesh_t),     intent(IN) :: this
+        integer(ip)                       :: index
+        real(rp)                          :: coordinate
     !-----------------------------------------------------------------
         assert(allocated(this%Y))
         assert(index>0 .and. index<=this%number_of_nodes)
@@ -463,9 +588,9 @@ contains
     !-----------------------------------------------------------------
     !< Return the Z coordinate given the node index
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),     intent(INOUT) :: this
-        integer(ip)                          :: index
-        real(rp)                             :: coordinate
+        class(vtk_mesh_t),     intent(IN) :: this
+        integer(ip)                       :: index
+        real(rp)                          :: coordinate
     !-----------------------------------------------------------------
         assert(allocated(this%Z))
         assert(index>0 .and. index<=this%number_of_nodes)
@@ -486,6 +611,70 @@ contains
         this%Y = 0.0_rp
         this%Z = 0.0_rp
     end subroutine vtk_mesh_initialize_coordinates
+
+
+    function vtk_mesh_get_number_fields(this) result(number_fields)
+    !-----------------------------------------------------------------
+    !< Return the number of fields 
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t),     intent(IN) :: this
+        integer(ip)                          :: number_fields
+    !-----------------------------------------------------------------
+        number_fields = 0
+        if(allocated(this%field)) number_fields = size(this%field,1)
+    end function vtk_mesh_get_number_fields
+
+
+    function vtk_mesh_field_is_filled(this, field_index) result(filled)
+    !-----------------------------------------------------------------
+    !< Check if the field with field_index is filled
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t),     intent(IN) :: this
+        integer(ip),           intent(IN) :: field_index
+        logical                           :: filled
+    !-----------------------------------------------------------------
+        filled = .false.
+        if(allocated(this%field)) filled = this%field(field_index)%is_filled()
+    end function vtk_mesh_field_is_filled
+
+
+    subroutine vtk_mesh_get_field_type(this, field_index, field_type)
+    !-----------------------------------------------------------------
+    !< Return the field data type given its index
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t),             intent(IN)    :: this
+        integer(ip),                   intent(IN)    :: field_index
+        character(len=:), allocatable, intent(INOUT) :: field_type
+    !-----------------------------------------------------------------
+        assert(this%field(field_index)%is_filled())
+        call this%field(field_index)%get_type(field_type)
+    end subroutine vtk_mesh_get_field_type
+
+
+    subroutine vtk_mesh_get_field_name(this, field_index, field_name)
+    !-----------------------------------------------------------------
+    !< Return the field name given its index
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t),             intent(IN)    :: this
+        integer(ip),                   intent(IN)    :: field_index
+        character(len=:), allocatable, intent(INOUT) :: field_name
+    !-----------------------------------------------------------------
+        assert(this%field(field_index)%is_filled())
+        call this%field(field_index)%get_name(field_name)
+    end subroutine vtk_mesh_get_field_name
+
+
+    function vtk_mesh_get_field_number_components(this, field_index) result(number_components)
+    !-----------------------------------------------------------------
+    !< Return the number of components of a field given its index
+    !-----------------------------------------------------------------
+        class(vtk_mesh_t),             intent(IN)    :: this
+        integer(ip),                   intent(IN)    :: field_index
+        integer(ip)                                  :: number_components
+    !-----------------------------------------------------------------
+        assert(this%field(field_index)%is_filled())
+        number_components = this%field(field_index)%get_number_components()
+    end function vtk_mesh_get_field_number_components
 
 
     function vtk_mesh_get_subelements_connectivity(this) result(subelements_connectivity)
@@ -585,21 +774,24 @@ contains
     end function vtk_mesh_begin_write
 
 
-    function vtk_mesh_write_node_field(this, field, field_name) result(E_IO)
+    function vtk_mesh_write_node_field(this, fe_space_index, field, field_name) result(E_IO)
     !-----------------------------------------------------------------
     !< Writes a VTK field ( VTK_DAT_XML )
     !-----------------------------------------------------------------
-        class(vtk_mesh_t),          intent(INOUT) :: this        !< VTK_t derived type
-        character(len=*),           intent(IN)    :: field_name  !< VTK field NAME
-        real(rp),                   intent(IN)    :: field(:,:)  !< Field to write
-        integer(ip)                               :: E_IO        !< Error IO
+        class(vtk_mesh_t),          intent(INOUT) :: this           !< VTK_t derived type
+        integer(ip),                intent(IN)    :: fe_space_index !< Index of the fe_space
+        character(len=*),           intent(IN)    :: field_name     !< VTK field NAME
+        real(rp),                   intent(IN)    :: field(:,:)     !< Field to write
+        integer(ip)                               :: E_IO           !< Error IO
     !-----------------------------------------------------------------
+        assert(fe_space_index>0 .and. fe_space_index<=this%fe_space%get_number_fe_spaces())
         if((this%status == VTK_STATE_WRITE_STARTED) .or. (this%status == VTK_STATE_POINTDATA_OPENED)) then
             if(this%status == VTK_STATE_WRITE_STARTED) then
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=this%file_id)
                 this%status = VTK_STATE_POINTDATA_OPENED
             endif
             E_IO = VTK_VAR_XML(NC_NN=this%number_of_nodes,N_COL=size(field,1), varname=field_name, var=field, cf=this%file_id)
+            call this%field(fe_space_index)%set(field_name, 'Float64', size(field,1))
         endif
     end function vtk_mesh_write_node_field
 
@@ -637,6 +829,7 @@ contains
         integer(ip)                      :: i
         integer(ip)                      :: error
     !-----------------------------------------------------------------
+        error = 0
         if(allocated(this%directory_path))           deallocate(this%directory_path, stat=error)
         assert(error==0)
         if(allocated(this%name_prefix))              deallocate(this%name_prefix, stat=error)
@@ -648,6 +841,12 @@ contains
         if(allocated(this%offset))                   call memfree(this%offset, __FILE__, __LINE__)
         if(allocated(this%cell_types))               call memfree(this%cell_types, __FILE__, __LINE__)
         if(allocated(this%subelements_connectivity)) call memfree(this%subelements_connectivity, __FILE__, __LINE__)
+        if(allocated(this%field)) then
+            do i=1, size(this%field)
+                call this%field(i)%free()
+            enddo
+            deallocate(this%field)
+        endif
         nullify(this%fe_space)
         this%number_of_nodes    = 0
         this%number_of_elements = 0
