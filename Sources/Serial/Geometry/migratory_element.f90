@@ -96,7 +96,7 @@ module migratory_element_names
   !=============================================================================
 
 ! #define  template_key_t                   forest_element_id_t
-#define  template_key_t                   integer(ip)
+#define  key_type                         integer(ip)
 #define  hash_template_element_set_t      hash_migratory_element_set_t
 #define  hash_template_element_iterator_t hash_migratory_element_iterator_t
 #include "hash_element_set_header.i90"
@@ -169,9 +169,9 @@ contains
 !#define smaller(a,b) (a%level<b%level).or.(a%level==b%level.and.a%tree<b%tree) .or. (a%level==b%level.and.a%tree==b%tree.and.a%morton==b%morton)
 !#define equal(a,b) (a%level==b%level.and.a%tree==b%tree.and.a%morton==b%morton)
 !#define convert_to_int(key) (2**key%level - 1)*estimated_forest_size + (key%tree-1)*2**key%level + int(key%morton,ip) + 1
-#define greater(a,b) (a>b)
-#define smaller(a,b) (a<b)
-#define equal(a,b) (a==b)
+!#define greater(a,b) (a>b)
+!#define smaller(a,b) (a<b)
+!#define equal(a,b) (a==b)
 #define convert_to_int(key) key
 #include "hash_element_set_body.i90"
 

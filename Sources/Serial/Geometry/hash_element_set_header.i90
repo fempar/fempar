@@ -45,8 +45,8 @@
      private
      type(hash_node), pointer :: current_node => null()
      type(hash_node), pointer :: next_node    => null()
-     !type(template_key_t), allocatable  :: current_key
-     !type(template_key_t), allocatable  :: next_key
+     !key_type, allocatable  :: current_key
+     !key_type, allocatable  :: next_key
      type(hash_template_element_set_t), pointer :: hash_template_element_set
    contains
      procedure :: begin        => hash_template_element_iterator_begin
@@ -60,7 +60,7 @@
      private
      type(hash_node), pointer :: child => null()
      type(hash_node), pointer :: parent => null()
-     type (template_key_t)    :: key
+     key_type                 :: key
      class(template_element_t), allocatable :: val
    contains
      procedure :: put  => put_hash_node

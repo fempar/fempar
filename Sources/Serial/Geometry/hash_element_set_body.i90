@@ -45,12 +45,12 @@
 !
 recursive subroutine put_hash_node(list,key,mold,stat)
   class(hash_node), target , intent(inout) :: list
-  type (template_key_t)    , intent(in)    :: key
+  key_type        , intent(in)    :: key
   class(template_element_t), intent(in)    :: mold
   integer(ip)              , intent(out)   :: stat
   class(hash_node)         , pointer       :: newel => null()
 
-  if( greater(key,list%key) ) then
+  if( key>list%key ) then
      if(associated(list%child) ) then
         ! Keep going
         call put_hash_node(list%child,key,mold,stat)
@@ -65,10 +65,10 @@ recursive subroutine put_hash_node(list,key,mold,stat)
         list%key = key
         allocate(list%val, mold=mold)
      end if
-  else if( equal(key,list%key) ) then
+  else if( key==list%key ) then
      ! Already stored
      stat = was_stored
-  else if( smaller(key,list%key) ) then
+  else if( key<list%key ) then
      ! ! Insert an element just behind
      !
      ! Insert an element just after this one,
@@ -100,11 +100,11 @@ end subroutine put_hash_node
 
 recursive subroutine del_hash_node(list,key,stat)
   class(hash_node)   , target, intent(inout) :: list
-  type(template_key_t)       , intent(in)    :: key
+  key_type       , intent(in)    :: key
   integer(ip)                , intent(out)   :: stat
   class(hash_node)           , pointer       :: tmp => null()
 
-  if( equal(key,list%key) ) then
+  if( key==list%key ) then
      !if(associated(list%parent)) then ! this is not the first element
      !   tmp => list
      !   list%parent%child => list%child
@@ -136,11 +136,11 @@ end subroutine del_hash_node
 
 recursive subroutine get_hash_node(list,key,val,stat)
   class(hash_node)     , target     , intent(in)    :: list
-  type(template_key_t)              , intent(in)    :: key
+  key_type              , intent(in)    :: key
   class(template_element_t), pointer, intent(out)   :: val
   integer(ip)                       , intent(inout) :: stat
 
-  if( equal(key,list%key) ) then
+  if( key==list%key ) then
      val => list%val
      stat = key_found
   else if(associated(list%child)) then ! keep going
@@ -208,7 +208,7 @@ end subroutine create_hash_template_element_set_t
 subroutine put_hash_template_element_set_t(tbl,key,mold,stat)
   class(template_element_t)           , intent(in)    :: mold
   class(hash_template_element_set_t)  , intent(inout) :: tbl
-  type(template_key_t)                , intent(in)    :: key
+  key_type                , intent(in)    :: key
   integer(ip)                         , intent(out)   :: stat
   integer(ip)                        :: hash
   hash = mod( convert_to_int(key) ,tbl%vec_len)
@@ -220,7 +220,7 @@ end subroutine put_hash_template_element_set_t
 
 !subroutine get_hash_template_element_set_t(this,id,p,stat)
 !  class(hash_template_element_set_t),target, intent(in)    :: this
-!  type(template_key_t)                , intent(in)    :: id
+!  key_type                , intent(in)    :: id
 !  class(template_element_t), pointer  , intent(out)   :: p
 !  integer(ip)             , optional  , intent(out)   :: stat
 !  integer(ip)                                         :: hash
@@ -231,7 +231,7 @@ end subroutine put_hash_template_element_set_t
 
 function get_hash_template_element_set_t(this,id,stat) result(p)
   class(hash_template_element_set_t),target, intent(in)    :: this
-  type(template_key_t)                , intent(in)    :: id
+  key_type                , intent(in)    :: id
   !class(template_element_t), pointer  , intent(out)   :: p
   class(template_element_t), pointer   :: p
   integer(ip)             , optional  , intent(out)   :: stat
@@ -261,7 +261,7 @@ end subroutine get_next_hash_template_element_set_t
 
 subroutine del_hash_template_element_set_t(tbl,key,stat)
   class(hash_template_element_set_t), intent(inout) :: tbl
-  type(template_key_t)              , intent(in)    :: key
+  key_type              , intent(in)    :: key
   integer(ip)                       , intent(out)   :: stat
   integer(ip)                                       :: hash
 
