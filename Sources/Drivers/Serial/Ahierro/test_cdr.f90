@@ -81,6 +81,7 @@ module dG_CDR_discrete_integration_names
      procedure, non_overridable :: set_problem
      procedure, non_overridable :: integrate
      procedure, non_overridable :: compute_analytical_force
+     procedure, non_overridable :: set_initial_solution
   end type DG_CDR_discrete_integration_t
   
   public :: dG_CDR_discrete_integration_t
@@ -100,6 +101,19 @@ contains
     this%xi        = xi
     call this%analytical_functions%create(solution_field_name)
   end subroutine set_problem
+
+  !==================================================================================================
+  subroutine set_initial_solution(this,fe_space)
+    implicit none
+    class(dG_CDR_discrete_integration_t), intent(inout) :: this
+    class(serial_fe_space_t)            , intent(in)    :: fe_space
+
+    ! Update unknown 
+    call fe_space%interpolate_fe_function(this%analytical_functions%get_solution_function(),        &
+         &                                fe_space_component=1,fe_function=this%fe_values_previous, &
+         &                                time=this%theta_method%initial_time)
+
+  end subroutine set_initial_solution
   
   !==================================================================================================
   function compute_analytical_force(this,point) result(source)
@@ -529,16 +543,19 @@ program test_cdr
   call fe_space%create_face_array()
 
   call fe_space%fill_dof_info() 
-  dG_CDR_integration%fe_values_previous => fe_values_previous
-  call fe_space%create_global_fe_function(dG_CDR_integration%fe_values_previous) 
-  dof_values_previous => fe_values_previous%get_dof_values()
-  call dof_values_previous%init(0.0_rp)
-
-  ! Initialize fe_values_previous
-  
+ 
+  ! Set the analytical solution and convection  
   call cli%get(group=trim(group),switch='-ssol' ,val=space_solution_name,error=istat);check(istat==0)
   call dG_CDR_integration%set_problem( viscosity = 1.0_rp, C_IP = 10.0_rp, xi = 1.0_rp,             &
        &                               solution_field_name = space_solution_name)
+
+  ! Set the parameters for the integration in time
+  dG_CDR_integration%fe_values_previous => fe_values_previous
+  call fe_space%create_global_fe_function(dG_CDR_integration%fe_values_previous) 
+  call dG_CDR_integration%set_initial_solution(fe_space)
+  dof_values_previous => fe_values_previous%get_dof_values()
+  !call dof_values_previous%init(0.0_rp)
+
   ! Create the operator
   diagonal_blocks_symmetric_storage = .false.
   diagonal_blocks_symmetric         = .false.

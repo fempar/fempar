@@ -72,7 +72,7 @@ contains
        this%number_of_steps = 0
        this%time_factor  = 0.0_rp
     end if
-    this%current_time = this%time_step
+    this%current_time = this%initial_time + this%time_step
     this%current_step = 1
     this%finished     = .false.
 

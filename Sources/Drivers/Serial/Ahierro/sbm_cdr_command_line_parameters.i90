@@ -190,13 +190,13 @@ contains
     params%default_diffu               = '1.0'  ! Diffusion
     params%default_space_solution_name = 'CDR-LINEAR-TRANSIENT'
     params%default_source_term_flag    = '1'
-    params%default_itime               = '0'
+    params%default_itime               = '0.25'
     params%default_ftime               = '1'
 
     ! Time integration method
     params%default_theta           = '1.0'
     params%default_time_step       = '0.25'
-    params%default_nstep           = '4'
+    params%default_nstep           = '3'
 
 
   end subroutine set_default_params_transient
