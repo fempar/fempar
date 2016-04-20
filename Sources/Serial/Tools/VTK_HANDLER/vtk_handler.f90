@@ -68,19 +68,32 @@ private
     ! START               | Free                  | START
 
     ! INITIALIZED         | Open                  | OPEN 
-    ! INITIALIZED         | Free                  | START       
+    ! INITIALIZED         | Write_pvtu            | INITIALIZED
+    ! INITIALIZED         | Write_pvd             | INITIALIZED
+    ! INITIALIZED         | Free                  | START
 
     ! OPEN                | Write_mesh            | GEO_OPEN   
+    ! OPEN                | Write_pvtu            | OPEN         
+    ! OPEN                | Write_pvd             | OPEN       
     ! OPEN                | Close                 | CLOSE
     ! OPEN                | Free                  | START
 
     ! GEO_OPEN            | Write_node_field      | POINTDATA_OPEN
+    ! GEO_OPEN            | Write_pvtu            | GEO_OPEN
+    ! GEO_OPEN            | Write_pvd             | GEO_OPEN
     ! GEO_OPEN            | Close                 | CLOSE
     ! GEO_OPEN            | Free                  | START
 
     ! POINTDATA_OPEN      | Write_node_field      | POINTDATA_OPEN
+    ! POINTDATA_OPEN      | Write_pvtu            | POINTDATA_OPEN
+    ! POINTDATA_OPEN      | Write_pvd             | POINTDATA_OPEN
     ! POINTDATA_OPEN      | Close                 | CLOSE
     ! POINTDATA_OPEN      | Free                  | START
+
+    ! CLOSE               | Open                  | OPEN
+    ! CLOSE               | Write_pvtu            | CLOSE        
+    ! CLOSE               | Write_pvd             | CLOSE
+    ! CLOSE               | Free                  | START
 
     ! STATE PARAMETERS
     integer(ip), parameter :: vtk_handler_state_start                 = 0
@@ -290,13 +303,13 @@ contains
     end subroutine vtk_handler_set_num_parts
 
 
-    subroutine vtk_handler_initialize(this, fe_space, env, path, prefix, root_proc, number_of_steps, linear_order)
+    subroutine vtk_handler_initialize(this, fe_space, environment, path, prefix, root_proc, number_of_steps, linear_order)
     !-----------------------------------------------------------------
     !< Initialize the vtk_handler_t derived type
     !-----------------------------------------------------------------
         class(vtk_handler_t),             intent(INOUT) :: this
         class(serial_fe_space_t), target, intent(INOUT) :: fe_space
-        class(environment_t),     target, intent(IN)    :: env
+        class(environment_t),     target, intent(IN)    :: environment
         character(len=*),                 intent(IN)    :: path
         character(len=*),                 intent(IN)    :: prefix  
         integer(ip),      optional,       intent(IN)    :: root_proc
@@ -307,7 +320,7 @@ contains
     !-----------------------------------------------------------------
         assert(this%state == vtk_handler_state_start)
 
-        this%env => env
+        this%env => environment
         call this%env%info(me,np) 
         call this%set_root_proc(rp)
 
@@ -491,6 +504,7 @@ contains
     function vtk_handler_write_pvtu(this, file_name, time_step) result(E_IO)
     !-----------------------------------------------------------------
     !< Write the pvtu file containing the number of parts
+    !< (only root processor)
     !-----------------------------------------------------------------
         class(vtk_handler_t),       intent(INOUT) :: this
         character(len=*), optional, intent(IN)    :: file_name
@@ -502,6 +516,7 @@ contains
         integer(ip)                               :: me, np
         logical                                   :: isDir
     !-----------------------------------------------------------------
+        assert(this%state == vtk_handler_state_initialized)
         check(associated(this%env))
         check(allocated(this%path))
         check(allocated(this%prefix))
@@ -554,12 +569,12 @@ contains
         class(vtk_handler_t),       intent(INOUT) :: this
         character(len=*), optional, intent(IN)    :: file_name
         integer(ip)                               :: rf
-        character(len=:),allocatable              :: var_name
         character(len=:),allocatable              :: pvdfn, pvtufn ,dp
         integer(ip)                               :: ts, E_IO
         integer(ip)                               :: me, np
         logical                                   :: isDir
     !-----------------------------------------------------------------
+        assert(this%state == vtk_handler_state_initialized)
         me = 0; np = 1
         check(associated(this%env))
         call this%env%info(me,np) 
