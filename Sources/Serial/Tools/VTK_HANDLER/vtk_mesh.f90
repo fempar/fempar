@@ -27,7 +27,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module mediator_mesh
+module raw_mesh
 
 USE types_names
 USE memor_names
@@ -71,27 +71,11 @@ private
     integer(ip), parameter :: vtk_quadratic_tetra      = 24_I1P
     integer(ip), parameter :: vtk_quadratic_hexahedron = 25_I1P
 
-    ! Type for storing field data
-    type vtk_field_t
-    private
-        character(len=:), allocatable :: type
-        character(len=:), allocatable :: name
-        integer(ip)                   :: number_components
-        logical                       :: filled =.false.
-    contains
-        procedure, non_overridable    :: set                   => vtk_field_set
-        procedure, non_overridable    :: is_filled             => vtk_field_is_filled
-        procedure, non_overridable    :: get_type              => vtk_field_get_type
-        procedure, non_overridable    :: get_name              => vtk_field_get_name
-        procedure, non_overridable    :: get_number_components => vtk_field_get_number_components
-        procedure, non_overridable    :: free                  => vtk_field_free
-    end type
 
     ! Type for storing mesh data
-    type mediator_mesh_t
+    type raw_mesh_t
     private
         class(serial_fe_space_t), pointer :: fe_space      => NULL()                ! Poins to fe_space_t
-        type(vtk_field_t), allocatable    :: field(:)                               ! VTK field_t descriptor
         real(rp),          allocatable    :: X(:)                                   ! Mesh X coordintates
         real(rp),          allocatable    :: Y(:)                                   ! Mesh Y coordintates
         real(rp),          allocatable    :: Z(:)                                   ! Mesh Z coordintates
@@ -106,115 +90,41 @@ private
         logical                           :: filled             = .false.           ! Mesh data was already filled
     contains
     private
-        procedure, non_overridable, public :: move_to                           => mediator_mesh_move_to
-        procedure, non_overridable, public :: set_fe_space                      => mediator_mesh_set_fe_space
-        procedure, non_overridable, public :: set_linear_order                  => mediator_mesh_set_linear_order
-        procedure, non_overridable, public :: field_is_filled                   => mediator_mesh_field_is_filled
-        procedure, non_overridable, public :: get_field_type                    => mediator_mesh_get_field_type
-        procedure, non_overridable, public :: get_field_name                    => mediator_mesh_get_field_name
-        procedure, non_overridable, public :: get_field_number_components       => mediator_mesh_get_field_number_components
-        procedure, non_overridable, public :: get_number_nodes                  => mediator_mesh_get_number_nodes
-        procedure, non_overridable, public :: get_number_elements               => mediator_mesh_get_number_elements
-        procedure, non_overridable, public :: get_number_fields                 => mediator_mesh_get_number_fields
-        procedure, non_overridable, public :: get_X_coordinates                 => mediator_mesh_get_X_coordinates
-        procedure, non_overridable, public :: get_Y_coordinates                 => mediator_mesh_get_Y_coordinates
-        procedure, non_overridable, public :: get_Z_coordinates                 => mediator_mesh_get_Z_coordinates
-        procedure, non_overridable, public :: get_connectivities                => mediator_mesh_get_connectivities
-        procedure, non_overridable, public :: get_offset                        => mediator_mesh_get_offset
-        procedure, non_overridable, public :: get_cell_types                    => mediator_mesh_get_cell_types
-        procedure, non_overridable         :: initialize_coordinates            => mediator_mesh_initialize_coordinates
-        procedure, non_overridable         :: allocate_nodal_arrays             => mediator_mesh_allocate_nodal_arrays
-        procedure, non_overridable         :: allocate_elemental_arrays         => mediator_mesh_allocate_elemental_arrays
-        procedure, non_overridable         :: allocate_subelements_connectivity => mediator_mesh_allocate_subelements_connectivity
-        procedure, non_overridable         :: generate_mesh                     => mediator_mesh_generate_mesh
-        procedure, non_overridable         :: generate_linear_mesh              => mediator_mesh_generate_linear_mesh
-        procedure, non_overridable         :: generate_superlinear_mesh         => mediator_mesh_generate_superlinear_mesh
-        procedure, non_overridable, public :: free                              => mediator_mesh_free
-    end type mediator_mesh_t
+        procedure, non_overridable, public :: move_to                           => raw_mesh_move_to
+        procedure, non_overridable, public :: set_fe_space                      => raw_mesh_set_fe_space
+        procedure, non_overridable, public :: set_linear_order                  => raw_mesh_set_linear_order
+        procedure, non_overridable, public :: get_number_nodes                  => raw_mesh_get_number_nodes
+        procedure, non_overridable, public :: get_number_elements               => raw_mesh_get_number_elements
+        procedure, non_overridable, public :: get_number_fields                 => raw_mesh_get_number_fields
+        procedure, non_overridable, public :: get_X_coordinates                 => raw_mesh_get_X_coordinates
+        procedure, non_overridable, public :: get_Y_coordinates                 => raw_mesh_get_Y_coordinates
+        procedure, non_overridable, public :: get_Z_coordinates                 => raw_mesh_get_Z_coordinates
+        procedure, non_overridable, public :: get_connectivities                => raw_mesh_get_connectivities
+        procedure, non_overridable, public :: get_offset                        => raw_mesh_get_offset
+        procedure, non_overridable, public :: get_cell_types                    => raw_mesh_get_cell_types
+        procedure, non_overridable, public :: get_field                         => raw_mesh_get_field
+        procedure, non_overridable         :: initialize_coordinates            => raw_mesh_initialize_coordinates
+        procedure, non_overridable         :: allocate_nodal_arrays             => raw_mesh_allocate_nodal_arrays
+        procedure, non_overridable         :: allocate_elemental_arrays         => raw_mesh_allocate_elemental_arrays
+        procedure, non_overridable         :: allocate_subelements_connectivity => raw_mesh_allocate_subelements_connectivity
+        procedure, non_overridable         :: generate_mesh                     => raw_mesh_generate_mesh
+        procedure, non_overridable         :: generate_linear_mesh              => raw_mesh_generate_linear_mesh
+        procedure, non_overridable         :: generate_superlinear_mesh         => raw_mesh_generate_superlinear_mesh
+        procedure, non_overridable         :: generate_linear_field             => raw_mesh_generate_linear_field
+        procedure, non_overridable         :: generate_superlinear_field        => raw_mesh_generate_superlinear_field
+        procedure, non_overridable, public :: free                              => raw_mesh_free
+    end type raw_mesh_t
 
-public :: mediator_mesh_t
+public :: raw_mesh_t
 
 contains
 
-    subroutine vtk_field_set(this, name, type, number_components)
-    !-----------------------------------------------------------------
-    !< Set the data of the field
-    !-----------------------------------------------------------------
-        class(vtk_field_t), intent(INOUT) :: this
-        character(len=*) ,  intent(IN)    :: type
-        character(len=*) ,  intent(IN)    :: name
-        integer(ip) ,       intent(IN)    :: number_components
-    !-----------------------------------------------------------------
-        this%type = type
-        this%name = name
-        this%number_components = number_components
-        this%filled = .true.
-    end subroutine vtk_field_set
-
-
-    function vtk_field_is_filled(this) result(filled)
-    !-----------------------------------------------------------------
-    !< Check if field was filled
-    !-----------------------------------------------------------------
-        class(vtk_field_t), intent(IN) :: this
-        logical                        :: filled
-    !-----------------------------------------------------------------
-        filled = this%filled
-    end function vtk_field_is_filled
-
-
-    subroutine vtk_field_get_type(this, type)
-    !-----------------------------------------------------------------
-    !< Return the field data type
-    !-----------------------------------------------------------------
-        class(vtk_field_t),              intent(IN)    :: this
-        character(len=:) ,  allocatable, intent(INOUT) :: type
-    !-----------------------------------------------------------------
-        type = this%type
-    end subroutine vtk_field_get_type
-
-
-    subroutine vtk_field_get_name(this, name)
-    !-----------------------------------------------------------------
-    !< Return the name of the field
-    !-----------------------------------------------------------------
-        class(vtk_field_t),              intent(IN)    :: this
-        character(len=:) ,  allocatable, intent(INOUT) :: name
-    !-----------------------------------------------------------------
-        name = this%name
-    end subroutine vtk_field_get_name
-
-
-    function vtk_field_get_number_components(this) result(number_components)
-    !-----------------------------------------------------------------
-    !< Return the number of components of the field
-    !-----------------------------------------------------------------
-        class(vtk_field_t), intent(IN) :: this
-        integer(ip)                    :: number_components
-    !-----------------------------------------------------------------
-        number_components = this%number_components
-    end function vtk_field_get_number_components
-
-
-    subroutine vtk_field_free(this)
-    !-----------------------------------------------------------------
-    !< Return the name of the field
-    !-----------------------------------------------------------------
-        class(vtk_field_t), intent(INOUT) :: this
-    !-----------------------------------------------------------------
-        if(allocated(this%name)) deallocate(this%name)
-        if(allocated(this%type)) deallocate(this%type)
-        this%number_components = 0
-        this%filled = .false.
-    end subroutine vtk_field_free
-
-
-    subroutine mediator_mesh_move_to(this, mesh)
+    subroutine raw_mesh_move_to(this, mesh)
     !-----------------------------------------------------------------
     !< Move this to other mesh host
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), intent(INOUT) :: this                      ! Input mesh
-        type(mediator_mesh_t),  intent(INOUT) :: mesh                      ! Output mesh
+        class(raw_mesh_t), intent(INOUT) :: this                      ! Input mesh
+        type(raw_mesh_t),  intent(INOUT) :: mesh                      ! Output mesh
     !-----------------------------------------------------------------
         call mesh%free()
         if(associated(this%fe_space)) mesh%fe_space => this%fe_space
@@ -230,177 +140,176 @@ contains
         mesh%linear_order = this%linear_order
         mesh%filled = this%filled
         call this%free()
-    end subroutine mediator_mesh_move_to
+    end subroutine raw_mesh_move_to
 
 
-    subroutine mediator_mesh_set_fe_space(this, fe_space)
+    subroutine raw_mesh_set_fe_space(this, fe_space)
     !-----------------------------------------------------------------
     !< Set the fe_space
     !-----------------------------------------------------------------
-        class(mediator_mesh_t),                intent(INOUT) :: this
+        class(raw_mesh_t),                intent(INOUT) :: this
         class(serial_fe_space_t), target, intent(IN)    :: fe_space
     !-----------------------------------------------------------------
         this%fe_space => fe_space
-        allocate(this%field(fe_space%get_number_fe_spaces()))
-    end subroutine mediator_mesh_set_fe_space
+    end subroutine raw_mesh_set_fe_space
 
 
-    function mediator_mesh_get_fe_space(this) result(fe_space)
+    function raw_mesh_get_fe_space(this) result(fe_space)
     !-----------------------------------------------------------------
     !< Get the fe_space pointer
     !-----------------------------------------------------------------
-        class(mediator_mesh_t),                intent(IN) :: this
+        class(raw_mesh_t),                intent(IN) :: this
         class(serial_fe_space_t), pointer            :: fe_space
     !-----------------------------------------------------------------
         fe_space => this%fe_space
-    end function mediator_mesh_get_fe_space
+    end function raw_mesh_get_fe_space
 
 
-    function mediator_mesh_is_filled(this) result(filled)
+    function raw_mesh_is_filled(this) result(filled)
     !-----------------------------------------------------------------
     !< Ask if the mesh data is filled
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), intent(IN) :: this
-        logical                            :: filled
+        class(raw_mesh_t), intent(IN) :: this
+        logical                       :: filled
     !-----------------------------------------------------------------
         filled = this%filled
-    end function mediator_mesh_is_filled
+    end function raw_mesh_is_filled
 
 
-    subroutine mediator_mesh_set_linear_order(this, linear_order)
+    subroutine raw_mesh_set_linear_order(this, linear_order)
     !-----------------------------------------------------------------
     !< Set linear order
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), intent(INOUT) :: this
-        logical,                intent(IN)    :: linear_order
+        class(raw_mesh_t), intent(INOUT) :: this
+        logical,           intent(IN)    :: linear_order
     !-----------------------------------------------------------------
         assert(.not. this%filled)
         this%linear_order = linear_order
-    end subroutine mediator_mesh_set_linear_order
+    end subroutine raw_mesh_set_linear_order
 
 
-    function mediator_mesh_get_number_nodes(this) result(number_nodes)
+    function raw_mesh_get_number_nodes(this) result(number_nodes)
     !-----------------------------------------------------------------
     !< Return the number of nodes
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), intent(INOUT) :: this
-        integer(ip)                           :: number_nodes
+        class(raw_mesh_t), intent(INOUT) :: this
+        integer(ip)                      :: number_nodes
     !-----------------------------------------------------------------
         if(.not. this%filled) call this%generate_mesh()
         number_nodes = this%number_of_nodes
-    end function mediator_mesh_get_number_nodes
+    end function raw_mesh_get_number_nodes
 
 
-    function mediator_mesh_get_number_elements(this) result(number_elements)
+    function raw_mesh_get_number_elements(this) result(number_elements)
     !-----------------------------------------------------------------
     !< Return the number of elements
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), intent(INOUT) :: this
-        integer(ip)                           :: number_elements
+        class(raw_mesh_t), intent(INOUT) :: this
+        integer(ip)                      :: number_elements
     !-----------------------------------------------------------------
         if(.not. this%filled) call this%generate_mesh()
         number_elements = this%number_of_elements
-    end function mediator_mesh_get_number_elements
+    end function raw_mesh_get_number_elements
 
 
-    function mediator_mesh_get_dimensions(this) result(dimensions)
+    function raw_mesh_get_dimensions(this) result(dimensions)
     !-----------------------------------------------------------------
     !< Return the space dimensions of the mesh
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), intent(INOUT) :: this
-        integer(ip)                        :: dimensions
+        class(raw_mesh_t), intent(INOUT) :: this
+        integer(ip)                      :: dimensions
     !-----------------------------------------------------------------
         if(.not. this%filled) call this%generate_mesh()
         dimensions = this%dimensions
-    end function mediator_mesh_get_dimensions
+    end function raw_mesh_get_dimensions
 
 
-    function mediator_mesh_get_X_coordinates(this) result(X)
+    function raw_mesh_get_X_coordinates(this) result(X)
     !-----------------------------------------------------------------
     !< Return a pointer to the X coordinates array
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), target, intent(INOUT) :: this
-        real(rp),               pointer               :: X(:)
+        class(raw_mesh_t), target, intent(INOUT) :: this
+        real(rp),          pointer               :: X(:)
     !-----------------------------------------------------------------
         if(.not. this%filled) call this%generate_mesh()
         X => this%X
-    end function mediator_mesh_get_X_coordinates
+    end function raw_mesh_get_X_coordinates
 
 
-    function mediator_mesh_get_Y_coordinates(this) result(Y)
+    function raw_mesh_get_Y_coordinates(this) result(Y)
     !-----------------------------------------------------------------
     !< Return a pointer to the Y coordinates array
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), target, intent(INOUT) :: this
-        real(rp),               pointer               :: Y(:)
+        class(raw_mesh_t), target, intent(INOUT) :: this
+        real(rp),          pointer               :: Y(:)
     !-----------------------------------------------------------------
         if(.not. this%filled) call this%generate_mesh()
         Y => this%Y
-    end function mediator_mesh_get_Y_coordinates
+    end function raw_mesh_get_Y_coordinates
 
 
-    function mediator_mesh_get_Z_coordinates(this) result(Z)
+    function raw_mesh_get_Z_coordinates(this) result(Z)
     !-----------------------------------------------------------------
     !< Return a pointer to the Z coordinates array
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), target, intent(INOUT) :: this
-        real(rp),               pointer               :: Z(:)
+        class(raw_mesh_t), target, intent(INOUT) :: this
+        real(rp),          pointer               :: Z(:)
     !-----------------------------------------------------------------
         if(.not. this%filled) call this%generate_mesh()
         Z => this%Z
-    end function mediator_mesh_get_Z_coordinates
+    end function raw_mesh_get_Z_coordinates
 
 
-    function mediator_mesh_get_connectivities(this) result(connectivities)
+    function raw_mesh_get_connectivities(this) result(connectivities)
     !-----------------------------------------------------------------
     !< Return a pointer to the connectivities array
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), target, intent(INOUT) :: this
-        integer(ip),            pointer               :: connectivities(:)
+        class(raw_mesh_t), target, intent(INOUT) :: this
+        integer(ip),       pointer               :: connectivities(:)
     !-----------------------------------------------------------------
         if(.not. this%filled) call this%generate_mesh()
         connectivities => this%connectivities
-    end function mediator_mesh_get_connectivities
+    end function raw_mesh_get_connectivities
 
 
-    function mediator_mesh_get_offset(this) result(offset)
+    function raw_mesh_get_offset(this) result(offset)
     !-----------------------------------------------------------------
     !< Return a pointer to the offset array
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), target, intent(INOUT) :: this
-        integer(ip),            pointer               :: offset(:)
+        class(raw_mesh_t), target, intent(INOUT) :: this
+        integer(ip),       pointer               :: offset(:)
     !-----------------------------------------------------------------
         if(.not. this%filled) call this%generate_mesh()
         offset => this%offset
-    end function mediator_mesh_get_offset
+    end function raw_mesh_get_offset
 
 
-    function mediator_mesh_get_cell_types(this) result(cell_types)
+    function raw_mesh_get_cell_types(this) result(cell_types)
     !-----------------------------------------------------------------
     !< Return a pointer to the cell_types array
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), target, intent(INOUT) :: this
-        integer(I1P),           pointer               :: cell_types(:)
+        class(raw_mesh_t), target, intent(INOUT) :: this
+        integer(I1P),      pointer               :: cell_types(:)
     !-----------------------------------------------------------------
         if(.not. this%filled) call this%generate_mesh()
         cell_types => this%cell_types
-    end function mediator_mesh_get_cell_types
+    end function raw_mesh_get_cell_types
 
 
-    subroutine mediator_mesh_initialize_coordinates(this)
+    subroutine raw_mesh_initialize_coordinates(this)
     !-----------------------------------------------------------------
     !< Set the z coordinate given the node index
     !-----------------------------------------------------------------
-        class(mediator_mesh_t),     intent(INOUT) :: this
+        class(raw_mesh_t),     intent(INOUT) :: this
     !-----------------------------------------------------------------
         assert(allocated(this%X))
         assert(allocated(this%Y))
@@ -408,91 +317,39 @@ contains
         this%X = 0.0_rp
         this%Y = 0.0_rp
         this%Z = 0.0_rp
-    end subroutine mediator_mesh_initialize_coordinates
+    end subroutine raw_mesh_initialize_coordinates
 
 
-    function mediator_mesh_get_number_fields(this) result(number_fields)
+    function raw_mesh_get_number_fields(this) result(number_fields)
     !-----------------------------------------------------------------
     !< Return the number of fields 
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), intent(IN) :: this
-        integer(ip)                           :: number_fields
+        class(raw_mesh_t), intent(IN) :: this
+        integer(ip)                   :: number_fields
     !-----------------------------------------------------------------
-        number_fields = 0
-        if(allocated(this%field)) number_fields = size(this%field,1)
-    end function mediator_mesh_get_number_fields
+        assert(associated(this%fe_space))
+        number_fields =  this%fe_space%get_number_fe_spaces()
+    end function raw_mesh_get_number_fields
 
 
-    function mediator_mesh_field_is_filled(this, field_index) result(filled)
-    !-----------------------------------------------------------------
-    !< Check if the field with field_index is filled
-    !-----------------------------------------------------------------
-        class(mediator_mesh_t),     intent(IN) :: this
-        integer(ip),           intent(IN) :: field_index
-        logical                           :: filled
-    !-----------------------------------------------------------------
-        filled = .false.
-        if(allocated(this%field)) filled = this%field(field_index)%is_filled()
-    end function mediator_mesh_field_is_filled
-
-
-    subroutine mediator_mesh_get_field_type(this, field_index, field_type)
-    !-----------------------------------------------------------------
-    !< Return the field data type given its index
-    !-----------------------------------------------------------------
-        class(mediator_mesh_t),             intent(IN)    :: this
-        integer(ip),                   intent(IN)    :: field_index
-        character(len=:), allocatable, intent(INOUT) :: field_type
-    !-----------------------------------------------------------------
-        assert(this%field(field_index)%is_filled())
-        call this%field(field_index)%get_type(field_type)
-    end subroutine mediator_mesh_get_field_type
-
-
-    subroutine mediator_mesh_get_field_name(this, field_index, field_name)
-    !-----------------------------------------------------------------
-    !< Return the field name given its index
-    !-----------------------------------------------------------------
-        class(mediator_mesh_t),             intent(IN)    :: this
-        integer(ip),                   intent(IN)    :: field_index
-        character(len=:), allocatable, intent(INOUT) :: field_name
-    !-----------------------------------------------------------------
-        assert(this%field(field_index)%is_filled())
-        call this%field(field_index)%get_name(field_name)
-    end subroutine mediator_mesh_get_field_name
-
-
-    function mediator_mesh_get_field_number_components(this, field_index) result(number_components)
-    !-----------------------------------------------------------------
-    !< Return the number of components of a field given its index
-    !-----------------------------------------------------------------
-        class(mediator_mesh_t),             intent(IN)    :: this
-        integer(ip),                   intent(IN)    :: field_index
-        integer(ip)                                  :: number_components
-    !-----------------------------------------------------------------
-        assert(this%field(field_index)%is_filled())
-        number_components = this%field(field_index)%get_number_components()
-    end function mediator_mesh_get_field_number_components
-
-
-    subroutine mediator_mesh_allocate_elemental_arrays(this)
+    subroutine raw_mesh_allocate_elemental_arrays(this)
     !-----------------------------------------------------------------
     !< Allocate all arrays of size number of elements
     !-----------------------------------------------------------------
-        class(mediator_mesh_t),     intent(INOUT) :: this
+        class(raw_mesh_t),     intent(INOUT) :: this
     !-----------------------------------------------------------------
         assert(.not. allocated(this%offset))
         assert(.not. allocated(this%cell_types))
         call memalloc(this%number_of_elements, this%offset, __FILE__, __LINE__)
         call memalloc(this%number_of_elements, this%cell_types, __FILE__, __LINE__)
-    end subroutine mediator_mesh_allocate_elemental_arrays
+    end subroutine raw_mesh_allocate_elemental_arrays
 
 
-    subroutine mediator_mesh_allocate_nodal_arrays(this)
+    subroutine raw_mesh_allocate_nodal_arrays(this)
     !-----------------------------------------------------------------
     !< Allocate all arrays with size number of nodes
     !-----------------------------------------------------------------
-        class(mediator_mesh_t),     intent(INOUT) :: this
+        class(raw_mesh_t),     intent(INOUT) :: this
     !-----------------------------------------------------------------
         assert(.not. allocated(this%connectivities))
         assert(.not. allocated(this%X))
@@ -502,27 +359,27 @@ contains
         call memalloc (this%number_of_nodes, this%X, __FILE__,__LINE__)
         call memalloc (this%number_of_nodes, this%Y, __FILE__,__LINE__)
         call memalloc (this%number_of_nodes, this%Z, __FILE__,__LINE__)
-    end subroutine mediator_mesh_allocate_nodal_arrays
+    end subroutine raw_mesh_allocate_nodal_arrays
 
 
-    subroutine mediator_mesh_allocate_subelements_connectivity(this, number_vertices, number_subelements)
+    subroutine raw_mesh_allocate_subelements_connectivity(this, number_vertices, number_subelements)
     !-----------------------------------------------------------------
     !< Allocate subelements connectivity array
     !-----------------------------------------------------------------
-        class(mediator_mesh_t),     intent(INOUT) :: this
+        class(raw_mesh_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: number_vertices
         integer(ip),           intent(IN)    :: number_subelements
     !-----------------------------------------------------------------
         assert(.not. allocated(this%subelements_connectivity))
         call memalloc(number_vertices, number_subelements, this%subelements_connectivity, __FILE__, __LINE__)
-    end subroutine mediator_mesh_allocate_subelements_connectivity
+    end subroutine raw_mesh_allocate_subelements_connectivity
 
 
-    subroutine mediator_mesh_generate_mesh(this)
+    subroutine raw_mesh_generate_mesh(this)
     !-----------------------------------------------------------------
     !< Generate the mesh data from fe_space
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), intent(INOUT) :: this
+        class(raw_mesh_t), intent(INOUT) :: this
     !-----------------------------------------------------------------
         assert(.not. this%filled)
         if(this%linear_order) then
@@ -530,14 +387,14 @@ contains
         else
             call this%generate_superlinear_mesh()
         endif
-    end subroutine mediator_mesh_generate_mesh
+    end subroutine raw_mesh_generate_mesh
 
 
-    subroutine mediator_mesh_generate_linear_mesh(this)
+    subroutine raw_mesh_generate_linear_mesh(this)
     !-----------------------------------------------------------------
-    !< Store a linear_order mesh in a vtk_handler_t derived type from a triangulation
+    !< Store a linear_order mesh from a triangulation
     !-----------------------------------------------------------------
-        class(mediator_mesh_t),                intent(INOUT) :: this
+        class(raw_mesh_t),                intent(INOUT) :: this
         type(triangulation_t), pointer                  :: triangulation
         integer(ip)                                     :: i
         integer(ip)                                     :: j
@@ -580,14 +437,14 @@ contains
             number_nodes = number_nodes + triangulation%elems(i)%reference_fe_geo%get_number_vertices()
         enddo
         this%filled  = .true.
-    end subroutine mediator_mesh_generate_linear_mesh
+    end subroutine raw_mesh_generate_linear_mesh
 
 
-    subroutine mediator_mesh_generate_superlinear_mesh(this)
+    subroutine raw_mesh_generate_superlinear_mesh(this)
     !-----------------------------------------------------------------
-    !< Store a superlinear_order mesh in a vtk_handler_t derived type from a fe_space
+    !< Store a superlinear_order mesh in a from a fe_space
     !-----------------------------------------------------------------
-        class(mediator_mesh_t),                intent(INOUT) :: this
+        class(raw_mesh_t),                intent(INOUT) :: this
         type(point_t),            pointer               :: vertex_coordinates(:)
         type(point_t),            pointer               :: nodal_coordinates(:)
         type(quadrature_t),       pointer               :: nodal_quadrature
@@ -685,41 +542,64 @@ contains
         end do
         this%filled  = .true.
         call fe_map%free()
-    end subroutine mediator_mesh_generate_superlinear_mesh
+    end subroutine raw_mesh_generate_superlinear_mesh
 
 
-    function mediator_mesh_generate_linear_field(this, fe_function, fe_space_index, field_name, field) result(E_IO)
+    function raw_mesh_get_field(this, fe_function, fe_space_index, field_name, field, number_components) result(E_IO)
     !-----------------------------------------------------------------
-    !< Write linear field to file
+    !< Generate the field data from fe_space and fe_function
+    !-----------------------------------------------------------------
+        class(raw_mesh_t),          intent(INOUT) :: this             !< raw_mesh_t derived type
+        type(fe_function_t),        intent(IN)    :: fe_function      !< Postprocess field structure to be written
+        integer(ip),                intent(IN)    :: fe_space_index   !< Fe space index
+        character(len=*),           intent(IN)    :: field_name       !< name of the field
+        real(rp), allocatable,      intent(INOUT) :: field(:,:)       !< FIELD(ncomp,nnod)
+        integer(ip),                intent(OUT)   :: number_components!< number of components
+        integer(ip)                               :: E_IO             !< IO Error
+    !-----------------------------------------------------------------
+        assert(this%filled)
+        if(this%linear_order) then
+            E_IO = this%generate_linear_field(fe_function, fe_space_index, field_name, field, number_components)
+        else
+            E_IO = this%generate_superlinear_field(fe_function, fe_space_index, field_name, field, number_components)
+        endif
+    end function raw_mesh_get_field
+
+
+    function raw_mesh_generate_linear_field(this, fe_function, fe_space_index, field_name, field, number_components) result(E_IO)
+    !-----------------------------------------------------------------
+    !< Generate the linear field data from fe_space and fe_function
     !-----------------------------------------------------------------
         implicit none
-        class(mediator_mesh_t),          intent(INOUT) :: this                                    !< mediator_mesh_t derived type
-        type(fe_function_t),        intent(IN)    :: fe_function                                  !< Postprocess field structure to be written
-        integer(ip),                intent(IN)    :: fe_space_index                               !< Fe space index
-        character(len=*),           intent(IN)    :: field_name                                   !< name of the field
-        real(rp), allocatable,      intent(INOUT) :: field(:,:)                                   !< FIELD(ncomp,nnod)
-        real(rp), allocatable                     :: nodal_values(:)                              !< nodal values
-        type(serial_scalar_array_t), pointer      :: strong_dirichlet_values                      !< Strong dirichlet values
-        type(finite_element_t),      pointer      :: fe                                           !< finite element
-        class(reference_fe_t),       pointer      :: reference_fe_phy_origin                      !< reference finite element
-        class(vector_t),             pointer      :: fe_function_dof_values                       !< dof values of the fe_function
-        type(i1p_t),                 pointer      :: elem2dof(:)                                  !< element 2 dof translator
-        integer(ip),                 pointer      :: field_blocks(:)                              !< field blocks
-        real(rp),                    pointer      :: strong_dirichlet_values_entries(:)           !< strong dirichlet values
-        type(list_t),                pointer      :: nodes_vef                                    !< list of reference_fe_phy nodes
-        type(list_iterator_t)                     :: nodes_vertex_iterator                        !< iterator on vertex nodes of the reference_fe_phy
-        integer(ip)                               :: number_elements                              !< number of elements
-        integer(ip)                               :: number_vertices                              !< number of geo vertex
-        integer(ip)                               :: number_components                            !< number of components
-        integer(ip)                               :: number_nodes                                 !< number of nodes per fe space
-        integer(ip)                               :: element_index                                !< element index
-        integer(ip)                               :: component_index                              !< component index
-        integer(ip)                               :: vertex_index                                 !< vertex index
-        integer(ip)                               :: node_index                                   !< node index
-        integer(ip)                               :: E_IO                                         !< IO Error
+        class(raw_mesh_t),     intent(INOUT) :: this                               !< raw_mesh_t derived type
+        type(fe_function_t),        intent(IN)    :: fe_function                        !< Postprocess field structure to be written
+        integer(ip),                intent(IN)    :: fe_space_index                     !< Fe space index
+        character(len=*),           intent(IN)    :: field_name                         !< name of the field
+        real(rp), allocatable,      intent(INOUT) :: field(:,:)                         !< FIELD(ncomp,nnod)
+        integer(ip),                intent(OUT)   :: number_components                  !< number of components
+        type(serial_scalar_array_t), pointer      :: strong_dirichlet_values            !< Strong dirichlet values
+        type(finite_element_t),      pointer      :: fe                                 !< finite element
+        class(reference_fe_t),       pointer      :: reference_fe_phy_origin            !< reference finite element
+        class(vector_t),             pointer      :: fe_function_dof_values             !< dof values of the fe_function
+        type(i1p_t),                 pointer      :: elem2dof(:)                        !< element 2 dof translator
+        integer(ip),                 pointer      :: field_blocks(:)                    !< field blocks
+        real(rp),                    pointer      :: strong_dirichlet_values_entries(:) !< strong dirichlet values
+        type(list_t),                pointer      :: nodes_vef                          !< list of reference_fe_phy nodes
+        real(rp), allocatable                     :: nodal_values(:)                    !< nodal values
+        type(list_iterator_t)                     :: nodes_vertex_iterator              !< iterator on vertex nodes of the reference_fe_phy
+        integer(ip)                               :: number_elements                    !< number of elements
+        integer(ip)                               :: number_vertices                    !< number of geo vertex
+        integer(ip)                               :: number_nodes                       !< number of nodes per fe space
+        integer(ip)                               :: element_index                      !< element index
+        integer(ip)                               :: component_index                    !< component index
+        integer(ip)                               :: vertex_index                       !< vertex index
+        integer(ip)                               :: node_index                         !< node index
+        integer(ip)                               :: E_IO                               !< IO Error
     !-----------------------------------------------------------------
         assert(associated(this%fe_space))
         assert(this%linear_order)
+
+        if(.not. this%filled) call this%generate_mesh()
 
         nullify(strong_dirichlet_values)
         nullify(fe)
@@ -778,53 +658,54 @@ contains
                 end do
             end do
         enddo
-
         call memfree(nodal_values, __FILE__, __LINE__)
-    end function mediator_mesh_generate_linear_field
+    end function raw_mesh_generate_linear_field
 
 
-    function mediator_mesh_generate_superlinear_field(this, fe_function, fe_space_index, field_name, field) result(E_IO)
+    function raw_mesh_generate_superlinear_field(this, fe_function, fe_space_index, field_name, field, number_components) result(E_IO)
     !-----------------------------------------------------------------
     !< Write superlinear field to file
     !-----------------------------------------------------------------
         implicit none
-        class(mediator_mesh_t),          intent(INOUT) :: this                                         !< vtk_handler_t derived type
-        type(fe_function_t),        intent(IN)    :: fe_function                                  !< Postprocess field structure to be written
-        integer(ip),                intent(IN)    :: fe_space_index                               !< Fe space index
-        character(len=*),           intent(IN)    :: field_name                                   !< name of the field
-        real(rp), allocatable,      intent(INOUT) :: field(:,:)                                   !< FIELD(ncomp,nnod)
-        real(rp), allocatable                     :: nodal_values_origin(:)                       !< nodal values of the origin fe_space
-        real(rp), allocatable                     :: nodal_values_target(:)                       !< nodal values for the interpolation
-        type(quadrature_t),          pointer      :: nodal_quadrature_target                      !< Nodal quadrature
-        type(serial_scalar_array_t), pointer      :: strong_dirichlet_values                      !< Strong dirichlet values
-        type(finite_element_t),      pointer      :: fe                                           !< finite element
-        class(reference_fe_t),       pointer      :: reference_fe_phy_origin                      !< reference finite element
-        class(reference_fe_t),       pointer      :: reference_fe_phy_target                      !< reference finite element
-        class(vector_t),             pointer      :: fe_function_dof_values                       !< dof values of the fe_function
-        type(i1p_t),                 pointer      :: elem2dof(:)                                  !< element 2 dof translator
-        type(interpolation_t)                     :: interpolation                                !< interpolator
-        integer(ip),                 pointer      :: field_blocks(:)                              !< field blocks
-        real(rp),                    pointer      :: strong_dirichlet_values_entries(:)           !< strong dirichlet values
-        integer(ip)                               :: number_elements                              !< number of elements
-        integer(ip)                               :: number_subelements                           !< number of subelements per element
-        integer(ip)                               :: number_vertices                              !< number of geo vertex
-        integer(ip)                               :: number_components                            !< number of components
-        integer(ip)                               :: number_nodes_scalar                          !< number of scalar nodes
-        integer(ip)                               :: number_nodes                                 !< number of nodes per fe space
-        integer(ip)                               :: element_index                                !< element index
-        integer(ip)                               :: component_index                              !< component index
-        integer(ip)                               :: node_index                                   !< node index
-        integer(ip)                               :: subelement_index                             !< subelement index
-        integer(ip)                               :: subnode_index                                !< subelement node index
-        integer(ip)                               :: order                                        !< current fe_space order
-        integer(ip)                               :: max_order                                    !< max fe_space order
-        integer(ip)                               :: max_order_fe_space_index                     !< index of the fe_space with max order
-        integer(ip)                               :: idx                                          !< Indices
-        integer(ip)                               :: E_IO                                         !< IO Error
-        logical                                   :: ft                                           !< Fine Task
+        class(raw_mesh_t),          intent(INOUT) :: this                               !< this raw mesh
+        type(fe_function_t),        intent(IN)    :: fe_function                        !< Postprocess field structure to be written
+        integer(ip),                intent(IN)    :: fe_space_index                     !< Fe space index
+        character(len=*),           intent(IN)    :: field_name                         !< name of the field
+        real(rp), allocatable,      intent(INOUT) :: field(:,:)                         !< FIELD(ncomp,nnod)
+        integer(ip),                intent(OUT)   :: number_components                  !< number of components
+        type(quadrature_t),          pointer      :: nodal_quadrature_target            !< Nodal quadrature
+        type(serial_scalar_array_t), pointer      :: strong_dirichlet_values            !< Strong dirichlet values
+        type(finite_element_t),      pointer      :: fe                                 !< finite element
+        class(reference_fe_t),       pointer      :: reference_fe_phy_origin            !< reference finite element
+        class(reference_fe_t),       pointer      :: reference_fe_phy_target            !< reference finite element
+        class(vector_t),             pointer      :: fe_function_dof_values             !< dof values of the fe_function
+        type(i1p_t),                 pointer      :: elem2dof(:)                        !< element 2 dof translator
+        integer(ip),                 pointer      :: field_blocks(:)                    !< field blocks
+        real(rp),                    pointer      :: strong_dirichlet_values_entries(:) !< strong dirichlet values
+        real(rp), allocatable                     :: nodal_values_origin(:)             !< nodal values of the origin fe_space
+        real(rp), allocatable                     :: nodal_values_target(:)             !< nodal values for the interpolation
+        type(interpolation_t)                     :: interpolation                      !< interpolator
+        integer(ip)                               :: number_elements                    !< number of elements
+        integer(ip)                               :: number_subelements                 !< number of subelements per element
+        integer(ip)                               :: number_vertices                    !< number of geo vertex
+        integer(ip)                               :: number_nodes_scalar                !< number of scalar nodes
+        integer(ip)                               :: number_nodes                       !< number of nodes per fe space
+        integer(ip)                               :: element_index                      !< element index
+        integer(ip)                               :: component_index                    !< component index
+        integer(ip)                               :: node_index                         !< node index
+        integer(ip)                               :: subelement_index                   !< subelement index
+        integer(ip)                               :: subnode_index                      !< subelement node index
+        integer(ip)                               :: order                              !< current fe_space order
+        integer(ip)                               :: max_order                          !< max fe_space order
+        integer(ip)                               :: max_order_fe_space_index           !< index of the fe_space with max order
+        integer(ip)                               :: idx                                !< Indices
+        integer(ip)                               :: E_IO                               !< IO Error
+        logical                                   :: ft                                 !< Fine Task
     !-----------------------------------------------------------------
         assert(associated(this%fe_space))
         assert(.not. this%linear_order)
+
+        if(.not. this%filled) call this%generate_mesh()
 
         nullify(nodal_quadrature_target)
         nullify(strong_dirichlet_values)
@@ -906,19 +787,17 @@ contains
                 end do
             end do
         enddo
-
         call interpolation%free()
         call memfree(nodal_values_origin, __FILE__, __LINE__)
-        call memfree(field, __FILE__, __LINE__)
         call memfree(nodal_values_target, __FILE__, __LINE__)
-    end function mediator_mesh_generate_superlinear_field
+    end function raw_mesh_generate_superlinear_field
 
 
-    subroutine mediator_mesh_free(this) 
+    subroutine raw_mesh_free(this) 
     !-----------------------------------------------------------------
-    !< Free the mediator_mesh_t derived type
+    !< Free the raw_mesh_t derived type
     !-----------------------------------------------------------------
-        class(mediator_mesh_t), intent(inout) :: this
+        class(raw_mesh_t), intent(inout) :: this
         integer(ip)                      :: i
     !-----------------------------------------------------------------
         if(allocated(this%X))                        call memfree(this%X, __FILE__, __LINE__)
@@ -928,12 +807,6 @@ contains
         if(allocated(this%offset))                   call memfree(this%offset, __FILE__, __LINE__)
         if(allocated(this%cell_types))               call memfree(this%cell_types, __FILE__, __LINE__)
         if(allocated(this%subelements_connectivity)) call memfree(this%subelements_connectivity, __FILE__, __LINE__)
-        if(allocated(this%field)) then
-            do i=1, size(this%field)
-                call this%field(i)%free()
-            enddo
-            deallocate(this%field)
-        endif
         nullify(this%fe_space)
         this%number_of_nodes    = 0
         this%number_of_elements = 0
@@ -941,4 +814,4 @@ contains
         this%filled             = .false.
     end subroutine
 
-end module mediator_mesh
+end module raw_mesh

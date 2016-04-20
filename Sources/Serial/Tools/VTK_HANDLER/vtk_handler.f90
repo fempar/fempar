@@ -33,7 +33,8 @@ USE iso_c_binding
 USE lib_vtk_io
 USE types_names
 USE memor_names
-USE mediator_mesh
+USE raw_mesh
+USE field_metadata
 USE iso_fortran_env,             only: error_unit
 USE ir_precision,                only: str
 USE environment_names,           only: environment_t
@@ -52,6 +53,34 @@ private
         end function mkdir_recursive
     end interface  
 
+    ! File extensions and time prefix
+    character(len=5) :: time_prefix = 'time_'
+    character(len=4) :: vtk_ext     = '.vtu'
+    character(len=4) :: pvd_ext     = '.pvd'
+    character(len=5) :: pvtu_ext    = '.pvtu'
+
+    !-----------------------------------------------------------------
+    ! State transition diagram for type(vtk_handler_t)
+    !-----------------------------------------------------------------
+    ! Input State         | Action                | Output State 
+    !-----------------------------------------------------------------
+    ! START               | Initialize            | INITIALIZED
+    ! START               | Free                  | START
+
+    ! INITIALIZED         | Open                  | OPEN 
+    ! INITIALIZED         | Free                  | START       
+
+    ! OPEN                | Write_mesh            | GEO_OPEN   
+    ! OPEN                | Close                 | CLOSE
+    ! OPEN                | Free                  | START
+
+    ! GEO_OPEN            | Write_node_field      | POINTDATA_OPEN
+    ! GEO_OPEN            | Close                 | CLOSE
+    ! GEO_OPEN            | Free                  | START
+
+    ! POINTDATA_OPEN      | Write_node_field      | POINTDATA_OPEN
+    ! POINTDATA_OPEN      | Close                 | CLOSE
+    ! POINTDATA_OPEN      | Free                  | START
 
     ! STATE PARAMETERS
     integer(ip), parameter :: vtk_handler_state_start                 = 0
@@ -69,11 +98,12 @@ private
     type vtk_handler_t
     private
         class(environment_t),       pointer :: env      => NULL() ! Poins to fe_space_t
-        character(len=:), allocatable       :: path
-        character(len=:), allocatable       :: prefix
-        integer(ip)                         :: file_id
-        type(mediator_mesh_t)               :: mesh               ! mesh data and field_t descriptors
-        real(rp),         allocatable       :: steps(:)           ! Array of parameters (time, eigenvalues,etc.)
+        character(len=:), allocatable       :: path               ! Output path
+        character(len=:), allocatable       :: prefix             ! XVTX filename prefix
+        integer(ip)                         :: file_id            ! VTU file descriptor
+        type(raw_mesh_t)                    :: mesh               ! mesh data 
+        type(field_metadata_t), allocatable :: field(:)           ! field metadata
+        real(rp),               allocatable :: steps(:)           ! Array of parameters (time, eigenvalues,etc.)
         integer(ip)                         :: steps_counter = 0  ! time steps counter
         integer(ip)                         :: num_meshes    = 0  ! Number of VTK meshes stored
         integer(ip)                         :: num_steps     = 0  ! Number of time steps
@@ -100,11 +130,6 @@ private
         procedure         :: append_step                      => vtk_handler_append_step
         procedure         :: create_directory                 => vtk_handler_create_dir_hierarchy_on_root_process
     end type vtk_handler_t
-
-    character(len=5) :: time_prefix = 'time_'
-    character(len=4) :: vtk_ext     = '.vtu'
-    character(len=4) :: pvd_ext     = '.pvd'
-    character(len=5) :: pvtu_ext    = '.pvtu'
 
 public :: vtk_handler_t
 
@@ -142,7 +167,6 @@ contains
     !-----------------------------------------------------------------
     !< Build time output dir path for the vtk files in each timestep
     !-----------------------------------------------------------------
-        implicit none
         class(vtk_handler_t),       intent(INOUT) :: this
         real(rp),         optional, intent(IN)    :: time_step
         character(len=:), allocatable             :: dp
@@ -278,35 +302,33 @@ contains
         integer(ip),      optional,       intent(IN)    :: root_proc
         integer(ip),      optional,       intent(IN)    :: number_of_steps
         logical,          optional,       intent(IN)    :: linear_order
-        logical                                         :: lo, ft
+        logical                                         :: lo
         integer(ip)                                     :: me, np, st, rp
     !-----------------------------------------------------------------
         assert(this%state == vtk_handler_state_start)
-        lo = .False. !< Default linear order = .false.
-        ft = .False. !< Default fine task = .false.
-
-        if(present(linear_order)) lo = linear_order
 
         this%env => env
-
-        me = 0; np = 1; rp = 0
-        if(associated(this%env)) then 
-            call this%env%info(me,np) 
-            ft =  this%env%am_i_fine_task() 
-        endif
-        if(present(root_proc)) rp = root_proc
+        call this%env%info(me,np) 
         call this%set_root_proc(rp)
 
-        if(ft) then
-            call this%mesh%set_fe_space(fe_space)
+        if(this%env%am_i_fine_task() ) then
+            ! Default values
+            lo = .False. !< Default linear order = .false.
+            rp = 0       !< Default root processor
+            st = 100     !< Default number of steps
+
+            ! Optional arguments
+            if(present(linear_order))    lo = linear_order
+            if(present(root_proc))       rp = root_proc
+            if(present(number_of_steps)) st = number_of_steps
+
             call this%mesh%set_linear_order(lo)
+            call this%mesh%set_fe_space(fe_space)
+            allocate(this%field(this%mesh%get_number_fields()))
 
             this%path = path
             this%prefix = prefix
             call this%set_num_parts(np)
-
-            st = 1
-            if(present(number_of_steps)) st = number_of_steps
             call this%set_num_steps(st)
         endif
         this%state = vtk_handler_state_initialized
@@ -331,7 +353,6 @@ contains
         integer(ip)                               :: np          !< Number of processors
         integer(ip)                               :: E_IO        !< Error IO
     !-----------------------------------------------------------------
-print*, this%state
         assert(this%state == vtk_handler_state_initialized .or. this%state == vtk_handler_state_write_close)
         assert(associated(this%env))
         assert(allocated(this%path))
@@ -342,29 +363,28 @@ print*, this%state
         E_IO = 0
 
         if(ft) then
-            me = 0; np = 1
-            call this%env%info(me,np) 
+            ts = 0._rp  ! Default step value
+            of = 'raw'  ! Default VTK format
 
-            ts = 0._rp
+            ! Optional arguments
             if(present(time_step)) ts = time_step 
+            if(present(file_name)) fn = file_name
+            if(present(format)) of = trim(adjustl(format))
+
+            call this%env%info(me,np) 
             call this%append_step(ts)
 
+            ! Build path
             dp = this%get_VTK_time_output_path(time_step=ts)
             fn = this%get_VTK_filename(part_number=me)
             fn = dp//fn
 
-            if(present(file_name)) fn = file_name
-
             if( this%create_directory(dp,issue_final_barrier=.True.) == 0) then    
-                of = 'raw'
-                if(present(format)) of = trim(adjustl(format))
-
                 E_IO = VTK_INI_XML(output_format = trim(adjustl(of)),   &
                                    filename = trim(adjustl(fn)),        &
                                    mesh_topology = 'UnstructuredGrid',  &
                                    cf=this%file_id)
             endif
-
         endif
         this%state = vtk_handler_state_write_open
     end function vtk_handler_open_vtu
@@ -409,15 +429,25 @@ print*, this%state
         type(fe_function_t),        intent(INOUT) :: fe_function    !< fe_function containing the field to be written
         integer(ip),                intent(IN)    :: fe_space_index !< Fe space index
         character(len=*),           intent(IN)    :: field_name     !< name of the field
+        real(rp), allocatable                     :: field(:,:)     !< Raw data of the field
+        integer(ip)                               :: nc             !< number_of_components
         logical                                   :: ft             !< Fine Task
         integer(ip)                               :: E_IO           !< IO Error
     !-----------------------------------------------------------------
         assert(this%state == vtk_handler_state_write_geo_open .or. this%state == vtk_handler_state_write_pointdata_open)
         assert(associated(this%env))
+        assert(allocated(this%field))
+        assert(fe_space_index>0 .and. fe_space_index<=size(this%field))
         E_IO = 0
-        ft =  this%env%am_i_fine_task() 
-        if(ft) then        
-!            E_IO = this%get_node_field_buffer(fe_function, fe_space_index, field_name)
+        if(this%env%am_i_fine_task() ) then        
+            E_IO = this%mesh%get_field(fe_function, fe_space_index, field_name, field, number_components=nc)
+            if(this%state == vtk_handler_state_write_geo_open) then
+                E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=this%file_id)
+                this%state = vtk_handler_state_write_pointdata_open
+            endif
+            E_IO = VTK_VAR_XML(NC_NN=this%mesh%get_number_nodes(), N_COL=nc, varname=field_name, var=field, cf=this%file_id)
+            call this%field(fe_space_index)%set(name=field_name, data_type='Float64', number_components=nc)
+            if(allocated(field)) call memfree(field, __FILE__, __LINE__)
         endif
         this%state = vtk_handler_state_write_pointdata_open
     end function vtk_handler_write_vtu_node_field
@@ -433,19 +463,26 @@ print*, this%state
         logical                                   :: ft          !< Fine Task
       ! ----------------------------------------------------------------------------------
         assert(associated(this%env))
-        ft =  this%env%am_i_fine_task() 
+        assert(this%state == vtk_handler_state_write_pointdata_open .or. this%state == vtk_handler_state_write_pointdata_open .or. this%state == vtk_handler_state_write_open)
 
         E_IO = 0
-
-        if (ft) then
+        if (this%env%am_i_fine_task() ) then
             if(this%state == vtk_handler_state_write_pointdata_open) then
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=this%file_id)
-                this%state = vtk_handler_state_write_pointdata_close
+                ! this%state = vtk_handler_state_write_pointdata_close
+                E_IO = VTK_GEO_XML(cf=this%file_id)
+                ! this%state = vtk_handler_state_write_geo_close
+                E_IO = VTK_END_XML(cf=this%file_id)
+                ! this%state = vtk_handler_state_close
+            elseif(this%state == vtk_handler_state_write_geo_open) then
+                E_IO = VTK_GEO_XML(cf=this%file_id)
+                ! this%state = vtk_handler_state_write_geo_close
+                E_IO = VTK_END_XML(cf=this%file_id)
+                ! this%state = vtk_handler_state_write_close
+            elseif(this%state == vtk_handler_state_write_open) then
+                E_IO = VTK_END_XML(cf=this%file_id)
+                ! this%state = vtk_handler_state_write_close
             endif
-            assert(this%state == vtk_handler_state_write_geo_open .or. this%state == vtk_handler_state_write_pointdata_close)
-            E_IO = VTK_GEO_XML(cf=this%file_id)
-            E_IO = VTK_END_XML(cf=this%file_id)
-            this%state = vtk_handler_state_write_geo_close
         endif
         this%state = vtk_handler_state_write_close
     end function vtk_handler_close_vtu
@@ -459,54 +496,47 @@ print*, this%state
         character(len=*), optional, intent(IN)    :: file_name
         real(rp),         optional, intent(IN)    :: time_step
         integer(ip)                               :: rf
-        character(len=:),allocatable              :: var_name
-        character(len=:),allocatable              :: field_type
         character(len=:),allocatable              :: fn ,dp
         real(rp)                                  :: ts
-        integer(ip)                               :: i, fid, nnods, nels, E_IO
+        integer(ip)                               :: i, fid, E_IO
         integer(ip)                               :: me, np
         logical                                   :: isDir
     !-----------------------------------------------------------------
-
-        me = 0; np = 1
         check(associated(this%env))
         check(allocated(this%path))
         check(allocated(this%prefix))
-        call this%env%info(me,np) 
+        check(allocated(this%field))
 
         E_IO = 0
-
+        call this%env%info(me,np) 
         if( this%env%am_i_fine_task() .and. me == this%root_proc) then
-            ts = 0_rp
             if(allocated(this%steps)) then
                 if(this%steps_counter >0 .and. this%steps_counter <= size(this%steps,1)) &
                     ts = this%steps(this%steps_counter)
             endif
+
+            ts = 0_rp
             if(present(time_step)) ts = time_step 
 
+            ! Build path
             dp = this%get_VTK_time_output_path(time_step=ts)
             fn = this%get_pvtu_filename(time_step=ts)
             fn = dp//fn
             if(present(file_name)) fn = file_name
 
-            nnods = this%mesh%get_number_nodes()
-            nels = this%mesh%get_number_elements()
-
-    !        inquire( file=trim(dp)//'/.', exist=isDir ) 
             if(this%create_directory(trim(dp), issue_final_barrier=.False.) == 0) then
-                ! pvtu
                 E_IO = PVTK_INI_XML(filename = trim(adjustl(fn)), mesh_topology = 'PUnstructuredGrid', tp='Float64', cf=rf)
                 do i=0, this%num_parts-1
                     E_IO = PVTK_GEO_XML(source=trim(adjustl(this%get_VTK_filename(part_number=i))), cf=rf)
                 enddo
-
                 E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN', cf=rf)
-                ! Write fields point data
-                do i=1, this%mesh%get_number_fields()
-                    if(this%mesh%field_is_filled(i)) then
-                        call this%mesh%get_field_name(i, var_name)
-                        call this%mesh%get_field_type(i, field_type)
-                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(var_name)), tp=trim(adjustl(field_type)), Nc=this%mesh%get_field_number_components(i) , cf=rf)
+                ! Write point data fields
+                do i=1, size(this%field)
+                    if(this%field(i)%is_filled()) then
+                        E_IO = PVTK_VAR_XML(varname = trim(adjustl(this%field(i)%get_name())),      &
+                                            tp      = trim(adjustl(this%field(i)%get_data_type())), &
+                                            Nc      = this%field(i)%get_number_components(),        &
+                                            cf      = rf )
                     endif
                 enddo
                 E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE', cf=rf)
@@ -526,7 +556,7 @@ print*, this%state
         integer(ip)                               :: rf
         character(len=:),allocatable              :: var_name
         character(len=:),allocatable              :: pvdfn, pvtufn ,dp
-        integer(ip)                               :: i, fid, nnods, nels, ts, E_IO
+        integer(ip)                               :: ts, E_IO
         integer(ip)                               :: me, np
         logical                                   :: isDir
     !-----------------------------------------------------------------
@@ -541,7 +571,6 @@ print*, this%state
             pvdfn = trim(adjustl(this%path))//'/'//trim(adjustl(this%prefix))//pvd_ext
             if(present(file_name)) pvdfn = file_name
 
-    !        inquire( file=trim(adjustl(this%mesh%dir_path))//'/.', exist=isDir )
             if(this%create_directory(trim(adjustl(this%path)), issue_final_barrier=.False.) == 0) then
                 if(allocated(this%steps)) then
                     if(size(this%steps,1) >= min(this%num_steps,this%steps_counter)) then
@@ -566,13 +595,13 @@ print*, this%state
     !-----------------------------------------------------------------
         class(vtk_handler_t), intent(inout) :: this
         integer(ip)                         :: i, j 
-        logical                             :: ft
     !-----------------------------------------------------------------
-        ft = this%env%am_i_fine_task() 
-        if(ft) then
-            call this%mesh%free()
-            if (allocated(this%steps)) call memfree(this%steps, __FILE__,__LINE__)
-        endif
+        call this%mesh%free()
+        if (allocated(this%steps)) call memfree(this%steps, __FILE__,__LINE__)
+        do i=1, size(this%field)
+            call this%field(i)%free()
+        enddo
+        deallocate(this%field)
         if(allocated(this%path)) deallocate(this%path)
         if(allocated(this%prefix)) deallocate(this%prefix)
         nullify(this%env)
