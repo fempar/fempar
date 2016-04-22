@@ -66,11 +66,11 @@ module par_environment_names
      procedure :: free                                => par_environment_free
      procedure :: print                               => par_environment_print
      procedure :: created                             => par_environment_created
+     procedure :: get_next_level                      => par_environment_get_next_level
      procedure :: get_l1_rank                         => par_environment_get_l1_rank
      procedure :: get_l1_size                         => par_environment_get_l1_size
      procedure :: get_l1_to_l2_rank                   => par_environment_get_l1_to_l2_rank
      procedure :: get_l1_to_l2_size                   => par_environment_get_l1_to_l2_size
-     
      procedure :: get_lgt1_rank                       => par_environment_get_lgt1_rank
      procedure :: get_l1_context                      => par_environment_get_l1_context
      procedure :: get_lgt1_context                    => par_environment_get_lgt1_context
@@ -97,6 +97,9 @@ module par_environment_names
      procedure, private :: par_environment_l2_from_l1_gather_integer_1D_array
      generic   :: l2_from_l1_gather => par_environment_l2_from_l1_gather_integer, &
                                        par_environment_l2_from_l1_gather_integer_1D_array
+                                       
+     procedure, private :: par_environment_l1_to_l2_transfer_integer
+     generic  :: l1_to_l2_transfer => par_environment_l1_to_l2_transfer_integer
      
      procedure, private :: par_environment_l1_bcast_scalar_integer
      generic   :: l1_bcast => par_environment_l1_bcast_scalar_integer 
@@ -230,6 +233,16 @@ contains
   end function par_environment_created
   
   !=============================================================================
+  function par_environment_get_next_level( this )
+    implicit none 
+    ! Parameters
+    class(par_environment_t), target, intent(in) :: this
+    type(par_environment_t)         , pointer    :: par_environment_get_next_level
+    
+    par_environment_get_next_level => this%next_level
+  end function par_environment_get_next_level
+  
+  !=============================================================================
   function par_environment_get_l1_rank ( this )
     implicit none 
     ! Parameters
@@ -326,15 +339,12 @@ contains
     implicit none
     ! Dummy arguments
     class(par_environment_t),intent(in)  :: this
-
     ! Local variables
     integer :: mpi_comm_p, ierr
-
-    if ( this%am_i_l1_task() ) then
-      call psb_get_mpicomm (this%l1_context%get_icontxt(), mpi_comm_p)
-      call mpi_barrier ( mpi_comm_p, ierr)
-      check ( ierr == mpi_success )
-    end if
+    assert ( this%am_i_l1_task() )
+    call psb_get_mpicomm (this%l1_context%get_icontxt(), mpi_comm_p)
+    call mpi_barrier ( mpi_comm_p, ierr)
+    check ( ierr == mpi_success )
   end subroutine par_environment_l1_barrier
 
   subroutine par_environment_info(this,me,np) 
@@ -392,18 +402,16 @@ contains
     implicit none
     class(par_environment_t) , intent(in)    :: this
     real(rp)                 , intent(inout) :: alpha
-    if ( this%am_i_l1_task() ) then
-      call psb_sum(this%l1_context%get_icontxt(), alpha)
-    end if
+    assert ( this%am_i_l1_task() )
+    call psb_sum(this%l1_context%get_icontxt(), alpha)
   end subroutine par_environment_l1_sum_real_scalar 
      
  subroutine par_environment_l1_sum_real_vector(this,alpha)
     implicit none
     class(par_environment_t) , intent(in)    :: this
     real(rp)                 , intent(inout) :: alpha(:) 
-    if ( this%am_i_l1_task() ) then
-      call psb_sum(this%l1_context%get_icontxt(), alpha)
-    end if
+    assert (this%am_i_l1_task())
+    call psb_sum(this%l1_context%get_icontxt(), alpha)
  end subroutine par_environment_l1_sum_real_vector
  
  ! When packing   (gathering) ,    buffer <- alpha * x
@@ -448,111 +456,108 @@ contains
    real(rp), allocatable :: sndbuf(:) 
    real(rp), allocatable :: rcvbuf(:)
    
-   if ( this%am_i_l1_task() ) then
-      icontxt   = this%l1_context%get_icontxt()
-      my_pid    = this%l1_context%get_rank()
-      num_procs = this%l1_context%get_size()
+   assert (this%am_i_l1_task())
+   
+   icontxt   = this%l1_context%get_icontxt()
+   my_pid    = this%l1_context%get_rank()
+   num_procs = this%l1_context%get_size()
 
-      ! Get MPI communicator associated to icontxt (in
-      ! the current implementation of our wrappers
-      ! to the MPI library icontxt and mpi_comm are actually 
-      ! the same)
-      call psb_get_mpicomm (icontxt, mpi_comm)
+   call psb_get_mpicomm (icontxt, mpi_comm)
 
-      call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
-      call memalloc (num_snd, sndhd, __FILE__,__LINE__)
+   call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
+   call memalloc (num_snd, sndhd, __FILE__,__LINE__)
 
-      call memalloc ((snd_ptrs(num_snd+1)-snd_ptrs(1)), sndbuf, __FILE__,__LINE__)
-      call memalloc ((rcv_ptrs(num_rcv+1)-rcv_ptrs(1)), rcvbuf, __FILE__,__LINE__)
+   call memalloc ((snd_ptrs(num_snd+1)-snd_ptrs(1)), sndbuf, __FILE__,__LINE__)
+   call memalloc ((rcv_ptrs(num_rcv+1)-rcv_ptrs(1)), rcvbuf, __FILE__,__LINE__)
 
-      ! Pack send buffers
-      call pack_real ( snd_ptrs(num_snd+1)-snd_ptrs(1), pack_idx, alpha, x, sndbuf )
+   ! Pack send buffers
+   call pack_real ( snd_ptrs(num_snd+1)-snd_ptrs(1), pack_idx, alpha, x, sndbuf )
 
-      ! First post all the non blocking receives   
-      do i=1, num_rcv
-         proc_to_comm = list_rcv(i)
+   ! First post all the non blocking receives   
+   do i=1, num_rcv
+      proc_to_comm = list_rcv(i)
 
-         ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-         call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+      ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
+      call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
 
-         ! Message size to be received
-         sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
+      ! Message size to be received
+      sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
 
-         if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
-            call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
-                 &  psb_mpi_real, proc_to_comm, &
-                 &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
-            check ( iret == mpi_success )
+      if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
+         call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
+              &  psb_mpi_real, proc_to_comm, &
+              &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
+         check ( iret == mpi_success )
+      end if
+   end do
+
+   ! Secondly post all non-blocking sends
+   do i=1, num_snd
+      proc_to_comm = list_snd(i)
+
+      ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
+      call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+
+      ! Message size to be sent
+      sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
+
+      if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then 
+         call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
+              & psb_mpi_real, proc_to_comm,    &
+              & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
+         check ( iret == mpi_success )
+      end if
+   end do
+
+   ! Wait on all non-blocking receives
+   do i=1, num_rcv
+      proc_to_comm = list_rcv(i)
+
+      ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
+      call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+
+      ! Message size to be received
+      sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
+
+      if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
+         call mpi_wait(rcvhd(i), p2pstat, iret)
+
+      else if ( list_rcv(i)-1 == my_pid ) then
+         if ( sizmsg /= snd_ptrs(i+1)-snd_ptrs(i) ) then 
+            write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
+                 & sizmsg, snd_ptrs(i+1)-snd_ptrs(i) 
          end if
-      end do
 
-      ! Secondly post all non-blocking sends
-      do i=1, num_snd
-         proc_to_comm = list_snd(i)
+         rcvbuf( rcv_ptrs(i):rcv_ptrs(i)+sizmsg-1) = &
+              sndbuf( snd_ptrs(i): snd_ptrs(i)+sizmsg-1 )
+      end if
+   end do
 
-         ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-         call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+   ! Finally wait on all non-blocking sends
+   do i=1, num_snd
+      proc_to_comm = list_snd(i)
 
-         ! Message size to be sent
-         sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
+      ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
+      call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
 
-         if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then 
-            call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
-                 & psb_mpi_real, proc_to_comm,    &
-                 & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
-            check ( iret == mpi_success )
-         end if
-      end do
+      ! Message size to be received
+      sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
 
-      ! Wait on all non-blocking receives
-      do i=1, num_rcv
-         proc_to_comm = list_rcv(i)
+      if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then
+         call mpi_wait(sndhd(i), p2pstat, iret)
+         check ( iret == mpi_success )
+      end if
+   end do
 
-         ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-         call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+   ! Unpack recv buffers
+   call unpack_real (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, beta, rcvbuf, x )
 
-         ! Message size to be received
-         sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
+   call memfree (rcvhd,__FILE__,__LINE__) 
+   call memfree (sndhd,__FILE__,__LINE__)
 
-         if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
-            call mpi_wait(rcvhd(i), p2pstat, iret)
-            
-         else if ( list_rcv(i)-1 == my_pid ) then
-            if ( sizmsg /= snd_ptrs(i+1)-snd_ptrs(i) ) then 
-               write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
-                    & sizmsg, snd_ptrs(i+1)-snd_ptrs(i) 
-            end if
-
-            rcvbuf( rcv_ptrs(i):rcv_ptrs(i)+sizmsg-1) = &
-                 sndbuf( snd_ptrs(i): snd_ptrs(i)+sizmsg-1 )
-         end if
-      end do
-
-      ! Finally wait on all non-blocking sends
-      do i=1, num_snd
-         proc_to_comm = list_snd(i)
-
-         ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-         call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
-
-         ! Message size to be received
-         sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
-
-         if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then
-            call mpi_wait(sndhd(i), p2pstat, iret)
-            check ( iret == mpi_success )
-         end if
-      end do
-
-      ! Unpack recv buffers
-      call unpack_real (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, beta, rcvbuf, x )
-
-      call memfree (rcvhd,__FILE__,__LINE__) 
-      call memfree (sndhd,__FILE__,__LINE__)
-
-      call memfree (sndbuf,__FILE__,__LINE__)
-      call memfree (rcvbuf,__FILE__,__LINE__)
-   end if
+   call memfree (sndbuf,__FILE__,__LINE__)
+   call memfree (rcvbuf,__FILE__,__LINE__)
+   
  end subroutine par_environment_l1_neighbours_exchange_real
  
  ! When packing   (gathering) ,    buffer <- alpha * x
@@ -574,7 +579,7 @@ contains
    integer(ip)             , intent(in) :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
    integer(ip)             , intent(in) :: pack_idx (snd_ptrs(num_snd+1)-1)
 
-   ! Floating point data
+   ! Raw data to be exchanged
    integer(ip), intent(inout) :: x(:)
      
    ! Communication related locals 
@@ -596,111 +601,107 @@ contains
    integer(ip), allocatable :: sndbuf(:) 
    integer(ip), allocatable :: rcvbuf(:)
    
-   if ( this%am_i_l1_task() ) then
-      icontxt   = this%l1_context%get_icontxt()
-      my_pid    = this%l1_context%get_rank()
-      num_procs = this%l1_context%get_size()
+   assert( this%am_i_l1_task() )
+   icontxt   = this%l1_context%get_icontxt()
+   my_pid    = this%l1_context%get_rank()
+   num_procs = this%l1_context%get_size()
 
-      ! Get MPI communicator associated to icontxt (in
-      ! the current implementation of our wrappers
-      ! to the MPI library icontxt and mpi_comm are actually 
-      ! the same)
-      call psb_get_mpicomm (icontxt, mpi_comm)
 
-      call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
-      call memalloc (num_snd, sndhd, __FILE__,__LINE__)
+   call psb_get_mpicomm (icontxt, mpi_comm)
 
-      call memalloc ((snd_ptrs(num_snd+1)-snd_ptrs(1)), sndbuf, __FILE__,__LINE__)
-      call memalloc ((rcv_ptrs(num_rcv+1)-rcv_ptrs(1)), rcvbuf, __FILE__,__LINE__)
+   call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
+   call memalloc (num_snd, sndhd, __FILE__,__LINE__)
 
-      ! Pack send buffers
-      call pack_integer ( snd_ptrs(num_snd+1)-snd_ptrs(1), pack_idx, x, sndbuf )
-      
-      ! First post all the non blocking receives   
-      do i=1, num_rcv
-         proc_to_comm = list_rcv(i)
+   call memalloc ((snd_ptrs(num_snd+1)-snd_ptrs(1)), sndbuf, __FILE__,__LINE__)
+   call memalloc ((rcv_ptrs(num_rcv+1)-rcv_ptrs(1)), rcvbuf, __FILE__,__LINE__)
 
-         ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-         call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+   ! Pack send buffers
+   call pack_integer ( snd_ptrs(num_snd+1)-snd_ptrs(1), pack_idx, x, sndbuf )
 
-         ! Message size to be received
-         sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
+   ! First post all the non blocking receives   
+   do i=1, num_rcv
+      proc_to_comm = list_rcv(i)
 
-         if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
-            call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
-                 &  psb_mpi_integer, proc_to_comm, &
-                 &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
-            check ( iret == mpi_success )
+      ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
+      call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+
+      ! Message size to be received
+      sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
+
+      if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
+         call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
+              &  psb_mpi_integer, proc_to_comm, &
+              &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
+         check ( iret == mpi_success )
+      end if
+   end do
+
+   ! Secondly post all non-blocking sends
+   do i=1, num_snd
+      proc_to_comm = list_snd(i)
+
+      ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
+      call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+
+      ! Message size to be sent
+      sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
+
+      if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then 
+         call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
+              & psb_mpi_integer, proc_to_comm,    &
+              & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
+         check ( iret == mpi_success )
+      end if
+   end do
+
+   ! Wait on all non-blocking receives
+   do i=1, num_rcv
+      proc_to_comm = list_rcv(i)
+
+      ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
+      call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+
+      ! Message size to be received
+      sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
+
+      if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
+         call mpi_wait(rcvhd(i), p2pstat, iret)
+         check ( iret == mpi_success )
+      else if ( list_rcv(i)-1 == my_pid ) then
+         if ( sizmsg /= snd_ptrs(i+1)-snd_ptrs(i) ) then 
+            write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
+                 & sizmsg, snd_ptrs(i+1)-snd_ptrs(i) 
          end if
-      end do
 
-      ! Secondly post all non-blocking sends
-      do i=1, num_snd
-         proc_to_comm = list_snd(i)
+         rcvbuf( rcv_ptrs(i):rcv_ptrs(i)+sizmsg-1) = &
+              sndbuf( snd_ptrs(i): snd_ptrs(i)+sizmsg-1 )
+      end if
+   end do
 
-         ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-         call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+   ! Finally wait on all non-blocking sends
+   do i=1, num_snd
+      proc_to_comm = list_snd(i)
 
-         ! Message size to be sent
-         sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
+      ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
+      call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
 
-         if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then 
-            call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
-                 & psb_mpi_integer, proc_to_comm,    &
-                 & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
-            check ( iret == mpi_success )
-         end if
-      end do
+      ! Message size to be received
+      sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
 
-      ! Wait on all non-blocking receives
-      do i=1, num_rcv
-         proc_to_comm = list_rcv(i)
+      if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then
+         call mpi_wait(sndhd(i), p2pstat, iret)
+         check ( iret == mpi_success )
+      end if
+   end do
 
-         ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-         call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
+   ! Unpack recv buffers
+   call unpack_integer (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, rcvbuf, x )
 
-         ! Message size to be received
-         sizmsg = rcv_ptrs(i+1)-rcv_ptrs(i)
+   call memfree (rcvhd,__FILE__,__LINE__) 
+   call memfree (sndhd,__FILE__,__LINE__)
 
-         if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
-            call mpi_wait(rcvhd(i), p2pstat, iret)
-            check ( iret == mpi_success )
-         else if ( list_rcv(i)-1 == my_pid ) then
-            if ( sizmsg /= snd_ptrs(i+1)-snd_ptrs(i) ) then 
-               write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
-                    & sizmsg, snd_ptrs(i+1)-snd_ptrs(i) 
-            end if
-
-            rcvbuf( rcv_ptrs(i):rcv_ptrs(i)+sizmsg-1) = &
-                 sndbuf( snd_ptrs(i): snd_ptrs(i)+sizmsg-1 )
-         end if
-      end do
-
-      ! Finally wait on all non-blocking sends
-      do i=1, num_snd
-         proc_to_comm = list_snd(i)
-
-         ! Get MPI rank id associated to proc_to_comm - 1 in proc_to_comm
-         call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
-
-         ! Message size to be received
-         sizmsg = snd_ptrs(i+1)-snd_ptrs(i)
-
-         if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then
-            call mpi_wait(sndhd(i), p2pstat, iret)
-            check ( iret == mpi_success )
-         end if
-      end do
-      
-      ! Unpack recv buffers
-      call unpack_integer (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, rcvbuf, x )
-
-      call memfree (rcvhd,__FILE__,__LINE__) 
-      call memfree (sndhd,__FILE__,__LINE__)
-
-      call memfree (sndbuf,__FILE__,__LINE__)
-      call memfree (rcvbuf,__FILE__,__LINE__)
-   end if
+   call memfree (sndbuf,__FILE__,__LINE__)
+   call memfree (rcvbuf,__FILE__,__LINE__)
  end subroutine par_environment_l1_neighbours_exchange_integer
  
  ! When packing   (gathering) ,    buffer <- alpha * x
@@ -729,44 +730,40 @@ contains
    integer(ip), allocatable :: buffer(:)  
    integer(ip)              :: i 
    
-   if ( this%am_i_l1_task() ) then
-     call memalloc ( num_neighbours+1, ptrs, __FILE__, __LINE__ )
-     ptrs(1)=1
-     do i=2, num_neighbours+1
-       ptrs(i)=ptrs(i-1)+1
-     end do
+   assert  (this%am_i_l1_task())
+   call memalloc ( num_neighbours+1, ptrs, __FILE__, __LINE__ )
+   ptrs(1)=1
+   do i=2, num_neighbours+1
+      ptrs(i)=ptrs(i-1)+1
+   end do
+
+   call memalloc ( ptrs(num_neighbours+1)-1, pack_idx, __FILE__, __LINE__ )
+   pack_idx = 1 
+
+   call memalloc ( ptrs(num_neighbours+1)-1, unpack_idx, __FILE__, __LINE__ )
+   do i=1, ptrs(num_neighbours+1)-1
+      unpack_idx(i) = i + 1
+   end do
+
+   call memalloc ( num_neighbours+1, buffer, __FILE__, __LINE__ )
+   buffer(1) = input_data
+
+   call this%l1_neighbours_exchange ( num_neighbours,    &
+                                      list_neighbours,   &
+                                      ptrs,              &
+                                      unpack_idx,        &  
+                                      num_neighbours,    &
+                                      list_neighbours,   &
+                                      ptrs,              &
+                                      pack_idx,          &
+                                      buffer )
    
-     call memalloc ( ptrs(num_neighbours+1)-1, pack_idx, __FILE__, __LINE__ )
-     pack_idx = 1 
+   output_data = buffer(2:)
    
-     call memalloc ( ptrs(num_neighbours+1)-1, unpack_idx, __FILE__, __LINE__ )
-     do i=1, ptrs(num_neighbours+1)-1
-       unpack_idx(i) = i + 1
-     end do
-   
-     call memalloc ( num_neighbours+1, buffer, __FILE__, __LINE__ )
-     buffer(1) = input_data
-     
-     call this%l1_neighbours_exchange ( num_neighbours,    &
-                                        list_neighbours,   &
-                                        ptrs,              &
-                                        unpack_idx,        &  
-                                        num_neighbours,    &
-                                        list_neighbours,   &
-                                        ptrs,              &
-                                        pack_idx,          &
-                                        buffer )
-     
-     output_data = buffer(2:)
-     
-     call memfree (buffer    , __FILE__, __LINE__ )
-     call memfree (pack_idx  , __FILE__, __LINE__ )
-     call memfree (unpack_idx, __FILE__, __LINE__ )
-     call memfree (ptrs      , __FILE__, __LINE__ )
-     
-   end if   
-     
-   
+   call memfree (buffer    , __FILE__, __LINE__ )
+   call memfree (pack_idx  , __FILE__, __LINE__ )
+   call memfree (unpack_idx, __FILE__, __LINE__ )
+   call memfree (ptrs      , __FILE__, __LINE__ )
   end subroutine par_environment_l1_neighbours_exchange_single_integer
  
  subroutine pack_real ( neq, pack_idx, alpha, x, y )
@@ -903,16 +900,13 @@ contains
       integer                 , intent(in)   :: root
       integer(ip)             , intent(in)   :: input_data
       integer(ip)             , intent(out)  :: output_data(this%l1_context%get_size())
-      
       integer(ip) :: icontxt
       integer     :: mpi_comm, iret
-      
-      if ( this%am_i_l1_task() ) then
-        icontxt = this%l1_context%get_icontxt()
-        call psb_get_mpicomm (icontxt, mpi_comm)
-        call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, mpi_comm, iret)
-        check( iret == mpi_success )
-      end if
+      assert ( this%am_i_l1_task() )
+      icontxt = this%l1_context%get_icontxt()
+      call psb_get_mpicomm (icontxt, mpi_comm)
+      call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, mpi_comm, iret)
+      check( iret == mpi_success )
    end subroutine par_environment_l1_gather_scalar_integer
    
    subroutine par_environment_l1_scatter_scalar_integer ( this, root, input_data, output_data )
@@ -921,16 +915,13 @@ contains
       integer                 , intent(in)   :: root
       integer(ip)             , intent(in)   :: input_data(this%l1_context%get_size())
       integer(ip)             , intent(out)  :: output_data
-      
       integer(ip) :: icontxt
       integer     :: mpi_comm, iret
-      
-      if ( this%am_i_l1_task() ) then
-        icontxt = this%l1_context%get_icontxt()
-        call psb_get_mpicomm (icontxt, mpi_comm)
-        call mpi_scatter( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, mpi_comm, iret)
-        check( iret == mpi_success )
-      end if
+      assert( this%am_i_l1_task() )
+      icontxt = this%l1_context%get_icontxt()
+      call psb_get_mpicomm (icontxt, mpi_comm)
+      call mpi_scatter( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, mpi_comm, iret)
+      check( iret == mpi_success )
    end subroutine par_environment_l1_scatter_scalar_integer
    
    subroutine par_environment_l1_bcast_scalar_integer ( this, root, data )
@@ -938,31 +929,44 @@ contains
       class(par_environment_t), intent(in)    :: this
       integer                 , intent(in)    :: root
       integer(ip)             , intent(inout) :: data
-      
       integer(ip) :: icontxt
-      
-      if ( this%am_i_l1_task() ) then
-        icontxt = this%l1_context%get_icontxt()
-        call psb_bcast ( icontxt, data, root=root)
-      end if
+      assert ( this%am_i_l1_task() )
+      icontxt = this%l1_context%get_icontxt()
+      call psb_bcast ( icontxt, data, root=root)
    end subroutine par_environment_l1_bcast_scalar_integer
+   
+   subroutine par_environment_l1_to_l2_transfer_integer ( this, data )
+      implicit none
+      class(par_environment_t), intent(in)      :: this
+      integer(ip)             , intent(inout)   :: data
+      integer(ip) :: icontxt
+      integer(ip) :: recv_rank
+      integer(ip) :: send_rank
+      assert ( this%am_i_l1_to_l2_task() )
+      send_rank = 0
+      recv_rank = this%l1_to_l2_context%get_size()-1 
+      icontxt = this%l1_to_l2_context%get_icontxt()
+      if ( this%get_l1_to_l2_rank() == send_rank ) then
+        call psb_snd(icontxt, data, recv_rank)
+      else if (this%get_l1_to_l2_rank() == recv_rank) then
+        call psb_rcv(icontxt, data, send_rank)
+      end if
+   end subroutine par_environment_l1_to_l2_transfer_integer
+   
    
    subroutine par_environment_l2_from_l1_gather_integer ( this, input_data, output_data )
       implicit none
       class(par_environment_t), intent(in)   :: this
       integer(ip)             , intent(in)   :: input_data
       integer(ip)             , intent(out)  :: output_data(this%l1_to_l2_context%get_size())
-      
       integer(ip)            :: icontxt
       integer                :: mpi_comm, iret, root
-      
-      if ( this%am_i_l1_to_l2_task() ) then
-        root    = this%l1_to_l2_context%get_size() - 1 
-        icontxt = this%l1_to_l2_context%get_icontxt()
-        call psb_get_mpicomm (icontxt, mpi_comm)
-        call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, mpi_comm, iret)
-        check( iret == mpi_success )
-      end if
+      assert ( this%am_i_l1_to_l2_task() )
+      root    = this%l1_to_l2_context%get_size() - 1 
+      icontxt = this%l1_to_l2_context%get_icontxt()
+      call psb_get_mpicomm (icontxt, mpi_comm)
+      call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, mpi_comm, iret)
+      check( iret == mpi_success )
    end subroutine par_environment_l2_from_l1_gather_integer
    
    subroutine par_environment_l2_from_l1_gather_integer_1D_array ( this, input_data_size, input_data, recv_counts, displs, output_data )
@@ -977,17 +981,13 @@ contains
       integer(ip)            :: icontxt
       integer                :: mpi_comm, iret, root
       
-      if ( this%am_i_l1_to_l2_task() ) then
-        root    = this%l1_to_l2_context%get_size() - 1 
-        icontxt = this%l1_to_l2_context%get_icontxt()
-        call psb_get_mpicomm (icontxt, mpi_comm)
-        call mpi_gatherv( input_data, input_data_size, psb_mpi_integer, &
-                          output_data, recv_counts, displs, psb_mpi_integer, &
-                          root, mpi_comm, iret)
-        check( iret == mpi_success )
-      end if
+      assert( this%am_i_l1_to_l2_task() )
+      root    = this%l1_to_l2_context%get_size() - 1 
+      icontxt = this%l1_to_l2_context%get_icontxt()
+      call psb_get_mpicomm (icontxt, mpi_comm)
+      call mpi_gatherv( input_data, input_data_size, psb_mpi_integer, &
+           output_data, recv_counts, displs, psb_mpi_integer, &
+           root, mpi_comm, iret)
+      check( iret == mpi_success )
    end subroutine par_environment_l2_from_l1_gather_integer_1D_array
-   
-   
-   
 end module par_environment_names

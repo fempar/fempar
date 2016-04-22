@@ -452,7 +452,7 @@ function par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ( this, fe_
   do ivef_itfc = 1, this%par_triangulation%num_itfc_vefs
      vef_lid = this%par_triangulation%lst_itfc_vefs(ivef_itfc)
      ! Is current vef_lid a face ?
-     if ( this%triangulation%vefs(vef_lid)%dimension == this%triangulation%num_dims-1 ) then
+     if ( this%triangulation%vefs(vef_lid)%dime == this%triangulation%num_dims-1 ) then
         do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
            elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
            finite_element => this%get_finite_element(elem_lid)
@@ -750,7 +750,7 @@ function par_fe_space_compute_raw_interface_data_by_face_integ ( this, &
      vef_lid = this%par_triangulation%lst_itfc_vefs(ivef_itfc)
 
      ! Is current vef_lid a face ?
-     if ( this%triangulation%vefs(vef_lid)%dimension == this%triangulation%num_dims-1 ) then
+     if ( this%triangulation%vefs(vef_lid)%dime == this%triangulation%num_dims-1 ) then
         do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
            elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
            if ( this%par_triangulation%elems(elem_lid)%mypart /= mypart_id ) then

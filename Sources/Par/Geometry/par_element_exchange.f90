@@ -29,9 +29,11 @@ module par_element_exchange_names
    ! Serial modules
    use types_names
    use memor_names
+   
+   use par_context_names
+   use par_environment_names
    use element_import_names
    use migratory_element_names
-
    implicit none
 #include "debug.i90"
    private
@@ -40,23 +42,25 @@ module par_element_exchange_names
    public :: ghost_elements_exchange
 contains
 
-  subroutine ghost_elements_exchange ( icontxt, element_import, data )
+  subroutine ghost_elements_exchange ( par_environment, element_import, data )
     implicit none
-    integer(ip)               , intent(in)    :: icontxt
+    type(par_environment_t)   , intent(in)    :: par_environment
     type(element_import_t)    , intent(in)    :: element_import
     class(migratory_element_t), intent(inout) :: data(:)
-   
-    call plain_ghost_element_exchange ( icontxt, &
-                                        element_import%get_number_neighbours(), &
-                                        element_import%get_neighbours_ids(), &
-                                        element_import%get_rcv_ptrs(), &
-                                        element_import%get_rcv_leids(), &
-                                        element_import%get_snd_ptrs(), &
-                                        element_import%get_snd_leids(), &
-                                        data)
+    
+    if ( par_environment%am_i_l1_task() ) then
+      call plain_ghost_element_exchange ( par_environment, &
+                                          element_import%get_number_neighbours(), &
+                                          element_import%get_neighbours_ids(), &
+                                          element_import%get_rcv_ptrs(), &
+                                          element_import%get_rcv_leids(), &
+                                          element_import%get_snd_ptrs(), &
+                                          element_import%get_snd_leids(), &
+                                          data)
+    end if
   end subroutine ghost_elements_exchange
 
-  subroutine plain_ghost_element_exchange ( icontxt, &
+  subroutine plain_ghost_element_exchange ( par_environment, &
                                             number_neighbours, &
                                             neighbour_ids, &
                                             rcv_ptrs, &
@@ -75,7 +79,7 @@ contains
      include 'mpif.h'
 #endif
      ! Parameters
-     integer(ip)               , intent(in)    :: icontxt 
+     type(par_environment_t)   , intent(in)    :: par_environment 
      integer(ip)               , intent(in)    :: number_neighbours
      integer(ip)               , intent(in)    :: neighbour_ids(number_neighbours)
      integer(ip)               , intent(in)    :: rcv_ptrs(number_neighbours+1)
@@ -85,9 +89,10 @@ contains
      class(migratory_element_t), intent(inout) :: data(:) 
      
      ! Communication related locals 
-     integer :: my_pid, num_procs, i, proc_to_comm, sizmsg
-     integer :: mpi_comm,  iret, info
-     integer :: p2pstat(mpi_status_size)
+     integer(ip) :: icontxt 
+     integer     :: my_pid, num_procs, proc_to_comm, sizmsg
+     integer     :: mpi_comm,  iret, info
+     integer     :: p2pstat(mpi_status_size)
 
      ! Request handlers for non-blocking receives
      integer, allocatable, dimension(:) :: rcvhd
@@ -95,39 +100,86 @@ contains
      ! Request handlers for non-blocking receives
      integer, allocatable, dimension(:) :: sndhd
 
+     integer(ip)  , allocatable :: elemsizes(:)
+     integer(ip)  , allocatable :: rcv_ptrs_buf(:)
+     integer(ip)  , allocatable :: snd_ptrs_buf(:)
+     
      integer(ieep), allocatable :: sndbuf(:)  
      integer(ieep), allocatable :: rcvbuf(:)
 
-     integer(ip) :: elemsize
- 
-     ! Get my process identifier and number of
-     ! of processors available in the parallel
-     ! context
-     call psb_info(icontxt, my_pid, num_procs)
+     type(par_context_t), pointer :: l1_context
      
-     ! Get MPI communicator associated to icontxt (in
-     ! the current implementation of our wrappers
-     ! to the MPI library icontxt and mpi_comm are actually 
-     ! the same)
+     integer(ip) :: current, i, j
+     
+     assert ( par_environment%am_i_l1_task() )
+     
+     l1_context => par_environment%get_l1_context()
+     icontxt    = l1_context%get_icontxt()
+     my_pid     = l1_context%get_rank()
+     num_procs  = l1_context%get_size()
+     
      call psb_get_mpicomm (icontxt, mpi_comm)
-
-     ! Get element size
-     call data(snd_leids(1))%size(elemsize)
-
+     
+     call memalloc ( size(data), elemsizes, __FILE__, __LINE__ )
+     call memalloc ( number_neighbours+1, snd_ptrs_buf, __FILE__, __LINE__ )
+     call memalloc ( number_neighbours+1, rcv_ptrs_buf, __FILE__, __LINE__ )
+    
+     ! Set-up snd_ptrs_bufs using local information
+     elemsizes = - 1
+     snd_ptrs_buf = 0
+     do i=1, number_neighbours
+      do j=snd_ptrs(i),snd_ptrs(i+1)-1
+       call data(snd_leids(j))%size(elemsizes(snd_leids(j)))  
+       snd_ptrs_buf(i+1) = snd_ptrs_buf(i+1) + elemsizes(snd_leids(j))
+      end do
+     end do
+     
+     snd_ptrs_buf(1) = 1
+     do i=1, number_neighbours
+       snd_ptrs_buf(i+1) = snd_ptrs_buf(i) + snd_ptrs_buf(i+1)
+     end do
+     
+     ! Set-up rcv_ptrs using data fetched from my neighbours
+     call par_environment%l1_neighbours_exchange ( number_neighbours, &
+                                                   neighbour_ids,&
+                                                   rcv_ptrs,&
+                                                   rcv_leids,&
+                                                   number_neighbours,&
+                                                   neighbour_ids,&
+                                                   snd_ptrs,&
+                                                   snd_leids,&
+                                                   elemsizes )
+     
+     rcv_ptrs_buf = 0
+     do i=1, number_neighbours
+      do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
+       rcv_ptrs_buf(i+1) = rcv_ptrs_buf(i+1) + elemsizes(rcv_leids(j))
+      end do
+     end do
+     
+     rcv_ptrs_buf(1) = 1
+     do i=1, number_neighbours
+       rcv_ptrs_buf(i+1) = rcv_ptrs_buf(i) + rcv_ptrs_buf(i+1)
+     end do
+     
      ! Prepare room for sndbuf
-     call memalloc ((snd_ptrs(number_neighbours+1)-snd_ptrs(1))*elemsize, sndbuf, __FILE__,__LINE__)
+     call memalloc (snd_ptrs_buf(number_neighbours+1)-1, sndbuf, __FILE__,__LINE__)
 
      ! Prepare room for rcvbuf
-     call memalloc ((rcv_ptrs(number_neighbours+1)-rcv_ptrs(1))*elemsize, rcvbuf, __FILE__,__LINE__)
-
-     ! Pack data items into send buffer
-     do i=1, snd_ptrs(number_neighbours+1)-1
-        call data(snd_leids(i))%pack(elemsize,sndbuf((i-1)*elemsize+1)) 
-     end do
-
+     call memalloc (rcv_ptrs_buf(number_neighbours+1)-1, rcvbuf, __FILE__,__LINE__)
+     
      call memalloc (number_neighbours, rcvhd, __FILE__,__LINE__)
      call memalloc (number_neighbours, sndhd, __FILE__,__LINE__)
 
+     ! Pack data items into send buffer
+     do i=1, number_neighbours
+        current = snd_ptrs_buf(i)
+        do j=snd_ptrs(i),snd_ptrs(i+1)-1
+          call data(snd_leids(j))%pack( elemsizes(snd_leids(j)), sndbuf(current) )
+          current = current + elemsizes(snd_leids(j))
+        end do
+     end do
+     
      ! First post all the non blocking receives   
      do i=1, number_neighbours
        proc_to_comm = neighbour_ids(i)
@@ -136,17 +188,13 @@ contains
        call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
           
        ! Message size to be received
-       sizmsg = (rcv_ptrs(i+1)-rcv_ptrs(i))*elemsize
+       sizmsg = rcv_ptrs_buf(i+1)-rcv_ptrs_buf(i)
       
        if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= my_pid) ) then
-          call mpi_irecv(  rcvbuf((rcv_ptrs(i)-1)*elemsize+1), sizmsg, &
+          call mpi_irecv(  rcvbuf(rcv_ptrs_buf(i)), sizmsg, &
                         &  psb_mpi_integer1, proc_to_comm, &
                         &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
-
-          if ( iret /= mpi_success ) then
-             write (0,*) 'Error: mpi_irecv returned != mpi_success'
-             call psb_abort (icontxt)    
-          end if
+          check ( iret == mpi_success )
        end if
      end do
 
@@ -158,19 +206,15 @@ contains
         call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
           
         ! Message size to be sent
-        sizmsg = (snd_ptrs(i+1)-snd_ptrs(i))*elemsize
+        sizmsg = snd_ptrs_buf(i+1)-snd_ptrs_buf(i)
     
         if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= my_pid) ) then 
-             call mpi_isend(sndbuf((snd_ptrs(i)-1)*elemsize+1), sizmsg, &
+             call mpi_isend(sndbuf(snd_ptrs_buf(i)), sizmsg, &
                      & psb_mpi_integer1, proc_to_comm, &
                      & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
-
-             if ( iret /= mpi_success ) then
-                write (0,*) 'Error: mpi_isend returned != mpi_success'
-                call psb_abort (icontxt)    
-             end if
-          end if
-       end do
+             check ( iret == mpi_success )
+        end if
+     end do
 
      ! Wait on all non-blocking receives
      do i=1, number_neighbours
@@ -180,25 +224,20 @@ contains
        call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
           
        ! Message size to be received
-       sizmsg = (rcv_ptrs(i+1)-rcv_ptrs(i))*elemsize
+       sizmsg = rcv_ptrs_buf(i+1)-rcv_ptrs_buf(i)
       
        if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= my_pid) ) then
           call mpi_wait(rcvhd(i), p2pstat, iret)
-
-          if ( iret /= mpi_success ) then
-             write (0,*) 'Error: mpi_wait returned != mpi_success'
-             call psb_abort (icontxt)    
-          end if
+          check (iret == mpi_success)
        else if ( neighbour_ids(i)-1 == my_pid ) then
-          if ( sizmsg /= (snd_ptrs(i+1)-snd_ptrs(i))*elemsize ) then 
+          if ( sizmsg /= snd_ptrs_buf(i+1)-snd_ptrs_buf(i) ) then 
              write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
-                     & sizmsg, (snd_ptrs(i+1)-snd_ptrs(i) )*elemsize
+                     & sizmsg, snd_ptrs_buf(i+1)-snd_ptrs_buf(i)
           end if
-
-          rcvbuf( (rcv_ptrs(i)-1)*elemsize+1:(rcv_ptrs(i)-1)*elemsize+sizmsg) = &
-                 sndbuf( (snd_ptrs(i)-1)*elemsize+1:(snd_ptrs(i)-1)*elemsize+sizmsg )
+          rcvbuf( rcv_ptrs_buf(i):rcv_ptrs_buf(i+1)-1 ) = &
+                 sndbuf( snd_ptrs_buf(i):snd_ptrs_buf(i+1)-1 )
        end if
-    end do
+     end do
 
      ! Finally wait on all non-blocking sends
      do i=1, number_neighbours
@@ -208,27 +247,30 @@ contains
         call psb_get_rank (proc_to_comm, icontxt, proc_to_comm-1)
           
         ! Message size to be received
-        sizmsg = (snd_ptrs(i+1)-snd_ptrs(i))*elemsize
+        sizmsg = snd_ptrs_buf(i+1)-snd_ptrs_buf(i)
       
         if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= my_pid) ) then
           call mpi_wait(sndhd(i), p2pstat, iret)
-          if ( iret /= mpi_success ) then
-              write (0,*) 'Error: mpi_wait returned != mpi_success'
-              call psb_abort (icontxt)    
-          end if
+          check ( iret == mpi_success )
         end if
      end do
-
-     ! Unpack data items into send buffer
-     do i=1, rcv_ptrs(number_neighbours+1)-1
-        call data(rcv_leids(i))%unpack(elemsize,rcvbuf((i-1)*elemsize+1)) 
+     
+     ! Unpack data items from recv buffer
+     current = rcv_ptrs_buf(1)
+     do i=1, number_neighbours
+        do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
+          call data(rcv_leids(j))%unpack( elemsizes(rcv_leids(j)), rcvbuf(current) )
+          current = current + elemsizes(rcv_leids(j))
+        end do
      end do
 
      call memfree (rcvhd ,__FILE__,__LINE__) 
      call memfree (sndhd ,__FILE__,__LINE__)
      call memfree (sndbuf,__FILE__,__LINE__)
      call memfree (rcvbuf,__FILE__,__LINE__)
-   
+     call memfree (elemsizes, __FILE__, __LINE__ )
+     call memfree (snd_ptrs_buf, __FILE__, __LINE__ )
+     call memfree (rcv_ptrs_buf, __FILE__, __LINE__ )
    end subroutine plain_ghost_element_exchange 
 
 end module par_element_exchange_names

@@ -137,10 +137,10 @@ contains
        num_vertices = 0
        num_vertices_i_am_owner = 0
        do ivef=1, p_trian%triangulation%num_vefs
-          if (p_trian%triangulation%vefs(ivef)%dimension < 2) then
+          if (p_trian%triangulation%vefs(ivef)%dime < 2) then
              old2new_vefs(ivef) = num_vertices+1
              num_vertices = num_vertices + 1
-             if ( p_trian%vefs(ivef)%interface /= 0 ) then 
+             if ( p_trian%vefs(ivef)%itfc /= 0 ) then 
                 max_mypart = 0 
                 do ielem=1, p_trian%triangulation%vefs(ivef)%num_elems_around
                    elem_lid = p_trian%triangulation%vefs(ivef)%elems_around(ielem)
@@ -203,7 +203,7 @@ contains
           do isubelem=1, num_subelems
              do ivertex=1, num_vertices_per_subelem
                 vef_lid = p_trian%triangulation%elems(ielem)%vefs(subelem_vertices(ivertex,isubelem))
-                vef_dimension = p_trian%triangulation%vefs(vef_lid)%dimension
+                vef_dimension = p_trian%triangulation%vefs(vef_lid)%dime
                 p_mesh%f_mesh%lnods(offset) = old2new_vefs(vef_lid)
                 if ( p_trian%triangulation%vefs(vef_lid)%border /= 0 ) then
                    code(:,old2new_vefs(vef_lid)) = p_cond%f_conditions%code(:,vef_lid)
@@ -238,7 +238,7 @@ contains
        num_local_vertices_interface = 0 
        do ivef=1, p_trian%num_itfc_vefs
           vef_lid = p_trian%lst_itfc_vefs(ivef)
-          vef_dimension = p_trian%triangulation%vefs(vef_lid)%dimension
+          vef_dimension = p_trian%triangulation%vefs(vef_lid)%dime
           if ( vef_dimension < 2 ) then
              num_local_vertices_interface = num_local_vertices_interface + 1
           end if
@@ -250,7 +250,7 @@ contains
        num_local_vertices_interface = 0 
        do ivef=1, p_trian%num_itfc_vefs
           vef_lid = p_trian%lst_itfc_vefs(ivef)
-          vef_dimension = p_trian%triangulation%vefs(vef_lid)%dimension
+          vef_dimension = p_trian%triangulation%vefs(vef_lid)%dime
           if ( vef_dimension < 2 ) then
              num_local_vertices_interface = num_local_vertices_interface + 1
              p_mesh%f_mesh_dist%lnbou(num_local_vertices_interface) = old2new_vefs(vef_lid) 
@@ -293,7 +293,7 @@ contains
              data(elem_lid)%subelems_GIDs(isubelem) = p_mesh%f_mesh_dist%emap%l2g(offset+isubelem)
              do ivertex=1, num_vertices_per_subelem
                 vef_lid = p_trian%triangulation%elems(elem_lid)%vefs(subelem_vertices(ivertex,isubelem))
-                if ( p_trian%vefs(vef_lid)%interface /= 0 ) then
+                if ( p_trian%vefs(vef_lid)%itfc /= 0 ) then
                    num_subelems_interface = num_subelems_interface + 1 
                    exit 
                 end if
@@ -305,7 +305,7 @@ contains
        call memalloc ( p_mesh%f_mesh_dist%nebou, p_mesh%f_mesh_dist%lebou, __FILE__, __LINE__ )
        call memalloc ( p_mesh%f_mesh_dist%nebou+1, p_mesh%f_mesh_dist%pextn, __FILE__, __LINE__ )
 
-       call ghost_elements_exchange( l1_context%get_icontxt(), p_trian%element_import, data )
+       call ghost_elements_exchange( p_trian%p_env, p_trian%element_import, data )
 
        ! List interface subelems and count its neighbours
        num_subelems_interface = 0
@@ -320,7 +320,7 @@ contains
              subelem_visited = .false.
              do ivertex=1, num_vertices_per_subelem
                 vef_lid = p_trian%triangulation%elems(elem_lid)%vefs(subelem_vertices(ivertex,isubelem))
-                if ( p_trian%vefs(vef_lid)%interface /= 0 ) then
+                if ( p_trian%vefs(vef_lid)%itfc /= 0 ) then
                    if ( .not. subelem_visited ) then
                       num_subelems_interface = num_subelems_interface + 1
                       p_mesh%f_mesh_dist%lebou (num_subelems_interface) =  offset + isubelem
@@ -382,7 +382,7 @@ contains
              subelem_visited = .false.
              do ivertex=1, num_vertices_per_subelem
                 vef_lid = p_trian%triangulation%elems(elem_lid)%vefs(subelem_vertices(ivertex,isubelem))
-                if ( p_trian%vefs(vef_lid)%interface /= 0 ) then
+                if ( p_trian%vefs(vef_lid)%itfc /= 0 ) then
                    if ( .not. subelem_visited ) then
                       num_subelems_interface = num_subelems_interface + 1
                       p_mesh%f_mesh_dist%lebou (num_subelems_interface) =  offset + isubelem

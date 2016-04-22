@@ -75,9 +75,6 @@ module element_import_names
   ! Types
   public :: element_import_t
 
-  ! Functions
-  public :: element_import_free, element_import_print
-
 contains
 
   subroutine element_import_create_igp (this,                                 & ! Passed-object dummy argument

@@ -343,10 +343,7 @@ program par_test_reference_fe
   !                         npdir, npsoc, parts_mapping, num_parts_per_level)
   
   ! Create parallel environment
-  call par_env%create (w_context,&
-                       num_levels,&
-                       num_parts_per_level, &
-                       parts_mapping )
+  call par_env%create (w_context,num_levels,num_parts_per_level,parts_mapping )
   
   call par_env%print()
   
@@ -389,7 +386,6 @@ program par_test_reference_fe
                                      fe_space_component = 2 )
   
   call par_fe_space%fill_dof_info()
-  ! call par_fe_space%print()
     
   call fe_affine_operator%create (sparse_matrix_storage_format='CSR', &
                                   diagonal_blocks_symmetric_storage=(/.true./), &
@@ -406,7 +402,7 @@ program par_test_reference_fe
   
   ! Create iterative linear solver, set operators and solve linear system
   call iterative_linear_solver%create(par_env)
-  call iterative_linear_solver%set_type_from_string(fgmres_name)
+  call iterative_linear_solver%set_type_from_string(cg_name)
   call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
   dof_values => fe_function%get_dof_values()
   call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)

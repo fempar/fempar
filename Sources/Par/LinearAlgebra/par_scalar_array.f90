@@ -257,7 +257,6 @@ contains
     call this%serial_scalar_array%add(num_entries,ia,ioffset,val)
   end subroutine par_scalar_array_add_multiple_entries
   
-    
   !=============================================================================
   subroutine par_scalar_array_print ( this, luout )
     implicit none

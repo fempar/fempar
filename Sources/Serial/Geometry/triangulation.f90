@@ -71,7 +71,7 @@ module triangulation_names
 
   type vef_topology_t
      integer(ip)               :: border           = -1 ! Border local id of this vef, only for faces
-     integer(ip)               :: dimension             ! Vef dimension (SBmod)
+     integer(ip)               :: dime             = -1 ! Vef dimension (SBmod)
      integer(ip)               :: num_elems_around = -1 ! Number of elements around vef 
      integer(ip), allocatable  :: elems_around(:)       ! List of elements around vef 
   end type vef_topology_t
@@ -194,7 +194,7 @@ contains
           ! Take the corresponding vef
           global_vef_id = elem%vefs(local_vef_id) 
           vef => trian%vefs(global_vef_id)
-          assert(vef%dimension == face_dimensions)
+          assert(vef%dime == face_dimensions)
           
           ! If it is an interior face then
           if (vef%num_elems_around == 2 ) then
@@ -229,7 +229,7 @@ contains
     
           ! Take the corresponding vef
           vef => trian%vefs(elem%vefs(local_vef_id))
-          assert(vef%dimension == face_dimensions)
+          assert(vef%dime == face_dimensions)
           assert(vef%num_elems_around == 1 .or. vef%num_elems_around ==2) 
           
           ! If not filled
@@ -470,7 +470,7 @@ contains
        do iobj=1, trian%elems(ielem)%num_vefs
           jobj = trian%elems(ielem)%vefs(iobj)
           if (jobj /= -1) then ! jobj == -1 if vef belongs to neighbouring processor
-             trian%vefs(jobj)%dimension = trian%elems(ielem)%reference_fe_geo%get_vef_dimension(iobj)
+             trian%vefs(jobj)%dime = trian%elems(ielem)%reference_fe_geo%get_vef_dimension(iobj)
              if (elems_around_pos(jobj) == 1) then
                 call memalloc( trian%vefs(jobj)%num_elems_around, trian%vefs(jobj)%elems_around, __FILE__, __LINE__ )
              end if
@@ -483,7 +483,7 @@ contains
     ! Assign border and count boundary faces
     trian%num_boundary_faces = 0
     do iobj = 1, trian%num_vefs
-       if ( trian%vefs(iobj)%dimension == trian%num_dims -1 ) then
+       if ( trian%vefs(iobj)%dime == trian%num_dims -1 ) then
           if ( trian%vefs(iobj)%num_elems_around == 1 ) then 
              trian%num_boundary_faces = trian%num_boundary_faces + 1
              trian%vefs(iobj)%border = trian%num_boundary_faces
@@ -494,7 +494,7 @@ contains
     ! List boundary faces
     call memalloc (  trian%num_boundary_faces, trian%lst_boundary_faces,  __FILE__, __LINE__ )
     do iobj = 1, trian%num_vefs
-       if ( trian%vefs(iobj)%dimension == trian%num_dims -1 ) then
+       if ( trian%vefs(iobj)%dime == trian%num_dims -1 ) then
           if ( trian%vefs(iobj)%num_elems_around == 1 ) then 
              trian%lst_boundary_faces(trian%vefs(iobj)%border) = iobj
           end if
@@ -593,7 +593,7 @@ contains
        write (lunou,*) '****PRINT VEF ',iobje,' INFO****'
 
        write (lunou,*) 'border', trian%vefs(iobje)%border
-       write (lunou,*) 'dimension', trian%vefs(iobje)%dimension
+       write (lunou,*) 'dimension', trian%vefs(iobje)%dime
        write (lunou,*) 'num_elems_around', trian%vefs(iobje)%num_elems_around
        write (lunou,*) 'elems_around', trian%vefs(iobje)%elems_around
 

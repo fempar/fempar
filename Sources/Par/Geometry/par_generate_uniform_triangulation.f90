@@ -115,9 +115,9 @@ contains
           p_trian%elems => this
        end select
 
-       p_trian%elems(:)%interface = -1 
+       p_trian%elems(:)%itfc = -1 
        do ielem=1, mdist%nebou
-          p_trian%elems(mdist%lebou(ielem))%interface = ielem
+          p_trian%elems(mdist%lebou(ielem))%itfc = ielem
        end do
 
        p_trian%num_itfc_elems = mdist%nebou
@@ -137,7 +137,7 @@ contains
        end do
 
        ! Get vefs_GIDs from ghost elements
-       call ghost_elements_exchange ( l1_context%get_icontxt(), p_trian%element_import, p_trian%elems )
+       call ghost_elements_exchange ( p_trian%p_env, p_trian%element_import, p_trian%elems )
 
        ! Allocate elem_topology in triangulation for ghost elements  (SBmod)
        do ielem = num_elems+1, num_elems+num_ghosts       
