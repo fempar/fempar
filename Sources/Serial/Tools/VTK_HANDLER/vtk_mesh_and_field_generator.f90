@@ -27,7 +27,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module raw_mesh
+module vtk_mesh_and_field_generator
 
 USE types_names
 USE memor_names
@@ -73,7 +73,7 @@ private
 
 
     ! Type for storing mesh data
-    type raw_mesh_t
+    type vtk_mesh_and_field_generator_t
     private
         class(serial_fe_space_t), pointer :: fe_space      => NULL()                ! Poins to fe_space_t
         real(rp),          allocatable    :: X(:)                                   ! Mesh X coordintates
@@ -90,226 +90,202 @@ private
         logical                           :: filled             = .false.           ! Mesh data was already filled
     contains
     private
-        procedure, non_overridable, public :: move_to                           => raw_mesh_move_to
-        procedure, non_overridable, public :: set_fe_space                      => raw_mesh_set_fe_space
-        procedure, non_overridable, public :: set_linear_order                  => raw_mesh_set_linear_order
-        procedure, non_overridable, public :: get_number_nodes                  => raw_mesh_get_number_nodes
-        procedure, non_overridable, public :: get_number_elements               => raw_mesh_get_number_elements
-        procedure, non_overridable, public :: get_number_fields                 => raw_mesh_get_number_fields
-        procedure, non_overridable, public :: get_X_coordinates                 => raw_mesh_get_X_coordinates
-        procedure, non_overridable, public :: get_Y_coordinates                 => raw_mesh_get_Y_coordinates
-        procedure, non_overridable, public :: get_Z_coordinates                 => raw_mesh_get_Z_coordinates
-        procedure, non_overridable, public :: get_connectivities                => raw_mesh_get_connectivities
-        procedure, non_overridable, public :: get_offset                        => raw_mesh_get_offset
-        procedure, non_overridable, public :: get_cell_types                    => raw_mesh_get_cell_types
-        procedure, non_overridable, public :: get_field                         => raw_mesh_get_field
-        procedure, non_overridable         :: initialize_coordinates            => raw_mesh_initialize_coordinates
-        procedure, non_overridable         :: allocate_nodal_arrays             => raw_mesh_allocate_nodal_arrays
-        procedure, non_overridable         :: allocate_elemental_arrays         => raw_mesh_allocate_elemental_arrays
-        procedure, non_overridable         :: allocate_subelements_connectivity => raw_mesh_allocate_subelements_connectivity
-        procedure, non_overridable         :: generate_mesh                     => raw_mesh_generate_mesh
-        procedure, non_overridable         :: generate_linear_mesh              => raw_mesh_generate_linear_mesh
-        procedure, non_overridable         :: generate_superlinear_mesh         => raw_mesh_generate_superlinear_mesh
-        procedure, non_overridable         :: generate_linear_field             => raw_mesh_generate_linear_field
-        procedure, non_overridable         :: generate_superlinear_field        => raw_mesh_generate_superlinear_field
-        procedure, non_overridable, public :: free                              => raw_mesh_free
-    end type raw_mesh_t
+        procedure, non_overridable, public :: set_fe_space                      => vtk_mesh_and_field_generator_set_fe_space
+        procedure, non_overridable, public :: set_linear_order                  => vtk_mesh_and_field_generator_set_linear_order
+        procedure, non_overridable, public :: get_number_nodes                  => vtk_mesh_and_field_generator_get_number_nodes
+        procedure, non_overridable, public :: get_number_elements               => vtk_mesh_and_field_generator_get_number_elements
+        procedure, non_overridable, public :: get_number_fields                 => vtk_mesh_and_field_generator_get_number_fields
+        procedure, non_overridable, public :: get_X_coordinates                 => vtk_mesh_and_field_generator_get_X_coordinates
+        procedure, non_overridable, public :: get_Y_coordinates                 => vtk_mesh_and_field_generator_get_Y_coordinates
+        procedure, non_overridable, public :: get_Z_coordinates                 => vtk_mesh_and_field_generator_get_Z_coordinates
+        procedure, non_overridable, public :: get_connectivities                => vtk_mesh_and_field_generator_get_connectivities
+        procedure, non_overridable, public :: get_offset                        => vtk_mesh_and_field_generator_get_offset
+        procedure, non_overridable, public :: get_cell_types                    => vtk_mesh_and_field_generator_get_cell_types
+        procedure, non_overridable, public :: generate_mesh                     => vtk_mesh_and_field_generator_generate_mesh
+        procedure, non_overridable, public :: generate_field                    => vtk_mesh_and_field_generator_generate_field
+        procedure, non_overridable         :: initialize_coordinates            => vtk_mesh_and_field_generator_initialize_coordinates
+        procedure, non_overridable         :: allocate_nodal_arrays             => vtk_mesh_and_field_generator_allocate_nodal_arrays
+        procedure, non_overridable         :: allocate_elemental_arrays         => vtk_mesh_and_field_generator_allocate_elemental_arrays
+        procedure, non_overridable         :: allocate_subelements_connectivity => vtk_mesh_and_field_generator_allocate_subelements_connectivity
+        procedure, non_overridable         :: generate_linear_mesh              => vtk_mesh_and_field_generator_generate_linear_mesh
+        procedure, non_overridable         :: generate_superlinear_mesh         => vtk_mesh_and_field_generator_generate_superlinear_mesh
+        procedure, non_overridable         :: generate_linear_field             => vtk_mesh_and_field_generator_generate_linear_field
+        procedure, non_overridable         :: generate_superlinear_field        => vtk_mesh_and_field_generator_generate_superlinear_field
+        procedure, non_overridable, public :: free                              => vtk_mesh_and_field_generator_free
+    end type vtk_mesh_and_field_generator_t
 
-public :: raw_mesh_t
+public :: vtk_mesh_and_field_generator_t
 
 contains
 
-    subroutine raw_mesh_move_to(this, mesh)
-    !-----------------------------------------------------------------
-    !< Move this to other mesh host
-    !-----------------------------------------------------------------
-        class(raw_mesh_t), intent(INOUT) :: this                      ! Input mesh
-        type(raw_mesh_t),  intent(INOUT) :: mesh                      ! Output mesh
-    !-----------------------------------------------------------------
-        call mesh%free()
-        if(associated(this%fe_space)) mesh%fe_space => this%fe_space
-        if(allocated(this%X)) call memmovealloc(this%X, mesh%X, __FILE__, __LINE__)
-        if(allocated(this%Y)) call memmovealloc(this%Y, mesh%Y, __FILE__, __LINE__)
-        if(allocated(this%Z)) call memmovealloc(this%Z, mesh%Z, __FILE__, __LINE__)
-        if(allocated(this%offset)) call memmovealloc(this%offset, mesh%offset, __FILE__, __LINE__)
-        if(allocated(this%cell_types)) call memmovealloc(this%cell_types, mesh%cell_types, __FILE__, __LINE__)
-        if(allocated(this%subelements_connectivity)) call memmovealloc(this%subelements_connectivity, mesh%subelements_connectivity, __FILE__, __LINE__)
-        mesh%number_of_nodes = this%number_of_nodes
-        mesh%number_of_elements = this%number_of_elements
-        mesh%dimensions = this%dimensions
-        mesh%linear_order = this%linear_order
-        mesh%filled = this%filled
-        call this%free()
-    end subroutine raw_mesh_move_to
 
-
-    subroutine raw_mesh_set_fe_space(this, fe_space)
+    subroutine vtk_mesh_and_field_generator_set_fe_space(this, fe_space)
     !-----------------------------------------------------------------
     !< Set the fe_space
     !-----------------------------------------------------------------
-        class(raw_mesh_t),                intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t),                intent(INOUT) :: this
         class(serial_fe_space_t), target, intent(IN)    :: fe_space
     !-----------------------------------------------------------------
         this%fe_space => fe_space
-    end subroutine raw_mesh_set_fe_space
+    end subroutine vtk_mesh_and_field_generator_set_fe_space
 
 
-    function raw_mesh_get_fe_space(this) result(fe_space)
+    function vtk_mesh_and_field_generator_get_fe_space(this) result(fe_space)
     !-----------------------------------------------------------------
     !< Get the fe_space pointer
     !-----------------------------------------------------------------
-        class(raw_mesh_t),                intent(IN) :: this
+        class(vtk_mesh_and_field_generator_t),                intent(IN) :: this
         class(serial_fe_space_t), pointer            :: fe_space
     !-----------------------------------------------------------------
         fe_space => this%fe_space
-    end function raw_mesh_get_fe_space
+    end function vtk_mesh_and_field_generator_get_fe_space
 
 
-    function raw_mesh_is_filled(this) result(filled)
+    function vtk_mesh_and_field_generator_is_filled(this) result(filled)
     !-----------------------------------------------------------------
     !< Ask if the mesh data is filled
     !-----------------------------------------------------------------
-        class(raw_mesh_t), intent(IN) :: this
+        class(vtk_mesh_and_field_generator_t), intent(IN) :: this
         logical                       :: filled
     !-----------------------------------------------------------------
         filled = this%filled
-    end function raw_mesh_is_filled
+    end function vtk_mesh_and_field_generator_is_filled
 
 
-    subroutine raw_mesh_set_linear_order(this, linear_order)
+    subroutine vtk_mesh_and_field_generator_set_linear_order(this, linear_order)
     !-----------------------------------------------------------------
     !< Set linear order
     !-----------------------------------------------------------------
-        class(raw_mesh_t), intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t), intent(INOUT) :: this
         logical,           intent(IN)    :: linear_order
     !-----------------------------------------------------------------
         assert(.not. this%filled)
         this%linear_order = linear_order
-    end subroutine raw_mesh_set_linear_order
+    end subroutine vtk_mesh_and_field_generator_set_linear_order
 
 
-    function raw_mesh_get_number_nodes(this) result(number_nodes)
+    function vtk_mesh_and_field_generator_get_number_nodes(this) result(number_nodes)
     !-----------------------------------------------------------------
     !< Return the number of nodes
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(raw_mesh_t), intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t), intent(INOUT) :: this
         integer(ip)                      :: number_nodes
     !-----------------------------------------------------------------
-        if(.not. this%filled) call this%generate_mesh()
+        assert(this%filled)
         number_nodes = this%number_of_nodes
-    end function raw_mesh_get_number_nodes
+    end function vtk_mesh_and_field_generator_get_number_nodes
 
 
-    function raw_mesh_get_number_elements(this) result(number_elements)
+    function vtk_mesh_and_field_generator_get_number_elements(this) result(number_elements)
     !-----------------------------------------------------------------
     !< Return the number of elements
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(raw_mesh_t), intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t), intent(INOUT) :: this
         integer(ip)                      :: number_elements
     !-----------------------------------------------------------------
-        if(.not. this%filled) call this%generate_mesh()
+        assert(this%filled)
         number_elements = this%number_of_elements
-    end function raw_mesh_get_number_elements
+    end function vtk_mesh_and_field_generator_get_number_elements
 
 
-    function raw_mesh_get_dimensions(this) result(dimensions)
+    function vtk_mesh_and_field_generator_get_dimensions(this) result(dimensions)
     !-----------------------------------------------------------------
     !< Return the space dimensions of the mesh
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(raw_mesh_t), intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t), intent(INOUT) :: this
         integer(ip)                      :: dimensions
     !-----------------------------------------------------------------
-        if(.not. this%filled) call this%generate_mesh()
+        assert(this%filled)
         dimensions = this%dimensions
-    end function raw_mesh_get_dimensions
+    end function vtk_mesh_and_field_generator_get_dimensions
 
 
-    function raw_mesh_get_X_coordinates(this) result(X)
+    function vtk_mesh_and_field_generator_get_X_coordinates(this) result(X)
     !-----------------------------------------------------------------
     !< Return a pointer to the X coordinates array
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(raw_mesh_t), target, intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t), target, intent(INOUT) :: this
         real(rp),          pointer               :: X(:)
     !-----------------------------------------------------------------
-        if(.not. this%filled) call this%generate_mesh()
+        assert(this%filled)
         X => this%X
-    end function raw_mesh_get_X_coordinates
+    end function vtk_mesh_and_field_generator_get_X_coordinates
 
 
-    function raw_mesh_get_Y_coordinates(this) result(Y)
+    function vtk_mesh_and_field_generator_get_Y_coordinates(this) result(Y)
     !-----------------------------------------------------------------
     !< Return a pointer to the Y coordinates array
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(raw_mesh_t), target, intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t), target, intent(INOUT) :: this
         real(rp),          pointer               :: Y(:)
     !-----------------------------------------------------------------
-        if(.not. this%filled) call this%generate_mesh()
+        assert(this%filled)
         Y => this%Y
-    end function raw_mesh_get_Y_coordinates
+    end function vtk_mesh_and_field_generator_get_Y_coordinates
 
 
-    function raw_mesh_get_Z_coordinates(this) result(Z)
+    function vtk_mesh_and_field_generator_get_Z_coordinates(this) result(Z)
     !-----------------------------------------------------------------
     !< Return a pointer to the Z coordinates array
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(raw_mesh_t), target, intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t), target, intent(INOUT) :: this
         real(rp),          pointer               :: Z(:)
     !-----------------------------------------------------------------
-        if(.not. this%filled) call this%generate_mesh()
+        assert(this%filled)
         Z => this%Z
-    end function raw_mesh_get_Z_coordinates
+    end function vtk_mesh_and_field_generator_get_Z_coordinates
 
 
-    function raw_mesh_get_connectivities(this) result(connectivities)
+    function vtk_mesh_and_field_generator_get_connectivities(this) result(connectivities)
     !-----------------------------------------------------------------
     !< Return a pointer to the connectivities array
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(raw_mesh_t), target, intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t), target, intent(INOUT) :: this
         integer(ip),       pointer               :: connectivities(:)
     !-----------------------------------------------------------------
-        if(.not. this%filled) call this%generate_mesh()
+        assert(this%filled)
         connectivities => this%connectivities
-    end function raw_mesh_get_connectivities
+    end function vtk_mesh_and_field_generator_get_connectivities
 
 
-    function raw_mesh_get_offset(this) result(offset)
+    function vtk_mesh_and_field_generator_get_offset(this) result(offset)
     !-----------------------------------------------------------------
     !< Return a pointer to the offset array
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(raw_mesh_t), target, intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t), target, intent(INOUT) :: this
         integer(ip),       pointer               :: offset(:)
     !-----------------------------------------------------------------
-        if(.not. this%filled) call this%generate_mesh()
+        assert(this%filled)
         offset => this%offset
-    end function raw_mesh_get_offset
+    end function vtk_mesh_and_field_generator_get_offset
 
 
-    function raw_mesh_get_cell_types(this) result(cell_types)
+    function vtk_mesh_and_field_generator_get_cell_types(this) result(cell_types)
     !-----------------------------------------------------------------
     !< Return a pointer to the cell_types array
     !< Generate the mesh if it is not filled yet
     !-----------------------------------------------------------------
-        class(raw_mesh_t), target, intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t), target, intent(INOUT) :: this
         integer(I1P),      pointer               :: cell_types(:)
     !-----------------------------------------------------------------
-        if(.not. this%filled) call this%generate_mesh()
+        assert(this%filled)
         cell_types => this%cell_types
-    end function raw_mesh_get_cell_types
+    end function vtk_mesh_and_field_generator_get_cell_types
 
 
-    subroutine raw_mesh_initialize_coordinates(this)
+    subroutine vtk_mesh_and_field_generator_initialize_coordinates(this)
     !-----------------------------------------------------------------
     !< Set the z coordinate given the node index
     !-----------------------------------------------------------------
-        class(raw_mesh_t),     intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t),     intent(INOUT) :: this
     !-----------------------------------------------------------------
         assert(allocated(this%X))
         assert(allocated(this%Y))
@@ -317,39 +293,39 @@ contains
         this%X = 0.0_rp
         this%Y = 0.0_rp
         this%Z = 0.0_rp
-    end subroutine raw_mesh_initialize_coordinates
+    end subroutine vtk_mesh_and_field_generator_initialize_coordinates
 
 
-    function raw_mesh_get_number_fields(this) result(number_fields)
+    function vtk_mesh_and_field_generator_get_number_fields(this) result(number_fields)
     !-----------------------------------------------------------------
     !< Return the number of fields 
     !-----------------------------------------------------------------
-        class(raw_mesh_t), intent(IN) :: this
+        class(vtk_mesh_and_field_generator_t), intent(IN) :: this
         integer(ip)                   :: number_fields
     !-----------------------------------------------------------------
         assert(associated(this%fe_space))
         number_fields =  this%fe_space%get_number_fe_spaces()
-    end function raw_mesh_get_number_fields
+    end function vtk_mesh_and_field_generator_get_number_fields
 
 
-    subroutine raw_mesh_allocate_elemental_arrays(this)
+    subroutine vtk_mesh_and_field_generator_allocate_elemental_arrays(this)
     !-----------------------------------------------------------------
     !< Allocate all arrays of size number of elements
     !-----------------------------------------------------------------
-        class(raw_mesh_t),     intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t),     intent(INOUT) :: this
     !-----------------------------------------------------------------
         assert(.not. allocated(this%offset))
         assert(.not. allocated(this%cell_types))
         call memalloc(this%number_of_elements, this%offset, __FILE__, __LINE__)
         call memalloc(this%number_of_elements, this%cell_types, __FILE__, __LINE__)
-    end subroutine raw_mesh_allocate_elemental_arrays
+    end subroutine vtk_mesh_and_field_generator_allocate_elemental_arrays
 
 
-    subroutine raw_mesh_allocate_nodal_arrays(this)
+    subroutine vtk_mesh_and_field_generator_allocate_nodal_arrays(this)
     !-----------------------------------------------------------------
     !< Allocate all arrays with size number of nodes
     !-----------------------------------------------------------------
-        class(raw_mesh_t),     intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t),     intent(INOUT) :: this
     !-----------------------------------------------------------------
         assert(.not. allocated(this%connectivities))
         assert(.not. allocated(this%X))
@@ -359,42 +335,43 @@ contains
         call memalloc (this%number_of_nodes, this%X, __FILE__,__LINE__)
         call memalloc (this%number_of_nodes, this%Y, __FILE__,__LINE__)
         call memalloc (this%number_of_nodes, this%Z, __FILE__,__LINE__)
-    end subroutine raw_mesh_allocate_nodal_arrays
+    end subroutine vtk_mesh_and_field_generator_allocate_nodal_arrays
 
 
-    subroutine raw_mesh_allocate_subelements_connectivity(this, number_vertices, number_subelements)
+    subroutine vtk_mesh_and_field_generator_allocate_subelements_connectivity(this, number_vertices, number_subelements)
     !-----------------------------------------------------------------
     !< Allocate subelements connectivity array
     !-----------------------------------------------------------------
-        class(raw_mesh_t),     intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t),     intent(INOUT) :: this
         integer(ip),           intent(IN)    :: number_vertices
         integer(ip),           intent(IN)    :: number_subelements
     !-----------------------------------------------------------------
         assert(.not. allocated(this%subelements_connectivity))
         call memalloc(number_vertices, number_subelements, this%subelements_connectivity, __FILE__, __LINE__)
-    end subroutine raw_mesh_allocate_subelements_connectivity
+    end subroutine vtk_mesh_and_field_generator_allocate_subelements_connectivity
 
 
-    subroutine raw_mesh_generate_mesh(this)
+    subroutine vtk_mesh_and_field_generator_generate_mesh(this)
     !-----------------------------------------------------------------
     !< Generate the mesh data from fe_space
     !-----------------------------------------------------------------
-        class(raw_mesh_t), intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t), intent(INOUT) :: this
     !-----------------------------------------------------------------
-        assert(.not. this%filled)
-        if(this%linear_order) then
-            call this%generate_linear_mesh()
-        else
-            call this%generate_superlinear_mesh()
+        if(.not. this%filled) then
+            if(this%linear_order) then
+                call this%generate_linear_mesh()
+            else
+                call this%generate_superlinear_mesh()
+            endif
         endif
-    end subroutine raw_mesh_generate_mesh
+    end subroutine vtk_mesh_and_field_generator_generate_mesh
 
 
-    subroutine raw_mesh_generate_linear_mesh(this)
+    subroutine vtk_mesh_and_field_generator_generate_linear_mesh(this)
     !-----------------------------------------------------------------
     !< Store a linear_order mesh from a triangulation
     !-----------------------------------------------------------------
-        class(raw_mesh_t),                intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t),                intent(INOUT) :: this
         type(triangulation_t), pointer                  :: triangulation
         integer(ip)                                     :: i
         integer(ip)                                     :: j
@@ -437,14 +414,14 @@ contains
             number_nodes = number_nodes + triangulation%elems(i)%reference_fe_geo%get_number_vertices()
         enddo
         this%filled  = .true.
-    end subroutine raw_mesh_generate_linear_mesh
+    end subroutine vtk_mesh_and_field_generator_generate_linear_mesh
 
 
-    subroutine raw_mesh_generate_superlinear_mesh(this)
+    subroutine vtk_mesh_and_field_generator_generate_superlinear_mesh(this)
     !-----------------------------------------------------------------
     !< Store a superlinear_order mesh in a from a fe_space
     !-----------------------------------------------------------------
-        class(raw_mesh_t),                intent(INOUT) :: this
+        class(vtk_mesh_and_field_generator_t),                intent(INOUT) :: this
         type(point_t),            pointer               :: vertex_coordinates(:)
         type(point_t),            pointer               :: nodal_coordinates(:)
         type(quadrature_t),       pointer               :: nodal_quadrature
@@ -542,14 +519,14 @@ contains
         end do
         this%filled  = .true.
         call fe_map%free()
-    end subroutine raw_mesh_generate_superlinear_mesh
+    end subroutine vtk_mesh_and_field_generator_generate_superlinear_mesh
 
 
-    function raw_mesh_get_field(this, fe_function, fe_space_index, field_name, field, number_components) result(E_IO)
+    function vtk_mesh_and_field_generator_generate_field(this, fe_function, fe_space_index, field_name, field, number_components) result(E_IO)
     !-----------------------------------------------------------------
     !< Generate the field data from fe_space and fe_function
     !-----------------------------------------------------------------
-        class(raw_mesh_t),          intent(INOUT) :: this             !< raw_mesh_t derived type
+        class(vtk_mesh_and_field_generator_t),          intent(INOUT) :: this             !< vtk_mesh_and_field_generator_t derived type
         type(fe_function_t),        intent(IN)    :: fe_function      !< Postprocess field structure to be written
         integer(ip),                intent(IN)    :: fe_space_index   !< Fe space index
         character(len=*),           intent(IN)    :: field_name       !< name of the field
@@ -563,15 +540,15 @@ contains
         else
             E_IO = this%generate_superlinear_field(fe_function, fe_space_index, field_name, field, number_components)
         endif
-    end function raw_mesh_get_field
+    end function vtk_mesh_and_field_generator_generate_field
 
 
-    function raw_mesh_generate_linear_field(this, fe_function, fe_space_index, field_name, field, number_components) result(E_IO)
+    function vtk_mesh_and_field_generator_generate_linear_field(this, fe_function, fe_space_index, field_name, field, number_components) result(E_IO)
     !-----------------------------------------------------------------
     !< Generate the linear field data from fe_space and fe_function
     !-----------------------------------------------------------------
         implicit none
-        class(raw_mesh_t),     intent(INOUT) :: this                               !< raw_mesh_t derived type
+        class(vtk_mesh_and_field_generator_t),     intent(INOUT) :: this                               !< vtk_mesh_and_field_generator_t derived type
         type(fe_function_t),        intent(IN)    :: fe_function                        !< Postprocess field structure to be written
         integer(ip),                intent(IN)    :: fe_space_index                     !< Fe space index
         character(len=*),           intent(IN)    :: field_name                         !< name of the field
@@ -597,9 +574,8 @@ contains
         integer(ip)                               :: E_IO                               !< IO Error
     !-----------------------------------------------------------------
         assert(associated(this%fe_space))
+        assert(this%filled)
         assert(this%linear_order)
-
-        if(.not. this%filled) call this%generate_mesh()
 
         nullify(strong_dirichlet_values)
         nullify(fe)
@@ -659,15 +635,15 @@ contains
             end do
         enddo
         call memfree(nodal_values, __FILE__, __LINE__)
-    end function raw_mesh_generate_linear_field
+    end function vtk_mesh_and_field_generator_generate_linear_field
 
 
-    function raw_mesh_generate_superlinear_field(this, fe_function, fe_space_index, field_name, field, number_components) result(E_IO)
+    function vtk_mesh_and_field_generator_generate_superlinear_field(this, fe_function, fe_space_index, field_name, field, number_components) result(E_IO)
     !-----------------------------------------------------------------
     !< Write superlinear field to file
     !-----------------------------------------------------------------
         implicit none
-        class(raw_mesh_t),          intent(INOUT) :: this                               !< this raw mesh
+        class(vtk_mesh_and_field_generator_t),          intent(INOUT) :: this                               !< this raw mesh
         type(fe_function_t),        intent(IN)    :: fe_function                        !< Postprocess field structure to be written
         integer(ip),                intent(IN)    :: fe_space_index                     !< Fe space index
         character(len=*),           intent(IN)    :: field_name                         !< name of the field
@@ -703,9 +679,8 @@ contains
         logical                                   :: ft                                 !< Fine Task
     !-----------------------------------------------------------------
         assert(associated(this%fe_space))
+        assert(this%filled)
         assert(.not. this%linear_order)
-
-        if(.not. this%filled) call this%generate_mesh()
 
         nullify(nodal_quadrature_target)
         nullify(strong_dirichlet_values)
@@ -790,14 +765,14 @@ contains
         call interpolation%free()
         call memfree(nodal_values_origin, __FILE__, __LINE__)
         call memfree(nodal_values_target, __FILE__, __LINE__)
-    end function raw_mesh_generate_superlinear_field
+    end function vtk_mesh_and_field_generator_generate_superlinear_field
 
 
-    subroutine raw_mesh_free(this) 
+    subroutine vtk_mesh_and_field_generator_free(this) 
     !-----------------------------------------------------------------
-    !< Free the raw_mesh_t derived type
+    !< Free the vtk_mesh_and_field_generator_t derived type
     !-----------------------------------------------------------------
-        class(raw_mesh_t), intent(inout) :: this
+        class(vtk_mesh_and_field_generator_t), intent(inout) :: this
         integer(ip)                      :: i
     !-----------------------------------------------------------------
         if(allocated(this%X))                        call memfree(this%X, __FILE__, __LINE__)
@@ -814,4 +789,4 @@ contains
         this%filled             = .false.
     end subroutine
 
-end module raw_mesh
+end module vtk_mesh_and_field_generator

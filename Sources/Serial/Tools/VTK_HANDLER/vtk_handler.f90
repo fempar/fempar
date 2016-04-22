@@ -33,8 +33,8 @@ USE iso_c_binding
 USE lib_vtk_io
 USE types_names
 USE memor_names
-USE raw_mesh
 USE field_metadata
+USE vtk_mesh_and_field_generator
 USE iso_fortran_env,             only: error_unit
 USE ir_precision,                only: str
 USE environment_names,           only: environment_t
@@ -105,6 +105,15 @@ private
     integer(ip), parameter :: vtk_handler_state_write_geo_close       = 6
     integer(ip), parameter :: vtk_handler_state_write_close           = 7
 
+
+    ! DEFAULT PARAMETERS
+    logical,          parameter :: default_linear_order          = .false.
+    integer(ip),      parameter :: default_root_task             = 0
+    integer(ip),      parameter :: default_number_of_tasks       = 1
+    integer(ip),      parameter :: default_guess_number_of_steps = 100
+    real(rp),         parameter :: default_step_value            = 0.0_rp
+    character(len=3), parameter :: default_vtk_format            = 'raw'
+
     ! Type for storing several mesh data with its field descriptors
     ! It also contains information about the number of parts (PVTU) and time steps (PVD)
     ! It stores the directory path and the prefix where to write in disk
@@ -114,14 +123,14 @@ private
         character(len=:), allocatable       :: path               ! Output path
         character(len=:), allocatable       :: prefix             ! XVTX filename prefix
         integer(ip)                         :: file_id            ! VTU file descriptor
-        type(raw_mesh_t)                    :: mesh               ! mesh data 
+        type(vtk_mesh_and_field_generator_t):: mesh               ! mesh data 
         type(field_metadata_t), allocatable :: field(:)           ! field metadata
         real(rp),               allocatable :: steps(:)           ! Array of parameters (time, eigenvalues,etc.)
         integer(ip)                         :: steps_counter = 0  ! time steps counter
         integer(ip)                         :: num_meshes    = 0  ! Number of VTK meshes stored
         integer(ip)                         :: num_steps     = 0  ! Number of time steps
         integer(ip)                         :: num_parts     = 0  ! Number of parts
-        integer(ip)                         :: root_proc     = 0  ! Root processor
+        integer(ip)                         :: root_task     = 0  ! Root processor
         integer(ip)                         :: state         = vtk_handler_state_start
     contains
     private
@@ -137,11 +146,11 @@ private
         procedure         :: get_pvd_time_output_path         => vtk_handler_get_pvd_time_output_path
         procedure         :: get_vtk_filename                 => vtk_handler_get_vtk_filename
         procedure         :: get_pvtu_filename                => vtk_handler_get_pvtu_filename
-        procedure         :: set_root_proc                    => vtk_handler_set_root_proc
+        procedure         :: set_root_task                    => vtk_handler_set_root_task
         procedure         :: set_num_steps                    => vtk_handler_set_num_steps
         procedure         :: set_num_parts                    => vtk_handler_set_num_parts
         procedure         :: append_step                      => vtk_handler_append_step
-        procedure         :: create_directory                 => vtk_handler_create_dir_hierarchy_on_root_process
+        procedure         :: create_directory                 => vtk_handler_create_dir_hierarchy_on_root_task
     end type vtk_handler_t
 
 public :: vtk_handler_t
@@ -149,7 +158,7 @@ public :: vtk_handler_t
 contains
 
 
-    function vtk_handler_create_dir_hierarchy_on_root_process(this, path, issue_final_barrier) result(res)
+    function vtk_handler_create_dir_hierarchy_on_root_task(this, path, issue_final_barrier) result(res)
     !-----------------------------------------------------------------
     !< The root process create a hierarchy of directories
     !-----------------------------------------------------------------
@@ -160,20 +169,23 @@ contains
         integer(kind=c_int)                 :: res
         integer(ip)                         :: me, np
     !-----------------------------------------------------------------
-        me = 0; np = 1; ft = .False.; ifb = .False.
+        me = default_root_task
+        np = default_number_of_tasks
+        ft = default_linear_order
+        ifb = .False.
         if(present(issue_final_barrier)) ifb = issue_final_barrier
         assert(associated(this%env))
         call this%env%info(me,np) 
-        assert(this%root_proc <= np-1)
+        assert(this%root_task <= np-1)
 
         res=0
-        if(me == this%root_proc) then
+        if(me == this%root_task) then
             res = mkdir_recursive(path//C_NULL_CHAR)
             check ( res == 0 ) 
         end if
 
         if(ifb) call this%env%first_level_barrier()
-    end function vtk_handler_create_dir_hierarchy_on_root_process
+    end function vtk_handler_create_dir_hierarchy_on_root_task
 
 
     function vtk_handler_get_VTK_time_output_path(this, time_step) result(dp)
@@ -219,7 +231,8 @@ contains
         character(len=:), allocatable             :: fp
         integer(ip)                               :: me, np
     !-----------------------------------------------------------------
-        me = 0; np = 1
+        me = default_root_task
+        np = default_number_of_tasks
         call this%env%info(me, np)
 
         if(present(part_number)) me = part_number
@@ -237,7 +250,7 @@ contains
         character(len=:), allocatable             :: fn
         real(rp)                                  :: ts
     !-----------------------------------------------------------------
-        ts = 0._rp
+        ts = default_step_value
         if(allocated(this%steps)) then
             if(this%steps_counter >0 .and. this%steps_counter <= size(this%steps,1)) &
                 ts = this%steps(this%steps_counter)
@@ -247,15 +260,15 @@ contains
     end function vtk_handler_get_pvtu_filename
 
 
-    subroutine vtk_handler_set_root_proc(this, root)
+    subroutine vtk_handler_set_root_task(this, root)
     !-----------------------------------------------------------------
     !< Set the root processor
     !-----------------------------------------------------------------
         class(vtk_handler_t), intent(INOUT) :: this
         integer(ip),          intent(IN)    :: root
     !-----------------------------------------------------------------
-        this%root_proc = root
-    end subroutine vtk_handler_set_root_proc
+        this%root_task = root
+    end subroutine vtk_handler_set_root_task
 
 
     subroutine vtk_handler_set_num_steps(this, steps)
@@ -286,7 +299,7 @@ contains
         if(.not.allocated(this%steps)) then
             call memalloc ( this%num_steps, this%steps, __FILE__,__LINE__)
         elseif(size(this%steps)<this%num_steps) then
-            call memrealloc (int(size(this%steps)*1.5), this%steps, __FILE__,__LINE__)
+            call memrealloc (max(this%steps_counter, int(size(this%steps)*1.5)), this%steps, __FILE__,__LINE__)
         endif        
         this%steps(this%steps_counter) = current_step
     end subroutine vtk_handler_append_step
@@ -303,7 +316,7 @@ contains
     end subroutine vtk_handler_set_num_parts
 
 
-    subroutine vtk_handler_initialize(this, fe_space, environment, path, prefix, root_proc, number_of_steps, linear_order)
+    subroutine vtk_handler_initialize(this, fe_space, environment, path, prefix, root_task, number_of_steps, linear_order)
     !-----------------------------------------------------------------
     !< Initialize the vtk_handler_t derived type
     !-----------------------------------------------------------------
@@ -312,7 +325,7 @@ contains
         class(environment_t),     target, intent(IN)    :: environment
         character(len=*),                 intent(IN)    :: path
         character(len=*),                 intent(IN)    :: prefix  
-        integer(ip),      optional,       intent(IN)    :: root_proc
+        integer(ip),      optional,       intent(IN)    :: root_task
         integer(ip),      optional,       intent(IN)    :: number_of_steps
         logical,          optional,       intent(IN)    :: linear_order
         logical                                         :: lo
@@ -322,17 +335,17 @@ contains
 
         this%env => environment
         call this%env%info(me,np) 
-        call this%set_root_proc(rp)
+        call this%set_root_task(rp)
 
         if(this%env%am_i_fine_task() ) then
             ! Default values
-            lo = .False. !< Default linear order = .false.
-            rp = 0       !< Default root processor
-            st = 100     !< Default number of steps
+            lo = default_linear_order
+            rp = default_root_task
+            st = default_guess_number_of_steps
 
             ! Optional arguments
             if(present(linear_order))    lo = linear_order
-            if(present(root_proc))       rp = root_proc
+            if(present(root_task))       rp = root_task
             if(present(number_of_steps)) st = number_of_steps
 
             call this%mesh%set_linear_order(lo)
@@ -361,7 +374,6 @@ contains
         character(len=:), allocatable             :: dp          !< Real Directory Path
         character(len=:), allocatable             :: of          !< Real Output Format
         real(rp)                                  :: ts          !< Real Time Step
-        logical                                   :: ft          !< Fine Task
         integer(ip)                               :: me          !< Task identifier
         integer(ip)                               :: np          !< Number of processors
         integer(ip)                               :: E_IO        !< Error IO
@@ -370,14 +382,12 @@ contains
         assert(associated(this%env))
         assert(allocated(this%path))
         assert(allocated(this%prefix))
-     
-        ft =  this%env%am_i_fine_task() 
 
         E_IO = 0
 
-        if(ft) then
-            ts = 0._rp  ! Default step value
-            of = 'raw'  ! Default VTK format
+        if(this%env%am_i_fine_task() ) then
+            ts = default_step_value
+            of = default_vtk_format
 
             ! Optional arguments
             if(present(time_step)) ts = time_step 
@@ -408,15 +418,16 @@ contains
     !< Write VTU mesh (VTK_GEO_XML, VTK_CON_XML )
     !-----------------------------------------------------------------
         class(vtk_handler_t),       intent(INOUT) :: this        !< vtk_handler_t derived type
-        logical                                   :: ft          !< Fine Task
         integer(ip)                               :: E_IO        !< Error IO
       ! ----------------------------------------------------------------------------------
         assert(this%state == vtk_handler_state_write_open)
         assert(associated(this%env))
-        ft =  this%env%am_i_fine_task() 
+
         E_IO = 0
 
-        if(ft) then
+        if(this%env%am_i_fine_task()) then
+            call this%mesh%generate_mesh()
+
             E_IO = VTK_GEO_XML(NN = this%mesh%get_number_nodes(),    &
                                NC = this%mesh%get_number_elements(), &
                                X  = this%mesh%get_X_coordinates(),   &
@@ -453,7 +464,7 @@ contains
         assert(fe_space_index>0 .and. fe_space_index<=size(this%field))
         E_IO = 0
         if(this%env%am_i_fine_task() ) then        
-            E_IO = this%mesh%get_field(fe_function, fe_space_index, field_name, field, number_components=nc)
+            E_IO = this%mesh%generate_field(fe_function, fe_space_index, field_name, field, number_components=nc)
             if(this%state == vtk_handler_state_write_geo_open) then
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=this%file_id)
                 this%state = vtk_handler_state_write_pointdata_open
@@ -473,7 +484,6 @@ contains
     !-----------------------------------------------------------------
         class(vtk_handler_t),       intent(INOUT) :: this        !< vtk_handler_t derived type
         integer(ip)                               :: E_IO        !< IO Error
-        logical                                   :: ft          !< Fine Task
       ! ----------------------------------------------------------------------------------
         assert(associated(this%env))
         assert(this%state == vtk_handler_state_write_pointdata_open .or. this%state == vtk_handler_state_write_pointdata_open .or. this%state == vtk_handler_state_write_open)
@@ -524,13 +534,13 @@ contains
 
         E_IO = 0
         call this%env%info(me,np) 
-        if( this%env%am_i_fine_task() .and. me == this%root_proc) then
+        if( this%env%am_i_fine_task() .and. me == this%root_task) then
             if(allocated(this%steps)) then
                 if(this%steps_counter >0 .and. this%steps_counter <= size(this%steps,1)) &
                     ts = this%steps(this%steps_counter)
             endif
 
-            ts = 0_rp
+            ts = default_step_value
             if(present(time_step)) ts = time_step 
 
             ! Build path
@@ -575,14 +585,14 @@ contains
         logical                                   :: isDir
     !-----------------------------------------------------------------
         assert(.not. this%state == vtk_handler_state_start)
-        me = 0; np = 1
+        me = default_root_task
+        np = default_number_of_tasks
         check(associated(this%env))
         call this%env%info(me,np) 
 
         E_IO = 0
 
-        if(this%env%am_i_fine_task() .and. me == this%root_proc) then
-        
+        if(this%env%am_i_fine_task() .and. me == this%root_task) then
             pvdfn = trim(adjustl(this%path))//'/'//trim(adjustl(this%prefix))//pvd_ext
             if(present(file_name)) pvdfn = file_name
 
@@ -623,7 +633,7 @@ contains
         this%num_meshes = 0
         this%num_steps = 0
         this%num_parts = 0
-        this%root_proc = 0
+        this%root_task = 0
         this%env => NULL()
         this%state = vtk_handler_state_start
     end subroutine VTK_handler_free
