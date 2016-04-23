@@ -113,18 +113,18 @@ module par_triangulation_names
      
      type(coarse_triangulation_t), pointer   :: coarse_triangulation
   contains
-     procedure, private :: compute_parts_itfc_vefs                        => par_triangulation_compute_parts_itfc_vefs
-     procedure, private :: compute_vefs_and_parts_object                  => par_triangulation_compute_vefs_and_parts_object
-     procedure, private :: compute_objects_neighbours_exchange_data       => par_triangulation_compute_objects_neighbours_exchange_data
-     procedure, private :: compute_number_global_objects_and_their_gids   => par_triangulation_compute_number_global_objects_and_their_gids
-     procedure, private :: setup_coarse_triangulation                     => par_triangulation_setup_coarse_triangulation
-     procedure, private :: gather_coarse_cell_gids                        => par_triangulation_gather_coarse_cell_gids
-     procedure, private :: gather_coarse_vefs_rcv_counts_and_displs       => par_triangulation_gather_coarse_vefs_rcv_counts_and_displs
-     procedure, private :: gather_coarse_vefs_gids                        => par_triangulation_gather_coarse_vefs_gids
-     procedure, private :: fetch_l2_part_id_neighbours                    => par_triangulation_fetch_l2_part_id_neighbours
-     procedure, private :: gather_coarse_dgraph_rcv_counts_and_displs     => par_triangulation_gather_coarse_dgraph_rcv_counts_and_displs
-     procedure, private :: gather_coarse_dgraph_lextn_and_lextp           => par_triangulation_gather_coarse_dgraph_lextn_and_lextp
-     procedure, private :: adapt_coarse_raw_arrays                        => par_triangulation_adapt_coarse_raw_arrays
+     procedure, non_overridable, private :: compute_parts_itfc_vefs                        => par_triangulation_compute_parts_itfc_vefs
+     procedure, non_overridable, private :: compute_vefs_and_parts_object                  => par_triangulation_compute_vefs_and_parts_object
+     procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => par_triangulation_compute_objects_neighbours_exchange_data
+     procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => par_triangulation_compute_number_global_objects_and_their_gids
+     procedure, non_overridable, private :: setup_coarse_triangulation                     => par_triangulation_setup_coarse_triangulation
+     procedure, non_overridable, private :: gather_coarse_cell_gids                        => par_triangulation_gather_coarse_cell_gids
+     procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs       => par_triangulation_gather_coarse_vefs_rcv_counts_and_displs
+     procedure, non_overridable, private :: gather_coarse_vefs_gids                        => par_triangulation_gather_coarse_vefs_gids
+     procedure, non_overridable, private :: fetch_l2_part_id_neighbours                    => par_triangulation_fetch_l2_part_id_neighbours
+     procedure, non_overridable, private :: gather_coarse_dgraph_rcv_counts_and_displs     => par_triangulation_gather_coarse_dgraph_rcv_counts_and_displs
+     procedure, non_overridable, private :: gather_coarse_dgraph_lextn_and_lextp           => par_triangulation_gather_coarse_dgraph_lextn_and_lextp
+     procedure, non_overridable, private :: adapt_coarse_raw_arrays                        => par_triangulation_adapt_coarse_raw_arrays
   end type par_triangulation_t
   
   ! Types

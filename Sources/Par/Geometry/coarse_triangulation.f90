@@ -32,6 +32,7 @@ module coarse_triangulation_names
   use migratory_element_names
   use element_import_names
   use hash_table_names
+  use list_types_names
   
   ! Parallel modules
   use par_environment_names
@@ -83,6 +84,7 @@ module coarse_triangulation_names
   type coarse_triangulation_t
      private
      integer(ip)                              :: num_dimensions  = -1 
+     
      integer(ip)                              :: num_local_cells = -1
      integer(ip)                              :: num_ghost_cells = -1
      type(coarse_cell_t), allocatable         :: cells(:)
@@ -98,7 +100,19 @@ module coarse_triangulation_names
      
      ! Data type describing the layout in distributed-memory of the dual graph
      ! (It is required, e.g., for nearest neighbour comms on this graph)
-     type(element_import_t)                   :: element_import      
+     type(element_import_t)                   :: element_import   
+     
+     ! Perhaps the following three member variables should be packed within type(map_t) ?
+     ! I didn't do that because type(map_t) has extra members that do not make sense anymore
+     ! for the current situation with objects (i.e., interior, boundary, external) etc.
+     integer(ip)                             :: number_global_objects
+     integer(ip)                             :: number_objects
+     integer(ip), allocatable                :: objects_gids(:)
+     
+     type(list_t)                            :: vefs_object
+     type(list_t)                            :: parts_object
+     
+     
      
      type(coarse_triangulation_t), pointer    :: next_level
   contains
@@ -116,6 +130,25 @@ module coarse_triangulation_names
      procedure, non_overridable, private :: compute_num_local_vefs               => coarse_triangulation_compute_num_local_vefs
      procedure, non_overridable, private :: get_global_vef_gid_array             => coarse_triangulation_get_global_vef_gid_array
      procedure, non_overridable, private :: get_ptrs_lst_cells_around            => coarse_triangulation_get_ptrs_lst_cells_around
+     procedure, non_overridable, private :: compute_num_itfc_vefs                => coarse_triangulation_compute_num_itfc_vefs
+     procedure, non_overridable, private :: allocate_lst_itfc_vefs               => coarse_triangulation_allocate_lst_itfc_vefs
+     procedure, non_overridable, private :: free_lst_itfc_vefs                   => coarse_triangulation_free_lst_itfc_vefs
+     procedure, non_overridable, private :: fill_lst_itfc_vefs                   => coarse_triangulation_fill_lst_itfc_vefs
+     
+     !procedure, non_overridable, private :: compute_parts_itfc_vefs                        => coarse_triangulation_compute_parts_itfc_vefs
+     !procedure, non_overridable, private :: compute_vefs_and_parts_object                  => coarse_triangulation_compute_vefs_and_parts_object
+     !procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => coarse_triangulation_compute_objects_neighbours_exchange_data
+     !procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => coarse_triangulation_compute_number_global_objects_and_their_gids
+     !procedure, non_overridable, private :: setup_coarse_triangulation                     => coarse_triangulation_setup_coarse_triangulation
+     !procedure, non_overridable, private :: gather_coarse_cell_gids                        => coarse_triangulation_gather_coarse_cell_gidsm
+     !procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs       => coarse_triangulation_gather_coarse_vefs_rcv_counts_and_displs
+     !procedure, non_overridable, private :: gather_coarse_vefs_gids                        => coarse_triangulation_gather_coarse_vefs_gids
+     !procedure, non_overridable, private :: fetch_l2_part_id_neighbours                    => coarse_triangulation_fetch_l2_part_id_neighbours
+     !procedure, non_overridable, private :: gather_coarse_dgraph_rcv_counts_and_displs     => coarse_triangulation_gather_coarse_dgraph_rcv_counts_and_displs
+     !procedure, non_overridable, private :: gather_coarse_dgraph_lextn_and_lextp           => coarse_triangulation_gather_coarse_dgraph_lextn_and_lextp
+     !procedure, non_overridable, private :: adapt_coarse_raw_arrays                        => coarse_triangulation_adapt_coarse_raw_arrays
+     
+     
   end type coarse_triangulation_t
 
   public :: coarse_triangulation_t
@@ -374,10 +407,10 @@ contains
                                          this%p_env%get_l1_size(), &
                                          num_local_cells, &
                                          num_itfc_cells, &
-                                         lst_itfc_cells, &
-                                         ptr_ext_neighs_per_itfc_cell, &
-                                         lst_ext_neighs_gids, &
-                                         lst_ext_neighs_part_ids)
+                                         lst_itfc_cells(1:num_itfc_cells), & ! I was for to provide l/u bounds to let gfortran 5.3.0 compile
+                                         ptr_ext_neighs_per_itfc_cell(1:num_itfc_cells+1), &
+                                         lst_ext_neighs_gids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1), &
+                                         lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
       this%num_dimensions  = num_dimensions      
       this%num_local_cells = num_local_cells
       this%num_ghost_cells = this%element_import%get_number_ghost_elements()
@@ -392,6 +425,10 @@ contains
       call this%compute_num_local_vefs()
       call this%allocate_vef_array()
       call this%fill_vef_array()
+      
+      call this%compute_num_itfc_vefs()
+      call this%allocate_lst_itfc_vefs()
+      call this%fill_lst_itfc_vefs()
     end if
     call this%print()
   end subroutine coarse_triangulation_create
@@ -414,6 +451,8 @@ contains
         end do
         call this%free_vef_array()
         this%num_local_vefs = -1
+        call this%free_lst_itfc_vefs()
+        this%num_itfc_vefs = -1
         this%num_dimensions = -1
       end if
       nullify(this%p_env)
@@ -439,6 +478,8 @@ contains
         write(*,'(a,i10,a)') '**** local vef: ',i,'****'
         call this%vefs(i)%print()
       end do
+      write(*,'(a,i10)') '**** num_itfc_vefs: ', this%num_itfc_vefs
+      write(*,'(a,10i10)') '**** lst_itfc_vefs: ', this%lst_itfc_vefs
       write (*,'(a)') '****end print type(coarse_triangulation_t)****'
     end if
   end subroutine coarse_triangulation_print 
@@ -690,5 +731,842 @@ contains
     end do
     ptr_cells_around(1) = 1
   end subroutine coarse_triangulation_get_ptrs_lst_cells_around
+  
+  subroutine coarse_triangulation_compute_num_itfc_vefs ( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    integer(ip)                                  :: icell, vef_lid, ivef, istat
+    type(hash_table_ip_ip_t)                     :: visited_vefs
+    
+    call visited_vefs%init(max(5,int(real(this%num_local_vefs,rp)*0.2_rp,ip)))
+    
+    this%num_itfc_vefs = 0
+    ! Traverse local ghost elements (all interface vefs are there)
+    do icell=this%num_local_cells+1, this%num_local_cells+this%num_ghost_cells
+       do ivef=1, this%cells(icell)%get_num_vefs()
+          vef_lid = this%cells(icell)%get_vef_lid(ivef)
+          if ( vef_lid /= -1 ) then
+            call visited_vefs%put(key=vef_lid, val=1, stat=istat)
+            if ( istat == now_stored ) then
+              this%num_itfc_vefs = this%num_itfc_vefs + 1
+            end if
+          end if
+       end do
+    end do
+    call visited_vefs%free()
+  end subroutine coarse_triangulation_compute_num_itfc_vefs
+  
+  subroutine coarse_triangulation_allocate_lst_itfc_vefs ( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    assert ( this%num_itfc_vefs >= 0 )
+    call this%free_lst_itfc_vefs()
+    call memalloc(this%num_itfc_vefs, this%lst_itfc_vefs,__FILE__,__LINE__)
+  end subroutine coarse_triangulation_allocate_lst_itfc_vefs
+  
+  subroutine coarse_triangulation_free_lst_itfc_vefs( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    if (allocated(this%lst_itfc_vefs)) call memfree(this%lst_itfc_vefs,__FILE__,__LINE__)
+  end subroutine coarse_triangulation_free_lst_itfc_vefs
+  
+  subroutine coarse_triangulation_fill_lst_itfc_vefs( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    integer(ip)                                  :: icell, vef_lid, ivef, i, istat
+    type(hash_table_ip_ip_t)                     :: visited_vefs
+
+    !call visited_vefs%init(max(5,int(real(this%num_local_vefs,rp)*0.2_rp,ip)))
+    !i=0
+    !! Traverse local ghost elements (all interface vefs are there)
+    !do icell=this%num_local_cells+1, this%num_local_cells+this%num_ghost_cells
+    !   do ivef=1, this%cells(icell)%get_num_vefs()
+    !      vef_lid = this%cells(icell)%get_vef_lid(ivef)
+    !      if ( vef_lid /= -1 ) then
+    !        call visited_vefs%put(key=vef_lid, val=1, stat=istat)
+    !        if ( istat == now_stored ) then
+    !          i=i+1
+    !          this%lst_itfc_vefs(i) = vef_lid
+    !        end if
+    !      end if
+    !   end do
+    !end do
+    !call visited_vefs%free()
+  end subroutine coarse_triangulation_fill_lst_itfc_vefs
+  
+    subroutine coarse_triangulation_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
+    implicit none
+    class(coarse_triangulation_t), intent(in)    :: this
+    integer(ip), allocatable  , intent(inout) :: parts_itfc_vefs(:,:)
+    integer(ip), allocatable  , intent(inout) :: perm_itfc_vefs(:)
+    
+    integer(ip)                               :: num_neighbours
+    logical, allocatable                      :: touched_neighbours(:)
+    integer(ip)                               :: nparts_around, mypart_id, part_id, local_part_id
+    integer(ip)                               :: ivef_itfc, ielem, vef_lid
+    integer(ip)                               :: elem_lid
+    integer(ip)                               :: num_rows_parts_itfc_vefs
+    integer(ip), allocatable                  :: work1(:), work2(:)
+    
+    !assert ( this%p_env%am_i_l1_task() )
+    
+    !if (allocated(parts_itfc_vefs)) call memfree(parts_itfc_vefs,__FILE__,__LINE__)
+    !if (allocated(perm_itfc_vefs)) call memfree(perm_itfc_vefs,__FILE__,__LINE__)
+    
+    !mypart_id = this%p_env%get_l1_rank() + 1 
+   
+    !num_neighbours = this%element_import%get_number_neighbours()    
+    !call memalloc ( num_neighbours, touched_neighbours, __FILE__, __LINE__ )
+    
+    !! The two extra rows in parts_per_itfc_vef are required in order to: (1) hold the number of parts around an interface vef
+    !!                                                                    (2) to hold mypart_id, which should be also listed among 
+    !!                                                                        the parts around each vef
+    !num_rows_parts_itfc_vefs = num_neighbours + 2
+    !call memalloc ( num_rows_parts_itfc_vefs, this%num_itfc_vefs, parts_itfc_vefs, __FILE__, __LINE__ )
+    !parts_itfc_vefs = 0
+    
+    !do ivef_itfc = 1, this%num_itfc_vefs
+    !  vef_lid = this%lst_itfc_vefs(ivef_itfc)
+    !  touched_neighbours = .false.
+    !  
+    !  nparts_around = 1 
+    !  parts_itfc_vefs(nparts_around+1,ivef_itfc) = mypart_id
+    !  
+    !  do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
+    !    elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
+    !    part_id = this%elems(elem_lid)%mypart
+    !    
+    !    if ( part_id /= mypart_id ) then
+    !     local_part_id = this%element_import%get_local_neighbour_id(part_id)
+    !     if (.not. touched_neighbours (local_part_id)) then
+    !       touched_neighbours (local_part_id) = .true.
+    !       nparts_around = nparts_around + 1 
+    !       parts_itfc_vefs(nparts_around+1,ivef_itfc) = part_id
+    !     end if
+    !    end if
+    !  end do
+    !  parts_itfc_vefs(1,ivef_itfc) = nparts_around
+    !  ! Sort list of parts in increasing order by part identifiers
+    !  ! This is required by the call to icomp subroutine below 
+    !  call sort ( nparts_around, parts_itfc_vefs(2:nparts_around+1, ivef_itfc) )
+    !end do
+    
+    !call memalloc ( this%num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
+    !do ivef_itfc = 1, this%num_itfc_vefs
+    !  perm_itfc_vefs(ivef_itfc) = ivef_itfc 
+    !end do
+    
+    
+    !! Re-number vefs in increasing order by the number of parts that share them, 
+    !! and among vefs sharing the same list of parts, in increasing order by the list 
+    !! of parts shared by the vef 
+    !call memalloc ( num_rows_parts_itfc_vefs, work1, __FILE__,__LINE__ )
+    !call memalloc ( num_rows_parts_itfc_vefs, work2, __FILE__,__LINE__ )
+    !call sort_array_cols_by_row_section( num_rows_parts_itfc_vefs, & 
+    !   &                                 num_rows_parts_itfc_vefs, & 
+    !   &                                 this%num_itfc_vefs, & 
+    !   &                                 parts_itfc_vefs, & 
+    !   &                                 perm_itfc_vefs, &
+    !   &                                 work1, &
+    !   &                                 work2 ) 
+    !call memfree ( work2, __FILE__,__LINE__ )
+    !call memfree ( work1, __FILE__,__LINE__ )
+    !call memfree ( touched_neighbours, __FILE__, __LINE__ )
+    
+    !do ivef_itfc=1,this%num_itfc_vefs
+    !  write(6,'(10i10)') ivef_itfc, this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)), parts_itfc_vefs(:, ivef_itfc) 
+    !end do
+  end subroutine coarse_triangulation_compute_parts_itfc_vefs
+  
+  subroutine coarse_triangulation_compute_vefs_and_parts_object(this)
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    integer(ip)                               :: nparts_around
+    integer(ip)                               :: ivef_itfc, init_vef, end_vef
+    integer(ip)                               :: iobj, ipart
+    integer(ip)                               :: num_rows_parts_itfc_vefs
+    integer(ip), allocatable                  :: parts_itfc_vefs (:,:)
+    integer(ip), allocatable                  :: perm_itfc_vefs(:)
+    type(list_iterator_t)                     :: vefs_object_iterator, parts_object_iterator
+
+    !assert ( this%p_env%am_i_l1_task() )
+    
+    !call this%compute_parts_itfc_vefs(parts_itfc_vefs,perm_itfc_vefs)
+    !num_rows_parts_itfc_vefs = size(parts_itfc_vefs,1)
+    
+    !! Count number_objects
+    !ivef_itfc = 1
+    !this%number_objects = 0
+    !do while ( ivef_itfc <= this%num_itfc_vefs ) 
+    !  if ( ivef_itfc < this%num_itfc_vefs ) then
+    !    do while (icomp(num_rows_parts_itfc_vefs,parts_itfc_vefs(:,ivef_itfc),parts_itfc_vefs(:,ivef_itfc+1)) == 0)
+    !      ivef_itfc = ivef_itfc + 1
+    !      if ( ivef_itfc == this%num_itfc_vefs  ) exit
+    !    end do
+    !  end if  
+    !  this%number_objects = this%number_objects + 1
+    !  ivef_itfc = ivef_itfc + 1
+    !end do
+    !    
+    !! Count number_vefs_per_object and number_parts_per_object
+    !call this%vefs_object%create(n=this%number_objects)
+    !call this%parts_object%create(n=this%number_objects)
+    !ivef_itfc = 1
+    !this%number_objects = 0
+    !do while ( ivef_itfc <= this%num_itfc_vefs ) 
+    !  init_vef = ivef_itfc
+    !  if ( ivef_itfc < this%num_itfc_vefs ) then
+    !    do while (icomp(num_rows_parts_itfc_vefs,parts_itfc_vefs(:,ivef_itfc),parts_itfc_vefs(:,ivef_itfc+1)) == 0)
+    !      ivef_itfc = ivef_itfc + 1
+    !      if ( ivef_itfc == this%num_itfc_vefs  ) exit
+    !    end do
+    !  end if  
+    !  end_vef = ivef_itfc
+    !  nparts_around = parts_itfc_vefs(1,end_vef)
+    !  this%number_objects = this%number_objects + 1
+    !  call this%parts_object%sum_to_pointer_index(this%number_objects, nparts_around)
+    !  call this%vefs_object%sum_to_pointer_index(this%number_objects, end_vef-init_vef+1 )
+    !  ivef_itfc = ivef_itfc + 1
+    !end do
+    
+    !call this%vefs_object%calculate_header()
+    !call this%parts_object%calculate_header()
+    !call this%vefs_object%allocate_list_from_pointer()
+    !call this%parts_object%allocate_list_from_pointer()
+    
+    !! List number_vefs_per_object and number_parts_per_object
+    !ivef_itfc=1
+    !do iobj=1, this%vefs_object%get_num_pointers()
+    !   vefs_object_iterator = this%vefs_object%get_iterator(iobj)
+    !   parts_object_iterator = this%parts_object%get_iterator(iobj)
+    !   
+    !   nparts_around = parts_itfc_vefs(1,ivef_itfc)
+    !   do ipart=1, nparts_around
+    !     call parts_object_iterator%set_current(parts_itfc_vefs(1+ipart,ivef_itfc))
+    !     call parts_object_iterator%next()
+    !   end do
+    !   
+    !   do while(.not. vefs_object_iterator%is_upper_bound())
+    !    call vefs_object_iterator%set_current(this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)))
+    !    call vefs_object_iterator%next()
+    !    ivef_itfc = ivef_itfc + 1
+    !   end do
+    !end do
+    
+    !call this%vefs_object%print(6)
+    !call this%parts_object%print(6)
+    
+    !call memfree ( parts_itfc_vefs, __FILE__, __LINE__ )
+    !call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )
+  end subroutine coarse_triangulation_compute_vefs_and_parts_object
+  
+  subroutine coarse_triangulation_compute_objects_neighbours_exchange_data ( this, &
+                                                                          num_rcv,&
+                                                                          list_rcv, &
+                                                                          rcv_ptrs,&
+                                                                          unpack_idx, &
+                                                                          num_snd, &
+                                                                          list_snd,&
+                                                                          snd_ptrs,&
+                                                                          pack_idx )
+    implicit none
+    class(coarse_triangulation_t), intent(in)    :: this
+    integer(ip)               , intent(out)   :: num_rcv
+    integer(ip), allocatable  , intent(inout) :: list_rcv(:)    
+    integer(ip), allocatable  , intent(inout) :: rcv_ptrs(:)
+    integer(ip), allocatable  , intent(inout) :: unpack_idx(:)
+    integer(ip)               , intent(out)   :: num_snd
+    integer(ip), allocatable  , intent(inout) :: list_snd(:)    
+    integer(ip), allocatable  , intent(inout) :: snd_ptrs(:)
+    integer(ip), allocatable  , intent(inout) :: pack_idx(:)
+    
+    ! Locals
+    integer(ip)                 :: part_id, my_part_id, num_neighbours
+    integer(ip)                 :: i, iobj, istat
+    type(list_iterator_t)       :: parts_object_iterator
+    type(position_hash_table_t) :: position_parts_rcv
+    integer(ip)                 :: current_position_parts_rcv
+    type(position_hash_table_t) :: position_parts_snd
+    integer(ip)                 :: current_position_parts_snd
+    
+    !assert ( this%p_env%am_i_l1_task() )
+    
+    !if (allocated(list_rcv)) call memfree(list_rcv,__FILE__,__LINE__)
+    !if (allocated(rcv_ptrs)) call memfree(rcv_ptrs,__FILE__,__LINE__)
+    !if (allocated(unpack_idx)) call memfree(unpack_idx,__FILE__,__LINE__)
+    !if (allocated(list_snd)) call memfree(list_snd,__FILE__,__LINE__)
+    !if (allocated(snd_ptrs)) call memfree(snd_ptrs,__FILE__,__LINE__)
+    !if (allocated(pack_idx)) call memfree(pack_idx,__FILE__,__LINE__)
+    
+    !my_part_id     = this%p_env%get_l1_rank() + 1
+    !num_neighbours = this%element_import%get_number_neighbours()  
+    
+    !call position_parts_rcv%init(num_neighbours)
+    !call position_parts_snd%init(num_neighbours)
+    !call memalloc ( num_neighbours  , list_rcv, __FILE__, __LINE__ )
+    !call memalloc ( num_neighbours+1, rcv_ptrs, __FILE__, __LINE__ )
+    !rcv_ptrs = 0 
+    
+    !call memalloc ( num_neighbours  , list_snd, __FILE__, __LINE__ )
+    !call memalloc ( num_neighbours+1, snd_ptrs, __FILE__, __LINE__ )
+    !snd_ptrs = 0
+    
+    !num_rcv = 0
+    !num_snd = 0
+    !do iobj=1, this%number_objects
+    !   parts_object_iterator = this%parts_object%get_iterator(iobj)
+    !   part_id = parts_object_iterator%get_current()
+    !   if ( my_part_id == part_id ) then
+    !     ! I am owner of the present object
+    !     call parts_object_iterator%next()
+    !     do while ( .not. parts_object_iterator%is_upper_bound() ) 
+    !        part_id = parts_object_iterator%get_current()
+    !        ! Insert part_id in the list of parts I have to send data
+    !        ! Increment by +1 the amount of data I have to send to part_id
+    !        call position_parts_snd%get(key=part_id, val=current_position_parts_snd, stat=istat)
+    !        if ( istat == new_index ) then
+    !          list_snd ( current_position_parts_snd ) = part_id
+    !        end if
+    !        snd_ptrs(current_position_parts_snd+1) = snd_ptrs(current_position_parts_snd+1)+1
+    !        call parts_object_iterator%next()
+    !     end do
+    !   else
+    !     ! I am non-owner of the present object
+    !     call position_parts_rcv%get(key=part_id, val=current_position_parts_rcv, stat=istat)
+    !     if ( istat == new_index ) then
+    !       list_rcv ( current_position_parts_rcv ) = part_id
+    !     end if
+    !     rcv_ptrs(current_position_parts_rcv+1) = rcv_ptrs(current_position_parts_rcv+1)+1 
+    !   end if
+    !end do
+   
+    !num_rcv = position_parts_rcv%last()
+    !num_snd = position_parts_snd%last() 
+    !rcv_ptrs(1) = 1 
+    !do i=1, num_rcv
+    !  rcv_ptrs(i+1) = rcv_ptrs(i+1) + rcv_ptrs(i)
+    !end do
+    
+    !snd_ptrs(1) = 1 
+    !do i=1, num_snd
+    !  snd_ptrs(i+1) = snd_ptrs(i+1) + snd_ptrs(i)
+    !end do
+    
+    !call memrealloc ( num_snd+1, snd_ptrs, __FILE__, __LINE__ )
+    !call memrealloc ( num_rcv+1, rcv_ptrs, __FILE__, __LINE__ )
+    !call memrealloc ( num_snd, list_snd, __FILE__, __LINE__ )
+    !call memrealloc ( num_rcv, list_rcv, __FILE__, __LINE__ )
+    !call memalloc ( snd_ptrs(num_snd+1)-1, pack_idx, __FILE__, __LINE__ )
+    !call memalloc ( rcv_ptrs(num_rcv+1)-1, unpack_idx, __FILE__, __LINE__ )
+    
+    !do iobj=1, this%number_objects
+    !   parts_object_iterator = this%parts_object%get_iterator(iobj)
+    !   part_id = parts_object_iterator%get_current()
+    !   if ( my_part_id == part_id ) then
+    !     ! I am owner of the present object
+    !     call parts_object_iterator%next()
+    !     do while ( .not. parts_object_iterator%is_upper_bound() ) 
+    !       part_id = parts_object_iterator%get_current()
+    !       call position_parts_snd%get(key=part_id, val=current_position_parts_snd, stat=istat)
+    !       pack_idx (snd_ptrs(current_position_parts_snd)) = iobj
+    !       snd_ptrs(current_position_parts_snd) = snd_ptrs(current_position_parts_snd)+1
+    !       call parts_object_iterator%next()
+    !     end do
+    !   else
+    !     ! I am non-owner of the present object
+    !     call position_parts_rcv%get(key=part_id, val=current_position_parts_rcv, stat=istat)
+    !     unpack_idx (rcv_ptrs(current_position_parts_rcv)) = iobj
+    !     rcv_ptrs(current_position_parts_rcv) = rcv_ptrs(current_position_parts_rcv)+1 
+    !   end if
+    !end do
+    
+    !do i=num_snd, 2, -1
+    !  snd_ptrs(i) = snd_ptrs(i-1) 
+    !end do
+    !snd_ptrs(1) = 1 
+    
+    !do i=num_rcv, 2, -1
+    !  rcv_ptrs(i) = rcv_ptrs(i-1) 
+    !end do
+    !rcv_ptrs(1) = 1
+    
+    !call position_parts_rcv%free()
+    !call position_parts_snd%free()
+  end subroutine coarse_triangulation_compute_objects_neighbours_exchange_data 
+  
+  subroutine coarse_triangulation_compute_num_global_objects_and_their_gids ( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+
+    integer(ip)               :: num_rcv
+    integer(ip), allocatable  :: list_rcv(:)    
+    integer(ip), allocatable  :: rcv_ptrs(:)
+    integer(ip), allocatable  :: unpack_idx(:)
+    
+    integer(ip)               :: num_snd
+    integer(ip), allocatable  :: list_snd(:)    
+    integer(ip), allocatable  :: snd_ptrs(:)
+    integer(ip), allocatable  :: pack_idx(:)
+   
+    integer(ip)               :: number_local_objects_with_gid
+    integer(ip), allocatable  :: local_objects_with_gid(:)
+    integer(ip), allocatable  :: per_rank_objects_with_gid(:)
+    integer(ip)               :: start_object_gid
+    type(list_iterator_t)     :: parts_object_iterator
+    integer(ip)               :: my_part_id, number_parts
+    integer(ip)               :: i, iobj
+    integer                   :: my_rank
+    
+    integer       , parameter :: root_pid = 0
+    integer(ip)               :: dummy_integer_array(1)
+
+    !assert ( this%p_env%am_i_l1_task() )
+    !my_rank      = this%p_env%get_l1_rank() 
+    !my_part_id   = my_rank + 1 
+    !number_parts = this%p_env%get_l1_size()
+    
+    !! 1. Count/list how many local objects I am responsible to assign a global ID
+    !call memalloc ( this%number_objects, local_objects_with_gid, __FILE__, __LINE__ )
+    !number_local_objects_with_gid = 0
+    !do iobj=1, this%number_objects
+    !  parts_object_iterator = this%parts_object%get_iterator(iobj)
+    !  if ( my_part_id == parts_object_iterator%get_current() ) then
+    !    number_local_objects_with_gid = number_local_objects_with_gid + 1
+    !    local_objects_with_gid (number_local_objects_with_gid) = iobj
+    !  end if
+    !end do
+    
+    !! 2. Gather + Scatter
+    !if ( my_rank == root_pid ) then
+    !  call memalloc( number_parts+1, per_rank_objects_with_gid, __FILE__,__LINE__ )
+    !  call this%p_env%l1_gather (root=root_pid, &
+    !                             input_data=number_local_objects_with_gid, &
+    !                             output_data=per_rank_objects_with_gid(2:) ) 
+    !   ! Transform length to header
+    !   per_rank_objects_with_gid(1)=1 
+    !   do i=1, number_parts
+    !      per_rank_objects_with_gid(i+1) = per_rank_objects_with_gid(i) + per_rank_objects_with_gid(i+1) 
+    !   end do
+    !   this%number_global_objects = per_rank_objects_with_gid(number_parts+1)-1 
+    !else
+    !  call this%p_env%l1_gather (root=root_pid, &
+    !                             input_data=number_local_objects_with_gid, &
+    !                             output_data=dummy_integer_array ) 
+    !end if
+    
+    !call this%p_env%l1_bcast (root=root_pid, data = this%number_global_objects )
+    
+    !if ( my_rank == root_pid ) then
+    !  call this%p_env%l1_scatter (root=root_pid, &
+    !                              input_data=per_rank_objects_with_gid, &
+    !                              output_data=start_object_gid) 
+    !  call memfree( per_rank_objects_with_gid, __FILE__,__LINE__ )
+    !else
+    !  call this%p_env%l1_scatter (root=root_pid, &
+    !                              input_data=dummy_integer_array, &
+    !                              output_data=start_object_gid) 
+    !end if
+    
+    
+    !call memalloc (this%number_objects, this%objects_gids)
+    !do i=1, number_local_objects_with_gid
+    !  this%objects_gids ( local_objects_with_gid(i) ) = start_object_gid
+    !  start_object_gid = start_object_gid + 1 
+    !end do
+    
+    !! Set-up objects nearest neighbour exchange data
+    !! num_rcv, rcv_ptrs, lst_rcv, unpack_idx
+    !! num_snd, snd_ptrs, lst_snd, pack_idx    
+    !call this%compute_objects_neighbours_exchange_data ( num_rcv, &
+    !                                                     list_rcv,&
+    !                                                     rcv_ptrs,&
+    !                                                     unpack_idx,&
+    !                                                     num_snd,&
+    !                                                     list_snd,&
+    !                                                     snd_ptrs,&
+    !                                                     pack_idx )
+    
+    !call this%p_env%l1_neighbours_exchange ( num_rcv, &
+    !                                         list_rcv,&
+    !                                         rcv_ptrs,&
+    !                                         unpack_idx,&
+    !                                         num_snd,&
+    !                                         list_snd,&
+    !                                         snd_ptrs,&
+    !                                         pack_idx,&
+    !                                         this%objects_gids )
+    
+    !call memfree ( list_rcv, __FILE__, __LINE__ )
+    !call memfree ( rcv_ptrs, __FILE__, __LINE__ )
+    !call memfree ( unpack_idx, __FILE__, __LINE__ )
+    !call memfree ( list_snd, __FILE__, __LINE__ )
+    !call memfree ( snd_ptrs, __FILE__, __LINE__ )
+    !call memfree ( pack_idx, __FILE__, __LINE__ )
+    !call memfree ( local_objects_with_gid, __FILE__, __LINE__ )
+  end subroutine coarse_triangulation_compute_num_global_objects_and_their_gids
+  
+  subroutine coarse_triangulation_setup_coarse_triangulation ( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    integer(ip)               , allocatable   :: coarse_cell_gids(:)
+    integer(ip)               , allocatable   :: coarse_vefs_recv_counts(:)
+    integer(ip)               , allocatable   :: coarse_vefs_displs(:)
+    integer(ip)               , allocatable   :: lst_coarse_vef_gids(:)
+    integer(ip)               , allocatable   :: l2_part_id_neighbours(:)
+    integer(ip)               , allocatable   :: coarse_dgraph_recv_counts(:)
+    integer(ip)               , allocatable   :: coarse_dgraph_displs(:)
+    integer(ip)               , allocatable   :: lextn(:)
+    integer(ip)               , allocatable   :: lextp(:)
+    
+    integer(ip)                      :: i, istat
+    integer(ip)                      :: num_dimensions
+    integer(ip)                      :: num_local_coarse_cells
+    integer(ip)                      :: num_itfc_coarse_cells
+    
+    !! All MPI tasks (even if they are not involved in the L2 from L1 gather) should also allocate the
+    !! allocatable arrays due to the fact that non-allocated allocatable arrays cannot
+    !! be passed as actual arguments of dummy arguments that do not have the allocatable attribute 
+    !! (see e.g. coarse_triangulation%create() below). Otherwise, the code crashes with a segmentation fault. 
+    !! Likewise, actual arguments which are used as input dummy arguments to size another array-type dummy arguments should also
+    !! be initialized on all MPI tasks
+    !num_local_coarse_cells = 0
+    !num_itfc_coarse_cells  = 0
+    !call memalloc (0, coarse_cell_gids, __FILE__, __LINE__)
+    !call memalloc (0, coarse_vefs_recv_counts, __FILE__, __LINE__)
+    !call memalloc (0, coarse_vefs_displs, __FILE__, __LINE__)
+    !call memalloc (0, lst_coarse_vef_gids, __FILE__, __LINE__)
+    !call memalloc (0, l2_part_id_neighbours, __FILE__, __LINE__)
+    !call memalloc (0, coarse_dgraph_recv_counts, __FILE__, __LINE__)
+    !call memalloc (0, coarse_dgraph_displs, __FILE__, __LINE__)
+    !call memalloc (0, lextn, __FILE__, __LINE__)
+    !call memalloc (0, lextp, __FILE__, __LINE__)
+    !    
+    !! L2 tasks gather from L1 tasks all raw data required to set-up the coarse triangulation on L2 tasks
+    !if ( this%p_env%am_i_l1_to_l2_task() ) then
+    !  num_dimensions = this%triangulation%num_dims
+    !  call this%p_env%l1_to_l2_transfer ( num_dimensions ) 
+    !  call this%gather_coarse_cell_gids (coarse_cell_gids)
+    !  call this%gather_coarse_vefs_rcv_counts_and_displs (coarse_vefs_recv_counts, coarse_vefs_displs)
+    !  call this%gather_coarse_vefs_gids (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_gids)
+    !  call this%fetch_l2_part_id_neighbours(l2_part_id_neighbours)
+    !  call this%gather_coarse_dgraph_rcv_counts_and_displs ( l2_part_id_neighbours, &
+    !                                                         coarse_dgraph_recv_counts, &
+    !                                                         coarse_dgraph_displs )
+    !  call this%gather_coarse_dgraph_lextn_and_lextp ( l2_part_id_neighbours, &
+    !                                                   coarse_dgraph_recv_counts, &
+    !                                                   coarse_dgraph_displs, &
+    !                                                   lextn, &
+    !                                                   lextp )
+    !  ! Evaluate number of local coarse cells
+    !  num_local_coarse_cells = this%p_env%get_l1_to_l2_size()-1
+    !  
+    !  ! Evaluate number of interface coarse cells
+    !  ! Adapt and re-use coarse_vefs_displs/coarse_dgraph_recv_counts/coarse_dgraph_displs
+    !  ! as required by this%coarse_triangulation%create below
+    !  num_itfc_coarse_cells = this%adapt_coarse_raw_arrays (coarse_vefs_displs, &
+    !                                                        coarse_dgraph_recv_counts, &
+    !                                                        coarse_dgraph_displs )
+    !end if
+    
+    !if ( this%p_env%am_i_lgt1_task() ) then
+    !  ! lgt1 MPI tasks (recursively) build coarse triangulation
+    !  allocate  ( this%coarse_triangulation, stat = istat )
+    !  check( istat == 0 )
+    !  call this%coarse_triangulation%create ( par_environment              = this%p_env%get_next_level(), &
+    !                                          num_dimensions               = num_dimensions, &
+    !                                          num_local_cells              = num_local_coarse_cells, &
+    !                                          cell_gids                    = coarse_cell_gids, &
+    !                                          ptr_vefs_per_cell            = coarse_vefs_displs, &
+    !                                          lst_vefs_gids                = lst_coarse_vef_gids, &
+    !                                          num_itfc_cells               = num_itfc_coarse_cells, &
+    !                                          lst_itfc_cells               = coarse_dgraph_recv_counts, &
+    !                                          ptr_ext_neighs_per_itfc_cell = coarse_dgraph_displs, &
+    !                                          lst_ext_neighs_gids          = lextn, &
+    !                                          lst_ext_neighs_part_ids      = lextp )
+    !else
+    !  ! L1 tasks do not hold any piece of the coarse triangulation
+    !  nullify(this%coarse_triangulation)
+    !end if
+    
+    !! All tasks free raw data (see actual reason on the top part of this subroutine)
+    !call memfree (coarse_cell_gids, __FILE__, __LINE__)
+    !call memfree (coarse_vefs_recv_counts, __FILE__, __LINE__)
+    !call memfree (coarse_vefs_displs, __FILE__, __LINE__)
+    !call memfree (lst_coarse_vef_gids, __FILE__, __LINE__)
+    !call memfree (l2_part_id_neighbours, __FILE__, __LINE__)
+    !call memfree (coarse_dgraph_recv_counts, __FILE__, __LINE__)
+    !call memfree (coarse_dgraph_displs, __FILE__, __LINE__)
+    !call memfree (lextn, __FILE__, __LINE__)
+    !call memfree (lextp, __FILE__, __LINE__)
+  end subroutine coarse_triangulation_setup_coarse_triangulation
+  
+  subroutine coarse_triangulation_gather_coarse_cell_gids( this, coarse_cell_gids)
+    implicit none
+    class(coarse_triangulation_t), intent(in)    :: this
+    integer(ip) , allocatable , intent(inout) :: coarse_cell_gids(:)
+    
+    integer(ip)                               :: i
+    integer(ip)                               :: l1_to_l2_size
+    integer(ip)                               :: dummy_integer_array(0)
+    
+    !assert ( this%p_env%am_i_l1_to_l2_task() )
+    !if ( this%p_env%am_i_l1_to_l2_root() ) then
+    !  l1_to_l2_size = this%p_env%get_l1_to_l2_size()
+    !  if ( allocated (coarse_cell_gids) ) call memfree ( coarse_cell_gids, __FILE__, __LINE__ )
+    !  call memalloc ( l1_to_l2_size, coarse_cell_gids, __FILE__, __LINE__ )
+    !  call this%p_env%l2_from_l1_gather( input_data = 0, &
+    !                                     output_data = coarse_cell_gids ) 
+    !else
+    !  call this%p_env%l2_from_l1_gather( input_data  = this%p_env%get_l1_rank()+1, &
+    !                                     output_data = dummy_integer_array ) 
+    !end if
+  end subroutine coarse_triangulation_gather_coarse_cell_gids
+  
+  
+  subroutine coarse_triangulation_gather_coarse_vefs_rcv_counts_and_displs( this, recv_counts, displs )
+    implicit none
+    class(coarse_triangulation_t), intent(in)    :: this
+    integer(ip) , allocatable , intent(inout) :: recv_counts(:) 
+    integer(ip) , allocatable , intent(inout) :: displs(:)
+    integer(ip)                               :: i
+    integer(ip)                               :: l1_to_l2_size
+    integer(ip)                               :: dummy_integer_array(0)
+
+    !assert ( this%p_env%am_i_l1_to_l2_task() )
+    !if ( this%p_env%am_i_l1_to_l2_root() ) then
+    !  l1_to_l2_size = this%p_env%get_l1_to_l2_size()
+    !  if ( allocated (recv_counts) ) call memfree ( recv_counts, __FILE__, __LINE__ )
+    !  if ( allocated (displs) ) call memfree ( displs, __FILE__, __LINE__ )
+    !  call memalloc ( l1_to_l2_size, recv_counts, __FILE__, __LINE__ )
+    !  call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
+    !  call this%p_env%l2_from_l1_gather( input_data = 0, &
+    !                                     output_data = recv_counts ) 
+    !  displs(1) = 0
+    !  do i=2, l1_to_l2_size
+    !    displs(i) = displs(i-1) + recv_counts(i-1)
+    !  end do
+    !else
+    !  call this%p_env%l2_from_l1_gather( input_data  = this%number_objects, &
+    !                                     output_data = dummy_integer_array ) 
+    !end if
+  end subroutine coarse_triangulation_gather_coarse_vefs_rcv_counts_and_displs
+  
+  subroutine coarse_triangulation_gather_coarse_vefs_gids ( this, recv_counts, displs, lst_gids )
+    implicit none
+    class(coarse_triangulation_t), intent(in)    :: this
+    integer(ip)               , intent(in)    :: recv_counts(this%p_env%get_l1_to_l2_size())
+    integer(ip)               , intent(in)    :: displs(this%p_env%get_l1_to_l2_size())
+    integer(ip), allocatable  , intent(inout) :: lst_gids(:)
+    integer(ip)                               :: l1_to_l2_size
+    integer(ip)                               :: dummy_integer_array(0)
+    
+    !assert ( this%p_env%am_i_l1_to_l2_task() )
+    !if ( this%p_env%am_i_l1_to_l2_root() ) then
+    !  l1_to_l2_size = this%p_env%get_l1_to_l2_size()
+    !  if (allocated(lst_gids)) call memfree ( lst_gids, __FILE__, __LINE__ )
+    !  call memalloc ( displs(l1_to_l2_size), lst_gids, __FILE__, __LINE__ )
+    !  call this%p_env%l2_from_l1_gather( input_data_size = 0, &
+    !                                     input_data      = dummy_integer_array, &
+    !                                     recv_counts     = recv_counts, &
+    !                                     displs          = displs, &
+    !                                     output_data     = lst_gids )
+    !else
+    !  call this%p_env%l2_from_l1_gather( input_data_size = this%number_objects, &
+    !                                     input_data      = this%objects_gids, &
+    !                                     recv_counts     = dummy_integer_array, &
+    !                                     displs          = dummy_integer_array, &
+    !                                     output_data     = dummy_integer_array )
+    !end if    
+  end subroutine coarse_triangulation_gather_coarse_vefs_gids
+  
+  subroutine coarse_triangulation_fetch_l2_part_id_neighbours ( this, l2_part_id_neighbours )    
+    implicit none
+    class(coarse_triangulation_t), intent(in)    :: this
+    integer(ip) , allocatable , intent(inout) :: l2_part_id_neighbours(:)
+    integer(ip) :: my_l2_part_id
+    integer(ip) :: num_neighbours
+    !assert ( this%p_env%am_i_l1_to_l2_task() )
+    !if (this%p_env%am_i_l1_task()) then
+    !  num_neighbours = this%element_import%get_number_neighbours()
+    !  my_l2_part_id  = this%p_env%get_l2_part_id_l1_task_is_mapped_to()
+    !  if (allocated(l2_part_id_neighbours)) call memfree ( l2_part_id_neighbours, __FILE__, __LINE__ )
+    !  call memalloc ( num_neighbours, l2_part_id_neighbours, __FILE__, __LINE__ )
+    !  call this%p_env%l1_neighbours_exchange ( num_neighbours  = num_neighbours, &
+    !                                           list_neighbours = this%element_import%get_neighbours_ids(), &
+    !                                           input_data      = my_l2_part_id,&
+    !                                           output_data     = l2_part_id_neighbours)
+    !end if
+  end subroutine coarse_triangulation_fetch_l2_part_id_neighbours
+  
+  subroutine coarse_triangulation_gather_coarse_dgraph_rcv_counts_and_displs ( this, &
+                                                                            l2_part_id_neighbours, &
+                                                                            recv_counts, &
+                                                                            displs )
+    implicit none
+    class(coarse_triangulation_t), intent(in)    :: this
+    integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%element_import%get_number_neighbours())
+    integer(ip) , allocatable , intent(inout) :: recv_counts(:) 
+    integer(ip) , allocatable , intent(inout) :: displs(:)
+    integer(ip) :: i
+    integer(ip) :: l1_to_l2_size 
+    integer(ip) :: my_l2_part_id
+    integer(ip) :: num_neighbours
+    integer(ip) :: num_external_l2_elements
+    integer(ip) :: dummy_integer_array(0)
+    
+    !assert ( this%p_env%am_i_l1_to_l2_task() )
+    !if ( this%p_env%am_i_l1_to_l2_root() ) then
+    !  l1_to_l2_size = this%p_env%get_l1_to_l2_size()
+    !  if (allocated(recv_counts)) call memfree ( recv_counts, __FILE__, __LINE__ )
+    !  if (allocated(displs)) call memfree ( displs, __FILE__, __LINE__ )
+    !  call memalloc ( l1_to_l2_size, recv_counts, __FILE__, __LINE__ )
+    !  call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
+    !  call this%p_env%l2_from_l1_gather( input_data = 0, &
+    !                                     output_data = recv_counts ) 
+    !  displs(1) = 0
+    !  do i=2, l1_to_l2_size
+    !    displs(i) = displs(i-1) + recv_counts(i-1)
+    !  end do
+    !else
+    !  assert ( this%p_env%am_i_l1_task() )
+    !  num_neighbours = this%element_import%get_number_neighbours()
+    !  my_l2_part_id  = this%p_env%get_l2_part_id_l1_task_is_mapped_to()
+    !  num_external_l2_elements = 0
+    !  do i = 1, num_neighbours
+    !    if ( my_l2_part_id /= l2_part_id_neighbours(i) ) then
+    !      num_external_l2_elements = num_external_l2_elements + 1
+    !    end if
+    !  end do
+    !  call this%p_env%l2_from_l1_gather( input_data = num_external_l2_elements, &
+    !                                     output_data = dummy_integer_array ) 
+    !end if
+  end subroutine coarse_triangulation_gather_coarse_dgraph_rcv_counts_and_displs 
+  
+  subroutine coarse_triangulation_gather_coarse_dgraph_lextn_and_lextp( this,                  & 
+                                                                     l2_part_id_neighbours, &
+                                                                     recv_counts,           &
+                                                                     displs,                &
+                                                                     lextn,                 &
+                                                                     lextp)
+    implicit none
+    class(coarse_triangulation_t), intent(in)    :: this
+    integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%element_import%get_number_neighbours())
+    integer(ip)               , intent(in)    :: recv_counts(this%p_env%get_l1_to_l2_size()) 
+    integer(ip)               , intent(in)    :: displs(this%p_env%get_l1_to_l2_size())
+    integer(ip), allocatable  , intent(inout) :: lextn(:)
+    integer(ip), allocatable  , intent(inout) :: lextp(:)
+    
+    integer(ip)              :: i
+    integer(ip)              :: l1_to_l2_size 
+    integer(ip)              :: my_l2_part_id
+    integer(ip)              :: num_neighbours
+    integer(ip), pointer     :: neighbours_ids(:)
+    integer(ip)              :: num_external_l2_elements
+    integer(ip), allocatable :: lst_external_l2_element_gids(:)
+    integer(ip), allocatable :: lst_external_l2_part_ids(:)
+    integer(ip)              :: dummy_integer_array(0)
+    
+    !assert ( this%p_env%am_i_l1_to_l2_task() )
+    !if ( this%p_env%am_i_l1_to_l2_root() ) then
+    !  l1_to_l2_size = this%p_env%get_l1_to_l2_size()
+    !  if (allocated(lextn)) call memfree ( lextn, __FILE__, __LINE__ )
+    !  if (allocated(lextp)) call memfree ( lextp, __FILE__, __LINE__ )
+    !  call memalloc ( displs(l1_to_l2_size), lextn, __FILE__, __LINE__ )
+    !  call memalloc ( displs(l1_to_l2_size), lextp, __FILE__, __LINE__ )
+    !  ! Gather lextn
+    !  call this%p_env%l2_from_l1_gather( input_data_size = 0, &
+    !                                     input_data      = dummy_integer_array, &
+    !                                     recv_counts     = recv_counts, &
+    !                                     displs          = displs, &
+    !                                     output_data     = lextn )
+    !  ! Gather lextp
+    !  call this%p_env%l2_from_l1_gather( input_data_size = 0, &
+    !                                     input_data      = dummy_integer_array, &
+    !                                     recv_counts     = recv_counts, &
+    !                                     displs          = displs, &
+    !                                     output_data     = lextp )
+    !else
+    !  assert ( this%p_env%am_i_l1_task() )
+    !  num_neighbours =  this%element_import%get_number_neighbours()
+    !  neighbours_ids => this%element_import%get_neighbours_ids()
+    !  my_l2_part_id  = this%p_env%get_l2_part_id_l1_task_is_mapped_to()
+    !  num_external_l2_elements = 0
+    !  do i = 1, num_neighbours
+    !    if ( my_l2_part_id /= l2_part_id_neighbours(i) ) then
+    !      num_external_l2_elements = num_external_l2_elements + 1
+    !    end if
+    !  end do
+    !  
+    !  call memalloc (num_external_l2_elements, lst_external_l2_part_ids, __FILE__, __LINE__)
+    !  call memalloc (num_external_l2_elements, lst_external_l2_element_gids,__FILE__, __LINE__)
+    !  num_external_l2_elements = 0
+    !  neighbours_ids => this%element_import%get_neighbours_ids()
+    !  do i = 1, num_neighbours
+    !    if ( my_l2_part_id /= l2_part_id_neighbours(i) ) then
+    !      num_external_l2_elements = num_external_l2_elements + 1
+    !      lst_external_l2_element_gids(num_external_l2_elements) = neighbours_ids(i)
+    !      lst_external_l2_part_ids(num_external_l2_elements) = l2_part_id_neighbours(i)
+    !    end if
+    !  end do
+    !  call this%p_env%l2_from_l1_gather( input_data_size = num_external_l2_elements, &
+    !                                     input_data      = lst_external_l2_element_gids, &
+    !                                     recv_counts     = dummy_integer_array, &
+    !                                     displs          = dummy_integer_array, &
+    !                                     output_data     = dummy_integer_array )
+    !  
+    !  call this%p_env%l2_from_l1_gather( input_data_size = num_external_l2_elements, &
+    !                                     input_data      = lst_external_l2_part_ids, &
+    !                                     recv_counts     = dummy_integer_array, &
+    !                                     displs          = dummy_integer_array, &
+    !                                     output_data     = dummy_integer_array )
+    !  
+    !  call memfree (lst_external_l2_part_ids   , __FILE__, __LINE__)
+    !  call memfree (lst_external_l2_element_gids,__FILE__, __LINE__)
+    !end if
+  end subroutine coarse_triangulation_gather_coarse_dgraph_lextn_and_lextp 
+  
+  function coarse_triangulation_adapt_coarse_raw_arrays( this, &
+                                                      coarse_vefs_displs, &
+                                                      coarse_dgraph_recv_counts, &
+                                                      coarse_dgraph_displs ) result(num_itfc_coarse_cells)
+    implicit none
+    class(coarse_triangulation_t), intent(in)    :: this
+    integer(ip)               , intent(inout) :: coarse_vefs_displs(this%p_env%get_l1_to_l2_size())
+    integer(ip)               , intent(inout) :: coarse_dgraph_recv_counts(this%p_env%get_l1_to_l2_size())
+    integer(ip)               , intent(inout) :: coarse_dgraph_displs(this%p_env%get_l1_to_l2_size())
+    integer(ip)                               :: num_itfc_coarse_cells
+    
+    integer(ip) :: i 
+    !assert ( this%p_env%am_i_l1_to_l2_task() )
+    !if ( this%p_env%am_i_l1_to_l2_root() ) then
+    !  ! Re-use coarse_vefs_displs as ptr_vefs_gids
+    !  do i=1, size(coarse_vefs_displs)
+    !    coarse_vefs_displs(i)=coarse_vefs_displs(i)+1
+    !  end do
+   
+    !  ! Re-use coarse_dgraph_displs as ptr_ext_neighs_per_itfc_cell
+    !  num_itfc_coarse_cells = 0
+    !  coarse_dgraph_displs(1) = 1 
+    !  do i=1, size(coarse_dgraph_recv_counts)
+    !    if (coarse_dgraph_recv_counts(i) /= 0) then
+    !      num_itfc_coarse_cells = num_itfc_coarse_cells+1
+    !      coarse_dgraph_displs(num_itfc_coarse_cells+1) = coarse_dgraph_displs(num_itfc_coarse_cells) + &
+    !                                                      coarse_dgraph_recv_counts(i)                                           
+    !    end if  
+    !  end do
+    !  
+    !  ! Re-use coarse_dgraph_recv_counts as lst_itfc_cells
+    !  num_itfc_coarse_cells = 0
+    !  do i=1, size(coarse_dgraph_recv_counts)
+    !    if (coarse_dgraph_recv_counts(i) /= 0) then
+    !      num_itfc_coarse_cells = num_itfc_coarse_cells+1
+    !      coarse_dgraph_recv_counts(num_itfc_coarse_cells) = i
+    !    end if  
+    !  end do
+    !else
+    !  ! L1 tasks do not hold any itfc_coarse_cells
+    !  num_itfc_coarse_cells = 0
+    !end if
+  end function coarse_triangulation_adapt_coarse_raw_arrays
   
 end module coarse_triangulation_names
