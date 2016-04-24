@@ -104,8 +104,8 @@ module par_triangulation_names
      ! Perhaps the following three member variables should be packed within type(map_t) ?
      ! I didn't do that because type(map_t) has extra members that do not make sense anymore
      ! for the current situation with objects (i.e., interior, boundary, external) etc.
-     integer(ip)                             :: number_global_objects
-     integer(ip)                             :: number_objects
+     integer(ip)                             :: number_global_objects = -1
+     integer(ip)                             :: number_objects        = -1
      integer(ip), allocatable                :: objects_gids(:)
      
      type(list_t)                            :: vefs_object
@@ -191,7 +191,7 @@ contains
        p_trian%num_itfc_vefs = -1
        call memfree ( p_trian%lst_itfc_vefs, __FILE__, __LINE__ )
         
-       p_trian%number_objects        = -1
+       p_trian%number_objects = -1
        call p_trian%vefs_object%free()
        call p_trian%parts_object%free()
        
