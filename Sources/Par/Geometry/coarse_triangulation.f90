@@ -435,7 +435,7 @@ contains
     call this%print()
   end subroutine coarse_triangulation_create
   
-  subroutine coarse_triangulation_free ( this )
+  recursive subroutine coarse_triangulation_free ( this )
     implicit none
     class(coarse_triangulation_t), intent(inout) :: this
     integer(ip)                                  :: icell, ivef, istat
@@ -476,7 +476,7 @@ contains
    end if   
   end subroutine coarse_triangulation_free
   
-  subroutine coarse_triangulation_print ( this )
+  recursive subroutine coarse_triangulation_print ( this )
     class(coarse_triangulation_t), intent(inout) :: this
     integer(ip) :: i
     assert( associated(this%p_env) )
