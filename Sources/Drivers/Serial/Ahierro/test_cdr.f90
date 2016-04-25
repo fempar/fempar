@@ -253,7 +253,7 @@ contains
     end do
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-
+    ! ---------------------------------- END LOOP OVER THE ELEMENTS ---------------------------------
 
     ! ------------------------------------ LOOP OVER THE FACES --------------------------------------
     call memalloc ( number_nodes, number_nodes,2,2,facemat, __FILE__, __LINE__ )
@@ -284,8 +284,6 @@ contains
           call face_map%get_normals(igaus,normal)
           h_length = face_map%compute_characteristic_length(igaus,number_neighbours)
           factor = face_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
-          !call this%analytical_function%convection_field%get_value_space(coordinates(igaus),      &
-          !                                                                convection)
           call this%analytical_functions%get_value_convection(coordinates(igaus),0.0_rp,convection)
           do ineigh = 1, number_neighbours
              do inode = 1, number_nodes_per_field(j)
@@ -397,7 +395,7 @@ contains
  
     call memfree ( facemat, __FILE__, __LINE__ )
     call memfree ( facevec, __FILE__, __LINE__ )
-    ! ----------------------------------------------------------------------------------------------
+    ! ----------------------------------- END LOOP OVER FACES ---------------------------------------
 
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
   end subroutine integrate
@@ -646,7 +644,6 @@ program test_cdr
      call theta_method%update_solutions( dof_values, dof_values_previous )
      call theta_method%update_integration()
 
-     
      ! Update operator with solution at current iteration
      if (.not. theta_method%finished ) then 
 !!$       

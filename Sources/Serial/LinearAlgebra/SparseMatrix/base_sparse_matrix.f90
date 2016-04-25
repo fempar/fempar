@@ -3081,7 +3081,7 @@ contains
             assert(ipaux>0) ! Entry not found
             if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
 
-        elseif(this%is_by_rows()) then
+        elseif(this%is_by_cols()) then
             ! Not tested yet! 
             i1 = binary_search(ja,nnz,this%ja)
             i2 = i1
