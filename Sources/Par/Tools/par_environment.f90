@@ -443,10 +443,6 @@ contains
    integer :: p2pstat(mpi_status_size)
    integer :: icontxt
 
-   ! Arrays required by mpi_all_to_all
-   integer, allocatable, dimension(:) :: sndidx, rcvidx, &
-                                      &  sndsiz, rcvsiz
-
    ! Request handlers for non-blocking receives
    integer, allocatable :: rcvhd(:)
 
@@ -587,10 +583,6 @@ contains
    integer :: mpi_comm,  iret
    integer :: p2pstat(mpi_status_size)
    integer :: icontxt
-
-   ! Arrays required by mpi_all_to_all
-   integer, allocatable, dimension(:) :: sndidx, rcvidx, &
-                                      &  sndsiz, rcvsiz
 
    ! Request handlers for non-blocking receives
    integer, allocatable :: rcvhd(:)

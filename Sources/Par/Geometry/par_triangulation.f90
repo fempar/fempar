@@ -107,6 +107,7 @@ module par_triangulation_names
      integer(ip)                             :: number_global_objects = -1
      integer(ip)                             :: number_objects        = -1
      integer(ip), allocatable                :: objects_gids(:)
+     integer(ip), allocatable                :: objects_dimension(:)
      
      type(list_t)                            :: vefs_object
      type(list_t)                            :: parts_object
@@ -115,11 +116,13 @@ module par_triangulation_names
   contains
      procedure, non_overridable, private :: compute_parts_itfc_vefs                        => par_triangulation_compute_parts_itfc_vefs
      procedure, non_overridable, private :: compute_vefs_and_parts_object                  => par_triangulation_compute_vefs_and_parts_object
+     procedure, non_overridable, private :: compute_objects_dimension                      => par_triangulation_compute_objects_dimension
      procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => par_triangulation_compute_objects_neighbours_exchange_data
      procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => par_triangulation_compute_number_global_objects_and_their_gids
      procedure, non_overridable, private :: setup_coarse_triangulation                     => par_triangulation_setup_coarse_triangulation
      procedure, non_overridable, private :: gather_coarse_cell_gids                        => par_triangulation_gather_coarse_cell_gids
      procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs       => par_triangulation_gather_coarse_vefs_rcv_counts_and_displs
+     procedure, non_overridable, private :: gather_coarse_vefs_dimension                   => par_triangulation_gather_coarse_vefs_dimension
      procedure, non_overridable, private :: gather_coarse_vefs_gids                        => par_triangulation_gather_coarse_vefs_gids
      procedure, non_overridable, private :: fetch_l2_part_id_neighbours                    => par_triangulation_fetch_l2_part_id_neighbours
      procedure, non_overridable, private :: gather_coarse_dgraph_rcv_counts_and_displs     => par_triangulation_gather_coarse_dgraph_rcv_counts_and_displs
@@ -197,6 +200,7 @@ contains
        
        p_trian%number_global_objects = -1
        call memfree ( p_trian%objects_gids, __FILE__, __LINE__ )
+       call memfree ( p_trian%objects_dimension, __FILE__, __LINE__ )
        
        ! Deallocate the vef structure array 
        deallocate(p_trian%vefs, stat=istat)
@@ -564,6 +568,7 @@ contains
     ! Compute p_trian%max_nparts, p_trian%nobjs, p_trian%lobjs
     ! Re-order (permute) p_trian%lst_itfc_vefs accordingly
     call p_trian%compute_vefs_and_parts_object()
+    call p_trian%compute_objects_dimension()
     call p_trian%compute_number_global_objects_and_their_gids()
   end subroutine par_triangulation_to_dual
  
@@ -732,6 +737,25 @@ contains
     call memfree ( parts_itfc_vefs, __FILE__, __LINE__ )
     call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )
   end subroutine par_triangulation_compute_vefs_and_parts_object
+  
+  subroutine par_triangulation_compute_objects_dimension(this)
+    implicit none
+    class(par_triangulation_t), intent(inout) :: this
+    integer(ip)                               :: iobj, vef_lid
+    type(list_iterator_t)                     :: vefs_object_iterator
+    
+    call memalloc ( this%number_objects, this%objects_dimension, __FILE__, __LINE__ )
+    do iobj=1, this%number_objects
+      vefs_object_iterator = this%vefs_object%get_iterator(iobj)
+      this%objects_dimension(iobj) = 0
+      do while(.not. vefs_object_iterator%is_upper_bound())
+        vef_lid = vefs_object_iterator%get_current()
+        this%objects_dimension(iobj) = max ( this%objects_dimension(iobj), this%triangulation%vefs(vef_lid)%dime )  
+        call vefs_object_iterator%next()
+       end do
+    end do
+  end subroutine par_triangulation_compute_objects_dimension
+  
   
   subroutine par_triangulation_compute_objects_neighbours_exchange_data ( this, &
                                                                           num_rcv,&
@@ -985,6 +1009,7 @@ contains
     integer(ip)               , allocatable   :: coarse_vefs_recv_counts(:)
     integer(ip)               , allocatable   :: coarse_vefs_displs(:)
     integer(ip)               , allocatable   :: lst_coarse_vef_gids(:)
+    integer(ip)               , allocatable   :: lst_coarse_vef_dimension(:)
     integer(ip)               , allocatable   :: l2_part_id_neighbours(:)
     integer(ip)               , allocatable   :: coarse_dgraph_recv_counts(:)
     integer(ip)               , allocatable   :: coarse_dgraph_displs(:)
@@ -1008,6 +1033,7 @@ contains
     call memalloc (0, coarse_vefs_recv_counts, __FILE__, __LINE__)
     call memalloc (0, coarse_vefs_displs, __FILE__, __LINE__)
     call memalloc (0, lst_coarse_vef_gids, __FILE__, __LINE__)
+    call memalloc (0, lst_coarse_vef_dimension, __FILE__, __LINE__)
     call memalloc (0, l2_part_id_neighbours, __FILE__, __LINE__)
     call memalloc (0, coarse_dgraph_recv_counts, __FILE__, __LINE__)
     call memalloc (0, coarse_dgraph_displs, __FILE__, __LINE__)
@@ -1021,6 +1047,7 @@ contains
       call this%gather_coarse_cell_gids (coarse_cell_gids)
       call this%gather_coarse_vefs_rcv_counts_and_displs (coarse_vefs_recv_counts, coarse_vefs_displs)
       call this%gather_coarse_vefs_gids (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_gids)
+      call this%gather_coarse_vefs_dimension (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_dimension)
       call this%fetch_l2_part_id_neighbours(l2_part_id_neighbours)
       call this%gather_coarse_dgraph_rcv_counts_and_displs ( l2_part_id_neighbours, &
                                                              coarse_dgraph_recv_counts, &
@@ -1051,6 +1078,7 @@ contains
                                               cell_gids                    = coarse_cell_gids, &
                                               ptr_vefs_per_cell            = coarse_vefs_displs, &
                                               lst_vefs_gids                = lst_coarse_vef_gids, &
+                                              lst_vefs_dimension           = lst_coarse_vef_dimension, &
                                               num_itfc_cells               = num_itfc_coarse_cells, &
                                               lst_itfc_cells               = coarse_dgraph_recv_counts, &
                                               ptr_ext_neighs_per_itfc_cell = coarse_dgraph_displs, &
@@ -1066,6 +1094,7 @@ contains
     call memfree (coarse_vefs_recv_counts, __FILE__, __LINE__)
     call memfree (coarse_vefs_displs, __FILE__, __LINE__)
     call memfree (lst_coarse_vef_gids, __FILE__, __LINE__)
+    call memfree (lst_coarse_vef_dimension, __FILE__, __LINE__)
     call memfree (l2_part_id_neighbours, __FILE__, __LINE__)
     call memfree (coarse_dgraph_recv_counts, __FILE__, __LINE__)
     call memfree (coarse_dgraph_displs, __FILE__, __LINE__)
@@ -1151,6 +1180,35 @@ contains
                                          output_data     = dummy_integer_array )
     end if    
   end subroutine par_triangulation_gather_coarse_vefs_gids
+  
+  subroutine par_triangulation_gather_coarse_vefs_dimension ( this, recv_counts, displs, lst_vefs_dimension )
+    implicit none
+    class(par_triangulation_t), intent(in)    :: this
+    integer(ip)                  , intent(in)    :: recv_counts(this%p_env%get_l1_to_l2_size())
+    integer(ip)                  , intent(in)    :: displs(this%p_env%get_l1_to_l2_size())
+    integer(ip), allocatable     , intent(inout) :: lst_vefs_dimension(:)
+    integer(ip)                                  :: l1_to_l2_size
+    integer(ip)                                  :: dummy_integer_array(0)
+    
+    assert ( this%p_env%am_i_l1_to_l2_task() )
+    if ( this%p_env%am_i_l1_to_l2_root() ) then
+      l1_to_l2_size = this%p_env%get_l1_to_l2_size()
+      if (allocated(lst_vefs_dimension)) call memfree ( lst_vefs_dimension, __FILE__, __LINE__ )
+      call memalloc ( displs(l1_to_l2_size), lst_vefs_dimension, __FILE__, __LINE__ )
+      call this%p_env%l2_from_l1_gather( input_data_size = 0, &
+                                         input_data      = dummy_integer_array, &
+                                         recv_counts     = recv_counts, &
+                                         displs          = displs, &
+                                         output_data     = lst_vefs_dimension )
+    else
+      call this%p_env%l2_from_l1_gather( input_data_size = this%number_objects, &
+                                         input_data      = this%objects_dimension, &
+                                         recv_counts     = dummy_integer_array, &
+                                         displs          = dummy_integer_array, &
+                                         output_data     = dummy_integer_array )
+    end if    
+  end subroutine par_triangulation_gather_coarse_vefs_dimension
+  
   
   subroutine par_triangulation_fetch_l2_part_id_neighbours ( this, l2_part_id_neighbours )    
     implicit none

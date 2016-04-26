@@ -48,13 +48,13 @@ module coarse_triangulation_names
     integer(ip)                           :: gid      = -1
     integer(ip)                           :: mypart   = -1
     integer(ip)                           :: num_vefs = -1
-    integer(ip), allocatable              :: vefs_lids(:)
-    integer(ip), allocatable              :: vefs_gids(:)
+    integer(ip), allocatable              :: vefs_lid(:)
+    integer(ip), allocatable              :: vefs_gid(:)
     ! A pointer to type(coarse_triangulation_t) is pending here to increase performance
   contains
     procedure, non_overridable :: create             => coarse_cell_create
     procedure, non_overridable :: free               => coarse_cell_free 
-    procedure, non_overridable :: match_vefs_lids    => coarse_cell_match_vefs_lids
+    procedure, non_overridable :: match_vefs_lid     => coarse_cell_match_vefs_lid
     procedure, non_overridable :: get_gid            => coarse_cell_get_gid
     procedure, non_overridable :: get_mypart         => coarse_cell_get_mypart
     procedure, non_overridable :: get_num_vefs       => coarse_cell_get_num_vefs
@@ -67,21 +67,48 @@ module coarse_triangulation_names
   end type coarse_cell_t
   
   type coarse_vef_t
-     private
-     ! An integer member variable with the dimension (vertex=0, edge=1, face=2) 
-     ! of the vef will be needed in the future
-     integer(ip)                           :: gid              = -1  
-     integer(ip)                           :: num_cells_around = -1 
-     integer(ip), allocatable              :: cells_around(:)
-     type(coarse_triangulation_t), pointer :: coarse_triangulation
+    private
+    integer(ip)                           :: lid                  = -1
+    type(coarse_triangulation_t), pointer :: coarse_triangulation => NULL()
   contains
-     procedure, non_overridable :: create               => coarse_vef_create
-     procedure, non_overridable :: free                 => coarse_vef_free
-     procedure, non_overridable :: print                => coarse_vef_print
-     procedure, non_overridable :: get_gid              => coarse_vef_get_gid
-     procedure, non_overridable :: get_num_cells_around => coarse_vef_get_num_cells_around
-     procedure, non_overridable :: get_cell_around      => coarse_vef_get_cell_around
-  end type coarse_vef_t
+     procedure, non_overridable, private :: create                   => coarse_vef_create
+     procedure, non_overridable, private :: free                     => coarse_vef_free
+     procedure, non_overridable, private :: next                     => coarse_vef_next
+     procedure, non_overridable, private :: set_lid                  => coarse_vef_set_lid
+     procedure, non_overridable, private :: past_the_end             => coarse_vef_past_the_end
+     procedure, non_overridable, private :: get_coarse_triangulation => coarse_vef_get_coarse_triangulation
+     procedure, non_overridable          :: get_lid                  => coarse_vef_get_lid
+     procedure, non_overridable          :: get_gid                  => coarse_vef_get_gid
+     procedure, non_overridable          :: at_interface             => coarse_vef_at_interface
+     procedure, non_overridable          :: get_dimension            => coarse_vef_get_dimension
+     procedure, non_overridable          :: get_num_cells_around     => coarse_vef_get_num_cells_around
+     procedure, non_overridable          :: get_cell_around          => coarse_vef_get_cell_around
+  end type
+  
+  type coarse_vef_iterator_t
+    private
+    type(coarse_vef_t) :: current_vef
+  contains
+     procedure, non_overridable, private :: create       => coarse_vef_iterator_create
+     procedure, non_overridable          :: free         => coarse_vef_iterator_free
+     procedure, non_overridable          :: init         => coarse_vef_iterator_init
+     procedure, non_overridable          :: next         => coarse_vef_iterator_next
+     procedure, non_overridable          :: has_finished => coarse_vef_iterator_has_finished
+     procedure, non_overridable          :: current      => coarse_vef_iterator_current
+  end type coarse_vef_iterator_t  
+  
+  type :: coarse_itfc_vef_iterator_t
+    private
+    integer(ip)        :: itfc_lid = -1
+    type(coarse_vef_t) :: current_vef
+  contains
+    procedure, non_overridable, private :: create       => coarse_itfc_vef_iterator_create
+    procedure, non_overridable          :: free         => coarse_itfc_vef_iterator_free
+    procedure, non_overridable          :: init         => coarse_itfc_vef_iterator_init
+    procedure, non_overridable          :: next         => coarse_itfc_vef_iterator_next
+    procedure, non_overridable          :: has_finished => coarse_itfc_vef_iterator_has_finished
+    procedure, non_overridable          :: current      => coarse_itfc_vef_iterator_current
+  end type coarse_itfc_vef_iterator_t
   
   type coarse_triangulation_t
      private
@@ -92,10 +119,14 @@ module coarse_triangulation_names
      type(coarse_cell_t), allocatable         :: cells(:)
      
      integer(ip)                              :: num_local_vefs = -1
-     type(coarse_vef_t) , allocatable         :: vefs(:)
-     
+     integer(ip), allocatable                 :: vefs_gid(:)          ! num_local_vefs
+     integer(ip), allocatable                 :: vefs_dimension(:)    ! num_local_vefs
+          
      integer(ip)                              :: num_itfc_vefs  = -1
      integer(ip), allocatable                 :: lst_itfc_vefs(:)
+     integer(ip), allocatable                 :: vefs_itfc_lid(:)     ! num_local_vefs
+     integer(ip), allocatable                 :: ptrs_cells_around(:) ! num_itfc_vefs+1
+     integer(ip), allocatable                 :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
  
      ! Parallel environment describing MPI tasks among which coarse_triangulation_t is distributed
      type(par_environment_t),   pointer       :: p_env => NULL()
@@ -110,6 +141,7 @@ module coarse_triangulation_names
      integer(ip)                             :: number_global_objects = -1
      integer(ip)                             :: number_objects = -1
      integer(ip), allocatable                :: objects_gids(:)
+     integer(ip), allocatable                :: objects_dimension(:)
      
      type(list_t)                            :: vefs_object
      type(list_t)                            :: parts_object
@@ -119,56 +151,72 @@ module coarse_triangulation_names
      procedure, non_overridable          :: create                                         => coarse_triangulation_create
      procedure, non_overridable          :: free                                           => coarse_triangulation_free
      procedure, non_overridable          :: print                                          => coarse_triangulation_print
+     
+     ! Private methods for creating cell-related data
      procedure, non_overridable, private :: allocate_cell_array                            => coarse_triangulation_allocate_cell_array
      procedure, non_overridable, private :: free_cell_array                                => coarse_triangulation_free_cell_array
      procedure, non_overridable, private :: fill_local_cells                               => coarse_triangulation_fill_local_cells
      procedure, non_overridable, private :: fill_ghost_cells                               => coarse_triangulation_fill_ghost_cells
      procedure, non_overridable, private :: match_vefs_lids_of_ghost_cells                 => coarse_triangulation_match_vefs_lids_of_ghost_cells
-     procedure, non_overridable, private :: allocate_vef_array                             => coarse_triangulation_allocate_vef_array
-     procedure, non_overridable, private :: free_vef_array                                 => coarse_triangulation_free_vef_array
-     procedure, non_overridable, private :: fill_vef_array                                 => coarse_triangulation_fill_vef_array
+     
+     ! Private methods for creating vef-related data
      procedure, non_overridable, private :: compute_num_local_vefs                         => coarse_triangulation_compute_num_local_vefs
-     procedure, non_overridable, private :: get_global_vef_gid_array                       => coarse_triangulation_get_global_vef_gid_array
-     procedure, non_overridable, private :: get_ptrs_lst_cells_around                      => coarse_triangulation_get_ptrs_lst_cells_around
+     procedure, non_overridable, private :: allocate_and_fill_vefs_gid                     => coarse_triangulation_allocate_and_fill_vefs_gid
+     procedure, non_overridable, private :: free_vefs_gid                                  => coarse_triangulation_free_vefs_gid
+     procedure, non_overridable, private :: allocate_and_fill_vefs_dimension               => coarse_triangulation_allocate_and_fill_vefs_dimension
+     procedure, non_overridable, private :: free_vefs_dimension                            => coarse_triangulation_free_vefs_dimension
+     
      procedure, non_overridable, private :: compute_num_itfc_vefs                          => coarse_triangulation_compute_num_itfc_vefs
-     procedure, non_overridable, private :: allocate_lst_itfc_vefs                         => coarse_triangulation_allocate_lst_itfc_vefs
+     procedure, non_overridable, private :: allocate_and_fill_lst_itfc_vefs                => coarse_triangulation_allocate_and_fill_lst_itfc_vefs
      procedure, non_overridable, private :: free_lst_itfc_vefs                             => coarse_triangulation_free_lst_itfc_vefs
-     procedure, non_overridable, private :: fill_lst_itfc_vefs                             => coarse_triangulation_fill_lst_itfc_vefs
+     procedure, non_overridable, private :: allocate_and_fill_vefs_itfc_lid                => coarse_triangulation_allocate_and_fill_vefs_itfc_lid
+     procedure, non_overridable, private :: free_vefs_itfc_lid                             => coarse_triangulation_free_vefs_itfc_lid
+     procedure, non_overridable, private :: allocate_and_fill_cells_around                 => coarse_triangulation_allocate_and_fill_cells_around
+     procedure, non_overridable, private :: free_cells_around                              => coarse_triangulation_free_cells_around
 
+     ! Private methods for creating coarse objects-related data
      procedure, non_overridable, private :: compute_parts_itfc_vefs                        => coarse_triangulation_compute_parts_itfc_vefs
      procedure, non_overridable, private :: compute_vefs_and_parts_object                  => coarse_triangulation_compute_vefs_and_parts_object
+     procedure, non_overridable, private :: compute_objects_dimension                      => coarse_triangulation_compute_objects_dimension
      procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => coarse_triangulation_compute_objects_neighbours_exchange_data
      procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => coarse_triangulation_compute_num_global_objects_and_their_gids
+     
+     ! Private methods for coarser triangulation set-up
      procedure, non_overridable, private :: setup_coarse_triangulation                     => coarse_triangulation_setup_coarse_triangulation
      procedure, non_overridable, private :: gather_coarse_cell_gids                        => coarse_triangulation_gather_coarse_cell_gids
      procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs       => coarse_triangulation_gather_coarse_vefs_rcv_counts_and_displs
      procedure, non_overridable, private :: gather_coarse_vefs_gids                        => coarse_triangulation_gather_coarse_vefs_gids
+     procedure, non_overridable, private :: gather_coarse_vefs_dimension                   => coarse_triangulation_gather_coarse_vefs_dimension
      procedure, non_overridable, private :: fetch_l2_part_id_neighbours                    => coarse_triangulation_fetch_l2_part_id_neighbours
      procedure, non_overridable, private :: gather_coarse_dgraph_rcv_counts_and_displs     => coarse_triangulation_gather_coarse_dgraph_rcv_counts_and_displs
      procedure, non_overridable, private :: gather_coarse_dgraph_lextn_and_lextp           => coarse_triangulation_gather_coarse_dgraph_lextn_and_lextp
      procedure, non_overridable, private :: adapt_coarse_raw_arrays                        => coarse_triangulation_adapt_coarse_raw_arrays
+     
+     ! Vef traversals-related TBPs
+     procedure, non_overridable          :: create_vef_iterator                            => coarse_triangulation_create_vef_iterator
+     procedure, non_overridable          :: create_itfc_vef_iterator                       => coarse_triangulation_create_itfc_vef_iterator
   end type coarse_triangulation_t
 
   public :: coarse_triangulation_t
   
 contains
 
-  subroutine coarse_cell_create ( this, gid, mypart, num_local_vefs, vefs_lids, vefs_gids )
+  subroutine coarse_cell_create ( this, gid, mypart, num_vefs, vefs_lid, vefs_gid )
     implicit none
     class(coarse_cell_t), intent(inout) :: this
     integer(ip)         , intent(in)    :: gid
     integer(ip)         , intent(in)    :: mypart
-    integer(ip)         , intent(in)    :: num_local_vefs
-    integer(ip)         , intent(in)    :: vefs_lids(num_local_vefs)
-    integer(ip)         , intent(in)    :: vefs_gids(num_local_vefs)
+    integer(ip)         , intent(in)    :: num_vefs
+    integer(ip)         , intent(in)    :: vefs_lid(num_vefs)
+    integer(ip)         , intent(in)    :: vefs_gid(num_vefs)
     call this%free()
     this%gid = gid
     this%mypart = mypart
-    this%num_vefs = num_local_vefs
-    call memalloc ( num_local_vefs, this%vefs_lids, __FILE__, __LINE__ ) 
-    call memalloc ( num_local_vefs, this%vefs_gids, __FILE__, __LINE__ )
-    this%vefs_lids = vefs_lids
-    this%vefs_gids = vefs_gids
+    this%num_vefs = num_vefs
+    call memalloc ( num_vefs, this%vefs_lid, __FILE__, __LINE__ ) 
+    call memalloc ( num_vefs, this%vefs_gid, __FILE__, __LINE__ )
+    this%vefs_lid = vefs_lid
+    this%vefs_gid = vefs_gid
   end subroutine coarse_cell_create
   
   subroutine coarse_cell_free ( this)
@@ -177,26 +225,26 @@ contains
     this%gid = -1
     this%mypart = -1
     this%num_vefs = -1
-    if ( allocated (this%vefs_lids) ) call memfree ( this%vefs_lids, __FILE__, __LINE__)
-    if ( allocated (this%vefs_gids) ) call memfree ( this%vefs_gids, __FILE__, __LINE__)
+    if ( allocated (this%vefs_lid) ) call memfree ( this%vefs_lid, __FILE__, __LINE__)
+    if ( allocated (this%vefs_gid) ) call memfree ( this%vefs_gid, __FILE__, __LINE__)
   end subroutine coarse_cell_free
   
-  subroutine coarse_cell_match_vefs_lids ( this, source_cell )
+  subroutine coarse_cell_match_vefs_lid ( this, source_cell )
     implicit none
     class(coarse_cell_t), intent(inout) :: this
     type(coarse_cell_t) , intent(in)    :: source_cell
     integer(ip) :: i, j
     
     do i=1, this%num_vefs
-      if ( this%vefs_lids(i) == -1 ) then
+      if ( this%vefs_lid(i) == -1 ) then
         do j=1, source_cell%num_vefs
-          if ( this%vefs_gids(i) == source_cell%vefs_gids(j) ) then
-            this%vefs_lids(i) = source_cell%vefs_lids(j)
+          if ( this%vefs_gid(i) == source_cell%vefs_gid(j) ) then
+            this%vefs_lid(i) = source_cell%vefs_lid(j)
           end if
         end do
       end if
     end do
- end subroutine coarse_cell_match_vefs_lids 
+ end subroutine coarse_cell_match_vefs_lid 
  
  function coarse_cell_get_gid( this )
    implicit none
@@ -225,7 +273,7 @@ contains
    integer(ip)         , intent(in) :: ivef
    integer(ip)                      :: coarse_cell_get_vef_lid
    assert ( ivef >= 1 .and. ivef <= this%num_vefs )
-   coarse_cell_get_vef_lid = this%vefs_lids(ivef)
+   coarse_cell_get_vef_lid = this%vefs_lid(ivef)
  end function coarse_cell_get_vef_lid
  
  function coarse_cell_get_vef_gid ( this, ivef )
@@ -234,7 +282,7 @@ contains
    integer(ip)         , intent(in) :: ivef
    integer(ip)                      :: coarse_cell_get_vef_gid
    assert ( ivef >= 1 .and. ivef <= this%num_vefs )
-   coarse_cell_get_vef_gid = this%vefs_gids(ivef)
+   coarse_cell_get_vef_gid = this%vefs_gid(ivef)
  end function coarse_cell_get_vef_gid
  
   subroutine coarse_cell_print ( this)
@@ -244,8 +292,8 @@ contains
     write (*,'(a,i10)'  ) 'gid      :', this%gid
     write (*,'(a,i10)'  ) 'mypart   :', this%mypart
     write (*,'(a,i10)'  ) 'num_vefs :', this%num_vefs
-    write (*,'(a,10i10)') 'vefs_lids:', this%vefs_lids
-    write (*,'(a,10i10)') 'vefs_gids:', this%vefs_gids
+    write (*,'(a,10i10)') 'vefs_lid:', this%vefs_lid
+    write (*,'(a,10i10)') 'vefs_gid:', this%vefs_gid
     write (*,'(a)') '****end print type(coarse_cell_t)'
   end subroutine coarse_cell_print
  
@@ -279,7 +327,7 @@ contains
     buffer(start:end) = transfer(my%num_vefs,mold)
     start = end + 1
     end   = start + my%num_vefs*size_of_ip - 1
-    buffer(start:end) = transfer(my%vefs_gids,mold)
+    buffer(start:end) = transfer(my%vefs_gid,mold)
   end subroutine coarse_cell_pack
 
   subroutine coarse_cell_unpack (my, n, buffer)
@@ -302,35 +350,28 @@ contains
     start = end + 1
     end   = start + size_of_ip - 1
     my%num_vefs  = transfer(buffer(start:end), my%num_vefs)
-    call memalloc( my%num_vefs, my%vefs_gids, __FILE__, __LINE__ )
+    call memalloc( my%num_vefs, my%vefs_gid, __FILE__, __LINE__ )
     start = end + 1
     end   = start + my%num_vefs*size_of_ip - 1
-    my%vefs_gids = transfer(buffer(start:end), my%vefs_gids)
-    call memalloc( my%num_vefs, my%vefs_lids, __FILE__, __LINE__ )
-    my%vefs_lids = -1 
+    my%vefs_gid = transfer(buffer(start:end), my%vefs_gid)
+    call memalloc( my%num_vefs, my%vefs_lid, __FILE__, __LINE__ )
+    my%vefs_lid = -1 
   end subroutine coarse_cell_unpack
-  
-  subroutine coarse_vef_create ( this, gid, num_cells_around, cells_around, coarse_triangulation )
+   
+  subroutine coarse_vef_create ( this, lid, coarse_triangulation )
     implicit none
-    class(coarse_vef_t)                 , intent(inout) :: this 
-    integer(ip)                         , intent(in)    :: gid
-    integer(ip)                         , intent(in)    :: num_cells_around
-    integer(ip)                         , intent(in)    :: cells_around(num_cells_around)
-    type(coarse_triangulation_t), target, intent(in)    :: coarse_triangulation 
+    class(coarse_vef_t)                 , intent(inout) :: this
+    integer(ip)                         , intent(in)    :: lid
+    type(coarse_triangulation_t), target, intent(in)    :: coarse_triangulation
     call this%free()
-    this%gid              = gid
-    this%num_cells_around = num_cells_around
-    call memalloc ( num_cells_around, this%cells_around, __FILE__, __LINE__ )
-    this%cells_around = cells_around
+    this%lid = lid
     this%coarse_triangulation => coarse_triangulation
-  end subroutine coarse_vef_create
+  end subroutine coarse_vef_create 
   
   subroutine coarse_vef_free ( this)
     implicit none
     class(coarse_vef_t), intent(inout) :: this
-    this%gid = -1
-    this%num_cells_around = -1
-    if ( allocated (this%cells_around) ) call memfree ( this%cells_around, __FILE__, __LINE__)
+    this%lid = -1
     nullify ( this%coarse_triangulation )
   end subroutine coarse_vef_free
   
@@ -339,24 +380,84 @@ contains
     class(coarse_vef_t), intent(inout) :: this
     integer(ip) :: i
     write (*,'(a)') '****print type(coarse_vef_t)****'
-    write (*,'(a,i10)'  ) 'gid                :', this%gid
-    write (*,'(a,i10)'  ) 'num_cells_around   :', this%num_cells_around
-    write (*,'(a,10i10)') 'cells_around       :', this%cells_around
+    write (*,'(a,i10)'  ) 'lid                :', this%get_lid()
+    write (*,'(a,i10)'  ) 'gid                :', this%get_gid()
+    write (*,'(a,l)'    ) 'at_interface       :', this%at_interface()
+    if ( this%at_interface() ) then
+      write (*,'(a,i10)'  ) 'num_cells_around   :', this%get_num_cells_around()
+    end if
     write (*,'(a)') '****end print type(coarse_vef_t)****'
   end subroutine coarse_vef_print 
+  
+  subroutine coarse_vef_next(this)
+    implicit none
+    class(coarse_vef_t), intent(inout) :: this
+    this%lid = this%lid + 1
+  end subroutine coarse_vef_next
+  
+  subroutine coarse_vef_set_lid(this, lid)
+    implicit none
+    class(coarse_vef_t), intent(inout) :: this
+    integer(ip)        , intent(in)    :: lid
+    this%lid = lid
+  end subroutine coarse_vef_set_lid
+  
+  function coarse_vef_past_the_end(this)
+    implicit none
+    class(coarse_vef_t), intent(in) :: this
+    logical :: coarse_vef_past_the_end
+    coarse_vef_past_the_end = (this%lid > this%coarse_triangulation%num_local_vefs)
+  end function coarse_vef_past_the_end
+  
+  function coarse_vef_get_coarse_triangulation(this)
+    implicit none
+    class(coarse_vef_t), intent(in) :: this
+    type(coarse_triangulation_t), pointer :: coarse_vef_get_coarse_triangulation
+    coarse_vef_get_coarse_triangulation => this%coarse_triangulation
+  end function coarse_vef_get_coarse_triangulation
+  
+  function coarse_vef_get_lid (this)
+    implicit none
+    class(coarse_vef_t), intent(in) :: this
+    integer(ip) :: coarse_vef_get_lid
+    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+    coarse_vef_get_lid = this%lid
+  end function coarse_vef_get_lid
   
   function coarse_vef_get_gid (this)
     implicit none
     class(coarse_vef_t), intent(in) :: this
     integer(ip) :: coarse_vef_get_gid
-    coarse_vef_get_gid = this%gid
+    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+    coarse_vef_get_gid = this%coarse_triangulation%vefs_gid(this%lid)
   end function coarse_vef_get_gid
+  
+  function coarse_vef_at_interface (this)
+    implicit none
+    class(coarse_vef_t), intent(in) :: this
+    logical :: coarse_vef_at_interface 
+    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+    coarse_vef_at_interface  = (this%coarse_triangulation%vefs_itfc_lid(this%lid) /= -1 )
+  end function coarse_vef_at_interface 
+  
+  function coarse_vef_get_dimension(this)
+    implicit none
+    class(coarse_vef_t), intent(in) :: this
+    logical :: coarse_vef_get_dimension
+    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+    coarse_vef_get_dimension  = this%coarse_triangulation%vefs_dimension(this%lid)
+ end function coarse_vef_get_dimension
   
   function coarse_vef_get_num_cells_around (this)
     implicit none
     class(coarse_vef_t), intent(in) :: this
     integer(ip) :: coarse_vef_get_num_cells_around
-    coarse_vef_get_num_cells_around = this%num_cells_around
+    integer(ip) :: vef_itfc_lid
+    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+    assert ( this%at_interface() )
+    vef_itfc_lid = this%coarse_triangulation%vefs_itfc_lid(this%lid)
+    coarse_vef_get_num_cells_around = this%coarse_triangulation%ptrs_cells_around(vef_itfc_lid+1)- &
+                                      this%coarse_triangulation%ptrs_cells_around(vef_itfc_lid)
   end function coarse_vef_get_num_cells_around
   
   function coarse_vef_get_cell_around (this, icell_around)
@@ -364,8 +465,117 @@ contains
     class(coarse_vef_t), intent(in) :: this
     integer(ip)        , intent(in) :: icell_around
     type(coarse_cell_t), pointer    :: coarse_vef_get_cell_around
-    coarse_vef_get_cell_around => this%coarse_triangulation%cells(this%cells_around(icell_around))
+    integer(ip)                     :: position_in_lst_cells_around
+    integer(ip)                     :: vef_itfc_lid
+    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+    assert ( this%at_interface() )
+    assert ( icell_around >= 1 .and. icell_around <= this%get_num_cells_around() )
+    vef_itfc_lid = this%coarse_triangulation%vefs_itfc_lid(this%lid)
+    position_in_lst_cells_around = this%coarse_triangulation%ptrs_cells_around(vef_itfc_lid) + icell_around-1
+    coarse_vef_get_cell_around => this%coarse_triangulation%cells(this%coarse_triangulation%lst_cells_around(position_in_lst_cells_around))
   end function coarse_vef_get_cell_around
+  
+  subroutine coarse_vef_iterator_create ( this, coarse_triangulation ) 
+    implicit none
+    class(coarse_vef_iterator_t), intent(inout) :: this
+    type(coarse_triangulation_t), intent(in)    :: coarse_triangulation
+    call this%free()
+    call this%current_vef%create(lid=1, coarse_triangulation=coarse_triangulation)
+  end subroutine coarse_vef_iterator_create
+  
+  subroutine coarse_vef_iterator_free ( this ) 
+    implicit none
+    class(coarse_vef_iterator_t), intent(inout) :: this
+    call this%current_vef%free()
+  end subroutine coarse_vef_iterator_free
+  
+  subroutine coarse_vef_iterator_init ( this ) 
+    implicit none
+    class(coarse_vef_iterator_t), intent(inout) :: this
+    call this%current_vef%set_lid(lid=1)
+  end subroutine coarse_vef_iterator_init
+  
+  subroutine coarse_vef_iterator_next ( this ) 
+    implicit none
+    class(coarse_vef_iterator_t), intent(inout) :: this
+    call this%current_vef%next()
+  end subroutine coarse_vef_iterator_next
+  
+  function coarse_vef_iterator_has_finished ( this ) 
+    implicit none
+    class(coarse_vef_iterator_t), intent(in) :: this
+    logical                                  :: coarse_vef_iterator_has_finished
+    coarse_vef_iterator_has_finished = this%current_vef%past_the_end()
+  end function coarse_vef_iterator_has_finished
+  
+  function coarse_vef_iterator_current ( this ) 
+    implicit none
+    class(coarse_vef_iterator_t), target, intent(in) :: this
+    type(coarse_vef_t), pointer :: coarse_vef_iterator_current
+    coarse_vef_iterator_current => this%current_vef
+  end function coarse_vef_iterator_current
+  
+  subroutine coarse_itfc_vef_iterator_create ( this, coarse_triangulation ) 
+    implicit none
+    class(coarse_itfc_vef_iterator_t), intent(inout) :: this
+    type(coarse_triangulation_t)     , intent(in)    :: coarse_triangulation
+    call this%free()
+    this%itfc_lid = 1
+    if ( coarse_triangulation%num_itfc_vefs == 0 ) then
+       call this%current_vef%create(lid=coarse_triangulation%num_local_vefs+1, &
+                                    coarse_triangulation=coarse_triangulation)
+    else
+       call this%current_vef%create(lid=coarse_triangulation%lst_itfc_vefs(this%itfc_lid), &
+                                    coarse_triangulation=coarse_triangulation)
+    end if
+  end subroutine coarse_itfc_vef_iterator_create
+  
+  subroutine coarse_itfc_vef_iterator_free ( this ) 
+    implicit none
+    class(coarse_itfc_vef_iterator_t), intent(inout) :: this
+    this%itfc_lid = -1
+    call this%current_vef%free()
+  end subroutine coarse_itfc_vef_iterator_free
+  
+  subroutine coarse_itfc_vef_iterator_init (this) 
+    implicit none
+    class(coarse_itfc_vef_iterator_t), intent(inout) :: this
+    type(coarse_triangulation_t), pointer            :: coarse_triangulation
+    coarse_triangulation => this%current_vef%get_coarse_triangulation()
+    this%itfc_lid = 1
+    if ( coarse_triangulation%num_itfc_vefs == 0 ) then
+      call this%current_vef%set_lid(lid=coarse_triangulation%num_local_vefs+1)
+    else
+      call this%current_vef%set_lid(lid=coarse_triangulation%lst_itfc_vefs(this%itfc_lid))
+    end if
+  end subroutine coarse_itfc_vef_iterator_init
+  
+  subroutine coarse_itfc_vef_iterator_next ( this ) 
+    implicit none
+    class(coarse_itfc_vef_iterator_t), intent(inout) :: this
+    type(coarse_triangulation_t), pointer            :: coarse_triangulation
+    coarse_triangulation => this%current_vef%get_coarse_triangulation()
+    this%itfc_lid = this%itfc_lid + 1
+    if ( this%itfc_lid > coarse_triangulation%num_itfc_vefs ) then
+      call this%current_vef%set_lid(lid=coarse_triangulation%num_local_vefs+1)
+    else
+      call this%current_vef%set_lid(lid=coarse_triangulation%lst_itfc_vefs(this%itfc_lid))
+    end if
+  end subroutine coarse_itfc_vef_iterator_next
+  
+  function coarse_itfc_vef_iterator_has_finished ( this ) 
+    implicit none
+    class(coarse_itfc_vef_iterator_t), intent(in) :: this
+    logical                                  :: coarse_itfc_vef_iterator_has_finished
+    coarse_itfc_vef_iterator_has_finished = this%current_vef%past_the_end()
+  end function coarse_itfc_vef_iterator_has_finished
+  
+  function coarse_itfc_vef_iterator_current ( this ) 
+    implicit none
+    class(coarse_itfc_vef_iterator_t), target, intent(in) :: this
+    type(coarse_vef_t)               , pointer            :: coarse_itfc_vef_iterator_current
+    coarse_itfc_vef_iterator_current => this%current_vef
+  end function coarse_itfc_vef_iterator_current
   
   subroutine coarse_triangulation_create ( this, &
                                            par_environment, &
@@ -374,6 +584,7 @@ contains
                                            cell_gids, &
                                            ptr_vefs_per_cell, &
                                            lst_vefs_gids, &
+                                           lst_vefs_dimension, &
                                            num_itfc_cells, &
                                            lst_itfc_cells, &
                                            ptr_ext_neighs_per_itfc_cell, &
@@ -387,6 +598,7 @@ contains
     integer(ip)                        , intent(in)    :: cell_gids(*)
     integer(ip)                        , intent(in)    :: ptr_vefs_per_cell(*)
     integer(ip)                        , intent(in)    :: lst_vefs_gids(*)
+    integer(ip)                        , intent(in)    :: lst_vefs_dimension(*)
     integer(ip)                        , intent(in)    :: num_itfc_cells
     integer(ip)                        , intent(in)    :: lst_itfc_cells(*)
     integer(ip)                        , intent(in)    :: ptr_ext_neighs_per_itfc_cell(*)
@@ -420,15 +632,17 @@ contains
                                  lst_itfc_cells, &
                                  ptr_ext_neighs_per_itfc_cell, &
                                  lst_ext_neighs_gids)
-      call this%compute_num_local_vefs()
-      call this%allocate_vef_array()
-      call this%fill_vef_array()
       
+      call this%compute_num_local_vefs()
+      call this%allocate_and_fill_vefs_gid()
+      call this%allocate_and_fill_vefs_dimension(lst_vefs_dimension)
       call this%compute_num_itfc_vefs()
-      call this%allocate_lst_itfc_vefs()
-      call this%fill_lst_itfc_vefs()
+      call this%allocate_and_fill_lst_itfc_vefs()
+      call this%allocate_and_fill_vefs_itfc_lid()
+      call this%allocate_and_fill_cells_around()
       
       call this%compute_vefs_and_parts_object()
+      call this%compute_objects_dimension()
       call this%compute_number_global_objects_and_their_gids()
     end if
     call this%setup_coarse_triangulation()
@@ -451,14 +665,14 @@ contains
         call this%element_import%free()
         this%num_local_cells = -1
         this%num_ghost_cells = -1
-        
-        ! Free vef-related data
-        do ivef=1, this%num_local_vefs
-         call this%vefs(ivef)%free()
-        end do
-        call this%free_vef_array()
+     
+        call this%free_vefs_gid()
+        call this%free_vefs_dimension()
         this%num_local_vefs = -1
+        
         call this%free_lst_itfc_vefs()
+        call this%free_vefs_itfc_lid()
+        call this%free_cells_around()
         this%num_itfc_vefs = -1
         
         ! Free coarse objects-related data
@@ -467,6 +681,7 @@ contains
         call this%parts_object%free()
         this%number_global_objects = -1
         call memfree(this%objects_gids, __FILE__, __LINE__ )
+        call memfree(this%objects_dimension, __FILE__, __LINE__ )
       else ! I am lgt1_task
        call this%coarse_triangulation%free()
        deallocate ( this%coarse_triangulation, stat=istat)
@@ -479,6 +694,9 @@ contains
   recursive subroutine coarse_triangulation_print ( this )
     class(coarse_triangulation_t), intent(inout) :: this
     integer(ip) :: i
+    type(coarse_vef_iterator_t)          :: vef_iterator
+    type(coarse_vef_t), pointer          :: current_vef
+    
     assert( associated(this%p_env) )
     if ( this%p_env%am_i_l1_task() ) then
       write (*,'(a)') '****print type(coarse_triangulation_t)****'
@@ -491,12 +709,26 @@ contains
         write(*,'(a,i10,a)') '**** ghost cell: ',i,'****'
         call this%cells(i)%print()
       end do
-      do i = 1, this%num_local_vefs
-        write(*,'(a,i10,a)') '**** local vef: ',i,'****'
-        call this%vefs(i)%print()
+      
+      vef_iterator = this%create_vef_iterator()
+      do while ( .not. vef_iterator%has_finished() )
+        current_vef => vef_iterator%current()
+        write(*,'(a,i10,a)') '**** local vef  : ',current_vef%get_lid(),'****'
+        write(*,'(a,i10,a)') '****       gid  : ',current_vef%get_gid(),'****'
+        write(*,'(a,l10,a)') '****at_interface: ',current_vef%at_interface(),'****'
+        call vef_iterator%next()
       end do
-      write(*,'(a,i10)') '**** num_itfc_vefs: ', this%num_itfc_vefs
-      write(*,'(a,10i10)') '**** lst_itfc_vefs: ', this%lst_itfc_vefs
+      
+      !do i = 1, this%num_local_vefs
+      !  write(*,'(a,i10,a)') '**** local vef: ',i,'****'
+      !  call this%vefs(i)%print()
+      ! end do
+      write(*,'(a,i10)')    '**** num_local_vefs: ', this%num_local_vefs
+      write(*,'(a,10i10)')  '**** vefs_gid:       ', this%vefs_gid
+      write(*,'(a,10i10)')  '**** vefs_dimension: ', this%vefs_dimension
+      write(*,'(a,10i10)')  '**** vefs_itfc_lid:  ', this%vefs_itfc_lid
+      write(*,'(a,i10)')    '**** num_itfc_vefs:  ', this%num_itfc_vefs
+      write(*,'(a,10i10)')  '**** lst_itfc_vefs:  ', this%lst_itfc_vefs
       write (*,'(a)') '****end print type(coarse_triangulation_t)****'
     else 
       call this%coarse_triangulation%print()
@@ -527,9 +759,9 @@ contains
   end subroutine coarse_triangulation_free_cell_array 
   
   subroutine coarse_triangulation_fill_local_cells ( this, &
-                                                                         cell_gids, &
-                                                                         ptr_vefs_per_cell,&
-                                                                         lst_vefs_gids)                                                     
+                                                     cell_gids, &
+                                                     ptr_vefs_per_cell,&
+                                                     lst_vefs_gids)                                                     
     implicit none
     class(coarse_triangulation_t), intent(inout) :: this
     integer(ip)                  , intent(in)    :: cell_gids(this%num_local_cells)
@@ -615,7 +847,7 @@ contains
        icell = lst_itfc_cells(icell_itfc) 
        do j = ptr_ext_neighs_per_itfc_cell(icell), ptr_ext_neighs_per_itfc_cell(icell+1)-1
           call ht_g2l_ghosts%get(key = lst_ext_neighs_gids(j), val=jcell, stat=istat) 
-          call this%cells(jcell)%match_vefs_lids(this%cells(icell))
+          call this%cells(jcell)%match_vefs_lid(this%cells(icell))
        end do
     end do
     
@@ -639,118 +871,55 @@ contains
     end do
     call visited_vefs%free()
   end subroutine coarse_triangulation_compute_num_local_vefs
-  
-    subroutine coarse_triangulation_allocate_vef_array ( this )
-    implicit none
-    class(coarse_triangulation_t), intent(inout) :: this
-    integer(ip) :: istat
-    assert ( associated ( this%p_env ) )
-    assert ( this%p_env%am_i_l1_task() )
-    call this%free_vef_array()
-    allocate ( this%vefs(this%num_local_vefs), stat=istat)
-    check(istat == 0)
-  end subroutine coarse_triangulation_allocate_vef_array 
-  
-  subroutine coarse_triangulation_free_vef_array ( this )
-    implicit none
-    class(coarse_triangulation_t), intent(inout) :: this
-    integer(ip) :: istat
-    assert ( associated ( this%p_env ) )
-    assert ( this%p_env%am_i_l1_task() )
-    if (allocated(this%vefs)) then
-      deallocate (this%vefs, stat=istat)
-      check(istat==0)
-    end if
-  end subroutine coarse_triangulation_free_vef_array 
-  
-  subroutine coarse_triangulation_fill_vef_array ( this ) 
-    implicit none
-    class(coarse_triangulation_t), intent(inout) :: this
-    integer(ip), allocatable :: global_vef_gid_array(:)
-    integer(ip), allocatable :: ptr_cells_around(:)
-    integer(ip), allocatable :: lst_cells_around(:)
-    integer(ip)              :: ivef, vef_lid, j, init_pos, end_pos
-
     
-    call this%get_global_vef_gid_array(global_vef_gid_array)
-    call this%get_ptrs_lst_cells_around(ptr_cells_around, lst_cells_around)
-    
-    do vef_lid=1, this%num_local_vefs
-      init_pos = ptr_cells_around(vef_lid)
-      end_pos  = ptr_cells_around(vef_lid+1)-1
-      call this%vefs(vef_lid)%create(global_vef_gid_array(vef_lid), &
-                                     end_pos-init_pos+1, &
-                                     lst_cells_around(init_pos:end_pos),&
-                                     this )
-    end do
-    call memfree(global_vef_gid_array,__FILE__,__LINE__)
-    call memfree(ptr_cells_around,__FILE__,__LINE__)
-    call memfree(lst_cells_around,__FILE__,__LINE__)
-  end subroutine coarse_triangulation_fill_vef_array
-  
-  subroutine coarse_triangulation_get_global_vef_gid_array ( this, global_vef_gid_array )
+  subroutine coarse_triangulation_allocate_and_fill_vefs_gid ( this )
     implicit none
-    class(coarse_triangulation_t), intent(in)    :: this
-    integer(ip), allocatable     , intent(inout) :: global_vef_gid_array(:)
+    class(coarse_triangulation_t), intent(inout) :: this
     integer(ip)                                  :: icell, ivef, vef_lid, vef_gid
     assert ( this%num_local_vefs >= 0 ) 
     
-    if (allocated(global_vef_gid_array)) call memfree(global_vef_gid_array,__FILE__,__LINE__)
-    call memalloc(this%num_local_vefs, global_vef_gid_array,__FILE__,__LINE__)
+    call this%free_vefs_gid()
+    call memalloc(this%num_local_vefs, this%vefs_gid,__FILE__,__LINE__)
     do icell=1, this%num_local_cells
        do ivef=1, this%cells(icell)%get_num_vefs()
           vef_lid = this%cells(icell)%get_vef_lid(ivef)
           vef_gid = this%cells(icell)%get_vef_gid(ivef)
-          global_vef_gid_array(vef_lid) = vef_gid
+          this%vefs_gid(vef_lid) = vef_gid
        end do
     end do
-  end subroutine coarse_triangulation_get_global_vef_gid_array
+  end subroutine coarse_triangulation_allocate_and_fill_vefs_gid
   
-  subroutine coarse_triangulation_get_ptrs_lst_cells_around ( this, ptr_cells_around, lst_cells_around )
+  subroutine coarse_triangulation_free_vefs_gid( this )
     implicit none
-    class(coarse_triangulation_t), intent(in)    :: this
-    integer(ip), allocatable     , intent(inout) :: ptr_cells_around(:)
-    integer(ip), allocatable     , intent(inout) :: lst_cells_around(:)
-    
-    integer(ip)                                  :: icell, ivef, vef_lid
-    
-    if (allocated(ptr_cells_around)) call memfree(ptr_cells_around,__FILE__,__LINE__)
-    if (allocated(lst_cells_around)) call memfree(lst_cells_around,__FILE__,__LINE__)
-    
-    call memalloc ( this%num_local_vefs+1, ptr_cells_around, __FILE__, __LINE__ )
-    ptr_cells_around = 0
-    
-    ! Count elements around each vef
-    do icell=1, this%num_local_cells + this%num_ghost_cells
-       do ivef=1, this%cells(icell)%get_num_vefs()
-          vef_lid = this%cells(icell)%get_vef_lid(ivef)
-          if (vef_lid /= -1) then ! vef_lid == -1 then vef belongs to neighbouring processor
-             ptr_cells_around(vef_lid+1) = ptr_cells_around(vef_lid+1) + 1
-          end if
-       end do
-    end do
-    ptr_cells_around(1) = 1
-    do ivef=2, this%num_local_vefs+1
-      ptr_cells_around(ivef) = ptr_cells_around(ivef) + ptr_cells_around(ivef-1)
-    end do
-    
-    call memalloc ( ptr_cells_around(this%num_local_vefs+1)-1, lst_cells_around, __FILE__, __LINE__ )
-    do icell=1, this%num_local_cells + this%num_ghost_cells
-       do ivef=1, this%cells(icell)%get_num_vefs()
-          vef_lid = this%cells(icell)%get_vef_lid(ivef)
-          if (vef_lid /= -1) then ! vef_lid == -1 then vef belongs to neighbouring processor
-             lst_cells_around(ptr_cells_around(vef_lid)) = icell
-             ptr_cells_around(vef_lid) = ptr_cells_around(vef_lid) + 1
-          end if
-       end do
-    end do
-    
-    do ivef=this%num_local_vefs+1,2,-1 
-      ptr_cells_around(ivef) = ptr_cells_around(ivef-1)
-    end do
-    ptr_cells_around(1) = 1
-  end subroutine coarse_triangulation_get_ptrs_lst_cells_around
+    class(coarse_triangulation_t), intent(inout) :: this
+    if (allocated(this%vefs_gid)) call memfree(this%vefs_gid,__FILE__,__LINE__)
+  end subroutine coarse_triangulation_free_vefs_gid
   
+    subroutine coarse_triangulation_allocate_and_fill_vefs_dimension ( this, &
+                                                                       lst_vefs_dimension )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    integer(ip)                  , intent(in)    :: lst_vefs_dimension(*)
+    integer(ip)                                  :: icell, ivef, vef_lid, current
+    assert ( this%num_local_vefs >= 0 ) 
+    call this%free_vefs_dimension()
+    call memalloc(this%num_local_vefs, this%vefs_dimension,__FILE__,__LINE__)
+    current = 1
+    do icell=1, this%num_local_cells
+       do ivef=1, this%cells(icell)%get_num_vefs()
+          vef_lid = this%cells(icell)%get_vef_lid(ivef)
+          this%vefs_dimension(vef_lid) = lst_vefs_dimension(current)
+          current = current + 1
+       end do
+    end do
+  end subroutine coarse_triangulation_allocate_and_fill_vefs_dimension
+  
+  subroutine coarse_triangulation_free_vefs_dimension( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    if (allocated(this%vefs_dimension)) call memfree(this%vefs_dimension,__FILE__,__LINE__)
+  end subroutine coarse_triangulation_free_vefs_dimension
+    
   subroutine coarse_triangulation_compute_num_itfc_vefs ( this )
     implicit none
     class(coarse_triangulation_t), intent(inout) :: this
@@ -774,27 +943,17 @@ contains
     end do
     call visited_vefs%free()
   end subroutine coarse_triangulation_compute_num_itfc_vefs
-  
-  subroutine coarse_triangulation_allocate_lst_itfc_vefs ( this )
-    implicit none
-    class(coarse_triangulation_t), intent(inout) :: this
-    assert ( this%num_itfc_vefs >= 0 )
-    call this%free_lst_itfc_vefs()
-    call memalloc(this%num_itfc_vefs, this%lst_itfc_vefs,__FILE__,__LINE__)
-  end subroutine coarse_triangulation_allocate_lst_itfc_vefs
-  
-  subroutine coarse_triangulation_free_lst_itfc_vefs( this )
-    implicit none
-    class(coarse_triangulation_t), intent(inout) :: this
-    if (allocated(this%lst_itfc_vefs)) call memfree(this%lst_itfc_vefs,__FILE__,__LINE__)
-  end subroutine coarse_triangulation_free_lst_itfc_vefs
-  
-  subroutine coarse_triangulation_fill_lst_itfc_vefs( this )
+    
+  subroutine coarse_triangulation_allocate_and_fill_lst_itfc_vefs( this )
     implicit none
     class(coarse_triangulation_t), intent(inout) :: this
     integer(ip)                                  :: icell, vef_lid, ivef, i, istat
     type(hash_table_ip_ip_t)                     :: visited_vefs
-
+    assert ( this%num_itfc_vefs >= 0 ) 
+    
+    call this%free_lst_itfc_vefs()
+    call memalloc(this%num_itfc_vefs, this%lst_itfc_vefs,__FILE__,__LINE__)
+    
     call visited_vefs%init(max(5,int(real(this%num_local_vefs,rp)*0.2_rp,ip)))
     i=0
     ! Traverse local ghost elements (all interface vefs are there)
@@ -811,9 +970,91 @@ contains
        end do
     end do
     call visited_vefs%free()
-  end subroutine coarse_triangulation_fill_lst_itfc_vefs
+  end subroutine coarse_triangulation_allocate_and_fill_lst_itfc_vefs
   
-    subroutine coarse_triangulation_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
+  subroutine coarse_triangulation_free_lst_itfc_vefs( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    if (allocated(this%lst_itfc_vefs)) call memfree(this%lst_itfc_vefs,__FILE__,__LINE__)
+  end subroutine coarse_triangulation_free_lst_itfc_vefs
+  
+  subroutine coarse_triangulation_allocate_and_fill_vefs_itfc_lid( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    integer(ip)                                  ::  vef_lid, ivef_itfc
+    
+    assert ( this%num_itfc_vefs >= 0 )
+    call this%free_vefs_itfc_lid()
+    call memalloc(this%num_local_vefs, this%vefs_itfc_lid,__FILE__,__LINE__)
+    this%vefs_itfc_lid = -1
+    do ivef_itfc = 1, this%num_itfc_vefs
+      vef_lid = this%lst_itfc_vefs(ivef_itfc)
+      this%vefs_itfc_lid ( vef_lid ) =  ivef_itfc
+    end do  
+  end subroutine coarse_triangulation_allocate_and_fill_vefs_itfc_lid
+  
+  subroutine coarse_triangulation_free_vefs_itfc_lid( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    if (allocated(this%vefs_itfc_lid)) call memfree(this%vefs_itfc_lid,__FILE__,__LINE__)
+  end subroutine coarse_triangulation_free_vefs_itfc_lid
+  
+  
+  subroutine coarse_triangulation_allocate_and_fill_cells_around ( this )
+    implicit none
+    class(coarse_triangulation_t), intent(inout)  :: this
+    integer(ip)                                   :: icell, ivef, vef_lid, vef_itfc_lid
+    
+    call this%free_cells_around()
+    
+    call memalloc ( this%num_itfc_vefs+1, this%ptrs_cells_around, __FILE__, __LINE__ )
+    this%ptrs_cells_around = 0
+    
+    ! Count elements around each vef
+    do icell=1, this%num_local_cells + this%num_ghost_cells
+       do ivef=1, this%cells(icell)%get_num_vefs()
+          vef_lid = this%cells(icell)%get_vef_lid(ivef)
+          if (vef_lid /= -1) then ! vef_lid == -1 then vef belongs to neighbouring processor
+            vef_itfc_lid = this%vefs_itfc_lid(vef_lid)
+            if ( vef_itfc_lid /= -1 ) then
+             this%ptrs_cells_around(vef_itfc_lid +1) = this%ptrs_cells_around(vef_itfc_lid+1) + 1
+            end if
+          end if
+       end do
+    end do
+    this%ptrs_cells_around(1) = 1
+    do ivef=2, this%num_itfc_vefs+1
+      this%ptrs_cells_around(ivef) = this%ptrs_cells_around(ivef) + this%ptrs_cells_around(ivef-1)
+    end do
+    
+    call memalloc ( this%ptrs_cells_around(this%num_itfc_vefs+1)-1, this%lst_cells_around, __FILE__, __LINE__ )
+    do icell=1, this%num_local_cells + this%num_ghost_cells
+       do ivef=1, this%cells(icell)%get_num_vefs()
+          vef_lid = this%cells(icell)%get_vef_lid(ivef)
+          if (vef_lid /= -1) then ! vef_lid == -1 then vef belongs to neighbouring processor
+            vef_itfc_lid = this%vefs_itfc_lid(vef_lid)
+            if ( vef_itfc_lid /= -1 ) then
+             this%lst_cells_around(this%ptrs_cells_around(vef_itfc_lid)) = icell
+             this%ptrs_cells_around(vef_itfc_lid) = this%ptrs_cells_around(vef_itfc_lid) + 1
+            end if 
+          end if
+       end do
+    end do
+    
+    do ivef=this%num_itfc_vefs+1,2,-1 
+      this%ptrs_cells_around(ivef) = this%ptrs_cells_around(ivef-1)
+    end do
+    this%ptrs_cells_around(1) = 1
+  end subroutine coarse_triangulation_allocate_and_fill_cells_around
+  
+  subroutine coarse_triangulation_free_cells_around(this)
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    if (allocated(this%ptrs_cells_around)) call memfree(this%ptrs_cells_around,__FILE__,__LINE__)
+    if (allocated(this%lst_cells_around)) call memfree(this%lst_cells_around,__FILE__,__LINE__)
+  end subroutine coarse_triangulation_free_cells_around
+ 
+  subroutine coarse_triangulation_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     implicit none
     class(coarse_triangulation_t), intent(in)    :: this
     integer(ip), allocatable  , intent(inout) :: parts_itfc_vefs(:,:)
@@ -826,6 +1067,8 @@ contains
     type(coarse_cell_t), pointer              :: cell
     integer(ip)                               :: num_rows_parts_itfc_vefs
     integer(ip), allocatable                  :: work1(:), work2(:)
+    type(coarse_itfc_vef_iterator_t)          :: itfc_vef_iterator
+    type(coarse_vef_t), pointer               :: current_itfc_vef
     
     assert ( this%p_env%am_i_l1_task() )
     
@@ -844,15 +1087,19 @@ contains
     call memalloc ( num_rows_parts_itfc_vefs, this%num_itfc_vefs, parts_itfc_vefs, __FILE__, __LINE__ )
     parts_itfc_vefs = 0
     
-    do ivef_itfc = 1, this%num_itfc_vefs
-      vef_lid = this%lst_itfc_vefs(ivef_itfc)
+    
+    itfc_vef_iterator = this%create_itfc_vef_iterator()
+    
+    ivef_itfc = 1
+    do while ( .not. itfc_vef_iterator%has_finished() )
+      current_itfc_vef => itfc_vef_iterator%current()
       touched_neighbours = .false.
       
       nparts_around = 1 
       parts_itfc_vefs(nparts_around+1,ivef_itfc) = mypart_id
       
-      do icell=1, this%vefs(vef_lid)%get_num_cells_around()
-        cell => this%vefs(vef_lid)%get_cell_around(icell)
+      do icell=1, current_itfc_vef%get_num_cells_around()
+        cell => current_itfc_vef%get_cell_around(icell)
         part_id = cell%get_mypart()
         
         if ( part_id /= mypart_id ) then
@@ -868,6 +1115,8 @@ contains
       ! Sort list of parts in increasing order by part identifiers
       ! This is required by the call to icomp subroutine below 
       call sort ( nparts_around, parts_itfc_vefs(2:nparts_around+1, ivef_itfc) )
+      call itfc_vef_iterator%next()
+      ivef_itfc = ivef_itfc + 1
     end do
     
     call memalloc ( this%num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
@@ -977,6 +1226,24 @@ contains
     call memfree ( parts_itfc_vefs, __FILE__, __LINE__ )
     call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )
   end subroutine coarse_triangulation_compute_vefs_and_parts_object
+  
+  subroutine coarse_triangulation_compute_objects_dimension(this)
+    implicit none
+    class(coarse_triangulation_t), intent(inout) :: this
+    integer(ip)                                  :: iobj, vef_lid
+    type(list_iterator_t)                        :: vefs_object_iterator
+    
+    call memalloc ( this%number_objects, this%objects_dimension, __FILE__, __LINE__ )
+    do iobj=1, this%number_objects
+      vefs_object_iterator = this%vefs_object%get_iterator(iobj)
+      this%objects_dimension(iobj) = 0
+      do while(.not. vefs_object_iterator%is_upper_bound())
+        vef_lid = vefs_object_iterator%get_current()
+        this%objects_dimension(iobj) = max ( this%objects_dimension(iobj), this%vefs_gid(vef_lid) )  
+        call vefs_object_iterator%next()
+       end do
+    end do
+  end subroutine coarse_triangulation_compute_objects_dimension
   
   subroutine coarse_triangulation_compute_objects_neighbours_exchange_data ( this, &
                                                                           num_rcv,&
@@ -1230,6 +1497,7 @@ contains
     integer(ip)               , allocatable   :: coarse_vefs_recv_counts(:)
     integer(ip)               , allocatable   :: coarse_vefs_displs(:)
     integer(ip)               , allocatable   :: lst_coarse_vef_gids(:)
+    integer(ip)               , allocatable   :: lst_coarse_vef_dimension(:)
     integer(ip)               , allocatable   :: l2_part_id_neighbours(:)
     integer(ip)               , allocatable   :: coarse_dgraph_recv_counts(:)
     integer(ip)               , allocatable   :: coarse_dgraph_displs(:)
@@ -1253,6 +1521,7 @@ contains
     call memalloc (0, coarse_vefs_recv_counts, __FILE__, __LINE__)
     call memalloc (0, coarse_vefs_displs, __FILE__, __LINE__)
     call memalloc (0, lst_coarse_vef_gids, __FILE__, __LINE__)
+    call memalloc (0, lst_coarse_vef_dimension, __FILE__, __LINE__)
     call memalloc (0, l2_part_id_neighbours, __FILE__, __LINE__)
     call memalloc (0, coarse_dgraph_recv_counts, __FILE__, __LINE__)
     call memalloc (0, coarse_dgraph_displs, __FILE__, __LINE__)
@@ -1266,6 +1535,7 @@ contains
       call this%gather_coarse_cell_gids (coarse_cell_gids)
       call this%gather_coarse_vefs_rcv_counts_and_displs (coarse_vefs_recv_counts, coarse_vefs_displs)
       call this%gather_coarse_vefs_gids (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_gids)
+      call this%gather_coarse_vefs_dimension (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_dimension)
       call this%fetch_l2_part_id_neighbours(l2_part_id_neighbours)
       call this%gather_coarse_dgraph_rcv_counts_and_displs ( l2_part_id_neighbours, &
                                                              coarse_dgraph_recv_counts, &
@@ -1296,6 +1566,7 @@ contains
                                               cell_gids                    = coarse_cell_gids, &
                                               ptr_vefs_per_cell            = coarse_vefs_displs, &
                                               lst_vefs_gids                = lst_coarse_vef_gids, &
+                                              lst_vefs_dimension           = lst_coarse_vef_dimension, &
                                               num_itfc_cells               = num_itfc_coarse_cells, &
                                               lst_itfc_cells               = coarse_dgraph_recv_counts, &
                                               ptr_ext_neighs_per_itfc_cell = coarse_dgraph_displs, &
@@ -1311,6 +1582,7 @@ contains
     call memfree (coarse_vefs_recv_counts, __FILE__, __LINE__)
     call memfree (coarse_vefs_displs, __FILE__, __LINE__)
     call memfree (lst_coarse_vef_gids, __FILE__, __LINE__)
+    call memfree (lst_coarse_vef_dimension, __FILE__, __LINE__)
     call memfree (l2_part_id_neighbours, __FILE__, __LINE__)
     call memfree (coarse_dgraph_recv_counts, __FILE__, __LINE__)
     call memfree (coarse_dgraph_displs, __FILE__, __LINE__)
@@ -1396,6 +1668,34 @@ contains
                                          output_data     = dummy_integer_array )
     end if    
   end subroutine coarse_triangulation_gather_coarse_vefs_gids
+  
+  subroutine coarse_triangulation_gather_coarse_vefs_dimension ( this, recv_counts, displs, lst_vefs_dimension )
+    implicit none
+    class(coarse_triangulation_t), intent(in)    :: this
+    integer(ip)                  , intent(in)    :: recv_counts(this%p_env%get_l1_to_l2_size())
+    integer(ip)                  , intent(in)    :: displs(this%p_env%get_l1_to_l2_size())
+    integer(ip), allocatable     , intent(inout) :: lst_vefs_dimension(:)
+    integer(ip)                                  :: l1_to_l2_size
+    integer(ip)                                  :: dummy_integer_array(0)
+    
+    assert ( this%p_env%am_i_l1_to_l2_task() )
+    if ( this%p_env%am_i_l1_to_l2_root() ) then
+      l1_to_l2_size = this%p_env%get_l1_to_l2_size()
+      if (allocated(lst_vefs_dimension)) call memfree ( lst_vefs_dimension, __FILE__, __LINE__ )
+      call memalloc ( displs(l1_to_l2_size), lst_vefs_dimension, __FILE__, __LINE__ )
+      call this%p_env%l2_from_l1_gather( input_data_size = 0, &
+                                         input_data      = dummy_integer_array, &
+                                         recv_counts     = recv_counts, &
+                                         displs          = displs, &
+                                         output_data     = lst_vefs_dimension )
+    else
+      call this%p_env%l2_from_l1_gather( input_data_size = this%number_objects, &
+                                         input_data      = this%objects_dimension, &
+                                         recv_counts     = dummy_integer_array, &
+                                         displs          = dummy_integer_array, &
+                                         output_data     = dummy_integer_array )
+    end if    
+  end subroutine coarse_triangulation_gather_coarse_vefs_dimension
   
   subroutine coarse_triangulation_fetch_l2_part_id_neighbours ( this, l2_part_id_neighbours )    
     implicit none
@@ -1544,15 +1844,15 @@ contains
   end subroutine coarse_triangulation_gather_coarse_dgraph_lextn_and_lextp 
   
   function coarse_triangulation_adapt_coarse_raw_arrays( this, &
-                                                      coarse_vefs_displs, &
-                                                      coarse_dgraph_recv_counts, &
-                                                      coarse_dgraph_displs ) result(num_itfc_coarse_cells)
+                                                         coarse_vefs_displs, &
+                                                         coarse_dgraph_recv_counts, &
+                                                         coarse_dgraph_displs ) result(num_itfc_coarse_cells)
     implicit none
     class(coarse_triangulation_t), intent(in)    :: this
-    integer(ip)               , intent(inout) :: coarse_vefs_displs(this%p_env%get_l1_to_l2_size())
-    integer(ip)               , intent(inout) :: coarse_dgraph_recv_counts(this%p_env%get_l1_to_l2_size())
-    integer(ip)               , intent(inout) :: coarse_dgraph_displs(this%p_env%get_l1_to_l2_size())
-    integer(ip)                               :: num_itfc_coarse_cells
+    integer(ip)                  , intent(inout) :: coarse_vefs_displs(this%p_env%get_l1_to_l2_size())
+    integer(ip)                  , intent(inout) :: coarse_dgraph_recv_counts(this%p_env%get_l1_to_l2_size())
+    integer(ip)                  , intent(inout) :: coarse_dgraph_displs(this%p_env%get_l1_to_l2_size())
+    integer(ip)                                  :: num_itfc_coarse_cells
     
     integer(ip) :: i 
     assert ( this%p_env%am_i_l1_to_l2_task() )
@@ -1586,5 +1886,19 @@ contains
       num_itfc_coarse_cells = 0
     end if
   end function coarse_triangulation_adapt_coarse_raw_arrays
+  
+  function coarse_triangulation_create_vef_iterator ( this )
+    implicit none
+    class(coarse_triangulation_t), intent(in)    :: this
+    type(coarse_vef_iterator_t) :: coarse_triangulation_create_vef_iterator
+    call coarse_triangulation_create_vef_iterator%create(this)
+  end function coarse_triangulation_create_vef_iterator
+  
+  function coarse_triangulation_create_itfc_vef_iterator ( this )
+    implicit none
+    class(coarse_triangulation_t), intent(in)    :: this
+    type(coarse_itfc_vef_iterator_t) :: coarse_triangulation_create_itfc_vef_iterator
+    call coarse_triangulation_create_itfc_vef_iterator%create(this)
+  end function coarse_triangulation_create_itfc_vef_iterator
   
 end module coarse_triangulation_names
