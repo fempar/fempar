@@ -403,11 +403,12 @@ contains
 
   subroutine compute_graph_laplacian_perturbed_matrix(this,sparse_matrix)
     use sparse_matrix_names
+    use matrix_names
     implicit none
     class(dG_CDR_discrete_integration_t), intent(in)    :: this
     type(sparse_matrix_t)               , intent(inout) :: sparse_matrix
 
-    type(sparse_matrix_iterator_t)   :: iterator
+    class(matrix_iterator_t), allocatable :: iterator
     integer(ip) :: i,j
     real(rp)    :: value
     logical(ip) :: finished

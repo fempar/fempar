@@ -76,6 +76,9 @@ module block_sparse_matrix_names
      procedure, private :: create_vector_spaces => block_sparse_matrix_create_vector_spaces
   end type block_sparse_matrix_t
 
+  !type :: block_sparse_matrix_t
+  !end type block_sparse_matrix_t
+
   ! Types
   public :: block_sparse_matrix_t
 

@@ -44,6 +44,16 @@ module matrix_names
      ! template methods cannot be overrided by subclasses
      procedure :: free => matrix_free_template_method
   end type matrix_t
+
+  type, abstract :: matrix_iterator_t
+     contains
+       procedure (matrix_iterator_next)        , deferred :: next
+       procedure (matrix_iterator_has_finished), deferred :: has_finished
+       procedure (matrix_iterator_get_row)     , deferred :: get_row
+       procedure (matrix_iterator_get_column)  , deferred :: get_column
+       procedure (matrix_iterator_get_value)   , deferred :: get_value
+       procedure (matrix_iterator_set_value)   , deferred :: set_value
+    end type matrix_iterator_t
   
   abstract interface
      ! Allocates the entries of the matrix once it has been created and symbolically set-up
@@ -60,9 +70,72 @@ module matrix_names
        integer(ip)           , intent(in)    :: action
      end subroutine free_in_stages_interface
   end interface
+  
+  !-----------------------------------------------------------------
+  !< MATRIX_ITERATOR SUBROUTINES
+  !-----------------------------------------------------------------
+  abstract interface
+     subroutine matrix_iterator_next(this)
+       !-----------------------------------------------------------------
+       !< Set the pointer to the following entry of the matrix
+       !-----------------------------------------------------------------
+       import :: matrix_iterator_t
+       class(matrix_iterator_t), intent(inout) :: this
+     end subroutine matrix_iterator_next
+
+     function matrix_iterator_has_finished(this)
+       !-----------------------------------------------------------------
+       !< Check if the pointer of the matrix has reached the end
+       !-----------------------------------------------------------------
+       import :: matrix_iterator_t
+       class(matrix_iterator_t), intent(in) :: this
+       logical :: matrix_iterator_has_finished
+     end function matrix_iterator_has_finished
+
+     function matrix_iterator_get_row(this)
+       !-----------------------------------------------------------------
+       !< Get the row index of the entry of the matrix
+       !-----------------------------------------------------------------
+       import :: matrix_iterator_t
+       import :: ip
+       class(matrix_iterator_t), intent(in) :: this
+       integer(ip) :: matrix_iterator_get_row
+     end function matrix_iterator_get_row
+
+     function matrix_iterator_get_column(this)
+       !-----------------------------------------------------------------
+       !<  Get the column index of the entry of the matrix
+       !-----------------------------------------------------------------
+       import :: matrix_iterator_t
+       import :: ip
+       class(matrix_iterator_t), intent(in) :: this
+       integer(ip) :: matrix_iterator_get_column
+     end function matrix_iterator_get_column
+
+     function matrix_iterator_get_value(this)
+       !-----------------------------------------------------------------
+       !< Get the value of the entry of the matrix
+       !-----------------------------------------------------------------
+       import :: matrix_iterator_t
+       import :: rp
+       class(matrix_iterator_t), intent(in) :: this
+       real(rp) :: matrix_iterator_get_value
+     end function matrix_iterator_get_value
+
+     subroutine matrix_iterator_set_value(this,new_value)
+       !-----------------------------------------------------------------
+       !< Set the value of the entry of the matrix
+       !-----------------------------------------------------------------
+       import :: matrix_iterator_t
+       import :: rp
+       class(matrix_iterator_t), intent(inout) :: this
+       real(rp)                , intent(in)    :: new_value
+     end subroutine matrix_iterator_set_value
+  end interface
 	 
   ! Data types
   public :: matrix_t
+  public :: matrix_iterator_t
 
 contains
   function matrix_is_linear ( op )
