@@ -83,6 +83,7 @@ module dG_CDR_discrete_integration_names
      procedure, non_overridable :: compute_analytical_force
      procedure, non_overridable :: set_initial_solution
      procedure, non_overridable :: compute_graph_laplacian_perturbed_matrix
+     procedure, non_overridable :: compute_graph_laplacian_perturbed_block_matrix
   end type DG_CDR_discrete_integration_t
   
   public :: dG_CDR_discrete_integration_t
@@ -408,7 +409,7 @@ contains
     class(dG_CDR_discrete_integration_t), intent(in)    :: this
     type(sparse_matrix_t)               , intent(inout) :: sparse_matrix
 
-    class(matrix_iterator_t), allocatable :: iterator
+    class(sparse_matrix_iterator_t), allocatable :: iterator
     integer(ip) :: i,j
     real(rp)    :: value
     logical(ip) :: finished
@@ -432,6 +433,40 @@ contains
        call iterator%next()
     end do
   end subroutine compute_graph_laplacian_perturbed_matrix
+
+  
+  subroutine compute_graph_laplacian_perturbed_block_matrix(this,block_sparse_matrix)
+    use block_sparse_matrix_names
+    use matrix_names
+    implicit none
+    class(dG_CDR_discrete_integration_t), intent(in)    :: this
+    type(block_sparse_matrix_t)         , intent(inout) :: block_sparse_matrix
+
+    class(block_sparse_matrix_iterator_t), allocatable :: iterator
+    integer(ip) :: i,j,iblock,jblock
+    real(rp)    :: value
+    logical(ip) :: finished
+
+    call block_sparse_matrix%get_iterator(iterator)
+
+    do while (.not. iterator%has_finished())
+       iblock = iterator%get_iblock()
+       jblock = iterator%get_jblock()
+       i = iterator%get_row()
+       j = iterator%get_column()
+       value = iterator%get_value()
+       write(*,*)  iblock,jblock,i, j, value
+
+       if ((i==j) .and. (iblock == jblock)) then
+          call iterator%set_value(1.0_rp)
+       else
+          call iterator%set_value(0.0_rp)
+       end if
+          
+       ! Do stuff
+       call iterator%next()
+    end do
+  end subroutine compute_graph_laplacian_perturbed_block_matrix
 end module DG_CDR_discrete_integration_names
 
 !****************************************************************************************************
@@ -487,6 +522,7 @@ program test_cdr
 
   type(serial_fe_space_t)                       :: fe_space
   type(p_reference_fe_t)                        :: reference_fe_array_one(1)
+  type(p_reference_fe_t)                        :: reference_fe_array_two(2)
   type(fe_affine_operator_t)                    :: fe_affine_operator
   type(theta_method_t)                , target  :: theta_method
   type(dG_CDR_discrete_integration_t)           :: dG_CDR_integration
@@ -565,6 +601,18 @@ program test_cdr
        &                                          order = order,                                    &
        &                                          field_type = field_type_scalar,                   &
        &                                          continuity = .false. )
+  reference_fe_array_two(1) = make_reference_fe ( topology = topology_quad,                         &
+       &                                          fe_type  = fe_type_lagrangian,                    &
+       &                                          number_dimensions = f_trian%num_dims,             &
+       &                                          order = order,                                    &
+       &                                          field_type = field_type_scalar,                   &
+       &                                          continuity = .false. )
+  reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad,                         &
+       &                                          fe_type  = fe_type_lagrangian,                    &
+       &                                          number_dimensions = f_trian%num_dims,             &
+       &                                          order = order,                                    &
+       &                                          field_type = field_type_scalar,                   &
+       &                                          continuity = .true. )
 
   call fe_space%create( triangulation = f_trian, boundary_conditions = f_cond,                      &
        &                reference_fe_phy = reference_fe_array_one,                                  &
@@ -700,6 +748,8 @@ program test_cdr
   call fe_affine_operator%free()
   call fe_space%free()
   call reference_fe_array_one(1)%free()
+  call reference_fe_array_two(1)%free()
+  call reference_fe_array_two(2)%free()
   call residual%free()
   call dof_values%free()
   call triangulation_free ( f_trian )

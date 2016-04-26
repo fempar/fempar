@@ -1153,18 +1153,18 @@ contains
       !-----------------------------------------------------------------
       !< Get a pointer to an iterator over the matrix entries
       !-----------------------------------------------------------------
-      class(sparse_matrix_t)               , intent(in)  :: this
-      class(matrix_iterator_t), allocatable, intent(out) :: iterator
+      class(sparse_matrix_t)         , intent(in)  :: this
+      class(sparse_matrix_iterator_t), intent(out) :: iterator
       !-----------------------------------------------------------------
       assert(allocated(this%State))
       assert(this%State%state_is_assembled())
-      allocate(sparse_matrix_iterator_t :: iterator)
-      select type (iterator)
-      class is (sparse_matrix_iterator_t)
+      !allocate(sparse_matrix_iterator_t :: iterator)
+      !select type (iterator)
+      !class is (sparse_matrix_iterator_t)
          call this%State%get_iterator(iterator%base_iterator)
-      class DEFAULT
-         assert(.false.)
-      end select           
+      !class DEFAULT
+       !  assert(.false.)
+      !end select           
     end subroutine sparse_matrix_get_iterator
 
     !-----------------------------------------------------------------
