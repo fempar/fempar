@@ -65,9 +65,24 @@ private
         procedure, public :: apply_body                              => csr_sparse_matrix_apply_body
         procedure, public :: print_matrix_market_body                => csr_sparse_matrix_print_matrix_market_body
         procedure, public :: print                                   => csr_sparse_matrix_print
+        procedure, public :: get_iterator                            => csr_sparse_matrix_get_iterator
     end type csr_sparse_matrix_t
 
+    !---------------------------------------------------------------------
+    !< CSR MATRIX ITERATOR TYPE
+    !---------------------------------------------------------------------
+    type, extends(base_sparse_matrix_iterator_t) :: csr_sparse_matrix_iterator_t
+       integer(ip) :: row_index
+       integer(ip) :: nnz_index
+       type(csr_sparse_matrix_t), pointer :: matrix
+
+     contains
+       procedure, non_overridable :: init => csr_sparse_matrix_iterator_init
+       procedure, non_overridable :: next => csr_sparse_matrix_iterator_next
+    end type csr_sparse_matrix_iterator_t
+
 public :: csr_sparse_matrix_t
+!public :: csr_sparse_matrix_iterator_t
 
 contains
 
@@ -2961,6 +2976,39 @@ contains
 
     end subroutine csr_sparse_matrix_print_matrix_market_body
 
+    subroutine csr_sparse_matrix_get_iterator(this,iterator)
+      class(csr_sparse_matrix_t)          , target     , intent(in)  :: this
+      class(base_sparse_matrix_iterator_t), allocatable, intent(out) :: iterator
+      
+      allocate ( csr_sparse_matrix_iterator_t :: iterator )
+      select type (iterator)
+      class is (csr_sparse_matrix_iterator_t)
+         iterator%matrix => this
+      class DEFAULT
+         assert(.false.)
+      end select     
+      call iterator%init()
+    end subroutine csr_sparse_matrix_get_iterator
+
+    !---------------------------------------------------------------------
+    !< CSR_SPARSE_MATRIX_ITERATOR PROCEDURES
+    !---------------------------------------------------------------------
+    subroutine csr_sparse_matrix_iterator_init(this)
+      class(csr_sparse_matrix_iterator_t), intent(inout) :: this
+      
+      this%row_index = 1
+      this%nnz_index = 1
+    end subroutine csr_sparse_matrix_iterator_init
+
+    subroutine csr_sparse_matrix_iterator_next(this)
+      class(csr_sparse_matrix_iterator_t), intent(inout) :: this
+
+      this%nnz_index = this%nnz_index + 1
+      if (this%nnz_index == this%matrix%irp(this%row_index+1)) then
+         this%row_index = this%row_index + 1
+      end if
+      assert( this%nnz_index < this%matrix%irp(this%row_index+1))
+    end subroutine csr_sparse_matrix_iterator_next
 
 end module csr_sparse_matrix_names
 

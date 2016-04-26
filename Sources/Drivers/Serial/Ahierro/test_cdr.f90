@@ -82,6 +82,7 @@ module dG_CDR_discrete_integration_names
      procedure, non_overridable :: integrate
      procedure, non_overridable :: compute_analytical_force
      procedure, non_overridable :: set_initial_solution
+     procedure, non_overridable :: compute_graph_laplacian_perturbed_matrix
   end type DG_CDR_discrete_integration_t
   
   public :: dG_CDR_discrete_integration_t
@@ -399,6 +400,21 @@ contains
 
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
   end subroutine integrate
+
+  subroutine compute_graph_laplacian_perturbed_matrix(this,sparse_matrix)
+    implicit none
+    class(dG_CDR_discrete_integration_t), intent(in)    :: this
+    type(sparse_matrix_t)               , intent(inout) :: sparse_matrix
+
+    type(sparse_matrix_iterator_t)   :: iterator
+    integer(ip) :: i
+
+    call sparse_matrix%get_iterator(iterator)
+
+    do i=1,20
+       call iterator%next()
+    end do
+  end subroutine compute_graph_laplacian_perturbed_matrix
 end module DG_CDR_discrete_integration_names
 
 !****************************************************************************************************
@@ -409,7 +425,7 @@ program test_cdr
   use serial_names
   use theta_method_names
   use dG_CDR_discrete_integration_names
-  use block_sparse_matrix_names
+  use sparse_matrix_names
   use direct_solver_names
   use FPL
   use pardiso_mkl_direct_solver_names
@@ -587,9 +603,10 @@ program test_cdr
 
      ! Nonlinear iterations
      do  while (residual_nrm2 > tolerance .and. count <= max_number_iterations)
+        
         call fe_affine_operator%symbolic_setup()
         call fe_affine_operator%numerical_setup()
-        
+
         ! Extract the matrix and the RHS
         matrix => fe_affine_operator%get_matrix()
         rhs    => fe_affine_operator%get_array() 
@@ -599,6 +616,8 @@ program test_cdr
            class DEFAULT
            assert(.false.)
         end select
+
+        call dG_CDR_integration%compute_graph_laplacian_perturbed_matrix(sparse_matrix)
 
         ! DIRECT SOLVER ===============================================
         call direct_solver%set_type_from_pl(direct_solver_parameters)

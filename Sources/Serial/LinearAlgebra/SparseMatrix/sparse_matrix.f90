@@ -6,7 +6,7 @@ USE vector_names
 USE matrix_names
 USE vector_space_names
 USE serial_scalar_array_names
-USE base_sparse_matrix_names, only: base_sparse_matrix_t, coo_sparse_matrix_t
+USE base_sparse_matrix_names, only: base_sparse_matrix_t, coo_sparse_matrix_t, base_sparse_matrix_iterator_t
 USE csr_sparse_matrix_names
 
 implicit none
@@ -101,11 +101,19 @@ private
         procedure,                  public :: apply                          => sparse_matrix_apply
         procedure, non_overridable, public :: print                          => sparse_matrix_print
         procedure, non_overridable, public :: print_matrix_market            => sparse_matrix_print_matrix_market
+        procedure, non_overridable, public :: get_iterator                   => sparse_matrix_get_iterator
     end type sparse_matrix_t
 
     class(base_sparse_matrix_t), allocatable, target, save :: default_sparse_matrix
 
-public :: sparse_matrix_t
+    type :: sparse_matrix_iterator_t
+       private
+       class(base_sparse_matrix_iterator_t), allocatable :: base_iterator
+     contains
+       procedure, non_overridable :: next => sparse_matrix_iterator_next
+    end type sparse_matrix_iterator_t
+
+public :: sparse_matrix_t, sparse_matrix_iterator_t
 
 contains
 
@@ -1135,5 +1143,27 @@ contains
     !-----------------------------------------------------------------
         call this%State%print_matrix_market(lunou, ng, l2g)
     end subroutine sparse_matrix_print_matrix_market
+    
+    subroutine sparse_matrix_get_iterator(this, iterator)
+      !-----------------------------------------------------------------
+      !< Get a pointer to an iterator over the matrix entries
+      !-----------------------------------------------------------------
+      class(sparse_matrix_t)        ,  intent(in) :: this
+      type(sparse_matrix_iterator_t), intent(out) :: iterator
+      !-----------------------------------------------------------------
+      assert(allocated(this%State))
+      assert(this%State%state_is_assembled())
+      call this%State%get_iterator(iterator%base_iterator)
+    end subroutine sparse_matrix_get_iterator
 
-end module sparse_matrix_names
+    !-----------------------------------------------------------------
+    !< SPARSE_MATRIX_ITERATOR SUBROUTINES
+    !-----------------------------------------------------------------
+    subroutine sparse_matrix_iterator_next(this)
+      !-----------------------------------------------------------------
+      !< Set the pointer to the following entry of the matrix
+      !-----------------------------------------------------------------
+      class(sparse_matrix_iterator_t), intent(inout) :: this
+      call this%base_iterator%next()
+    end subroutine sparse_matrix_iterator_next
+  end module sparse_matrix_names
