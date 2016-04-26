@@ -376,11 +376,16 @@ module base_sparse_matrix_names
      procedure(base_sparse_matrix_iterator_init)        , deferred :: init 
      procedure(base_sparse_matrix_iterator_next)        , deferred :: next 
      procedure(base_sparse_matrix_iterator_has_finished), deferred :: has_finished
+     procedure(base_sparse_matrix_iterator_get_row)     , deferred :: get_row
+     procedure(base_sparse_matrix_iterator_get_column)  , deferred :: get_column
+     procedure(base_sparse_matrix_iterator_get_value)   , deferred :: get_value
+     procedure(base_sparse_matrix_iterator_set_value)   , deferred :: set_value
   end type base_sparse_matrix_iterator_t
   
   !---------------------------------------------------------------------
   !< COO MATRIX ITERATOR TYPE
   !---------------------------------------------------------------------
+  ! NOT TESTED!!!
   type, extends(base_sparse_matrix_iterator_t) :: coo_sparse_matrix_iterator_t
      integer(ip) :: nnz_index
      type(coo_sparse_matrix_t), pointer :: matrix
@@ -389,6 +394,10 @@ module base_sparse_matrix_names
      procedure, non_overridable :: init         => coo_sparse_matrix_iterator_init
      procedure, non_overridable :: next         => coo_sparse_matrix_iterator_next
      procedure, non_overridable :: has_finished => coo_sparse_matrix_iterator_has_finished
+     procedure, non_overridable :: get_row      => coo_sparse_matrix_iterator_get_row
+     procedure, non_overridable :: get_column   => coo_sparse_matrix_iterator_get_column
+     procedure, non_overridable :: get_value    => coo_sparse_matrix_iterator_get_value
+     procedure, non_overridable :: set_value    => coo_sparse_matrix_iterator_set_value
   end type coo_sparse_matrix_iterator_t
 
   !---------------------------------------------------------------------
@@ -811,6 +820,54 @@ module base_sparse_matrix_names
          !-----------------------------------------------------------------
          
        end function base_sparse_matrix_iterator_has_finished
+
+       function base_sparse_matrix_iterator_get_row(this)
+         !-----------------------------------------------------------------
+         !< Get the row index of the entry of the matrix
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         import ip
+         class( base_sparse_matrix_iterator_t), intent(in) :: this
+         integer(ip) :: base_sparse_matrix_iterator_get_row
+         !-----------------------------------------------------------------
+         
+       end function base_sparse_matrix_iterator_get_row
+
+       function base_sparse_matrix_iterator_get_column(this)
+         !-----------------------------------------------------------------
+         !< Get the column index of the entry of the matrix
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         import ip
+         class( base_sparse_matrix_iterator_t), intent(in) :: this
+         integer(ip) :: base_sparse_matrix_iterator_get_column
+         !-----------------------------------------------------------------
+         
+       end function base_sparse_matrix_iterator_get_column
+
+       function base_sparse_matrix_iterator_get_value(this)
+         !-----------------------------------------------------------------
+         !< Get the value of the entry of the matrix
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         import rp
+         class( base_sparse_matrix_iterator_t), intent(in) :: this
+         real(rp) :: base_sparse_matrix_iterator_get_value
+         !-----------------------------------------------------------------
+         
+       end function base_sparse_matrix_iterator_get_value
+
+       subroutine base_sparse_matrix_iterator_set_value(this,new_value)
+         !-----------------------------------------------------------------
+         !< Set the value index of the entry of the matrix
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         import rp
+         class( base_sparse_matrix_iterator_t), intent(inout) :: this
+         real(rp)                             , intent(in)    :: new_value
+         !-----------------------------------------------------------------
+         
+       end subroutine base_sparse_matrix_iterator_set_value
     end interface
 
 !---------------------------------------------------------------------
@@ -5088,6 +5145,7 @@ contains
     !---------------------------------------------------------------------
     !< COO_SPARSE_MATRIX_ITERATOR PROCEDURES
     !---------------------------------------------------------------------
+    ! NOT TESTED!!!
     subroutine coo_sparse_matrix_iterator_init(this)
       class(coo_sparse_matrix_iterator_t), intent(inout) :: this
       
@@ -5106,5 +5164,33 @@ contains
 
       coo_sparse_matrix_iterator_has_finished = (this%nnz_index > this%matrix%nnz)
     end function coo_sparse_matrix_iterator_has_finished
+
+    function coo_sparse_matrix_iterator_get_row(this)
+      class(coo_sparse_matrix_iterator_t), intent(in) :: this
+      integer(ip) :: coo_sparse_matrix_iterator_get_row
+
+      coo_sparse_matrix_iterator_get_row = this%matrix%ia(this%nnz_index)
+    end function coo_sparse_matrix_iterator_get_row
+
+    function coo_sparse_matrix_iterator_get_column(this)
+      class(coo_sparse_matrix_iterator_t), intent(in) :: this
+      integer(ip) :: coo_sparse_matrix_iterator_get_column
+
+      coo_sparse_matrix_iterator_get_column = this%matrix%ja(this%nnz_index)
+    end function coo_sparse_matrix_iterator_get_column
+
+    function coo_sparse_matrix_iterator_get_value(this)
+      class(coo_sparse_matrix_iterator_t), intent(in) :: this
+      real(rp) :: coo_sparse_matrix_iterator_get_value
+
+      coo_sparse_matrix_iterator_get_value = this%matrix%val(this%nnz_index)
+    end function coo_sparse_matrix_iterator_get_value
+
+    subroutine coo_sparse_matrix_iterator_set_value(this,new_value)
+      class(coo_sparse_matrix_iterator_t), intent(inout) :: this
+      real(rp)                           , intent(in)    :: new_value
+
+      this%matrix%val(this%nnz_index) = new_value
+    end subroutine coo_sparse_matrix_iterator_set_value
 
 end module base_sparse_matrix_names

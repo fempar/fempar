@@ -80,6 +80,10 @@ private
        procedure, non_overridable :: init         => csr_sparse_matrix_iterator_init
        procedure, non_overridable :: next         => csr_sparse_matrix_iterator_next
        procedure, non_overridable :: has_finished => csr_sparse_matrix_iterator_has_finished
+       procedure, non_overridable :: get_row      => csr_sparse_matrix_iterator_get_row
+       procedure, non_overridable :: get_column   => csr_sparse_matrix_iterator_get_column
+       procedure, non_overridable :: get_value    => csr_sparse_matrix_iterator_get_value
+       procedure, non_overridable :: set_value    => csr_sparse_matrix_iterator_set_value
     end type csr_sparse_matrix_iterator_t
 
 public :: csr_sparse_matrix_t
@@ -3018,5 +3022,34 @@ contains
       
       csr_sparse_matrix_iterator_has_finished = (this%nnz_index > this%matrix%nnz)
     end function csr_sparse_matrix_iterator_has_finished
+
+    function csr_sparse_matrix_iterator_get_row(this)
+      class(csr_sparse_matrix_iterator_t), intent(in) :: this
+      integer(ip) :: csr_sparse_matrix_iterator_get_row
+
+      csr_sparse_matrix_iterator_get_row = this%row_index
+    end function csr_sparse_matrix_iterator_get_row
+
+    function csr_sparse_matrix_iterator_get_column(this)
+      class(csr_sparse_matrix_iterator_t), intent(in) :: this
+      integer(ip) :: csr_sparse_matrix_iterator_get_column
+
+      csr_sparse_matrix_iterator_get_column = this%matrix%ja(this%nnz_index)
+    end function csr_sparse_matrix_iterator_get_column
+
+    function csr_sparse_matrix_iterator_get_value(this)
+      class(csr_sparse_matrix_iterator_t), intent(in) :: this
+      real(rp) :: csr_sparse_matrix_iterator_get_value
+
+      csr_sparse_matrix_iterator_get_value = this%matrix%val(this%nnz_index)
+    end function csr_sparse_matrix_iterator_get_value
+
+    subroutine csr_sparse_matrix_iterator_set_value(this,new_value)
+      class(csr_sparse_matrix_iterator_t), intent(inout) :: this
+      real(rp)                           , intent(in)    :: new_value
+
+      this%matrix%val(this%nnz_index) = new_value
+    end subroutine csr_sparse_matrix_iterator_set_value
+
 end module csr_sparse_matrix_names
 

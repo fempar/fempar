@@ -408,13 +408,25 @@ contains
     type(sparse_matrix_t)               , intent(inout) :: sparse_matrix
 
     type(sparse_matrix_iterator_t)   :: iterator
-    integer(ip) :: i
+    integer(ip) :: i,j
+    real(rp)    :: value
     logical(ip) :: finished
 
     call sparse_matrix%get_iterator(iterator)
 
     do while (.not. iterator%has_finished())
+       
+       i = iterator%get_row()
+       j = iterator%get_column()
+       value = iterator%get_value()
+       write(*,*)  i, j, value
 
+       if (i==j) then
+          call iterator%set_value(1.0_rp)
+       else
+          call iterator%set_value(0.0_rp)
+       end if
+          
        ! Do stuff
        call iterator%next()
     end do
@@ -634,7 +646,7 @@ program test_cdr
         class is (serial_scalar_array_t)
            select type (dof_values) 
            class is (serial_scalar_array_t)
-              !call rhs%print(6)
+              call rhs%print(6)
               call direct_solver%solve(rhs , dof_values)
            end select
         class DEFAULT
