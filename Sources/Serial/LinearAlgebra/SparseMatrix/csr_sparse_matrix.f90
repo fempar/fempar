@@ -77,8 +77,9 @@ private
        type(csr_sparse_matrix_t), pointer :: matrix
 
      contains
-       procedure, non_overridable :: init => csr_sparse_matrix_iterator_init
-       procedure, non_overridable :: next => csr_sparse_matrix_iterator_next
+       procedure, non_overridable :: init         => csr_sparse_matrix_iterator_init
+       procedure, non_overridable :: next         => csr_sparse_matrix_iterator_next
+       procedure, non_overridable :: has_finished => csr_sparse_matrix_iterator_has_finished
     end type csr_sparse_matrix_iterator_t
 
 public :: csr_sparse_matrix_t
@@ -3003,12 +3004,19 @@ contains
     subroutine csr_sparse_matrix_iterator_next(this)
       class(csr_sparse_matrix_iterator_t), intent(inout) :: this
 
+      assert( this%nnz_index < this%matrix%irp(this%row_index+1))
+
       this%nnz_index = this%nnz_index + 1
       if (this%nnz_index == this%matrix%irp(this%row_index+1)) then
          this%row_index = this%row_index + 1
-      end if
-      assert( this%nnz_index < this%matrix%irp(this%row_index+1))
+      end if     
     end subroutine csr_sparse_matrix_iterator_next
 
+    function csr_sparse_matrix_iterator_has_finished(this)
+      class(csr_sparse_matrix_iterator_t), intent(in) :: this
+      logical :: csr_sparse_matrix_iterator_has_finished
+      
+      csr_sparse_matrix_iterator_has_finished = (this%nnz_index > this%matrix%nnz)
+    end function csr_sparse_matrix_iterator_has_finished
 end module csr_sparse_matrix_names
 

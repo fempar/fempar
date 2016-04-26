@@ -110,7 +110,8 @@ private
        private
        class(base_sparse_matrix_iterator_t), allocatable :: base_iterator
      contains
-       procedure, non_overridable :: next => sparse_matrix_iterator_next
+       procedure, non_overridable :: next         => sparse_matrix_iterator_next
+       procedure, non_overridable :: has_finished => sparse_matrix_iterator_has_finished
     end type sparse_matrix_iterator_t
 
 public :: sparse_matrix_t, sparse_matrix_iterator_t
@@ -1166,4 +1167,14 @@ contains
       class(sparse_matrix_iterator_t), intent(inout) :: this
       call this%base_iterator%next()
     end subroutine sparse_matrix_iterator_next
+
+    function sparse_matrix_iterator_has_finished(this)
+      !-----------------------------------------------------------------
+      !< Set the pointer to the following entry of the matrix
+      !-----------------------------------------------------------------
+      class(sparse_matrix_iterator_t), intent(in) :: this
+      logical :: sparse_matrix_iterator_has_finished
+      sparse_matrix_iterator_has_finished = this%base_iterator%has_finished()
+    end function sparse_matrix_iterator_has_finished
+
   end module sparse_matrix_names

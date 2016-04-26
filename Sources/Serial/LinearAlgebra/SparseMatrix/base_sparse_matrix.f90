@@ -373,8 +373,9 @@ module base_sparse_matrix_names
   !---------------------------------------------------------------------
   type, abstract :: base_sparse_matrix_iterator_t
    contains
-     procedure(base_sparse_matrix_iterator_init), deferred :: init 
-     procedure(base_sparse_matrix_iterator_next), deferred :: next 
+     procedure(base_sparse_matrix_iterator_init)        , deferred :: init 
+     procedure(base_sparse_matrix_iterator_next)        , deferred :: next 
+     procedure(base_sparse_matrix_iterator_has_finished), deferred :: has_finished
   end type base_sparse_matrix_iterator_t
   
   !---------------------------------------------------------------------
@@ -385,8 +386,9 @@ module base_sparse_matrix_names
      type(coo_sparse_matrix_t), pointer :: matrix
 
    contains
-     procedure, non_overridable :: init => coo_sparse_matrix_iterator_init
-     procedure, non_overridable :: next => coo_sparse_matrix_iterator_next
+     procedure, non_overridable :: init         => coo_sparse_matrix_iterator_init
+     procedure, non_overridable :: next         => coo_sparse_matrix_iterator_next
+     procedure, non_overridable :: has_finished => coo_sparse_matrix_iterator_has_finished
   end type coo_sparse_matrix_iterator_t
 
   !---------------------------------------------------------------------
@@ -791,13 +793,24 @@ module base_sparse_matrix_names
 
        subroutine base_sparse_matrix_iterator_next(this)
          !-----------------------------------------------------------------
-         !< Initialize the valuesSet the next identifiersof the iterator
+         !< Set the next identifiers of the iterator
          !-----------------------------------------------------------------
          import base_sparse_matrix_iterator_t
          class( base_sparse_matrix_iterator_t), intent(inout) :: this
          !-----------------------------------------------------------------
 
        end subroutine base_sparse_matrix_iterator_next
+
+       function base_sparse_matrix_iterator_has_finished(this)
+         !-----------------------------------------------------------------
+         !< Check if we have reached the last matrix position
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         class( base_sparse_matrix_iterator_t), intent(in) :: this
+         logical :: base_sparse_matrix_iterator_has_finished
+         !-----------------------------------------------------------------
+         
+       end function base_sparse_matrix_iterator_has_finished
     end interface
 
 !---------------------------------------------------------------------
@@ -5086,5 +5099,12 @@ contains
       
       this%nnz_index = this%nnz_index + 1
     end subroutine coo_sparse_matrix_iterator_next
+
+    function coo_sparse_matrix_iterator_has_finished(this)
+      class(coo_sparse_matrix_iterator_t), intent(in) :: this
+      logical :: coo_sparse_matrix_iterator_has_finished
+
+      coo_sparse_matrix_iterator_has_finished = (this%nnz_index > this%matrix%nnz)
+    end function coo_sparse_matrix_iterator_has_finished
 
 end module base_sparse_matrix_names

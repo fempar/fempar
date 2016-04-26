@@ -402,16 +402,20 @@ contains
   end subroutine integrate
 
   subroutine compute_graph_laplacian_perturbed_matrix(this,sparse_matrix)
+    use sparse_matrix_names
     implicit none
     class(dG_CDR_discrete_integration_t), intent(in)    :: this
     type(sparse_matrix_t)               , intent(inout) :: sparse_matrix
 
     type(sparse_matrix_iterator_t)   :: iterator
     integer(ip) :: i
+    logical(ip) :: finished
 
     call sparse_matrix%get_iterator(iterator)
 
-    do i=1,20
+    do while (.not. iterator%has_finished())
+
+       ! Do stuff
        call iterator%next()
     end do
   end subroutine compute_graph_laplacian_perturbed_matrix
