@@ -411,8 +411,9 @@ contains
 
     type(sparse_matrix_iterator_t) :: iterator
     integer(ip) :: i,j
-    real(rp)    :: value
-    logical(ip) :: finished
+    real(rp)    :: value,transposed_value
+    logical     :: finished
+    logical     :: found
 
     call sparse_matrix%get_iterator(iterator)
 
@@ -421,7 +422,12 @@ contains
        i = iterator%get_row()
        j = iterator%get_column()
        value = iterator%get_value()
-       write(*,*)  i, j, value
+       found = sparse_matrix%get_value(i,j,transposed_value)
+       if (found) then
+          write(*,*)  i, j, value-transposed_value
+       else
+          write(*,*)  i, j
+       end if
 
        if (i==j) then
           call iterator%set_value(1.0_rp)
@@ -445,7 +451,7 @@ contains
     class(block_sparse_matrix_iterator_t), allocatable :: iterator
     integer(ip) :: i,j,iblock,jblock
     real(rp)    :: value
-    logical(ip) :: finished
+    logical     :: finished
 
     call block_sparse_matrix%get_iterator(iterator)
 

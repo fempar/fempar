@@ -66,6 +66,7 @@ private
         procedure, public :: print_matrix_market_body                => csr_sparse_matrix_print_matrix_market_body
         procedure, public :: print                                   => csr_sparse_matrix_print
         procedure, public :: get_iterator                            => csr_sparse_matrix_get_iterator
+        procedure, public :: get_value                               => csr_sparse_matrix_get_value
     end type csr_sparse_matrix_t
 
     !---------------------------------------------------------------------
@@ -2995,6 +2996,37 @@ contains
       end select     
       call iterator%init()
     end subroutine csr_sparse_matrix_get_iterator
+
+    function csr_sparse_matrix_get_value(this, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Get the value in the entry (ia,ja) in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(in)  :: this
+        integer(ip),                intent(in)  :: ia
+        integer(ip),                intent(in)  :: ja
+        real(rp),                   intent(out) :: val
+        logical                                 :: csr_sparse_matrix_get_value
+
+        integer(ip)                             :: ipaux,i1,i2,nr,nc
+    !-----------------------------------------------------------------
+        ! Ignore out of bounds entries
+        if (ia<1 .or. ia>this%get_num_rows() .or. ja<1 .or.  ja>this%get_num_cols() .or. &
+             (this%get_symmetric_storage() .and. ia>ja)) then
+           csr_sparse_matrix_get_value = .false.
+        end if
+
+        i1 = this%irp(ia)
+        i2 = this%irp(ia+1)
+        nc = i2-i1
+        ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+
+        if (ipaux>0) then
+           val=this%val(i1+ipaux-1)
+           csr_sparse_matrix_get_value = .true.
+        else
+           csr_sparse_matrix_get_value = .false.
+        end if
+      end function csr_sparse_matrix_get_value
 
     !---------------------------------------------------------------------
     !< CSR_SPARSE_MATRIX_ITERATOR PROCEDURES

@@ -143,6 +143,7 @@ module base_sparse_matrix_names
      procedure(base_sparse_matrix_get_nnz),                   public, deferred :: get_nnz
      procedure(base_sparse_matrix_print),                     public, deferred :: print
      procedure(base_sparse_matrix_get_iterator),              public, deferred :: get_iterator
+     procedure(base_sparse_matrix_get_value),                 public, deferred :: get_value
      procedure         ::                                     base_sparse_matrix_create_square
      procedure         ::                                     base_sparse_matrix_create_rectangular
      procedure         :: insert_bounded_coords            => base_sparse_matrix_insert_bounded_coords
@@ -366,6 +367,7 @@ module base_sparse_matrix_names
         procedure, public :: print_matrix_market_body                => coo_sparse_matrix_print_matrix_market_body
         procedure, public :: print                                   => coo_sparse_matrix_print
         procedure, public :: get_iterator                            => coo_sparse_matrix_get_iterator
+        procedure, public :: get_value                               => coo_sparse_matrix_get_value
     end type coo_sparse_matrix_t
 
   !---------------------------------------------------------------------
@@ -774,6 +776,17 @@ module base_sparse_matrix_names
            class(base_sparse_matrix_t)         , target     , intent(in)  :: this
            class(base_sparse_matrix_iterator_t), allocatable, intent(out) :: iterator
          end subroutine base_sparse_matrix_get_iterator
+         
+         function base_sparse_matrix_get_value(this, ia, ja, val) 
+           import base_sparse_matrix_t
+           import ip
+           import rp
+           class(base_sparse_matrix_t), intent(in)  :: this
+           integer(ip),                 intent(in)  :: ia
+           integer(ip),                 intent(in)  :: ja
+           real(rp),                    intent(out) :: val
+           logical                                  :: base_sparse_matrix_get_value
+         end function base_sparse_matrix_get_value
     end interface
 
     !---------------------------------------------------------------------
@@ -4828,6 +4841,73 @@ contains
       end select
       call iterator%init()
     end subroutine coo_sparse_matrix_get_iterator
+
+    function coo_sparse_matrix_get_value(this, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !<  Get the value in the entry (ia,ja) in the sparse matrix
+    !-----------------------------------------------------------------
+      ! Not tested yet! 
+        class(coo_sparse_matrix_t), intent(in)  :: this
+        integer(ip),                intent(in)  :: ia
+        integer(ip),                intent(in)  :: ja
+        real(rp),                   intent(out) :: val
+        logical                                 :: coo_sparse_matrix_get_value
+
+        integer(ip)                             :: i, ipaux,i1,i2,nr,nc,nnz
+    !-----------------------------------------------------------------
+        ! Ignore out of bounds entriy
+        if ( ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. &
+            (this%symmetric_storage .and. ja>ia))then
+           coo_sparse_matrix_get_value = .false.
+        end if
+
+        nnz = this%nnz
+        if(this%is_by_rows()) then
+            i1 = binary_search(ia,nnz,this%ia)
+            i2 = i1
+            do 
+                if (i2+1 > nnz) exit
+                if (this%ia(i2+1) /= this%ia(i2)) exit
+                i2 = i2 + 1
+            end do
+            do 
+                if (i1-1 < 1) exit
+                if (this%ia(i1-1) /= this%ia(i1)) exit
+                i1 = i1 - 1
+            end do
+            nc = i2-i1+1
+            ipaux = binary_search(ja,nc,this%ja(i1:i2))
+            if (ipaux>0) then
+               val=this%val(i1+ipaux-1)
+               coo_sparse_matrix_get_value = .true.
+            else
+               coo_sparse_matrix_get_value = .false.
+            end if
+
+        elseif(this%is_by_cols()) then
+           i1 = binary_search(ja,nnz,this%ja)
+            i2 = i1
+            do 
+                if (i2+1 > nnz) exit
+                if (this%ja(i2+1) /= this%ja(i2)) exit
+                i2 = i2 + 1
+            end do
+            do 
+                if (i1-1 < 1) exit
+                if (this%ja(i1-1) /= this%ja(i1)) exit
+                i1 = i1 - 1
+            end do
+            nr = i2-i1+1
+            ipaux = binary_search(ia,nc,this%ia(i1:i2))
+            if (ipaux>0) then
+               val=this%val(i1+ipaux-1)
+               coo_sparse_matrix_get_value = .true.
+            else
+               coo_sparse_matrix_get_value = .false.
+            end if
+        endif
+      end function coo_sparse_matrix_get_value
+
 !---------------------------------------------------------------------
 !< AUX PROCEDURES
 !---------------------------------------------------------------------

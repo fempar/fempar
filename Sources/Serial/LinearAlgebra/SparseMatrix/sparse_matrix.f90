@@ -102,6 +102,7 @@ private
         procedure, non_overridable, public :: print                          => sparse_matrix_print
         procedure, non_overridable, public :: print_matrix_market            => sparse_matrix_print_matrix_market
         procedure, non_overridable, public :: get_iterator                   => sparse_matrix_get_iterator
+        procedure, non_overridable, public :: get_value                      => sparse_matrix_get_value
     end type sparse_matrix_t
 
     class(base_sparse_matrix_t), allocatable, target, save :: default_sparse_matrix
@@ -1159,14 +1160,23 @@ contains
       !-----------------------------------------------------------------
       assert(allocated(this%State))
       assert(this%State%state_is_assembled())
-      !allocate(sparse_matrix_iterator_t :: iterator)
-      !select type (iterator)
-      !class is (sparse_matrix_iterator_t)
-         call this%State%get_iterator(iterator%base_iterator)
-      !class DEFAULT
-       !  assert(.false.)
-      !end select           
+      call this%State%get_iterator(iterator%base_iterator)
     end subroutine sparse_matrix_get_iterator
+
+    function sparse_matrix_get_value(this, ia, ja, val)
+      !-----------------------------------------------------------------
+      !< Get the value in the (ia,ja) entry of the matrix
+      !-----------------------------------------------------------------
+      class(sparse_matrix_t), intent(in)  :: this
+      integer(ip)           , intent(in)  :: ia
+      integer(ip)           , intent(in)  :: ja
+      real(rp)              , intent(out) :: val
+      logical                             :: sparse_matrix_get_value
+      !-----------------------------------------------------------------
+      assert(allocated(this%State))
+      assert(this%State%state_is_assembled())
+      sparse_matrix_get_value = this%State%get_value(ia, ja, val)
+    end function sparse_matrix_get_value
 
     !-----------------------------------------------------------------
     !< SPARSE_MATRIX_ITERATOR SUBROUTINES
