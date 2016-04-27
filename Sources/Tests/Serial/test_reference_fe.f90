@@ -482,7 +482,7 @@ contains
                            boundary_conditions = f_cond, &
                            reference_fe_phy = reference_fe_array )
      
-     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(f_trian%num_dims,1.0_rp), &
+     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(1.0_rp), &
                                     bc_code = 1, &
                                     fe_space_component = 1 )
      
@@ -566,7 +566,7 @@ contains
                            boundary_conditions = f_cond, &
                            reference_fe_phy = reference_fe_array )
      
-     call fe_space%update_bc_value (vector_function=constant_vector_function_t(f_trian%num_dims,vector_field_t(1.0_rp)), &
+     call fe_space%update_bc_value (vector_function=constant_vector_function_t(vector_field_t(1.0_rp)), &
                                     bc_code = 1, &
                                     fe_space_component = 1 )
      
@@ -658,11 +658,11 @@ contains
                            field_blocks = (/1,1/), &
                            field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
      
-     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(f_trian%num_dims,1.0_rp), &
+     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(1.0_rp), &
                                     bc_code = 1, &
                                     fe_space_component = 1 )
      
-     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(f_trian%num_dims,1.0_rp), &
+     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(1.0_rp), &
                                     bc_code = 1, &
                                     fe_space_component = 2 )
      
@@ -757,11 +757,11 @@ contains
                            field_blocks = (/1,2/), &
                            field_coupling = reshape((/.true.,.false.,.false.,.true./),(/2,2/)) )
      
-     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(f_trian%num_dims,1.0_rp), &
+     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(1.0_rp), &
                                     bc_code = 1, &
                                     fe_space_component = 1 )
      
-     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(f_trian%num_dims,1.0_rp), &
+     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(1.0_rp), &
                                     bc_code = 1, &
                                     fe_space_component = 2 )
      

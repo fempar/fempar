@@ -264,6 +264,7 @@ module reference_fe_names
      procedure(update_interpolation_face_interface)     , deferred :: update_interpolation_face
      procedure(get_component_node_interface)            , deferred :: get_component_node
      procedure(get_scalar_from_vector_node_interface)   , deferred :: get_scalar_from_vector_node
+     procedure (get_number_nodes_scalar_interface),       deferred :: get_number_nodes_scalar
      
      procedure(get_value_scalar_interface)           , deferred :: get_value_scalar
      procedure(get_value_vector_interface)           , deferred :: get_value_vector
@@ -310,6 +311,10 @@ module reference_fe_names
 
      procedure (interpolate_nodal_values_interface), deferred :: interpolate_nodal_values
 
+     procedure (get_number_subelements_interface),       deferred :: get_number_subelements
+     procedure (get_subelements_connectivity_interface), deferred :: get_subelements_connectivity
+
+
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
      procedure :: print => reference_fe_print
@@ -342,6 +347,7 @@ module reference_fe_names
      procedure :: get_number_nodes => reference_fe_get_number_nodes
      procedure :: get_vef_dimension  => reference_fe_get_vef_dimension
      procedure :: get_vertices_vef  =>   reference_fe_get_vertices_vef
+     procedure :: get_nodes_vef   =>   reference_fe_get_nodes_vef
      procedure :: get_vefs_vef   =>   reference_fe_get_vefs_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
      procedure :: get_number_own_nodes_vef => reference_fe_get_number_own_nodes_vef
@@ -431,6 +437,13 @@ module reference_fe_names
        integer(ip), intent(in) :: node
        integer(ip) :: get_scalar_from_vector_node_interface
      end function get_scalar_from_vector_node_interface
+
+     function get_number_nodes_scalar_interface(this) result(number_nodes_scalar)
+     import :: reference_fe_t, ip
+       implicit none
+       class(reference_fe_t), intent(in) :: this
+       integer(ip)                       :: number_nodes_scalar
+     end function get_number_nodes_scalar_interface
 
      subroutine get_value_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,        &
           &                                 scalar_field )
@@ -633,7 +646,20 @@ module reference_fe_names
        real(rp)             , intent(in)    :: nodal_values_origin(:)
        real(rp)             , intent(inout) :: nodal_values_destination(:)
      end subroutine interpolate_nodal_values_interface
-       
+     
+     function get_number_subelements_interface(this) result(number_subelements)
+     import :: reference_fe_t, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       integer(ip)                          :: number_subelements
+     end function get_number_subelements_interface
+
+     subroutine get_subelements_connectivity_interface(this, connectivity)
+     import :: reference_fe_t, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       integer(ip),           intent(inout) :: connectivity(:,:)
+     end subroutine get_subelements_connectivity_interface
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -691,6 +717,9 @@ module reference_fe_names
           
      procedure :: fill_interior_points_permutation &
           &                   => quad_lagrangian_reference_fe_fill_interior_points_permutation     
+     procedure :: get_subelements_connectivity => quad_lagrangian_reference_fe_get_subelements_connectivity
+     procedure :: get_number_subelements => quad_lagrangian_reference_fe_get_number_subelements
+     procedure :: get_number_nodes_scalar => quad_lagrangian_reference_fe_get_number_nodes_scalar
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t

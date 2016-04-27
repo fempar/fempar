@@ -34,7 +34,7 @@ module field_names
 
   type :: vector_field_t
      private
-     real(rp) :: value(number_space_dimensions)
+     real(rp) :: value(number_space_dimensions) = 0.0_rp
    contains
      procedure, non_overridable :: init  => vector_field_init
      procedure, non_overridable :: set   => vector_field_set
@@ -49,7 +49,7 @@ module field_names
 
   type :: tensor_field_t
      private
-     real(rp)  :: value(number_space_dimensions,number_space_dimensions)
+     real(rp)  :: value(number_space_dimensions,number_space_dimensions) = 0.0_rp
    contains
      procedure, non_overridable :: init  => tensor_field_init
      procedure, non_overridable :: set   => tensor_field_set
@@ -82,6 +82,10 @@ module field_names
      module procedure sum_point_point, sum_point_vector, sum_vector_vector, sum_tensor_tensor
   end interface operator(+)
 
+  interface operator(-)
+     module procedure sub_vector_vector
+  end interface operator(-)
+
   interface assignment(=)
      module procedure assign_scalar_to_vector, assign_vector_to_point, assign_scalar_to_point, &
           &           assign_vector_to_vector, assign_tensor_to_tensor
@@ -92,7 +96,7 @@ module field_names
   end interface double_contract
 
   public :: vector_field_t, tensor_field_t, symmetric_tensor_field_t, point_t 
-  public :: operator(*), operator(+), assignment(=)
+  public :: operator(*), operator(+), operator(-), assignment(=)
   public :: double_contract
 contains
   
@@ -351,6 +355,14 @@ contains
     tensor_sum%value = tensor1%value + tensor2%value
   end function sum_tensor_tensor
 
+  function sub_vector_vector ( vector1, vector2) result(vector_sub)
+    implicit none
+    type(vector_field_t), intent(in) :: vector1, vector2
+    type(vector_field_t):: vector_sub
+
+    vector_sub%value = vector1%value - vector2%value
+  end function sub_vector_vector
+  
   subroutine assign_scalar_to_point ( point, scalar )
     implicit none
     type(point_t), intent(out) :: point

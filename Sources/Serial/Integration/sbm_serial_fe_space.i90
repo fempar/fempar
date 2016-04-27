@@ -347,10 +347,7 @@ subroutine serial_fe_space_initialize_quadrature( this, max_order )
   if ( present(max_order) ) then
      max_order_ = max_order
   else
-     max_order_ = 0
-     do i = 1, this%number_fe_spaces
-        max_order_ = max( max_order_, this%reference_fe_phy_list(i)%p%get_order() )
-     end do
+     max_order_ = this%get_max_order()
   end if
   do i = 1, size(this%quadrature)
      call this%reference_fe_phy_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order_ )
@@ -815,13 +812,12 @@ end subroutine serial_fe_space_update_bc_value_tensor
  end subroutine serial_fe_space_create_fe_function_tensor
 
  !===============================================================================================
- subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function, bc_code,  &
+ subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function,           &
       &                                                     fe_space_component, fe_function, &
       &                                                     time, unknown_component)
    implicit none
    class(serial_fe_space_t), intent(in)    :: this 
    class(scalar_function_t), intent(in)    :: scalar_function
-   integer(ip)             , intent(in)    :: bc_code
    integer(ip)             , intent(in)    :: fe_space_component
    type(fe_function_t)     , intent(inout) :: fe_function
    real(rp)   , optional   , intent(in)    :: time
@@ -879,9 +875,7 @@ end subroutine serial_fe_space_update_bc_value_tensor
             inode_scalar = this%reference_fe_phy_list(fe_space_component)%p%get_scalar_from_vector_node(inode) 
             strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
             ! Update strong_dirichlet_values
-            if(this%strong_dirichlet_codes(strong_dirichlet_dof_id) == bc_code) then
-               call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1))
-            end if
+            call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1))
          end if
       end do
 
@@ -900,12 +894,11 @@ end subroutine serial_fe_space_update_bc_value_tensor
  end subroutine serial_fe_space_interpolate_fe_function_scalar
 
  !===============================================================================================
- subroutine serial_fe_space_interpolate_fe_function_vector( this, vector_function, bc_code,  &
+ subroutine serial_fe_space_interpolate_fe_function_vector( this, vector_function, &
       &                                                     fe_space_component, fe_function, time)
    implicit none
    class(serial_fe_space_t), intent(in)    :: this 
    class(vector_function_t), intent(in)    :: vector_function
-   integer(ip)             , intent(in)    :: bc_code
    type(fe_function_t)     , intent(inout) :: fe_function
    integer(ip)             , intent(in)    :: fe_space_component
    real(rp)   , optional   , intent(in)    :: time
@@ -969,9 +962,7 @@ end subroutine serial_fe_space_update_bc_value_tensor
          if(fe%elem2dof(fe_space_component)%p(inode) < 0) then
             strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
             ! Update strong_dirichlet_values
-            if(this%strong_dirichlet_codes(strong_dirichlet_dof_id) == bc_code) then
-               call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1)%get(icomp))
-            end if
+            call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1)%get(icomp))
          end if
       end do
 
@@ -1002,3 +993,55 @@ end subroutine serial_fe_space_update_bc_value_tensor
    real(rp)   , optional   , intent(in)    :: time
    check( .false. )
  end subroutine serial_fe_space_interpolate_fe_function_tensor
+ 
+ !===============================================================================================
+ function serial_fe_space_get_max_order( this ) result(max_order)
+ implicit none
+   class(serial_fe_space_t), intent(in) :: this 
+   integer(ip)                          :: max_order
+   integer(ip)                          :: fe_space_component
+   max_order = 0
+   do fe_space_component = 1, this%number_fe_spaces
+      max_order = max( max_order, this%reference_fe_phy_list(fe_space_component)%p%get_order() )
+   end do
+ end function serial_fe_space_get_max_order
+ 
+  !===============================================================================================
+ function serial_fe_space_get_max_order_fe_space_component( this ) result(max_order_fe_space_component)
+ implicit none
+   class(serial_fe_space_t), intent(in) :: this 
+   integer(ip)                          :: max_order
+   integer(ip)                          :: max_order_fe_space_component
+   integer(ip)                          :: fe_space_component
+   max_order = 0
+   do fe_space_component = 1, this%number_fe_spaces
+      if(max_order<this%reference_fe_phy_list(fe_space_component)%p%get_order()) max_order_fe_space_component = fe_space_component
+      max_order = max( max_order, this%reference_fe_phy_list(fe_space_component)%p%get_order() )
+   end do
+ end function serial_fe_space_get_max_order_fe_space_component
+
+ !===============================================================================================
+ function serial_fe_space_get_triangulation( this) result(triangulation)
+   class(serial_fe_space_t), intent(in)    :: this 
+   class(triangulation_t), pointer         :: triangulation
+   
+   triangulation => this%triangulation
+ end function serial_fe_space_get_triangulation
+  
+ !===============================================================================================
+ function serial_fe_space_get_reference_fe_phy( this, fe_space_component) result(reference_fe_phy)
+   class(serial_fe_space_t), intent(in)    :: this 
+   integer(ip)             , intent(in)    :: fe_space_component
+   class(reference_fe_t), pointer          :: reference_fe_phy
+   
+   reference_fe_phy => this%reference_fe_phy_list(fe_space_component)%p
+ end function serial_fe_space_get_reference_fe_phy
+ 
+ !===============================================================================================
+ function serial_fe_space_get_reference_fe_geo( this) result(reference_fe_geo)
+   class(serial_fe_space_t), intent(in)    :: this 
+   class(reference_fe_t), pointer          :: reference_fe_geo
+   
+   reference_fe_geo => this%triangulation%reference_fe_geo_list(1)%p
+ end function serial_fe_space_get_reference_fe_geo
+ 
