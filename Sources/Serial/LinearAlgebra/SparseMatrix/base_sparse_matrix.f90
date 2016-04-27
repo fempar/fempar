@@ -374,6 +374,7 @@ module base_sparse_matrix_names
   type, abstract :: base_sparse_matrix_iterator_t
    contains
      procedure(base_sparse_matrix_iterator_init)        , deferred :: init 
+     procedure(base_sparse_matrix_iterator_free)        , deferred :: free 
      procedure(base_sparse_matrix_iterator_next)        , deferred :: next 
      procedure(base_sparse_matrix_iterator_has_finished), deferred :: has_finished
      procedure(base_sparse_matrix_iterator_get_row)     , deferred :: get_row
@@ -392,6 +393,7 @@ module base_sparse_matrix_names
 
    contains
      procedure, non_overridable :: init         => coo_sparse_matrix_iterator_init
+     procedure, non_overridable :: free         => coo_sparse_matrix_iterator_free
      procedure, non_overridable :: next         => coo_sparse_matrix_iterator_next
      procedure, non_overridable :: has_finished => coo_sparse_matrix_iterator_has_finished
      procedure, non_overridable :: get_row      => coo_sparse_matrix_iterator_get_row
@@ -799,6 +801,16 @@ module base_sparse_matrix_names
          !-----------------------------------------------------------------
 
        end subroutine base_sparse_matrix_iterator_init
+
+        subroutine base_sparse_matrix_iterator_free(this)
+         !-----------------------------------------------------------------
+         !< Free the values of the matrix iterator
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         class( base_sparse_matrix_iterator_t), intent(inout) :: this
+         !-----------------------------------------------------------------
+
+       end subroutine base_sparse_matrix_iterator_free
 
        subroutine base_sparse_matrix_iterator_next(this)
          !-----------------------------------------------------------------
@@ -5151,6 +5163,13 @@ contains
       
       this%nnz_index = 1
     end subroutine coo_sparse_matrix_iterator_init
+
+    subroutine coo_sparse_matrix_iterator_free(this)
+      class(coo_sparse_matrix_iterator_t), intent(inout) :: this
+
+      this%nnz_index = -1
+      this%matrix => NULL()
+    end subroutine coo_sparse_matrix_iterator_free
 
     subroutine coo_sparse_matrix_iterator_next(this)
       class(coo_sparse_matrix_iterator_t), intent(inout) :: this

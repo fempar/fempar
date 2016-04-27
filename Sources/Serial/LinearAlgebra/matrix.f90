@@ -47,6 +47,7 @@ module matrix_names
 
   type, abstract :: matrix_iterator_t
      contains
+       procedure (matrix_iterator_free)        , deferred :: free
        procedure (matrix_iterator_next)        , deferred :: next
        procedure (matrix_iterator_has_finished), deferred :: has_finished
        procedure (matrix_iterator_get_row)     , deferred :: get_row
@@ -75,6 +76,14 @@ module matrix_names
   !< MATRIX_ITERATOR SUBROUTINES
   !-----------------------------------------------------------------
   abstract interface
+      subroutine matrix_iterator_free(this)
+       !-----------------------------------------------------------------
+       !< Free the iterator
+       !-----------------------------------------------------------------
+       import :: matrix_iterator_t
+       class(matrix_iterator_t), intent(inout) :: this
+     end subroutine matrix_iterator_free
+
      subroutine matrix_iterator_next(this)
        !-----------------------------------------------------------------
        !< Set the pointer to the following entry of the matrix

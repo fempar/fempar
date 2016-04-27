@@ -84,6 +84,7 @@ module block_sparse_matrix_names
       type(sparse_matrix_iterator_t) :: sparse_iterator
       type(block_sparse_matrix_t), pointer :: block_sparse_matrix
     contains
+       procedure, non_overridable :: free         => block_sparse_matrix_iterator_free
        procedure, non_overridable :: next         => block_sparse_matrix_iterator_next
        procedure, non_overridable :: has_finished => block_sparse_matrix_iterator_has_finished
        procedure, non_overridable :: get_row      => block_sparse_matrix_iterator_get_row
@@ -367,6 +368,17 @@ contains
   !< BLOCK_SPARSE_MATRIX_ITERATOR SUBROUTINES
   !-----------------------------------------------------------------
   ! NOT TESTED!!
+  subroutine block_sparse_matrix_iterator_free(this)
+    !-----------------------------------------------------------------
+    !< Set the pointer to the following entry of the matrix
+    !-----------------------------------------------------------------
+    class(block_sparse_matrix_iterator_t), intent(inout) :: this
+    call this%sparse_iterator%free()
+    this%i_index = -1
+    this%j_index = -1
+    this%block_sparse_matrix => NULL()
+  end subroutine block_sparse_matrix_iterator_free
+
   subroutine block_sparse_matrix_iterator_next(this)
     !-----------------------------------------------------------------
     !< Set the pointer to the following entry of the matrix

@@ -409,7 +409,7 @@ contains
     class(dG_CDR_discrete_integration_t), intent(in)    :: this
     type(sparse_matrix_t)               , intent(inout) :: sparse_matrix
 
-    class(sparse_matrix_iterator_t), allocatable :: iterator
+    type(sparse_matrix_iterator_t) :: iterator
     integer(ip) :: i,j
     real(rp)    :: value
     logical(ip) :: finished
@@ -466,6 +466,8 @@ contains
        ! Do stuff
        call iterator%next()
     end do
+
+    call iterator%free()
   end subroutine compute_graph_laplacian_perturbed_block_matrix
 end module DG_CDR_discrete_integration_names
 

@@ -110,6 +110,7 @@ private
        private
        class(base_sparse_matrix_iterator_t), allocatable :: base_iterator
      contains
+       procedure, non_overridable :: free         => sparse_matrix_iterator_free
        procedure, non_overridable :: next         => sparse_matrix_iterator_next
        procedure, non_overridable :: has_finished => sparse_matrix_iterator_has_finished
        procedure, non_overridable :: get_row      => sparse_matrix_iterator_get_row
@@ -1170,6 +1171,14 @@ contains
     !-----------------------------------------------------------------
     !< SPARSE_MATRIX_ITERATOR SUBROUTINES
     !-----------------------------------------------------------------
+     subroutine sparse_matrix_iterator_free(this)
+      !-----------------------------------------------------------------
+      !< Free the information in the iterator
+      !-----------------------------------------------------------------
+      class(sparse_matrix_iterator_t), intent(inout) :: this
+      call this%base_iterator%free()
+    end subroutine sparse_matrix_iterator_free
+
     subroutine sparse_matrix_iterator_next(this)
       !-----------------------------------------------------------------
       !< Set the pointer to the following entry of the matrix

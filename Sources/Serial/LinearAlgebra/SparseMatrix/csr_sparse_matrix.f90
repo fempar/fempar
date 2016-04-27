@@ -78,6 +78,7 @@ private
 
      contains
        procedure, non_overridable :: init         => csr_sparse_matrix_iterator_init
+       procedure, non_overridable :: free         => csr_sparse_matrix_iterator_free
        procedure, non_overridable :: next         => csr_sparse_matrix_iterator_next
        procedure, non_overridable :: has_finished => csr_sparse_matrix_iterator_has_finished
        procedure, non_overridable :: get_row      => csr_sparse_matrix_iterator_get_row
@@ -3004,6 +3005,14 @@ contains
       this%row_index = 1
       this%nnz_index = 1
     end subroutine csr_sparse_matrix_iterator_init
+
+    subroutine csr_sparse_matrix_iterator_free(this)
+      class(csr_sparse_matrix_iterator_t), intent(inout) :: this
+      
+      this%row_index = -1
+      this%nnz_index = -1
+      this%matrix => NULL()
+    end subroutine csr_sparse_matrix_iterator_free
 
     subroutine csr_sparse_matrix_iterator_next(this)
       class(csr_sparse_matrix_iterator_t), intent(inout) :: this
