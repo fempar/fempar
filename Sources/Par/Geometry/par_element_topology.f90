@@ -29,9 +29,10 @@ module par_element_topology_names
   ! Serial modules
   use types_names
   use memor_names
+  use hash_table_names
   use sort_names
   use migratory_element_names
-  use JP_element_topology_names
+  use cell_names
   !use hash_table_names
 
   ! Parallel modules
@@ -42,7 +43,7 @@ module par_element_topology_names
 # include "debug.i90"
   private
 
-  type, extends(JP_element_topology_t) :: par_element_topology_t
+  type, extends(cell_t) :: par_element_topology_t
      !integer(ip)  :: interface  = -1           ! The boundary number ieboun (if this element is a interface element)
      integer(ip)  :: interface  = -1
      integer(ip)  :: mypart     = -1           ! To which part this element is mapped to ?
@@ -65,30 +66,37 @@ module par_element_topology_names
 
   public :: downcast_to_par_element_topology
 
+  !=============================================================================
+  ! Abstract set and iterator
+  !=============================================================================
+#define  abstract_element_t                        cell_t
+#define  template_element_t                        par_element_topology_t
+#define  abstract_template_element_set_t           par_element_topology_set_t
+#define  abstract_template_element_iterator_t      par_element_topology_iterator_t
+#include "abstract_element_set.i90"
+
+  !=============================================================================
+  ! Static set and iterator
+  !=============================================================================
+#define  static_template_element_set_t             static_par_element_topology_set_t
+#define  static_template_element_iterator_t        static_par_element_topology_iterator_t
+#include "static_element_set_header.i90"
+   public :: static_cell_set_t, static_cell_iterator_t
+ 
+
 contains
 
   !=============================================================================
-  ! function par_element_topology_is_interface(this) result(is_interface)
-  !   implicit none
-  !   class(par_element_topology_t), intent(in) :: this
-  !   logical :: is_interface
-  !   is_interface = this%interface
-  ! end function par_element_topology_is_interface
-
-  ! !=============================================================================
-  ! subroutine par_element_topology_set_interface(this,is_interface)
-  !   implicit none
-  !   class(par_element_topology_t), intent(inout) :: this
-  !   logical                      , intent(in)    :: is_interface
-  !   this%interface   = is_interface
-  ! end subroutine par_element_topology_set_interface
+  ! Static set and iterator
+  !=============================================================================
+#include "static_element_set_body.i90"
 
   !=============================================================================
   subroutine par_element_topology_create(this)
     implicit none
     class(par_element_topology_t), intent(inout) :: this
 
-    call this%JP_element_topology_t%create()
+    call this%cell_t%create()
     assert(.not.allocated(this%vefs_GIDs))
     this%interface   = .false.
     this%mypart      = -1
@@ -100,7 +108,7 @@ contains
     implicit none
     class(par_element_topology_t), intent(inout) :: this
 
-    call this%JP_element_topology_t%free()
+    call this%cell_t%free()
     if (allocated(this%vefs_GIDs)) then
        call memfree(this%vefs_GIDs, __FILE__, __LINE__)
     end if

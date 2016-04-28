@@ -70,37 +70,6 @@ module migratory_element_names
 
   public :: migratory_element_t, migratory_element_pointer_t
 
-  !=============================================================================
-  ! Abstract set and iterator
-  !=============================================================================
-
-#define  template_element_t          migratory_element_t
-#define  template_element_set_t      migratory_element_set_t
-#define  template_element_iterator_t migratory_element_iterator_t
-#include "element_set.i90"
-   public :: migratory_element_set_t, migratory_element_iterator_t
-
-  !=============================================================================
-  ! Plain set and iterator
-  !=============================================================================
-
-#define  plain_template_element_set_t             plain_migratory_element_set_t
-#define  plain_template_element_iterator_t        plain_migratory_element_iterator_t
-#define  plain_template_element_subset_iterator_t plain_migratory_element_subset_iterator_t
-#include "plain_element_set_header.i90"
-   public :: plain_migratory_element_set_t, plain_migratory_element_iterator_t
-   public :: plain_migratory_element_subset_iterator_t
-
-  !=============================================================================
-  ! Hash based set and iterator
-  !=============================================================================
-
-! #define  template_key_t                   forest_element_id_t
-#define  key_type                         integer(ip)
-#define  hash_template_element_set_t      hash_migratory_element_set_t
-#define  hash_template_element_iterator_t hash_migratory_element_iterator_t
-#include "hash_element_set_header.i90"
-   public :: hash_migratory_element_set_t, hash_migratory_element_iterator_t
 
 contains
   !=============================================================================
@@ -151,28 +120,5 @@ contains
   !   if(allocated(this%id)) deallocate(this%id)
   !   allocate(this%id, mold=id)
   ! end subroutine create_migratory_element_id
-  !=============================================================================
-  !=============================================================================
-  ! Plain set and iterator
-  !=============================================================================
-  !=============================================================================
-
-#include "plain_element_set_body.i90"
-
-  !=============================================================================
-  !=============================================================================
-  ! Hash based set and iterator
-  !=============================================================================
-  !=============================================================================
-
-!#define greater(a,b) (a%level>b%level).or.(a%level==b%level.and.a%tree>b%tree) .or. (a%level==b%level.and.a%tree==b%tree.and.a%morton>b%morton)
-!#define smaller(a,b) (a%level<b%level).or.(a%level==b%level.and.a%tree<b%tree) .or. (a%level==b%level.and.a%tree==b%tree.and.a%morton==b%morton)
-!#define equal(a,b) (a%level==b%level.and.a%tree==b%tree.and.a%morton==b%morton)
-!#define convert_to_int(key) (2**key%level - 1)*estimated_forest_size + (key%tree-1)*2**key%level + int(key%morton,ip) + 1
-!#define greater(a,b) (a>b)
-!#define smaller(a,b) (a<b)
-!#define equal(a,b) (a==b)
-#define convert_to_int(key) key
-#include "hash_element_set_body.i90"
 
 end module migratory_element_names

@@ -7,7 +7,7 @@ program create_adapted_mesh
   use par_names
   use p4est_wrapper
   use migratory_element_names
-  use JP_element_topology_names
+  !use JP_element_topology_names
   
   use, intrinsic :: ISO_C_BINDING  
   
@@ -24,7 +24,7 @@ program create_adapted_mesh
   integer(ip), allocatable, target :: tree_indices(:), tree_offsets(:) 
   integer(igp), allocatable, target :: quadrant_data(:) 
   
-  type(JP_element_topology_t)              :: element
+  type(cell_t)              :: element
   type(hash_migratory_element_set_t)       :: element_set
   type(hash_migratory_element_iterator_t)  :: element_iterator
 
@@ -49,7 +49,7 @@ program create_adapted_mesh
 
   p4est_error = p4estw_get_ghost_sizes(p4est, num_ghosts, num_ghost_trees, num_ghost_processors)
   
-  call element_set%create(num_elements, element)
+  !call element_set%create(num_elements, element)
   
   
   write(*,*) "rank ", p_context%iam, "num_elem ", num_elements, "first_glob_id ", first_global_idx, "num ghosts", num_ghosts, "num gh proc ", num_ghost_processors

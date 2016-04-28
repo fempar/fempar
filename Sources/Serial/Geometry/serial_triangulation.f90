@@ -25,85 +25,103 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module serial_triangulation_names
-  use types_names
-  use memor_names
-  use element_id_names
-  use migratory_element_names
-  !use fe_space_types_names
-  use hash_table_names  
-  use JP_element_topology_names
-  use JP_triangulation_names
-  implicit none
-  private
-# include "debug.i90"
+! module serial_triangulation_names
+!   use types_names
+!   use memor_names
+!   use element_id_names
+!   use migratory_element_names
+!   !use fe_space_types_names
+!   use hash_table_names  
+!   use JP_element_topology_names
+!   use JP_triangulation_names
+!   implicit none
+!   private
+! # include "debug.i90"
 
-  type, extends(JP_triangulation_t) :: serial_triangulation_t
-     private
-   contains
-     procedure :: create  => serial_triangulation_create
-     procedure :: free    => serial_triangulation_free
-     procedure :: to_dual => serial_triangulation_to_dual
-     !procedure :: create_element_iterator
-     !procedure :: free_element_iterator
-  end type serial_triangulation_t
+!   type, extends(JP_triangulation_t) :: serial_triangulation_t
+!      private
+!      type(plain_JP_element_topology_set_t) :: element_set
+!    contains
+!      procedure :: create  => serial_triangulation_create
+!      procedure :: free    => serial_triangulation_free
+!      procedure :: to_dual => serial_triangulation_to_dual
+!      procedure :: create_element_iterator
+!      procedure :: free_element_iterator
+!   end type serial_triangulation_t
 
-  ! Types
-  public :: serial_triangulation_t
+!   ! Types
+!   public :: serial_triangulation_t
 
-contains
+! contains
 
-  !=============================================================================
-  subroutine serial_triangulation_create(trian,size)
-    implicit none
-    class(serial_triangulation_t), intent(inout) :: trian
-    integer(ip)                  , intent(in)    :: size
-    ! Concrete types to select element and element_id in the set
-    type(JP_element_topology_t) :: element_mold
+!   !=============================================================================
+!   subroutine create_element_iterator(this,iterator)
+!     implicit none
+!     class(serial_triangulation_t)                      , intent(in) :: this
+!     class(JP_element_topology_iterator_t), allocatable , intent(out)   :: iterator
+!     call this%element_set%create_iterator(iterator)
+!   end subroutine create_element_iterator
+!   !=============================================================================
+!   subroutine free_element_iterator(this,iterator)
+!     implicit none
+!     class(serial_triangulation_t)                      , intent(in)  :: this
+!     class(JP_element_topology_iterator_t), allocatable , intent(inout)   :: iterator
+!     call this%element_set%free_iterator(iterator)
+!   end subroutine free_element_iterator
 
-    ! Allocate and create element_set
-    allocate(plain_migratory_element_set_t :: trian%element_set)
-    call trian%element_set%create(size,element_mold)
+!     !=============================================================================
+!   subroutine serial_triangulation_create(trian,size)
+!     implicit none
+!     class(serial_triangulation_t), intent(inout) :: trian
+!     integer(ip)                  , intent(in)    :: size
+!     ! Concrete types to select element and element_id in the set
+!     !type(JP_element_topology_t) :: element_mold
 
-    ! Mother class function (not type bounded by standard restriction)
-    !call JP_triangulation_create(trian)
-    call trian%JP_triangulation_t%create(size)
+!     ! Allocate and create element_set
+!     !allocate(plain_migratory_element_set_t :: trian%element_set)
+!     !call trian%element_set%create(size,element_mold)
+!     call trian%element_set%create(size)
 
-  end subroutine serial_triangulation_create
+!     ! Mother class function (not type bounded by standard restriction)
+!     call JP_triangulation_create(trian,size)
+!     !call trian%JP_triangulation_t%create(size)
 
-  !=============================================================================
-  subroutine serial_triangulation_free(trian)
-    implicit none
-    class(serial_triangulation_t), intent(inout) :: trian
+!   end subroutine serial_triangulation_create
 
-    ! Mother class function (not type bounded by standard restriction)
-    !call JP_triangulation_free(trian)
-    call trian%JP_triangulation_t%free()
+!   !=============================================================================
+!   subroutine serial_triangulation_free(trian)
+!     implicit none
+!     class(serial_triangulation_t), intent(inout) :: trian
 
-    ! Deallocate the element structure array 
-    call trian%element_set%free()
+!     ! Mother class function (not type bounded by standard restriction)
+!     call JP_triangulation_free(trian)
+!     !call trian%JP_triangulation_t%free()
 
-  end subroutine serial_triangulation_free
+!     ! Deallocate the element structure array 
+!     call trian%element_set%free()
 
-  !=============================================================================
-  subroutine serial_triangulation_to_dual(trian)
-    implicit none
-    class(serial_triangulation_t), intent(inout) :: trian
-    integer(ip) :: iobj,istat
+!   end subroutine serial_triangulation_free
 
-    assert( trian%state == JP_triangulation_elements_filled )
+!   !=============================================================================
+!   subroutine serial_triangulation_to_dual(trian)
+!     implicit none
+!     class(serial_triangulation_t), intent(inout) :: trian
+!     integer(ip) :: iobj,istat
 
-    ! Allocate the vef structure array 
-    allocate(vef_topology_t :: trian%vefs(trian%num_vefs), stat=istat)
-    check(istat==0)
-    do iobj=1, trian%num_vefs
-       !call initialize_vef_topology(trian%vefs(iobj))
-       call trian%vefs(iobj)%create()
-    end do
+!     assert( trian%state == JP_triangulation_elements_filled )
 
-    ! Invoke mother class function
-    call trian%JP_triangulation_t%to_dual()
+!     ! Allocate the vef structure array 
+!     allocate(vef_topology_t :: trian%vefs(trian%num_vefs), stat=istat)
+!     check(istat==0)
+!     do iobj=1, trian%num_vefs
+!        !call initialize_vef_topology(trian%vefs(iobj))
+!        call trian%vefs(iobj)%create()
+!     end do
 
-  end subroutine serial_triangulation_to_dual
+!     ! Invoke mother class function
+!     !call trian%JP_triangulation_t%to_dual()
+!     call JP_triangulation_to_dual(trian)
 
-end module serial_triangulation_names
+!   end subroutine serial_triangulation_to_dual
+
+! end module serial_triangulation_names

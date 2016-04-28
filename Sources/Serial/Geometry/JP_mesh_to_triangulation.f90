@@ -25,87 +25,87 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module JP_mesh_to_triangulation_names
-  use types_names
-  use memor_names
-  use mesh_names
-  use JP_triangulation_names
-  use serial_triangulation_names
-  use JP_element_topology_names
-  !use fe_space_types_names
-  use generate_vefs_mesh_conditions_names
-  use conditions_names
+! module JP_mesh_to_triangulation_names
+!   use types_names
+!   use memor_names
+!   use mesh_names
+!   use JP_triangulation_names
+!   use serial_triangulation_names
+!   use JP_element_topology_names
+!   !use fe_space_types_names
+!   use generate_vefs_mesh_conditions_names
+!   use conditions_names
 
-  implicit none
-# include "debug.i90"
-  private
+!   implicit none
+! # include "debug.i90"
+!   private
 
-  public :: JP_mesh_to_triangulation, serial_mesh_to_triangulation
+!   public :: JP_mesh_to_triangulation, serial_mesh_to_triangulation
 
-contains
+! contains
 
-  !*********************************************************************************
-  ! This subroutine takes as input a 'plain' mesh and creates a triangulation,
-  ! filling both element and vef (dual mesh) info. The triangulation includes
-  ! vertices, edges, and vertices (in 3D). 
-  !*********************************************************************************
-  subroutine serial_mesh_to_triangulation (gmesh,trian)
-    implicit none
-    type(mesh_t), intent(in)                    :: gmesh ! Geometry mesh
-    type(serial_triangulation_t), intent(inout) :: trian 
-    call trian%create(gmesh%nelem)
-    call JP_mesh_to_triangulation(gmesh,trian)
-    call create_reference_elements(trian)
-    call trian%to_dual()
-  end subroutine serial_mesh_to_triangulation
+!   !*********************************************************************************
+!   ! This subroutine takes as input a 'plain' mesh and creates a triangulation,
+!   ! filling both element and vef (dual mesh) info. The triangulation includes
+!   ! vertices, edges, and vertices (in 3D). 
+!   !*********************************************************************************
+!   subroutine serial_mesh_to_triangulation (gmesh,trian)
+!     implicit none
+!     type(mesh_t), intent(in)                    :: gmesh ! Geometry mesh
+!     type(serial_triangulation_t), intent(inout) :: trian 
+!     call trian%create(gmesh%nelem)
+!     call JP_mesh_to_triangulation(gmesh,trian)
+!     call create_reference_elements(trian)
+!     call trian%to_dual()
+!   end subroutine serial_mesh_to_triangulation
 
-  !*********************************************************************************
-  ! This subroutine takes as input a 'plain' mesh and creates a triangulation,
-  ! filling elements only and assuming the triangulation already allocated. 
-  !*********************************************************************************
-  subroutine JP_mesh_to_triangulation (gmesh, trian)
-    implicit none
-    ! Parameters
-    type(mesh_t)             , intent(in)    :: gmesh ! Geometry mesh
-    class(JP_triangulation_t), intent(inout) :: trian 
+!   !*********************************************************************************
+!   ! This subroutine takes as input a 'plain' mesh and creates a triangulation,
+!   ! filling elements only and assuming the triangulation already allocated. 
+!   !*********************************************************************************
+!   subroutine JP_mesh_to_triangulation (gmesh, trian)
+!     implicit none
+!     ! Parameters
+!     type(mesh_t)             , intent(in)    :: gmesh ! Geometry mesh
+!     class(JP_triangulation_t), intent(inout) :: trian 
 
-    ! Locals
-    integer(ip)              :: ielem, count, g_node, inode, num_vefs
-    class(JP_element_topology_t), pointer :: elem
-    real(rp)   , allocatable :: coordinates(:,:)
+!     ! Locals
+!     integer(ip)              :: ielem, count, g_node, inode, num_vefs
+!     class(cell_t), pointer :: elem
+!     real(rp)   , allocatable :: coordinates(:,:)
 
-    assert ( allocated(gmesh%coord) )
-    call memalloc(gmesh%ndime, gmesh%nnode, coordinates, __FILE__, __LINE__)
+!     assert ( allocated(gmesh%coord) )
+!     call memalloc(gmesh%ndime, gmesh%nnode, coordinates, __FILE__, __LINE__)
 
-    trian%num_elems = gmesh%nelem
-    trian%num_dims  = gmesh%ndime
-    trian%num_vefs  = gmesh%npoin
+!     trian%num_elems = gmesh%nelem
+!     trian%num_dims  = gmesh%ndime
+!     trian%num_vefs  = gmesh%npoin
 
-    ! trian and mesh are traversed at the same time, the first one using
-    ! the iterator and the second one directly.
-    call trian%element_iterator%begin()
-    ielem=1
-    do while( (.not.trian%element_iterator%finished()) .and. (ielem<=gmesh%nelem) )
-       elem => downcast_to_element_topology( trian%element_iterator%current() )
-       num_vefs = gmesh%pnods(ielem+1)-gmesh%pnods(ielem)
-       ! Gather coordinates
-       count = 0
-       do inode = gmesh%pnods(ielem),gmesh%pnods(ielem+1)-1
-          count = count+1
-          g_node = gmesh%lnods(inode)
-          coordinates(1:trian%num_dims, count) = gmesh%coord(1:trian%num_dims, g_node)
-       end do
-       ! Fill element
-       call elem%fill(trian%num_dims, num_vefs, trian%num_vefs, &
-            &         gmesh%lnods(gmesh%pnods(ielem):gmesh%pnods(ielem+1)-1), coordinates)
-       ! Keep going
-       call trian%element_iterator%next()
-       ielem = ielem+1
-    end do
+!     ! trian and mesh are traversed at the same time, the first one using
+!     ! the iterator and the second one directly.
+!     call trian%element_iterator%begin()
+!     ielem=1
+!     do while( (.not.trian%element_iterator%finished()) .and. (ielem<=gmesh%nelem) )
+!        elem => downcast_to_element_topology( trian%element_iterator%current() )
+!        num_vefs = gmesh%pnods(ielem+1)-gmesh%pnods(ielem)
+!        ! Gather coordinates
+!        count = 0
+!        do inode = gmesh%pnods(ielem),gmesh%pnods(ielem+1)-1
+!           count = count+1
+!           g_node = gmesh%lnods(inode)
+!           coordinates(1:trian%num_dims, count) = gmesh%coord(1:trian%num_dims, g_node)
+!        end do
+!        ! Fill element
+!        call elem%fill(trian%num_dims, num_vefs, trian%num_vefs, &
+!             &         gmesh%lnods(gmesh%pnods(ielem):gmesh%pnods(ielem+1)-1), coordinates)
+!        ! Keep going
+!        call trian%element_iterator%next()
+!        ielem = ielem+1
+!     end do
 
-  end subroutine JP_mesh_to_triangulation
+!   end subroutine JP_mesh_to_triangulation
 
-end module JP_mesh_to_triangulation_names
+! end module JP_mesh_to_triangulation_names
 
 
 

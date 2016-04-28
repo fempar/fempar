@@ -25,17 +25,17 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module JP_element_topology_names
+module cell_names
   use types_names
   use memor_names
   use list_types_names
-  use element_id_names
+  use hash_table_names
+  !use element_id_names
   use migratory_element_names
   use reference_fe_names
   implicit none
   private
 # include "debug.i90"
-
 
   ! Explicit control of element states is NOT implemented
   ! for this class (because it requires an integer).
@@ -51,41 +51,66 @@ module JP_element_topology_names
   ! filled           | fill                 | filled
   ! filled           | free                 | not_created
 
-  type, extends(migratory_element_t) :: JP_element_topology_t
+  type, extends(migratory_element_t) :: cell_t
      integer(ip)               :: num_vefs = -1    ! Number of vefs
      integer(ip), allocatable  :: vefs(:)          ! List of Local IDs of the vefs (vertices, edges, faces) that make up this element
      real(rp), allocatable     :: coordinates(:,:)
      integer(ip)               :: order
      class(reference_fe_t), pointer :: geo_reference_element => NULL() ! Topological info of the geometry (SBmod)
    contains
-     procedure :: create => element_topology_create
-     procedure :: free   => element_topology_free
-     procedure :: assign => element_topology_assign
-     procedure :: fill   => element_topology_fill
-     procedure :: print  => element_topology_print
-  end type JP_element_topology_t
+     procedure :: create => cell_create
+     procedure :: free   => cell_free
+     procedure :: assign => cell_assign
+     procedure :: fill   => cell_fill
+     procedure :: print  => cell_print
+  end type cell_t
 
   ! Types
-  public :: JP_element_topology_t
+  public :: cell_t
   
   ! Functions
-  public :: downcast_to_element_topology, local_id_from_vertices
+  public :: downcast_to_cell, local_id_from_vertices
 
+  !=============================================================================
+  ! Abstract set and iterator, just needed to define the static, not used as such.
+  !=============================================================================
+#define  template_element_t                        cell_t
+#define  abstract_template_element_set_t           abstract_cell_set_t
+#define  abstract_template_element_iterator_t      abstract_cell_iterator_t
+#include "abstract_element_set.i90"
+
+  !=============================================================================
+  ! Static set and iterator
+  !=============================================================================
+#define  static_template_element_set_t             static_cell_set_t
+#define  static_template_element_iterator_t        static_cell_iterator_t
+#include "static_element_set_header.i90"
+   public :: static_cell_set_t, static_cell_iterator_t
+
+  !=============================================================================
+  ! Hash based set and iterator
+  !=============================================================================
+#define  key_type                         integer(ip)
+#define  hash_template_element_set_t      hash_cell_set_t
+#define  hash_template_element_iterator_t hash_cell_iterator_t
+#include "hash_element_set_header.i90"
+   public :: hash_cell_set_t, hash_cell_iterator_t
+  
 contains
 
  !=============================================================================
-  subroutine element_topology_create(this)
+  subroutine cell_create(this)
     implicit none
-    class(JP_element_topology_t), intent(inout) :: this
+    class(cell_t), intent(inout) :: this
     assert(.not. allocated(this%vefs))
     assert(.not. allocated(this%coordinates))
     this%num_vefs = -1
- end subroutine element_topology_create
+ end subroutine cell_create
 
  !=============================================================================
-  subroutine element_topology_free(this)
+  subroutine cell_free(this)
     implicit none
-    class(JP_element_topology_t), intent(inout) :: this
+    class(cell_t), intent(inout) :: this
     if (allocated(this%vefs)) then
        call memfree(this%vefs, __FILE__, __LINE__)
     end if
@@ -94,12 +119,12 @@ contains
     end if
     this%num_vefs = -1
     nullify( this%geo_reference_element )
-  end subroutine element_topology_free
+  end subroutine cell_free
 
  !=============================================================================
-  subroutine element_topology_fill(this, num_dims, num_vefs, num_nodes, vefs, coordinates)
+  subroutine cell_fill(this, num_dims, num_vefs, num_nodes, vefs, coordinates)
     implicit none
-    class(JP_element_topology_t), intent(inout) :: this
+    class(cell_t), intent(inout) :: this
     integer(ip), intent(in) :: num_vefs, num_dims, num_nodes
     integer(ip), intent(in) :: vefs(num_vefs)
     real(rp)   , intent(in) :: coordinates(:,:)
@@ -110,55 +135,55 @@ contains
     call memalloc( num_dims, num_nodes, this%coordinates, __FILE__, __LINE__ )
     this%coordinates = coordinates
 
-  end subroutine element_topology_fill
+  end subroutine cell_fill
 
  !=============================================================================
-  subroutine element_topology_assign(this, that)
+  subroutine cell_assign(this, that)
     implicit none
-    class(JP_element_topology_t), intent(inout) :: this
+    class(cell_t), intent(inout) :: this
     class(migratory_element_t), intent(in)    :: that
 
     select type(that)
-    class is(JP_element_topology_t)
+    class is(cell_t)
        this = that
     class default
-       write(*,*) 'Error calling JP_element_topology_t assignment'
+       write(*,*) 'Error calling JP_cell_t assignment'
        write(*,*) 'cannot assign object of another class'
        check(.false.)
     end select
 
-  end subroutine element_topology_assign
+  end subroutine cell_assign
 
  !=============================================================================
-  subroutine element_topology_print(elem, lunou)
+  subroutine cell_print(elem, lunou)
     implicit none
-    class(JP_element_topology_t), intent(inout) :: elem
+    class(cell_t), intent(inout) :: elem
     integer(ip)                 , intent(in)    :: lunou
     write (lunou,*) 'num_vefs:'   , elem%num_vefs
     write (lunou,*) 'vefs:'       , elem%vefs
     write (lunou,*) 'coordinates:', elem%coordinates
     write (lunou,*) 'order:'      , elem%order
     !call reference_element_write ( elem%geo_reference_element )
-  end subroutine element_topology_print
+  end subroutine cell_print
 
  !=============================================================================
-  function downcast_to_element_topology(parent) result(this)
+  function downcast_to_cell(parent) result(this)
     implicit none
     class(migratory_element_t), pointer, intent(in) :: parent
-    class(JP_element_topology_t) , pointer             :: this
+    class(cell_t) , pointer             :: this
     select type(parent)
-    class is(JP_element_topology_t)
+    class is(cell_t)
        this => parent
     class default
-       write(*,*) 'Cannot downcast to element_topology'
+       write(*,*) 'Cannot downcast to cell'
        check(.false.)
     end select
-  end function downcast_to_element_topology
+  end function downcast_to_cell
 
  !=============================================================================
   !subroutine local_id_from_vertices( e, nd, list, no, lid ) ! (SBmod)
   !  implicit none
-  !  class(JP_element_topology_t), intent(in) :: e
+  !  class(JP_cell_t), intent(in) :: e
   !  integer(ip), intent(in)  :: nd, list(:), no
   !  integer(ip), intent(out) :: lid
   !  ! Locals
@@ -190,7 +215,7 @@ contains
 
    subroutine local_id_from_vertices( e, nd, list, no, lid ) ! (SBmod)
     implicit none
-    class(JP_element_topology_t), intent(in) :: e
+    class(cell_t), intent(in) :: e
     integer(ip), intent(in)  :: nd, list(:), no
     integer(ip), intent(out) :: lid
     ! Locals
@@ -299,4 +324,20 @@ contains
     
   ! end subroutine element_topology_unpack
 
-end module JP_element_topology_names
+  !=============================================================================
+  !=============================================================================
+  ! Static set and iterator
+  !=============================================================================
+  !=============================================================================
+#include "static_element_set_body.i90"
+
+  !=============================================================================
+  !=============================================================================
+  ! Hash based set and iterator
+  !=============================================================================
+  !=============================================================================
+#define convert_to_int(key) key
+#include "hash_element_set_body.i90"
+  
+  
+end module cell_names

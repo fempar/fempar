@@ -92,8 +92,8 @@ end module par_command_line_parameters_names
 program par_test_triangulations
   use serial_names
   use par_names
-  use JP_par_triangulation_names
-  use JP_par_mesh_to_triangulation_names
+  !use JP_par_triangulation_names
+  !use JP_par_mesh_to_triangulation_names
   use Data_Type_Command_Line_Interface
   use par_command_line_parameters_names
   use mpi
@@ -104,7 +104,7 @@ program par_test_triangulations
   type(par_context_t)                    :: p_context
   type(par_environment_t)                :: p_env
   type(par_mesh_t)                       :: p_mesh
-  type(JP_par_triangulation_t)           :: p_trian
+  !type(JP_par_triangulation_t)           :: p_trian
   type(par_conditions_t)                 :: p_cond
   type(par_test_triangulations_params_t) :: test_params
 
@@ -140,12 +140,12 @@ program par_test_triangulations
   !call generate_efs(p_mesh%f_mesh, p_cond%f_conditions)
 
   ! Construct triangulation
-  call JP_par_mesh_to_triangulation ( p_mesh, p_trian)
+  !call JP_par_mesh_to_triangulation ( p_mesh, p_trian)
 
   ! Print triangulation
-  call p_trian%print(stderr)
+  !call p_trian%print(stderr)
 
-  call p_trian%free()
+  !call p_trian%free()
   call par_conditions_free ( p_cond )
   call par_mesh_free (p_mesh)
 
