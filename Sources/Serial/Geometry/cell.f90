@@ -90,11 +90,11 @@ module cell_names
   !=============================================================================
   ! Hash based set and iterator
   !=============================================================================
-#define  key_type                         integer(ip)
-#define  hash_template_element_set_t      hash_cell_set_t
-#define  hash_template_element_iterator_t hash_cell_iterator_t
-#include "hash_element_set_header.i90"
-   public :: hash_cell_set_t, hash_cell_iterator_t
+! #define  key_type                         integer(ip)
+! #define  hash_template_element_set_t      hash_cell_set_t
+! #define  hash_template_element_iterator_t hash_cell_iterator_t
+! #include "hash_element_set_header.i90"
+!    public :: hash_cell_set_t, hash_cell_iterator_t
   
 contains
 
@@ -336,8 +336,8 @@ contains
   ! Hash based set and iterator
   !=============================================================================
   !=============================================================================
-#define convert_to_int(key) key
-#include "hash_element_set_body.i90"
+!#define convert_to_int(key) key
+!#include "hash_element_set_body.i90"
   
   
 end module cell_names
