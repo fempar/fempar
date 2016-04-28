@@ -43,7 +43,7 @@ contains
     integer         :: iam, num_procs
 
     ! Get context info
-    call par_context_info ( p_context, iam, num_procs )
+    call p_context%info( iam, num_procs )
 
     iam = iam + 1 ! File-name subdomain identifiers start from 1
 

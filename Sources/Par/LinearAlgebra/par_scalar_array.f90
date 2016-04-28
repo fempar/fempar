@@ -41,11 +41,9 @@ module par_scalar_array_names
 #endif
 
   ! Parallel modules
-  use par_context_names
   use par_environment_names
+  use par_context_names
   use dof_import_names
-  use psb_penv_mod_names
-  use par_sparse_global_collectives_names
 
   ! Abstract types
   use vector_names
@@ -131,7 +129,6 @@ contains
   subroutine par_scalar_array_default_init (this)
     implicit none
     class(par_scalar_array_t), intent(inout) :: this
-
     call this%serial_scalar_array%default_initialization()
     nullify(this%dof_import)
     nullify(this%p_env)
@@ -158,9 +155,10 @@ contains
     type(par_environment_t) , target, intent(in)    :: p_env
     type(dof_import_t)      , target, intent(in)    :: dof_import
     call this%free()
+    assert ( p_env%created() ) 
     this%p_env      => p_env 
     this%dof_import => dof_import
-    if(this%p_env%p_context%iam<0) return
+    if(.not. this%p_env%am_i_l1_task()) return
     call this%serial_scalar_array%create (dof_import%get_number_dofs())
   end subroutine par_scalar_array_create
   
@@ -169,29 +167,27 @@ contains
     implicit none
     ! Parameters
     class(par_scalar_array_t), intent(inout) :: this
-    ! p_env%p_context is required within this subroutine
-    assert ( associated(this%p_env%p_context) )
-    assert ( this%p_env%p_context%created .eqv. .true.) 
-    assert ( associated(this%dof_import) )
-    if(this%p_env%p_context%iam<0) return
+    if(.not. this%p_env%am_i_l1_task()) return
     call this%serial_scalar_array%allocate ()
   end subroutine par_scalar_array_allocate
 
   !=============================================================================
   subroutine par_scalar_array_create_view (this, start, end, t_p_vec)
     implicit none
-    class(par_scalar_array_t), intent(in), target :: this
-    integer(ip)     , intent(in)         :: start
-    integer(ip)     , intent(in)         :: end
-    type(par_scalar_array_t), intent(out)        :: t_p_vec
-    ! The routine requires the partition/context info
-    assert ( associated( this%dof_import ) )
-    assert ( associated( this%p_env%p_context ) )
-    assert ( this%p_env%p_context%created .eqv. .true.)
-    ! Associate dof distribution and parallel environment 
+    class(par_scalar_array_t),  target , intent(in)     :: this
+    integer(ip)                        , intent(in)     :: start
+    integer(ip)                        , intent(in)     :: end
+    type(par_scalar_array_t)           , intent(inout)  :: t_p_vec
+    
+    assert ( associated(this%p_env) )
+    assert ( this%p_env%created() )
+    assert ( associated(this%dof_import) )
+    
+    call t_p_vec%free()
+    
     t_p_vec%dof_import => this%dof_import
     t_p_vec%p_env    => this%p_env
-    if(this%p_env%p_context%iam<0) return
+    if(.not. this%p_env%am_i_l1_task()) return
     ! Call vector_create_view
     call this%serial_scalar_array%create_view (start, end, t_p_vec%serial_scalar_array) 
   end subroutine par_scalar_array_create_view
@@ -200,13 +196,8 @@ contains
   subroutine par_scalar_array_set_view_entries ( this, entries ) 
     implicit none
     class(par_scalar_array_t), intent(inout) ::  this
-    real(rp)        , target, intent(in)     ::  entries(:)
-    ! The routine requires the partition/context info
-    assert ( associated( this%dof_import ) )
-    assert ( associated( this%p_env%p_context ) )
-    assert ( this%p_env%p_context%created .eqv. .true.)
-    if(this%p_env%p_context%iam<0) return
-    ! Call vector_set_view
+    real(rp)                 ,  intent(in)   ::  entries(:)
+    if(.not. this%p_env%am_i_l1_task()) return
     call this%serial_scalar_array%set_view_entries (entries) 
   end subroutine par_scalar_array_set_view_entries
 
@@ -217,7 +208,6 @@ contains
    type(par_environment_t)  , pointer            :: par_scalar_array_get_par_environment
    par_scalar_array_get_par_environment => this%p_env
   end function par_scalar_array_get_par_environment
-  
   
   !=============================================================================
   function par_scalar_array_get_serial_scalar_array( this )
@@ -232,10 +222,7 @@ contains
     class(par_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: i
     real(rp)                    , intent(in)    :: val
-    assert ( associated(this%dof_import   ) )
-    assert ( associated(this%p_env%p_context) )
-    assert ( this%p_env%p_context%created .eqv. .true.)
-    if(this%p_env%p_context%iam<0) return
+    if(.not. this%p_env%am_i_l1_task()) return
     call this%serial_scalar_array%insert(i,val)
   end subroutine par_scalar_array_insert_single_entry
   
@@ -246,10 +233,7 @@ contains
     integer(ip)                 , intent(in) :: ia(num_entries)
     integer(ip)                 , intent(in) :: ioffset
     real(rp)                    , intent(in) :: val(:)
-    assert ( associated(this%dof_import   ) )
-    assert ( associated(this%p_env%p_context) )
-    assert ( this%p_env%p_context%created .eqv. .true.)
-    if(this%p_env%p_context%iam<0) return
+    if(.not. this%p_env%am_i_l1_task()) return
     call this%serial_scalar_array%insert(num_entries,ia,ioffset,val)
   end subroutine par_scalar_array_insert_multiple_entries
   
@@ -258,10 +242,7 @@ contains
     class(par_scalar_array_t), intent(inout) :: this
     integer(ip)                 , intent(in)    :: i
     real(rp)                    , intent(in)    :: val
-    assert ( associated(this%dof_import   ) )
-    assert ( associated(this%p_env%p_context) )
-    assert ( this%p_env%p_context%created .eqv. .true.)
-    if(this%p_env%p_context%iam<0) return
+    if(.not. this%p_env%am_i_l1_task()) return
     call this%serial_scalar_array%add(i,val)
   end subroutine par_scalar_array_add_single_entry
   
@@ -272,25 +253,16 @@ contains
     integer(ip)                 , intent(in) :: ia(num_entries)
     integer(ip)                 , intent(in) :: ioffset
     real(rp)                    , intent(in) :: val(:)
-    assert ( associated(this%dof_import   ) )
-    assert ( associated(this%p_env%p_context) )
-    assert ( this%p_env%p_context%created .eqv. .true.)
-    if (this%p_env%p_context%iam<0) return
+    if(.not. this%p_env%am_i_l1_task()) return
     call this%serial_scalar_array%add(num_entries,ia,ioffset,val)
   end subroutine par_scalar_array_add_multiple_entries
   
-    
   !=============================================================================
   subroutine par_scalar_array_print ( this, luout )
     implicit none
     class(par_scalar_array_t), intent(in) :: this
     integer(ip)              , intent(in) :: luout
-
-    ! Pointer to part/context object is required
-    assert ( associated(this%dof_import   ) )
-    assert ( associated(this%p_env%p_context) )
-    assert ( this%p_env%p_context%created .eqv. .true.)
-    if(this%p_env%p_context%iam<0) return
+    if(.not. this%p_env%am_i_l1_task()) return
     write(luout,'(a)') '*** begin par_scalar_array_t data structure ***'
     call  this%dof_import%print(luout)
     call  this%serial_scalar_array%print(luout)
@@ -303,11 +275,7 @@ contains
     ! Parameters
     class(par_scalar_array_t), intent(in)  :: this
     integer(ip)              , intent(in)  :: luout
-
-    assert ( associated(this%dof_import   ) )
-    assert ( associated(this%p_env%p_context) )
-    assert ( this%p_env%p_context%created .eqv. .true.)
-    if(this%p_env%p_context%iam<0) return      
+    if(.not. this%p_env%am_i_l1_task()) return
     call this%serial_scalar_array%print_matrix_market (luout)
   end subroutine par_scalar_array_print_matrix_market
 
@@ -337,7 +305,7 @@ contains
     class(par_scalar_array_t), intent(in)  :: op1
     class(vector_t)          , intent(in)  :: op2
     real(rp)                               :: alpha
-
+    
     ! Alpha should be defined in all tasks (not only in coarse-grid ones)
     alpha = 0.0_rp
 
@@ -345,20 +313,15 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (par_scalar_array_t)
-          ! Pointer to part/context object is required
-       assert ( associated(op1%dof_import   ) )
-       assert ( associated(op1%p_env%p_context) )
-       assert ( associated(op2%dof_import   ) )
-       assert ( associated(op2%p_env%p_context) )
-       assert ( op1%p_env%p_context%created .eqv. .true.)
-       if(op1%p_env%p_context%iam<0) return
-
+       if(.not. op1%p_env%am_i_l1_task()) return
+       
        alpha = flat_weighted_dot ( op1%serial_scalar_array%get_entries(), &
                                    op2%serial_scalar_array%get_entries(), &
                                    op1%dof_import%get_weight() )
     
-       ! Reduce-sum local dot products on all processes
-       call psb_sum ( op2%p_env%p_context%icontxt, alpha )
+       ! Reduce-sum local dot products on all L1 processes
+       call op2%p_env%l1_sum(alpha)
+       
        class default
        write(0,'(a)') 'par_scalar_array_t%dot: unsupported op2 class'
        check(1==0)
@@ -400,13 +363,7 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (par_scalar_array_t)
-          ! Pointer to part/context object is required
-       assert ( associated(op1%dof_import   ) )
-       assert ( associated(op1%p_env%p_context) )
-       assert ( associated(op2%dof_import   ) )
-       assert ( associated(op2%p_env%p_context) )
-       assert ( op1%p_env%p_context%created .eqv. .true.)
-       if(op1%p_env%p_context%iam<0) return
+       if(.not. op1%p_env%am_i_l1_task()) return
        alpha = flat_weighted_dot ( op1%serial_scalar_array%get_entries(), &
                                    op2%serial_scalar_array%get_entries(), &
                                    op1%dof_import%get_weight() )
@@ -427,13 +384,7 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (par_scalar_array_t)
-          ! Pointer to part/context object is required
-       assert ( associated(op2%dof_import   ) )
-       assert ( associated(op2%p_env%p_context) )
-       assert ( associated(op1%dof_import   ) )
-       assert ( associated(op1%p_env%p_context) )
-       assert ( op2%p_env%p_context%created .eqv. .true.)
-       if(op2%p_env%p_context%iam<0) return
+       if(.not. op2%p_env%am_i_l1_task()) return
 
        ! Perform local copy
        call op1%serial_scalar_array%copy ( op2%serial_scalar_array )
@@ -454,14 +405,8 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (par_scalar_array_t)
-          ! Pointer to part/context object is required
-       assert ( associated(op2%dof_import   ) )
-       assert ( associated(op2%p_env%p_context) )
-       assert ( associated(op1%dof_import   ) )
-       assert ( associated(op1%p_env%p_context) )
-       assert ( op1%p_env%p_context%created .eqv. .true.)
-       if(op1%p_env%p_context%iam<0) return
-
+       if(.not. op1%p_env%am_i_l1_task()) return
+       
        ! Scal local copy
        call op1%serial_scalar_array%scal ( alpha, op2%serial_scalar_array )
        class default
@@ -476,11 +421,7 @@ contains
     class(par_scalar_array_t), intent(inout) :: op
     real(rp), intent(in) :: alpha
 
-    ! Pointer to part/context object is required
-    assert ( associated(op%dof_import   ) )
-    assert ( associated(op%p_env%p_context) )
-    assert ( op%p_env%p_context%created .eqv. .true.)
-    if(op%p_env%p_context%iam<0) return
+    if(.not. op%p_env%am_i_l1_task()) return
 
     ! Init local copy
     call op%serial_scalar_array%init(alpha)
@@ -497,13 +438,7 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (par_scalar_array_t)
-          ! Pointer to part/context object is required
-       assert ( associated(op2%dof_import   ) )
-       assert ( associated(op2%p_env%p_context) )
-       assert ( associated(op1%dof_import   ) )
-       assert ( associated(op1%p_env%p_context) )
-       assert ( op1%p_env%p_context%created )
-       if(op1%p_env%p_context%iam<0) return
+       if(.not. op1%p_env%am_i_l1_task()) return
        call op1%serial_scalar_array%axpby( alpha, op2%serial_scalar_array, beta )
        class default
        write(0,'(a)') 'par_scalar_array_t%axpby: unsupported op2 class'
@@ -524,11 +459,7 @@ contains
     call op%GuardTemp()
     select type(op)
        class is (par_scalar_array_t)
-          ! p_env%p_context is required within this subroutine 
-       assert ( associated(op%dof_import) )
-       assert ( associated(op%p_env%p_context) )
-       assert ( op%p_env%p_context%created )
-       if(op%p_env%p_context%iam<0) return
+       if(.not. op%p_env%am_i_l1_task()) return
        alpha = op%dot(op)
        alpha = sqrt(alpha)
        class default
@@ -547,13 +478,9 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (par_scalar_array_t)
-          ! p_env%p_context is required within this subroutine 
-       assert ( associated(op2%dof_import) )
-       assert ( associated(op2%p_env%p_context) )
-       assert ( op2%p_env%p_context%created )
        call op1%free()
        call op1%create(op2%p_env, op2%dof_import)
-       if(op2%p_env%p_context%iam<0) return
+       if(.not. op2%p_env%am_i_l1_task()) return
        call op1%serial_scalar_array%clone ( op2%serial_scalar_array )
        class default
        write(0,'(a)') 'par_scalar_array_t%clone: unsupported op2 class'
@@ -566,44 +493,36 @@ contains
   subroutine par_scalar_array_comm(op)
     implicit none
     class(par_scalar_array_t), intent(inout) :: op
-    real(rp), pointer :: data(:)
+    real(rp)           , pointer             :: data(:)
     
-    ! Pointer to part/context object is required
-    assert ( associated(op%dof_import) )
-    assert ( associated(op%p_env%p_context) )
-    assert ( op%p_env%p_context%created .eqv. .true.)
-    if(op%p_env%p_context%iam<0) return
+    if(.not. op%p_env%am_i_l1_task()) return
     
     data => op%serial_scalar_array%get_entries()
-    
-    ! First stage: owners receive/reduce, non-owners send
-    call single_exchange ( op%p_env%p_context%icontxt, &
-                           op%dof_import%get_num_rcv(),    &
-                           op%dof_import%get_list_rcv(),   &
-                           op%dof_import%get_rcv_ptrs(),   &
-                           op%dof_import%get_unpack_idx(), &
-                           op%dof_import%get_num_snd(),    &
-                           op%dof_import%get_list_snd(),   &
-                           op%dof_import%get_snd_ptrs(),   &
-                           op%dof_import%get_pack_idx(),   &
-                           1.0_rp,                         &
-                           1.0_rp,                         &
-                           data ) 
+
+    call op%p_env%l1_neighbours_exchange ( op%dof_import%get_num_rcv(),    &
+                                           op%dof_import%get_list_rcv(),   &
+                                           op%dof_import%get_rcv_ptrs(),   &
+                                           op%dof_import%get_unpack_idx(), &
+                                           op%dof_import%get_num_snd(),    &
+                                           op%dof_import%get_list_snd(),   &
+                                           op%dof_import%get_snd_ptrs(),   &
+                                           op%dof_import%get_pack_idx(),   &
+                                           1.0_rp,                         &
+                                           1.0_rp,                         &
+                                           data ) 
 
     ! Second stage: owners send, non-owners receive/insert
-    call single_exchange ( op%p_env%p_context%icontxt, &
-                           op%dof_import%get_num_snd(),    &
-                           op%dof_import%get_list_snd(),   &
-                           op%dof_import%get_snd_ptrs(),   &
-                           op%dof_import%get_pack_idx(),   &
-                           op%dof_import%get_num_rcv(),    &
-                           op%dof_import%get_list_rcv(),   &
-                           op%dof_import%get_rcv_ptrs(),   &
-                           op%dof_import%get_unpack_idx(), &
-                           1.0_rp,                         &
-                           0.0_rp,                         &
-                           data )
-    
+    call op%p_env%l1_neighbours_exchange ( op%dof_import%get_num_snd(),    &
+                                           op%dof_import%get_list_snd(),   &
+                                           op%dof_import%get_snd_ptrs(),   &
+                                           op%dof_import%get_pack_idx(),   &
+                                           op%dof_import%get_num_rcv(),    &
+                                           op%dof_import%get_list_rcv(),   &
+                                           op%dof_import%get_rcv_ptrs(),   &
+                                           op%dof_import%get_unpack_idx(), &
+                                           1.0_rp,                         &
+                                           0.0_rp,                         &
+                                           data )
   end subroutine par_scalar_array_comm
 
   !=============================================================================
@@ -615,7 +534,7 @@ contains
     assert ( action == free_clean .or. action == free_symbolic_setup .or. action == free_numerical_setup )	 
 
     if ( associated ( this%p_env ) ) then
-      if(this%p_env%p_context%iam<0) then 
+      if(.not. this%p_env%am_i_l1_task()) then
          if ( action == free_clean ) then
             nullify ( this%dof_import )
             nullify ( this%p_env )
@@ -643,7 +562,7 @@ contains
    par_scalar_array_same_vector_space = .true.
    select type(vector)
    class is (par_scalar_array_t)
-     if(this%p_env%p_context%iam>=0) then
+     if(this%p_env%am_i_l1_task()) then
         par_scalar_array_same_vector_space = (this%dof_import%get_number_dofs() == vector%dof_import%get_number_dofs())
      end if   
    end select

@@ -259,7 +259,7 @@ contains
     real(rp)                 , pointer     :: unknown_at_qpoints(:)
     integer(ip)                            :: number_qpoints
 
-    if(this%environment%am_i_fine_task()) then
+    if(this%environment%am_i_l1_task()) then
        ! Initialize
        norm = 0.0_rp
        call this%fe_space%initialize_integration()
@@ -298,7 +298,7 @@ contains
        call fe_unknown%free()
 
        ! All reduce
-       call this%environment%first_level_sum(norm)
+       call this%environment%l1_sum(norm)
 
        ! Finalize norm
        norm = this%norm%finalize(norm)
@@ -363,7 +363,7 @@ contains
     type(vector_field_t)     , pointer     :: unknown_at_qpoints(:)
     integer(ip)                            :: qpoin, number_qpoints
 
-    if(this%environment%am_i_fine_task()) then
+    if(this%environment%am_i_l1_task()) then
        ! Initialize
        norm = 0.0_rp
        call this%fe_space%initialize_integration()
@@ -404,7 +404,7 @@ contains
        call fe_unknown%free()
 
        ! All reduce
-       call this%environment%first_level_sum(norm)
+       call this%environment%l1_sum(norm)
 
        ! Finalize norm
        norm = this%norm%finalize(norm)

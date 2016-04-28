@@ -35,54 +35,54 @@ use types_names
   type, extends(environment_t) :: serial_environment_t
    contains
      procedure :: info                        => serial_environment_info
-     procedure :: am_i_fine_task              => serial_environment_am_i_fine_task
-     procedure :: bcast                       => serial_environment_bcast
-     procedure :: first_level_barrier         => serial_environment_first_level_barrier
-     procedure :: first_level_sum_real_scalar => serial_environment_first_level_sum_real_scalar
-     procedure :: first_level_sum_real_vector => serial_environment_first_level_sum_real_vector
+     procedure :: am_i_l1_task                => serial_environment_am_i_l1_task
+     procedure :: l1_lgt1_bcast               => serial_environment_l1_lgt1_bcast
+     procedure :: l1_barrier                  => serial_environment_l1_barrier
+     procedure :: l1_sum_real_scalar          => serial_environment_l1_sum_real_scalar
+     procedure :: l1_sum_real_vector          => serial_environment_l1_sum_real_vector
   end type serial_environment_t
   
   public :: serial_environment_t
   
 contains
 
-  subroutine serial_environment_first_level_barrier(env) 
+  subroutine serial_environment_l1_barrier(this) 
     implicit none
-    class(serial_environment_t),intent(in)  :: env
-  end subroutine serial_environment_first_level_barrier
+    class(serial_environment_t),intent(in)  :: this
+  end subroutine serial_environment_l1_barrier
 
-  subroutine serial_environment_info(env,me,np) 
+  subroutine serial_environment_info(this,me,np) 
     implicit none
-    class(serial_environment_t),intent(in)  :: env
+    class(serial_environment_t),intent(in)  :: this
     integer(ip)              ,intent(out) :: me
     integer(ip)              ,intent(out) :: np
     me = 0
     np = 1 
   end subroutine serial_environment_info
   
-  function serial_environment_am_i_fine_task(env) 
+  function serial_environment_am_i_l1_task(this) 
     implicit none
-    class(serial_environment_t) ,intent(in)  :: env
-    logical                                :: serial_environment_am_i_fine_task 
-    serial_environment_am_i_fine_task = .true.
-  end function serial_environment_am_i_fine_task
+    class(serial_environment_t) ,intent(in)  :: this
+    logical                                  :: serial_environment_am_i_l1_task 
+    serial_environment_am_i_l1_task = .true.
+  end function serial_environment_am_i_l1_task
   
-  subroutine serial_environment_bcast (env, condition)
+  subroutine serial_environment_l1_lgt1_bcast (this, condition)
     implicit none
-    class(serial_environment_t) ,intent(in)    :: env
-    logical                   ,intent(inout) :: condition
-  end subroutine serial_environment_bcast
+    class(serial_environment_t) ,intent(in)    :: this
+    logical                     ,intent(inout) :: condition
+  end subroutine serial_environment_l1_lgt1_bcast
   
-  subroutine serial_environment_first_level_sum_real_scalar (env,alpha)
+  subroutine serial_environment_l1_sum_real_scalar (this,alpha)
     implicit none
-    class(serial_environment_t) , intent(in)    :: env
-    real(rp)             , intent(inout) :: alpha
-  end subroutine serial_environment_first_level_sum_real_scalar
+    class(serial_environment_t) , intent(in)    :: this
+    real(rp)                    , intent(inout) :: alpha
+  end subroutine serial_environment_l1_sum_real_scalar
      
- subroutine serial_environment_first_level_sum_real_vector(env,alpha)
+ subroutine serial_environment_l1_sum_real_vector(this,alpha)
     implicit none
-    class(serial_environment_t) , intent(in)    :: env
-    real(rp)             , intent(inout) :: alpha(:) 
- end subroutine serial_environment_first_level_sum_real_vector
+    class(serial_environment_t) , intent(in)    :: this
+    real(rp)                    , intent(inout) :: alpha(:) 
+ end subroutine serial_environment_l1_sum_real_vector
   
 end module serial_environment_names

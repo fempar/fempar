@@ -149,7 +149,7 @@ contains
        ! r = inv(M) b
        call M%apply(b, this%r)
        b_nrm_M = b%dot(this%r)
-       if ( environment%am_i_fine_task() ) then ! Am I a fine task ?
+       if ( environment%am_i_l1_task() ) then ! Am I a fine task ?
           b_nrm_M = sqrt(b_nrm_M)
        end if
     else
@@ -169,7 +169,7 @@ contains
     ! 3) <r,z>
     r_z = this%r%dot(this%z)
 
-    if ( environment%am_i_fine_task() ) then ! Am I a fine task ?
+    if ( environment%am_i_l1_task() ) then ! Am I a fine task ?
        r_nrm_M = sqrt( r_z )
     end if
 
@@ -210,14 +210,14 @@ contains
        call this%print_convergence_history_new_line(luout)
        
        ! Send did_converge to coarse-grid tasks
-       call environment%bcast(did_converge)
+       call environment%l1_lgt1_bcast(did_converge)
 
        if(did_converge .or.(num_iterations>=max_num_iterations)) exit loop_cg
 
        ! z = inv(M) r
        call M%apply(this%r,this%z)
 
-       if ( environment%am_i_fine_task()) then ! Am I a fine task ?
+       if ( environment%am_i_l1_task()) then ! Am I a fine task ?
           beta = 1.0_rp/r_z
        else
           beta = 0.0_rp
@@ -226,7 +226,7 @@ contains
        r_z=this%r%dot(this%z)
        beta=beta*r_z
 
-       if (environment%am_i_fine_task()) then ! Am I a fine task ?
+       if (environment%am_i_l1_task()) then ! Am I a fine task ?
           r_nrm_M = sqrt( r_z )
        end if
 
@@ -288,7 +288,7 @@ contains
     class(environment_t), pointer   :: environment
 
     environment => this%get_environment()
-    if ( environment%am_i_fine_task() ) then
+    if ( environment%am_i_l1_task() ) then
        atol                        = this%get_atol()
        rtol                        = this%get_rtol()
        stopping_criteria           = this%get_stopping_criteria()
@@ -340,7 +340,7 @@ contains
     class(environment_t), pointer   :: environment
 
     environment => this%get_environment()
-    if ( environment%am_i_fine_task() ) then
+    if ( environment%am_i_l1_task() ) then
        atol                                     = this%get_atol()
        rtol                                     = this%get_rtol()
        track_convergence_history                = this%get_track_convergence_history()

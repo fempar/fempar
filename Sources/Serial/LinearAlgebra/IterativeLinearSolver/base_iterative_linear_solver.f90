@@ -564,7 +564,7 @@ contains
       integer(ip)                   :: me, np
     
       call this%environment%info(me,np) 
-      if ( this%environment%am_i_fine_task() ) then
+      if ( this%environment%am_i_l1_task() ) then
         if ( ((me == 0).and.(this%output_frequency/=0)) ) then
           outname = this%name // ':' // '  '
           if ( (mod(this%num_iterations,this%output_frequency) == 0).or.this%did_converge.or.(this%num_iterations>=this%max_num_iterations)) then
@@ -599,7 +599,7 @@ contains
       integer(ip)                    :: me, np
 
       call this%environment%info(me,np) 
-      if ( this%environment%am_i_fine_task() ) then
+      if ( this%environment%am_i_l1_task() ) then
         if ( ((me == 0).and.(this%output_frequency/=0)) ) then
           outname = this%name // ':' // '  '
           select case(this%stopping_criteria)
@@ -629,7 +629,7 @@ contains
       integer(ip)                             :: me, np
       
       call this%environment%info(me,np) 
-      if ( this%environment%am_i_fine_task() ) then
+      if ( this%environment%am_i_l1_task() ) then
         if ( ((me == 0).and.(this%output_frequency/=0)) ) then
            select case( this%stopping_criteria )
            case ( delta_rhs,delta_delta,res_res,res_rhs,&

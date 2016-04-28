@@ -295,9 +295,7 @@ module reference_fe_names
      generic :: evaluate_fe_function => evaluate_fe_function_scalar, &
                                       & evaluate_fe_function_vector, &
                                       & evaluate_fe_function_tensor
-     
-     ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
-     ! and a delay 'r' wrt to a refence element sharing the same vef.
+   
      procedure (check_compatibility_of_vefs_interface), deferred :: &
           &     check_compatibility_of_vefs
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length

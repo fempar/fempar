@@ -116,25 +116,25 @@ program par_test_triangulations
 
   type(Type_Command_Line_Interface):: cli 
  
-  call meminit
+  !call meminit
 
   ! Start parallel execution
-  call par_context_create (p_context)
-  call par_environment_create(p_env,p_context)
+  !call par_context_create (p_context)
+  !call par_environment_create(p_env,p_context)
 
   ! Read IO parameters
-  call read_flap_cli_par_test_triangulations(cli,test_params)
+  !call read_flap_cli_par_test_triangulations(cli,test_params)
  
   ! Read mesh
-  call cli%get(switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
-  call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
-  call cli%get(switch='-out',val=dir_path_out,error=istat); check(istat==0)
-  call par_mesh_read (dir_path, prefix, p_env, p_mesh)
+  !call cli%get(switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
+  !call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
+  !call cli%get(switch='-out',val=dir_path_out,error=istat); check(istat==0)
+  !call par_mesh_read (dir_path, prefix, p_env, p_mesh)
 
   !call mpi_barrier(p_context%icontxt,istat)
   
   ! Read conditions 
-  call par_conditions_read (dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
+  !call par_conditions_read (dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
 
   ! Generate efs and its boundary conditions
   !call generate_efs(p_mesh%f_mesh, p_cond%f_conditions)
@@ -146,11 +146,11 @@ program par_test_triangulations
   !call p_trian%print(stderr)
 
   !call p_trian%free()
-  call par_conditions_free ( p_cond )
-  call par_mesh_free (p_mesh)
+  !call par_conditions_free ( p_cond )
+  !call par_mesh_free (p_mesh)
 
-  call par_environment_free (p_env)
-  call par_context_free ( p_context, .false. )
+  !call par_environment_free (p_env)
+  !call par_context_free ( p_context, .false. )
   call memstatus
 
 contains

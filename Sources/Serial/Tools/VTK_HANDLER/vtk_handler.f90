@@ -184,7 +184,7 @@ contains
             check ( res == 0 ) 
         end if
 
-        if(ifb) call this%env%first_level_barrier()
+        if(ifb) call this%env%l1_barrier()
     end function vtk_handler_create_dir_hierarchy_on_root_task
 
 
@@ -337,7 +337,7 @@ contains
         call this%env%info(me,np) 
         call this%set_root_task(rp)
 
-        if(this%env%am_i_fine_task() ) then
+        if(this%env%am_i_l1_task() ) then
             ! Default values
             lo = default_linear_order
             rp = default_root_task
@@ -385,7 +385,7 @@ contains
 
         E_IO = 0
 
-        if(this%env%am_i_fine_task() ) then
+        if(this%env%am_i_l1_task() ) then
             ts = default_step_value
             of = default_vtk_format
 
@@ -425,7 +425,7 @@ contains
 
         E_IO = 0
 
-        if(this%env%am_i_fine_task()) then
+        if(this%env%am_i_l1_task()) then
             call this%mesh%generate_mesh()
 
             E_IO = VTK_GEO_XML(NN = this%mesh%get_number_nodes(),    &
@@ -463,7 +463,7 @@ contains
         assert(allocated(this%field))
         assert(fe_space_index>0 .and. fe_space_index<=size(this%field))
         E_IO = 0
-        if(this%env%am_i_fine_task() ) then        
+        if(this%env%am_i_l1_task() ) then        
             E_IO = this%mesh%generate_field(fe_function, fe_space_index, field_name, field, number_components=nc)
             if(this%state == vtk_handler_state_write_geo_open) then
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=this%file_id)
@@ -489,7 +489,7 @@ contains
         assert(this%state == vtk_handler_state_write_pointdata_open .or. this%state == vtk_handler_state_write_pointdata_open .or. this%state == vtk_handler_state_write_open)
 
         E_IO = 0
-        if (this%env%am_i_fine_task() ) then
+        if (this%env%am_i_l1_task() ) then
             if(this%state == vtk_handler_state_write_pointdata_open) then
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=this%file_id)
                 ! this%state = vtk_handler_state_write_pointdata_close
@@ -534,7 +534,7 @@ contains
 
         E_IO = 0
         call this%env%info(me,np) 
-        if( this%env%am_i_fine_task() .and. me == this%root_task) then
+        if( this%env%am_i_l1_task() .and. me == this%root_task) then
             if(allocated(this%steps)) then
                 if(this%steps_counter >0 .and. this%steps_counter <= size(this%steps,1)) &
                     ts = this%steps(this%steps_counter)
@@ -592,7 +592,7 @@ contains
 
         E_IO = 0
 
-        if(this%env%am_i_fine_task() .and. me == this%root_task) then
+        if(this%env%am_i_l1_task() .and. me == this%root_task) then
             pvdfn = trim(adjustl(this%path))//'/'//trim(adjustl(this%prefix))//pvd_ext
             if(present(file_name)) pvdfn = file_name
 

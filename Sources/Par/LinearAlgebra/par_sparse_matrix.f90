@@ -191,7 +191,7 @@ contains
     !-----------------------------------------------------------------
         class(par_sparse_matrix_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%allocate()
     end subroutine par_sparse_matrix_allocate
 
@@ -232,7 +232,7 @@ contains
         this%p_env             => p_env
         this%dof_import_domain => dof_import
         this%dof_import_range  => dof_import
-        if (this%p_env%p_context%iam>=0) then
+        if (this%p_env%am_i_l1_task()) then
           call this%sparse_matrix%create(dof_import%get_number_dofs(), symmetric_storage, is_symmetric, sign, nz)
         end if
         call this%create_vector_spaces()        
@@ -252,7 +252,7 @@ contains
         this%p_env             => p_env
         this%dof_import_domain => dof_import_domain
         this%dof_import_range  => dof_import_range
-        if (this%p_env%p_context%iam>=0) then
+        if (this%p_env%am_i_l1_task()) then
           call this%sparse_matrix%create(dof_import_range%get_number_dofs(), dof_import_domain%get_number_dofs(),nz)
         end if
         call this%create_vector_spaces()
@@ -273,7 +273,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(nz, ia, ja, val, imin, imax, jmin, jmax)
     end subroutine par_sparse_matrix_insert_bounded_values
 
@@ -291,7 +291,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(nz, ia, ja, imin, imax, jmin, jmax)
     end subroutine par_sparse_matrix_insert_bounded_coords
 
@@ -310,7 +310,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(nz, ia, ja, val, imin, imax, jmin, jmax)
     end subroutine par_sparse_matrix_insert_bounded_values_by_row
 
@@ -329,7 +329,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(nz, ia, ja, val, imin, imax, jmin, jmax)
     end subroutine par_sparse_matrix_insert_bounded_values_by_col
 
@@ -347,7 +347,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(nz, ia, ja, imin, imax, jmin, jmax)
     end subroutine par_sparse_matrix_insert_bounded_coords_by_row
 
@@ -365,7 +365,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(nz, ia, ja, imin, imax, jmin, jmax)
     end subroutine par_sparse_matrix_insert_bounded_coords_by_col
 
@@ -383,7 +383,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(ia, ja, val, imin, imax, jmin, jmax)
     end subroutine par_sparse_matrix_insert_bounded_single_value
 
@@ -400,7 +400,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(ia, ja, imin, imax, jmin, jmax)
     end subroutine par_sparse_matrix_insert_bounded_single_coord
 
@@ -422,7 +422,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(num_rows, num_cols, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax)
     end subroutine par_sparse_matrix_insert_bounded_dense_values
 
@@ -443,7 +443,7 @@ contains
         integer(ip),            intent(in)    :: jmin
         integer(ip),            intent(in)    :: jmax
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(num_rows, ia, ja, ioffset, joffset, val, imin, imax, jmin, jmax)
     end subroutine par_sparse_matrix_insert_bounded_square_dense_values
 
@@ -461,7 +461,7 @@ contains
         integer(ip),            intent(in)    :: joffset
         real(rp),               intent(in)    :: val(:,:)
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(num_rows, num_cols, ia, ja, ioffset, joffset, val)
     end subroutine par_sparse_matrix_insert_dense_values
 
@@ -478,7 +478,7 @@ contains
         integer(ip),            intent(in)    :: joffset
         real(rp),               intent(in)    :: val(:,:)
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(num_rows, ia, ja, ioffset, joffset, val)
     end subroutine par_sparse_matrix_insert_square_dense_values
 
@@ -493,7 +493,7 @@ contains
         integer(ip),            intent(in)    :: ja(nz)
         real(rp),               intent(in)    :: val(nz)
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(nz, ia, ja, val)
     end subroutine par_sparse_matrix_insert_values
 
@@ -507,7 +507,7 @@ contains
         integer(ip),            intent(in)    :: ia(nz)
         integer(ip),            intent(in)    :: ja(nz)
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(nz, ia, ja)
     end subroutine par_sparse_matrix_insert_coords
 
@@ -522,7 +522,7 @@ contains
         integer(ip),            intent(in)    :: ja(nz)
         real(rp),               intent(in)    :: val(nz)
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(nz, ia, ja, val)
     end subroutine par_sparse_matrix_insert_values_by_row
 
@@ -537,7 +537,7 @@ contains
         integer(ip),            intent(in)    :: ja
         real(rp),               intent(in)    :: val(nz)
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(nz, ia, ja, val)
     end subroutine par_sparse_matrix_insert_values_by_col
 
@@ -551,7 +551,7 @@ contains
         integer(ip),            intent(in)    :: ia
         integer(ip),            intent(in)    :: ja(nz)
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(nz, ia, ja)
     end subroutine par_sparse_matrix_insert_coords_by_row
 
@@ -565,7 +565,7 @@ contains
         integer(ip),            intent(in)    :: ia(nz)
         integer(ip),            intent(in)    :: ja
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(nz, ia, ja)
     end subroutine par_sparse_matrix_insert_coords_by_col
 
@@ -579,7 +579,7 @@ contains
         integer(ip),            intent(in)    :: ja
         real(rp),               intent(in)    :: val
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(ia, ja, val)
     end subroutine par_sparse_matrix_insert_single_value
 
@@ -592,7 +592,7 @@ contains
         integer(ip),            intent(in)    :: ia
         integer(ip),            intent(in)    :: ja
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%insert(ia, ja)
     end subroutine par_sparse_matrix_insert_single_coord
 
@@ -603,7 +603,7 @@ contains
     !-----------------------------------------------------------------
         class(par_sparse_matrix_t),    intent(inout) :: this
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%convert()
     end subroutine par_sparse_matrix_convert
 
@@ -616,7 +616,7 @@ contains
     !-----------------------------------------------------------------
         class(par_sparse_matrix_t),    intent(inout) :: this
         character(len=*),          intent(in)    :: string
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%convert(string)
     end subroutine par_sparse_matrix_convert_string
 
@@ -629,7 +629,7 @@ contains
         class(par_sparse_matrix_t),    intent(inout) :: this
         type(par_sparse_matrix_t) ,    intent(in)    :: mold
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%convert(mold%sparse_matrix)
     end subroutine par_sparse_matrix_convert_par_sparse_matrix_mold
 
@@ -641,7 +641,7 @@ contains
     !-----------------------------------------------------------------
         class(par_sparse_matrix_t) , intent(inout) :: this
         class(base_sparse_matrix_t), intent(in)    :: mold
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%convert(mold)
     end subroutine par_sparse_matrix_convert_base_par_sparse_matrix_mold
 
@@ -652,7 +652,7 @@ contains
         class(par_sparse_matrix_t), intent(in)    :: this
         real(rp), allocatable,  intent(inout) :: diagonal(:)
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%extract_diagonal(diagonal)
     end subroutine par_sparse_matrix_extract_diagonal
 
@@ -673,7 +673,7 @@ contains
           class is (par_scalar_array_t)
           select type(y)
             class is(par_scalar_array_t)
-               if(op%p_env%p_context%iam<0) return
+               if(.not. op%p_env%am_i_l1_task()) return
                y_serial=> y%get_serial_scalar_array()
                call op%sparse_matrix%apply(x%get_serial_scalar_array(), y_serial)
                call y%comm()
@@ -689,9 +689,10 @@ contains
     !-----------------------------------------------------------------
        class(par_sparse_matrix_t), intent(inout) :: this
        integer(ip)               ,   intent(in)  :: action
+       
        if ( action == free_clean ) then
           !if ( this%state == created ) then
-            if(this%p_env%p_context%iam>=0) then
+            if(this%p_env%am_i_l1_task()) then
               call this%sparse_matrix%free_in_stages(action)
             end if  
             nullify ( this%dof_import_domain )
@@ -701,11 +702,11 @@ contains
           !this%state = start
          !end if   
        else if ( action == free_symbolic_setup ) then
-          if(this%p_env%p_context%iam>=0) then
+          if(this%p_env%am_i_l1_task()) then
             call this%sparse_matrix%free_in_stages(action)
           end if 
        else if ( action == free_numerical_setup ) then
-          if(this%p_env%p_context%iam>=0) then
+          if(this%p_env%am_i_l1_task()) then
             call this%sparse_matrix%free_in_stages(action)
           end if     
        end if
@@ -719,7 +720,7 @@ contains
         integer(ip),             intent(in) :: lunou
         logical,     optional,   intent(in) :: only_graph
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         if(present(only_graph)) then
             call this%sparse_matrix%print(lunou, only_graph=only_graph)
         else
@@ -736,7 +737,7 @@ contains
         integer(ip), optional,  intent(in) :: ng
         integer(ip), optional,  intent(in) :: l2g (*)
     !-----------------------------------------------------------------
-        if(this%p_env%p_context%iam<0) return
+        if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%print_matrix_market(lunou, ng, l2g)
     end subroutine par_sparse_matrix_print_matrix_market
 

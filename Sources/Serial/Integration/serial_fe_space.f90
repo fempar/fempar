@@ -55,6 +55,7 @@ module serial_fe_space_names
   use block_sparse_matrix_array_assembler_names
   
  ! Parallel modules
+  use par_context_names
   use par_triangulation_names
   use par_conditions_names
   use dof_import_names
