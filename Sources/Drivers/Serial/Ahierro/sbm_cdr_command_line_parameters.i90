@@ -70,7 +70,7 @@ contains
     params%default_nstep           = '0'
 
     ! FE Space parameters
-    params%default_continuity              = '1'
+    params%default_continuity              = '.true.'
     params%default_enable_face_integration = '.false.'
     params%default_order                   = '1'
   end subroutine set_default_params
@@ -172,7 +172,7 @@ contains
     params%default_kfl_react           = '0'    ! Non analytical reaction
     params%default_react               = '0.0'  ! Reaction
     params%default_diffu               = '1.0'  ! Diffusion
-    params%default_space_solution_name = 'CDR-LINEAR'
+    params%default_space_solution_name = 'CDR-LAYER'
     params%default_source_term_flag    = '3'
 
   end subroutine set_default_params_analytical

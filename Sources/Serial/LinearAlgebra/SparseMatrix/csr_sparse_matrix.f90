@@ -67,6 +67,8 @@ private
         procedure, public :: print                                   => csr_sparse_matrix_print
         procedure, public :: get_iterator                            => csr_sparse_matrix_get_iterator
         procedure, public :: get_value                               => csr_sparse_matrix_get_value
+        procedure, public :: set_value                               => csr_sparse_matrix_set_value
+        procedure, public :: sum_value                               => csr_sparse_matrix_sum_value
     end type csr_sparse_matrix_t
 
     !---------------------------------------------------------------------
@@ -3027,6 +3029,68 @@ contains
            csr_sparse_matrix_get_value = .false.
         end if
       end function csr_sparse_matrix_get_value
+      
+      function csr_sparse_matrix_set_value(this, ia, ja, val) 
+        !-----------------------------------------------------------------
+        !< Set the value in the entry (ia,ja) in the sparse matrix
+        !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja
+        real(rp),                   intent(in)    :: val
+        logical                                   :: csr_sparse_matrix_set_value
+
+        integer(ip)                               :: ipaux,i1,i2,nr,nc
+        !-----------------------------------------------------------------
+        ! Ignore out of bounds entries
+        if (ia<1 .or. ia>this%get_num_rows() .or. ja<1 .or.  ja>this%get_num_cols() .or. &
+             (this%get_symmetric_storage() .and. ia>ja)) then
+           csr_sparse_matrix_set_value = .false.
+        end if
+
+        i1 = this%irp(ia)
+        i2 = this%irp(ia+1)
+        nc = i2-i1
+        ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+
+        if (ipaux>0) then
+           this%val(i1+ipaux-1) = val
+           csr_sparse_matrix_set_value = .true.
+        else
+           csr_sparse_matrix_set_value = .false.
+        end if
+      end function csr_sparse_matrix_set_value
+
+      function csr_sparse_matrix_sum_value(this, ia, ja, val) 
+        !-----------------------------------------------------------------
+        !< Sum a value in the entry (ia,ja) in the sparse matrix
+        !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout) :: this
+        integer(ip),                intent(in)    :: ia
+        integer(ip),                intent(in)    :: ja
+        real(rp),                   intent(in)    :: val
+        logical                                   :: csr_sparse_matrix_sum_value
+
+        integer(ip)                               :: ipaux,i1,i2,nr,nc
+        !-----------------------------------------------------------------
+        ! Ignore out of bounds entries
+        if (ia<1 .or. ia>this%get_num_rows() .or. ja<1 .or.  ja>this%get_num_cols() .or. &
+             (this%get_symmetric_storage() .and. ia>ja)) then
+           csr_sparse_matrix_sum_value = .false.
+        end if
+
+        i1 = this%irp(ia)
+        i2 = this%irp(ia+1)
+        nc = i2-i1
+        ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+
+        if (ipaux>0) then
+           this%val(i1+ipaux-1) = this%val(i1+ipaux-1) + val
+           csr_sparse_matrix_sum_value = .true.
+        else
+           csr_sparse_matrix_sum_value = .false.
+        end if
+      end function csr_sparse_matrix_sum_value
 
     !---------------------------------------------------------------------
     !< CSR_SPARSE_MATRIX_ITERATOR PROCEDURES

@@ -103,6 +103,8 @@ private
         procedure, non_overridable, public :: print_matrix_market            => sparse_matrix_print_matrix_market
         procedure, non_overridable, public :: get_iterator                   => sparse_matrix_get_iterator
         procedure, non_overridable, public :: get_value                      => sparse_matrix_get_value
+        procedure, non_overridable, public :: set_value                      => sparse_matrix_set_value
+        procedure, non_overridable, public :: sum_value                      => sparse_matrix_sum_value
     end type sparse_matrix_t
 
     class(base_sparse_matrix_t), allocatable, target, save :: default_sparse_matrix
@@ -1178,6 +1180,35 @@ contains
       sparse_matrix_get_value = this%State%get_value(ia, ja, val)
     end function sparse_matrix_get_value
 
+    function sparse_matrix_set_value(this, ia, ja, val)
+      !-----------------------------------------------------------------
+      !< Set the value in the (ia,ja) entry of the matrix
+      !-----------------------------------------------------------------
+      class(sparse_matrix_t), intent(inout) :: this
+      integer(ip)           , intent(in)    :: ia
+      integer(ip)           , intent(in)    :: ja
+      real(rp)              , intent(in)    :: val
+      logical                               :: sparse_matrix_set_value
+      !-----------------------------------------------------------------
+      assert(allocated(this%State))
+      assert(this%State%state_is_assembled())
+      sparse_matrix_set_value = this%State%set_value(ia, ja, val)
+    end function sparse_matrix_set_value
+
+    function sparse_matrix_sum_value(this, ia, ja, val)
+      !-----------------------------------------------------------------
+      !< Sum the value in the (ia,ja) entry of the matrix
+      !-----------------------------------------------------------------
+      class(sparse_matrix_t), intent(inout) :: this
+      integer(ip)           , intent(in)    :: ia
+      integer(ip)           , intent(in)    :: ja
+      real(rp)              , intent(in)    :: val
+      logical                               :: sparse_matrix_sum_value
+      !-----------------------------------------------------------------
+      assert(allocated(this%State))
+      assert(this%State%state_is_assembled())
+      sparse_matrix_sum_value = this%State%sum_value(ia, ja, val)
+    end function sparse_matrix_sum_value
     !-----------------------------------------------------------------
     !< SPARSE_MATRIX_ITERATOR SUBROUTINES
     !-----------------------------------------------------------------

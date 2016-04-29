@@ -38,12 +38,17 @@
 !***************************************************************************************************!
 # include "sbm_cdr_analytical_linear_solution.i90"
 
-
 !***************************************************************************************************!
 ! ANALYTICAL LINEAR-STEADY-TRANSIENT FUNCTION                                                       !
 ! Definition of the linear-steady analytical function for the CDR problem.                          !
 !***************************************************************************************************!
 # include "sbm_cdr_analytical_linear_transient_solution.i90"
+
+!***************************************************************************************************!
+! ANALYTICAL LINEAR-STEADY FUNCTION                                                                 !
+! Definition of the linear-steady analytical function for the CDR problem.                          !
+!***************************************************************************************************!
+# include "sbm_cdr_analytical_layer_solution.i90"
 
 !***************************************************************************************************!
 ! ANALYTICAL FUNCTIONS                                                                              ! 
@@ -83,7 +88,7 @@ module dG_CDR_discrete_integration_names
      procedure, non_overridable :: compute_analytical_force
      procedure, non_overridable :: set_initial_solution
      procedure, non_overridable :: compute_graph_laplacian_perturbed_matrix
-     procedure, non_overridable :: compute_graph_laplacian_perturbed_block_matrix
+     !procedure, non_overridable :: compute_graph_laplacian_perturbed_block_matrix
   end type DG_CDR_discrete_integration_t
   
   public :: dG_CDR_discrete_integration_t
@@ -204,7 +209,7 @@ contains
     ! Update the Dirichlet boundary conditions
     call fe_space%update_bc_value_scalar(this%analytical_functions%get_solution_function(),         &
          &                               bc_code=1,fe_space_component=1, time= time )
-    
+    call fe_space%update_global_fe_function_bcs(this%fe_function)
     ! ------------------------------------ LOOP OVER THE ELEMENTS -----------------------------------
     call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
     call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
@@ -260,7 +265,6 @@ contains
     ! ------------------------------------ LOOP OVER THE FACES --------------------------------------
     call memalloc ( number_nodes, number_nodes,2,2,facemat, __FILE__, __LINE__ )
     call memalloc ( number_nodes, 2,facevec, __FILE__, __LINE__ )
-
 
     write(*,*) '*************************   Integration on faces    *************************'
     !call fe_space%initialize_face_integration()
@@ -409,72 +413,71 @@ contains
     class(dG_CDR_discrete_integration_t), intent(in)    :: this
     type(sparse_matrix_t)               , intent(inout) :: sparse_matrix
 
-    type(sparse_matrix_iterator_t) :: iterator
+    type(sparse_matrix_iterator_t) :: matrix_entry
     integer(ip) :: i,j
     real(rp)    :: value,transposed_value
     logical     :: finished
     logical     :: found
+    real(rp)    :: nu
 
-    call sparse_matrix%get_iterator(iterator)
+    call sparse_matrix%get_iterator(matrix_entry)
 
-    do while (.not. iterator%has_finished())
-       
-       i = iterator%get_row()
-       j = iterator%get_column()
-       value = iterator%get_value()
-       found = sparse_matrix%get_value(i,j,transposed_value)
-       if (found) then
-          write(*,*)  i, j, value-transposed_value
-       else
-          write(*,*)  i, j
+    do while (.not. matrix_entry%has_finished())
+
+       i = matrix_entry%get_row()
+       j = matrix_entry%get_column()
+
+       if (i < j) then
+          value = matrix_entry%get_value()
+          found = sparse_matrix%get_value(j,i,transposed_value); assert(found)
+          nu = max(value,transposed_value)
+          if (nu > 0) then
+             call matrix_entry%set_value(value-nu)
+             found = sparse_matrix%sum_value(j,i,-nu); assert(found)
+             found = sparse_matrix%sum_value(i,i,+nu); assert(found)
+             found = sparse_matrix%sum_value(j,j,+nu); assert(found)
+          end if
        end if
 
-       if (i==j) then
-          call iterator%set_value(1.0_rp)
-       else
-          call iterator%set_value(0.0_rp)
-       end if
-          
        ! Do stuff
-       call iterator%next()
+       call matrix_entry%next()
     end do
   end subroutine compute_graph_laplacian_perturbed_matrix
-
-  
-  subroutine compute_graph_laplacian_perturbed_block_matrix(this,block_sparse_matrix)
-    use block_sparse_matrix_names
-    use matrix_names
-    implicit none
-    class(dG_CDR_discrete_integration_t), intent(in)    :: this
-    type(block_sparse_matrix_t)         , intent(inout) :: block_sparse_matrix
-
-    class(block_sparse_matrix_iterator_t), allocatable :: iterator
-    integer(ip) :: i,j,iblock,jblock
-    real(rp)    :: value
-    logical     :: finished
-
-    call block_sparse_matrix%get_iterator(iterator)
-
-    do while (.not. iterator%has_finished())
-       iblock = iterator%get_iblock()
-       jblock = iterator%get_jblock()
-       i = iterator%get_row()
-       j = iterator%get_column()
-       value = iterator%get_value()
-       write(*,*)  iblock,jblock,i, j, value
-
-       if ((i==j) .and. (iblock == jblock)) then
-          call iterator%set_value(1.0_rp)
-       else
-          call iterator%set_value(0.0_rp)
-       end if
-          
-       ! Do stuff
-       call iterator%next()
-    end do
-
-    call iterator%free()
-  end subroutine compute_graph_laplacian_perturbed_block_matrix
+!!$  
+!!$  subroutine compute_graph_laplacian_perturbed_block_matrix(this,block_sparse_matrix)
+!!$    use block_sparse_matrix_names
+!!$    use matrix_names
+!!$    implicit none
+!!$    class(dG_CDR_discrete_integration_t), intent(in)    :: this
+!!$    type(block_sparse_matrix_t)         , intent(inout) :: block_sparse_matrix
+!!$
+!!$    class(block_sparse_matrix_iterator_t), allocatable :: iterator
+!!$    integer(ip) :: i,j,iblock,jblock
+!!$    real(rp)    :: value
+!!$    logical     :: finished
+!!$
+!!$    call block_sparse_matrix%get_iterator(iterator)
+!!$
+!!$    do while (.not. iterator%has_finished())
+!!$       iblock = iterator%get_iblock()
+!!$       jblock = iterator%get_jblock()
+!!$       i = iterator%get_row()
+!!$       j = iterator%get_column()
+!!$       value = iterator%get_value()
+!!$       write(*,*)  iblock,jblock,i, j, value
+!!$
+!!$       if ((i==j) .and. (iblock == jblock)) then
+!!$          call iterator%set_value(1.0_rp)
+!!$       else
+!!$          call iterator%set_value(0.0_rp)
+!!$       end if
+!!$          
+!!$       ! Do stuff
+!!$       call iterator%next()
+!!$    end do
+!!$
+!!$    call iterator%free()
+!!$  end subroutine compute_graph_laplacian_perturbed_block_matrix
 end module DG_CDR_discrete_integration_names
 
 !****************************************************************************************************
@@ -491,6 +494,7 @@ program test_cdr
   use pardiso_mkl_direct_solver_names
   use umfpack_direct_solver_names
   use cdr_analytical_functions_names 
+  use vtk_handler_names
 
   implicit none
 #include "debug.i90"
@@ -514,11 +518,8 @@ program test_cdr
   integer(ip)              :: i, j, vars_prob(1) = 1, ierror, iblock
 
   character(len=1024)                           :: space_solution_name
-
-  integer(ip)                     , allocatable :: material(:), problem(:)
-
-  integer(ip)                     , allocatable :: continuity(:,:)
-  logical                         , allocatable :: enable_face_integration(:,:)
+  real(rp)                                      :: viscosity
+  logical                                       :: continuity
 
   integer(ip)                                   :: istat
 
@@ -552,6 +553,11 @@ program test_cdr
   integer(ip)                      :: order, count, max_number_iterations
 
   real(rp)                         :: tolerance, residual_nrm2
+
+  integer(ip)                      :: err
+  type(vtk_handler_t)              :: vtk_handler
+  integer(ip)                      :: vtk_error
+
   call meminit
 
   ! ParameterList: initialize
@@ -584,6 +590,9 @@ program test_cdr
   call cli%get(group=trim(group),switch='-d',val=dir_path,error=istat); check(istat==0)
   call cli%get(group=trim(group),switch='-pr',val=prefix,error=istat); check(istat==0)
   call cli%get(group=trim(group),switch='-out',val=dir_path_out,error=istat); check(istat==0)
+  call cli%get(group=trim(group),switch='-cg',val= continuity,error=istat); check(istat==0)
+  write(*,*) __FILE__,__LINE__, continuity,.true.
+  call cli%get(group=trim(group),switch='-p',val=order,error=istat); check(istat==0)
 
   ! Read mesh
   call mesh_read (dir_path, prefix, f_mesh, permute_c2z=.true.)
@@ -594,9 +603,7 @@ program test_cdr
   ! Construc triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
-  call triangulation_construct_faces ( f_trian )
-
-  call cli%get(group=trim(group),switch='-p',val=order,error=istat); check(istat==0)
+  if (.not. continuity)  call triangulation_construct_faces ( f_trian )
 
   ! Time integration
   call theta_method%read_and_initialize( cli, group )
@@ -608,19 +615,7 @@ program test_cdr
        &                                          number_dimensions = f_trian%num_dims,             &
        &                                          order = order,                                    &
        &                                          field_type = field_type_scalar,                   &
-       &                                          continuity = .false. )
-  reference_fe_array_two(1) = make_reference_fe ( topology = topology_quad,                         &
-       &                                          fe_type  = fe_type_lagrangian,                    &
-       &                                          number_dimensions = f_trian%num_dims,             &
-       &                                          order = order,                                    &
-       &                                          field_type = field_type_scalar,                   &
-       &                                          continuity = .false. )
-  reference_fe_array_two(2) = make_reference_fe ( topology = topology_quad,                         &
-       &                                          fe_type  = fe_type_lagrangian,                    &
-       &                                          number_dimensions = f_trian%num_dims,             &
-       &                                          order = order,                                    &
-       &                                          field_type = field_type_scalar,                   &
-       &                                          continuity = .true. )
+       &                                          continuity = continuity )
 
   call fe_space%create( triangulation = f_trian, boundary_conditions = f_cond,                      &
        &                reference_fe_phy = reference_fe_array_one,                                  &
@@ -633,7 +628,8 @@ program test_cdr
  
   ! Set the analytical solution and convection  
   call cli%get(group=trim(group),switch='-ssol' ,val=space_solution_name,error=istat);check(istat==0)
-  call dG_CDR_integration%set_problem( viscosity = 1.0_rp, C_IP = 10.0_rp, xi = 1.0_rp,             &
+  call cli%get(group=trim(group),switch='-diff' ,val=viscosity,error=istat);check(istat==0)
+  call dG_CDR_integration%set_problem( viscosity = viscosity, C_IP = 10.0_rp, xi = 1.0_rp,             &
        &                               solution_field_name = space_solution_name)
 
   ! Set the parameters for the integration in time
@@ -654,6 +650,7 @@ program test_cdr
 
   ! Create the unknown array
   call fe_space%create_global_fe_function(fe_function)
+  dG_CDR_integration%fe_function => fe_function
   dof_values => fe_function%get_dof_values()
   call dof_values%init(0.0_rp)
   !call fe_affine_operator%create_range_vector(dof_values_previous)
@@ -703,7 +700,7 @@ program test_cdr
         class is (serial_scalar_array_t)
            select type (dof_values) 
            class is (serial_scalar_array_t)
-              call rhs%print(6)
+              !call rhs%print(6)
               call direct_solver%solve(rhs , dof_values)
            end select
         class DEFAULT
@@ -748,7 +745,11 @@ program test_cdr
      end  if
 
   end do temporal
-
+  call  vtk_handler%initialize(fe_space, senv, dir_path_out, prefix)
+  err = vtk_handler%open_vtu() 
+  err = vtk_handler%write_vtu_mesh()
+  err = vtk_handler%write_vtu_node_field(fe_function, 1, 'Unkno')
+  err = vtk_handler%close_vtu()
 
   !call fe_space%print()
   call fe_values_previous%free()
@@ -756,8 +757,6 @@ program test_cdr
   call fe_affine_operator%free()
   call fe_space%free()
   call reference_fe_array_one(1)%free()
-  call reference_fe_array_two(1)%free()
-  call reference_fe_array_two(2)%free()
   call residual%free()
   call dof_values%free()
   call triangulation_free ( f_trian )
