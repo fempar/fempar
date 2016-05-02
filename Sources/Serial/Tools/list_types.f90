@@ -52,7 +52,7 @@ implicit none
         procedure, non_overridable          :: calculate_header           => list_calculate_header
         procedure, non_overridable          :: allocate_list_from_pointer => list_allocate_list_from_p
         procedure, non_overridable          :: free                       => list_free
-        generic                             :: get_iterator               => list_get_full_list_iterator,  &
+        generic                             :: create_iterator            => list_get_full_list_iterator,  &
                                                                              list_get_list_range_iterator, &
                                                                              list_get_list_index_iterator
         generic                             :: assignment(=)              => list_assign

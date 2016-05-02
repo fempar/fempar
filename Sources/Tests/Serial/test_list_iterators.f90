@@ -34,7 +34,7 @@ implicit none
     call list%sum_to_pointer_index(index=5, value=6)
     call list%calculate_header()
     call list%allocate_list_from_pointer()
-    iterator = list%get_iterator()
+    iterator = list%create_iterator()
     i = 0
 
 print*, '!----------------------------------------------------------------- '
@@ -55,7 +55,7 @@ print*, '!----------------------------------------------------------------- '
 
     j = 0
     do i=1, list%get_num_pointers()
-        iterator = list%get_iterator(i)
+        iterator = list%create_iterator(i)
         print*, 'Pointer: ', trim(str(no_sign=.true., n=i)), &
                 ', components:', trim(str(no_sign=.true., n=iterator%get_size()))
         do while(.not. iterator%is_upper_bound())
@@ -73,7 +73,7 @@ print*, '!----------------------------------------------------------------- '
 
     j = nl+1
     do i=list%get_num_pointers(),1,-1
-        iterator = list%get_iterator(i)
+        iterator = list%create_iterator(i)
         call iterator%end()
         print*, 'Pointer: ', trim(str(no_sign=.true., n=i)), &
                 ', components:', trim(str(no_sign=.true., n=iterator%get_size()))
@@ -91,7 +91,7 @@ print*, '!< RANGE ITERATOR INCREASING LOOP - get_current'
 print*, '!----------------------------------------------------------------- '
 
     j = p(2+1)
-    iterator = list%get_iterator(2,4)
+    iterator = list%create_iterator(2,4)
     print*, 'Pointer from: ', trim(str(no_sign=.true., n=2)), ' to: ',trim(str(no_sign=.true., n=4)), &
             ', components:', trim(str(no_sign=.true., n=iterator%get_size()))
     do while(.not. iterator%is_upper_bound())
@@ -105,7 +105,7 @@ print*, '!----------------------------------------------------------------- '
 print*, '!----------------------------------------------------------------- '
 print*, '!< REACH SOME COMPONENTS FROM CURRENT POSITION'
 print*, '!----------------------------------------------------------------- '
-    iterator = list%get_iterator(4)
+    iterator = list%create_iterator(4)
     print*, 'Pointer: ', trim(str(no_sign=.true., n=4)), &
             ', components:', trim(str(no_sign=.true., n=iterator%get_size()))
     do i=iterator%get_distance_to_upper_bound()-1, 1, -1
