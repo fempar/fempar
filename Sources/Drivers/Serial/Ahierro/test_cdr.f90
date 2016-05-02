@@ -591,7 +591,6 @@ program test_cdr
   call cli%get(group=trim(group),switch='-pr',val=prefix,error=istat); check(istat==0)
   call cli%get(group=trim(group),switch='-out',val=dir_path_out,error=istat); check(istat==0)
   call cli%get(group=trim(group),switch='-cg',val= continuity,error=istat); check(istat==0)
-  write(*,*) __FILE__,__LINE__, continuity,.true.
   call cli%get(group=trim(group),switch='-p',val=order,error=istat); check(istat==0)
 
   ! Read mesh
