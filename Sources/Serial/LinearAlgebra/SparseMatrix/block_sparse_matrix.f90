@@ -351,17 +351,26 @@ contains
    end if
   end subroutine block_sparse_matrix_set_block_to_zero
   
-  subroutine block_sparse_matrix_create_iterator(this, iterator)
+  subroutine block_sparse_matrix_create_iterator(this, iblock, jblock, iterator)
     !-----------------------------------------------------------------
     !< Get a pointer to an iterator over the matrix entries
     !-----------------------------------------------------------------
     class(block_sparse_matrix_t), target , intent(in)  :: this
-    class(block_sparse_matrix_iterator_t), intent(out) :: iterator
+    integer(ip)                          , intent(in)  :: iblock 
+    integer(ip)                          , intent(in)  :: jblock 
+    class(matrix_iterator_t), allocatable, intent(out) :: iterator
     !-----------------------------------------------------------------
-    iterator%i_index = 1
-    iterator%j_index = 1
-    iterator%block_sparse_matrix => this
-    call this%blocks(iterator%i_index,iterator%j_index)%sparse_matrix%create_iterator(iterator%sparse_iterator)
+    allocate(block_sparse_matrix_iterator_t :: iterator)
+    select type ( iterator)
+      class is (block_sparse_matrix_iterator_t) 
+         iterator%i_index = iblock
+         iterator%j_index = jblock
+         iterator%block_sparse_matrix => this
+         call this%blocks(iterator%i_index,iterator%j_index)%sparse_matrix%create_sparse_iterator(iterator%sparse_iterator)
+      class DEFAULT
+         assert(.false.)
+      end select
+   
   end subroutine block_sparse_matrix_create_iterator
 
   !-----------------------------------------------------------------
@@ -385,16 +394,6 @@ contains
     !-----------------------------------------------------------------
     class(block_sparse_matrix_iterator_t), intent(inout) :: this
     call this%sparse_iterator%next()
-    if (this%sparse_iterator%has_finished()) then
-       this%j_index =  this%j_index + 1
-       if ( this%j_index > this%block_sparse_matrix%nblocks) then
-          this%j_index = 1
-          this%i_index = this%i_index + 1
-          if ( this%i_index <= this%block_sparse_matrix%nblocks) then
-              call this%block_sparse_matrix%blocks(this%i_index,this%j_index)%sparse_matrix%create_iterator(this%sparse_iterator)
-           end if
-        end if
-     end if
   end subroutine block_sparse_matrix_iterator_next
 
   function block_sparse_matrix_iterator_has_finished(this)
@@ -404,7 +403,8 @@ contains
     class(block_sparse_matrix_iterator_t), intent(in) :: this
     logical :: block_sparse_matrix_iterator_has_finished
     
-    block_sparse_matrix_iterator_has_finished = (this%i_index > this%block_sparse_matrix%nblocks)
+    
+    block_sparse_matrix_iterator_has_finished = this%sparse_iterator%has_finished()
     
   end function block_sparse_matrix_iterator_has_finished
 

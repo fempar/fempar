@@ -102,6 +102,7 @@ private
         procedure, non_overridable, public :: print                          => sparse_matrix_print
         procedure, non_overridable, public :: print_matrix_market            => sparse_matrix_print_matrix_market
         procedure, non_overridable, public :: create_iterator                => sparse_matrix_create_iterator
+        procedure, non_overridable, public :: create_sparse_iterator         => sparse_matrix_create_sparse_iterator
         procedure, non_overridable, public :: get_entry                      => sparse_matrix_get_entry
         procedure, non_overridable, public :: set_value                      => sparse_matrix_set_value
         procedure, non_overridable, public :: add_to_entry                   => sparse_matrix_add_to_entry
@@ -1153,17 +1154,40 @@ contains
         call this%State%print_matrix_market(lunou, ng, l2g)
     end subroutine sparse_matrix_print_matrix_market
     
-    subroutine sparse_matrix_create_iterator(this, iterator)
+    subroutine sparse_matrix_create_iterator(this, iblock, jblock, iterator)
       !-----------------------------------------------------------------
       !< Get a pointer to an iterator over the matrix entries
       !-----------------------------------------------------------------
-      class(sparse_matrix_t)         , intent(in)  :: this
-      class(sparse_matrix_iterator_t), intent(out) :: iterator
+      class(sparse_matrix_t)       , target, intent(in)  :: this
+      integer(ip)                          , intent(in)  :: iblock 
+      integer(ip)                          , intent(in)  :: jblock 
+      class(matrix_iterator_t), allocatable, intent(out) :: iterator
+      !-----------------------------------------------------------------
+      assert(iblock == 1)
+      assert(jblock == 1)
+      assert(allocated(this%State))
+      assert(this%State%state_is_assembled())
+      allocate(sparse_matrix_iterator_t :: iterator)
+      select type ( iterator)
+      class is (sparse_matrix_iterator_t) 
+         call this%State%create_iterator(iterator%base_iterator)
+      class DEFAULT
+         assert(.false.)
+      end select
+    end subroutine sparse_matrix_create_iterator
+
+    subroutine sparse_matrix_create_sparse_iterator(this, iterator)
+      !-----------------------------------------------------------------
+      !< Get a pointer to an iterator over the matrix entries
+      !-----------------------------------------------------------------
+      class(sparse_matrix_t)       , target, intent(in)  :: this
+      class(sparse_matrix_iterator_t)      , intent(out) :: iterator
       !-----------------------------------------------------------------
       assert(allocated(this%State))
       assert(this%State%state_is_assembled())
+   
       call this%State%create_iterator(iterator%base_iterator)
-    end subroutine sparse_matrix_create_iterator
+    end subroutine sparse_matrix_create_sparse_iterator
 
     function sparse_matrix_get_entry(this, ia, ja, val)
       !-----------------------------------------------------------------

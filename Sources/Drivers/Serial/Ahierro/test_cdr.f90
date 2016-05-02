@@ -413,14 +413,15 @@ contains
     class(dG_CDR_discrete_integration_t), intent(in)    :: this
     type(sparse_matrix_t)               , intent(inout) :: sparse_matrix
 
-    type(sparse_matrix_iterator_t) :: matrix_entry
+    class(matrix_iterator_t), allocatable :: matrix_entry
     integer(ip) :: i,j
     real(rp)    :: value,transposed_value
     logical     :: finished
     logical     :: found
     real(rp)    :: nu
 
-    call sparse_matrix%create_iterator(matrix_entry)
+    !call sparse_matrix%create_sparse_iterator(matrix_entry)
+    call sparse_matrix%create_iterator(1,1,matrix_entry)
 
     do while (.not. matrix_entry%has_finished())
 

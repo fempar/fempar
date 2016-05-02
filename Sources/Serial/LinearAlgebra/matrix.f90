@@ -34,9 +34,9 @@ module matrix_names
 
   type, abstract, extends(operator_t) :: matrix_t
   contains
-     procedure (allocate_interface)      , deferred :: allocate
-     procedure (free_in_stages_interface), deferred :: free_in_stages
-     
+     procedure (allocate_interface)       , deferred :: allocate
+     procedure (free_in_stages_interface) , deferred :: free_in_stages
+     procedure (create_iterator_interface), deferred :: create_iterator
      
      procedure :: is_linear => matrix_is_linear
      ! This subroutine is an instance of the Template Method pattern with
@@ -70,6 +70,20 @@ module matrix_names
        class(matrix_t)       , intent(inout) :: this
        integer(ip)           , intent(in)    :: action
      end subroutine free_in_stages_interface
+
+     subroutine create_iterator_interface(this, iblock, jblock, iterator)
+       !-----------------------------------------------------------------
+       !< Get a pointer to an iterator over the matrix entries
+       !-----------------------------------------------------------------
+       import :: matrix_t
+       import :: matrix_iterator_t
+       import :: ip
+       class(matrix_t), target , intent(in)  :: this
+       integer(ip)             , intent(in)  :: iblock 
+       integer(ip)             , intent(in)  :: jblock 
+       class(matrix_iterator_t), intent(out) :: iterator
+       !-----------------------------------------------------------------
+     end subroutine create_iterator_interface
   end interface
   
   !-----------------------------------------------------------------
