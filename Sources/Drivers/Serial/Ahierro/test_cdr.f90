@@ -420,7 +420,7 @@ contains
     logical     :: found
     real(rp)    :: nu
 
-    call sparse_matrix%get_iterator(matrix_entry)
+    call sparse_matrix%create_iterator(matrix_entry)
 
     do while (.not. matrix_entry%has_finished())
 
@@ -428,14 +428,14 @@ contains
        j = matrix_entry%get_column()
 
        if (i < j) then
-          value = matrix_entry%get_value()
-          found = sparse_matrix%get_value(j,i,transposed_value); assert(found)
+          value = matrix_entry%get_entry()
+          found = sparse_matrix%get_entry(j,i,transposed_value); assert(found)
           nu = max(value,transposed_value)
           if (nu > 0) then
              call matrix_entry%set_value(value-nu)
-             found = sparse_matrix%sum_value(j,i,-nu); assert(found)
-             found = sparse_matrix%sum_value(i,i,+nu); assert(found)
-             found = sparse_matrix%sum_value(j,j,+nu); assert(found)
+             found = sparse_matrix%add_to_entry(j,i,-nu); assert(found)
+             found = sparse_matrix%add_to_entry(i,i,+nu); assert(found)
+             found = sparse_matrix%add_to_entry(j,j,+nu); assert(found)
           end if
        end if
 
@@ -463,7 +463,7 @@ contains
 !!$       jblock = iterator%get_jblock()
 !!$       i = iterator%get_row()
 !!$       j = iterator%get_column()
-!!$       value = iterator%get_value()
+!!$       value = iterator%get_entry()
 !!$       write(*,*)  iblock,jblock,i, j, value
 !!$
 !!$       if ((i==j) .and. (iblock == jblock)) then
@@ -751,6 +751,7 @@ program test_cdr
   err = vtk_handler%close_vtu()
 
   !call fe_space%print()
+  call vtk_handler%free()
   call fe_values_previous%free()
   call dG_CDR_integration%analytical_functions%free()
   call fe_affine_operator%free()

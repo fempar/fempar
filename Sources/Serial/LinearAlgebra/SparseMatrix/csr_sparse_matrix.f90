@@ -65,10 +65,10 @@ private
         procedure, public :: apply_body                              => csr_sparse_matrix_apply_body
         procedure, public :: print_matrix_market_body                => csr_sparse_matrix_print_matrix_market_body
         procedure, public :: print                                   => csr_sparse_matrix_print
-        procedure, public :: get_iterator                            => csr_sparse_matrix_get_iterator
-        procedure, public :: get_value                               => csr_sparse_matrix_get_value
+        procedure, public :: create_iterator                         => csr_sparse_matrix_create_iterator
+        procedure, public :: get_entry                               => csr_sparse_matrix_get_entry
         procedure, public :: set_value                               => csr_sparse_matrix_set_value
-        procedure, public :: sum_value                               => csr_sparse_matrix_sum_value
+        procedure, public :: add_to_entry                            => csr_sparse_matrix_add_to_entry
     end type csr_sparse_matrix_t
 
     !---------------------------------------------------------------------
@@ -86,7 +86,7 @@ private
        procedure, non_overridable :: has_finished => csr_sparse_matrix_iterator_has_finished
        procedure, non_overridable :: get_row      => csr_sparse_matrix_iterator_get_row
        procedure, non_overridable :: get_column   => csr_sparse_matrix_iterator_get_column
-       procedure, non_overridable :: get_value    => csr_sparse_matrix_iterator_get_value
+       procedure, non_overridable :: get_entry    => csr_sparse_matrix_iterator_get_entry
        procedure, non_overridable :: set_value    => csr_sparse_matrix_iterator_set_value
     end type csr_sparse_matrix_iterator_t
 
@@ -2985,7 +2985,7 @@ contains
 
     end subroutine csr_sparse_matrix_print_matrix_market_body
 
-    subroutine csr_sparse_matrix_get_iterator(this,iterator)
+    subroutine csr_sparse_matrix_create_iterator(this,iterator)
       class(csr_sparse_matrix_t)          , target     , intent(in)  :: this
       class(base_sparse_matrix_iterator_t), allocatable, intent(out) :: iterator
       
@@ -2997,9 +2997,9 @@ contains
          assert(.false.)
       end select     
       call iterator%init()
-    end subroutine csr_sparse_matrix_get_iterator
+    end subroutine csr_sparse_matrix_create_iterator
 
-    function csr_sparse_matrix_get_value(this, ia, ja, val) 
+    function csr_sparse_matrix_get_entry(this, ia, ja, val) 
     !-----------------------------------------------------------------
     !< Get the value in the entry (ia,ja) in the sparse matrix
     !-----------------------------------------------------------------
@@ -3007,14 +3007,14 @@ contains
         integer(ip),                intent(in)  :: ia
         integer(ip),                intent(in)  :: ja
         real(rp),                   intent(out) :: val
-        logical                                 :: csr_sparse_matrix_get_value
+        logical                                 :: csr_sparse_matrix_get_entry
 
         integer(ip)                             :: ipaux,i1,i2,nr,nc
     !-----------------------------------------------------------------
         ! Ignore out of bounds entries
         if (ia<1 .or. ia>this%get_num_rows() .or. ja<1 .or.  ja>this%get_num_cols() .or. &
              (this%get_symmetric_storage() .and. ia>ja)) then
-           csr_sparse_matrix_get_value = .false.
+           csr_sparse_matrix_get_entry = .false.
         end if
 
         i1 = this%irp(ia)
@@ -3024,11 +3024,11 @@ contains
 
         if (ipaux>0) then
            val=this%val(i1+ipaux-1)
-           csr_sparse_matrix_get_value = .true.
+           csr_sparse_matrix_get_entry = .true.
         else
-           csr_sparse_matrix_get_value = .false.
+           csr_sparse_matrix_get_entry = .false.
         end if
-      end function csr_sparse_matrix_get_value
+      end function csr_sparse_matrix_get_entry
       
       function csr_sparse_matrix_set_value(this, ia, ja, val) 
         !-----------------------------------------------------------------
@@ -3061,7 +3061,7 @@ contains
         end if
       end function csr_sparse_matrix_set_value
 
-      function csr_sparse_matrix_sum_value(this, ia, ja, val) 
+      function csr_sparse_matrix_add_to_entry(this, ia, ja, val) 
         !-----------------------------------------------------------------
         !< Sum a value in the entry (ia,ja) in the sparse matrix
         !-----------------------------------------------------------------
@@ -3069,14 +3069,14 @@ contains
         integer(ip),                intent(in)    :: ia
         integer(ip),                intent(in)    :: ja
         real(rp),                   intent(in)    :: val
-        logical                                   :: csr_sparse_matrix_sum_value
+        logical                                   :: csr_sparse_matrix_add_to_entry
 
         integer(ip)                               :: ipaux,i1,i2,nr,nc
         !-----------------------------------------------------------------
         ! Ignore out of bounds entries
         if (ia<1 .or. ia>this%get_num_rows() .or. ja<1 .or.  ja>this%get_num_cols() .or. &
              (this%get_symmetric_storage() .and. ia>ja)) then
-           csr_sparse_matrix_sum_value = .false.
+           csr_sparse_matrix_add_to_entry = .false.
         end if
 
         i1 = this%irp(ia)
@@ -3086,11 +3086,11 @@ contains
 
         if (ipaux>0) then
            this%val(i1+ipaux-1) = this%val(i1+ipaux-1) + val
-           csr_sparse_matrix_sum_value = .true.
+           csr_sparse_matrix_add_to_entry = .true.
         else
-           csr_sparse_matrix_sum_value = .false.
+           csr_sparse_matrix_add_to_entry = .false.
         end if
-      end function csr_sparse_matrix_sum_value
+      end function csr_sparse_matrix_add_to_entry
 
     !---------------------------------------------------------------------
     !< CSR_SPARSE_MATRIX_ITERATOR PROCEDURES
@@ -3142,12 +3142,12 @@ contains
       csr_sparse_matrix_iterator_get_column = this%matrix%ja(this%nnz_index)
     end function csr_sparse_matrix_iterator_get_column
 
-    function csr_sparse_matrix_iterator_get_value(this)
+    function csr_sparse_matrix_iterator_get_entry(this)
       class(csr_sparse_matrix_iterator_t), intent(in) :: this
-      real(rp) :: csr_sparse_matrix_iterator_get_value
+      real(rp) :: csr_sparse_matrix_iterator_get_entry
 
-      csr_sparse_matrix_iterator_get_value = this%matrix%val(this%nnz_index)
-    end function csr_sparse_matrix_iterator_get_value
+      csr_sparse_matrix_iterator_get_entry = this%matrix%val(this%nnz_index)
+    end function csr_sparse_matrix_iterator_get_entry
 
     subroutine csr_sparse_matrix_iterator_set_value(this,new_value)
       class(csr_sparse_matrix_iterator_t), intent(inout) :: this

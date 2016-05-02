@@ -142,10 +142,10 @@ module base_sparse_matrix_names
      procedure(base_sparse_matrix_set_nnz),                   public, deferred :: set_nnz
      procedure(base_sparse_matrix_get_nnz),                   public, deferred :: get_nnz
      procedure(base_sparse_matrix_print),                     public, deferred :: print
-     procedure(base_sparse_matrix_get_iterator),              public, deferred :: get_iterator
-     procedure(base_sparse_matrix_get_value),                 public, deferred :: get_value
+     procedure(base_sparse_matrix_create_iterator),           public, deferred :: create_iterator
+     procedure(base_sparse_matrix_get_entry),                 public, deferred :: get_entry
      procedure(base_sparse_matrix_set_value),                 public, deferred :: set_value
-     procedure(base_sparse_matrix_sum_value),                 public, deferred :: sum_value
+     procedure(base_sparse_matrix_add_to_entry),              public, deferred :: add_to_entry
      procedure         ::                                     base_sparse_matrix_create_square
      procedure         ::                                     base_sparse_matrix_create_rectangular
      procedure         :: insert_bounded_coords            => base_sparse_matrix_insert_bounded_coords
@@ -368,10 +368,10 @@ module base_sparse_matrix_names
         procedure, public :: free_val                                => coo_sparse_matrix_free_val
         procedure, public :: print_matrix_market_body                => coo_sparse_matrix_print_matrix_market_body
         procedure, public :: print                                   => coo_sparse_matrix_print
-        procedure, public :: get_iterator                            => coo_sparse_matrix_get_iterator
-        procedure, public :: get_value                               => coo_sparse_matrix_get_value
+        procedure, public :: create_iterator                         => coo_sparse_matrix_create_iterator
+        procedure, public :: get_entry                               => coo_sparse_matrix_get_entry
         procedure, public :: set_value                               => coo_sparse_matrix_set_value
-        procedure, public :: sum_value                               => coo_sparse_matrix_sum_value
+        procedure, public :: add_to_entry                            => coo_sparse_matrix_add_to_entry
     end type coo_sparse_matrix_t
 
   !---------------------------------------------------------------------
@@ -385,7 +385,7 @@ module base_sparse_matrix_names
      procedure(base_sparse_matrix_iterator_has_finished), deferred :: has_finished
      procedure(base_sparse_matrix_iterator_get_row)     , deferred :: get_row
      procedure(base_sparse_matrix_iterator_get_column)  , deferred :: get_column
-     procedure(base_sparse_matrix_iterator_get_value)   , deferred :: get_value
+     procedure(base_sparse_matrix_iterator_get_entry)   , deferred :: get_entry
      procedure(base_sparse_matrix_iterator_set_value)   , deferred :: set_value
   end type base_sparse_matrix_iterator_t
   
@@ -404,7 +404,7 @@ module base_sparse_matrix_names
      procedure, non_overridable :: has_finished => coo_sparse_matrix_iterator_has_finished
      procedure, non_overridable :: get_row      => coo_sparse_matrix_iterator_get_row
      procedure, non_overridable :: get_column   => coo_sparse_matrix_iterator_get_column
-     procedure, non_overridable :: get_value    => coo_sparse_matrix_iterator_get_value
+     procedure, non_overridable :: get_entry    => coo_sparse_matrix_iterator_get_entry
      procedure, non_overridable :: set_value    => coo_sparse_matrix_iterator_set_value
   end type coo_sparse_matrix_iterator_t
 
@@ -774,14 +774,14 @@ module base_sparse_matrix_names
             logical, optional,            intent(in) :: only_graph
         end subroutine base_sparse_matrix_print
 
-        subroutine base_sparse_matrix_get_iterator(this,iterator)
+        subroutine base_sparse_matrix_create_iterator(this,iterator)
            import base_sparse_matrix_t
            import base_sparse_matrix_iterator_t
            class(base_sparse_matrix_t)         , target     , intent(in)  :: this
            class(base_sparse_matrix_iterator_t), allocatable, intent(out) :: iterator
-         end subroutine base_sparse_matrix_get_iterator
+         end subroutine base_sparse_matrix_create_iterator
          
-         function base_sparse_matrix_get_value(this, ia, ja, val) 
+         function base_sparse_matrix_get_entry(this, ia, ja, val) 
            import base_sparse_matrix_t
            import ip
            import rp
@@ -789,8 +789,8 @@ module base_sparse_matrix_names
            integer(ip),                 intent(in)  :: ia
            integer(ip),                 intent(in)  :: ja
            real(rp),                    intent(out) :: val
-           logical                                  :: base_sparse_matrix_get_value
-         end function base_sparse_matrix_get_value
+           logical                                  :: base_sparse_matrix_get_entry
+         end function base_sparse_matrix_get_entry
 
          function base_sparse_matrix_set_value(this, ia, ja, val) 
            import base_sparse_matrix_t
@@ -803,7 +803,7 @@ module base_sparse_matrix_names
            logical                                   :: base_sparse_matrix_set_value
          end function base_sparse_matrix_set_value
 
-         function base_sparse_matrix_sum_value(this, ia, ja, val) 
+         function base_sparse_matrix_add_to_entry(this, ia, ja, val) 
            import base_sparse_matrix_t
            import ip
            import rp
@@ -811,8 +811,8 @@ module base_sparse_matrix_names
            integer(ip),                 intent(in)    :: ia
            integer(ip),                 intent(in)    :: ja
            real(rp),                    intent(in)    :: val
-           logical                                   :: base_sparse_matrix_sum_value
-         end function base_sparse_matrix_sum_value
+           logical                                   :: base_sparse_matrix_add_to_entry
+         end function base_sparse_matrix_add_to_entry
     end interface
 
     !---------------------------------------------------------------------
@@ -896,17 +896,17 @@ module base_sparse_matrix_names
          
        end function base_sparse_matrix_iterator_get_column
 
-       function base_sparse_matrix_iterator_get_value(this)
+       function base_sparse_matrix_iterator_get_entry(this)
          !-----------------------------------------------------------------
          !< Get the value of the entry of the matrix
          !-----------------------------------------------------------------
          import base_sparse_matrix_iterator_t
          import rp
          class( base_sparse_matrix_iterator_t), intent(in) :: this
-         real(rp) :: base_sparse_matrix_iterator_get_value
+         real(rp) :: base_sparse_matrix_iterator_get_entry
          !-----------------------------------------------------------------
          
-       end function base_sparse_matrix_iterator_get_value
+       end function base_sparse_matrix_iterator_get_entry
 
        subroutine base_sparse_matrix_iterator_set_value(this,new_value)
          !-----------------------------------------------------------------
@@ -4854,7 +4854,7 @@ contains
         end if
     end subroutine coo_sparse_matrix_print_matrix_market_body
 
-    subroutine coo_sparse_matrix_get_iterator(this,iterator)
+    subroutine coo_sparse_matrix_create_iterator(this,iterator)
       class(coo_sparse_matrix_t)          , target     , intent(in)  :: this
       class(base_sparse_matrix_iterator_t), allocatable, intent(out) :: iterator
       
@@ -4866,9 +4866,9 @@ contains
          assert(.false.)
       end select
       call iterator%init()
-    end subroutine coo_sparse_matrix_get_iterator
+    end subroutine coo_sparse_matrix_create_iterator
 
-    function coo_sparse_matrix_get_value(this, ia, ja, val) 
+    function coo_sparse_matrix_get_entry(this, ia, ja, val) 
     !-----------------------------------------------------------------
     !<  Get the value in the entry (ia,ja) in the sparse matrix
     !-----------------------------------------------------------------
@@ -4877,14 +4877,14 @@ contains
         integer(ip),                intent(in)  :: ia
         integer(ip),                intent(in)  :: ja
         real(rp),                   intent(out) :: val
-        logical                                 :: coo_sparse_matrix_get_value
+        logical                                 :: coo_sparse_matrix_get_entry
 
         integer(ip)                             :: i, ipaux,i1,i2,nr,nc,nnz
     !-----------------------------------------------------------------
         ! Ignore out of bounds entriy
         if ( ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. &
             (this%symmetric_storage .and. ja>ia))then
-           coo_sparse_matrix_get_value = .false.
+           coo_sparse_matrix_get_entry = .false.
         end if
 
         nnz = this%nnz
@@ -4905,9 +4905,9 @@ contains
             ipaux = binary_search(ja,nc,this%ja(i1:i2))
             if (ipaux>0) then
                val=this%val(i1+ipaux-1)
-               coo_sparse_matrix_get_value = .true.
+               coo_sparse_matrix_get_entry = .true.
             else
-               coo_sparse_matrix_get_value = .false.
+               coo_sparse_matrix_get_entry = .false.
             end if
 
         elseif(this%is_by_cols()) then
@@ -4927,12 +4927,12 @@ contains
             ipaux = binary_search(ia,nc,this%ia(i1:i2))
             if (ipaux>0) then
                val=this%val(i1+ipaux-1)
-               coo_sparse_matrix_get_value = .true.
+               coo_sparse_matrix_get_entry = .true.
             else
-               coo_sparse_matrix_get_value = .false.
+               coo_sparse_matrix_get_entry = .false.
             end if
         endif
-      end function coo_sparse_matrix_get_value
+      end function coo_sparse_matrix_get_entry
 
       function coo_sparse_matrix_set_value(this, ia, ja, val) 
         !-----------------------------------------------------------------
@@ -5000,7 +5000,7 @@ contains
         endif
       end function coo_sparse_matrix_set_value
 
-      function coo_sparse_matrix_sum_value(this, ia, ja, val) 
+      function coo_sparse_matrix_add_to_entry(this, ia, ja, val) 
         !-----------------------------------------------------------------
         !<  Sum the value in the entry (ia,ja) in the sparse matrix
         !-----------------------------------------------------------------
@@ -5009,14 +5009,14 @@ contains
         integer(ip),                intent(in)    :: ia
         integer(ip),                intent(in)    :: ja
         real(rp),                   intent(in)    :: val
-        logical                                   :: coo_sparse_matrix_sum_value
+        logical                                   :: coo_sparse_matrix_add_to_entry
 
         integer(ip)                               :: i, ipaux,i1,i2,nr,nc,nnz
         !-----------------------------------------------------------------
         ! Ignore out of bounds entriy
         if ( ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. &
              (this%symmetric_storage .and. ja>ia))then
-           coo_sparse_matrix_sum_value = .false.
+           coo_sparse_matrix_add_to_entry = .false.
         end if
 
         nnz = this%nnz
@@ -5037,9 +5037,9 @@ contains
             ipaux = binary_search(ja,nc,this%ja(i1:i2))
             if (ipaux>0) then
                this%val(i1+ipaux-1) = val + this%val(i1+ipaux-1)
-               coo_sparse_matrix_sum_value = .true.
+               coo_sparse_matrix_add_to_entry = .true.
             else
-               coo_sparse_matrix_sum_value = .false.
+               coo_sparse_matrix_add_to_entry = .false.
             end if
 
         elseif(this%is_by_cols()) then
@@ -5059,12 +5059,12 @@ contains
             ipaux = binary_search(ia,nc,this%ia(i1:i2))
             if (ipaux>0) then
                this%val(i1+ipaux-1) = val + this%val(i1+ipaux-1)
-               coo_sparse_matrix_sum_value = .true.
+               coo_sparse_matrix_add_to_entry = .true.
             else
-               coo_sparse_matrix_sum_value = .false.
+               coo_sparse_matrix_add_to_entry = .false.
             end if
         endif
-      end function coo_sparse_matrix_sum_value
+      end function coo_sparse_matrix_add_to_entry
 
 !---------------------------------------------------------------------
 !< AUX PROCEDURES
@@ -5436,12 +5436,12 @@ contains
       coo_sparse_matrix_iterator_get_column = this%matrix%ja(this%nnz_index)
     end function coo_sparse_matrix_iterator_get_column
 
-    function coo_sparse_matrix_iterator_get_value(this)
+    function coo_sparse_matrix_iterator_get_entry(this)
       class(coo_sparse_matrix_iterator_t), intent(in) :: this
-      real(rp) :: coo_sparse_matrix_iterator_get_value
+      real(rp) :: coo_sparse_matrix_iterator_get_entry
 
-      coo_sparse_matrix_iterator_get_value = this%matrix%val(this%nnz_index)
-    end function coo_sparse_matrix_iterator_get_value
+      coo_sparse_matrix_iterator_get_entry = this%matrix%val(this%nnz_index)
+    end function coo_sparse_matrix_iterator_get_entry
 
     subroutine coo_sparse_matrix_iterator_set_value(this,new_value)
       class(coo_sparse_matrix_iterator_t), intent(inout) :: this

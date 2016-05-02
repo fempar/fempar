@@ -52,7 +52,7 @@ module matrix_names
        procedure (matrix_iterator_has_finished), deferred :: has_finished
        procedure (matrix_iterator_get_row)     , deferred :: get_row
        procedure (matrix_iterator_get_column)  , deferred :: get_column
-       procedure (matrix_iterator_get_value)   , deferred :: get_value
+       procedure (matrix_iterator_get_entry)   , deferred :: get_entry
        procedure (matrix_iterator_set_value)   , deferred :: set_value
     end type matrix_iterator_t
   
@@ -121,15 +121,15 @@ module matrix_names
        integer(ip) :: matrix_iterator_get_column
      end function matrix_iterator_get_column
 
-     function matrix_iterator_get_value(this)
+     function matrix_iterator_get_entry(this)
        !-----------------------------------------------------------------
        !< Get the value of the entry of the matrix
        !-----------------------------------------------------------------
        import :: matrix_iterator_t
        import :: rp
        class(matrix_iterator_t), intent(in) :: this
-       real(rp) :: matrix_iterator_get_value
-     end function matrix_iterator_get_value
+       real(rp) :: matrix_iterator_get_entry
+     end function matrix_iterator_get_entry
 
      subroutine matrix_iterator_set_value(this,new_value)
        !-----------------------------------------------------------------

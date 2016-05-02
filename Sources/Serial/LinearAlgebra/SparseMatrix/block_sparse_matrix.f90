@@ -74,7 +74,7 @@ module block_sparse_matrix_names
      procedure :: get_nblocks                   => block_sparse_matrix_get_nblocks
      procedure :: apply                         => block_sparse_matrix_apply
      procedure, private :: create_vector_spaces => block_sparse_matrix_create_vector_spaces
-     procedure, non_overridable :: get_iterator => block_sparse_matrix_get_iterator
+     procedure, non_overridable :: create_iterator => block_sparse_matrix_create_iterator
   end type block_sparse_matrix_t
 
   type, extends(matrix_iterator_t) :: block_sparse_matrix_iterator_t
@@ -89,7 +89,7 @@ module block_sparse_matrix_names
        procedure, non_overridable :: has_finished => block_sparse_matrix_iterator_has_finished
        procedure, non_overridable :: get_row      => block_sparse_matrix_iterator_get_row
        procedure, non_overridable :: get_column   => block_sparse_matrix_iterator_get_column
-       procedure, non_overridable :: get_value    => block_sparse_matrix_iterator_get_value
+       procedure, non_overridable :: get_entry    => block_sparse_matrix_iterator_get_entry
        procedure, non_overridable :: set_value    => block_sparse_matrix_iterator_set_value
        procedure, non_overridable :: get_iblock   => block_sparse_matrix_iterator_get_iblock
        procedure, non_overridable :: get_jblock   => block_sparse_matrix_iterator_get_jblock
@@ -351,7 +351,7 @@ contains
    end if
   end subroutine block_sparse_matrix_set_block_to_zero
   
-  subroutine block_sparse_matrix_get_iterator(this, iterator)
+  subroutine block_sparse_matrix_create_iterator(this, iterator)
     !-----------------------------------------------------------------
     !< Get a pointer to an iterator over the matrix entries
     !-----------------------------------------------------------------
@@ -361,8 +361,8 @@ contains
     iterator%i_index = 1
     iterator%j_index = 1
     iterator%block_sparse_matrix => this
-    call this%blocks(iterator%i_index,iterator%j_index)%sparse_matrix%get_iterator(iterator%sparse_iterator)
-  end subroutine block_sparse_matrix_get_iterator
+    call this%blocks(iterator%i_index,iterator%j_index)%sparse_matrix%create_iterator(iterator%sparse_iterator)
+  end subroutine block_sparse_matrix_create_iterator
 
   !-----------------------------------------------------------------
   !< BLOCK_SPARSE_MATRIX_ITERATOR SUBROUTINES
@@ -391,7 +391,7 @@ contains
           this%j_index = 1
           this%i_index = this%i_index + 1
           if ( this%i_index <= this%block_sparse_matrix%nblocks) then
-              call this%block_sparse_matrix%blocks(this%i_index,this%j_index)%sparse_matrix%get_iterator(this%sparse_iterator)
+              call this%block_sparse_matrix%blocks(this%i_index,this%j_index)%sparse_matrix%create_iterator(this%sparse_iterator)
            end if
         end if
      end if
@@ -426,14 +426,14 @@ contains
     block_sparse_matrix_iterator_get_column = this%sparse_iterator%get_column()
   end function block_sparse_matrix_iterator_get_column
 
-  function block_sparse_matrix_iterator_get_value(this)
+  function block_sparse_matrix_iterator_get_entry(this)
     !-----------------------------------------------------------------
     !< Get the value of the entry of the matrix
     !-----------------------------------------------------------------
     class(block_sparse_matrix_iterator_t), intent(in) :: this
-    real(rp) :: block_sparse_matrix_iterator_get_value
-    block_sparse_matrix_iterator_get_value = this%sparse_iterator%get_value()
-  end function block_sparse_matrix_iterator_get_value
+    real(rp) :: block_sparse_matrix_iterator_get_entry
+    block_sparse_matrix_iterator_get_entry = this%sparse_iterator%get_entry()
+  end function block_sparse_matrix_iterator_get_entry
 
   subroutine block_sparse_matrix_iterator_set_value(this,new_value)
     !-----------------------------------------------------------------

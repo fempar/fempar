@@ -101,10 +101,10 @@ private
         procedure,                  public :: apply                          => sparse_matrix_apply
         procedure, non_overridable, public :: print                          => sparse_matrix_print
         procedure, non_overridable, public :: print_matrix_market            => sparse_matrix_print_matrix_market
-        procedure, non_overridable, public :: get_iterator                   => sparse_matrix_get_iterator
-        procedure, non_overridable, public :: get_value                      => sparse_matrix_get_value
+        procedure, non_overridable, public :: create_iterator                => sparse_matrix_create_iterator
+        procedure, non_overridable, public :: get_entry                      => sparse_matrix_get_entry
         procedure, non_overridable, public :: set_value                      => sparse_matrix_set_value
-        procedure, non_overridable, public :: sum_value                      => sparse_matrix_sum_value
+        procedure, non_overridable, public :: add_to_entry                   => sparse_matrix_add_to_entry
     end type sparse_matrix_t
 
     class(base_sparse_matrix_t), allocatable, target, save :: default_sparse_matrix
@@ -118,7 +118,7 @@ private
        procedure, non_overridable :: has_finished => sparse_matrix_iterator_has_finished
        procedure, non_overridable :: get_row      => sparse_matrix_iterator_get_row
        procedure, non_overridable :: get_column   => sparse_matrix_iterator_get_column
-       procedure, non_overridable :: get_value    => sparse_matrix_iterator_get_value
+       procedure, non_overridable :: get_entry    => sparse_matrix_iterator_get_entry
        procedure, non_overridable :: set_value    => sparse_matrix_iterator_set_value
     end type sparse_matrix_iterator_t
 
@@ -1153,7 +1153,7 @@ contains
         call this%State%print_matrix_market(lunou, ng, l2g)
     end subroutine sparse_matrix_print_matrix_market
     
-    subroutine sparse_matrix_get_iterator(this, iterator)
+    subroutine sparse_matrix_create_iterator(this, iterator)
       !-----------------------------------------------------------------
       !< Get a pointer to an iterator over the matrix entries
       !-----------------------------------------------------------------
@@ -1162,10 +1162,10 @@ contains
       !-----------------------------------------------------------------
       assert(allocated(this%State))
       assert(this%State%state_is_assembled())
-      call this%State%get_iterator(iterator%base_iterator)
-    end subroutine sparse_matrix_get_iterator
+      call this%State%create_iterator(iterator%base_iterator)
+    end subroutine sparse_matrix_create_iterator
 
-    function sparse_matrix_get_value(this, ia, ja, val)
+    function sparse_matrix_get_entry(this, ia, ja, val)
       !-----------------------------------------------------------------
       !< Get the value in the (ia,ja) entry of the matrix
       !-----------------------------------------------------------------
@@ -1173,12 +1173,12 @@ contains
       integer(ip)           , intent(in)  :: ia
       integer(ip)           , intent(in)  :: ja
       real(rp)              , intent(out) :: val
-      logical                             :: sparse_matrix_get_value
+      logical                             :: sparse_matrix_get_entry
       !-----------------------------------------------------------------
       assert(allocated(this%State))
       assert(this%State%state_is_assembled())
-      sparse_matrix_get_value = this%State%get_value(ia, ja, val)
-    end function sparse_matrix_get_value
+      sparse_matrix_get_entry = this%State%get_entry(ia, ja, val)
+    end function sparse_matrix_get_entry
 
     function sparse_matrix_set_value(this, ia, ja, val)
       !-----------------------------------------------------------------
@@ -1195,7 +1195,7 @@ contains
       sparse_matrix_set_value = this%State%set_value(ia, ja, val)
     end function sparse_matrix_set_value
 
-    function sparse_matrix_sum_value(this, ia, ja, val)
+    function sparse_matrix_add_to_entry(this, ia, ja, val)
       !-----------------------------------------------------------------
       !< Sum the value in the (ia,ja) entry of the matrix
       !-----------------------------------------------------------------
@@ -1203,12 +1203,12 @@ contains
       integer(ip)           , intent(in)    :: ia
       integer(ip)           , intent(in)    :: ja
       real(rp)              , intent(in)    :: val
-      logical                               :: sparse_matrix_sum_value
+      logical                               :: sparse_matrix_add_to_entry
       !-----------------------------------------------------------------
       assert(allocated(this%State))
       assert(this%State%state_is_assembled())
-      sparse_matrix_sum_value = this%State%sum_value(ia, ja, val)
-    end function sparse_matrix_sum_value
+      sparse_matrix_add_to_entry = this%State%add_to_entry(ia, ja, val)
+    end function sparse_matrix_add_to_entry
     !-----------------------------------------------------------------
     !< SPARSE_MATRIX_ITERATOR SUBROUTINES
     !-----------------------------------------------------------------
@@ -1255,14 +1255,14 @@ contains
       sparse_matrix_iterator_get_column = this%base_iterator%get_column()
     end function sparse_matrix_iterator_get_column
 
-    function sparse_matrix_iterator_get_value(this)
+    function sparse_matrix_iterator_get_entry(this)
       !-----------------------------------------------------------------
       !< Get the value of the entry of the matrix
       !-----------------------------------------------------------------
       class(sparse_matrix_iterator_t), intent(in) :: this
-      real(rp) :: sparse_matrix_iterator_get_value
-      sparse_matrix_iterator_get_value = this%base_iterator%get_value()
-    end function sparse_matrix_iterator_get_value
+      real(rp) :: sparse_matrix_iterator_get_entry
+      sparse_matrix_iterator_get_entry = this%base_iterator%get_entry()
+    end function sparse_matrix_iterator_get_entry
 
     subroutine sparse_matrix_iterator_set_value(this,new_value)
       !-----------------------------------------------------------------
