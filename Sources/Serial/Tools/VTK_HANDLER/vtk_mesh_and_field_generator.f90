@@ -617,7 +617,7 @@ contains
             ! Build field in VTK-like format
             ! Loop on geometrical nodes in subelement
             do vertex_index=1, number_vertices
-                nodes_vertex_iterator = nodes_vef%get_iterator(vertex_index)
+                nodes_vertex_iterator = nodes_vef%create_iterator(vertex_index)
                 assert(nodes_vertex_iterator%get_size() == number_components)
                 ! Loop on field components
                 do while(.not. nodes_vertex_iterator%is_upper_bound())
