@@ -422,7 +422,7 @@ contains
 
     !call sparse_matrix%create_sparse_iterator(matrix_entry)
     call sparse_matrix%create_iterator(1,1,matrix_entry)
-
+    !call sparse_matrix%set_sum_duplicates(.true.)
     do while (.not. matrix_entry%has_finished())
 
        i = matrix_entry%get_row()
@@ -434,9 +434,9 @@ contains
           nu = max(value,transposed_value)
           if (nu > 0) then
              call matrix_entry%set_value(value-nu)
-             found = sparse_matrix%add_to_entry(j,i,-nu); assert(found)
-             found = sparse_matrix%add_to_entry(i,i,+nu); assert(found)
-             found = sparse_matrix%add_to_entry(j,j,+nu); assert(found)
+             call sparse_matrix%insert(j,i,-nu)
+             call sparse_matrix%insert(i,i,+nu)
+             call sparse_matrix%insert(j,j,+nu)
           end if
        end if
 
@@ -560,11 +560,8 @@ program test_cdr
   type(vtk_handler_t)              :: vtk_handler
   integer(ip)                      :: vtk_error
 
-  call meminit
-
   ! ParameterList: initialize
-  call FPL_Init()
-  call the_direct_solver_creational_methods_dictionary%init()
+  call fempar_init()
   call parameter_list%Init()
   direct_solver_parameters => parameter_list%NewSubList(Key=pardiso_mkl)
   
@@ -764,7 +761,8 @@ program test_cdr
   call triangulation_free ( f_trian )
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
-  call memstatus
+  call fempar_finalize()
+  !call memstatus
 contains
  
 end program test_cdr

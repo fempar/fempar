@@ -103,8 +103,6 @@ private
         procedure, non_overridable, public :: print_matrix_market            => sparse_matrix_print_matrix_market
         procedure                 , public :: create_iterator                => sparse_matrix_create_iterator
         procedure, non_overridable, public :: get_entry                      => sparse_matrix_get_entry
-        procedure, non_overridable, public :: set_value                      => sparse_matrix_set_value
-        procedure, non_overridable, public :: add_to_entry                   => sparse_matrix_add_to_entry
     end type sparse_matrix_t
 
     class(base_sparse_matrix_t), allocatable, target, save :: default_sparse_matrix
@@ -1187,39 +1185,10 @@ contains
       logical                             :: sparse_matrix_get_entry
       !-----------------------------------------------------------------
       assert(allocated(this%State))
-      assert(this%State%state_is_assembled())
+      assert(this%State%state_is_assembled() .or. this%State%state_is_update() )
       sparse_matrix_get_entry = this%State%get_entry(ia, ja, val)
     end function sparse_matrix_get_entry
 
-    function sparse_matrix_set_value(this, ia, ja, val)
-      !-----------------------------------------------------------------
-      !< Set the value in the (ia,ja) entry of the matrix
-      !-----------------------------------------------------------------
-      class(sparse_matrix_t), intent(inout) :: this
-      integer(ip)           , intent(in)    :: ia
-      integer(ip)           , intent(in)    :: ja
-      real(rp)              , intent(in)    :: val
-      logical                               :: sparse_matrix_set_value
-      !-----------------------------------------------------------------
-      assert(allocated(this%State))
-      assert(this%State%state_is_assembled())
-      sparse_matrix_set_value = this%State%set_value(ia, ja, val)
-    end function sparse_matrix_set_value
-
-    function sparse_matrix_add_to_entry(this, ia, ja, val)
-      !-----------------------------------------------------------------
-      !< Sum the value in the (ia,ja) entry of the matrix
-      !-----------------------------------------------------------------
-      class(sparse_matrix_t), intent(inout) :: this
-      integer(ip)           , intent(in)    :: ia
-      integer(ip)           , intent(in)    :: ja
-      real(rp)              , intent(in)    :: val
-      logical                               :: sparse_matrix_add_to_entry
-      !-----------------------------------------------------------------
-      assert(allocated(this%State))
-      assert(this%State%state_is_assembled())
-      sparse_matrix_add_to_entry = this%State%add_to_entry(ia, ja, val)
-    end function sparse_matrix_add_to_entry
     !-----------------------------------------------------------------
     !< SPARSE_MATRIX_ITERATOR SUBROUTINES
     !-----------------------------------------------------------------
