@@ -1167,7 +1167,7 @@ contains
       assert(jblock == 1)
       assert(allocated(this%State))
       assert(this%State%state_is_assembled())
-      assert(.not. allocated(iterator))
+      if (allocated(iterator)) deallocate(iterator)
       allocate(sparse_matrix_iterator_t :: iterator)
       select type ( iterator)
       class is (sparse_matrix_iterator_t) 

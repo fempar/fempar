@@ -75,19 +75,20 @@ private
     !< CSR MATRIX ITERATOR TYPE
     !---------------------------------------------------------------------
     type, extends(base_sparse_matrix_iterator_t) :: csr_sparse_matrix_iterator_t
+       private
        integer(ip) :: row_index
        integer(ip) :: nnz_index
        type(csr_sparse_matrix_t), pointer :: matrix
 
      contains
-       procedure, non_overridable :: init         => csr_sparse_matrix_iterator_init
-       procedure, non_overridable :: free         => csr_sparse_matrix_iterator_free
-       procedure, non_overridable :: next         => csr_sparse_matrix_iterator_next
-       procedure, non_overridable :: has_finished => csr_sparse_matrix_iterator_has_finished
-       procedure, non_overridable :: get_row      => csr_sparse_matrix_iterator_get_row
-       procedure, non_overridable :: get_column   => csr_sparse_matrix_iterator_get_column
-       procedure, non_overridable :: get_entry    => csr_sparse_matrix_iterator_get_entry
-       procedure, non_overridable :: set_value    => csr_sparse_matrix_iterator_set_value
+       procedure :: init         => csr_sparse_matrix_iterator_init
+       procedure :: free         => csr_sparse_matrix_iterator_free
+       procedure :: next         => csr_sparse_matrix_iterator_next
+       procedure :: has_finished => csr_sparse_matrix_iterator_has_finished
+       procedure :: get_row      => csr_sparse_matrix_iterator_get_row
+       procedure :: get_column   => csr_sparse_matrix_iterator_get_column
+       procedure :: get_entry    => csr_sparse_matrix_iterator_get_entry
+       procedure :: set_value    => csr_sparse_matrix_iterator_set_value
     end type csr_sparse_matrix_iterator_t
 
 public :: csr_sparse_matrix_t
@@ -2986,8 +2987,8 @@ contains
     end subroutine csr_sparse_matrix_print_matrix_market_body
 
     subroutine csr_sparse_matrix_create_iterator(this,iterator)
-      class(csr_sparse_matrix_t)          , target     , intent(in)  :: this
-      class(base_sparse_matrix_iterator_t), allocatable, intent(out) :: iterator
+      class(csr_sparse_matrix_t)          , target     , intent(in)    :: this
+      class(base_sparse_matrix_iterator_t), allocatable, intent(inout) :: iterator
       
       allocate ( csr_sparse_matrix_iterator_t :: iterator )
       select type (iterator)

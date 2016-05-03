@@ -77,26 +77,8 @@ module block_sparse_matrix_names
      procedure, non_overridable :: create_iterator => block_sparse_matrix_create_iterator
   end type block_sparse_matrix_t
 
-  type, extends(matrix_iterator_t) :: block_sparse_matrix_iterator_t
-      private
-      integer(ip) :: i_index
-      integer(ip) :: j_index
-      type(sparse_matrix_iterator_t) :: sparse_iterator
-    contains
-       procedure, non_overridable :: free         => block_sparse_matrix_iterator_free
-       procedure, non_overridable :: next         => block_sparse_matrix_iterator_next
-       procedure, non_overridable :: has_finished => block_sparse_matrix_iterator_has_finished
-       procedure, non_overridable :: get_row      => block_sparse_matrix_iterator_get_row
-       procedure, non_overridable :: get_column   => block_sparse_matrix_iterator_get_column
-       procedure, non_overridable :: get_entry    => block_sparse_matrix_iterator_get_entry
-       procedure, non_overridable :: set_value    => block_sparse_matrix_iterator_set_value
-       procedure, non_overridable :: get_iblock   => block_sparse_matrix_iterator_get_iblock
-       procedure, non_overridable :: get_jblock   => block_sparse_matrix_iterator_get_jblock
-   end type block_sparse_matrix_iterator_t
-
   ! Types
   public :: block_sparse_matrix_t
-  public :: block_sparse_matrix_iterator_t
 
 contains
 
@@ -359,107 +341,7 @@ contains
     integer(ip)                          , intent(in)    :: jblock 
     class(matrix_iterator_t), allocatable, intent(inout) :: iterator
     !-----------------------------------------------------------------
-
-    assert(.not. allocated(iterator))
-    allocate(block_sparse_matrix_iterator_t :: iterator)
-    select type ( iterator)
-      class is (block_sparse_matrix_iterator_t) 
-         iterator%i_index = iblock
-         iterator%j_index = jblock
-         call this%blocks(iterator%i_index,iterator%j_index)%sparse_matrix%create_sparse_iterator(iterator%sparse_iterator)
-      class DEFAULT
-         assert(.false.)
-      end select
-   
+    call this%blocks(iblock,jblock)%sparse_matrix%create_iterator(1,1,iterator)
   end subroutine block_sparse_matrix_create_iterator
-
-  !-----------------------------------------------------------------
-  !< BLOCK_SPARSE_MATRIX_ITERATOR SUBROUTINES
-  !-----------------------------------------------------------------
-  ! NOT TESTED!!
-  subroutine block_sparse_matrix_iterator_free(this)
-    !-----------------------------------------------------------------
-    !< Set the pointer to the following entry of the matrix
-    !-----------------------------------------------------------------
-    class(block_sparse_matrix_iterator_t), intent(inout) :: this
-    call this%sparse_iterator%free()
-    this%i_index = -1
-    this%j_index = -1
-  end subroutine block_sparse_matrix_iterator_free
-
-  subroutine block_sparse_matrix_iterator_next(this)
-    !-----------------------------------------------------------------
-    !< Set the pointer to the following entry of the matrix
-    !-----------------------------------------------------------------
-    class(block_sparse_matrix_iterator_t), intent(inout) :: this
-    call this%sparse_iterator%next()
-  end subroutine block_sparse_matrix_iterator_next
-
-  function block_sparse_matrix_iterator_has_finished(this)
-    !-----------------------------------------------------------------
-    !< Check if the pointer of the matrix has reached the end
-    !-----------------------------------------------------------------
-    class(block_sparse_matrix_iterator_t), intent(in) :: this
-    logical :: block_sparse_matrix_iterator_has_finished
-    
-    
-    block_sparse_matrix_iterator_has_finished = this%sparse_iterator%has_finished()
-    
-  end function block_sparse_matrix_iterator_has_finished
-
-  function block_sparse_matrix_iterator_get_row(this)
-    !-----------------------------------------------------------------
-    !< Get the row index of the entry of the matrix
-    !-----------------------------------------------------------------
-    class(block_sparse_matrix_iterator_t), intent(in) :: this
-    integer(ip) :: block_sparse_matrix_iterator_get_row
-    block_sparse_matrix_iterator_get_row = this%sparse_iterator%get_row()
-  end function block_sparse_matrix_iterator_get_row
-
-  function block_sparse_matrix_iterator_get_column(this)
-    !-----------------------------------------------------------------
-    !<  Get the column index of the entry of the matrix
-    !-----------------------------------------------------------------
-    class(block_sparse_matrix_iterator_t), intent(in) :: this
-    integer(ip) :: block_sparse_matrix_iterator_get_column
-    block_sparse_matrix_iterator_get_column = this%sparse_iterator%get_column()
-  end function block_sparse_matrix_iterator_get_column
-
-  function block_sparse_matrix_iterator_get_entry(this)
-    !-----------------------------------------------------------------
-    !< Get the value of the entry of the matrix
-    !-----------------------------------------------------------------
-    class(block_sparse_matrix_iterator_t), intent(in) :: this
-    real(rp) :: block_sparse_matrix_iterator_get_entry
-    block_sparse_matrix_iterator_get_entry = this%sparse_iterator%get_entry()
-  end function block_sparse_matrix_iterator_get_entry
-
-  subroutine block_sparse_matrix_iterator_set_value(this,new_value)
-    !-----------------------------------------------------------------
-    !< Set the value of the entry of the matrix
-    !-----------------------------------------------------------------
-    class(block_sparse_matrix_iterator_t), intent(inout) :: this
-    real(rp)                            , intent(in)    :: new_value
-    call this%sparse_iterator%set_value(new_value)
-  end subroutine block_sparse_matrix_iterator_set_value
-
-  function block_sparse_matrix_iterator_get_iblock(this)
-    !-----------------------------------------------------------------
-    !< Get the i-block index
-    !-----------------------------------------------------------------
-    class(block_sparse_matrix_iterator_t), intent(in) :: this
-    integer(ip) :: block_sparse_matrix_iterator_get_iblock
-    block_sparse_matrix_iterator_get_iblock = this%i_index
-  end function block_sparse_matrix_iterator_get_iblock
-
-  function block_sparse_matrix_iterator_get_jblock(this)
-    !-----------------------------------------------------------------
-    !< Get the j-block index
-    !-----------------------------------------------------------------
-    class(block_sparse_matrix_iterator_t), intent(in) :: this
-    integer(ip) :: block_sparse_matrix_iterator_get_jblock
-    block_sparse_matrix_iterator_get_jblock = this%j_index
-  end function block_sparse_matrix_iterator_get_jblock
-
 
 end module block_sparse_matrix_names

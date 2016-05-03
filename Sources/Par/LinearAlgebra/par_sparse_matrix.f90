@@ -751,8 +751,7 @@ contains
       class(matrix_iterator_t), allocatable , intent(inout) :: iterator
       !-----------------------------------------------------------------
       ! NOT IMPLEMENTED YET
-      assert(.not. allocated(iterator))
-      assert(.false.)
+      check(.false.)
     end subroutine par_sparse_matrix_create_iterator
 
 end module par_sparse_matrix_names

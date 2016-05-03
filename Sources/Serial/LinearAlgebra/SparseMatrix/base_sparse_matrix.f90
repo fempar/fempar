@@ -394,18 +394,19 @@ module base_sparse_matrix_names
   !---------------------------------------------------------------------
   ! NOT TESTED!!!
   type, extends(base_sparse_matrix_iterator_t) :: coo_sparse_matrix_iterator_t
+     private
      integer(ip) :: nnz_index
      type(coo_sparse_matrix_t), pointer :: matrix
 
    contains
-     procedure, non_overridable :: init         => coo_sparse_matrix_iterator_init
-     procedure, non_overridable :: free         => coo_sparse_matrix_iterator_free
-     procedure, non_overridable :: next         => coo_sparse_matrix_iterator_next
-     procedure, non_overridable :: has_finished => coo_sparse_matrix_iterator_has_finished
-     procedure, non_overridable :: get_row      => coo_sparse_matrix_iterator_get_row
-     procedure, non_overridable :: get_column   => coo_sparse_matrix_iterator_get_column
-     procedure, non_overridable :: get_entry    => coo_sparse_matrix_iterator_get_entry
-     procedure, non_overridable :: set_value    => coo_sparse_matrix_iterator_set_value
+     procedure :: init         => coo_sparse_matrix_iterator_init
+     procedure :: free         => coo_sparse_matrix_iterator_free
+     procedure :: next         => coo_sparse_matrix_iterator_next
+     procedure :: has_finished => coo_sparse_matrix_iterator_has_finished
+     procedure :: get_row      => coo_sparse_matrix_iterator_get_row
+     procedure :: get_column   => coo_sparse_matrix_iterator_get_column
+     procedure :: get_entry    => coo_sparse_matrix_iterator_get_entry
+     procedure :: set_value    => coo_sparse_matrix_iterator_set_value
   end type coo_sparse_matrix_iterator_t
 
   !---------------------------------------------------------------------
@@ -777,8 +778,8 @@ module base_sparse_matrix_names
         subroutine base_sparse_matrix_create_iterator(this,iterator)
            import base_sparse_matrix_t
            import base_sparse_matrix_iterator_t
-           class(base_sparse_matrix_t)         , target     , intent(in)  :: this
-           class(base_sparse_matrix_iterator_t), allocatable, intent(out) :: iterator
+           class(base_sparse_matrix_t)         , target     , intent(in)    :: this
+           class(base_sparse_matrix_iterator_t), allocatable, intent(inout) :: iterator
          end subroutine base_sparse_matrix_create_iterator
          
          function base_sparse_matrix_get_entry(this, ia, ja, val) 
@@ -4855,8 +4856,8 @@ contains
     end subroutine coo_sparse_matrix_print_matrix_market_body
 
     subroutine coo_sparse_matrix_create_iterator(this,iterator)
-      class(coo_sparse_matrix_t)          , target     , intent(in)  :: this
-      class(base_sparse_matrix_iterator_t), allocatable, intent(out) :: iterator
+      class(coo_sparse_matrix_t)          , target     , intent(in)    :: this
+      class(base_sparse_matrix_iterator_t), allocatable, intent(inout) :: iterator
       
       allocate ( coo_sparse_matrix_iterator_t :: iterator )
       select type (iterator)
