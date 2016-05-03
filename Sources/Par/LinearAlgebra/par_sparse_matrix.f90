@@ -745,12 +745,13 @@ contains
       !-----------------------------------------------------------------
       !< Get a pointer to an iterator over the matrix entries
       !-----------------------------------------------------------------
-      class(par_sparse_matrix_t), target , intent(in)  :: this
-      integer(ip)                        , intent(in)  :: iblock 
-      integer(ip)                        , intent(in)  :: jblock 
-      class(matrix_iterator_t)           , intent(out) :: iterator
+      class(par_sparse_matrix_t)            , intent(in)    :: this
+      integer(ip)                           , intent(in)    :: iblock 
+      integer(ip)                           , intent(in)    :: jblock 
+      class(matrix_iterator_t), allocatable , intent(inout) :: iterator
       !-----------------------------------------------------------------
       ! NOT IMPLEMENTED YET
+      assert(.not. allocated(iterator))
       assert(.false.)
     end subroutine par_sparse_matrix_create_iterator
 

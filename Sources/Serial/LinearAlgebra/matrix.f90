@@ -78,10 +78,10 @@ module matrix_names
        import :: matrix_t
        import :: matrix_iterator_t
        import :: ip
-       class(matrix_t), target , intent(in)  :: this
-       integer(ip)             , intent(in)  :: iblock 
-       integer(ip)             , intent(in)  :: jblock 
-       class(matrix_iterator_t), intent(out) :: iterator
+       class(matrix_t)         , intent(in)    :: this
+       integer(ip)             , intent(in)    :: iblock 
+       integer(ip)             , intent(in)    :: jblock 
+       class(matrix_iterator_t), intent(inout) :: iterator
        !-----------------------------------------------------------------
      end subroutine create_iterator_interface
   end interface

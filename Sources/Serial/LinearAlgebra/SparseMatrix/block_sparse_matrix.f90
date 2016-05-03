@@ -82,7 +82,6 @@ module block_sparse_matrix_names
       integer(ip) :: i_index
       integer(ip) :: j_index
       type(sparse_matrix_iterator_t) :: sparse_iterator
-      type(block_sparse_matrix_t), pointer :: block_sparse_matrix
     contains
        procedure, non_overridable :: free         => block_sparse_matrix_iterator_free
        procedure, non_overridable :: next         => block_sparse_matrix_iterator_next
@@ -355,17 +354,18 @@ contains
     !-----------------------------------------------------------------
     !< Get a pointer to an iterator over the matrix entries
     !-----------------------------------------------------------------
-    class(block_sparse_matrix_t), target , intent(in)  :: this
-    integer(ip)                          , intent(in)  :: iblock 
-    integer(ip)                          , intent(in)  :: jblock 
-    class(matrix_iterator_t), allocatable, intent(out) :: iterator
+    class(block_sparse_matrix_t)         , intent(in)    :: this
+    integer(ip)                          , intent(in)    :: iblock 
+    integer(ip)                          , intent(in)    :: jblock 
+    class(matrix_iterator_t), allocatable, intent(inout) :: iterator
     !-----------------------------------------------------------------
+
+    assert(.not. allocated(iterator))
     allocate(block_sparse_matrix_iterator_t :: iterator)
     select type ( iterator)
       class is (block_sparse_matrix_iterator_t) 
          iterator%i_index = iblock
          iterator%j_index = jblock
-         iterator%block_sparse_matrix => this
          call this%blocks(iterator%i_index,iterator%j_index)%sparse_matrix%create_sparse_iterator(iterator%sparse_iterator)
       class DEFAULT
          assert(.false.)
@@ -385,7 +385,6 @@ contains
     call this%sparse_iterator%free()
     this%i_index = -1
     this%j_index = -1
-    this%block_sparse_matrix => NULL()
   end subroutine block_sparse_matrix_iterator_free
 
   subroutine block_sparse_matrix_iterator_next(this)
