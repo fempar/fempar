@@ -399,6 +399,7 @@ module base_sparse_matrix_names
      type(coo_sparse_matrix_t), pointer :: matrix
 
    contains
+     procedure :: create       => coo_sparse_matrix_iterator_create
      procedure :: init         => coo_sparse_matrix_iterator_init
      procedure :: free         => coo_sparse_matrix_iterator_free
      procedure :: next         => coo_sparse_matrix_iterator_next
@@ -915,8 +916,8 @@ module base_sparse_matrix_names
          !-----------------------------------------------------------------
          import base_sparse_matrix_iterator_t
          import rp
-         class( base_sparse_matrix_iterator_t), intent(inout) :: this
-         real(rp)                             , intent(in)    :: new_value
+         class( base_sparse_matrix_iterator_t), intent(in) :: this
+         real(rp)                             , intent(in) :: new_value
          !-----------------------------------------------------------------
          
        end subroutine base_sparse_matrix_iterator_set_value
@@ -4859,14 +4860,11 @@ contains
       class(coo_sparse_matrix_t)          , target     , intent(in)    :: this
       class(base_sparse_matrix_iterator_t), allocatable, intent(inout) :: iterator
       
-      allocate ( coo_sparse_matrix_iterator_t :: iterator )
-      select type (iterator)
-      class is (coo_sparse_matrix_iterator_t)
-         iterator%matrix => this
-      class DEFAULT
-         assert(.false.)
-      end select
-      call iterator%init()
+      type(coo_sparse_matrix_iterator_t), allocatable :: coo_iterator
+
+      allocate(coo_iterator)
+      call coo_iterator%create(this)
+      call move_alloc(from=coo_iterator, to=iterator)
     end subroutine coo_sparse_matrix_create_iterator
 
     function coo_sparse_matrix_get_entry(this, ia, ja, val) 
@@ -5397,6 +5395,13 @@ contains
     !< COO_SPARSE_MATRIX_ITERATOR PROCEDURES
     !---------------------------------------------------------------------
     ! NOT TESTED!!!
+    subroutine coo_sparse_matrix_iterator_create(this,coo_matrix)
+      class(coo_sparse_matrix_iterator_t), intent(inout) :: this
+      class(coo_sparse_matrix_t) , target, intent(in)    :: coo_matrix
+      this%matrix => coo_matrix
+      call this%init()
+    end subroutine coo_sparse_matrix_iterator_create
+
     subroutine coo_sparse_matrix_iterator_init(this)
       class(coo_sparse_matrix_iterator_t), intent(inout) :: this
       
@@ -5445,8 +5450,8 @@ contains
     end function coo_sparse_matrix_iterator_get_entry
 
     subroutine coo_sparse_matrix_iterator_set_value(this,new_value)
-      class(coo_sparse_matrix_iterator_t), intent(inout) :: this
-      real(rp)                           , intent(in)    :: new_value
+      class(coo_sparse_matrix_iterator_t), intent(in) :: this
+      real(rp)                           , intent(in) :: new_value
 
       this%matrix%val(this%nnz_index) = new_value
     end subroutine coo_sparse_matrix_iterator_set_value

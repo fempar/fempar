@@ -443,6 +443,7 @@ contains
        ! Do stuff
        call matrix_entry%next()
     end do
+    deallocate(matrix_entry)
   end subroutine compute_graph_laplacian_perturbed_matrix
 !!$  
 !!$  subroutine compute_graph_laplacian_perturbed_block_matrix(this,block_sparse_matrix)

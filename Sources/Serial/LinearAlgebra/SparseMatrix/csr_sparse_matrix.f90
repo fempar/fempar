@@ -81,6 +81,7 @@ private
        type(csr_sparse_matrix_t), pointer :: matrix
 
      contains
+       procedure :: create       => csr_sparse_matrix_iterator_create
        procedure :: init         => csr_sparse_matrix_iterator_init
        procedure :: free         => csr_sparse_matrix_iterator_free
        procedure :: next         => csr_sparse_matrix_iterator_next
@@ -2990,14 +2991,11 @@ contains
       class(csr_sparse_matrix_t)          , target     , intent(in)    :: this
       class(base_sparse_matrix_iterator_t), allocatable, intent(inout) :: iterator
       
-      allocate ( csr_sparse_matrix_iterator_t :: iterator )
-      select type (iterator)
-      class is (csr_sparse_matrix_iterator_t)
-         iterator%matrix => this
-      class DEFAULT
-         assert(.false.)
-      end select     
-      call iterator%init()
+      type(csr_sparse_matrix_iterator_t), allocatable :: csr_iterator
+
+      allocate(csr_iterator)
+      call csr_iterator%create(this)
+      call move_alloc(from=csr_iterator, to=iterator)
     end subroutine csr_sparse_matrix_create_iterator
 
     function csr_sparse_matrix_get_entry(this, ia, ja, val) 
@@ -3096,6 +3094,13 @@ contains
     !---------------------------------------------------------------------
     !< CSR_SPARSE_MATRIX_ITERATOR PROCEDURES
     !---------------------------------------------------------------------
+    subroutine csr_sparse_matrix_iterator_create(this,csr_matrix)
+      class(csr_sparse_matrix_iterator_t), intent(inout) :: this
+      class(csr_sparse_matrix_t) , target, intent(in)    :: csr_matrix
+      this%matrix => csr_matrix
+      call this%init()
+    end subroutine csr_sparse_matrix_iterator_create
+
     subroutine csr_sparse_matrix_iterator_init(this)
       class(csr_sparse_matrix_iterator_t), intent(inout) :: this
       
@@ -3151,8 +3156,8 @@ contains
     end function csr_sparse_matrix_iterator_get_entry
 
     subroutine csr_sparse_matrix_iterator_set_value(this,new_value)
-      class(csr_sparse_matrix_iterator_t), intent(inout) :: this
-      real(rp)                           , intent(in)    :: new_value
+      class(csr_sparse_matrix_iterator_t), intent(in) :: this
+      real(rp)                           , intent(in) :: new_value
 
       this%matrix%val(this%nnz_index) = new_value
     end subroutine csr_sparse_matrix_iterator_set_value
