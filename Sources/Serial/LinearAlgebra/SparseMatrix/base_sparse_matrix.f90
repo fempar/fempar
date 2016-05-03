@@ -399,15 +399,15 @@ module base_sparse_matrix_names
      type(coo_sparse_matrix_t), pointer :: matrix
 
    contains
-     procedure :: create       => coo_sparse_matrix_iterator_create
-     procedure :: init         => coo_sparse_matrix_iterator_init
-     procedure :: free         => coo_sparse_matrix_iterator_free
-     procedure :: next         => coo_sparse_matrix_iterator_next
-     procedure :: has_finished => coo_sparse_matrix_iterator_has_finished
-     procedure :: get_row      => coo_sparse_matrix_iterator_get_row
-     procedure :: get_column   => coo_sparse_matrix_iterator_get_column
-     procedure :: get_entry    => coo_sparse_matrix_iterator_get_entry
-     procedure :: set_value    => coo_sparse_matrix_iterator_set_value
+     procedure, non_overridable :: create       => coo_sparse_matrix_iterator_create
+     procedure                  :: init         => coo_sparse_matrix_iterator_init
+     procedure                  :: free         => coo_sparse_matrix_iterator_free
+     procedure                  :: next         => coo_sparse_matrix_iterator_next
+     procedure                  :: has_finished => coo_sparse_matrix_iterator_has_finished
+     procedure                  :: get_row      => coo_sparse_matrix_iterator_get_row
+     procedure                  :: get_column   => coo_sparse_matrix_iterator_get_column
+     procedure                  :: get_entry    => coo_sparse_matrix_iterator_get_entry
+     procedure                  :: set_value    => coo_sparse_matrix_iterator_set_value
   end type coo_sparse_matrix_iterator_t
 
   !---------------------------------------------------------------------
@@ -5397,7 +5397,7 @@ contains
     ! NOT TESTED!!!
     subroutine coo_sparse_matrix_iterator_create(this,coo_matrix)
       class(coo_sparse_matrix_iterator_t), intent(inout) :: this
-      class(coo_sparse_matrix_t) , target, intent(in)    :: coo_matrix
+      type(coo_sparse_matrix_t)  , target, intent(in)    :: coo_matrix
       this%matrix => coo_matrix
       call this%init()
     end subroutine coo_sparse_matrix_iterator_create

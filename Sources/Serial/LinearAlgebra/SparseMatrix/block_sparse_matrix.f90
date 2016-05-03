@@ -74,7 +74,7 @@ module block_sparse_matrix_names
      procedure :: get_nblocks                   => block_sparse_matrix_get_nblocks
      procedure :: apply                         => block_sparse_matrix_apply
      procedure, private :: create_vector_spaces => block_sparse_matrix_create_vector_spaces
-     procedure :: create_iterator => block_sparse_matrix_create_iterator
+     procedure :: create_iterator               => block_sparse_matrix_create_iterator
   end type block_sparse_matrix_t
 
   ! Types

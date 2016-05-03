@@ -101,8 +101,7 @@ private
         procedure,                  public :: apply                          => sparse_matrix_apply
         procedure, non_overridable, public :: print                          => sparse_matrix_print
         procedure, non_overridable, public :: print_matrix_market            => sparse_matrix_print_matrix_market
-        procedure, non_overridable, public :: create_iterator                => sparse_matrix_create_iterator
-        procedure, non_overridable, public :: create_sparse_iterator         => sparse_matrix_create_sparse_iterator
+        procedure                 , public :: create_iterator                => sparse_matrix_create_iterator
         procedure, non_overridable, public :: get_entry                      => sparse_matrix_get_entry
         procedure, non_overridable, public :: set_value                      => sparse_matrix_set_value
         procedure, non_overridable, public :: add_to_entry                   => sparse_matrix_add_to_entry
@@ -1176,19 +1175,6 @@ contains
          assert(.false.)
       end select
     end subroutine sparse_matrix_create_iterator
-
-    subroutine sparse_matrix_create_sparse_iterator(this, iterator)
-      !-----------------------------------------------------------------
-      !< Get a pointer to an iterator over the matrix entries
-      !-----------------------------------------------------------------
-      class(sparse_matrix_t)       , target, intent(in)  :: this
-      class(sparse_matrix_iterator_t)      , intent(out) :: iterator
-      !-----------------------------------------------------------------
-      assert(allocated(this%State))
-      assert(this%State%state_is_assembled())
-   
-      call this%State%create_iterator(iterator%base_iterator)
-    end subroutine sparse_matrix_create_sparse_iterator
 
     function sparse_matrix_get_entry(this, ia, ja, val)
       !-----------------------------------------------------------------

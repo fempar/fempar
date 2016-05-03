@@ -3096,7 +3096,7 @@ contains
     !---------------------------------------------------------------------
     subroutine csr_sparse_matrix_iterator_create(this,csr_matrix)
       class(csr_sparse_matrix_iterator_t), intent(inout) :: this
-      class(csr_sparse_matrix_t) , target, intent(in)    :: csr_matrix
+      type(csr_sparse_matrix_t) , target, intent(in)    :: csr_matrix
       this%matrix => csr_matrix
       call this%init()
     end subroutine csr_sparse_matrix_iterator_create

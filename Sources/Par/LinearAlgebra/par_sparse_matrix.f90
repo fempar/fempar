@@ -91,7 +91,7 @@ private
         procedure,                  public :: apply                          => par_sparse_matrix_apply
         procedure, non_overridable, public :: print                          => par_sparse_matrix_print
         procedure, non_overridable, public :: print_matrix_market            => par_sparse_matrix_print_matrix_market
-        procedure, non_overridable, public :: create_iterator                => par_sparse_matrix_create_iterator
+        procedure                 , public :: create_iterator                => par_sparse_matrix_create_iterator
     end type par_sparse_matrix_t
 
 public :: par_sparse_matrix_t
