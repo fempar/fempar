@@ -25,567 +25,22 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_triangulation_names
-  ! Serial modules
-  use types_names
-  use list_types_names
-  use memor_names
-  use sort_names
-  use migratory_element_names
-  use triangulation_names
-  use element_import_names
-  use hash_table_names
-  use mesh_to_triangulation_names
-  use base_static_triangulation_names 
- 
-  ! Parallel modules
-  use par_context_names
-  use par_environment_names
-  use psi_penv_mod_names
-  use par_mesh_names
-  use par_element_exchange_names
-  use par_conditions_names
- 
-
-  implicit none
-# include "debug.i90"
-  private
-
-  ! AFM: To think. Is it required to know at some point within FEMPAR the number of global vefs ?
-  !                With the current design, it is known the number of local vefs
-  !                of each subdomain, but not the number of global vefs.
-  !                If it would be required, one possibility would be to store it at type(par_triangulation).
-
-  !                On the other hand, would it be necessary/convenient/helpful to store 
-  !                the number of interface vefs, and the list of interface vefs local IDs?
-  !                At this point, I know that this would be convenient/helpful for par_dof_descriptor_partition.f90.
-  !                (That requires fast location of interface vefs). Any other point?
-
-  !                I already did store these data on num_itfc_objs and lst_itfc_objs members of type(par_triangulation)
-  !                but at the current state I do not know whether this is the most appropriate place. 
-
-  integer(ip), parameter :: par_triangulation_not_created  = 0 ! Initial state
-  integer(ip), parameter :: par_triangulation_filled       = 1 ! Elems + Vefs arrays allocated and filled 
-
-  type par_vef_topology_t
-     integer(ip)  :: itfc       = -1 ! Interface local id of this vef
-     integer(igp) :: globalID   = -1 ! Global ID of this vef
-                                     ! Local ID is the position in the array of vefs
-  end type par_vef_topology_t
-
-  type, extends(migratory_element_t) :: par_elem_topology_t
-     integer(ip)  :: itfc       = -1           ! The boundary number ieboun (if this element is a itfc element)
-     integer(ip)  :: mypart     = -1           ! To which part this element is mapped to ?
-     integer(igp) :: globalID   = -1           ! Global ID of this element
-                                               ! Local ID is the position in the array of elements
-     integer(ip)  :: num_vefs   = -1           ! Number of vefs
-     integer(igp), allocatable :: vefs_GIDs(:) ! List of the GIDs of the vefs that make up this element
-   contains
-     procedure :: size   => par_elem_topology_size
-     procedure :: pack   => par_elem_topology_pack
-     procedure :: unpack => par_elem_topology_unpack
-  end type par_elem_topology_t
-  
-  type :: par_triangulation_t
-     integer(ip)                              :: state = par_triangulation_not_created  
-     type(triangulation_t)                    :: triangulation             ! Data common with a centralized (serial) triangulation
-     integer(ip)                              :: num_elems   = -1    ! should it match f_trian%num_elems or not? 
-     integer(ip)                              :: num_ghosts  = -1    ! number of ghost elements (remote neighbors)
-     class(migratory_element_t), allocatable  :: mig_elems(:)        ! Migratory elements list_t
-     type(par_elem_topology_t),   pointer     :: elems(:) => NULL()  ! Array of elements in the mesh
-     type(par_vef_topology_t), allocatable    :: vefs(:)          ! array of vefs in the mesh
-     integer(ip)                              :: num_itfc_vefs = -1  ! Number of vefs in the interface among subdomains
-     integer(ip), allocatable                 :: lst_itfc_vefs(:)    ! List of vefs local IDs in the interface among subdomains 
-     integer(ip)                              :: num_itfc_elems= -1  ! Number of elements in the interface
-     integer(ip), allocatable                 :: lst_itfc_elems(:)   ! List of elements local IDs in the interface
-     type(par_environment_t),   pointer       :: p_env => NULL()     ! Parallel environment describing MPI tasks among which par_triangulation is distributed
-     type(element_import_t)                   :: element_import         ! Data type describing the layout in distributed-memory of the dual graph
-                                                                    ! (It is required, e.g., for nearest neighbour comms on this graph)
-     
-     ! Perhaps the following three member variables should be packed within type(map_t) ?
-     ! I didn't do that because type(map_t) has extra members that do not make sense anymore
-     ! for the current situation with objects (i.e., interior, boundary, external) etc.
-     integer(ip)                             :: number_global_objects = -1
-     integer(ip)                             :: number_objects        = -1
-     integer(igp), allocatable               :: objects_gids(:)
-     integer(ip), allocatable                :: objects_dimension(:)
-     
-     type(list_t)                            :: vefs_object
-     type(list_t)                            :: parts_object
-     
-     type(coarse_triangulation_t), pointer   :: coarse_triangulation
-  contains
-     procedure, non_overridable, private :: compute_parts_itfc_vefs                        => par_triangulation_compute_parts_itfc_vefs
-     procedure, non_overridable, private :: compute_vefs_and_parts_object                  => par_triangulation_compute_vefs_and_parts_object
-     procedure, non_overridable, private :: compute_objects_dimension                      => par_triangulation_compute_objects_dimension
-     procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => par_triangulation_compute_objects_neighbours_exchange_data
-     procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => par_triangulation_compute_number_global_objects_and_their_gids
-     procedure, non_overridable, private :: setup_coarse_triangulation                     => par_triangulation_setup_coarse_triangulation
-     procedure, non_overridable, private :: gather_coarse_cell_gids                        => par_triangulation_gather_coarse_cell_gids
-     procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs       => par_triangulation_gather_coarse_vefs_rcv_counts_and_displs
-     procedure, non_overridable, private :: gather_coarse_vefs_dimension                   => par_triangulation_gather_coarse_vefs_dimension
-     procedure, non_overridable, private :: gather_coarse_vefs_gids                        => par_triangulation_gather_coarse_vefs_gids
-     procedure, non_overridable, private :: fetch_l2_part_id_neighbours                    => par_triangulation_fetch_l2_part_id_neighbours
-     procedure, non_overridable, private :: gather_coarse_dgraph_rcv_counts_and_displs     => par_triangulation_gather_coarse_dgraph_rcv_counts_and_displs
-     procedure, non_overridable, private :: gather_coarse_dgraph_lextn_and_lextp           => par_triangulation_gather_coarse_dgraph_lextn_and_lextp
-     procedure, non_overridable, private :: adapt_coarse_raw_arrays                        => par_triangulation_adapt_coarse_raw_arrays
-  end type par_triangulation_t
-  
-  ! Types
-  public :: par_triangulation_t, par_elem_topology_t
-
-  ! Functions
-  public :: par_mesh_to_triangulation, par_triangulation_free, par_triangulation_print, par_triangulation_to_dual
-
-  ! Auxiliary Subroutines (should only be used by modules that have control over type(par_triangulation))
-  public :: free_par_elem_topology, free_par_vef_topology, par_triangulation_free_elems_data, par_triangulation_free_objs_data 
-
-  ! Constants (should only be used by modules that have control over type(triangulation_t))
-  public :: par_triangulation_not_created, par_triangulation_filled
-
-contains
-
-  subroutine par_triangulation_print ( lunou,  p_trian ) ! (SBmod)
+ subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     implicit none
-    ! Parameters
-    integer(ip)              , intent(in) :: lunou
-    type(par_triangulation_t), intent(in) :: p_trian
-    if(p_trian%p_env%am_i_l1_task()) then
-       call triangulation_print ( lunou, p_trian%triangulation, p_trian%num_elems + p_trian%num_ghosts ) 
-    end if
-  end subroutine par_triangulation_print
-
-  !=============================================================================
-  subroutine par_triangulation_free(p_trian)
-    implicit none
-    ! Parameters
-    type(par_triangulation_t), intent(inout) :: p_trian
-
-    ! Locals
-    integer(ip) :: iobj, istat, icell
-
-    if(p_trian%p_env%am_i_lgt1_task()) then
-     call p_trian%coarse_triangulation%free()
-     deallocate (p_trian%coarse_triangulation, stat=istat)
-     check (istat==0)
-    else 
-     assert(p_trian%state == par_triangulation_filled) 
-     call par_triangulation_free_objs_data (p_trian)
-     call par_triangulation_free_elems_data(p_trian)
-     call triangulation_free(p_trian%triangulation)
-    end if
-    nullify(p_trian%coarse_triangulation)
-    p_trian%state = par_triangulation_not_created
-  end subroutine par_triangulation_free
-
-  !=============================================================================
-  subroutine par_triangulation_free_objs_data(p_trian)
-    implicit none
-    ! Parameters
-    type(par_triangulation_t), intent(inout) :: p_trian
-
-    ! Locals
-    integer(ip) :: iobj, istat
-
-    if ( p_trian%state == par_triangulation_filled ) then
-       do iobj=1, p_trian%triangulation%num_vefs 
-          call free_par_vef_topology(p_trian%vefs(iobj)) 
-       end do
-       
-       p_trian%num_itfc_vefs = -1
-       call memfree ( p_trian%lst_itfc_vefs, __FILE__, __LINE__ )
-        
-       p_trian%number_objects = -1
-       call p_trian%vefs_object%free()
-       call p_trian%parts_object%free()
-       
-       p_trian%number_global_objects = -1
-       call memfree ( p_trian%objects_gids, __FILE__, __LINE__ )
-       call memfree ( p_trian%objects_dimension, __FILE__, __LINE__ )
-       
-       ! Deallocate the vef structure array 
-       deallocate(p_trian%vefs, stat=istat)
-       check(istat==0)
-    end if
-  end subroutine par_triangulation_free_objs_data
-
-  !=============================================================================
-  subroutine par_triangulation_free_elems_data(p_trian)
-    implicit none
-    ! Parameters
-    type(par_triangulation_t), intent(inout) :: p_trian
-
-    ! Locals
-    integer(ip) :: ielem, istat
-
-    if ( p_trian%state == par_triangulation_filled ) then
-       do ielem=1, p_trian%triangulation%elem_array_len 
-          call free_par_elem_topology(p_trian%elems(ielem)) 
-       end do
-       
-       p_trian%num_itfc_elems = -1
-       call memfree ( p_trian%lst_itfc_elems, __FILE__, __LINE__ )
-       
-       call p_trian%element_import%free()
-       
-       ! Deallocate the element structure array */
-       deallocate(p_trian%mig_elems, stat=istat)
-       check(istat==0)
-       nullify(p_trian%elems)
-       
-       p_trian%num_elems  = -1 
-       p_trian%num_ghosts = -1
-       nullify(p_trian%p_env)
-    end if
-
-  end subroutine par_triangulation_free_elems_data
-  
-    subroutine par_mesh_to_triangulation (p_gmesh, p_trian, p_cond)
-    implicit none
-    ! Parameters
-    type(par_mesh_t)         , target  , intent(in)    :: p_gmesh ! Geometry mesh
-    type(par_triangulation_t), target  , intent(inout) :: p_trian 
-    type(par_conditions_t)   , optional, intent(inout) :: p_cond
-
-    ! Locals
-    integer(ip) :: istat, ielem, iobj, jobj, state
-    integer(ip) :: num_elems, num_ghosts, num_verts
-    type (hash_table_igp_ip_t) :: hash ! Topological info hash table (SBmod)
-    integer(ip) :: ilele, nvert, jelem, jlele, idime, count, ivere 
-    integer(igp):: iobjg
-    integer(igp), allocatable :: aux_igp(:)
-    integer(ip), allocatable :: aux(:)
-    integer(ip) :: aux_val
-    type(list_t), pointer :: vertices_vef
-    type(par_context_t), pointer :: l1_context
-    
-    ! Set a reference to the type(par_environment_t) instance describing the set of MPI tasks
-    ! among which this type(par_triangulation) instance is going to be distributed 
-    p_trian%p_env => p_gmesh%p_env
-    if(p_trian%p_env%am_i_l1_task()) then
-       l1_context    => p_trian%p_env%get_l1_context()
-       state = p_trian%state
-       assert(state == par_triangulation_not_created .or. state == par_triangulation_filled )
-
-       if ( state == par_triangulation_filled ) call par_triangulation_free(p_trian)
-
-       call p_trian%element_import%create  ( p_trian%p_env%get_l1_rank()+1, &
-                                             p_trian%p_env%get_l1_size(), &
-                                             p_gmesh%f_mesh%nelem, &
-                                             p_gmesh%f_mesh_dist%nebou, &
-                                             p_gmesh%f_mesh_dist%lebou, &
-                                             p_gmesh%f_mesh_dist%pextn, &
-                                             p_gmesh%f_mesh_dist%lextn, &
-                                             p_gmesh%f_mesh_dist%lextp)
-
-       ! Now we are sure that the local portion of p_trian, i.e., p_trian%f_trian is in triangulation_not_created state
-       ! Let's create and fill it
-       num_elems  = p_gmesh%f_mesh%nelem
-       num_ghosts = p_trian%element_import%get_number_ghost_elements()
-
-       p_trian%num_ghosts = num_ghosts
-       p_trian%num_elems  = num_elems
-
-       ! Fill local portion with local data
-       call mesh_to_triangulation_fill_elements ( p_gmesh%f_mesh, p_trian%triangulation, num_elems + num_ghosts, p_cond%f_conditions )
-
-       ! p_trian%f_trian%num_elems = num_elems+num_ghosts
-       ! **IMPORTANT NOTE**: the code that comes assumes that edges and faces in p_trian%f_trian are numbered after vertices.
-       ! This requirement is currently fulfilled by mesh_to_triangulation (in particular, by geom2topo within) but we should
-       ! keep this in mind all the way through. If this were not assumed, we should find a way to identify a corner within
-       ! p_trian%f_trian, and map from a corner local ID in p_trian%f_trian to a vertex local ID in p_gmesh%f_mesh.
-       num_verts = p_gmesh%f_mesh%npoin
-
-       ! Create array of elements with room for ghost elements
-       allocate( par_elem_topology_t :: p_trian%mig_elems(num_elems + num_ghosts), stat=istat)
-       check(istat==0)
-
-       select type( this => p_trian%mig_elems )
-       type is(par_elem_topology_t)
-          p_trian%elems => this
-       end select
-
-       p_trian%elems(:)%itfc = -1 
-       do ielem=1, p_gmesh%f_mesh_dist%nebou
-          p_trian%elems(p_gmesh%f_mesh_dist%lebou(ielem))%itfc = ielem
-       end do
-
-       p_trian%num_itfc_elems = p_gmesh%f_mesh_dist%nebou
-       call memalloc( p_trian%num_itfc_elems, p_trian%lst_itfc_elems, __FILE__, __LINE__ )
-       p_trian%lst_itfc_elems = p_gmesh%f_mesh_dist%lebou
-
-       ! Fill array of elements (local ones)
-       do ielem=1, num_elems
-          p_trian%elems(ielem)%mypart      = l1_context%get_rank() + 1
-          p_trian%elems(ielem)%globalID    = p_gmesh%f_mesh_dist%emap%l2g(ielem)
-          p_trian%elems(ielem)%num_vefs = p_trian%triangulation%elems(ielem)%num_vefs
-          call memalloc( p_trian%elems(ielem)%num_vefs, p_trian%elems(ielem)%vefs_GIDs, __FILE__, __LINE__ )
-          do iobj=1, p_trian%elems(ielem)%num_vefs
-             jobj = p_trian%triangulation%elems(ielem)%vefs(iobj)
-             if ( jobj <= num_verts ) then ! It is a corner => re-use global ID
-                p_trian%elems(ielem)%vefs_GIDs(iobj) = p_gmesh%f_mesh_dist%nmap%l2g(jobj)
-             else ! It is an edge or face => generate new local-global ID (non-consistent, non-consecutive)
-                ! The ISHFT(1,50) is used to start numbering efs after vertices, assuming nvert < 2**60
-                p_trian%elems(ielem)%vefs_GIDs(iobj) = ISHFT(int(p_gmesh%f_mesh_dist%ipart,igp),int(32,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(60,igp))
-                !p_trian%elems(ielem)%vefs_GIDs(iobj) = ISHFT(int(p_gmesh%f_mesh_dist%ipart,igp),int(6,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(6,igp))
-             end if
-          end do
-       end do
-
-       ! Get vefs_GIDs from ghost elements
-       call ghost_elements_exchange ( p_trian%p_env, p_trian%element_import, p_trian%elems )
-
-       ! Allocate elem_topology in triangulation for ghost elements  (SBmod)
-       do ielem = num_elems+1, num_elems+num_ghosts       
-          p_trian%triangulation%elems(ielem)%num_vefs = p_trian%elems(ielem)%num_vefs
-          call memalloc(p_trian%triangulation%elems(ielem)%num_vefs, p_trian%triangulation%elems(ielem)%vefs, &
-               & __FILE__, __LINE__)
-          p_trian%triangulation%elems(ielem)%vefs = -1
-       end do
-
-       ! Put the topology info in the ghost elements
-       do ielem= num_elems+1, num_elems+num_ghosts
-          call put_topology_element_triangulation ( ielem, p_trian%triangulation )
-       end do
-
-       ! Hash table global to local for ghost elements
-       call hash%init(num_ghosts)
-       do ielem=num_elems+1, num_elems+num_ghosts
-          aux_val = ielem
-          call hash%put( key = p_trian%elems(ielem)%globalID, val = aux_val, stat=istat)
-       end do
-
-       do ielem = 1, p_gmesh%f_mesh_dist%nebou     ! Loop interface elements 
-          ! Step 1: Put LID of vertices in the ghost elements (f_mesh_dist)
-          ilele = p_gmesh%f_mesh_dist%lebou(ielem) ! local ID element
-          ! aux : array of ilele (LID) vertices in GID
-          nvert  = p_trian%triangulation%elems(ilele)%reference_fe_geo%get_number_vertices()
-          call memalloc( nvert, aux_igp, __FILE__, __LINE__  )
-          do iobj = 1, nvert                        ! vertices only
-             aux_igp(iobj) = p_trian%elems(ilele)%vefs_GIDs(iobj) ! extract GIDs vertices
-          end do
-          do jelem = p_gmesh%f_mesh_dist%pextn(ielem), & 
-               p_gmesh%f_mesh_dist%pextn(ielem+1)-1  ! external neighbor elements
-             call hash%get(key = p_gmesh%f_mesh_dist%lextn(jelem), val=jlele, stat=istat) ! LID external element
-             do jobj = 1, p_trian%triangulation%elems(jlele)%reference_fe_geo%get_number_vertices() ! vertices external 
-                if ( p_trian%triangulation%elems(jlele)%vefs(jobj) == -1) then
-                   do iobj = 1, nvert
-                      if ( aux_igp(iobj) == p_trian%elems(jlele)%vefs_GIDs(jobj) ) then
-                         ! Put LID of vertices for ghost_elements
-                         p_trian%triangulation%elems(jlele)%vefs(jobj) =  p_trian%triangulation%elems(ilele)%vefs(iobj)
-                      end if
-                   end do
-                end if
-             end do
-          end do
-          call memfree(aux_igp, __FILE__, __LINE__) 
-       end do
-
-       do ielem = 1, p_gmesh%f_mesh_dist%nebou     ! Loop interface elements 
-          ! Step 2: Put LID of efs in the ghost elements (f_mesh_dist) 
-          ilele = p_gmesh%f_mesh_dist%lebou(ielem) ! local ID element
-          do jelem = p_gmesh%f_mesh_dist%pextn(ielem), &
-               p_gmesh%f_mesh_dist%pextn(ielem+1)-1  ! external neighbor elements
-             call hash%get(key = p_gmesh%f_mesh_dist%lextn(jelem), val=jlele, stat=istat) ! LID external element
-             vertices_vef => p_trian%triangulation%elems(jlele)%reference_fe_geo%get_vertices_vef()
-             ! loop over all efs of external elements
-             do idime =2,p_trian%triangulation%num_dims
-                do iobj = p_trian%triangulation%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime-1), &
-                     p_trian%triangulation%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime)-1 
-                   if ( p_trian%triangulation%elems(jlele)%vefs(iobj) == -1) then ! efs not assigned yet
-                      count = 1
-                      ! loop over vertices of every ef
-                      do jobj = vertices_vef%p(iobj), vertices_vef%p(iobj+1)-1    
-                         ivere = vertices_vef%l(jobj)
-                         if (p_trian%triangulation%elems(jlele)%vefs(ivere) == -1) then
-                            count = 0 ! not an vef of the local triangulation
-                            exit
-                         end if
-                      end do
-                      if (count == 1) then
-                         nvert = vertices_vef%p(iobj+1)-vertices_vef%p(iobj)
-                         call memalloc( nvert, aux, __FILE__, __LINE__)
-                         count = 1
-                         do jobj = vertices_vef%p(iobj), vertices_vef%p(iobj+1)-1
-                            ivere = vertices_vef%l(jobj)
-                            aux(count) = p_trian%triangulation%elems(jlele)%vefs(ivere)
-                            count = count+1
-                         end do
-                         call local_id_from_vertices( p_trian%triangulation%elems(ilele), idime, aux, nvert, &
-                              p_trian%triangulation%elems(jlele)%vefs(iobj) )
-                         call memfree(aux, __FILE__, __LINE__) 
-                      end if
-                   end if
-                end do
-             end do
-          end do
-       end do
-
-       call hash%free
-
-       call par_triangulation_to_dual ( p_trian )
-
-       !pause
-
-       ! Check results
-       ! if ( p_trian%p_env%p_context%iam == 0) then
-       !    do ielem = 1,num_elems+num_ghosts
-       !       write (*,*) '****ielem:',ielem          
-       !       write (*,*) '****LID_vefs ghost:',p_trian%f_trian%elems(ielem)%vefs
-       !       write (*,*) '****GID_vefs ghost:',p_trian%elems(ielem)%vefs_GIDs
-       !    end do
-       ! end if
-       ! pause
-
-       ! write (*,*) '*********************************'
-       ! write (*,*) '*********************************' 
-       ! if ( p_trian%p_env%p_context%iam == 0) then
-       !    do iobj = 1, p_trian%f_trian%num_vefs 
-       !       write (*,*) 'is interface vef',iobj, ' :', p_trian%vefs(iobj)%interface 
-       !       write (*,*) 'is interface vef',iobj, ' :', p_trian%f_trian%vefs(iobj)%dimension
-       !    end do
-       ! end if
-       ! write (*,*) '*********************************'
-       ! write (*,*) '*********************************'
-
-       ! Step 3: Make GID consistent among processors (p_part%elems%vefs_GIDs)
-       do iobj = 1, p_trian%triangulation%num_vefs 
-          if ( (p_trian%vefs(iobj)%itfc .ne. -1) .and. &
-               (p_trian%triangulation%vefs(iobj)%dime >= 1) ) then
-             idime = p_trian%triangulation%vefs(iobj)%dime+1
-             iobjg = -1
-
-             do jelem = 1,p_trian%triangulation%vefs(iobj)%num_elems_around
-                jlele = p_trian%triangulation%vefs(iobj)%elems_around(jelem)
-
-                do jobj = p_trian%triangulation%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime-1), &
-                     & p_trian%triangulation%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime)-1 ! efs of neighbor els
-                   if ( p_trian%triangulation%elems(jlele)%vefs(jobj) == iobj ) then
-                      if ( iobjg == -1 ) then 
-                         iobjg  = p_trian%elems(jlele)%vefs_GIDs(jobj)
-                      else
-                         iobjg  = min(iobjg,p_trian%elems(jlele)%vefs_GIDs(jobj))
-                         exit
-                      end if
-                   end if
-                end do
-
-             end do
-
-
-             do jelem = 1,p_trian%triangulation%vefs(iobj)%num_elems_around
-                jlele = p_trian%triangulation%vefs(iobj)%elems_around(jelem)
-                do jobj = p_trian%triangulation%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime-1), &
-                     & p_trian%triangulation%elems(jlele)%reference_fe_geo%get_first_vef_id_of_dimension(idime)-1 ! efs of neighbor els
-                   if ( p_trian%triangulation%elems(jlele)%vefs(jobj) == iobj) then
-                      p_trian%elems(jlele)%vefs_GIDs(jobj) = iobjg
-                      exit
-                   end if
-                end do
-             end do
-             p_trian%vefs(iobj)%globalID = iobjg          
-          end if
-       end do
-
-       p_trian%state = par_triangulation_filled
-       ! Check results
-       ! if ( p_trian%p_env%p_context%iam == 0) then
-       !    do ielem = 1,num_elems+num_ghosts
-       !       write (*,*) '****ielem:',ielem          
-       !       write (*,*) '****LID_vefs ghost:',p_trian%f_trian%elems(ielem)%vefs
-       !       write (*,*) '****GID_vefs ghost:',p_trian%elems(ielem)%vefs_GIDs
-       !    end do
-       ! end if
-       ! pause
-    else
-       ! AFM: TODO: Partially broadcast p_trian%f_trian from 1st level tasks to 2nd level tasks (e.g., num_dims)
-    end if
-    call p_trian%setup_coarse_triangulation()
-
-  end subroutine par_mesh_to_triangulation
-
-  !=============================================================================
-  subroutine par_triangulation_to_dual(p_trian)  
-    implicit none
-    ! Parameters
-    type(par_triangulation_t), intent(inout) :: p_trian
-
-    ! Locals
-    integer(ip)              :: ielem, iobj, jobj, istat
-
-    call triangulation_to_dual ( p_trian%triangulation, p_trian%num_elems+p_trian%num_ghosts )
-
-    ! Allocate p_trian%vefs array
-    allocate(p_trian%vefs(p_trian%triangulation%num_vefs), stat=istat)
-    check(istat==0)
-
-    ! Initialize par_vef_topology vefs
-    do iobj=1, p_trian%triangulation%num_vefs 
-       call initialize_par_vef_topology(p_trian%vefs(iobj)) 
-    end do
-
-    ! Assign global ID for all local vefs
-    do ielem=1, p_trian%triangulation%num_elems
-       do iobj=1, p_trian%elems(ielem)%num_vefs
-          jobj = p_trian%triangulation%elems(ielem)%vefs(iobj)
-          if ( jobj /= -1 ) then
-             ! write(*,*) 'ZZZ', p_trian%elems(ielem)%vefs_GIDs(iobj)
-             p_trian%vefs(jobj)%globalID = p_trian%elems(ielem)%vefs_GIDs(iobj)
-          end if
-       end do
-    end do
-
-    ! Count number of interface vefs
-    p_trian%num_itfc_vefs = 0
-    ! Traverse local view of ghost elements (all the interface vefs are there!!!)
-    do ielem=p_trian%num_elems+1, p_trian%num_ghosts+p_trian%num_elems
-       do iobj=1, p_trian%triangulation%elems(ielem)%num_vefs
-          jobj = p_trian%triangulation%elems(ielem)%vefs(iobj)
-          if ( jobj /= -1 ) then
-             if (p_trian%vefs(jobj)%itfc == -1) then
-                p_trian%num_itfc_vefs = p_trian%num_itfc_vefs + 1
-                p_trian%vefs(jobj)%itfc = p_trian%num_itfc_vefs
-             end if
-          end if
-       end do
-    end do
-
-    ! List interface vefs
-    call memalloc ( p_trian%num_itfc_vefs, p_trian%lst_itfc_vefs, __FILE__, __LINE__ )
-    p_trian%num_itfc_vefs = 0 
-    ! Traverse local view of ghost elements (all the interface vefs are there!!!)
-    do ielem=p_trian%num_elems+1, p_trian%num_ghosts+p_trian%num_elems
-       do iobj=1, p_trian%triangulation%elems(ielem)%num_vefs
-          jobj = p_trian%triangulation%elems(ielem)%vefs(iobj)
-          if ( jobj /= -1 ) then
-             if (p_trian%vefs(jobj)%itfc == (p_trian%num_itfc_vefs + 1)) then
-                p_trian%num_itfc_vefs = p_trian%num_itfc_vefs + 1
-                p_trian%lst_itfc_vefs(p_trian%num_itfc_vefs) = jobj 
-             end if
-          end if
-       end do
-    end do
-
-    ! Compute p_trian%max_nparts, p_trian%nobjs, p_trian%lobjs
-    ! Re-order (permute) p_trian%lst_itfc_vefs accordingly
-    call p_trian%compute_vefs_and_parts_object()
-    call p_trian%compute_objects_dimension()
-    call p_trian%compute_number_global_objects_and_their_gids()
-  end subroutine par_triangulation_to_dual
- 
-  subroutine par_triangulation_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
-    implicit none
-    class(par_triangulation_t), intent(in)    :: this
+    class(par_base_static_triangulation_t), intent(in)    :: this
     integer(ip), allocatable  , intent(inout) :: parts_itfc_vefs(:,:)
     integer(ip), allocatable  , intent(inout) :: perm_itfc_vefs(:)
     
     integer(ip)                               :: num_neighbours
     logical, allocatable                      :: touched_neighbours(:)
     integer(ip)                               :: nparts_around, mypart_id, part_id, local_part_id
-    integer(ip)                               :: ivef_itfc, ielem, vef_lid
-    integer(ip)                               :: elem_lid
+    integer(ip)                               :: ivef_itfc, icell, vef_lid
+    type(cell_iterator_t)                     :: cell_iterator
+    type(cell_accessor_t), pointer            :: cell 
     integer(ip)                               :: num_rows_parts_itfc_vefs
     integer(ip), allocatable                  :: work1(:), work2(:)
+    type(itfc_vef_iterator_t)                 :: itfc_vef_iterator
+    type(vef_accessor_t), pointer             :: current_itfc_vef
     
     assert ( this%p_env%am_i_l1_task() )
     
@@ -604,16 +59,21 @@ contains
     call memalloc ( num_rows_parts_itfc_vefs, this%num_itfc_vefs, parts_itfc_vefs, __FILE__, __LINE__ )
     parts_itfc_vefs = 0
     
-    do ivef_itfc = 1, this%num_itfc_vefs
-      vef_lid = this%lst_itfc_vefs(ivef_itfc)
+    
+    itfc_vef_iterator = this%create_itfc_vef_iterator()
+    
+    ivef_itfc = 1
+    do while ( .not. itfc_vef_iterator%has_finished() )
+      current_itfc_vef => itfc_vef_iterator%current()
       touched_neighbours = .false.
       
       nparts_around = 1 
       parts_itfc_vefs(nparts_around+1,ivef_itfc) = mypart_id
       
-      do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
-        elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
-        part_id = this%elems(elem_lid)%mypart
+      do icell=1, current_itfc_vef%get_num_cells_around()
+        cell_iterator = current_itfc_vef%get_cell_around(icell)
+        cell          => cell_iterator%current()
+        part_id       = cell%get_mypart()
         
         if ( part_id /= mypart_id ) then
          local_part_id = this%element_import%get_local_neighbour_id(part_id)
@@ -628,13 +88,14 @@ contains
       ! Sort list of parts in increasing order by part identifiers
       ! This is required by the call to icomp subroutine below 
       call sort ( nparts_around, parts_itfc_vefs(2:nparts_around+1, ivef_itfc) )
+      call itfc_vef_iterator%next()
+      ivef_itfc = ivef_itfc + 1
     end do
     
     call memalloc ( this%num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
     do ivef_itfc = 1, this%num_itfc_vefs
       perm_itfc_vefs(ivef_itfc) = ivef_itfc 
     end do
-    
     
     ! Re-number vefs in increasing order by the number of parts that share them, 
     ! and among vefs sharing the same list of parts, in increasing order by the list 
@@ -655,11 +116,11 @@ contains
     do ivef_itfc=1,this%num_itfc_vefs
       write(6,'(10i10)') ivef_itfc, this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)), parts_itfc_vefs(:, ivef_itfc) 
     end do
-  end subroutine par_triangulation_compute_parts_itfc_vefs
+  end subroutine par_base_static_tria_compute_parts_itfc_vefs
   
-  subroutine par_triangulation_compute_vefs_and_parts_object(this)
+  subroutine par_base_static_tria_compute_vefs_and_parts_object(this)
     implicit none
-    class(par_triangulation_t), intent(inout) :: this
+    class(par_base_static_triangulation_t), intent(inout) :: this
     integer(ip)                               :: nparts_around
     integer(ip)                               :: ivef_itfc, init_vef, end_vef
     integer(ip)                               :: iobj, ipart
@@ -737,13 +198,13 @@ contains
     
     call memfree ( parts_itfc_vefs, __FILE__, __LINE__ )
     call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )
-  end subroutine par_triangulation_compute_vefs_and_parts_object
+  end subroutine par_base_static_tria_compute_vefs_and_parts_object
   
-  subroutine par_triangulation_compute_objects_dimension(this)
+  subroutine par_base_static_tria_compute_objects_dimension(this)
     implicit none
-    class(par_triangulation_t), intent(inout) :: this
-    integer(ip)                               :: iobj, vef_lid
-    type(list_iterator_t)                     :: vefs_object_iterator
+    class(par_base_static_triangulation_t), intent(inout) :: this
+    integer(ip)                                  :: iobj, vef_lid
+    type(list_iterator_t)                        :: vefs_object_iterator
     
     call memalloc ( this%number_objects, this%objects_dimension, __FILE__, __LINE__ )
     do iobj=1, this%number_objects
@@ -751,14 +212,13 @@ contains
       this%objects_dimension(iobj) = 0
       do while(.not. vefs_object_iterator%is_upper_bound())
         vef_lid = vefs_object_iterator%get_current()
-        this%objects_dimension(iobj) = max ( this%objects_dimension(iobj), this%triangulation%vefs(vef_lid)%dime )  
+        this%objects_dimension(iobj) = max ( this%objects_dimension(iobj), this%vefs_dimension(vef_lid) )  
         call vefs_object_iterator%next()
        end do
     end do
-  end subroutine par_triangulation_compute_objects_dimension
+  end subroutine par_base_static_tria_compute_objects_dimension
   
-  
-  subroutine par_triangulation_compute_objects_neighbours_exchange_data ( this, &
+  subroutine par_base_static_tria_compute_objects_neighbours_exchange_data ( this, &
                                                                           num_rcv,&
                                                                           list_rcv, &
                                                                           rcv_ptrs,&
@@ -768,7 +228,7 @@ contains
                                                                           snd_ptrs,&
                                                                           pack_idx )
     implicit none
-    class(par_triangulation_t), intent(in)    :: this
+    class(par_base_static_triangulation_t), intent(in)    :: this
     integer(ip)               , intent(out)   :: num_rcv
     integer(ip), allocatable  , intent(inout) :: list_rcv(:)    
     integer(ip), allocatable  , intent(inout) :: rcv_ptrs(:)
@@ -890,11 +350,11 @@ contains
     
     call position_parts_rcv%free()
     call position_parts_snd%free()
-  end subroutine par_triangulation_compute_objects_neighbours_exchange_data 
+  end subroutine par_base_static_tria_compute_objects_neighbours_exchange_data 
   
-  subroutine par_triangulation_compute_number_global_objects_and_their_gids ( this )
+  subroutine par_base_static_tria_compute_num_global_objs_and_their_gids ( this )
     implicit none
-    class(par_triangulation_t), intent(inout) :: this
+    class(par_base_static_triangulation_t), intent(inout) :: this
 
     integer(ip)               :: num_rcv
     integer(ip), allocatable  :: list_rcv(:)    
@@ -1001,12 +461,12 @@ contains
     call memfree ( snd_ptrs, __FILE__, __LINE__ )
     call memfree ( pack_idx, __FILE__, __LINE__ )
     call memfree ( local_objects_with_gid, __FILE__, __LINE__ )
-  end subroutine par_triangulation_compute_number_global_objects_and_their_gids
+  end subroutine par_base_static_tria_compute_num_global_objs_and_their_gids
   
-  subroutine par_triangulation_setup_coarse_triangulation ( this )
+  subroutine par_base_static_tria_setup_coarse_triangulation ( this )
     implicit none
-    class(par_triangulation_t), intent(inout) :: this
-    integer(igp)              , allocatable   :: coarse_cell_gids(:)
+    class(par_base_static_triangulation_t), intent(inout) :: this
+    integer(igp)              , allocatable   :: coarse_cells_gid(:)
     integer(ip)               , allocatable   :: coarse_vefs_recv_counts(:)
     integer(ip)               , allocatable   :: coarse_vefs_displs(:)
     integer(igp)              , allocatable   :: lst_coarse_vef_gids(:)
@@ -1025,12 +485,12 @@ contains
     ! All MPI tasks (even if they are not involved in the L2 from L1 gather) should also allocate the
     ! allocatable arrays due to the fact that non-allocated allocatable arrays cannot
     ! be passed as actual arguments of dummy arguments that do not have the allocatable attribute 
-    ! (see e.g. coarse_triangulation%create() below). Otherwise, the code crashes with a segmentation fault. 
+    ! (see e.g. par_base_static_triangulation%create() below). Otherwise, the code crashes with a segmentation fault. 
     ! Likewise, actual arguments which are used as input dummy arguments to size another array-type dummy arguments should also
     ! be initialized on all MPI tasks
     num_local_coarse_cells = 0
     num_itfc_coarse_cells  = 0
-    call memalloc (0, coarse_cell_gids, __FILE__, __LINE__)
+    call memalloc (0, coarse_cells_gid, __FILE__, __LINE__)
     call memalloc (0, coarse_vefs_recv_counts, __FILE__, __LINE__)
     call memalloc (0, coarse_vefs_displs, __FILE__, __LINE__)
     call memalloc (0, lst_coarse_vef_gids, __FILE__, __LINE__)
@@ -1043,9 +503,9 @@ contains
         
     ! L2 tasks gather from L1 tasks all raw data required to set-up the coarse triangulation on L2 tasks
     if ( this%p_env%am_i_l1_to_l2_task() ) then
-      num_dimensions = this%triangulation%num_dims
+      num_dimensions = this%num_dimensions
       call this%p_env%l1_to_l2_transfer ( num_dimensions ) 
-      call this%gather_coarse_cell_gids (coarse_cell_gids)
+      call this%gather_coarse_cell_gids (coarse_cells_gid)
       call this%gather_coarse_vefs_rcv_counts_and_displs (coarse_vefs_recv_counts, coarse_vefs_displs)
       call this%gather_coarse_vefs_gids (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_gids)
       call this%gather_coarse_vefs_dimension (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_dimension)
@@ -1063,7 +523,7 @@ contains
       
       ! Evaluate number of interface coarse cells
       ! Adapt and re-use coarse_vefs_displs/coarse_dgraph_recv_counts/coarse_dgraph_displs
-      ! as required by this%coarse_triangulation%create below
+      ! as required by this%par_base_static_triangulation%create below
       num_itfc_coarse_cells = this%adapt_coarse_raw_arrays (coarse_vefs_displs, &
                                                             coarse_dgraph_recv_counts, &
                                                             coarse_dgraph_displs )
@@ -1076,7 +536,7 @@ contains
       call this%coarse_triangulation%create ( par_environment              = this%p_env%get_next_level(), &
                                               num_dimensions               = num_dimensions, &
                                               num_local_cells              = num_local_coarse_cells, &
-                                              cells_gid                    = coarse_cell_gids, &
+                                              cells_gid                    = coarse_cells_gid, &
                                               ptr_vefs_per_cell            = coarse_vefs_displs, &
                                               lst_vefs_gids                = lst_coarse_vef_gids, &
                                               lst_vefs_dimension           = lst_coarse_vef_dimension, &
@@ -1091,7 +551,7 @@ contains
     end if
     
     ! All tasks free raw data (see actual reason on the top part of this subroutine)
-    call memfree (coarse_cell_gids, __FILE__, __LINE__)
+    call memfree (coarse_cells_gid, __FILE__, __LINE__)
     call memfree (coarse_vefs_recv_counts, __FILE__, __LINE__)
     call memfree (coarse_vefs_displs, __FILE__, __LINE__)
     call memfree (lst_coarse_vef_gids, __FILE__, __LINE__)
@@ -1101,11 +561,11 @@ contains
     call memfree (coarse_dgraph_displs, __FILE__, __LINE__)
     call memfree (lextn, __FILE__, __LINE__)
     call memfree (lextp, __FILE__, __LINE__)
-  end subroutine par_triangulation_setup_coarse_triangulation
+  end subroutine par_base_static_tria_setup_coarse_triangulation
   
-  subroutine par_triangulation_gather_coarse_cell_gids( this, coarse_cell_gids)
+  subroutine par_base_static_tria_gather_coarse_cell_gids( this, coarse_cell_gids)
     implicit none
-    class(par_triangulation_t), intent(in)    :: this
+    class(par_base_static_triangulation_t), intent(in)    :: this
     integer(igp) , allocatable , intent(inout) :: coarse_cell_gids(:)
     
     integer(ip)                               :: i
@@ -1117,18 +577,18 @@ contains
       l1_to_l2_size = this%p_env%get_l1_to_l2_size()
       if ( allocated (coarse_cell_gids) ) call memfree ( coarse_cell_gids, __FILE__, __LINE__ )
       call memalloc ( l1_to_l2_size, coarse_cell_gids, __FILE__, __LINE__ )
-      call this%p_env%l2_from_l1_gather( input_data  = 0_igp, &
+      call this%p_env%l2_from_l1_gather( input_data = 0_igp, &
                                          output_data = coarse_cell_gids ) 
     else
       call this%p_env%l2_from_l1_gather( input_data  = int(this%p_env%get_l1_rank()+1,igp), &
                                          output_data = dummy_integer_array ) 
     end if
-  end subroutine par_triangulation_gather_coarse_cell_gids
+  end subroutine par_base_static_tria_gather_coarse_cell_gids
   
   
-  subroutine par_triangulation_gather_coarse_vefs_rcv_counts_and_displs( this, recv_counts, displs )
+  subroutine par_base_static_tria_gather_coarse_vefs_rcv_counts_and_displs( this, recv_counts, displs )
     implicit none
-    class(par_triangulation_t), intent(in)    :: this
+    class(par_base_static_triangulation_t), intent(in)    :: this
     integer(ip) , allocatable , intent(inout) :: recv_counts(:) 
     integer(ip) , allocatable , intent(inout) :: displs(:)
     integer(ip)                               :: i
@@ -1152,17 +612,17 @@ contains
       call this%p_env%l2_from_l1_gather( input_data  = this%number_objects, &
                                          output_data = dummy_integer_array ) 
     end if
-  end subroutine par_triangulation_gather_coarse_vefs_rcv_counts_and_displs
+  end subroutine par_base_static_tria_gather_coarse_vefs_rcv_counts_and_displs
   
-  subroutine par_triangulation_gather_coarse_vefs_gids ( this, recv_counts, displs, lst_gids )
+  subroutine par_base_static_tria_gather_coarse_vefs_gids ( this, recv_counts, displs, lst_gids )
     implicit none
-    class(par_triangulation_t), intent(in)    :: this
+    class(par_base_static_triangulation_t), intent(in)    :: this
     integer(ip)               , intent(in)    :: recv_counts(this%p_env%get_l1_to_l2_size())
     integer(ip)               , intent(in)    :: displs(this%p_env%get_l1_to_l2_size())
     integer(igp), allocatable , intent(inout) :: lst_gids(:)
     integer(ip)                               :: l1_to_l2_size
-    integer(ip)                               :: dummy_integer_array_ip(0)
     integer(igp)                              :: dummy_integer_array_igp(0)
+    integer(ip)                               :: dummy_integer_array_ip(0)
     
     assert ( this%p_env%am_i_l1_to_l2_task() )
     if ( this%p_env%am_i_l1_to_l2_root() ) then
@@ -1181,11 +641,11 @@ contains
                                          displs          = dummy_integer_array_ip, &
                                          output_data     = dummy_integer_array_igp )
     end if    
-  end subroutine par_triangulation_gather_coarse_vefs_gids
+  end subroutine par_base_static_tria_gather_coarse_vefs_gids
   
-  subroutine par_triangulation_gather_coarse_vefs_dimension ( this, recv_counts, displs, lst_vefs_dimension )
+  subroutine par_base_static_tria_gather_coarse_vefs_dimension ( this, recv_counts, displs, lst_vefs_dimension )
     implicit none
-    class(par_triangulation_t), intent(in)    :: this
+    class(par_base_static_triangulation_t), intent(in)    :: this
     integer(ip)                  , intent(in)    :: recv_counts(this%p_env%get_l1_to_l2_size())
     integer(ip)                  , intent(in)    :: displs(this%p_env%get_l1_to_l2_size())
     integer(ip), allocatable     , intent(inout) :: lst_vefs_dimension(:)
@@ -1196,7 +656,7 @@ contains
     if ( this%p_env%am_i_l1_to_l2_root() ) then
       l1_to_l2_size = this%p_env%get_l1_to_l2_size()
       if (allocated(lst_vefs_dimension)) call memfree ( lst_vefs_dimension, __FILE__, __LINE__ )
-      call memalloc ( displs(l1_to_l2_size), lst_vefs_dimension, __FILE__, __LINE__ )
+      call memalloc (displs(l1_to_l2_size), lst_vefs_dimension, __FILE__, __LINE__ )
       call this%p_env%l2_from_l1_gather( input_data_size = 0, &
                                          input_data      = dummy_integer_array, &
                                          recv_counts     = recv_counts, &
@@ -1209,12 +669,11 @@ contains
                                          displs          = dummy_integer_array, &
                                          output_data     = dummy_integer_array )
     end if    
-  end subroutine par_triangulation_gather_coarse_vefs_dimension
+  end subroutine par_base_static_tria_gather_coarse_vefs_dimension
   
-  
-  subroutine par_triangulation_fetch_l2_part_id_neighbours ( this, l2_part_id_neighbours )    
+  subroutine par_base_static_tria_fetch_l2_part_id_neighbours ( this, l2_part_id_neighbours )    
     implicit none
-    class(par_triangulation_t), intent(in)    :: this
+    class(par_base_static_triangulation_t), intent(in)    :: this
     integer(ip) , allocatable , intent(inout) :: l2_part_id_neighbours(:)
     integer(ip) :: my_l2_part_id
     integer(ip) :: num_neighbours
@@ -1229,14 +688,14 @@ contains
                                                input_data      = my_l2_part_id,&
                                                output_data     = l2_part_id_neighbours)
     end if
-  end subroutine par_triangulation_fetch_l2_part_id_neighbours
+  end subroutine par_base_static_tria_fetch_l2_part_id_neighbours
   
-  subroutine par_triangulation_gather_coarse_dgraph_rcv_counts_and_displs ( this, &
+  subroutine par_base_static_tria_gather_coarse_dgraph_rcv_counts_and_displs ( this, &
                                                                             l2_part_id_neighbours, &
                                                                             recv_counts, &
                                                                             displs )
     implicit none
-    class(par_triangulation_t), intent(in)    :: this
+    class(par_base_static_triangulation_t), intent(in)    :: this
     integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%element_import%get_number_neighbours())
     integer(ip) , allocatable , intent(inout) :: recv_counts(:) 
     integer(ip) , allocatable , intent(inout) :: displs(:)
@@ -1246,7 +705,6 @@ contains
     integer(ip) :: num_neighbours
     integer(ip) :: num_external_l2_elements
     integer(ip) :: dummy_integer_array(0)
-
     
     assert ( this%p_env%am_i_l1_to_l2_task() )
     if ( this%p_env%am_i_l1_to_l2_root() ) then
@@ -1274,16 +732,16 @@ contains
       call this%p_env%l2_from_l1_gather( input_data = num_external_l2_elements, &
                                          output_data = dummy_integer_array ) 
     end if
-  end subroutine par_triangulation_gather_coarse_dgraph_rcv_counts_and_displs 
+  end subroutine par_base_static_tria_gather_coarse_dgraph_rcv_counts_and_displs 
   
-  subroutine par_triangulation_gather_coarse_dgraph_lextn_and_lextp( this,                  & 
+  subroutine par_base_static_tria_gather_coarse_dgraph_lextn_and_lextp( this,                  & 
                                                                      l2_part_id_neighbours, &
                                                                      recv_counts,           &
                                                                      displs,                &
                                                                      lextn,                 &
                                                                      lextp)
     implicit none
-    class(par_triangulation_t), intent(in)    :: this
+    class(par_base_static_triangulation_t), intent(in)    :: this
     integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%element_import%get_number_neighbours())
     integer(ip)               , intent(in)    :: recv_counts(this%p_env%get_l1_to_l2_size()) 
     integer(ip)               , intent(in)    :: displs(this%p_env%get_l1_to_l2_size())
@@ -1357,18 +815,18 @@ contains
       call memfree (lst_external_l2_part_ids   , __FILE__, __LINE__)
       call memfree (lst_external_l2_element_gids,__FILE__, __LINE__)
     end if
-  end subroutine par_triangulation_gather_coarse_dgraph_lextn_and_lextp 
+  end subroutine par_base_static_tria_gather_coarse_dgraph_lextn_and_lextp 
   
-  function par_triangulation_adapt_coarse_raw_arrays( this, &
-                                                      coarse_vefs_displs, &
-                                                      coarse_dgraph_recv_counts, &
-                                                      coarse_dgraph_displs ) result(num_itfc_coarse_cells)
+  function par_base_static_tria_adapt_coarse_raw_arrays( this, &
+                                                         coarse_vefs_displs, &
+                                                         coarse_dgraph_recv_counts, &
+                                                         coarse_dgraph_displs ) result(num_itfc_coarse_cells)
     implicit none
-    class(par_triangulation_t), intent(in)    :: this
-    integer(ip)               , intent(inout) :: coarse_vefs_displs(this%p_env%get_l1_to_l2_size())
-    integer(ip)               , intent(inout) :: coarse_dgraph_recv_counts(this%p_env%get_l1_to_l2_size())
-    integer(ip)               , intent(inout) :: coarse_dgraph_displs(this%p_env%get_l1_to_l2_size())
-    integer(ip)                               :: num_itfc_coarse_cells
+    class(par_base_static_triangulation_t), intent(in)    :: this
+    integer(ip)                  , intent(inout) :: coarse_vefs_displs(this%p_env%get_l1_to_l2_size())
+    integer(ip)                  , intent(inout) :: coarse_dgraph_recv_counts(this%p_env%get_l1_to_l2_size())
+    integer(ip)                  , intent(inout) :: coarse_dgraph_displs(this%p_env%get_l1_to_l2_size())
+    integer(ip)                                  :: num_itfc_coarse_cells
     
     integer(ip) :: i 
     assert ( this%p_env%am_i_l1_to_l2_task() )
@@ -1401,135 +859,4 @@ contains
       ! L1 tasks do not hold any itfc_coarse_cells
       num_itfc_coarse_cells = 0
     end if
-  end function par_triangulation_adapt_coarse_raw_arrays
-  
-  !=============================================================================
-  ! Auxiliary subroutines
-  subroutine initialize_par_vef_topology (vef)
-    implicit none
-    type(par_vef_topology_t), intent(inout) :: vef
-    
-    vef%itfc   = -1
-    vef%globalID = -1 
-  end subroutine initialize_par_vef_topology
-  
-  subroutine free_par_vef_topology (vef)
-    implicit none
-    type(par_vef_topology_t), intent(inout) :: vef
-    call initialize_par_vef_topology(vef)
-  end subroutine free_par_vef_topology
-
-  subroutine free_par_elem_topology(element)
-    implicit none
-    type(par_elem_topology_t), intent(inout) :: element
-    
-    if (allocated(element%vefs_GIDs)) then
-       call memfree(element%vefs_GIDs, __FILE__, __LINE__)
-    end if
-    element%itfc = -1
-    element%mypart = -1 
-  end subroutine free_par_elem_topology
-  
-  subroutine initialize_par_elem_topology(element)
-    implicit none
-    type(par_elem_topology_t), intent(inout) :: element
-
-    assert(allocated(element%vefs_GIDs))
-    element%itfc      = -1
-    element%mypart      = -1
-    element%globalID    = -1
-    element%num_vefs = -1
-  end subroutine initialize_par_elem_topology
-
-  subroutine par_elem_topology_size (my, n)
-    implicit none
-    class(par_elem_topology_t), intent(in)  :: my
-    integer(ip)            , intent(out) :: n
-    
-    ! Locals
-    integer(ieep) :: mold(1)
-    integer(ip) :: size_of_ip, size_of_igp
-    
-    size_of_ip   = size(transfer(1_ip ,mold))
-    size_of_igp  = size(transfer(1_igp,mold))
-
-    n = size_of_ip*3 + size_of_igp*(my%num_vefs+1)
-
-  end subroutine par_elem_topology_size
-
-  subroutine par_elem_topology_pack (my, n, buffer)
-    implicit none
-    class(par_elem_topology_t), intent(in)  :: my
-    integer(ip)            , intent(in)   :: n
-    integer(ieep)            , intent(out)  :: buffer(n)
-    
-    ! Locals
-    integer(ieep) :: mold(1)
-    integer(ip) :: size_of_ip, size_of_igp
-    integer(ip) :: start, end
-
-    size_of_ip   = size(transfer(1_ip ,mold))
-    size_of_igp  = size(transfer(1_igp,mold))
-
-    start = 1
-    end   = start + size_of_ip -1
-    buffer(start:end) = transfer(my%mypart,mold)
-
-    start = end + 1
-    end   = start + size_of_ip - 1
-    buffer(start:end) = transfer(my%itfc,mold)
-
-    start = end + 1
-    end   = start + size_of_igp - 1 
-    buffer(start:end) = transfer(my%globalID,mold)
-
-    start = end + 1
-    end   = start + size_of_ip - 1
-    buffer(start:end) = transfer(my%num_vefs,mold)
-
-    start = end + 1
-    end   = start + my%num_vefs*size_of_igp - 1
-    buffer(start:end) = transfer(my%vefs_GIDs,mold)
-
-  end subroutine par_elem_topology_pack
-
-  subroutine par_elem_topology_unpack(my, n, buffer)
-    implicit none
-    class(par_elem_topology_t), intent(inout) :: my
-    integer(ip)            , intent(in)     :: n
-    integer(ieep)            , intent(in)     :: buffer(n)
-
-    ! Locals
-    integer(ieep) :: mold(1)
-    integer(ip) :: size_of_ip, size_of_igp
-    integer(ip) :: start, end
-    
-    size_of_ip   = size(transfer(1_ip ,mold))
-    size_of_igp  = size(transfer(1_igp,mold))
-    
-    start = 1
-    end   = start + size_of_ip -1
-    my%mypart  = transfer(buffer(start:end), my%mypart)
-
-    start = end + 1
-    end   = start + size_of_ip - 1
-    my%itfc  = transfer(buffer(start:end), my%itfc)
-
-    start = end + 1
-    end   = start + size_of_igp - 1 
-    my%globalID = transfer(buffer(start:end), my%globalID)
-
-    start = end + 1
-    end   = start + size_of_ip - 1
-    my%num_vefs = transfer(buffer(start:end), my%num_vefs)
-
-    call memalloc( my%num_vefs, my%vefs_GIDs, __FILE__, __LINE__ )
-
-    start = end + 1
-    end   = start + my%num_vefs*size_of_igp - 1
-    my%vefs_GIDs = transfer(buffer(start:end), my%vefs_GIDs)
-
-  end subroutine par_elem_topology_unpack
-
-
-end module par_triangulation_names
+  end function par_base_static_tria_adapt_coarse_raw_arrays

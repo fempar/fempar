@@ -38,8 +38,8 @@ use types_names
      procedure :: am_i_l1_task                => serial_environment_am_i_l1_task
      procedure :: l1_lgt1_bcast               => serial_environment_l1_lgt1_bcast
      procedure :: l1_barrier                  => serial_environment_l1_barrier
-     procedure :: l1_sum_real_scalar          => serial_environment_l1_sum_real_scalar
-     procedure :: l1_sum_real_vector          => serial_environment_l1_sum_real_vector
+     procedure :: l1_sum_scalar_rp            => serial_environment_l1_sum_scalar_rp
+     procedure :: l1_sum_vector_rp            => serial_environment_l1_sum_vector_rp
   end type serial_environment_t
   
   public :: serial_environment_t
@@ -73,16 +73,16 @@ contains
     logical                     ,intent(inout) :: condition
   end subroutine serial_environment_l1_lgt1_bcast
   
-  subroutine serial_environment_l1_sum_real_scalar (this,alpha)
+  subroutine serial_environment_l1_sum_scalar_rp (this,alpha)
     implicit none
     class(serial_environment_t) , intent(in)    :: this
     real(rp)                    , intent(inout) :: alpha
-  end subroutine serial_environment_l1_sum_real_scalar
+  end subroutine serial_environment_l1_sum_scalar_rp
      
- subroutine serial_environment_l1_sum_real_vector(this,alpha)
+ subroutine serial_environment_l1_sum_vector_rp(this,alpha)
     implicit none
     class(serial_environment_t) , intent(in)    :: this
     real(rp)                    , intent(inout) :: alpha(:) 
- end subroutine serial_environment_l1_sum_real_vector
+ end subroutine serial_environment_l1_sum_vector_rp
   
 end module serial_environment_names

@@ -1,0 +1,324 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+function base_static_triangulation_create_vef_iterator ( this )
+  implicit none
+  class(base_static_triangulation_t), intent(in)    :: this
+  type(vef_iterator_t) :: base_static_triangulation_create_vef_iterator
+  call base_static_triangulation_create_vef_iterator%create(1, this)
+end function base_static_triangulation_create_vef_iterator
+
+function base_static_triangulation_create_itfc_vef_iterator ( this )
+  implicit none
+  class(base_static_triangulation_t), intent(in)    :: this
+  type(itfc_vef_iterator_t) :: base_static_triangulation_create_itfc_vef_iterator
+  call base_static_triangulation_create_itfc_vef_iterator%create(this)
+end function base_static_triangulation_create_itfc_vef_iterator
+
+function base_static_triangulation_create_cell_iterator ( this )
+  implicit none
+  class(base_static_triangulation_t), intent(in)    :: this
+  type(cell_iterator_t) :: base_static_triangulation_create_cell_iterator
+  call base_static_triangulation_create_cell_iterator%create(1, this)
+end function base_static_triangulation_create_cell_iterator
+
+subroutine base_static_triangulation_compute_num_local_vefs ( this )
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  type(hash_table_ip_ip_t) :: visited_vefs
+  integer(ip) :: icell, ivef, vef_lid, istat
+
+  type(cell_iterator_t) :: cell_iterator
+  type(cell_accessor_t), pointer :: cell
+  
+  call visited_vefs%init(max(5,int(real(this%num_local_cells,rp)*0.2_rp,ip))) 
+  this%num_local_vefs = 0
+  
+  cell_iterator = this%create_cell_iterator()
+  do while ( .not. cell_iterator%has_finished() )
+     cell => cell_iterator%current()
+     if ( cell%is_local() ) then
+       do ivef=1, cell%get_num_vefs()
+          vef_lid = cell%get_vef_lid(ivef)
+          call visited_vefs%put(key=vef_lid, val=1, stat=istat)
+          if (istat == now_stored) this%num_local_vefs = this%num_local_vefs + 1
+       end do
+     end if  
+     call cell_iterator%next()
+  end do
+  call visited_vefs%free()
+end subroutine base_static_triangulation_compute_num_local_vefs
+
+subroutine base_static_triangulation_compute_num_ghost_vefs ( this )
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  type(hash_table_ip_ip_t) :: visited_vefs
+  integer(ip) :: icell, ivef, vef_lid, istat
+
+  type(cell_iterator_t) :: cell_iterator
+  type(cell_accessor_t), pointer :: cell
+  
+  call visited_vefs%init(max(5,int(real(this%num_ghost_cells,rp)*0.2_rp,ip))) 
+  this%num_ghost_vefs = 0
+  
+  cell_iterator = this%create_cell_iterator()
+  do while ( .not. cell_iterator%has_finished() )
+     cell => cell_iterator%current()
+     if ( cell%is_ghost() ) then
+       do ivef=1, cell%get_num_vefs()
+          vef_lid = cell%get_vef_lid(ivef)
+          if ( vef_lid > this%num_local_vefs ) then
+            call visited_vefs%put(key=vef_lid, val=1, stat=istat)
+            if (istat == now_stored) this%num_ghost_vefs = this%num_ghost_vefs + 1
+          end if 
+       end do
+     end if  
+     call cell_iterator%next()
+  end do
+  call visited_vefs%free()
+end subroutine base_static_triangulation_compute_num_ghost_vefs
+
+subroutine base_static_triangulation_allocate_and_fill_vefs_gid ( this, lst_vefs_gid )
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(igp)                                      :: lst_vefs_gid(*)
+  integer(ip)                                       :: icell, ivef, vef_lid, current
+  integer(igp)                                      :: vef_gid
+
+  type(cell_iterator_t) :: cell_iterator
+  type(cell_accessor_t), pointer :: cell
+
+  assert ( this%num_local_vefs + this%num_ghost_vefs >= 0 ) 
+
+  call this%free_vefs_gid()
+  call memalloc(this%num_local_vefs+this%num_ghost_vefs, this%vefs_gid,__FILE__,__LINE__)
+  
+  current = 1
+  cell_iterator = this%create_cell_iterator()
+  do while ( .not. cell_iterator%has_finished() )
+     cell => cell_iterator%current()
+     do ivef=1, cell%get_num_vefs()
+        vef_lid = cell%get_vef_lid(ivef)
+        vef_gid = lst_vefs_gid(current)
+        this%vefs_gid(vef_lid) = vef_gid
+        current = current + 1 
+     end do
+     call cell_iterator%next()
+  end do  
+end subroutine base_static_triangulation_allocate_and_fill_vefs_gid
+
+subroutine base_static_triangulation_free_vefs_gid( this )
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  if (allocated(this%vefs_gid)) call memfree(this%vefs_gid,__FILE__,__LINE__)
+end subroutine base_static_triangulation_free_vefs_gid
+
+subroutine base_static_triangulation_allocate_and_fill_vefs_dimension ( this, &
+                                                                        lst_vefs_dimension )
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(ip)                       , intent(in)    :: lst_vefs_dimension(*)
+  integer(ip)                                       :: icell, ivef, vef_lid, current
+  type(cell_iterator_t) :: cell_iterator
+  type(cell_accessor_t), pointer :: cell
+  
+  assert ( this%num_local_vefs + this%num_ghost_vefs >= 0 )
+  call this%free_vefs_dimension()
+  call memalloc(this%num_local_vefs+this%num_ghost_vefs, this%vefs_dimension,__FILE__,__LINE__) 
+  
+  current = 1
+  cell_iterator = this%create_cell_iterator()
+  do while ( .not. cell_iterator%has_finished() )
+     cell => cell_iterator%current()
+     do ivef=1, cell%get_num_vefs()
+        vef_lid = cell%get_vef_lid(ivef)
+        this%vefs_dimension(vef_lid) = lst_vefs_dimension(current)
+        current = current + 1 
+     end do
+     call cell_iterator%next()
+  end do
+end subroutine base_static_triangulation_allocate_and_fill_vefs_dimension
+
+subroutine base_static_triangulation_free_vefs_dimension( this )
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  if (allocated(this%vefs_dimension)) call memfree(this%vefs_dimension,__FILE__,__LINE__)
+end subroutine base_static_triangulation_free_vefs_dimension
+
+subroutine base_static_triangulation_compute_num_itfc_vefs ( this )
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(ip) :: icell, vef_lid, ivef, istat
+  type(hash_table_ip_ip_t) :: visited_vefs
+  type(cell_iterator_t) :: cell_iterator
+  type(cell_accessor_t), pointer :: cell
+  
+  call visited_vefs%init(max(5,int(real(this%num_local_vefs,rp)*0.2_rp,ip)))
+  
+  this%num_itfc_vefs = 0
+  ! Traverse local ghost elements (all interface vefs are there)
+  cell_iterator = this%create_cell_iterator()
+  do while ( .not. cell_iterator%has_finished() )
+     cell => cell_iterator%current()
+     if ( cell%is_ghost() ) then
+       do ivef=1, cell%get_num_vefs()
+          vef_lid = cell%get_vef_lid(ivef)
+          if ( vef_lid <= this%num_local_vefs ) then
+            call visited_vefs%put(key=vef_lid, val=1, stat=istat)
+            if ( istat == now_stored ) then
+              this%num_itfc_vefs = this%num_itfc_vefs + 1
+            end if
+          end if  
+       end do
+     end if
+     call cell_iterator%next()
+  end do
+  call visited_vefs%free()
+end subroutine base_static_triangulation_compute_num_itfc_vefs
+
+subroutine base_static_triangulation_allocate_and_fill_lst_itfc_vefs( this )
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(ip) :: vef_lid, ivef, current, istat
+  type(hash_table_ip_ip_t) :: visited_vefs
+  type(cell_iterator_t) :: cell_iterator
+  type(cell_accessor_t), pointer :: cell
+  
+  assert ( this%num_itfc_vefs >= 0 ) 
+
+  call this%free_lst_itfc_vefs()
+  call memalloc(this%num_itfc_vefs, this%lst_itfc_vefs,__FILE__,__LINE__)
+
+  call visited_vefs%init(max(5,int(real(this%num_local_vefs,rp)*0.2_rp,ip)))
+  current=0
+
+  ! Traverse local ghost elements (all interface vefs are there)
+  cell_iterator = this%create_cell_iterator()
+  do while ( .not. cell_iterator%has_finished() )
+     cell => cell_iterator%current()
+     if ( cell%is_ghost() ) then
+       do ivef=1, cell%get_num_vefs()
+          vef_lid = cell%get_vef_lid(ivef)
+          if ( vef_lid <= this%num_local_vefs ) then
+            call visited_vefs%put(key=vef_lid, val=1, stat=istat)
+            if ( istat == now_stored ) then
+              current=current+1
+              this%lst_itfc_vefs(current) = vef_lid
+            end if  
+          end if  
+       end do
+     end if
+     call cell_iterator%next()
+  end do
+  call visited_vefs%free()
+end subroutine base_static_triangulation_allocate_and_fill_lst_itfc_vefs
+
+subroutine base_static_triangulation_free_lst_itfc_vefs( this )
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  if (allocated(this%lst_itfc_vefs)) call memfree(this%lst_itfc_vefs,__FILE__,__LINE__)
+end subroutine base_static_triangulation_free_lst_itfc_vefs
+
+subroutine base_static_triangulation_allocate_and_fill_vefs_itfc_lid( this )
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(ip)                                  ::  vef_lid, ivef_itfc
+
+  assert ( this%num_itfc_vefs >= 0 )
+  call this%free_vefs_itfc_lid()
+  call memalloc(this%num_local_vefs+this%num_ghost_vefs, this%vefs_itfc_lid,__FILE__,__LINE__)
+  this%vefs_itfc_lid = -1
+  do ivef_itfc = 1, this%num_itfc_vefs
+     vef_lid = this%lst_itfc_vefs(ivef_itfc)
+     this%vefs_itfc_lid ( vef_lid ) =  ivef_itfc
+  end do
+end subroutine base_static_triangulation_allocate_and_fill_vefs_itfc_lid
+
+subroutine base_static_triangulation_free_vefs_itfc_lid( this )
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  if (allocated(this%vefs_itfc_lid)) call memfree(this%vefs_itfc_lid,__FILE__,__LINE__)
+end subroutine base_static_triangulation_free_vefs_itfc_lid
+
+subroutine base_static_triangulation_allocate_and_fill_cells_around ( this )
+  implicit none
+  class(base_static_triangulation_t), intent(inout)  :: this
+  integer(ip)                                        :: ivef, vef_lid, vef_itfc_lid
+  type(cell_iterator_t) :: cell_iterator
+  type(cell_accessor_t), pointer :: cell
+  
+  call this%free_cells_around()
+
+  call memalloc ( this%num_itfc_vefs+1, this%ptrs_cells_around, __FILE__, __LINE__ )
+  this%ptrs_cells_around = 0
+ 
+  cell_iterator = this%create_cell_iterator()
+  do while ( .not. cell_iterator%has_finished() )
+    cell => cell_iterator%current()
+    do ivef=1, cell%get_num_vefs()
+      vef_lid = cell%get_vef_lid(ivef)
+      vef_itfc_lid = this%vefs_itfc_lid(vef_lid)
+      if ( vef_itfc_lid /= -1 ) then
+        this%ptrs_cells_around(vef_itfc_lid +1) = this%ptrs_cells_around(vef_itfc_lid+1) + 1
+      end if
+    end do
+    call cell_iterator%next()
+  end do
+  
+  this%ptrs_cells_around(1) = 1
+  do ivef=2, this%num_itfc_vefs+1
+     this%ptrs_cells_around(ivef) = this%ptrs_cells_around(ivef) + this%ptrs_cells_around(ivef-1)
+  end do
+
+  call memalloc ( this%ptrs_cells_around(this%num_itfc_vefs+1)-1, this%lst_cells_around, __FILE__, __LINE__ )
+  
+  call cell_iterator%init()
+  do while ( .not. cell_iterator%has_finished() )
+    cell => cell_iterator%current()
+    do ivef=1, cell%get_num_vefs()
+       vef_lid = cell%get_vef_lid(ivef)
+       vef_itfc_lid = this%vefs_itfc_lid(vef_lid)
+       if ( vef_itfc_lid /= -1 ) then
+          this%lst_cells_around(this%ptrs_cells_around(vef_itfc_lid)) = cell%get_lid()
+          this%ptrs_cells_around(vef_itfc_lid) = this%ptrs_cells_around(vef_itfc_lid) + 1
+       end if
+    end do
+    call cell_iterator%next()
+  end do
+  
+  do ivef=this%num_itfc_vefs+1,2,-1 
+     this%ptrs_cells_around(ivef) = this%ptrs_cells_around(ivef-1)
+  end do
+  this%ptrs_cells_around(1) = 1
+end subroutine base_static_triangulation_allocate_and_fill_cells_around
+
+subroutine base_static_triangulation_free_cells_around(this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  if (allocated(this%ptrs_cells_around)) call memfree(this%ptrs_cells_around,__FILE__,__LINE__)
+  if (allocated(this%lst_cells_around)) call memfree(this%lst_cells_around,__FILE__,__LINE__)
+end subroutine base_static_triangulation_free_cells_around
