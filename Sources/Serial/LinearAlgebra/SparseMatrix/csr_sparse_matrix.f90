@@ -65,12 +65,35 @@ private
         procedure, public :: apply_body                              => csr_sparse_matrix_apply_body
         procedure, public :: print_matrix_market_body                => csr_sparse_matrix_print_matrix_market_body
         procedure, public :: print                                   => csr_sparse_matrix_print
+        procedure, public :: create_iterator                         => csr_sparse_matrix_create_iterator
+        procedure, public :: get_entry                               => csr_sparse_matrix_get_entry
     end type csr_sparse_matrix_t
 
+    !---------------------------------------------------------------------
+    !< CSR MATRIX ITERATOR TYPE
+    !---------------------------------------------------------------------
+    type, extends(base_sparse_matrix_iterator_t) :: csr_sparse_matrix_iterator_t
+       private
+       integer(ip) :: row_index
+       integer(ip) :: nnz_index
+       type(csr_sparse_matrix_t), pointer :: matrix
+
+     contains
+       procedure, non_overridable :: create       => csr_sparse_matrix_iterator_create
+       procedure                  :: init         => csr_sparse_matrix_iterator_init
+       procedure                  :: free         => csr_sparse_matrix_iterator_free
+       procedure                  :: next         => csr_sparse_matrix_iterator_next
+       procedure                  :: has_finished => csr_sparse_matrix_iterator_has_finished
+       procedure                  :: get_row      => csr_sparse_matrix_iterator_get_row
+       procedure                  :: get_column   => csr_sparse_matrix_iterator_get_column
+       procedure                  :: get_entry    => csr_sparse_matrix_iterator_get_entry
+       procedure                  :: set_entry    => csr_sparse_matrix_iterator_set_entry
+    end type csr_sparse_matrix_iterator_t
+
 public :: csr_sparse_matrix_t
+!public :: csr_sparse_matrix_iterator_t
 
 contains
-
 
     subroutine csr_sparse_matrix_set_nnz(this, nnz)
     !-----------------------------------------------------------------
@@ -2961,6 +2984,118 @@ contains
 
     end subroutine csr_sparse_matrix_print_matrix_market_body
 
+    subroutine csr_sparse_matrix_create_iterator(this,iterator)
+      class(csr_sparse_matrix_t)          , target     , intent(in)    :: this
+      class(base_sparse_matrix_iterator_t), allocatable, intent(inout) :: iterator
+      
+      type(csr_sparse_matrix_iterator_t), allocatable :: csr_iterator
+
+      allocate(csr_iterator)
+      call csr_iterator%create(this)
+      call move_alloc(from=csr_iterator, to=iterator)
+    end subroutine csr_sparse_matrix_create_iterator
+
+    function csr_sparse_matrix_get_entry(this, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !< Get the value in the entry (ia,ja) in the sparse matrix
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(in)  :: this
+        integer(ip),                intent(in)  :: ia
+        integer(ip),                intent(in)  :: ja
+        real(rp),                   intent(out) :: val
+        logical                                 :: csr_sparse_matrix_get_entry
+
+        integer(ip)                             :: ipaux,i1,i2,nr,nc
+    !-----------------------------------------------------------------
+        ! Ignore out of bounds entries
+        if (ia<1 .or. ia>this%get_num_rows() .or. ja<1 .or.  ja>this%get_num_cols() .or. &
+             (this%get_symmetric_storage() .and. ia>ja)) then
+           csr_sparse_matrix_get_entry = .false.
+        end if
+
+        i1 = this%irp(ia)
+        i2 = this%irp(ia+1)
+        nc = i2-i1
+        ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
+
+        if (ipaux>0) then
+           val=this%val(i1+ipaux-1)
+           csr_sparse_matrix_get_entry = .true.
+        else
+           csr_sparse_matrix_get_entry = .false.
+        end if
+      end function csr_sparse_matrix_get_entry
+      
+    !---------------------------------------------------------------------
+    !< CSR_SPARSE_MATRIX_ITERATOR PROCEDURES
+    !---------------------------------------------------------------------
+    subroutine csr_sparse_matrix_iterator_create(this,csr_matrix)
+      class(csr_sparse_matrix_iterator_t), intent(inout) :: this
+      type(csr_sparse_matrix_t) , target, intent(in)    :: csr_matrix
+      this%matrix => csr_matrix
+      call this%init()
+    end subroutine csr_sparse_matrix_iterator_create
+
+    subroutine csr_sparse_matrix_iterator_init(this)
+      class(csr_sparse_matrix_iterator_t), intent(inout) :: this
+      
+      this%row_index = 1
+      this%nnz_index = 1
+    end subroutine csr_sparse_matrix_iterator_init
+
+    subroutine csr_sparse_matrix_iterator_free(this)
+      class(csr_sparse_matrix_iterator_t), intent(inout) :: this
+      
+      this%row_index = -1
+      this%nnz_index = -1
+      this%matrix => NULL()
+    end subroutine csr_sparse_matrix_iterator_free
+
+    subroutine csr_sparse_matrix_iterator_next(this)
+      class(csr_sparse_matrix_iterator_t), intent(inout) :: this
+
+      assert( this%nnz_index < this%matrix%irp(this%row_index+1))
+
+      this%nnz_index = this%nnz_index + 1
+      if (this%nnz_index == this%matrix%irp(this%row_index+1)) then
+         this%row_index = this%row_index + 1
+      end if     
+    end subroutine csr_sparse_matrix_iterator_next
+
+    function csr_sparse_matrix_iterator_has_finished(this)
+      class(csr_sparse_matrix_iterator_t), intent(in) :: this
+      logical :: csr_sparse_matrix_iterator_has_finished
+      
+      csr_sparse_matrix_iterator_has_finished = (this%nnz_index > this%matrix%nnz)
+    end function csr_sparse_matrix_iterator_has_finished
+
+    function csr_sparse_matrix_iterator_get_row(this)
+      class(csr_sparse_matrix_iterator_t), intent(in) :: this
+      integer(ip) :: csr_sparse_matrix_iterator_get_row
+
+      csr_sparse_matrix_iterator_get_row = this%row_index
+    end function csr_sparse_matrix_iterator_get_row
+
+    function csr_sparse_matrix_iterator_get_column(this)
+      class(csr_sparse_matrix_iterator_t), intent(in) :: this
+      integer(ip) :: csr_sparse_matrix_iterator_get_column
+
+      csr_sparse_matrix_iterator_get_column = this%matrix%ja(this%nnz_index)
+    end function csr_sparse_matrix_iterator_get_column
+
+    function csr_sparse_matrix_iterator_get_entry(this)
+      class(csr_sparse_matrix_iterator_t), intent(in) :: this
+      real(rp) :: csr_sparse_matrix_iterator_get_entry
+
+      csr_sparse_matrix_iterator_get_entry = this%matrix%val(this%nnz_index)
+    end function csr_sparse_matrix_iterator_get_entry
+
+    subroutine csr_sparse_matrix_iterator_set_entry(this,new_value)
+      class(csr_sparse_matrix_iterator_t), intent(in) :: this
+      real(rp)                           , intent(in) :: new_value
+
+      this%matrix%val(this%nnz_index) = new_value
+    end subroutine csr_sparse_matrix_iterator_set_entry
 
 end module csr_sparse_matrix_names
 

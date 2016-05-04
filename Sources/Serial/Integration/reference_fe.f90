@@ -809,8 +809,10 @@ type face_map_t
    procedure, non_overridable :: create               => face_map_create
    procedure, non_overridable :: free                 => face_map_free
    procedure, non_overridable :: update               => face_map_update
-   procedure, non_overridable :: compute_characteristic_length &
+   procedure, non_overridable :: compute_characteristic_length                                      &
         &                                             => face_map_compute_characteristic_length
+   procedure, non_overridable :: get_quadrature_coordinates                                         &
+        &                                             => face_map_get_quadrature_coordinates
    procedure, non_overridable :: get_face_coordinates => face_map_get_face_coordinates
    procedure, non_overridable :: get_coordinates_neighbour                                          &
         &                                             => face_map_get_coordinates_neighbour

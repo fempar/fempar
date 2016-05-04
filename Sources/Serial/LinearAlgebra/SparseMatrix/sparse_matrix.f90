@@ -6,7 +6,7 @@ USE vector_names
 USE matrix_names
 USE vector_space_names
 USE serial_scalar_array_names
-USE base_sparse_matrix_names, only: base_sparse_matrix_t, coo_sparse_matrix_t
+USE base_sparse_matrix_names, only: base_sparse_matrix_t, coo_sparse_matrix_t, base_sparse_matrix_iterator_t
 USE csr_sparse_matrix_names
 
 implicit none
@@ -101,11 +101,26 @@ private
         procedure,                  public :: apply                          => sparse_matrix_apply
         procedure, non_overridable, public :: print                          => sparse_matrix_print
         procedure, non_overridable, public :: print_matrix_market            => sparse_matrix_print_matrix_market
+        procedure                 , public :: create_iterator                => sparse_matrix_create_iterator
+        procedure, non_overridable, public :: get_entry                      => sparse_matrix_get_entry
     end type sparse_matrix_t
 
     class(base_sparse_matrix_t), allocatable, target, save :: default_sparse_matrix
 
-public :: sparse_matrix_t
+    type, extends(matrix_iterator_t) :: sparse_matrix_iterator_t
+       private
+       class(base_sparse_matrix_iterator_t), allocatable :: base_iterator
+     contains
+       procedure, non_overridable :: free         => sparse_matrix_iterator_free
+       procedure, non_overridable :: next         => sparse_matrix_iterator_next
+       procedure, non_overridable :: has_finished => sparse_matrix_iterator_has_finished
+       procedure, non_overridable :: get_row      => sparse_matrix_iterator_get_row
+       procedure, non_overridable :: get_column   => sparse_matrix_iterator_get_column
+       procedure, non_overridable :: get_entry    => sparse_matrix_iterator_get_entry
+       procedure, non_overridable :: set_entry    => sparse_matrix_iterator_set_entry
+    end type sparse_matrix_iterator_t
+
+public :: sparse_matrix_t, sparse_matrix_iterator_t
 
 contains
 
@@ -1135,5 +1150,107 @@ contains
     !-----------------------------------------------------------------
         call this%State%print_matrix_market(lunou, ng, l2g)
     end subroutine sparse_matrix_print_matrix_market
+    
+    subroutine sparse_matrix_create_iterator(this, iblock, jblock, iterator)
+      !-----------------------------------------------------------------
+      !< Get a pointer to an iterator over the matrix entries
+      !-----------------------------------------------------------------
+      class(sparse_matrix_t)               , intent(in)    :: this
+      integer(ip)                          , intent(in)    :: iblock 
+      integer(ip)                          , intent(in)    :: jblock 
+      class(matrix_iterator_t), allocatable, intent(inout) :: iterator
+      !-----------------------------------------------------------------
+      assert(iblock == 1)
+      assert(jblock == 1)
+      assert(allocated(this%State))
+      assert(this%State%state_is_assembled())
+      if (allocated(iterator)) deallocate(iterator)
+      allocate(sparse_matrix_iterator_t :: iterator)
+      select type ( iterator)
+      class is (sparse_matrix_iterator_t) 
+         call this%State%create_iterator(iterator%base_iterator)
+      class DEFAULT
+         assert(.false.)
+      end select
+    end subroutine sparse_matrix_create_iterator
 
-end module sparse_matrix_names
+    function sparse_matrix_get_entry(this, ia, ja, val)
+      !-----------------------------------------------------------------
+      !< Get the value in the (ia,ja) entry of the matrix
+      !-----------------------------------------------------------------
+      class(sparse_matrix_t), intent(in)  :: this
+      integer(ip)           , intent(in)  :: ia
+      integer(ip)           , intent(in)  :: ja
+      real(rp)              , intent(out) :: val
+      logical                             :: sparse_matrix_get_entry
+      !-----------------------------------------------------------------
+      assert(allocated(this%State))
+      assert(this%State%state_is_assembled() .or. this%State%state_is_update() )
+      sparse_matrix_get_entry = this%State%get_entry(ia, ja, val)
+    end function sparse_matrix_get_entry
+
+    !-----------------------------------------------------------------
+    !< SPARSE_MATRIX_ITERATOR SUBROUTINES
+    !-----------------------------------------------------------------
+     subroutine sparse_matrix_iterator_free(this)
+      !-----------------------------------------------------------------
+      !< Free the information in the iterator
+      !-----------------------------------------------------------------
+      class(sparse_matrix_iterator_t), intent(inout) :: this
+      call this%base_iterator%free()
+    end subroutine sparse_matrix_iterator_free
+
+    subroutine sparse_matrix_iterator_next(this)
+      !-----------------------------------------------------------------
+      !< Set the pointer to the following entry of the matrix
+      !-----------------------------------------------------------------
+      class(sparse_matrix_iterator_t), intent(inout) :: this
+      call this%base_iterator%next()
+    end subroutine sparse_matrix_iterator_next
+
+    function sparse_matrix_iterator_has_finished(this)
+      !-----------------------------------------------------------------
+      !< Check if the pointer of the matrix has reached the end
+      !-----------------------------------------------------------------
+      class(sparse_matrix_iterator_t), intent(in) :: this
+      logical :: sparse_matrix_iterator_has_finished
+      sparse_matrix_iterator_has_finished = this%base_iterator%has_finished()
+    end function sparse_matrix_iterator_has_finished
+
+    function sparse_matrix_iterator_get_row(this)
+      !-----------------------------------------------------------------
+      !< Get the row index of the entry of the matrix
+      !-----------------------------------------------------------------
+      class(sparse_matrix_iterator_t), intent(in) :: this
+      integer(ip) :: sparse_matrix_iterator_get_row
+      sparse_matrix_iterator_get_row = this%base_iterator%get_row()
+    end function sparse_matrix_iterator_get_row
+    
+    function sparse_matrix_iterator_get_column(this)
+      !-----------------------------------------------------------------
+      !<  Get the column index of the entry of the matrix
+      !-----------------------------------------------------------------
+      class(sparse_matrix_iterator_t), intent(in) :: this
+      integer(ip) :: sparse_matrix_iterator_get_column
+      sparse_matrix_iterator_get_column = this%base_iterator%get_column()
+    end function sparse_matrix_iterator_get_column
+
+    function sparse_matrix_iterator_get_entry(this)
+      !-----------------------------------------------------------------
+      !< Get the value of the entry of the matrix
+      !-----------------------------------------------------------------
+      class(sparse_matrix_iterator_t), intent(in) :: this
+      real(rp) :: sparse_matrix_iterator_get_entry
+      sparse_matrix_iterator_get_entry = this%base_iterator%get_entry()
+    end function sparse_matrix_iterator_get_entry
+
+    subroutine sparse_matrix_iterator_set_entry(this,new_value)
+      !-----------------------------------------------------------------
+      !< Set the value of the entry of the matrix
+      !-----------------------------------------------------------------
+      class(sparse_matrix_iterator_t), intent(inout) :: this
+      real(rp)                       , intent(in)    :: new_value
+      call this%base_iterator%set_entry(new_value)
+    end subroutine sparse_matrix_iterator_set_entry
+
+  end module sparse_matrix_names

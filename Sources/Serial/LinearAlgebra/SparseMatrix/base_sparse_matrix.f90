@@ -97,198 +97,199 @@ module base_sparse_matrix_names
      !< .False.  All (i,j) \belongs E are stored.  
    contains
      private
-        procedure(base_sparse_matrix_is_by_rows),                public, deferred :: is_by_rows
-        procedure(base_sparse_matrix_is_by_cols),                public, deferred :: is_by_cols
-        procedure(base_sparse_matrix_copy_to_coo),               public, deferred :: copy_to_coo
-        procedure(base_sparse_matrix_copy_from_coo),             public, deferred :: copy_from_coo
-        procedure(base_sparse_matrix_move_to_coo),               public, deferred :: move_to_coo
-        procedure(base_sparse_matrix_move_from_coo),             public, deferred :: move_from_coo
-        procedure(base_sparse_matrix_move_to_fmt),               public, deferred :: move_to_fmt
-        procedure(base_sparse_matrix_move_from_fmt),             public, deferred :: move_from_fmt
-        procedure(base_sparse_matrix_initialize_values),         public, deferred :: initialize_values
-        procedure(base_sparse_matrix_allocate_values_body),      public, deferred :: allocate_values_body
-        procedure(base_sparse_matrix_update_bounded_values_body),              &
-                                                                 public, deferred :: update_bounded_values_body
-        procedure(base_sparse_matrix_update_bounded_value_body),               &
-                                                                 public, deferred :: update_bounded_value_body
-        procedure(base_sparse_matrix_update_bounded_values_by_row_body),       &
-                                                                 public, deferred :: update_bounded_values_by_row_body
-        procedure(base_sparse_matrix_update_bounded_values_by_col_body),       &
-                                                                 public, deferred :: update_bounded_values_by_col_body
-        procedure(base_sparse_matrix_update_bounded_dense_values_body),        &
-                                                                 public, deferred :: update_bounded_dense_values_body
-        procedure(base_sparse_matrix_update_bounded_square_dense_values_body), &
-                                                                 public, deferred :: update_bounded_square_dense_values_body
-        procedure(base_sparse_matrix_update_dense_values_body),                &
-                                                                 public, deferred :: update_dense_values_body
-        procedure(base_sparse_matrix_update_square_dense_values_body),         &
-                                                                 public, deferred :: update_square_dense_values_body
-        procedure(base_sparse_matrix_update_values_body),        public, deferred :: update_values_body
-        procedure(base_sparse_matrix_update_values_by_row_body), public, deferred :: update_values_by_row_body
-        procedure(base_sparse_matrix_update_values_by_col_body), public, deferred :: update_values_by_col_body
-        procedure(base_sparse_matrix_update_value_body),         public, deferred :: update_value_body
-        procedure(base_sparse_matrix_split_2x2_symbolic),        public, deferred :: split_2x2_symbolic
-        procedure(base_sparse_matrix_split_2x2_numeric),         public, deferred :: split_2x2_numeric
-        procedure(base_sparse_matrix_permute_and_split_2x2_numeric),           &
-                                                                 public, deferred :: permute_and_split_2x2_numeric
-        procedure(base_sparse_matrix_permute_and_split_2x2_symbolic),          &
-                                                                 public, deferred :: permute_and_split_2x2_symbolic
-        procedure(base_sparse_matrix_expand_matrix_numeric),     public, deferred :: expand_matrix_numeric
-        procedure(base_sparse_matrix_expand_matrix_symbolic),    public, deferred :: expand_matrix_symbolic
-        procedure(base_sparse_matrix_extract_diagonal),          public, deferred :: extract_diagonal
-        procedure(base_sparse_matrix_print_matrix_market_body),  public, deferred :: print_matrix_market_body
-        procedure(base_sparse_matrix_free_coords),               public, deferred :: free_coords
-        procedure(base_sparse_matrix_free_val),                  public, deferred :: free_val
-        procedure(base_sparse_matrix_set_nnz),                   public, deferred :: set_nnz
-        procedure(base_sparse_matrix_get_nnz),                   public, deferred :: get_nnz
-        procedure(base_sparse_matrix_print),                     public, deferred :: print
-        procedure         ::                                     base_sparse_matrix_create_square
-        procedure         ::                                     base_sparse_matrix_create_rectangular
-        procedure         :: insert_bounded_coords            => base_sparse_matrix_insert_bounded_coords
-        procedure         :: insert_bounded_values            => base_sparse_matrix_insert_bounded_values
-        procedure         :: insert_bounded_coords_by_row     => base_sparse_matrix_insert_bounded_coords_by_row
-        procedure         :: insert_bounded_coords_by_col     => base_sparse_matrix_insert_bounded_coords_by_col
-        procedure         :: insert_bounded_values_by_row     => base_sparse_matrix_insert_bounded_values_by_row
-        procedure         :: insert_bounded_values_by_col     => base_sparse_matrix_insert_bounded_values_by_col
-        procedure         :: insert_bounded_single_coord      => base_sparse_matrix_insert_bounded_single_coord
-        procedure         :: insert_bounded_single_value      => base_sparse_matrix_insert_bounded_single_value
-        procedure         :: insert_bounded_dense_values      => base_sparse_matrix_insert_bounded_dense_values
-        procedure         :: insert_bounded_square_dense_values=> base_sparse_matrix_insert_bounded_square_dense_values
-        procedure         :: insert_coords                    => base_sparse_matrix_insert_coords
-        procedure         :: insert_values                    => base_sparse_matrix_insert_values
-        procedure         :: insert_dense_values              => base_sparse_matrix_insert_dense_values
-        procedure         :: insert_square_dense_values       => base_sparse_matrix_insert_square_dense_values
-        procedure         :: insert_coords_by_row             => base_sparse_matrix_insert_coords_by_row
-        procedure         :: insert_coords_by_col             => base_sparse_matrix_insert_coords_by_col
-        procedure         :: insert_values_by_row             => base_sparse_matrix_insert_values_by_row
-        procedure         :: insert_values_by_col             => base_sparse_matrix_insert_values_by_col
-        procedure         :: insert_single_coord              => base_sparse_matrix_insert_single_coord
-        procedure         :: insert_single_value              => base_sparse_matrix_insert_single_value
-        procedure         :: append_bounded_coords_body       => base_sparse_matrix_append_bounded_coords_body
-        procedure         :: append_bounded_values_body       => base_sparse_matrix_append_bounded_values_body
-        procedure         :: append_bounded_coords_by_row_body=> base_sparse_matrix_append_bounded_coords_by_row_body
-        procedure         :: append_bounded_coords_by_col_body=> base_sparse_matrix_append_bounded_coords_by_col_body
-        procedure         :: append_bounded_values_by_row_body=> base_sparse_matrix_append_bounded_values_by_row_body
-        procedure         :: append_bounded_values_by_col_body=> base_sparse_matrix_append_bounded_values_by_col_body
-        procedure         :: append_bounded_single_coord_body => base_sparse_matrix_append_bounded_single_coord_body
-        procedure         :: append_bounded_single_value_body => base_sparse_matrix_append_bounded_single_value_body
-        procedure         :: append_bounded_dense_values_body => base_sparse_matrix_append_bounded_dense_values_body
-        procedure         :: append_bounded_square_dense_values_body => base_sparse_matrix_append_bounded_square_dense_values_body
-        procedure         :: append_coords_body               => base_sparse_matrix_append_coords_body
-        procedure         :: append_values_body               => base_sparse_matrix_append_values_body
-        procedure         :: append_dense_values_body         => base_sparse_matrix_append_dense_values_body
-        procedure         :: append_square_dense_values_body  => base_sparse_matrix_append_square_dense_values_body
-        procedure         :: append_coords_by_row_body        => base_sparse_matrix_append_coords_by_row_body
-        procedure         :: append_coords_by_col_body        => base_sparse_matrix_append_coords_by_col_body
-        procedure         :: append_values_by_row_body        => base_sparse_matrix_append_values_by_row_body
-        procedure         :: append_values_by_col_body        => base_sparse_matrix_append_values_by_col_body
-        procedure         :: append_single_coord_body         => base_sparse_matrix_append_single_coord_body
-        procedure         :: append_single_value_body         => base_sparse_matrix_append_single_value_body
-        procedure         :: is_valid_sign                    => base_sparse_matrix_is_valid_sign
-        procedure         :: apply_body                       => base_sparse_matrix_apply_body
-        procedure, public :: is_symbolic                      => base_sparse_matrix_is_symbolic
-        procedure, public :: copy_to_fmt                      => base_sparse_matrix_copy_to_fmt
-        procedure, public :: copy_from_fmt                    => base_sparse_matrix_copy_from_fmt
-        procedure, public :: set_sign                         => base_sparse_matrix_set_sign
-        procedure, public :: get_sign                         => base_sparse_matrix_get_sign
-        procedure, public :: set_num_rows                     => base_sparse_matrix_set_num_rows
-        procedure, public :: get_num_rows                     => base_sparse_matrix_get_num_rows
-        procedure, public :: set_num_cols                     => base_sparse_matrix_set_num_cols
-        procedure, public :: get_num_cols                     => base_sparse_matrix_get_num_cols
-        procedure, public :: set_sum_duplicates               => base_sparse_matrix_set_sum_duplicates
-        procedure, public :: get_sum_duplicates               => base_sparse_matrix_get_sum_duplicates
-        procedure, public :: set_symmetry                     => base_sparse_matrix_set_symmetry
-        procedure, public :: set_symmetric_storage            => base_sparse_matrix_set_symmetric_storage
-        procedure, public :: get_symmetric_storage            => base_sparse_matrix_get_symmetric_storage
-        procedure, public :: is_symmetric                     => base_sparse_matrix_is_symmetric
-        procedure, public :: set_state                        => base_sparse_matrix_set_state
-        procedure, public :: set_state_start                  => base_sparse_matrix_set_state_start
-        procedure, public :: set_state_properties_set         => base_sparse_matrix_set_state_properties_set
-        procedure, public :: set_state_created                => base_sparse_matrix_set_state_created
-        procedure, public :: set_state_build_symbolic         => base_sparse_matrix_set_state_build_symbolic
-        procedure, public :: set_state_build_numeric          => base_sparse_matrix_set_state_build_numeric
-        procedure, public :: set_state_assembled              => base_sparse_matrix_set_state_assembled
-        procedure, public :: set_state_assembled_symbolic     => base_sparse_matrix_set_state_assembled_symbolic
-        procedure, public :: set_state_update                 => base_sparse_matrix_set_state_update
-        procedure, public :: state_is_start                   => base_sparse_matrix_state_is_start
-        procedure, public :: state_is_properties_setted       => base_sparse_matrix_state_is_properties_setted
-        procedure, public :: state_is_created                 => base_sparse_matrix_state_is_created
-        procedure, public :: state_is_build_symbolic          => base_sparse_matrix_state_is_build_symbolic
-        procedure, public :: state_is_build_numeric           => base_sparse_matrix_state_is_build_numeric
-        procedure, public :: state_is_assembled               => base_sparse_matrix_state_is_assembled
-        procedure, public :: state_is_assembled_symbolic      => base_sparse_matrix_state_is_assembled_symbolic
-        procedure, public :: state_is_update                  => base_sparse_matrix_state_is_update
-        procedure, public :: get_state                        => base_sparse_matrix_get_state
-        procedure, public :: allocate_coords                  => base_sparse_matrix_allocate_coords
-        procedure, public :: allocate_values                  => base_sparse_matrix_allocate_values
-        procedure, public :: convert_body                     => base_sparse_matrix_convert_body
-        procedure, public :: apply                            => base_sparse_matrix_apply
-        procedure, public :: print_matrix_market              => base_sparse_matrix_print_matrix_market
-        procedure, public :: free                             => base_sparse_matrix_free
-        procedure, public :: free_clean                       => base_sparse_matrix_free_clean
-        procedure, public :: free_symbolic                    => base_sparse_matrix_free_symbolic
-        procedure, public :: free_numeric                     => base_sparse_matrix_free_numeric
-        procedure, public :: set_properties                   => base_sparse_matrix_set_properties
-        generic,   public :: create                           => base_sparse_matrix_create_square, &
-                                                                 base_sparse_matrix_create_rectangular
-        generic,   public :: insert                           => insert_bounded_coords,              &
-                                                                 insert_bounded_values,              &
-                                                                 insert_bounded_coords_by_row,       &
-                                                                 insert_bounded_coords_by_col,       &
-                                                                 insert_bounded_values_by_row,       &
-                                                                 insert_bounded_values_by_col,       &
-                                                                 insert_bounded_single_value,        &
-                                                                 insert_bounded_single_coord,        &
-                                                                 insert_bounded_dense_values,        &
-                                                                 insert_bounded_square_dense_values, &
-                                                                 insert_coords,                      &
-                                                                 insert_values,                      &
-                                                                 insert_dense_values,                &
-                                                                 insert_square_dense_values,         &
-                                                                 insert_coords_by_row,               &
-                                                                 insert_coords_by_col,               &
-                                                                 insert_values_by_row,               &
-                                                                 insert_values_by_col,               &
-                                                                 insert_single_value,                &
-                                                                 insert_single_coord
-        generic           :: append_body                      => append_bounded_coords_body,             &  
-                                                                 append_bounded_values_body,             &
-                                                                 append_bounded_coords_by_row_body,      &
-                                                                 append_bounded_coords_by_col_body,      &
-                                                                 append_bounded_values_by_row_body,      &
-                                                                 append_bounded_values_by_col_body,      &
-                                                                 append_bounded_single_value_body,       &
-                                                                 append_bounded_single_coord_body,       &
-                                                                 append_bounded_dense_values_body,         &
-                                                                 append_bounded_square_dense_values_body,  &
-                                                                 append_coords_body,                     &
-                                                                 append_values_body,                     &
-                                                                 append_dense_values_body,               &
-                                                                 append_square_dense_values_body,        &
-                                                                 append_coords_by_row_body,              &
-                                                                 append_coords_by_col_body,              &
-                                                                 append_values_by_row_body,              &
-                                                                 append_values_by_col_body,              &
-                                                                 append_single_value_body,               &
-                                                                 append_single_coord_body
-        generic,   public :: update_body                      => update_bounded_values_body ,              &
-                                                                 update_bounded_values_by_row_body,        &
-                                                                 update_bounded_values_by_col_body,        &
-                                                                 update_bounded_value_body,                &
-                                                                 update_bounded_dense_values_body ,        &
-                                                                 update_bounded_square_dense_values_body , &
-                                                                 update_dense_values_body ,                &
-                                                                 update_square_dense_values_body ,         &
-                                                                 update_values_body ,                      &
-                                                                 update_values_by_row_body ,               &
-                                                                 update_values_by_col_body ,               &
-                                                                 update_value_body
-    end type
-
-
-    !---------------------------------------------------------------------
-    !< COO SPARSE MATRIX DERIVED TYPE
-    !---------------------------------------------------------------------
+     procedure(base_sparse_matrix_is_by_rows),                public, deferred :: is_by_rows
+     procedure(base_sparse_matrix_is_by_cols),                public, deferred :: is_by_cols
+     procedure(base_sparse_matrix_copy_to_coo),               public, deferred :: copy_to_coo
+     procedure(base_sparse_matrix_copy_from_coo),             public, deferred :: copy_from_coo
+     procedure(base_sparse_matrix_move_to_coo),               public, deferred :: move_to_coo
+     procedure(base_sparse_matrix_move_from_coo),             public, deferred :: move_from_coo
+     procedure(base_sparse_matrix_move_to_fmt),               public, deferred :: move_to_fmt
+     procedure(base_sparse_matrix_move_from_fmt),             public, deferred :: move_from_fmt
+     procedure(base_sparse_matrix_initialize_values),         public, deferred :: initialize_values
+     procedure(base_sparse_matrix_allocate_values_body),      public, deferred :: allocate_values_body
+     procedure(base_sparse_matrix_update_bounded_values_body),              &
+          public, deferred :: update_bounded_values_body
+     procedure(base_sparse_matrix_update_bounded_value_body),               &
+          public, deferred :: update_bounded_value_body
+     procedure(base_sparse_matrix_update_bounded_values_by_row_body),       &
+          public, deferred :: update_bounded_values_by_row_body
+     procedure(base_sparse_matrix_update_bounded_values_by_col_body),       &
+          public, deferred :: update_bounded_values_by_col_body
+     procedure(base_sparse_matrix_update_bounded_dense_values_body),        &
+          public, deferred :: update_bounded_dense_values_body
+     procedure(base_sparse_matrix_update_bounded_square_dense_values_body), &
+          public, deferred :: update_bounded_square_dense_values_body
+     procedure(base_sparse_matrix_update_dense_values_body),                &
+          public, deferred :: update_dense_values_body
+     procedure(base_sparse_matrix_update_square_dense_values_body),         &
+          public, deferred :: update_square_dense_values_body
+     procedure(base_sparse_matrix_update_values_body),        public, deferred :: update_values_body
+     procedure(base_sparse_matrix_update_values_by_row_body), public, deferred :: update_values_by_row_body
+     procedure(base_sparse_matrix_update_values_by_col_body), public, deferred :: update_values_by_col_body
+     procedure(base_sparse_matrix_update_value_body),         public, deferred :: update_value_body
+     procedure(base_sparse_matrix_split_2x2_symbolic),        public, deferred :: split_2x2_symbolic
+     procedure(base_sparse_matrix_split_2x2_numeric),         public, deferred :: split_2x2_numeric
+     procedure(base_sparse_matrix_permute_and_split_2x2_numeric),           &
+          public, deferred :: permute_and_split_2x2_numeric
+     procedure(base_sparse_matrix_permute_and_split_2x2_symbolic),          &
+          public, deferred :: permute_and_split_2x2_symbolic
+     procedure(base_sparse_matrix_expand_matrix_numeric),     public, deferred :: expand_matrix_numeric
+     procedure(base_sparse_matrix_expand_matrix_symbolic),    public, deferred :: expand_matrix_symbolic
+     procedure(base_sparse_matrix_extract_diagonal),          public, deferred :: extract_diagonal
+     procedure(base_sparse_matrix_print_matrix_market_body),  public, deferred :: print_matrix_market_body
+     procedure(base_sparse_matrix_free_coords),               public, deferred :: free_coords
+     procedure(base_sparse_matrix_free_val),                  public, deferred :: free_val
+     procedure(base_sparse_matrix_set_nnz),                   public, deferred :: set_nnz
+     procedure(base_sparse_matrix_get_nnz),                   public, deferred :: get_nnz
+     procedure(base_sparse_matrix_print),                     public, deferred :: print
+     procedure(base_sparse_matrix_create_iterator),           public, deferred :: create_iterator
+     procedure(base_sparse_matrix_get_entry),                 public, deferred :: get_entry
+     procedure         ::                                     base_sparse_matrix_create_square
+     procedure         ::                                     base_sparse_matrix_create_rectangular
+     procedure         :: insert_bounded_coords            => base_sparse_matrix_insert_bounded_coords
+     procedure         :: insert_bounded_values            => base_sparse_matrix_insert_bounded_values
+     procedure         :: insert_bounded_coords_by_row     => base_sparse_matrix_insert_bounded_coords_by_row
+     procedure         :: insert_bounded_coords_by_col     => base_sparse_matrix_insert_bounded_coords_by_col
+     procedure         :: insert_bounded_values_by_row     => base_sparse_matrix_insert_bounded_values_by_row
+     procedure         :: insert_bounded_values_by_col     => base_sparse_matrix_insert_bounded_values_by_col
+     procedure         :: insert_bounded_single_coord      => base_sparse_matrix_insert_bounded_single_coord
+     procedure         :: insert_bounded_single_value      => base_sparse_matrix_insert_bounded_single_value
+     procedure         :: insert_bounded_dense_values      => base_sparse_matrix_insert_bounded_dense_values
+     procedure         :: insert_bounded_square_dense_values=> base_sparse_matrix_insert_bounded_square_dense_values
+     procedure         :: insert_coords                    => base_sparse_matrix_insert_coords
+     procedure         :: insert_values                    => base_sparse_matrix_insert_values
+     procedure         :: insert_dense_values              => base_sparse_matrix_insert_dense_values
+     procedure         :: insert_square_dense_values       => base_sparse_matrix_insert_square_dense_values
+     procedure         :: insert_coords_by_row             => base_sparse_matrix_insert_coords_by_row
+     procedure         :: insert_coords_by_col             => base_sparse_matrix_insert_coords_by_col
+     procedure         :: insert_values_by_row             => base_sparse_matrix_insert_values_by_row
+     procedure         :: insert_values_by_col             => base_sparse_matrix_insert_values_by_col
+     procedure         :: insert_single_coord              => base_sparse_matrix_insert_single_coord
+     procedure         :: insert_single_value              => base_sparse_matrix_insert_single_value
+     procedure         :: append_bounded_coords_body       => base_sparse_matrix_append_bounded_coords_body
+     procedure         :: append_bounded_values_body       => base_sparse_matrix_append_bounded_values_body
+     procedure         :: append_bounded_coords_by_row_body=> base_sparse_matrix_append_bounded_coords_by_row_body
+     procedure         :: append_bounded_coords_by_col_body=> base_sparse_matrix_append_bounded_coords_by_col_body
+     procedure         :: append_bounded_values_by_row_body=> base_sparse_matrix_append_bounded_values_by_row_body
+     procedure         :: append_bounded_values_by_col_body=> base_sparse_matrix_append_bounded_values_by_col_body
+     procedure         :: append_bounded_single_coord_body => base_sparse_matrix_append_bounded_single_coord_body
+     procedure         :: append_bounded_single_value_body => base_sparse_matrix_append_bounded_single_value_body
+     procedure         :: append_bounded_dense_values_body => base_sparse_matrix_append_bounded_dense_values_body
+     procedure         :: append_bounded_square_dense_values_body => base_sparse_matrix_append_bounded_square_dense_values_body
+     procedure         :: append_coords_body               => base_sparse_matrix_append_coords_body
+     procedure         :: append_values_body               => base_sparse_matrix_append_values_body
+     procedure         :: append_dense_values_body         => base_sparse_matrix_append_dense_values_body
+     procedure         :: append_square_dense_values_body  => base_sparse_matrix_append_square_dense_values_body
+     procedure         :: append_coords_by_row_body        => base_sparse_matrix_append_coords_by_row_body
+     procedure         :: append_coords_by_col_body        => base_sparse_matrix_append_coords_by_col_body
+     procedure         :: append_values_by_row_body        => base_sparse_matrix_append_values_by_row_body
+     procedure         :: append_values_by_col_body        => base_sparse_matrix_append_values_by_col_body
+     procedure         :: append_single_coord_body         => base_sparse_matrix_append_single_coord_body
+     procedure         :: append_single_value_body         => base_sparse_matrix_append_single_value_body
+     procedure         :: is_valid_sign                    => base_sparse_matrix_is_valid_sign
+     procedure         :: apply_body                       => base_sparse_matrix_apply_body
+     procedure, public :: is_symbolic                      => base_sparse_matrix_is_symbolic
+     procedure, public :: copy_to_fmt                      => base_sparse_matrix_copy_to_fmt
+     procedure, public :: copy_from_fmt                    => base_sparse_matrix_copy_from_fmt
+     procedure, public :: set_sign                         => base_sparse_matrix_set_sign
+     procedure, public :: get_sign                         => base_sparse_matrix_get_sign
+     procedure, public :: set_num_rows                     => base_sparse_matrix_set_num_rows
+     procedure, public :: get_num_rows                     => base_sparse_matrix_get_num_rows
+     procedure, public :: set_num_cols                     => base_sparse_matrix_set_num_cols
+     procedure, public :: get_num_cols                     => base_sparse_matrix_get_num_cols
+     procedure, public :: set_sum_duplicates               => base_sparse_matrix_set_sum_duplicates
+     procedure, public :: get_sum_duplicates               => base_sparse_matrix_get_sum_duplicates
+     procedure, public :: set_symmetry                     => base_sparse_matrix_set_symmetry
+     procedure, public :: set_symmetric_storage            => base_sparse_matrix_set_symmetric_storage
+     procedure, public :: get_symmetric_storage            => base_sparse_matrix_get_symmetric_storage
+     procedure, public :: is_symmetric                     => base_sparse_matrix_is_symmetric
+     procedure, public :: set_state                        => base_sparse_matrix_set_state
+     procedure, public :: set_state_start                  => base_sparse_matrix_set_state_start
+     procedure, public :: set_state_properties_set         => base_sparse_matrix_set_state_properties_set
+     procedure, public :: set_state_created                => base_sparse_matrix_set_state_created
+     procedure, public :: set_state_build_symbolic         => base_sparse_matrix_set_state_build_symbolic
+     procedure, public :: set_state_build_numeric          => base_sparse_matrix_set_state_build_numeric
+     procedure, public :: set_state_assembled              => base_sparse_matrix_set_state_assembled
+     procedure, public :: set_state_assembled_symbolic     => base_sparse_matrix_set_state_assembled_symbolic
+     procedure, public :: set_state_update                 => base_sparse_matrix_set_state_update
+     procedure, public :: state_is_start                   => base_sparse_matrix_state_is_start
+     procedure, public :: state_is_properties_setted       => base_sparse_matrix_state_is_properties_setted
+     procedure, public :: state_is_created                 => base_sparse_matrix_state_is_created
+     procedure, public :: state_is_build_symbolic          => base_sparse_matrix_state_is_build_symbolic
+     procedure, public :: state_is_build_numeric           => base_sparse_matrix_state_is_build_numeric
+     procedure, public :: state_is_assembled               => base_sparse_matrix_state_is_assembled
+     procedure, public :: state_is_assembled_symbolic      => base_sparse_matrix_state_is_assembled_symbolic
+     procedure, public :: state_is_update                  => base_sparse_matrix_state_is_update
+     procedure, public :: get_state                        => base_sparse_matrix_get_state
+     procedure, public :: allocate_coords                  => base_sparse_matrix_allocate_coords
+     procedure, public :: allocate_values                  => base_sparse_matrix_allocate_values
+     procedure, public :: convert_body                     => base_sparse_matrix_convert_body
+     procedure, public :: apply                            => base_sparse_matrix_apply
+     procedure, public :: print_matrix_market              => base_sparse_matrix_print_matrix_market
+     procedure, public :: free                             => base_sparse_matrix_free
+     procedure, public :: free_clean                       => base_sparse_matrix_free_clean
+     procedure, public :: free_symbolic                    => base_sparse_matrix_free_symbolic
+     procedure, public :: free_numeric                     => base_sparse_matrix_free_numeric
+     procedure, public :: set_properties                   => base_sparse_matrix_set_properties
+     generic,   public :: create                           => base_sparse_matrix_create_square, &
+          base_sparse_matrix_create_rectangular
+     generic,   public :: insert                           => insert_bounded_coords,              &
+          insert_bounded_values,              &
+          insert_bounded_coords_by_row,       &
+          insert_bounded_coords_by_col,       &
+          insert_bounded_values_by_row,       &
+          insert_bounded_values_by_col,       &
+          insert_bounded_single_value,        &
+          insert_bounded_single_coord,        &
+          insert_bounded_dense_values,        &
+          insert_bounded_square_dense_values, &
+          insert_coords,                      &
+          insert_values,                      &
+          insert_dense_values,                &
+          insert_square_dense_values,         &
+          insert_coords_by_row,               &
+          insert_coords_by_col,               &
+          insert_values_by_row,               &
+          insert_values_by_col,               &
+          insert_single_value,                &
+          insert_single_coord
+     generic           :: append_body                      => append_bounded_coords_body,             &  
+          append_bounded_values_body,             &
+          append_bounded_coords_by_row_body,      &
+          append_bounded_coords_by_col_body,      &
+          append_bounded_values_by_row_body,      &
+          append_bounded_values_by_col_body,      &
+          append_bounded_single_value_body,       &
+          append_bounded_single_coord_body,       &
+          append_bounded_dense_values_body,         &
+          append_bounded_square_dense_values_body,  &
+          append_coords_body,                     &
+          append_values_body,                     &
+          append_dense_values_body,               &
+          append_square_dense_values_body,        &
+          append_coords_by_row_body,              &
+          append_coords_by_col_body,              &
+          append_values_by_row_body,              &
+          append_values_by_col_body,              &
+          append_single_value_body,               &
+          append_single_coord_body
+     generic,   public :: update_body                      => update_bounded_values_body ,              &
+          update_bounded_values_by_row_body,        &
+          update_bounded_values_by_col_body,        &
+          update_bounded_value_body,                &
+          update_bounded_dense_values_body ,        &
+          update_bounded_square_dense_values_body , &
+          update_dense_values_body ,                &
+          update_square_dense_values_body ,         &
+          update_values_body ,                      &
+          update_values_by_row_body ,               &
+          update_values_by_col_body ,               &
+          update_value_body
+  end type base_sparse_matrix_t
+  
+  !---------------------------------------------------------------------
+  !< COO SPARSE MATRIX DERIVED TYPE
+  !---------------------------------------------------------------------
 
     integer(ip), parameter :: COO_SPARSE_MATRIX_SORTED_NONE    = 20
     integer(ip), parameter :: COO_SPARSE_MATRIX_SORTED_BY_ROWS = 21
@@ -365,12 +366,50 @@ module base_sparse_matrix_names
         procedure, public :: free_val                                => coo_sparse_matrix_free_val
         procedure, public :: print_matrix_market_body                => coo_sparse_matrix_print_matrix_market_body
         procedure, public :: print                                   => coo_sparse_matrix_print
+        procedure, public :: create_iterator                         => coo_sparse_matrix_create_iterator
+        procedure, public :: get_entry                               => coo_sparse_matrix_get_entry
     end type coo_sparse_matrix_t
 
-!---------------------------------------------------------------------
-!< BASE SPARSE MATRIX INTERFACES
-!---------------------------------------------------------------------
+  !---------------------------------------------------------------------
+  !< BASE MATRIX ITERATOR TYPE
+  !---------------------------------------------------------------------
+  type, abstract :: base_sparse_matrix_iterator_t
+   contains
+     procedure(base_sparse_matrix_iterator_init)        , deferred :: init 
+     procedure(base_sparse_matrix_iterator_free)        , deferred :: free 
+     procedure(base_sparse_matrix_iterator_next)        , deferred :: next 
+     procedure(base_sparse_matrix_iterator_has_finished), deferred :: has_finished
+     procedure(base_sparse_matrix_iterator_get_row)     , deferred :: get_row
+     procedure(base_sparse_matrix_iterator_get_column)  , deferred :: get_column
+     procedure(base_sparse_matrix_iterator_get_entry)   , deferred :: get_entry
+     procedure(base_sparse_matrix_iterator_set_entry)   , deferred :: set_entry
+  end type base_sparse_matrix_iterator_t
+  
+  !---------------------------------------------------------------------
+  !< COO MATRIX ITERATOR TYPE
+  !---------------------------------------------------------------------
+  ! NOT TESTED!!!
+  type, extends(base_sparse_matrix_iterator_t) :: coo_sparse_matrix_iterator_t
+     private
+     integer(ip) :: nnz_index
+     type(coo_sparse_matrix_t), pointer :: matrix
 
+   contains
+     procedure, non_overridable :: create       => coo_sparse_matrix_iterator_create
+     procedure                  :: init         => coo_sparse_matrix_iterator_init
+     procedure                  :: free         => coo_sparse_matrix_iterator_free
+     procedure                  :: next         => coo_sparse_matrix_iterator_next
+     procedure                  :: has_finished => coo_sparse_matrix_iterator_has_finished
+     procedure                  :: get_row      => coo_sparse_matrix_iterator_get_row
+     procedure                  :: get_column   => coo_sparse_matrix_iterator_get_column
+     procedure                  :: get_entry    => coo_sparse_matrix_iterator_get_entry
+     procedure                  :: set_entry    => coo_sparse_matrix_iterator_set_entry
+  end type coo_sparse_matrix_iterator_t
+
+  !---------------------------------------------------------------------
+  !< BASE SPARSE MATRIX INTERFACES
+  !---------------------------------------------------------------------
+  
     interface
         function base_sparse_matrix_is_by_rows(this) result(by_rows)
             import base_sparse_matrix_t
@@ -732,12 +771,31 @@ module base_sparse_matrix_names
             integer(ip),                  intent(in) :: lunou
             logical, optional,            intent(in) :: only_graph
         end subroutine base_sparse_matrix_print
+
+        subroutine base_sparse_matrix_create_iterator(this,iterator)
+           import base_sparse_matrix_t
+           import base_sparse_matrix_iterator_t
+           class(base_sparse_matrix_t)         , target     , intent(in)    :: this
+           class(base_sparse_matrix_iterator_t), allocatable, intent(inout) :: iterator
+         end subroutine base_sparse_matrix_create_iterator
+         
+         function base_sparse_matrix_get_entry(this, ia, ja, val) 
+           import base_sparse_matrix_t
+           import ip
+           import rp
+           class(base_sparse_matrix_t), intent(in)  :: this
+           integer(ip),                 intent(in)  :: ia
+           integer(ip),                 intent(in)  :: ja
+           real(rp),                    intent(out) :: val
+           logical                                  :: base_sparse_matrix_get_entry
+         end function base_sparse_matrix_get_entry
+
     end interface
 
-!---------------------------------------------------------------------
-!< AUX PROCEDURES INTERFACES
-!---------------------------------------------------------------------
-
+    !---------------------------------------------------------------------
+    !< AUX PROCEDURES INTERFACES
+    !---------------------------------------------------------------------
+    
     interface 
         subroutine duplicates_operation(input, output)
             import rp
@@ -746,12 +804,108 @@ module base_sparse_matrix_names
         end subroutine duplicates_operation
     end interface
 
+    !---------------------------------------------------------------------
+    !< BASE SPARSE MATRIX ITERATOR INTERFACES
+    !---------------------------------------------------------------------
+    interface
+       subroutine base_sparse_matrix_iterator_init(this)
+         !-----------------------------------------------------------------
+         !< Initialize the values of the matrix iterator
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         class( base_sparse_matrix_iterator_t), intent(inout) :: this
+         !-----------------------------------------------------------------
+
+       end subroutine base_sparse_matrix_iterator_init
+
+        subroutine base_sparse_matrix_iterator_free(this)
+         !-----------------------------------------------------------------
+         !< Free the values of the matrix iterator
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         class( base_sparse_matrix_iterator_t), intent(inout) :: this
+         !-----------------------------------------------------------------
+
+       end subroutine base_sparse_matrix_iterator_free
+
+       subroutine base_sparse_matrix_iterator_next(this)
+         !-----------------------------------------------------------------
+         !< Set the next identifiers of the iterator
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         class( base_sparse_matrix_iterator_t), intent(inout) :: this
+         !-----------------------------------------------------------------
+
+       end subroutine base_sparse_matrix_iterator_next
+
+       function base_sparse_matrix_iterator_has_finished(this)
+         !-----------------------------------------------------------------
+         !< Check if we have reached the last matrix position
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         class( base_sparse_matrix_iterator_t), intent(in) :: this
+         logical :: base_sparse_matrix_iterator_has_finished
+         !-----------------------------------------------------------------
+         
+       end function base_sparse_matrix_iterator_has_finished
+
+       function base_sparse_matrix_iterator_get_row(this)
+         !-----------------------------------------------------------------
+         !< Get the row index of the entry of the matrix
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         import ip
+         class( base_sparse_matrix_iterator_t), intent(in) :: this
+         integer(ip) :: base_sparse_matrix_iterator_get_row
+         !-----------------------------------------------------------------
+         
+       end function base_sparse_matrix_iterator_get_row
+
+       function base_sparse_matrix_iterator_get_column(this)
+         !-----------------------------------------------------------------
+         !< Get the column index of the entry of the matrix
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         import ip
+         class( base_sparse_matrix_iterator_t), intent(in) :: this
+         integer(ip) :: base_sparse_matrix_iterator_get_column
+         !-----------------------------------------------------------------
+         
+       end function base_sparse_matrix_iterator_get_column
+
+       function base_sparse_matrix_iterator_get_entry(this)
+         !-----------------------------------------------------------------
+         !< Get the value of the entry of the matrix
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         import rp
+         class( base_sparse_matrix_iterator_t), intent(in) :: this
+         real(rp) :: base_sparse_matrix_iterator_get_entry
+         !-----------------------------------------------------------------
+         
+       end function base_sparse_matrix_iterator_get_entry
+
+       subroutine base_sparse_matrix_iterator_set_entry(this,new_value)
+         !-----------------------------------------------------------------
+         !< Set the value index of the entry of the matrix
+         !-----------------------------------------------------------------
+         import base_sparse_matrix_iterator_t
+         import rp
+         class( base_sparse_matrix_iterator_t), intent(in) :: this
+         real(rp)                             , intent(in) :: new_value
+         !-----------------------------------------------------------------
+         
+       end subroutine base_sparse_matrix_iterator_set_entry
+    end interface
+
 !---------------------------------------------------------------------
 !< PUBLIC TYPES
 !---------------------------------------------------------------------
 
 public :: base_sparse_matrix_t
+public :: base_sparse_matrix_iterator_t
 public :: coo_sparse_matrix_t
+!public :: coo_sparse_matrix_iterator_t
 public :: duplicates_operation
 public :: assign_value
 public :: sum_value
@@ -3081,7 +3235,7 @@ contains
             assert(ipaux>0) ! Entry not found
             if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
 
-        elseif(this%is_by_rows()) then
+        elseif(this%is_by_cols()) then
             ! Not tested yet! 
             i1 = binary_search(ja,nnz,this%ja)
             i2 = i1
@@ -4677,6 +4831,83 @@ contains
         end if
     end subroutine coo_sparse_matrix_print_matrix_market_body
 
+    subroutine coo_sparse_matrix_create_iterator(this,iterator)
+      class(coo_sparse_matrix_t)          , target     , intent(in)    :: this
+      class(base_sparse_matrix_iterator_t), allocatable, intent(inout) :: iterator
+      
+      type(coo_sparse_matrix_iterator_t), allocatable :: coo_iterator
+
+      allocate(coo_iterator)
+      call coo_iterator%create(this)
+      call move_alloc(from=coo_iterator, to=iterator)
+    end subroutine coo_sparse_matrix_create_iterator
+
+    function coo_sparse_matrix_get_entry(this, ia, ja, val) 
+    !-----------------------------------------------------------------
+    !<  Get the value in the entry (ia,ja) in the sparse matrix
+    !-----------------------------------------------------------------
+      ! Not tested yet! 
+        class(coo_sparse_matrix_t), intent(in)  :: this
+        integer(ip),                intent(in)  :: ia
+        integer(ip),                intent(in)  :: ja
+        real(rp),                   intent(out) :: val
+        logical                                 :: coo_sparse_matrix_get_entry
+
+        integer(ip)                             :: i, ipaux,i1,i2,nr,nc,nnz
+    !-----------------------------------------------------------------
+        ! Ignore out of bounds entriy
+        if ( ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. &
+            (this%symmetric_storage .and. ja>ia))then
+           coo_sparse_matrix_get_entry = .false.
+        end if
+
+        nnz = this%nnz
+        if(this%is_by_rows()) then
+            i1 = binary_search(ia,nnz,this%ia)
+            i2 = i1
+            do 
+                if (i2+1 > nnz) exit
+                if (this%ia(i2+1) /= this%ia(i2)) exit
+                i2 = i2 + 1
+            end do
+            do 
+                if (i1-1 < 1) exit
+                if (this%ia(i1-1) /= this%ia(i1)) exit
+                i1 = i1 - 1
+            end do
+            nc = i2-i1+1
+            ipaux = binary_search(ja,nc,this%ja(i1:i2))
+            if (ipaux>0) then
+               val=this%val(i1+ipaux-1)
+               coo_sparse_matrix_get_entry = .true.
+            else
+               coo_sparse_matrix_get_entry = .false.
+            end if
+
+        elseif(this%is_by_cols()) then
+           i1 = binary_search(ja,nnz,this%ja)
+            i2 = i1
+            do 
+                if (i2+1 > nnz) exit
+                if (this%ja(i2+1) /= this%ja(i2)) exit
+                i2 = i2 + 1
+            end do
+            do 
+                if (i1-1 < 1) exit
+                if (this%ja(i1-1) /= this%ja(i1)) exit
+                i1 = i1 - 1
+            end do
+            nr = i2-i1+1
+            ipaux = binary_search(ia,nc,this%ia(i1:i2))
+            if (ipaux>0) then
+               val=this%val(i1+ipaux-1)
+               coo_sparse_matrix_get_entry = .true.
+            else
+               coo_sparse_matrix_get_entry = .false.
+            end if
+        endif
+      end function coo_sparse_matrix_get_entry
+
 !---------------------------------------------------------------------
 !< AUX PROCEDURES
 !---------------------------------------------------------------------
@@ -5003,5 +5234,69 @@ contains
         return
     end subroutine reorder_ip_rp_from_link_list
 
+    !---------------------------------------------------------------------
+    !< COO_SPARSE_MATRIX_ITERATOR PROCEDURES
+    !---------------------------------------------------------------------
+    ! NOT TESTED!!!
+    subroutine coo_sparse_matrix_iterator_create(this,coo_matrix)
+      class(coo_sparse_matrix_iterator_t), intent(inout) :: this
+      type(coo_sparse_matrix_t)  , target, intent(in)    :: coo_matrix
+      this%matrix => coo_matrix
+      call this%init()
+    end subroutine coo_sparse_matrix_iterator_create
+
+    subroutine coo_sparse_matrix_iterator_init(this)
+      class(coo_sparse_matrix_iterator_t), intent(inout) :: this
+      
+      this%nnz_index = 1
+    end subroutine coo_sparse_matrix_iterator_init
+
+    subroutine coo_sparse_matrix_iterator_free(this)
+      class(coo_sparse_matrix_iterator_t), intent(inout) :: this
+
+      this%nnz_index = -1
+      this%matrix => NULL()
+    end subroutine coo_sparse_matrix_iterator_free
+
+    subroutine coo_sparse_matrix_iterator_next(this)
+      class(coo_sparse_matrix_iterator_t), intent(inout) :: this
+      
+      this%nnz_index = this%nnz_index + 1
+    end subroutine coo_sparse_matrix_iterator_next
+
+    function coo_sparse_matrix_iterator_has_finished(this)
+      class(coo_sparse_matrix_iterator_t), intent(in) :: this
+      logical :: coo_sparse_matrix_iterator_has_finished
+
+      coo_sparse_matrix_iterator_has_finished = (this%nnz_index > this%matrix%nnz)
+    end function coo_sparse_matrix_iterator_has_finished
+
+    function coo_sparse_matrix_iterator_get_row(this)
+      class(coo_sparse_matrix_iterator_t), intent(in) :: this
+      integer(ip) :: coo_sparse_matrix_iterator_get_row
+
+      coo_sparse_matrix_iterator_get_row = this%matrix%ia(this%nnz_index)
+    end function coo_sparse_matrix_iterator_get_row
+
+    function coo_sparse_matrix_iterator_get_column(this)
+      class(coo_sparse_matrix_iterator_t), intent(in) :: this
+      integer(ip) :: coo_sparse_matrix_iterator_get_column
+
+      coo_sparse_matrix_iterator_get_column = this%matrix%ja(this%nnz_index)
+    end function coo_sparse_matrix_iterator_get_column
+
+    function coo_sparse_matrix_iterator_get_entry(this)
+      class(coo_sparse_matrix_iterator_t), intent(in) :: this
+      real(rp) :: coo_sparse_matrix_iterator_get_entry
+
+      coo_sparse_matrix_iterator_get_entry = this%matrix%val(this%nnz_index)
+    end function coo_sparse_matrix_iterator_get_entry
+
+    subroutine coo_sparse_matrix_iterator_set_entry(this,new_value)
+      class(coo_sparse_matrix_iterator_t), intent(in) :: this
+      real(rp)                           , intent(in) :: new_value
+
+      this%matrix%val(this%nnz_index) = new_value
+    end subroutine coo_sparse_matrix_iterator_set_entry
 
 end module base_sparse_matrix_names

@@ -74,6 +74,7 @@ module block_sparse_matrix_names
      procedure :: get_nblocks                   => block_sparse_matrix_get_nblocks
      procedure :: apply                         => block_sparse_matrix_apply
      procedure, private :: create_vector_spaces => block_sparse_matrix_create_vector_spaces
+     procedure :: create_iterator               => block_sparse_matrix_create_iterator
   end type block_sparse_matrix_t
 
   ! Types
@@ -131,7 +132,7 @@ contains
     check (istat==0)
   end subroutine block_sparse_matrix_create_only_blocks_container
   
-		!=============================================================================
+  !=============================================================================
   subroutine block_sparse_matrix_compress_storage(this, sparse_matrix_storage_format )
     implicit none
     class(block_sparse_matrix_t), intent(inout) :: this
@@ -330,5 +331,21 @@ contains
       nullify ( bmat%blocks(ib,jb)%sparse_matrix )
    end if
   end subroutine block_sparse_matrix_set_block_to_zero
+  
+  subroutine block_sparse_matrix_create_iterator(this, iblock, jblock, iterator)
+    !-----------------------------------------------------------------
+    !< Get a pointer to an iterator over the matrix entries
+    !-----------------------------------------------------------------
+    class(block_sparse_matrix_t)         , intent(in)    :: this
+    integer(ip)                          , intent(in)    :: iblock 
+    integer(ip)                          , intent(in)    :: jblock 
+    class(matrix_iterator_t), allocatable, intent(inout) :: iterator
+    !-----------------------------------------------------------------
+    if (associated(this%blocks(iblock,jblock)%sparse_matrix)) then
+       call this%blocks(iblock,jblock)%sparse_matrix%create_iterator(1,1,iterator)
+    else
+       assert (.false.)
+    end if
+  end subroutine block_sparse_matrix_create_iterator
 
 end module block_sparse_matrix_names

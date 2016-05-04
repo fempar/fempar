@@ -292,7 +292,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
         end do
 
      end do
-
+     
      ! Compute outside normals (using the jacobian Matrix)
      if ( number_elem_dimensions == 1) then
         this%normals(1,evaluation_point_id) = -1.0_rp**(real(local_face_id))
@@ -306,13 +306,12 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
 
      ! Compute the measure of the face (= norm of the outside normal)
      this%det_jacobian(evaluation_point_id) =                                                     &
-          &                         sqrt(dot_product(this%normals(:,evaluation_point_id), &
+          &                         sqrt(dot_product(this%normals(:,evaluation_point_id),         &
           &                                          this%normals(:,evaluation_point_id)))
 
      ! Normalize the normal vector and make it point in the correct direction
-     this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *&
+     this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *                &
           &                      real(reorientation_factor)/this%det_jacobian(evaluation_point_id) 
-
   end do
 end subroutine fe_map_face_map_update
 
