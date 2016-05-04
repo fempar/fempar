@@ -87,7 +87,7 @@ private
        procedure                  :: get_row      => csr_sparse_matrix_iterator_get_row
        procedure                  :: get_column   => csr_sparse_matrix_iterator_get_column
        procedure                  :: get_entry    => csr_sparse_matrix_iterator_get_entry
-       procedure                  :: set_value    => csr_sparse_matrix_iterator_set_value
+       procedure                  :: set_entry    => csr_sparse_matrix_iterator_set_entry
     end type csr_sparse_matrix_iterator_t
 
 public :: csr_sparse_matrix_t
@@ -3090,12 +3090,12 @@ contains
       csr_sparse_matrix_iterator_get_entry = this%matrix%val(this%nnz_index)
     end function csr_sparse_matrix_iterator_get_entry
 
-    subroutine csr_sparse_matrix_iterator_set_value(this,new_value)
+    subroutine csr_sparse_matrix_iterator_set_entry(this,new_value)
       class(csr_sparse_matrix_iterator_t), intent(in) :: this
       real(rp)                           , intent(in) :: new_value
 
       this%matrix%val(this%nnz_index) = new_value
-    end subroutine csr_sparse_matrix_iterator_set_value
+    end subroutine csr_sparse_matrix_iterator_set_entry
 
 end module csr_sparse_matrix_names
 

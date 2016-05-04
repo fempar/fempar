@@ -382,7 +382,7 @@ module base_sparse_matrix_names
      procedure(base_sparse_matrix_iterator_get_row)     , deferred :: get_row
      procedure(base_sparse_matrix_iterator_get_column)  , deferred :: get_column
      procedure(base_sparse_matrix_iterator_get_entry)   , deferred :: get_entry
-     procedure(base_sparse_matrix_iterator_set_value)   , deferred :: set_value
+     procedure(base_sparse_matrix_iterator_set_entry)   , deferred :: set_entry
   end type base_sparse_matrix_iterator_t
   
   !---------------------------------------------------------------------
@@ -403,7 +403,7 @@ module base_sparse_matrix_names
      procedure                  :: get_row      => coo_sparse_matrix_iterator_get_row
      procedure                  :: get_column   => coo_sparse_matrix_iterator_get_column
      procedure                  :: get_entry    => coo_sparse_matrix_iterator_get_entry
-     procedure                  :: set_value    => coo_sparse_matrix_iterator_set_value
+     procedure                  :: set_entry    => coo_sparse_matrix_iterator_set_entry
   end type coo_sparse_matrix_iterator_t
 
   !---------------------------------------------------------------------
@@ -885,7 +885,7 @@ module base_sparse_matrix_names
          
        end function base_sparse_matrix_iterator_get_entry
 
-       subroutine base_sparse_matrix_iterator_set_value(this,new_value)
+       subroutine base_sparse_matrix_iterator_set_entry(this,new_value)
          !-----------------------------------------------------------------
          !< Set the value index of the entry of the matrix
          !-----------------------------------------------------------------
@@ -895,7 +895,7 @@ module base_sparse_matrix_names
          real(rp)                             , intent(in) :: new_value
          !-----------------------------------------------------------------
          
-       end subroutine base_sparse_matrix_iterator_set_value
+       end subroutine base_sparse_matrix_iterator_set_entry
     end interface
 
 !---------------------------------------------------------------------
@@ -5292,11 +5292,11 @@ contains
       coo_sparse_matrix_iterator_get_entry = this%matrix%val(this%nnz_index)
     end function coo_sparse_matrix_iterator_get_entry
 
-    subroutine coo_sparse_matrix_iterator_set_value(this,new_value)
+    subroutine coo_sparse_matrix_iterator_set_entry(this,new_value)
       class(coo_sparse_matrix_iterator_t), intent(in) :: this
       real(rp)                           , intent(in) :: new_value
 
       this%matrix%val(this%nnz_index) = new_value
-    end subroutine coo_sparse_matrix_iterator_set_value
+    end subroutine coo_sparse_matrix_iterator_set_entry
 
 end module base_sparse_matrix_names

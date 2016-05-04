@@ -117,7 +117,7 @@ private
        procedure, non_overridable :: get_row      => sparse_matrix_iterator_get_row
        procedure, non_overridable :: get_column   => sparse_matrix_iterator_get_column
        procedure, non_overridable :: get_entry    => sparse_matrix_iterator_get_entry
-       procedure, non_overridable :: set_value    => sparse_matrix_iterator_set_value
+       procedure, non_overridable :: set_entry    => sparse_matrix_iterator_set_entry
     end type sparse_matrix_iterator_t
 
 public :: sparse_matrix_t, sparse_matrix_iterator_t
@@ -1244,13 +1244,13 @@ contains
       sparse_matrix_iterator_get_entry = this%base_iterator%get_entry()
     end function sparse_matrix_iterator_get_entry
 
-    subroutine sparse_matrix_iterator_set_value(this,new_value)
+    subroutine sparse_matrix_iterator_set_entry(this,new_value)
       !-----------------------------------------------------------------
       !< Set the value of the entry of the matrix
       !-----------------------------------------------------------------
       class(sparse_matrix_iterator_t), intent(inout) :: this
       real(rp)                       , intent(in)    :: new_value
-      call this%base_iterator%set_value(new_value)
-    end subroutine sparse_matrix_iterator_set_value
+      call this%base_iterator%set_entry(new_value)
+    end subroutine sparse_matrix_iterator_set_entry
 
   end module sparse_matrix_names

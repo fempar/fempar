@@ -433,7 +433,7 @@ contains
           found = sparse_matrix%get_entry(j,i,transposed_value); assert(found)
           nu = max(value,transposed_value)
           if (nu > 0) then
-             call matrix_entry%set_value(value-nu)
+             call matrix_entry%set_entry(value-nu)
              call sparse_matrix%insert(j,i,-nu)
              call sparse_matrix%insert(i,i,+nu)
              call sparse_matrix%insert(j,j,+nu)
@@ -469,9 +469,9 @@ contains
 !!$       write(*,*)  iblock,jblock,i, j, value
 !!$
 !!$       if ((i==j) .and. (iblock == jblock)) then
-!!$          call iterator%set_value(1.0_rp)
+!!$          call iterator%set_entry(1.0_rp)
 !!$       else
-!!$          call iterator%set_value(0.0_rp)
+!!$          call iterator%set_entry(0.0_rp)
 !!$       end if
 !!$          
 !!$       ! Do stuff

@@ -53,7 +53,7 @@ module matrix_names
        procedure (matrix_iterator_get_row)     , deferred :: get_row
        procedure (matrix_iterator_get_column)  , deferred :: get_column
        procedure (matrix_iterator_get_entry)   , deferred :: get_entry
-       procedure (matrix_iterator_set_value)   , deferred :: set_value
+       procedure (matrix_iterator_set_entry)   , deferred :: set_entry
     end type matrix_iterator_t
   
   abstract interface
@@ -145,7 +145,7 @@ module matrix_names
        real(rp) :: matrix_iterator_get_entry
      end function matrix_iterator_get_entry
 
-     subroutine matrix_iterator_set_value(this,new_value)
+     subroutine matrix_iterator_set_entry(this,new_value)
        !-----------------------------------------------------------------
        !< Set the value of the entry of the matrix
        !-----------------------------------------------------------------
@@ -153,7 +153,7 @@ module matrix_names
        import :: rp
        class(matrix_iterator_t), intent(inout) :: this
        real(rp)                , intent(in)    :: new_value
-     end subroutine matrix_iterator_set_value
+     end subroutine matrix_iterator_set_entry
   end interface
 	 
   ! Data types
