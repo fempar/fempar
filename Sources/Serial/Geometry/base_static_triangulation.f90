@@ -34,6 +34,9 @@ module base_static_triangulation_names
   use element_import_names
   use hash_table_names
   use list_types_names
+  
+  ! Par modules
+  use par_environment_names
 
   implicit none
 # include "debug.i90"
@@ -48,9 +51,12 @@ module base_static_triangulation_names
     procedure, non_overridable, private  :: free                 => cell_accessor_free
     procedure, non_overridable, private  :: next                 => cell_accessor_next
     procedure, non_overridable, private  :: set_lid              => cell_accessor_set_lid
+    procedure, non_overridable, private  :: set_gid              => cell_accessor_set_gid
+    procedure, non_overridable, private  :: set_mypart           => cell_accessor_set_mypart
     procedure, non_overridable, private  :: get_triangulation    => cell_accessor_get_triangulation
     procedure, non_overridable           :: past_the_end         => cell_accessor_past_the_end
     procedure, non_overridable           :: get_reference_fe_geo => cell_accessor_get_reference_fe_geo
+    procedure, non_overridable           :: get_lid              => cell_accessor_get_lid
     procedure, non_overridable           :: get_gid              => cell_accessor_get_gid
     procedure, non_overridable           :: get_mypart           => cell_accessor_get_mypart
     procedure, non_overridable           :: get_num_vefs         => cell_accessor_get_num_vefs
@@ -119,14 +125,14 @@ module base_static_triangulation_names
     procedure, non_overridable          :: current      => itfc_vef_iterator_current
   end type itfc_vef_iterator_t
   
-  type base_static_triangulation_t ! Base class for serial_triangulation_t and base_par_static_triangulation_t
+  type base_static_triangulation_t ! Base class for serial_triangulation_t and par_base_static_triangulation_t
      private
      integer(ip)                           :: num_dimensions  = -1
      integer(ip)                           :: num_local_cells = -1
      integer(ip)                           :: num_ghost_cells = -1
      
-     integer(igp), allocatable             :: elems_gid(:)               ! Num local cells + num ghost cells
-     integer(ip) , allocatable             :: elems_part(:)              ! Num local cells + num ghost cells
+     integer(igp), allocatable             :: cells_gid(:)               ! Num local cells + num ghost cells
+     integer(ip) , allocatable             :: cells_mypart(:)            ! Num local cells + num ghost cells
      type(p_reference_fe_t)                :: reference_fe_geo_list(1)
      integer(ip) , allocatable             :: elems_reference_fe_geo(:)  ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: ptr_vefs_per_cell(:)       ! Num local cells + num ghost cells + 1
@@ -142,433 +148,114 @@ module base_static_triangulation_names
      integer(ip), allocatable              :: lst_itfc_vefs(:)
      integer(ip), allocatable              :: ptrs_cells_around(:) ! num_itfc_vefs+1
      integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
-  contains     
+  contains  
+  
+     ! Private methods for creating vef-related data
+     procedure, non_overridable, private :: compute_num_local_vefs             => base_static_triangulation_compute_num_local_vefs
+     procedure, non_overridable, private :: compute_num_ghost_vefs             => base_static_triangulation_compute_num_ghost_vefs
+     procedure, non_overridable, private :: allocate_and_fill_vefs_gid         => base_static_triangulation_allocate_and_fill_vefs_gid
+     procedure, non_overridable, private :: free_vefs_gid                      => base_static_triangulation_free_vefs_gid
+     procedure, non_overridable, private :: allocate_and_fill_vefs_dimension   => base_static_triangulation_allocate_and_fill_vefs_dimension
+     procedure, non_overridable, private :: free_vefs_dimension                => base_static_triangulation_free_vefs_dimension
+     
+     procedure, non_overridable, private :: compute_num_itfc_vefs              => base_static_triangulation_compute_num_itfc_vefs
+     procedure, non_overridable, private :: allocate_and_fill_lst_itfc_vefs    => base_static_triangulation_allocate_and_fill_lst_itfc_vefs
+     procedure, non_overridable, private :: free_lst_itfc_vefs                 => base_static_triangulation_free_lst_itfc_vefs
+     procedure, non_overridable, private :: allocate_and_fill_vefs_itfc_lid    => base_static_triangulation_allocate_and_fill_vefs_itfc_lid
+     procedure, non_overridable, private :: free_vefs_itfc_lid                 => base_static_triangulation_free_vefs_itfc_lid
+     procedure, non_overridable, private :: allocate_and_fill_cells_around     => base_static_triangulation_allocate_and_fill_cells_around
+     procedure, non_overridable, private :: free_cells_around                  => base_static_triangulation_free_cells_around
+     
      ! Cell traversals-related TBPs
      procedure, non_overridable            :: create_cell_iterator      => base_static_triangulation_create_cell_iterator
   
      ! Vef traversals-related TBPs
-     procedure, non_overridable            :: create_vef_iterator       => base_static_triangulation_create_vef_iterator
-     procedure, non_overridable            :: create_itfc_vef_iterator  => base_static_triangulation_create_itfc_vef_iterator
+     procedure, non_overridable          :: create_vef_iterator                => base_static_triangulation_create_vef_iterator
+     procedure, non_overridable          :: create_itfc_vef_iterator           => base_static_triangulation_create_itfc_vef_iterator
   end type base_static_triangulation_t
+  
+  type, extends(base_static_triangulation_t) :: par_base_static_triangulation_t
+     private
+     ! Parallel environment describing MPI tasks among which the triangulation is distributed
+     type(par_environment_t),   pointer      :: p_env => NULL()
+     
+     ! Data type describing the layout in distributed-memory of the dual graph
+     ! (It is required, e.g., for nearest neighbour comms on this graph)
+     type(element_import_t)                  :: element_import   
+     
+     ! Perhaps the following three member variables should be packed within type(map_t) ?
+     ! I didn't do that because type(map_t) has extra members that do not make sense anymore
+     ! for the current situation with objects (i.e., interior, boundary, external) etc.
+     integer(ip)                             :: number_global_objects = -1
+     integer(ip)                             :: number_objects = -1
+     integer(igp), allocatable               :: objects_gids(:)
+     integer(ip), allocatable                :: objects_dimension(:)
+     type(list_t)                            :: vefs_object
+     type(list_t)                            :: parts_object
+     type(coarse_triangulation_t), pointer   :: coarse_triangulation
+  contains
+  ! Private methods for creating coarse objects-related data
+     procedure, non_overridable, private :: compute_parts_itfc_vefs                        => par_base_static_tria_compute_parts_itfc_vefs
+     procedure, non_overridable, private :: compute_vefs_and_parts_object                  => par_base_static_tria_compute_vefs_and_parts_object
+     procedure, non_overridable, private :: compute_objects_dimension                      => par_base_static_tria_compute_objects_dimension
+     procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => par_base_static_tria_compute_objects_neighbours_exchange_data
+     procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => par_base_static_tria_compute_num_global_objs_and_their_gids
+     
+     ! Private methods for coarser triangulation set-up
+     procedure, non_overridable, private :: setup_coarse_triangulation                     => par_base_static_tria_setup_coarse_triangulation
+     procedure, non_overridable, private :: gather_coarse_cell_gids                        => par_base_static_tria_gather_coarse_cell_gids
+     procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs       => par_base_static_tria_gather_coarse_vefs_rcv_counts_and_displs
+     procedure, non_overridable, private :: gather_coarse_vefs_gids                        => par_base_static_tria_gather_coarse_vefs_gids
+     procedure, non_overridable, private :: gather_coarse_vefs_dimension                   => par_base_static_tria_gather_coarse_vefs_dimension
+     procedure, non_overridable, private :: fetch_l2_part_id_neighbours                    => par_base_static_tria_fetch_l2_part_id_neighbours
+     procedure, non_overridable, private :: gather_coarse_dgraph_rcv_counts_and_displs     => par_base_static_tria_gather_coarse_dgraph_rcv_counts_and_displs
+     procedure, non_overridable, private :: gather_coarse_dgraph_lextn_and_lextp           => par_base_static_tria_gather_coarse_dgraph_lextn_and_lextp
+     procedure, non_overridable, private :: adapt_coarse_raw_arrays                        => par_base_static_tria_adapt_coarse_raw_arrays
+  end type par_base_static_triangulation_t
+  
+  ! type, extends(base_static_triangulation_t) :: serial_triangulation_t
+  ! end type serial_triangulation_t
+  
+  ! type, extends(par_base_static_triangulation_t) :: par_triangulation_t
+  ! end type par_triangulation_t
+  
+  type, extends(par_base_static_triangulation_t) :: coarse_triangulation_t
+  contains
+     procedure, non_overridable          :: create                              => coarse_triangulation_create
+     procedure, non_overridable          :: free                                => coarse_triangulation_free
+     procedure, non_overridable          :: print                               => coarse_triangulation_print
+     
+     ! Private methods for creating cell-related data
+     procedure, non_overridable, private :: allocate_and_fill_ptr_vefs_per_cell => coarse_triangulation_allocate_and_fill_ptr_vefs_per_cell
+     procedure, non_overridable, private :: free_ptr_vefs_per_cell              => coarse_triangulation_free_ptr_vefs_per_cell
+     procedure, non_overridable, private :: allocate_cells_gid                  => coarse_triangulation_allocate_cells_gid
+     procedure, non_overridable, private :: free_cells_gid                      => coarse_triangulation_free_cells_gid
+     procedure, non_overridable, private :: fill_local_cells_gid                => coarse_triangulation_fill_local_cells_gid
+     procedure, non_overridable, private :: allocate_cells_mypart               => coarse_triangulation_allocate_cells_mypart
+     procedure, non_overridable, private :: free_cells_mypart                   => coarse_triangulation_free_cells_mypart
+     procedure, non_overridable, private :: fill_local_cells_mypart             => coarse_triangulation_fill_local_cells_mypart
+     procedure, non_overridable, private :: fetch_ghost_cells_data              => coarse_triangulation_fetch_ghost_cells_data
+     procedure, non_overridable, nopass, private :: cell_size                   => coarse_triangulation_cell_size
+     procedure, non_overridable, nopass, private :: cell_pack                   => coarse_triangulation_cell_pack
+     procedure, non_overridable, nopass, private :: cell_unpack                 => coarse_triangulation_cell_unpack
+     procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => coarse_triangulation_allocate_and_fill_lst_vefs_lids 
+     procedure, non_overridable, private :: free_lst_vefs_lids                  => coarse_triangulation_free_lst_vefs_lids 
+  end type coarse_triangulation_t
 
-  public :: base_static_triangulation_t
+  integer(ieep), parameter :: mold(1) = [0_ieep]
+  integer(ip)  , parameter :: size_of_ip = size(transfer(1_ip, mold))
+  integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,mold))
+
+  public :: coarse_triangulation_t 
   
 contains
 
-  subroutine cell_accessor_create ( this, lid, base_static_triangulation )
-    implicit none
-    class(cell_accessor_t)                   , intent(inout) :: this
-    integer(ip)                              , intent(in)    :: lid
-    type(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
-    call this%free()
-    this%lid = lid
-    this%base_static_triangulation => base_static_triangulation
-  end subroutine cell_accessor_create 
-  
-  subroutine cell_accessor_free ( this)
-    implicit none
-    class(cell_accessor_t), intent(inout) :: this
-    this%lid = -1
-    nullify ( this%base_static_triangulation )
-  end subroutine cell_accessor_free
-  
-  subroutine cell_accessor_next(this)
-    implicit none
-    class(cell_accessor_t), intent(inout) :: this
-    this%lid = this%lid + 1
-  end subroutine cell_accessor_next
-  
-  subroutine cell_accessor_set_lid(this, lid)
-    implicit none
-    class(cell_accessor_t), intent(inout) :: this
-    integer(ip)        , intent(in)    :: lid
-    this%lid = lid
-  end subroutine cell_accessor_set_lid
-  
-  function cell_accessor_past_the_end(this)
-    implicit none
-    class(cell_accessor_t), intent(in) :: this
-    logical :: cell_accessor_past_the_end
-    cell_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_local_cells + &
-                                             this%base_static_triangulation%num_ghost_cells)
-  end function cell_accessor_past_the_end
-  
-  function cell_accessor_get_triangulation(this)
-    implicit none
-    class(cell_accessor_t), intent(in) :: this
-    type(base_static_triangulation_t), pointer :: cell_accessor_get_triangulation
-    cell_accessor_get_triangulation => this%base_static_triangulation
-  end function cell_accessor_get_triangulation
-  
-  function cell_accessor_get_lid (this)
-    implicit none
-    class(cell_accessor_t), intent(in) :: this
-    integer(ip) :: cell_accessor_get_lid
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    cell_accessor_get_lid = this%lid
-  end function cell_accessor_get_lid
-  
-  function cell_accessor_get_gid (this)
-    implicit none
-    class(cell_accessor_t), intent(in) :: this
-    integer(igp) :: cell_accessor_get_gid
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    cell_accessor_get_gid = this%base_static_triangulation%elems_gid(this%lid)
-  end function cell_accessor_get_gid
-  
-  function cell_accessor_get_reference_fe_geo (this)
-    implicit none
-    class(cell_accessor_t), intent(in) :: this
-    class(reference_fe_t), pointer     :: cell_accessor_get_reference_fe_geo
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    assert ( allocated ( this%base_static_triangulation%elems_reference_fe_geo ) )
-    cell_accessor_get_reference_fe_geo => &
-      this%base_static_triangulation%reference_fe_geo_list(this%base_static_triangulation%elems_reference_fe_geo(this%lid))%p
-  end function cell_accessor_get_reference_fe_geo
-  
-  function cell_accessor_get_mypart (this)
-    implicit none
-    class(cell_accessor_t), intent(in) :: this
-    integer(ip) :: cell_accessor_get_mypart
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    cell_accessor_get_mypart = this%base_static_triangulation%elems_part(this%lid)
-  end function cell_accessor_get_mypart
-  
-  function cell_accessor_get_num_vefs (this)
-    implicit none
-    class(cell_accessor_t), intent(in) :: this
-    integer(ip)                        :: cell_accessor_get_num_vefs
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    cell_accessor_get_num_vefs = this%base_static_triangulation%ptr_vefs_per_cell(this%lid+1) - &
-                                 this%base_static_triangulation%ptr_vefs_per_cell(this%lid)
-  end function cell_accessor_get_num_vefs
-  
-  function cell_accessor_get_vef_lid (this, ivef)
-    implicit none
-    class(cell_accessor_t), intent(in) :: this
-    integer(ip)                        :: ivef
-    integer(ip)                        :: cell_accessor_get_vef_lid
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    cell_accessor_get_vef_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%lst_vefs_lids(this%lid)+ivef-1)
-  end function cell_accessor_get_vef_lid
-  
-  function cell_accessor_get_vef_gid (this, ivef)
-    implicit none
-    class(cell_accessor_t), intent(in) :: this
-    integer(ip)                        :: ivef
-    integer(igp)                       :: cell_accessor_get_vef_gid
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    cell_accessor_get_vef_gid = this%base_static_triangulation%vefs_gid(this%get_vef_lid(ivef))
-  end function cell_accessor_get_vef_gid
-  
-  function cell_accessor_get_vef (this, ivef)
-    implicit none
-    class(cell_accessor_t), intent(in) :: this
-    integer(ip)                        :: ivef
-    type(vef_iterator_t)               :: cell_accessor_get_vef
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    call cell_accessor_get_vef%create(this%get_vef_lid(ivef), this%base_static_triangulation)
-  end function cell_accessor_get_vef
-  
-  function cell_accessor_is_local (this)
-    implicit none
-    class(cell_accessor_t), intent(in) :: this
-    logical                            :: cell_accessor_is_local
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    cell_accessor_is_local = (this%lid <= this%base_static_triangulation%num_local_cells)
-  end function cell_accessor_is_local
-  
-  function cell_accessor_is_ghost (this)
-    implicit none
-    class(cell_accessor_t), intent(in) :: this
-    logical                            :: cell_accessor_is_ghost
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    cell_accessor_is_ghost = (this%lid > this%base_static_triangulation%num_local_cells)
-  end function cell_accessor_is_ghost
-  
-    subroutine cell_iterator_create ( this, lid, base_static_triangulation ) 
-    implicit none
-    class(cell_iterator_t)            , intent(inout) :: this
-    integer(ip)                      , intent(in)    :: lid
-    type(base_static_triangulation_t), intent(in)    :: base_static_triangulation
-    call this%free()
-    call this%current_cell_accessor%create(lid=lid, base_static_triangulation=base_static_triangulation )
-  end subroutine cell_iterator_create
-  
-  subroutine cell_iterator_free ( this ) 
-    implicit none
-    class(cell_iterator_t), intent(inout) :: this
-    call this%current_cell_accessor%free()
-  end subroutine cell_iterator_free
-  
-  subroutine cell_iterator_init ( this ) 
-    implicit none
-    class(cell_iterator_t), intent(inout) :: this
-    call this%current_cell_accessor%set_lid(lid=1)
-  end subroutine cell_iterator_init
-  
-  subroutine cell_iterator_next ( this ) 
-    implicit none
-    class(cell_iterator_t), intent(inout) :: this
-    call this%current_cell_accessor%next()
-  end subroutine cell_iterator_next
-  
-  function cell_iterator_has_finished ( this ) 
-    implicit none
-    class(cell_iterator_t), intent(in) :: this
-    logical                                  :: cell_iterator_has_finished
-    cell_iterator_has_finished = this%current_cell_accessor%past_the_end()
-  end function cell_iterator_has_finished
-  
-  function cell_iterator_current ( this ) 
-    implicit none
-    class(cell_iterator_t), target, intent(in) :: this
-    type(cell_accessor_t), pointer :: cell_iterator_current
-    cell_iterator_current => this%current_cell_accessor
-  end function cell_iterator_current
-  
-  subroutine vef_accessor_create ( this, lid, base_static_triangulation )
-    implicit none
-    class(vef_accessor_t)               , intent(inout) :: this
-    integer(ip)                         , intent(in)    :: lid
-    type(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
-    call this%free()
-    this%lid = lid
-    this%base_static_triangulation => base_static_triangulation
-  end subroutine vef_accessor_create 
-  
-  subroutine vef_accessor_free ( this)
-    implicit none
-    class(vef_accessor_t), intent(inout) :: this
-    this%lid = -1
-    nullify ( this%base_static_triangulation )
-  end subroutine vef_accessor_free
-  
-  subroutine vef_accessor_next(this)
-    implicit none
-    class(vef_accessor_t), intent(inout) :: this
-    this%lid = this%lid + 1
-  end subroutine vef_accessor_next
-  
-  subroutine vef_accessor_set_lid(this, lid)
-    implicit none
-    class(vef_accessor_t), intent(inout) :: this
-    integer(ip)        , intent(in)    :: lid
-    this%lid = lid
-  end subroutine vef_accessor_set_lid
-  
-  function vef_accessor_past_the_end(this)
-    implicit none
-    class(vef_accessor_t), intent(in) :: this
-    logical :: vef_accessor_past_the_end
-    vef_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_local_vefs + &
-                                            this%base_static_triangulation%num_ghost_vefs)
-  end function vef_accessor_past_the_end
-  
-  function vef_accessor_get_triangulation(this)
-    implicit none
-    class(vef_accessor_t), intent(in) :: this
-    type(base_static_triangulation_t), pointer :: vef_accessor_get_triangulation
-    vef_accessor_get_triangulation => this%base_static_triangulation
-  end function vef_accessor_get_triangulation
-  
-  function vef_accessor_get_lid (this)
-    implicit none
-    class(vef_accessor_t), intent(in) :: this
-    integer(ip) :: vef_accessor_get_lid
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    vef_accessor_get_lid = this%lid
-  end function vef_accessor_get_lid
-  
-  function vef_accessor_get_gid (this)
-    implicit none
-    class(vef_accessor_t), intent(in) :: this
-    integer(igp) :: vef_accessor_get_gid
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    vef_accessor_get_gid = this%base_static_triangulation%vefs_gid(this%lid)
-  end function vef_accessor_get_gid
-  
-  function vef_accessor_at_interface (this)
-    implicit none
-    class(vef_accessor_t), intent(in) :: this
-    logical :: vef_accessor_at_interface 
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    vef_accessor_at_interface  = (this%base_static_triangulation%vefs_itfc_lid(this%lid) /= -1 )
-  end function vef_accessor_at_interface 
-  
-  function vef_accessor_get_dimension(this)
-    implicit none
-    class(vef_accessor_t), intent(in) :: this
-    logical :: vef_accessor_get_dimension
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    vef_accessor_get_dimension  = this%base_static_triangulation%vefs_dimension(this%lid)
- end function vef_accessor_get_dimension
-  
-  function vef_accessor_get_num_cells_around (this)
-    implicit none
-    class(vef_accessor_t), intent(in) :: this
-    integer(ip) :: vef_accessor_get_num_cells_around
-    integer(ip) :: vef_itfc_lid
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    assert ( this%at_interface() )
-    vef_itfc_lid = this%base_static_triangulation%vefs_itfc_lid(this%lid)
-    vef_accessor_get_num_cells_around = this%base_static_triangulation%ptrs_cells_around(vef_itfc_lid+1)- &
-                                      this%base_static_triangulation%ptrs_cells_around(vef_itfc_lid)
-  end function vef_accessor_get_num_cells_around
-  
-  function vef_accessor_get_cell_around (this, icell_around)
-    implicit none
-    class(vef_accessor_t), intent(in) :: this
-    integer(ip)          , intent(in) :: icell_around
-    integer(ip)                     :: vef_accessor_get_cell_around
-    integer(ip)                     :: position_in_lst_cells_around
-    integer(ip)                     :: vef_itfc_lid
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    assert ( this%at_interface() )
-    assert ( icell_around >= 1 .and. icell_around <= this%get_num_cells_around() )
-    !vef_itfc_lid = this%base_static_triangulation%vefs_itfc_lid(this%lid)
-    !position_in_lst_cells_around = this%base_static_triangulation%ptrs_cells_around(vef_itfc_lid) + icell_around-1
-    !vef_accessor_get_cell_around => this%base_static_triangulation%cells(this%base_static_triangulation%lst_cells_around(position_in_lst_cells_around))
-  end function vef_accessor_get_cell_around
-  
-  function vef_accessor_is_local (this)
-    implicit none
-    class(vef_accessor_t), intent(in) :: this
-    logical                           :: vef_accessor_is_local
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    vef_accessor_is_local = (this%lid <= this%base_static_triangulation%num_local_vefs)
-  end function vef_accessor_is_local
-  
-  function vef_accessor_is_ghost (this)
-    implicit none
-    class(vef_accessor_t), intent(in) :: this
-    logical                            :: vef_accessor_is_ghost
-    assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-    vef_accessor_is_ghost = (this%lid > this%base_static_triangulation%num_ghost_vefs)
-  end function vef_accessor_is_ghost
-  
-  subroutine vef_iterator_create ( this, lid, base_static_triangulation ) 
-    implicit none
-    class(vef_iterator_t)            , intent(inout) :: this
-    integer(ip)                      , intent(in)    :: lid
-    type(base_static_triangulation_t), intent(in)    :: base_static_triangulation
-    call this%free()
-    call this%current_vef_accessor%create(lid=lid, base_static_triangulation=base_static_triangulation )
-  end subroutine vef_iterator_create
-  
-  subroutine vef_iterator_free ( this ) 
-    implicit none
-    class(vef_iterator_t), intent(inout) :: this
-    call this%current_vef_accessor%free()
-  end subroutine vef_iterator_free
-  
-  subroutine vef_iterator_init ( this ) 
-    implicit none
-    class(vef_iterator_t), intent(inout) :: this
-    call this%current_vef_accessor%set_lid(lid=1)
-  end subroutine vef_iterator_init
-  
-  subroutine vef_iterator_next ( this ) 
-    implicit none
-    class(vef_iterator_t), intent(inout) :: this
-    call this%current_vef_accessor%next()
-  end subroutine vef_iterator_next
-  
-  function vef_iterator_has_finished ( this ) 
-    implicit none
-    class(vef_iterator_t), intent(in) :: this
-    logical                                  :: vef_iterator_has_finished
-    vef_iterator_has_finished = this%current_vef_accessor%past_the_end()
-  end function vef_iterator_has_finished
-  
-  function vef_iterator_current ( this ) 
-    implicit none
-    class(vef_iterator_t), target, intent(in) :: this
-    type(vef_accessor_t), pointer :: vef_iterator_current
-    vef_iterator_current => this%current_vef_accessor
-  end function vef_iterator_current
-  
-  subroutine itfc_vef_iterator_create ( this, base_static_triangulation ) 
-    implicit none
-    class(itfc_vef_iterator_t), intent(inout) :: this
-    type(base_static_triangulation_t)     , intent(in)    :: base_static_triangulation
-    call this%free()
-    this%itfc_lid = 1
-    if ( base_static_triangulation%num_itfc_vefs == 0 ) then
-       call this%current_vef_accessor%create(lid=base_static_triangulation%num_local_vefs+base_static_triangulation%num_ghost_vefs+1, &
-                                             base_static_triangulation=base_static_triangulation)
-    else
-       call this%current_vef_accessor%create(lid=base_static_triangulation%lst_itfc_vefs(this%itfc_lid), &
-                                    base_static_triangulation=base_static_triangulation)
-    end if
-  end subroutine itfc_vef_iterator_create
-  
-  subroutine itfc_vef_iterator_free ( this ) 
-    implicit none
-    class(itfc_vef_iterator_t), intent(inout) :: this
-    this%itfc_lid = -1
-    call this%current_vef_accessor%free()
-  end subroutine itfc_vef_iterator_free
-  
-  subroutine itfc_vef_iterator_init (this) 
-    implicit none
-    class(itfc_vef_iterator_t), intent(inout) :: this
-    type(base_static_triangulation_t), pointer            :: base_static_triangulation
-    base_static_triangulation => this%current_vef_accessor%get_triangulation()
-    this%itfc_lid = 1
-    if ( base_static_triangulation%num_itfc_vefs == 0 ) then
-      call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_local_vefs+base_static_triangulation%num_ghost_vefs+1)
-    else
-      call this%current_vef_accessor%set_lid(lid=base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
-    end if
-  end subroutine itfc_vef_iterator_init
-  
-  subroutine itfc_vef_iterator_next ( this ) 
-    implicit none
-    class(itfc_vef_iterator_t), intent(inout) :: this
-    type(base_static_triangulation_t), pointer            :: base_static_triangulation
-    base_static_triangulation => this%current_vef_accessor%get_triangulation()
-    this%itfc_lid = this%itfc_lid + 1
-    if ( this%itfc_lid > base_static_triangulation%num_itfc_vefs ) then
-      call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_local_vefs+base_static_triangulation%num_ghost_vefs+1)
-    else
-      call this%current_vef_accessor%set_lid(lid=base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
-    end if
-  end subroutine itfc_vef_iterator_next
-  
-  function itfc_vef_iterator_has_finished ( this ) 
-    implicit none
-    class(itfc_vef_iterator_t), intent(in) :: this
-    logical                                  :: itfc_vef_iterator_has_finished
-    itfc_vef_iterator_has_finished = this%current_vef_accessor%past_the_end()
-  end function itfc_vef_iterator_has_finished
-  
-  function itfc_vef_iterator_current ( this ) 
-    implicit none
-    class(itfc_vef_iterator_t), target, intent(in) :: this
-    type(vef_accessor_t), pointer            :: itfc_vef_iterator_current
-    itfc_vef_iterator_current => this%current_vef_accessor
-  end function itfc_vef_iterator_current
-  
-  function base_static_triangulation_create_vef_iterator ( this )
-    implicit none
-    class(base_static_triangulation_t), intent(in)    :: this
-    type(vef_iterator_t) :: base_static_triangulation_create_vef_iterator
-    call base_static_triangulation_create_vef_iterator%create(1, this)
-  end function base_static_triangulation_create_vef_iterator
-  
-  function base_static_triangulation_create_itfc_vef_iterator ( this )
-    implicit none
-    class(base_static_triangulation_t), intent(in)    :: this
-    type(itfc_vef_iterator_t) :: base_static_triangulation_create_itfc_vef_iterator
-    call base_static_triangulation_create_itfc_vef_iterator%create(this)
-  end function base_static_triangulation_create_itfc_vef_iterator
-  
-  function base_static_triangulation_create_cell_iterator ( this )
-    implicit none
-    class(base_static_triangulation_t), intent(in)    :: this
-    type(cell_iterator_t) :: base_static_triangulation_create_cell_iterator
-    call base_static_triangulation_create_cell_iterator%create(1, this)
-  end function base_static_triangulation_create_cell_iterator
-  
+#include "sbm_cell_accessor.i90"
+#include "sbm_cell_iterator.i90"
+#include "sbm_vef_accessor.i90"
+#include "sbm_vef_iterator.i90"
+#include "sbm_base_static_triangulation.i90"
+#include "sbm_par_base_static_triangulation.i90"
+#include "sbm_coarse_triangulation.i90"
+
 end module base_static_triangulation_names

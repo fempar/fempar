@@ -36,9 +36,9 @@ module environment_names
      procedure (am_i_l1_task_interface)               , deferred  :: am_i_l1_task
      procedure (bcast_interface)                      , deferred  :: l1_lgt1_bcast
      procedure (l1_barrier_interface)                 , deferred  :: l1_barrier
-     procedure (l1_sum_real_scalar_interface), private, deferred  :: l1_sum_real_scalar
-     procedure (l1_sum_real_vector_interface), private, deferred  :: l1_sum_real_vector
-     generic  :: l1_sum                                           => l1_sum_real_scalar, l1_sum_real_vector
+     procedure (l1_sum_scalar_rp_interface), private  , deferred  :: l1_sum_scalar_rp
+     procedure (l1_sum_vector_rp_interface), private  , deferred  :: l1_sum_vector_rp
+     generic  :: l1_sum                                           => l1_sum_scalar_rp, l1_sum_vector_rp
   end type environment_t
 
   ! Abstract interfaces
@@ -71,19 +71,19 @@ module environment_names
        class(environment_t) ,intent(in)    :: this
      end subroutine l1_barrier_interface
      
-     subroutine l1_sum_real_scalar_interface (this,alpha)
+     subroutine l1_sum_scalar_rp_interface (this,alpha)
        import :: environment_t, rp
        implicit none
        class(environment_t) , intent(in)    :: this
        real(rp)             , intent(inout) :: alpha
-     end subroutine l1_sum_real_scalar_interface
+     end subroutine l1_sum_scalar_rp_interface
      
-     subroutine l1_sum_real_vector_interface(this,alpha)
+     subroutine l1_sum_vector_rp_interface(this,alpha)
        import :: environment_t, rp
        implicit none
        class(environment_t) , intent(in)    :: this
        real(rp)             , intent(inout) :: alpha(:) 
-     end subroutine l1_sum_real_vector_interface
+     end subroutine l1_sum_vector_rp_interface
   end interface
 
   public :: environment_t
