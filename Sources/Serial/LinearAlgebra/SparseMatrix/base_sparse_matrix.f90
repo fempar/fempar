@@ -144,8 +144,6 @@ module base_sparse_matrix_names
      procedure(base_sparse_matrix_print),                     public, deferred :: print
      procedure(base_sparse_matrix_create_iterator),           public, deferred :: create_iterator
      procedure(base_sparse_matrix_get_entry),                 public, deferred :: get_entry
-     procedure(base_sparse_matrix_set_value),                 public, deferred :: set_value
-     procedure(base_sparse_matrix_add_to_entry),              public, deferred :: add_to_entry
      procedure         ::                                     base_sparse_matrix_create_square
      procedure         ::                                     base_sparse_matrix_create_rectangular
      procedure         :: insert_bounded_coords            => base_sparse_matrix_insert_bounded_coords
@@ -370,8 +368,6 @@ module base_sparse_matrix_names
         procedure, public :: print                                   => coo_sparse_matrix_print
         procedure, public :: create_iterator                         => coo_sparse_matrix_create_iterator
         procedure, public :: get_entry                               => coo_sparse_matrix_get_entry
-        procedure, public :: set_value                               => coo_sparse_matrix_set_value
-        procedure, public :: add_to_entry                            => coo_sparse_matrix_add_to_entry
     end type coo_sparse_matrix_t
 
   !---------------------------------------------------------------------
@@ -794,27 +790,6 @@ module base_sparse_matrix_names
            logical                                  :: base_sparse_matrix_get_entry
          end function base_sparse_matrix_get_entry
 
-         function base_sparse_matrix_set_value(this, ia, ja, val) 
-           import base_sparse_matrix_t
-           import ip
-           import rp
-           class(base_sparse_matrix_t), intent(inout) :: this
-           integer(ip),                 intent(in)    :: ia
-           integer(ip),                 intent(in)    :: ja
-           real(rp),                    intent(in)    :: val
-           logical                                   :: base_sparse_matrix_set_value
-         end function base_sparse_matrix_set_value
-
-         function base_sparse_matrix_add_to_entry(this, ia, ja, val) 
-           import base_sparse_matrix_t
-           import ip
-           import rp
-           class(base_sparse_matrix_t), intent(inout) :: this
-           integer(ip),                 intent(in)    :: ia
-           integer(ip),                 intent(in)    :: ja
-           real(rp),                    intent(in)    :: val
-           logical                                   :: base_sparse_matrix_add_to_entry
-         end function base_sparse_matrix_add_to_entry
     end interface
 
     !---------------------------------------------------------------------
@@ -4932,138 +4907,6 @@ contains
             end if
         endif
       end function coo_sparse_matrix_get_entry
-
-      function coo_sparse_matrix_set_value(this, ia, ja, val) 
-        !-----------------------------------------------------------------
-        !<  Set the value in the entry (ia,ja) in the sparse matrix
-        !-----------------------------------------------------------------
-        ! Not tested yet! 
-        class(coo_sparse_matrix_t), intent(inout) :: this
-        integer(ip),                intent(in)    :: ia
-        integer(ip),                intent(in)    :: ja
-        real(rp),                   intent(in)    :: val
-        logical                                   :: coo_sparse_matrix_set_value
-
-        integer(ip)                               :: i, ipaux,i1,i2,nr,nc,nnz
-        !-----------------------------------------------------------------
-        ! Ignore out of bounds entriy
-        if ( ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. &
-             (this%symmetric_storage .and. ja>ia))then
-           coo_sparse_matrix_set_value = .false.
-        end if
-
-        nnz = this%nnz
-        if(this%is_by_rows()) then
-            i1 = binary_search(ia,nnz,this%ia)
-            i2 = i1
-            do 
-                if (i2+1 > nnz) exit
-                if (this%ia(i2+1) /= this%ia(i2)) exit
-                i2 = i2 + 1
-            end do
-            do 
-                if (i1-1 < 1) exit
-                if (this%ia(i1-1) /= this%ia(i1)) exit
-                i1 = i1 - 1
-            end do
-            nc = i2-i1+1
-            ipaux = binary_search(ja,nc,this%ja(i1:i2))
-            if (ipaux>0) then
-               this%val(i1+ipaux-1) = val
-               coo_sparse_matrix_set_value = .true.
-            else
-               coo_sparse_matrix_set_value = .false.
-            end if
-
-        elseif(this%is_by_cols()) then
-           i1 = binary_search(ja,nnz,this%ja)
-            i2 = i1
-            do 
-                if (i2+1 > nnz) exit
-                if (this%ja(i2+1) /= this%ja(i2)) exit
-                i2 = i2 + 1
-            end do
-            do 
-                if (i1-1 < 1) exit
-                if (this%ja(i1-1) /= this%ja(i1)) exit
-                i1 = i1 - 1
-            end do
-            nr = i2-i1+1
-            ipaux = binary_search(ia,nc,this%ia(i1:i2))
-            if (ipaux>0) then
-               this%val(i1+ipaux-1) = val
-               coo_sparse_matrix_set_value = .true.
-            else
-               coo_sparse_matrix_set_value = .false.
-            end if
-        endif
-      end function coo_sparse_matrix_set_value
-
-      function coo_sparse_matrix_add_to_entry(this, ia, ja, val) 
-        !-----------------------------------------------------------------
-        !<  Sum the value in the entry (ia,ja) in the sparse matrix
-        !-----------------------------------------------------------------
-        ! Not tested yet! 
-        class(coo_sparse_matrix_t), intent(inout) :: this
-        integer(ip),                intent(in)    :: ia
-        integer(ip),                intent(in)    :: ja
-        real(rp),                   intent(in)    :: val
-        logical                                   :: coo_sparse_matrix_add_to_entry
-
-        integer(ip)                               :: i, ipaux,i1,i2,nr,nc,nnz
-        !-----------------------------------------------------------------
-        ! Ignore out of bounds entriy
-        if ( ia<1 .or. ia>this%num_rows .or. ja<1 .or. ja>this%num_cols .or. &
-             (this%symmetric_storage .and. ja>ia))then
-           coo_sparse_matrix_add_to_entry = .false.
-        end if
-
-        nnz = this%nnz
-        if(this%is_by_rows()) then
-            i1 = binary_search(ia,nnz,this%ia)
-            i2 = i1
-            do 
-                if (i2+1 > nnz) exit
-                if (this%ia(i2+1) /= this%ia(i2)) exit
-                i2 = i2 + 1
-            end do
-            do 
-                if (i1-1 < 1) exit
-                if (this%ia(i1-1) /= this%ia(i1)) exit
-                i1 = i1 - 1
-            end do
-            nc = i2-i1+1
-            ipaux = binary_search(ja,nc,this%ja(i1:i2))
-            if (ipaux>0) then
-               this%val(i1+ipaux-1) = val + this%val(i1+ipaux-1)
-               coo_sparse_matrix_add_to_entry = .true.
-            else
-               coo_sparse_matrix_add_to_entry = .false.
-            end if
-
-        elseif(this%is_by_cols()) then
-           i1 = binary_search(ja,nnz,this%ja)
-            i2 = i1
-            do 
-                if (i2+1 > nnz) exit
-                if (this%ja(i2+1) /= this%ja(i2)) exit
-                i2 = i2 + 1
-            end do
-            do 
-                if (i1-1 < 1) exit
-                if (this%ja(i1-1) /= this%ja(i1)) exit
-                i1 = i1 - 1
-            end do
-            nr = i2-i1+1
-            ipaux = binary_search(ia,nc,this%ia(i1:i2))
-            if (ipaux>0) then
-               this%val(i1+ipaux-1) = val + this%val(i1+ipaux-1)
-               coo_sparse_matrix_add_to_entry = .true.
-            else
-               coo_sparse_matrix_add_to_entry = .false.
-            end if
-        endif
-      end function coo_sparse_matrix_add_to_entry
 
 !---------------------------------------------------------------------
 !< AUX PROCEDURES

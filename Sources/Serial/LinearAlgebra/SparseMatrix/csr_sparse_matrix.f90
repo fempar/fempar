@@ -67,8 +67,6 @@ private
         procedure, public :: print                                   => csr_sparse_matrix_print
         procedure, public :: create_iterator                         => csr_sparse_matrix_create_iterator
         procedure, public :: get_entry                               => csr_sparse_matrix_get_entry
-        procedure, public :: set_value                               => csr_sparse_matrix_set_value
-        procedure, public :: add_to_entry                            => csr_sparse_matrix_add_to_entry
     end type csr_sparse_matrix_t
 
     !---------------------------------------------------------------------
@@ -81,22 +79,21 @@ private
        type(csr_sparse_matrix_t), pointer :: matrix
 
      contains
-       procedure :: create       => csr_sparse_matrix_iterator_create
-       procedure :: init         => csr_sparse_matrix_iterator_init
-       procedure :: free         => csr_sparse_matrix_iterator_free
-       procedure :: next         => csr_sparse_matrix_iterator_next
-       procedure :: has_finished => csr_sparse_matrix_iterator_has_finished
-       procedure :: get_row      => csr_sparse_matrix_iterator_get_row
-       procedure :: get_column   => csr_sparse_matrix_iterator_get_column
-       procedure :: get_entry    => csr_sparse_matrix_iterator_get_entry
-       procedure :: set_value    => csr_sparse_matrix_iterator_set_value
+       procedure, non_overridable :: create       => csr_sparse_matrix_iterator_create
+       procedure                  :: init         => csr_sparse_matrix_iterator_init
+       procedure                  :: free         => csr_sparse_matrix_iterator_free
+       procedure                  :: next         => csr_sparse_matrix_iterator_next
+       procedure                  :: has_finished => csr_sparse_matrix_iterator_has_finished
+       procedure                  :: get_row      => csr_sparse_matrix_iterator_get_row
+       procedure                  :: get_column   => csr_sparse_matrix_iterator_get_column
+       procedure                  :: get_entry    => csr_sparse_matrix_iterator_get_entry
+       procedure                  :: set_value    => csr_sparse_matrix_iterator_set_value
     end type csr_sparse_matrix_iterator_t
 
 public :: csr_sparse_matrix_t
 !public :: csr_sparse_matrix_iterator_t
 
 contains
-
 
     subroutine csr_sparse_matrix_set_nnz(this, nnz)
     !-----------------------------------------------------------------
@@ -3029,68 +3026,6 @@ contains
         end if
       end function csr_sparse_matrix_get_entry
       
-      function csr_sparse_matrix_set_value(this, ia, ja, val) 
-        !-----------------------------------------------------------------
-        !< Set the value in the entry (ia,ja) in the sparse matrix
-        !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t), intent(inout) :: this
-        integer(ip),                intent(in)    :: ia
-        integer(ip),                intent(in)    :: ja
-        real(rp),                   intent(in)    :: val
-        logical                                   :: csr_sparse_matrix_set_value
-
-        integer(ip)                               :: ipaux,i1,i2,nr,nc
-        !-----------------------------------------------------------------
-        ! Ignore out of bounds entries
-        if (ia<1 .or. ia>this%get_num_rows() .or. ja<1 .or.  ja>this%get_num_cols() .or. &
-             (this%get_symmetric_storage() .and. ia>ja)) then
-           csr_sparse_matrix_set_value = .false.
-        end if
-
-        i1 = this%irp(ia)
-        i2 = this%irp(ia+1)
-        nc = i2-i1
-        ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
-
-        if (ipaux>0) then
-           this%val(i1+ipaux-1) = val
-           csr_sparse_matrix_set_value = .true.
-        else
-           csr_sparse_matrix_set_value = .false.
-        end if
-      end function csr_sparse_matrix_set_value
-
-      function csr_sparse_matrix_add_to_entry(this, ia, ja, val) 
-        !-----------------------------------------------------------------
-        !< Sum a value in the entry (ia,ja) in the sparse matrix
-        !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t), intent(inout) :: this
-        integer(ip),                intent(in)    :: ia
-        integer(ip),                intent(in)    :: ja
-        real(rp),                   intent(in)    :: val
-        logical                                   :: csr_sparse_matrix_add_to_entry
-
-        integer(ip)                               :: ipaux,i1,i2,nr,nc
-        !-----------------------------------------------------------------
-        ! Ignore out of bounds entries
-        if (ia<1 .or. ia>this%get_num_rows() .or. ja<1 .or.  ja>this%get_num_cols() .or. &
-             (this%get_symmetric_storage() .and. ia>ja)) then
-           csr_sparse_matrix_add_to_entry = .false.
-        end if
-
-        i1 = this%irp(ia)
-        i2 = this%irp(ia+1)
-        nc = i2-i1
-        ipaux = binary_search(ja,nc,this%ja(i1:i2-1))
-
-        if (ipaux>0) then
-           this%val(i1+ipaux-1) = this%val(i1+ipaux-1) + val
-           csr_sparse_matrix_add_to_entry = .true.
-        else
-           csr_sparse_matrix_add_to_entry = .false.
-        end if
-      end function csr_sparse_matrix_add_to_entry
-
     !---------------------------------------------------------------------
     !< CSR_SPARSE_MATRIX_ITERATOR PROCEDURES
     !---------------------------------------------------------------------
