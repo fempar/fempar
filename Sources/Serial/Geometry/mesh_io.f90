@@ -92,7 +92,7 @@ contains
     character(7)    :: dum4
     character(12)   :: dum5
     character(1000) :: tel
-    integer(ip), allocatable :: lnods_aux(:)
+    integer(ip), allocatable :: lvert_aux(:)
     integer(ip), pointer     :: permu(:)
     logical                  :: permute_c2z_
 
@@ -103,8 +103,8 @@ contains
     end if
 
     ! Read first line: "MESH dimension  3  types  1  elements        352  nodes        100  boundaries        144"
-    read(lunio,'(a14,1x,i2,a7,1x,i2,a7,1x,i2,a10,1x,i10,a7,1x,i10,a12,1x,i10)') &
-         & dum1,msh%ndime,dum2,msh%order,dum2,msh%nelty,dum3,msh%nelem,dum4,msh%npoin,dum5,msh%nboun
+    read(lunio,'(a14,1x,i2,a7,1x,i2,a10,1x,i10,a7,1x,i10,a12,1x,i10)') &
+         & dum1,msh%ndime,dum2,msh%nelty,dum3,msh%nelem,dum4,msh%npoin,dum5,msh%nboun
 
     write(*,*) msh%ndime,msh%order,msh%nelty,msh%nelem,msh%npoin,msh%nboun
 
@@ -119,26 +119,26 @@ contains
        read(lunio,'(a)') tel
     end do
 
-    ! Read elements' size (pnods)
-    call memalloc(msh%nelem+1,msh%pnods,__FILE__,__LINE__)
+    ! Read elements' size (pvert)
+    call memalloc(msh%nelem+1,msh%pvert,__FILE__,__LINE__)
     do while(tel(1:5).ne.'eleme')
        read(lunio,'(a)') tel
     end do
     read(lunio,'(a)') tel
     do while(tel(1:5).ne.'end e')
-       read(tel,*) ielem,msh%pnods(ielem+1)
+       read(tel,*) ielem,msh%pvert(ielem+1)
        read(lunio,'(a)') tel
     end do
     ! Transform length to header and get mesh%nnode
-    msh%pnods(1) = 1
+    msh%pvert(1) = 1
     msh%nnode    = 0
     do ielem = 2, msh%nelem+1
-       msh%nnode = max(msh%nnode,msh%pnods(ielem))
-       msh%pnods(ielem) = msh%pnods(ielem)+msh%pnods(ielem-1)
+       msh%nnode = max(msh%nnode,msh%pvert(ielem))
+       msh%pvert(ielem) = msh%pvert(ielem)+msh%pvert(ielem-1)
     end do
 
     ! Read elements
-    call memalloc(msh%pnods(msh%nelem+1),msh%lnods,__FILE__,__LINE__)
+    call memalloc(msh%pvert(msh%nelem+1),msh%lvert,__FILE__,__LINE__)
     call memalloc(msh%nelem,msh%legeo,__FILE__,__LINE__)
     call memalloc(msh%nelem,msh%leset,__FILE__,__LINE__)
     call io_rewind(lunio)
@@ -147,7 +147,7 @@ contains
     end do
     read(lunio,'(a)') tel
     do while(tel(1:5).ne.'end e')
-       read(tel,*) ielem,nnode,(msh%lnods(msh%pnods(ielem)-1+inode),inode=1,nnode),msh%leset(ielem),msh%legeo(ielem)
+       read(tel,*) ielem,nnode,(msh%lvert(msh%pvert(ielem)-1+inode),inode=1,nnode),msh%leset(ielem),msh%legeo(ielem)
        read(lunio,'(a)') tel
     end do
 
@@ -187,10 +187,10 @@ contains
     !if(permute_c2z_) then
     if(msh%order==c_order) then
        msh%order= z_order
-       call memalloc(msh%nnode, lnods_aux, __FILE__, __LINE__)
+       call memalloc(msh%nnode, lvert_aux, __FILE__, __LINE__)
        do ielem = 1,msh%nelem
-          nnode = msh%pnods(ielem+1) - msh%pnods(ielem)
-          lnods_aux(1:nnode) = msh%lnods(msh%pnods(ielem):msh%pnods(ielem+1)-1)
+          nnode = msh%pvert(ielem+1) - msh%pvert(ielem)
+          lvert_aux(1:nnode) = msh%lvert(msh%pvert(ielem):msh%pvert(ielem+1)-1)
           if(msh%ndime == 2) then
              if(nnode == 3)  then    ! Linear triangles (2DP1)
                 permu => permu_2DP1
@@ -205,12 +205,19 @@ contains
              end if
           end if
           do inode = 1, nnode
-             msh%lnods(msh%pnods(ielem)+inode-1) = lnods_aux(permu(inode))
+             msh%lvert(msh%pvert(ielem)+inode-1) = lvert_aux(permu(inode))
           end do
        end do
-       call memfree(lnods_aux,__FILE__,__LINE__)
+       call memfree(lvert_aux,__FILE__,__LINE__)
     end if
  
+
+    ! To debug, copy pvert,lvert into pnods,lnods
+    call memalloc(msh%nelem+1,msh%pnods,__FILE__,__LINE__)
+    call memalloc(msh%pvert(msh%nelem+1),msh%lnods,__FILE__,__LINE__)
+    msh%pnods=msh%pvert
+    msh%lnods=msh%lvert
+
   end subroutine mesh_read_file
 
   !=============================================================================
@@ -243,8 +250,8 @@ contains
     ! Elements
     write(lunio,'(a)')'elements'
     do ielem=1,msh%nelem
-       write(lunio,'(i10,65(1x,i10))') ielem, msh%pnods(ielem+1)-msh%pnods(ielem),&
-            &  msh%lnods(msh%pnods(ielem):msh%pnods(ielem+1)-1),msh%leset(ielem),msh%legeo(ielem)
+       write(lunio,'(i10,65(1x,i10))') ielem, msh%pvert(ielem+1)-msh%pvert(ielem),&
+            &  msh%lvert(msh%pvert(ielem):msh%pvert(ielem+1)-1),msh%leset(ielem),msh%legeo(ielem)
     end do
     write(lunio,'(a)') 'end elements'
 
@@ -316,17 +323,17 @@ contains
     if(msh%nelty==1) then
        write(lunio,2)'elements'
        do ielem=1,msh%nelem
-          nnode = msh%pnods(ielem+1)-msh%pnods(ielem)
-          write(lunio,4) ielem, (msh%lnods(msh%pnods(ielem)-1+permu(inode)),inode=1,nnode),1
+          nnode = msh%pvert(ielem+1)-msh%pvert(ielem)
+          write(lunio,4) ielem, (msh%lvert(msh%pvert(ielem)-1+permu(inode)),inode=1,nnode),1
        end do
        write(lunio,2) 'end elements'
     else
        ! Write hexahedra or prismas (3D) or quads(2)
        write(lunio,2)'elements'
        do ielem=1,msh%nelem
-          nnode = msh%pnods(ielem+1)-msh%pnods(ielem)
+          nnode = msh%pvert(ielem+1)-msh%pvert(ielem)
           if(nnode == msh%nnode) &
-               write(lunio,4) ielem, (msh%lnods(msh%pnods(ielem)-1+permu(inode)),inode=1,nnode),1
+               write(lunio,4) ielem, (msh%lvert(msh%pvert(ielem)-1+permu(inode)),inode=1,nnode),1
        end do
        write(lunio,2) 'end elements'
        ! Now write tetrahedra (3D) or triangles (2D)
@@ -344,8 +351,8 @@ contains
        write(lunio,2)'end coordinates'
        write(lunio,2)'elements'
        do ielem=1,msh%nelem
-          if(msh%pnods(ielem+1)-msh%pnods(ielem) == nnode) &
-               write(lunio,4) ielem, (msh%lnods(msh%pnods(ielem)-1+permu(inode)),inode=1,nnode),1
+          if(msh%pvert(ielem+1)-msh%pvert(ielem) == nnode) &
+               write(lunio,4) ielem, (msh%lvert(msh%pvert(ielem)-1+permu(inode)),inode=1,nnode),1
        end do
        write(lunio,2) 'end elements'
        ! Eventually write prismas (3D)
@@ -358,8 +365,8 @@ contains
           write(lunio,2)'end coordinates'
           write(lunio,2)'elements'
           do ielem=1,msh%nelem
-             if(msh%pnods(ielem+1)-msh%pnods(ielem) == nnode) &
-                  write(lunio,4) ielem, (msh%lnods(msh%pnods(ielem)-1+permu(inode)),inode=1,nnode),1
+             if(msh%pvert(ielem+1)-msh%pvert(ielem) == nnode) &
+                  write(lunio,4) ielem, (msh%lvert(msh%pvert(ielem)-1+permu(inode)),inode=1,nnode),1
           end do
           write(lunio,2) 'end elements'
        end if

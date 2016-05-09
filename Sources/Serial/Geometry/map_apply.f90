@@ -460,6 +460,13 @@ contains
     call memalloc(lmesh%ndime, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
     call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord)
 
+
+    ! To debug, copy pnods,lnods into pvert,lvert
+    call memalloc(lmesh%nelem+1,lmesh%pvert,__FILE__,__LINE__)
+    call memalloc(lmesh%pnods(lmesh%nelem+1),lmesh%lvert,__FILE__,__LINE__)
+    lmesh%pvert=lmesh%pnods
+    lmesh%lvert=lmesh%lnods
+
   end subroutine mesh_g2l
 
 

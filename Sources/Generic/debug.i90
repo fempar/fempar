@@ -30,13 +30,13 @@
 
 
 #ifdef DEBUG 
-# define assert(test) \
+#define assert(test) \
    if (.not.(test)) then ; \
       write(0,'(a,a,a,i10)') "Assertion failed in file ", __FILE__,", at line number", __LINE__  ; \
       call runend ; \
    endif 
 #else
-# define assert(test) 
+#define assert(test) 
 #endif
 !
 ! Tests to be performed always (basic error control).

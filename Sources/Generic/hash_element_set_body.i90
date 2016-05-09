@@ -210,7 +210,7 @@ subroutine put_hash_template_element_set_t(tbl,key,stat)
   integer(ip)                         , intent(out)   :: stat
   integer(ip)                        :: hash
   hash = mod( convert_to_int(key) ,tbl%vec_len)
-  assert ( (hash>=1).and.(hash<=tbl%vec_len))
+  assert ( (hash>=1).and.(hash<=tbl%vec_len) )
   !$OMP CRITICAL (hash_template_element_set_t_lock)
   call tbl%vec(hash)%put(key=key,stat=stat)
   !$OMP END CRITICAL (hash_template_element_set_t_lock)
@@ -223,7 +223,7 @@ function get_hash_template_element_set_t(this,id,stat) result(p)
   integer(ip)             , optional  , intent(out)   :: stat
   integer(ip)                                         :: hash
   hash = mod( convert_to_int(id) ,this%vec_len)
-  assert ( (hash>=1).and.(hash<=this%vec_len))
+  assert ( (hash>=1).and.(hash<=this%vec_len) )
   call this%vec(hash)%get(key=id,val=p,stat=stat)
 end function get_hash_template_element_set_t
 
@@ -234,7 +234,7 @@ function get_hash_abstract_element_set_t(this,id,stat) result(p)
   integer(ip)             , optional  , intent(out)   :: stat
   integer(ip)                                         :: hash
   hash = mod( convert_to_int(id) ,this%vec_len)
-  assert ( (hash>=1).and.(hash<=this%vec_len))
+  assert ( (hash>=1).and.(hash<=this%vec_len) )
   call this%vec(hash)%get(key=id,val=p,stat=stat)
 end function get_hash_abstract_element_set_t
 
@@ -248,7 +248,7 @@ subroutine get_next_hash_template_element_set_t(tbl,current,next,stat)
   call current%get_next(next,stat)
   if(stat == key_not_found ) then
      hash = mod( convert_to_int(current%key),tbl%vec_len)
-     assert ( (hash>=1).and.(hash<=tbl%vec_len))
+     assert ( (hash>=1).and.(hash<=tbl%vec_len) )
      do while(hash<=tbl%vec_len .and. stat == key_not_found )
         hash=hash+1
         call tbl%vec(hash)%get_first(next,stat)
@@ -263,7 +263,7 @@ subroutine del_hash_template_element_set_t(tbl,key,stat)
   integer(ip)                                       :: hash
 
   hash = mod( convert_to_int(key) ,tbl%vec_len)
-  assert ( (hash>=1).and.(hash<=tbl%vec_len))
+  assert ( (hash>=1).and.(hash<=tbl%vec_len) )
   !$OMP CRITICAL (hash_template_element_set_t_lock)
   call tbl%vec(hash)%del(key=key,stat=stat)
   !$OMP END CRITICAL (hash_template_element_set_t_lock)
@@ -288,7 +288,7 @@ subroutine create_hash_template_element_iterator(this,iterator)
   class(abstract_template_element_iterator_t) , allocatable, intent(out) :: iterator
   integer(ip) :: istat
   allocate(hash_template_element_iterator_t :: iterator, stat=istat)
-  check(istat==0)
+  check( istat==0 )
   select type(iterator)
      class is(hash_template_element_iterator_t)
      iterator%hash_template_element_set => this

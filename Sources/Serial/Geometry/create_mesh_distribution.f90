@@ -41,8 +41,8 @@ module create_mesh_distribution_names
 # include "debug.i90"
   private
 
-   ! Functions
-  public :: create_mesh_distribution, create_graph_from_mesh
+  ! Functions
+  public :: create_mesh_distribution, create_mesh_distribution_new, create_graph_from_mesh
 
 contains
 
@@ -73,19 +73,19 @@ contains
 
     ! Generate dual mesh (i.e., list of elements around points)
     call mesh_to_dual(femesh, dual_femesh)
-    
+
     ! Allocate working arrays
     call memalloc (femesh%nelem, ldome, __FILE__,__LINE__)
 
     ! dual graph (elements around elements)
     call create_graph_from_mesh (dual_femesh, femesh, dual_femesh%ndime, fe_graph)
     !out0(call graph_print(6, fe_graph))
-          
+
     ! write (*,*) 'fe_graph%nv', fe_graph%nv, 'fe_graph%nnz', fe_graph%ia(fe_graph%nv+1) 
     call graph_pt_renumbering(prt_pars,fe_graph,ldome)
 
     ! Now free fe_graph, not needed anymore?
-    
+
     allocate(distr(prt_pars%nparts), stat=istat)
     check(istat==0)
 
@@ -131,165 +131,561 @@ contains
     call memfree(ldome,__FILE__,__LINE__)
   end subroutine create_mesh_distribution
 
+
+
+  subroutine create_mesh_distribution_new( prt_pars, femesh, distr, lmesh)
+    !-----------------------------------------------------------------------
+    ! 
+    !-----------------------------------------------------------------------
+    implicit none
+
+    ! Parameters
+    type(partitioning_params_t)            , intent(in)    :: prt_pars
+    type(mesh_t)                           , intent(inout) :: femesh
+    type(mesh_distribution_t) , allocatable, intent(out)   :: distr(:) ! Mesh distribution instances
+    type(mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
+
+    ! Local variables
+    !type(mesh_t)               :: dual_femesh, dual_lmesh
+    type(graph_t)              :: fe_graph    ! Dual graph (to be partitioned)
+    integer(ip)   , allocatable  :: ldome(:)    ! Part of each element
+    !integer(ip)   , allocatable  :: dual_parts(:)
+    integer(ip)                  :: ipart
+    integer                      :: istat
+    ! AFM. Dummy map declared and used for backward compatibility.
+    ! It should be re-considered when we decide how to implement
+    ! the boundary mesh.
+    type(map_t)                    :: dummy_bmap
+
+
+    ! Generate dual mesh (i.e., list of elements around points)
+    call femesh%to_dual()
+
+    ! Create dual (i.e. list of elements around elements)
+    call create_dual_graph(femesh,fe_graph)
+
+    ! Partition dual graph to assign a domain to each element (in ldome)
+    call memalloc (femesh%nelem, ldome, __FILE__,__LINE__)
+    call graph_pt_renumbering(prt_pars,fe_graph,ldome)
+
+    ! Now free fe_graph, not needed anymore?
+    allocate(distr(prt_pars%nparts), stat=istat)
+    check(istat==0)
+    allocate(lmesh(prt_pars%nparts), stat=istat)
+    check(istat==0) 
+
+    do ipart=1, prt_pars%nparts
+       distr(ipart)%ipart  = ipart
+       distr(ipart)%nparts = prt_pars%nparts
+    end do
+    call build_maps(prt_pars%nparts, ldome, femesh, distr)
+
+    ! Build local meshes and their duals and generate partition adjacency
+    do ipart=1,prt_pars%nparts
+
+       ! Generate Local mesh
+       call mesh_g2l(distr(ipart)%nmap, distr(ipart)%emap, femesh, lmesh(ipart))
+
+       ! Mesh to dual with global element numbers in the dual (just get numbers applying g2l map to dual_femesh)
+       ! Store dual_part too.
+       !call dual_mesh_g2l(distr(ipart)%nmap, dual_femesh, ldome, lmesh(ipart), dual_lmesh, dual_parts)
+
+       call build_adjacency_new (femesh, ldome,         &
+            &                    ipart,                 &
+            &                    lmesh(ipart),          &
+            &                    distr(ipart)%nmap%l2g, &
+            &                    distr(ipart)%emap%l2g, &
+            &                    distr(ipart)%nebou,    &
+            &                    distr(ipart)%nnbou,    &
+            &                    distr(ipart)%lebou,    &
+            &                    distr(ipart)%lnbou,    &
+            &                    distr(ipart)%pextn,    &
+            &                    distr(ipart)%lextn,    &
+            &                    distr(ipart)%lextp )
+
+       !call mesh_free(dual_lmesh)
+       !call memfree(dual_parts,__FILE__,__LINE__)
+    end do
+
+    !call mesh_free(dual_femesh)
+    call fe_graph%free()
+    call memfree(ldome,__FILE__,__LINE__)
+  end subroutine create_mesh_distribution_new
+
   !================================================================================================
-   subroutine build_adjacency ( my_part, lmesh, l2ge, dual_lmesh, dual_parts, &
-        &                       nebou, nnbou, lebou, lnbou, pextn, lextn, lextp)
-     implicit none
-     integer(ip)   , intent(in)  :: my_part
-     type(mesh_t), intent(in)  :: lmesh
-     type(mesh_t), intent(in)  :: dual_lmesh
-     integer(igp)  , intent(in)  :: l2ge(lmesh%nelem)
-     integer(ip)   , intent(in)  :: dual_parts( dual_lmesh%pnods(dual_lmesh%nelem+1)-1)
-     integer(ip)   , intent(out) :: nebou
-     integer(ip)   , intent(out) :: nnbou
-     integer(ip)   , allocatable, intent(out) ::  lebou(:)    ! List of boundary elements
-     integer(ip)   , allocatable, intent(out) ::  lnbou(:)    ! List of boundary nodes
-     integer(ip)   , allocatable, intent(out) ::  pextn(:)    ! Pointers to the lextn
-     integer(igp)  , allocatable, intent(out) ::  lextn(:)    ! List of (GID of) external neighbors
-     integer(ip)   , allocatable, intent(out) ::  lextp(:)    ! List of parts of external neighbors
+  subroutine create_dual_graph(mesh,graph)
+    ! Parameters
+    type(mesh_t) , intent(in)  :: mesh
+    type(graph_t), intent(out) :: graph
+    ! Locals
+    integer(ip), allocatable :: lelem(:)
+    integer(ip), allocatable :: keadj(:)
 
-     integer(ip) :: lelem, ielem, jelem, pelem, pnode, inode1, inode2, ipoin, jpart, iebou, istat, touch
-     integer(ip) :: nextn, nexte, nepos
-     integer(ip), allocatable :: local_visited(:)
-     type(hash_table_ip_ip_t)   :: external_visited
-
-     ! Count boundary nodes
-     nnbou = 0 
-     do ipoin=1, lmesh%npoin
-        do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
-           jpart = dual_parts(pelem)
-           if ( jpart /= my_part ) then 
-              nnbou = nnbou +1
-              exit
-           end if
-        end do
-     end do
-
-     ! List boundary nodes
-     call memalloc ( nnbou, lnbou, __FILE__, __LINE__ ) 
-     nnbou = 0
-     do ipoin=1, lmesh%npoin
-        do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
-           jpart = dual_parts(pelem)
-           if ( jpart /= my_part ) then 
-              lnbou(nnbou+1) = ipoin
-              nnbou = nnbou +1
-              exit
-           end if
-        end do
-     end do
-
-     ! As the dual mesh is given with global IDs we need a hash table to do the touch.
-     call memalloc(lmesh%nelem, local_visited,__FILE__,__LINE__)
-     local_visited = 0
-     call external_visited%init(20)
-
-     ! 1) Count boundary elements and external edges
-     touch = 1
-     nebou = 0 ! number of boundary elements
-     nextn = 0 ! number of external edges
-     do lelem = 1, lmesh%nelem
-        nexte = 0   ! number of external neighbours of this element
-        ielem = l2ge(lelem)
-        inode1 = lmesh%pnods(lelem)
-        inode2 = lmesh%pnods(lelem+1)-1
-        do pnode = inode1, inode2
-           ipoin = lmesh%lnods(pnode)
-           do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
-              jelem = dual_lmesh%lnods(pelem)
-              if(jelem/=ielem) then
-                 jpart = dual_parts(pelem)
-                 if(jpart/=my_part) then                                   ! This is an external element
-                    if(local_visited(lelem) == 0 ) nebou = nebou +1        ! Count it
-                    !call external_visited%put(key=jelem,val=1, stat=istat) ! Touch jelem as external neighbor of lelem.
-                    call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
-                    if(istat==now_stored) nexte = nexte + 1                ! Count external neighbours of lelem
-                    local_visited(lelem) = nexte                           ! Touch lelem also storing the number
-                 end if                                                    ! of external neighbours it has
-              end if
-           end do
-        end do
-        nextn = nextn + nexte
-        ! Clean hash table
-        if(local_visited(lelem) /= 0 ) then 
-           do pnode = inode1, inode2
-              ipoin = lmesh%lnods(pnode)
-              do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
-                 jelem = dual_lmesh%lnods(pelem)
-                 if(jelem/=ielem) then
-                    jpart = dual_parts(pelem)
-                    if(jpart/=my_part) then
-                       call external_visited%del(key=jelem, stat=istat)
-                    end if
-                 end if
-              end do
-           end do
-        end if
-        call external_visited%print
-
-     end do
+    call memalloc(           mesh%nelem,lelem,__FILE__,__LINE__)
+    call memalloc(mesh%nelpo*mesh%nnode,keadj,__FILE__,__LINE__)
+    lelem=0
+    call graph%create(mesh%nelem,.false.)
+    call memalloc(mesh%nelem+1,graph%ia,__FILE__,__LINE__)
 
 
-     ! 2) Allocate arrays and store list and pointers to externals
-     call memalloc(nebou  , lebou,__FILE__,__LINE__)
-     call memalloc(nebou+1, pextn,__FILE__,__LINE__)
-     call memalloc(nextn  , lextn,__FILE__,__LINE__)
-     call memalloc(nextn  , lextp,__FILE__,__LINE__)
+    call count_elemental_graph(mesh%ndime,mesh%npoin,mesh%nelem, &
+         &                     mesh%pnods,mesh%lnods,mesh%nnode,mesh%nelpo, &
+         &                     mesh%pelpo,mesh%lelpo,lelem,keadj,graph%ia)
 
-     iebou = 0
-     pextn(1) = 1
-     do lelem = 1, lmesh%nelem
-        if(local_visited(lelem) /= 0 ) then
-           iebou = iebou +1
-           lebou(iebou) = lelem
-           pextn(iebou+1) = local_visited(lelem) + pextn(iebou)
-        end if
-     end do
+    call memalloc(graph%ia(mesh%nelem+1),graph%ja,__FILE__,__LINE__)
+
+    call list_elemental_graph(mesh%ndime,mesh%npoin,mesh%nelem, &
+         &                    mesh%pnods,mesh%lnods,mesh%nnode,mesh%nelpo, &
+         &                    mesh%pelpo,mesh%lelpo,lelem,keadj,graph%ia,graph%ja)
+
+    call memfree(lelem,__FILE__,__LINE__)
+    call memfree(keadj,__FILE__,__LINE__)
+
+  end subroutine create_dual_graph
+
+  !-----------------------------------------------------------------------
+  subroutine count_elemental_graph(ncomm,npoin,nelem,pnods,lnods,nnode, &
+       &                           nelpo,pelpo,lelpo,lelem,keadj,ieadj)
+    implicit none
+    integer(ip), intent(in)  :: ncomm,npoin,nelem
+    integer(ip), intent(in)  :: pnods(nelem+1),lnods(pnods(nelem+1))
+    integer(ip), intent(in)  :: nnode             ! Number of nodes of each element (max.)
+    integer(ip), intent(in)  :: nelpo             ! Number of elements around points (max.)
+    integer(ip), intent(in)  :: pelpo(npoin+1)    ! Number of elements around points
+    integer(ip), intent(in)  :: lelpo(pelpo(npoin+1))    ! List of elements around points
+    integer(ip), intent(out) :: ieadj(nelem+1)           ! Number of edges on each element
+    integer(ip), intent(out) :: lelem(nelem)             ! Auxiliar array
+    integer(ip), intent(out) :: keadj(nelpo*nnode)       ! Auxiliar array
+    integer(ip)              :: ielem,jelem,inode,knode  ! Indices
+    integer(ip)              :: ipoin,ielpo,index        ! Indices
+    integer(ip)              :: neadj,ielel,jelel,nelel  ! Indices
+
+    lelem=0
+    neadj=1
+    knode=nnode
+    do ielem=1,nelem
+       ieadj(ielem)=neadj
+       ! Loop over nodes and their surrounding elements and count
+       ! how many times they are repeated as neighbors of ielem
+       nelel=0
+       keadj=0
+       index=pnods(ielem)-1
+       knode=pnods(ielem+1)-pnods(ielem)
+       do inode=1,knode
+          ipoin=lnods(index+inode)
+          do ielpo=pelpo(ipoin),pelpo(ipoin+1)-1
+             jelem=lelpo(ielpo)
+             if(lelem(jelem)==0) then
+                nelel=nelel+1
+                keadj(nelel)=jelem
+             end if
+             lelem(jelem)=lelem(jelem)+1
+          end do
+       end do
+
+       ! Now we loop over the elements around ielem and define neighbors
+       ! as those sharing ncomm nodes. The smaller this number is the
+       ! higher the connectivity of elemental graph is. Note that prisms,
+       ! for example, could share 3 or 4 nodes depending on the face, so
+       ! ndime (the number of space dimensions) is a good choice.
+       jelel=0
+       do ielel=1,nelel
+          jelem=keadj(ielel)
+          if(lelem(jelem)>=ncomm) jelel=jelel+1
+       end do
+       neadj=neadj+jelel
+
+       ! Reset lelem
+       do ielel=1,nelel
+          jelem=keadj(ielel)
+          lelem(jelem)=0
+       end do
+    end do
+
+    ieadj(nelem+1)=neadj
+
+  end subroutine count_elemental_graph
+  !-----------------------------------------------------------------------
+  subroutine list_elemental_graph(ncomm,npoin,nelem,pnods,lnods,nnode, &
+       &                          nelpo,pelpo,lelpo,lelem,keadj,ieadj,jeadj)
+    implicit none
+    integer(ip), intent(in)  :: ncomm,npoin,nelem
+    integer(ip), intent(in)  :: pnods(nelem+1),lnods(pnods(nelem+1))
+    integer(ip), intent(in)  :: nnode             ! Number of nodes of each element (max.)
+    integer(ip), intent(in)  :: nelpo             ! Number of elements around points (max.)
+    integer(ip), intent(in)  :: pelpo(npoin+1)    ! Number of elements around points
+    integer(ip), intent(in)  :: lelpo(pelpo(npoin+1))    ! List of elements around points
+    integer(ip), intent(in)  :: ieadj(nelem+1)           ! Number of edges on each element
+    integer(ip), intent(out) :: jeadj(ieadj(nelem+1))    ! List of edges on each element
+    integer(ip), intent(out) :: lelem(nelem)             ! Auxiliar array
+    integer(ip), intent(out) :: keadj(nelpo*nnode)       ! Auxiliar array
+    integer(ip)              :: ielem,jelem,inode,knode  ! Indices
+    integer(ip)              :: ipoin,ielpo,index        ! Indices
+    integer(ip)              :: neadj,ielel,jelel,nelel  ! Indices
+
+    lelem=0
+    knode=nnode
+    do ielem=1,nelem
+       ! Loop over nodes and their surrounding elements and count
+       ! how many times they are repeated as neighbors of ielem
+       nelel=0
+       keadj=0
+       index=pnods(ielem)-1
+       knode=pnods(ielem+1)-pnods(ielem)
+       do inode=1,knode
+          ipoin=lnods(index+inode)
+          do ielpo=pelpo(ipoin),pelpo(ipoin+1)-1
+             jelem=lelpo(ielpo)
+             if(lelem(jelem)==0) then
+                nelel=nelel+1
+                keadj(nelel)=jelem
+             end if
+             lelem(jelem)=lelem(jelem)+1
+          end do
+       end do
+
+       ! Now we loop over the elements around ielem and define neighbors
+       jelel=ieadj(ielem)-1
+       do ielel=1,nelel
+          jelem=keadj(ielel)
+          if(lelem(jelem)>=ncomm) then
+             jelel=jelel+1
+             jeadj(jelel)=jelem
+          end if
+       end do
+
+       ! Reset lelem
+       do ielel=1,nelel
+          jelem=keadj(ielel)
+          lelem(jelem)=0
+       end do
+    end do
+
+  end subroutine list_elemental_graph
+
+  !================================================================================================
+  subroutine build_adjacency_new ( gmesh, ldome, my_part, lmesh, l2gn, l2ge, &
+       &                           nebou, nnbou, lebou, lnbou, pextn, lextn, lextp)
+    implicit none
+    integer(ip)   , intent(in)  :: my_part
+    type(mesh_t)  , intent(in)  :: gmesh,lmesh
+    !type(mesh_t)  , intent(in)  :: dual_lmesh
+    integer(ip)   , intent(in)  :: ldome(gmesh%nelem)
+    integer(igp)  , intent(in)  :: l2gn(lmesh%npoin)
+    integer(igp)  , intent(in)  :: l2ge(lmesh%nelem)
+    !integer(ip)   , intent(in)  :: dual_parts( dual_lmesh%pnods(dual_lmesh%nelem+1)-1)
+    integer(ip)   , intent(out) :: nebou
+    integer(ip)   , intent(out) :: nnbou
+    integer(ip)   , allocatable, intent(out) ::  lebou(:)    ! List of boundary elements
+    integer(ip)   , allocatable, intent(out) ::  lnbou(:)    ! List of boundary nodes
+    integer(ip)   , allocatable, intent(out) ::  pextn(:)    ! Pointers to the lextn
+    integer(igp)  , allocatable, intent(out) ::  lextn(:)    ! List of (GID of) external neighbors
+    integer(ip)   , allocatable, intent(out) ::  lextp(:)    ! List of parts of external neighbors
+
+    integer(ip) :: lelem, ielem, jelem, pelem, pnode, inode1, inode2, ipoin, lpoin, jpart, iebou, istat, touch
+    integer(ip) :: nextn, nexte, nepos
+    integer(ip), allocatable :: local_visited(:)
+    type(hash_table_ip_ip_t)   :: external_visited
+
+    ! Count boundary nodes
+    nnbou = 0 
+    do lpoin=1, lmesh%npoin
+       ipoin = l2gn(lpoin)
+       do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
+          ielem = gmesh%lelpo(pelem)
+          jpart = ldome(ielem)
+          if ( jpart /= my_part ) then 
+             nnbou = nnbou +1
+             exit
+          end if
+       end do
+    end do
+
+    ! List boundary nodes
+    call memalloc ( nnbou, lnbou, __FILE__, __LINE__ ) 
+    nnbou = 0
+    do lpoin=1, lmesh%npoin
+       ipoin = l2gn(lpoin)
+       do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
+          ielem = gmesh%lelpo(pelem)
+          jpart = ldome(ielem)
+          if ( jpart /= my_part ) then 
+             lnbou(nnbou+1) = ipoin
+             nnbou = nnbou +1
+             exit
+          end if
+       end do
+    end do
+
+    ! As the dual mesh is given with global IDs we need a hash table to do the touch.
+    call memalloc(lmesh%nelem, local_visited,__FILE__,__LINE__)
+    local_visited = 0
+    call external_visited%init(20)
+
+    ! 1) Count boundary elements and external edges
+    touch = 1
+    nebou = 0 ! number of boundary elements
+    nextn = 0 ! number of external edges
+    do lelem = 1, lmesh%nelem
+       nexte = 0   ! number of external neighbours of this element
+       ielem = l2ge(lelem)
+       inode1 = gmesh%pnods(lelem)
+       inode2 = gmesh%pnods(lelem+1)-1
+       do pnode = inode1, inode2
+          ipoin = gmesh%lnods(pnode)
+          do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
+             jelem = gmesh%lelpo(pelem)
+             if(jelem/=ielem) then
+                jpart = ldome(jelem)
+                if(jpart/=my_part) then                                   ! This is an external element
+                   if(local_visited(lelem) == 0 ) nebou = nebou +1        ! Count it
+                   !call external_visited%put(key=jelem,val=1, stat=istat) ! Touch jelem as external neighbor of lelem.
+                   call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
+                   if(istat==now_stored) nexte = nexte + 1                ! Count external neighbours of lelem
+                   local_visited(lelem) = nexte                           ! Touch lelem also storing the number
+                end if                                                    ! of external neighbours it has
+             end if
+          end do
+       end do
+       nextn = nextn + nexte
+       ! Clean hash table
+       if(local_visited(lelem) /= 0 ) then 
+          do pnode = inode1, inode2
+             ipoin = gmesh%lnods(pnode)
+             do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
+                jelem = gmesh%lelpo(pelem)
+                if(jelem/=ielem) then
+                   jpart = ldome(jelem)
+                   if(jpart/=my_part) then
+                      call external_visited%del(key=jelem, stat=istat)
+                   end if
+                end if
+             end do
+          end do
+       end if
+       call external_visited%print
+    end do
+
+    ! 2) Allocate arrays and store list and pointers to externals
+    call memalloc(nebou  , lebou,__FILE__,__LINE__)
+    call memalloc(nebou+1, pextn,__FILE__,__LINE__)
+    call memalloc(nextn  , lextn,__FILE__,__LINE__)
+    call memalloc(nextn  , lextp,__FILE__,__LINE__)
+
+    iebou = 0
+    pextn(1) = 1
+    do lelem = 1, lmesh%nelem
+       if(local_visited(lelem) /= 0 ) then
+          iebou = iebou +1
+          lebou(iebou) = lelem
+          pextn(iebou+1) = local_visited(lelem) + pextn(iebou)
+       end if
+    end do
+
+    ! 3) Store boundary elements and external edges
+    !do lelem = 1, lmesh%nelem
+    do iebou = 1, nebou
+       lelem = lebou(iebou)
+       ielem = l2ge(lelem)
+       nexte = 0   ! number of external neighbours of this element
+       inode1 = gmesh%pnods(lelem)
+       inode2 = gmesh%pnods(lelem+1)-1
+       do pnode = inode1, inode2
+          ipoin = gmesh%lnods(pnode)
+          do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
+             jelem = gmesh%lelpo(pelem)
+             if(jelem/=ielem) then
+                jpart = ldome(jelem)
+                if(jpart/=my_part) then                                   ! This is an external element
+                   call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
+                   if(istat==now_stored) then
+                      lextn(pextn(iebou)+nexte) = jelem
+                      lextp(pextn(iebou)+nexte) = jpart
+                      nexte = nexte + 1
+                   end if
+                end if
+             end if
+          end do
+       end do
+       ! Clean hash table
+       do pnode = inode1, inode2
+          ipoin = gmesh%lnods(pnode)
+          do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
+             jelem = gmesh%lelpo(pelem)
+             if(jelem/=ielem) then
+                jpart = ldome(jelem)
+                if(jpart/=my_part) then                                   ! This is an external element
+                   call external_visited%del(key=jelem, stat=istat)
+                end if
+             end if
+          end do
+       end do
+    end do
+
+    call external_visited%free
+    call memfree(local_visited,__FILE__,__LINE__)
+
+  end subroutine build_adjacency_new
+
+  !================================================================================================
+  subroutine build_adjacency ( my_part, lmesh, l2ge, dual_lmesh, dual_parts, &
+       &                       nebou, nnbou, lebou, lnbou, pextn, lextn, lextp)
+    implicit none
+    integer(ip)   , intent(in)  :: my_part
+    type(mesh_t), intent(in)  :: lmesh
+    type(mesh_t), intent(in)  :: dual_lmesh
+    integer(igp)  , intent(in)  :: l2ge(lmesh%nelem)
+    integer(ip)   , intent(in)  :: dual_parts( dual_lmesh%pnods(dual_lmesh%nelem+1)-1)
+    integer(ip)   , intent(out) :: nebou
+    integer(ip)   , intent(out) :: nnbou
+    integer(ip)   , allocatable, intent(out) ::  lebou(:)    ! List of boundary elements
+    integer(ip)   , allocatable, intent(out) ::  lnbou(:)    ! List of boundary nodes
+    integer(ip)   , allocatable, intent(out) ::  pextn(:)    ! Pointers to the lextn
+    integer(igp)  , allocatable, intent(out) ::  lextn(:)    ! List of (GID of) external neighbors
+    integer(ip)   , allocatable, intent(out) ::  lextp(:)    ! List of parts of external neighbors
+
+    integer(ip) :: lelem, ielem, jelem, pelem, pnode, inode1, inode2, ipoin, jpart, iebou, istat, touch
+    integer(ip) :: nextn, nexte, nepos
+    integer(ip), allocatable :: local_visited(:)
+    type(hash_table_ip_ip_t)   :: external_visited
+
+    ! Count boundary nodes
+    nnbou = 0 
+    do ipoin=1, lmesh%npoin
+       do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
+          jpart = dual_parts(pelem)
+          if ( jpart /= my_part ) then 
+             nnbou = nnbou +1
+             exit
+          end if
+       end do
+    end do
+
+    ! List boundary nodes
+    call memalloc ( nnbou, lnbou, __FILE__, __LINE__ ) 
+    nnbou = 0
+    do ipoin=1, lmesh%npoin
+       do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
+          jpart = dual_parts(pelem)
+          if ( jpart /= my_part ) then 
+             lnbou(nnbou+1) = ipoin
+             nnbou = nnbou +1
+             exit
+          end if
+       end do
+    end do
+
+    ! As the dual mesh is given with global IDs we need a hash table to do the touch.
+    call memalloc(lmesh%nelem, local_visited,__FILE__,__LINE__)
+    local_visited = 0
+    call external_visited%init(20)
+
+    ! 1) Count boundary elements and external edges
+    touch = 1
+    nebou = 0 ! number of boundary elements
+    nextn = 0 ! number of external edges
+    do lelem = 1, lmesh%nelem
+       nexte = 0   ! number of external neighbours of this element
+       ielem = l2ge(lelem)
+       inode1 = lmesh%pnods(lelem)
+       inode2 = lmesh%pnods(lelem+1)-1
+       do pnode = inode1, inode2
+          ipoin = lmesh%lnods(pnode)
+          do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
+             jelem = dual_lmesh%lnods(pelem)
+             if(jelem/=ielem) then
+                jpart = dual_parts(pelem)
+                if(jpart/=my_part) then                                   ! This is an external element
+                   if(local_visited(lelem) == 0 ) nebou = nebou +1        ! Count it
+                   !call external_visited%put(key=jelem,val=1, stat=istat) ! Touch jelem as external neighbor of lelem.
+                   call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
+                   if(istat==now_stored) nexte = nexte + 1                ! Count external neighbours of lelem
+                   local_visited(lelem) = nexte                           ! Touch lelem also storing the number
+                end if                                                    ! of external neighbours it has
+             end if
+          end do
+       end do
+       nextn = nextn + nexte
+       ! Clean hash table
+       if(local_visited(lelem) /= 0 ) then 
+          do pnode = inode1, inode2
+             ipoin = lmesh%lnods(pnode)
+             do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
+                jelem = dual_lmesh%lnods(pelem)
+                if(jelem/=ielem) then
+                   jpart = dual_parts(pelem)
+                   if(jpart/=my_part) then
+                      call external_visited%del(key=jelem, stat=istat)
+                   end if
+                end if
+             end do
+          end do
+       end if
+       call external_visited%print
+
+    end do
 
 
-     ! 3) Store Count boundary elements and external edges
-     !do lelem = 1, lmesh%nelem
-     do iebou = 1, nebou
-        lelem = lebou(iebou)
-        ielem = l2ge(lelem)
-        nexte = 0   ! number of external neighbours of this element
-        inode1 = lmesh%pnods(lelem)
-        inode2 = lmesh%pnods(lelem+1)-1
-        do pnode = inode1, inode2
-           ipoin = lmesh%lnods(pnode)
-           do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
-              jelem = dual_lmesh%lnods(pelem)
-              if(jelem/=ielem) then
-                 jpart = dual_parts(pelem)
-                 if(jpart/=my_part) then                            ! This is an external element
-                    call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
-                    if(istat==now_stored) then
-                       lextn(pextn(iebou)+nexte) = jelem
-                       lextp(pextn(iebou)+nexte) = jpart
-                       nexte = nexte + 1
-                    end if
-                 end if
-              end if
-           end do
-        end do
-        ! Clean hash table
-        do pnode = inode1, inode2
-           ipoin = lmesh%lnods(pnode)
-           do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
-              jelem = dual_lmesh%lnods(pelem)
-              if(jelem/=ielem) then
-                 jpart = dual_parts(pelem)
-                 if(jpart/=my_part) then
-                    call external_visited%del(key=jelem, stat=istat)
-                 end if
-              end if
-           end do
-        end do
-     end do
+    ! 2) Allocate arrays and store list and pointers to externals
+    call memalloc(nebou  , lebou,__FILE__,__LINE__)
+    call memalloc(nebou+1, pextn,__FILE__,__LINE__)
+    call memalloc(nextn  , lextn,__FILE__,__LINE__)
+    call memalloc(nextn  , lextp,__FILE__,__LINE__)
 
-     call external_visited%free
-     call memfree(local_visited,__FILE__,__LINE__)
-   end subroutine build_adjacency
+    iebou = 0
+    pextn(1) = 1
+    do lelem = 1, lmesh%nelem
+       if(local_visited(lelem) /= 0 ) then
+          iebou = iebou +1
+          lebou(iebou) = lelem
+          pextn(iebou+1) = local_visited(lelem) + pextn(iebou)
+       end if
+    end do
+
+
+    ! 3) Store Count boundary elements and external edges
+    !do lelem = 1, lmesh%nelem
+    do iebou = 1, nebou
+       lelem = lebou(iebou)
+       ielem = l2ge(lelem)
+       nexte = 0   ! number of external neighbours of this element
+       inode1 = lmesh%pnods(lelem)
+       inode2 = lmesh%pnods(lelem+1)-1
+       do pnode = inode1, inode2
+          ipoin = lmesh%lnods(pnode)
+          do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
+             jelem = dual_lmesh%lnods(pelem)
+             if(jelem/=ielem) then
+                jpart = dual_parts(pelem)
+                if(jpart/=my_part) then                            ! This is an external element
+                   call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
+                   if(istat==now_stored) then
+                      lextn(pextn(iebou)+nexte) = jelem
+                      lextp(pextn(iebou)+nexte) = jpart
+                      nexte = nexte + 1
+                   end if
+                end if
+             end if
+          end do
+       end do
+       ! Clean hash table
+       do pnode = inode1, inode2
+          ipoin = lmesh%lnods(pnode)
+          do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
+             jelem = dual_lmesh%lnods(pelem)
+             if(jelem/=ielem) then
+                jpart = dual_parts(pelem)
+                if(jpart/=my_part) then
+                   call external_visited%del(key=jelem, stat=istat)
+                end if
+             end if
+          end do
+       end do
+    end do
+
+    call external_visited%free
+    call memfree(local_visited,__FILE__,__LINE__)
+  end subroutine build_adjacency
 
   subroutine dual_mesh_g2l(nmap, dual_mesh, ldome, lmesh, dual_lmesh, dual_parts)
     implicit none
@@ -321,7 +717,7 @@ contains
           dual_parts( dual_lmesh%pnods(lelem) + i ) =  ldome(dual_mesh%lnods( dual_mesh%pnods(ielem) + i ))
        end do
     end do
-    
+
   end subroutine dual_mesh_g2l
 
   !================================================================================================
@@ -333,7 +729,7 @@ contains
     type(mesh_t)             , intent(in)    :: femesh
     integer(ip)                , intent(in)    :: ldome(femesh%nelem)
     type(mesh_distribution_t), intent(inout) :: distr(nparts)
-    
+
     integer(ip)   , allocatable  :: nedom(:) ! Number of points per part (here is not header!)
     integer(ip)   , allocatable  :: npdom(:) ! Number of elements per part (here is not header!)
     integer(ip)   , allocatable  :: work1(:)
@@ -399,13 +795,13 @@ contains
     type(mesh_t) , intent(in)   :: m   
     type(graph_t), intent(in)   :: g
     type(list_t)     , intent(out)  :: lconn
- 
+
     ! Locals
     integer(ip), allocatable :: auxv(:), auxe(:), e(:)
     integer(ip), allocatable :: emarked(:), vmarked(:)
     integer(ip), allocatable :: q(:)
     integer(ip)              :: head, tail, i, esize, vsize, current, & 
-                                j, l, k, inods1d, inods2d, p_ipoin, ipoin
+         j, l, k, inods1d, inods2d, p_ipoin, ipoin
 
     call memalloc ( g%nv   , auxe     , __FILE__,__LINE__)
     call memalloc ( g%nv   , auxv     , __FILE__,__LINE__)
@@ -478,7 +874,7 @@ contains
           auxv(lconn%n) = vsize
        end if
     end do
-    
+
     call lconn%create(lconn%n)
 
     lconn%p(1) = 1
@@ -512,7 +908,7 @@ contains
                 l=l+1
              end if
           end do
-          
+
        end do
     end do
 
@@ -560,7 +956,7 @@ contains
     ! Allocate space for ia on the primal graph
     primal_graph%nv                = primal_mesh%npoin
     primal_graph%nv2               = primal_mesh%npoin
-	   primal_graph%symmetric_storage = .false.
+    primal_graph%symmetric_storage = .false.
     call memalloc (primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__)
 
     ! Allocate working space for count_primal_graph and list_primal_graph routines
@@ -656,7 +1052,7 @@ contains
        inods1d=dual_mesh%pnods(ipoinpg)
        inods2d=dual_mesh%pnods(ipoinpg+1)-1
        do p_ipoindm = inods1d, inods2d
-       !do p_ipoindm = dual_mesh%pnods(ipoinpg), dual_mesh%pnods(ipoinpg+1)-1
+          !do p_ipoindm = dual_mesh%pnods(ipoinpg), dual_mesh%pnods(ipoinpg+1)-1
           ipoindm = dual_mesh%lnods(p_ipoindm)
 
           ! Traverse the primal nodes of the primal element number ipoindm
@@ -723,7 +1119,7 @@ contains
     integer(ip)                     :: p_ipoinpm   
     integer(ip)                     :: inods1,inods2
     integer(ip)                     :: inods1d, inods2d  
-  
+
 
     integer(ip)                     :: first_free_ja_pos
     integer(ip)                     :: first_free_pos
@@ -753,7 +1149,7 @@ contains
        inods2d=dual_mesh%pnods(ipoinpg+1)-1
 
        do p_ipoindm = inods1d, inods2d
-       ! do p_ipoindm = dual_mesh%pnods(ipoinpg), dual_mesh%pnods(ipoinpg+1)-1
+          ! do p_ipoindm = dual_mesh%pnods(ipoinpg), dual_mesh%pnods(ipoinpg+1)-1
           ipoindm = dual_mesh%lnods(p_ipoindm)
 
           ! Traverse the primal nodes of the primal element number ipoindm

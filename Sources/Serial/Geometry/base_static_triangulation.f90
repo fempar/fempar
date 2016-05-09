@@ -125,6 +125,28 @@ module base_static_triangulation_names
     procedure, non_overridable          :: current      => itfc_vef_iterator_current
   end type itfc_vef_iterator_t
   
+   ! JP-TODO: implement states: discuss with Alberto and Victor.
+   !
+   ! State transition diagram for type(base_static_triangulation_t). The
+   ! creation of reference elements must be performed together
+   ! with reading from mesh when going from created to elements_filled.
+   !
+   ! ------------------------------------------------...--------
+   ! Input State      | Action                    | Output State 
+   ! -----------------------------------------------------------
+   ! not_created      | create                    | created 
+   ! not_created      | free                      | not_created
+   ! created          | free                      | not_created
+   ! created          | external (read from mesh) | elements_filled
+   ! elements_filled  | create_dual               | vefs_filled
+   ! elements_filled  | free                      | not_created
+   ! vefs_filled      | free                      | not_created
+
+   !integer(ip), parameter :: base_static_triangulation_not_created     = 0 
+   !integer(ip), parameter :: base_static_triangulation_created         = 1 
+   !integer(ip), parameter :: base_static_triangulation_elements_filled = 2 
+   !integer(ip), parameter :: base_static_triangulation_vefs_filled     = 3 
+  
   type base_static_triangulation_t ! Base class for serial_triangulation_t and par_base_static_triangulation_t
      private
      integer(ip)                           :: num_dimensions  = -1
@@ -213,8 +235,8 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: adapt_coarse_raw_arrays                        => par_base_static_tria_adapt_coarse_raw_arrays
   end type par_base_static_triangulation_t
   
-  ! type, extends(base_static_triangulation_t) :: serial_triangulation_t
-  ! end type serial_triangulation_t
+  type, extends(base_static_triangulation_t) :: serial_triangulation_t
+  end type serial_triangulation_t
   
   ! type, extends(par_base_static_triangulation_t) :: par_triangulation_t
   ! end type par_triangulation_t

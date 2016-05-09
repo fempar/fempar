@@ -40,6 +40,7 @@ module mesh_names
   integer(ip), parameter :: z_order = 1
 
   type mesh_t
+     ! Sizes
      integer(ip)                :: &
           order=c_order,           &         ! GiD element order (c)
           nelty=1,                 &         ! Number of element types
@@ -50,18 +51,37 @@ module mesh_names
           nboun,                   &         ! Number of boundary elements
           nnodb                              ! Maximum number of nodes per boundary element
 
-     integer(ip), allocatable ::   &
+     ! JP-TODO
+     ! Rename pnods,londs to pvefs, lvefs and put them in a list (wo priority)
+
+     ! Elements
+     integer(ip), allocatable ::  &
+          pvert(:),               &         ! pointers to the lvert
+          lvert(:),               &         ! list of vertices of each element
           pnods(:),               &         ! pointers to the lnods
-          lnods(:),               &         ! list of nodes of each element
+          lnods(:),               &         ! list of vefs of each element
           legeo(:),               &         ! List of geometry (volume) each element lies in
-          leset(:),               &         ! List of sets associated to each element
+          leset(:)                          ! List of sets associated to each element
+
+     ! Booundary (understood as a subset of vefs on which the definition of a set and a geometry is relevant,
+     ! e.g. an internal interface separating materials over which a force has to be computed)
+     integer(ip), allocatable ::  &
           pnodb(:),               &         ! pointers to the lnodb
-          lnodb(:),               &         ! list of nodes of each boundary element (includes edges and faces)
+          lnodb(:),               &         ! list of vertices of each boundary element (edges and faces)
           lbgeo(:),               &         ! List of geometry (volume) each edge or face lies in
           lbset(:)                          ! List of sets associated to each edge or face
 
-     real(rp), allocatable ::      &
-          coord(:,:)                         ! Node coordinates       
+     ! Dual mesh (elements around vertices)
+     integer(ip)              ::  &
+          nelpo = 0                         ! Nonzero when created
+     integer(ip), allocatable ::  &
+          pelpo(:),               &
+          lelpo(:)
+
+     real(rp), allocatable ::     &
+          coord(:,:)                         ! Node coordinates
+    contains
+     procedure, non_overridable :: to_dual => mesh_to_dual_new
   end type mesh_t
 
   ! Types
@@ -96,6 +116,58 @@ contains
   ! The arguments of these routine are generated in the methods unpacking mesh 
   ! and graph objects.
   !
+  !=============================================================================
+
+  subroutine mesh_to_dual_new(this)
+    class(mesh_t), intent(inout)     :: this
+    
+    ! Local variables
+    integer(ip)              :: inode, ipoin, ielem, size_lvert
+
+    call memalloc (this%npoin+1, this%pelpo, __FILE__,__LINE__)
+    size_lvert = this%pvert(this%nelem+1)-1 
+    
+    ! Compute the number of elements around each point
+    this%pelpo=0
+    do inode=1, size_lvert
+       ipoin=this%lvert(inode)
+       this%pelpo(ipoin+1)=this%pelpo(ipoin+1)+1
+    end do
+    
+    ! Find the maximum number of elements around a point
+    this%nelpo=0
+    do ipoin=1,this%npoin
+       this%nelpo=max(this%nelpo,this%pelpo(ipoin+1))
+    end do
+    
+    ! Compute pointers to the starting position of the list
+    ! of elements around each point
+    this%pelpo(1)=1
+    do ipoin=1,this%npoin
+       this%pelpo(ipoin+1)=this%pelpo(ipoin+1)+this%pelpo(ipoin)
+    end do
+
+    ! Allocate lelpo and fill it
+    call memalloc (this%pelpo(this%npoin+1), this%lelpo, __FILE__,__LINE__)
+
+    ! Compute the list of elements around each point.
+    ! pelpo is used instead of auxiliary work space.
+    do ielem=1,this%nelem 
+       do inode=this%pvert(ielem),this%pvert(ielem+1)-1 
+          ipoin=this%lvert(inode)
+          this%lelpo(this%pelpo(ipoin))=ielem
+          this%pelpo(ipoin)=this%pelpo(ipoin)+1
+       end do
+    end do
+    
+    ! Recover pelpo
+    do ipoin=this%npoin+1, 2, -1
+       this%pelpo(ipoin)=this%pelpo(ipoin-1)
+    end do
+    this%pelpo(1) = 1
+
+  end subroutine mesh_to_dual_new
+
   !=============================================================================
   subroutine mesh_to_dual(primal_mesh,dual_mesh)
     !-----------------------------------------------------------------------
