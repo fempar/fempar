@@ -90,7 +90,7 @@ contains
      
      ! Communication related locals 
      integer :: my_pid, num_procs, i, proc_to_comm, sizmsg
-     integer :: mpi_comm,  iret, info
+     integer :: the_mpi_comm,  iret, info
      integer :: p2pstat(mpi_status_size)
 
      ! Request handlers for non-blocking receives
@@ -113,7 +113,7 @@ contains
      ! the current implementation of our wrappers
      ! to the MPI library icontxt and mpi_comm are actually 
      ! the same)
-     call psb_get_mpicomm (icontxt, mpi_comm)
+     call psb_get_mpicomm (icontxt, the_mpi_comm)
 
      ! Get element size
      call data(snd_leids(1))%size(elemsize)
@@ -145,7 +145,7 @@ contains
        if ( (sizmsg > 0) .and. (lpadj(i)-1 /= my_pid) ) then
           call mpi_irecv(  rcvbuf((rcv_ptrs(i)-1)*elemsize+1), sizmsg, &
                         &  psb_mpi_integer1, proc_to_comm, &
-                        &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
+                        &  psb_double_swap_tag, the_mpi_comm, rcvhd(i), iret)
 
           if ( iret /= mpi_success ) then
              write (0,*) 'Error: mpi_irecv returned != mpi_success'
@@ -167,7 +167,7 @@ contains
         if ( (sizmsg > 0) .and. (lpadj(i)-1 /= my_pid) ) then 
              call mpi_isend(sndbuf((snd_ptrs(i)-1)*elemsize+1), sizmsg, &
                      & psb_mpi_integer1, proc_to_comm, &
-                     & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
+                     & psb_double_swap_tag, the_mpi_comm, sndhd(i), iret)
 
              if ( iret /= mpi_success ) then
                 write (0,*) 'Error: mpi_isend returned != mpi_success'

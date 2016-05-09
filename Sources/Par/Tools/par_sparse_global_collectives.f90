@@ -126,7 +126,7 @@ use mpi
      
      ! Communication related locals 
      integer :: my_pid, num_procs, i, proc_to_comm, sizmsg
-     integer :: mpi_comm,  iret, info
+     integer :: the_mpi_comm,  iret, info
      integer :: p2pstat(mpi_status_size)
 
 
@@ -184,7 +184,7 @@ use mpi
      ! the current implementation of our wrappers
      ! to the MPI library icontxt and mpi_comm are actually 
      ! the same)
-     call psb_get_mpicomm (icontxt, mpi_comm)
+     call psb_get_mpicomm (icontxt, the_mpi_comm)
 
      if (mode_ == sp_all_to_all_all_to_all) then 
        call memalloc (num_procs, sndidx, __FILE__,__LINE__)
@@ -259,7 +259,7 @@ use mpi
      if (mode_ == sp_all_to_all_all_to_all) then
        ! exchange data using mpi_alltoallv
        call mpi_alltoallv( sndbuf, sndsiz, sndidx, psb_mpi_real, &
-                           rcvbuf, rcvsiz, rcvidx, psb_mpi_real, mpi_comm, iret)
+                           rcvbuf, rcvsiz, rcvidx, psb_mpi_real, the_mpi_comm, iret)
        
        if ( iret /= mpi_success ) then
          write (0,*) 'Error: mpi_alltoallv returned != mpi_success'
@@ -324,7 +324,7 @@ use mpi
           if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
              call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
                            &  psb_mpi_real, proc_to_comm, &
-                           &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
+                           &  psb_double_swap_tag, the_mpi_comm, rcvhd(i), iret)
 
              if ( iret /= mpi_success ) then
                 write (0,*) 'Error: mpi_irecv returned != mpi_success'
@@ -339,7 +339,7 @@ use mpi
         ! associated to the hand-shaking protocol among sender and 
         ! receiver. 
         if ( mode_ == sp_all_to_all_ircv_and_rsnd  ) then
-          call mpi_barrier(mpi_comm, info)
+          call mpi_barrier(the_mpi_comm, info)
         end if 
 
         if ( mode_ == sp_all_to_all_ircv_and_rsnd .or. &
@@ -359,11 +359,11 @@ use mpi
                if ( mode_ == sp_all_to_all_ircv_and_rsnd ) then 
                   call mpi_rsend(sndbuf(snd_ptrs(i)), sizmsg,  &
                      & psb_mpi_real, proc_to_comm,      &
-                     & psb_double_swap_tag, mpi_comm, iret)
+                     & psb_double_swap_tag, the_mpi_comm, iret)
                else
                   call mpi_send(sndbuf(snd_ptrs(i)), sizmsg, &
                      & psb_mpi_real, proc_to_comm,    &
-                     & psb_double_swap_tag, mpi_comm, iret)
+                     & psb_double_swap_tag, the_mpi_comm, iret)
                end if
 
                if ( iret /= mpi_success ) then
@@ -386,7 +386,7 @@ use mpi
             if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then 
                   call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
                      & psb_mpi_real, proc_to_comm,    &
-                     & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
+                     & psb_double_swap_tag, the_mpi_comm, sndhd(i), iret)
 
                if ( iret /= mpi_success ) then
                   write (0,*) 'Error: mpi_isend returned != mpi_success'
