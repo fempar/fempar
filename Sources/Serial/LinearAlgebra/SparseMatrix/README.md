@@ -1,3 +1,7 @@
+# Ford Sparse Matrix Automatic Documentation 
+
+[Sparse Matrix automatic generated ford documentation](http://servercomfus:8008/doc/sparsematrix/)
+
 # Sparse Matrix: Currently implemented formats
 
 - CSR: identified by the parameter `csr_format`
