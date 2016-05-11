@@ -60,6 +60,7 @@ private
         procedure, non_overridable, public :: is_by_cols                     => par_sparse_matrix_is_by_cols
         procedure, non_overridable, public :: is_symmetric                   => par_sparse_matrix_is_symmetric
         procedure,                  public :: allocate                       => par_sparse_matrix_allocate
+        procedure,                  public :: init                           => par_sparse_matrix_init
         procedure,                  public :: free_in_stages                 => par_sparse_matrix_free_in_stages  
         generic,                    public :: create                         => par_sparse_matrix_create_square, &
                                                                                 par_sparse_matrix_create_rectangular
@@ -195,6 +196,18 @@ contains
         if(this%p_env%p_context%iam<0) return
         call this%sparse_matrix%allocate()
     end subroutine par_sparse_matrix_allocate
+
+
+    subroutine par_sparse_matrix_init(this, alpha)
+    !-----------------------------------------------------------------
+    !< Initialize matrix values only if is in a assembled stage
+    !-----------------------------------------------------------------
+        class(par_sparse_matrix_t), intent(inout) :: this
+        real(rp),                   intent(in)    :: alpha
+    !-----------------------------------------------------------------
+        if(this%p_env%p_context%iam<0) return
+        call this%sparse_matrix%init(alpha)
+    end subroutine par_sparse_matrix_init
 
 
     subroutine par_sparse_matrix_create_vector_spaces(this)

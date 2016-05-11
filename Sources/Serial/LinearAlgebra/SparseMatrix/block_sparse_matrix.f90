@@ -69,6 +69,7 @@ module block_sparse_matrix_names
      
 					procedure :: compress_storage              => block_sparse_matrix_compress_storage
      procedure :: allocate                      => block_sparse_matrix_allocate
+     procedure :: init                          => block_sparse_matrix_init
      procedure :: free_in_stages                => block_sparse_matrix_free_in_stages
      procedure :: get_block                     => block_sparse_matrix_get_block
      procedure :: get_nblocks                   => block_sparse_matrix_get_nblocks
@@ -161,6 +162,21 @@ contains
        end do
     end do
   end subroutine block_sparse_matrix_allocate
+
+  !=============================================================================
+  subroutine block_sparse_matrix_init(this, alpha)
+    implicit none
+    class(block_sparse_matrix_t), intent(inout) :: this
+    real(rp),                     intent(in)    :: alpha
+    integer(ip) :: ib,jb
+    do ib=1, this%nblocks
+       do jb=1, this%nblocks
+          if ( associated( this%blocks(ib,jb)%sparse_matrix ) ) then
+            call this%blocks(ib,jb)%sparse_matrix%init(alpha)
+          end if
+       end do
+    end do
+  end subroutine block_sparse_matrix_init
   
   subroutine block_sparse_matrix_create_vector_spaces(this)
     implicit none

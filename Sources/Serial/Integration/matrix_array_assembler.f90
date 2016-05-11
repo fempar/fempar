@@ -43,7 +43,10 @@ module matrix_array_assembler_names
      procedure(matrix_array_assembler_compress_storage_interface), deferred :: compress_storage
      procedure :: set_matrix       => matrix_array_assembler_set_matrix
      procedure :: set_array        => matrix_array_assembler_set_array
-     procedure :: allocate         => matrix_array_assembler_allocate
+     procedure :: allocate_array   => matrix_array_assembler_allocate_array
+     procedure :: allocate_matrix  => matrix_array_assembler_allocate_matrix
+     procedure :: init_array       => matrix_array_assembler_init_array
+     procedure :: init_matrix      => matrix_array_assembler_init_matrix
      procedure :: free_in_stages   => matrix_array_assembler_free_in_stages
      procedure :: get_matrix       => matrix_array_assembler_get_matrix
      procedure :: get_array        => matrix_array_assembler_get_array
@@ -81,11 +84,31 @@ contains
     this%array => array
   end subroutine matrix_array_assembler_set_array
   
-  subroutine matrix_array_assembler_allocate(this)
+  subroutine matrix_array_assembler_allocate_array(this)
     implicit none
     class(matrix_array_assembler_t), intent(inout) :: this
     call this%array%allocate()  
-  end subroutine matrix_array_assembler_allocate
+  end subroutine matrix_array_assembler_allocate_array
+
+  subroutine matrix_array_assembler_allocate_matrix(this)
+    implicit none
+    class(matrix_array_assembler_t), intent(inout) :: this
+    call this%matrix%allocate()
+  end subroutine matrix_array_assembler_allocate_matrix
+
+  subroutine matrix_array_assembler_init_array(this, value)
+    implicit none
+    class(matrix_array_assembler_t), intent(inout) :: this
+    real(rp),                        intent(in)    :: value
+    call this%array%init(value)  
+  end subroutine matrix_array_assembler_init_array
+
+  subroutine matrix_array_assembler_init_matrix(this, value)
+    implicit none
+    class(matrix_array_assembler_t), intent(inout) :: this
+    real(rp),                        intent(in)    :: value
+    call this%matrix%init(value)  
+  end subroutine matrix_array_assembler_init_matrix
   
   subroutine matrix_array_assembler_free_in_stages(this,action)
     implicit none

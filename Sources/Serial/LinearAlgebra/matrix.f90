@@ -35,6 +35,7 @@ module matrix_names
   type, abstract, extends(operator_t) :: matrix_t
   contains
      procedure (allocate_interface)       , deferred :: allocate
+     procedure (init_interface)           , deferred :: init
      procedure (free_in_stages_interface) , deferred :: free_in_stages
      procedure (create_iterator_interface), deferred :: create_iterator
      
@@ -63,6 +64,14 @@ module matrix_names
        implicit none
        class(matrix_t)       , intent(inout) :: this
      end subroutine allocate_interface
+     ! Init the entries of the matrix once it has been created and symbolically set-up
+     subroutine init_interface(this, alpha) 
+       import :: matrix_t
+       import :: rp
+       implicit none
+       class(matrix_t)       , intent(inout) :: this
+       real(rp)              , intent(in)    :: alpha
+     end subroutine init_interface
      ! Progressively free a matrix_t in three stages: action={free_numeric,free_symbolic,free_clean}
      subroutine free_in_stages_interface(this,action) 
        import :: matrix_t, ip

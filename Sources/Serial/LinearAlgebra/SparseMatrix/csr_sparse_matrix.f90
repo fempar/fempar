@@ -16,11 +16,11 @@ private
 
     type, extends(base_sparse_matrix_t) :: csr_sparse_matrix_t
     private
-        character(len=3)                 :: format_name = csr_format    !< String format id
-        integer(ip)                      :: nnz = 0                     !< Number of non zeros
-        integer(ip), allocatable, public :: irp(:)                      !< Row pointers
-        integer(ip), allocatable, public :: ja(:)                       !< Column indices        
-        real(rp),    allocatable, public :: val(:)                      !< Values
+        character(len=3)                 :: format_name = csr_format    ! String format id
+        integer(ip)                      :: nnz = 0                     ! Number of non zeros
+        integer(ip), allocatable, public :: irp(:)                      ! Row pointers
+        integer(ip), allocatable, public :: ja(:)                       ! Column indices        
+        real(rp),    allocatable, public :: val(:)                      ! Values
     contains
     private
         procedure, public :: is_by_rows                              => csr_sparse_matrix_is_by_rows

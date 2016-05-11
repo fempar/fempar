@@ -90,16 +90,16 @@ module base_sparse_matrix_names
   
   type, abstract :: base_sparse_matrix_t
      private 
-     integer(ip) :: num_rows                          !< Number of rows
-     integer(ip) :: num_cols                          !< Number of colums
-     integer(ip) :: state = SPARSE_MATRIX_STATE_START !< Matrix state (one of SPARSE_MATRIX_STATE_XXX parameters)
-     integer(ip) :: sign                              !< Matrix sign (one of SPARSE_MATRIX_SIGN_XXX pa
-     logical     :: sum_duplicates = .true.           !< If .false. overwrites duplicated values, else perform sum
-     logical     :: symmetric                         !< Matrix is symmetric (.true.) or not (.false.)
-     logical     :: symmetric_storage = .false.       !< .True.   Implicitly assumes that G=(V,E) is such that 
-     !<          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
-     !<          Only edges (i,j) with j>=i are stored.
-     !< .False.  All (i,j) \belongs E are stored.  
+     integer(ip) :: num_rows                          ! Number of rows
+     integer(ip) :: num_cols                          ! Number of colums
+     integer(ip) :: state = SPARSE_MATRIX_STATE_START ! Matrix state (one of SPARSE_MATRIX_STATE_XXX parameters)
+     integer(ip) :: sign                              ! Matrix sign (one of SPARSE_MATRIX_SIGN_XXX pa
+     logical     :: sum_duplicates = .true.           ! If .false. overwrites duplicated values, else perform sum
+     logical     :: symmetric                         ! Matrix is symmetric (.true.) or not (.false.)
+     logical     :: symmetric_storage = .false.       ! .True.   Implicitly assumes that G=(V,E) is such that 
+     !          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
+     !          Only edges (i,j) with j>=i are stored.
+     ! .False.  All (i,j) \belongs E are stored.  
    contains
      private
      procedure(base_sparse_matrix_is_by_rows),                public, deferred :: is_by_rows
@@ -304,12 +304,12 @@ module base_sparse_matrix_names
     character(len=3), parameter :: coo_format = 'coo'
 
     type, extends(base_sparse_matrix_t) :: coo_sparse_matrix_t
-        character(len=3)           :: format_name = coo_format    !< String format id
+        character(len=3)           :: format_name = coo_format    ! String format id
         integer(ip), private       :: sort_status = COO_SPARSE_MATRIX_SORTED_NONE ! Not sorted
-        integer(ip), private       :: nnz = 0                     !< Number of non zeros
-        integer(ip), allocatable   :: ia(:)                       !< Row indices
-        integer(ip), allocatable   :: ja(:)                       !< Column indices        
-        real(rp),    allocatable   :: val(:)                      !< Values
+        integer(ip), private       :: nnz = 0                     ! Number of non zeros
+        integer(ip), allocatable   :: ia(:)                       ! Row indices
+        integer(ip), allocatable   :: ja(:)                       ! Column indices        
+        real(rp),    allocatable   :: val(:)                      ! Values
     contains
     private
         procedure         :: append_bounded_values_body              => coo_sparse_matrix_append_bounded_values_body

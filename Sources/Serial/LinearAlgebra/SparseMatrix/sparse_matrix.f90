@@ -63,6 +63,7 @@ private
         procedure, non_overridable, public :: is_symmetric                   => sparse_matrix_is_symmetric
         procedure, non_overridable, public :: get_default_sparse_matrix      => sparse_matrix_get_default_sparse_matrix
         procedure,                  public :: allocate                       => sparse_matrix_allocate
+        procedure,                  public :: init                           => sparse_matrix_init
         procedure,                  public :: free_in_stages                 => sparse_matrix_free_in_stages  
         generic,                    public :: create                         => sparse_matrix_create_square, &
                                                                                 sparse_matrix_create_rectangular
@@ -241,6 +242,18 @@ contains
         assert(allocated(this%State))
         call this%State%allocate_values()
     end subroutine sparse_matrix_allocate
+
+
+    subroutine sparse_matrix_init(this, alpha)
+    !-----------------------------------------------------------------
+    !< Initialize matrix values only if is in a assembled stage
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        real(rp),               intent(in)    :: alpha
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%initialize_values(alpha)
+    end subroutine sparse_matrix_init
 
 
     subroutine sparse_matrix_create_vector_spaces(this)
