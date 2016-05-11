@@ -99,6 +99,8 @@ module base_sparse_matrix_names
      private
      procedure(base_sparse_matrix_is_by_rows),                public, deferred :: is_by_rows
      procedure(base_sparse_matrix_is_by_cols),                public, deferred :: is_by_cols
+     procedure(base_sparse_matrix_get_format_name),           public, deferred :: get_format_name
+     procedure(base_sparse_matrix_has_same_format),           public, deferred :: has_same_format
      procedure(base_sparse_matrix_copy_to_coo),               public, deferred :: copy_to_coo
      procedure(base_sparse_matrix_copy_from_coo),             public, deferred :: copy_from_coo
      procedure(base_sparse_matrix_move_to_coo),               public, deferred :: move_to_coo
@@ -291,11 +293,13 @@ module base_sparse_matrix_names
   !< COO SPARSE MATRIX DERIVED TYPE
   !---------------------------------------------------------------------
 
-    integer(ip), parameter :: COO_SPARSE_MATRIX_SORTED_NONE    = 20
-    integer(ip), parameter :: COO_SPARSE_MATRIX_SORTED_BY_ROWS = 21
-    integer(ip), parameter :: COO_SPARSE_MATRIX_SORTED_BY_COLS = 22
+    integer(ip),      parameter :: COO_SPARSE_MATRIX_SORTED_NONE    = 20
+    integer(ip),      parameter :: COO_SPARSE_MATRIX_SORTED_BY_ROWS = 21
+    integer(ip),      parameter :: COO_SPARSE_MATRIX_SORTED_BY_COLS = 22
+    character(len=3), parameter :: coo_format = 'coo'
 
     type, extends(base_sparse_matrix_t) :: coo_sparse_matrix_t
+        character(len=3)           :: format_name = coo_format    !< String format id
         integer(ip), private       :: sort_status = COO_SPARSE_MATRIX_SORTED_NONE ! Not sorted
         integer(ip), private       :: nnz = 0                     !< Number of non zeros
         integer(ip), allocatable   :: ia(:)                       !< Row indices
@@ -344,6 +348,8 @@ module base_sparse_matrix_names
         procedure, public :: extract_diagonal                        => coo_sparse_matrix_extract_diagonal
         procedure, public :: is_by_rows                              => coo_sparse_matrix_is_by_rows
         procedure, public :: is_by_cols                              => coo_sparse_matrix_is_by_cols
+        procedure, public :: get_format_name                         => coo_sparse_matrix_get_format_name
+        procedure, public :: has_same_format                         => coo_sparse_matrix_has_same_format
         procedure, public :: set_nnz                                 => coo_sparse_matrix_set_nnz
         procedure, public :: get_nnz                                 => coo_sparse_matrix_get_nnz
         procedure, public :: sort_and_compress                       => coo_sparse_matrix_sort_and_compress
@@ -422,6 +428,19 @@ module base_sparse_matrix_names
             class(base_sparse_matrix_t), intent(in) :: this
             logical                                 :: by_cols
         end function base_sparse_matrix_is_by_cols
+
+        function base_sparse_matrix_get_format_name(this) result(format_name)
+            import base_sparse_matrix_t
+            class(base_sparse_matrix_t), intent(in) :: this
+            character(len=:), allocatable           :: format_name
+        end function base_sparse_matrix_get_format_name
+
+        function base_sparse_matrix_has_same_format(this, mold) result(has_same_format)
+            import base_sparse_matrix_t
+            class(base_sparse_matrix_t), intent(in) :: this
+            class(base_sparse_matrix_t), intent(in) :: mold
+            logical                                 :: has_same_format
+        end function base_sparse_matrix_has_same_format
 
         subroutine base_sparse_matrix_set_nnz(this, nnz)
             import base_sparse_matrix_t
@@ -905,6 +924,7 @@ module base_sparse_matrix_names
 public :: base_sparse_matrix_t
 public :: base_sparse_matrix_iterator_t
 public :: coo_sparse_matrix_t
+public :: coo_format
 !public :: coo_sparse_matrix_iterator_t
 public :: duplicates_operation
 public :: assign_value
@@ -2497,6 +2517,34 @@ contains
     !-----------------------------------------------------------------
         is_by_cols = (this%sort_status == COO_SPARSE_MATRIX_SORTED_BY_COLS)
     end function coo_sparse_matrix_is_by_cols
+
+
+    function coo_sparse_matrix_get_format_name(this) result(format_name)
+    !-----------------------------------------------------------------
+    !< Return a string with the sparse matrix format name
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(in) :: this
+        character(len=:), allocatable          :: format_name
+    !-----------------------------------------------------------------
+        format_name = this%format_name
+    end function coo_sparse_matrix_get_format_name
+
+
+    function coo_sparse_matrix_has_same_format(this, mold) result(has_same_format)
+    !-----------------------------------------------------------------
+    !< Return true if mold is of type coo_sparse_matrix_t
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),  intent(in) :: this
+        class(base_sparse_matrix_t), intent(in) :: mold
+        logical                                 :: has_same_format
+    !-----------------------------------------------------------------
+        select type(mold)
+            type is (coo_sparse_matrix_t)
+                has_same_format = .true.
+            class default
+                has_same_format = .false.
+        end select
+    end function coo_sparse_matrix_has_same_format
 
 
     subroutine coo_sparse_matrix_allocate_coords(this, nz)

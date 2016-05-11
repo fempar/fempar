@@ -12,9 +12,11 @@ implicit none
 
 private
 
+    character(len=3), parameter :: csr_format = 'CSR'
 
     type, extends(base_sparse_matrix_t) :: csr_sparse_matrix_t
     private
+        character(len=3)                 :: format_name = csr_format    !< String format id
         integer(ip)                      :: nnz = 0                     !< Number of non zeros
         integer(ip), allocatable, public :: irp(:)                      !< Row pointers
         integer(ip), allocatable, public :: ja(:)                       !< Column indices        
@@ -23,6 +25,8 @@ private
     private
         procedure, public :: is_by_rows                              => csr_sparse_matrix_is_by_rows
         procedure, public :: is_by_cols                              => csr_sparse_matrix_is_by_cols
+        procedure, public :: get_format_name                         => csr_sparse_matrix_get_format_name
+        procedure, public :: has_same_format                         => csr_sparse_matrix_has_same_format
         procedure, public :: set_nnz                                 => csr_sparse_matrix_set_nnz
         procedure, public :: get_nnz                                 => csr_sparse_matrix_get_nnz
         procedure, public :: copy_to_coo                             => csr_sparse_matrix_copy_to_coo
@@ -91,6 +95,7 @@ private
     end type csr_sparse_matrix_iterator_t
 
 public :: csr_sparse_matrix_t
+public :: csr_format
 !public :: csr_sparse_matrix_iterator_t
 
 contains
@@ -137,6 +142,34 @@ contains
     !-----------------------------------------------------------------
         is_by_cols = .false.
     end function csr_sparse_matrix_is_by_cols
+
+
+    function csr_sparse_matrix_get_format_name(this) result(format_name)
+    !-----------------------------------------------------------------
+    !< Return a string with the sparse matrix format name
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(in) :: this
+        character(len=:), allocatable          :: format_name
+    !-----------------------------------------------------------------
+        format_name = this%format_name
+    end function csr_sparse_matrix_get_format_name
+
+
+    function csr_sparse_matrix_has_same_format(this, mold) result(has_same_format)
+    !-----------------------------------------------------------------
+    !< Return true if mold is of type coo_sparse_matrix_t
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),  intent(in) :: this
+        class(base_sparse_matrix_t), intent(in) :: mold
+        logical                                 :: has_same_format
+    !-----------------------------------------------------------------
+        select type(mold)
+            type is (csr_sparse_matrix_t)
+                has_same_format = .true.
+            class default
+                has_same_format = .false.
+        end select
+    end function csr_sparse_matrix_has_same_format
 
 
     subroutine csr_sparse_matrix_copy_to_coo(this, to)

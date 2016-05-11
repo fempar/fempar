@@ -6,7 +6,7 @@ USE vector_names
 USE matrix_names
 USE vector_space_names
 USE serial_scalar_array_names
-USE base_sparse_matrix_names, only: base_sparse_matrix_t, coo_sparse_matrix_t, base_sparse_matrix_iterator_t
+USE base_sparse_matrix_names, only: base_sparse_matrix_t, coo_sparse_matrix_t, coo_format, base_sparse_matrix_iterator_t
 USE csr_sparse_matrix_names
 
 implicit none
@@ -120,7 +120,7 @@ private
        procedure, non_overridable :: set_entry    => sparse_matrix_iterator_set_entry
     end type sparse_matrix_iterator_t
 
-public :: sparse_matrix_t, sparse_matrix_iterator_t
+public :: sparse_matrix_t, sparse_matrix_iterator_t, csr_format, coo_format
 
 contains
 
@@ -644,11 +644,13 @@ contains
         integer                                  :: error
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        allocate(tmp, mold=this%get_default_sparse_matrix(), stat=error)
-        check(error==0)
-        call tmp%move_from_fmt(from=this%State)
-        if(allocated(this%State)) deallocate(this%State)
-        call move_alloc(from=tmp, to=this%State)
+        if(.not. this%State%has_same_format(this%get_default_sparse_matrix())) then
+            allocate(tmp, mold=this%get_default_sparse_matrix(), stat=error)
+            check(error==0)
+            call tmp%move_from_fmt(from=this%State)
+            if(allocated(this%State)) deallocate(this%State)
+            call move_alloc(from=tmp, to=this%State)
+        endif
     end subroutine sparse_matrix_convert
 
 
@@ -664,19 +666,21 @@ contains
         integer                                  :: error
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        error = 0
-        select case (string)
-            case ('CSR', 'csr')
-                allocate(csr_sparse_matrix_t :: tmp, stat=error)
-            case ('COO', 'coo')
-                allocate(coo_sparse_matrix_t :: tmp, stat=error) 
-            case default
-                check(.false.)
-        end select
-        check(error==0)
-        call tmp%move_from_fmt(from=this%State)
-        if(allocated(this%State)) deallocate(this%State)
-        call move_alloc(from=tmp, to=this%State)  
+        if(trim(adjustl(string)) /= this%State%get_format_name()) then
+            error = 0
+            select case (trim(adjustl(string)))
+                case (csr_format)
+                    allocate(csr_sparse_matrix_t :: tmp, stat=error)
+                case (coo_format)
+                    allocate(coo_sparse_matrix_t :: tmp, stat=error) 
+                case default
+                    check(.false.)
+            end select
+            check(error==0)
+            call tmp%move_from_fmt(from=this%State)
+            if(allocated(this%State)) deallocate(this%State)
+            call move_alloc(from=tmp, to=this%State)  
+        endif
     end subroutine sparse_matrix_convert_string
 
 
@@ -691,11 +695,13 @@ contains
         integer                                  :: error
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        allocate(tmp, mold=mold%State, stat=error)
-        check(error==0)
-        call tmp%move_from_fmt(from=this%State)
-        if(allocated(this%State)) deallocate(this%State)
-        call move_alloc(from=tmp, to=this%State)
+        if(.not. this%State%has_same_format(mold%State)) then
+            allocate(tmp, mold=mold%State, stat=error)
+            check(error==0)
+            call tmp%move_from_fmt(from=this%State)
+            if(allocated(this%State)) deallocate(this%State)
+            call move_alloc(from=tmp, to=this%State)
+        endif
     end subroutine sparse_matrix_convert_sparse_matrix_mold
 
 
@@ -710,12 +716,14 @@ contains
         integer                                    :: error
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        allocate(tmp, mold=mold, stat=error)
-        check(error==0)
-        call this%State%convert_body()
-        call tmp%move_from_fmt(from=this%State)
-        if(allocated(this%State)) deallocate(this%State)
-        call move_alloc(from=tmp, to=this%State)
+        if(.not. this%State%has_same_format(mold)) then
+            allocate(tmp, mold=mold, stat=error)
+            check(error==0)
+            call this%State%convert_body()
+            call tmp%move_from_fmt(from=this%State)
+            if(allocated(this%State)) deallocate(this%State)
+            call move_alloc(from=tmp, to=this%State)
+        endif
     end subroutine sparse_matrix_convert_base_sparse_matrix_mold
 
 

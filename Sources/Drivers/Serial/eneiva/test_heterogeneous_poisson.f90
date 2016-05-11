@@ -426,7 +426,7 @@ program test_heterogeneous_poisson
 
   call fe_space%fill_dof_info() 
     
-  call fe_affine_operator%create ( sparse_matrix_storage_format= 'CSR', &
+  call fe_affine_operator%create ( sparse_matrix_storage_format= csr_format, &
                                    diagonal_blocks_symmetric_storage=(/.true./), &
                                    diagonal_blocks_symmetric=(/.true./), &
                                    diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &

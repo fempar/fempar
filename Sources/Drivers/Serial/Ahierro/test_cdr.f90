@@ -642,7 +642,7 @@ program test_cdr
   diagonal_blocks_symmetric         = .false.
   diagonal_blocks_sign              = SPARSE_MATRIX_SIGN_INDEFINITE
 
-  call fe_affine_operator%create ('CSR',diagonal_blocks_symmetric_storage ,                         &
+  call fe_affine_operator%create (csr_format,diagonal_blocks_symmetric_storage ,                         &
        &                          diagonal_blocks_symmetric,diagonal_blocks_sign,                   &
        &                          senv, fe_space, dG_CDR_integration)
 

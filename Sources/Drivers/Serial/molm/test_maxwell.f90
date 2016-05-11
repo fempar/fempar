@@ -486,7 +486,7 @@ program test_reference_fe
  
    call fe_space%print()
  
-   call fe_affine_operator%create ( 'CSR', &
+   call fe_affine_operator%create ( csr_format, &
                                     (/.true.,.true./), &
                                     (/.true.,.true./), &
                                     (/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/),&
