@@ -654,11 +654,15 @@ contains
     !-----------------------------------------------------------------
         class(sparse_matrix_t),    intent(inout) :: this
         class(base_sparse_matrix_t), allocatable :: tmp
+        class(base_sparse_matrix_t), pointer     :: default_sparse_matrix
         integer                                  :: error
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        if(.not. this%State%has_same_format(this%get_default_sparse_matrix())) then
-            allocate(tmp, mold=this%get_default_sparse_matrix(), stat=error)
+        ! GNU fortran 5.3 crashes in compilation while passing
+        ! directly the pointer returned for the function
+        default_sparse_matrix => this%get_default_sparse_matrix()
+        if(.not. same_type_as(this%State, default_sparse_matrix)) then
+            allocate(tmp, mold=default_sparse_matrix, stat=error)
             check(error==0)
             call tmp%move_from_fmt(from=this%State)
             if(allocated(this%State)) deallocate(this%State)
@@ -708,7 +712,7 @@ contains
         integer                                  :: error
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        if(.not. this%State%has_same_format(mold%State)) then
+        if(.not. same_type_as(this%State, mold%State)) then
             allocate(tmp, mold=mold%State, stat=error)
             check(error==0)
             call tmp%move_from_fmt(from=this%State)
@@ -729,7 +733,7 @@ contains
         integer                                    :: error
     !-----------------------------------------------------------------
         assert(allocated(this%State))
-        if(.not. this%State%has_same_format(mold)) then
+        if(.not. same_type_as(this%State, mold)) then
             allocate(tmp, mold=mold, stat=error)
             check(error==0)
             call this%State%convert_body()

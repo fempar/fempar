@@ -26,7 +26,6 @@ private
         procedure, public :: is_by_rows                              => csr_sparse_matrix_is_by_rows
         procedure, public :: is_by_cols                              => csr_sparse_matrix_is_by_cols
         procedure, public :: get_format_name                         => csr_sparse_matrix_get_format_name
-        procedure, public :: has_same_format                         => csr_sparse_matrix_has_same_format
         procedure, public :: set_nnz                                 => csr_sparse_matrix_set_nnz
         procedure, public :: get_nnz                                 => csr_sparse_matrix_get_nnz
         procedure, public :: copy_to_coo                             => csr_sparse_matrix_copy_to_coo
@@ -153,23 +152,6 @@ contains
     !-----------------------------------------------------------------
         format_name = this%format_name
     end function csr_sparse_matrix_get_format_name
-
-
-    function csr_sparse_matrix_has_same_format(this, mold) result(has_same_format)
-    !-----------------------------------------------------------------
-    !< Return true if mold is of type coo_sparse_matrix_t
-    !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t),  intent(in) :: this
-        class(base_sparse_matrix_t), intent(in) :: mold
-        logical                                 :: has_same_format
-    !-----------------------------------------------------------------
-        select type(mold)
-            type is (csr_sparse_matrix_t)
-                has_same_format = .true.
-            class default
-                has_same_format = .false.
-        end select
-    end function csr_sparse_matrix_has_same_format
 
 
     subroutine csr_sparse_matrix_copy_to_coo(this, to)
