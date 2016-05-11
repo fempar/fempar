@@ -33,49 +33,54 @@ module base_sparse_matrix_names
   !-----------------------------------------------------------------
   ! Input State         | Action                | Output State 
   !-----------------------------------------------------------------
-  ! Start               | Create                | Created
   ! Start               | Free_clean            | Start
   ! Start               | Free_symbolic         | Start
   ! Start               | Free_numeric          | Start
+  ! Start               | Create                | Created
   !-----------------------------------------------------------------
-  ! Created             | Insert (2-values)     | Build_symbolic
-  ! Created             | Insert (3-values)     | Build_numeric
   ! Created             | Free_clean            | Start
   ! Created             | Free_symbolic         | Created
   ! Created             | Free_numeric          | Assembled_symbolic
+  ! Created             | Insert (2-values)     | Build_symbolic
+  ! Created             | Insert (3-values)     | Build_numeric
   !-----------------------------------------------------------------
-  ! Build_symbolic      | Insert (2-values)     | Build_symbolic
-  ! Build_symbolic      | Insert (3-values)     | * Error
-  ! Build_symbolic      | convert               | Assembled_symbolic
   ! Build_symbolic      | Free_clean            | Start
   ! Build_symbolic      | Free_symbolic         | Created
   ! Build_symbolic      | Free_numeric          | Created
+  ! Build_symbolic      | Insert (2-values)     | Build_symbolic
+  ! Build_symbolic      | Insert (3-values)     | * Error
+  ! Build_symbolic      | Convert               | Assembled_symbolic
   !-----------------------------------------------------------------
-  ! Build_numeric       | Insert (2-values)     | * Error
-  ! Build_numeric       | Insert (3-values)     | Build_numeric
-  ! Build_numeric       | convert               | Assembled
   ! Build_numeric       | Free_clean            | Start
   ! Build_numeric       | Free_symbolic         | Created
   ! Build_numeric       | Free_numeric          | Created
+  ! Build_numeric       | Insert (2-values)     | * Error
+  ! Build_numeric       | Insert (3-values)     | Build_numeric
+  ! Build_numeric       | Convert               | Assembled
   !-----------------------------------------------------------------
   ! Assembled           | Free_clean            | Start
   ! Assembled           | Free_symbolic         | Created
   ! Assembled           | Free_numeric          | Assembled_symbolic
   ! Assembled           | Insert (2-values)     | * Error
   ! Assembled           | Insert (3-values)     | Update
+  ! Assembled           | Allocate_values       | Assembled
+  ! Assembled           | Convert               | Assembled
+  ! Assembled           | Apply                 | Assembled
   !-----------------------------------------------------------------
   ! Assembled_symbolic  | Free_clean            | Start
   ! Assembled_symbolic  | Free_symbolic         | Created
   ! Assembled_symbolic  | Free_numeric          | Assembed_symbolic
   ! Assembled_symbolic  | Insert (2-values)     | * Error
   ! Assembled_symbolic  | Insert (3-values)     | Update
+  ! Assembled_symbolic  | Allocate_values       | Assembled
+  ! Assembled_symbolic  | Convert               | Assembled_symbolic
   !-----------------------------------------------------------------
-  ! Assembled           | Free_clean            | Start
-  ! Assembled           | Free_symbolic         | Created
-  ! Assembled           | Free_numeric          | Assembled_symbolic
-  ! Assembled           | Insert (2-values)     | * Error
-  ! Assembled           | Insert (3-values)     | Update
-  !-----------------------------------------------------------------
+  ! Update              | Free_clean            | Start
+  ! Update              | Free_symbolic         | Created
+  ! Update              | Free_numeric          | Assembled_symbolic
+  ! Update              | Insert (3-values)     | Update
+  ! Update              | Apply                 | Update
+  ! Update              | Convert               | Assembled
   
   ! Matrix sign
   integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE     = 0
