@@ -90,9 +90,9 @@ contains
      
      ! Communication related locals 
      integer(ip) :: icontxt 
-     integer :: my_pid, num_procs, proc_to_comm, sizmsg
-     integer :: the_mpi_comm,  iret, info
-     integer :: p2pstat(mpi_status_size)
+     integer     :: my_pid, num_procs, proc_to_comm, sizmsg
+     integer     :: the_mpi_comm,  iret, info
+     integer     :: p2pstat(mpi_status_size)
 
      ! Request handlers for non-blocking receives
      integer, allocatable, dimension(:) :: rcvhd
@@ -117,7 +117,9 @@ contains
      icontxt    = l1_context%get_icontxt()
      my_pid     = l1_context%get_rank()
      num_procs  = l1_context%get_size()
-          
+
+     call psb_get_mpicomm (icontxt, the_mpi_comm)
+
      call memalloc ( size(data), elemsizes, __FILE__, __LINE__ )
      call memalloc ( number_neighbours+1, snd_ptrs_buf, __FILE__, __LINE__ )
      call memalloc ( number_neighbours+1, rcv_ptrs_buf, __FILE__, __LINE__ )
@@ -160,12 +162,6 @@ contains
        rcv_ptrs_buf(i+1) = rcv_ptrs_buf(i) + rcv_ptrs_buf(i+1)
      end do
      
-     ! Get MPI communicator associated to icontxt (in
-     ! the current implementation of our wrappers
-     ! to the MPI library icontxt and mpi_comm are actually 
-     ! the same)
-     call psb_get_mpicomm (icontxt, the_mpi_comm)
-
      ! Prepare room for sndbuf
      call memalloc (snd_ptrs_buf(number_neighbours+1)-1, sndbuf, __FILE__,__LINE__)
 

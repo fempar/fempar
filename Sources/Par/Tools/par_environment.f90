@@ -447,7 +447,7 @@ contains
      
    ! Communication related locals 
    integer :: my_pid, num_procs, i, proc_to_comm, sizmsg
-   integer :: mpi_comm,  iret
+   integer :: the_mpi_comm,  iret
    integer :: p2pstat(mpi_status_size)
    integer :: icontxt
 
@@ -466,7 +466,7 @@ contains
    my_pid    = this%l1_context%get_rank()
    num_procs = this%l1_context%get_size()
 
-   call psb_get_mpicomm (icontxt, mpi_comm)
+   call psb_get_mpicomm (icontxt, the_mpi_comm)
 
    call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
    call memalloc (num_snd, sndhd, __FILE__,__LINE__)
@@ -490,7 +490,7 @@ contains
       if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
          call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
               &  psb_mpi_real, proc_to_comm, &
-              &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
+              &  psb_double_swap_tag, the_mpi_comm, rcvhd(i), iret)
          check ( iret == mpi_success )
       end if
    end do
@@ -508,7 +508,7 @@ contains
       if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then 
          call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
               & psb_mpi_real, proc_to_comm,    &
-              & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
+              & psb_double_swap_tag, the_mpi_comm, sndhd(i), iret)
          check ( iret == mpi_success )
       end if
    end do
@@ -588,7 +588,7 @@ contains
      
    ! Communication related locals 
    integer :: my_pid, num_procs, i, proc_to_comm, sizmsg
-   integer :: mpi_comm,  iret
+   integer :: the_mpi_comm,  iret
    integer :: p2pstat(mpi_status_size)
    integer :: icontxt
 
@@ -607,7 +607,7 @@ contains
    num_procs = this%l1_context%get_size()
 
 
-   call psb_get_mpicomm (icontxt, mpi_comm)
+   call psb_get_mpicomm (icontxt, the_mpi_comm)
 
    call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
    call memalloc (num_snd, sndhd, __FILE__,__LINE__)
@@ -631,7 +631,7 @@ contains
       if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
          call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
               &  psb_mpi_integer, proc_to_comm, &
-              &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
+              &  psb_double_swap_tag, the_mpi_comm, rcvhd(i), iret)
          check ( iret == mpi_success )
       end if
    end do
@@ -649,7 +649,7 @@ contains
       if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then 
          call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
               & psb_mpi_integer, proc_to_comm,    &
-              & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
+              & psb_double_swap_tag, the_mpi_comm, sndhd(i), iret)
          check ( iret == mpi_success )
       end if
    end do
@@ -729,7 +729,7 @@ contains
      
    ! Communication related locals 
    integer :: my_pid, num_procs, i, proc_to_comm, sizmsg
-   integer :: mpi_comm,  iret
+   integer :: the_mpi_comm,  iret
    integer :: p2pstat(mpi_status_size)
    integer :: icontxt
 
@@ -748,7 +748,7 @@ contains
    num_procs = this%l1_context%get_size()
 
 
-   call psb_get_mpicomm (icontxt, mpi_comm)
+   call psb_get_mpicomm (icontxt, the_mpi_comm)
 
    call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
    call memalloc (num_snd, sndhd, __FILE__,__LINE__)
@@ -772,7 +772,7 @@ contains
       if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= my_pid) ) then
          call mpi_irecv(  rcvbuf(rcv_ptrs(i)), sizmsg,        &
               &  psb_mpi_long_integer, proc_to_comm, &
-              &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
+              &  psb_double_swap_tag, the_mpi_comm, rcvhd(i), iret)
          check ( iret == mpi_success )
       end if
    end do
@@ -790,7 +790,7 @@ contains
       if ( (sizmsg > 0) .and. (list_snd(i)-1 /= my_pid) ) then 
          call mpi_isend(sndbuf(snd_ptrs(i)), sizmsg, &
               & psb_mpi_long_integer, proc_to_comm,    &
-              & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
+              & psb_double_swap_tag, the_mpi_comm, sndhd(i), iret)
          check ( iret == mpi_success )
       end if
    end do
@@ -1107,7 +1107,7 @@ contains
      ! Communication related locals 
      integer(ip) :: icontxt 
      integer     :: my_pid, proc_to_comm, sizmsg
-     integer     :: mpi_comm,  iret
+     integer     :: the_mpi_comm,  iret
      integer     :: p2pstat(mpi_status_size)
      
      ! Request handlers for non-blocking receives
@@ -1129,7 +1129,7 @@ contains
      call memalloc (number_neighbours, sndhd, __FILE__,__LINE__)
      
      
-     call psb_get_mpicomm (icontxt, mpi_comm)
+     call psb_get_mpicomm (icontxt, the_mpi_comm)
        
      ! First post all the non blocking receives   
      do i=1, number_neighbours
@@ -1144,7 +1144,7 @@ contains
        if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= my_pid) ) then
           call mpi_irecv(  rcv_buf(rcv_ptrs(i)), sizmsg, &
                         &  psb_mpi_integer1, proc_to_comm, &
-                        &  psb_double_swap_tag, mpi_comm, rcvhd(i), iret)
+                        &  psb_double_swap_tag, the_mpi_comm, rcvhd(i), iret)
           check ( iret == mpi_success )
        end if
      end do
@@ -1162,7 +1162,7 @@ contains
         if ( (sizmsg > 0) .and. (neighbour_ids(i)-1 /= my_pid) ) then 
              call mpi_isend(snd_buf(snd_ptrs(i)), sizmsg, &
                      & psb_mpi_integer1, proc_to_comm, &
-                     & psb_double_swap_tag, mpi_comm, sndhd(i), iret)
+                     & psb_double_swap_tag, the_mpi_comm, sndhd(i), iret)
              check ( iret == mpi_success )
         end if
      end do
@@ -1218,11 +1218,11 @@ contains
       integer(ip)             , intent(in)   :: input_data
       integer(ip)             , intent(out)  :: output_data(this%l1_context%get_size())
       integer(ip) :: icontxt
-      integer     :: mpi_comm, iret
+      integer     :: the_mpi_comm, iret
       assert ( this%am_i_l1_task() )
       icontxt = this%l1_context%get_icontxt()
-      call psb_get_mpicomm (icontxt, mpi_comm)
-      call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, mpi_comm, iret)
+      call psb_get_mpicomm (icontxt, the_mpi_comm)
+      call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, the_mpi_comm, iret)
       check( iret == mpi_success )
    end subroutine par_environment_l1_gather_scalar_ip
    
@@ -1233,11 +1233,11 @@ contains
       integer(ip)             , intent(in)   :: input_data(this%l1_context%get_size())
       integer(ip)             , intent(out)  :: output_data
       integer(ip) :: icontxt
-      integer     :: mpi_comm, iret
+      integer     :: the_mpi_comm, iret
       assert( this%am_i_l1_task() )
       icontxt = this%l1_context%get_icontxt()
-      call psb_get_mpicomm (icontxt, mpi_comm)
-      call mpi_scatter( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, mpi_comm, iret)
+      call psb_get_mpicomm (icontxt, the_mpi_comm)
+      call mpi_scatter( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, the_mpi_comm, iret)
       check( iret == mpi_success )
    end subroutine par_environment_l1_scatter_scalar_ip
    
@@ -1277,12 +1277,12 @@ contains
       integer(ip)             , intent(in)   :: input_data
       integer(ip)             , intent(out)  :: output_data(this%l1_to_l2_context%get_size())
       integer(ip)            :: icontxt
-      integer                :: mpi_comm, iret, root
+      integer                :: the_mpi_comm, iret, root
       assert ( this%am_i_l1_to_l2_task() )
       root    = this%l1_to_l2_context%get_size() - 1 
       icontxt = this%l1_to_l2_context%get_icontxt()
-      call psb_get_mpicomm (icontxt, mpi_comm)
-      call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, mpi_comm, iret)
+      call psb_get_mpicomm (icontxt, the_mpi_comm)
+      call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, the_mpi_comm, iret)
       check( iret == mpi_success )
    end subroutine par_environment_l2_from_l1_gather_ip
 
@@ -1292,12 +1292,12 @@ contains
       integer(igp)            , intent(in)   :: input_data
       integer(igp)            , intent(out)  :: output_data(this%l1_to_l2_context%get_size())
       integer(ip)            :: icontxt
-      integer                :: mpi_comm, iret, root
+      integer                :: the_mpi_comm, iret, root
       assert ( this%am_i_l1_to_l2_task() )
       root    = this%l1_to_l2_context%get_size() - 1 
       icontxt = this%l1_to_l2_context%get_icontxt()
-      call psb_get_mpicomm (icontxt, mpi_comm)
-      call mpi_gather( input_data, 1, psb_mpi_long_integer, output_data, 1, psb_mpi_long_integer, root, mpi_comm, iret)
+      call psb_get_mpicomm (icontxt, the_mpi_comm)
+      call mpi_gather( input_data, 1, psb_mpi_long_integer, output_data, 1, psb_mpi_long_integer, root, the_mpi_comm, iret)
       check( iret == mpi_success )
    end subroutine par_environment_l2_from_l1_gather_igp
    
@@ -1311,15 +1311,15 @@ contains
       integer(ip)             , intent(out)  :: output_data(*)
       
       integer(ip)            :: icontxt
-      integer                :: mpi_comm, iret, root
+      integer                :: the_mpi_comm, iret, root
       
       assert( this%am_i_l1_to_l2_task() )
       root    = this%l1_to_l2_context%get_size() - 1 
       icontxt = this%l1_to_l2_context%get_icontxt()
-      call psb_get_mpicomm (icontxt, mpi_comm)
+      call psb_get_mpicomm (icontxt, the_mpi_comm)
       call mpi_gatherv( input_data, input_data_size, psb_mpi_integer, &
            output_data, recv_counts, displs, psb_mpi_integer, &
-           root, mpi_comm, iret)
+           root, the_mpi_comm, iret)
       check( iret == mpi_success )
    end subroutine par_environment_l2_from_l1_gather_ip_1D_array
    
@@ -1333,15 +1333,15 @@ contains
       integer(igp)            , intent(out)  :: output_data(*)
       
       integer(ip)            :: icontxt
-      integer                :: mpi_comm, iret, root
+      integer                :: the_mpi_comm, iret, root
       
       assert( this%am_i_l1_to_l2_task() )
       root    = this%l1_to_l2_context%get_size() - 1 
       icontxt = this%l1_to_l2_context%get_icontxt()
-      call psb_get_mpicomm (icontxt, mpi_comm)
+      call psb_get_mpicomm (icontxt, the_mpi_comm)
       call mpi_gatherv( input_data, input_data_size, psb_mpi_long_integer, &
                         output_data, recv_counts, displs, psb_mpi_long_integer, &
-                        root, mpi_comm, iret)
+                        root, the_mpi_comm, iret)
       check( iret == mpi_success )
    end subroutine par_environment_l2_from_l1_gather_igp_1D_array
 
