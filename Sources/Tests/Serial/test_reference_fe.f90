@@ -431,7 +431,7 @@ program test_reference_fe
   call params%parse()
 
   ! Read mesh
-  call mesh_read (params%dir_path, params%prefix, f_mesh, permute_c2z=.true.)
+  call f_mesh%read (params%dir_path, params%prefix, permute_c2z=.true.)
 
   ! Read conditions 
   call conditions_read (params%dir_path, params%prefix, f_mesh%npoin, f_cond)
@@ -450,7 +450,7 @@ program test_reference_fe
   !call fe_space%free()
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
-  call mesh_free (f_mesh)
+  call f_mesh%free()
   call params%free()
 
   call fempar_finalize()

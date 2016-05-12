@@ -41,7 +41,6 @@ module serial_names
 
   ! Geometry
   use map_names
-  use map_apply_names
   use triangulation_names
   use mesh_to_triangulation_names
 
@@ -58,13 +57,11 @@ module serial_names
   use materials_io_names
   use elem_to_subset_id_names
   use graph_names
-  use generate_vefs_mesh_conditions_names
+  !use generate_vefs_mesh_conditions_names
   use renumbering_names
   use mesh_names
-  use partitioning_params_names
   use create_mesh_distribution_names
 
-  use mesh_io_names
   use migratory_element_names
 
   ! Linear Algebra

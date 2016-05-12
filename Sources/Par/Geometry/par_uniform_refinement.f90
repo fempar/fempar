@@ -37,7 +37,6 @@ module par_uniform_refinement_names
   use reference_fe_names
 
   use stdio_names
-  use mesh_io_names
   use conditions_io_names
 
   ! Parallel modules

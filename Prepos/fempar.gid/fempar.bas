@@ -43,7 +43,7 @@
 *endif
 *set var nboun=CondNumEntities
 *format "%2i %2i %10i %10i %10i"
-MESH dimension *ndime order  0  types *nelty elements *netot nodes *npoin boundaries *nboun
+MESH dimension *ndime types *nelty elements *netot nodes *npoin boundaries *nboun
 *\------------------------------------------------------------
 *\ COORDINATES
 *\------------------------------------------------------------

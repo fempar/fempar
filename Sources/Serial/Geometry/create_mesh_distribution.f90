@@ -31,132 +31,37 @@ module create_mesh_distribution_names
   use memor_names
   use mesh_distribution_names
   use map_names
-  use map_apply_names
   use graph_names
-  use graph_renumbering_names
+  use metis_interface_names
+  use rcm_renumbering_names
   use mesh_names
-  use partitioning_params_names
   use hash_table_names
   implicit none
 # include "debug.i90"
   private
 
   ! Functions
-  public :: create_mesh_distribution, create_mesh_distribution_new, create_graph_from_mesh
+  public :: create_mesh_distribution
 
 contains
 
-  subroutine create_mesh_distribution( prt_pars, femesh, distr, lmesh)
+  subroutine create_mesh_distribution( femesh, prt_pars, distr, lmesh)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
     implicit none
 
     ! Parameters
-    type(partitioning_params_t)                        , intent(in)  :: prt_pars
-    type(mesh_t)                           , intent(in)  :: femesh
+    class(mesh_t)                   , intent(inout)      :: femesh
+    type(mesh_distribution_params_t), intent(in)         :: prt_pars
     type(mesh_distribution_t) , allocatable, intent(out) :: distr(:) ! Mesh distribution instances
     type(mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
 
     ! Local variables
-    type(mesh_t)               :: dual_femesh, dual_lmesh
-    type(graph_t)              :: fe_graph    ! Dual graph (to be partitioned)
+    type(graph_t)                :: fe_graph    ! Dual graph (to be partitioned)
     integer(ip)   , allocatable  :: ldome(:)    ! Part of each element
-    integer(ip)   , allocatable  :: dual_parts(:)
     integer(ip)                  :: ipart
     integer                      :: istat
-    ! AFM. Dummy map declared and used for backward compatibility.
-    ! It should be re-considered when we decide how to implement
-    ! the boundary mesh.
-    type(map_t)                    :: dummy_bmap
-
-
-    ! Generate dual mesh (i.e., list of elements around points)
-    call mesh_to_dual(femesh, dual_femesh)
-
-    ! Allocate working arrays
-    call memalloc (femesh%nelem, ldome, __FILE__,__LINE__)
-
-    ! dual graph (elements around elements)
-    call create_graph_from_mesh (dual_femesh, femesh, dual_femesh%ndime, fe_graph)
-    !out0(call graph_print(6, fe_graph))
-
-    ! write (*,*) 'fe_graph%nv', fe_graph%nv, 'fe_graph%nnz', fe_graph%ia(fe_graph%nv+1) 
-    call graph_pt_renumbering(prt_pars,fe_graph,ldome)
-
-    ! Now free fe_graph, not needed anymore?
-
-    allocate(distr(prt_pars%nparts), stat=istat)
-    check(istat==0)
-
-    allocate(lmesh(prt_pars%nparts), stat=istat)
-    check(istat==0) 
-
-    do ipart=1, prt_pars%nparts
-       distr(ipart)%ipart  = ipart
-       distr(ipart)%nparts = prt_pars%nparts
-    end do
-
-    call build_maps(prt_pars%nparts, ldome, femesh, distr)
-
-    ! Build local meshes and their duals and generate partition adjacency
-    do ipart=1,prt_pars%nparts
-
-       ! Generate Local mesh
-       call mesh_g2l(distr(ipart)%nmap, distr(ipart)%emap, femesh, lmesh(ipart))
-
-       ! Mesh to dual with global element numbers in the dual (just get numbers applying g2l map to dual_femesh)
-       ! Store dual_part too.
-       call dual_mesh_g2l(distr(ipart)%nmap, dual_femesh, ldome, lmesh(ipart), dual_lmesh, dual_parts)
-
-       call build_adjacency (ipart,                 &
-            &                lmesh(ipart),          &
-            &                distr(ipart)%emap%l2g, &
-            &                dual_lmesh,            &
-            &                dual_parts,            &
-            &                distr(ipart)%nebou,    &
-            &                distr(ipart)%nnbou,    &
-            &                distr(ipart)%lebou,    &
-            &                distr(ipart)%lnbou,    &
-            &                distr(ipart)%pextn,    &
-            &                distr(ipart)%lextn,    &
-            &                distr(ipart)%lextp )
-
-       call mesh_free(dual_lmesh)
-       call memfree(dual_parts,__FILE__,__LINE__)
-    end do
-
-    call mesh_free(dual_femesh)
-    call fe_graph%free()
-    call memfree(ldome,__FILE__,__LINE__)
-  end subroutine create_mesh_distribution
-
-
-
-  subroutine create_mesh_distribution_new( prt_pars, femesh, distr, lmesh)
-    !-----------------------------------------------------------------------
-    ! 
-    !-----------------------------------------------------------------------
-    implicit none
-
-    ! Parameters
-    type(partitioning_params_t)            , intent(in)    :: prt_pars
-    type(mesh_t)                           , intent(inout) :: femesh
-    type(mesh_distribution_t) , allocatable, intent(out)   :: distr(:) ! Mesh distribution instances
-    type(mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
-
-    ! Local variables
-    !type(mesh_t)               :: dual_femesh, dual_lmesh
-    type(graph_t)              :: fe_graph    ! Dual graph (to be partitioned)
-    integer(ip)   , allocatable  :: ldome(:)    ! Part of each element
-    !integer(ip)   , allocatable  :: dual_parts(:)
-    integer(ip)                  :: ipart
-    integer                      :: istat
-    ! AFM. Dummy map declared and used for backward compatibility.
-    ! It should be re-considered when we decide how to implement
-    ! the boundary mesh.
-    type(map_t)                    :: dummy_bmap
-
 
     ! Generate dual mesh (i.e., list of elements around points)
     call femesh%to_dual()
@@ -186,10 +91,6 @@ contains
        ! Generate Local mesh
        call mesh_g2l(distr(ipart)%nmap, distr(ipart)%emap, femesh, lmesh(ipart))
 
-       ! Mesh to dual with global element numbers in the dual (just get numbers applying g2l map to dual_femesh)
-       ! Store dual_part too.
-       !call dual_mesh_g2l(distr(ipart)%nmap, dual_femesh, ldome, lmesh(ipart), dual_lmesh, dual_parts)
-
        call build_adjacency_new (femesh, ldome,         &
             &                    ipart,                 &
             &                    lmesh(ipart),          &
@@ -202,15 +103,10 @@ contains
             &                    distr(ipart)%pextn,    &
             &                    distr(ipart)%lextn,    &
             &                    distr(ipart)%lextp )
-
-       !call mesh_free(dual_lmesh)
-       !call memfree(dual_parts,__FILE__,__LINE__)
     end do
-
-    !call mesh_free(dual_femesh)
     call fe_graph%free()
     call memfree(ldome,__FILE__,__LINE__)
-  end subroutine create_mesh_distribution_new
+  end subroutine create_mesh_distribution
 
   !================================================================================================
   subroutine create_dual_graph(mesh,graph)
@@ -528,199 +424,6 @@ contains
   end subroutine build_adjacency_new
 
   !================================================================================================
-  subroutine build_adjacency ( my_part, lmesh, l2ge, dual_lmesh, dual_parts, &
-       &                       nebou, nnbou, lebou, lnbou, pextn, lextn, lextp)
-    implicit none
-    integer(ip)   , intent(in)  :: my_part
-    type(mesh_t), intent(in)  :: lmesh
-    type(mesh_t), intent(in)  :: dual_lmesh
-    integer(igp)  , intent(in)  :: l2ge(lmesh%nelem)
-    integer(ip)   , intent(in)  :: dual_parts( dual_lmesh%pnods(dual_lmesh%nelem+1)-1)
-    integer(ip)   , intent(out) :: nebou
-    integer(ip)   , intent(out) :: nnbou
-    integer(ip)   , allocatable, intent(out) ::  lebou(:)    ! List of boundary elements
-    integer(ip)   , allocatable, intent(out) ::  lnbou(:)    ! List of boundary nodes
-    integer(ip)   , allocatable, intent(out) ::  pextn(:)    ! Pointers to the lextn
-    integer(igp)  , allocatable, intent(out) ::  lextn(:)    ! List of (GID of) external neighbors
-    integer(ip)   , allocatable, intent(out) ::  lextp(:)    ! List of parts of external neighbors
-
-    integer(ip) :: lelem, ielem, jelem, pelem, pnode, inode1, inode2, ipoin, jpart, iebou, istat, touch
-    integer(ip) :: nextn, nexte, nepos
-    integer(ip), allocatable :: local_visited(:)
-    type(hash_table_ip_ip_t)   :: external_visited
-
-    ! Count boundary nodes
-    nnbou = 0 
-    do ipoin=1, lmesh%npoin
-       do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
-          jpart = dual_parts(pelem)
-          if ( jpart /= my_part ) then 
-             nnbou = nnbou +1
-             exit
-          end if
-       end do
-    end do
-
-    ! List boundary nodes
-    call memalloc ( nnbou, lnbou, __FILE__, __LINE__ ) 
-    nnbou = 0
-    do ipoin=1, lmesh%npoin
-       do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
-          jpart = dual_parts(pelem)
-          if ( jpart /= my_part ) then 
-             lnbou(nnbou+1) = ipoin
-             nnbou = nnbou +1
-             exit
-          end if
-       end do
-    end do
-
-    ! As the dual mesh is given with global IDs we need a hash table to do the touch.
-    call memalloc(lmesh%nelem, local_visited,__FILE__,__LINE__)
-    local_visited = 0
-    call external_visited%init(20)
-
-    ! 1) Count boundary elements and external edges
-    touch = 1
-    nebou = 0 ! number of boundary elements
-    nextn = 0 ! number of external edges
-    do lelem = 1, lmesh%nelem
-       nexte = 0   ! number of external neighbours of this element
-       ielem = l2ge(lelem)
-       inode1 = lmesh%pnods(lelem)
-       inode2 = lmesh%pnods(lelem+1)-1
-       do pnode = inode1, inode2
-          ipoin = lmesh%lnods(pnode)
-          do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
-             jelem = dual_lmesh%lnods(pelem)
-             if(jelem/=ielem) then
-                jpart = dual_parts(pelem)
-                if(jpart/=my_part) then                                   ! This is an external element
-                   if(local_visited(lelem) == 0 ) nebou = nebou +1        ! Count it
-                   !call external_visited%put(key=jelem,val=1, stat=istat) ! Touch jelem as external neighbor of lelem.
-                   call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
-                   if(istat==now_stored) nexte = nexte + 1                ! Count external neighbours of lelem
-                   local_visited(lelem) = nexte                           ! Touch lelem also storing the number
-                end if                                                    ! of external neighbours it has
-             end if
-          end do
-       end do
-       nextn = nextn + nexte
-       ! Clean hash table
-       if(local_visited(lelem) /= 0 ) then 
-          do pnode = inode1, inode2
-             ipoin = lmesh%lnods(pnode)
-             do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
-                jelem = dual_lmesh%lnods(pelem)
-                if(jelem/=ielem) then
-                   jpart = dual_parts(pelem)
-                   if(jpart/=my_part) then
-                      call external_visited%del(key=jelem, stat=istat)
-                   end if
-                end if
-             end do
-          end do
-       end if
-       call external_visited%print
-
-    end do
-
-
-    ! 2) Allocate arrays and store list and pointers to externals
-    call memalloc(nebou  , lebou,__FILE__,__LINE__)
-    call memalloc(nebou+1, pextn,__FILE__,__LINE__)
-    call memalloc(nextn  , lextn,__FILE__,__LINE__)
-    call memalloc(nextn  , lextp,__FILE__,__LINE__)
-
-    iebou = 0
-    pextn(1) = 1
-    do lelem = 1, lmesh%nelem
-       if(local_visited(lelem) /= 0 ) then
-          iebou = iebou +1
-          lebou(iebou) = lelem
-          pextn(iebou+1) = local_visited(lelem) + pextn(iebou)
-       end if
-    end do
-
-
-    ! 3) Store Count boundary elements and external edges
-    !do lelem = 1, lmesh%nelem
-    do iebou = 1, nebou
-       lelem = lebou(iebou)
-       ielem = l2ge(lelem)
-       nexte = 0   ! number of external neighbours of this element
-       inode1 = lmesh%pnods(lelem)
-       inode2 = lmesh%pnods(lelem+1)-1
-       do pnode = inode1, inode2
-          ipoin = lmesh%lnods(pnode)
-          do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
-             jelem = dual_lmesh%lnods(pelem)
-             if(jelem/=ielem) then
-                jpart = dual_parts(pelem)
-                if(jpart/=my_part) then                            ! This is an external element
-                   call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
-                   if(istat==now_stored) then
-                      lextn(pextn(iebou)+nexte) = jelem
-                      lextp(pextn(iebou)+nexte) = jpart
-                      nexte = nexte + 1
-                   end if
-                end if
-             end if
-          end do
-       end do
-       ! Clean hash table
-       do pnode = inode1, inode2
-          ipoin = lmesh%lnods(pnode)
-          do pelem = dual_lmesh%pnods(ipoin), dual_lmesh%pnods(ipoin+1) - 1
-             jelem = dual_lmesh%lnods(pelem)
-             if(jelem/=ielem) then
-                jpart = dual_parts(pelem)
-                if(jpart/=my_part) then
-                   call external_visited%del(key=jelem, stat=istat)
-                end if
-             end if
-          end do
-       end do
-    end do
-
-    call external_visited%free
-    call memfree(local_visited,__FILE__,__LINE__)
-  end subroutine build_adjacency
-
-  subroutine dual_mesh_g2l(nmap, dual_mesh, ldome, lmesh, dual_lmesh, dual_parts)
-    implicit none
-    type(map_igp_t) , intent(in)  :: nmap
-    type(mesh_t), intent(in)  :: dual_mesh
-    integer(ip)   , intent(in)  :: ldome(dual_mesh%npoin)
-    type(mesh_t), intent(in)  :: lmesh
-    type(mesh_t), intent(inout) :: dual_lmesh
-    integer(ip)   , allocatable, intent(inout)  :: dual_parts(:)
-
-    integer(ip) :: ipart,lelem,ielem, pnode,i
-
-    dual_lmesh%nelem = lmesh%npoin
-    dual_lmesh%npoin = lmesh%nelem
-    call memalloc (dual_lmesh%nelem+1, dual_lmesh%pnods, __FILE__,__LINE__)
-    dual_lmesh%pnods(1) = 1
-    do lelem = 1, dual_lmesh%nelem
-       ielem = nmap%l2g(lelem)
-       dual_lmesh%pnods(lelem+1) = dual_mesh%pnods(ielem+1) - dual_mesh%pnods(ielem) + dual_lmesh%pnods(lelem)
-    end do
-    call memalloc (dual_lmesh%pnods(dual_lmesh%nelem+1), dual_lmesh%lnods, __FILE__,__LINE__)
-    call memalloc (dual_lmesh%pnods(dual_lmesh%nelem+1), dual_parts, __FILE__,__LINE__)
-    do lelem = 1, dual_lmesh%nelem
-       ielem = nmap%l2g(lelem)
-       pnode = dual_lmesh%pnods(lelem+1) - dual_lmesh%pnods(lelem)
-       ! assert( pnode == dual_mesh%pnods(ielem+1) - dual_mesh%pnods(ielem))
-       do i = 0, pnode-1
-          dual_lmesh%lnods( dual_lmesh%pnods(lelem) + i ) =  dual_mesh%lnods( dual_mesh%pnods(ielem) + i )
-          dual_parts( dual_lmesh%pnods(lelem) + i ) =  ldome(dual_mesh%lnods( dual_mesh%pnods(ielem) + i ))
-       end do
-    end do
-
-  end subroutine dual_mesh_g2l
-
-  !================================================================================================
   subroutine build_maps( nparts, ldome, femesh, distr )
     ! This routine builds (node and element) partition maps without using the objects
     ! and (unlike parts_sizes, parts_maps, etc.) does not generate a new global numbering.
@@ -923,271 +626,266 @@ contains
 
   end subroutine mesh_graph_compute_connected_components
 
+  !=================================================================================================
+  subroutine graph_nd_renumbering(prt_parts, gp, iperm, lperm)
+    !-----------------------------------------------------------------------
+    !-----------------------------------------------------------------------
+    implicit none
+    type(mesh_distribution_params_t), intent(in)         :: prt_parts
+    type(graph_t)                   , target, intent(in) :: gp
+    integer(ip)                     , target, intent(out):: iperm(gp%nv)
+    integer(ip)                     , target, intent(out):: lperm(gp%nv)
+    
+    if ( gp%nv == 1 ) then
+       lperm(1) = 1
+       iperm(1) = 1
+    else
+#ifdef ENABLE_METIS
+       ierr = metis_setdefaultoptions(c_loc(options))
+       assert(ierr == METIS_OK) 
+       
+       options(METIS_OPTION_NUMBERING) = 1
+       options(METIS_OPTION_DBGLVL)    = prt_parts%metis_option_debug
+       
+       ierr = metis_nodend ( c_loc(gp%nv),c_loc(gp%ia),c_loc(gp%ja),C_NULL_PTR,c_loc(options), &
+            &                c_loc(iperm),c_loc(lperm))
+       
+       assert(ierr == METIS_OK)
+#else
+       call enable_metis_error_message
+#endif
+    end if
+  end subroutine graph_nd_renumbering
+
+  !=================================================================================================
+  subroutine graph_pt_renumbering(prt_parts,gp,ldomn)
+    !-----------------------------------------------------------------------
+    ! This routine computes a nparts-way-partitioning of the input graph gp
+    !-----------------------------------------------------------------------
+    implicit none
+    type(mesh_distribution_params_t), target, intent(in)    :: prt_parts
+    type(graph_t)                   , target, intent(inout) :: gp
+    integer(ip)                     , target, intent(out)   :: ldomn(gp%nv)
+
+    ! Local variables 
+    integer(ip), target      :: kedge
+    integer(ip)              :: idumm,iv
+    integer(ip), allocatable :: lwork(:)
+    integer(ip)              :: i, j, m, k, ipart
+    integer(ip), allocatable :: iperm(:)
+
+   
+#ifdef ENABLE_METIS
+    ierr = metis_setdefaultoptions(c_loc(options))
+    assert(ierr == METIS_OK) 
+
+!!$      From METIS 5.0 manual:
+!!$
+!!$      The following options are valid for METIS PartGraphRecursive:
+!!$      
+!!$      METIS_OPTION_CTYPE, METIS_OPTION_IPTYPE, METIS_OPTION_RTYPE,
+!!$      METIS_OPTION_NO2HOP, METIS_OPTION_NCUTS, METIS_OPTION_NITER,
+!!$      METIS_OPTION_SEED, METIS_OPTION_UFACTOR, METIS_OPTION_NUMBERING,
+!!$      METIS_OPTION_DBGLVL
+!!$     
+!!$      The following options are valid for METIS PartGraphKway:
+!!$ 
+!!$      METIS_OPTION_OBJTYPE, METIS_OPTION_CTYPE, METIS_OPTION_IPTYPE,
+!!$      METIS_OPTION_RTYPE, METIS_OPTION_NO2HOP, METIS_OPTION_NCUTS,
+!!$      METIS_OPTION_NITER, METIS_OPTION_UFACTOR, METIS_OPTION_MINCONN,
+!!$      METIS_OPTION_CONTIG, METIS_OPTION_SEED, METIS_OPTION_NUMBERING,
+!!$      METIS_OPTION_DBGLVL
+
+    if ( prt_parts%strat == part_kway ) then
+       options(METIS_OPTION_NUMBERING) = 1
+       options(METIS_OPTION_DBGLVL)    = prt_parts%metis_option_debug
+       
+       ! Enforce contiguous partititions
+       options(METIS_OPTION_CONTIG)    = prt_parts%metis_option_contig
+       
+       ! Explicitly minimize the maximum degree of the subdomain graph
+       options(METIS_OPTION_MINCONN)   = prt_parts%metis_option_minconn
+       options(METIS_OPTION_UFACTOR)   = prt_parts%metis_option_ufactor
+       
+       ncon = 1 
+       ierr = metis_partgraphkway( c_loc(gp%nv), c_loc(ncon), c_loc(gp%ia)  , c_loc(gp%ja) , & 
+                                   C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(prt_parts%nparts), &
+                                   C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
+       
+       assert(ierr == METIS_OK) 
+       
+    else if ( prt_parts%strat == part_recursive ) then
+       options(METIS_OPTION_NUMBERING) = 1
+       options(METIS_OPTION_DBGLVL)    = prt_parts%metis_option_debug
+       options(METIS_OPTION_UFACTOR)   = prt_parts%metis_option_ufactor
+
+       ncon = 1 
+       ierr = metis_partgraphrecursive( c_loc(gp%nv), c_loc(ncon), c_loc(gp%ia)  , c_loc(gp%ja) , & 
+                                        C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(prt_parts%nparts), &
+                                        C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
+    end if    
+#else
+    call enable_metis_error_message
+#endif
+
+    if ( prt_parts%strat == part_strip ) then
+       j = gp%nv
+       m = 0
+       do ipart=1,prt_parts%nparts
+          k = j / (prt_parts%nparts-ipart+1)
+          do i = 1, k
+             ldomn(m+i) = ipart
+          end do
+          m = m + k
+          j = j - k
+       end do
+    else if ( prt_parts%strat == part_rcm_strip ) then
+       call memalloc ( gp%nv, iperm, __FILE__,__LINE__ )
+       call genrcm ( gp%nv, gp%ia(gp%nv+1)-1, gp%ia, gp%ja, iperm )
+       j = gp%nv
+       m = 0
+       do ipart=1,prt_parts%nparts
+          k = j / (prt_parts%nparts-ipart+1)
+          do i = 1, k
+             ldomn(iperm(m+i)) = ipart
+          end do
+          m = m + k
+          j = j - k
+       end do
+       call memfree ( iperm,__FILE__,__LINE__)
+    end if
+
+  end subroutine graph_pt_renumbering
+
+
   !================================================================================================
-  subroutine create_graph_from_mesh (primal_mesh, dual_mesh, min_freq_neig, primal_graph)
-    !---------------------------------------------------------------------------
-    ! This routine generates a graph of a given primal mesh (this graph 
-    ! is a list of primal points around primal points)
-    !
-    ! The routine exploits the duality among primal/dual meshes. In order to 
-    ! work properly pnods has to be an array of pointers to address lnods
-    ! (!!! this does not currently happen with FE meshes with eltyp==1 !!!)
-    !
-    ! min_freq_neig is an input integer which determines which are
-    ! the neighbours of a particular vertex of the graph. In particular, 
-    ! neighbours are those vertices which are listed at least min_freq_neig times 
-    ! when traversing the list of primal elements around a primal point
-    !
-    ! IMPORTANT NOTE:  This routine DOES NOT generate self-edges for both primal 
-    !                  and dual graphs. However, create_graph_from_mesh_dual
-    !                  generates self-edges. METIS graphs do NOT have self-edges.
-    !---------------------------------------------------------------------------
+  subroutine mesh_g2l(nmap,emap,gmesh,lmesh)
     implicit none
+    type(map_igp_t), intent(in)  :: nmap, emap
+    type(mesh_t)   , intent(in)  :: gmesh
+    type(mesh_t)   , intent(out) :: lmesh
+    type(hash_table_igp_ip_t)    :: ws_inmap
+    type(hash_table_igp_ip_t)    :: el_inmap
+    integer(ip)    , allocatable :: node_list(:)
+    integer(ip)                  :: aux, ipoin,inode,inodb,knode,knodb,lnodb_size,istat
+    integer(ip)                  :: ielem_lmesh,ielem_gmesh,iboun_lmesh,iboun_gmesh
+    integer(ip)                  :: p_ielem_gmesh,p_ipoin_lmesh,p_ipoin_gmesh
+    logical :: count_it
 
-    ! Parameters
-    type(mesh_t) , intent(in)  :: primal_mesh, dual_mesh
-    integer(ip), intent(in)      :: min_freq_neig
-    type(graph_t), intent(out) :: primal_graph
+    assert(nmap%ng == gmesh%npoin)
+    assert(emap%ng == gmesh%nelem)
 
-    ! Local variables
-    integer(ip), allocatable :: iwork(:)            ! Integer ip working array
-    integer(ip)              :: pwork(4)            ! Pointers to work space
+    lmesh%order=gmesh%order
+    lmesh%nelty=gmesh%nelty
+    lmesh%ndime=gmesh%ndime
+    lmesh%npoin=nmap%nl
+    lmesh%nelem=emap%nl
 
-    ! Allocate space for ia on the primal graph
-    primal_graph%nv                = primal_mesh%npoin
-    primal_graph%nv2               = primal_mesh%npoin
-    primal_graph%symmetric_storage = .false.
-    call memalloc (primal_graph%nv+1, primal_graph%ia, __FILE__,__LINE__)
+    call ws_inmap%init(max(int(nmap%nl*0.25,ip),10))
+    do ipoin=1,nmap%nl
+       ! aux is used to avoid compiler warning related to val being an intent(inout) argument
+       aux = ipoin
+       call ws_inmap%put(key=nmap%l2g(ipoin),val=aux,stat=istat) 
+    end do
 
-    ! Allocate working space for count_primal_graph and list_primal_graph routines
-    ! (TOTAL WS SIZE = primal mesh npoin + 2*maximum number of neighbours of any primal
-    ! graph node)
-    pwork(1) = 1
-    pwork(2) = pwork(1) + primal_mesh%npoin
-    pwork(3) = pwork(2) + dual_mesh%nnode*primal_mesh%nnode
-    pwork(4) = pwork(3) + dual_mesh%nnode*primal_mesh%nnode
-    call memalloc (pwork(4), iwork, __FILE__,__LINE__)
+    call el_inmap%init(max(int(emap%nl*0.25,ip),10))
+    do ipoin=1,emap%nl
+       ! aux is used to avoid compiler warning related to val being an intent(inout) argument
+       aux = ipoin
+       call el_inmap%put(key=emap%l2g(ipoin),val=aux,stat=istat) 
+    end do
 
-    ! write(*,*) 'begin count_primal_graph' ! DBG:
-    ! Calculate ia array
-    call count_primal_graph ( primal_mesh, dual_mesh, min_freq_neig, primal_graph,  &
-         &                           iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)), &
-         &                           iwork(pwork(3):pwork(4)) ) 
-    ! write(*,*) 'end count_primal_graph'   ! DBG:
-
-    ! Allocate space for ja on the primal graph 
-    call memalloc (primal_graph%ia(primal_graph%nv+1)-1, primal_graph%ja,           __FILE__,__LINE__)
-
-    ! write(*,*) 'begin list_primal_graph' ! DBG:
-    ! Calculate ja array
-    call list_primal_graph  (primal_mesh, dual_mesh, min_freq_neig, primal_graph, & 
-         &                   iwork(pwork(1):pwork(2)), iwork(pwork(2):pwork(3)),  &
-         &                   iwork(pwork(3):pwork(4)) )
-    ! write(*,*) 'end list_primal_graph'   ! DBG: 
-
-    ! Deallocate working space
-    call memfree (iwork,__FILE__,__LINE__)
-    return
-  end subroutine create_graph_from_mesh
-
-  !============================================================================================
-  subroutine  count_primal_graph ( primal_mesh, dual_mesh, min_freq_neig, primal_graph,  &
-       &                                  ws_position, ws_freq, ws_neighbors)
-    implicit none
-
-    ! Parameters
-    type(mesh_t) , intent(in)     :: primal_mesh, dual_mesh
-    integer(ip), intent(in)         :: min_freq_neig
-    type(graph_t), intent(inout)  :: primal_graph
-    integer(ip), intent(out)        :: ws_position  (primal_mesh%npoin)
-    integer(ip), intent(out)        :: ws_freq      (primal_mesh%nnode*dual_mesh%nnode)
-    integer(ip), intent(out)        :: ws_neighbors (primal_mesh%nnode*dual_mesh%nnode)
-
-    ! Local variables
-    integer(ip)                 :: ineigh  
-    integer(ip)                 :: ipoindm ! Dual   mesh point identifier
-    integer(ip)                 :: ipoinpm ! Primal mesh point identifier
-    integer(ip)                 :: ipoinpg ! Primal graph point identifier 
-    integer(ip)                 :: p_ipoindm   
-    integer(ip)                 :: p_ipoinpm   
-    integer(ip)                 :: inods1 , inods2   
-    integer(ip)                 :: inods1d, inods2d
-
-    integer(ip)                 :: first_free_pos
-    integer(ip)                 :: num_neighbors
-
-    ! Initialize work space of filled-up 
-    ! positions
-    ws_position   = 0
-
-    ! Initialize work space of freqs. 
-    ! associated to neighbours
-    ws_freq       = 0
-
-    ! Initialize work space of neighbour 
-    ! identifiers 
-    ws_neighbors  = 0
-
-    !primal_graph%ia    = -1                                                ! DBG:
-    !write (*,*) size(primal_graph%ia)                                      ! DBG: 
-    !write (*,*) size(primal_mesh%pnods)                                    ! DBG: 
-    !write (*,*) size(primal_mesh%lnods)                                    ! DBG: 
-    !write (*,*) size(dual_mesh%pnods)                                      ! DBG: 
-    !write (*,*) size(dual_mesh%lnods)                                      ! DBG: 
-    !write (*,*) size(ws_position)                                          ! DBG: 
-    !write (*,*) size(ws_freq)                                              ! DBG: 
-    !write (*,*) size(ws_neighbors)                                         ! DBG: 
-    !write (*, '(10i10)')    primal_mesh%pnods  (1:(primal_mesh%nelem+1))   ! DBG: 
-    !write (*, '(10i10)')    primal_graph%ia    (1:(primal_graph%nv+1))     ! DBG:  
-    !primal_graph%ia    = -1 
-    primal_graph%ia(1) = 1
-
-    do ipoinpg=1, primal_mesh%npoin
-       primal_graph%ia(ipoinpg+1) = primal_graph%ia(ipoinpg)
-       first_free_pos = 1
-       num_neighbors  = 0
-       ! Traverse the dual nodes of the dual element number ipoinpg
-       ! (i.e., primal elements around primal node number ipoinpg)
-
-       inods1d=dual_mesh%pnods(ipoinpg)
-       inods2d=dual_mesh%pnods(ipoinpg+1)-1
-       do p_ipoindm = inods1d, inods2d
-          !do p_ipoindm = dual_mesh%pnods(ipoinpg), dual_mesh%pnods(ipoinpg+1)-1
-          ipoindm = dual_mesh%lnods(p_ipoindm)
-
-          ! Traverse the primal nodes of the primal element number ipoindm
-          ! (i.e., dual elements around dual node number ipoindm)
-          inods1=primal_mesh%pnods(ipoindm)
-          inods2=primal_mesh%pnods(ipoindm+1)-1
-          do p_ipoinpm = inods1,inods2
-             ipoinpm = primal_mesh%lnods(p_ipoinpm) 
-
-             ! write (*,*) ipoinpg, ipoindm, ipoinpm ! DBG: 
-             ! If ipoinpm not visited yet
-             if ( ws_position(ipoinpm) == 0 ) then
-                ws_position(ipoinpm) = first_free_pos
-                ws_neighbors(first_free_pos) = ipoinpm
-                ws_freq(first_free_pos) = 1
-                first_free_pos = first_free_pos + 1
-                num_neighbors = num_neighbors + 1 
-                ! If ipoinpm already visited
-             else
-                ws_freq (ws_position(ipoinpm)) = ws_freq( ws_position(ipoinpm) ) + 1
-             end if
-
-          end do
-       end do
-
-       ! write (*, '(10i10)')    ws_position (1:primal_graph%nv)  ! DBG:
-       ! write (*, '(10i10)')    ws_neighbors(1:num_neighbors)    ! DBG: 
-       ! write (*, '(10i10)')    ws_freq     (1:num_neighbors)    ! DBG: 
-
-       ! Extract those neighbours which are listed at least min_freq_neig times
-       ! while restoring working space to initial state
-       do ineigh=1, num_neighbors
-          if (ws_freq(ineigh).ge.min_freq_neig) then
-             if (.not.ws_neighbors(ineigh)==ipoinpg) then ! Exclude self-edges
-                primal_graph%ia(ipoinpg+1) = primal_graph%ia(ipoinpg+1) + 1
-             end if
-          end if
-          ws_freq(ineigh) = 0
-          ws_position ( ws_neighbors(ineigh) ) = 0
-          ws_neighbors(ineigh) = 0
+    ! Elements
+    call memalloc(lmesh%nelem+1, lmesh%pnods, __FILE__,__LINE__)
+    call memalloc(lmesh%nelem  , lmesh%legeo, __FILE__,__LINE__)
+    call memalloc(lmesh%nelem  , lmesh%leset, __FILE__,__LINE__)
+    lmesh%nnode=0
+    lmesh%pnods=0
+    lmesh%pnods(1)=1
+    do ielem_lmesh=1,lmesh%nelem
+       ielem_gmesh = emap%l2g(ielem_lmesh)
+       knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
+       lmesh%pnods(ielem_lmesh+1)=lmesh%pnods(ielem_lmesh)+knode
+       lmesh%nnode=max(lmesh%nnode,knode)
+       lmesh%legeo(ielem_lmesh)=gmesh%legeo(ielem_gmesh)
+       lmesh%leset(ielem_lmesh)=gmesh%leset(ielem_gmesh)
+    end do
+    call memalloc (lmesh%pnods(lmesh%nelem+1), lmesh%lnods, __FILE__,__LINE__)
+    do ielem_lmesh=1,lmesh%nelem
+       ielem_gmesh = emap%l2g(ielem_lmesh)
+       p_ipoin_gmesh = gmesh%pnods(ielem_gmesh)-1
+       p_ipoin_lmesh = lmesh%pnods(ielem_lmesh)-1
+       knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
+       do inode=1,knode
+          call ws_inmap%get(key=int(gmesh%lnods(p_ipoin_gmesh+inode),igp),val=lmesh%lnods(p_ipoin_lmesh+inode),stat=istat) 
        end do
     end do
 
-  end subroutine count_primal_graph
-
-  !============================================================================================
-  subroutine  list_primal_graph ( primal_mesh, dual_mesh, min_freq_neig, primal_graph,  &
-       &                                 ws_position, ws_freq, ws_neighbors )
-    implicit none
-    ! Parameters
-    type(mesh_t) , intent(in)    :: primal_mesh, dual_mesh
-    type(graph_t), intent(inout) :: primal_graph
-    integer(ip), intent(in)        :: min_freq_neig
-    integer(ip), intent(out)       :: ws_position  (primal_mesh%npoin)
-    integer(ip), intent(out)       :: ws_freq      (primal_mesh%nnode*dual_mesh%nnode)
-    integer(ip), intent(out)       :: ws_neighbors (primal_mesh%nnode*dual_mesh%nnode)
-
-    ! Local variables
-    integer(ip)                     :: ineigh  
-    integer(ip)                     :: ipoindm ! Dual   mesh point identifier
-    integer(ip)                     :: ipoinpm ! Primal mesh point identifier
-    integer(ip)                     :: ipoinpg ! Primal graph point identifier 
-    integer(ip)                     :: p_ipoindm   
-    integer(ip)                     :: p_ipoinpm   
-    integer(ip)                     :: inods1,inods2
-    integer(ip)                     :: inods1d, inods2d  
-
-
-    integer(ip)                     :: first_free_ja_pos
-    integer(ip)                     :: first_free_pos
-    integer(ip)                     :: num_neighbors
-
-    ! Initialize work space of filled-up 
-    ! positions to zeros
-    ws_position   = 0
-
-    ! Initialize work space of freqs. 
-    ! associated to neighbours
-    ws_freq       = 0
-
-    ! Initialize working space of neighbour 
-    ! identifiers 
-    ws_neighbors = 0
-
-    first_free_ja_pos = 1
-
-    do ipoinpg=1, primal_mesh%npoin       
-       first_free_pos = 1
-       num_neighbors  = 0
-
-       ! Traverse the dual nodes of the dual element number ipoinpg
-       ! (i.e., primal elements around primal node number ipoinpg)
-       inods1d=dual_mesh%pnods(ipoinpg)
-       inods2d=dual_mesh%pnods(ipoinpg+1)-1
-
-       do p_ipoindm = inods1d, inods2d
-          ! do p_ipoindm = dual_mesh%pnods(ipoinpg), dual_mesh%pnods(ipoinpg+1)-1
-          ipoindm = dual_mesh%lnods(p_ipoindm)
-
-          ! Traverse the primal nodes of the primal element number ipoindm
-          ! (i.e., dual elements around dual node number ipoindm
-          inods1=primal_mesh%pnods(ipoindm)
-          inods2=primal_mesh%pnods(ipoindm+1)-1
-          do p_ipoinpm = inods1,inods2
-             ipoinpm = primal_mesh%lnods(p_ipoinpm)
-             ! If ipoinpm not visited yet
-             if ( ws_position(ipoinpm) == 0 ) then
-                ws_position(ipoinpm) = first_free_pos
-                ws_neighbors(first_free_pos) = ipoinpm
-                ws_freq(first_free_pos) = 1
-                first_free_pos = first_free_pos + 1
-                num_neighbors = num_neighbors + 1 
-                ! If ipoinpm already visited
-             else
-                ws_freq ( ws_position(ipoinpm) ) = ws_freq( ws_position(ipoinpm) ) + 1
-             end if
-          end do
-       end do
-
-       ! Extract those neighbours which are listed at least min_freq_neig times
-       ! while restoring working space to initial state
-       do ineigh=1, num_neighbors
-          if (ws_freq(ineigh).ge.min_freq_neig) then
-             if ( .not.ws_neighbors(ineigh)==ipoinpg ) then ! Exclude self-edges
-                primal_graph%ja(first_free_ja_pos) = ws_neighbors(ineigh)
-                first_free_ja_pos = first_free_ja_pos + 1
-             end if
+    ! Boundary elements
+    iboun_lmesh=0
+    lmesh%nnodb=0
+    lnodb_size=0
+    do iboun_gmesh=1,gmesh%nboun
+       p_ipoin_gmesh = gmesh%pnodb(iboun_gmesh)-1
+       knodb = gmesh%pnodb(iboun_gmesh+1)-gmesh%pnodb(iboun_gmesh)
+       count_it=.true.
+       do inode=1,knodb
+          call ws_inmap%get(key=int(gmesh%lnodb(p_ipoin_gmesh+inode),igp),val=knode,stat=istat)
+          if(istat==key_not_found) then
+             count_it=.false.
+             exit
           end if
-          ws_freq(ineigh) = 0
-          ws_position ( ws_neighbors(ineigh) ) = 0
-          ws_neighbors( ineigh               ) = 0
        end do
+       if(count_it) then
+          lnodb_size=lnodb_size+knodb
+          lmesh%nnodb=max(lmesh%nnodb,knodb)
+          iboun_lmesh=iboun_lmesh+1
+       end if
     end do
 
-  end subroutine list_primal_graph
+    if(iboun_lmesh>0) then
+       lmesh%nboun=iboun_lmesh
+       call memalloc (  lmesh%nnodb,   node_list, __FILE__,__LINE__)
+       call memalloc (lmesh%nboun+1, lmesh%pnodb, __FILE__,__LINE__)
+       call memalloc (   lnodb_size, lmesh%lnodb, __FILE__,__LINE__)
+       call memalloc(   lmesh%nboun, lmesh%lbgeo, __FILE__,__LINE__)
+       call memalloc(   lmesh%nboun, lmesh%lbset, __FILE__,__LINE__)
 
+       lmesh%pnodb=0
+       lmesh%pnodb(1)=1
+       iboun_lmesh=0
+       do iboun_gmesh=1,gmesh%nboun
+          p_ipoin_gmesh = gmesh%pnodb(iboun_gmesh)-1
+          knodb = gmesh%pnodb(iboun_gmesh+1)-gmesh%pnodb(iboun_gmesh)
+          count_it=.true.
+          do inode=1,knodb
+             call ws_inmap%get(key=int(gmesh%lnodb(p_ipoin_gmesh+inode),igp),val=node_list(inode),stat=istat)
+             if(istat==key_not_found) then
+                count_it=.false.
+                exit
+             end if
+          end do
+          if(count_it) then
+             iboun_lmesh=iboun_lmesh+1
+             lmesh%pnodb(iboun_lmesh+1)=lmesh%pnodb(iboun_lmesh)+knodb
+             p_ipoin_lmesh = lmesh%pnodb(iboun_lmesh)-1
+             lmesh%lnodb(p_ipoin_lmesh+1:p_ipoin_lmesh+knodb)=node_list(1:knodb)
+             lmesh%lbgeo(iboun_lmesh)=gmesh%lbgeo(iboun_gmesh)
+             lmesh%lbset(iboun_lmesh)=gmesh%lbset(iboun_gmesh)
+          end if
+       end do
+       call memfree (node_list, __FILE__,__LINE__)
+    end if
+    
+    call ws_inmap%free
+    call el_inmap%free
+
+    call memalloc(lmesh%ndime, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
+    !call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord)
+    do ipoin=1,nmap%nl
+       lmesh%coord(:,ipoin)=gmesh%coord(:,nmap%l2g(ipoin))
+    end do
+
+  end subroutine mesh_g2l
 
 end module create_mesh_distribution_names

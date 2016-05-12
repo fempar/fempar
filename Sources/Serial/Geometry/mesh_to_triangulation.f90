@@ -30,7 +30,7 @@ module mesh_to_triangulation_names
   use memor_names
   use mesh_names
   use triangulation_names
-  use generate_vefs_mesh_conditions_names
+  !use generate_vefs_mesh_conditions_names
   use conditions_names
   use reference_fe_names
   use reference_fe_factory_names
@@ -134,12 +134,12 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
     end if
 
     if (present(gcond)) then
-       call generate_vefs_mesh_conditions(gmesh, tmesh, trian%reference_fe_geo_list(1)%p, gcond, tcond)
+       !call generate_vefs_mesh_conditions(gmesh, tmesh, trian%reference_fe_geo_list(1)%p, gcond, tcond)
        call conditions_free( gcond )
        call conditions_copy( tcond, gcond )
        call conditions_free( tcond )
     else
-       call generate_vefs_mesh_conditions(gmesh, tmesh, trian%reference_fe_geo_list(1)%p)
+       !call generate_vefs_mesh_conditions(gmesh, tmesh, trian%reference_fe_geo_list(1)%p)
     end if
        
     do ielem=1, trian%num_elems
@@ -149,7 +149,7 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
        call put_topology_element_triangulation ( ielem, trian )
     end do
 
-    call mesh_free(tmesh)
+    call tmesh%free()
 
     assert ( allocated(gmesh%coord) )
     do ielem = 1, trian%num_elems

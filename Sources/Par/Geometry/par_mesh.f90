@@ -30,7 +30,6 @@ module par_mesh_names
   use types_names
   use mesh_names
   use mesh_distribution_names
-  use mesh_io_names
   use stdio_names
 
   ! Parallel modules
@@ -97,8 +96,8 @@ contains
     if ( mode == free_clean ) then
        nullify (p_mesh%p_env)
     else if ( mode == free_symbolic_setup ) then
-       call mesh_free ( p_mesh%f_mesh )
-       call mesh_distribution_free ( p_mesh%f_mesh_dist )
+       call p_mesh%f_mesh%free ()
+       call p_mesh%f_mesh_dist%free()
     end if
   end subroutine par_mesh_free_progressively
   
@@ -136,18 +135,18 @@ contains
 
     p_mesh%p_env => p_env
     if(p_env%am_i_l1_task()) then
-       call mesh_compose_name ( prefix, name )
+       call p_mesh%f_mesh%compose_name ( prefix, name )
        call par_filename( p_env%get_l1_context(), name )
        ! Read mesh
        lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-       call mesh_read_file ( lunio, p_mesh%f_mesh, permute_c2z = .false. )
+       call p_mesh%f_mesh%read_file ( lunio, permute_c2z = .false. )
        call io_close(lunio)
 
        call mesh_distribution_compose_name ( prefix, name )
        call par_filename( p_env%get_l1_context(), name )
        ! Read mesh distribution control data
        lunio = io_open (trim(dir_path) // '/' // trim(name))
-       call mesh_distribution_read ( lunio, p_mesh%f_mesh_dist )
+       call p_mesh%f_mesh_dist%read( lunio )
        call io_close(lunio)
     end if
 

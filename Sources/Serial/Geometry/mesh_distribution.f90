@@ -43,29 +43,69 @@ module mesh_distribution_names
         pextn(:),                  &    ! Pointers to the lext*
         lextp(:)                        ! List of parts of external neighbors
      
-     integer(igp), allocatable ::   &
+     integer(igp), allocatable ::  &
         lextn(:)                        ! List of (GIDs of) external neighbors
 
      integer(ip) ::  nebou,        &    ! Number of boundary elements
                      nnbou              ! Number of boundary nodes 
 
-     integer(ip), allocatable ::   & 
+     integer(ip), allocatable  ::  & 
         lebou(:),                  &  ! List of boundary elements 
         lnbou(:)                      ! List of boundary nodes
+
+     integer(igp), allocatable ::  &  ! Local2Global maps
+        cell_l2g(:),               &
+        vert_l2g(:)
 
      type(map_igp_t) ::  & 
         emap,                  &  ! Local2Global for elements 
         nmap                      ! Local2Global for vertices
+
+   contains
+     procedure, non_overridable :: free  => mesh_distribution_free
+     procedure, non_overridable :: print => mesh_distribution_print
+     procedure, non_overridable :: read  => mesh_distribution_read
+     procedure, non_overridable :: write => mesh_distribution_write
   end type mesh_distribution_t
 
+
+  integer(ip), parameter :: part_kway      = 0
+  integer(ip), parameter :: part_recursive = 1
+  integer(ip), parameter :: part_strip     = 2
+  integer(ip), parameter :: part_rcm_strip = 3
+
+  type mesh_distribution_params_t
+     integer(ip) :: nparts      = 2    ! nparts
+     integer(ip) :: debug       = 1    ! Print info partition
+
+     integer(ip) :: strat = part_kway  ! Partitioning algorithm (part_kway,
+                                       ! part_recursive,part_strip,part_rcm_strip)
+
+     ! Only applicable to metis 5.0 for both part_kway and part_recursive
+     ! Use METIS defaults (i.e., == -1) 30 for part_kway, and 1 for part_recursive
+     integer(ip) :: metis_option_ufactor = -1 ! Imbalance tol of x/1000 + 1
+
+     ! Only applicable to metis 5.0 and part_kway
+     integer(ip) :: metis_option_minconn = 1 ! (Try to) Minimize maximum degree 
+                                             ! of subdomain graph
+     integer(ip) :: metis_option_contig  = 1 ! (Try to) Produce partitions 
+                                             ! that are contiguous
+     
+     ! Applicable to both metis 4.0 and metis 5.0
+     integer(ip) :: metis_option_debug  =  0 
+  end type mesh_distribution_params_t
+
   ! Types
-  public :: mesh_distribution_t
+  public :: mesh_distribution_t, mesh_distribution_params_t
+
+  ! Constants
+  public :: part_kway,part_recursive,part_strip,part_rcm_strip
 
   ! Functions
-  public :: mesh_distribution_free, mesh_distribution_print,               & 
-         &  mesh_distribution_read, mesh_distribution_write,               &
-         &  mesh_distribution_compose_name, mesh_distribution_write_files, &
-         &  mesh_distribution_read_files
+  public :: mesh_distribution_write_files
+  public :: mesh_distribution_read_files
+  public :: mesh_distribution_compose_name
+
 contains
 
   !=============================================================================
@@ -76,7 +116,7 @@ contains
     implicit none
 
     ! Parameters
-    type(mesh_distribution_t), intent(inout)  :: f_msh_dist
+    class(mesh_distribution_t), intent(inout)  :: f_msh_dist
 
     call memfree ( f_msh_dist%lebou,__FILE__,__LINE__)
     call memfree ( f_msh_dist%lnbou,__FILE__,__LINE__)
@@ -90,15 +130,15 @@ contains
   end subroutine mesh_distribution_free
 
   !=============================================================================
-  subroutine mesh_distribution_print (lu_out, msh_dist)
+  subroutine mesh_distribution_print (msh_dist, lu_out)
     !-----------------------------------------------------------------------
     ! This subroutine prints a mesh_distribution object
     !-----------------------------------------------------------------------
     implicit none
 
     ! Parameters
-    integer(ip)                , intent(in)  :: lu_out
-    type(mesh_distribution_t), intent(in)  :: msh_dist
+    integer(ip)              , intent(in)  :: lu_out
+    class(mesh_distribution_t), intent(in)  :: msh_dist
 
     ! Local variables
     integer (ip) :: i, j
@@ -137,10 +177,10 @@ contains
  
   end subroutine mesh_distribution_print
 
-  subroutine mesh_distribution_write (lunio, f_msh_dist)
+  subroutine mesh_distribution_write (f_msh_dist, lunio)
     ! Parameters
-    integer            , intent(in) :: lunio
-    type(mesh_distribution_t), intent(in) :: f_msh_dist
+    integer                  , intent(in) :: lunio
+    class(mesh_distribution_t), intent(in) :: f_msh_dist
     !-----------------------------------------------------------------------
     ! This subroutine writes a mesh_distribution to lunio
     !-----------------------------------------------------------------------
@@ -159,10 +199,10 @@ contains
 
   end subroutine mesh_distribution_write
 
-  subroutine mesh_distribution_read (lunio, f_msh_dist)
+  subroutine mesh_distribution_read (f_msh_dist, lunio)
     ! Parameters
-    integer(ip)        , intent(in)            :: lunio
-    type(mesh_distribution_t), intent(inout) :: f_msh_dist
+    integer(ip)               , intent(in)    :: lunio
+    class(mesh_distribution_t), intent(inout) :: f_msh_dist
     !-----------------------------------------------------------------------
     ! This subroutine reads a mesh_distribution object
     !-----------------------------------------------------------------------
@@ -199,6 +239,7 @@ contains
     name = trim(prefix) // '.prt'
   end subroutine 
 
+  !=============================================================================
   subroutine mesh_distribution_write_files ( dir_path, prefix, nparts, parts )
     implicit none
     ! Parameters
@@ -218,7 +259,7 @@ contains
        rename=name
        call numbered_filename_compose(i,nparts,rename)
        lunio = io_open (trim(dir_path) // '/' // trim(rename))
-       call mesh_distribution_write ( lunio, parts(i) )
+       call parts(i)%write (lunio)
        call io_close (lunio)
     end do
 
@@ -245,7 +286,7 @@ contains
        rename=name
        call numbered_filename_compose(i,nparts,rename)
        lunio = io_open (trim(dir_path) // '/' // trim(rename))
-       call mesh_distribution_read ( lunio, parts(i) )
+       call parts(i)%read (lunio)
        call io_close (lunio)
     end do
 
