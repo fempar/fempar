@@ -164,7 +164,6 @@
     implicit none
     class(fe_function_scalar_t), intent(inout) :: this 
     integer(ip)                , intent(in)    :: value
-    
     assert ( value <= this%max_number_quadrature_points ) 
     this%current_number_quadrature_points = value
     

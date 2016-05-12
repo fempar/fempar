@@ -37,6 +37,7 @@ module serial_names
   use serial_environment_names
   use Data_Type_Command_Line_Interface
   use FPL
+  use vtk_handler_names
   use error_norms_names
 
   ! Geometry

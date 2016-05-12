@@ -60,6 +60,7 @@ private
         procedure, non_overridable, public :: is_by_cols                     => par_sparse_matrix_is_by_cols
         procedure, non_overridable, public :: is_symmetric                   => par_sparse_matrix_is_symmetric
         procedure,                  public :: allocate                       => par_sparse_matrix_allocate
+        procedure,                  public :: init                           => par_sparse_matrix_init
         procedure,                  public :: free_in_stages                 => par_sparse_matrix_free_in_stages  
         generic,                    public :: create                         => par_sparse_matrix_create_square, &
                                                                                 par_sparse_matrix_create_rectangular
@@ -91,6 +92,7 @@ private
         procedure,                  public :: apply                          => par_sparse_matrix_apply
         procedure, non_overridable, public :: print                          => par_sparse_matrix_print
         procedure, non_overridable, public :: print_matrix_market            => par_sparse_matrix_print_matrix_market
+        procedure                 , public :: create_iterator                => par_sparse_matrix_create_iterator
     end type par_sparse_matrix_t
 
 public :: par_sparse_matrix_t
@@ -194,6 +196,18 @@ contains
         if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%allocate()
     end subroutine par_sparse_matrix_allocate
+
+
+    subroutine par_sparse_matrix_init(this, alpha)
+    !-----------------------------------------------------------------
+    !< Initialize matrix values only if is in a assembled stage
+    !-----------------------------------------------------------------
+        class(par_sparse_matrix_t), intent(inout) :: this
+        real(rp),                   intent(in)    :: alpha
+    !-----------------------------------------------------------------
+        if(.not. this%p_env%am_i_l1_task()) return
+        call this%sparse_matrix%init(alpha)
+    end subroutine par_sparse_matrix_init
 
 
     subroutine par_sparse_matrix_create_vector_spaces(this)
@@ -740,5 +754,18 @@ contains
         if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%print_matrix_market(lunou, ng, l2g)
     end subroutine par_sparse_matrix_print_matrix_market
+    
+    subroutine par_sparse_matrix_create_iterator(this, iblock, jblock, iterator)
+      !-----------------------------------------------------------------
+      !< Get a pointer to an iterator over the matrix entries
+      !-----------------------------------------------------------------
+      class(par_sparse_matrix_t)            , intent(in)    :: this
+      integer(ip)                           , intent(in)    :: iblock 
+      integer(ip)                           , intent(in)    :: jblock 
+      class(matrix_iterator_t), allocatable , intent(inout) :: iterator
+      !-----------------------------------------------------------------
+      ! NOT IMPLEMENTED YET
+      check(.false.)
+    end subroutine par_sparse_matrix_create_iterator
 
 end module par_sparse_matrix_names

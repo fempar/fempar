@@ -215,11 +215,15 @@ subroutine fe_affine_operator_numerical_setup (this)
  end if
  if ( this%state == symbolically_setup ) then
     this%state = numerically_setup
-    call this%matrix_array_assembler%allocate()
-    call this%fe_affine_operator_fill_values()
-    call this%matrix_array_assembler%compress_storage(this%sparse_matrix_storage_format)
+    call this%matrix_array_assembler%allocate_array()
+    call this%matrix_array_assembler%init_array(0.0_rp)
+ elseif ( this%state == numerically_setup ) then
+    call this%matrix_array_assembler%init_array(0.0_rp)
+    call this%matrix_array_assembler%init_matrix(0.0_rp)
  end if
 
+ call this%fe_affine_operator_fill_values()
+ call this%matrix_array_assembler%compress_storage(this%sparse_matrix_storage_format)
 end subroutine fe_affine_operator_numerical_setup
 
 subroutine fe_affine_operator_free_numerical_setup(this)

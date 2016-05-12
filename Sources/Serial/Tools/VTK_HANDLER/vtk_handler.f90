@@ -333,21 +333,21 @@ contains
     !-----------------------------------------------------------------
         assert(this%state == vtk_handler_state_start)
 
+        ! Default values
+        lo = default_linear_order
+        rp = default_root_task
+        st = default_guess_number_of_steps
+
+        ! Optional arguments
+        if(present(linear_order))    lo = linear_order
+        if(present(root_task))       rp = root_task
+        if(present(number_of_steps)) st = number_of_steps
+
         this%env => environment
         call this%env%info(me,np) 
         call this%set_root_task(rp)
 
         if(this%env%am_i_l1_task() ) then
-            ! Default values
-            lo = default_linear_order
-            rp = default_root_task
-            st = default_guess_number_of_steps
-
-            ! Optional arguments
-            if(present(linear_order))    lo = linear_order
-            if(present(root_task))       rp = root_task
-            if(present(number_of_steps)) st = number_of_steps
-
             call this%mesh%set_linear_order(lo)
             call this%mesh%set_fe_space(fe_space)
             allocate(this%field(this%mesh%get_number_fields()))
