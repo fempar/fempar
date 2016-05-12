@@ -239,7 +239,7 @@ end subroutine quad_lagrangian_reference_fe_get_value_vector
 subroutine quad_lagrangian_reference_fe_get_gradient_scalar( this, actual_cell_interpolation, ishape, qpoint, vector_field )
   implicit none
   class(quad_lagrangian_reference_fe_t)   , intent(in)    :: this 
-  type(interpolation_t)                , intent(in)    :: actual_cell_interpolation 
+  type(interpolation_t)                   , intent(in)    :: actual_cell_interpolation 
   integer(ip)                             , intent(in)    :: ishape
   integer(ip)                             , intent(in)    :: qpoint
   type(vector_field_t)                    , intent(out)   :: vector_field
@@ -1115,7 +1115,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
      call this%own_nodes_vef%calculate_header()
      call this%own_nodes_vef%allocate_list_from_pointer()
      
-     iterator = this%own_nodes_vef%get_iterator()
+     iterator = this%own_nodes_vef%create_iterator()
      i=1
      do while(.not. iterator%is_upper_bound())
         call iterator%set_current(i)

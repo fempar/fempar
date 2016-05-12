@@ -148,7 +148,6 @@ contains
     class(serial_scalar_array_t), intent(inout) :: this
     assert ( this%state == created )
     call memallocp(this%size,this%b,__FILE__,__LINE__)
-    this%b    = 0.0_rp
     this%state = entries_ready
     this%is_a_view = .false.
   end subroutine serial_scalar_array_allocate

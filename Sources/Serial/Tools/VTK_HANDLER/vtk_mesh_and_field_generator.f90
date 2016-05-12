@@ -538,7 +538,7 @@ contains
         if(this%linear_order) then
             E_IO = this%generate_linear_field(fe_function, fe_space_index, field_name, field, number_components)
         else
-            E_IO = this%generate_superlinear_field(fe_function, fe_space_index, field_name, field, number_components)
+           E_IO = this%generate_superlinear_field(fe_function, fe_space_index, field_name, field, number_components)
         endif
     end function vtk_mesh_and_field_generator_generate_field
 
@@ -617,7 +617,7 @@ contains
             ! Build field in VTK-like format
             ! Loop on geometrical nodes in subelement
             do vertex_index=1, number_vertices
-                nodes_vertex_iterator = nodes_vef%get_iterator(vertex_index)
+                nodes_vertex_iterator = nodes_vef%create_iterator(vertex_index)
                 assert(nodes_vertex_iterator%get_size() == number_components)
                 ! Loop on field components
                 do while(.not. nodes_vertex_iterator%is_upper_bound())
@@ -678,6 +678,8 @@ contains
         integer(ip)                               :: E_IO                               !< IO Error
         logical                                   :: ft                                 !< Fine Task
     !-----------------------------------------------------------------
+        E_IO = 0
+
         assert(associated(this%fe_space))
         assert(this%filled)
         assert(.not. this%linear_order)
@@ -765,7 +767,7 @@ contains
         call interpolation%free()
         call memfree(nodal_values_origin, __FILE__, __LINE__)
         call memfree(nodal_values_target, __FILE__, __LINE__)
-    end function vtk_mesh_and_field_generator_generate_superlinear_field
+      end function vtk_mesh_and_field_generator_generate_superlinear_field
 
 
     subroutine vtk_mesh_and_field_generator_free(this) 

@@ -719,8 +719,8 @@ contains
     ! List number_vefs_per_object and number_parts_per_object
     ivef_itfc=1
     do iobj=1, this%vefs_object%get_num_pointers()
-       vefs_object_iterator = this%vefs_object%get_iterator(iobj)
-       parts_object_iterator = this%parts_object%get_iterator(iobj)
+       vefs_object_iterator = this%vefs_object%create_iterator(iobj)
+       parts_object_iterator = this%parts_object%create_iterator(iobj)
        
        nparts_around = parts_itfc_vefs(1,ivef_itfc)
        do ipart=1, nparts_around
@@ -750,7 +750,7 @@ contains
     
     call memalloc ( this%number_objects, this%objects_dimension, __FILE__, __LINE__ )
     do iobj=1, this%number_objects
-      vefs_object_iterator = this%vefs_object%get_iterator(iobj)
+      vefs_object_iterator = this%vefs_object%create_iterator(iobj)
       this%objects_dimension(iobj) = 0
       do while(.not. vefs_object_iterator%is_upper_bound())
         vef_lid = vefs_object_iterator%get_current()
@@ -815,7 +815,7 @@ contains
     num_rcv = 0
     num_snd = 0
     do iobj=1, this%number_objects
-       parts_object_iterator = this%parts_object%get_iterator(iobj)
+       parts_object_iterator = this%parts_object%create_iterator(iobj)
        part_id = parts_object_iterator%get_current()
        if ( my_part_id == part_id ) then
          ! I am owner of the present object
@@ -861,7 +861,7 @@ contains
     call memalloc ( rcv_ptrs(num_rcv+1)-1, unpack_idx, __FILE__, __LINE__ )
     
     do iobj=1, this%number_objects
-       parts_object_iterator = this%parts_object%get_iterator(iobj)
+       parts_object_iterator = this%parts_object%create_iterator(iobj)
        part_id = parts_object_iterator%get_current()
        if ( my_part_id == part_id ) then
          ! I am owner of the present object
@@ -930,7 +930,7 @@ contains
     call memalloc ( this%number_objects, local_objects_with_gid, __FILE__, __LINE__ )
     number_local_objects_with_gid = 0
     do iobj=1, this%number_objects
-      parts_object_iterator = this%parts_object%get_iterator(iobj)
+      parts_object_iterator = this%parts_object%create_iterator(iobj)
       if ( my_part_id == parts_object_iterator%get_current() ) then
         number_local_objects_with_gid = number_local_objects_with_gid + 1
         local_objects_with_gid (number_local_objects_with_gid) = iobj

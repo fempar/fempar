@@ -134,14 +134,14 @@
   ! AFFINE OPERATOR !
   !-----------------!
   ! Create affine operator
-  call fe_affine_operator%create ( sparse_matrix_storage_format= 'CSR', &
-       diagonal_blocks_symmetric_storage=(/.false.,.true.,.false./),    &
-       diagonal_blocks_symmetric=(/.false.,.true.,.false./),            &
-       diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_UNKNOWN,               &
-       &                      SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,     &
-       &                      SPARSE_MATRIX_SIGN_UNKNOWN/),             &
-       environment=senv,                                                &
-       fe_space=fe_space,                                               &
+  call fe_affine_operator%create ( sparse_matrix_storage_format= csr_format, &
+       diagonal_blocks_symmetric_storage=(/.false.,.true.,.false./),         &
+       diagonal_blocks_symmetric=(/.false.,.true.,.false./),                 &
+       diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_UNKNOWN,                    &
+       &                      SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE,          &
+       &                      SPARSE_MATRIX_SIGN_UNKNOWN/),                  &
+       environment=senv,                                                     &
+       fe_space=fe_space,                                                    &
        discrete_integration=nsi_iss_oss_integration )
   ! Create residual values vector
   call fe_affine_operator%create_range_vector(residual)   
