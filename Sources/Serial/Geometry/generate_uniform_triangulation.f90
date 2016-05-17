@@ -34,7 +34,6 @@ module generate_uniform_triangulation_names
   use triangulation_names
   use mesh_distribution_names
   use materials_names
-  use map_names
   use Data_Type_Command_Line_Interface
   use FPL
   implicit none

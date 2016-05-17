@@ -29,7 +29,6 @@ module mesh_distribution_names
   use types_names
   use memor_names
   use stdio_names
-  use map_names
   implicit none
   private
 

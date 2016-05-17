@@ -41,7 +41,6 @@ module serial_names
   use error_norms_names
 
   ! Geometry
-  use map_names
   use triangulation_names
   use mesh_to_triangulation_names
 

@@ -30,7 +30,6 @@ module create_mesh_distribution_names
   use list_types_names
   use memor_names
   use mesh_distribution_names
-  use map_names
   use graph_names
   use metis_interface_names
   use rcm_renumbering_names
