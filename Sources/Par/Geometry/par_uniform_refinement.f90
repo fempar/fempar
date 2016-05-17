@@ -164,7 +164,9 @@ contains
        check(ierr==0)
 
        ! Allocate vertices map
-       call map_alloc( num_vertices, num_global_vertices, p_mesh%f_mesh_dist%nmap )
+       p_mesh%f_mesh_dist%num_local_vertices = num_vertices
+       p_mesh%f_mesh_dist%num_global_vertices = num_global_vertices
+       call memalloc(p_mesh%f_mesh_dist%num_local_vertices, p_mesh%f_mesh_dist%l2g_vertices, __FILE__, __LINE__)
 
        p_mesh%f_mesh%nelem = p_trian%triangulation%num_elems * num_subelems
        p_mesh%f_mesh%nnode = num_vertices_per_subelem
@@ -213,7 +215,7 @@ contains
                    code(:,old2new_vefs(vef_lid)) = 0 
                    valu(:,old2new_vefs(vef_lid)) = 0.0_rp 
                 end if
-                p_mesh%f_mesh_dist%nmap%l2g(old2new_vefs(vef_lid)) = p_trian%elems(ielem)%vefs_GIDs(subelem_vertices(ivertex,isubelem))
+                p_mesh%f_mesh_dist%l2g_vertices(old2new_vefs(vef_lid)) = p_trian%elems(ielem)%vefs_GIDs(subelem_vertices(ivertex,isubelem))
                 if ( vef_dimension == 0 ) then ! Vef is a vertex
                    p_mesh%f_mesh%coord(:,old2new_vefs(vef_lid)) = & 
                         p_trian%triangulation%elems(ielem)%coordinates(:,subelem_vertices(ivertex,isubelem))
@@ -270,12 +272,12 @@ contains
        end do
        
        ! Assign global identifiers to refined elements
-       call map_alloc( p_mesh%f_mesh%nelem, & 
-                       ptr_num_subelems_per_part(p_mesh%f_mesh_dist%nparts+1)-1, & 
-                       p_mesh%f_mesh_dist%emap )
+       p_mesh%f_mesh_dist%num_local_cells  = p_mesh%f_mesh%nelem
+       p_mesh%f_mesh_dist%num_global_cells = ptr_num_subelems_per_part(p_mesh%f_mesh_dist%nparts+1)-1
+       call memalloc(p_mesh%f_mesh_dist%num_local_cells, p_mesh%f_mesh_dist%l2g_cells, __FILE__, __LINE__)
 
        do ielem = 1, p_mesh%f_mesh%nelem
-          p_mesh%f_mesh_dist%emap%l2g(ielem) = int(ptr_num_subelems_per_part(p_mesh%f_mesh_dist%ipart) + ielem -1, igp)
+          p_mesh%f_mesh_dist%l2g_cells(ielem) = int(ptr_num_subelems_per_part(p_mesh%f_mesh_dist%ipart) + ielem -1, igp)
        end do
   
        ! Communicate global identifiers of my refined elements to my neighbours
@@ -291,7 +293,7 @@ contains
           call memalloc( data(elem_lid)%num_subelems, data(elem_lid)%subelems_GIDs, __FILE__, __LINE__ )
           offset = (elem_lid-1)*num_subelems
           do isubelem = 1, num_subelems
-             data(elem_lid)%subelems_GIDs(isubelem) = p_mesh%f_mesh_dist%emap%l2g(offset+isubelem)
+             data(elem_lid)%subelems_GIDs(isubelem) = p_mesh%f_mesh_dist%l2g_cells(offset+isubelem)
              do ivertex=1, num_vertices_per_subelem
                 vef_lid = p_trian%triangulation%elems(elem_lid)%vefs(subelem_vertices(ivertex,isubelem))
                 if ( p_trian%vefs(vef_lid)%itfc /= 0 ) then

@@ -52,14 +52,20 @@ module mesh_distribution_names
      integer(ip), allocatable  ::  & 
         lebou(:),                  &  ! List of boundary elements 
         lnbou(:)                      ! List of boundary nodes
-
-     integer(igp), allocatable ::  &  ! Local2Global maps
-        cell_l2g(:),               &
-        vert_l2g(:)
-
-     type(map_igp_t) ::  & 
-        emap,                  &  ! Local2Global for elements 
-        nmap                      ! Local2Global for vertices
+        
+     integer(ip)               :: num_local_vertices=0     ! Number of local vertices
+     integer(igp)              :: num_global_vertices=0    ! Number of global vertices
+     integer(ip)               :: num_internal_vertices=0  ! Internal vertices
+     integer(ip)               :: num_boundary_vertices=0  ! Boundary vertices
+     integer(ip)               :: num_external_vertices=0  ! External vertices 
+     integer(igp), allocatable :: l2g_vertices(:)          ! Local 2 global array of vertices
+     
+     integer(ip)               :: num_local_cells=0     ! Number of local cells
+     integer(igp)              :: num_global_cells=0    ! Number of global cells
+     integer(ip)               :: num_internal_cells=0  ! Internal cells
+     integer(ip)               :: num_boundary_cells=0  ! Boundary cells
+     integer(ip)               :: num_external_cells=0  ! External cells
+     integer(igp), allocatable :: l2g_cells(:)          ! Local 2 global array of cells
 
    contains
      procedure, non_overridable :: free  => mesh_distribution_free
@@ -123,10 +129,8 @@ contains
     call memfree ( f_msh_dist%pextn ,__FILE__,__LINE__)
     call memfree ( f_msh_dist%lextn ,__FILE__,__LINE__)
     call memfree ( f_msh_dist%lextp ,__FILE__,__LINE__)
-
-    call map_free (f_msh_dist%nmap)
-    call map_free (f_msh_dist%emap)
-
+    call memfree ( f_msh_dist%l2g_vertices, __FILE__,__LINE__)
+    call memfree ( f_msh_dist%l2g_cells, __FILE__,__LINE__)
   end subroutine mesh_distribution_free
 
   !=============================================================================
@@ -158,7 +162,7 @@ contains
 
        write(lu_out,'(a)') 'GEIDs of boundary elements:'
        do i=1,msh_dist%nebou
-          write(lu_out,'(10i10)') msh_dist%emap%l2g(msh_dist%lebou(i))
+          write(lu_out,'(10i10)') msh_dist%l2g_cells(msh_dist%lebou(i))
        end do
 
        write(lu_out,'(a)') 'GEIDs of neighbors:'
@@ -194,8 +198,20 @@ contains
     write ( lunio, '(10i10)' ) f_msh_dist%lextn
     write ( lunio, '(10i10)' ) f_msh_dist%lextp
 
-    call map_write (lunio, f_msh_dist%nmap)
-    call map_write (lunio, f_msh_dist%emap)
+    write ( lunio, '(10i10)' ) f_msh_dist%num_local_vertices, &
+                               f_msh_dist%num_global_vertices, &
+                               f_msh_dist%num_internal_vertices, &
+                               f_msh_dist%num_boundary_vertices, &
+                               f_msh_dist%num_external_vertices
+    if(f_msh_dist%num_local_vertices>0) write ( lunio,'(10i10)') f_msh_dist%l2g_vertices
+    
+    write ( lunio, '(10i10)' ) f_msh_dist%num_local_cells, &
+                               f_msh_dist%num_global_cells, &
+                               f_msh_dist%num_internal_cells, &
+                               f_msh_dist%num_boundary_cells, &
+                               f_msh_dist%num_external_cells
+    if(f_msh_dist%num_local_cells>0) write ( lunio,'(10i10)') f_msh_dist%l2g_cells
+
 
   end subroutine mesh_distribution_write
 
@@ -226,8 +242,27 @@ contains
     read ( lunio, '(10i10)' ) f_msh_dist%lextn
     read ( lunio, '(10i10)' ) f_msh_dist%lextp
 
-    call map_read (lunio, f_msh_dist%nmap)
-    call map_read (lunio, f_msh_dist%emap)
+    read ( lunio, '(10i10)' ) f_msh_dist%num_local_vertices, &
+                              f_msh_dist%num_global_vertices, &
+                              f_msh_dist%num_internal_vertices, &
+                              f_msh_dist%num_boundary_vertices, &
+                              f_msh_dist%num_external_vertices
+    if(f_msh_dist%num_local_vertices>0) then
+       if(allocated(f_msh_dist%l2g_vertices)) call memfree(f_msh_dist%l2g_vertices, __FILE__, __LINE__)
+       call memalloc(f_msh_dist%num_local_vertices, f_msh_dist%l2g_vertices, __FILE__, __LINE__)
+       read ( lunio,'(10i10)') f_msh_dist%l2g_vertices
+    end if
+
+    read ( lunio, '(10i10)' ) f_msh_dist%num_local_cells, &
+                              f_msh_dist%num_global_cells, &
+                              f_msh_dist%num_internal_cells, &
+                              f_msh_dist%num_boundary_cells, &
+                              f_msh_dist%num_external_cells
+    if(f_msh_dist%num_local_cells>0) then
+       if(allocated(f_msh_dist%l2g_cells)) call memfree(f_msh_dist%l2g_cells, __FILE__, __LINE__)
+       call memalloc(f_msh_dist%num_local_cells, f_msh_dist%l2g_cells, __FILE__, __LINE__)
+       read ( lunio,'(10i10)') f_msh_dist%l2g_cells
+    end if
 
   end subroutine mesh_distribution_read
 

@@ -125,12 +125,12 @@ contains
        ! Fill array of elements (local ones)
        do ielem=1, num_elems
           p_trian%elems(ielem)%mypart      = l1_context%get_rank() + 1
-          p_trian%elems(ielem)%globalID    = mdist%emap%l2g(ielem)
+          p_trian%elems(ielem)%globalID    = mdist%l2g_cells(ielem)
           p_trian%elems(ielem)%num_vefs = p_trian%triangulation%elems(ielem)%num_vefs
           call memalloc(p_trian%elems(ielem)%num_vefs, p_trian%elems(ielem)%vefs_GIDs, __FILE__, __LINE__ )
           do iobj=1, p_trian%elems(ielem)%num_vefs
              jobj = p_trian%triangulation%elems(ielem)%vefs(iobj)
-             p_trian%elems(ielem)%vefs_GIDs(iobj) = mdist%nmap%l2g(jobj)
+             p_trian%elems(ielem)%vefs_GIDs(iobj) = mdist%l2g_vertices(jobj)
           end do
        end do
 

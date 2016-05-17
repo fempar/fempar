@@ -320,13 +320,13 @@ contains
        ! Fill array of elements (local ones)
        do ielem=1, num_elems
           p_trian%elems(ielem)%mypart      = l1_context%get_rank() + 1
-          p_trian%elems(ielem)%globalID    = p_gmesh%f_mesh_dist%emap%l2g(ielem)
+          p_trian%elems(ielem)%globalID    = p_gmesh%f_mesh_dist%l2g_cells(ielem)
           p_trian%elems(ielem)%num_vefs = p_trian%triangulation%elems(ielem)%num_vefs
           call memalloc( p_trian%elems(ielem)%num_vefs, p_trian%elems(ielem)%vefs_GIDs, __FILE__, __LINE__ )
           do iobj=1, p_trian%elems(ielem)%num_vefs
              jobj = p_trian%triangulation%elems(ielem)%vefs(iobj)
              if ( jobj <= num_verts ) then ! It is a corner => re-use global ID
-                p_trian%elems(ielem)%vefs_GIDs(iobj) = p_gmesh%f_mesh_dist%nmap%l2g(jobj)
+                p_trian%elems(ielem)%vefs_GIDs(iobj) = p_gmesh%f_mesh_dist%l2g_vertices(jobj)
              else ! It is an edge or face => generate new local-global ID (non-consistent, non-consecutive)
                 ! The ISHFT(1,50) is used to start numbering efs after vertices, assuming nvert < 2**60
                 p_trian%elems(ielem)%vefs_GIDs(iobj) = ISHFT(int(p_gmesh%f_mesh_dist%ipart,igp),int(32,igp)) + int(jobj, igp) + ISHFT(int(1,igp),int(60,igp))

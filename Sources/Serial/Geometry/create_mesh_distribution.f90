@@ -89,19 +89,24 @@ contains
     do ipart=1,prt_pars%nparts
 
        ! Generate Local mesh
-       call mesh_g2l(distr(ipart)%nmap, distr(ipart)%emap, femesh, lmesh(ipart))
+       call mesh_g2l(distr(ipart)%num_local_vertices,  &
+                     distr(ipart)%l2g_vertices,        &
+                     distr(ipart)%num_local_cells,     &
+                     distr(ipart)%l2g_cells,           &
+                     femesh,                           &
+                     lmesh(ipart))
 
-       call build_adjacency_new (femesh, ldome,         &
-            &                    ipart,                 &
-            &                    lmesh(ipart),          &
-            &                    distr(ipart)%nmap%l2g, &
-            &                    distr(ipart)%emap%l2g, &
-            &                    distr(ipart)%nebou,    &
-            &                    distr(ipart)%nnbou,    &
-            &                    distr(ipart)%lebou,    &
-            &                    distr(ipart)%lnbou,    &
-            &                    distr(ipart)%pextn,    &
-            &                    distr(ipart)%lextn,    &
+       call build_adjacency_new (femesh, ldome,             &
+            &                    ipart,                     &
+            &                    lmesh(ipart),              &
+            &                    distr(ipart)%l2g_vertices, &
+            &                    distr(ipart)%l2g_cells,    &
+            &                    distr(ipart)%nebou,        &
+            &                    distr(ipart)%nnbou,        &
+            &                    distr(ipart)%lebou,        &
+            &                    distr(ipart)%lnbou,        &
+            &                    distr(ipart)%pextn,        &
+            &                    distr(ipart)%lextn,        &
             &                    distr(ipart)%lextp )
     end do
     call fe_graph%free()
@@ -448,13 +453,15 @@ contains
     end do
     ! Allocate local to global maps
     do ipart=1,nparts
-       call map_alloc(nedom(ipart),int(femesh%nelem,igp),distr(ipart)%emap)
+       distr(ipart)%num_local_cells  = nedom(ipart)
+       distr(ipart)%num_global_cells = int(femesh%nelem,igp)
+       call memalloc(distr(ipart)%num_local_cells, distr(ipart)%l2g_cells, __FILE__, __LINE__)
     end do
     nedom = 0
     do ielem=1,femesh%nelem
        ipart = ldome(ielem)
        nedom(ipart)=nedom(ipart)+1
-       distr(ipart)%emap%l2g(nedom(ipart)) = ielem
+       distr(ipart)%l2g_cells(nedom(ipart)) = ielem
     end do
 
     call memfree ( nedom,__FILE__,__LINE__)
@@ -478,8 +485,10 @@ contains
              end do
           end if
        end do
-       call map_alloc(npdom(ipart),int(femesh%npoin,igp),distr(ipart)%nmap)
-       distr(ipart)%nmap%l2g = work2(1:npdom(ipart))
+       distr(ipart)%num_local_vertices  = npdom(ipart)
+       distr(ipart)%num_global_vertices = int(femesh%npoin,igp)
+       call memalloc(distr(ipart)%num_local_vertices, distr(ipart)%l2g_vertices, __FILE__, __LINE__)
+       distr(ipart)%l2g_vertices = work2(1:npdom(ipart))
     end do
     call memfree ( work1,__FILE__,__LINE__)
     call memfree ( work2,__FILE__,__LINE__)
@@ -759,40 +768,41 @@ contains
 
 
   !================================================================================================
-  subroutine mesh_g2l(nmap,emap,gmesh,lmesh)
+  subroutine mesh_g2l(num_local_vertices, l2g_vertices, num_local_cells, l2g_cells, gmesh, lmesh)
     implicit none
-    type(map_igp_t), intent(in)  :: nmap, emap
-    type(mesh_t)   , intent(in)  :: gmesh
-    type(mesh_t)   , intent(out) :: lmesh
-    type(hash_table_igp_ip_t)    :: ws_inmap
-    type(hash_table_igp_ip_t)    :: el_inmap
-    integer(ip)    , allocatable :: node_list(:)
-    integer(ip)                  :: aux, ipoin,inode,inodb,knode,knodb,lnodb_size,istat
-    integer(ip)                  :: ielem_lmesh,ielem_gmesh,iboun_lmesh,iboun_gmesh
-    integer(ip)                  :: p_ielem_gmesh,p_ipoin_lmesh,p_ipoin_gmesh
+    integer(ip),     intent(in)    :: num_local_vertices
+    integer(igp),    intent(in)    :: l2g_vertices(num_local_vertices)
+    integer(ip),     intent(in)    :: num_local_cells
+    integer(igp),    intent(in)    :: l2g_cells(num_local_cells)
+    type(mesh_t)   , intent(in)    :: gmesh
+    type(mesh_t)   , intent(inout) :: lmesh
+    type(hash_table_igp_ip_t)      :: ws_inmap
+    type(hash_table_igp_ip_t)      :: el_inmap
+    integer(ip)    , allocatable   :: node_list(:)
+    integer(ip)                    :: aux, ipoin,inode,inodb,knode,knodb,lnodb_size,istat
+    integer(ip)                    :: ielem_lmesh,ielem_gmesh,iboun_lmesh,iboun_gmesh
+    integer(ip)                    :: p_ielem_gmesh,p_ipoin_lmesh,p_ipoin_gmesh
     logical :: count_it
 
-    assert(nmap%ng == gmesh%npoin)
-    assert(emap%ng == gmesh%nelem)
 
     lmesh%order=gmesh%order
     lmesh%nelty=gmesh%nelty
     lmesh%ndime=gmesh%ndime
-    lmesh%npoin=nmap%nl
-    lmesh%nelem=emap%nl
+    lmesh%npoin=num_local_vertices
+    lmesh%nelem=num_local_cells
 
-    call ws_inmap%init(max(int(nmap%nl*0.25,ip),10))
-    do ipoin=1,nmap%nl
+    call ws_inmap%init(max(int(num_local_vertices*0.25,ip),10))
+    do ipoin=1,num_local_vertices
        ! aux is used to avoid compiler warning related to val being an intent(inout) argument
        aux = ipoin
-       call ws_inmap%put(key=nmap%l2g(ipoin),val=aux,stat=istat) 
+       call ws_inmap%put(key=l2g_vertices(ipoin),val=aux,stat=istat) 
     end do
 
-    call el_inmap%init(max(int(emap%nl*0.25,ip),10))
-    do ipoin=1,emap%nl
+    call el_inmap%init(max(int(num_local_cells*0.25,ip),10))
+    do ipoin=1,num_local_cells
        ! aux is used to avoid compiler warning related to val being an intent(inout) argument
        aux = ipoin
-       call el_inmap%put(key=emap%l2g(ipoin),val=aux,stat=istat) 
+       call el_inmap%put(key=l2g_cells(ipoin),val=aux,stat=istat) 
     end do
 
     ! Elements
@@ -803,7 +813,7 @@ contains
     lmesh%pnods=0
     lmesh%pnods(1)=1
     do ielem_lmesh=1,lmesh%nelem
-       ielem_gmesh = emap%l2g(ielem_lmesh)
+       ielem_gmesh = l2g_cells(ielem_lmesh)
        knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
        lmesh%pnods(ielem_lmesh+1)=lmesh%pnods(ielem_lmesh)+knode
        lmesh%nnode=max(lmesh%nnode,knode)
@@ -812,7 +822,7 @@ contains
     end do
     call memalloc (lmesh%pnods(lmesh%nelem+1), lmesh%lnods, __FILE__,__LINE__)
     do ielem_lmesh=1,lmesh%nelem
-       ielem_gmesh = emap%l2g(ielem_lmesh)
+       ielem_gmesh = l2g_cells(ielem_lmesh)
        p_ipoin_gmesh = gmesh%pnods(ielem_gmesh)-1
        p_ipoin_lmesh = lmesh%pnods(ielem_lmesh)-1
        knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
@@ -882,8 +892,8 @@ contains
 
     call memalloc(lmesh%ndime, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
     !call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord)
-    do ipoin=1,nmap%nl
-       lmesh%coord(:,ipoin)=gmesh%coord(:,nmap%l2g(ipoin))
+    do ipoin=1,num_local_vertices
+       lmesh%coord(:,ipoin)=gmesh%coord(:,l2g_vertices(ipoin))
     end do
 
   end subroutine mesh_g2l

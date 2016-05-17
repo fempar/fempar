@@ -653,8 +653,7 @@ contains
     ! Triangulation, bcond and distribution generation
     if(present(mdist)) then
        call structured_mesh_gen(ijkpart,gdata,gsize,tsize,bdata%poin,bdata%line,bdata%surf,    &
-            &                   trian,bcond,nmap=mdist%nmap,emap=mdist%emap,pextn=mdist%pextn, &
-            &                   lextn=mdist%lextn,lextp=mdist%lextp)
+            &                   trian,bcond,mdist=mdist)
     else
        call structured_mesh_gen(ijkpart,gdata,gsize,tsize,bdata%poin,bdata%line,bdata%surf, &
             &                   trian,bcond)
@@ -667,23 +666,22 @@ contains
     if(present(mdist)) then
        mdist%ipart  = lpart
        mdist%nparts = gdata%nparts
-       mdist%nebou  = mdist%emap%nb
-       mdist%nnbou  = mdist%nmap%nb
+       mdist%nebou  = mdist%num_boundary_cells
+       mdist%nnbou  = mdist%num_boundary_vertices
        call memalloc(mdist%nebou,mdist%lebou,__FILE__,__LINE__)
-       do ielem = mdist%emap%ni+1,mdist%emap%ni+mdist%emap%nb
-          mdist%lebou(ielem-mdist%emap%ni) = ielem
+       do ielem = mdist%num_internal_cells+1,mdist%num_internal_cells+mdist%num_boundary_cells
+          mdist%lebou(ielem-mdist%num_internal_cells) = ielem
        end do
        call memalloc(mdist%nnbou,mdist%lnbou,__FILE__,__LINE__)
-       do inode = mdist%nmap%ni+1,mdist%nmap%ni+mdist%nmap%nb
-          mdist%lnbou(inode-mdist%nmap%ni) = inode
+       do inode = mdist%num_internal_vertices+1,mdist%num_internal_vertices+mdist%num_boundary_vertices
+          mdist%lnbou(inode-mdist%num_internal_vertices) = inode
        end do
     end if
 
   end subroutine generate_uniform_triangulation
 
   !================================================================================================
-  subroutine structured_mesh_gen(ijkpart,gdata,gsize,tsize,poin,line,surf,trian,nodes, &
-       &                         nmap,emap,pextn,lextn,lextp)
+  subroutine structured_mesh_gen(ijkpart,gdata,gsize,tsize,poin,line,surf,trian,nodes, mdist)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
@@ -695,9 +693,7 @@ contains
     type(triangulation_t)              , intent(inout) :: trian
     type(conditions_t)                 , intent(in)    :: poin,line,surf
     type(conditions_t)                 , intent(out)   :: nodes
-    type(map_igp_t)          , optional, intent(inout) :: nmap,emap
-    integer(ip) , allocatable, optional, intent(out)   :: pextn(:),lextp(:)
-    integer(igp), allocatable, optional, intent(out)   :: lextn(:)
+    type(mesh_distribution_t), optional, intent(inout) :: mdist
 
     ! Local variables
     integer(ip)              :: nparts,ndime,isper(3)
@@ -764,48 +760,52 @@ contains
     call generic_l2g(subgl,npnumg,npnumt,nenum,ndime,gdata%pdegr,gsize,tsize,gdata,l2ge,l2gp,trian, &
          &           coord)
 
-    ! Fill nmap
-    if(present(nmap)) then
-       !call map_alloc(gsize%npdomt,int(tsize%ncglb,igp),nmap)
-       call map_alloc(tsize%notot,int(tsize%noglb,igp),nmap)
-       nmap%ni  = pni
-       nmap%nb  = pnb
-       nmap%ne  = 0
-       nmap%l2g = l2gp
-    end if
+    if(present(mdist)) then
+       ! Free distribution memory if needed
+       if(allocated(mdist%l2g_vertices)) call memfree(mdist%l2g_vertices, __FILE__, __LINE__)
+       if(allocated(mdist%l2g_cells))    call memfree(mdist%l2g_cells, __FILE__, __LINE__)
+       if(allocated(mdist%pextn))        call memfree(mdist%pextn, __FILE__, __LINE__)
+       if(allocated(mdist%lextn))        call memfree(mdist%lextn, __FILE__, __LINE__)
+       if(allocated(mdist%lextp))        call memfree(mdist%lextp, __FILE__, __LINE__)
+       
+       ! Vertices info
+       mdist%num_local_vertices    = tsize%notot
+       mdist%num_global_vertices   = int(tsize%noglb,igp)
+       mdist%num_internal_vertices = pni
+       mdist%num_boundary_vertices = pnb
+       mdist%num_external_vertices = 0
+       call memalloc(mdist%num_local_vertices, mdist%l2g_vertices, __FILE__, __LINE__)
+       mdist%l2g_vertices          = l2gp
 
-    ! Fill emap
-    if(present(emap)) then
-       call map_alloc(gsize%nedomt,int(tsize%neglb,igp),emap)
-       emap%ni  = eni
-       emap%nb  = enb
-       emap%ne  = 0
-       emap%l2g = l2ge
-    end if
-    
-    ! Compute adjacencies
-    if(present(pextn)) then
-       check(present(lextp))
-       check(present(lextn))
-       call memalloc(enb+1,pextn,__FILE__,__LINE__)
+       ! Cells info
+       mdist%num_local_cells    = gsize%nedomt
+       mdist%num_global_cells   = int(tsize%neglb,igp)
+       mdist%num_internal_cells = eni
+       mdist%num_boundary_cells = enb
+       mdist%num_external_cells = 0
+       call memalloc(mdist%num_local_cells ,mdist%l2g_cells, __FILE__, __LINE__)
+       mdist%l2g_cells          = l2ge
+
+       ! Compute adjacencies
+       call memalloc(enb+1,mdist%pextn,__FILE__,__LINE__)
        nelbl(1) = gdata%neblx
        nelbl(2) = gdata%nebly
        nelbl(3) = gdata%neblz
        pextn_cnt = 0
-       pextn(1) = 1
-       call face_loop_adj(ijkpart,ndime,gsize,tsize,gdata%isper,emap%nb,pextn_cnt,pextn,0)
-       call edge_loop_adj(ijkpart,ndime,gsize,tsize,gdata%isper,emap%nb,pextn_cnt,pextn,0)
-       call corn_loop_adj(ijkpart,ndime,gsize,tsize,gdata%isper,emap%nb,pextn_cnt,pextn,0)
+       mdist%pextn(1) = 1
+       call face_loop_adj(ijkpart,ndime,gsize,tsize,gdata%isper,mdist%num_boundary_cells,pextn_cnt,mdist%pextn,0)
+       call edge_loop_adj(ijkpart,ndime,gsize,tsize,gdata%isper,mdist%num_boundary_cells,pextn_cnt,mdist%pextn,0)
+       call corn_loop_adj(ijkpart,ndime,gsize,tsize,gdata%isper,mdist%num_boundary_cells,pextn_cnt,mdist%pextn,0)
        pextn_cnt = 0
-       call memalloc(pextn(enb+1)-1,lextn,__FILE__,__LINE__)
-       call memalloc(pextn(enb+1)-1,lextp,__FILE__,__LINE__)
-       lextn = 0; lextp = 0
-       call face_loop_adj(ijkpart,ndime,gsize,tsize,gdata%isper,emap%nb,pextn_cnt,pextn,1, &
-            &             lextn,lextp,gdata%mater,nelbl)
-       call edge_loop_adj(ijkpart,ndime,gsize,tsize,gdata%isper,emap%nb,pextn_cnt,pextn,1, &
-            &             lextn,lextp,gdata%mater,nelbl)
-       call corn_loop_adj(ijkpart,ndime,gsize,tsize,gdata%isper,emap%nb,pextn_cnt,pextn,1, &
-            &             lextn,lextp,gdata%mater,nelbl)
+       call memalloc(mdist%pextn(enb+1)-1,mdist%lextn,__FILE__,__LINE__)
+       call memalloc(mdist%pextn(enb+1)-1,mdist%lextp,__FILE__,__LINE__)
+       mdist%lextn = 0; mdist%lextp = 0
+       call face_loop_adj(ijkpart,ndime,gsize,tsize,gdata%isper,mdist%num_boundary_cells,pextn_cnt,mdist%pextn,1, &
+            &             mdist%lextn,mdist%lextp,gdata%mater,nelbl)
+       call edge_loop_adj(ijkpart,ndime,gsize,tsize,gdata%isper,mdist%num_boundary_cells,pextn_cnt,mdist%pextn,1, &
+            &             mdist%lextn,mdist%lextp,gdata%mater,nelbl)
+       call corn_loop_adj(ijkpart,ndime,gsize,tsize,gdata%isper,mdist%num_boundary_cells,pextn_cnt,mdist%pextn,1, &
+            &             mdist%lextn,mdist%lextp,gdata%mater,nelbl)
     end if
 
     ! Deallocate auxiliar vectors
