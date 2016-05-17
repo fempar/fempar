@@ -56,7 +56,6 @@ module serial_names
   use materials_names
   use materials_io_names
   use elem_to_subset_id_names
-  use graph_names
   !use generate_vefs_mesh_conditions_names
   use renumbering_names
   use mesh_names

@@ -30,7 +30,6 @@ module create_mesh_distribution_names
   use list_types_names
   use memor_names
   use mesh_distribution_names
-  use graph_names
   use metis_interface_names
   use rcm_renumbering_names
   use mesh_names
@@ -57,7 +56,7 @@ contains
     type(mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
 
     ! Local variables
-    type(graph_t)                :: fe_graph    ! Dual graph (to be partitioned)
+    type(list_t)                 :: fe_graph    ! Dual graph (to be partitioned)
     integer(ip)   , allocatable  :: ldome(:)    ! Part of each element
     integer(ip)                  :: ipart
     integer                      :: istat
@@ -116,7 +115,7 @@ contains
   subroutine create_dual_graph(mesh,graph)
     ! Parameters
     type(mesh_t) , intent(in)  :: mesh
-    type(graph_t), intent(out) :: graph
+    type(list_t),  intent(out) :: graph
     ! Locals
     integer(ip), allocatable :: lelem(:)
     integer(ip), allocatable :: keadj(:)
@@ -124,19 +123,17 @@ contains
     call memalloc(           mesh%nelem,lelem,__FILE__,__LINE__)
     call memalloc(mesh%nelpo*mesh%nnode,keadj,__FILE__,__LINE__)
     lelem=0
-    call graph%create(mesh%nelem,.false.)
-    call memalloc(mesh%nelem+1,graph%ia,__FILE__,__LINE__)
-
+    call graph%create(mesh%nelem)
 
     call count_elemental_graph(mesh%ndime,mesh%npoin,mesh%nelem, &
          &                     mesh%pnods,mesh%lnods,mesh%nnode,mesh%nelpo, &
-         &                     mesh%pelpo,mesh%lelpo,lelem,keadj,graph%ia)
+         &                     mesh%pelpo,mesh%lelpo,lelem,keadj,graph%p)
 
-    call memalloc(graph%ia(mesh%nelem+1),graph%ja,__FILE__,__LINE__)
+    call graph%allocate_list_from_pointer()
 
     call list_elemental_graph(mesh%ndime,mesh%npoin,mesh%nelem, &
          &                    mesh%pnods,mesh%lnods,mesh%nnode,mesh%nelpo, &
-         &                    mesh%pelpo,mesh%lelpo,lelem,keadj,graph%ia,graph%ja)
+         &                    mesh%pelpo,mesh%lelpo,lelem,keadj,graph%p,graph%l)
 
     call memfree(lelem,__FILE__,__LINE__)
     call memfree(keadj,__FILE__,__LINE__)
@@ -504,28 +501,30 @@ contains
 
     ! Parameters
     type(mesh_t) , intent(in)   :: m   
-    type(graph_t), intent(in)   :: g
-    type(list_t)     , intent(out)  :: lconn
+    type(list_t),  intent(in)   :: g
+    type(list_t),  intent(out)  :: lconn
 
     ! Locals
     integer(ip), allocatable :: auxv(:), auxe(:), e(:)
     integer(ip), allocatable :: emarked(:), vmarked(:)
     integer(ip), allocatable :: q(:)
     integer(ip)              :: head, tail, i, esize, vsize, current, & 
-         j, l, k, inods1d, inods2d, p_ipoin, ipoin
+         j, l, k, inods1d, inods2d, p_ipoin, ipoin, graph_num_rows
+    type(list_iterator_t)    :: graph_column_iterator
 
-    call memalloc ( g%nv   , auxe     , __FILE__,__LINE__)
-    call memalloc ( g%nv   , auxv     , __FILE__,__LINE__)
-    call memalloc ( g%nv   , q        , __FILE__,__LINE__)
-    call memalloc ( g%nv   , emarked  , __FILE__,__LINE__)
-    call memalloc ( m%npoin, vmarked  , __FILE__,__LINE__)
-    call memalloc ( g%nv  ,  e        , __FILE__,__LINE__)
+    graph_num_rows = g%get_num_pointers()
+    call memalloc ( graph_num_rows   , auxe     , __FILE__,__LINE__)
+    call memalloc ( graph_num_rows   , auxv     , __FILE__,__LINE__)
+    call memalloc ( graph_num_rows   , q        , __FILE__,__LINE__)
+    call memalloc ( graph_num_rows   , emarked  , __FILE__,__LINE__)
+    call memalloc ( m%npoin          , vmarked  , __FILE__,__LINE__)
+    call memalloc ( graph_num_rows   ,  e       , __FILE__,__LINE__)
 
     lconn%n  = 0
     emarked  = 0
     current  = 1 
 
-    do i=1, g%nv
+    do i=1, graph_num_rows
        if (emarked(i) == 0) then
           ! New connected component
           lconn%n = lconn%n +1
@@ -564,9 +563,10 @@ contains
              end do
 
 !!$9         for all edges e in G.adjacentEdges(t) do
-             do k=g%ia(j), g%ia(j+1)-1
+             graph_column_iterator = g%create_iterator(j)
+             do while(.not. graph_column_iterator%is_upper_bound())
 !!$12           u ← G.adjacentVertex(t,e)
-                l=g%ja(k)
+                l=graph_column_iterator%get_current()
 !!$13           if u is not emarked:
                 if (emarked(l)==0) then
 !!$14              mark u
@@ -579,6 +579,7 @@ contains
                    q(tail)=l
                    tail=tail+1
                 end if
+                call graph_column_iterator%next()
              end do
           end do
           auxe(lconn%n) = esize
@@ -640,11 +641,11 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     type(mesh_distribution_params_t), intent(in)         :: prt_parts
-    type(graph_t)                   , target, intent(in) :: gp
-    integer(ip)                     , target, intent(out):: iperm(gp%nv)
-    integer(ip)                     , target, intent(out):: lperm(gp%nv)
+    type(list_t)                    , target, intent(in) :: gp
+    integer(ip)                     , target, intent(out):: iperm(gp%n)
+    integer(ip)                     , target, intent(out):: lperm(gp%n)
     
-    if ( gp%nv == 1 ) then
+    if ( gp%get_num_pointers() == 1 ) then
        lperm(1) = 1
        iperm(1) = 1
     else
@@ -655,7 +656,7 @@ contains
        options(METIS_OPTION_NUMBERING) = 1
        options(METIS_OPTION_DBGLVL)    = prt_parts%metis_option_debug
        
-       ierr = metis_nodend ( c_loc(gp%nv),c_loc(gp%ia),c_loc(gp%ja),C_NULL_PTR,c_loc(options), &
+       ierr = metis_nodend ( c_loc(gp%n) ,c_loc(gp%p) ,c_loc(gp%l),C_NULL_PTR,c_loc(options), &
             &                c_loc(iperm),c_loc(lperm))
        
        assert(ierr == METIS_OK)
@@ -672,8 +673,8 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     type(mesh_distribution_params_t), target, intent(in)    :: prt_parts
-    type(graph_t)                   , target, intent(inout) :: gp
-    integer(ip)                     , target, intent(out)   :: ldomn(gp%nv)
+    type(list_t)                    , target, intent(inout) :: gp
+    integer(ip)                     , target, intent(out)   :: ldomn(gp%n)
 
     ! Local variables 
     integer(ip), target      :: kedge
@@ -716,7 +717,7 @@ contains
        options(METIS_OPTION_UFACTOR)   = prt_parts%metis_option_ufactor
        
        ncon = 1 
-       ierr = metis_partgraphkway( c_loc(gp%nv), c_loc(ncon), c_loc(gp%ia)  , c_loc(gp%ja) , & 
+       ierr = metis_partgraphkway( c_loc(gp%n) , c_loc(ncon), c_loc(gp%p)   , c_loc(gp%l) , & 
                                    C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(prt_parts%nparts), &
                                    C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
        
@@ -728,7 +729,7 @@ contains
        options(METIS_OPTION_UFACTOR)   = prt_parts%metis_option_ufactor
 
        ncon = 1 
-       ierr = metis_partgraphrecursive( c_loc(gp%nv), c_loc(ncon), c_loc(gp%ia)  , c_loc(gp%ja) , & 
+       ierr = metis_partgraphrecursive( c_loc(gp%n) , c_loc(ncon), c_loc(gp%p)   , c_loc(gp%l) , & 
                                         C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(prt_parts%nparts), &
                                         C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
     end if    
@@ -737,7 +738,7 @@ contains
 #endif
 
     if ( prt_parts%strat == part_strip ) then
-       j = gp%nv
+       j = gp%get_num_pointers()
        m = 0
        do ipart=1,prt_parts%nparts
           k = j / (prt_parts%nparts-ipart+1)
@@ -748,9 +749,9 @@ contains
           j = j - k
        end do
     else if ( prt_parts%strat == part_rcm_strip ) then
-       call memalloc ( gp%nv, iperm, __FILE__,__LINE__ )
-       call genrcm ( gp%nv, gp%ia(gp%nv+1)-1, gp%ia, gp%ja, iperm )
-       j = gp%nv
+       call memalloc ( gp%get_num_pointers(), iperm, __FILE__,__LINE__ )
+       call genrcm ( gp%get_num_pointers(), gp%p(gp%get_num_pointers()+1)-1, gp%p, gp%l, iperm )
+       j = gp%get_num_pointers()
        m = 0
        do ipart=1,prt_parts%nparts
           k = j / (prt_parts%nparts-ipart+1)
