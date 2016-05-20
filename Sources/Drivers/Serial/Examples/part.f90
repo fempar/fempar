@@ -90,13 +90,13 @@ program partitioner
   prt_pars%metis_option_contig   = 1 
   prt_pars%metis_option_debug    = 2
 
-  call create_mesh_distribution (gmesh, prt_pars, distr, lmesh)
+  call gmesh%create_distribution (prt_pars, distr, lmesh)
 
   ! Output domain partition to GiD file
   call memalloc (gmesh%nelem, ldome, __FILE__,__LINE__)
   do i=1, nparts
-     do j=1, distr(i)%emap%nl
-        ldome(distr(i)%emap%l2g(j)) = i
+     do j=1, distr(i)%num_local_cells
+        ldome(distr(i)%l2g_cells(j)) = i
      end do
   end do
 

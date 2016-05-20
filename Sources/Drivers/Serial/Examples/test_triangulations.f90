@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_command_line_parameters_names
+module command_line_parameters_names
   use types_names
   use Data_Type_Command_Line_Interface
 # include "debug.i90"
@@ -33,38 +33,38 @@ module par_command_line_parameters_names
   implicit none
   private
 
-  type par_test_triangulations_params_t
+  type test_triangulations_params_t
      character(len=:), allocatable :: default_dir_path
      character(len=:), allocatable :: default_prefix
      character(len=:), allocatable :: default_dir_path_out
    contains
-     procedure :: set_default_params => par_test_triangulations_set_par_default_params
-  end type par_test_triangulations_params_t
+     procedure :: set_default_params => test_triangulations_set_default_params
+  end type test_triangulations_params_t
 
   ! Types
-  public :: par_test_triangulations_params_t
+  public :: test_triangulations_params_t
 
   ! Functions
-  public :: cli_add_par_params
+  public :: cli_add_params
 
 contains
 
-  subroutine par_test_triangulations_set_par_default_params(params)
+  subroutine test_triangulations_set_default_params(params)
     use serial_names
     implicit none
-    class(par_test_triangulations_params_t), intent(inout) :: params
+    class(test_triangulations_params_t), intent(inout) :: params
     ! IO parameters
     params%default_dir_path     = 'data/'
     params%default_prefix       = 'square'
     params%default_dir_path_out = 'output/'
-  end subroutine par_test_triangulations_set_par_default_params
+  end subroutine test_triangulations_set_default_params
 
   !==================================================================================================
-  subroutine cli_add_par_params(cli,params)
+  subroutine cli_add_params(cli,params)
     implicit none
     type(Type_Command_Line_Interface)    , intent(inout) :: cli
-    type(par_test_triangulations_params_t)          , intent(in)    :: params
-    !class(par_test_triangulations_parallel_params_t), intent(inout) :: par_params
+    type(test_triangulations_params_t)          , intent(in)    :: params
+    !class(test_triangulations_parallel_params_t), intent(inout) :: params
     ! Locals
     integer(ip) :: error
     character   :: aux_string
@@ -81,30 +81,24 @@ contains
          &       required=.false.,act='store',def=trim(params%default_dir_path_out),error=error)
     check(error==0)
     
-  end subroutine cli_add_par_params
+  end subroutine cli_add_params
 
 
-end module par_command_line_parameters_names
+end module command_line_parameters_names
 
 !****************************************************************************************************
 !****************************************************************************************************
 
-program par_test_triangulations
+program test_triangulations
   use serial_names
-  use par_names
-  !use JP_par_triangulation_names
-  !use JP_par_mesh_to_triangulation_names
   use Data_Type_Command_Line_Interface
-  use par_command_line_parameters_names
-  use mpi
+  use command_line_parameters_names
   
   implicit none
 #include "debug.i90"
   ! Our data
-  type(par_context_t)                    :: p_context
-  type(par_environment_t)                :: p_env
-  type(par_triangulation_t)              :: p_trian
-  type(par_test_triangulations_params_t) :: test_params
+  type(serial_triangulation_t)       :: triangulation
+  type(test_triangulations_params_t) :: test_params
 
   ! Arguments
   character(len=256)       :: dir_path, dir_path_out
@@ -114,72 +108,70 @@ program par_test_triangulations
 
   type(Type_Command_Line_Interface):: cli 
  
-  !call meminit
-
-  ! Start parallel execution
-  !call par_context_create (p_context)
-  !call par_environment_create(p_env,p_context)
+  call meminit
 
   ! Read IO parameters
-  !call read_flap_cli_par_test_triangulations(cli,test_params)
+  call read_flap_cli_test_triangulations(cli,test_params)
  
-  ! Read mesh
-  !call cli%get(switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
-  !call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
+  ! Create triangulation reading from a mesh
+  call cli%get(switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
+  call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
+  call triangulation%create(dir_path,prefix)
+
   !call cli%get(switch='-out',val=dir_path_out,error=istat); check(istat==0)
-  !call par_mesh_read (dir_path, prefix, p_env, p_mesh)
+  !call mesh_read (dir_path, prefix, p_env, p_mesh)
 
   !call mpi_barrier(p_context%icontxt,istat)
   
   ! Read conditions 
-  !call par_conditions_read (dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
+  !call conditions_read (dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
 
   ! Generate efs and its boundary conditions
   !call generate_efs(p_mesh%f_mesh, p_cond%f_conditions)
 
   ! Construct triangulation
-  !call JP_par_mesh_to_triangulation ( p_mesh, p_trian)
+  !call JP_mesh_to_triangulation ( p_mesh, p_trian)
 
   ! Print triangulation
-  !call p_trian%print(stderr)
+  call triangulation%print()
 
   !call p_trian%free()
-  !call par_conditions_free ( p_cond )
-  !call par_mesh_free (p_mesh)
+  !call conditions_free ( p_cond )
+  !call mesh_free (p_mesh)
 
-  !call par_environment_free (p_env)
-  !call par_context_free ( p_context, .false. )
+  !call environment_free (p_env)
+  !call context_free ( p_context, .false. )
   call memstatus
 
 contains
 
   !==================================================================================================
-  subroutine read_flap_cli_par_test_triangulations(cli,test_params)
+  subroutine read_flap_cli_test_triangulations(cli,test_params)
     use Data_Type_Command_Line_Interface
-    use par_command_line_parameters_names
+    use command_line_parameters_names
     use serial_names
     implicit none
     type(Type_Command_Line_Interface), intent(out)   :: cli
-    type(par_test_triangulations_params_t)      , intent(inout) :: test_params
+    type(test_triangulations_params_t)      , intent(inout) :: test_params
     
     ! Locals
     integer(ip)                 :: istat
 
     ! Initialize Command Line Interface
-    call cli%init(progname    = 'par_test_triangulations',                                                     &
+    call cli%init(progname    = 'test_triangulations',                                                     &
          &        version     = '',                                                                 &
          &        authors     = '',                                                                 &
          &        license     = '',                                                                 &
          &        description =  'Parallel FEMPAR driver to trinagulations.', &
-         &        examples    = ['par_test_triangulations -h  ', 'par_test_triangulations -h  ' ])
+         &        examples    = ['test_triangulations -h  ', 'test_triangulations -h  ' ])
     
     ! Set Parallel parameters
     call test_params%set_default_params()
-    call cli_add_par_params(cli,test_params) 
+    call cli_add_params(cli,test_params) 
     
     call cli%parse(error=istat)
     check(istat == 0)
     
-  end subroutine read_flap_cli_par_test_triangulations
+  end subroutine read_flap_cli_test_triangulations
 
 end program

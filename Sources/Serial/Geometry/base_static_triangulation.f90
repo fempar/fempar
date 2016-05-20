@@ -34,7 +34,8 @@ module base_static_triangulation_names
   use element_import_names
   use hash_table_names
   use list_types_names
-  
+  use mesh_names
+
   ! Par modules
   use par_environment_names
 
@@ -173,6 +174,9 @@ module base_static_triangulation_names
   contains  
   
      ! Private methods for creating vef-related data
+     procedure, non_overridable, private :: free_ptr_vefs_per_cell             => base_static_triangulation_free_ptr_vefs_per_cell
+     procedure, non_overridable, private :: free_lst_vefs_lids                 => base_static_triangulation_free_lst_vefs_lids 
+
      procedure, non_overridable, private :: compute_num_local_vefs             => base_static_triangulation_compute_num_local_vefs
      procedure, non_overridable, private :: compute_num_ghost_vefs             => base_static_triangulation_compute_num_ghost_vefs
      procedure, non_overridable, private :: allocate_and_fill_vefs_gid         => base_static_triangulation_allocate_and_fill_vefs_gid
@@ -236,6 +240,10 @@ module base_static_triangulation_names
   end type par_base_static_triangulation_t
   
   type, extends(base_static_triangulation_t) :: serial_triangulation_t
+  contains
+     procedure, non_overridable          :: create                              => serial_triangulation_create
+     procedure, non_overridable          :: free                                => serial_triangulation_free
+     procedure, non_overridable          :: print                               => serial_triangulation_print
   end type serial_triangulation_t
   
   ! type, extends(par_base_static_triangulation_t) :: par_triangulation_t
@@ -249,7 +257,6 @@ module base_static_triangulation_names
      
      ! Private methods for creating cell-related data
      procedure, non_overridable, private :: allocate_and_fill_ptr_vefs_per_cell => coarse_triangulation_allocate_and_fill_ptr_vefs_per_cell
-     procedure, non_overridable, private :: free_ptr_vefs_per_cell              => coarse_triangulation_free_ptr_vefs_per_cell
      procedure, non_overridable, private :: allocate_cells_gid                  => coarse_triangulation_allocate_cells_gid
      procedure, non_overridable, private :: free_cells_gid                      => coarse_triangulation_free_cells_gid
      procedure, non_overridable, private :: fill_local_cells_gid                => coarse_triangulation_fill_local_cells_gid
@@ -261,14 +268,13 @@ module base_static_triangulation_names
      procedure, non_overridable, nopass, private :: cell_pack                   => coarse_triangulation_cell_pack
      procedure, non_overridable, nopass, private :: cell_unpack                 => coarse_triangulation_cell_unpack
      procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => coarse_triangulation_allocate_and_fill_lst_vefs_lids 
-     procedure, non_overridable, private :: free_lst_vefs_lids                  => coarse_triangulation_free_lst_vefs_lids 
   end type coarse_triangulation_t
 
   integer(ieep), parameter :: mold(1) = [0_ieep]
   integer(ip)  , parameter :: size_of_ip = size(transfer(1_ip, mold))
   integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,mold))
 
-  public :: coarse_triangulation_t 
+  public :: serial_triangulation_t, coarse_triangulation_t 
   
 contains
 
@@ -278,6 +284,7 @@ contains
 #include "sbm_vef_iterator.i90"
 #include "sbm_base_static_triangulation.i90"
 #include "sbm_par_base_static_triangulation.i90"
+#include "sbm_serial_triangulation.i90"
 #include "sbm_coarse_triangulation.i90"
 
 end module base_static_triangulation_names

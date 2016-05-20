@@ -188,14 +188,6 @@
     end do
   end subroutine coarse_triangulation_allocate_and_fill_ptr_vefs_per_cell
   
-  subroutine coarse_triangulation_free_ptr_vefs_per_cell (this)
-    implicit none
-    class(coarse_triangulation_t), intent(inout) :: this
-    assert ( associated ( this%p_env ) )
-    assert ( this%p_env%am_i_l1_task() )
-    if (allocated (this%ptr_vefs_per_cell)) call memfree ( this%ptr_vefs_per_cell, __FILE__, __LINE__ )
-  end subroutine coarse_triangulation_free_ptr_vefs_per_cell
-  
   subroutine coarse_triangulation_allocate_cells_gid (this)
     implicit none
     class(coarse_triangulation_t), intent(inout) :: this
@@ -493,13 +485,7 @@
     end do
     call next_vef_lid_avail%free()
   end subroutine coarse_triangulation_allocate_and_fill_lst_vefs_lids 
-  
-  subroutine coarse_triangulation_free_lst_vefs_lids ( this )
-    implicit none
-    class(coarse_triangulation_t), intent(inout) :: this
-    if ( allocated(this%lst_vefs_lids) ) call memfree( this%lst_vefs_lids, __FILE__, __LINE__ )
-  end subroutine coarse_triangulation_free_lst_vefs_lids
-  
+ 
   recursive subroutine coarse_triangulation_print ( this )
     class(coarse_triangulation_t), intent(in) :: this
     integer(ip) :: ivef
