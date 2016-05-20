@@ -408,6 +408,11 @@ program par_test_reference_fe
   call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
   call iterative_linear_solver%free() 
   
+  !select type(dof_values)
+  !  type is (par_scalar_array_t)
+  !    call dof_values%print(6)
+  !end select
+  
   !call p_fe_space%par_fe_space_print()
   
   call fe_function%free()

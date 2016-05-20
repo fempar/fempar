@@ -577,8 +577,8 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
            dofs_lid ( current_col ) = dof_lid 
            dofs_max_part_id ( current_col-offset ) = max_part_id
            raw_interface_data(neighbor_part_id_row, current_col) = part_id
-           raw_interface_data(max_egid_row, current_col) = max_elem_gid
-           raw_interface_data(lpos_dof_max_egid_row, current_col) = local_idof(dof_lid)
+           assert ( local_idof(dof_lid) < max_dofs_per_reference_fe )
+           raw_interface_data(dof_gid_row, current_col) = int(local_idof(dof_lid),igp)*max_elem_gid + int(max_dofs_per_reference_fe,igp)
            raw_interface_data(owner_flag_row, current_col) = num_parts + 1
            current_col = current_col + 1
         end do
@@ -768,8 +768,8 @@ function par_fe_space_compute_raw_interface_data_by_face_integ ( this, &
               dof_lid = finite_element%elem2dof(fe_space_id)%p(idof)
               dofs_lid ( current_col ) = dof_lid 
               raw_interface_data(neighbor_part_id_row, current_col) = part_id
-              raw_interface_data(max_egid_row, current_col) = elem_gid
-              raw_interface_data(lpos_dof_max_egid_row, current_col) = idof
+              assert ( idof < max_dofs_per_reference_fe )
+              raw_interface_data(dof_gid_row, current_col) = int(idof,igp)*elem_gid + int(max_dofs_per_reference_fe,igp) 
               if ( mypart_id == this%par_triangulation%elems(elem_lid)%mypart ) then
                  raw_interface_data(owner_flag_row,current_col) = owner
               else

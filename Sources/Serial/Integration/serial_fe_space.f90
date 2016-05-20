@@ -267,6 +267,13 @@ module serial_fe_space_names
 
   public :: serial_fe_space_t
   
+  ! This parameter constant is used in order to generate a unique (non-consecutive) 
+  ! global ID (integer(igp)) of a given DoF as:
+  !       gid = max_egid x max_dofs_per_reference_fe + lpos_dof_max_egid
+  ! Its current value corresponds to the number of DoFs in a 3D vector-valued quad 
+  ! Lagrangian FE of order=15, i.e., (15+1)**2 x 3
+  integer(ip), parameter :: max_dofs_per_reference_fe = 12228 
+  
   type, extends(serial_fe_space_t) :: par_fe_space_t
      private
      type(par_triangulation_t), pointer     :: par_triangulation => NULL()

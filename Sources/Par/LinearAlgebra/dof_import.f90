@@ -32,22 +32,19 @@ module dof_import_names
   private
 
   ! Number of rows raw_interface_data(:,:)
-  integer(ip), parameter :: num_rows_raw_interface_data = 4
+  integer(ip), parameter :: num_rows_raw_interface_data = 3
   
   ! Row identifiers for accessing raw_interface_data(:,:)
   ! (generated from type(par_fe_space_t))
   integer(ip), parameter :: neighbor_part_id_row  = 1
   integer(ip), parameter :: owner_flag_row        = 2 
-  integer(ip), parameter :: max_egid_row          = 3
-  integer(ip), parameter :: lpos_dof_max_egid_row = 4
+  integer(ip), parameter :: dof_gid_row           = 3
   
   ! Possible values for owner_flag column
   integer(igp), parameter :: uncoupled            = -1
   integer(igp), parameter :: owner                = -2  
   integer(igp), parameter :: non_owner            = -3
-  
-  integer(ip), parameter :: estimation_nparts_around_part = 100
-  
+    
   ! Host for data needed to perform nearest neighbour communication
   type dof_import_t
      private
@@ -90,7 +87,7 @@ module dof_import_names
 
  
   public :: num_rows_raw_interface_data
-  public :: neighbor_part_id_row, owner_flag_row, max_egid_row, lpos_dof_max_egid_row
+  public :: neighbor_part_id_row, owner_flag_row, dof_gid_row
   public :: uncoupled, owner, non_owner
 
 contains
