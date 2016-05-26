@@ -48,6 +48,7 @@ subroutine serial_fe_space_create( this, &
   call memalloc( this%number_fe_spaces, this%number_fe_spaces, this%field_coupling, __FILE__, __LINE__)
   if ( present(field_blocks) ) then
      assert( size(field_blocks) == this%number_fe_spaces )
+     assert( present(field_coupling) )
      assert( size(field_coupling,1) == this%number_fe_spaces )
      assert( size(field_coupling,2) == this%number_fe_spaces )
      this%field_blocks   = field_blocks
@@ -200,12 +201,10 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id )
   init_dof_block    = this%number_dofs_per_block(iblock)
   current_dof_block = init_dof_block
 
-  call memalloc ( 2, this%triangulation%num_vefs, visited_vef_to_elem_map,  __FILE__, __LINE__ )
-  visited_vef_to_elem_map = -1
-
   if ( this%fe_space_type(fe_space_id) == fe_space_type_cg ) then
+     call memalloc ( 2, this%triangulation%num_vefs, visited_vef_to_elem_map,  __FILE__, __LINE__ )
+     visited_vef_to_elem_map = -1
      do ielem = 1, this%get_number_elements()
-        ! Deal with dofs on the boundary of the element 
         call this%fe_array(ielem)%fill_own_dofs ( fe_space_id, current_dof_block )
         do ivef = 1, this%fe_array(ielem)%cell%num_vefs
            vef_id = this%fe_array(ielem)%cell%vefs(ivef)
@@ -221,13 +220,12 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id )
            end if
         end do
      end do
+     call memfree ( visited_vef_to_elem_map,  __FILE__, __LINE__ )
   else 
      do ielem = 1, this%get_number_elements()
         call this%fe_array(ielem)%fill_own_dofs ( fe_space_id, current_dof_block )
      end do
   end if
-
-  call memfree ( visited_vef_to_elem_map,  __FILE__, __LINE__ )  
   this%number_dofs_per_field(fe_space_id) = current_dof_block - init_dof_block
   this%number_dofs_per_block(iblock) = this%number_dofs_per_block(iblock) + &
        this%number_dofs_per_field(fe_space_id)     

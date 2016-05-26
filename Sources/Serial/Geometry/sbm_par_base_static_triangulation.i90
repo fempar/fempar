@@ -25,7 +25,21 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
+function par_base_static_tria_get_par_environment ( this )
+  implicit none
+  class(par_base_static_triangulation_t), target, intent(in) :: this
+  type(par_environment_t), pointer                           :: par_base_static_tria_get_par_environment
+  par_base_static_tria_get_par_environment => this%p_env
+end function par_base_static_tria_get_par_environment
+
+function par_base_static_tria_get_element_import ( this )
+  implicit none
+  class(par_base_static_triangulation_t), target, intent(in) :: this
+  type(element_import_t), pointer                            :: par_base_static_tria_get_element_import
+  par_base_static_tria_get_element_import => this%element_import
+end function par_base_static_tria_get_element_import 
+
+subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     implicit none
     class(par_base_static_triangulation_t), intent(in)    :: this
     integer(ip), allocatable  , intent(inout) :: parts_itfc_vefs(:,:)
@@ -503,8 +517,7 @@
         
     ! L2 tasks gather from L1 tasks all raw data required to set-up the coarse triangulation on L2 tasks
     if ( this%p_env%am_i_l1_to_l2_task() ) then
-      num_dimensions = this%num_dimensions
-      call this%p_env%l1_to_l2_transfer ( num_dimensions ) 
+      call this%p_env%l1_to_l2_transfer ( this%num_dimensions, num_dimensions ) 
       call this%gather_coarse_cell_gids (coarse_cells_gid)
       call this%gather_coarse_vefs_rcv_counts_and_displs (coarse_vefs_recv_counts, coarse_vefs_displs)
       call this%gather_coarse_vefs_gids (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_gids)

@@ -79,7 +79,7 @@
       ! Allocate + fill cells-related data
       call this%allocate_and_fill_ptr_vefs_per_cell(ptr_vefs_per_cell)
       call this%allocate_cells_gid()
-      call this%fill_local_cells_gid(cells_gid)
+      call this%fill_local_cells_gid(cells_gid) 
       call this%allocate_cells_mypart()
       call this%fill_local_cells_mypart()
       call this%fetch_ghost_cells_data(lst_vefs_gids, &
@@ -172,7 +172,6 @@
       this%ptr_vefs_per_cell(icell+1) = ptr_vefs_per_cell(icell+1) - ptr_vefs_per_cell(icell)
     end do
    
-    ! Set-up rcv_ptrs using data fetched from my neighbours
     call this%p_env%l1_neighbours_exchange ( this%element_import%get_number_neighbours(), &
                                              this%element_import%get_neighbours_ids(),&
                                              this%element_import%get_rcv_ptrs(),&

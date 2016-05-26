@@ -322,3 +322,32 @@ subroutine base_static_triangulation_free_cells_around(this)
   if (allocated(this%ptrs_cells_around)) call memfree(this%ptrs_cells_around,__FILE__,__LINE__)
   if (allocated(this%lst_cells_around)) call memfree(this%lst_cells_around,__FILE__,__LINE__)
 end subroutine base_static_triangulation_free_cells_around
+
+function base_static_triangulation_get_num_local_vefs(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: base_static_triangulation_get_num_local_vefs
+  base_static_triangulation_get_num_local_vefs = this%num_local_vefs
+end function base_static_triangulation_get_num_local_vefs
+
+function base_static_triangulation_get_num_ghost_vefs(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: base_static_triangulation_get_num_ghost_vefs
+  base_static_triangulation_get_num_ghost_vefs = this%num_ghost_vefs
+end function base_static_triangulation_get_num_ghost_vefs
+
+
+function base_static_triangulation_get_num_local_cells(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: base_static_triangulation_get_num_local_cells
+  base_static_triangulation_get_num_local_cells = this%num_local_cells
+end function base_static_triangulation_get_num_local_cells
+
+function base_static_triangulation_get_num_ghost_cells(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: base_static_triangulation_get_num_ghost_cells
+  base_static_triangulation_get_num_ghost_cells = this%num_ghost_cells
+end function base_static_triangulation_get_num_ghost_cells

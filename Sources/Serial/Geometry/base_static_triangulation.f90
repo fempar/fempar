@@ -47,10 +47,15 @@ module base_static_triangulation_names
     integer(ip)                                 :: lid = -1
     class(base_static_triangulation_t), pointer :: base_static_triangulation
   contains
-    procedure, non_overridable, private  :: create               => cell_accessor_create
-    procedure, non_overridable, private  :: free                 => cell_accessor_free
-    procedure, non_overridable, private  :: next                 => cell_accessor_next
-    procedure, non_overridable, private  :: set_lid              => cell_accessor_set_lid
+    ! create/free/next/set_lid CANNOT longer be private as type(coarse_fe_accessor_t)
+    ! extends type(cell_accessor_t), requires to call these TBPs and cannot be placed
+    ! either within this module or within a submodule of base_static_triangulation_names
+    ! due to module dependencies cycle
+    procedure, private                   :: cell_accessor_create
+    generic                              :: create               => cell_accessor_create
+    procedure                            :: free                 => cell_accessor_free
+    procedure, non_overridable           :: next                 => cell_accessor_next
+    procedure, non_overridable           :: set_lid              => cell_accessor_set_lid
     procedure, non_overridable, private  :: set_gid              => cell_accessor_set_gid
     procedure, non_overridable, private  :: set_mypart           => cell_accessor_set_mypart
     procedure, non_overridable, private  :: get_triangulation    => cell_accessor_get_triangulation
@@ -62,9 +67,12 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_num_vefs         => cell_accessor_get_num_vefs
     procedure, non_overridable           :: get_vef_lid          => cell_accessor_get_vef_lid
     procedure, non_overridable           :: get_vef_gid          => cell_accessor_get_vef_gid
+    procedure, non_overridable           :: find_lpos_vef_lid    => cell_accessor_find_lpos_vef_lid
+    procedure, non_overridable           :: find_lpos_vef_gid    => cell_accessor_find_lpos_vef_gid
     procedure, non_overridable           :: get_vef              => cell_accessor_get_vef
     procedure, non_overridable           :: is_local             => cell_accessor_is_local
     procedure, non_overridable           :: is_ghost             => cell_accessor_is_ghost
+    procedure, non_overridable           :: scan_sum_num_vefs    => scan_sum_num_vefs
   end type cell_accessor_t
   
   type cell_iterator_t
@@ -166,6 +174,12 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: allocate_and_fill_cells_around     => base_static_triangulation_allocate_and_fill_cells_around
      procedure, non_overridable, private :: free_cells_around                  => base_static_triangulation_free_cells_around
      
+     ! Getters
+     procedure, non_overridable         :: get_num_local_vefs                  => base_static_triangulation_get_num_local_vefs
+     procedure, non_overridable         :: get_num_ghost_vefs                  => base_static_triangulation_get_num_ghost_vefs
+     procedure, non_overridable         :: get_num_local_cells                 => base_static_triangulation_get_num_local_cells
+     procedure, non_overridable         :: get_num_ghost_cells                 => base_static_triangulation_get_num_ghost_cells
+     
      ! Cell traversals-related TBPs
      procedure, non_overridable          :: create_cell_iterator               => base_static_triangulation_create_cell_iterator
   
@@ -194,7 +208,11 @@ module base_static_triangulation_names
      type(list_t)                            :: parts_object
      type(coarse_triangulation_t), pointer   :: coarse_triangulation
   contains
-  ! Private methods for creating coarse objects-related data
+     ! Getters
+     procedure, non_overridable          :: get_par_environment                            => par_base_static_tria_get_par_environment
+     procedure, non_overridable          :: get_element_import                             => par_base_static_tria_get_element_import
+  
+     ! Private methods for creating coarse objects-related data
      procedure, non_overridable, private :: compute_parts_itfc_vefs                        => par_base_static_tria_compute_parts_itfc_vefs
      procedure, non_overridable, private :: compute_vefs_and_parts_object                  => par_base_static_tria_compute_vefs_and_parts_object
      procedure, non_overridable, private :: compute_objects_dimension                      => par_base_static_tria_compute_objects_dimension
@@ -242,11 +260,10 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_lst_vefs_lids                  => coarse_triangulation_free_lst_vefs_lids 
   end type coarse_triangulation_t
 
-  integer(ieep), parameter :: mold(1) = [0_ieep]
-  integer(ip)  , parameter :: size_of_ip = size(transfer(1_ip, mold))
-  integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,mold))
-
+  public :: base_static_triangulation_t
   public :: coarse_triangulation_t 
+  public :: cell_iterator_t, vef_iterator_t
+  public :: cell_accessor_t, vef_accessor_t
   
 contains
 
