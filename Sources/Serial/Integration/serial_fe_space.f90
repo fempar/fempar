@@ -405,6 +405,7 @@ module serial_fe_space_names
      procedure, non_overridable, private :: gather_ptr_dofs_per_fe_and_field              => par_fe_space_gather_ptr_dofs_per_fe_and_field
      procedure, non_overridable, private :: gather_coarse_dofs_gids_rcv_counts_and_displs => par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
      procedure, non_overridable, private :: gather_coarse_dofs_gids                       => par_fe_space_gather_coarse_dofs_gids
+     procedure, non_overridable, private :: gather_vefs_gids_dofs_objects                 => par_fe_space_gather_vefs_gids_dofs_objects
   end type
 
   public :: par_fe_space_t

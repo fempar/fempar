@@ -1132,7 +1132,7 @@ subroutine par_fe_space_setup_coarse_fe_space(this)
   integer(ip), allocatable             :: coarse_dofs_gids_recv_counts(:)
   integer(ip), allocatable             :: coarse_dofs_gids_displs(:)
   integer(igp), allocatable            :: lst_dofs_gids(:)
-  
+  integer(igp), allocatable            :: lst_vefs_gids_dofs_objects(:)
 
    ! All MPI tasks (even if they are not involved in the L2 from L1 gather) should also allocate the
    ! allocatable arrays due to the fact that non-allocated allocatable arrays cannot
@@ -1141,6 +1141,7 @@ subroutine par_fe_space_setup_coarse_fe_space(this)
    call memalloc (0, field_type, __FILE__, __LINE__)
    call memalloc (0, ptr_dofs_per_fe_and_field, __FILE__, __LINE__)
    call memalloc (0, lst_dofs_gids, __FILE__, __LINE__)
+   call memalloc (0, lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
    call memalloc (0, coarse_dofs_gids_recv_counts, __FILE__, __LINE__)
    call memalloc (0, coarse_dofs_gids_displs, __FILE__, __LINE__)
 
@@ -1151,6 +1152,7 @@ subroutine par_fe_space_setup_coarse_fe_space(this)
      call this%gather_ptr_dofs_per_fe_and_field(number_fields, ptr_dofs_per_fe_and_field)
      call this%gather_coarse_dofs_gids_rcv_counts_and_displs (coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs)
      call this%gather_coarse_dofs_gids(coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs, lst_dofs_gids)
+     call this%gather_vefs_gids_dofs_objects(coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs, lst_vefs_gids_dofs_objects)
   end if
 
   if ( this%par_triangulation%p_env%am_i_lgt1_task() ) then
@@ -1161,7 +1163,8 @@ subroutine par_fe_space_setup_coarse_fe_space(this)
                                        number_fields, &
                                        field_type, &
                                        ptr_dofs_per_fe_and_field, &
-                                       lst_dofs_gids )
+                                       lst_dofs_gids, &
+                                       lst_vefs_gids_dofs_objects)
   else
      ! L1 tasks do not hold any piece of the coarse triangulation
      nullify(this%coarse_fe_space)
@@ -1171,6 +1174,7 @@ subroutine par_fe_space_setup_coarse_fe_space(this)
   call memfree (field_type, __FILE__, __LINE__)
   call memfree (ptr_dofs_per_fe_and_field, __FILE__, __LINE__)
   call memfree (lst_dofs_gids, __FILE__, __LINE__)
+  call memfree (lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
   call memfree (coarse_dofs_gids_recv_counts, __FILE__, __LINE__)
   call memfree (coarse_dofs_gids_displs, __FILE__, __LINE__)
 end subroutine par_fe_space_setup_coarse_fe_space
@@ -1277,3 +1281,34 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
                                                            output_data     = dummy_integer_array_igp )
     end if    
   end subroutine par_fe_space_gather_coarse_dofs_gids
+
+  
+  subroutine par_fe_space_gather_vefs_gids_dofs_objects ( this, recv_counts, displs, vef_gids )
+    implicit none
+    class(par_fe_space_t)     , intent(in)    :: this
+    integer(ip)               , intent(in)    :: recv_counts(this%par_triangulation%p_env%get_l1_to_l2_size())
+    integer(ip)               , intent(in)    :: displs(this%par_triangulation%p_env%get_l1_to_l2_size())
+    integer(igp), allocatable , intent(inout) :: vef_gids(:)
+    integer(ip)                               :: l1_to_l2_size
+    integer(igp)                              :: dummy_integer_array_igp(0)
+    integer(ip)                               :: dummy_integer_array_ip(0)
+    
+    assert ( this%par_triangulation%p_env%am_i_l1_to_l2_task() )
+    if ( this%par_triangulation%p_env%am_i_l1_to_l2_root() ) then
+      l1_to_l2_size = this%par_triangulation%p_env%get_l1_to_l2_size()
+      if (allocated(vef_gids)) call memfree ( vef_gids, __FILE__, __LINE__ )
+      call memalloc ( displs(l1_to_l2_size), vef_gids, __FILE__, __LINE__ )
+      call this%par_triangulation%p_env%l2_from_l1_gather( input_data_size = 0, &
+                                                           input_data      = dummy_integer_array_igp, &
+                                                           recv_counts     = recv_counts, &
+                                                           displs          = displs, &
+                                                           output_data     = vef_gids )
+    else
+      call this%par_triangulation%p_env%l2_from_l1_gather( input_data_size = size(this%dofs_objects_gids), &
+                                                           input_data      = this%dofs_objects_gids, &
+                                                           recv_counts     = dummy_integer_array_ip, &
+                                                           displs          = dummy_integer_array_ip, &
+                                                           output_data     = dummy_integer_array_igp )
+    end if    
+  end subroutine par_fe_space_gather_vefs_gids_dofs_objects
+  

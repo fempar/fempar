@@ -96,15 +96,14 @@ subroutine coarse_fe_accessor_fill_own_dofs_on_vef ( this, ivef, field_id, curre
     this%coarse_fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()-1) = current_dof
     call own_dofs_on_vef_iterator%next()
   end do
-  
 end subroutine coarse_fe_accessor_fill_own_dofs_on_vef
 
-subroutine coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe ( this, source_ivef, target_fe, target_ivef, field_id )
+subroutine coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe ( this, target_ivef, source_fe, source_ivef, field_id )
   implicit none
   class(coarse_fe_accessor_t) , intent(inout) :: this
-  integer(ip)                 , intent(in)    :: source_ivef
-  class(coarse_fe_accessor_t) , intent(in)    :: target_fe
   integer(ip)                 , intent(in)    :: target_ivef
+  class(coarse_fe_accessor_t) , intent(in)    :: source_fe
+  integer(ip)                 , intent(in)    :: source_ivef
   integer(ip)                 , intent(in)    :: field_id
 
   integer(ip)           :: pos_ptr_dofs_source 
@@ -116,25 +115,25 @@ subroutine coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe ( this,
   type(list_iterator_t) :: own_dofs_on_vef_iterator_target
   
   ! Determine position in ptr_dofs_per_fe_and_field() of the 
-  ! field "field_id" within source coarse_fe
-  pos_ptr_dofs_source = (this%get_lid()-1)*this%coarse_fe_space%number_fields + field_id
+  ! field "field_id" within target coarse_fe
+  pos_ptr_dofs_target = (this%get_lid()-1)*this%coarse_fe_space%number_fields + field_id
   ! Determine position in lst_dofs_lids of the first dof associated to the
-  ! field "field_id" within the source coarse_fe
-  base_pos_lst_dofs_lids_source = this%coarse_fe_space%ptr_dofs_per_fe_and_field(pos_ptr_dofs_source)
+  ! field "field_id" within the target coarse_fe
+  base_pos_lst_dofs_lids_target = this%coarse_fe_space%ptr_dofs_per_fe_and_field(pos_ptr_dofs_target)
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
-  ! with local identifier ivef within source coarse_fe
-  own_dofs_on_vef_iterator_source = this%create_own_dofs_on_vef_iterator(source_ivef,field_id)
+  ! with local identifier ivef within target coarse_fe
+  own_dofs_on_vef_iterator_target = this%create_own_dofs_on_vef_iterator(target_ivef,field_id)
   
   ! Determine position in ptr_dofs_per_fe_and_field() of the 
   ! field "field_id" within source coarse_fe
-  pos_ptr_dofs_target = (target_fe%get_lid()-1)*this%coarse_fe_space%number_fields + field_id
+  pos_ptr_dofs_source = (source_fe%get_lid()-1)*this%coarse_fe_space%number_fields + field_id
   ! Determine position in lst_dofs_lids of the first dof associated to the
-  ! field "field_id" within the source coarse_fe
-  base_pos_lst_dofs_lids_target = this%coarse_fe_space%ptr_dofs_per_fe_and_field(pos_ptr_dofs_target)
+  ! field "field_id" within the target coarse_fe
+  base_pos_lst_dofs_lids_source = this%coarse_fe_space%ptr_dofs_per_fe_and_field(pos_ptr_dofs_source)
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
-  ! with local identifier ivef within source coarse_fe
-  own_dofs_on_vef_iterator_target = this%create_own_dofs_on_vef_iterator(source_ivef,field_id)
-  
+  ! with local identifier ivef within target coarse_fe
+  own_dofs_on_vef_iterator_source = source_fe%create_own_dofs_on_vef_iterator(source_ivef,field_id)
+    
   assert (own_dofs_on_vef_iterator_source%get_size() == own_dofs_on_vef_iterator_target%get_size())
   do while (.not. own_dofs_on_vef_iterator_source%is_upper_bound())
     this%coarse_fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_target+own_dofs_on_vef_iterator_target%get_current()-1) = &
