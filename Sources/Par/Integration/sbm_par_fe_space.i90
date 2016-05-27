@@ -199,9 +199,9 @@ subroutine par_fe_space_fill_dof_info( this )
   if ( this%par_triangulation%p_env%am_i_l1_task() ) then
      call this%serial_fe_space_t%fill_dof_info()
      do fe_space_id = 1, this%number_fe_spaces
-        call this%par_fe_space_fill_elem2dof_and_count_dofs( fe_space_id )
+        call this%fill_elem2dof_and_count_dofs( fe_space_id )
      end do
-     call this%par_fe_space_compute_blocks_dof_import()
+     call this%compute_blocks_dof_import()
      call this%compute_dofs_objects()
   else
      ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
@@ -284,7 +284,7 @@ subroutine par_fe_space_compute_blocks_dof_import ( this )
   assert ( this%par_triangulation%p_env%am_i_l1_task() )     
   allocate ( this%blocks_dof_import(this%number_blocks) )
   do iblock=1, this%number_blocks
-     call this%par_fe_space_compute_dof_import(iblock)
+     call this%compute_dof_import(iblock)
   end do
 end subroutine par_fe_space_compute_blocks_dof_import
 
@@ -322,10 +322,10 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   do fe_space_id = 1, this%number_fe_spaces
      if ( this%field_blocks(fe_space_id) == iblock ) then
         if ( this%fe_space_type(fe_space_id) == fe_space_type_cg ) then
-           ubound_num_itfc_couplings (i) = this%par_fe_space_compute_ubound_num_itfc_couplings_by_continuity(fe_space_id)
+           ubound_num_itfc_couplings (i) = this%compute_ubound_num_itfc_couplings_by_continuity(fe_space_id)
         else if ( this%fe_space_type(fe_space_id) == fe_space_type_dg ) then
            ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
-                this%par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ(fe_space_id)
+                this%compute_ubound_num_itfc_couplings_by_face_integ(fe_space_id)
         end if
         total_ubound_num_itfc_couplings = total_ubound_num_itfc_couplings + ubound_num_itfc_couplings (i)
         i=i+1                                  
@@ -344,18 +344,18 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
      if ( this%field_blocks(fe_space_id) == iblock ) then
         if ( this%fe_space_type(fe_space_id) == fe_space_type_cg ) then
            total_num_itfc_couplings = total_num_itfc_couplings + & 
-                this%par_fe_space_compute_raw_interface_data_by_continuity(fe_space_id, &
-                                                                           total_num_itfc_couplings, &
-                                                                           ubound_num_itfc_couplings(i),&
-                                                                           dofs_lid,&
-                                                                           raw_interface_data )
+                this%compute_raw_interface_data_by_continuity(fe_space_id, &
+                                                              total_num_itfc_couplings, &
+                                                              ubound_num_itfc_couplings(i),&
+                                                              dofs_lid,&
+                                                              raw_interface_data )
         else if ( this%fe_space_type(fe_space_id) == fe_space_type_dg ) then
            total_num_itfc_couplings = total_num_itfc_couplings + & 
-                this%par_fe_space_compute_raw_interface_data_by_face_integ(fe_space_id, &
-                                                                           total_num_itfc_couplings, &
-                                                                           ubound_num_itfc_couplings(i),&
-                                                                           dofs_lid,&
-                                                                           raw_interface_data )      
+                this%compute_raw_interface_data_by_face_integ(fe_space_id, &
+                                                              total_num_itfc_couplings, &
+                                                              ubound_num_itfc_couplings(i),&
+                                                              dofs_lid,&
+                                                              raw_interface_data )      
         end if
 
         i=i+1                                  
@@ -482,6 +482,23 @@ function par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ( this, fe_
 
 end function par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
 
+function par_fe_space_generate_non_consecutive_dof_gid (cell_gid, lpos_dof_elem2dof, field_id) result(dof_gid)
+  implicit none
+  integer(igp), intent(in) :: cell_gid
+  integer(ip) , intent(in) :: lpos_dof_elem2dof
+  integer(ip) , intent(in) :: field_id
+  integer(igp)             :: dof_gid
+  assert ( cell_gid_shift >= 1  )
+  assert ( dofs_per_reference_fe_shift >= 1  )
+  assert ( number_fields_shift >= 1 )
+  assert ( cell_gid < ISHFT(int(1,igp),int(cell_gid_shift,igp) ) ) 
+  assert ( lpos_dof_elem2dof < ISHFT(int(1,igp),int(dofs_per_reference_fe_shift,igp) ) )
+  assert ( field_id < ISHFT(int(1,igp),int(number_fields_shift,igp) ) )
+  dof_gid = (cell_gid-1) + &
+            ISHFT(int(lpos_dof_elem2dof-1,igp),int(cell_gid_shift,igp)) + &
+            ISHFT(int(field_id-1,igp),int(cell_gid_shift+dofs_per_reference_fe_shift,igp))
+end function par_fe_space_generate_non_consecutive_dof_gid
+
 function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
                                                                   fe_space_id, &
                                                                   offset, &
@@ -592,8 +609,9 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
            dofs_lid ( current_col ) = dof_lid 
            dofs_max_part_id ( current_col-offset ) = max_part_id
            raw_interface_data(neighbor_part_id_row, current_col) = part_id
-           assert ( local_idof(dof_lid) < max_dofs_per_reference_fe )
-           raw_interface_data(dof_gid_row, current_col) = int(local_idof(dof_lid),igp)*max_elem_gid + int(max_dofs_per_reference_fe,igp)
+           raw_interface_data(dof_gid_row, current_col) = this%generate_non_consecutive_dof_gid(max_elem_gid, &
+                                                                                                local_idof(dof_lid), &
+                                                                                                fe_space_id)
            raw_interface_data(owner_flag_row, current_col) = num_parts + 1
            current_col = current_col + 1
         end do
@@ -607,11 +625,11 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   call memfree ( parts_visited, __FILE__, __LINE__ )
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
 
-  call this%par_fe_space_raw_interface_data_by_continuity_decide_owner (offset, &
-                                                                        current_col-1, &
-                                                                        raw_interface_data,&
-                                                                        dofs_max_part_id,&
-                                                                        dofs_lid)
+  call this%raw_interface_data_by_continuity_decide_owner (offset, &
+                                                           current_col-1, &
+                                                           raw_interface_data,&
+                                                           dofs_max_part_id,&
+                                                           dofs_lid)
 
   call memfree ( dofs_max_part_id, __FILE__, __LINE__ )
 
@@ -783,8 +801,7 @@ function par_fe_space_compute_raw_interface_data_by_face_integ ( this, &
               dof_lid = finite_element%elem2dof(fe_space_id)%p(idof)
               dofs_lid ( current_col ) = dof_lid 
               raw_interface_data(neighbor_part_id_row, current_col) = part_id
-              assert ( idof < max_dofs_per_reference_fe )
-              raw_interface_data(dof_gid_row, current_col) = int(idof,igp)*elem_gid + int(max_dofs_per_reference_fe,igp) 
+              raw_interface_data(dof_gid_row, current_col) = this%generate_non_consecutive_dof_gid(elem_gid, idof, fe_space_id)
               if ( mypart_id == this%par_triangulation%elems(elem_lid)%mypart ) then
                  raw_interface_data(owner_flag_row,current_col) = owner
               else
@@ -977,7 +994,7 @@ subroutine par_fe_space_compute_dofs_objects ( this )
       call this%compute_dofs_objects_by_continuity(field_id)
     else if ( this%fe_space_type(field_id) == fe_space_type_dg ) then
       ! Not implemented yet
-      assert(.false.)
+      check(.false.)
     end if
   end do
 end subroutine par_fe_space_compute_dofs_objects

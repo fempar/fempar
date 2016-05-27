@@ -213,7 +213,7 @@ module serial_fe_space_names
      generic                    :: create => serial_fe_space_create
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs => serial_fe_space_set_up_strong_dirichlet_bcs
      procedure                  :: fill_dof_info => serial_fe_space_fill_dof_info
-     procedure, non_overridable, private :: fill_elem2dof_and_count_dofs => serial_fe_space_fill_elem2dof_and_count_dofs
+     procedure                 , private :: fill_elem2dof_and_count_dofs => serial_fe_space_fill_elem2dof_and_count_dofs
      procedure                  :: free => serial_fe_space_free
      procedure                  :: print => serial_fe_space_print
      procedure, non_overridable :: initialize_integration => serial_fe_space_initialize_integration
@@ -342,16 +342,15 @@ module serial_fe_space_names
     procedure, non_overridable, nopass, private :: coarse_fe_unpack                            => coarse_fe_space_coarse_fe_unpack
     
     ! Coarse FE traversals-related TBPs
-    procedure, non_overridable                 :: create_coarse_fe_iterator                           => coarse_fe_space_create_coarse_fe_iterator
+    procedure, non_overridable                 :: create_coarse_fe_iterator                    => coarse_fe_space_create_coarse_fe_iterator
   end type coarse_fe_space_t
   
-  
-  ! This parameter constant is used in order to generate a unique (non-consecutive) 
-  ! global ID (integer(igp)) of a given DoF as:
-  !       gid = max_egid x max_dofs_per_reference_fe + lpos_dof_max_egid
-  ! Its current value corresponds to the number of DoFs in a 3D vector-valued quad 
-  ! Lagrangian FE of order=15, i.e., (15+1)**2 x 3
-  integer(ip), parameter :: max_dofs_per_reference_fe = 12228 
+  ! These parameter constants are used in order to generate a unique (non-consecutive) 
+  ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
+  ! See type(par_fe_space_t)%generate_non_consecutive_dof_gid()
+  integer(ip), parameter :: cell_gid_shift              = 44
+  integer(ip), parameter :: dofs_per_reference_fe_shift = 14
+  integer(ip), parameter :: number_fields_shift         = igp*8-(cell_gid_shift+dofs_per_reference_fe_shift)-1
   
   type, extends(serial_fe_space_t) :: par_fe_space_t
      private
@@ -362,12 +361,11 @@ module serial_fe_space_names
      ! GIDs of the DoFs objects. For their generation, we though to be a good idea 
      ! to take as basis the GIDs of the VEFs objects they are built from (instead of
      ! generating them from scratch, which in turn would imply further communication).
-     ! On the other hand, if the GIDs of the DoFs objects are generated s.t. one may 
-     ! obtain the GID of the VEFs object it was generated from by a transformation of the former, 
-     ! this may avoid further communication of the VEFs GIDs associated to each DOF object GID 
-     ! (assuming that this association is required in the coarser level, something that at the 
-     ! present moment I am pretty convinced that will be required).
      integer(igp), allocatable               :: dofs_objects_gids(:)
+     
+     ! GIDs of the VEFs objects the DoFs objects are put on top of.
+     integer(igp), allocatable               :: vefs_gids_dofs_objects(:)
+     
      integer(ip) , allocatable               :: num_dofs_objects_per_field(:)
      type(list_t), allocatable               :: dofs_objects_per_field(:)
      
@@ -375,18 +373,19 @@ module serial_fe_space_names
   contains
      
      procedure, non_overridable, private :: par_fe_space_create
-     procedure, non_overridable, private :: serial_fe_space_create       => par_fe_space_serial_fe_space_create
-     generic                             :: create                       => par_fe_space_create
-     procedure                           :: fill_dof_info                => par_fe_space_fill_dof_info
-     procedure, non_overridable, private :: par_fe_space_fill_elem2dof_and_count_dofs
-     procedure, non_overridable, private :: par_fe_space_compute_blocks_dof_import
-     procedure, non_overridable, private :: par_fe_space_compute_dof_import
-     procedure, non_overridable, private :: par_fe_space_compute_raw_interface_data_by_continuity
-     procedure, non_overridable, private :: par_fe_space_raw_interface_data_by_continuity_decide_owner
-     procedure, non_overridable, private :: par_fe_space_compute_raw_interface_data_by_face_integ
-     procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
-     procedure, non_overridable, private :: par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
-      
+     procedure, non_overridable, private :: serial_fe_space_create                          => par_fe_space_serial_fe_space_create
+     generic                             :: create                                          => par_fe_space_create
+     procedure                           :: fill_dof_info                                   => par_fe_space_fill_dof_info
+     procedure                 , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
+     procedure, non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
+     procedure, non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
+     procedure, non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
+     procedure, non_overridable, private :: raw_interface_data_by_continuity_decide_owner   => par_fe_space_raw_interface_data_by_continuity_decide_owner
+     procedure, non_overridable, private :: compute_raw_interface_data_by_face_integ        => par_fe_space_compute_raw_interface_data_by_face_integ
+     procedure, non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
+     procedure, non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
+     procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_gid        => par_fe_space_generate_non_consecutive_dof_gid
+     
      procedure                           :: get_finite_element            => par_fe_space_get_finite_element
      procedure                           :: print                         => par_fe_space_print
      procedure                           :: free                          => par_fe_space_free
