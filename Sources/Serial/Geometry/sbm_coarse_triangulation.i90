@@ -267,7 +267,7 @@
     integer(ip)  , pointer     :: rcv_ptrs(:)
     integer(ip)  , pointer     :: rcv_leids(:)
     type(cell_accessor_t)      :: cell
-    integer(ip)                :: icell, start, end
+    integer(ip)                :: icell, first, last
     integer(ip)                :: start_buf, end_buf, current, i, j, number_neighbours
     
     assert ( associated ( this%p_env ) )
@@ -304,10 +304,10 @@
     
     call cell%create(1, this)
        
-    start = this%ptr_vefs_per_cell(1)
-    end   = this%ptr_vefs_per_cell(this%num_local_cells+1)-1
-    lst_vefs_gids_ghost_extended(start:end) = lst_vefs_gids(start:end)
-    lst_vefs_dimension_ghost_extended(start:end) = lst_vefs_dimension(start:end)  
+    first = this%ptr_vefs_per_cell(1)
+    last   = this%ptr_vefs_per_cell(this%num_local_cells+1)-1
+    lst_vefs_gids_ghost_extended(first:last) = lst_vefs_gids(first:last)
+    lst_vefs_dimension_ghost_extended(first:last) = lst_vefs_dimension(first:last)  
     
     snd_ptrs_buf = 0
     do i=1, number_neighbours
@@ -349,13 +349,13 @@
         do j=snd_ptrs(i),snd_ptrs(i+1)-1
           icell = snd_leids(j)
           call cell%set_lid(icell)
-          start     = this%ptr_vefs_per_cell(icell)
-          end       = this%ptr_vefs_per_cell(icell+1)-1
+          first     = this%ptr_vefs_per_cell(icell)
+          last       = this%ptr_vefs_per_cell(icell+1)-1
           start_buf = current
           end_buf   = current + cell_sizes(icell)-1
           call this%cell_pack ( cell, &
-                                lst_vefs_gids_ghost_extended(start:end), &
-                                lst_vefs_dimension_ghost_extended(start:end), &
+                                lst_vefs_gids_ghost_extended(first:last), &
+                                lst_vefs_dimension_ghost_extended(first:last), &
                                 snd_buf(start_buf:end_buf) )
           current = current + cell_sizes(icell)
         end do
@@ -375,14 +375,14 @@
         do j=rcv_ptrs(i),rcv_ptrs(i+1)-1
           icell = rcv_leids(j)
           call cell%set_lid(icell)
-          start     = this%ptr_vefs_per_cell(icell)
-          end       = this%ptr_vefs_per_cell(icell+1)-1
+          first     = this%ptr_vefs_per_cell(icell)
+          last       = this%ptr_vefs_per_cell(icell+1)-1
           start_buf = current
           end_buf   = current + cell_sizes(icell)-1
           call this%cell_unpack ( cell, &
                                   rcv_buf(start_buf:end_buf), &
-                                  lst_vefs_gids_ghost_extended(start:end), &
-                                  lst_vefs_dimension_ghost_extended(start:end) )
+                                  lst_vefs_gids_ghost_extended(first:last), &
+                                  lst_vefs_dimension_ghost_extended(first:last) )
           current = current + cell_sizes(icell)
         end do
      end do
@@ -408,20 +408,20 @@
     integer(igp)         , intent(in)  :: vef_gids(cell%get_num_vefs())
     integer(ip)          , intent(in)  :: vef_dimensions(cell%get_num_vefs())
     integer(ieep)        , intent(out) :: buffer(:)
-    integer(ip)                        :: start, end
+    integer(ip)                        :: first, last
         
-    start = 1
-    end   = start + size_of_igp -1
-    buffer(start:end) = transfer(cell%get_gid(),mold)
-    start = end + 1
-    end   = start + size_of_ip -1
-    buffer(start:end) = transfer(cell%get_mypart(),mold)
-    start = end + 1
-    end   = start + cell%get_num_vefs()*size_of_igp - 1
-    buffer(start:end) = transfer(vef_gids,mold)
-    start = end + 1
-    end   = start + cell%get_num_vefs()*size_of_ip - 1
-    buffer(start:end) = transfer(vef_dimensions,mold)
+    first = 1
+    last   = first + size_of_igp -1
+    buffer(first:last) = transfer(cell%get_gid(),mold)
+    first = last + 1
+    last   = first + size_of_ip -1
+    buffer(first:last) = transfer(cell%get_mypart(),mold)
+    first = last + 1
+    last   = first + cell%get_num_vefs()*size_of_igp - 1
+    buffer(first:last) = transfer(vef_gids,mold)
+    first = last + 1
+    last   = first + cell%get_num_vefs()*size_of_ip - 1
+    buffer(first:last) = transfer(vef_dimensions,mold)
   end subroutine coarse_triangulation_cell_pack
   
   subroutine coarse_triangulation_cell_unpack (cell, buffer, vef_gids, vef_dimensions)
@@ -430,27 +430,27 @@
     integer(ieep)        , intent(in)    :: buffer(:)
     integer(igp)         , intent(out)   :: vef_gids(cell%get_num_vefs())
     integer(ip)          , intent(out)   :: vef_dimensions(cell%get_num_vefs())
-    integer(ip)                          :: start, end
+    integer(ip)                          :: first, last
     integer(igp)                         :: gid
     integer(ip)                          :: mypart
     
-    start = 1
-    end = start + size_of_igp -1
-    gid = transfer(buffer(start:end), gid) 
+    first = 1
+    last = first + size_of_igp -1
+    gid = transfer(buffer(first:last), gid) 
     call cell%set_gid(gid)
     
-    start = end + 1
-    end = start + size_of_ip - 1
-    mypart = transfer(buffer(start:end), mypart)
+    first = last + 1
+    last = first + size_of_ip - 1
+    mypart = transfer(buffer(first:last), mypart)
     call cell%set_mypart(mypart)
     
-    start = end + 1
-    end = start + cell%get_num_vefs()*size_of_igp - 1
-    vef_gids = transfer(buffer(start:end), vef_gids)
+    first = last + 1
+    last = first + cell%get_num_vefs()*size_of_igp - 1
+    vef_gids = transfer(buffer(first:last), vef_gids)
         
-    start = end + 1
-    end = start + cell%get_num_vefs()*size_of_ip - 1
-    vef_dimensions = transfer(buffer(start:end), vef_dimensions)
+    first = last + 1
+    last = first + cell%get_num_vefs()*size_of_ip - 1
+    vef_dimensions = transfer(buffer(first:last), vef_dimensions)
     
   end subroutine coarse_triangulation_cell_unpack
 

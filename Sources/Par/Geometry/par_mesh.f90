@@ -146,7 +146,7 @@ contains
        call par_filename( p_env%get_l1_context(), name )
        ! Read mesh distribution control data
        lunio = io_open (trim(dir_path) // '/' // trim(name))
-       call p_mesh%f_mesh_dist%read( lunio )
+       call p_mesh%f_mesh_dist%read_file( lunio )
        call io_close(lunio)
     end if
 

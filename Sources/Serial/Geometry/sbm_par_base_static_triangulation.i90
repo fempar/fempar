@@ -25,6 +25,118 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! subroutine par_base_static_tria_create ( this, par_environment, dir_path, prefix)
+!     implicit none
+!     class(par_base_static_triangulation_t), intent(in)    :: this
+!     type(par_environment_t)        ,target, intent(in)    :: par_environment
+
+!     character (*)                , intent(in)    :: dir_path
+!     character (*)                , intent(in)    :: prefix
+!     type(mesh_t)              :: mesh
+!     type(mesh_distribution_t) :: mesh_distribution
+    
+!     integer(igp), allocatable :: cells_gid(:)
+!     integer(igp), allocatable :: vertx_gid(:)
+!     integer(ip) , allocatable :: ptr_vefs_per_cell(:)
+!     integer(ip) , allocatable :: lst_vefs_lid(:)
+!     integer(igp), allocatable :: lst_vefs_gid(:)
+    
+!     integer(ip)  :: num_itfc_cells
+!     integer(ip), allocatable :: lst_itfc_cells(:)
+!     integer(ip), allocatable :: ptr_ext_neighs_per_itfc_cell(:)
+!     integer(ip), allocatable :: lst_ext_neighs_gids(:)
+!     integer(ip), allocatable :: lst_ext_neighs_part_ids(:)
+
+!     integer(igp), allocatable :: lst_vefs_gids_ghost_extended(:)
+!     integer(ip) , allocatable :: lst_vefs_dimension_ghost_extended(:)
+
+!     call this%free()
+
+!     this%p_env => par_environment
+!     if(this%p_env%am_i_l1_task()) then
+
+!        ! Read mesh
+!        call mesh%compose_name ( prefix, name )
+!        call par_filename( p_env%get_l1_context(), name )
+!        lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
+!        call mesh%read_file ( lunio, permute_c2z = .false. )
+!        call io_close(lunio)
+!        ! Generate vefs
+!        !call mesh%to_dual()
+!        !call mesh%generate_vefs()
+!        ! Extract data from mesh and free it
+!        call mesh%get_sizes(this%num_dimensions,this%num_vertices,this%num_local_vefs,this%max_vefs_per_cell,this%num_local_cells)
+!        call mesh%move_vefs(ptr_vefs_per_cell,lst_vefs_lid)
+!        call mesh%move_coordinates(this%coordinates)
+!        call mesh%free()
+
+!        ! Read mesh distribution 
+!        call mesh_distribution_compose_name ( prefix, name )
+!        call par_filename( p_env%get_l1_context(), name )
+!        lunio = io_open (trim(dir_path) // '/' // trim(name))
+!        call mesh_distribution%read_file(lunio)
+!        call io_close(lunio)
+
+!        ! Extract data from mesh_distribution
+!        call mesh_distribution%move_gids(cells_gid,vertx_gid)
+!        call mesh_distribution%move_external_elements_info( num_itfc_cells, &
+!             &                                              lst_itfc_cells, &
+!             &                                              ptr_ext_neighs_per_itfc_cell, &
+!             &                                              lst_ext_neighs_gids, &
+!             &                                              lst_ext_neighs_part_ids)
+
+!        ! Build elementwise vefs_gid and vefs_dim
+!        !call memalloc(ptr_vefs_per_cell(this%num_local_cells+1),lst_vefs_gid,__FILE__,__LINE__)
+!        !call mesh%generate_vefs_gid(cells_gid,vertx_gid,lst_vefs_gid)
+
+!       ! We need to fill the element_import data structure first
+!       ! in order to determine the number of ghost elements. This
+!       ! in turn is required as a precondition for the allocate_cell_array
+!       ! TBP below.
+!       call this%element_import%create  ( this%p_env%get_l1_rank()+1, &
+!                                          this%p_env%get_l1_size(), &
+!                                          num_local_cells, &
+!                                          num_itfc_cells, &
+!                                          lst_itfc_cells(1:num_itfc_cells), & ! I was forced to provide l/u bounds to let gfortran 5.3.0 compile
+!                                          ptr_ext_neighs_per_itfc_cell(1:num_itfc_cells+1), &
+!                                          lst_ext_neighs_gids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1), &
+!                                          lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
+!       this%num_ghost_cells = this%element_import%get_number_ghost_elements()
+      
+!       ! Allocate + fill cells-related data
+!       call this%allocate_and_fill_ptr_vefs_per_cell(ptr_vefs_per_cell)
+!       call this%allocate_cells_gid()
+!       call this%fill_local_cells_gid(cells_gid)
+!       call this%allocate_cells_mypart()
+!       call this%fill_local_cells_mypart()
+!       call this%fetch_ghost_cells_data(lst_vefs_gids, lst_vefs_gids_ghost_extended)
+
+!       ! Now we have to make gids consistent while generting the new local numbering.
+!       call this%allocate_and_fill_lst_vefs_lids(lst_vefs_gids_ghost_extended)
+
+!       ! Allocate + fill vefs-related data
+!       call this%compute_num_local_vefs()
+!       call this%compute_num_ghost_vefs()
+
+!       call this%allocate_and_fill_vefs_gid(lst_vefs_gids_ghost_extended)
+!       call this%allocate_and_fill_vefs_dimension(lst_vefs_dimension_ghost_extended)
+!       call this%compute_num_itfc_vefs()
+!       call this%allocate_and_fill_lst_itfc_vefs()
+!       call this%allocate_and_fill_vefs_itfc_lid()
+!       call this%allocate_and_fill_cells_around()
+
+!       call memfree (lst_vefs_gids_ghost_extended, __FILE__, __LINE__)
+!       call memfree (lst_vefs_dimension_ghost_extended, __FILE__, __LINE__)
+
+!       call this%compute_vefs_and_parts_object()
+!       call this%compute_objects_dimension()
+!       call this%compute_number_global_objects_and_their_gids()
+!     end if
+!     call this%print()
+
+!   end subroutine par_base_static_tria_create
+  
+  
  subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     implicit none
     class(par_base_static_triangulation_t), intent(in)    :: this
@@ -35,8 +147,9 @@
     logical, allocatable                      :: touched_neighbours(:)
     integer(ip)                               :: nparts_around, mypart_id, part_id, local_part_id
     integer(ip)                               :: ivef_itfc, icell, vef_lid
-    type(cell_iterator_t)                     :: cell_iterator
-    type(cell_accessor_t), pointer            :: cell 
+    !type(cell_iterator_t)                     :: cell_iterator
+    !type(cell_accessor_t), pointer            :: cell 
+    type(cell_accessor_t)                     :: cell 
     integer(ip)                               :: num_rows_parts_itfc_vefs
     integer(ip), allocatable                  :: work1(:), work2(:)
     type(itfc_vef_iterator_t)                 :: itfc_vef_iterator
@@ -71,8 +184,9 @@
       parts_itfc_vefs(nparts_around+1,ivef_itfc) = mypart_id
       
       do icell=1, current_itfc_vef%get_num_cells_around()
-        cell_iterator = current_itfc_vef%get_cell_around(icell)
-        cell          => cell_iterator%current()
+        !cell_iterator = current_itfc_vef%get_cell_around(icell)
+        !cell          => cell_iterator%current()
+        cell = current_itfc_vef%get_cell_around(icell)
         part_id       = cell%get_mypart()
         
         if ( part_id /= mypart_id ) then
@@ -584,7 +698,6 @@
                                          output_data = dummy_integer_array ) 
     end if
   end subroutine par_base_static_tria_gather_coarse_cell_gids
-  
   
   subroutine par_base_static_tria_gather_coarse_vefs_rcv_counts_and_displs( this, recv_counts, displs )
     implicit none

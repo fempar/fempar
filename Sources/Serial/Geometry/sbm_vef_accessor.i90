@@ -102,23 +102,34 @@ function vef_accessor_get_dimension(this)
   vef_accessor_get_dimension  = this%base_static_triangulation%vefs_dimension(this%lid)
 end function vef_accessor_get_dimension
 
-function vef_accessor_get_num_cells_around (this)
+function vef_accessor_get_num_cells_around_interface_vef (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
-  integer(ip) :: vef_accessor_get_num_cells_around
+  integer(ip) :: vef_accessor_get_num_cells_around_interface_vef
   integer(ip) :: vef_itfc_lid
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
   assert ( this%at_interface() )
   vef_itfc_lid = this%base_static_triangulation%vefs_itfc_lid(this%lid)
-  vef_accessor_get_num_cells_around = this%base_static_triangulation%ptrs_cells_around(vef_itfc_lid+1)- &
-       this%base_static_triangulation%ptrs_cells_around(vef_itfc_lid)
+  vef_accessor_get_num_cells_around_interface_vef = &
+       & this%base_static_triangulation%ptrs_cells_around(vef_itfc_lid+1)- &
+       & this%base_static_triangulation%ptrs_cells_around(vef_itfc_lid)
+end function vef_accessor_get_num_cells_around_interface_vef
+
+function vef_accessor_get_num_cells_around (this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  integer(ip) :: vef_accessor_get_num_cells_around
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_accessor_get_num_cells_around = this%base_static_triangulation%ptrs_cells_around(this%lid+1)- &
+       this%base_static_triangulation%ptrs_cells_around(this%lid)
 end function vef_accessor_get_num_cells_around
 
-function vef_accessor_get_cell_around (this, icell_around)
+function vef_accessor_get_cell_around_interface_vef (this, icell_around)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   integer(ip)          , intent(in) :: icell_around
-  type(cell_iterator_t)             :: vef_accessor_get_cell_around
+  !type(cell_iterator_t)             :: vef_accessor_get_cell_around
+  type(cell_accessor_t)             :: vef_accessor_get_cell_around_interface_vef
   integer(ip)                       :: position_in_lst_cells_around
   integer(ip)                       :: vef_itfc_lid
   integer(ip)                       :: icell 
@@ -128,7 +139,25 @@ function vef_accessor_get_cell_around (this, icell_around)
   vef_itfc_lid = this%base_static_triangulation%vefs_itfc_lid(this%lid)
   position_in_lst_cells_around = this%base_static_triangulation%ptrs_cells_around(vef_itfc_lid) + icell_around-1
   icell = this%base_static_triangulation%lst_cells_around(position_in_lst_cells_around)
+  call vef_accessor_get_cell_around_interface_vef%create(icell,this%base_static_triangulation)
+end function vef_accessor_get_cell_around_interface_vef
+
+function vef_accessor_get_cell_around (this, icell_around)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  integer(ip)          , intent(in) :: icell_around
+  !type(cell_iterator_t)             :: vef_accessor_get_cell_around
+  type(cell_accessor_t)             :: vef_accessor_get_cell_around
+  integer(ip)                       :: position_in_lst_cells_around
+  integer(ip)                       :: icell 
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( icell_around >= 1 .and. icell_around <= this%get_num_cells_around() )
+  !write(*,*) 'vef_accessor_get_cell_around:: this%lid, icell_around',this%lid, icell_around
+  position_in_lst_cells_around = this%base_static_triangulation%ptrs_cells_around(this%lid) + icell_around-1
+  icell = this%base_static_triangulation%lst_cells_around(position_in_lst_cells_around)
+  !write(*,*) 'vef_accessor_get_cell_around:: icell',icell
   call vef_accessor_get_cell_around%create(icell,this%base_static_triangulation)
+  !write(*,*) 'vef_accessor_get_cell_around:: end'
 end function vef_accessor_get_cell_around
 
 function vef_accessor_is_local (this)

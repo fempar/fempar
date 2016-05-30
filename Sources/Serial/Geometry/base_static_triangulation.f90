@@ -31,6 +31,7 @@ module base_static_triangulation_names
   use memor_names
   use sort_names
   use reference_fe_names
+  use reference_fe_factory_names
   use element_import_names
   use hash_table_names
   use list_types_names
@@ -147,30 +148,43 @@ module base_static_triangulation_names
    !integer(ip), parameter :: base_static_triangulation_created         = 1 
    !integer(ip), parameter :: base_static_triangulation_elements_filled = 2 
    !integer(ip), parameter :: base_static_triangulation_vefs_filled     = 3 
+
+  integer(ip), parameter      :: max_num_elem_types = 3
   
   type base_static_triangulation_t ! Base class for serial_triangulation_t and par_base_static_triangulation_t
      private
      integer(ip)                           :: num_dimensions  = -1
      integer(ip)                           :: num_local_cells = -1
      integer(ip)                           :: num_ghost_cells = -1
+     integer(ip)                           :: max_vefs_per_cell = -1
      
      integer(igp), allocatable             :: cells_gid(:)               ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_mypart(:)            ! Num local cells + num ghost cells
-     type(p_reference_fe_t)                :: reference_fe_geo_list(1)
+     
+     type(p_reference_fe_t)                :: reference_fe_geo_list(max_num_elem_types)
+     type(position_hash_table_t)           :: reference_fe_geo_index(max_num_elem_types)
+     ! The reference fe for the geometry of each element need not to be stored as it can
+     ! be recovered from the number of vefs
      integer(ip) , allocatable             :: elems_reference_fe_geo(:)  ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: ptr_vefs_per_cell(:)       ! Num local cells + num ghost cells + 1
      integer(ip) , allocatable             :: lst_vefs_lids(:)
           
+     integer(ip)                           :: num_vefs = -1        ! = num_local_vefs+num_ghost_vefs
      integer(ip)                           :: num_local_vefs = -1
      integer(ip)                           :: num_ghost_vefs = -1
      integer(igp), allocatable             :: vefs_gid(:)          ! num_local_vefs + num_ghost_vefs
+     integer(ip) , allocatable             :: vefs_set(:)          ! num_local_vefs + num_ghost_vefs
+     integer(ip) , allocatable             :: vefs_geometry(:)     ! num_local_vefs + num_ghost_vefs
      integer(ip) , allocatable             :: vefs_dimension(:)    ! num_local_vefs + num_ghost_vefs
      integer(ip) , allocatable             :: vefs_itfc_lid(:)     ! num_local_vefs + num_ghost_vefs
-     
+
      integer(ip)                           :: num_itfc_vefs  = -1
      integer(ip), allocatable              :: lst_itfc_vefs(:)
      integer(ip), allocatable              :: ptrs_cells_around(:) ! num_itfc_vefs+1
      integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
+     
+     integer(ip)                           :: num_vertices
+     real(rp)   , allocatable              :: coordinates(:,:)
   contains  
   
      ! Private methods for creating vef-related data
@@ -191,7 +205,9 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_vefs_itfc_lid                 => base_static_triangulation_free_vefs_itfc_lid
      procedure, non_overridable, private :: allocate_and_fill_cells_around     => base_static_triangulation_allocate_and_fill_cells_around
      procedure, non_overridable, private :: free_cells_around                  => base_static_triangulation_free_cells_around
-     
+
+     procedure, non_overridable          :: generate_vefs               => base_static_triangulation_generate_vefs
+
      ! Cell traversals-related TBPs
      procedure, non_overridable            :: create_cell_iterator      => base_static_triangulation_create_cell_iterator
   
@@ -220,7 +236,7 @@ module base_static_triangulation_names
      type(list_t)                            :: parts_object
      type(coarse_triangulation_t), pointer   :: coarse_triangulation
   contains
-  ! Private methods for creating coarse objects-related data
+     ! Private methods for creating coarse objects-related data
      procedure, non_overridable, private :: compute_parts_itfc_vefs                        => par_base_static_tria_compute_parts_itfc_vefs
      procedure, non_overridable, private :: compute_vefs_and_parts_object                  => par_base_static_tria_compute_vefs_and_parts_object
      procedure, non_overridable, private :: compute_objects_dimension                      => par_base_static_tria_compute_objects_dimension

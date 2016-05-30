@@ -103,7 +103,7 @@ program par_test_triangulations
   ! Our data
   type(par_context_t)                    :: p_context
   type(par_environment_t)                :: p_env
-  type(par_triangulation_t)              :: p_trian
+  type(par_triangulation_t)              :: triangulation
   type(par_test_triangulations_params_t) :: test_params
 
   ! Arguments
@@ -114,20 +114,20 @@ program par_test_triangulations
 
   type(Type_Command_Line_Interface):: cli 
  
-  !call meminit
+  call meminit
 
   ! Start parallel execution
-  !call par_context_create (p_context)
-  !call par_environment_create(p_env,p_context)
+  call p_context%create()
+  !call p_env%create (p_context,1)
 
   ! Read IO parameters
-  !call read_flap_cli_par_test_triangulations(cli,test_params)
+  call read_flap_cli_par_test_triangulations(cli,test_params)
  
   ! Read mesh
-  !call cli%get(switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
-  !call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
+  call cli%get(switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
+  call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
   !call cli%get(switch='-out',val=dir_path_out,error=istat); check(istat==0)
-  !call par_mesh_read (dir_path, prefix, p_env, p_mesh)
+  !call triangulation%create(dir_path,prefix)
 
   !call mpi_barrier(p_context%icontxt,istat)
   

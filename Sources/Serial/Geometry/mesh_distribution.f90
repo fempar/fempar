@@ -71,6 +71,9 @@ module mesh_distribution_names
      procedure, non_overridable :: print => mesh_distribution_print
      procedure, non_overridable :: read  => mesh_distribution_read
      procedure, non_overridable :: write => mesh_distribution_write
+     procedure, non_overridable :: read_file  => mesh_distribution_read_file
+     procedure, non_overridable :: move_gids => mesh_distribution_move_gids
+     procedure, non_overridable :: move_external_elements_info => mesh_distribution_move_external_elements_info
   end type mesh_distribution_t
 
 
@@ -112,6 +115,29 @@ module mesh_distribution_names
   public :: mesh_distribution_compose_name
 
 contains
+
+  !=============================================================================
+  subroutine mesh_distribution_move_gids(this,cells_gid,vefs_gid)
+    class(mesh_distribution_t), intent(inout) :: this
+    integer(igp), intent(inout), allocatable :: vefs_gid(:)
+    integer(igp), intent(inout), allocatable :: cells_gid(:)
+    call memmovealloc(this%l2g_vertices,vefs_gid,__FILE__,__LINE__)
+    call memmovealloc(this%l2g_cells,cells_gid,__FILE__,__LINE__)
+  end subroutine mesh_distribution_move_gids
+  !=============================================================================
+  subroutine mesh_distribution_move_external_elements_info(this,nebou,lebou,pextn,lextn,lextp)
+    class(mesh_distribution_t), intent(inout) :: this
+    integer(ip), intent(inout)   :: nebou
+    integer(ip), intent(inout), allocatable :: lebou(:)
+    integer(ip), intent(inout), allocatable :: pextn(:)
+    integer(igp), intent(inout), allocatable :: lextn(:)
+    integer(ip), intent(inout), allocatable :: lextp(:)
+    nebou=this%nebou
+    call memmovealloc(this%lebou,lebou,__FILE__,__LINE__)
+    call memmovealloc(this%pextn,pextn,__FILE__,__LINE__)
+    call memmovealloc(this%lextn,lextn,__FILE__,__LINE__)
+    call memmovealloc(this%lextp,lextp,__FILE__,__LINE__)
+  end subroutine mesh_distribution_move_external_elements_info
 
   !=============================================================================
   subroutine mesh_distribution_free (f_msh_dist)
@@ -214,7 +240,25 @@ contains
 
   end subroutine mesh_distribution_write
 
-  subroutine mesh_distribution_read (f_msh_dist, lunio)
+   subroutine mesh_distribution_read (f_msh_dist,  dir_path, prefix)
+     implicit none 
+     ! Parameters
+     character (*)             , intent(in)    :: dir_path
+     character (*)             , intent(in)    :: prefix
+     class(mesh_distribution_t), intent(inout) :: f_msh_dist
+     ! Locals
+     integer(ip)                    :: lunio
+     character(len=:), allocatable  :: name
+
+     ! Read mesh
+     call mesh_distribution_compose_name ( prefix, name )
+     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
+     call f_msh_dist%read_file(lunio)
+     call io_close(lunio)
+   end subroutine mesh_distribution_read
+
+
+   subroutine mesh_distribution_read_file (f_msh_dist, lunio)
     ! Parameters
     integer(ip)               , intent(in)    :: lunio
     class(mesh_distribution_t), intent(inout) :: f_msh_dist
@@ -263,7 +307,7 @@ contains
        read ( lunio,'(10i10)') f_msh_dist%l2g_cells
     end if
 
-  end subroutine mesh_distribution_read
+  end subroutine mesh_distribution_read_file
 
   !=============================================================================
   subroutine mesh_distribution_compose_name ( prefix, name ) 
@@ -320,7 +364,7 @@ contains
        rename=name
        call numbered_filename_compose(i,nparts,rename)
        lunio = io_open (trim(dir_path) // '/' // trim(rename))
-       call parts(i)%read (lunio)
+       call parts(i)%read_file (lunio)
        call io_close (lunio)
     end do
 

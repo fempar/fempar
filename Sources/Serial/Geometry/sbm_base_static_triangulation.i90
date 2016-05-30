@@ -264,7 +264,7 @@ subroutine base_static_triangulation_free_vefs_itfc_lid( this )
   if (allocated(this%vefs_itfc_lid)) call memfree(this%vefs_itfc_lid,__FILE__,__LINE__)
 end subroutine base_static_triangulation_free_vefs_itfc_lid
 
-subroutine base_static_triangulation_allocate_and_fill_cells_around ( this )
+subroutine bst_allocate_and_fill_cells_around_interface_vefs ( this )
   implicit none
   class(base_static_triangulation_t), intent(inout)  :: this
   integer(ip)                                        :: ivef, vef_lid, vef_itfc_lid
@@ -314,6 +314,53 @@ subroutine base_static_triangulation_allocate_and_fill_cells_around ( this )
      this%ptrs_cells_around(ivef) = this%ptrs_cells_around(ivef-1)
   end do
   this%ptrs_cells_around(1) = 1
+end subroutine bst_allocate_and_fill_cells_around_interface_vefs
+
+subroutine base_static_triangulation_allocate_and_fill_cells_around ( this )
+  implicit none
+  class(base_static_triangulation_t), intent(inout)  :: this
+  integer(ip)                                        :: ivef, vef_lid
+  type(cell_iterator_t) :: cell_iterator
+  type(cell_accessor_t), pointer :: cell
+
+  call this%free_cells_around()
+
+  call memalloc ( this%num_local_vefs+this%num_ghost_vefs+1, this%ptrs_cells_around, __FILE__, __LINE__ )
+  this%ptrs_cells_around = 0
+
+  cell_iterator = this%create_cell_iterator()
+  do while ( .not. cell_iterator%has_finished() )
+     cell => cell_iterator%current()
+     do ivef=1, cell%get_num_vefs()
+        vef_lid = cell%get_vef_lid(ivef)
+        this%ptrs_cells_around(vef_lid +1) = this%ptrs_cells_around(vef_lid+1) + 1
+     end do
+     call cell_iterator%next()
+  end do
+
+  this%ptrs_cells_around(1) = 1
+  do ivef=2, this%num_local_vefs+this%num_ghost_vefs+1
+     this%ptrs_cells_around(ivef) = this%ptrs_cells_around(ivef) + this%ptrs_cells_around(ivef-1)
+  end do
+
+  call memalloc ( this%ptrs_cells_around(this%num_local_vefs+this%num_ghost_vefs+1)-1, this%lst_cells_around, __FILE__, __LINE__ )
+
+  call cell_iterator%init()
+  do while ( .not. cell_iterator%has_finished() )
+     cell => cell_iterator%current()
+     do ivef=1, cell%get_num_vefs()
+        vef_lid = cell%get_vef_lid(ivef)
+        this%lst_cells_around(this%ptrs_cells_around(vef_lid)) = cell%get_lid()
+        this%ptrs_cells_around(vef_lid) = this%ptrs_cells_around(vef_lid) + 1
+     end do
+     call cell_iterator%next()
+  end do
+
+  do ivef=this%num_local_vefs+this%num_ghost_vefs+1,2,-1 
+     this%ptrs_cells_around(ivef) = this%ptrs_cells_around(ivef-1)
+  end do
+  this%ptrs_cells_around(1) = 1
+
 end subroutine base_static_triangulation_allocate_and_fill_cells_around
 
 subroutine base_static_triangulation_free_cells_around(this)
@@ -335,4 +382,293 @@ subroutine base_static_triangulation_free_lst_vefs_lids ( this )
   if ( allocated(this%lst_vefs_lids) ) call memfree( this%lst_vefs_lids, __FILE__, __LINE__ )
 end subroutine base_static_triangulation_free_lst_vefs_lids
 
+subroutine base_static_triangulation_generate_vefs(this,boundary,boundary_geometry,boundary_set)
+  implicit none
+  ! This routine assumes a triangulation with vertices and ghost elements
+  ! Parameters
+  class(base_static_triangulation_t), intent(inout) :: this
+  type(list_t), optional, intent(in) :: boundary
+  integer(ip) , optional, intent(in) :: boundary_geometry(:)
+  integer(ip) , optional, intent(in) :: boundary_set(:)
 
+  integer(ip)          , allocatable :: ptr_vertices(:)
+  integer(ip)          , allocatable :: lst_vertices(:)
+  type(cell_iterator_t)              :: cell_iterator
+  type(cell_accessor_t), pointer     :: icell
+  type(cell_accessor_t)              :: jcell
+  type(vef_accessor_t)               :: ivef_accessor
+
+  type(position_hash_table_t) :: pos_ref_fe
+  !type(list_iterator_t)       :: boundary_iterator
+
+  type(list_t), pointer    :: vertices_ivef
+  type(list_t), pointer    :: vertices_jvef
+  logical     :: equal
+  integer(ip) :: istat, count, iboun, ivert, jvert, nnodb
+  integer(ip) :: ielem, ivef, ielem_type, ielem_num_nodes
+  integer(ip) :: ielem_num_vefs, ielem_first_vef_id, ielem_num_vef_verts
+  integer(ip) :: vertex_of_ivef(4)
+  integer(ip) :: jelpo, jelem, jvef, jelem_type, jelem_num_nodes
+  integer(ip) :: jelem_num_vefs, jelem_first_vef_id, jelem_num_vef_verts
+  integer(ip) :: vertex_of_jvef(4)
+
+  ! Get vertices from triangulation
+  call memmovealloc(this%ptr_vefs_per_cell,ptr_vertices,__FILE__,__LINE__)
+  call memmovealloc(this%lst_vefs_lids,lst_vertices,__FILE__,__LINE__)
+
+  ! Build reference_fe list
+  call pos_ref_fe%init(max_num_elem_types)
+
+  cell_iterator = this%create_cell_iterator()
+  do while ( .not. cell_iterator%has_finished() )
+     icell => cell_iterator%current()
+     ielem = icell%get_lid()
+     ielem_num_nodes = ptr_vertices(ielem+1)-ptr_vertices(ielem)
+     call pos_ref_fe%get(key=ielem_num_nodes,val=ielem_type,stat=istat)
+     if ( istat == new_index ) then
+        if(this%num_dimensions==2) then
+           if(ielem_num_nodes==3) then ! Triangle
+              assert(.false.)
+           else ! Quadrilateral
+              this%reference_fe_geo_list(ielem_type) = &
+                   &    make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian, &
+                   &                        number_dimensions = this%num_dimensions, order = 1,          &
+                   &                        field_type = field_type_vector, continuity = .true. )
+           end if
+        else
+           if(ielem_num_nodes==4) then ! Tetrahedra
+              assert(.false.)
+           else if(ielem_num_nodes==6) then ! Prism
+              assert(.false.)
+           else if(ielem_num_nodes==8) then ! Hexahedra
+              assert(.false.)
+           end if
+        end if
+     end if
+     call cell_iterator%next()
+  end do
+  !write(*,*) 'Ref fe list done'
+
+  ! Compute this%ptr_vefs_per_cell and allocate this%lst_vefs_lids
+  call memalloc(this%num_local_cells + this%num_ghost_cells+1, this%ptr_vefs_per_cell, __FILE__, __LINE__ )
+  this%ptr_vefs_per_cell(1)=1
+  call cell_iterator%init()
+  do while ( .not. cell_iterator%has_finished() )
+     icell => cell_iterator%current()
+     ielem = icell%get_lid()
+     ielem_num_nodes = ptr_vertices(ielem+1)-ptr_vertices(ielem)
+     call pos_ref_fe%get(key=ielem_num_nodes,val=ielem_type,stat=istat)
+     assert(istat==old_index)
+     ielem_num_vefs = ielem_num_nodes &
+          &   + this%reference_fe_geo_list(ielem_type)%p%get_number_vefs_of_dimension(1) 
+     if(this%num_dimensions==3) ielem_num_vefs = ielem_num_vefs &
+          &   + this%reference_fe_geo_list(ielem_type)%p%get_number_vefs_of_dimension(2)
+     this%ptr_vefs_per_cell(ielem+1)=this%ptr_vefs_per_cell(ielem)+ielem_num_vefs
+     call cell_iterator%next()
+  end do
+  call memalloc(this%ptr_vefs_per_cell(this%num_local_cells + this%num_ghost_cells+1), this%lst_vefs_lids , __FILE__, __LINE__ )
+  this%lst_vefs_lids=0
+  !write(*,*) 'ptr_vefs_per_cell done'
+  !write(*,*) this%ptr_vefs_per_cell
+
+  ! Fill vefs (this%num_vefs = number of vertices at this point)
+  call cell_iterator%init()
+  do while ( .not. cell_iterator%has_finished() )
+     icell => cell_iterator%current()
+     ielem = icell%get_lid()
+     !write(*,*) 'Element:',ielem
+     ielem_num_nodes = ptr_vertices(ielem+1)-ptr_vertices(ielem)
+     ! Fill vertices
+     this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem):this%ptr_vefs_per_cell(ielem)+ielem_num_nodes-1)=lst_vertices(ptr_vertices(ielem):ptr_vertices(ielem+1)-1)
+     call pos_ref_fe%get(key=ielem_num_nodes,val=ielem_type,stat=istat)
+     assert(istat==old_index)
+     ! Fill edges
+     ielem_num_vefs     = this%reference_fe_geo_list(ielem_type)%p%get_number_vefs_of_dimension(1)
+     ielem_first_vef_id = this%reference_fe_geo_list(ielem_type)%p%get_first_vef_id_of_dimension(1)
+     vertices_ivef => this%reference_fe_geo_list(ielem_type)%p%get_vertices_vef()
+     do ivef=1,ielem_num_vefs
+        !write(*,*) 'vef:',icell%get_vef_lid(ivef)
+        if(this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem)-1+ielem_first_vef_id-1+ivef)==0) then ! Not filled yet
+           this%num_vefs=this%num_vefs+1                                                               ! Count it
+           this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem)-1+ielem_first_vef_id-1+ivef)=this%num_vefs  ! Fill it
+           vertex_of_ivef(1) = lst_vertices(ptr_vertices(ielem)-1+vertices_ivef%l(vertices_ivef%p(ielem_first_vef_id+ivef-1)))
+           vertex_of_ivef(2) = lst_vertices(ptr_vertices(ielem)-1+vertices_ivef%l(vertices_ivef%p(ielem_first_vef_id+ivef-1)+1))
+           !write(*,*) 'Creating vef accessor',vertex_of_ivef(1)
+           ivef_accessor = icell%get_vef(ivef)
+           !write(*,*) 'Created with ID:',ivef_accessor%lid
+           !write(*,*) 'Num_cells_around:',ivef_accessor%get_num_cells_around()
+           do jelpo = 1, ivef_accessor%get_num_cells_around()
+              !write(*,*) 'Cell_around:',jelpo
+              jcell = ivef_accessor%get_cell_around(jelpo)
+              !write(*,*) 'Calling get_lid'
+              jelem = jcell%get_lid()
+              !write(*,*) 'Element around:',jelem
+              if(jelem>ielem) then
+                 jelem_num_nodes=ptr_vertices(jelem+1)-ptr_vertices(jelem)
+                 call pos_ref_fe%get(key=jelem_num_nodes,val=jelem_type,stat=istat)
+                 assert(istat==old_index)
+                 jelem_num_vefs     = this%reference_fe_geo_list(jelem_type)%p%get_number_vefs_of_dimension(1)
+                 jelem_first_vef_id = this%reference_fe_geo_list(jelem_type)%p%get_first_vef_id_of_dimension(1)
+                 vertices_jvef => this%reference_fe_geo_list(jelem_type)%p%get_vertices_vef()
+                 do jvef=1,jelem_num_vefs
+                    vertex_of_jvef(1) = lst_vertices(ptr_vertices(jelem)-1+vertices_jvef%l(vertices_jvef%p(jelem_first_vef_id+ivef-1)))
+                    vertex_of_jvef(2) = lst_vertices(ptr_vertices(jelem)-1+vertices_jvef%l(vertices_jvef%p(jelem_first_vef_id+ivef-1)+1))
+                    ! Compare, here we are using that edges have two vertices, hard coded
+                    equal = (vertex_of_ivef(1)==vertex_of_jvef(1).and.vertex_of_ivef(2)==vertex_of_jvef(2)).or. &
+                         &  (vertex_of_ivef(1)==vertex_of_jvef(2).and.vertex_of_ivef(2)==vertex_of_jvef(1))
+                    if(equal) then ! Fill it
+                       this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+jelem_first_vef_id-1+jvef)=this%num_vefs
+                       exit
+                    end if
+                 end do
+              end if
+           end do
+        end if
+     end do
+     ! Fill faces (similar code except for the number of vertices of each face that is variable)
+     if(this%num_dimensions==3) then
+        ielem_num_vefs      = this%reference_fe_geo_list(ielem_type)%p%get_number_vefs_of_dimension(2)
+        ielem_first_vef_id  = this%reference_fe_geo_list(ielem_type)%p%get_first_vef_id_of_dimension(2)
+        do ivef=1,ielem_num_vefs
+           if(this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem)-1+ielem_first_vef_id-1+ivef)==0) then ! Not filled yet
+              this%num_vefs=this%num_vefs+1                                       ! Count it
+              this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem)-1+ielem_first_vef_id-1+ivef)=this%num_vefs ! Fill it
+              ielem_num_vef_verts = this%reference_fe_geo_list(ielem_type)%p%get_number_vertices_vef(ielem_first_vef_id+ivef-1)
+              vertices_ivef => this%reference_fe_geo_list(ielem_type)%p%get_vertices_vef()
+              vertex_of_ivef = 0
+              do ivert=1,ielem_num_vef_verts
+                 vertex_of_ivef(ivert)=lst_vertices( ptr_vertices(ielem)-1+vertices_ivef%l(vertices_ivef%p(ielem_first_vef_id+ivef-1)+ivert-1))
+              end do
+              ivef_accessor = icell%get_vef(vertex_of_ivef(1))
+              do jelpo = 1, ivef_accessor%get_num_cells_around()
+                 jcell = ivef_accessor%get_cell_around(jelpo)
+                 jelem = jcell%get_lid()
+                 if(jelem>ielem) then
+                    jelem_num_nodes=ptr_vertices(jelem+1)-ptr_vertices(jelem)
+                    call pos_ref_fe%get(key=jelem_num_nodes,val=jelem_type,stat=istat)
+                    assert(istat==old_index)
+                    jelem_num_vefs      = this%reference_fe_geo_list(jelem_type)%p%get_number_vefs_of_dimension(2)
+                    jelem_first_vef_id  = this%reference_fe_geo_list(jelem_type)%p%get_first_vef_id_of_dimension(2)
+                    vertices_jvef => this%reference_fe_geo_list(jelem_type)%p%get_vertices_vef()
+                    do jvef=1,jelem_num_vefs
+                       jelem_num_vef_verts = this%reference_fe_geo_list(jelem_type)%p%get_number_vertices_vef(jelem_first_vef_id+jvef-1)
+                       if(jelem_num_vef_verts==ielem_num_vef_verts) then
+                          vertex_of_jvef = 0
+                          do jvert=1,jelem_num_vef_verts
+                             vertex_of_jvef(jvert)=lst_vertices( ptr_vertices(jelem)-1+vertices_jvef%l(vertices_jvef%p(jelem_first_vef_id+jvef-1)+jvert-1))
+                          end do
+                          count=0
+                          do ivert=1,ielem_num_vef_verts
+                             do jvert=1,jelem_num_vef_verts
+                                if(vertex_of_ivef(ivert)==vertex_of_jvef(jvert)) then
+                                   count=count+1
+                                   exit
+                                end if
+                             end do
+                          end do
+                          equal=(count==ielem_num_vef_verts)
+                          if(equal) then ! Fill it
+                             this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+jelem_first_vef_id-1+jvef)=this%num_vefs
+                             exit
+                          end if
+                       end if
+                    end do
+                 end if
+              end do
+           end if
+        end do
+     end if
+     call cell_iterator%next()
+  end do
+
+  if(present(boundary)) then
+     assert(present(boundary_geometry))
+     assert(present(boundary_set))
+     !write(*,*) boundary%get_size(), boundary%get_num_pointers()
+     assert(size(boundary_geometry)==boundary%get_num_pointers())
+     assert(size(boundary_set)==boundary%get_num_pointers())
+
+     ! Identify boundary faces and assign set and geometry to vefs
+     call memalloc(this%num_vefs, this%vefs_geometry, __FILE__, __LINE__ )
+     call memalloc(this%num_vefs, this%vefs_set, __FILE__, __LINE__ )
+
+     !boundary_iterator = boundary%create_iterator()
+     do iboun=1,boundary%get_num_pointers()
+        nnodb=boundary%p(iboun+1)-boundary%p(iboun)
+        if(nnodb==1) then      ! Vertex
+           ivert=boundary%l(boundary%p(iboun))
+           this%vefs_geometry(ivert)=boundary_geometry(iboun)
+           this%vefs_set(ivert)=boundary_set(iboun)
+        else if(nnodb==2) then ! Edge
+           vertex_of_ivef(1) = boundary%l(boundary%p(iboun)) 
+           vertex_of_ivef(2) = boundary%l(boundary%p(iboun)+1)
+           call ivef_accessor%create(vertex_of_ivef(1),this)
+           elems1: do jelpo = 1, ivef_accessor%get_num_cells_around()
+              jcell = ivef_accessor%get_cell_around(jelpo)
+              jelem = jcell%get_lid()
+              jelem_num_nodes=ptr_vertices(jelem+1)-ptr_vertices(jelem)
+              call pos_ref_fe%get(key=jelem_num_nodes,val=jelem_type,stat=istat)
+              assert(istat==old_index)
+              jelem_num_vefs     = this%reference_fe_geo_list(jelem_type)%p%get_number_vefs_of_dimension(1)
+              jelem_first_vef_id = this%reference_fe_geo_list(jelem_type)%p%get_first_vef_id_of_dimension(1)
+              vertices_jvef => this%reference_fe_geo_list(jelem_type)%p%get_vertices_vef()
+              do jvef=1,jelem_num_vefs
+                 vertex_of_jvef(1) = lst_vertices(ptr_vertices(jelem)-1+vertices_jvef%l(vertices_jvef%p(jelem_first_vef_id+jvef-1)))
+                 vertex_of_jvef(2) = lst_vertices(ptr_vertices(jelem)-1+vertices_jvef%l(vertices_jvef%p(jelem_first_vef_id+jvef-1)+1))
+                 ! Compare, here we are using that edges have two vertices, hard coded
+                 equal = (vertex_of_ivef(1)==vertex_of_jvef(1).and.vertex_of_ivef(2)==vertex_of_jvef(2)).or. &
+                      &  (vertex_of_ivef(1)==vertex_of_jvef(2).and.vertex_of_ivef(2)==vertex_of_jvef(1))
+                 if(equal) then ! Fill it
+                    this%vefs_geometry( this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+jelem_first_vef_id-1+jvef)  ) = boundary_geometry(iboun)
+                    this%vefs_set( this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+jelem_first_vef_id-1+jvef)  ) = boundary_set(iboun)
+                    exit elems1
+                 end if
+              end do
+           end do elems1
+        else                   ! Face
+           ivert=boundary%l(boundary%p(iboun))
+           vertex_of_ivef = 0
+           do ivert=1,nnodb
+              vertex_of_ivef(ivert)= boundary%l(boundary%p(iboun)-1+ivert)
+           end do
+           call ivef_accessor%create(vertex_of_ivef(1),this)
+           elems2: do jelpo = 1, ivef_accessor%get_num_cells_around()
+              jcell = ivef_accessor%get_cell_around(jelpo)
+              jelem = jcell%get_lid()
+              jelem_num_nodes=ptr_vertices(jelem+1)-ptr_vertices(jelem)
+              call pos_ref_fe%get(key=jelem_num_nodes,val=jelem_type,stat=istat)
+              assert(istat==old_index)
+              jelem_num_vefs     = this%reference_fe_geo_list(jelem_type)%p%get_number_vefs_of_dimension(2)
+              jelem_first_vef_id = this%reference_fe_geo_list(jelem_type)%p%get_first_vef_id_of_dimension(2)
+              vertices_jvef => this%reference_fe_geo_list(jelem_type)%p%get_vertices_vef()
+              do jvef=1,jelem_num_vefs
+                 jelem_num_vef_verts = this%reference_fe_geo_list(jelem_type)%p%get_number_vertices_vef(jelem_first_vef_id+jvef-1)
+                 if(jelem_num_vef_verts==nnodb) then
+                    vertex_of_jvef = 0
+                    do jvert=1,jelem_num_vef_verts
+                       vertex_of_jvef(jvert)=lst_vertices( ptr_vertices(jelem)-1+vertices_jvef%l(vertices_jvef%p(jelem_first_vef_id+jvef-1)+jvert-1))
+                    end do
+                    count=0
+                    do ivert=1,ielem_num_vef_verts
+                       do jvert=1,jelem_num_vef_verts
+                          if(vertex_of_ivef(ivert)==vertex_of_jvef(jvert)) then
+                             count=count+1
+                             exit
+                          end if
+                       end do
+                    end do
+                    equal=(count==ielem_num_vef_verts)
+                    if(equal) then ! Fill it
+                       this%vefs_geometry( this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+jelem_first_vef_id-1+jvef)  ) = boundary_geometry(iboun)
+                       this%vefs_set( this%lst_vefs_lids(this%ptr_vefs_per_cell(jelem)-1+jelem_first_vef_id-1+jvef)  ) = boundary_set(iboun)
+                       exit elems2
+                    end if
+                 end if
+              end do
+           end do elems2
+        end if
+     end do
+     write(*,*) this%vefs_geometry,this%vefs_set
+  end if
+
+end subroutine base_static_triangulation_generate_vefs
