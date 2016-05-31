@@ -504,8 +504,8 @@
     integer(ip) :: ivef
     type(vef_iterator_t)  :: vef_iterator
     type(cell_iterator_t) :: cell_iterator
-    type(cell_accessor_t), pointer :: cell
-    type(vef_accessor_t) , pointer :: vef
+    type(cell_accessor_t) :: cell
+    type(vef_accessor_t)  :: vef
     
     assert( associated(this%p_env) )
     if ( this%p_env%am_i_l1_task() ) then
@@ -514,7 +514,7 @@
       
       cell_iterator = this%create_cell_iterator()
       do while ( .not. cell_iterator%has_finished() )
-        cell => cell_iterator%current()
+        cell = cell_iterator%current()
         write(*,'(a,i10,a)') '**** cell: ', cell%get_lid(),'****'
         write(*,'(a,l10)') 'is_ghost  : ', cell%is_ghost()
         write (*,'(a,i10)'  ) 'gid      :', cell%get_gid()
@@ -533,7 +533,7 @@
       
       vef_iterator = this%create_vef_iterator()
       do while ( .not. vef_iterator%has_finished() )
-        vef => vef_iterator%current()
+        vef = vef_iterator%current()
         write(*,'(a,i10,a)') '**** local vef  : ',vef%get_lid(),'****'
         write(*,'(a,i10,a)') '****       gid  : ',vef%get_gid(),'****'
         write(*,'(a,i10,a)') '**** dimension  : ',vef%get_dimension(),'****'

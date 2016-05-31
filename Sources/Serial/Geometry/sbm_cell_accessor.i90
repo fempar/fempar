@@ -181,7 +181,7 @@ function cell_accessor_get_vef (this, ivef)
   implicit none
   class(cell_accessor_t), intent(in) :: this
   integer(ip)                        :: ivef
-  type(vef_iterator_t)               :: cell_accessor_get_vef
+  type(vef_accessor_t)               :: cell_accessor_get_vef
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
   call cell_accessor_get_vef%create(this%get_vef_lid(ivef), this%base_static_triangulation)
 end function cell_accessor_get_vef

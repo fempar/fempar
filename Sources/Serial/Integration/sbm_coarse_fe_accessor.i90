@@ -161,3 +161,13 @@ pure function coarse_fe_accessor_get_number_dofs(this)
   coarse_fe_accessor_get_number_dofs = this%coarse_fe_space%ptr_dofs_per_fe_and_field(epos)- &
                                        this%coarse_fe_space%ptr_dofs_per_fe_and_field(spos)
 end function coarse_fe_accessor_get_number_dofs
+
+function coarse_fe_accessor_get_coarse_fe_vef(this, ivef)
+  implicit none
+  class(coarse_fe_accessor_t), intent(in) :: this
+  integer(ip)                , intent(in) :: ivef
+  type(coarse_fe_vef_accessor_t)          :: coarse_fe_accessor_get_coarse_fe_vef
+  type(vef_accessor_t) :: vef_accessor
+  vef_accessor = this%get_vef(ivef)
+  call coarse_fe_accessor_get_coarse_fe_vef%create(vef_accessor%get_lid(), this%coarse_fe_space)
+end function coarse_fe_accessor_get_coarse_fe_vef

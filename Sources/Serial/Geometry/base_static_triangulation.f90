@@ -51,7 +51,7 @@ module base_static_triangulation_names
     ! extends type(cell_accessor_t), requires to call these TBPs and cannot be placed
     ! either within this module or within a submodule of base_static_triangulation_names
     ! due to module dependencies cycle
-    procedure, private                   :: cell_accessor_create
+    procedure                            :: cell_accessor_create
     generic                              :: create               => cell_accessor_create
     procedure                            :: free                 => cell_accessor_free
     procedure, non_overridable           :: next                 => cell_accessor_next
@@ -92,12 +92,15 @@ module base_static_triangulation_names
     integer(ip)                                 :: lid = -1
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
   contains
-     procedure, non_overridable, private :: create                   => vef_accessor_create
-     procedure, non_overridable, private :: free                     => vef_accessor_free
-     procedure, non_overridable, private :: next                     => vef_accessor_next
-     procedure, non_overridable, private :: set_lid                  => vef_accessor_set_lid
-     procedure, non_overridable, private :: past_the_end             => vef_accessor_past_the_end
-     procedure, non_overridable, private :: get_triangulation        => vef_accessor_get_triangulation
+     ! create/free/next/set_lid/past_the_end/get_triangulation CANNOT longer be private as 
+     ! type(coarse_fe_vef_accessor_t) extends type(vef_accessor_t), requires to call these TBPs
+     procedure                           :: vef_accessor_create
+     generic                             :: create => vef_accessor_create
+     procedure                           :: free                     => vef_accessor_free
+     procedure, non_overridable          :: next                     => vef_accessor_next
+     procedure, non_overridable          :: set_lid                  => vef_accessor_set_lid
+     procedure, non_overridable          :: past_the_end             => vef_accessor_past_the_end
+     procedure, non_overridable          :: get_triangulation        => vef_accessor_get_triangulation
      procedure, non_overridable          :: get_lid                  => vef_accessor_get_lid
      procedure, non_overridable          :: get_gid                  => vef_accessor_get_gid
      procedure, non_overridable          :: is_local                 => vef_accessor_is_local
@@ -112,7 +115,7 @@ module base_static_triangulation_names
     private
     type(vef_accessor_t) :: current_vef_accessor
   contains
-     procedure, non_overridable, private :: create       => vef_iterator_create
+     procedure, non_overridable          :: create       => vef_iterator_create
      procedure, non_overridable          :: free         => vef_iterator_free
      procedure, non_overridable          :: init         => vef_iterator_init
      procedure, non_overridable          :: next         => vef_iterator_next
@@ -125,7 +128,7 @@ module base_static_triangulation_names
     integer(ip)          :: itfc_lid = -1
     type(vef_accessor_t) :: current_vef_accessor
   contains
-    procedure, non_overridable, private :: create       => itfc_vef_iterator_create
+    procedure, non_overridable          :: create       => itfc_vef_iterator_create
     procedure, non_overridable          :: free         => itfc_vef_iterator_free
     procedure, non_overridable          :: init         => itfc_vef_iterator_init
     procedure, non_overridable          :: next         => itfc_vef_iterator_next
@@ -262,7 +265,7 @@ module base_static_triangulation_names
 
   public :: base_static_triangulation_t
   public :: coarse_triangulation_t 
-  public :: cell_iterator_t, vef_iterator_t
+  public :: cell_iterator_t, vef_iterator_t, itfc_vef_iterator_t
   public :: cell_accessor_t, vef_accessor_t
   
 contains

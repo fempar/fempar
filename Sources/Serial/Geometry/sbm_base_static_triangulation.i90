@@ -53,14 +53,14 @@ subroutine base_static_triangulation_compute_num_local_vefs ( this )
   integer(ip) :: icell, ivef, vef_lid, istat
 
   type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t), pointer :: cell
+  type(cell_accessor_t) :: cell
   
   call visited_vefs%init(max(5,int(real(this%num_local_cells,rp)*0.2_rp,ip))) 
   this%num_local_vefs = 0
   
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-     cell => cell_iterator%current()
+     cell = cell_iterator%current()
      if ( cell%is_local() ) then
        do ivef=1, cell%get_num_vefs()
           vef_lid = cell%get_vef_lid(ivef)
@@ -80,14 +80,14 @@ subroutine base_static_triangulation_compute_num_ghost_vefs ( this )
   integer(ip) :: icell, ivef, vef_lid, istat
 
   type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t), pointer :: cell
+  type(cell_accessor_t) :: cell
   
   call visited_vefs%init(max(5,int(real(this%num_ghost_cells,rp)*0.2_rp,ip))) 
   this%num_ghost_vefs = 0
   
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-     cell => cell_iterator%current()
+     cell = cell_iterator%current()
      if ( cell%is_ghost() ) then
        do ivef=1, cell%get_num_vefs()
           vef_lid = cell%get_vef_lid(ivef)
@@ -110,7 +110,7 @@ subroutine base_static_triangulation_allocate_and_fill_vefs_gid ( this, lst_vefs
   integer(igp)                                      :: vef_gid
 
   type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t), pointer :: cell
+  type(cell_accessor_t) :: cell
 
   assert ( this%num_local_vefs + this%num_ghost_vefs >= 0 ) 
 
@@ -120,7 +120,7 @@ subroutine base_static_triangulation_allocate_and_fill_vefs_gid ( this, lst_vefs
   current = 1
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-     cell => cell_iterator%current()
+     cell = cell_iterator%current()
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
         vef_gid = lst_vefs_gid(current)
@@ -144,7 +144,7 @@ subroutine base_static_triangulation_allocate_and_fill_vefs_dimension ( this, &
   integer(ip)                       , intent(in)    :: lst_vefs_dimension(*)
   integer(ip)                                       :: icell, ivef, vef_lid, current
   type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t), pointer :: cell
+  type(cell_accessor_t) :: cell
   
   assert ( this%num_local_vefs + this%num_ghost_vefs >= 0 )
   call this%free_vefs_dimension()
@@ -153,7 +153,7 @@ subroutine base_static_triangulation_allocate_and_fill_vefs_dimension ( this, &
   current = 1
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-     cell => cell_iterator%current()
+     cell = cell_iterator%current()
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
         this%vefs_dimension(vef_lid) = lst_vefs_dimension(current)
@@ -175,7 +175,7 @@ subroutine base_static_triangulation_compute_num_itfc_vefs ( this )
   integer(ip) :: icell, vef_lid, ivef, istat
   type(hash_table_ip_ip_t) :: visited_vefs
   type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t), pointer :: cell
+  type(cell_accessor_t) :: cell
   
   call visited_vefs%init(max(5,int(real(this%num_local_vefs,rp)*0.2_rp,ip)))
   
@@ -183,7 +183,7 @@ subroutine base_static_triangulation_compute_num_itfc_vefs ( this )
   ! Traverse local ghost elements (all interface vefs are there)
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-     cell => cell_iterator%current()
+     cell = cell_iterator%current()
      if ( cell%is_ghost() ) then
        do ivef=1, cell%get_num_vefs()
           vef_lid = cell%get_vef_lid(ivef)
@@ -206,7 +206,7 @@ subroutine base_static_triangulation_allocate_and_fill_lst_itfc_vefs( this )
   integer(ip) :: vef_lid, ivef, current, istat
   type(hash_table_ip_ip_t) :: visited_vefs
   type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t), pointer :: cell
+  type(cell_accessor_t) :: cell
   
   assert ( this%num_itfc_vefs >= 0 ) 
 
@@ -219,7 +219,7 @@ subroutine base_static_triangulation_allocate_and_fill_lst_itfc_vefs( this )
   ! Traverse local ghost elements (all interface vefs are there)
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-     cell => cell_iterator%current()
+     cell = cell_iterator%current()
      if ( cell%is_ghost() ) then
        do ivef=1, cell%get_num_vefs()
           vef_lid = cell%get_vef_lid(ivef)
@@ -269,7 +269,7 @@ subroutine base_static_triangulation_allocate_and_fill_cells_around ( this )
   class(base_static_triangulation_t), intent(inout)  :: this
   integer(ip)                                        :: ivef, vef_lid, vef_itfc_lid
   type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t), pointer :: cell
+  type(cell_accessor_t) :: cell
   
   call this%free_cells_around()
 
@@ -278,7 +278,7 @@ subroutine base_static_triangulation_allocate_and_fill_cells_around ( this )
  
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-    cell => cell_iterator%current()
+    cell = cell_iterator%current()
     do ivef=1, cell%get_num_vefs()
       vef_lid = cell%get_vef_lid(ivef)
       vef_itfc_lid = this%vefs_itfc_lid(vef_lid)
@@ -298,7 +298,7 @@ subroutine base_static_triangulation_allocate_and_fill_cells_around ( this )
   
   call cell_iterator%init()
   do while ( .not. cell_iterator%has_finished() )
-    cell => cell_iterator%current()
+    cell = cell_iterator%current()
     do ivef=1, cell%get_num_vefs()
        vef_lid = cell%get_vef_lid(ivef)
        vef_itfc_lid = this%vefs_itfc_lid(vef_lid)

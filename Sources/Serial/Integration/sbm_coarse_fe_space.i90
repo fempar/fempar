@@ -380,8 +380,7 @@ subroutine coarse_fe_space_allocate_and_fill_own_dofs_vef_per_fe (this, &
   integer(igp)             , intent(in)     :: lst_vefs_gids_dofs_objects_ghost_extended(*)
   type(par_environment_t), pointer          :: par_environment
   integer(ip)                               :: sum_num_vefs_all_cells
-  type(coarse_fe_iterator_t)                :: coarse_fe_iterator
-  type(coarse_fe_accessor_t), pointer       :: coarse_fe
+  type(coarse_fe_accessor_t)                :: coarse_fe
   integer(ip)                               :: istat
   integer(ip)                               :: field_id
   par_environment => this%coarse_triangulation%get_par_environment()
@@ -393,10 +392,8 @@ subroutine coarse_fe_space_allocate_and_fill_own_dofs_vef_per_fe (this, &
   ! do not currently have it (does it make sense to have it?), then I need
   ! cell iterators and a traversal over all cells!
   
-  coarse_fe_iterator = this%create_coarse_fe_iterator()
-  coarse_fe => coarse_fe_iterator%current()
-  call coarse_fe%set_lid(this%coarse_triangulation%get_num_local_cells()+ &
-                         this%coarse_triangulation%get_num_ghost_cells())
+  call coarse_fe%create(this%coarse_triangulation%get_num_local_cells()+ &
+                         this%coarse_triangulation%get_num_ghost_cells(), this)
   
   sum_num_vefs_all_cells = coarse_fe%get_lid() + & ! Interior VEFs 
                            coarse_fe%scan_sum_num_vefs() + coarse_fe%get_num_vefs()
@@ -425,7 +422,7 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
   integer(igp)             , intent(in)     :: lst_dofs_gids_ghost_extended(*)
   integer(igp)             , intent(in)     :: lst_vefs_gids_dofs_objects_ghost_extended(*)
   type(coarse_fe_iterator_t)                :: coarse_fe_iterator
-  type(coarse_fe_accessor_t), pointer       :: coarse_fe
+  type(coarse_fe_accessor_t)                :: coarse_fe
   type(list_iterator_t)                     :: list_iterator
   integer(ip)                               :: base_pointer, current_pointer
   integer(ip)                               :: num_dofs_in_current_cell
@@ -441,7 +438,7 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
      base_pointer = 1
      i = field_id
      do while ( .not. coarse_fe_iterator%has_finished() ) 
-       coarse_fe => coarse_fe_iterator%current()
+       coarse_fe = coarse_fe_iterator%current()
        ! Traverse all DoFs in current cell
        do j = this%ptr_dofs_per_fe_and_field(i),this%ptr_dofs_per_fe_and_field(i+1)-1
           ! Retrieve vef gid
@@ -487,7 +484,7 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
      base_pointer = 1
      i = field_id
      do while ( .not. coarse_fe_iterator%has_finished() ) 
-       coarse_fe => coarse_fe_iterator%current()
+       coarse_fe = coarse_fe_iterator%current()
        ! Traverse all DoFs in current cell
        do j = this%ptr_dofs_per_fe_and_field(i),this%ptr_dofs_per_fe_and_field(i+1)-1
           ! Retrieve vef gid
@@ -569,6 +566,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids( this )
   type(par_environment_t) , pointer       :: par_environment
   integer(ip)                             :: field_id
   
+  assert ( associated(this%coarse_triangulation) )
   par_environment => this%coarse_triangulation%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
@@ -581,7 +579,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids( this )
   do field_id = 1, this%number_fields
      call this%count_dofs_and_fill_lst_dof_lids_field ( field_id )
   end do
-  !write(*,*) 'PPP', this%lst_dofs_lids
+  write(*,*) 'PPP', this%lst_dofs_lids
 end subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids
 
 subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_id )
@@ -594,15 +592,12 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
   integer(ip)                         :: iblock, init_dof_block, current_dof_block
   integer(ip), allocatable            :: visited_vef_to_coarse_fe_map(:,:)
   type(coarse_fe_iterator_t)          :: coarse_fe_iterator
-  type(coarse_fe_accessor_t), pointer :: coarse_fe
+  type(coarse_fe_accessor_t)          :: coarse_fe
   type(coarse_fe_accessor_t)          :: source_fe
   integer(ip) :: source_ivef
 
-  type(vef_iterator_t)          :: vef_iterator
-  type(vef_accessor_t), pointer :: vef
-  
-  type(cell_iterator_t)          :: cell_iterator
-  type(cell_accessor_t), pointer :: cell
+  type(coarse_fe_vef_accessor_t)          :: vef
+  type(coarse_fe_accessor_t)              :: coarse_fe_around
   
   iblock            = this%field_blocks(field_id)
   init_dof_block    = this%number_dofs_per_block(iblock)
@@ -617,7 +612,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
   if ( this%field_type(field_id) == fe_space_type_cg ) then
      coarse_fe_iterator = this%create_coarse_fe_iterator()
      do while ( .not. coarse_fe_iterator%has_finished() )
-        coarse_fe => coarse_fe_iterator%current()
+        coarse_fe = coarse_fe_iterator%current()
         if ( coarse_fe%is_local() ) then
            do ivef = 1, coarse_fe%get_num_vefs()
               vef_lid = coarse_fe%get_vef_lid(ivef)
@@ -639,20 +634,17 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
      
      coarse_fe_iterator = this%create_coarse_fe_iterator()
      do while ( .not. coarse_fe_iterator%has_finished() )
-        coarse_fe => coarse_fe_iterator%current()
+        coarse_fe = coarse_fe_iterator%current()
         if ( coarse_fe%is_ghost() ) then
           do ivef = 1, coarse_fe%get_num_vefs()
-            vef_iterator = coarse_fe%get_vef(ivef)
-            vef => vef_iterator%current()
+            vef = coarse_fe%get_coarse_fe_vef(ivef)
             if ( vef%at_interface() ) then
                do ielem=1, vef%get_num_cells_around()
-                 cell_iterator = vef%get_cell_around(ielem)
-                 cell => cell_iterator%current()
-                 if ( cell%is_local() ) then
-                    call source_fe%set_lid(cell%get_lid())
-                    source_ivef = source_fe%find_lpos_vef_lid(vef%get_lid())
+                 coarse_fe_around = vef%get_coarse_fe_around(ielem)
+                 if ( coarse_fe_around%is_local() ) then
+                    source_ivef = coarse_fe_around%find_lpos_vef_lid(vef%get_lid())
                     call coarse_fe%fill_own_dofs_on_vef_from_source_coarse_fe ( ivef, &
-                                                                                source_fe, &
+                                                                                coarse_fe_around, &
                                                                                 source_ivef, &
                                                                                 field_id) 
                  end if
@@ -662,7 +654,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
         end if
         call coarse_fe_iterator%next()
      end do
-     ! write(*,*) 'XXX', this%lst_dofs_lids
+     write(*,*) 'XXX', this%lst_dofs_lids
   else 
      ! fe_space_type_dg not implemented yet!
      check (.false.)
@@ -724,9 +716,199 @@ subroutine coarse_fe_space_coarse_fe_unpack (coarse_fe, buffer, dof_gids, vef_gi
   vef_gids = transfer(buffer(spos:epos), vef_gids)
 end subroutine coarse_fe_space_coarse_fe_unpack
 
+subroutine coarse_fe_space_compute_blocks_dof_import ( this )
+  implicit none
+  class(coarse_fe_space_t), intent(inout) :: this
+  integer(ip)                             :: iblock
+  type(par_environment_t), pointer        :: par_environment
+  
+  assert ( associated(this%coarse_triangulation) )
+  par_environment => this%coarse_triangulation%get_par_environment()
+  assert ( associated ( par_environment ) )
+  assert ( par_environment%am_i_l1_task() )     
+  allocate ( this%blocks_dof_import(this%number_blocks) )
+  do iblock=1, this%number_blocks
+     call this%compute_dof_import(iblock)
+  end do
+end subroutine coarse_fe_space_compute_blocks_dof_import
+
+
+subroutine coarse_fe_space_compute_dof_import ( this, iblock )
+  implicit none
+  class(coarse_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: iblock
+
+  ! Local raw data
+  integer(igp), allocatable    :: raw_interface_data(:,:)
+  integer(ip) , allocatable    :: dofs_lid(:)
+  integer(ip)                  :: total_ubound_num_itfc_couplings
+  integer(ip)                  :: total_num_itfc_couplings
+  integer(ip), allocatable     :: ubound_num_itfc_couplings(:)
+  integer(ip)                  :: num_fields_in_iblock
+  integer(ip)                  :: i, field_id
+  type(par_context_t), pointer :: l1_context
+
+  type(par_environment_t), pointer        :: par_environment
+  
+  assert ( associated(this%coarse_triangulation) )
+  par_environment => this%coarse_triangulation%get_par_environment()
+  assert ( associated ( par_environment ) )
+  assert ( par_environment%am_i_l1_task() )   
+  assert ( iblock >= 1 .and. iblock <= this%number_blocks )
+
+  num_fields_in_iblock = 0
+  do field_id = 1, this%number_fields
+     if ( this%field_blocks(field_id) == iblock ) then
+        num_fields_in_iblock = num_fields_in_iblock + 1
+     end if
+  end do
+
+  call memalloc ( num_fields_in_iblock, ubound_num_itfc_couplings, __FILE__, __LINE__ )
+  total_ubound_num_itfc_couplings = 0 
+  ubound_num_itfc_couplings = 0
+  i = 1
+  do field_id = 1, this%number_fields
+     if ( this%field_blocks(field_id) == iblock ) then
+        if ( this%field_type(field_id) == fe_space_type_cg ) then
+           ubound_num_itfc_couplings (i) = this%compute_ubound_num_itfc_couplings_by_continuity(field_id)
+        else if ( this%field_type(field_id) == fe_space_type_dg ) then
+           ! Not implemented yet
+           check(.false.)
+           !ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
+           !     this%compute_ubound_num_itfc_couplings_by_face_integ(fe_space_id)
+        end if
+        total_ubound_num_itfc_couplings = total_ubound_num_itfc_couplings + ubound_num_itfc_couplings (i)
+        i=i+1                                  
+     end if
+  end do
+
+  call memalloc ( num_rows_raw_interface_data, &
+       total_ubound_num_itfc_couplings, &
+       raw_interface_data, __FILE__, __LINE__ )
+
+  call memalloc ( total_ubound_num_itfc_couplings, dofs_lid, __FILE__, __LINE__)
+
+  total_num_itfc_couplings = 0
+  i = 1
+  do field_id = 1, this%number_fields
+     if ( this%field_blocks(field_id) == iblock ) then
+        if ( this%field_type(field_id) == fe_space_type_cg ) then
+           !total_num_itfc_couplings = total_num_itfc_couplings + & 
+           !     this%compute_raw_interface_data_by_continuity(field_id, &
+           !                                                   total_num_itfc_couplings, &
+           !                                                   ubound_num_itfc_couplings(i),&
+           !                                                   dofs_lid,&
+           !                                                   raw_interface_data )
+        else if ( this%field_type(field_id) == fe_space_type_dg ) then
+           ! Not implemented yet
+           check(.false.)
+           !total_num_itfc_couplings = total_num_itfc_couplings + & 
+           !     this%compute_raw_interface_data_by_face_integ(fe_space_id, &
+           !                                                   total_num_itfc_couplings, &
+           !                                                   ubound_num_itfc_couplings(i),&
+           !                                                   dofs_lid,&
+           !                                                   raw_interface_data )      
+        end if
+
+        i=i+1                                  
+     end if
+  end do
+
+  l1_context => par_environment%get_l1_context()
+  call this%blocks_dof_import(iblock)%create(l1_context%get_rank()+1, &
+                                             l1_context%get_size(), &
+                                             this%number_dofs_per_block(iblock), &
+                                             total_num_itfc_couplings, &
+                                             dofs_lid, &
+                                             raw_interface_data )
+
+  call memfree ( ubound_num_itfc_couplings, __FILE__, __LINE__ )                
+  call memfree ( raw_interface_data, __FILE__, __LINE__ )
+  call memfree ( dofs_lid, __FILE__, __LINE__ )
+end subroutine coarse_fe_space_compute_dof_import
+
+function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, fe_space_id )
+  implicit none
+  class(coarse_fe_space_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: fe_space_id
+  integer(ip)                             :: coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity
+
+  !integer(ip)  :: mypart_id, part_id, local_part_id
+  !integer(ip)  :: elem_lid
+  !integer(ip)  :: ivef, ivef_itfc, ielem, vef_lid
+  !type(finite_element_t), pointer :: finite_element
+
+  !integer(ip)                  :: result
+  !logical, allocatable         :: touched_neighbours(:)
+  !logical                      :: vef_active
+  !type(par_context_t), pointer :: l1_context
+
+  !assert ( associated (this%par_triangulation) )
+  !assert ( this%par_triangulation%p_env%am_i_l1_task() )
+
+  !l1_context => this%par_triangulation%p_env%get_l1_context()
+  !mypart_id = l1_context%get_rank() + 1 
+
+  !call memalloc ( this%par_triangulation%element_import%get_number_neighbours(), &
+  !     touched_neighbours, &
+  !     __FILE__, __LINE__ )
+
+  !result = 0 
+  !! Traverse vefs on the interface
+  !do ivef_itfc = 1, this%par_triangulation%num_itfc_vefs
+  !   vef_lid = this%par_triangulation%lst_itfc_vefs(ivef_itfc)  
+  !   touched_neighbours = .false.
+
+  !   vef_active = .false. 
+
+  !   do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
+  !      elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
+  !      finite_element => this%get_finite_element(elem_lid)
+  !      !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
+  !      ! alert: something has to be done for null FEs
+  !      ! if ( .not.finite_element%is_void ) 
+  !      part_id = this%par_triangulation%elems(elem_lid)%mypart    
+  !      if ( part_id == mypart_id ) then
+  !         vef_active = .true.
+  !         exit
+  !      end if
+  !      !end if
+  !   end do
+
+  !   if ( vef_active ) then
+  !      do ielem=1, this%triangulation%vefs(vef_lid)%num_elems_around
+  !         elem_lid = this%triangulation%vefs(vef_lid)%elems_around(ielem)
+  !         finite_element => this%get_finite_element(elem_lid)
+  !         !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
+  !         part_id = this%par_triangulation%elems(elem_lid)%mypart
+  !         if ( part_id /= mypart_id ) then
+  !            local_part_id = this%par_triangulation%element_import%get_local_neighbour_id(part_id)
+  !            if (.not. touched_neighbours (local_part_id)) then
+  !               touched_neighbours (local_part_id) = .true.
+  !               ivef = finite_element%cell%find_local_pos_from_vef_id(vef_lid)
+  !               result = result + finite_element%reference_fe_phy(fe_space_id)%p%get_number_own_nodes_vef(ivef)
+  !            end if
+  !         end if
+  !         !end if
+  !      end do
+  !   end if
+  !end do
+  !coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity = result
+
+  !call memfree ( touched_neighbours, __FILE__, __LINE__ )
+end function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity
+
+
 function coarse_fe_space_create_coarse_fe_iterator ( this )
   implicit none
-  class(coarse_fe_space_t), intent(in)    :: this
+  class(coarse_fe_space_t), intent(in) :: this
   type(coarse_fe_iterator_t) :: coarse_fe_space_create_coarse_fe_iterator
   call coarse_fe_space_create_coarse_fe_iterator%create(1, this)
 end function coarse_fe_space_create_coarse_fe_iterator
+
+function coarse_fe_space_create_coarse_fe_vef_iterator ( this )
+  implicit none
+  class(coarse_fe_space_t), intent(in) :: this
+  type(coarse_fe_vef_iterator_t) :: coarse_fe_space_create_coarse_fe_vef_iterator
+  call coarse_fe_space_create_coarse_fe_vef_iterator%create(1, this)
+end function coarse_fe_space_create_coarse_fe_vef_iterator

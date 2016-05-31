@@ -27,9 +27,9 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine vef_iterator_create ( this, lid, base_static_triangulation ) 
   implicit none
-  class(vef_iterator_t)            , intent(inout) :: this
-  integer(ip)                      , intent(in)    :: lid
-  type(base_static_triangulation_t), intent(in)    :: base_static_triangulation
+  class(vef_iterator_t)             , intent(inout) :: this
+  integer(ip)                       , intent(in)    :: lid
+  class(base_static_triangulation_t), intent(in)    :: base_static_triangulation
   call this%free()
   call this%current_vef_accessor%create(lid=lid, base_static_triangulation=base_static_triangulation )
 end subroutine vef_iterator_create
@@ -62,14 +62,14 @@ end function vef_iterator_has_finished
 function vef_iterator_current ( this ) 
   implicit none
   class(vef_iterator_t), target, intent(in) :: this
-  type(vef_accessor_t), pointer :: vef_iterator_current
-  vef_iterator_current => this%current_vef_accessor
+  type(vef_accessor_t)  :: vef_iterator_current
+  vef_iterator_current = this%current_vef_accessor
 end function vef_iterator_current
 
 subroutine itfc_vef_iterator_create ( this, base_static_triangulation ) 
   implicit none
   class(itfc_vef_iterator_t), intent(inout) :: this
-  type(base_static_triangulation_t)     , intent(in)    :: base_static_triangulation
+  class(base_static_triangulation_t)     , intent(in)    :: base_static_triangulation
   call this%free()
   this%itfc_lid = 1
   if ( base_static_triangulation%num_itfc_vefs == 0 ) then
@@ -124,6 +124,6 @@ end function itfc_vef_iterator_has_finished
 function itfc_vef_iterator_current ( this ) 
   implicit none
   class(itfc_vef_iterator_t), target, intent(in) :: this
-  type(vef_accessor_t), pointer            :: itfc_vef_iterator_current
-  itfc_vef_iterator_current => this%current_vef_accessor
+  type(vef_accessor_t)         :: itfc_vef_iterator_current
+  itfc_vef_iterator_current = this%current_vef_accessor
 end function itfc_vef_iterator_current

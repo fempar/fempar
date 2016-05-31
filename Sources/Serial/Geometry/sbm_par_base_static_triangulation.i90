@@ -49,12 +49,11 @@ subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs,
     logical, allocatable                      :: touched_neighbours(:)
     integer(ip)                               :: nparts_around, mypart_id, part_id, local_part_id
     integer(ip)                               :: ivef_itfc, icell, vef_lid
-    type(cell_iterator_t)                     :: cell_iterator
-    type(cell_accessor_t), pointer            :: cell 
+    type(cell_accessor_t)                     :: cell 
     integer(ip)                               :: num_rows_parts_itfc_vefs
     integer(ip), allocatable                  :: work1(:), work2(:)
     type(itfc_vef_iterator_t)                 :: itfc_vef_iterator
-    type(vef_accessor_t), pointer             :: current_itfc_vef
+    type(vef_accessor_t)                      :: current_itfc_vef
     
     assert ( this%p_env%am_i_l1_task() )
     
@@ -78,15 +77,14 @@ subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs,
     
     ivef_itfc = 1
     do while ( .not. itfc_vef_iterator%has_finished() )
-      current_itfc_vef => itfc_vef_iterator%current()
+      current_itfc_vef = itfc_vef_iterator%current()
       touched_neighbours = .false.
       
       nparts_around = 1 
       parts_itfc_vefs(nparts_around+1,ivef_itfc) = mypart_id
       
       do icell=1, current_itfc_vef%get_num_cells_around()
-        cell_iterator = current_itfc_vef%get_cell_around(icell)
-        cell          => cell_iterator%current()
+        cell          = current_itfc_vef%get_cell_around(icell)
         part_id       = cell%get_mypart()
         
         if ( part_id /= mypart_id ) then

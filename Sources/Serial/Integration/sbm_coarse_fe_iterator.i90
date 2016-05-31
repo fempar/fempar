@@ -62,6 +62,6 @@ end function coarse_fe_iterator_has_finished
 function coarse_fe_iterator_current ( this ) 
   implicit none
   class(coarse_fe_iterator_t), target, intent(in) :: this
-  type(coarse_fe_accessor_t), pointer :: coarse_fe_iterator_current
-  coarse_fe_iterator_current => this%current_coarse_fe_accessor
+  type(coarse_fe_accessor_t) :: coarse_fe_iterator_current
+  coarse_fe_iterator_current = this%current_coarse_fe_accessor
 end function coarse_fe_iterator_current
