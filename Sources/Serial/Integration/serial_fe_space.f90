@@ -281,6 +281,7 @@ module serial_fe_space_names
     procedure, non_overridable, private :: create_own_dofs_on_vef_iterator            => coarse_fe_accessor_create_own_dofs_on_vef_iterator
     procedure, non_overridable, private :: fill_own_dofs_on_vef                       => coarse_fe_accessor_fill_own_dofs_on_vef
     procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_coarse_fe => coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe
+    procedure, non_overridable, private :: get_scan_sum_number_dofs                   => coarse_fe_accessor_get_scan_sum_number_dofs
     procedure, non_overridable          :: get_number_fe_spaces                       => coarse_fe_accessor_get_number_fe_spaces
     procedure, non_overridable          :: get_number_dofs                            => coarse_fe_accessor_get_number_dofs
     procedure, non_overridable          :: get_coarse_fe_vef                          => coarse_fe_accessor_get_coarse_fe_vef
@@ -374,17 +375,21 @@ module serial_fe_space_names
     procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_lids_field          => coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field
     procedure, non_overridable, private         :: free_lst_dofs_lids                              => coarse_fe_space_free_lst_dofs_lids
     procedure, non_overridable, private         :: free_number_dofs_per_field_and_block            => coarse_fe_space_free_number_dofs_per_field_and_block
+    procedure, non_overridable, private         :: free_blocks_dof_import                          => coarse_fe_space_free_blocks_dof_import
     procedure, non_overridable, nopass, private :: coarse_fe_size                                  => coarse_fe_space_coarse_fe_size
     procedure, non_overridable, nopass, private :: coarse_fe_pack                                  => coarse_fe_space_coarse_fe_pack
     procedure, non_overridable, nopass, private :: coarse_fe_unpack                                => coarse_fe_space_coarse_fe_unpack
     procedure, non_overridable, private         :: compute_blocks_dof_import                       => coarse_fe_space_compute_blocks_dof_import
     procedure, non_overridable, private         :: compute_dof_import                              => coarse_fe_space_compute_dof_import
     procedure, non_overridable, private         :: compute_ubound_num_itfc_couplings_by_continuity => coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity
+    procedure, non_overridable, private         :: compute_raw_interface_data_by_continuity        => coarse_fe_space_compute_raw_interface_data_by_continuity
+    procedure, non_overridable, private         :: raw_interface_data_by_continuity_decide_owner   => coarse_fe_space_raw_interface_data_by_continuity_decide_owner
     ! Coarse FE traversals-related TBPs
     procedure, non_overridable                 :: create_coarse_fe_iterator                        => coarse_fe_space_create_coarse_fe_iterator
     
     ! Coarse FE VEFS traversals-related TBPs
     procedure, non_overridable                 :: create_coarse_fe_vef_iterator                    => coarse_fe_space_create_coarse_fe_vef_iterator
+    procedure, non_overridable                 :: create_itfc_coarse_fe_vef_iterator               => coarse_fe_space_create_itfc_coarse_fe_vef_iterator
   end type coarse_fe_space_t
   
   ! These parameter constants are used in order to generate a unique (non-consecutive) 

@@ -74,7 +74,6 @@ function vef_accessor_get_lid (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   integer(ip) :: vef_accessor_get_lid
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
   vef_accessor_get_lid = this%lid
 end function vef_accessor_get_lid
 

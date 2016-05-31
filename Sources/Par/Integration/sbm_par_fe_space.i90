@@ -574,7 +574,6 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
         !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
         part_id = this%par_triangulation%elems(elem_lid)%mypart   
         elem_gid = this%par_triangulation%elems(elem_lid)%globalID
-        part_id = this%par_triangulation%elems(elem_lid)%mypart
         ivef = finite_element%cell%find_local_pos_from_vef_id(vef_lid)
         do idof_interior=1, finite_element%reference_fe_phy(fe_space_id)%p%get_number_own_nodes_vef(ivef)
            idof = finite_element%reference_fe_phy(fe_space_id)%p%get_own_node_vef(idof_interior,ivef)

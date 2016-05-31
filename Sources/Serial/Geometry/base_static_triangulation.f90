@@ -72,7 +72,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_vef              => cell_accessor_get_vef
     procedure, non_overridable           :: is_local             => cell_accessor_is_local
     procedure, non_overridable           :: is_ghost             => cell_accessor_is_ghost
-    procedure, non_overridable           :: scan_sum_num_vefs    => scan_sum_num_vefs
+    procedure, non_overridable           :: scan_sum_number_vefs => cell_accessor_get_scan_sum_number_vefs
   end type cell_accessor_t
   
   type cell_iterator_t
