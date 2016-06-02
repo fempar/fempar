@@ -727,6 +727,64 @@ module reference_fe_names
   public :: quad_lagrangian_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type, extends(reference_fe_t) :: tri_lagrangian_reference_fe_t
+     private
+     integer(ip)              :: number_nodes_scalar
+     integer(ip), allocatable :: node_component_array(:,:)
+     integer(ip), allocatable :: node_array_component(:,:)
+   contains 
+     ! Deferred TBP implementors
+     procedure :: create                    => tri_lagrangian_reference_fe_create
+     procedure :: create_quadrature         => tri_lagrangian_reference_fe_create_quadrature
+     !procedure :: create_quadrature_on_faces                                                           &
+     !     &                           => tri_lagrangian_reference_fe_create_quadrature_on_faces
+     procedure :: create_face_quadrature    => tri_lagrangian_reference_fe_create_face_quadrature
+     procedure :: create_interpolation      => tri_lagrangian_reference_fe_create_interpolation
+     procedure :: create_face_interpolation => tri_lagrangian_reference_fe_create_face_interpolation
+     procedure :: create_face_local_interpolation                                                   &
+          &                          => tri_lagrangian_reference_fe_create_face_local_interpolation
+     procedure :: update_interpolation      => tri_lagrangian_reference_fe_update_interpolation
+     procedure :: update_interpolation_face => tri_lagrangian_reference_fe_update_interpolation_face
+     procedure :: get_component_node     => tri_lagrangian_reference_fe_get_component_node
+     procedure :: get_scalar_from_vector_node           => tri_lagrangian_reference_fe_get_scalar_from_vector_node
+     procedure :: check_compatibility_of_vefs                                         &
+          &                 => tri_lagrangian_reference_fe_check_compatibility_of_vefs 
+
+     procedure :: get_value_scalar          => tri_lagrangian_reference_fe_get_value_scalar
+     procedure :: get_value_vector          => tri_lagrangian_reference_fe_get_value_vector
+     procedure :: get_gradient_scalar       => tri_lagrangian_reference_fe_get_gradient_scalar
+     procedure :: get_gradient_vector       => tri_lagrangian_reference_fe_get_gradient_vector
+     procedure :: get_divergence_vector     => tri_lagrangian_reference_fe_get_divergence_vector
+     procedure :: get_curl_vector           => tri_lagrangian_reference_fe_get_curl_vector
+
+     procedure :: interpolate_nodal_values => tri_lagrangian_reference_fe_interpolate_nodal_values
+
+     procedure :: evaluate_fe_function_scalar => tri_lagrangian_reference_fe_evaluate_fe_function_scalar
+     procedure :: evaluate_fe_function_vector => tri_lagrangian_reference_fe_evaluate_fe_function_vector
+     procedure :: evaluate_fe_function_tensor => tri_lagrangian_reference_fe_evaluate_fe_function_tensor
+
+     procedure :: set_nodal_quadrature => tri_lagrangian_reference_fe_set_nodal_quadrature
+
+     procedure :: set_scalar_field_to_nodal_values => tri_lagrangian_reference_fe_set_scalar_field_to_nodal_values
+     procedure :: set_vector_field_to_nodal_values => tri_lagrangian_reference_fe_set_vector_field_to_nodal_values
+     procedure :: set_tensor_field_to_nodal_values => tri_lagrangian_reference_fe_set_tensor_field_to_nodal_values
+
+     ! Concrete TBPs of this derived data type
+     procedure :: fill                      => tri_lagrangian_reference_fe_fill
+     procedure :: free                      => tri_lagrangian_reference_fe_free
+     procedure :: get_characteristic_length &
+          &                          => tri_lagrangian_reference_fe_get_characteristic_length
+          
+     procedure :: fill_interior_points_permutation &
+          &                   => tri_lagrangian_reference_fe_fill_interior_points_permutation     
+     procedure :: get_subelements_connectivity => tri_lagrangian_reference_fe_get_subelements_connectivity
+     procedure :: get_number_subelements => tri_lagrangian_reference_fe_get_number_subelements
+     procedure :: get_number_nodes_scalar => tri_lagrangian_reference_fe_get_number_nodes_scalar
+  end type tri_lagrangian_reference_fe_t
+  
+  public :: tri_lagrangian_reference_fe_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 type volume_integrator_t 
   private
@@ -862,6 +920,8 @@ contains
 #include "sbm_reference_fe.i90"
 
 #include "sbm_quad_lagrangian_reference_fe.i90"
+
+#include "sbm_tri_lagrangian_reference_fe.i90"
 
 #include "sbm_volume_integrator.i90"
 
