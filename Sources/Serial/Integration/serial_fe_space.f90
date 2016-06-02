@@ -336,6 +336,43 @@ module serial_fe_space_names
     procedure, non_overridable          :: current      => itfc_coarse_fe_vef_iterator_current
   end type itfc_coarse_fe_vef_iterator_t
   
+  
+  type, extends(object_accessor_t) :: coarse_fe_object_accessor_t
+    private
+    type(coarse_fe_space_t), pointer :: coarse_fe_space
+  contains
+    procedure                            :: coarse_fe_object_accessor_create
+    generic                              :: create                                   => coarse_fe_object_accessor_create
+    procedure                            :: free                                     => coarse_fe_object_accessor_free
+    procedure, non_overridable           :: get_number_coarse_fe_vefs_on_object      => coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object
+    procedure, non_overridable           :: create_coarse_fe_vefs_on_object_iterator => coarse_fe_object_accessor_get_coarse_fe_vefs_on_object_iterator
+  end type coarse_fe_object_accessor_t
+  
+  type coarse_fe_object_iterator_t
+    private
+    type(coarse_fe_object_accessor_t) :: current_coarse_fe_object_accessor
+  contains
+     procedure, non_overridable          :: create       => coarse_fe_object_iterator_create
+     procedure, non_overridable          :: free         => coarse_fe_object_iterator_free
+     procedure, non_overridable          :: init         => coarse_fe_object_iterator_init
+     procedure, non_overridable          :: next         => coarse_fe_object_iterator_next
+     procedure, non_overridable          :: has_finished => coarse_fe_object_iterator_has_finished
+     procedure, non_overridable          :: current      => coarse_fe_object_iterator_current
+  end type coarse_fe_object_iterator_t
+  
+  type :: coarse_fe_vefs_on_object_iterator_t
+    private
+    type(vefs_on_object_iterator_t)     :: vefs_on_object_iterator
+    type(coarse_fe_vef_accessor_t)      :: current_coarse_fe_vef_accessor
+  contains
+    procedure, non_overridable          :: create       => coarse_fe_vefs_on_object_iterator_create
+    procedure, non_overridable          :: free         => coarse_fe_vefs_on_object_iterator_free
+    procedure, non_overridable          :: init         => coarse_fe_vefs_on_object_iterator_init
+    procedure, non_overridable          :: next         => coarse_fe_vefs_on_object_iterator_next
+    procedure, non_overridable          :: has_finished => coarse_fe_vefs_on_object_iterator_has_finished
+    procedure, non_overridable          :: current      => coarse_fe_vefs_on_object_iterator_current
+  end type coarse_fe_vefs_on_object_iterator_t
+  
  
   type :: coarse_fe_space_t
     private
@@ -355,7 +392,22 @@ module serial_fe_space_names
     
     type(dof_import_t)            , allocatable :: blocks_dof_import(:)
     
+    ! GIDs of the DoFs objects. For their generation, we though to be a good idea 
+    ! to take as basis the GIDs of the VEFs objects they are built from (instead of
+    ! generating them from scratch, which in turn would imply further communication).
+    integer(igp), allocatable                   :: dofs_objects_gids(:)
+     
+    ! GIDs of the VEFs objects the DoFs objects are put on top of
+    integer(igp), allocatable                   :: vefs_gids_dofs_objects(:)
+  
+    integer(ip) , allocatable                   :: num_dofs_objects_per_field(:)
+    type(list_t), allocatable                   :: dofs_objects_per_field(:)
+    
+    ! Pointer to coarse triangulation this coarse_fe_space has been built from
     type(coarse_triangulation_t), pointer       :: coarse_triangulation => NULL()
+    
+    ! Pointer to coarser coarse_fe_space
+    type(coarse_fe_space_t)     , pointer       :: coarse_fe_space
   contains
     procedure                                   :: create                                          => coarse_fe_space_create
     procedure                                   :: free                                            => coarse_fe_space_free
@@ -384,13 +436,27 @@ module serial_fe_space_names
     procedure, non_overridable, private         :: compute_ubound_num_itfc_couplings_by_continuity => coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity
     procedure, non_overridable, private         :: compute_raw_interface_data_by_continuity        => coarse_fe_space_compute_raw_interface_data_by_continuity
     procedure, non_overridable, private         :: raw_interface_data_by_continuity_decide_owner   => coarse_fe_space_raw_interface_data_by_continuity_decide_owner
+    procedure, non_overridable, private         :: compute_dofs_objects                            => coarse_fe_space_compute_dofs_objects
+    procedure, non_overridable, private         :: compute_dofs_objects_by_continuity              => coarse_fe_space_compute_dofs_objects_by_continuity
+    procedure, non_overridable, private         :: free_dofs_objects                               => coarse_fe_space_free_dofs_objects
+    procedure, non_overridable, private         :: setup_coarse_fe_space                           => coarse_fe_space_setup_coarse_fe_space
+    procedure, non_overridable, private         :: transfer_field_type                             => coarse_fe_space_transfer_field_type
+    procedure, non_overridable, private         :: gather_ptr_dofs_per_fe_and_field                => coarse_fe_space_gather_ptr_dofs_per_fe_and_field
+    procedure, non_overridable, private         :: gather_coarse_dofs_gids_rcv_counts_and_displs   => coarse_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
+    procedure, non_overridable, private         :: gather_coarse_dofs_gids                         => coarse_fe_space_gather_coarse_dofs_gids
+    procedure, non_overridable, private         :: gather_vefs_gids_dofs_objects                   => coarse_fe_space_gather_vefs_gids_dofs_objects
+    
     ! Coarse FE traversals-related TBPs
     procedure, non_overridable                 :: create_coarse_fe_iterator                        => coarse_fe_space_create_coarse_fe_iterator
     
     ! Coarse FE VEFS traversals-related TBPs
     procedure, non_overridable                 :: create_coarse_fe_vef_iterator                    => coarse_fe_space_create_coarse_fe_vef_iterator
     procedure, non_overridable                 :: create_itfc_coarse_fe_vef_iterator               => coarse_fe_space_create_itfc_coarse_fe_vef_iterator
-  end type coarse_fe_space_t
+    
+         ! Objects-related traversals
+     procedure, non_overridable          :: create_coarse_fe_object_iterator                       => coarse_fe_space_create_coarse_fe_object_iterator
+     procedure, non_overridable          :: create_coarse_fe_vefs_on_object_iterator               => coarse_fe_space_create_coarse_fe_vefs_on_object_iterator
+ end type coarse_fe_space_t
   
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
@@ -410,9 +476,9 @@ module serial_fe_space_names
      ! generating them from scratch, which in turn would imply further communication).
      integer(igp), allocatable               :: dofs_objects_gids(:)
      
-     ! GIDs of the VEFs objects the DoFs objects are put on top of.
+     ! GIDs of the VEFs objects the DoFs objects are put on top of
      integer(igp), allocatable               :: vefs_gids_dofs_objects(:)
-     
+  
      integer(ip) , allocatable               :: num_dofs_objects_per_field(:)
      type(list_t), allocatable               :: dofs_objects_per_field(:)
      
@@ -549,7 +615,6 @@ contains
 
   ! Includes with all the TBP and supporting subroutines for the types above.
   ! In a future, we would like to use the submodule features of FORTRAN 2008.
-
 #include "sbm_finite_element.i90"
 #include "sbm_finite_face.i90"
 #include "sbm_serial_fe_space.i90"
@@ -559,6 +624,9 @@ contains
 #include "sbm_coarse_fe_iterator.i90"
 #include "sbm_coarse_fe_vef_accessor.i90"
 #include "sbm_coarse_fe_vef_iterator.i90"
+#include "sbm_coarse_fe_object_accessor.i90"
+#include "sbm_coarse_fe_object_iterator.i90"
+#include "sbm_coarse_fe_vefs_on_object_iterator.i90"
 #include "sbm_serial_fe_space_faces.i90"
 #include "sbm_fe_function.i90"
 

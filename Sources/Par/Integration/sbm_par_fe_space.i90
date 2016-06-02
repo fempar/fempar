@@ -1081,7 +1081,7 @@ subroutine par_fe_space_compute_dofs_objects_by_continuity ( this, field_id )
        end do
        call vefs_object_iterator%next()
     end do
-    if ( number_dofs_on_vef_object >= 0 ) then
+    if ( number_dofs_on_vef_object > 0 ) then
        this%dofs_objects_gids(offset + current_dof_object) = this%par_triangulation%objects_gids(iobj_vef)
        dof2vef_object(current_dof_object) = iobj_vef
        call this%dofs_objects_per_field(field_id)%sum_to_pointer_index(current_dof_object, number_dofs_on_vef_object)

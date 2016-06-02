@@ -538,6 +538,7 @@
         write(*,'(a,i10,a)') '****       gid  : ',vef%get_gid(),'****'
         write(*,'(a,i10,a)') '**** dimension  : ',vef%get_dimension(),'****'
         write(*,'(a,l10,a)') '****at_interface: ',vef%at_interface(),'****'
+        flush(6)
         call vef_iterator%next()
       end do
       

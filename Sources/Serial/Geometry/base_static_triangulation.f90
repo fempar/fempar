@@ -191,6 +191,51 @@ module base_static_triangulation_names
      procedure, non_overridable          :: create_itfc_vef_iterator           => base_static_triangulation_create_itfc_vef_iterator
   end type base_static_triangulation_t
   
+  type object_accessor_t
+    private
+    integer(ip)                                     :: lid = -1
+    class(par_base_static_triangulation_t), pointer :: par_base_static_triangulation
+  contains
+    procedure                   :: object_accessor_create
+    generic                     :: create                         => object_accessor_create
+    procedure                   :: free                           => object_accessor_free
+    procedure, non_overridable  :: next                           => object_accessor_next
+    procedure, non_overridable  :: set_lid                        => object_accessor_set_lid
+    procedure, non_overridable  :: past_the_end                   => object_accessor_past_the_end
+    procedure, non_overridable  :: get_lid                        => object_accessor_get_lid
+    procedure, non_overridable  :: get_gid                        => object_accessor_get_gid
+    procedure, non_overridable  :: get_number_parts_around        => object_accessor_get_number_parts_around
+    procedure, non_overridable  :: create_parts_around_iterator   => object_accessor_create_parts_around_iterator
+    procedure, non_overridable  :: get_number_vefs_on_object      => object_accessor_get_number_vefs_on_object
+    procedure, non_overridable  :: create_vefs_on_object_iterator => object_accessor_get_vefs_on_object_iterator
+  end type object_accessor_t
+  
+  type object_iterator_t
+    private
+    type(object_accessor_t) :: current_object_accessor
+  contains
+     procedure, non_overridable          :: create       => object_iterator_create
+     procedure, non_overridable          :: free         => object_iterator_free
+     procedure, non_overridable          :: init         => object_iterator_init
+     procedure, non_overridable          :: next         => object_iterator_next
+     procedure, non_overridable          :: has_finished => object_iterator_has_finished
+     procedure, non_overridable          :: current      => object_iterator_current
+  end type object_iterator_t
+  
+  type :: vefs_on_object_iterator_t
+    private
+    type(list_iterator_t) :: vefs_lids_on_object_iterator
+    type(vef_accessor_t)  :: current_vef_accessor
+  contains
+    procedure, non_overridable          :: create       => vefs_on_object_iterator_create
+    procedure, non_overridable          :: free         => vefs_on_object_iterator_free
+    procedure, non_overridable          :: init         => vefs_on_object_iterator_init
+    procedure, non_overridable          :: next         => vefs_on_object_iterator_next
+    procedure, non_overridable          :: has_finished => vefs_on_object_iterator_has_finished
+    procedure, non_overridable          :: current      => vefs_on_object_iterator_current
+  end type vefs_on_object_iterator_t
+  
+  
   type, extends(base_static_triangulation_t) :: par_base_static_triangulation_t
      private
      ! Parallel environment describing MPI tasks among which the triangulation is distributed
@@ -214,6 +259,7 @@ module base_static_triangulation_names
      ! Getters
      procedure, non_overridable          :: get_par_environment                            => par_base_static_tria_get_par_environment
      procedure, non_overridable          :: get_element_import                             => par_base_static_tria_get_element_import
+     procedure, non_overridable          :: get_coarse_triangulation                       => par_base_static_tria_get_coarse_triangulation
   
      ! Private methods for creating coarse objects-related data
      procedure, non_overridable, private :: compute_parts_itfc_vefs                        => par_base_static_tria_compute_parts_itfc_vefs
@@ -232,6 +278,10 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: gather_coarse_dgraph_rcv_counts_and_displs     => par_base_static_tria_gather_coarse_dgraph_rcv_counts_and_displs
      procedure, non_overridable, private :: gather_coarse_dgraph_lextn_and_lextp           => par_base_static_tria_gather_coarse_dgraph_lextn_and_lextp
      procedure, non_overridable, private :: adapt_coarse_raw_arrays                        => par_base_static_tria_adapt_coarse_raw_arrays
+     
+     ! Objects-related traversals
+     procedure, non_overridable          :: create_object_iterator                        => par_base_static_tria_create_object_iterator
+     procedure, non_overridable          :: create_vefs_on_object_iterator                => par_base_static_tria_create_vefs_on_object_iterator
   end type par_base_static_triangulation_t
   
   ! type, extends(base_static_triangulation_t) :: serial_triangulation_t
@@ -265,8 +315,8 @@ module base_static_triangulation_names
 
   public :: base_static_triangulation_t
   public :: coarse_triangulation_t 
-  public :: cell_iterator_t, vef_iterator_t, itfc_vef_iterator_t
-  public :: cell_accessor_t, vef_accessor_t
+  public :: cell_iterator_t, vef_iterator_t, itfc_vef_iterator_t, object_iterator_t, vefs_on_object_iterator_t
+  public :: cell_accessor_t, vef_accessor_t, object_accessor_t
   
 contains
 
@@ -275,6 +325,9 @@ contains
 #include "sbm_vef_accessor.i90"
 #include "sbm_vef_iterator.i90"
 #include "sbm_base_static_triangulation.i90"
+#include "sbm_object_accessor.i90"
+#include "sbm_object_iterator.i90"
+#include "sbm_vefs_on_object_iterator.i90"
 #include "sbm_par_base_static_triangulation.i90"
 #include "sbm_coarse_triangulation.i90"
 
