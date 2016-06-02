@@ -29,11 +29,11 @@
 subroutine tri_lagrangian_reference_fe_create ( this, number_dimensions, order, field_type, continuity, enable_face_integration )
   implicit none 
   class(tri_lagrangian_reference_fe_t), intent(inout) :: this
-  integer(ip)                          , intent(in)    :: number_dimensions
-  integer(ip)                          , intent(in)    :: order
-  character(*)                         , intent(in)    :: field_type
-  logical                              , intent(in)    :: continuity
-  logical                    , optional, intent(in)    :: enable_face_integration
+  integer(ip)                         , intent(in)    :: number_dimensions
+  integer(ip)                         , intent(in)    :: order
+  character(*)                        , intent(in)    :: field_type
+  logical                             , intent(in)    :: continuity
+  logical                  , optional , intent(in)    :: enable_face_integration
 
   call this%free()
   call this%set_common_data ( number_dimensions, order, field_type, continuity, enable_face_integration )
@@ -600,8 +600,6 @@ end subroutine tri_lagrangian_reference_fe_fill_permutation_array
 subroutine tri_lagrangian_reference_fe_free ( this )
   implicit none 
   class(tri_lagrangian_reference_fe_t), intent(inout) :: this 
-
-  integer(ip) :: i
   
   ! tri_lagrangian_reference_fe_t variables
   if(allocated(this%node_component_array)) & 

@@ -33,7 +33,7 @@ subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order,
   integer(ip)                          , intent(in)    :: order
   character(*)                         , intent(in)    :: field_type
   logical                              , intent(in)    :: continuity
-  logical                    , optional, intent(in)    :: enable_face_integration
+  logical                   , optional , intent(in)    :: enable_face_integration
 
   call this%free()
   call this%set_common_data ( number_dimensions, order, field_type, continuity, enable_face_integration )
@@ -600,8 +600,6 @@ end subroutine fill_permutation_array
 subroutine quad_lagrangian_reference_fe_free ( this )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(inout) :: this 
-
-  integer(ip) :: i
   
   ! quad_lagrangian_reference_fe_t variables
   if(allocated(this%node_component_array)) & 
