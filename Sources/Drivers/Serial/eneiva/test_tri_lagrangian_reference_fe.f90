@@ -38,37 +38,47 @@ program test_reference_fe
 #include "debug.i90"
 
   ! Our data
-  type(mesh_t)                          :: f_mesh
-  type(triangulation_t)                 :: f_trian
-  type(conditions_t)                    :: f_cond
-  type(test_reference_fe_params_t)      :: params
+  type(test_reference_fe_params_t) :: params
+  type(p_reference_fe_t)           :: reference_fe_array(1)
+  type(mesh_t)                     :: f_mesh
+  type(conditions_t)               :: f_cond
+  type(triangulation_t)            :: f_trian
 
   call fempar_init()  
   
   call params%create()
   call params%parse()
+  
+  ! Create reference FE
+  reference_fe_array(1) =  make_reference_fe ( topology = topology_tet,        &
+                                               fe_type = fe_type_lagrangian,   &
+                                               number_dimensions = 3,          &
+                                               order = 1,                      &
+                                               field_type = field_type_scalar, &
+                                               continuity = .true. )
 
-  ! Read mesh
-  call mesh_read (params%dir_path, params%prefix, f_mesh, permute_c2z=.true.)
+  !! Read mesh
+  !call mesh_read (params%dir_path, params%prefix, f_mesh, permute_c2z=.true.)
 
-  ! Read conditions 
-  call conditions_read (params%dir_path, params%prefix, f_mesh%npoin, f_cond)
+  !! Read conditions 
+  !call conditions_read (params%dir_path, params%prefix, f_mesh%npoin, f_cond)
 
-  ! Construct triangulation
-  call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
+  !! Construct triangulation
+  !call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
 
-  if ( trim(params%laplacian_type) == 'scalar' ) then
-    call test_single_scalar_valued_reference_fe()
-  else  
-    call test_single_vector_valued_reference_fe()
-    call test_composite_reference_fe_monolithic()
-    call test_composite_reference_fe_block()
-  end if  
+  !if ( trim(params%laplacian_type) == 'scalar' ) then
+  !  call test_single_scalar_valued_reference_fe()
+  !else  
+  !  call test_single_vector_valued_reference_fe()
+  !  call test_composite_reference_fe_monolithic()
+  !  call test_composite_reference_fe_block()
+  !end if  
  
-  !call fe_space%free()
-  call triangulation_free(f_trian)
-  call conditions_free ( f_cond )
-  call mesh_free (f_mesh)
+  !!call fe_space%free()
+  !call triangulation_free(f_trian)
+  !call conditions_free ( f_cond )
+  !call mesh_free (f_mesh)
+  call reference_fe_array(1)%free()
   call params%free()
 
   call fempar_finalize()

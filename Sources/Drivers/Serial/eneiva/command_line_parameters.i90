@@ -77,14 +77,14 @@ contains
     call this%set_defaults()
     
     ! Initialize Command Line Interface
-    call this%cli%init(progname    = 'test_reference_fe', &
+    call this%cli%init(progname    = 'test_tri_lagrangian_reference_fe', &
          &               version     = '',                               &
          &               authors     = '',                               &
          &               license     = '',                               &
          &               description = "FEMPAR sequential test driver to solve a Scalar or Vector-Valued Laplacian problem with&
                                      & Galerkin FEM, (arbitrary order) continuous Lagrangian FEs, and a Krylov solver without preconditioning. The&
                                      & GiD input data should be set-up such that the solution is u=1 in the whole domain.", &
-         &               examples    = ['test_reference_fe -h'] )
+         &               examples    = ['test_tri_lagrangian_reference_fe -h'] )
     
     
     ! Set Command Line Arguments

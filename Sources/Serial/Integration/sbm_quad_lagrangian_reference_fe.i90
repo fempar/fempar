@@ -1130,7 +1130,6 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
         this%face_integration_coupling_nodes_face = this%nodes_vef
      end if
   end if
-  
 
   call memfree(obdla,__FILE__,__LINE__)
   call memfree(ob2node,__FILE__,__LINE__)

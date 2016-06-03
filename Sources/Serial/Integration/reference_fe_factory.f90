@@ -46,15 +46,18 @@ contains
     
     type(p_reference_fe_t)             :: make_reference_fe
     
-    assert ( topology == topology_quad )
+    assert ( topology == topology_quad .or. topology == topology_tet )
     assert ( fe_type  == fe_type_lagrangian )
     
-    if ( topology == topology_quad ) then
-       if ( fe_type == fe_type_lagrangian ) then
+    if ( fe_type == fe_type_lagrangian ) then
+       if ( topology == topology_quad ) then
           allocate ( quad_lagrangian_reference_fe_t :: make_reference_fe%p )
+       elseif ( topology == topology_tet ) then
+          allocate (  tri_lagrangian_reference_fe_t :: make_reference_fe%p )
        end if
     end if
     call make_reference_fe%p%create( number_dimensions, order, field_type, continuity, enable_face_integration )
+  
   end function make_reference_fe
 
 end module reference_fe_factory_names
