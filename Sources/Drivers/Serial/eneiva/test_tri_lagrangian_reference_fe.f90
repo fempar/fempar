@@ -54,7 +54,7 @@ program test_reference_fe
                                                fe_type = fe_type_lagrangian,   &
                                                number_dimensions = 2,          &
                                                order = 1,                      &
-                                               field_type = field_type_scalar, &
+                                               field_type = field_type_vector, &
                                                continuity = .true. )
 
   !! Read mesh
