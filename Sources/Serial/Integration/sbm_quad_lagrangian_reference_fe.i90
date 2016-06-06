@@ -506,12 +506,12 @@ subroutine quad_lagrangian_reference_fe_fill (this)
        j = this%get_first_vef_id_of_dimension(dimension)
        number_interior_nodes = this%get_number_own_nodes_vef(j)
           
-       call this%fill_interior_points_permutation(dimension, &
+       call this%fill_interior_points_permutation(dimension,             &
                                                   number_interior_nodes, &
                                                   this%own_node_permutations(dimension)%a)
      end if
   end do
-    
+  
   if ( this%number_field_components /= 1 ) then
      call quad_lagrangian_reference_fe_fill_field_components( this )
      if ( this%continuity ) then

@@ -52,7 +52,7 @@ program test_reference_fe
   ! Create reference FE
   reference_fe_array(1) =  make_reference_fe ( topology = topology_tet,        &
                                                fe_type = fe_type_lagrangian,   &
-                                               number_dimensions = 3,          &
+                                               number_dimensions = 2,          &
                                                order = 1,                      &
                                                field_type = field_type_scalar, &
                                                continuity = .true. )
