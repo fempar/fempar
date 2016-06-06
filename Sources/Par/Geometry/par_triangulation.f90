@@ -1046,8 +1046,7 @@ contains
         
     ! L2 tasks gather from L1 tasks all raw data required to set-up the coarse triangulation on L2 tasks
     if ( this%p_env%am_i_l1_to_l2_task() ) then
-      num_dimensions = this%triangulation%num_dims
-      call this%p_env%l1_to_l2_transfer ( num_dimensions ) 
+      call this%p_env%l1_to_l2_transfer ( this%triangulation%num_dims, num_dimensions ) 
       call this%gather_coarse_cell_gids (coarse_cell_gids)
       call this%gather_coarse_vefs_rcv_counts_and_displs (coarse_vefs_recv_counts, coarse_vefs_displs)
       call this%gather_coarse_vefs_gids (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_gids)

@@ -87,11 +87,11 @@ function cell_accessor_get_triangulation(this)
   cell_accessor_get_triangulation => this%base_static_triangulation
 end function cell_accessor_get_triangulation
 
-function cell_accessor_get_lid (this)
+pure function cell_accessor_get_lid (this)
   implicit none
   class(cell_accessor_t), intent(in) :: this
   integer(ip) :: cell_accessor_get_lid
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  !assert ( this%lid >= 1 .and. .not. this%past_the_end() )
   cell_accessor_get_lid = this%lid
 end function cell_accessor_get_lid
 
@@ -148,11 +148,42 @@ function cell_accessor_get_vef_gid (this, ivef)
   cell_accessor_get_vef_gid = this%base_static_triangulation%vefs_gid(this%get_vef_lid(ivef))
 end function cell_accessor_get_vef_gid
 
+function cell_accessor_find_lpos_vef_lid (this, vef_lid)
+  implicit none
+  class(cell_accessor_t), intent(in) :: this
+  integer(ip)                        :: vef_lid
+  integer(ip)                        :: cell_accessor_find_lpos_vef_lid
+  integer(ip)                        :: ivef
+  cell_accessor_find_lpos_vef_lid = -1
+  ! Find position of vef_lid in local element
+  do ivef = 1, this%get_num_vefs()
+    if ( this%get_vef_lid(ivef) == vef_lid ) then
+      cell_accessor_find_lpos_vef_lid = ivef
+      return 
+    end if
+  end do
+end function cell_accessor_find_lpos_vef_lid
+
+function cell_accessor_find_lpos_vef_gid (this, vef_gid)
+  implicit none
+  class(cell_accessor_t), intent(in) :: this
+  integer(igp)                       :: vef_gid
+  integer(ip)                        :: cell_accessor_find_lpos_vef_gid
+  integer(ip)                        :: ivef
+  cell_accessor_find_lpos_vef_gid = -1
+  ! Find position of vef_lid in local element
+  do ivef = 1, this%get_num_vefs()
+    if ( this%get_vef_gid(ivef) == vef_gid ) then
+      cell_accessor_find_lpos_vef_gid = ivef
+      return 
+    end if
+  end do
+end function cell_accessor_find_lpos_vef_gid
+
 function cell_accessor_get_vef (this, ivef)
   implicit none
   class(cell_accessor_t), intent(in) :: this
   integer(ip)                        :: ivef
-  !type(vef_iterator_t)               :: cell_accessor_get_vef
   type(vef_accessor_t)               :: cell_accessor_get_vef
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
   call cell_accessor_get_vef%create(this%get_vef_lid(ivef), this%base_static_triangulation)
@@ -173,3 +204,17 @@ function cell_accessor_is_ghost (this)
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
   cell_accessor_is_ghost = (this%lid > this%base_static_triangulation%num_local_cells)
 end function cell_accessor_is_ghost
+
+! Returns the sum of num_vefs over all cells up-to the present one (exclusive, i.e.,
+! without considering the present one), with the cells being ordered consistently 
+! with the iterator sequential traversal over all cells. At the moment of writing this
+! comment (commit 0907e7b9d07e122ba69e02e0d72bac46546acc04), type(coarse_fe_space_t) needs 
+! this TBP to efficiently locate a vef in the global type(list_t) data type which associates 
+! DoFs to vefs. 
+function scan_sum_num_vefs(this)
+  implicit none
+  class(cell_accessor_t), intent(in) :: this
+  integer(ip) :: scan_sum_num_vefs
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  scan_sum_num_vefs = this%base_static_triangulation%ptr_vefs_per_cell(this%lid)-1
+end function scan_sum_num_vefs

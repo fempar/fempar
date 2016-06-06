@@ -291,7 +291,7 @@ program par_test_reference_fe
   type(par_conditions_t)                                  :: par_conditions
   type(par_triangulation_t)                               :: par_triangulation
   type(par_fe_space_t)                                    :: par_fe_space
-  type(p_reference_fe_t)                                  :: reference_fe_array_one(2)
+  type(p_reference_fe_t)                                  :: reference_fe_array_one(1)
   type(fe_affine_operator_t)                              :: fe_affine_operator
   type(poisson_discrete_integration_t)                    :: poisson_integration
   type(vector_laplacian_composite_discrete_integration_t) :: vector_laplacian_integration
@@ -360,16 +360,16 @@ program par_test_reference_fe
   reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = 2, &
-                                                   order = 1, &
+                                                   order = 2, &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
   
-  reference_fe_array_one(2) =  make_reference_fe ( topology = topology_quad, &
-                                                   fe_type = fe_type_lagrangian, &
-                                                   number_dimensions = 2, &
-                                                   order = 1, &
-                                                   field_type = field_type_scalar, &
-                                                   continuity = .true. )
+  !reference_fe_array_one(2) =  make_reference_fe ( topology = topology_quad, &
+  !                                                 fe_type = fe_type_lagrangian, &
+  !                                                 number_dimensions = 2, &
+  !                                                 order = 1, &
+  !                                                 field_type = field_type_scalar, &
+  !                                                 continuity = .true. )
   
   !call reference_fe_array_one(1)%p%print()
   
@@ -381,9 +381,9 @@ program par_test_reference_fe
                                      bc_code = 1, &
                                      fe_space_component = 1 )
   
-  call par_fe_space%update_bc_value (scalar_function=constant_scalar_function_t(1.0_rp), &
-                                     bc_code = 1, &
-                                     fe_space_component = 2 )
+  !call par_fe_space%update_bc_value (scalar_function=constant_scalar_function_t(1.0_rp), &
+  !                                   bc_code = 1, &
+  !                                   fe_space_component = 2 )
   
   call par_fe_space%fill_dof_info()
     
@@ -393,7 +393,7 @@ program par_test_reference_fe
                                   diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
                                   environment=par_env, &
                                   fe_space=par_fe_space, &
-                                  discrete_integration=vector_laplacian_integration )
+                                  discrete_integration=poisson_integration )
 
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
@@ -408,13 +408,18 @@ program par_test_reference_fe
   call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
   call iterative_linear_solver%free() 
   
+  !select type(dof_values)
+  !  type is (par_scalar_array_t)
+  !    call dof_values%print(6)
+  !end select
+  
   !call p_fe_space%par_fe_space_print()
   
   call fe_function%free()
   call fe_affine_operator%free()
   call par_fe_space%free()
   call reference_fe_array_one(1)%free()
-  call reference_fe_array_one(2)%free()
+  !call reference_fe_array_one(2)%free()
 
   
   call par_triangulation_free(par_triangulation)

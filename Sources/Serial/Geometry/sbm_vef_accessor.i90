@@ -29,7 +29,7 @@ subroutine vef_accessor_create ( this, lid, base_static_triangulation )
   implicit none
   class(vef_accessor_t)               , intent(inout) :: this
   integer(ip)                         , intent(in)    :: lid
-  type(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
+  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
   call this%free()
   this%lid = lid
   this%base_static_triangulation => base_static_triangulation
@@ -128,7 +128,6 @@ function vef_accessor_get_cell_around_interface_vef (this, icell_around)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   integer(ip)          , intent(in) :: icell_around
-  !type(cell_iterator_t)             :: vef_accessor_get_cell_around
   type(cell_accessor_t)             :: vef_accessor_get_cell_around_interface_vef
   integer(ip)                       :: position_in_lst_cells_around
   integer(ip)                       :: vef_itfc_lid

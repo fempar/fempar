@@ -136,8 +136,21 @@
 
 !   end subroutine par_base_static_tria_create
   
-  
- subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
+function par_base_static_tria_get_par_environment ( this )
+  implicit none
+  class(par_base_static_triangulation_t), target, intent(in) :: this
+  type(par_environment_t), pointer                           :: par_base_static_tria_get_par_environment
+  par_base_static_tria_get_par_environment => this%p_env
+end function par_base_static_tria_get_par_environment
+
+function par_base_static_tria_get_element_import ( this )
+  implicit none
+  class(par_base_static_triangulation_t), target, intent(in) :: this
+  type(element_import_t), pointer                            :: par_base_static_tria_get_element_import
+  par_base_static_tria_get_element_import => this%element_import
+end function par_base_static_tria_get_element_import 
+
+subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     implicit none
     class(par_base_static_triangulation_t), intent(in)    :: this
     integer(ip), allocatable  , intent(inout) :: parts_itfc_vefs(:,:)
@@ -147,13 +160,11 @@
     logical, allocatable                      :: touched_neighbours(:)
     integer(ip)                               :: nparts_around, mypart_id, part_id, local_part_id
     integer(ip)                               :: ivef_itfc, icell, vef_lid
-    !type(cell_iterator_t)                     :: cell_iterator
-    !type(cell_accessor_t), pointer            :: cell 
     type(cell_accessor_t)                     :: cell 
     integer(ip)                               :: num_rows_parts_itfc_vefs
     integer(ip), allocatable                  :: work1(:), work2(:)
     type(itfc_vef_iterator_t)                 :: itfc_vef_iterator
-    type(vef_accessor_t), pointer             :: current_itfc_vef
+    type(vef_accessor_t)                      :: current_itfc_vef
     
     assert ( this%p_env%am_i_l1_task() )
     
@@ -177,16 +188,14 @@
     
     ivef_itfc = 1
     do while ( .not. itfc_vef_iterator%has_finished() )
-      current_itfc_vef => itfc_vef_iterator%current()
+      current_itfc_vef = itfc_vef_iterator%current()
       touched_neighbours = .false.
       
       nparts_around = 1 
       parts_itfc_vefs(nparts_around+1,ivef_itfc) = mypart_id
       
       do icell=1, current_itfc_vef%get_num_cells_around()
-        !cell_iterator = current_itfc_vef%get_cell_around(icell)
-        !cell          => cell_iterator%current()
-        cell = current_itfc_vef%get_cell_around(icell)
+        cell          = current_itfc_vef%get_cell_around(icell)
         part_id       = cell%get_mypart()
         
         if ( part_id /= mypart_id ) then
@@ -617,8 +626,7 @@
         
     ! L2 tasks gather from L1 tasks all raw data required to set-up the coarse triangulation on L2 tasks
     if ( this%p_env%am_i_l1_to_l2_task() ) then
-      num_dimensions = this%num_dimensions
-      call this%p_env%l1_to_l2_transfer ( num_dimensions ) 
+      call this%p_env%l1_to_l2_transfer ( this%num_dimensions, num_dimensions ) 
       call this%gather_coarse_cell_gids (coarse_cells_gid)
       call this%gather_coarse_vefs_rcv_counts_and_displs (coarse_vefs_recv_counts, coarse_vefs_displs)
       call this%gather_coarse_vefs_gids (coarse_vefs_recv_counts, coarse_vefs_displs, lst_coarse_vef_gids)

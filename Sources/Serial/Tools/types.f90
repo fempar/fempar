@@ -89,6 +89,10 @@ module types_names
   
   ! Number of space dimensions for statically allocated data types (see, e.g., field.f90)
   integer(ip), parameter :: number_space_dimensions = 3
+  
+  integer(ieep), parameter :: mold(1) = [0_ieep]
+  integer(ip)  , parameter :: size_of_ip = size(transfer(1_ip, mold))
+  integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,mold))
 
   interface
      subroutine runend

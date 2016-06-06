@@ -410,8 +410,8 @@ end function fe_affine_operator_apply_fun
 subroutine fe_affine_operator_setup(this)
  implicit none
  class(fe_affine_operator_t)  :: this
- call this%symbolic_setup()
- call this%numerical_setup()
+  assert (this%state/=start)
+  if(this%state==created .or. this%state==symbolically_setup) call this%numerical_setup()
 end subroutine fe_affine_operator_setup
 
 subroutine fe_affine_operator_fill_values(this)

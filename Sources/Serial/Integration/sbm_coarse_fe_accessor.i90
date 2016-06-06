@@ -1,0 +1,173 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine coarse_fe_accessor_cell_accessor_create ( this, lid, base_static_triangulation )
+  implicit none
+  class(coarse_fe_accessor_t)               , intent(inout) :: this
+  integer(ip)                               , intent(in)    :: lid
+  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
+  check(.false.)
+end subroutine coarse_fe_accessor_cell_accessor_create
+
+subroutine coarse_fe_accessor_create ( this, lid, coarse_fe_space )
+  implicit none
+  class(coarse_fe_accessor_t)               , intent(inout) :: this
+  integer(ip)                               , intent(in)    :: lid
+  type(coarse_fe_space_t)           , target, intent(in)    :: coarse_fe_space
+  call this%cell_accessor_t%create(lid,coarse_fe_space%coarse_triangulation)
+  this%coarse_fe_space => coarse_fe_space
+end subroutine coarse_fe_accessor_create
+
+subroutine coarse_fe_accessor_free (this)
+  implicit none
+  class(coarse_fe_accessor_t), intent(inout) :: this
+  call this%cell_accessor_t%free()
+  nullify(this%coarse_fe_space)
+end subroutine coarse_fe_accessor_free
+
+function coarse_fe_accessor_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) result(list_iterator)
+  implicit none
+  class(coarse_fe_accessor_t), intent(in) :: this
+  integer(ip)                , intent(in) :: ivef
+  integer(ip)                , intent(in) :: field_id
+  type(list_iterator_t) :: list_iterator
+  integer(ip) :: position_own_dofs_vef
+  
+  ! In order to determine the position in own_dofs_vef_per_fe(field_id) of 
+  ! the vef in local position "ivef" within the current cell, we have to 
+  ! sum the following:
+  ! 1. The number of interior vefs of all cells up-to the present one, 
+  !    but not including the present one (this%get_lid()-1)
+  ! 2. The number of boundary vefs of all cells up-to the present one,
+  !    but not including the present one (this%sum_scan_num_vefs())
+  ! 3. The position of the vef in the current cell (ivef)
+  position_own_dofs_vef = (this%get_lid()-1) + this%scan_sum_num_vefs() + ivef
+  list_iterator = this%coarse_fe_space%own_dofs_vef_per_fe(field_id)%create_iterator(position_own_dofs_vef)
+end function coarse_fe_accessor_create_own_dofs_on_vef_iterator
+
+subroutine coarse_fe_accessor_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof )
+  implicit none
+  class(coarse_fe_accessor_t) , intent(inout) :: this
+  integer(ip)                 , intent(in)    :: ivef
+  integer(ip)                 , intent(in)    :: field_id
+  integer(ip)                 , intent(inout) :: current_dof
+  
+  integer(ip)           :: pos_ptr_dofs 
+  integer(ip)           :: base_pos_lst_dofs_lids
+  type(list_iterator_t) :: own_dofs_on_vef_iterator
+  
+  ! Determine position in ptr_dofs_per_fe_and_field() of the 
+  ! field "field_id" within current coarse_fe
+  pos_ptr_dofs = (this%get_lid()-1)*this%coarse_fe_space%number_fields + field_id
+  
+  ! Determine position in lst_dofs_lids of the first dof associated to the
+  ! field "field_id" within the current coarse_fe
+  base_pos_lst_dofs_lids = this%coarse_fe_space%ptr_dofs_per_fe_and_field(pos_ptr_dofs)
+  
+  ! Iterate over all DoFs associated to field "field_id" on top of the vef
+  ! with local identifier ivef within current coarse_fe
+  own_dofs_on_vef_iterator = this%create_own_dofs_on_vef_iterator(ivef,field_id)
+  do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
+    current_dof = current_dof + 1
+    this%coarse_fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()-1) = current_dof
+    call own_dofs_on_vef_iterator%next()
+  end do
+end subroutine coarse_fe_accessor_fill_own_dofs_on_vef
+
+subroutine coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe ( this, target_ivef, source_fe, source_ivef, field_id )
+  implicit none
+  class(coarse_fe_accessor_t) , intent(inout) :: this
+  integer(ip)                 , intent(in)    :: target_ivef
+  class(coarse_fe_accessor_t) , intent(in)    :: source_fe
+  integer(ip)                 , intent(in)    :: source_ivef
+  integer(ip)                 , intent(in)    :: field_id
+
+  integer(ip)           :: pos_ptr_dofs_source 
+  integer(ip)           :: base_pos_lst_dofs_lids_source
+  type(list_iterator_t) :: own_dofs_on_vef_iterator_source
+  
+  integer(ip)           :: pos_ptr_dofs_target
+  integer(ip)           :: base_pos_lst_dofs_lids_target
+  type(list_iterator_t) :: own_dofs_on_vef_iterator_target
+  
+  ! Determine position in ptr_dofs_per_fe_and_field() of the 
+  ! field "field_id" within target coarse_fe
+  pos_ptr_dofs_target = (this%get_lid()-1)*this%coarse_fe_space%number_fields + field_id
+  ! Determine position in lst_dofs_lids of the first dof associated to the
+  ! field "field_id" within the target coarse_fe
+  base_pos_lst_dofs_lids_target = this%coarse_fe_space%ptr_dofs_per_fe_and_field(pos_ptr_dofs_target)
+  ! Iterate over all DoFs associated to field "field_id" on top of the vef
+  ! with local identifier ivef within target coarse_fe
+  own_dofs_on_vef_iterator_target = this%create_own_dofs_on_vef_iterator(target_ivef,field_id)
+  
+  ! Determine position in ptr_dofs_per_fe_and_field() of the 
+  ! field "field_id" within source coarse_fe
+  pos_ptr_dofs_source = (source_fe%get_lid()-1)*this%coarse_fe_space%number_fields + field_id
+  ! Determine position in lst_dofs_lids of the first dof associated to the
+  ! field "field_id" within the target coarse_fe
+  base_pos_lst_dofs_lids_source = this%coarse_fe_space%ptr_dofs_per_fe_and_field(pos_ptr_dofs_source)
+  ! Iterate over all DoFs associated to field "field_id" on top of the vef
+  ! with local identifier ivef within target coarse_fe
+  own_dofs_on_vef_iterator_source = source_fe%create_own_dofs_on_vef_iterator(source_ivef,field_id)
+    
+  assert (own_dofs_on_vef_iterator_source%get_size() == own_dofs_on_vef_iterator_target%get_size())
+  do while (.not. own_dofs_on_vef_iterator_source%is_upper_bound())
+    this%coarse_fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_target+own_dofs_on_vef_iterator_target%get_current()-1) = &
+      this%coarse_fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_source+own_dofs_on_vef_iterator_source%get_current()-1)
+    call own_dofs_on_vef_iterator_source%next()
+    call own_dofs_on_vef_iterator_target%next()
+  end do
+end subroutine coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe
+
+function coarse_fe_accessor_get_number_fe_spaces(this)
+  implicit none
+  class(coarse_fe_accessor_t), intent(in) :: this
+  integer(ip) :: coarse_fe_accessor_get_number_fe_spaces
+  coarse_fe_accessor_get_number_fe_spaces = this%coarse_fe_space%number_fields
+end function coarse_fe_accessor_get_number_fe_spaces
+
+pure function coarse_fe_accessor_get_number_dofs(this)
+  implicit none
+  class(coarse_fe_accessor_t), intent(in) :: this
+  integer(ip) :: coarse_fe_accessor_get_number_dofs
+  integer(ip) :: spos
+  integer(ip) :: epos
+  spos = (this%get_lid()-1)*this%coarse_fe_space%number_fields+1
+  epos = (this%get_lid())*this%coarse_fe_space%number_fields+1
+  coarse_fe_accessor_get_number_dofs = this%coarse_fe_space%ptr_dofs_per_fe_and_field(epos)- &
+                                       this%coarse_fe_space%ptr_dofs_per_fe_and_field(spos)
+end function coarse_fe_accessor_get_number_dofs
+
+function coarse_fe_accessor_get_coarse_fe_vef(this, ivef)
+  implicit none
+  class(coarse_fe_accessor_t), intent(in) :: this
+  integer(ip)                , intent(in) :: ivef
+  type(coarse_fe_vef_accessor_t)          :: coarse_fe_accessor_get_coarse_fe_vef
+  type(vef_accessor_t) :: vef_accessor
+  vef_accessor = this%get_vef(ivef)
+  call coarse_fe_accessor_get_coarse_fe_vef%create(vef_accessor%get_lid(), this%coarse_fe_space)
+end function coarse_fe_accessor_get_coarse_fe_vef

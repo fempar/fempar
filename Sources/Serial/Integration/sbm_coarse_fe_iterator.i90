@@ -25,43 +25,43 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine cell_iterator_create ( this, lid, base_static_triangulation ) 
+subroutine coarse_fe_iterator_create ( this, lid, coarse_fe_space ) 
   implicit none
-  class(cell_iterator_t)            , intent(inout) :: this
+  class(coarse_fe_iterator_t)      , intent(inout) :: this
   integer(ip)                      , intent(in)    :: lid
-  type(base_static_triangulation_t), intent(in)    :: base_static_triangulation
+  type(coarse_fe_space_t)          , intent(in)    :: coarse_fe_space
   call this%free()
-  call this%current_cell_accessor%create(lid=lid, base_static_triangulation=base_static_triangulation )
-end subroutine cell_iterator_create
+  call this%current_coarse_fe_accessor%create(lid=lid, coarse_fe_space=coarse_fe_space)
+end subroutine coarse_fe_iterator_create
 
-subroutine cell_iterator_free ( this ) 
+subroutine coarse_fe_iterator_free ( this ) 
   implicit none
-  class(cell_iterator_t), intent(inout) :: this
-  call this%current_cell_accessor%free()
-end subroutine cell_iterator_free
+  class(coarse_fe_iterator_t), intent(inout) :: this
+  call this%current_coarse_fe_accessor%free()
+end subroutine coarse_fe_iterator_free
 
-subroutine cell_iterator_init ( this ) 
+subroutine coarse_fe_iterator_init ( this ) 
   implicit none
-  class(cell_iterator_t), intent(inout) :: this
-  call this%current_cell_accessor%set_lid(lid=1)
-end subroutine cell_iterator_init
+  class(coarse_fe_iterator_t), intent(inout) :: this
+  call this%current_coarse_fe_accessor%set_lid(lid=1)
+end subroutine coarse_fe_iterator_init
 
-subroutine cell_iterator_next ( this ) 
+subroutine coarse_fe_iterator_next ( this ) 
   implicit none
-  class(cell_iterator_t), intent(inout) :: this
-  call this%current_cell_accessor%next()
-end subroutine cell_iterator_next
+  class(coarse_fe_iterator_t), intent(inout) :: this
+  call this%current_coarse_fe_accessor%next()
+end subroutine coarse_fe_iterator_next
 
-function cell_iterator_has_finished ( this ) 
+function coarse_fe_iterator_has_finished ( this ) 
   implicit none
-  class(cell_iterator_t), intent(in) :: this
-  logical                                  :: cell_iterator_has_finished
-  cell_iterator_has_finished = this%current_cell_accessor%past_the_end()
-end function cell_iterator_has_finished
+  class(coarse_fe_iterator_t), intent(in) :: this
+  logical                                 :: coarse_fe_iterator_has_finished
+  coarse_fe_iterator_has_finished = this%current_coarse_fe_accessor%past_the_end()
+end function coarse_fe_iterator_has_finished
 
-function cell_iterator_current ( this ) 
+function coarse_fe_iterator_current ( this ) 
   implicit none
-  class(cell_iterator_t), target, intent(in) :: this
-  type(cell_accessor_t) :: cell_iterator_current
-  cell_iterator_current = this%current_cell_accessor
-end function cell_iterator_current
+  class(coarse_fe_iterator_t), target, intent(in) :: this
+  type(coarse_fe_accessor_t) :: coarse_fe_iterator_current
+  coarse_fe_iterator_current = this%current_coarse_fe_accessor
+end function coarse_fe_iterator_current
