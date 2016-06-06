@@ -119,9 +119,9 @@ subroutine mesh_to_triangulation_fill_elements (gmesh, trian, length_trian, gcon
     ! assert( etype /= 0 )
     
     ! This will not be here in the future
-    trian%reference_fe_geo_list(1) = make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian,          &
-         &                                      number_dimensions = trian%num_dims, order = 1,      &
-         &                                      field_type = field_type_vector, continuity = .true. )
+    trian%reference_fe_geo_list(1) = make_reference_fe ( topology = topology_tet, fe_type = fe_type_lagrangian, &
+         &                                               number_dimensions = trian%num_dims, order = 1,         &
+         &                                               field_type = field_type_vector, continuity = .true. )
 
     if ( trian%num_elems > trian%elem_array_len ) then
        if (allocated(trian%elems)) then

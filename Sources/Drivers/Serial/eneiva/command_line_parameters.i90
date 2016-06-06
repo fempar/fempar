@@ -61,8 +61,8 @@ contains
     implicit none
     class(test_reference_fe_params_t), intent(inout) :: this
     ! IO parameters
-    this%default_dir_path       = 'square_4x4_scalar.gid/data/'
-    this%default_prefix         = 'square_4x4_scalar'
+    this%default_dir_path       = 'data'
+    this%default_prefix         = 'cube_scalar'
     this%default_order          = '1' 
     this%default_laplacian_type = 'scalar'
   end subroutine test_reference_fe_params_set_defaults

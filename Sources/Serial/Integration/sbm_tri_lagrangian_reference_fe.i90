@@ -1841,8 +1841,7 @@ end subroutine P_permute_or_1d
    integer(ip), intent(in)    :: p,o,r
    integer(ip), intent(inout) :: o2n(int(((p+1)**2+p+1)/2))
 
-   write(*,*) 'Error: this subroutine is still to be implemented'
-   check(.false.)
+   write(*,*) 'WARNING: P_permute_or_2d is still to be implemented'
    
  end subroutine P_permute_or_2d
 
