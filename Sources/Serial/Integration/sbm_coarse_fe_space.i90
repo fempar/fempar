@@ -1220,6 +1220,7 @@ subroutine coarse_fe_space_compute_dofs_objects_by_continuity ( this, field_id )
   
   ! Count number of dofs per dof object; set dofs_objects_gids
   call memalloc (number_dofs_objects, this%dofs_objects_gids, __FILE__, __LINE__)
+  call memalloc (number_dofs_objects, this%vefs_gids_dofs_objects, __FILE__, __LINE__)
   call memalloc (number_dofs_objects, dof2vef_object, __FILE__, __LINE__)
   dof2vef_object = -1
   call this%dofs_objects_per_field(field_id)%create(n=number_dofs_objects)
@@ -1245,6 +1246,7 @@ subroutine coarse_fe_space_compute_dofs_objects_by_continuity ( this, field_id )
      end do 
      if ( number_dofs_on_vef_object > 0 ) then
        this%dofs_objects_gids(offset + current_dof_object) = object%get_gid()
+       this%vefs_gids_dofs_objects(offset + current_dof_object) = object%get_gid()
        dof2vef_object(current_dof_object) = object%get_lid()
        call this%dofs_objects_per_field(field_id)%sum_to_pointer_index(current_dof_object, number_dofs_on_vef_object)
        current_dof_object = current_dof_object + 1
@@ -1284,6 +1286,7 @@ subroutine coarse_fe_space_free_dofs_objects(this)
    class(coarse_fe_space_t), intent(inout) :: this
    integer(ip) :: i, istat
    call memfree(this%dofs_objects_gids, __FILE__, __LINE__)
+   call memfree(this%vefs_gids_dofs_objects, __FILE__, __LINE__)
    do i=1, this%number_fields
       call this%dofs_objects_per_field(i)%free()
    end do
@@ -1489,8 +1492,8 @@ end subroutine coarse_fe_space_gather_ptr_dofs_per_fe_and_field
                                                            displs          = displs, &
                                                            output_data     = vef_gids )
     else
-      call par_environment%l2_from_l1_gather( input_data_size = size(this%dofs_objects_gids), &
-                                                           input_data      = this%dofs_objects_gids, &
+      call par_environment%l2_from_l1_gather( input_data_size = size(this%vefs_gids_dofs_objects), &
+                                                           input_data      = this%vefs_gids_dofs_objects, &
                                                            recv_counts     = dummy_integer_array_ip, &
                                                            displs          = dummy_integer_array_ip, &
                                                            output_data     = dummy_integer_array_igp )

@@ -114,6 +114,7 @@ subroutine par_fe_space_free( this )
         deallocate(this%blocks_dof_import) 
         
         call memfree(this%dofs_objects_gids, __FILE__, __LINE__)
+        call memfree(this%vefs_gids_dofs_objects, __FILE__, __LINE__)
         do i=1, this%number_fe_spaces
           call this%dofs_objects_per_field(i)%free()
         end do
@@ -464,7 +465,7 @@ function par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ( this, fe_
 
   result = 0 
   ! Traverse vefs on the interface
-  do ivef_itfc = 1, this%par_triangulation%num_itfc_vefs
+  do ivef_itfc = 1, this%par_triangulation%num_itfc_vefs 
      vef_lid = this%par_triangulation%lst_itfc_vefs(ivef_itfc)
      ! Is current vef_lid a face ?
      if ( this%triangulation%vefs(vef_lid)%dime == this%triangulation%num_dims-1 ) then
@@ -1050,6 +1051,7 @@ subroutine par_fe_space_compute_dofs_objects_by_continuity ( this, field_id )
   
   ! Count number of dofs per dof object; set dofs_objects_gids
   call memalloc (number_dofs_object, this%dofs_objects_gids, __FILE__, __LINE__)
+  call memalloc (number_dofs_object, this%vefs_gids_dofs_objects, __FILE__, __LINE__)
   call memalloc (number_dofs_object, dof2vef_object, __FILE__, __LINE__)
   call this%dofs_objects_per_field(field_id)%create(n=number_dofs_object)
   current_dof_object = 1
@@ -1083,6 +1085,7 @@ subroutine par_fe_space_compute_dofs_objects_by_continuity ( this, field_id )
     end do
     if ( number_dofs_on_vef_object > 0 ) then
        this%dofs_objects_gids(offset + current_dof_object) = this%par_triangulation%objects_gids(iobj_vef)
+       this%vefs_gids_dofs_objects(offset + current_dof_object) = this%par_triangulation%objects_gids(iobj_vef)
        dof2vef_object(current_dof_object) = iobj_vef
        call this%dofs_objects_per_field(field_id)%sum_to_pointer_index(current_dof_object, number_dofs_on_vef_object)
        current_dof_object = current_dof_object + 1
@@ -1144,7 +1147,7 @@ subroutine par_fe_space_setup_coarse_fe_space(this)
    call memalloc (0, coarse_dofs_gids_recv_counts, __FILE__, __LINE__)
    call memalloc (0, coarse_dofs_gids_displs, __FILE__, __LINE__)
 
-  ! L2 tasks gather from L1 tasks all raw data required to set-up the coarse triangulation on L2 tasks
+  ! L2 tasks gather from L1 tasks all raw data required to set-up the coarse fe space on L2 tasks
   if ( this%par_triangulation%p_env%am_i_l1_to_l2_task() ) then
      call this%par_triangulation%p_env%l1_to_l2_transfer(this%number_fe_spaces, number_fields) 
      call this%transfer_field_type(number_fields, field_type)
@@ -1303,8 +1306,8 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
                                                            displs          = displs, &
                                                            output_data     = vef_gids )
     else
-      call this%par_triangulation%p_env%l2_from_l1_gather( input_data_size = size(this%dofs_objects_gids), &
-                                                           input_data      = this%dofs_objects_gids, &
+      call this%par_triangulation%p_env%l2_from_l1_gather( input_data_size = size(this%vefs_gids_dofs_objects), &
+                                                           input_data      = this%vefs_gids_dofs_objects, &
                                                            recv_counts     = dummy_integer_array_ip, &
                                                            displs          = dummy_integer_array_ip, &
                                                            output_data     = dummy_integer_array_igp )

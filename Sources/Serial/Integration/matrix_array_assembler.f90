@@ -40,7 +40,6 @@ module matrix_array_assembler_names
      class(matrix_t), pointer :: matrix
      class(array_t) , pointer :: array
    contains
-     procedure(matrix_array_assembler_compress_storage_interface), deferred :: compress_storage
      procedure :: set_matrix       => matrix_array_assembler_set_matrix
      procedure :: set_array        => matrix_array_assembler_set_array
      procedure :: allocate_array   => matrix_array_assembler_allocate_array
@@ -51,17 +50,7 @@ module matrix_array_assembler_names
      procedure :: get_matrix       => matrix_array_assembler_get_matrix
      procedure :: get_array        => matrix_array_assembler_get_array
   end type matrix_array_assembler_t
-		
-		abstract interface
-		   subroutine matrix_array_assembler_compress_storage_interface ( this, sparse_matrix_storage_format )
-       import :: matrix_array_assembler_t
-       implicit none 
-       class(matrix_array_assembler_t), intent(inout) :: this 
-       character(*)                      , intent(in)    :: sparse_matrix_storage_format 
-     end subroutine matrix_array_assembler_compress_storage_interface
-		end interface
-		
-	 
+		 
   ! Data types
   public :: matrix_array_assembler_t
   
