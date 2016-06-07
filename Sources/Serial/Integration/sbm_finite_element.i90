@@ -232,6 +232,47 @@ subroutine finite_element_fill_dofs_face_integration_coupling ( this, face_local
   end do
 end subroutine finite_element_fill_dofs_face_integration_coupling
 
+! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
+subroutine finite_element_renumber_dofs_block ( this, block_id, perm_old2new )
+  implicit none
+  ! Parameters
+  class(finite_element_t), intent(inout) :: this
+  integer(ip)               , intent(in) :: block_id
+  ! No way to know the size of perm_old2new() within the local scope
+  ! of class(finite_element_t). This is why I used an assumed-size dummy
+  ! argument in this context. This will be solved in the future whenever
+  ! class(finite_element_t) also has access to the whole mesh-like container.
+  integer(ip)               , intent(in) :: perm_old2new(*)
+  integer(ip)                            :: field_id
+  assert ( block_id >= 1 .and. block_id <= this%number_blocks )
+  do field_id=1, this%number_fe_spaces
+    if ( this%field_blocks(field_id) == block_id ) then
+      call this%renumber_dofs_field( field_id, perm_old2new )
+    end if
+  end do 
+end subroutine finite_element_renumber_dofs_block
+
+! Renumbers the DoF identifiers corresponding to field with identifier field_id
+subroutine finite_element_renumber_dofs_field ( this, field_id, perm_old2new )
+  implicit none
+  ! Parameters
+  class(finite_element_t), intent(inout) :: this
+  integer(ip)               , intent(in) :: field_id
+  ! No way to know the size of perm_old2new() within the local scope
+  ! of class(finite_element_t). This is why I used an assumed-size dummy
+  ! argument in this context. This will be solved in the future whenever
+  ! class(finite_element_t) also has access to the whole mesh-like container.
+  integer(ip)               , intent(in) :: perm_old2new(*)
+  integer(ip) :: idof
+  
+  assert ( field_id >= 1 .and. field_id <= this%number_fe_spaces )
+  do idof = 1, this%reference_fe_phy(field_id)%p%get_number_nodes()
+    if ( this%elem2dof(field_id)%p(idof) > 0 ) then
+      this%elem2dof(field_id)%p(idof) = perm_old2new(this%elem2dof(field_id)%p(idof))
+    end if
+  end do
+end subroutine finite_element_renumber_dofs_field
+
 function finite_element_get_number_nodes ( this )
   implicit none
   class(finite_element_t), intent(in) :: this

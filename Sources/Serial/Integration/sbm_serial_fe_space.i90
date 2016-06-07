@@ -231,6 +231,19 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id )
        this%number_dofs_per_field(fe_space_id)     
 end subroutine serial_fe_space_fill_elem2dof_and_count_dofs
 
+subroutine serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: block_id
+  integer(ip)             , intent(in)    :: perm_old2new(this%number_dofs_per_block(block_id))
+  integer(ip)                             :: ielem
+  
+  do ielem = 1, this%get_number_elements()
+    call this%fe_array(ielem)%renumber_dofs_block ( block_id, perm_old2new )
+  end do
+  
+end subroutine serial_fe_space_renumber_dofs_block
+
 subroutine serial_fe_space_free( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this

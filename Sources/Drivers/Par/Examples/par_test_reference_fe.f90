@@ -360,7 +360,7 @@ program par_test_reference_fe
   reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = 2, &
-                                                   order = 2, &
+                                                   order = 1, &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
   
@@ -386,6 +386,10 @@ program par_test_reference_fe
   !                                   fe_space_component = 2 )
   
   call par_fe_space%fill_dof_info()
+  call par_fe_space%print()
+  call par_fe_space%renumber_dofs_first_I_then_G()
+  call par_fe_space%print()
+
     
   call fe_affine_operator%create (sparse_matrix_storage_format=csr_format, &
                                   diagonal_blocks_symmetric_storage=(/.true./), &
@@ -408,10 +412,10 @@ program par_test_reference_fe
   call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
   call iterative_linear_solver%free() 
   
-  !select type(dof_values)
-  !  type is (par_scalar_array_t)
-  !    call dof_values%print(6)
-  !end select
+  select type(dof_values)
+    type is (par_scalar_array_t)
+      call dof_values%print(6)
+  end select
   
   !call p_fe_space%par_fe_space_print()
   

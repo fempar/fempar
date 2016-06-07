@@ -178,6 +178,9 @@ subroutine par_fe_space_print ( this )
            write(*,*) this%ghost_fe_array(i)%elem2dof(j)%p
         end do
      end do
+     do i = 1, this%number_blocks
+       call this%blocks_dof_import(i)%print(6)
+     end do
   end if
 
   !do i  = 1, this%triangulation%number_interior_faces
@@ -189,7 +192,6 @@ subroutine par_fe_space_print ( this )
   !end do
 
 end subroutine par_fe_space_print
-
 
 subroutine par_fe_space_fill_dof_info( this )
   implicit none
@@ -276,6 +278,37 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id )
   this%number_dofs_per_block(iblock) = this%number_dofs_per_block(iblock) + &
        (current_dof_block - init_dof_block) 
 end subroutine par_fe_space_fill_elem2dof_and_count_dofs
+
+subroutine par_fe_space_renumber_dofs_first_I_then_G( this )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this 
+  integer(ip) :: iblock
+  integer(ip), allocatable :: perm_old2new_block(:)
+  assert ( associated (this%par_triangulation) )
+  if ( this%par_triangulation%p_env%am_i_l1_task() ) then
+    do iblock=1, this%get_number_blocks()
+      call memalloc (this%number_dofs_per_block(iblock), perm_old2new_block, __FILE__, __LINE__)
+      call this%blocks_dof_import(iblock)%fill_first_I_then_G_renumbering(perm_old2new_block)
+      call this%renumber_dofs_block(iblock, perm_old2new_block)
+      call this%blocks_dof_import(iblock)%renumber_dofs(perm_old2new_block)
+      call memfree (perm_old2new_block, __FILE__, __LINE__)
+    end do
+  end if
+end subroutine par_fe_space_renumber_dofs_first_I_then_G
+
+subroutine par_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
+  implicit none
+  class(par_fe_space_t)   , intent(inout) :: this
+  integer(ip)             , intent(in)    :: block_id
+  integer(ip)             , intent(in)    :: perm_old2new(this%number_dofs_per_block(block_id))
+  integer(ip)                             :: ighost
+  assert ( associated (this%par_triangulation) )
+  assert ( this%par_triangulation%p_env%am_i_l1_task() )
+  call this%serial_fe_space_t%renumber_dofs_block(block_id, perm_old2new)
+  do ighost = 1, this%par_triangulation%num_ghosts
+    call this%ghost_fe_array(ighost)%renumber_dofs_block( block_id, perm_old2new )         
+  end do
+end subroutine par_fe_space_renumber_dofs_block
 
 subroutine par_fe_space_compute_blocks_dof_import ( this )
   implicit none
@@ -1118,8 +1151,6 @@ subroutine par_fe_space_compute_dofs_objects_by_continuity ( this, field_id )
        call vefs_object_iterator%next()
     end do
   end do
-   
-  write(*,*) 'XXX', ' num_dofs_objects ', field_id, this%num_dofs_objects_per_field(field_id)
   call this%dofs_objects_per_field(field_id)%print(6)
   call memfree (dof2vef_object,  __FILE__, __LINE__)
 end subroutine par_fe_space_compute_dofs_objects_by_continuity

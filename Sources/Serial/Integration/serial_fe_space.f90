@@ -121,6 +121,8 @@ module serial_fe_space_names
      procedure, non_overridable, private :: fill_own_dofs_on_vef => finite_element_fill_own_dofs_on_vef
      procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_element => finite_element_fill_own_dofs_on_vef_from_source_element
      procedure, non_overridable, private :: fill_dofs_face_integration_coupling => finite_element_fill_dofs_face_integration_coupling
+     procedure, non_overridable, private :: renumber_dofs_block => finite_element_renumber_dofs_block
+     procedure, non_overridable, private :: renumber_dofs_field => finite_element_renumber_dofs_field
      
      procedure, non_overridable :: get_number_nodes => finite_element_get_number_nodes
      procedure, non_overridable :: get_fe_map => finite_element_get_fe_map
@@ -214,6 +216,7 @@ module serial_fe_space_names
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs => serial_fe_space_set_up_strong_dirichlet_bcs
      procedure                  :: fill_dof_info => serial_fe_space_fill_dof_info
      procedure                 , private :: fill_elem2dof_and_count_dofs => serial_fe_space_fill_elem2dof_and_count_dofs
+     procedure                 , private :: renumber_dofs_block => serial_fe_space_renumber_dofs_block
      procedure                  :: free => serial_fe_space_free
      procedure                  :: print => serial_fe_space_print
      procedure, non_overridable :: initialize_integration => serial_fe_space_initialize_integration
@@ -489,6 +492,8 @@ module serial_fe_space_names
      generic                             :: create                                          => par_fe_space_create
      procedure                           :: fill_dof_info                                   => par_fe_space_fill_dof_info
      procedure                 , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
+     procedure                           :: renumber_dofs_first_I_then_G                    => par_fe_space_renumber_dofs_first_I_then_G
+     procedure                 , private :: renumber_dofs_block                             => par_fe_space_renumber_dofs_block
      procedure, non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
      procedure, non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
      procedure, non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
