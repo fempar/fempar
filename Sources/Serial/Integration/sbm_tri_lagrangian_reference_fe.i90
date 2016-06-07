@@ -83,11 +83,11 @@ end subroutine tri_lagrangian_reference_fe_create_face_quadrature
 subroutine tri_lagrangian_reference_fe_create_interpolation ( this, quadrature, interpolation, compute_hessian )
   implicit none 
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(quadrature_t)               , intent(in)     :: quadrature
-  type(interpolation_t)            , intent(inout) :: interpolation
-  logical,                    optional, intent(in)     :: compute_hessian
+  type(quadrature_t)                  , intent(in)    :: quadrature
+  type(interpolation_t)               , intent(inout) :: interpolation
+  logical,                    optional, intent(in)    :: compute_hessian
 
-  integer(ip) :: nlocs, ntens, i
+  integer(ip) :: ntens, i
 
   ntens = 0
   do i = 1, this%number_dimensions
@@ -96,11 +96,9 @@ subroutine tri_lagrangian_reference_fe_create_interpolation ( this, quadrature, 
 
   call interpolation%create( this%number_dimensions, this%number_nodes_scalar, &
                              quadrature%number_quadrature_points, ntens, compute_hessian )
-
-  nlocs = int(real(quadrature%number_quadrature_points)**(1.0_rp/real(this%number_dimensions)))
   
-  call P_fill_interpolation( interpolation, this%order, this%number_dimensions, &
-                           nlocs, ntens, quadrature%coordinates )
+  call P_fill_interpolation( interpolation, this%order, quadrature%coordinates )
+  
 end subroutine tri_lagrangian_reference_fe_create_interpolation
 
 !==================================================================================================
@@ -150,8 +148,8 @@ subroutine tri_lagrangian_reference_fe_create_face_local_interpolation ( this, q
 
   ! Fill the values with the common routine for filling an interpolation
   nlocs = int(real(quadrature%number_quadrature_points)**(1.0_rp/real( number_dimensions_face)))
-  call P_fill_interpolation( interpolation, face_order, number_dimensions_face, &
-                           nlocs, 0, quadrature%coordinates )
+  !call P_fill_interpolation( interpolation, face_order, number_dimensions_face, &
+  !                         nlocs, 0, quadrature%coordinates )
 
 end subroutine tri_lagrangian_reference_fe_create_face_local_interpolation
 
@@ -500,7 +498,7 @@ subroutine tri_lagrangian_reference_fe_fill (this)
   
   do dimension = 1, this%number_dimensions-1
   
-     this%number_rotations_per_dimension(dimension) = 2**(dimension)
+     this%number_rotations_per_dimension(dimension) = dimension + 1
      this%number_orientations_per_dimension(dimension) = dimension
      
      if ( this%continuity ) then
@@ -511,6 +509,7 @@ subroutine tri_lagrangian_reference_fe_fill (this)
        call this%fill_interior_points_permutation(dimension,             &
                                                   number_interior_nodes, &
                                                   this%own_node_permutations(dimension)%a)
+       
      end if
   
   end do
@@ -968,19 +967,6 @@ integer (ip) function P_bnm(a,b)
      check(.false.)
   end if
 end function P_bnm
-
-!==================================================================================================
-! Q_GIJK(i,nd,p) returns the generic identifier of a node with coordinates i in an elem(nd,p)
-!Given the coordinates ijk (in i) and the dimension nd and the order p of the 
-!tri, it returns the local numbering of the node: P_gijk=i+j*(p+1)+k*(p+1)^2
-integer(ip) function P_gijk(i,nd,p)
-  implicit none
-  integer(ip) :: nd,i(nd),p,k
-  P_gijk = 1
-  do k = 1,nd
-     P_gijk = P_gijk + i(k)*((p+1)**(k-1))
-  end do
-end function  P_gijk
 
 !==================================================================================================
 subroutine P_orientation_vef(o,od,nd,io)
@@ -1555,30 +1541,41 @@ subroutine P_fill_nodal_quadrature ( quadrature, order )
 
 end subroutine P_fill_nodal_quadrature
 
-subroutine P_fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coord_ip ) !ndime,ngaus,posgp,weigp)
+subroutine P_fill_interpolation ( interpolation, order, coord_ip ) 
   implicit none 
   type(interpolation_t), intent(inout) :: interpolation
-  integer(ip), intent(in) :: order, ndime, nlocs, ntens
-  real(rp), intent(in) :: coord_ip(:,:)
+  integer(ip)          , intent(in)    :: order
+  real(rp)             , intent(in)    :: coord_ip(:,:)
 
-  logical :: khes
-  real(rp)    :: coord(order+1),shpe1(order+1,nlocs),shpd1(order+1,nlocs),shph1(order+1,nlocs)
+  logical     :: khes
+  integer(ip) :: iquad
 
   khes = .false.
   if ( allocated( interpolation%hessian ) ) then 
      khes = .true.
   end if
 
-  ! Set the coordenades of the nodal points
-  call P_coord_1d(coord,order+1)
-  ! Compute the 1d shape function on the gauss points
-  call P_shape1(coord_ip(1,:),order,nlocs,coord,shpe1,shpd1,shph1,khes)
-
   if ( allocated( interpolation%hessian ) )  then 
-     call P_shapen(interpolation%shape_functions,interpolation%shape_derivatives,shpe1,shpd1,shph1,ndime,order,nlocs,ntens,khes,interpolation%hessian)
+     do iquad = 1,interpolation%number_quadrature_points
+        call evaluate_shape_functions_and_derivatives( coord_ip(:,iquad),                             &
+                                                       interpolation%number_dimensions,               &
+                                                       interpolation%number_shape_functions,          &
+                                                       interpolation%number_entries_symmetric_tensor, &
+                                                       interpolation%shape_functions(:,iquad),        &
+                                                       interpolation%shape_derivatives(:,:,iquad),    &
+                                                       interpolation%hessian(:,:,iquad) )
+     end do
   else
-     call P_shapen(interpolation%shape_functions,interpolation%shape_derivatives,shpe1,shpd1,shph1,ndime,order,nlocs,ntens,khes)
+     do iquad = 1,interpolation%number_quadrature_points
+        call evaluate_shape_functions_and_derivatives( coord_ip(:,iquad),                             &
+                                                       interpolation%number_dimensions,               &
+                                                       interpolation%number_shape_functions,          &
+                                                       interpolation%number_entries_symmetric_tensor, &
+                                                       interpolation%shape_functions(:,iquad),        &
+                                                       interpolation%shape_derivatives(:,:,iquad) )
+     end do
   end if
+  
 end subroutine P_fill_interpolation
 
 !==================================================================================================
@@ -1607,158 +1604,230 @@ end subroutine P_reference_coordinates
 
 !==================================================================================================
 subroutine P_coord_1d (x,n)
-  implicit none
-  ! Parameters
-  integer(ip), intent(in)  :: n
-  real(rp)   , intent(out) :: x(n)
+    implicit none
+    ! Parameters
+    integer(ip), intent(in)  :: n
+    real(rp)   , intent(out) :: x(n)
 
-  ! Local variables
-  integer(ip)              :: i
+    ! Local variables
+    integer(ip)              :: i
 
-  do i = 0,n-1
-     x(i+1) = 2*real(i)/(real(n)-1)-1
-  end do
+    do i = 0,n-1
+       x(i+1) = real(i)/(real(n)-1)
+    end do
 end subroutine P_coord_1d
 
-! ===================================================================================================
-! Compute the shape function and its derivative
-subroutine P_shape1(xg,p,ng,xn,shpe1,shpd1,shph1,khes)
-  implicit none
-  integer(ip), intent(in)  :: p,ng
-  logical, intent(in)      :: khes
-  real(rp),    intent(in)  :: xn(p+1),xg(ng)
-  real(rp),    intent(out) :: shpe1(p+1,ng),shpd1(p+1,ng),shph1(p+1,ng)
-  integer(ip)              :: i,j,k,m,ig
-  real(rp)                 :: aux, aux2, aux3, auxv(ng),auxv2(ng),auxv3(ng)
-
-  shpe1 = 1.0_rp
-  shpd1 = 0.0_rp
-  shph1 = 0.0_rp
-  do i = 1,p+1
-     do j = 1,p+1
-        if (j /= i) then
-           aux = 1/(xn(i)-xn(j)) 
-           auxv = 1/(xn(i)-xn(j))
-           if (khes ) auxv3 = 0
-           do k = 1,p+1
-              if (k /= j .and. k /= i) then
-                 aux2 = 1/(xn(i)-xn(k))
-                 if (khes ) auxv2 = 1/(xn(i)-xn(k))
-                 do ig = 1,ng
-                    auxv(ig) = auxv(ig)*(xg(ig)-xn(k))*aux2
-                 end do
-                 if (khes ) then
-                    do m = 1, p+1
-                       if (m/=k .and. m/= j .and. m /= i) then
-                          aux3 = 1/(xn(i)-xn(m))
-                          do ig = 1,ng
-                             auxv2(ig) = auxv2(ig)*(xg(ig)-xn(m))*aux3
-                          end do
-                       end if
-                    end do
-                 end if
-                 auxv3 = auxv3+auxv2
-              end if
-           end do
-           do ig = 1,ng
-              shpe1(i,ig) = shpe1(i,ig)*(xg(ig)-xn(j))*aux
-              shpd1(i,ig) = shpd1(i,ig) + auxv(ig)
-              shph1(i,ig) = shph1(i,ig) + auxv3(ig)*aux
-           end do
-        end if
-     end do
-  end do
-end subroutine P_shape1
-
-
 !==================================================================================================
-subroutine P_shapen (shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
+subroutine evaluate_shape_functions_and_derivatives(coord,ndime,nnode,ntens,shape,deriv,heslo)
+  !-----------------------------------------------------------------------
+  !
+  ! This routine evaluates shape functions and their first and second
+  ! derivatives for 2D or 3D continuos standard interpolation elements.
+  !
+  !    TRIANGLES       3   6  &  10  nodes
+  !    TETRAHEDRA          4  &  10  nodes
+  !
+  !-----------------------------------------------------------------------
   implicit none
-  ! Parameters
-  integer(ip)       , intent(in)  :: nd,p,ng,nt
-  logical, intent(in)      :: khes
-  real(rp)          , intent(in)  :: s1(p+1,ng),sd1(p+1,ng),sdd1(p+1,ng)
-  !real(rp)          , intent(out) :: shape((p+1)**nd,ng**nd)
-  !real(rp)          , intent(out) :: deriv(nd,(p+1)**nd,ng**nd)
-  !real(rp), optional, intent(out) :: hessi(nt,(p+1)**nd,ng**nd)
-  real(rp)          , intent(inout) :: shape(:,:)
-  real(rp)          , intent(inout) :: deriv(:,:,:)
-  real(rp), optional, intent(inout) :: hessi(:,:,:)
-
-
-  ! Local variables
-  integer(ip)              :: i,ig,d,d2,d3,it
-  integer(ip)              :: ijk(nd),ijkg(nd),permu(nt)
-
-  ! The presumed order of the varibles in the hessian is not the one obtained by generation
-  if (nd == 2) then
-     permu = (/ 1, 3, 2 /)
-  elseif (nd == 3) then
-     permu = (/ 1, 4, 5, 2, 6, 3/)
-  end if
-
-  ! Initialize values
-  shape = 0.0_rp
-  deriv = 0.0_rp
-  if ( khes ) hessi = 0.0_rp
-
-  ! Initialize nodal coordinates vector
-  ijk = 0; ijk(1) = -1
-  do i = 1,(p+1)**nd
-
-     ! Set coordinates of node i 
-     call P_ijkg(ijk,i,nd,p)
-
-     ! Initialize Gauss point coordinates vector
-     ijkg = 0; ijkg(1) = -1
-     do ig = 1,ng**nd
-
-        ! Set coordinates of Gauss point ig 
-        call P_ijkg(ijkg,ig,nd,ng-1)
-
-        ! Initialize shape
-        shape(i,ig) = 1.0_rp
-        it = 0
-        do d = 1,nd
-           ! Shape is the tensor product 1d shape: s_ijk(x,y,z) = s_i(x)*s_j(y)*s_k(z)
-           shape(i,ig) = shape(i,ig)*s1(ijk(d)+1,ijkg(d)+1)
-
-           ! Initialize deriv and hessi
-           deriv(d,i,ig) = 1.0_rp
-           it = it+1
-           if (khes ) hessi(permu(it),i,ig)= 1.0_rp
-
-           ! Deriv: d(s_ijk)/dx (x,y,z) = s'_i(x)*s_j(y)*s_k(z)
-           ! Hessi: d2(s_ijk)/dx2 (x,y,z) = s''_i(x)*s_j(y)*s_k(z)
-           do d2 = 1,nd
-              if (d2 /= d) then
-                 deriv( d,i,ig) = deriv( d,i,ig)*s1(ijk(d2)+1,ijkg(d2)+1)
-                 if ( khes ) hessi(permu(it),i,ig)=hessi(permu(it),i,ig)*s1(ijk(d2)+1,ijkg(d2)+1)
-              else
-                 deriv( d,i,ig) = deriv( d,i,ig)* sd1(ijk(d)+1,ijkg(d)+1)  
-                 if (khes ) hessi(permu(it),i,ig)=hessi(permu(it),i,ig)*sdd1(ijk(d)+1,ijkg(d)+1)             
-              end if
+  real(rp)             , intent(in)    :: coord(:)
+  integer(ip)          , intent(in)    :: ndime,nnode,ntens
+  real(rp)             , intent(inout) :: shape(:),deriv(:,:)
+  real(rp)   , optional, intent(inout) :: heslo(:,:)
+  integer(ip) :: i
+  real(rp)    :: a1,a2,a3,a4,c
+  if(ndime==2) then
+     ! Linear triangle
+     if(nnode==3) then     
+        shape(1)=1.0_rp-coord(1)-coord(2)                                
+        shape(2)=coord(1)                                  
+        shape(3)=coord(2)                                           
+        deriv(1,1)=-1.0_rp                                   !  3 
+        deriv(1,2)= 1.0_rp                                   !
+        deriv(1,3)= 0.0_rp                                   !
+        deriv(2,1)=-1.0_rp                                   !         
+        deriv(2,2)= 0.0_rp                                   !  1       2
+        deriv(2,3)= 1.0_rp
+     ! Quadratic triangle
+     else if(nnode==6) then
+        a1=1.0_rp-coord(1)-coord(2)
+        a2=coord(1)                                             
+        a3=coord(2)
+        shape( 1)=(2.0_rp*a1-1.0_rp)*a1                      !  6
+        shape( 3)=(2.0_rp*a2-1.0_rp)*a2                      !   
+        shape( 6)=(2.0_rp*a3-1.0_rp)*a3                      !   
+        shape( 2)=4.0_rp*a1*a2                               !  4      5
+        shape( 5)=4.0_rp*a2*a3                               !     
+        shape( 4)=4.0_rp*a1*a3                               !                                !  1     2     3
+        deriv(1,1)= 1.0_rp-4.0_rp*a1                        
+        deriv(1,3)= 4.0_rp*a2-1.0_rp    
+        deriv(1,6)= 0.0_rp           
+        deriv(1,2)= 4.0_rp*(a1-a2)   
+        deriv(1,5)= 4.0_rp*a3        
+        deriv(1,4)=-4.0_rp*a3       
+        deriv(2,1)= 1.0_rp-4.0_rp*a1    
+        deriv(2,3)= 0.0_rp           
+        deriv(2,6)= 4.0_rp*a3-1.0_rp    
+        deriv(2,2)=-4.0_rp*a2       
+        deriv(2,5)= 4.0_rp*a2        
+        deriv(2,4)= 4.0_rp*(a1-a3)
+        if (present(heslo)) then
+           heslo(1,1)= 4.0_rp
+           heslo(1,3)= 4.0_rp
+           heslo(1,2)=-8.0_rp
+           heslo(2,1)= 4.0_rp
+           heslo(2,6)= 4.0_rp
+           heslo(2,4)=-8.0_rp
+           heslo(3,1)= 4.0_rp
+           heslo(3,2)=-4.0_rp
+           heslo(3,5)= 4.0_rp
+           heslo(3,4)=-4.0_rp
+        end if
+     ! Cubic triangle
+     else if(nnode==10) then
+        c=9.0_rp/2.0_rp
+        a1=1.0_rp-coord(1)-coord(2)
+        a2=2.0_rp/3.0_rp-coord(1)-coord(2)
+        a3=1.0_rp/3.0_rp-coord(1)-coord(2)
+        shape( 1)=c*a1*a2*a3                                 !  10
+        shape( 4)=c*(1.0_rp/3.0_rp-coord(1))*(2.0_rp/3.0_rp-coord(1))*coord(1)    !
+        shape(10)=c*(1.0_rp/3.0_rp-coord(2))*(2.0_rp/3.0_rp-coord(2))*coord(2)    !
+        shape( 2)= 3.0_rp*c*a1*a2*coord(1)                          !  8    9
+        shape( 3)=-3.0_rp*c*a1*(1.0_rp/3.0_rp-coord(1))*coord(1)           !
+        shape( 7)=-3.0_rp*c*(1.0_rp/3.0_rp-coord(1))*coord(1)*coord(2)            !
+        shape( 9)=-3.0_rp*c*coord(1)*(1.0_rp/3.0_rp-coord(2))*coord(2)            !  5    6     7
+        shape( 8)=-3.0_rp*c*a1*(1.0_rp/3.0_rp-coord(2))*coord(2)           !
+        shape( 5)= 3.0_rp*c*a1*a2*coord(2)                          !
+        shape( 6)= 6.0_rp*c*a1*coord(1)*coord(2)                           !  1    2    3    4
+        deriv(1, 1)=-c*(a1*a2+a1*a3+a2*a3)       
+        deriv(1, 4)=-c*((2.0_rp/3.0_rp-coord(1))*coord(1)&
+             + (1.0_rp/3.0_rp-coord(1))*coord(1)-(1.0_rp/3.0_rp-coord(1))*(2.0_rp/3.0_rp-coord(1)))
+        deriv(1, 10)=0.0_rp
+        deriv(1, 2)= 3.0_rp*c*(a1*a2-a1*coord(1)-a2*coord(1))
+        deriv(1, 3)=-3.0_rp*c*(a1*(1.0_rp/3.0_rp-coord(1))&
+             - a1*coord(1)-(1.0_rp/3.0_rp-coord(1))*coord(1))
+        deriv(1, 7)=-3.0_rp*c*((1.0_rp/3.0_rp-coord(1))*coord(2)-coord(1)*coord(2))
+        deriv(1, 9)=-3.0_rp*c*((1.0_rp/3.0_rp-coord(2))*coord(2))
+        deriv(1, 8)= 3.0_rp*c*((1.0_rp/3.0_rp-coord(2))*coord(2))
+        deriv(1, 5)= 3.0_rp*c*(-a1*coord(2)-a2*coord(2))
+        deriv(1,6)= 6.0_rp*c*(a1*coord(2)-coord(1)*coord(2))
+        deriv(2, 1)=-c*(a1*a2+a1*a3+a2*a3)
+        deriv(2, 4)= 0.0_rp
+        deriv(2, 10)=-c*((2.0_rp/3.0_rp-coord(2))*coord(2)&
+             + (1.0_rp/3.0_rp-coord(2))*coord(2)-(1.0_rp/3.0_rp-coord(2))*(2.0_rp/3.0_rp-coord(2)))
+        deriv(2, 2)= 3.0_rp*c*(-a1*coord(1)-a2*coord(1))
+        deriv(2, 3)=-3.0_rp*c*(-(1.0_rp/3.0_rp-coord(1))*coord(1))
+        deriv(2, 7)=-3.0_rp*c*((1.0_rp/3.0_rp-coord(1))*coord(1))
+        deriv(2, 9)=-3.0_rp*c*((1.0_rp/3.0_rp-coord(2))*coord(1)-coord(1)*coord(2))
+        deriv(2, 8)=-3.0_rp*c*(-(1.0_rp/3.0_rp-coord(2))*coord(2)&
+             - a1*coord(2)+a1*(1.0_rp/3.0_rp-coord(2)))
+        deriv(2, 5)= 3.0_rp*c*(-a1*coord(2)-a2*coord(2)+a1*a2)
+        deriv(2,6)= 6.0_rp*c*(a1*coord(1)-coord(1)*coord(2))
+        if (present(heslo)) then
+           heslo(1, 1)= c*2.0_rp*(a1+a2+a3) 
+           heslo(1, 4)= c*(6.0_rp*coord(1)-2.0_rp) 
+           heslo(1, 10)= 0.0_rp 
+           heslo(1, 2)= c*( 18.0_rp*coord(1)+12.0_rp*coord(2)-10.0_rp)
+           heslo(1, 3)= c*(-18.0_rp*coord(1)- 6.0_rp*coord(2)+ 8.0_rp)
+           heslo(1, 7)= c*6.0_rp*coord(2) 
+           heslo(1, 9)= 0.0_rp 
+           heslo(1, 8)= 0.0_rp  
+           heslo(1, 5)= c*6.0_rp*coord(2) 
+           heslo(1,6)=-c*12.0_rp*coord(2) 
+           heslo(2, 1)= c*2.0_rp*(a1+a2+a3) 
+           heslo(2, 4)= 0.0_rp 
+           heslo(2, 10)= c*(6.0_rp*coord(2)-2.0_rp) 
+           heslo(2, 2)= c*6.0_rp*coord(1)
+           heslo(2, 3)= 0.0_rp
+           heslo(2, 7)= 0.0_rp
+           heslo(2, 9)= c*6.0_rp*coord(1)
+           heslo(2, 8)= c*( -6.0_rp*coord(1)-18.0*coord(2)+ 8.0_rp)
+           heslo(2, 5)= c*( 12.0_rp*coord(1)+18.0*coord(2)-10.0_rp)
+           heslo(2,6)=-c*12.0_rp*coord(1)
+           heslo(3, 1)= 2.0_rp*c*(a1+a2+a3) 
+           heslo(3, 4)= 0.0_rp  
+           heslo(3, 10)= 0.0_rp 
+           heslo(3, 2)= c*( 12.0_rp*coord(1)+6.0_rp*coord(2)-5.0_rp) 
+           heslo(3, 3)= c*(- 6.0_rp*coord(1)+1.0_rp) 
+           heslo(3, 7)= c*(  6.0_rp*coord(1)-1.0_rp) 
+           heslo(3, 9)= c*(  6.0_rp*coord(2)-1.0_rp) 
+           heslo(3, 8)= c*(- 6.0_rp*coord(2)+1.0_rp)  
+           heslo(3, 5)= c*(  6.0_rp*coord(1)+12.0_rp*coord(2)-5.0_rp) 
+           heslo(3,6)= c*(-12.0_rp*coord(1)-12.0_rp*coord(2)+6.0_rp) 
+        end if
+     end if
+  elseif (ndime==3) then
+     ! Linear tetrahedron 
+     if(nnode==4) then
+        shape(   1) = 1.0_rp-coord(1)-coord(2)-coord(3)
+        shape(   2) = coord(1)
+        shape(   3) = coord(2)
+        shape(   4) = coord(3)
+        deriv(1, 1) =-1.0_rp
+        deriv(2, 1) =-1.0_rp
+        deriv(3, 1) =-1.0_rp
+        deriv(3, 4) = 1.0_rp
+        deriv(1, 2) = 1.0_rp
+        deriv(2, 3) = 1.0_rp
+     ! Quadratic tetrahedron 
+     else if(nnode==10) then
+        a1= 1.0_rp-coord(1)-coord(2)-coord(3)
+        a2=coord(1)
+        a3=coord(2)
+        a4=coord(3)
+        shape(   1) = (2.0_rp*a1-1.0_rp)*a1
+        deriv(1, 1) = 1.0_rp-4.0_rp*a1
+        deriv(2, 1) = 1.0_rp-4.0_rp*a1
+        deriv(3, 1) = 1.0_rp-4.0_rp*a1
+        shape(   3) = (2.0_rp*a2-1.0_rp)*a2
+        deriv(1, 3) = 4.0_rp*a2-1.0_rp
+        shape(   6) = (2.0_rp*a3-1.0_rp)*a3
+        deriv(2, 6) = 4.0_rp*a3-1.0_rp
+        shape(  10) = (2.0_rp*a4-1.0_rp)*a4
+        deriv(3,10) = 4.0_rp*a4-1.0_rp
+        shape(   2) = 4.0_rp*a1*a2
+        deriv(1, 2) = 4.0_rp*(a1-a2)
+        deriv(2, 2) =-4.0_rp*a2
+        deriv(3, 2) =-4.0_rp*a2
+        shape(   5) = 4.0_rp*a2*a3
+        deriv(1, 5) = 4.0_rp*a3
+        deriv(2, 5) = 4.0_rp*a2
+        shape(   4) = 4.0_rp*a1*a3
+        deriv(1, 4) =-4.0_rp*a3
+        deriv(2, 4) = 4.0_rp*(a1-a3)
+        deriv(3, 4) =-4.0_rp*a3
+        shape(   7) = 4.0_rp*a1*a4
+        deriv(1, 7) =-4.0_rp*a4
+        deriv(2, 7) =-4.0_rp*a4
+        deriv(3, 7) = 4.0_rp*(a1-a4)
+        shape(   8) = 4.0_rp*a2*a4
+        deriv(1, 8) = 4.0_rp*a4
+        deriv(3, 8) = 4.0_rp*a2
+        shape(   9) = 4.0_rp*a3*a4
+        deriv(2, 9) = 4.0_rp*a4
+        deriv(3, 9) = 4.0_rp*a3
+        if (present(heslo)) then
+           do i = 1,6
+              heslo(i, 1) = 4.0_rp
            end do
-
-           if ( khes ) then
-              ! Hessi: d2(s_ijk)/dxdy (x,y,z) = s'_i(x)*s'_j(y)*s_k(z)
-              do d2 = d+1,nd
-                 it = it+1
-                 hessi(permu(it),i,ig) = 1.0_rp
-                 do d3 = 1,nd
-                    if (d3 /= d .and. d3 /= d2) then
-                       hessi(permu(it),i,ig) = hessi(permu(it),i,ig)*s1(ijk(d3)+1,ijkg(d3)+1)
-                    else
-                       hessi(permu(it),i,ig) = hessi(permu(it),i,ig)*sd1(ijk(d3)+1,ijkg(d3)+1)             
-                    end if
-                 end do
-              end do
-           end if
-
-        end do
-     end do
-  end do
-end subroutine P_shapen
+           heslo(1, 3) = 4.0_rp
+           heslo(2, 6) = 4.0_rp
+           heslo(3,10) = 4.0_rp
+           heslo(1, 2) =-8.0_rp
+           heslo(4, 2) =-4.0_rp
+           heslo(5, 2) =-4.0_rp
+           heslo(4, 5) = 4.0_rp
+           heslo(2, 4) =-8.0_rp
+           heslo(4, 4) =-4.0_rp
+           heslo(6, 4) =-4.0_rp
+           heslo(3, 7) =-8.0_rp
+           heslo(5, 7) =-4.0_rp
+           heslo(6, 7) =-4.0_rp
+           heslo(5, 8) = 4.0_rp
+           heslo(6, 9) = 4.0_rp
+        end if
+     end if
+  end if
+end subroutine evaluate_shape_functions_and_derivatives
 
 !==================================================================================================
 ! P_IJKG(i,g,nd,p) returns coordinates of the g-th node in an elem(nd,p)
@@ -1810,15 +1879,34 @@ subroutine  P_permute_or_1d( o2n,p,r )
   end if
 end subroutine P_permute_or_1d
 
- !=================================================================================================
- subroutine  P_permute_or_2d( o2n,p,o,r )
-   implicit none
-   integer(ip), intent(in)    :: p,o,r
-   integer(ip), intent(inout) :: o2n(int(((p+1)**2+p+1)/2))
+!=================================================================================================
+subroutine  P_permute_or_2d( o2n,p,o,r )
+  implicit none
+  integer(ip), intent(in)    :: p,o,r
+  integer(ip), intent(inout) :: o2n(int(((p+1)**2+p+1)/2))
 
-   write(*,*) 'WARNING: P_permute_or_2d is still to be implemented'
-   
- end subroutine P_permute_or_2d
+  ! Local variables
+  integer(ip) :: o_r,i,j,ij_t(3)     ! ij_t = (i,j,p-i-j)
+  integer(ip) :: ij_n(2),go,gn
+  integer(ip) :: ij_perm_tet(2,6) = reshape((/ 1, 2, 2, 3, 3, 1, 2, 1, 3, 2, 1, 3/), (/2,6/) )
+
+  ! Generic loop+rotation identifier  
+  o_r = 3*(o-1)+r
+  do j = 0,p-1
+     ij_t(2) = j
+     do i = 0,p-j-1
+        ij_t(1) = i
+        ij_t(3) = p-i-j-1
+        ! Get the global numbering of node (i,j)
+        go = P_gijk(ij_t(1:2),2,p-1)
+        ! i,j coordinates for the o_r permutation
+        ij_n(1:2) = ij_t(ij_perm_tet(1:2,o_r)) 
+        ! Store the global numbering of node ij_n 
+        o2n(go) = P_gijk(ij_n,2,p-1)
+     end do
+  end do
+  
+end subroutine P_permute_or_2d
 
 !=================================================================================================
 ! P_NNODS(k,p) computes the #nodes in a simplex of dim k and order p
@@ -1935,7 +2023,7 @@ recursive subroutine ntxob_fill(ntxob,c3,ini,end,i,idm,nd,k,p,objec,nt)
   if (k==0) then
      ! Dimension 0: objec gives the coordinates of the corner
      ijk = p*objec(:,1)
-     ntxob(c3) = gijk(ijk,nd,p)
+     ntxob(c3) = P_gijk(ijk,nd,p)
      c3 = c3 + 1
   else
      ! Loop over the possible values of the i-th factor
@@ -1952,7 +2040,7 @@ recursive subroutine ntxob_fill(ntxob,c3,ini,end,i,idm,nd,k,p,objec,nt)
               ijk = ijk+idm(k-m+1)*objec(:,m+1)
            end do
            ! Store in ntxob the corresponding identifier of the node
-           ntxob(c3) = gijk(ijk,nd,p)
+           ntxob(c3) = P_gijk(ijk,nd,p)
            c3 = c3 + 1
         end if
      end do
@@ -1960,8 +2048,8 @@ recursive subroutine ntxob_fill(ntxob,c3,ini,end,i,idm,nd,k,p,objec,nt)
 end subroutine ntxob_fill
 
 !==================================================================================================
-! GIJK(i,nd,p) returns the generic identifier of a node with coordinates i in an elem(nd,p)
-integer(ip) function gijk(i,nd,p)
+! P_GIJK(i,nd,p) returns the generic identifier of a node with coordinates i in an elem(nd,p)
+integer(ip) function P_gijk(i,nd,p)
   implicit none
   integer(ip) :: nd, i(nd),p,k,q
 
@@ -1971,13 +2059,13 @@ integer(ip) function gijk(i,nd,p)
      stop
   end if
 
-  gijk = 1
+  P_gijk = 1
   do k =1,nd-1
      q = p-i(k+1)
-     gijk = gijk + pnods(k,q-i(k)+1,q)
+     P_gijk = P_gijk + pnods(k,q-i(k)+1,q)
   end do
-  gijk = gijk + pnods(k,p-i(nd)+1,p)
-end function gijk
+  P_gijk = P_gijk + pnods(k,p-i(nd)+1,p)
+end function P_gijk
 
 !==================================================================================================
 subroutine P_face_interpolation_shape_fill (this,face_interpolation,local_quadrature, local_face_id)

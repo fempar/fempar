@@ -2115,6 +2115,7 @@ subroutine permute_or_2d( o2n,p,o,r )
         o2n(go) = Q_gijk(ij_n,2,p-1)
      end do
   end do
+  
 end subroutine permute_or_2d
 
 !==================================================================================================
