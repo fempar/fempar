@@ -640,7 +640,7 @@ subroutine tri_lagrangian_reference_fe_set_nodal_quadrature (this)
   call this%nodal_quadrature%create(this%number_dimensions,this%number_nodes_scalar)
 
   ! Fill nodal quadrature
-  !call fill_nodal_quadrature ( this%nodal_quadrature ) ! TO BE IMPLEMENTED
+  call P_fill_nodal_quadrature ( this%nodal_quadrature, this%order )
 end subroutine tri_lagrangian_reference_fe_set_nodal_quadrature
 
 subroutine tri_lagrangian_reference_fe_set_scalar_field_to_nodal_values (this, code, values, &
@@ -1540,60 +1540,18 @@ subroutine P_fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
 end subroutine P_fill_quadrature
 
 !-----------------------------------------------------------------------
-subroutine P_fill_nodal_quadrature ( quadrature ) 
+subroutine P_fill_nodal_quadrature ( quadrature, order ) 
   implicit none
   type(quadrature_t), intent(inout)  :: quadrature
-  real(rp)                 :: posgl(20),weigl(20)
-  integer(ip)              :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,nquad
+  integer(ip)       , intent(in)     :: order
+  
+  integer(ip)              :: ndime,iquad,nquad
 
   ndime = quadrature%number_dimensions
   nquad = quadrature%number_quadrature_points
-
-  if(ndime==1) then
-     nlocs=nquad
-  else if(ndime==2) then
-     nlocs=nint(sqrt(real(nquad,rp)))
-  else
-     nlocs=nint(real(nquad,rp)**(1.0_rp/3.0_rp))
-  end if
-
-  posgl(1) = -1.0_rp
-  do ilocs=1,nlocs-1
-     posgl(ilocs+1) = -1.0_rp + ilocs*2.0_rp/(nlocs-1)
-  end do
-  weigl = 1.0_rp
-
-  if(ndime==1) then
-     qpoin=0
-     do ilocs=1,nlocs
-        qpoin=qpoin+1
-        quadrature%weight(  qpoin)=weigl(ilocs)
-        quadrature%coordinates(1,qpoin)=posgl(ilocs)
-     end do
-  else if(ndime==2) then
-     qpoin=0
-     do jlocs=1,nlocs
-        do ilocs=1,nlocs
-           qpoin=qpoin+1
-           quadrature%weight(  qpoin)=weigl(ilocs)*weigl(jlocs)
-           quadrature%coordinates(1,qpoin)=posgl(ilocs)
-           quadrature%coordinates(2,qpoin)=posgl(jlocs)
-        end do
-     end do
-  else if(ndime==3) then
-     qpoin=0
-     do klocs=1,nlocs
-        do jlocs=1,nlocs
-           do ilocs=1,nlocs
-              qpoin=qpoin+1
-              quadrature%weight(  qpoin)=weigl(ilocs)*weigl(jlocs)*weigl(klocs)
-              quadrature%coordinates(1,qpoin)=posgl(ilocs)
-              quadrature%coordinates(2,qpoin)=posgl(jlocs)
-              quadrature%coordinates(3,qpoin)=posgl(klocs)
-           end do
-        end do
-     end do
-  end if
+  
+  call P_reference_coordinates(quadrature%coordinates,ndime,order,nquad)
+  quadrature%weight = 1.0_rp
 
 end subroutine P_fill_nodal_quadrature
 
@@ -1624,8 +1582,8 @@ subroutine P_fill_interpolation ( interpolation, order, ndime, nlocs, ntens, coo
 end subroutine P_fill_interpolation
 
 !==================================================================================================
-subroutine tri_lagrangian_reference_fe_P_reference_coordinates(coordinates, num_dimensions,        &
-     &                                                        order, number_nodes)
+subroutine P_reference_coordinates(coordinates, num_dimensions,        &
+     &                             order, number_nodes)
   implicit none
   ! Parameters
   integer(ip), intent(in)    :: num_dimensions,order,number_nodes
@@ -1642,8 +1600,10 @@ subroutine tri_lagrangian_reference_fe_P_reference_coordinates(coordinates, num_
      do d=1,num_dimensions
         coordinates(d,i) = c1d(ijk(d)+1)
      end do
+     
   end do
-end subroutine tri_lagrangian_reference_fe_P_reference_coordinates
+  
+end subroutine P_reference_coordinates
 
 !==================================================================================================
 subroutine P_coord_1d (x,n)
@@ -1801,22 +1761,37 @@ subroutine P_shapen (shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
 end subroutine P_shapen
 
 !==================================================================================================
-! Q_IJKG(i,g,nd,p) returns coordinates of the g-th node in an elem(nd,p)
+! P_IJKG(i,g,nd,p) returns coordinates of the g-th node in an elem(nd,p)
 subroutine P_ijkg(i,g,nd,p)
   implicit none
+  ! Parameters
   integer(ip), intent(in)  :: nd,g,p
   integer(ip), intent(out) :: i(nd)
 
-  integer(ip)              :: k,g2
+  ! Local variables
+  integer(ip)              :: k,g0,g1,g2,j,q
 
-  g2 = g-1
-  do k=1,nd
-     i(k) = int(mod(g2,(p+1)**k)/(p+1)**(k-1))
-     g2 = g2 - i(k)*(p+1)**(k-1)
+  g0 = g-1
+  j  = 0 
+  do while (pnods(nd,p-j+1,p)<=g0)
+     j=j+1
+  end do
+  i(nd) = j-1
+  g0 = g0 - pnods(nd,p-i(nd)+1,p)
+
+  do k=1,nd-1
+     g2 = 0
+     j  = 0
+     q = p-i(nd-k+1)
+     do while (pnods(nd-k,q-j+1,q)<=g0)
+        j=j+1
+     end do
+     i(nd-k) = j-1
+     g0 = g0 - pnods(nd-k,q-i(nd-k)+1,q)
   end do
 end subroutine P_ijkg
 
- !=================================================================================================
+!=================================================================================================
 subroutine  P_permute_or_1d( o2n,p,r )
   implicit none
   integer(ip), intent(in)    :: p,r

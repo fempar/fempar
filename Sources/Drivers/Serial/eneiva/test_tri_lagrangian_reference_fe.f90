@@ -39,7 +39,6 @@ program test_reference_fe
 
   ! Our data
   type(test_reference_fe_params_t) :: params
-  type(p_reference_fe_t)           :: reference_fe_array(1)
   type(mesh_t)                     :: f_mesh
   type(conditions_t)               :: f_cond
   type(triangulation_t)            :: f_trian
@@ -57,31 +56,18 @@ program test_reference_fe
 
   ! Construct triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
-  
-  ! Print triangulation
-  call triangulation_print( 6, f_trian )
-  
-  ! Create reference FE
-  reference_fe_array(1) =  make_reference_fe ( topology = topology_tet,        &
-                                               fe_type = fe_type_lagrangian,   &
-                                               number_dimensions = 2,          &
-                                               order = 1,                      &
-                                               field_type = field_type_vector, &
-                                               continuity = .true. )
 
-  !if ( trim(params%laplacian_type) == 'scalar' ) then
-  !  call test_single_scalar_valued_reference_fe()
-  !else  
-  !  call test_single_vector_valued_reference_fe()c
+  if ( trim(params%laplacian_type) == 'scalar' ) then
+    call test_single_scalar_valued_reference_fe()
+  else  
+  !  call test_single_vector_valued_reference_fe()
   !  call test_composite_reference_fe_monolithic()
   !  call test_composite_reference_fe_block()
-  !end if  
+  end if  
  
-  !!call fe_space%free()
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
   call mesh_free (f_mesh)
-  call reference_fe_array(1)%free()
   call params%free()
 
   call fempar_finalize()
@@ -102,70 +88,70 @@ subroutine test_single_scalar_valued_reference_fe ()
     class(array_t)             , pointer :: array    
     
     ! Simple case
-     reference_fe_array(1) =  make_reference_fe ( topology = topology_quad, &
-                                                  fe_type = fe_type_lagrangian, &
+     reference_fe_array(1) =  make_reference_fe ( topology = topology_tet,              &
+                                                  fe_type = fe_type_lagrangian,         &
                                                   number_dimensions = f_trian%num_dims, &
-                                                  order = params%order, &
-                                                  field_type = field_type_scalar, &
+                                                  order = params%order,                 &
+                                                  field_type = field_type_scalar,       &
                                                   continuity = .true. )
      
-     call fe_space%create( triangulation = f_trian, &
+     call fe_space%create( triangulation = f_trian,      &
                            boundary_conditions = f_cond, &
                            reference_fe_phy = reference_fe_array )
      
      call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(1.0_rp), &
-                                    bc_code = 1, &
+                                    bc_code = 1,                                        &
                                     fe_space_component = 1 )
      
-     call fe_space%fill_dof_info() 
+     !call fe_space%fill_dof_info() 
      
-     call fe_affine_operator%create (sparse_matrix_storage_format=csr_format, &
-                                     diagonal_blocks_symmetric_storage=(/.true./), &
-                                     diagonal_blocks_symmetric=(/.true./), &
-                                     diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
-                                     environment=senv, &
-                                     fe_space=fe_space, &
-                                     discrete_integration=poisson_integration )
+     !call fe_affine_operator%create (sparse_matrix_storage_format=csr_format, &
+     !                                diagonal_blocks_symmetric_storage=(/.true./), &
+     !                                diagonal_blocks_symmetric=(/.true./), &
+     !                                diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
+     !                                environment=senv, &
+     !                                fe_space=fe_space, &
+     !                                discrete_integration=poisson_integration )
      
-     call fe_affine_operator%symbolic_setup()
-     call fe_affine_operator%numerical_setup()
+     !call fe_affine_operator%symbolic_setup()
+     !call fe_affine_operator%numerical_setup()
   
-     !matrix => fe_affine_operator%get_matrix()
-     !select type(matrix)
-     ! class is (sparse_matrix_t)
-     !   call matrix%print_matrix_market(6)
-     !end select
+     !!matrix => fe_affine_operator%get_matrix()
+     !!select type(matrix)
+     !! class is (sparse_matrix_t)
+     !!   call matrix%print_matrix_market(6)
+     !!end select
  
-     call fe_affine_operator%create_range_vector(computed_solution_vector)
-     call fe_affine_operator%create_range_vector(exact_solution_vector)
-     call exact_solution_vector%init(1.0_rp)
+     !call fe_affine_operator%create_range_vector(computed_solution_vector)
+     !call fe_affine_operator%create_range_vector(exact_solution_vector)
+     !call exact_solution_vector%init(1.0_rp)
 
-     ! Create iterative linear solver, set operators and solve linear system
-     call iterative_linear_solver%create(senv)
-     call iterative_linear_solver%set_type_from_string(cg_name)
-     call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
-     call iterative_linear_solver%free() 
+     !! Create iterative linear solver, set operators and solve linear system
+     !call iterative_linear_solver%create(senv)
+     !call iterative_linear_solver%set_type_from_string(cg_name)
+     !call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     !call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
+     !call iterative_linear_solver%free() 
 
-     !select type(computed_solution_vector)
-     !  class is(serial_scalar_array_t)
-     !  call computed_solution_vector%print(6)
-     !  class is(serial_block_array_t)
-     !  call computed_solution_vector%print(6)
-     !  class default
-     !  check(.false.) 
-     !end select
+     !!select type(computed_solution_vector)
+     !!  class is(serial_scalar_array_t)
+     !!  call computed_solution_vector%print(6)
+     !!  class is(serial_block_array_t)
+     !!  call computed_solution_vector%print(6)
+     !!  class default
+     !!  check(.false.) 
+     !!end select
   
-     computed_solution_vector = computed_solution_vector - exact_solution_vector
-     check ( computed_solution_vector%nrm2()/exact_solution_vector%nrm2() < 1.0e-04 )
+     !computed_solution_vector = computed_solution_vector - exact_solution_vector
+     !check ( computed_solution_vector%nrm2()/exact_solution_vector%nrm2() < 1.0e-04 )
      
-     call computed_solution_vector%free()
-     deallocate(computed_solution_vector)
+     !call computed_solution_vector%free()
+     !deallocate(computed_solution_vector)
 
-     call exact_solution_vector%free()
-     deallocate(exact_solution_vector)
+     !call exact_solution_vector%free()
+     !deallocate(exact_solution_vector)
      
-     call fe_affine_operator%free()
+     !call fe_affine_operator%free()
      call fe_space%free()
      
      call reference_fe_array(1)%free()
