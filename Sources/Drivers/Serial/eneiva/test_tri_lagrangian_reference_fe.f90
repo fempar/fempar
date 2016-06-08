@@ -60,9 +60,9 @@ program test_reference_fe
   if ( trim(params%laplacian_type) == 'scalar' ) then
     call test_single_scalar_valued_reference_fe()
   else  
-  !  call test_single_vector_valued_reference_fe()
-  !  call test_composite_reference_fe_monolithic()
-  !  call test_composite_reference_fe_block()
+    call test_single_vector_valued_reference_fe()
+    call test_composite_reference_fe_monolithic()
+    call test_composite_reference_fe_block()
   end if  
  
   call triangulation_free(f_trian)
@@ -116,40 +116,40 @@ subroutine test_single_scalar_valued_reference_fe ()
      call fe_affine_operator%symbolic_setup()
      call fe_affine_operator%numerical_setup()
   
-     !!matrix => fe_affine_operator%get_matrix()
-     !!select type(matrix)
-     !! class is (sparse_matrix_t)
-     !!   call matrix%print_matrix_market(6)
-     !!end select
+     !matrix => fe_affine_operator%get_matrix()
+     !select type(matrix)
+     ! class is (sparse_matrix_t)
+     !   call matrix%print_matrix_market(6)
+     !end select
  
-     !call fe_affine_operator%create_range_vector(computed_solution_vector)
-     !call fe_affine_operator%create_range_vector(exact_solution_vector)
-     !call exact_solution_vector%init(1.0_rp)
+     call fe_affine_operator%create_range_vector(computed_solution_vector)
+     call fe_affine_operator%create_range_vector(exact_solution_vector)
+     call exact_solution_vector%init(1.0_rp)
 
-     !! Create iterative linear solver, set operators and solve linear system
-     !call iterative_linear_solver%create(senv)
-     !call iterative_linear_solver%set_type_from_string(cg_name)
-     !call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-     !call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
-     !call iterative_linear_solver%free() 
+     ! Create iterative linear solver, set operators and solve linear system
+     call iterative_linear_solver%create(senv)
+     call iterative_linear_solver%set_type_from_string(cg_name)
+     call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
+     call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
+     call iterative_linear_solver%free() 
 
-     !!select type(computed_solution_vector)
-     !!  class is(serial_scalar_array_t)
-     !!  call computed_solution_vector%print(6)
-     !!  class is(serial_block_array_t)
-     !!  call computed_solution_vector%print(6)
-     !!  class default
-     !!  check(.false.) 
-     !!end select
+     select type(computed_solution_vector)
+       class is(serial_scalar_array_t)
+       call computed_solution_vector%print(6)
+       class is(serial_block_array_t)
+       call computed_solution_vector%print(6)
+       class default
+       check(.false.) 
+     end select
   
-     !computed_solution_vector = computed_solution_vector - exact_solution_vector
-     !check ( computed_solution_vector%nrm2()/exact_solution_vector%nrm2() < 1.0e-04 )
+     computed_solution_vector = computed_solution_vector - exact_solution_vector
+     check ( computed_solution_vector%nrm2()/exact_solution_vector%nrm2() < 1.0e-04 )
      
-     !call computed_solution_vector%free()
-     !deallocate(computed_solution_vector)
+     call computed_solution_vector%free()
+     deallocate(computed_solution_vector)
 
-     !call exact_solution_vector%free()
-     !deallocate(exact_solution_vector)
+     call exact_solution_vector%free()
+     deallocate(exact_solution_vector)
      
      call fe_affine_operator%free()
      call fe_space%free()
@@ -172,7 +172,7 @@ subroutine test_single_scalar_valued_reference_fe ()
     class(array_t)             , pointer          :: array
 
     ! Simple case
-     reference_fe_array(1) =  make_reference_fe ( topology = topology_quad, &
+     reference_fe_array(1) =  make_reference_fe ( topology = topology_tet, &
                                                   fe_type = fe_type_lagrangian, &
                                                   number_dimensions = f_trian%num_dims, &
                                                   order = params%order, &
@@ -217,14 +217,14 @@ subroutine test_single_scalar_valued_reference_fe ()
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
      call iterative_linear_solver%free() 
 
-     !select type(computed_solution_vector)
-     !  class is(serial_scalar_array_t)
-     !  call computed_solution_vector%print(6)
-     !  class is(serial_block_array_t)
-     !  call computed_solution_vector%print(6)
-     !  class default
-     !  check(.false.) 
-     !end select
+     select type(computed_solution_vector)
+       class is(serial_scalar_array_t)
+       call computed_solution_vector%print(6)
+       class is(serial_block_array_t)
+       call computed_solution_vector%print(6)
+       class default
+       check(.false.) 
+     end select
   
      computed_solution_vector = computed_solution_vector - exact_solution_vector
      check ( computed_solution_vector%nrm2()/exact_solution_vector%nrm2() < 1.0e-04 )
@@ -255,14 +255,14 @@ subroutine test_single_scalar_valued_reference_fe ()
     class(array_t)             , pointer          :: array
 
     ! Simple case
-    reference_fe_array(1) = make_reference_fe ( topology = topology_quad, &
+    reference_fe_array(1) = make_reference_fe ( topology = topology_tet, &
                                                     fe_type = fe_type_lagrangian, &
                                                     number_dimensions = f_trian%num_dims, &
                                                     order = params%order, &
                                                     field_type = field_type_scalar, &
                                                     continuity = .true. )
      
-    reference_fe_array(2) = make_reference_fe ( topology = topology_quad, &
+    reference_fe_array(2) = make_reference_fe ( topology = topology_tet, &
                                                 fe_type = fe_type_lagrangian, &
                                                 number_dimensions = f_trian%num_dims, &
                                                 order = params%order, & 
@@ -313,14 +313,14 @@ subroutine test_single_scalar_valued_reference_fe ()
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
      call iterative_linear_solver%free() 
 
-     !select type(computed_solution_vector)
-     !  class is(serial_scalar_array_t)
-     !  call computed_solution_vector%print(6)
-     !  class is(serial_block_array_t)
-     !  call computed_solution_vector%print(6)
-     !  class default
-     !  check(.false.) 
-     !end select
+     select type(computed_solution_vector)
+       class is(serial_scalar_array_t)
+       call computed_solution_vector%print(6)
+       class is(serial_block_array_t)
+       call computed_solution_vector%print(6)
+       class default
+       check(.false.) 
+     end select
   
      computed_solution_vector = computed_solution_vector - exact_solution_vector
      check ( computed_solution_vector%nrm2()/exact_solution_vector%nrm2() < 1.0e-04 )
@@ -354,14 +354,14 @@ subroutine test_single_scalar_valued_reference_fe ()
     class(array_t)             , pointer          :: array
 
     ! Simple case
-    reference_fe_array(1) = make_reference_fe ( topology = topology_quad, &
+    reference_fe_array(1) = make_reference_fe ( topology = topology_tet, &
                                                     fe_type = fe_type_lagrangian, &
                                                     number_dimensions = f_trian%num_dims, &
                                                     order = params%order, &
                                                     field_type = field_type_scalar, &
                                                     continuity = .true. )
      
-    reference_fe_array(2) = make_reference_fe ( topology = topology_quad, &
+    reference_fe_array(2) = make_reference_fe ( topology = topology_tet, &
                                                 fe_type = fe_type_lagrangian, &
                                                 number_dimensions = f_trian%num_dims, &
                                                 order = params%order, & 
@@ -412,14 +412,14 @@ subroutine test_single_scalar_valued_reference_fe ()
      call iterative_linear_solver%solve(fe_affine_operator%get_translation(), computed_solution_vector)
      call iterative_linear_solver%free() 
 
-     !select type(computed_solution_vector)
-     !  class is(serial_scalar_array_t)
-     !  call computed_solution_vector%print(6)
-     !  class is(serial_block_array_t)
-     !  call computed_solution_vector%print(6)
-     !  class default
-     !  check(.false.) 
-     !end select
+     select type(computed_solution_vector)
+       class is(serial_scalar_array_t)
+       call computed_solution_vector%print(6)
+       class is(serial_block_array_t)
+       call computed_solution_vector%print(6)
+       class default
+       check(.false.) 
+     end select
   
      computed_solution_vector = computed_solution_vector - exact_solution_vector
      check ( computed_solution_vector%nrm2()/exact_solution_vector%nrm2() < 1.0e-04 )

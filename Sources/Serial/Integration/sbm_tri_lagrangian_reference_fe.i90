@@ -37,7 +37,6 @@ subroutine tri_lagrangian_reference_fe_create ( this, number_dimensions, order, 
 
   call this%free()
   call this%set_common_data ( number_dimensions, order, field_type, continuity, enable_face_integration )
-  call this%set_topology ( topology_tet )
   call this%set_fe_type ( fe_type_lagrangian )
   call this%fill( )
   call this%set_nodal_quadrature ()
@@ -56,7 +55,7 @@ subroutine tri_lagrangian_reference_fe_create_quadrature ( this, quadrature, max
   else
      order = this%order
   end if
-  ngaus = this%number_nodes_scalar
+  ngaus = this%get_number_quadrature_points_of_dimension(order,this%number_dimensions)
   call quadrature%create( this%number_dimensions, ngaus )
   call P_fill_quadrature( quadrature )
 end subroutine tri_lagrangian_reference_fe_create_quadrature
@@ -75,17 +74,35 @@ subroutine tri_lagrangian_reference_fe_create_face_quadrature ( this, quadrature
      order = this%order
   end if
   face_dimensions = this%number_dimensions - 1
-  ngaus = (order + 1)**(face_dimensions)
+  ngaus = this%get_number_quadrature_points_of_dimension(order,face_dimensions)
   call quadrature%create( face_dimensions, ngaus )
   call P_fill_quadrature( quadrature )
 end subroutine tri_lagrangian_reference_fe_create_face_quadrature
+
+function tri_lagrangian_reference_fe_get_nquad_of_dimension( this, order, dimension )
+  implicit none
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: order
+  integer(ip)                         , intent(in)    :: dimension
+  integer(ip) :: tri_lagrangian_reference_fe_get_nquad_of_dimension
+  tri_lagrangian_reference_fe_get_nquad_of_dimension = P_nnods(order,dimension)
+  if(this%number_dimensions == 2) then
+     if(this%order == 3) then
+        tri_lagrangian_reference_fe_get_nquad_of_dimension = 13
+     end if
+  elseif(this%number_dimensions == 3) then
+     if( this%order == 2) then
+        tri_lagrangian_reference_fe_get_nquad_of_dimension = 11
+     end if
+  end if
+end function
 
 subroutine tri_lagrangian_reference_fe_create_interpolation ( this, quadrature, interpolation, compute_hessian )
   implicit none 
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this 
   type(quadrature_t)                  , intent(in)    :: quadrature
   type(interpolation_t)               , intent(inout) :: interpolation
-  logical,                    optional, intent(in)    :: compute_hessian
+  logical                   , optional, intent(in)    :: compute_hessian
 
   integer(ip) :: ntens, i
 
@@ -113,7 +130,6 @@ subroutine tri_lagrangian_reference_fe_create_face_interpolation( this,local_fac
   type(quadrature_t)                , intent(in)    :: local_quadrature
   type(interpolation_t)             , intent(inout) :: face_interpolation
 
-  integer(ip) :: number_faces
   ! Allocate the arrays of the interpolation
   call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar,              &
        &                    local_quadrature%number_quadrature_points, 0 )
@@ -154,7 +170,7 @@ subroutine tri_lagrangian_reference_fe_create_face_local_interpolation ( this, q
 end subroutine tri_lagrangian_reference_fe_create_face_local_interpolation
 
 subroutine tri_lagrangian_reference_fe_update_interpolation( this, fe_map,                       &
-     &                                                        interpolation_reference_cell,       &
+     &                                                        interpolation_reference_cell,      &
      &                                                        interpolation_real_cell )
   implicit none 
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this 
@@ -408,7 +424,9 @@ subroutine tri_lagrangian_reference_fe_evaluate_fe_function_tensor( this, &
   real(rp)                             , intent(in)    :: nodal_values(:)
   type(tensor_field_t)                 , intent(inout) :: quadrature_points_values(:)
 
-  assert( .false. )
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for tensor field unknowns '
+  check( .false. )
 
 end subroutine tri_lagrangian_reference_fe_evaluate_fe_function_tensor
 

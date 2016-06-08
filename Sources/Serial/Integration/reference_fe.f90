@@ -681,6 +681,8 @@ module reference_fe_names
      !procedure :: create_quadrature_on_faces                                                           &
      !     &                           => quad_lagrangian_reference_fe_create_quadrature_on_faces
      procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
+     procedure :: get_number_quadrature_points_of_dimension                                                      &
+          &                 => quad_lagrangian_reference_fe_get_nquad_of_dimension
      procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
      procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
      procedure :: create_face_local_interpolation                                                   &
@@ -739,6 +741,8 @@ module reference_fe_names
      !procedure :: create_quadrature_on_faces                                                           &
      !     &                           => tri_lagrangian_reference_fe_create_quadrature_on_faces
      procedure :: create_face_quadrature    => tri_lagrangian_reference_fe_create_face_quadrature
+     procedure :: get_number_quadrature_points_of_dimension                                                      &
+          &                 => tri_lagrangian_reference_fe_get_nquad_of_dimension
      procedure :: create_interpolation      => tri_lagrangian_reference_fe_create_interpolation
      procedure :: create_face_interpolation => tri_lagrangian_reference_fe_create_face_interpolation
      procedure :: create_face_local_interpolation                                                   &

@@ -504,14 +504,14 @@ program test_heterogeneous_poisson
   call mesh_to_triangulation ( mesh, triangulation, gcond = composed_conds )
   
   ! Create and fill scalar x vector space
-  reference_fe_array(1) =  make_reference_fe ( topology = topology_quad, &
+  reference_fe_array(1) =  make_reference_fe ( topology = topology_tet, &
                                                fe_type = fe_type_lagrangian, &
                                                number_dimensions = 2, &
                                                order = 1, &
                                                field_type = field_type_scalar, &
                                                continuity = .true. )
 
-  reference_fe_array(2) =  make_reference_fe ( topology = topology_quad, &
+  reference_fe_array(2) =  make_reference_fe ( topology = topology_tet, &
                                                fe_type = fe_type_lagrangian, &
                                                number_dimensions = 2, &
                                                order = 1, &

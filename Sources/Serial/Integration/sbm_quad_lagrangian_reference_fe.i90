@@ -37,7 +37,6 @@ subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order,
 
   call this%free()
   call this%set_common_data ( number_dimensions, order, field_type, continuity, enable_face_integration )
-  call this%set_topology ( topology_quad )
   call this%set_fe_type ( fe_type_lagrangian )
   call this%fill( )
   call this%set_nodal_quadrature ()
@@ -46,7 +45,7 @@ end subroutine quad_lagrangian_reference_fe_create
 subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, max_order )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this  
-  type(quadrature_t)                , intent(inout) :: quadrature
+  type(quadrature_t)                   , intent(inout) :: quadrature
   integer(ip)                , optional, intent(in)    :: max_order
   
   integer(ip) :: ngaus, order
@@ -56,7 +55,7 @@ subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, ma
   else
      order = this%order
   end if
-  ngaus = (order + 1)**this%number_dimensions
+  ngaus = this%get_number_quadrature_points_of_dimension(order,this%number_dimensions)
   call quadrature%create( this%number_dimensions, ngaus )
   call fill_quadrature( quadrature )
 end subroutine quad_lagrangian_reference_fe_create_quadrature
@@ -64,7 +63,7 @@ end subroutine quad_lagrangian_reference_fe_create_quadrature
 subroutine quad_lagrangian_reference_fe_create_face_quadrature ( this, quadrature, max_order )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this
-  type(quadrature_t)                , intent(inout) :: quadrature
+  type(quadrature_t)                   , intent(inout) :: quadrature
   integer(ip)                , optional, intent(in)    :: max_order
 
   integer(ip) :: ngaus, order, face_dimensions
@@ -75,17 +74,26 @@ subroutine quad_lagrangian_reference_fe_create_face_quadrature ( this, quadratur
      order = this%order
   end if
   face_dimensions = this%number_dimensions - 1
-  ngaus = (order + 1)**(face_dimensions)
+  ngaus = this%get_number_quadrature_points_of_dimension(order,face_dimensions)
   call quadrature%create( face_dimensions, ngaus )
   call fill_quadrature( quadrature )
 end subroutine quad_lagrangian_reference_fe_create_face_quadrature
 
+function quad_lagrangian_reference_fe_get_nquad_of_dimension( this, order, dimension )
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: order
+  integer(ip)                          , intent(in)    :: dimension
+  integer(ip) :: quad_lagrangian_reference_fe_get_nquad_of_dimension
+  quad_lagrangian_reference_fe_get_nquad_of_dimension = (order + 1)**dimension
+end function
+
 subroutine quad_lagrangian_reference_fe_create_interpolation ( this, quadrature, interpolation, compute_hessian )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(quadrature_t)               , intent(in)     :: quadrature
-  type(interpolation_t)            , intent(inout) :: interpolation
-  logical,                    optional, intent(in)     :: compute_hessian
+  type(quadrature_t)                   , intent(in)    :: quadrature
+  type(interpolation_t)                , intent(inout) :: interpolation
+  logical                    , optional, intent(in)    :: compute_hessian
 
   integer(ip) :: nlocs, ntens, i
 
@@ -410,7 +418,9 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor( this, &
   real(rp)                             , intent(in)    :: nodal_values(:)
   type(tensor_field_t)                 , intent(inout) :: quadrature_points_values(:)
 
-  assert( .false. )
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for tensor field unknowns '
+  check( .false. )
 
 end subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor
 
