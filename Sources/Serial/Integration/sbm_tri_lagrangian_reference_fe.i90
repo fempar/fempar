@@ -57,7 +57,7 @@ subroutine tri_lagrangian_reference_fe_create_quadrature ( this, quadrature, max
   end if
   ngaus = this%get_number_quadrature_points_of_dimension(order,this%number_dimensions)
   call quadrature%create( this%number_dimensions, ngaus )
-  call P_fill_quadrature( quadrature )
+  call this%fill_quadrature( quadrature )
 end subroutine tri_lagrangian_reference_fe_create_quadrature
 
 subroutine tri_lagrangian_reference_fe_create_face_quadrature ( this, quadrature, max_order )
@@ -76,7 +76,7 @@ subroutine tri_lagrangian_reference_fe_create_face_quadrature ( this, quadrature
   face_dimensions = this%number_dimensions - 1
   ngaus = this%get_number_quadrature_points_of_dimension(order,face_dimensions)
   call quadrature%create( face_dimensions, ngaus )
-  call P_fill_quadrature( quadrature )
+  call this%fill_quadrature( quadrature )
 end subroutine tri_lagrangian_reference_fe_create_face_quadrature
 
 function tri_lagrangian_reference_fe_get_nquad_of_dimension( this, order, dimension )
@@ -114,7 +114,7 @@ subroutine tri_lagrangian_reference_fe_create_interpolation ( this, quadrature, 
   call interpolation%create( this%number_dimensions, this%number_nodes_scalar, &
                              quadrature%number_quadrature_points, ntens, compute_hessian )
   
-  call P_fill_interpolation( interpolation, this%order, quadrature%coordinates )
+  call this%fill_interpolation( interpolation, this%order, quadrature%coordinates )
   
 end subroutine tri_lagrangian_reference_fe_create_interpolation
 
@@ -126,23 +126,23 @@ subroutine tri_lagrangian_reference_fe_create_face_interpolation( this,local_fac
      &                               local_quadrature,face_interpolation)
   implicit none 
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this 
-  integer(ip)                          , intent(in)    :: local_face_id
-  type(quadrature_t)                , intent(in)    :: local_quadrature
-  type(interpolation_t)             , intent(inout) :: face_interpolation
+  integer(ip)                         , intent(in)    :: local_face_id
+  type(quadrature_t)                  , intent(in)    :: local_quadrature
+  type(interpolation_t)               , intent(inout) :: face_interpolation
 
   ! Allocate the arrays of the interpolation
   call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar,              &
-       &                    local_quadrature%number_quadrature_points, 0 )
+       &                         local_quadrature%number_quadrature_points, 0 )
 
   ! Fill the values of the shape functions
-  call P_face_interpolation_shape_fill (this,face_interpolation,local_quadrature,local_face_id)
+  call this%fill_face_interpolation (face_interpolation,local_quadrature,local_face_id)
 end subroutine tri_lagrangian_reference_fe_create_face_interpolation
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of order 1 of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
 subroutine tri_lagrangian_reference_fe_create_face_local_interpolation ( this, quadrature,       &
-     &                                                                    interpolation)
+     &                                                                   interpolation)
   implicit none
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t)               , intent(in)     :: quadrature
@@ -155,7 +155,8 @@ subroutine tri_lagrangian_reference_fe_create_face_local_interpolation ( this, q
   ! I am assuming the geometric aproximation of the face can be linear
   ! this might need to be modified in the future
   number_dimensions_face   = this%number_dimensions - 1
-  number_nodes_face_scalar = (this%order+1)**number_dimensions_face
+  number_nodes_face_scalar = this%get_number_nodes_scalar_dim_order( number_dimensions_face, &
+                                                                  &  this%order+1 )
   face_order = this%order
 
   ! Allocate the arrays of the interpolation
@@ -163,11 +164,36 @@ subroutine tri_lagrangian_reference_fe_create_face_local_interpolation ( this, q
                              quadrature%number_quadrature_points, 0)
 
   ! Fill the values with the common routine for filling an interpolation
-  nlocs = int(real(quadrature%number_quadrature_points)**(1.0_rp/real( number_dimensions_face)))
-  !call P_fill_interpolation( interpolation, face_order, number_dimensions_face, &
-  !                         nlocs, 0, quadrature%coordinates )
+  call this%fill_interpolation( interpolation, this%order, quadrature%coordinates )
 
 end subroutine tri_lagrangian_reference_fe_create_face_local_interpolation
+
+!=================================================================================================
+! This is a TEMPORARY SUBROUTINE for the draft of the lagrangian_reference_fe_t interm. class
+recursive function tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order(this,k,p)
+  implicit none
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this 
+  integer(ip)                         , intent(in)    :: k,p
+  integer(ip) :: tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order
+  integer(ip) :: q
+  if (k == 0) then
+     tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order = 1
+  elseif (p == 0) then
+     tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order = 1
+  elseif (k == 1) then
+     tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order = p+1
+  elseif (k == 2) then
+     tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order = int((p+1)*(p+2)/2)
+  else
+     tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order = & 
+       & this%get_number_nodes_scalar_dim_order(k-1,0)
+     do q=1,p
+        tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order = & 
+          & tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order + & 
+          & this%get_number_nodes_scalar_dim_order(k-1,q)
+     end do
+  end if
+end function tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order
 
 subroutine tri_lagrangian_reference_fe_update_interpolation( this, fe_map,                       &
      &                                                        interpolation_reference_cell,      &
@@ -982,7 +1008,7 @@ integer(ip) function P_fc(i)
 end function P_fc
 
 !-------------------------------------------------------------------------
-subroutine P_fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
+subroutine tri_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
   !-----------------------------------------------------------------------
   ! 
   !     This routine sets up the integration constants of open rules for
@@ -1003,6 +1029,7 @@ subroutine P_fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
   !
   !-----------------------------------------------------------------------
   implicit none
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t), intent(inout) :: quadrature
   real(rp)    :: a,b,c,d,e,f,g,h,p,q,r,s,t,u,v,w,x,y,z
   real(rp)    :: w1,w2,w3,w4,w5,w6,w7,w8
@@ -1539,7 +1566,7 @@ subroutine P_fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
      end if
   end if
   
-end subroutine P_fill_quadrature
+end subroutine tri_lagrangian_reference_fe_fill_quadrature
 
 !-----------------------------------------------------------------------
 subroutine P_fill_nodal_quadrature ( quadrature, order ) 
@@ -1557,11 +1584,12 @@ subroutine P_fill_nodal_quadrature ( quadrature, order )
 
 end subroutine P_fill_nodal_quadrature
 
-subroutine P_fill_interpolation ( interpolation, order, coord_ip ) 
+subroutine tri_lagrangian_reference_fe_fill_interpolation ( this, interpolation, order, coord_ip ) 
   implicit none 
-  type(interpolation_t), intent(inout) :: interpolation
-  integer(ip)          , intent(in)    :: order
-  real(rp)             , intent(in)    :: coord_ip(:,:)
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  type(interpolation_t)               , intent(inout) :: interpolation
+  integer(ip)                         , intent(in)    :: order
+  real(rp)                            , intent(in)    :: coord_ip(:,:)
 
   logical     :: khes
   integer(ip) :: iquad
@@ -1592,7 +1620,7 @@ subroutine P_fill_interpolation ( interpolation, order, coord_ip )
      end do
   end if
   
-end subroutine P_fill_interpolation
+end subroutine tri_lagrangian_reference_fe_fill_interpolation
 
 !==================================================================================================
 subroutine P_reference_coordinates(coordinates, num_dimensions,        &
@@ -2084,16 +2112,16 @@ integer(ip) function P_gijk(i,nd,p)
 end function P_gijk
 
 !==================================================================================================
-subroutine P_face_interpolation_shape_fill (this,face_interpolation,local_quadrature, local_face_id)
+subroutine tri_lagrangian_reference_fe_fill_face_interpolation (this,face_interpolation,local_quadrature,local_face_id)
   implicit none
-  type(tri_lagrangian_reference_fe_t), intent(in)    :: this
-  type(interpolation_t)            , intent(inout) :: face_interpolation
-  type(quadrature_t)               , intent(in)    :: local_quadrature
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  type(interpolation_t)               , intent(inout) :: face_interpolation
+  type(quadrature_t)                  , intent(in)    :: local_quadrature
   integer(ip)                         , intent(in)    :: local_face_id
 
-  type(interpolation_t) :: interp_1D_corners, local_interpolation
-  type(quadrature_t)    :: nodal_coordinates_1D
-  integer(ip)              :: order_of_approximation
+  type(interpolation_t)               :: interp_1D_corners, local_interpolation
+  type(quadrature_t)                  :: nodal_coordinates_1D
+  integer(ip)                         :: order_of_approximation
   type(tri_lagrangian_reference_fe_t) :: face_reference_fe, reference_fe_1D
 
   write(*,*) __FILE__,__LINE__,'Creation of 2 reference_FE!!'
@@ -2112,10 +2140,10 @@ subroutine P_face_interpolation_shape_fill (this,face_interpolation,local_quadra
   order_of_approximation = this%order
   ! Create the interpolation
   call face_P_shapen(face_interpolation%shape_functions,face_interpolation%shape_derivatives,    &
-       &           local_interpolation%shape_functions,local_interpolation%shape_derivatives,  &
-       &           interp_1D_corners%shape_functions,interp_1D_corners%shape_derivatives,      &
-       &           face_interpolation%number_dimensions,order_of_approximation,                &
-       &           face_interpolation%number_quadrature_points,local_face_id)
+       &             local_interpolation%shape_functions,local_interpolation%shape_derivatives,  &
+       &             interp_1D_corners%shape_functions,interp_1D_corners%shape_derivatives,      &
+       &             face_interpolation%number_dimensions,order_of_approximation,                &
+       &             face_interpolation%number_quadrature_points,local_face_id)
 
   call face_reference_fe%free()
   call reference_fe_1D%free
@@ -2123,7 +2151,7 @@ subroutine P_face_interpolation_shape_fill (this,face_interpolation,local_quadra
   call interp_1D_corners%free()
   call nodal_coordinates_1D%free()
 
-end subroutine P_face_interpolation_shape_fill
+end subroutine tri_lagrangian_reference_fe_fill_face_interpolation
 
 !==================================================================================================
 subroutine face_P_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)

@@ -683,10 +683,15 @@ module reference_fe_names
      procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
      procedure :: get_number_quadrature_points_of_dimension                                                      &
           &                 => quad_lagrangian_reference_fe_get_nquad_of_dimension
+     procedure, private :: fill_quadrature  => quad_lagrangian_reference_fe_fill_quadrature
      procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
+     procedure, private :: fill_interpolation => quad_lagrangian_reference_fe_fill_interpolation
      procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
+     procedure, private :: fill_face_interpolation => quad_lagrangian_reference_fe_fill_face_interpolation
      procedure :: create_face_local_interpolation                                                   &
           &                          => quad_lagrangian_reference_fe_create_face_local_interpolation
+     procedure :: get_number_nodes_scalar_dim_order                                   &
+          &                 => quad_lagrangian_reference_fe_get_number_nodes_scalar_dim_order
      procedure :: update_interpolation      => quad_lagrangian_reference_fe_update_interpolation
      procedure :: update_interpolation_face => quad_lagrangian_reference_fe_update_interpolation_face
      procedure :: get_component_node     => quad_lagrangian_reference_fe_get_component_node
@@ -743,13 +748,18 @@ module reference_fe_names
      procedure :: create_face_quadrature    => tri_lagrangian_reference_fe_create_face_quadrature
      procedure :: get_number_quadrature_points_of_dimension                                                      &
           &                 => tri_lagrangian_reference_fe_get_nquad_of_dimension
+     procedure, private :: fill_quadrature  => tri_lagrangian_reference_fe_fill_quadrature
      procedure :: create_interpolation      => tri_lagrangian_reference_fe_create_interpolation
+     procedure, private :: fill_interpolation => tri_lagrangian_reference_fe_fill_interpolation
      procedure :: create_face_interpolation => tri_lagrangian_reference_fe_create_face_interpolation
+     procedure, private :: fill_face_interpolation => tri_lagrangian_reference_fe_fill_face_interpolation
      procedure :: create_face_local_interpolation                                                   &
           &                          => tri_lagrangian_reference_fe_create_face_local_interpolation
+     procedure :: get_number_nodes_scalar_dim_order                                   &
+          &                 => tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order
      procedure :: update_interpolation      => tri_lagrangian_reference_fe_update_interpolation
      procedure :: update_interpolation_face => tri_lagrangian_reference_fe_update_interpolation_face
-     procedure :: get_component_node     => tri_lagrangian_reference_fe_get_component_node
+     procedure :: get_component_node        => tri_lagrangian_reference_fe_get_component_node
      procedure :: get_scalar_from_vector_node           => tri_lagrangian_reference_fe_get_scalar_from_vector_node
      procedure :: check_compatibility_of_vefs                                         &
           &                 => tri_lagrangian_reference_fe_check_compatibility_of_vefs 
