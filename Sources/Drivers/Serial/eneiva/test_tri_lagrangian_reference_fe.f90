@@ -103,18 +103,18 @@ subroutine test_single_scalar_valued_reference_fe ()
                                     bc_code = 1,                                        &
                                     fe_space_component = 1 )
      
-     !call fe_space%fill_dof_info() 
+     call fe_space%fill_dof_info() 
      
-     !call fe_affine_operator%create (sparse_matrix_storage_format=csr_format, &
-     !                                diagonal_blocks_symmetric_storage=(/.true./), &
-     !                                diagonal_blocks_symmetric=(/.true./), &
-     !                                diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
-     !                                environment=senv, &
-     !                                fe_space=fe_space, &
-     !                                discrete_integration=poisson_integration )
+     call fe_affine_operator%create (sparse_matrix_storage_format=csr_format, &
+                                     diagonal_blocks_symmetric_storage=(/.true./), &
+                                     diagonal_blocks_symmetric=(/.true./), &
+                                     diagonal_blocks_sign=(/SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE/), &
+                                     environment=senv, &
+                                     fe_space=fe_space, &
+                                     discrete_integration=poisson_integration )
      
-     !call fe_affine_operator%symbolic_setup()
-     !call fe_affine_operator%numerical_setup()
+     call fe_affine_operator%symbolic_setup()
+     call fe_affine_operator%numerical_setup()
   
      !!matrix => fe_affine_operator%get_matrix()
      !!select type(matrix)
@@ -151,7 +151,7 @@ subroutine test_single_scalar_valued_reference_fe ()
      !call exact_solution_vector%free()
      !deallocate(exact_solution_vector)
      
-     !call fe_affine_operator%free()
+     call fe_affine_operator%free()
      call fe_space%free()
      
      call reference_fe_array(1)%free()

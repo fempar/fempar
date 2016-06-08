@@ -1284,9 +1284,9 @@ subroutine fill_quadrature ( quadrature ) !ndime,ngaus,posgp,weigp)
   ! 
   !-----------------------------------------------------------------------
   implicit none
-  type(quadrature_t), intent(inout)  :: quadrature
-  real(rp)                 :: posgl(20),weigl(20)
-  integer(ip)              :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,ngaus
+  type(quadrature_t), intent(inout) :: quadrature
+  real(rp)                          :: posgl(20),weigl(20)
+  integer(ip)                       :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,ngaus
 
   ndime = quadrature%number_dimensions
   ngaus = quadrature%number_quadrature_points
