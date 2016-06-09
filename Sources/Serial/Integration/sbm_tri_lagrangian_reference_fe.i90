@@ -532,7 +532,7 @@ subroutine tri_lagrangian_reference_fe_fill (this)
   integer(ip) :: c, i, j, dimension, number_interior_nodes, number_interior_nodes_scalar
   integer(ip) :: column, inode, idime, inode_scalar, num_columns
   
-  call tri_lagrangian_reference_fe_fill_scalar (this)
+  call this%fill_scalar( )
   
   call memalloc (this%number_dimensions-1,this%number_rotations_per_dimension,__FILE__,__LINE__)
   call memalloc (this%number_dimensions-1,this%number_orientations_per_dimension,__FILE__,__LINE__)
@@ -541,7 +541,7 @@ subroutine tri_lagrangian_reference_fe_fill (this)
   
   do dimension = 1, this%number_dimensions-1
   
-     this%number_rotations_per_dimension(dimension) = dimension + 1
+     this%number_rotations_per_dimension(dimension) = this%get_number_vertices()
      this%number_orientations_per_dimension(dimension) = dimension
      
      if ( this%continuity ) then
@@ -558,7 +558,7 @@ subroutine tri_lagrangian_reference_fe_fill (this)
   end do
   
   if ( this%number_field_components /= 1 ) then
-     call tri_lagrangian_reference_fe_fill_field_components( this )
+     call this%fill_field_components( )
      if ( this%continuity ) then
        do dimension = 1, this%number_dimensions-1
           ! Compute the number of interior nodes x edge or face
@@ -624,14 +624,14 @@ subroutine tri_lagrangian_reference_fe_fill_permutation_array(this,             
   do iorientation = 1, this%number_orientations_per_dimension(dimension)
      do irotation = 1, this%number_rotations_per_dimension(dimension)
         if (dimension == 1) then
-           call P_permute_or_1d(permutation_array(:,column), &
-                                number_nodes_x_dim,          &
-                                irotation)
+           call permute_or_1d(permutation_array(:,column), &
+                              number_nodes_x_dim,          &
+                              irotation)
         elseif (dimension == 2) then
-           call P_permute_or_2d(permutation_array(:,column), &
-                                number_nodes_x_dim,          &
-                                iorientation,                &
-                                irotation)
+           call this%permute_or_2d(permutation_array(:,column), &
+                                   number_nodes_x_dim,          &
+                                   iorientation,                &
+                                   irotation)
         else 
            check (.false.)
         end if
@@ -666,10 +666,10 @@ end function tri_lagrangian_reference_fe_get_characteristic_length
 subroutine tri_lagrangian_reference_fe_fill_field_components (this)
   implicit none
   class(tri_lagrangian_reference_fe_t), intent(inout) :: this
-  call tri_lagrangian_reference_fe_extend_list_components( this, this%nodes_vef)
-  call tri_lagrangian_reference_fe_extend_list_components( this, this%interior_nodes_vef)
-  call tri_lagrangian_reference_fe_extend_list_components( this, this%own_nodes_vef )
-  call tri_lagrangian_reference_fe_extend_list_components( this, this%face_integration_coupling_nodes_face )
+  call this%extend_list_components( this%nodes_vef)
+  call this%extend_list_components( this%interior_nodes_vef)
+  call this%extend_list_components( this%own_nodes_vef )
+  call this%extend_list_components( this%face_integration_coupling_nodes_face )
   this%number_nodes_scalar = this%number_nodes
   this%number_nodes = this%number_nodes_scalar * this%number_field_components
 end subroutine tri_lagrangian_reference_fe_fill_field_components
@@ -1904,29 +1904,11 @@ subroutine P_ijkg(i,g,nd,p)
 end subroutine P_ijkg
 
 !=================================================================================================
-subroutine  P_permute_or_1d( o2n,p,r )
+subroutine  tri_lagrangian_reference_fe_permute_or_2d( this,o2n,p,o,r )
   implicit none
-  integer(ip), intent(in)    :: p,r
-  integer(ip), intent(inout) :: o2n(p)
-
-  ! Local variables
-  integer(ip) :: i
-
-  ! Generic loop+rotation identifier  
-  if (r==1) then
-     o2n = (/(i,i=1,p)/)
-  elseif (r==2) then
-     o2n = (/(p-i,i=0,p-1)/)
-  else
-     write(*,*) __FILE__,__LINE__,'P_permute_or_1d:: ERROR! Delay cannot be >1 for edges'
-  end if
-end subroutine P_permute_or_1d
-
-!=================================================================================================
-subroutine  P_permute_or_2d( o2n,p,o,r )
-  implicit none
-  integer(ip), intent(in)    :: p,o,r
-  integer(ip), intent(inout) :: o2n(int(((p+1)**2+p+1)/2))
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: p,o,r
+  integer(ip)                         , intent(inout) :: o2n(int(((p+1)**2+p+1)/2))
 
   ! Local variables
   integer(ip) :: o_r,i,j,ij_t(3)     ! ij_t = (i,j,p-i-j)
@@ -1949,7 +1931,7 @@ subroutine  P_permute_or_2d( o2n,p,o,r )
      end do
   end do
   
-end subroutine P_permute_or_2d
+end subroutine tri_lagrangian_reference_fe_permute_or_2d
 
 !=================================================================================================
 ! P_NNODS(k,p) computes the #nodes in a simplex of dim k and order p

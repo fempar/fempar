@@ -728,6 +728,10 @@ module reference_fe_names
      procedure :: fill_interior_points_permutation &
           &                   => quad_lagrangian_reference_fe_fill_interior_points_permutation     
      procedure :: fill_permutation_array => quad_lagrangian_reference_fe_fill_permutation_array
+     procedure :: permute_or_2d => quad_lagrangian_reference_fe_permute_or_2d
+     procedure :: fill_scalar => quad_lagrangian_reference_fe_fill_scalar
+     procedure :: fill_field_components => quad_lagrangian_reference_fe_fill_field_components
+     procedure :: extend_list_components => quad_lagrangian_reference_fe_extend_list_components
      procedure :: get_subelements_connectivity => quad_lagrangian_reference_fe_get_subelements_connectivity
      procedure :: get_number_subelements => quad_lagrangian_reference_fe_get_number_subelements
      procedure :: get_number_nodes_scalar => quad_lagrangian_reference_fe_get_number_nodes_scalar
@@ -795,6 +799,10 @@ module reference_fe_names
      procedure :: fill_interior_points_permutation &
           &                   => tri_lagrangian_reference_fe_fill_interior_points_permutation
      procedure :: fill_permutation_array => tri_lagrangian_reference_fe_fill_permutation_array
+     procedure :: permute_or_2d => tri_lagrangian_reference_fe_permute_or_2d
+     procedure :: fill_scalar => tri_lagrangian_reference_fe_fill_scalar
+     procedure :: fill_field_components => tri_lagrangian_reference_fe_fill_field_components
+     procedure :: extend_list_components => tri_lagrangian_reference_fe_extend_list_components
      procedure :: get_subelements_connectivity => tri_lagrangian_reference_fe_get_subelements_connectivity
      procedure :: get_number_subelements => tri_lagrangian_reference_fe_get_number_subelements
      procedure :: get_number_nodes_scalar => tri_lagrangian_reference_fe_get_number_nodes_scalar
