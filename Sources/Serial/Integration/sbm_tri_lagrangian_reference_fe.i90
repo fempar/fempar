@@ -682,18 +682,18 @@ subroutine tri_lagrangian_reference_fe_set_nodal_quadrature (this)
   call this%nodal_quadrature%create(this%number_dimensions,this%number_nodes_scalar)
 
   ! Fill nodal quadrature
-  call P_fill_nodal_quadrature ( this%nodal_quadrature, this%order )
+  call this%fill_nodal_quadrature ( this%nodal_quadrature, this%order )
 end subroutine tri_lagrangian_reference_fe_set_nodal_quadrature
 
 subroutine tri_lagrangian_reference_fe_set_scalar_field_to_nodal_values (this, code, values, &
      &     nodal_codes, nodal_values, unknown_component)
   implicit none
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: code
-  real(rp)                             , intent(in)    :: values(:)
-  integer(ip)                          , intent(in)    :: nodal_codes(:)
-  real(rp)                             , intent(inout) :: nodal_values(:)
-  integer(ip), optional                , intent(in)    :: unknown_component
+  integer(ip)                         , intent(in)    :: code
+  real(rp)                            , intent(in)    :: values(:)
+  integer(ip)                         , intent(in)    :: nodal_codes(:)
+  real(rp)                            , intent(inout) :: nodal_values(:)
+  integer(ip), optional               , intent(in)    :: unknown_component
   integer(ip) :: i, icomp
 
   assert(size(nodal_values) == this%number_nodes)
@@ -714,10 +714,10 @@ subroutine tri_lagrangian_reference_fe_set_vector_field_to_nodal_values (this, c
      &     nodal_codes, nodal_values)
   implicit none
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: code
-  type(vector_field_t)                 , intent(in)    :: values(:)
-  integer(ip)                          , intent(in)    :: nodal_codes(:)
-  real(rp)                             , intent(inout) :: nodal_values(:)
+  integer(ip)                         , intent(in)    :: code
+  type(vector_field_t)                , intent(in)    :: values(:)
+  integer(ip)                         , intent(in)    :: nodal_codes(:)
+  real(rp)                            , intent(inout) :: nodal_values(:)
   integer(ip) :: i, icomp
 
   assert(size(nodal_values) == this%number_nodes)
@@ -737,10 +737,10 @@ subroutine tri_lagrangian_reference_fe_set_tensor_field_to_nodal_values (this, c
      &     nodal_codes, nodal_values)
   implicit none
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: code
-  type(tensor_field_t)                 , intent(in)    :: values(:)
-  integer(ip)                          , intent(in)    :: nodal_codes(:)
-  real(rp)                             , intent(inout) :: nodal_values(:)
+  integer(ip)                         , intent(in)    :: code
+  type(tensor_field_t)                , intent(in)    :: values(:)
+  integer(ip)                         , intent(in)    :: nodal_codes(:)
+  real(rp)                            , intent(inout) :: nodal_values(:)
   integer(ip) :: i, icomp, jcomp
 
   write(*,*) ' ERROR in: ',__FILE__,__LINE__
@@ -826,7 +826,7 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
 
   ! Fill number_vefs_dimension and compute nt, nc, nn
   do k = 0,nd
-     i   = P_bnm(nd+1,k+1)          ! #vefs of dimension k
+     i   = bnm(nd+1,k+1)          ! #vefs of dimension k
      j   = P_nnods(k,p)             ! #nodes vef dim k order p
      no  = no + i                   ! compute #vefs
      nn  = nn + i*inods(k,p)        ! #nodes inside vefs of dimension k
@@ -904,7 +904,7 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
   do k = 0,nd
 
      ! Loop over the number of vefs of dimension k
-     do i=1, P_bnm(nd+1,k+1)
+     do i=1, bnm(nd+1,k+1)
         ! Fill this%vertices_vef%l for vef co
         co = co + 1 
         call P_orientation_vef(this%orientation%a(co),k,nd,i)
@@ -966,19 +966,6 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
   
 end subroutine tri_lagrangian_reference_fe_fill_scalar
 
-!=================================================================================================
-! BNM(A,B)=A!/((A-B)!B!) computes the binomial coefficient of (A,B), A>B
-integer (ip) function P_bnm(a,b)
-  implicit none
-  integer(ip) :: a,b
-  if (a >= b) then
-     P_bnm = int(P_fc(a)/(P_fc(b)*P_fc(a-b)))
-  else
-     write(*,*) 'ERROR: no binomial coef for b > a'
-     check(.false.)
-  end if
-end function P_bnm
-
 !==================================================================================================
 subroutine P_orientation_vef(o,od,nd,io)
   implicit none
@@ -994,17 +981,6 @@ subroutine P_orientation_vef(o,od,nd,io)
      o = 0
   end if
 end subroutine P_orientation_vef
-
-!==================================================================================================
-! FC(k)=k! computes the factorial of k 
-integer(ip) function P_fc(i)
-  implicit none
-  integer(ip) :: i, k
-  P_fc = 1
-  do k=2,i
-     P_fc = P_fc*k
-  end do
-end function P_fc
 
 !-------------------------------------------------------------------------
 subroutine tri_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
@@ -1568,12 +1544,13 @@ subroutine tri_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
 end subroutine tri_lagrangian_reference_fe_fill_quadrature
 
 !-----------------------------------------------------------------------
-subroutine P_fill_nodal_quadrature ( quadrature, order ) 
+subroutine tri_lagrangian_reference_fe_fill_nodal_quadrature ( this, quadrature, order ) 
   implicit none
-  type(quadrature_t), intent(inout)  :: quadrature
-  integer(ip)       , intent(in)     :: order
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)                  , intent(inout) :: quadrature
+  integer(ip)                         , intent(in)    :: order
   
-  integer(ip)              :: ndime,iquad,nquad
+  integer(ip)              :: ndime,nquad
 
   ndime = quadrature%number_dimensions
   nquad = quadrature%number_quadrature_points
@@ -1581,7 +1558,7 @@ subroutine P_fill_nodal_quadrature ( quadrature, order )
   call P_reference_coordinates(quadrature%coordinates,ndime,order,nquad)
   quadrature%weight = 1.0_rp
 
-end subroutine P_fill_nodal_quadrature
+end subroutine tri_lagrangian_reference_fe_fill_nodal_quadrature
 
 subroutine tri_lagrangian_reference_fe_fill_interpolation ( this, interpolation, order, coord_ip ) 
   implicit none 

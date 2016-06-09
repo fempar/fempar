@@ -683,11 +683,11 @@ module reference_fe_names
      procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
      procedure :: get_number_quadrature_points_of_dimension                                                      &
           &                 => quad_lagrangian_reference_fe_get_nquad_of_dimension
-     procedure, private :: fill_quadrature  => quad_lagrangian_reference_fe_fill_quadrature
+     procedure :: fill_quadrature  => quad_lagrangian_reference_fe_fill_quadrature
      procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
-     procedure, private :: fill_interpolation => quad_lagrangian_reference_fe_fill_interpolation
+     procedure :: fill_interpolation => quad_lagrangian_reference_fe_fill_interpolation
      procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
-     procedure, private :: fill_face_interpolation => quad_lagrangian_reference_fe_fill_face_interpolation
+     procedure :: fill_face_interpolation => quad_lagrangian_reference_fe_fill_face_interpolation
      procedure :: create_face_local_interpolation                                                   &
           &                          => quad_lagrangian_reference_fe_create_face_local_interpolation
      procedure :: get_number_nodes_scalar_dim_order                                   &
@@ -714,7 +714,7 @@ module reference_fe_names
      procedure :: evaluate_fe_function_tensor => quad_lagrangian_reference_fe_evaluate_fe_function_tensor
 
      procedure :: set_nodal_quadrature => quad_lagrangian_reference_fe_set_nodal_quadrature
-
+     procedure :: fill_nodal_quadrature => quad_lagrangian_reference_fe_fill_nodal_quadrature
      procedure :: set_scalar_field_to_nodal_values => quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values
      procedure :: set_vector_field_to_nodal_values => quad_lagrangian_reference_fe_set_vector_field_to_nodal_values
      procedure :: set_tensor_field_to_nodal_values => quad_lagrangian_reference_fe_set_tensor_field_to_nodal_values
@@ -754,11 +754,11 @@ module reference_fe_names
      procedure :: create_face_quadrature    => tri_lagrangian_reference_fe_create_face_quadrature
      procedure :: get_number_quadrature_points_of_dimension                                                      &
           &                 => tri_lagrangian_reference_fe_get_nquad_of_dimension
-     procedure, private :: fill_quadrature  => tri_lagrangian_reference_fe_fill_quadrature
+     procedure :: fill_quadrature  => tri_lagrangian_reference_fe_fill_quadrature
      procedure :: create_interpolation      => tri_lagrangian_reference_fe_create_interpolation
-     procedure, private :: fill_interpolation => tri_lagrangian_reference_fe_fill_interpolation
+     procedure :: fill_interpolation => tri_lagrangian_reference_fe_fill_interpolation
      procedure :: create_face_interpolation => tri_lagrangian_reference_fe_create_face_interpolation
-     procedure, private :: fill_face_interpolation => tri_lagrangian_reference_fe_fill_face_interpolation
+     procedure :: fill_face_interpolation => tri_lagrangian_reference_fe_fill_face_interpolation
      procedure :: create_face_local_interpolation                                                   &
           &                          => tri_lagrangian_reference_fe_create_face_local_interpolation
      procedure :: get_number_nodes_scalar_dim_order                                   &
@@ -785,7 +785,7 @@ module reference_fe_names
      procedure :: evaluate_fe_function_tensor => tri_lagrangian_reference_fe_evaluate_fe_function_tensor
 
      procedure :: set_nodal_quadrature => tri_lagrangian_reference_fe_set_nodal_quadrature
-
+     procedure :: fill_nodal_quadrature => tri_lagrangian_reference_fe_fill_nodal_quadrature
      procedure :: set_scalar_field_to_nodal_values => tri_lagrangian_reference_fe_set_scalar_field_to_nodal_values
      procedure :: set_vector_field_to_nodal_values => tri_lagrangian_reference_fe_set_vector_field_to_nodal_values
      procedure :: set_tensor_field_to_nodal_values => tri_lagrangian_reference_fe_set_tensor_field_to_nodal_values

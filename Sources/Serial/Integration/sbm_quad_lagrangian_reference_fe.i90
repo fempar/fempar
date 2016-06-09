@@ -654,7 +654,7 @@ subroutine quad_lagrangian_reference_fe_set_nodal_quadrature (this)
   call this%nodal_quadrature%create(this%number_dimensions,this%number_nodes_scalar)
 
   ! Fill nodal quadrature
-  call fill_nodal_quadrature ( this%nodal_quadrature )
+  call this%fill_nodal_quadrature ( this%nodal_quadrature, this%order )
 end subroutine quad_lagrangian_reference_fe_set_nodal_quadrature
 
 subroutine quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values (this, code, values, &
@@ -1810,11 +1810,13 @@ subroutine quad_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
 end subroutine quad_lagrangian_reference_fe_fill_quadrature
 
 !-----------------------------------------------------------------------
-subroutine fill_nodal_quadrature ( quadrature ) 
+subroutine quad_lagrangian_reference_fe_fill_nodal_quadrature ( this, quadrature, order ) 
   implicit none
-  type(quadrature_t), intent(inout)  :: quadrature
-  real(rp)                 :: posgl(20),weigl(20)
-  integer(ip)              :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,nquad
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)                   , intent(inout) :: quadrature
+  integer(ip)                          , intent(in)    :: order
+  real(rp)    :: posgl(20),weigl(20)
+  integer(ip) :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,nquad
 
   ndime = quadrature%number_dimensions
   nquad = quadrature%number_quadrature_points
@@ -1865,7 +1867,7 @@ subroutine fill_nodal_quadrature ( quadrature )
      end do
   end if
 
-end subroutine fill_nodal_quadrature
+end subroutine quad_lagrangian_reference_fe_fill_nodal_quadrature
 
 subroutine quad_lagrangian_reference_fe_fill_interpolation ( this, interpolation, order, coord_ip )
   implicit none
