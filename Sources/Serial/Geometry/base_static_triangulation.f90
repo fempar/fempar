@@ -307,14 +307,14 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => coarse_triangulation_allocate_and_fill_lst_vefs_lids 
   end type coarse_triangulation_t
 
-  integer(ieep), parameter :: mold(1) = [0_ieep]
-  integer(ip)  , parameter :: size_of_ip = size(transfer(1_ip, mold))
-  integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,mold))
-
-  public :: serial_triangulation_t, coarse_triangulation_t 
+  !integer(ieep), parameter :: mold(1) = [0_ieep]
+  !integer(ip)  , parameter :: size_of_ip = size(transfer(1_ip, mold))
+  !integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,mold))
 
   public :: base_static_triangulation_t
+  public :: serial_triangulation_t
   public :: coarse_triangulation_t 
+
   public :: cell_iterator_t, vef_iterator_t, itfc_vef_iterator_t
   public :: cell_accessor_t, vef_accessor_t
   

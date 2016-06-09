@@ -320,7 +320,7 @@ subroutine base_static_triangulation_allocate_and_fill_cells_around ( this )
   class(base_static_triangulation_t), intent(inout)  :: this
   integer(ip)                                        :: ivef, vef_lid
   type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t), pointer :: cell
+  type(cell_accessor_t) :: cell
 
   call this%free_cells_around()
 
@@ -329,7 +329,7 @@ subroutine base_static_triangulation_allocate_and_fill_cells_around ( this )
 
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-     cell => cell_iterator%current()
+     cell = cell_iterator%current()
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
         this%ptrs_cells_around(vef_lid +1) = this%ptrs_cells_around(vef_lid+1) + 1
@@ -346,7 +346,7 @@ subroutine base_static_triangulation_allocate_and_fill_cells_around ( this )
 
   call cell_iterator%init()
   do while ( .not. cell_iterator%has_finished() )
-     cell => cell_iterator%current()
+     cell = cell_iterator%current()
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
         this%lst_cells_around(this%ptrs_cells_around(vef_lid)) = cell%get_lid()
@@ -393,7 +393,7 @@ subroutine base_static_triangulation_generate_vefs(this,boundary,boundary_geomet
   integer(ip)          , allocatable :: ptr_vertices(:)
   integer(ip)          , allocatable :: lst_vertices(:)
   type(cell_iterator_t)              :: cell_iterator
-  type(cell_accessor_t), pointer     :: icell
+  type(cell_accessor_t)              :: icell
   type(cell_accessor_t)              :: jcell
   type(vef_accessor_t)               :: ivef_accessor
 
@@ -420,7 +420,7 @@ subroutine base_static_triangulation_generate_vefs(this,boundary,boundary_geomet
 
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-     icell => cell_iterator%current()
+     icell = cell_iterator%current()
      ielem = icell%get_lid()
      ielem_num_nodes = ptr_vertices(ielem+1)-ptr_vertices(ielem)
      call pos_ref_fe%get(key=ielem_num_nodes,val=ielem_type,stat=istat)
@@ -453,7 +453,7 @@ subroutine base_static_triangulation_generate_vefs(this,boundary,boundary_geomet
   this%ptr_vefs_per_cell(1)=1
   call cell_iterator%init()
   do while ( .not. cell_iterator%has_finished() )
-     icell => cell_iterator%current()
+     icell = cell_iterator%current()
      ielem = icell%get_lid()
      ielem_num_nodes = ptr_vertices(ielem+1)-ptr_vertices(ielem)
      call pos_ref_fe%get(key=ielem_num_nodes,val=ielem_type,stat=istat)
@@ -473,7 +473,7 @@ subroutine base_static_triangulation_generate_vefs(this,boundary,boundary_geomet
   ! Fill vefs (this%num_vefs = number of vertices at this point)
   call cell_iterator%init()
   do while ( .not. cell_iterator%has_finished() )
-     icell => cell_iterator%current()
+     icell = cell_iterator%current()
      ielem = icell%get_lid()
      !write(*,*) 'Element:',ielem
      ielem_num_nodes = ptr_vertices(ielem+1)-ptr_vertices(ielem)
