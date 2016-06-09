@@ -790,7 +790,7 @@ contains
         if(num_rows<1 .or. num_cols<1) return
         do j=1, num_cols
             do i=1, num_rows
-                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
+                call this%update_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
 
@@ -817,7 +817,7 @@ contains
         if(num_rows<1) return
         do j=1, num_rows
             do i=1, num_rows
-                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
+                call this%update_body(ia(i), ja(j), val(i+ioffset,j+joffset), imin, imax, jmin, jmax)
             enddo
         enddo
     end subroutine csr_sparse_matrix_update_bounded_square_dense_values_body
@@ -840,7 +840,7 @@ contains
         if(num_rows<1 .or. num_cols<1) return
         do j=1, num_cols  
            do i=1, num_rows
-                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), 1, this%get_num_rows(), 1, this%get_num_cols())
+                call this%update_body(ia(i), ja(j), val(i+ioffset,j+joffset), 1, this%get_num_rows(), 1, this%get_num_cols())
             enddo
         enddo
     end subroutine csr_sparse_matrix_update_dense_values_body
@@ -862,7 +862,7 @@ contains
         if(num_rows<1) return
         do j=1, num_rows
             do i=1, num_rows
-                call this%insert(ia(i), ja(j), val(i+ioffset,j+joffset), 1, this%get_num_rows(), 1, this%get_num_cols())
+                call this%update_body(ia(i), ja(j), val(i+ioffset,j+joffset), 1, this%get_num_rows(), 1, this%get_num_cols())
             enddo
         enddo
     end subroutine csr_sparse_matrix_update_square_dense_values_body
