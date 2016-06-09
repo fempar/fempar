@@ -727,6 +727,7 @@ module reference_fe_names
           
      procedure :: fill_interior_points_permutation &
           &                   => quad_lagrangian_reference_fe_fill_interior_points_permutation     
+     procedure :: fill_permutation_array => quad_lagrangian_reference_fe_fill_permutation_array
      procedure :: get_subelements_connectivity => quad_lagrangian_reference_fe_get_subelements_connectivity
      procedure :: get_number_subelements => quad_lagrangian_reference_fe_get_number_subelements
      procedure :: get_number_nodes_scalar => quad_lagrangian_reference_fe_get_number_nodes_scalar
@@ -792,7 +793,8 @@ module reference_fe_names
           &                          => tri_lagrangian_reference_fe_get_characteristic_length
           
      procedure :: fill_interior_points_permutation &
-          &                   => tri_lagrangian_reference_fe_fill_interior_points_permutation     
+          &                   => tri_lagrangian_reference_fe_fill_interior_points_permutation
+     procedure :: fill_permutation_array => tri_lagrangian_reference_fe_fill_permutation_array
      procedure :: get_subelements_connectivity => tri_lagrangian_reference_fe_get_subelements_connectivity
      procedure :: get_number_subelements => tri_lagrangian_reference_fe_get_number_subelements
      procedure :: get_number_nodes_scalar => tri_lagrangian_reference_fe_get_number_nodes_scalar

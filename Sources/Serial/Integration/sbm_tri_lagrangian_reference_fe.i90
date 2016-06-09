@@ -517,10 +517,9 @@ subroutine tri_lagrangian_reference_fe_fill_interior_points_permutation(this,   
                  interior_points_permutation,     &
                  __FILE__,__LINE__)
   
-  call tri_lagrangian_reference_fe_fill_permutation_array(this,                         &
-                                                          dimension,                    &
-                                                          number_interior_points_x_dim, &
-                                                          interior_points_permutation)
+  call this%fill_permutation_array(dimension,                    &
+                                   number_interior_points_x_dim, &
+                                   interior_points_permutation)
   
 end subroutine tri_lagrangian_reference_fe_fill_interior_points_permutation
 
