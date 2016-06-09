@@ -100,6 +100,7 @@ private
         procedure,                  public :: extract_diagonal               => sparse_matrix_extract_diagonal
         procedure,                  public :: free                           => sparse_matrix_free
         procedure,                  public :: apply                          => sparse_matrix_apply
+        procedure,                  public :: apply_to_dense_matrix          => sparse_matrix_apply_to_dense_matrix
         procedure, non_overridable, public :: print                          => sparse_matrix_print
         procedure, non_overridable, public :: print_matrix_market            => sparse_matrix_print_matrix_market
         procedure                 , public :: create_iterator                => sparse_matrix_create_iterator
@@ -1093,6 +1094,25 @@ contains
         call op%abort_if_not_in_range(y)
         call op%State%apply(x,y)
     end subroutine sparse_matrix_apply
+
+
+    subroutine sparse_matrix_apply_to_dense_matrix(op, n, alpha, LDB, b, beta, LDC, c) 
+    !-----------------------------------------------------------------
+    !< Apply matrix matrix product y = alpha*op*b + beta*c
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(in)    :: op                   ! Sparse matrix
+        integer(ip),            intent(in)    :: n                    ! Number of columns of B and C dense arrays
+        real(rp),               intent(in)    :: alpha                ! Scalar alpha
+        integer(ip),            intent(in)    :: LDB                  ! Leading dimensions of B matrix
+        real(rp),               intent(in)    :: b(LDB, n)            ! Matrix B
+        real(rp),               intent(in)    :: beta                 ! Scalar beta
+        integer(ip),            intent(in)    :: LDC                  ! Leading dimension of C matrix
+        real(rp),               intent(inout) :: c(LDC, n)            ! Matrix C
+    !-----------------------------------------------------------------
+        assert(allocated(op%State))
+        assert(op%get_num_cols() <= LDB .and. op%get_num_cols() <= LDC)
+        call op%State%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
+    end subroutine sparse_matrix_apply_to_dense_matrix
 
 
     subroutine sparse_matrix_free(this)

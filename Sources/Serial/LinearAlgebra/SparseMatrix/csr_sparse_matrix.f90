@@ -66,6 +66,7 @@ private
         procedure, public :: free_coords                             => csr_sparse_matrix_free_coords
         procedure, public :: free_val                                => csr_sparse_matrix_free_val
         procedure, public :: apply_body                              => csr_sparse_matrix_apply_body
+        procedure, public :: apply_to_dense_matrix_body              => csr_sparse_matrix_apply_to_dense_matrix_body
         procedure, public :: print_matrix_market_body                => csr_sparse_matrix_print_matrix_market_body
         procedure, public :: print                                   => csr_sparse_matrix_print
         procedure, public :: create_iterator                         => csr_sparse_matrix_create_iterator
@@ -93,9 +94,35 @@ private
        procedure                  :: set_entry    => csr_sparse_matrix_iterator_set_entry
     end type csr_sparse_matrix_iterator_t
 
+#ifdef ENABLE_MKL
+    interface
+        subroutine mkl_dcsrmm (transa, m, n, k, alpha, matdescra, val, indx, pntrb, pntre, b, ldb, beta, c, ldc)
+        import rp
+        !-----------------------------------------------------------------
+        ! http://software.intel.com/sites/products/documentation/hpc/
+        ! compilerpro/en-us/cpp/win/mkl/refman/bla/functn_mkl_dcsrmm.html#functn_mkl_dcsrmm
+        !-----------------------------------------------------------------
+            character(len=1), intent(in)    :: transa
+            integer,          intent(in)    :: m
+            integer,          intent(in)    :: n
+            integer,          intent(in)    :: k
+            real(rp),         intent(in)    :: alpha
+            character(len=*), intent(in)    :: matdescra
+            real(rp),         intent(in)    :: val(*)
+            integer,          intent(in)    :: indx(*)
+            integer,          intent(in)    :: pntrb(m)
+            integer,          intent(in)    :: pntre(m)
+            real(rp),         intent(in)    :: b(ldb,*)
+            integer,          intent(in)    :: ldb
+            real(rp),         intent(in)    :: beta
+            real(rp),         intent(inout) :: c(ldc,*)
+            integer,          intent(in)    :: ldc
+        end subroutine mkl_dcsrmm
+    end interface
+#endif
+
 public :: csr_sparse_matrix_t
 public :: csr_format
-!public :: csr_sparse_matrix_iterator_t
 
 contains
 
@@ -438,7 +465,6 @@ contains
     end subroutine csr_sparse_matrix_move_from_fmt
 
 
-
     subroutine csr_sparse_matrix_apply_body(op,x,y) 
     !-----------------------------------------------------------------
     !< Apply matrix vector product
@@ -457,6 +483,7 @@ contains
                     class is(serial_scalar_array_t)
                         x_entries => x%get_entries()
                         y_entries => y%get_entries()
+                        y_entries = 0.0_rp
                         if (op%get_symmetric_storage()) then
                             call matvec_symmetric_storage(            &
                                         num_rows = op%get_num_rows(), &
@@ -464,7 +491,9 @@ contains
                                         irp      = op%irp,            &
                                         ja       = op%ja,             &
                                         val      = op%val,            &
-                                        x        = x_entries,   &
+                                        alpha    = 1.0_rp,            &
+                                        x        = x_entries,         &
+                                        beta     = 0.0_rp,            &
                                         y        = y_entries )
                         else
                             call matvec(num_rows = op%get_num_rows(), &
@@ -472,65 +501,96 @@ contains
                                         irp      = op%irp,            &
                                         ja       = op%ja,             &
                                         val      = op%val,            &
-                                        x        = x_entries,   &
+                                        alpha    = 1.0_rp,            &
+                                        x        = x_entries,         &
+                                        beta     = 0.0_rp,            &
                                         y        = y_entries )
                     end if
                 end select
+            class DEFAULT
+                check(.false.)
         end select
         call x%CleanTemp()
-    contains
-
-        subroutine matvec(num_rows, num_cols, irp, ja, val, x, y)
-        !-------------------------------------------------------------
-        !< Sparse matrix vector product
-        !-------------------------------------------------------------
-            integer(ip), intent(in)  :: num_rows
-            integer(ip), intent(in)  :: num_cols
-            integer(ip), intent(in)  :: irp(num_rows+1)
-            integer(ip), intent(in)  :: ja(irp(num_rows+1)-1)
-            real(rp)   , intent(in)  :: val(irp(num_rows+1)-1)
-            real(rp)   , intent(in)  :: x(num_cols)
-            real(rp)   , intent(out) :: y(num_rows)
-            integer(ip)              :: ir,ic, iz
-        !-------------------------------------------------------------
-            y = 0.0_rp
-            if(size(ja)==0) return
-            do ir = 1, num_rows
-               do iz = irp(ir), irp(ir+1)-1
-                  ic   = ja(iz)
-                  y(ir) = y(ir) + x(ic)*val(iz)
-               end do ! iz
-            end do ! ir
-        end subroutine matvec
-
-
-        subroutine matvec_symmetric_storage(num_rows, num_cols, irp, ja, val, x, y)
-        !-------------------------------------------------------------
-        !< Symmetric stored sparse matrix vector product
-        !-------------------------------------------------------------
-            integer(ip), intent(in)  :: num_rows
-            integer(ip), intent(in)  :: num_cols
-            integer(ip), intent(in)  :: irp(num_rows+1)
-            integer(ip), intent(in)  :: ja(irp(num_rows+1)-1)
-            real(rp)   , intent(in)  :: val(irp(num_rows+1)-1)
-            real(rp)   , intent(in)  :: x(num_cols)
-            real(rp)   , intent(out) :: y(num_rows)
-            integer(ip)              :: ir,ic, iz
-        !-------------------------------------------------------------
-            assert(num_rows==num_cols)
-            y = 0.0_rp
-            if(size(ja)==0) return
-            do ir = 1, num_rows
-                y(ir) = y(ir) + x(ja(irp(ir)))*val(irp(ir))
-                do iz = irp(ir)+1, irp(ir+1)-1
-                    ic = ja(iz)
-                    y(ir) = y(ir) + x(ic)*val(iz)
-                    y(ic) = y(ic) + x(ir)*val(iz)
-                end do ! iz
-            end do ! ir
-        end subroutine matvec_symmetric_storage
-
     end subroutine csr_sparse_matrix_apply_body
+
+
+    subroutine csr_sparse_matrix_apply_to_dense_matrix_body(op, n, alpha, LDB, b, beta, LDC, c) 
+    !-----------------------------------------------------------------
+    !< Apply matrix matrix product y = alpha*op*b + beta*c
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),  intent(in)    :: op              ! Sparse matrix
+        integer(ip),                 intent(in)    :: n               ! Number of columns of B and C dense arrays
+        real(rp),                    intent(in)    :: alpha           ! Scalar alpha
+        integer(ip),                 intent(in)    :: LDB             ! Leading dimensions of B matrix
+        real(rp),                    intent(in)    :: b(LDB, n)       ! Matrix B
+        real(rp),                    intent(in)    :: beta            ! Scalar beta
+        integer(ip),                 intent(in)    :: LDC             ! Leading dimension of C matrix
+        real(rp),                    intent(inout) :: c(LDC, n)       ! Matrix C
+        integer(ip)                                :: i               ! Index to loop on B columns
+    !-----------------------------------------------------------------
+#ifdef ENABLE_MKL
+        if (op%get_symmetric_storage()) then
+            call mkl_dcsrmm(transa    = 'N',               & ! Non transposed
+                            m         = op%get_num_rows(), &
+                            n         = n,                 &
+                            k         = op%get_num_cols(), &
+                            alpha     = alpha,             &
+                            matdescra = 'SUNF',            & ! (Symmetric, Upper, Non-unit, Fortran)
+                            val       = op%val,            &
+                            indx      = op%ja,             &
+                            pntrb     = op%irp(1),         &
+                            pntre     = op%irp(2),         &
+                            b         = b,                 &
+                            ldb       = LDB,               &
+                            beta      = beta,              &
+                            c         = c,                 &
+                            ldc       = LDC )
+        else
+            call mkl_dcsrmm(transa    = 'N',               & ! Non transposed
+                            m         = op%get_num_rows(), &
+                            n         = n,                 &
+                            k         = op%get_num_cols(), &
+                            alpha     = alpha,             &
+                            matdescra = 'GXXF',            & ! General, X, X, Fortran)
+                            val       = op%val,            &
+                            indx      = op%ja,             &
+                            pntrb     = op%irp(1),         &
+                            pntre     = op%irp(2),         &
+                            b         = b,                 &
+                            ldb       = LDB,               &
+                            beta      = beta,              &
+                            c         = c,                 &
+                            ldc       = LDC )
+        endif
+#else
+        if (op%get_symmetric_storage()) then
+            do i=1,n
+                call matvec_symmetric_storage(            &
+                            num_rows = op%get_num_rows(), &
+                            num_cols = op%get_num_rows(), &
+                            irp      = op%irp,            &
+                            ja       = op%ja,             &
+                            val      = op%val,            &
+                            alpha    = alpha,             &
+                            x        = b(1:k,i),          &
+                            beta     = beta,              &
+                            y        = c(1:m,i) )
+            end do
+        else
+            do i=1,n
+                call matvec(num_rows = op%get_num_rows(), &
+                            num_cols = op%get_num_cols(), &
+                            irp      = op%irp,            &
+                            ja       = op%ja,             &
+                            val      = op%val,            &
+                            alpha    = alpha,             &
+                            x        = b(1:k,i),          &
+                            beta     = beta,              &
+                            y        = c(1:m,i) )
+            enddo
+        endif
+#endif
+    end subroutine csr_sparse_matrix_apply_to_dense_matrix_body
 
 
     subroutine csr_sparse_matrix_allocate_symbolic(this, nz)
