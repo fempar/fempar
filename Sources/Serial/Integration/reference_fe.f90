@@ -693,6 +693,7 @@ module reference_fe_names
      procedure :: get_number_nodes_scalar_dim_order                                   &
           &                 => quad_lagrangian_reference_fe_get_number_nodes_scalar_dim_order
      procedure :: update_interpolation      => quad_lagrangian_reference_fe_update_interpolation
+     procedure :: apply_femap_to_interpolation => quad_lagrangian_reference_fe_apply_femap_to_interpolation
      procedure :: update_interpolation_face => quad_lagrangian_reference_fe_update_interpolation_face
      procedure :: get_component_node     => quad_lagrangian_reference_fe_get_component_node
      procedure :: get_scalar_from_vector_node           => quad_lagrangian_reference_fe_get_scalar_from_vector_node
@@ -758,6 +759,7 @@ module reference_fe_names
      procedure :: get_number_nodes_scalar_dim_order                                   &
           &                 => tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order
      procedure :: update_interpolation      => tri_lagrangian_reference_fe_update_interpolation
+     procedure :: apply_femap_to_interpolation => tri_lagrangian_reference_fe_apply_femap_to_interpolation
      procedure :: update_interpolation_face => tri_lagrangian_reference_fe_update_interpolation_face
      procedure :: get_component_node        => tri_lagrangian_reference_fe_get_component_node
      procedure :: get_scalar_from_vector_node           => tri_lagrangian_reference_fe_get_scalar_from_vector_node

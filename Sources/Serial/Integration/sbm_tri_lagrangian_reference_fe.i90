@@ -200,18 +200,18 @@ subroutine tri_lagrangian_reference_fe_update_interpolation( this, fe_map,      
      &                                                        interpolation_real_cell )
   implicit none 
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(fe_map_t)                       , intent(in)    :: fe_map
-  type(interpolation_t)             , intent(in)    :: interpolation_reference_cell
-  type(interpolation_t)             , intent(inout) :: interpolation_real_cell
+  type(fe_map_t)                      , intent(in)    :: fe_map
+  type(interpolation_t)               , intent(in)    :: interpolation_reference_cell
+  type(interpolation_t)               , intent(inout) :: interpolation_real_cell
 
-  call P_femap_apply_to_interp( fe_map, interpolation_reference_cell,interpolation_real_cell )
+  call this%apply_femap_to_interpolation( fe_map, interpolation_reference_cell,interpolation_real_cell )
 end subroutine tri_lagrangian_reference_fe_update_interpolation
 
-subroutine tri_lagrangian_reference_fe_update_interpolation_face( this,  local_face_id,          &
+subroutine tri_lagrangian_reference_fe_update_interpolation_face( this,  local_face_id,           &
      &                                                             fe_map_face_restriction,       &
      &                                                             interpolation_face_restriction )
   implicit none 
-  class(tri_lagrangian_reference_fe_t) , intent(in)    :: this 
+  class(tri_lagrangian_reference_fe_t)  , intent(in)    :: this 
   integer(ip)                           , intent(in)    :: local_face_id
   type(fe_map_face_restriction_t)       , intent(in)    :: fe_map_face_restriction
   type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
@@ -235,7 +235,7 @@ end function tri_lagrangian_reference_fe_get_component_node
 function tri_lagrangian_reference_fe_get_scalar_from_vector_node( this, node )
   implicit none
   class(tri_lagrangian_reference_fe_t), intent(in) :: this 
-  integer(ip)                          , intent(in) :: node
+  integer(ip)                         , intent(in) :: node
   integer(ip) :: tri_lagrangian_reference_fe_get_scalar_from_vector_node
   tri_lagrangian_reference_fe_get_scalar_from_vector_node = this%node_component_array(node,1)
 end function tri_lagrangian_reference_fe_get_scalar_from_vector_node
@@ -372,9 +372,9 @@ subroutine tri_lagrangian_reference_fe_interpolate_nodal_values( this, &
                                                                &  nodal_values_destination)
   implicit none
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(interpolation_t)                , intent(in)    :: nodal_interpolation
-  real(rp)                             , intent(in)    :: nodal_values_origin(:)
-  real(rp)                             , intent(inout) :: nodal_values_destination(:)
+  type(interpolation_t)               , intent(in)    :: nodal_interpolation
+  real(rp)                            , intent(in)    :: nodal_values_origin(:)
+  real(rp)                            , intent(inout) :: nodal_values_destination(:)
   integer(ip) :: qpoint, ishape, icomp, c_dest
 
   c_dest = 0
@@ -2219,11 +2219,12 @@ subroutine face_P_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
 end subroutine face_P_shapen
 
 !==============================================================================
-  subroutine P_femap_apply_to_interp(map,ref,phy)
+  subroutine tri_lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy)
     implicit none
-    type(fe_map_t)          , intent(in)    :: map
-    type(interpolation_t), intent(in)    :: ref
-    type(interpolation_t), intent(inout) :: phy
+    class(tri_lagrangian_reference_fe_t), intent(in)    :: this 
+    type(fe_map_t)                      , intent(in)    :: map
+    type(interpolation_t)               , intent(in)    :: ref
+    type(interpolation_t)               , intent(inout) :: phy
     real(rp), allocatable :: wmat1(:,:,:)
     real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
     integer(ip) :: ndime,nnode,nlocs,ntens
@@ -2311,7 +2312,7 @@ end subroutine face_P_shapen
        call memfree(wmat1,__FILE__,__LINE__)
        call memfree(wmat2,__FILE__,__LINE__)
     end if
-  end subroutine P_femap_apply_to_interp
+  end subroutine tri_lagrangian_reference_fe_apply_femap_to_interpolation
 
 !==================================================================================================
   subroutine P_matove(xmatr,vecto,ndime,ntens)
