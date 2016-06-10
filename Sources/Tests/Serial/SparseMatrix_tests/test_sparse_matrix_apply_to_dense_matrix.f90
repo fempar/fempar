@@ -37,12 +37,18 @@ implicit none
     ! Apply to dense matrix
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 0.0))
-#ifdef FEMPAR_ENABLE_MKL
+    ! Apply transpose to dense matrix
+    call sparse_matrix%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
+    check(all(c == 0.0))
+#ifdef ENABLE_MKL
     ! Convert: ASSEMBLED=>ASSEMBLED
     call sparse_matrix%convert(coo_format)
 
     ! Apply to dense matrix
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
+    check(all(c == 0.0))
+    ! Apply transpose to dense matrix
+    call sparse_matrix%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 0.0))
 #endif
 
@@ -59,7 +65,7 @@ implicit none
     call sparse_matrix%insert(nz=10,                                 &
                               ia=(/1,2,3,4,5,1,2,3,4,5/),            &
                               ja=(/1,2,3,4,5,5,4,3,2,1/),            &
-                              val=(/1.,2.,3.,4.,5.,5.,4.,3.,2.,1./))
+                              val=(/1.,2.,3.,2.,1.,5.,4.,3.,4.,5./))
 
     ! Convert: BUILD_NUMERIC=>ASSEMBLED
     call sparse_matrix%convert(csr_format)
@@ -69,12 +75,19 @@ implicit none
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 6.0))
     c = 0.0
-#ifdef FEMPAR_ENABLE_MKL
+    ! Apply transpose to dense matrix
+    call sparse_matrix%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
+    check(all(c == 6.0))
+    c = 0.0
+#ifdef ENABLE_MKL
     ! Convert: ASSEMBLED=>ASSEMBLED
     call sparse_matrix%convert(coo_format)
 
     ! Apply to dense matrix
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
+    check(all(c == 6.0))
+    ! Apply transpose to dense matrix
+    call sparse_matrix%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 6.0))
 #endif
 
@@ -95,14 +108,20 @@ implicit none
     ! Apply to dense matrix
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 0.0))
+    ! Apply transpose to dense matrix
+    call sparse_matrix%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
+    check(all(c == 0.0))
 
-#ifdef FEMPAR_ENABLE_MKL
+#ifdef ENABLE_MKL
     ! Convert: ASSEMBLED=>ASSEMBLED
     call sparse_matrix%convert(coo_format)
     call sparse_matrix%print( 6)
 
     ! Apply to dense matrix
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
+    check(all(c == 0.0))
+    ! Apply transpose to dense matrix
+    call sparse_matrix%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 0.0))
 #endif
 
@@ -129,14 +148,21 @@ implicit none
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 6.0))
     c = 0.0
+    ! Apply transpose to dense matrix
+    call sparse_matrix%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) s
+    check(all(c == 6.0))
+    c = 0.0
 
-#ifdef FEMPAR_ENABLE_MKL
+#ifdef ENABLE_MKL
     ! Convert: BUILD_NUMERIC=>ASSEMBLED
     call sparse_matrix%convert(coo_format)
     call sparse_matrix%print( 6)
 
     ! Apply to dense matrix
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
+    check(all(c == 6.0))
+    ! Apply transpose to dense matrix
+    call sparse_matrix%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 6.0))
 #endif
 

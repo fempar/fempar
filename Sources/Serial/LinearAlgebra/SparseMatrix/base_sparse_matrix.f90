@@ -195,6 +195,7 @@ module base_sparse_matrix_names
      procedure         :: is_valid_sign                    => base_sparse_matrix_is_valid_sign
      procedure         :: apply_body                       => base_sparse_matrix_apply_body
      procedure         :: apply_to_dense_matrix_body       => base_sparse_matrix_apply_to_dense_matrix_body
+     procedure         :: apply_transpose_to_dense_matrix_body => base_sparse_matrix_apply_transpose_to_dense_matrix_body
      procedure, public :: is_symbolic                      => base_sparse_matrix_is_symbolic
      procedure, public :: copy_to_fmt                      => base_sparse_matrix_copy_to_fmt
      procedure, public :: copy_from_fmt                    => base_sparse_matrix_copy_from_fmt
@@ -233,6 +234,7 @@ module base_sparse_matrix_names
      procedure, public :: convert_body                     => base_sparse_matrix_convert_body
      procedure, public :: apply                            => base_sparse_matrix_apply
      procedure, public :: apply_to_dense_matrix            => base_sparse_matrix_apply_to_dense_matrix
+     procedure, public :: apply_transpose_to_dense_matrix  => base_sparse_matrix_apply_transpose_to_dense_matrix
      procedure, public :: print_matrix_market              => base_sparse_matrix_print_matrix_market
      procedure, public :: free                             => base_sparse_matrix_free
      procedure, public :: free_clean                       => base_sparse_matrix_free_clean
@@ -376,6 +378,7 @@ module base_sparse_matrix_names
         procedure, public :: free_coords                             => coo_sparse_matrix_free_coords
         procedure, public :: free_val                                => coo_sparse_matrix_free_val
         procedure         :: apply_to_dense_matrix_body              => coo_sparse_matrix_apply_to_dense_matrix_body
+        procedure         :: apply_transpose_to_dense_matrix_body    => coo_sparse_matrix_apply_transpose_to_dense_matrix_body
         procedure, public :: print_matrix_market_body                => coo_sparse_matrix_print_matrix_market_body
         procedure, public :: print                                   => coo_sparse_matrix_print
         procedure, public :: create_iterator                         => coo_sparse_matrix_create_iterator
@@ -954,8 +957,6 @@ public :: duplicates_operation
 public :: assign_value
 public :: sum_value
 public :: binary_search
-public :: matvec
-public :: matvec_symmetric_storage
 public :: mergesort_link_list
 public :: reorder_ip_rp_from_link_list
 public :: reorder_ip_from_link_list
@@ -2369,6 +2370,41 @@ contains
     !-----------------------------------------------------------------
         check(.false.)
     end subroutine base_sparse_matrix_apply_to_dense_matrix_body
+
+
+    subroutine base_sparse_matrix_apply_transpose_to_dense_matrix(op, n, alpha, LDB, b, beta, LDC, c) 
+    !-----------------------------------------------------------------
+    !< Apply matrix matrix product y = alpha*op*b + beta*c
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in)    :: op                   ! Sparse matrix
+        integer(ip),                 intent(in)    :: n                    ! Number of columns of B and C dense arrays
+        real(rp),                    intent(in)    :: alpha                ! Scalar alpha
+        integer(ip),                 intent(in)    :: LDB                  ! Leading dimensions of B matrix
+        real(rp),                    intent(in)    :: b(LDB, n)            ! Matrix B
+        real(rp),                    intent(in)    :: beta                 ! Scalar beta
+        integer(ip),                 intent(in)    :: LDC                  ! Leading dimension of C matrix
+        real(rp),                    intent(inout) :: c(LDC, n)            ! Matrix C
+    !-----------------------------------------------------------------
+        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. op%state == SPARSE_MATRIX_STATE_UPDATE)
+        call op%apply_transpose_to_dense_matrix_body(n, alpha, LDB, b, beta, LDC, c) 
+    end subroutine base_sparse_matrix_apply_transpose_to_dense_matrix
+
+
+    subroutine base_sparse_matrix_apply_transpose_to_dense_matrix_body(op, n, alpha, LDB, b, beta, LDC, c) 
+    !-----------------------------------------------------------------
+    !< Apply tranpose matrix matrix product y = alpha*op'*b + beta*c
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in)    :: op              ! Sparse matrix
+        integer(ip),                 intent(in)    :: n               ! Number of columns of B and C dense arrays
+        real(rp),                    intent(in)    :: alpha           ! Scalar alpha
+        integer(ip),                 intent(in)    :: LDB             ! Leading dimensions of B matrix
+        real(rp),                    intent(in)    :: b(LDB, n)       ! Matrix B
+        real(rp),                    intent(in)    :: beta            ! Scalar beta
+        integer(ip),                 intent(in)    :: LDC             ! Leading dimension of C matrix
+        real(rp),                    intent(inout) :: c(LDC, n)       ! Matrix C
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_apply_transpose_to_dense_matrix_body
 
 
     subroutine base_sparse_matrix_copy_to_fmt(this, to)
@@ -4883,6 +4919,60 @@ contains
     end subroutine coo_sparse_matrix_apply_to_dense_matrix_body
 
 
+    subroutine coo_sparse_matrix_apply_transpose_to_dense_matrix_body(op, n, alpha, LDB, b, beta, LDC, c) 
+    !-----------------------------------------------------------------
+    !< Apply matrix matrix product y = alpha*op*b + beta*c
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),  intent(in)    :: op              ! Sparse matrix
+        integer(ip),                 intent(in)    :: n               ! Number of columns of B and C dense arrays
+        real(rp),                    intent(in)    :: alpha           ! Scalar alpha
+        integer(ip),                 intent(in)    :: LDB             ! Leading dimensions of B matrix
+        real(rp),                    intent(in)    :: b(LDB, n)       ! Matrix B
+        real(rp),                    intent(in)    :: beta            ! Scalar beta
+        integer(ip),                 intent(in)    :: LDC             ! Leading dimension of C matrix
+        real(rp),                    intent(inout) :: c(LDC, n)       ! Matrix C
+    !-----------------------------------------------------------------
+#ifdef ENABLE_MKL
+        assert (op%is_by_rows())
+        if (op%get_symmetric_storage()) then
+            call mkl_dcoomm(transa    = 'T',               & ! Transposed
+                            m         = op%get_num_rows(), &
+                            n         = n,                 &
+                            k         = op%get_num_cols(), &
+                            alpha     = alpha,             &
+                            matdescra = 'SUNF',            & ! (Symmetric, Upper, Non-unit, Fortran)
+                            val       = op%val,            &
+                            rowind    = op%ia,             &
+                            colind    = op%ja,             &
+                            nnz       = op%nnz,            &
+                            b         = b,                 &
+                            ldb       = LDB,               &
+                            beta      = beta,              &
+                            c         = c,                 &
+                            ldc       = LDC )
+        else
+            call mkl_dcoomm(transa    = 'T',               & ! Transposed
+                            m         = op%get_num_rows(), &
+                            n         = n,                 &
+                            k         = op%get_num_cols(), &
+                            alpha     = alpha,             &
+                            matdescra = 'GXXF',            & ! General, X, X, Fortran)
+                            val       = op%val,            &
+                            rowind    = op%ia,             &
+                            colind    = op%ja,             &
+                            nnz       = op%nnz,            &
+                            b         = b,                 &
+                            ldb       = LDB,               &
+                            beta      = beta,              &
+                            c         = c,                 &
+                            ldc       = LDC )
+        endif
+#else
+        check(.false.)
+#endif
+    end subroutine coo_sparse_matrix_apply_transpose_to_dense_matrix_body
+
+
     subroutine coo_sparse_matrix_print(this,lunou, only_graph)
     !-----------------------------------------------------------------
     !< Print a COO matrix
@@ -5109,61 +5199,6 @@ contains
         enddo
         return
     end function binary_search
-
-
-    subroutine matvec(num_rows, num_cols, irp, ja, val, alpha, x, beta, y)
-    !-------------------------------------------------------------
-    !< Sparse matrix vector product y = alpha*A*x + beta*y
-    !-------------------------------------------------------------
-        integer(ip), intent(in)    :: num_rows
-        integer(ip), intent(in)    :: num_cols
-        integer(ip), intent(in)    :: irp(num_rows+1)
-        integer(ip), intent(in)    :: ja(irp(num_rows+1)-1)
-        real(rp)   , intent(in)    :: val(irp(num_rows+1)-1)
-        real(rp)   , intent(in)    :: alpha
-        real(rp)   , intent(in)    :: x(num_cols)
-        real(rp)   , intent(in)    :: beta
-        real(rp)   , intent(inout) :: y(num_rows)
-        integer(ip)                :: ir,ic, iz
-    !-------------------------------------------------------------
-        if(size(ja)==0) return
-        y = beta*y
-        do ir = 1, num_rows
-           do iz = irp(ir), irp(ir+1)-1
-              ic   = ja(iz)
-              y(ir) = y(ir) + alpha*x(ic)*val(iz)
-           end do ! iz
-        end do ! ir
-    end subroutine matvec
-
-
-    subroutine matvec_symmetric_storage(num_rows, num_cols, irp, ja, val, alpha, x, beta, y)
-    !-------------------------------------------------------------
-    !< Symmetric stored sparse matrix vector product y = alpha*A*x + beta*y
-    !-------------------------------------------------------------
-        integer(ip), intent(in)    :: num_rows
-        integer(ip), intent(in)    :: num_cols
-        integer(ip), intent(in)    :: irp(num_rows+1)
-        integer(ip), intent(in)    :: ja(irp(num_rows+1)-1)
-        real(rp)   , intent(in)    :: val(irp(num_rows+1)-1)
-        real(rp)   , intent(in)    :: alpha
-        real(rp)   , intent(in)    :: x(num_cols)
-        real(rp)   , intent(in)    :: beta
-        real(rp)   , intent(inout) :: y(num_rows)
-        integer(ip)                :: ir,ic, iz
-    !-------------------------------------------------------------
-        assert(num_rows==num_cols)
-        if(size(ja)==0) return
-        y = beta*y
-        do ir = 1, num_rows
-            y(ir) = y(ir) + x(ja(irp(ir)))*val(irp(ir))
-            do iz = irp(ir)+1, irp(ir+1)-1
-                ic = ja(iz)
-                y(ir) = y(ir) + alpha*x(ic)*val(iz)
-                y(ic) = y(ic) + alpha*x(ir)*val(iz)
-            end do ! iz
-        end do ! ir
-    end subroutine matvec_symmetric_storage
 
 
     subroutine mergesort_link_list(n,k,l,iret)
