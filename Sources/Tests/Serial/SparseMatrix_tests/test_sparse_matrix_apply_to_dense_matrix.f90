@@ -37,13 +37,14 @@ implicit none
     ! Apply to dense matrix
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 0.0))
-
+#ifdef FEMPAR_ENABLE_MKL
     ! Convert: ASSEMBLED=>ASSEMBLED
     call sparse_matrix%convert(coo_format)
 
     ! Apply to dense matrix
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 0.0))
+#endif
 
     ! Free: CREATED=>START
     call sparse_matrix%free_in_stages(free_clean)
@@ -68,13 +69,14 @@ implicit none
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 6.0))
     c = 0.0
-
+#ifdef FEMPAR_ENABLE_MKL
     ! Convert: ASSEMBLED=>ASSEMBLED
     call sparse_matrix%convert(coo_format)
 
     ! Apply to dense matrix
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 6.0))
+#endif
 
     ! Free: CREATED=>START
     call sparse_matrix%free_in_stages(free_clean)
@@ -94,6 +96,7 @@ implicit none
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 0.0))
 
+#ifdef FEMPAR_ENABLE_MKL
     ! Convert: ASSEMBLED=>ASSEMBLED
     call sparse_matrix%convert(coo_format)
     call sparse_matrix%print( 6)
@@ -101,6 +104,7 @@ implicit none
     ! Apply to dense matrix
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 0.0))
+#endif
 
     ! Free: CREATED=>START
     call sparse_matrix%free_in_stages(free_clean)
@@ -126,6 +130,7 @@ implicit none
     check(all(c == 6.0))
     c = 0.0
 
+#ifdef FEMPAR_ENABLE_MKL
     ! Convert: BUILD_NUMERIC=>ASSEMBLED
     call sparse_matrix%convert(coo_format)
     call sparse_matrix%print( 6)
@@ -133,6 +138,7 @@ implicit none
     ! Apply to dense matrix
     call sparse_matrix%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 6.0))
+#endif
 
     ! Free: CREATED=>START
     call sparse_matrix%free_in_stages(free_clean)

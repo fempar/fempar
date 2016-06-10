@@ -565,28 +565,28 @@ contains
 #else
         if (op%get_symmetric_storage()) then
             do i=1,n
-                call matvec_symmetric_storage(            &
-                            num_rows = op%get_num_rows(), &
-                            num_cols = op%get_num_rows(), &
-                            irp      = op%irp,            &
-                            ja       = op%ja,             &
-                            val      = op%val,            &
-                            alpha    = alpha,             &
-                            x        = b(1:k,i),          &
-                            beta     = beta,              &
-                            y        = c(1:m,i) )
+                call matvec_symmetric_storage(                   &
+                            num_rows = op%get_num_rows(),        &
+                            num_cols = op%get_num_rows(),        &
+                            irp      = op%irp,                   &
+                            ja       = op%ja,                    &
+                            val      = op%val,                   &
+                            alpha    = alpha,                    &
+                            x        = b(1:op%get_num_rows(),i), &
+                            beta     = beta,                     &
+                            y        = c(1:op%get_num_rows(),i) )
             end do
         else
             do i=1,n
-                call matvec(num_rows = op%get_num_rows(), &
-                            num_cols = op%get_num_cols(), &
-                            irp      = op%irp,            &
-                            ja       = op%ja,             &
-                            val      = op%val,            &
-                            alpha    = alpha,             &
-                            x        = b(1:k,i),          &
-                            beta     = beta,              &
-                            y        = c(1:m,i) )
+                call matvec(num_rows = op%get_num_rows(),        &
+                            num_cols = op%get_num_cols(),        &
+                            irp      = op%irp,                   &
+                            ja       = op%ja,                    &
+                            val      = op%val,                   &
+                            alpha    = alpha,                    &
+                            x        = b(1:op%get_num_cols(),i), &
+                            beta     = beta,                     &
+                            y        = c(1:op%get_num_rows(),i) )
             enddo
         endif
 #endif
