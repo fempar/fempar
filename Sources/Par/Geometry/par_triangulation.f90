@@ -115,6 +115,8 @@ module par_triangulation_names
      
      type(coarse_triangulation_t), pointer   :: coarse_triangulation
   contains
+     procedure, non_overridable          :: get_coarse_triangulation                       => par_triangulation_get_coarse_triangulation
+  
      procedure, non_overridable, private :: compute_parts_itfc_vefs                        => par_triangulation_compute_parts_itfc_vefs
      procedure, non_overridable, private :: compute_vefs_and_parts_object                  => par_triangulation_compute_vefs_and_parts_object
      procedure, non_overridable, private :: compute_objects_dimension                      => par_triangulation_compute_objects_dimension
@@ -572,6 +574,14 @@ contains
     call p_trian%compute_objects_dimension()
     call p_trian%compute_number_global_objects_and_their_gids()
   end subroutine par_triangulation_to_dual
+  
+  ! Required (at least) by type(mlbddc_t)
+  function par_triangulation_get_coarse_triangulation(this)
+    implicit none
+    class(par_triangulation_t), target, intent(in)  :: this
+    type(coarse_triangulation_t), pointer :: par_triangulation_get_coarse_triangulation
+    par_triangulation_get_coarse_triangulation => this%coarse_triangulation
+  end function par_triangulation_get_coarse_triangulation
  
   subroutine par_triangulation_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     implicit none

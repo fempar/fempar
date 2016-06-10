@@ -53,7 +53,7 @@ subroutine coarse_fe_space_create (this, &
   call this%free()
 
   this%coarse_triangulation => coarse_triangulation
-  par_environment => coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   if(par_environment%am_i_l1_task()) then
      this%number_fields = number_fields
      assert ( number_fields == 1 )
@@ -85,7 +85,7 @@ subroutine coarse_fe_space_free (this)
   integer(ip) :: istat
   type(par_environment_t), pointer :: par_environment
   if ( associated(this%coarse_triangulation) ) then
-      par_environment => this%coarse_triangulation%get_par_environment()
+      par_environment => this%get_par_environment()
       if (par_environment%am_i_l1_task()) then
         call this%free_field_blocks_and_coupling()
         call this%free_field_type()
@@ -111,7 +111,7 @@ subroutine coarse_fe_space_allocate_and_fill_field_type(this, field_type)
   class(coarse_fe_space_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: field_type(this%number_fields)
   type(par_environment_t), pointer        :: par_environment
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
   call memalloc ( this%number_fields, this%field_type, __FILE__, __LINE__ )
@@ -130,7 +130,7 @@ subroutine coarse_fe_space_allocate_and_fill_field_blocks_and_coupling ( this, f
   integer(ip)           , optional, intent(in)    :: field_blocks(:)
   logical               , optional, intent(in)    :: field_coupling(:,:)
   type(par_environment_t), pointer                :: par_environment
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
   
@@ -168,7 +168,7 @@ subroutine coarse_fe_space_allocate_and_fill_ptr_dofs_per_fe_and_field (this, pt
   type(par_environment_t), pointer :: par_environment
   type(element_import_t) , pointer :: element_import
 
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
 
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
@@ -237,7 +237,7 @@ subroutine coarse_fe_space_fetch_ghost_fes_data(this, &
   integer(ip)                      :: num_local_cells
   integer(ip)                      :: num_ghost_cells
 
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
 
@@ -387,7 +387,7 @@ subroutine coarse_fe_space_allocate_and_fill_own_dofs_vef_per_fe (this, &
   type(coarse_fe_accessor_t)                :: coarse_fe
   integer(ip)                               :: istat
   integer(ip)                               :: field_id
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
   
@@ -554,7 +554,7 @@ subroutine coarse_fe_space_allocate_lst_dofs_lids (this)
   integer(ip)                            :: num_local_cells, num_ghost_cells
   integer(ip)                            :: sz_lst_dofs_lids
   
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
   
@@ -571,7 +571,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids( this )
   integer(ip)                             :: field_id
   
   assert ( associated(this%coarse_triangulation) )
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
 
@@ -736,7 +736,7 @@ subroutine coarse_fe_space_compute_blocks_dof_import ( this, lst_dof_gids )
   type(par_environment_t), pointer        :: par_environment
   
   assert ( associated(this%coarse_triangulation) )
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )     
   allocate ( this%blocks_dof_import(this%number_blocks) )
@@ -765,7 +765,7 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
   type(par_environment_t), pointer        :: par_environment
   
   assert ( associated(this%coarse_triangulation) )
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )   
   assert ( iblock >= 1 .and. iblock <= this%number_blocks )
@@ -862,7 +862,7 @@ function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, 
 
 
   assert ( associated(this%coarse_triangulation) )
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )   
   
@@ -941,7 +941,7 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
 
 
   assert ( associated(this%coarse_triangulation) )
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )  
   
@@ -1077,7 +1077,7 @@ subroutine coarse_fe_space_raw_interface_data_by_continuity_decide_owner ( this,
   call memfree ( perm, __FILE__, __LINE__ )
   call memfree ( aux, __FILE__, __LINE__ )
 
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   l1_context      => par_environment%get_l1_context()
   mypart_id       = l1_context%get_rank() + 1
 
@@ -1142,7 +1142,7 @@ subroutine coarse_fe_space_compute_dofs_objects ( this )
   !  * How should it work for arbitrary composite cases ? (most general case)
   assert ( this%number_fields == 1 )
   assert ( associated(this%coarse_triangulation) )
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )   
   
@@ -1193,7 +1193,7 @@ subroutine coarse_fe_space_compute_dofs_objects_by_continuity ( this, field_id )
   
   assert ( this%number_fields == 1 )
   assert ( associated(this%coarse_triangulation) )
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
   
@@ -1308,7 +1308,7 @@ subroutine coarse_fe_space_setup_coarse_fe_space(this)
   integer(igp), allocatable            :: lst_vefs_gids_dofs_objects(:)
   type(par_environment_t), pointer     :: par_environment
   
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   
    ! All MPI tasks (even if they are not involved in the L2 from L1 gather) should also allocate the
    ! allocatable arrays due to the fact that non-allocated allocatable arrays cannot
@@ -1363,7 +1363,7 @@ subroutine coarse_fe_space_transfer_field_type ( this, number_fields, field_type
   integer(ip)                                :: dummy_integer_array_ip(0)
   type(par_environment_t), pointer           :: par_environment
 
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( par_environment%am_i_l1_to_l2_task() )
   if ( par_environment%am_i_l1_to_l2_root() ) then
      if ( allocated (field_type) ) call memfree ( field_type, __FILE__, __LINE__ )
@@ -1386,7 +1386,7 @@ subroutine coarse_fe_space_gather_ptr_dofs_per_fe_and_field( this, number_fields
   type(par_environment_t), pointer           :: par_environment
   type(coarse_triangulation_t), pointer      :: coarse_triangulation
   
-  par_environment => this%coarse_triangulation%get_par_environment()
+  par_environment => this%get_par_environment()
   assert ( par_environment%am_i_l1_to_l2_task() )
   if ( par_environment%am_i_l1_to_l2_root() ) then
      coarse_triangulation => this%coarse_triangulation%get_coarse_triangulation()
@@ -1417,7 +1417,7 @@ end subroutine coarse_fe_space_gather_ptr_dofs_per_fe_and_field
     integer(ip)                               :: dummy_integer_array(0)
     type(par_environment_t), pointer     :: par_environment
 
-    par_environment => this%coarse_triangulation%get_par_environment()
+    par_environment => this%get_par_environment()
     assert ( par_environment%am_i_l1_to_l2_task() )
     if ( par_environment%am_i_l1_to_l2_root() ) then
       l1_to_l2_size = par_environment%get_l1_to_l2_size()
@@ -1448,7 +1448,7 @@ end subroutine coarse_fe_space_gather_ptr_dofs_per_fe_and_field
     integer(ip)                               :: dummy_integer_array_ip(0)
     type(par_environment_t), pointer          :: par_environment
     
-    par_environment => this%coarse_triangulation%get_par_environment()
+    par_environment => this%get_par_environment()
     assert ( par_environment%am_i_l1_to_l2_task() )
     if ( par_environment%am_i_l1_to_l2_root() ) then
       l1_to_l2_size = par_environment%get_l1_to_l2_size()
@@ -1480,7 +1480,7 @@ end subroutine coarse_fe_space_gather_ptr_dofs_per_fe_and_field
     integer(ip)                               :: dummy_integer_array_ip(0)
     type(par_environment_t), pointer          :: par_environment
     
-    par_environment => this%coarse_triangulation%get_par_environment()
+    par_environment => this%get_par_environment()
     assert ( par_environment%am_i_l1_to_l2_task() )
     if ( par_environment%am_i_l1_to_l2_root() ) then
       l1_to_l2_size = par_environment%get_l1_to_l2_size()
@@ -1536,3 +1536,10 @@ end function coarse_fe_space_create_itfc_coarse_fe_vef_iterator
     type(coarse_fe_vefs_on_object_iterator_t)                    :: coarse_fe_space_create_coarse_fe_vefs_on_object_iterator
     call coarse_fe_space_create_coarse_fe_vefs_on_object_iterator%create(lid, this)
   end function coarse_fe_space_create_coarse_fe_vefs_on_object_iterator
+  
+  function coarse_fe_space_get_par_environment(this)
+    implicit none
+    class(coarse_fe_space_t), intent(in) :: this
+    type(par_environment_t)  , pointer   :: coarse_fe_space_get_par_environment
+    coarse_fe_space_get_par_environment => this%coarse_triangulation%get_par_environment()
+  end function coarse_fe_space_get_par_environment

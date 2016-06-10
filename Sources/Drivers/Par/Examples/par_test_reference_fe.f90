@@ -298,6 +298,7 @@ program par_test_reference_fe
   type(iterative_linear_solver_t)                         :: iterative_linear_solver
   type(fe_function_t)                                     :: fe_function
   class(vector_t), pointer                                :: dof_values
+  type(mlbddc_t)                                          :: mlbddc
   
   integer(ip)              :: num_levels
   integer(ip), allocatable :: parts_mapping(:), num_parts_per_level(:)
@@ -386,9 +387,9 @@ program par_test_reference_fe
   !                                   fe_space_component = 2 )
   
   call par_fe_space%fill_dof_info()
-  call par_fe_space%print()
-  call par_fe_space%renumber_dofs_first_I_then_G()
-  call par_fe_space%print()
+  ! call par_fe_space%print()
+  call par_fe_space%renumber_dofs_first_interior_then_interface()
+  ! call par_fe_space%print()
 
     
   call fe_affine_operator%create (sparse_matrix_storage_format=csr_format, &
@@ -401,6 +402,11 @@ program par_test_reference_fe
 
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
+  
+  call mlbddc%create(fe_affine_operator)
+  call mlbddc%symbolic_setup()
+  call mlbddc%numerical_setup()
+  call mlbddc%free()
     
   call par_fe_space%create_global_fe_function(fe_function)
   
@@ -412,10 +418,10 @@ program par_test_reference_fe
   call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
   call iterative_linear_solver%free() 
   
-  select type(dof_values)
-    type is (par_scalar_array_t)
-      call dof_values%print(6)
-  end select
+  !select type(dof_values)
+  !  type is (par_scalar_array_t)
+  !    call dof_values%print(6)
+  !end select
   
   !call p_fe_space%par_fe_space_print()
   
