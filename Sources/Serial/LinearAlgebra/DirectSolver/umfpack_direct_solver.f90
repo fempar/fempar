@@ -59,17 +59,18 @@ private
         integer(ip)    :: Matrix_numbering = FORTRAN_NUMBERING
     contains
     private
-        procedure, public :: free_clean_body         => umfpack_direct_solver_free_clean_body
-        procedure, public :: free_symbolic_body      => umfpack_direct_solver_free_symbolic_body
-        procedure, public :: free_numerical_body     => umfpack_direct_solver_free_numerical_body
-        procedure         :: initialize              => umfpack_direct_solver_initialize
-        procedure         :: set_defaults            => umfpack_direct_solver_set_defaults
-        procedure, public :: set_parameters_from_pl  => umfpack_direct_solver_set_parameters_from_pl
-        procedure         :: Fortran_to_C_numbering  => umfpack_direct_solver_Fortran_to_C_numbering
-        procedure         :: C_to_Fortran_numbering  => umfpack_direct_solver_C_to_Fortran_numbering
-        procedure, public :: symbolic_setup_body     => umfpack_direct_solver_symbolic_setup_body
-        procedure, public :: numerical_setup_body    => umfpack_direct_solver_numerical_setup_body
-        procedure, public :: solve_body              => umfpack_direct_solver_solve_body
+        procedure, public :: free_clean_body           => umfpack_direct_solver_free_clean_body
+        procedure, public :: free_symbolic_body        => umfpack_direct_solver_free_symbolic_body
+        procedure, public :: free_numerical_body       => umfpack_direct_solver_free_numerical_body
+        procedure         :: initialize                => umfpack_direct_solver_initialize
+        procedure         :: set_defaults              => umfpack_direct_solver_set_defaults
+        procedure, public :: set_parameters_from_pl    => umfpack_direct_solver_set_parameters_from_pl
+        procedure         :: Fortran_to_C_numbering    => umfpack_direct_solver_Fortran_to_C_numbering
+        procedure         :: C_to_Fortran_numbering    => umfpack_direct_solver_C_to_Fortran_numbering
+        procedure, public :: symbolic_setup_body       => umfpack_direct_solver_symbolic_setup_body
+        procedure, public :: numerical_setup_body      => umfpack_direct_solver_numerical_setup_body
+        procedure, public :: solve_single_rhs_body     => umfpack_direct_solver_solve_single_rhs_body
+        procedure, public :: solve_several_rhs_body    => umfpack_direct_solver_solve_several_rhs_body
 #ifndef ENABLE_UMFPACK
         procedure         :: not_enabled_error       => umfpack_direct_solver_not_enabled_error
 #endif
@@ -258,7 +259,7 @@ contains
     end subroutine umfpack_direct_solver_numerical_setup_body
 
 
-    subroutine umfpack_direct_solver_solve_body(op, x, y)
+    subroutine umfpack_direct_solver_solve_single_rhs_body(op, x, y)
     !-----------------------------------------------------------------
     ! Computes y <- AT^-1 * x, using previously computed LU factorization
     !-----------------------------------------------------------------
@@ -270,6 +271,7 @@ contains
         real(rp),                    pointer          :: x_b(:)
         real(rp),                    pointer          :: y_b(:)
         integer(ip)                                   :: status
+    !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         assert ( .not. op%matrix%get_symmetric_storage() )
 !        print*, '(3) --> solve'
@@ -305,7 +307,60 @@ contains
 #else
         call op%not_enabled_error()
 #endif
-    end subroutine umfpack_direct_solver_solve_body
+    end subroutine umfpack_direct_solver_solve_single_rhs_body
+
+
+    subroutine umfpack_direct_solver_solve_several_rhs_body(op, number_rows, number_rhs, x, y)
+    !-----------------------------------------------------------------
+    ! Computes y <- A^-1 * x, using previously computed LU factorization
+    !-----------------------------------------------------------------
+        class(umfpack_direct_solver_t), intent(inout) :: op
+        integer(ip),                    intent(in)    :: number_rows
+        integer(ip),                    intent(in)    :: number_rhs
+        real(rp),                       intent(inout) :: x(number_rows, number_rhs)
+        real(rp),                       intent(inout) :: y(number_rows, number_rhs)
+        class(base_sparse_matrix_t), pointer          :: matrix
+        real(rp),                    pointer          :: val(:)
+        integer(ip)                                   :: status
+        integer(ip)                                   :: i
+    !-----------------------------------------------------------------
+#ifdef ENABLE_UMFPACK
+        assert ( .not. op%matrix%get_symmetric_storage() )
+!        print*, '(3) --> solve'
+        matrix => op%matrix%get_pointer_to_base_matrix()
+        select type (matrix)
+            type is (csr_sparse_matrix_t)
+                ! Fortran to C numbering 
+                call op%Fortran_to_C_numbering()
+                val => matrix%val(:)
+
+                do i=1, number_rhs
+                    ! Solve the linear system.
+                    status = umfpack_di_solve ( UMFPACK_At, &  !< A'x=b
+                                                matrix%irp, &  !< Transposed CSC column (CSR rows) pointers
+                                                matrix%ja,  &  !< Transposed CSC row (CSR columns) indices
+                                                val,        &  !< Numerical values
+                                                y(:,i),     &  !< Output X array
+                                                x(:,i),     &  !< Input B array
+                                                op%Numeric, &  !< Opaque numeric object
+                                                op%Control, &  !< UMPACK control parameters array
+                                                op%Info )      !< UMPACK info array
+
+                    if ( status < 0 ) then
+                        write ( *, '(a)' ) ''
+                        write ( *, '(a)' ) 'UMFPACK - Fatal error!'
+                        write ( *, '(a,i10)' ) '  umfpack_di_solve returns status = ', status
+                        check ( status == UMFPACK_OK ) 
+                    end if
+                enddo
+
+                ! C to Fortran numbering 
+                call op%C_to_Fortran_numbering()
+        end select
+#else
+        call op%not_enabled_error()
+#endif
+    end subroutine umfpack_direct_solver_solve_several_rhs_body
 
 
     subroutine umfpack_direct_solver_free_clean_body(this)
