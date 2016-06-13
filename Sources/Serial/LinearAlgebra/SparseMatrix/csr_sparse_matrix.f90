@@ -2802,8 +2802,8 @@ contains
             allocate(I_val(C_T_num_cols))
             I_val = 0.0_rp
             do i=1, I_nz
-                I_ia = i
-                I_ja = i
+                I_ia(i) = i
+                I_ja(i) = i
             enddo
             I_ia(I_nz+1) = I_nz+1
         endif
@@ -3570,9 +3570,12 @@ contains
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
         assert(to%state_is_properties_setted())
         assert(C_T_coo%state_is_assembled() .or. C_T_coo%state_is_assembled_symbolic())
-        assert(I_coo%state_is_assembled() .or. I_coo%state_is_assembled_symbolic())
-        assert(C_T_coo%is_by_rows() .and. I_coo%is_by_rows())
-        assert(C_T_coo%get_num_cols() == I_coo%get_num_cols() .and. I_coo%get_num_rows() == I_coo%get_num_cols())
+        assert(C_T_coo%is_by_rows())
+        if(present(I_coo)) then
+            assert(I_coo%state_is_assembled() .or. I_coo%state_is_assembled_symbolic())
+            assert(I_coo%is_by_rows())
+            assert(C_T_coo%get_num_cols() == I_coo%get_num_cols() .and. I_coo%get_num_rows() == I_coo%get_num_cols())
+        endif
 
         if(C_T_num_cols < 1) return
 
@@ -3589,8 +3592,8 @@ contains
             allocate(I_ia(C_T_num_cols+1))
             allocate(I_ja(C_T_num_cols))
             do i=1, I_nz
-                I_ia = i
-                I_ja = i
+                I_ia(i) = i
+                I_ja(i) = i
             enddo
             I_ia(I_nz+1) = I_nz+1
         endif

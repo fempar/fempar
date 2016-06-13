@@ -34,12 +34,23 @@ implicit none
                     val=(/3.0,4.0,1.0,2.0,5.0/))
     call C_T%sort_and_compress()
 
+print*, '!------------------------------------------------------------------'
+print*, '! C_T SPARSE MATRIX'
+print*, '!------------------------------------------------------------------'
+    call C_T%print_matrix_market(6)
+
     call I%create(5, 5)
     call I%insert(nz=5,                      &
                   ia=(/1,1,2,3,4/),          &
                   ja=(/2,3,1,1,4/),          &
                   val=(/2.0,3.0,1.0,1.0,4.0/))
     call I%sort_and_compress()
+
+print*, '!------------------------------------------------------------------'
+print*, '! I SPARSE MATRIX'
+print*, '!------------------------------------------------------------------'
+    call I%print_matrix_market(6)
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! FULL MATRIX (NNZ>0)
@@ -54,6 +65,16 @@ print*, '!------------------------------------------------------------------'
     call sparse_matrix%convert('CSR')
 
     call sparse_matrix%print_matrix_market(6)
+
+print*, '!------------------------------------------------------------------'
+print*, '! EMPTY (NNZ==0) - SYMMETRIC STORAGE - NUMERIC - OPTIONAL I'
+print*, '!------------------------------------------------------------------'
+
+    call sparse_matrix%expand_matrix_numeric(C_T = C_T,                    &
+                                             to  = expanded_sparse_matrix)
+
+    call expanded_sparse_matrix%print_matrix_market(6)
+    call expanded_sparse_matrix%free()
 
 print*, '!------------------------------------------------------------------'
 print*, '! EMPTY (NNZ==0) - SYMMETRIC STORAGE - NUMERIC'
@@ -76,6 +97,16 @@ print*, '!------------------------------------------------------------------'
                                              symmetric_storage = .false.)
 
     call expanded_sparse_matrix%print_matrix_market(6)
+    call expanded_sparse_matrix%free()
+
+print*, '!------------------------------------------------------------------'
+print*, '! EMPTY (NNZ==0) - SYMMETRIC STORAGE - SYMBOLIC - OPTIONAL I'
+print*, '!------------------------------------------------------------------'
+
+    call sparse_matrix%expand_matrix_symbolic(C_T = C_T,                    &
+                                              to  = expanded_sparse_matrix)
+
+    call expanded_sparse_matrix%print(6)
     call expanded_sparse_matrix%free()
 
 print*, '!------------------------------------------------------------------'

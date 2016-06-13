@@ -5113,7 +5113,7 @@ contains
                 if (present(l2g)) then
                     write(lunou,'(i12, i12, e32.25)') l2g(this%ia(i)), l2g(this%ja(i)), this%val(i)
                 else
-                    write(lunou,'(i12, i12, e32.25)') this%ja(i), this%ja(i), this%val(i)
+                    write(lunou,'(i12, i12, e32.25)') this%ia(i), this%ja(i), this%val(i)
                 end if
             end do
         else 
