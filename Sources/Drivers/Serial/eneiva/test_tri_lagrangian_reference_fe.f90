@@ -42,9 +42,11 @@ program test_reference_fe
   type(mesh_t)                     :: f_mesh
   type(conditions_t)               :: f_cond
   type(triangulation_t)            :: f_trian
+  type(p_reference_fe_t)               :: reference_fe_array(1)
 
   call fempar_init()  
   
+  ! Simple case
   call params%create()
   call params%parse()
 
@@ -71,7 +73,7 @@ program test_reference_fe
   call params%free()
 
   call fempar_finalize()
-
+  
 contains  
   
 subroutine test_single_scalar_valued_reference_fe ()

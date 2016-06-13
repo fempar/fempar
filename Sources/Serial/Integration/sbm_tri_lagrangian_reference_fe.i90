@@ -660,7 +660,7 @@ function tri_lagrangian_reference_fe_get_characteristic_length ( this )
   class(tri_lagrangian_reference_fe_t), intent(in) :: this 
   real(rp)  :: tri_lagrangian_reference_fe_get_characteristic_length 
 
-  tri_lagrangian_reference_fe_get_characteristic_length =  2.0_rp
+  tri_lagrangian_reference_fe_get_characteristic_length =  1.0_rp
 end function tri_lagrangian_reference_fe_get_characteristic_length
 
 subroutine tri_lagrangian_reference_fe_fill_field_components (this)
@@ -1017,17 +1017,17 @@ subroutine tri_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
   ! Line integral (the same as for brick elements)
   if(ndime==1) then
      if(ngaus==1) then
-        quadrature%coordinates(1,1)=0.0_rp
+        quadrature%coordinates(1,1)=0.5_rp
         quadrature%weight(  1)=2.0_rp
      else if(ngaus==2) then
-        quadrature%coordinates(1,1)=-0.577350269189626_rp
-        quadrature%coordinates(1,2)= 0.577350269189626_rp
+        quadrature%coordinates(1,1)= 0.211324865405187_rp
+        quadrature%coordinates(1,2)= 0.788675134594813_rp
         quadrature%weight(  1)= 1.0_rp
         quadrature%weight(  2)= 1.0_rp
      else if(ngaus==3) then
-        quadrature%coordinates(1,1)=-0.774596669241483_rp
-        quadrature%coordinates(1,2)= 0.0_rp
-        quadrature%coordinates(1,3)= 0.774596669241483_rp
+        quadrature%coordinates(1,1)= 0.112701665379258_rp
+        quadrature%coordinates(1,2)= 0.5_rp
+        quadrature%coordinates(1,3)= 0.887298334620742_rp
         quadrature%weight(  1)= 0.555555555555556_rp
         quadrature%weight(  2)= 0.888888888888889_rp
         quadrature%weight(  3)= 0.555555555555556_rp
@@ -1036,7 +1036,7 @@ subroutine tri_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
         stop
      end if
 
-     ! Area integral (triangles)
+  ! Area integral (triangles)
   else if(ndime==2) then
      if(ngaus==1) then
         quadrature%coordinates(1,1)= 1.0_rp/3.0_rp
@@ -1567,13 +1567,7 @@ subroutine tri_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
   integer(ip)                         , intent(in)    :: order
   real(rp)                            , intent(in)    :: coord_ip(:,:)
 
-  logical     :: khes
   integer(ip) :: iquad
-
-  khes = .false.
-  if ( allocated( interpolation%hessian ) ) then 
-     khes = .true.
-  end if
 
   if ( allocated( interpolation%hessian ) )  then 
      do iquad = 1,interpolation%number_quadrature_points
@@ -2077,104 +2071,73 @@ subroutine tri_lagrangian_reference_fe_fill_face_interpolation (this,face_interp
   type(quadrature_t)                  , intent(in)    :: local_quadrature
   integer(ip)                         , intent(in)    :: local_face_id
 
-  type(interpolation_t)               :: interp_1D_corners, local_interpolation
-  type(quadrature_t)                  :: nodal_coordinates_1D
-  integer(ip)                         :: order_of_approximation
-  type(tri_lagrangian_reference_fe_t) :: face_reference_fe, reference_fe_1D
+  real(rp)   , allocatable :: global_coordinates(:)
+  integer(ip)              :: idime, iquad, p_local_coordinate
 
-  write(*,*) __FILE__,__LINE__,'Creation of 2 reference_FE!!'
-
-  ! Create a 1D interpolation evaluated on the corners
-  call nodal_coordinates_1D%create(1,2)
-  nodal_coordinates_1D%coordinates(1,1) = -1.0_rp
-  nodal_coordinates_1D%coordinates(1,2) =  1.0_rp
-  call reference_fe_1D%create(1,this%order,this%field_type,this%continuity)
-  call reference_fe_1D%create_interpolation(nodal_coordinates_1D,interp_1D_corners)
-
-  ! Create a ndime-1 interpolation on the local Gauss points in each face
-  call face_reference_fe%create(this%number_dimensions-1,this%order,this%field_type,this%continuity)
-  call face_reference_fe%create_interpolation(local_quadrature,local_interpolation)
-
-  order_of_approximation = this%order
-  ! Create the interpolation
-  call face_P_shapen(face_interpolation%shape_functions,face_interpolation%shape_derivatives,    &
-       &             local_interpolation%shape_functions,local_interpolation%shape_derivatives,  &
-       &             interp_1D_corners%shape_functions,interp_1D_corners%shape_derivatives,      &
-       &             face_interpolation%number_dimensions,order_of_approximation,                &
-       &             face_interpolation%number_quadrature_points,local_face_id)
-
-  call face_reference_fe%free()
-  call reference_fe_1D%free
-  call local_interpolation%free()
-  call interp_1D_corners%free()
-  call nodal_coordinates_1D%free()
+  call memalloc(face_interpolation%number_dimensions,global_coordinates,__FILE__,__LINE__)
+  
+  ! Evaluate shape functions and derivatives at the gauss points
+  if ( allocated( face_interpolation%hessian ) )  then 
+     do iquad = 1,face_interpolation%number_quadrature_points
+        ! Transform face local coordinates to element global coordinates
+        if (local_face_id .le. face_interpolation%number_dimensions ) then 
+           ! Orthogonal face in the reference element
+           p_local_coordinate = 1
+           do idime = 1, face_interpolation%number_dimensions
+              if (idime .eq. face_interpolation%number_dimensions + 1 - local_face_id ) then
+                 global_coordinates(idime) = 0.0_rp
+              else
+                 global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
+                 p_local_coordinate = p_local_coordinate + 1
+              end if
+           end do
+        else 
+           ! Non-orthogonal face in the reference element
+           global_coordinates(1) = 1 - local_quadrature%coordinates(1,iquad)
+           global_coordinates(2:face_interpolation%number_dimensions) = &
+              & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,iquad)
+        end if
+        ! Evaluate shape functions and derivatives at the gauss points
+        call evaluate_shape_functions_and_derivatives( global_coordinates,                                 &
+                                                       face_interpolation%number_dimensions,               &
+                                                       face_interpolation%number_shape_functions,          &
+                                                       face_interpolation%number_entries_symmetric_tensor, &
+                                                       face_interpolation%shape_functions(:,iquad),        &
+                                                       face_interpolation%shape_derivatives(:,:,iquad),    &
+                                                       face_interpolation%hessian(:,:,iquad) )
+     end do
+  else
+     do iquad = 1,face_interpolation%number_quadrature_points
+        ! Transform face local coordinates to element global coordinates
+        if (local_face_id .le. face_interpolation%number_dimensions ) then 
+           ! Orthogonal face in the reference element
+           p_local_coordinate = 1
+           do idime = 1, face_interpolation%number_dimensions
+              if (idime .eq. face_interpolation%number_dimensions + 1 - local_face_id ) then
+                 global_coordinates(idime) = 0.0_rp
+              else
+                 global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
+                 p_local_coordinate = p_local_coordinate + 1
+              end if
+           end do
+        else 
+           ! Non-orthogonal face in the reference element
+           global_coordinates(1) = 1 - local_quadrature%coordinates(1,iquad)
+           global_coordinates(2:face_interpolation%number_dimensions) = &
+              & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,iquad)
+        end if
+        call evaluate_shape_functions_and_derivatives( global_coordinates,                                 &
+                                                       face_interpolation%number_dimensions,               &
+                                                       face_interpolation%number_shape_functions,          &
+                                                       face_interpolation%number_entries_symmetric_tensor, &
+                                                       face_interpolation%shape_functions(:,iquad),        &
+                                                       face_interpolation%shape_derivatives(:,:,iquad) )
+     end do
+  end if
+  
+  call memfree(global_coordinates,__FILE__,__LINE__)
 
 end subroutine tri_lagrangian_reference_fe_fill_face_interpolation
-
-!==================================================================================================
-subroutine face_P_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
-  implicit none
-  ! Parameters
-  integer(ip)           , intent(in)  :: nd,p,ng, local_face_id
-  real(rp)              , intent(in)  :: shp((p+1)**(nd-1),ng),drv(nd-1,(p+1)**(nd-1),ng) ! Face interpolation
-  real(rp)              , intent(in)  :: sh1(p+1,2),dr1(1,p+1,2)
-  real(rp)              , intent(out) :: shapf(   (p+1)**nd,ng)
-  real(rp)              , intent(out) :: derif(nd,(p+1)**nd,ng)
-
-  ! Local variable
-  integer(ip) :: ifc, id, j, ijk(nd), ij(nd-1), d, inode, jnode, ig, d2
-  integer(ip) :: ig0, ign
-
-  ! Initialize
-  shapf = 1.0_rp
-  derif = 1.0_rp
-
-  do inode = 1, (p+1)**nd ! node identifier
-
-     ! Set coordinates of node i
-     call P_ijkg(ijk,inode,nd,p)
-
-     ifc = 0
-     do id = nd,1,-1   ! face normal direction
-
-        ! Set node coordinate in the face
-        j = 1
-        do d = 1,nd
-           if (d .ne. id) then
-              ij(j) = ijk(d)
-              j = j+1
-           end if
-        end do
-        jnode = P_gijk(ij,nd-1,p)
-
-        do j = 1,2        ! 1 ---> -, 2 ---> +
-           ifc = ifc + 1  ! face identifier
-         
-           if (ifc == local_face_id) then
-              ig0 = 0
-              ign = ng
-           else
-              cycle
-           end if
-           
-           do ig = 1, ign  ! Loop over face Gauss Points    
-              shapf(inode,ig0 + ig) = sh1(ijk(id)+1,j)*shp(jnode,ig)
-
-              d2 = 0
-              do d =1, nd
-                 if (d == id) then
-                    derif(d,inode,ig0 + ig) = dr1(1,ijk(id)+1,j)*shp(jnode,ig)
-                 else
-                    d2 = d2+1
-                    derif(d,inode,ig0 + ig) = sh1(ijk(id)+1,j)*drv(d2,jnode,ig)
-                 end if
-              end do
-           end do
-        end do
-     end do
-  end do
-
-end subroutine face_P_shapen
 
 !==============================================================================
   subroutine tri_lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy)
