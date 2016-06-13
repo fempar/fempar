@@ -146,6 +146,8 @@ implicit none
     call sparse_matrix%free()
     call x%free()
     call y%free()
+    call memfree(xx, __FILE__, __LINE__)
+    call memfree(yy, __FILE__, __LINE__)
 
     call memstatus()
 
