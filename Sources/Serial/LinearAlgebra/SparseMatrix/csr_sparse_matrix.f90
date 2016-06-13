@@ -58,10 +58,14 @@ private
         procedure, public :: permute_and_split_2x2_symbolic          => csr_sparse_matrix_permute_and_split_2x2_symbolic
         procedure         :: permute_and_split_2x2_symbolic_body     => csr_sparse_matrix_permute_and_split_2x2_symbolic_body
         procedure         :: permute_and_split_2x2_numeric_body      => csr_sparse_matrix_permute_and_split_2x2_numeric_body
-        procedure, public :: expand_matrix_numeric                   => csr_sparse_matrix_expand_matrix_numeric
-        procedure, public :: expand_matrix_symbolic                  => csr_sparse_matrix_expand_matrix_symbolic
-        procedure         :: expand_matrix_numeric_body              => csr_sparse_matrix_expand_matrix_numeric_body
-        procedure         :: expand_matrix_symbolic_body             => csr_sparse_matrix_expand_matrix_symbolic_body
+        procedure         :: expand_matrix_numeric_array             => csr_sparse_matrix_expand_matrix_numeric_array
+        procedure         :: expand_matrix_numeric_coo               => csr_sparse_matrix_expand_matrix_numeric_coo
+        procedure         :: expand_matrix_symbolic_array            => csr_sparse_matrix_expand_matrix_symbolic_array
+        procedure         :: expand_matrix_symbolic_coo              => csr_sparse_matrix_expand_matrix_symbolic_coo
+        procedure         :: expand_matrix_numeric_array_body        => csr_sparse_matrix_expand_matrix_numeric_array_body
+        procedure         :: expand_matrix_numeric_coo_body          => csr_sparse_matrix_expand_matrix_numeric_coo_body
+        procedure         :: expand_matrix_symbolic_array_body       => csr_sparse_matrix_expand_matrix_symbolic_array_body
+        procedure         :: expand_matrix_symbolic_coo_body         => csr_sparse_matrix_expand_matrix_symbolic_coo_body
         procedure, public :: extract_diagonal                        => csr_sparse_matrix_extract_diagonal
         procedure, public :: free_coords                             => csr_sparse_matrix_free_coords
         procedure, public :: free_val                                => csr_sparse_matrix_free_val
@@ -2294,7 +2298,7 @@ contains
     end subroutine csr_sparse_matrix_permute_and_split_2x2_symbolic_body
 
 
-    subroutine csr_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
+    subroutine csr_sparse_matrix_expand_matrix_numeric_array(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
@@ -2314,14 +2318,14 @@ contains
     !-----------------------------------------------------------------
         select type (to)
             type is (csr_sparse_matrix_t)
-                call this%expand_matrix_numeric_body(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
+                call this%expand_matrix_numeric_array_body(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
             class DEFAULT
                 check(.false.)
         end select
-    end subroutine csr_sparse_matrix_expand_matrix_numeric
+    end subroutine csr_sparse_matrix_expand_matrix_numeric_array
 
 
-    subroutine csr_sparse_matrix_expand_matrix_numeric_body(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
+    subroutine csr_sparse_matrix_expand_matrix_numeric_array_body(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO format
     !< A = [A C_T]
@@ -2701,35 +2705,435 @@ contains
         call to%set_num_rows(initial_num_rows+C_T_num_cols)
         call to%set_num_cols(initial_num_cols+C_T_num_cols)
         call to%set_state_assembled()
-    end subroutine csr_sparse_matrix_expand_matrix_numeric_body
+    end subroutine csr_sparse_matrix_expand_matrix_numeric_array_body
 
 
-    subroutine csr_sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
+    subroutine csr_sparse_matrix_expand_matrix_numeric_coo(this, C_T, to, I)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< A = [A C_T]
+    !<     [C  I ]
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),          intent(in)    :: this
+        type(coo_sparse_matrix_t),           intent(in)    :: C_T
+        class(base_sparse_matrix_t),         intent(inout) :: to
+        type(coo_sparse_matrix_t), optional, intent(in)    :: I
+    !-----------------------------------------------------------------
+        select type (to)
+            type is (csr_sparse_matrix_t)
+                call this%expand_matrix_numeric_coo_body(C_T, to, I)
+            class DEFAULT
+                check(.false.)
+        end select
+    end subroutine csr_sparse_matrix_expand_matrix_numeric_coo
+
+
+    subroutine csr_sparse_matrix_expand_matrix_numeric_coo_body(this, C_T_coo, to, I_coo)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO format
+    !< A = [A C_T]
+    !<     [C  I ]
+    !< Some considerations:
+    !<  - C = transpose(C_T)
+    !<  - I is a square matrix
+    !<  - THIS (input) sparse matrix must be in ASSEMBLED state
+    !<  - TO (output) sparse matrix must be in PROPERTIES_SET state
+    !<  - C_T is a COO sparse matrix assembled and sorted by rows
+    !<  - I is a square COO sparse matrix assembled and sorted by rows
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),        intent(in)  :: this
+        type(coo_sparse_matrix_t), target, intent(in)  :: C_T_coo
+        class(csr_sparse_matrix_t),      intent(inout) :: to
+        type(coo_sparse_matrix_t), optional, target, intent(in)  :: I_coo
+        integer(ip)                                    :: C_T_num_cols
+        integer(ip)                                    :: C_T_nz
+        integer(ip), pointer                           :: C_T_ia(:)
+        integer(ip), pointer                           :: C_T_ja(:)
+        real(rp),    pointer                           :: C_T_val(:)
+        integer(ip)                                    :: I_nz
+        integer(ip), pointer                           :: I_ia(:)
+        integer(ip), pointer                           :: I_ja(:)
+        real(rp),    pointer                           :: I_val(:)
+        integer(ip)                                    :: f, i, j, k
+        integer(ip)                                    :: initial_num_rows
+        integer(ip)                                    :: initial_num_cols
+        integer(ip)                                    :: previous_ia
+        integer(ip)                                    :: previous_ja
+        integer(ip)                                    :: new_nz
+        integer(ip)                                    :: nz_per_row
+        integer(ip)                                    :: current_nz_per_row
+        integer(ip)                                    :: nz_offset
+        integer(ip)                                    :: last_visited_row
+        integer(ip)                                    :: current_row
+        integer(ip)                                    :: current_col
+        integer(ip)                                    :: next_row
+        integer(ip)                                    :: next_row_offset
+        integer(ip)                                    :: last_visited_row_offset
+        integer(ip), allocatable                       :: C_irp(:)
+        integer(ip), allocatable                       :: I_irp(:)
+        integer(ip)                                    :: I_counter
+        integer(ip), allocatable                       :: nz_per_row_counter(:)
+        integer(ip)                                    :: nz_counter
+        logical(ip)                                    :: sorted
+        logical(ip)                                    :: symmetric_storage
+    !-----------------------------------------------------------------
+        assert(this%state_is_assembled())
+        assert(C_T_coo%state_is_assembled() .and. C_T_coo%is_by_rows())
+        if(present(I_coo)) then
+            assert(I_coo%state_is_assembled() .and. I_coo%is_by_rows())
+            assert(C_T_coo%get_num_cols() == I_coo%get_num_cols() .and. I_coo%get_num_rows() == I_coo%get_num_cols())
+        endif
+        assert(to%state_is_properties_setted())
+
+        C_T_num_cols =  C_T_coo%get_num_cols()
+        C_T_nz       =  C_T_coo%get_nnz()
+        C_T_ia       => C_T_coo%ia
+        C_T_ja       => C_T_coo%ja
+        C_T_val      => C_T_coo%val
+        if(present(I_coo)) then
+            I_nz         =  I_coo%get_nnz()
+            I_ia         => I_coo%ia
+            I_ja         => I_coo%ja
+            I_val        => I_coo%val
+        else
+            I_nz = C_T_num_cols
+            allocate(I_ia(C_T_num_cols+1))
+            allocate(I_ja(C_T_num_cols))
+            allocate(I_val(C_T_num_cols))
+            I_val = 0.0_rp
+            do i=1, I_nz
+                I_ia = i
+                I_ja = i
+            enddo
+            I_ia(I_nz+1) = I_nz+1
+        endif
+        
+        if(C_T_num_cols < 1) return
+
+        initial_num_rows = this%get_num_rows()
+        initial_num_cols = this%get_num_cols()
+        check(C_T_num_cols == initial_num_rows .and. initial_num_rows>0 .and. initial_num_cols>0)
+
+        allocate(C_irp(C_T_num_cols))
+        allocate(I_irp(C_T_num_cols))
+        allocate(nz_per_row_counter(C_T_num_cols))
+    !-----------------------------------------------------------------
+    ! Set properties to the expanded matrix
+    !-----------------------------------------------------------------
+
+        call to%set_num_rows(initial_num_rows+C_T_num_cols)
+        call to%set_num_cols(initial_num_cols+C_T_num_cols)
+        symmetric_storage = to%get_symmetric_storage()
+
+        ! Count number of elements of I finally added to the output matrix
+        I_irp = 0
+        do i=1, I_nz
+            if(symmetric_storage .and. I_ia(i)>I_ja(i)) cycle
+            I_irp(I_ia(i)) = I_irp(I_ia(i)) + 1
+        enddo
+
+    !-----------------------------------------------------------------
+    ! Alloc to%irp with the new number of rows and to%ja with the new number of nnz
+    !-----------------------------------------------------------------
+        call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
+        if(           this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+            ! All diagonal elements in the original matrix must appear in the sparsity pattern
+            new_nz=max(this%nnz, 2*this%nnz-initial_num_rows)+2*C_T_nz+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
+            ! All diagonal elements in the original matrix must appear in the sparsity pattern
+            new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+            new_nz=this%nnz+2*C_T_nz+sum(I_irp)
+        else if(      this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
+            new_nz=this%nnz+C_T_nz+sum(I_irp)
+        endif
+        call memalloc(new_nz, to%ja, __FILE__, __LINE__)
+        call memalloc(new_nz, to%val, __FILE__, __LINE__)
+
+    !-----------------------------------------------------------------
+    ! Expand  C_T matrix (Add columns to existing rows)
+    !-----------------------------------------------------------------
+        nz_counter = 0
+        C_Irp = 0
+        if(this%get_symmetric_storage() .eqv. to%get_symmetric_storage()) then
+            ! Initialize irp
+            to%irp(:initial_num_rows) = this%irp(:initial_num_rows)
+
+            ! If the current_row of C_T is different to 1: Copy the original ja from 1:current_row_offset
+            nz_counter = 0
+            current_row = C_T_ia(1)
+            if(current_row/=1) then
+                nz_counter = this%irp(current_row)-this%irp(1)
+                to%ja(1:nz_counter) = this%ja(this%irp(1):this%irp(current_row)-1)
+                to%val(1:nz_counter) = this%val(this%irp(1):this%irp(current_row)-1)
+            endif
+            last_visited_row = current_row
+
+            ! Loop over C_T to expand the matrix
+            nz_per_row = 0
+            current_nz_per_row = 0
+            do i=1,C_T_nz
+                nz_per_row = nz_per_row+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
+                if(i/=C_T_nz) then
+                    if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
+                endif
+
+                current_row             = C_T_ia(i)                                           ! current row or C_T
+                next_row                = current_row+1                                       ! next row of C_T
+                last_visited_row_offset = this%irp(last_visited_row)                          ! ja offset for the last visited row of C_T
+                next_row_offset         = this%irp(next_row)                                  ! ja offset for the next row of C_T 
+                current_nz_per_row      = next_row_offset-last_visited_row_offset             ! Number of nnz per row before expanding the matrix
+                ! Append existing columns into the current row of the expanded matrix
+                to%ja(nz_counter+1:nz_counter+current_nz_per_row) = this%ja(last_visited_row_offset:next_row_offset-1)
+                to%val(nz_counter+1:nz_counter+current_nz_per_row) = this%val(last_visited_row_offset:next_row_offset-1)
+                nz_counter = nz_counter+current_nz_per_row
+                ! Append new columns into the current row of the expanded matrix
+                to%ja(nz_counter+1:nz_counter+nz_per_row) = C_T_ja(i-nz_per_row+1:i) + initial_num_cols
+                to%val(nz_counter+1:nz_counter+nz_per_row) = C_T_val(i-nz_per_row+1:i)
+                nz_counter = nz_counter + nz_per_row
+                ! Add the new nnz to irp
+                to%irp(next_row:initial_num_rows) = to%irp(next_row:initial_num_rows) + nz_per_row
+                nz_per_row = 0
+                last_visited_row  = next_row
+            enddo
+
+            to%nnz = this%nnz + C_T_nz
+            ! If the last visited row is not the last row append the rest of the ja values
+            if(last_visited_row/=initial_num_rows+1) then
+                to%ja(nz_counter+1:to%nnz) = this%ja(this%irp(last_visited_row):this%irp(initial_num_rows+1)-1)
+                to%val(nz_counter+1:to%nnz) = this%val(this%irp(last_visited_row):this%irp(initial_num_rows+1)-1)
+            endif
+        else if (.not. this%get_symmetric_storage() .and. to%get_symmetric_storage()) then
+            ! Initialize irp
+            to%irp(1) = 1
+
+            ! If the current_row of C_T is different to 1: Copy the original ja from 1:current_row_offset
+            ! Filter lower triangle entries
+            current_row = C_T_ia(1)
+            if(current_row/=1) then
+                do i=1, current_row-1
+                    do nz_offset=this%irp(i), this%irp(i+1)-1
+                        if(this%ja(nz_offset)>=i) exit
+                    enddo
+                    to%ja(nz_counter+1:nz_counter+this%irp(i+1)-nz_offset) = this%ja(nz_offset:this%irp(i+1)-1)
+                    to%val(nz_counter+1:nz_counter+this%irp(i+1)-nz_offset) = this%val(nz_offset:this%irp(i+1)-1)
+                    nz_counter = nz_counter + this%irp(i+1)-nz_offset
+                    to%irp(i+1) = nz_counter+1
+                enddo
+            endif
+            last_visited_row = current_row
+
+            ! Loop over C_T to expand the matrix
+            nz_per_row = 0
+            do i=1,C_T_nz
+                nz_per_row = nz_per_row+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
+                if(i/=C_T_nz) then
+                    if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
+                endif
+
+                current_row             = C_T_ia(i)                                           ! current row or C_T
+                next_row                = current_row+1                                       ! next row of C_T
+                last_visited_row_offset = this%irp(last_visited_row)                          ! ja offset for the last visited row of C_T
+                next_row_offset         = this%irp(next_row)                                  ! ja offset for the next row of C_T 
+
+                ! Append existing columns into the current row of the expanded matrix
+                ! Filter lower triangle entries
+                do j=last_visited_row, current_row
+                    do nz_offset=this%irp(j), this%irp(j+1)-1
+                        if(this%ja(nz_offset)>=j) exit
+                    enddo
+                    to%ja(nz_counter+1:nz_counter+this%irp(j+1)-nz_offset) = this%ja(nz_offset:this%irp(j+1)-1)
+                    to%val(nz_counter+1:nz_counter+this%irp(j+1)-nz_offset) = this%val(nz_offset:this%irp(j+1)-1)
+                    nz_counter = nz_counter + this%irp(j+1)-nz_offset
+                    to%irp(j+1) = nz_counter+1
+                enddo
+
+                ! Append new columns into the current row of the expanded matrix
+                to%ja(nz_counter+1:nz_counter+nz_per_row) = C_T_ja(i-nz_per_row+1:i) + initial_num_cols
+                to%val(nz_counter+1:nz_counter+nz_per_row) = C_T_val(i-nz_per_row+1:i)
+                nz_counter = nz_counter + nz_per_row
+                ! Add the new nnz to irp
+                to%irp(next_row) = nz_counter+1
+                nz_per_row = 0
+                last_visited_row  = next_row
+            enddo
+
+            ! If the last visited row is not the last row append the rest of the ja values
+            ! Filter lower triangle entries
+            if(last_visited_row/=initial_num_rows+1) then
+                do i=last_visited_row, initial_num_rows
+                    do nz_offset=this%irp(i), this%irp(i+1)-1
+                        if(this%ja(nz_offset)>=i) exit
+                    enddo
+                    to%ja(nz_counter+1:nz_counter+this%irp(i+1)-nz_offset) = this%ja(nz_offset:this%irp(i+1)-1)
+                    to%val(nz_counter+1:nz_counter+this%irp(i+1)-nz_offset) = this%val(nz_offset:this%irp(i+1)-1)
+                    nz_counter = nz_counter + this%irp(i+1)-nz_offset
+                    to%irp(i+1) = nz_counter+1
+                enddo
+            endif
+            to%nnz = nz_counter
+        else if (this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+            to%irp = 0; to%irp(1) = 1
+    !-----------------------------------------------------------------        
+    ! Count number of elements in each row for the 
+    ! lower (new) + upper triangle, till initial_num_rows
+    !-----------------------------------------------------------------        
+            do current_row=1, initial_num_rows
+                ! lower triangle, transposed elements (new)
+                do i=this%irp(current_row), this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    if(current_row==current_col) cycle
+                    to%irp(current_col+1) = to%irp(current_col+1)+1
+                enddo
+                ! Upper triangle elements
+                to%irp(current_row+1) = to%irp(current_row+1)+this%irp(current_row+1)-this%irp(current_row)
+            enddo
+
+            ! Add the number of elements Of C_T in each row
+            do i=1, C_T_nz
+                current_row = C_T_ia(i)
+                to%irp(current_row+1) = to%irp(current_row+1)+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
+            enddo
+
+            ! Convert counter to CSR header
+            do current_row=1, max(initial_num_rows, initial_num_cols)
+                to%irp(current_row+1) = to%irp(current_row+1)+to%irp(current_row)
+            enddo
+
+    !-----------------------------------------------------------------        
+    ! Add elements to JA and VAL arrays
+    !-----------------------------------------------------------------        
+            ! Add elements from the original matrix
+            do current_row=1, initial_num_rows
+                do i=this%irp(current_row),this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    to%ja(to%irp(current_row)) = current_col
+                    to%val(to%irp(current_row)) = this%val(i)
+                    to%irp(current_row) = to%irp(current_row)+1
+                    if(current_row == current_col) cycle
+                    to%ja(to%irp(current_col)) = current_row
+                    to%val(to%irp(current_col)) = this%val(i)
+                    to%irp(current_col) = to%irp(current_col)+1
+                enddo
+            enddo
+
+            ! Add C_T_nz elements
+            do i=1, C_T_nz
+                current_row = C_T_ia(i)
+                current_col = C_T_ja(i)
+                to%ja(to%irp(current_row)) = initial_num_cols+ current_col
+                to%val(to%irp(current_row)) = C_T_val(i)
+                to%irp(current_row) = to%irp(current_row)+1
+            enddo
+
+            ! Recalculate CSR irp header
+            to%nnz = to%irp(initial_num_rows)-1
+            do current_row=initial_num_rows, 1, -1
+                to%irp(current_row+1)=to%irp(current_row)
+            enddo
+            to%irp(1) = 1
+        endif
+        to%irp(initial_num_rows+1) = to%nnz+1
+
+    !-----------------------------------------------------------------
+    ! Loop to expand with C  and I matrices (Append new rows)
+    !-----------------------------------------------------------------        
+        nz_per_row_counter = 0
+        I_counter = 1
+        do i=1,C_T_num_cols
+            current_row = initial_num_rows+i+1
+            if(symmetric_storage) then
+                ! If symmetric_storage, only upper triangle of I matrix will be appended
+                nz_per_row = I_irp(i)
+
+                if(I_counter<=I_nz) then
+                    do while (I_ia(I_counter)==i)
+                        if(I_ja(I_counter)>=I_ia(I_counter)) then
+                            to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(I_counter)+initial_num_cols
+                            to%val(to%irp(current_row-1)+nz_per_row_counter(i)) = I_val(I_counter)
+                            nz_per_row_counter(i) = nz_per_row_counter(i) + 1
+                        endif
+                        I_counter = I_counter+1
+                        if(I_counter>I_nz) exit
+                    enddo
+                endif
+            else
+                ! If not symmetric_storage, both, C and I matrix will be appended
+                nz_per_row = C_irp(i)
+                ! C_T_ja are the rows of C
+                ! C_T_ia are the cols of C
+                do j=1,C_T_nz
+                    if(C_T_ja(j)==i) then
+                        to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = C_T_ia(j)
+                        to%val(to%irp(current_row-1)+nz_per_row_counter(i)) = C_T_val(j)
+                        nz_per_row_counter(i) = nz_per_row_counter(i) + 1
+                        if(nz_per_row_counter(i)>=nz_per_row) exit
+                    endif
+                enddo
+                nz_per_row = nz_per_row + I_irp(i)
+
+                if(I_counter<=I_nz) then
+                    do while (I_ia(I_counter)==i)
+                        to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(I_counter)+initial_num_cols
+                        to%val(to%irp(current_row-1)+nz_per_row_counter(i)) = I_val(I_counter)
+                        nz_per_row_counter(i) = nz_per_row_counter(i) + 1
+                        I_counter = I_counter+1
+                        if(I_counter>I_nz .or. nz_per_row_counter(i)>=nz_per_row) exit
+                    enddo
+                endif
+            endif
+            to%irp(current_row) = to%irp(current_row-1)+nz_per_row_counter(i)
+            nz_per_row = 0
+        enddo
+    !-----------------------------------------------------------------    
+    ! Update matrix properties
+    !-----------------------------------------------------------------    
+        to%nnz = to%nnz + sum(nz_per_row_counter)
+        to%irp(initial_num_rows+C_T_num_cols+1) = to%nnz+1
+        call to%set_num_rows(initial_num_rows+C_T_num_cols)
+        call to%set_num_cols(initial_num_cols+C_T_num_cols)
+        call to%set_state_assembled()
+
+        if(allocated(C_irp)) deallocate(C_irp)
+        if(allocated(I_irp)) deallocate(I_irp)
+        if(allocated(nz_per_row_counter)) deallocate(nz_per_row_counter)
+        if(.not. present(I_coo)) then
+            deallocate(I_ia)
+            deallocate(I_ja)
+            deallocate(I_val)
+        endif
+    end subroutine csr_sparse_matrix_expand_matrix_numeric_coo_body
+
+
+    subroutine csr_sparse_matrix_expand_matrix_symbolic_array(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
     !<     [C  I ]
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t),      intent(in)    :: this
-        integer,                         intent(in)    :: C_T_num_cols
-        integer,                         intent(in)    :: C_T_nz
+        integer(ip),                     intent(in)    :: C_T_num_cols
+        integer(ip),                     intent(in)    :: C_T_nz
         integer(ip),                     intent(in)    :: C_T_ia(C_T_nz)
         integer(ip),                     intent(in)    :: C_T_ja(C_T_nz)
-        integer,                         intent(in)    :: I_nz
+        integer(ip),                     intent(in)    :: I_nz
         integer(ip),                     intent(in)    :: I_ia(I_nz)
         integer(ip),                     intent(in)    :: I_ja(I_nz)
         class(base_sparse_matrix_t),     intent(inout) :: to
     !-----------------------------------------------------------------
         select type (to)
             type is (csr_sparse_matrix_t)
-                call this%expand_matrix_symbolic_body(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
+                call this%expand_matrix_symbolic_array_body(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
             class DEFAULT
                 check(.false.)
         end select
-    end subroutine csr_sparse_matrix_expand_matrix_symbolic
+    end subroutine csr_sparse_matrix_expand_matrix_symbolic_array
 
 
-    subroutine csr_sparse_matrix_expand_matrix_symbolic_body(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
+    subroutine csr_sparse_matrix_expand_matrix_symbolic_array_body(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
@@ -3093,7 +3497,384 @@ contains
         call to%set_num_rows(initial_num_rows+C_T_num_cols)
         call to%set_num_cols(initial_num_cols+C_T_num_cols)
         call to%set_state_assembled_symbolic()
-    end subroutine csr_sparse_matrix_expand_matrix_symbolic_body
+    end subroutine csr_sparse_matrix_expand_matrix_symbolic_array_body
+
+
+    subroutine csr_sparse_matrix_expand_matrix_symbolic_coo(this, C_T, to, I)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< A = [A C_T]
+    !<     [C  I ]
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),          intent(in)    :: this
+        type(coo_sparse_matrix_t),           intent(in)    :: C_T
+        type(coo_sparse_matrix_t), optional, intent(in)    :: I
+        class(base_sparse_matrix_t),         intent(inout) :: to
+    !-----------------------------------------------------------------
+        select type (to)
+            type is (csr_sparse_matrix_t)
+                call this%expand_matrix_symbolic_coo_body(C_T, to, I)
+            class DEFAULT
+                check(.false.)
+        end select
+    end subroutine csr_sparse_matrix_expand_matrix_symbolic_coo
+
+
+    subroutine csr_sparse_matrix_expand_matrix_symbolic_coo_body(this, C_T_coo, to, I_coo)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO format
+    !< A = [A C_T]
+    !<     [C  I ]
+    !< Some considerations:
+    !<  - C = transpose(C_T)
+    !<  - I is a square matrix
+    !<  - THIS (input) sparse matrix must be in ASSEMBLED state
+    !<  - TO (output) sparse matrix must be in PROPERTIES_SET state
+    !<  - C_T is a COO sparse matrix assembled and sorted by rows
+    !<  - I is a square COO sparse matrix assembled and sorted by rows
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),      intent(in)    :: this
+        type(coo_sparse_matrix_t), target, intent(in)  :: C_T_coo
+        class(csr_sparse_matrix_t),      intent(inout) :: to
+        type(coo_sparse_matrix_t), optional, target, intent(in)  :: I_coo
+        integer(ip)                                    :: C_T_num_cols
+        integer(ip)                                    :: C_T_nz
+        integer(ip), pointer                           :: C_T_ia(:)
+        integer(ip), pointer                           :: C_T_ja(:)
+        integer(ip)                                    :: I_nz
+        integer(ip), pointer                           :: I_ia(:)
+        integer(ip), pointer                           :: I_ja(:)
+        integer(ip)                                    :: f, i, j, k
+        integer(ip)                                    :: initial_num_rows
+        integer(ip)                                    :: initial_num_cols
+        integer(ip)                                    :: previous_ia
+        integer(ip)                                    :: previous_ja
+        integer(ip)                                    :: new_nz
+        integer(ip)                                    :: nz_per_row
+        integer(ip)                                    :: current_nz_per_row
+        integer(ip)                                    :: nz_offset
+        integer(ip)                                    :: last_visited_row
+        integer(ip)                                    :: current_row
+        integer(ip)                                    :: current_col
+        integer(ip)                                    :: next_row
+        integer(ip)                                    :: next_row_offset
+        integer(ip)                                    :: last_visited_row_offset
+        integer(ip), allocatable                       :: C_irp(:)
+        integer(ip), allocatable                       :: I_irp(:)
+        integer(ip)                                    :: I_counter
+        integer(ip), allocatable                       :: nz_per_row_counter(:)
+        integer(ip)                                    :: nz_counter
+        logical(ip)                                    :: sorted
+        logical(ip)                                    :: symmetric_storage
+    !-----------------------------------------------------------------
+        assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
+        assert(to%state_is_properties_setted())
+        assert(C_T_coo%state_is_assembled() .or. C_T_coo%state_is_assembled_symbolic())
+        assert(I_coo%state_is_assembled() .or. I_coo%state_is_assembled_symbolic())
+        assert(C_T_coo%is_by_rows() .and. I_coo%is_by_rows())
+        assert(C_T_coo%get_num_cols() == I_coo%get_num_cols() .and. I_coo%get_num_rows() == I_coo%get_num_cols())
+
+        if(C_T_num_cols < 1) return
+
+        C_T_num_cols =  C_T_coo%get_num_cols()
+        C_T_nz       =  C_T_coo%get_nnz()
+        C_T_ia       => C_T_coo%ia
+        C_T_ja       => C_T_coo%ja
+        if(present(I_coo)) then
+            I_nz         =  I_coo%get_nnz()
+            I_ia         => I_coo%ia
+            I_ja         => I_coo%ja
+        else
+            I_nz = C_T_num_cols
+            allocate(I_ia(C_T_num_cols+1))
+            allocate(I_ja(C_T_num_cols))
+            do i=1, I_nz
+                I_ia = i
+                I_ja = i
+            enddo
+            I_ia(I_nz+1) = I_nz+1
+        endif
+
+        initial_num_rows = this%get_num_rows()
+        initial_num_cols = this%get_num_cols()
+        check(C_T_num_cols == initial_num_rows .and. initial_num_rows>0 .and. initial_num_cols>0)
+
+        allocate(C_irp(C_T_num_cols))
+        allocate(I_irp(C_T_num_cols))
+        allocate(nz_per_row_counter(C_T_num_cols))
+    !-----------------------------------------------------------------
+    ! Set properties to the expanded matrix
+    !-----------------------------------------------------------------
+        call to%set_num_rows(initial_num_rows+C_T_num_cols)
+        call to%set_num_cols(initial_num_cols+C_T_num_cols)
+        symmetric_storage = to%get_symmetric_storage()
+
+        ! Count number of elements of I finally added to the output matrix
+        I_irp = 0
+        do i=1, I_nz
+            if(symmetric_storage .and. I_ia(i)>I_ja(i)) cycle
+            I_irp(I_ia(i)) = I_irp(I_ia(i)) + 1
+        enddo
+
+    !-----------------------------------------------------------------
+    ! Alloc to%irp with the new number of rows and to%ja with the new number of nnz
+    !-----------------------------------------------------------------
+        call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
+        if(           this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+            ! All diagonal elements in the original matrix must appear in the sparsity pattern
+            new_nz=max(this%nnz,2*this%nnz-initial_num_rows)+2*C_T_nz+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
+            ! All diagonal elements in the original matrix must appear in the sparsity pattern
+            new_nz=(this%nnz-initial_num_rows)/2+initial_num_rows+C_T_nz+sum(I_irp)
+        else if(.not. this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+            new_nz=this%nnz+2*C_T_nz+sum(I_irp)
+        else if(      this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
+            new_nz=this%nnz+C_T_nz+sum(I_irp)
+        endif
+        call memalloc(new_nz, to%ja, __FILE__, __LINE__)
+
+    !-----------------------------------------------------------------
+    ! Expand  C_T matrix (Add columns to existing rows)
+    !-----------------------------------------------------------------
+        nz_counter = 0
+        C_irp = 0
+        if(this%get_symmetric_storage() .eqv. to%get_symmetric_storage()) then
+            ! Initialize irp
+            to%irp(:initial_num_rows) = this%irp(:initial_num_rows)
+
+            ! If the current_row of C_T is different to 1: Copy the original ja from 1:current_row_offset
+            current_row = C_T_ia(1)
+            if(current_row/=1) then
+                nz_counter = this%irp(current_row)-this%irp(1)
+                to%ja(1:nz_counter) = this%ja(this%irp(1):this%irp(current_row)-1)
+            endif
+            last_visited_row = current_row
+
+            ! Loop over C_T to expand the matrix
+            nz_per_row = 0
+            current_nz_per_row = 0
+            do i=1,C_T_nz
+                nz_per_row = nz_per_row+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
+                if(i/=C_T_nz) then
+                    if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
+                endif
+
+                current_row             = C_T_ia(i)                                           ! current row or C_T
+                next_row                = current_row+1                                       ! next row of C_T
+                last_visited_row_offset = this%irp(last_visited_row)                          ! ja offset for the last visited row of C_T
+                next_row_offset         = this%irp(next_row)                                  ! ja offset for the next row of C_T 
+                current_nz_per_row      = next_row_offset-last_visited_row_offset             ! Number of nnz per row before expanding the matrix
+                ! Append existing columns into the current row of the expanded matrix
+                to%ja(nz_counter+1:nz_counter+current_nz_per_row) = this%ja(last_visited_row_offset:next_row_offset-1)
+                nz_counter = nz_counter+current_nz_per_row
+                ! Append new columns into the current row of the expanded matrix
+                to%ja(nz_counter+1:nz_counter+nz_per_row) = C_T_ja(i-nz_per_row+1:i) + initial_num_cols
+                nz_counter = nz_counter + nz_per_row
+                ! Add the new nnz to irp
+                to%irp(next_row:initial_num_rows) = to%irp(next_row:initial_num_rows) + nz_per_row
+                nz_per_row = 0
+                last_visited_row  = next_row
+            enddo
+
+            ! If the last visited row is not the last row append the rest of the ja values
+            to%nnz = this%nnz + C_T_nz
+            if(last_visited_row/=initial_num_rows+1) then
+                to%ja(nz_counter+1:to%nnz) = this%ja(this%irp(last_visited_row):this%irp(initial_num_rows+1)-1)
+            endif
+        else if (.not. this%get_symmetric_storage() .and. to%get_symmetric_storage()) then
+            ! Initialize irp
+            to%irp(1) = 1
+
+            ! If the current_row of C_T is different to 1: Copy the original ja from 1:current_row_offset
+            ! Filter lower triangle entries
+            current_row = C_T_ia(1)
+            if(current_row/=1) then
+                do i=1, current_row-1
+                    do nz_offset=this%irp(i), this%irp(i+1)-1
+                        if(this%ja(nz_offset)>=i) exit
+                    enddo
+                    to%ja(nz_counter+1:nz_counter+this%irp(i+1)-nz_offset) = this%ja(nz_offset:this%irp(i+1)-1)
+                    nz_counter = nz_counter + this%irp(i+1)-nz_offset
+                    to%irp(i+1) = nz_counter+1
+                enddo
+            endif
+            last_visited_row = current_row
+
+            ! Loop over C_T to expand the matrix
+            nz_per_row = 0
+            do i=1,C_T_nz
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
+                nz_per_row = nz_per_row+1
+                if(i/=C_T_nz) then
+                    if(C_T_ia(i) == C_T_ia(i+1)) cycle ! count new zeros in the same row
+                endif
+
+                current_row             = C_T_ia(i)                                           ! current row or C_T
+                next_row                = current_row+1                                       ! next row of C_T
+                last_visited_row_offset = this%irp(last_visited_row)                          ! ja offset for the last visited row of C_T
+                next_row_offset         = this%irp(next_row)                                  ! ja offset for the next row of C_T 
+
+                ! Append existing columns into the current row of the expanded matrix
+                ! Filter lower triangle entries
+                do j=last_visited_row, current_row
+                    do nz_offset=this%irp(j), this%irp(j+1)-1
+                        if(this%ja(nz_offset)>=j) exit
+                    enddo
+                    to%ja(nz_counter+1:nz_counter+this%irp(j+1)-nz_offset) = this%ja(nz_offset:this%irp(j+1)-1)
+                    nz_counter = nz_counter + this%irp(j+1)-nz_offset
+                    to%irp(j+1) = nz_counter+1
+                enddo
+
+                ! Append new columns into the current row of the expanded matrix
+                to%ja(nz_counter+1:nz_counter+nz_per_row) = C_T_ja(i-nz_per_row+1:i) + initial_num_cols
+                nz_counter = nz_counter + nz_per_row
+                ! Add the new nnz to irp
+                to%irp(next_row) = nz_counter+1
+                nz_per_row = 0
+                last_visited_row  = next_row
+            enddo
+
+            ! If the last visited row is not the last row append the rest of the ja values
+            ! Filter lower triangle entries
+            if(last_visited_row/=initial_num_rows+1) then
+                do i=last_visited_row, initial_num_rows
+                    do nz_offset=this%irp(i), this%irp(i+1)-1
+                        if(this%ja(nz_offset)>=i) exit
+                    enddo
+                    to%ja(nz_counter+1:nz_counter+this%irp(i+1)-nz_offset) = this%ja(nz_offset:this%irp(i+1)-1)
+                    nz_counter = nz_counter + this%irp(i+1)-nz_offset
+                    to%irp(i+1) = nz_counter+1
+                enddo
+            endif
+            to%nnz = nz_counter
+        else if (this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
+            ! Initialize irp
+            to%irp = 0; to%irp(1) = 1
+    !-----------------------------------------------------------------        
+    ! Count number of elements in each row for the 
+    ! lower (new) + upper triangle, till initial_num_rows
+    !-----------------------------------------------------------------        
+            do current_row=1, initial_num_rows
+                ! lower triangle, transposed elements (new)
+                do i=this%irp(current_row), this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    if(current_row==current_col) cycle
+                    to%irp(current_col+1) = to%irp(current_col+1)+1
+                enddo
+                ! Upper triangle elements
+                to%irp(current_row+1) = to%irp(current_row+1)+this%irp(current_row+1)-this%irp(current_row)
+            enddo
+
+            ! Add the number of elements Of C_T in each row
+            do i=1, C_T_nz
+                current_row = C_T_ia(i)
+                to%irp(current_row+1) = to%irp(current_row+1)+1
+                C_irp(C_T_ja(i)) = C_irp(C_T_ja(i)) + 1 ! Count C rows (transposed  C_T)
+            enddo
+
+            ! Convert counter to CSR header
+            do current_row=1, max(initial_num_rows, initial_num_cols)
+                to%irp(current_row+1) = to%irp(current_row+1)+to%irp(current_row)
+            enddo
+
+    !-----------------------------------------------------------------        
+    ! Add elements to JA array
+    !-----------------------------------------------------------------        
+            ! Add elements from the original matrix
+            do current_row=1, initial_num_rows
+                do i=this%irp(current_row),this%irp(current_row+1)-1
+                    current_col = this%ja(i)
+                    to%ja(to%irp(current_row)) = current_col
+                    to%irp(current_row) = to%irp(current_row)+1
+                    if(current_row == current_col) cycle
+                    to%ja(to%irp(current_col)) = current_row
+                    to%irp(current_col) = to%irp(current_col)+1
+                enddo
+            enddo
+
+            ! Add C_T_nz elements
+            do i=1, C_T_nz
+                current_row = C_T_ia(i)
+                current_col = C_T_ja(i)
+                to%ja(to%irp(current_row)) = initial_num_cols+ current_col
+                to%irp(current_row) = to%irp(current_row)+1
+            enddo
+
+            ! Recalculate CSR irp header
+            to%nnz = to%irp(initial_num_rows)-1
+            do current_row=initial_num_rows, 1, -1
+                to%irp(current_row+1)=to%irp(current_row)
+            enddo
+            to%irp(1) = 1
+
+        endif
+        to%irp(initial_num_rows+1) = to%nnz+1
+
+    !-----------------------------------------------------------------
+    ! Loop to expand with C  and I matrices (Append new rows)
+    !-----------------------------------------------------------------
+        nz_per_row_counter = 0
+        I_counter = 1
+        do i=1,C_T_num_cols
+            current_row = initial_num_rows+i+1
+            if(symmetric_storage) then
+                ! If symmetric_storage, only upper triangle of I matrix will be appended
+                nz_per_row = I_irp(i)
+
+                if(I_counter<=I_nz) then
+                    do while (I_ia(I_counter)==i)
+                        if(I_ja(I_counter)>=I_ia(I_counter)) then
+                            to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(I_counter)+initial_num_cols
+                            nz_per_row_counter(i) = nz_per_row_counter(i) + 1
+                        endif
+                        I_counter = I_counter+1
+                        if(I_counter>I_nz) exit
+                    enddo
+                endif
+            else
+                ! If not symmetric_storage, both, C and I matrix will be appended
+                nz_per_row = C_irp(i)
+                ! C_T_ja are the rows of C
+                ! C_T_ia are the cols of C
+                do j=1,C_T_nz
+                    if(C_T_ja(j)==i) then
+                        to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = C_T_ia(j)
+                        nz_per_row_counter(i) = nz_per_row_counter(i) + 1
+                        if(nz_per_row_counter(i)>=nz_per_row) exit
+                    endif
+                enddo
+                nz_per_row = nz_per_row + I_irp(i)
+
+                if(I_counter<=I_nz) then
+                    do while (I_ia(I_counter)==i)
+                        to%ja(to%irp(current_row-1)+nz_per_row_counter(i)) = I_ja(I_counter)+initial_num_cols
+                        nz_per_row_counter(i) = nz_per_row_counter(i) + 1
+                        I_counter = I_counter+1
+                        if(I_counter>I_nz .or. nz_per_row_counter(i)>=nz_per_row) exit
+                    enddo
+                endif
+            endif
+            to%irp(current_row) = to%irp(current_row-1)+nz_per_row_counter(i)
+            nz_per_row = 0
+        enddo
+    !-----------------------------------------------------------------
+    ! Update matrix properties
+    !-----------------------------------------------------------------
+        to%nnz = to%nnz + sum(nz_per_row_counter)
+        to%irp(initial_num_rows+C_T_num_cols+1) = to%nnz+1
+        call to%set_num_rows(initial_num_rows+C_T_num_cols)
+        call to%set_num_cols(initial_num_cols+C_T_num_cols)
+        call to%set_state_assembled_symbolic()
+
+        if(allocated(C_irp)) deallocate(C_irp)
+        if(allocated(I_irp)) deallocate(I_irp)
+        if(allocated(nz_per_row_counter)) deallocate(nz_per_row_counter)
+        if(.not. present(I_coo)) then
+            deallocate(I_ia)
+            deallocate(I_ja)
+        endif
+    end subroutine csr_sparse_matrix_expand_matrix_symbolic_coo_body
 
 
     subroutine csr_sparse_matrix_extract_diagonal(this, diagonal)

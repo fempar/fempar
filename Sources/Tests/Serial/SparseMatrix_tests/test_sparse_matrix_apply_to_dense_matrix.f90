@@ -149,7 +149,7 @@ implicit none
     check(all(c == 6.0))
     c = 0.0
     ! Apply transpose to dense matrix
-    call sparse_matrix%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) s
+    call sparse_matrix%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
     check(all(c == 6.0))
     c = 0.0
 

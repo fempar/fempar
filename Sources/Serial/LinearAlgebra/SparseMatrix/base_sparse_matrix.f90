@@ -139,8 +139,10 @@ module base_sparse_matrix_names
           public, deferred :: permute_and_split_2x2_numeric
      procedure(base_sparse_matrix_permute_and_split_2x2_symbolic),          &
           public, deferred :: permute_and_split_2x2_symbolic
-     procedure(base_sparse_matrix_expand_matrix_numeric),     public, deferred :: expand_matrix_numeric
-     procedure(base_sparse_matrix_expand_matrix_symbolic),    public, deferred :: expand_matrix_symbolic
+     procedure(base_sparse_matrix_expand_matrix_numeric_array),       deferred :: expand_matrix_numeric_array
+     procedure(base_sparse_matrix_expand_matrix_numeric_coo),         deferred :: expand_matrix_numeric_coo
+     procedure(base_sparse_matrix_expand_matrix_symbolic_array),      deferred :: expand_matrix_symbolic_array
+     procedure(base_sparse_matrix_expand_matrix_symbolic_coo),        deferred :: expand_matrix_symbolic_coo
      procedure(base_sparse_matrix_extract_diagonal),          public, deferred :: extract_diagonal
      procedure(base_sparse_matrix_print_matrix_market_body),  public, deferred :: print_matrix_market_body
      procedure(base_sparse_matrix_free_coords),               public, deferred :: free_coords
@@ -241,60 +243,64 @@ module base_sparse_matrix_names
      procedure, public :: free_symbolic                    => base_sparse_matrix_free_symbolic
      procedure, public :: free_numeric                     => base_sparse_matrix_free_numeric
      procedure, public :: set_properties                   => base_sparse_matrix_set_properties
+     generic,   public :: expand_matrix_numeric            => expand_matrix_numeric_array, &
+                                                              expand_matrix_numeric_coo
+     generic,   public :: expand_matrix_symbolic           => expand_matrix_symbolic_array, &
+                                                              expand_matrix_symbolic_coo
      generic,   public :: create                           => base_sparse_matrix_create_square, &
-          base_sparse_matrix_create_rectangular
+                                                              base_sparse_matrix_create_rectangular
      generic,   public :: insert                           => insert_bounded_coords,              &
-          insert_bounded_values,              &
-          insert_bounded_coords_by_row,       &
-          insert_bounded_coords_by_col,       &
-          insert_bounded_values_by_row,       &
-          insert_bounded_values_by_col,       &
-          insert_bounded_single_value,        &
-          insert_bounded_single_coord,        &
-          insert_bounded_dense_values,        &
-          insert_bounded_square_dense_values, &
-          insert_coords,                      &
-          insert_values,                      &
-          insert_dense_values,                &
-          insert_square_dense_values,         &
-          insert_coords_by_row,               &
-          insert_coords_by_col,               &
-          insert_values_by_row,               &
-          insert_values_by_col,               &
-          insert_single_value,                &
-          insert_single_coord
+                                                              insert_bounded_values,              &
+                                                              insert_bounded_coords_by_row,       &
+                                                              insert_bounded_coords_by_col,       &
+                                                              insert_bounded_values_by_row,       &
+                                                              insert_bounded_values_by_col,       &
+                                                              insert_bounded_single_value,        &
+                                                              insert_bounded_single_coord,        &
+                                                              insert_bounded_dense_values,        &
+                                                              insert_bounded_square_dense_values, &
+                                                              insert_coords,                      &
+                                                              insert_values,                      &
+                                                              insert_dense_values,                &
+                                                              insert_square_dense_values,         &
+                                                              insert_coords_by_row,               &
+                                                              insert_coords_by_col,               &
+                                                              insert_values_by_row,               &
+                                                              insert_values_by_col,               &
+                                                              insert_single_value,                &
+                                                              insert_single_coord
      generic           :: append_body                      => append_bounded_coords_body,             &  
-          append_bounded_values_body,             &
-          append_bounded_coords_by_row_body,      &
-          append_bounded_coords_by_col_body,      &
-          append_bounded_values_by_row_body,      &
-          append_bounded_values_by_col_body,      &
-          append_bounded_single_value_body,       &
-          append_bounded_single_coord_body,       &
-          append_bounded_dense_values_body,         &
-          append_bounded_square_dense_values_body,  &
-          append_coords_body,                     &
-          append_values_body,                     &
-          append_dense_values_body,               &
-          append_square_dense_values_body,        &
-          append_coords_by_row_body,              &
-          append_coords_by_col_body,              &
-          append_values_by_row_body,              &
-          append_values_by_col_body,              &
-          append_single_value_body,               &
-          append_single_coord_body
+                                                              append_bounded_values_body,             &
+                                                              append_bounded_coords_by_row_body,      &
+                                                              append_bounded_coords_by_col_body,      &
+                                                              append_bounded_values_by_row_body,      &
+                                                              append_bounded_values_by_col_body,      &
+                                                              append_bounded_single_value_body,       &
+                                                              append_bounded_single_coord_body,       &
+                                                              append_bounded_dense_values_body,       &
+                                                              append_bounded_square_dense_values_body,&
+                                                              append_coords_body,                     &
+                                                              append_values_body,                     &
+                                                              append_dense_values_body,               &
+                                                              append_square_dense_values_body,        &
+                                                              append_coords_by_row_body,              &
+                                                              append_coords_by_col_body,              &
+                                                              append_values_by_row_body,              &
+                                                              append_values_by_col_body,              &
+                                                              append_single_value_body,               &
+                                                              append_single_coord_body
      generic,   public :: update_body                      => update_bounded_values_body ,              &
-          update_bounded_values_by_row_body,        &
-          update_bounded_values_by_col_body,        &
-          update_bounded_value_body,                &
-          update_bounded_dense_values_body ,        &
-          update_bounded_square_dense_values_body , &
-          update_dense_values_body ,                &
-          update_square_dense_values_body ,         &
-          update_values_body ,                      &
-          update_values_by_row_body ,               &
-          update_values_by_col_body ,               &
-          update_value_body
+                                                              update_bounded_values_by_row_body,        &
+                                                              update_bounded_values_by_col_body,        &
+                                                              update_bounded_value_body,                &
+                                                              update_bounded_dense_values_body ,        &
+                                                              update_bounded_square_dense_values_body , &
+                                                              update_dense_values_body ,                &
+                                                              update_square_dense_values_body ,         &
+                                                              update_values_body ,                      &
+                                                              update_values_by_row_body ,               &
+                                                              update_values_by_col_body ,               &
+                                                              update_value_body
   end type base_sparse_matrix_t
   
   !---------------------------------------------------------------------
@@ -351,8 +357,10 @@ module base_sparse_matrix_names
         procedure, public :: split_2x2_numeric                       => coo_sparse_matrix_split_2x2_numeric
         procedure, public :: permute_and_split_2x2_numeric           => coo_sparse_matrix_permute_and_split_2x2_numeric
         procedure, public :: permute_and_split_2x2_symbolic          => coo_sparse_matrix_permute_and_split_2x2_symbolic
-        procedure, public :: expand_matrix_numeric                   => coo_sparse_matrix_expand_matrix_numeric
-        procedure, public :: expand_matrix_symbolic                  => coo_sparse_matrix_expand_matrix_symbolic
+        procedure         :: expand_matrix_numeric_array             => coo_sparse_matrix_expand_matrix_numeric_array
+        procedure         :: expand_matrix_numeric_coo               => coo_sparse_matrix_expand_matrix_numeric_coo
+        procedure         :: expand_matrix_symbolic_array            => coo_sparse_matrix_expand_matrix_symbolic_array
+        procedure         :: expand_matrix_symbolic_coo              => coo_sparse_matrix_expand_matrix_symbolic_coo
         procedure, public :: extract_diagonal                        => coo_sparse_matrix_extract_diagonal
         procedure, public :: is_by_rows                              => coo_sparse_matrix_is_by_rows
         procedure, public :: is_by_cols                              => coo_sparse_matrix_is_by_cols
@@ -728,7 +736,7 @@ module base_sparse_matrix_names
             class(base_sparse_matrix_t),           intent(inout) :: A_RR
         end subroutine base_sparse_matrix_permute_and_split_2x2_symbolic
 
-        subroutine base_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
+        subroutine base_sparse_matrix_expand_matrix_numeric_array(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
             import base_sparse_matrix_t
             import ip
             import rp
@@ -743,9 +751,20 @@ module base_sparse_matrix_names
             integer(ip),                     intent(in)    :: I_ja(I_nz)
             real(rp),                        intent(in)    :: I_val(C_T_nz)
             class(base_sparse_matrix_t),     intent(inout) :: to
-        end subroutine base_sparse_matrix_expand_matrix_numeric
+        end subroutine base_sparse_matrix_expand_matrix_numeric_array
 
-        subroutine base_sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
+        subroutine base_sparse_matrix_expand_matrix_numeric_coo(this, C_T, to, I)
+            import base_sparse_matrix_t
+            import coo_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t),         intent(in)    :: this
+            type(coo_sparse_matrix_t),           intent(in)    :: C_T
+            class(base_sparse_matrix_t),         intent(inout) :: to
+            type(coo_sparse_matrix_t), optional, intent(in)    :: I
+        end subroutine base_sparse_matrix_expand_matrix_numeric_coo
+
+        subroutine base_sparse_matrix_expand_matrix_symbolic_array(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
             import base_sparse_matrix_t
             import ip
             class(base_sparse_matrix_t),     intent(in)    :: this
@@ -757,7 +776,18 @@ module base_sparse_matrix_names
             integer(ip),                     intent(in)    :: I_ia(I_nz)
             integer(ip),                     intent(in)    :: I_ja(I_nz)
             class(base_sparse_matrix_t),     intent(inout) :: to
-        end subroutine base_sparse_matrix_expand_matrix_symbolic
+        end subroutine base_sparse_matrix_expand_matrix_symbolic_array
+
+        subroutine base_sparse_matrix_expand_matrix_symbolic_coo(this, C_T, to, I)
+            import base_sparse_matrix_t
+            import coo_sparse_matrix_t
+            import ip
+            import rp
+            class(base_sparse_matrix_t),         intent(in)    :: this
+            type(coo_sparse_matrix_t),           intent(in)    :: C_T
+            class(base_sparse_matrix_t),         intent(inout) :: to
+            type(coo_sparse_matrix_t), optional, intent(in)    :: I
+        end subroutine base_sparse_matrix_expand_matrix_symbolic_coo
 
         subroutine base_sparse_matrix_extract_diagonal(this, diagonal)
             import base_sparse_matrix_t
@@ -4604,7 +4634,7 @@ contains
     end subroutine coo_sparse_matrix_permute_and_split_2x2_symbolic
 
 
-    subroutine coo_sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
+    subroutine coo_sparse_matrix_expand_matrix_numeric_array(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
@@ -4639,10 +4669,30 @@ contains
         class(base_sparse_matrix_t),     intent(inout) :: to
     !-----------------------------------------------------------------
         check(.false.)
-    end subroutine coo_sparse_matrix_expand_matrix_numeric
+    end subroutine coo_sparse_matrix_expand_matrix_numeric_array
 
 
-    subroutine coo_sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
+    subroutine coo_sparse_matrix_expand_matrix_numeric_coo(this, C_T, to, I)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO format
+    !< A = [A C_T]
+    !<     [C  I ]
+    !< Some considerations:
+    !<  - C = transpose(C_T)
+    !<  - I is a square matrix
+    !<  - THIS (input) sparse matrix must be in ASSEMBLED state
+    !<  - TO (output) sparse matrix must be in PROPERTIES_SET state
+    !<  - C_T is a COO sparse matrix assembled and sorted by rows
+    !<  - I is a square COO sparse matrix assembled and sorted by rows
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),          intent(in)    :: this
+        type(coo_sparse_matrix_t),           intent(in)    :: C_T
+        class(base_sparse_matrix_t),         intent(inout) :: to
+        type(coo_sparse_matrix_t), optional, intent(in)    :: I
+    end subroutine coo_sparse_matrix_expand_matrix_numeric_coo
+
+
+    subroutine coo_sparse_matrix_expand_matrix_symbolic_array(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
@@ -4676,7 +4726,27 @@ contains
         class(base_sparse_matrix_t),     intent(inout) :: to
     !-----------------------------------------------------------------
         check(.false.)
-    end subroutine coo_sparse_matrix_expand_matrix_symbolic
+    end subroutine coo_sparse_matrix_expand_matrix_symbolic_array
+
+
+    subroutine coo_sparse_matrix_expand_matrix_symbolic_coo(this, C_T, to, I)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO format
+    !< A = [A C_T]
+    !<     [C  I ]
+    !< Some considerations:
+    !<  - C = transpose(C_T)
+    !<  - I is a square matrix
+    !<  - THIS (input) sparse matrix must be in ASSEMBLED state
+    !<  - TO (output) sparse matrix must be in PROPERTIES_SET state
+    !<  - C_T is a COO sparse matrix assembled and sorted by rows
+    !<  - I is a square COO sparse matrix assembled and sorted by rows
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),          intent(in)    :: this
+        type(coo_sparse_matrix_t),           intent(in)    :: C_T
+        class(base_sparse_matrix_t),         intent(inout) :: to
+        type(coo_sparse_matrix_t), optional, intent(in)    :: I
+    end subroutine coo_sparse_matrix_expand_matrix_symbolic_coo
 
 
     subroutine coo_sparse_matrix_extract_diagonal(this, diagonal)

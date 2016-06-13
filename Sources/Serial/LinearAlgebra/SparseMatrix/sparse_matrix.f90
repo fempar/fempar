@@ -87,7 +87,7 @@ private
                                                                                   sparse_matrix_insert_values_by_col,               &
                                                                                   sparse_matrix_insert_single_coord,                &
                                                                                   sparse_matrix_insert_single_value
-        generic,                     public :: convert                         => sparse_matrix_convert,                         &
+        generic,                    public :: convert                          => sparse_matrix_convert,                         &
                                                                                   sparse_matrix_convert_string,                  &
                                                                                   sparse_matrix_convert_sparse_matrix_mold,      &
                                                                                   sparse_matrix_convert_base_sparse_matrix_mold
@@ -95,8 +95,14 @@ private
         procedure,                  public :: split_2x2_symbolic               => sparse_matrix_split_2x2_symbolic
         procedure,                  public :: permute_and_split_2x2_numeric    => sparse_matrix_permute_and_split_2x2_numeric
         procedure,                  public :: permute_and_split_2x2_symbolic   => sparse_matrix_permute_and_split_2x2_symbolic
-        procedure,                  public :: expand_matrix_numeric            => sparse_matrix_expand_matrix_numeric
-        procedure,                  public :: expand_matrix_symbolic           => sparse_matrix_expand_matrix_symbolic
+        procedure                          :: expand_matrix_numeric_array      => sparse_matrix_expand_matrix_numeric_array
+        procedure                          :: expand_matrix_symbolic_array     => sparse_matrix_expand_matrix_symbolic_array
+        procedure                          :: expand_matrix_numeric_coo        => sparse_matrix_expand_matrix_numeric_coo
+        procedure                          :: expand_matrix_symbolic_coo       => sparse_matrix_expand_matrix_symbolic_coo
+        generic,                    public :: expand_matrix_numeric            => expand_matrix_numeric_array, &
+                                                                                  expand_matrix_numeric_coo
+        generic,                    public :: expand_matrix_symbolic           => expand_matrix_symbolic_array, &
+                                                                                  expand_matrix_symbolic_coo
         procedure,                  public :: extract_diagonal                 => sparse_matrix_extract_diagonal
         procedure,                  public :: free                             => sparse_matrix_free
         procedure,                  public :: apply                            => sparse_matrix_apply
@@ -985,7 +991,7 @@ contains
     end subroutine sparse_matrix_permute_and_split_2x2_symbolic
 
 
-    subroutine sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to, symmetric_storage, symmetric, sign)
+    subroutine sparse_matrix_expand_matrix_numeric_array(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to, symmetric_storage, symmetric, sign)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
@@ -1026,10 +1032,47 @@ contains
 
         call this%State%expand_matrix_numeric(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to%State)
         call to%create_vector_spaces()
-    end subroutine sparse_matrix_expand_matrix_numeric
+    end subroutine sparse_matrix_expand_matrix_numeric_array
 
 
-    subroutine sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to, symmetric_storage, symmetric, sign)
+    subroutine sparse_matrix_expand_matrix_numeric_coo(this, C_T, to, I, symmetric_storage, symmetric, sign)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< A = [A C_T]
+    !<     [C  I ]
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t),              intent(in)    :: this
+        type(coo_sparse_matrix_t),           intent(in)    :: C_T
+        class(sparse_matrix_t),              intent(inout) :: to
+        type(coo_sparse_matrix_t), optional, intent(in)    :: I
+        logical,                   optional, intent(in)    :: symmetric_storage
+        logical,                   optional, intent(in)    :: symmetric
+        integer(ip),               optional, intent(in)    :: sign
+        logical                                            :: symmetric_storage_aux
+        logical                                            :: symmetric_aux
+        integer(ip)                                        :: sign_aux
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        if(.not. allocated(to%State)) allocate(to%State, mold=this%State)
+
+        if(to%State%state_is_start()) then
+            sign_aux = this%State%get_sign()
+            symmetric_aux = this%State%is_symmetric()
+            symmetric_storage_aux = this%State%get_symmetric_storage()
+
+            if(present(sign)) sign_aux = sign
+            if(present(symmetric)) symmetric_aux = symmetric
+            if(present(symmetric_storage)) symmetric_storage_aux = symmetric_storage
+
+            call to%State%set_properties(symmetric_storage_aux, symmetric_aux, sign_aux)
+        endif
+
+        call this%State%expand_matrix_numeric(C_T, to%State, I)
+        call to%create_vector_spaces()
+    end subroutine sparse_matrix_expand_matrix_numeric_coo
+
+
+    subroutine sparse_matrix_expand_matrix_symbolic_array(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to, symmetric_storage, symmetric, sign)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
@@ -1067,7 +1110,44 @@ contains
 
         call this%State%expand_matrix_symbolic(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to%State)
         call to%create_vector_spaces()
-    end subroutine sparse_matrix_expand_matrix_symbolic
+    end subroutine sparse_matrix_expand_matrix_symbolic_array
+
+
+    subroutine sparse_matrix_expand_matrix_symbolic_coo(this, C_T, to, I, symmetric_storage, symmetric, sign)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< A = [A C_T]
+    !<     [C  I ]
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t),              intent(in)    :: this
+        type(coo_sparse_matrix_t),           intent(in)    :: C_T
+        class(sparse_matrix_t),              intent(inout) :: to
+        type(coo_sparse_matrix_t), optional, intent(in)    :: I
+        logical,                   optional, intent(in)    :: symmetric_storage
+        logical,                   optional, intent(in)    :: symmetric
+        integer(ip),               optional, intent(in)    :: sign
+        logical                                            :: symmetric_storage_aux
+        logical                                            :: symmetric_aux
+        integer(ip)                                        :: sign_aux
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        if(.not. allocated(to%State)) allocate(to%State, mold=this%State)
+
+        if(to%State%state_is_start()) then
+            sign_aux = this%State%get_sign()
+            symmetric_aux = this%State%is_symmetric()
+            symmetric_storage_aux = this%State%get_symmetric_storage()
+
+            if(present(sign)) sign_aux = sign
+            if(present(symmetric)) symmetric_aux = symmetric
+            if(present(symmetric_storage)) symmetric_storage_aux = symmetric_storage
+
+            call to%State%set_properties(symmetric_storage_aux, symmetric_aux, sign_aux)
+        endif
+
+        call this%State%expand_matrix_symbolic(C_T, to%State, I)
+        call to%create_vector_spaces()
+    end subroutine sparse_matrix_expand_matrix_symbolic_coo
 
 
     subroutine sparse_matrix_extract_diagonal(this, diagonal) 
