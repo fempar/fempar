@@ -1444,7 +1444,7 @@ contains
                         A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
                         A_GG%nnz = A_GG%nnz + nz
                     endif
-                    A_GG%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)-num_col
+                    A_GG%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
                 else
                     if(is_properties_setted_state) A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
                 endif
