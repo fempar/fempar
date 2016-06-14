@@ -1517,12 +1517,16 @@ end function coarse_fe_space_create_itfc_coarse_fe_vef_iterator
   function coarse_fe_space_get_total_number_dofs ( this )
    implicit none
    class(coarse_fe_space_t), intent(in) :: this
-   integer(ip)                       :: coarse_fe_space_get_total_number_dofs
-   type(par_environment_t), pointer  :: par_environment
+   integer(ip)                          :: coarse_fe_space_get_total_number_dofs
+   type(par_environment_t), pointer     :: par_environment
+   integer(ip)                          :: block_id
    par_environment => this%get_par_environment()
    coarse_fe_space_get_total_number_dofs = 0
    if ( par_environment%am_i_l1_task() ) then
-     coarse_fe_space_get_total_number_dofs = this%get_total_number_dofs()
+     do block_id = 1, this%get_number_blocks()
+      coarse_fe_space_get_total_number_dofs = coarse_fe_space_get_total_number_dofs + &
+                                              this%number_dofs_per_block(block_id)
+    end do 
    end if
   end function coarse_fe_space_get_total_number_dofs
 
@@ -1535,7 +1539,7 @@ function coarse_fe_space_get_field_number_dofs( this, field_id )
    par_environment => this%get_par_environment()
    coarse_fe_space_get_field_number_dofs = 0
    if ( par_environment%am_i_l1_task() ) then
-     coarse_fe_space_get_field_number_dofs = this%get_field_number_dofs(field_id)
+     coarse_fe_space_get_field_number_dofs = this%number_dofs_per_field(field_id)
    end if
 end function coarse_fe_space_get_field_number_dofs
 
@@ -1548,7 +1552,7 @@ function coarse_fe_space_get_block_number_dofs ( this, block_id )
    par_environment => this%get_par_environment()
    coarse_fe_space_get_block_number_dofs = 0
    if ( par_environment%am_i_l1_task() ) then
-     coarse_fe_space_get_block_number_dofs = this%get_block_number_dofs(block_id)
+     coarse_fe_space_get_block_number_dofs = this%number_dofs_per_block(block_id)
    end if
 end function coarse_fe_space_get_block_number_dofs
 

@@ -550,7 +550,7 @@ function par_fe_space_get_total_number_dofs ( this )
    par_environment => this%get_par_environment()
    par_fe_space_get_total_number_dofs = 0
    if ( par_environment%am_i_l1_task() ) then
-     par_fe_space_get_total_number_dofs = this%get_total_number_dofs()
+     par_fe_space_get_total_number_dofs = this%serial_fe_space_t%get_total_number_dofs()
    end if
 end function par_fe_space_get_total_number_dofs
 
@@ -563,7 +563,7 @@ function par_fe_space_get_field_number_dofs( this, field_id )
    par_environment => this%get_par_environment()
    par_fe_space_get_field_number_dofs = 0
    if ( par_environment%am_i_l1_task() ) then
-     par_fe_space_get_field_number_dofs = this%get_field_number_dofs(field_id)
+     par_fe_space_get_field_number_dofs = this%serial_fe_space_t%get_field_number_dofs(field_id)
    end if
 end function par_fe_space_get_field_number_dofs
 
@@ -576,7 +576,7 @@ function par_fe_space_get_block_number_dofs ( this, block_id )
    par_environment => this%get_par_environment()
    par_fe_space_get_block_number_dofs = 0
    if ( par_environment%am_i_l1_task() ) then
-     par_fe_space_get_block_number_dofs = this%get_block_number_dofs(block_id)
+     par_fe_space_get_block_number_dofs = this%serial_fe_space_t%get_block_number_dofs(block_id)
    end if
 end function par_fe_space_get_block_number_dofs
 
