@@ -139,16 +139,13 @@ subroutine quad_lagrangian_reference_fe_create_face_local_interpolation ( this, 
   type(quadrature_t)               , intent(in)     :: quadrature
   type(interpolation_t)            , intent(inout) :: interpolation
 
-  integer(ip) :: nlocs
   integer(ip) :: number_nodes_face_scalar, number_dimensions_face
-  integer(ip) :: face_order
 
   ! I am assuming the geometric aproximation of the face can be linear
   ! this might need to be modified in the future
   number_dimensions_face   = this%number_dimensions - 1
   number_nodes_face_scalar = this%get_number_nodes_scalar_dim_order( number_dimensions_face, &
-                                                                  &  this%order+1 )
-  face_order = this%order
+                                                                  &  this%order )
 
   ! Allocate the arrays of the interpolation
   call interpolation%create( number_dimensions_face, number_nodes_face_scalar, &
@@ -481,7 +478,8 @@ subroutine quad_lagrangian_reference_fe_fill_interior_points_permutation(this,&
   
   if ( allocated(interior_points_permutation) ) call memfree(interior_points_permutation,__FILE__,__LINE__)
   
-  number_interior_points_x_dim = int(real(number_interior_points,rp)**(1.0_rp/real(dimension,rp)),ip)
+  number_interior_points_x_dim = this%get_number_interior_points_x_dim(number_interior_points, &
+                                                                       dimension )
   
   number_of_possible_permutations = this%number_rotations_per_dimension(dimension) * &
                                     this%number_orientations_per_dimension(dimension)
@@ -497,6 +495,15 @@ subroutine quad_lagrangian_reference_fe_fill_interior_points_permutation(this,&
   
 end subroutine quad_lagrangian_reference_fe_fill_interior_points_permutation
 
+!=================================================================================================
+function quad_lagrangian_reference_fe_get_number_interior_points_x_dim(this,n,dim)
+  implicit none
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: n, dim
+  integer(ip) :: quad_lagrangian_reference_fe_get_number_interior_points_x_dim 
+  quad_lagrangian_reference_fe_get_number_interior_points_x_dim = & 
+     & int(real(n,rp)**(1.0_rp/real(dim,rp)),ip)
+end function quad_lagrangian_reference_fe_get_number_interior_points_x_dim
 
 !==================================================================================================
 subroutine quad_lagrangian_reference_fe_fill (this)
@@ -514,8 +521,12 @@ subroutine quad_lagrangian_reference_fe_fill (this)
   if ( this%continuity ) allocate(this%own_node_permutations(this%number_dimensions-1))
   
   do dimension = 1, this%number_dimensions-1
-  
-     this%number_rotations_per_dimension(dimension) = this%get_number_vertices()
+
+     if (dimension == 1) then
+        this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_edge()
+     elseif (dimension == 2) then 
+        this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_face()
+     end if
      this%number_orientations_per_dimension(dimension) = dimension
      
      if ( this%continuity ) then
@@ -2111,7 +2122,7 @@ subroutine Q_ijkg(i,g,nd,p)
 end subroutine Q_ijkg
 
 !=================================================================================================
-subroutine  permute_or_1d( o2n,p,r )
+subroutine permute_or_1d( o2n,p,r )
   implicit none
   integer(ip), intent(in)    :: p,r
   integer(ip), intent(inout) :: o2n(p)
@@ -2125,7 +2136,7 @@ subroutine  permute_or_1d( o2n,p,r )
   elseif (r==2) then
      o2n = (/(p-i,i=0,p-1)/)
   else
-     write(*,*) __FILE__,__LINE__,'Q_permute_or_1d:: ERROR! Delay cannot be >1 for edges'
+     write(*,*) __FILE__,__LINE__,'permute_or_1d:: ERROR! Delay cannot be >1 for edges'
   end if
 end subroutine permute_or_1d
 

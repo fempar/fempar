@@ -33,6 +33,7 @@
 !****************************************************************************************************
 program test_reference_fe
   use serial_names
+  use list_types_names
   use command_line_parameters_names
   implicit none
 #include "debug.i90"
@@ -42,7 +43,6 @@ program test_reference_fe
   type(mesh_t)                     :: f_mesh
   type(conditions_t)               :: f_cond
   type(triangulation_t)            :: f_trian
-  type(p_reference_fe_t)               :: reference_fe_array(1)
 
   call fempar_init()  
   
@@ -58,6 +58,7 @@ program test_reference_fe
 
   ! Construct triangulation
   call mesh_to_triangulation ( f_mesh, f_trian, gcond = f_cond )
+  call triangulation_construct_faces( f_trian )
 
   if ( trim(params%laplacian_type) == 'scalar' ) then
     call test_single_scalar_valued_reference_fe()
@@ -89,6 +90,11 @@ subroutine test_single_scalar_valued_reference_fe ()
     class(matrix_t)            , pointer :: matrix
     class(array_t)             , pointer :: array    
     
+    ! Set Neumann boundary faces
+    call set_neumann_boundary_faces ( f_trian,f_cond,                           &
+                                      poisson_integration%number_neumann_faces, &
+                                      poisson_integration%neumann_faces )
+    
     ! Simple case
      reference_fe_array(1) =  make_reference_fe ( topology = topology_tet,              &
                                                   fe_type = fe_type_lagrangian,         &
@@ -100,12 +106,12 @@ subroutine test_single_scalar_valued_reference_fe ()
      call fe_space%create( triangulation = f_trian,      &
                            boundary_conditions = f_cond, &
                            reference_fe_phy = reference_fe_array )
-     
-     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(1.0_rp), &
+     call fe_space%create_face_array()     
+     call fe_space%fill_dof_info()      
+
+     call fe_space%update_bc_value (scalar_function=constant_scalar_function_t(0.0_rp), &
                                     bc_code = 1,                                        &
                                     fe_space_component = 1 )
-     
-     call fe_space%fill_dof_info() 
      
      call fe_affine_operator%create (sparse_matrix_storage_format=csr_format, &
                                      diagonal_blocks_symmetric_storage=(/.true./), &
@@ -125,8 +131,8 @@ subroutine test_single_scalar_valued_reference_fe ()
      !end select
  
      call fe_affine_operator%create_range_vector(computed_solution_vector)
-     call fe_affine_operator%create_range_vector(exact_solution_vector)
-     call exact_solution_vector%init(1.0_rp)
+     !call fe_affine_operator%create_range_vector(exact_solution_vector)
+     !call exact_solution_vector%init(1.0_rp)
 
      ! Create iterative linear solver, set operators and solve linear system
      call iterative_linear_solver%create(senv)
@@ -144,19 +150,20 @@ subroutine test_single_scalar_valued_reference_fe ()
        check(.false.) 
      end select
   
-     computed_solution_vector = computed_solution_vector - exact_solution_vector
-     check ( computed_solution_vector%nrm2()/exact_solution_vector%nrm2() < 1.0e-04 )
+     !computed_solution_vector = computed_solution_vector - exact_solution_vector
+     !check ( computed_solution_vector%nrm2()/exact_solution_vector%nrm2() < 1.0e-04 )
      
      call computed_solution_vector%free()
      deallocate(computed_solution_vector)
 
-     call exact_solution_vector%free()
-     deallocate(exact_solution_vector)
+     !call exact_solution_vector%free()
+     !deallocate(exact_solution_vector)
      
      call fe_affine_operator%free()
      call fe_space%free()
      
      call reference_fe_array(1)%free()
+     call memfree(poisson_integration%neumann_faces,__FILE__,__LINE__)
      
   end subroutine test_single_scalar_valued_reference_fe
   
@@ -438,5 +445,55 @@ subroutine test_single_scalar_valued_reference_fe ()
      call reference_fe_array(1)%free()
      call reference_fe_array(2)%free()
   end subroutine test_composite_reference_fe_block
+  
+  subroutine set_neumann_boundary_faces( triangulation, conditions, number_neumann_faces, neumann_faces )
+    implicit none
+    type(triangulation_t)             , intent(in)    :: triangulation
+    type(conditions_t)                , intent(in)    :: conditions
+    integer(ip)                       , intent(inout) :: number_neumann_faces
+    integer(ip)          , allocatable, intent(inout) :: neumann_faces(:)
+    integer(ip)          , allocatable                :: boundary_faces_temp(:)
+    class(reference_fe_t), pointer                    :: elem_reference_fe
+    type(list_t)         , pointer                    :: vertices_vef
+    integer(ip)                                       :: face_local_id, face_vef_id
+    integer(ip)                                       :: number_vertices_face
+    integer(ip)                                       :: vertex_local_id, vertex_global_id
+    integer(ip)                                       :: iface, icorn, count, aux
+
+    call memalloc ( triangulation%number_boundary_faces, boundary_faces_temp, __FILE__, __LINE__ )
+    
+    boundary_faces_temp = 0.0_ip
+    count = 0
+    
+    do iface = triangulation%number_interior_faces + 1, &
+               triangulation%number_interior_faces + triangulation%number_boundary_faces
+               
+       elem_reference_fe => triangulation%faces(iface)%neighbour_elems(1)%p%reference_fe_geo
+       
+       face_local_id = triangulation%faces(iface)%relative_face(1)
+       face_vef_id   = face_local_id - 1 + &
+                       elem_reference_fe%get_first_vef_id_of_dimension(triangulation%num_dims-1)
+       
+       number_vertices_face = elem_reference_fe%get_number_vertices_vef( face_vef_id )
+       vertices_vef => elem_reference_fe%get_vertices_vef()
+
+       do icorn = 1, number_vertices_face
+          vertex_local_id  = vertices_vef%l( vertices_vef%p(face_vef_id) + icorn - 1 )
+          vertex_global_id = triangulation%faces(iface)%neighbour_elems(1)%p%vefs(vertex_local_id)
+          if ( conditions%code(1,vertex_global_id) == 0 ) then
+             count = count + 1
+             boundary_faces_temp(count) = iface
+             exit
+          end if
+       end do
+       
+    end do
+
+    number_neumann_faces = count
+    call memalloc (number_neumann_faces,neumann_faces,__FILE__,__LINE__)
+    neumann_faces = boundary_faces_temp(1:number_neumann_faces)
+
+    call memfree ( boundary_faces_temp, __FILE__, __LINE__ )
+  end subroutine set_neumann_boundary_faces
   
 end program test_reference_fe

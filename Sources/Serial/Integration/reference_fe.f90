@@ -726,7 +726,9 @@ module reference_fe_names
           &                          => quad_lagrangian_reference_fe_get_characteristic_length
           
      procedure :: fill_interior_points_permutation &
-          &                   => quad_lagrangian_reference_fe_fill_interior_points_permutation     
+          &                   => quad_lagrangian_reference_fe_fill_interior_points_permutation  
+     procedure :: get_number_interior_points_x_dim &
+          &                   => quad_lagrangian_reference_fe_get_number_interior_points_x_dim
      procedure :: fill_permutation_array => quad_lagrangian_reference_fe_fill_permutation_array
      procedure :: permute_or_2d => quad_lagrangian_reference_fe_permute_or_2d
      procedure :: fill_scalar => quad_lagrangian_reference_fe_fill_scalar
@@ -798,6 +800,8 @@ module reference_fe_names
           
      procedure :: fill_interior_points_permutation &
           &                   => tri_lagrangian_reference_fe_fill_interior_points_permutation
+     procedure :: get_number_interior_points_x_dim &
+          &                   => tri_lagrangian_reference_fe_get_number_interior_points_x_dim
      procedure :: fill_permutation_array => tri_lagrangian_reference_fe_fill_permutation_array
      procedure :: permute_or_2d => tri_lagrangian_reference_fe_permute_or_2d
      procedure :: fill_scalar => tri_lagrangian_reference_fe_fill_scalar

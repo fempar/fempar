@@ -86,12 +86,12 @@ function tri_lagrangian_reference_fe_get_nquad_of_dimension( this, order, dimens
   integer(ip)                         , intent(in)    :: dimension
   integer(ip) :: tri_lagrangian_reference_fe_get_nquad_of_dimension
   tri_lagrangian_reference_fe_get_nquad_of_dimension = P_nnods(order,dimension)
-  if(this%number_dimensions == 2) then
-     if(this%order == 3) then
+  if( dimension .eq. 2 ) then
+     if( order .eq. 3 ) then
         tri_lagrangian_reference_fe_get_nquad_of_dimension = 13
      end if
-  elseif(this%number_dimensions == 3) then
-     if( this%order == 2) then
+  elseif( dimension .eq. 3 ) then
+     if( order .eq. 2) then
         tri_lagrangian_reference_fe_get_nquad_of_dimension = 11
      end if
   end if
@@ -148,16 +148,13 @@ subroutine tri_lagrangian_reference_fe_create_face_local_interpolation ( this, q
   type(quadrature_t)               , intent(in)     :: quadrature
   type(interpolation_t)            , intent(inout) :: interpolation
 
-  integer(ip) :: nlocs
   integer(ip) :: number_nodes_face_scalar, number_dimensions_face
-  integer(ip) :: face_order
 
   ! I am assuming the geometric aproximation of the face can be linear
   ! this might need to be modified in the future
   number_dimensions_face   = this%number_dimensions - 1
   number_nodes_face_scalar = this%get_number_nodes_scalar_dim_order( number_dimensions_face, &
-                                                                  &  this%order+1 )
-  face_order = this%order
+                                                                  &  this%order )
 
   ! Allocate the arrays of the interpolation
   call interpolation%create( number_dimensions_face, number_nodes_face_scalar, &
@@ -507,8 +504,9 @@ subroutine tri_lagrangian_reference_fe_fill_interior_points_permutation(this,   
   
   if ( allocated(interior_points_permutation) ) call memfree(interior_points_permutation,__FILE__,__LINE__)
   
-  number_interior_points_x_dim = int(real(number_interior_points,rp)**(1.0_rp/real(dimension,rp)),ip)
-  
+  number_interior_points_x_dim = this%get_number_interior_points_x_dim(number_interior_points, &
+                                                                       dimension )
+
   number_of_possible_permutations = this%number_rotations_per_dimension(dimension) * &
                                     this%number_orientations_per_dimension(dimension)
   
@@ -520,9 +518,21 @@ subroutine tri_lagrangian_reference_fe_fill_interior_points_permutation(this,   
   call this%fill_permutation_array(dimension,                    &
                                    number_interior_points_x_dim, &
                                    interior_points_permutation)
-  
+
 end subroutine tri_lagrangian_reference_fe_fill_interior_points_permutation
 
+!=================================================================================================
+function tri_lagrangian_reference_fe_get_number_interior_points_x_dim(this,n,dim)
+  implicit none
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: n, dim
+  integer(ip) :: tri_lagrangian_reference_fe_get_number_interior_points_x_dim 
+  if (dim .eq. 1) then
+     tri_lagrangian_reference_fe_get_number_interior_points_x_dim = n
+  else
+     tri_lagrangian_reference_fe_get_number_interior_points_x_dim = (-1 + int(sqrt(real(1+8*n))))/2
+  end if
+end function tri_lagrangian_reference_fe_get_number_interior_points_x_dim
 
 !==================================================================================================
 subroutine tri_lagrangian_reference_fe_fill (this)
@@ -540,9 +550,14 @@ subroutine tri_lagrangian_reference_fe_fill (this)
   if ( this%continuity ) allocate(this%own_node_permutations(this%number_dimensions-1))
   
   do dimension = 1, this%number_dimensions-1
-  
-     this%number_rotations_per_dimension(dimension) = this%get_number_vertices()
+     
+     if (dimension == 1) then
+        this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_edge()
+     elseif (dimension == 2) then 
+        this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_face()
+     end if
      this%number_orientations_per_dimension(dimension) = dimension
+
      
      if ( this%continuity ) then
        ! Compute the number of interior nodes X (edge or face)
@@ -1018,19 +1033,19 @@ subroutine tri_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
   if(ndime==1) then
      if(ngaus==1) then
         quadrature%coordinates(1,1)=0.5_rp
-        quadrature%weight(  1)=2.0_rp
+        quadrature%weight(  1)=1.0_rp
      else if(ngaus==2) then
         quadrature%coordinates(1,1)= 0.211324865405187_rp
         quadrature%coordinates(1,2)= 0.788675134594813_rp
-        quadrature%weight(  1)= 1.0_rp
-        quadrature%weight(  2)= 1.0_rp
+        quadrature%weight(  1)= 0.5_rp
+        quadrature%weight(  2)= 0.5_rp
      else if(ngaus==3) then
         quadrature%coordinates(1,1)= 0.112701665379258_rp
         quadrature%coordinates(1,2)= 0.5_rp
         quadrature%coordinates(1,3)= 0.887298334620742_rp
-        quadrature%weight(  1)= 0.555555555555556_rp
-        quadrature%weight(  2)= 0.888888888888889_rp
-        quadrature%weight(  3)= 0.555555555555556_rp
+        quadrature%weight(  1)= 0.277777777777778_rp
+        quadrature%weight(  2)= 0.444444444444444_rp
+        quadrature%weight(  3)= 0.277777777777778_rp
      else
         write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
         stop
@@ -1638,6 +1653,7 @@ subroutine evaluate_shape_functions_and_derivatives(coord,ndime,nnode,ntens,shap
   ! This routine evaluates shape functions and their first and second
   ! derivatives for 2D or 3D continuos standard interpolation elements.
   !
+  !    BARS                2  &   3  nodes
   !    TRIANGLES       3   6  &  10  nodes
   !    TETRAHEDRA          4  &  10  nodes
   !
@@ -1649,7 +1665,28 @@ subroutine evaluate_shape_functions_and_derivatives(coord,ndime,nnode,ntens,shap
   real(rp)   , optional, intent(inout) :: heslo(:,:)
   integer(ip) :: i
   real(rp)    :: a1,a2,a3,a4,c
-  if(ndime==2) then
+  if(ndime==1) then 
+     ! Hessian not computed for face interpolation
+     ! Linear bar
+     if(nnode==2) then
+     shape(1)=1.0_rp-coord(1)                              
+     shape(2)=coord(1)                                    
+     deriv(1,1)=-1.0_rp                                   
+     deriv(1,2)= 1.0_rp                                   
+     ! Quadratic bar
+     else if(nnode==3) then
+     shape(1)=2.0_rp*(coord(1)-0.5_rp)*(coord(1)-1.0_rp)                           
+     shape(2)=-4.0_rp*coord(1)*(coord(1)-1.0_rp)  
+     shape(3)=2.0_rp*coord(1)*(coord(1)-0.5_rp)
+     deriv(1,1)=2.0_rp*(2.0_rp*coord(1)-1.5_rp)                                    
+     deriv(1,2)=-4.0_rp*(2.0_rp*coord(1)-1.0_rp)
+     deriv(1,3)=2.0_rp*(2.0_rp*coord(1)-0.5_rp)
+     ! Cubic bar
+     else if(nnode==4) then
+        write(*,*) __FILE__,__LINE__,'ERROR:: Interpolation not defined',ndime,nnode
+        stop     
+     end if
+  elseif(ndime==2) then
      ! Linear triangle
      if(nnode==3) then     
         shape(1)=1.0_rp-coord(1)-coord(2)                                
@@ -1901,7 +1938,7 @@ subroutine  tri_lagrangian_reference_fe_permute_or_2d( this,o2n,p,o,r )
         o2n(go) = P_gijk(ij_n,2,p-1)
      end do
   end do
-  
+
 end subroutine tri_lagrangian_reference_fe_permute_or_2d
 
 !=================================================================================================
@@ -2122,9 +2159,8 @@ subroutine tri_lagrangian_reference_fe_fill_face_interpolation (this,face_interp
            end do
         else 
            ! Non-orthogonal face in the reference element
-           global_coordinates(1) = 1 - local_quadrature%coordinates(1,iquad)
-           global_coordinates(2:face_interpolation%number_dimensions) = &
-              & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,iquad)
+           global_coordinates(1) = 1 - sum(local_quadrature%coordinates(:,iquad))
+           global_coordinates(2:face_interpolation%number_dimensions) = local_quadrature%coordinates(:,iquad)
         end if
         call evaluate_shape_functions_and_derivatives( global_coordinates,                                 &
                                                        face_interpolation%number_dimensions,               &

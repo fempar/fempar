@@ -64,7 +64,7 @@ contains
     this%default_dir_path       = 'data'
     this%default_prefix         = 'square_vector'
     this%default_order          = '1' 
-    this%default_laplacian_type = 'vector'
+    this%default_laplacian_type = 'scalar'
   end subroutine test_reference_fe_params_set_defaults
   !==================================================================================================
 
