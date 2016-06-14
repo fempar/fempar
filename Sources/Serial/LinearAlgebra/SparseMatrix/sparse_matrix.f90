@@ -25,85 +25,93 @@ private
     private
         class(base_sparse_matrix_t), allocatable :: State
     contains
-        procedure, non_overridable ::                                           sparse_matrix_create_square
-        procedure, non_overridable ::                                           sparse_matrix_create_rectangular
-        procedure, non_overridable ::                                           sparse_matrix_insert_bounded_coords
-        procedure, non_overridable ::                                           sparse_matrix_insert_bounded_values
-        procedure, non_overridable ::                                           sparse_matrix_insert_bounded_coords_by_row
-        procedure, non_overridable ::                                           sparse_matrix_insert_bounded_coords_by_col
-        procedure, non_overridable ::                                           sparse_matrix_insert_bounded_values_by_row
-        procedure, non_overridable ::                                           sparse_matrix_insert_bounded_values_by_col
-        procedure, non_overridable ::                                           sparse_matrix_insert_bounded_single_coord
-        procedure, non_overridable ::                                           sparse_matrix_insert_bounded_single_value
-        procedure, non_overridable ::                                           sparse_matrix_insert_bounded_dense_values
-        procedure, non_overridable ::                                           sparse_matrix_insert_bounded_square_dense_values
-        procedure, non_overridable ::                                           sparse_matrix_insert_dense_values
-        procedure, non_overridable ::                                           sparse_matrix_insert_square_dense_values
-        procedure, non_overridable ::                                           sparse_matrix_insert_coords
-        procedure, non_overridable ::                                           sparse_matrix_insert_values
-        procedure, non_overridable ::                                           sparse_matrix_insert_coords_by_row
-        procedure, non_overridable ::                                           sparse_matrix_insert_coords_by_col
-        procedure, non_overridable ::                                           sparse_matrix_insert_values_by_row
-        procedure, non_overridable ::                                           sparse_matrix_insert_values_by_col
-        procedure, non_overridable ::                                           sparse_matrix_insert_single_coord
-        procedure, non_overridable ::                                           sparse_matrix_insert_single_value
-        procedure, non_overridable ::                                           sparse_matrix_convert
-        procedure, non_overridable ::                                           sparse_matrix_convert_string
-        procedure, non_overridable ::                                           sparse_matrix_convert_sparse_matrix_mold
-        procedure, non_overridable ::                                           sparse_matrix_convert_base_sparse_matrix_mold
-        procedure, non_overridable ::         create_vector_spaces           => sparse_matrix_create_vector_spaces
-        procedure, non_overridable, public :: get_pointer_to_base_matrix     => sparse_matrix_get_pointer_to_base_matrix
-        procedure, non_overridable, public :: get_nnz                        => sparse_matrix_get_nnz
-        procedure, non_overridable, public :: get_sign                       => sparse_matrix_get_sign
-        procedure, non_overridable, public :: get_num_rows                   => sparse_matrix_get_num_rows
-        procedure, non_overridable, public :: get_num_cols                   => sparse_matrix_get_num_cols
-        procedure, non_overridable, public :: get_symmetric_storage          => sparse_matrix_get_symmetric_storage 
-        procedure, non_overridable, public :: is_by_rows                     => sparse_matrix_is_by_rows
-        procedure, non_overridable, public :: is_by_cols                     => sparse_matrix_is_by_cols
-        procedure, non_overridable, public :: is_symmetric                   => sparse_matrix_is_symmetric
-        procedure, non_overridable, public :: get_default_sparse_matrix      => sparse_matrix_get_default_sparse_matrix
-        procedure,                  public :: allocate                       => sparse_matrix_allocate
-        procedure,                  public :: init                           => sparse_matrix_init
-        procedure,                  public :: free_in_stages                 => sparse_matrix_free_in_stages  
-        generic,                    public :: create                         => sparse_matrix_create_square, &
-                                                                                sparse_matrix_create_rectangular
-        generic,                    public :: insert                         => sparse_matrix_insert_bounded_coords,              &
-                                                                                sparse_matrix_insert_bounded_values,              &
-                                                                                sparse_matrix_insert_bounded_coords_by_row,       &
-                                                                                sparse_matrix_insert_bounded_coords_by_col,       &
-                                                                                sparse_matrix_insert_bounded_values_by_row,       &
-                                                                                sparse_matrix_insert_bounded_values_by_col,       &
-                                                                                sparse_matrix_insert_bounded_single_coord,        &
-                                                                                sparse_matrix_insert_bounded_single_value,        &
-                                                                                sparse_matrix_insert_bounded_dense_values,        &
-                                                                                sparse_matrix_insert_bounded_square_dense_values, &
-                                                                                sparse_matrix_insert_coords,                      &
-                                                                                sparse_matrix_insert_values,                      &
-                                                                                sparse_matrix_insert_dense_values,                &
-                                                                                sparse_matrix_insert_square_dense_values,         &
-                                                                                sparse_matrix_insert_coords_by_row,               & 
-                                                                                sparse_matrix_insert_coords_by_col,               &
-                                                                                sparse_matrix_insert_values_by_row,               &
-                                                                                sparse_matrix_insert_values_by_col,               &
-                                                                                sparse_matrix_insert_single_coord,                &
-                                                                                sparse_matrix_insert_single_value
-        generic,                     public :: convert                       => sparse_matrix_convert,                         &
-                                                                                sparse_matrix_convert_string,                  &
-                                                                                sparse_matrix_convert_sparse_matrix_mold,      &
-                                                                                sparse_matrix_convert_base_sparse_matrix_mold
-        procedure,                  public :: split_2x2_numeric              => sparse_matrix_split_2x2_numeric
-        procedure,                  public :: split_2x2_symbolic             => sparse_matrix_split_2x2_symbolic
-        procedure,                  public :: permute_and_split_2x2_numeric  => sparse_matrix_permute_and_split_2x2_numeric
-        procedure,                  public :: permute_and_split_2x2_symbolic => sparse_matrix_permute_and_split_2x2_symbolic
-        procedure,                  public :: expand_matrix_numeric          => sparse_matrix_expand_matrix_numeric
-        procedure,                  public :: expand_matrix_symbolic         => sparse_matrix_expand_matrix_symbolic
-        procedure,                  public :: extract_diagonal               => sparse_matrix_extract_diagonal
-        procedure,                  public :: free                           => sparse_matrix_free
-        procedure,                  public :: apply                          => sparse_matrix_apply
-        procedure, non_overridable, public :: print                          => sparse_matrix_print
-        procedure, non_overridable, public :: print_matrix_market            => sparse_matrix_print_matrix_market
-        procedure                 , public :: create_iterator                => sparse_matrix_create_iterator
-        procedure, non_overridable, public :: get_entry                      => sparse_matrix_get_entry
+        procedure, non_overridable ::                                             sparse_matrix_create_square
+        procedure, non_overridable ::                                             sparse_matrix_create_rectangular
+        procedure, non_overridable ::                                             sparse_matrix_insert_bounded_coords
+        procedure, non_overridable ::                                             sparse_matrix_insert_bounded_values
+        procedure, non_overridable ::                                             sparse_matrix_insert_bounded_coords_by_row
+        procedure, non_overridable ::                                             sparse_matrix_insert_bounded_coords_by_col
+        procedure, non_overridable ::                                             sparse_matrix_insert_bounded_values_by_row
+        procedure, non_overridable ::                                             sparse_matrix_insert_bounded_values_by_col
+        procedure, non_overridable ::                                             sparse_matrix_insert_bounded_single_coord
+        procedure, non_overridable ::                                             sparse_matrix_insert_bounded_single_value
+        procedure, non_overridable ::                                             sparse_matrix_insert_bounded_dense_values
+        procedure, non_overridable ::                                             sparse_matrix_insert_bounded_square_dense_values
+        procedure, non_overridable ::                                             sparse_matrix_insert_dense_values
+        procedure, non_overridable ::                                             sparse_matrix_insert_square_dense_values
+        procedure, non_overridable ::                                             sparse_matrix_insert_coords
+        procedure, non_overridable ::                                             sparse_matrix_insert_values
+        procedure, non_overridable ::                                             sparse_matrix_insert_coords_by_row
+        procedure, non_overridable ::                                             sparse_matrix_insert_coords_by_col
+        procedure, non_overridable ::                                             sparse_matrix_insert_values_by_row
+        procedure, non_overridable ::                                             sparse_matrix_insert_values_by_col
+        procedure, non_overridable ::                                             sparse_matrix_insert_single_coord
+        procedure, non_overridable ::                                             sparse_matrix_insert_single_value
+        procedure, non_overridable ::                                             sparse_matrix_convert
+        procedure, non_overridable ::                                             sparse_matrix_convert_string
+        procedure, non_overridable ::                                             sparse_matrix_convert_sparse_matrix_mold
+        procedure, non_overridable ::                                             sparse_matrix_convert_base_sparse_matrix_mold
+        procedure, non_overridable ::         create_vector_spaces             => sparse_matrix_create_vector_spaces
+        procedure, non_overridable, public :: get_pointer_to_base_matrix       => sparse_matrix_get_pointer_to_base_matrix
+        procedure, non_overridable, public :: get_nnz                          => sparse_matrix_get_nnz
+        procedure, non_overridable, public :: get_sign                         => sparse_matrix_get_sign
+        procedure, non_overridable, public :: get_num_rows                     => sparse_matrix_get_num_rows
+        procedure, non_overridable, public :: get_num_cols                     => sparse_matrix_get_num_cols
+        procedure, non_overridable, public :: get_symmetric_storage            => sparse_matrix_get_symmetric_storage 
+        procedure, non_overridable, public :: is_by_rows                       => sparse_matrix_is_by_rows
+        procedure, non_overridable, public :: is_by_cols                       => sparse_matrix_is_by_cols
+        procedure, non_overridable, public :: is_symmetric                     => sparse_matrix_is_symmetric
+        procedure, non_overridable, public :: get_default_sparse_matrix        => sparse_matrix_get_default_sparse_matrix
+        procedure,                  public :: allocate                         => sparse_matrix_allocate
+        procedure,                  public :: init                             => sparse_matrix_init
+        procedure,                  public :: free_in_stages                   => sparse_matrix_free_in_stages  
+        generic,                    public :: create                           => sparse_matrix_create_square, &
+                                                                                  sparse_matrix_create_rectangular
+        generic,                    public :: insert                           => sparse_matrix_insert_bounded_coords,              &
+                                                                                  sparse_matrix_insert_bounded_values,              &
+                                                                                  sparse_matrix_insert_bounded_coords_by_row,       &
+                                                                                  sparse_matrix_insert_bounded_coords_by_col,       &
+                                                                                  sparse_matrix_insert_bounded_values_by_row,       &
+                                                                                  sparse_matrix_insert_bounded_values_by_col,       &
+                                                                                  sparse_matrix_insert_bounded_single_coord,        &
+                                                                                  sparse_matrix_insert_bounded_single_value,        &
+                                                                                  sparse_matrix_insert_bounded_dense_values,        &
+                                                                                  sparse_matrix_insert_bounded_square_dense_values, &
+                                                                                  sparse_matrix_insert_coords,                      &
+                                                                                  sparse_matrix_insert_values,                      &
+                                                                                  sparse_matrix_insert_dense_values,                &
+                                                                                  sparse_matrix_insert_square_dense_values,         &
+                                                                                  sparse_matrix_insert_coords_by_row,               & 
+                                                                                  sparse_matrix_insert_coords_by_col,               &
+                                                                                  sparse_matrix_insert_values_by_row,               &
+                                                                                  sparse_matrix_insert_values_by_col,               &
+                                                                                  sparse_matrix_insert_single_coord,                &
+                                                                                  sparse_matrix_insert_single_value
+        generic,                    public :: convert                          => sparse_matrix_convert,                         &
+                                                                                  sparse_matrix_convert_string,                  &
+                                                                                  sparse_matrix_convert_sparse_matrix_mold,      &
+                                                                                  sparse_matrix_convert_base_sparse_matrix_mold
+        procedure,                  public :: split_2x2_numeric                => sparse_matrix_split_2x2_numeric
+        procedure,                  public :: split_2x2_symbolic               => sparse_matrix_split_2x2_symbolic
+        procedure,                  public :: permute_and_split_2x2_numeric    => sparse_matrix_permute_and_split_2x2_numeric
+        procedure,                  public :: permute_and_split_2x2_symbolic   => sparse_matrix_permute_and_split_2x2_symbolic
+        procedure                          :: expand_matrix_numeric_array      => sparse_matrix_expand_matrix_numeric_array
+        procedure                          :: expand_matrix_symbolic_array     => sparse_matrix_expand_matrix_symbolic_array
+        procedure                          :: expand_matrix_numeric_coo        => sparse_matrix_expand_matrix_numeric_coo
+        procedure                          :: expand_matrix_symbolic_coo       => sparse_matrix_expand_matrix_symbolic_coo
+        generic,                    public :: expand_matrix_numeric            => expand_matrix_numeric_array, &
+                                                                                  expand_matrix_numeric_coo
+        generic,                    public :: expand_matrix_symbolic           => expand_matrix_symbolic_array, &
+                                                                                  expand_matrix_symbolic_coo
+        procedure,                  public :: extract_diagonal                 => sparse_matrix_extract_diagonal
+        procedure,                  public :: free                             => sparse_matrix_free
+        procedure,                  public :: apply                            => sparse_matrix_apply
+        procedure,                  public :: apply_to_dense_matrix            => sparse_matrix_apply_to_dense_matrix
+        procedure,                  public :: apply_transpose_to_dense_matrix  => sparse_matrix_apply_transpose_to_dense_matrix
+        procedure, non_overridable, public :: print                            => sparse_matrix_print
+        procedure, non_overridable, public :: print_matrix_market              => sparse_matrix_print_matrix_market
+        procedure                 , public :: create_iterator                  => sparse_matrix_create_iterator
+        procedure, non_overridable, public :: get_entry                        => sparse_matrix_get_entry
     end type sparse_matrix_t
 
     class(base_sparse_matrix_t), allocatable, target, save :: default_sparse_matrix
@@ -983,7 +991,7 @@ contains
     end subroutine sparse_matrix_permute_and_split_2x2_symbolic
 
 
-    subroutine sparse_matrix_expand_matrix_numeric(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to, symmetric_storage, symmetric, sign)
+    subroutine sparse_matrix_expand_matrix_numeric_array(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to, symmetric_storage, symmetric, sign)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
@@ -1024,10 +1032,47 @@ contains
 
         call this%State%expand_matrix_numeric(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, C_T_val, I_nz, I_ia, I_ja, I_val, to%State)
         call to%create_vector_spaces()
-    end subroutine sparse_matrix_expand_matrix_numeric
+    end subroutine sparse_matrix_expand_matrix_numeric_array
 
 
-    subroutine sparse_matrix_expand_matrix_symbolic(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to, symmetric_storage, symmetric, sign)
+    subroutine sparse_matrix_expand_matrix_numeric_coo(this, C_T, to, I, symmetric_storage, symmetric, sign)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< A = [A C_T]
+    !<     [C  I ]
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t),              intent(in)    :: this
+        type(coo_sparse_matrix_t),           intent(in)    :: C_T
+        class(sparse_matrix_t),              intent(inout) :: to
+        type(coo_sparse_matrix_t), optional, intent(in)    :: I
+        logical,                   optional, intent(in)    :: symmetric_storage
+        logical,                   optional, intent(in)    :: symmetric
+        integer(ip),               optional, intent(in)    :: sign
+        logical                                            :: symmetric_storage_aux
+        logical                                            :: symmetric_aux
+        integer(ip)                                        :: sign_aux
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        if(.not. allocated(to%State)) allocate(to%State, mold=this%State)
+
+        if(to%State%state_is_start()) then
+            sign_aux = this%State%get_sign()
+            symmetric_aux = this%State%is_symmetric()
+            symmetric_storage_aux = this%State%get_symmetric_storage()
+
+            if(present(sign)) sign_aux = sign
+            if(present(symmetric)) symmetric_aux = symmetric
+            if(present(symmetric_storage)) symmetric_storage_aux = symmetric_storage
+
+            call to%State%set_properties(symmetric_storage_aux, symmetric_aux, sign_aux)
+        endif
+
+        call this%State%expand_matrix_numeric(C_T, to%State, I)
+        call to%create_vector_spaces()
+    end subroutine sparse_matrix_expand_matrix_numeric_coo
+
+
+    subroutine sparse_matrix_expand_matrix_symbolic_array(this, C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to, symmetric_storage, symmetric, sign)
     !-----------------------------------------------------------------
     !< Expand matrix A given a (by_row) sorted C_T and I in COO
     !< A = [A C_T]
@@ -1065,7 +1110,44 @@ contains
 
         call this%State%expand_matrix_symbolic(C_T_num_cols, C_T_nz, C_T_ia, C_T_ja, I_nz, I_ia, I_ja, to%State)
         call to%create_vector_spaces()
-    end subroutine sparse_matrix_expand_matrix_symbolic
+    end subroutine sparse_matrix_expand_matrix_symbolic_array
+
+
+    subroutine sparse_matrix_expand_matrix_symbolic_coo(this, C_T, to, I, symmetric_storage, symmetric, sign)
+    !-----------------------------------------------------------------
+    !< Expand matrix A given a (by_row) sorted C_T and I in COO
+    !< A = [A C_T]
+    !<     [C  I ]
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t),              intent(in)    :: this
+        type(coo_sparse_matrix_t),           intent(in)    :: C_T
+        class(sparse_matrix_t),              intent(inout) :: to
+        type(coo_sparse_matrix_t), optional, intent(in)    :: I
+        logical,                   optional, intent(in)    :: symmetric_storage
+        logical,                   optional, intent(in)    :: symmetric
+        integer(ip),               optional, intent(in)    :: sign
+        logical                                            :: symmetric_storage_aux
+        logical                                            :: symmetric_aux
+        integer(ip)                                        :: sign_aux
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        if(.not. allocated(to%State)) allocate(to%State, mold=this%State)
+
+        if(to%State%state_is_start()) then
+            sign_aux = this%State%get_sign()
+            symmetric_aux = this%State%is_symmetric()
+            symmetric_storage_aux = this%State%get_symmetric_storage()
+
+            if(present(sign)) sign_aux = sign
+            if(present(symmetric)) symmetric_aux = symmetric
+            if(present(symmetric_storage)) symmetric_storage_aux = symmetric_storage
+
+            call to%State%set_properties(symmetric_storage_aux, symmetric_aux, sign_aux)
+        endif
+
+        call this%State%expand_matrix_symbolic(C_T, to%State, I)
+        call to%create_vector_spaces()
+    end subroutine sparse_matrix_expand_matrix_symbolic_coo
 
 
     subroutine sparse_matrix_extract_diagonal(this, diagonal) 
@@ -1093,6 +1175,44 @@ contains
         call op%abort_if_not_in_range(y)
         call op%State%apply(x,y)
     end subroutine sparse_matrix_apply
+
+
+    subroutine sparse_matrix_apply_to_dense_matrix(op, n, alpha, LDB, b, beta, LDC, c) 
+    !-----------------------------------------------------------------
+    !< Apply matrix matrix product y = alpha*op*b + beta*c
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(in)    :: op                   ! Sparse matrix
+        integer(ip),            intent(in)    :: n                    ! Number of columns of B and C dense arrays
+        real(rp),               intent(in)    :: alpha                ! Scalar alpha
+        integer(ip),            intent(in)    :: LDB                  ! Leading dimensions of B matrix
+        real(rp),               intent(in)    :: b(LDB, n)            ! Matrix B
+        real(rp),               intent(in)    :: beta                 ! Scalar beta
+        integer(ip),            intent(in)    :: LDC                  ! Leading dimension of C matrix
+        real(rp),               intent(inout) :: c(LDC, n)            ! Matrix C
+    !-----------------------------------------------------------------
+        assert(allocated(op%State))
+        assert(op%get_num_cols() <= LDB .and. op%get_num_rows() <= LDC)
+        call op%State%apply_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
+    end subroutine sparse_matrix_apply_to_dense_matrix
+
+
+    subroutine sparse_matrix_apply_transpose_to_dense_matrix(op, n, alpha, LDB, b, beta, LDC, c) 
+    !-----------------------------------------------------------------
+    !< Apply matrix matrix product y = alpha*op*b + beta*c
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(in)    :: op                   ! Sparse matrix
+        integer(ip),            intent(in)    :: n                    ! Number of columns of B and C dense arrays
+        real(rp),               intent(in)    :: alpha                ! Scalar alpha
+        integer(ip),            intent(in)    :: LDB                  ! Leading dimensions of B matrix
+        real(rp),               intent(in)    :: b(LDB, n)            ! Matrix B
+        real(rp),               intent(in)    :: beta                 ! Scalar beta
+        integer(ip),            intent(in)    :: LDC                  ! Leading dimension of C matrix
+        real(rp),               intent(inout) :: c(LDC, n)            ! Matrix C
+    !-----------------------------------------------------------------
+        assert(allocated(op%State))
+        assert(op%get_num_rows() <= LDB .and. op%get_num_cols() <= LDC)
+        call op%State%apply_transpose_to_dense_matrix(n, alpha, LDB, b, beta, LDC, c) 
+    end subroutine sparse_matrix_apply_transpose_to_dense_matrix
 
 
     subroutine sparse_matrix_free(this)

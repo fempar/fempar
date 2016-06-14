@@ -22,6 +22,9 @@ implicit none
     type(ParameterList_t), pointer :: direct_solver_params
     type(serial_scalar_array_t)    :: x
     type(serial_scalar_array_t)    :: y
+    integer(ip)                    :: nrhs = 3
+    real(rp), allocatable          :: xx(:,:)
+    real(rp), allocatable          :: yy(:,:)
     integer                        :: FPLError
     real(c_double)                 :: control_params(20) = 0
     integer                        :: iparm(64) = 0
@@ -47,6 +50,9 @@ implicit none
     call x%init(1.0_rp)
     call y%create_and_allocate(sparse_matrix%get_num_cols())
     call x%print(6)
+    call memalloc(sparse_matrix%get_num_rows(), nrhs, xx, __FILE__, __LINE__)
+    xx = 1.0_rp
+    call memalloc(sparse_matrix%get_num_cols(), nrhs, yy, __FILE__, __LINE__)
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -77,6 +83,9 @@ implicit none
         call direct_solver%solve(x,y)
         call direct_solver%log_info()
         call y%print(6)
+        call direct_solver%solve(sparse_matrix%get_num_rows(), nrhs, xx,yy)
+        call direct_solver%log_info()
+        print*, yy
 
         if(i/=iters) then
             print*, ''
@@ -115,6 +124,9 @@ implicit none
         call direct_solver%solve(x,y)
         call direct_solver%log_info()
         call y%print(6)
+        call direct_solver%solve(sparse_matrix%get_num_rows(), nrhs, xx,yy)
+        call direct_solver%log_info()
+        print*, yy
 
         if(i/=iters) then
             print*, ''
@@ -134,6 +146,8 @@ implicit none
     call sparse_matrix%free()
     call x%free()
     call y%free()
+    call memfree(xx, __FILE__, __LINE__)
+    call memfree(yy, __FILE__, __LINE__)
 
     call memstatus()
 
