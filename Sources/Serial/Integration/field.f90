@@ -66,7 +66,6 @@ module field_names
   end type symmetric_tensor_field_t
 
   type, extends(vector_field_t) :: point_t
-     contains
   end type point_t
 
   interface operator(*)
