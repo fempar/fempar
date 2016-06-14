@@ -2361,6 +2361,7 @@ contains
         integer                                        :: f, i, j, k
         integer                                        :: initial_num_rows
         integer                                        :: initial_num_cols
+        integer                                        :: C_T_num_rows
         integer                                        :: previous_ia
         integer                                        :: previous_ja
         integer                                        :: new_nz
@@ -2387,7 +2388,7 @@ contains
 
         initial_num_rows = this%get_num_rows()
         initial_num_cols = this%get_num_cols()
-        check(C_T_num_cols == initial_num_rows .and. initial_num_rows>0 .and. initial_num_cols>0)
+
     !-----------------------------------------------------------------
     ! Set properties to the expanded matrix
     !-----------------------------------------------------------------
@@ -2397,6 +2398,9 @@ contains
         symmetric_storage = to%get_symmetric_storage()
 
 #ifdef DEBUG
+        C_T_num_rows     = maxval(C_T_ia)
+        assert(C_T_num_rows == initial_num_rows .and. initial_num_rows>0 .and. initial_num_cols>0)
+
     !-----------------------------------------------------------------
     ! Check if (C_T) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for C matrix
@@ -2746,6 +2750,7 @@ contains
         class(csr_sparse_matrix_t),      intent(inout) :: to
         type(coo_sparse_matrix_t), optional, target, intent(in)  :: I_coo
         integer(ip)                                    :: C_T_num_cols
+        integer(ip)                                    :: C_T_num_rows
         integer(ip)                                    :: C_T_nz
         integer(ip), pointer                           :: C_T_ia(:)
         integer(ip), pointer                           :: C_T_ja(:)
@@ -2786,6 +2791,7 @@ contains
         assert(to%state_is_properties_setted())
 
         C_T_num_cols =  C_T_coo%get_num_cols()
+        C_T_num_rows =  C_T_coo%get_num_rows()
         C_T_nz       =  C_T_coo%get_nnz()
         C_T_ia       => C_T_coo%ia
         C_T_ja       => C_T_coo%ja
@@ -2812,7 +2818,7 @@ contains
 
         initial_num_rows = this%get_num_rows()
         initial_num_cols = this%get_num_cols()
-        check(C_T_num_cols == initial_num_rows .and. initial_num_rows>0 .and. initial_num_cols>0)
+        assert(C_T_num_rows == initial_num_rows .and. initial_num_rows>0 .and. initial_num_cols>0)
 
         allocate(C_irp(C_T_num_cols))
         allocate(I_irp(C_T_num_cols))
@@ -3168,6 +3174,7 @@ contains
         integer                                        :: f, i, j, k
         integer                                        :: initial_num_rows
         integer                                        :: initial_num_cols
+        integer                                        :: C_T_num_rows
         integer                                        :: previous_ia
         integer                                        :: previous_ja
         integer                                        :: new_nz
@@ -3194,7 +3201,6 @@ contains
 
         initial_num_rows = this%get_num_rows()
         initial_num_cols = this%get_num_cols()
-        check(C_T_num_cols == initial_num_rows .and. initial_num_rows>0 .and. initial_num_cols>0)
 
     !-----------------------------------------------------------------
     ! Set properties to the expanded matrix
@@ -3203,6 +3209,9 @@ contains
         call to%set_num_cols(initial_num_cols+C_T_num_cols)
         symmetric_storage = to%get_symmetric_storage()
 #ifdef DEBUG
+        C_T_num_rows     = maxval(C_T_ia)
+        assert(C_T_num_rows == initial_num_rows .and. initial_num_rows>0 .and. initial_num_cols>0)
+
     !-----------------------------------------------------------------
     ! Check if (C_T) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for C matrix
@@ -3538,6 +3547,7 @@ contains
         class(csr_sparse_matrix_t),      intent(inout) :: to
         type(coo_sparse_matrix_t), optional, target, intent(in)  :: I_coo
         integer(ip)                                    :: C_T_num_cols
+        integer(ip)                                    :: C_T_num_rows
         integer(ip)                                    :: C_T_nz
         integer(ip), pointer                           :: C_T_ia(:)
         integer(ip), pointer                           :: C_T_ja(:)
@@ -3580,6 +3590,7 @@ contains
         if(C_T_num_cols < 1) return
 
         C_T_num_cols =  C_T_coo%get_num_cols()
+        C_T_num_rows =  C_T_coo%get_num_rows()
         C_T_nz       =  C_T_coo%get_nnz()
         C_T_ia       => C_T_coo%ia
         C_T_ja       => C_T_coo%ja
@@ -3600,7 +3611,7 @@ contains
 
         initial_num_rows = this%get_num_rows()
         initial_num_cols = this%get_num_cols()
-        check(C_T_num_cols == initial_num_rows .and. initial_num_rows>0 .and. initial_num_cols>0)
+        assert(C_T_num_rows == initial_num_rows .and. initial_num_rows>0 .and. initial_num_cols>0)
 
         allocate(C_irp(C_T_num_cols))
         allocate(I_irp(C_T_num_cols))
