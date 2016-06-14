@@ -26,33 +26,33 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module vector_laplacian_composite_discrete_integration_names
+module vector_laplacian_single_discrete_integration_names
   use serial_names
 
   implicit none
 # include "debug.i90"
   private
-  type, extends(discrete_integration_t) :: vector_laplacian_composite_discrete_integration_t
+  type, extends(discrete_integration_t) :: vector_laplacian_single_discrete_integration_t
      integer(ip)              :: number_neumann_faces
      integer(ip), allocatable :: neumann_faces(:)
    contains
      procedure :: integrate
-  end type vector_laplacian_composite_discrete_integration_t
+  end type vector_laplacian_single_discrete_integration_t
 
-  public :: vector_laplacian_composite_discrete_integration_t
+  public :: vector_laplacian_single_discrete_integration_t
 
 contains
   subroutine integrate ( this, fe_space, assembler )
     implicit none
-    class(vector_laplacian_composite_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)                                , intent(inout) :: fe_space
-    class(assembler_t)                                      , intent(inout) :: assembler
+    class(vector_laplacian_single_discrete_integration_t), intent(in)    :: this
+    class(serial_fe_space_t)                             , intent(inout) :: fe_space
+    class(assembler_t)                                   , intent(inout) :: assembler
     ! Finite objects
     type(finite_element_t)    , pointer     :: fe
     type(finite_face_t)       , pointer     :: face
     ! Integrators
-    type(volume_integrator_t) , pointer     :: vol_int_first_fe, vol_int_second_fe
-    type(face_integrator_t)   , pointer     :: face_int_first_fe, face_int_second_fe
+    type(volume_integrator_t) , pointer     :: vol_int
+    type(face_integrator_t)   , pointer     :: face_int
     ! Elemental arrays
     real(rp)                  , allocatable :: elmat(:,:), elvec(:)
     real(rp)                  , allocatable :: facemat(:,:,:,:), facevec(:,:)
@@ -64,10 +64,9 @@ contains
     ! Quadrature
     type(quadrature_t)        , pointer     :: quad
     ! Test functions
-    real(rp)                                :: shape_trial
-    type(vector_field_t)                    :: grad_test, grad_trial
+    type(vector_field_t)                    :: shape_trial_vector
+    type(tensor_field_t)                    :: grad_test_vector, grad_trial_vector
     ! Other locals
-    integer(ip)                             :: ioffset, joffset
     integer(ip)                             :: qpoint, inode, jnode, npoint
     real(rp)                                :: space_factor
     integer(ip)               , allocatable :: number_nodes_per_field(:)
@@ -113,8 +112,7 @@ contains
        
        ! Elemental getters
        fe_map   => fe%get_fe_map()
-       vol_int_first_fe  => fe%get_volume_integrator(1)
-       vol_int_second_fe => fe%get_volume_integrator(2)
+       vol_int  => fe%get_volume_integrator(1)
        elem2dof => fe%get_elem2dof()      
        
        ! Update finite element structures
@@ -124,24 +122,14 @@ contains
        do qpoint = 1,npoint
           
           ! |J]*wg
-          space_factor  = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          space_factor  = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)  
           
           ! Diffusive term: - div ( k(u^{n+theta}) grad(u^{n+theta}) )
           do inode = 1, number_nodes_per_field(1)
-             call vol_int_first_fe%get_gradient(inode,qpoint,grad_trial)
+             call vol_int%get_gradient(inode,qpoint,grad_trial_vector)
              do jnode = 1, number_nodes_per_field(1)
-                call vol_int_first_fe%get_gradient(jnode,qpoint,grad_test)
-                elmat(inode,jnode) = elmat(inode,jnode) + space_factor * grad_test * grad_trial 
-             end do
-          end do
-
-          do inode = 1, number_nodes_per_field(2)
-             ioffset = number_nodes_per_field(1) + inode
-             call vol_int_second_fe%get_gradient(inode,qpoint,grad_trial)
-             do jnode = 1, number_nodes_per_field(2)
-                joffset = number_nodes_per_field(1) + jnode
-                call vol_int_second_fe%get_gradient(jnode,qpoint,grad_test)
-                elmat(ioffset,joffset) = elmat(ioffset,joffset) + space_factor * grad_test * grad_trial 
+                call vol_int%get_gradient(jnode,qpoint,grad_test_vector)
+                elmat(inode,jnode) = elmat(inode,jnode) + space_factor * double_contract(grad_test_vector,grad_trial_vector)
              end do
           end do
           
@@ -153,53 +141,7 @@ contains
        
     end do elements
 
-    neumann_faces: do iface = 1, this%number_neumann_faces
-    
-       ! Face getters
-       face => fe_space%get_finite_face(this%neumann_faces(iface))
-       neighbour_id = 1
-                         
-       ! Initialize arrays
-       facemat = 0.0_rp
-       facevec = 0.0_rp
-
-       face_map => face%get_map()
-       face_int_first_fe  => face%get_face_integrator(1)
-       face_int_second_fe => face%get_face_integrator(2)
-       
-       quad     => face%get_quadrature()
-       npoint = quad%get_number_quadrature_points()
-
-       ! Update finite face structures
-       call face%update_integration()
-       
-       ! Loop over quadrature points
-       do qpoint = 1, npoint
-       
-          ! |J]*wg
-          space_factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-          
-          ! Integrate Neumann Boundary Condition
-          do inode = 1, number_nodes_per_field(1)
-             call face_int_first_fe%get_value(inode,qpoint,neighbour_id,shape_trial)
-             facevec(inode,neighbour_id) = facevec(inode,neighbour_id) + space_factor * shape_trial
-          end do
-          
-          do inode = 1, number_nodes_per_field(2)
-             ioffset = number_nodes_per_field(1) + inode
-             call face_int_second_fe%get_value(inode,qpoint,neighbour_id,shape_trial)
-             facevec(ioffset,neighbour_id) = facevec(ioffset,neighbour_id) + space_factor * shape_trial
-          end do
-          
-       end do
-       
-       ! Assemble elemental arrays. RMK: Apply strong Dirichlet bcs?
-       elem2dof => face%get_elem2dof(neighbour_id)
-       call assembler%face_assembly(number_fe_spaces,number_nodes_per_field, number_nodes_per_field,  &
-                                    &  elem2dof,elem2dof,field_blocks,field_coupling,                 &
-                                    &  facemat(:,:,neighbour_id,neighbour_id), facevec(:,neighbour_id) )   
-    
-    end do neumann_faces
+    write(*,*) 'WARNING: face_integrator_get_value_vector to be implemented'
  
     ! Release memory
     call memfree ( elmat, __FILE__, __LINE__ )
@@ -209,4 +151,4 @@ contains
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
   end subroutine integrate
 
-end module vector_laplacian_composite_discrete_integration_names
+end module vector_laplacian_single_discrete_integration_names

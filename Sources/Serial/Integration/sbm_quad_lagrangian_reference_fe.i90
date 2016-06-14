@@ -1896,7 +1896,7 @@ subroutine quad_lagrangian_reference_fe_fill_interpolation ( this, interpolation
      khes = .true.
   end if
   
-  nlocs = int(real(interpolation%number_quadrature_points)**(1.0_rp/real(this%number_dimensions)))
+  nlocs = int(real(interpolation%number_quadrature_points)**(1.0_rp/real(interpolation%number_dimensions)))
   
   ! Allocate auxiliary variables
   call memalloc(order+1,coord,__FILE__,__LINE__)
