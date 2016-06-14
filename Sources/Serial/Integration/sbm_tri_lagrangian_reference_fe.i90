@@ -660,7 +660,6 @@ end subroutine tri_lagrangian_reference_fe_fill_permutation_array
 subroutine tri_lagrangian_reference_fe_free ( this )
   implicit none 
   class(tri_lagrangian_reference_fe_t), intent(inout) :: this 
-  
   ! tri_lagrangian_reference_fe_t variables
   if(allocated(this%node_component_array)) & 
        call memfree(this%node_component_array,__FILE__,__LINE__)
@@ -674,8 +673,9 @@ function tri_lagrangian_reference_fe_get_characteristic_length ( this )
   implicit none 
   class(tri_lagrangian_reference_fe_t), intent(in) :: this 
   real(rp)  :: tri_lagrangian_reference_fe_get_characteristic_length 
-
-  tri_lagrangian_reference_fe_get_characteristic_length =  1.0_rp
+  
+  tri_lagrangian_reference_fe_get_characteristic_length =   &
+     &   real(this%number_dimensions,rp)**(-1.0_rp/real(this%number_dimensions,rp))
 end function tri_lagrangian_reference_fe_get_characteristic_length
 
 subroutine tri_lagrangian_reference_fe_fill_field_components (this)
