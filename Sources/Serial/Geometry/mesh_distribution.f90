@@ -29,6 +29,7 @@ module mesh_distribution_names
   use types_names
   use memor_names
   use stdio_names
+  use metis_interface_names
   implicit none
   private
 
@@ -99,6 +100,9 @@ module mesh_distribution_names
      integer(ip) :: metis_option_contig  = 1 ! (Try to) Produce partitions 
                                              ! that are contiguous
      
+     integer(ip) :: metis_option_ctype  = METIS_CTYPE_RM    ! Random matching
+     integer(ip) :: metis_option_iptype = METIS_IPTYPE_GROW ! Grow bisection greedy
+
      ! Applicable to both metis 4.0 and metis 5.0
      integer(ip) :: metis_option_debug  =  0 
   end type mesh_distribution_params_t

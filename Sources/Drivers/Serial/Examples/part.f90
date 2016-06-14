@@ -89,6 +89,8 @@ program partitioner
   prt_pars%metis_option_minconn  = 0 
   prt_pars%metis_option_contig   = 1 
   prt_pars%metis_option_debug    = 2
+  !prt_pars%metis_option_ctype    = METIS_CTYPE_SHEM ! METIS_CTYPE_RM ! Random matching
+  !prt_pars%metis_option_iptype   = METIS_IPTYPE_EDGE
 
   call gmesh%create_distribution (prt_pars, distr, lmesh)
 

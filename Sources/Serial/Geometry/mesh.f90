@@ -1025,14 +1025,60 @@ contains
     integer(ip)                  :: ipart
     integer                      :: istat
 
+    integer(ip) :: ielem,jelem,iedge,inode,ipoin,jpoin
+    real(rp) :: cnorm,vnorm
+    integer(ip)   , allocatable  :: weight(:)
+    real(rp)      , allocatable  :: coord_i(:),coord_j(:),veloc(:)
+
     ! Generate dual mesh (i.e., list of elements around points)
     call femesh%to_dual()
 
     ! Create dual (i.e. list of elements around elements)
     call create_dual_graph(femesh,fe_graph)
 
+    ! ! Create a weigth according to advection
+    ! call memalloc (femesh%ndime, coord_i, __FILE__,__LINE__)
+    ! call memalloc (femesh%ndime, coord_j, __FILE__,__LINE__)
+    ! call memalloc (femesh%ndime, veloc, __FILE__,__LINE__)
+    ! call memalloc (fe_graph%p(fe_graph%n+1)-1, weight, __FILE__,__LINE__)
+    ! do ielem=1,femesh%nelem
+    !    coord_i=0.0_rp
+    !    do inode=femesh%pnods(ielem),femesh%pnods(ielem+1)-1
+    !       ipoin=femesh%lnods(inode)
+    !       coord_i(:)=coord_i(:)+femesh%coord(:,ipoin)
+    !    end do
+    !    coord_i=coord_i/(femesh%pnods(ielem+1)-femesh%pnods(ielem))
+    !    veloc(1) = 1.0_rp !  coord_i(2)
+    !    veloc(2) = 0.0_rp !  -coord_i(1)
+    !    vnorm=sqrt(veloc(1)*veloc(1)+veloc(2)*veloc(2))
+    !    do iedge=fe_graph%p(ielem),fe_graph%p(ielem+1)-1
+    !       jelem=fe_graph%l(iedge)
+    !       coord_j=0.0_rp
+    !       do inode=femesh%pnods(jelem),femesh%pnods(jelem+1)-1
+    !          jpoin=femesh%lnods(inode)
+    !          coord_j(:)=coord_j(:)+femesh%coord(:,jpoin)
+    !       end do
+    !       coord_j=coord_j/(femesh%pnods(jelem+1)-femesh%pnods(jelem))
+    !       coord_j(1)=coord_j(1)-coord_i(1)
+    !       coord_j(2)=coord_j(2)-coord_i(2)
+    !       cnorm=sqrt(coord_j(1)*coord_j(1)+coord_j(2)*coord_j(2))
+    !       if(vnorm*cnorm>1.0e-8) then
+    !          weight(iedge) = int(100.0_rp * ((veloc(1)*coord_j(1)+veloc(2)*coord_j(2)) &
+    !               &                       / (vnorm*cnorm))**10 + 0)
+    !       else
+    !          weight(iedge) = 0
+    !       end if
+    !    end do
+    ! end do
+
     ! Partition dual graph to assign a domain to each element (in ldome)
-    call memalloc (femesh%nelem, ldome, __FILE__,__LINE__)
+    call memalloc (femesh%nelem, ldome, __FILE__,__LINE__)   
+    ! ! write(*,*) weight
+    ! call graph_pt_renumbering(prt_pars,fe_graph,ldome,weight)
+    ! call memfree ( coord_i, __FILE__,__LINE__)
+    ! call memfree ( coord_j, __FILE__,__LINE__)
+    ! call memfree ( veloc, __FILE__,__LINE__)
+    ! call memfree ( weight, __FILE__,__LINE__)
     call graph_pt_renumbering(prt_pars,fe_graph,ldome)
 
     ! Now free fe_graph, not needed anymore?
@@ -1090,12 +1136,14 @@ contains
     call graph%create(mesh%nelem)
 
     call count_elemental_graph(mesh%ndime,mesh%npoin,mesh%nelem, &
+    !call count_elemental_graph(1,mesh%npoin,mesh%nelem, &
          &                     mesh%pnods,mesh%lnods,mesh%nnode,mesh%nelpo, &
          &                     mesh%pelpo,mesh%lelpo,lelem,keadj,graph%p)
 
     call graph%allocate_list_from_pointer()
 
     call list_elemental_graph(mesh%ndime,mesh%npoin,mesh%nelem, &
+    !call list_elemental_graph(1,mesh%npoin,mesh%nelem, &
          &                    mesh%pnods,mesh%lnods,mesh%nnode,mesh%nelpo, &
          &                    mesh%pelpo,mesh%lelpo,lelem,keadj,graph%p,graph%l)
 
@@ -1631,7 +1679,7 @@ contains
   end subroutine graph_nd_renumbering
 
   !=================================================================================================
-  subroutine graph_pt_renumbering(prt_parts,gp,ldomn)
+  subroutine graph_pt_renumbering(prt_parts,gp,ldomn,weight)
     !-----------------------------------------------------------------------
     ! This routine computes a nparts-way-partitioning of the input graph gp
     !-----------------------------------------------------------------------
@@ -1639,6 +1687,7 @@ contains
     type(mesh_distribution_params_t), target, intent(in)    :: prt_parts
     type(list_t)                    , target, intent(inout) :: gp
     integer(ip)                     , target, intent(out)   :: ldomn(gp%n)
+    integer(ip)                     , target, optional, intent(in)  :: weight(gp%p(gp%n+1)-1)
 
     ! Local variables 
     integer(ip), target      :: kedge
@@ -1646,7 +1695,6 @@ contains
     integer(ip), allocatable :: lwork(:)
     integer(ip)              :: i, j, m, k, ipart
     integer(ip), allocatable :: iperm(:)
-
    
 #ifdef ENABLE_METIS
     ierr = metis_setdefaultoptions(c_loc(options))
@@ -1679,15 +1727,33 @@ contains
        ! Explicitly minimize the maximum degree of the subdomain graph
        options(METIS_OPTION_MINCONN)   = prt_parts%metis_option_minconn
        options(METIS_OPTION_UFACTOR)   = prt_parts%metis_option_ufactor
+
+       ! Select random (default) or sorted heavy edge matching
+       options(METIS_OPTION_CTYPE)     = prt_parts%metis_option_ctype
+       options(METIS_OPTION_IPTYPE)     = prt_parts%metis_option_iptype
        
        ncon = 1 
-       ierr = metis_partgraphkway( c_loc(gp%n) , c_loc(ncon), c_loc(gp%p)   , c_loc(gp%l) , & 
-                                   C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(prt_parts%nparts), &
-                                   C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
        
+       write(*,*) 'k_way',present(weight)
+       if(present(weight)) then
+          write(*,*) 'calling metis',options(METIS_OPTION_CTYPE)
+          options(METIS_OPTION_NITER) = 100
+
+          ierr = metis_partgraphkway( c_loc(gp%n) , c_loc(ncon), c_loc(gp%p)   , c_loc(gp%l) , & 
+!                                    vw             vsize       adjw
+                                      C_NULL_PTR  , C_NULL_PTR , c_loc(weight) , c_loc(prt_parts%nparts), &
+                                      C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
+       else
+          ierr = metis_partgraphkway( c_loc(gp%n) , c_loc(ncon), c_loc(gp%p)   , c_loc(gp%l) , & 
+                                      C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(prt_parts%nparts), &
+                                      C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
+       end if
+
        assert(ierr == METIS_OK) 
        
     else if ( prt_parts%strat == part_recursive ) then
+       write(*,*) 'part_recursive',present(weight)
+
        options(METIS_OPTION_NUMBERING) = 1
        options(METIS_OPTION_DBGLVL)    = prt_parts%metis_option_debug
        options(METIS_OPTION_UFACTOR)   = prt_parts%metis_option_ufactor

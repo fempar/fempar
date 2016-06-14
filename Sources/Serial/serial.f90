@@ -41,6 +41,7 @@ module serial_names
   use error_norms_names
 
   ! Geometry
+  use metis_interface_names
   use triangulation_names
   use mesh_to_triangulation_names
   use triangulation_names

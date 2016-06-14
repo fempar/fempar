@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module metis_interface_names
-use types_names
-use iso_c_binding
+  use types_names
+  use iso_c_binding
   implicit none
 
   !------------------------------------------------------------------!
