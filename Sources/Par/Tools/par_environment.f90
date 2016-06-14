@@ -49,7 +49,7 @@ module par_environment_names
   private
 
   type, extends(environment_t) ::  par_environment_t
-     private 
+     !private 
      logical                          :: has_been_created = .false.  ! Has the parallel environment been created?
      type (par_context_t)             :: l1_context                  ! 1st lev MPI tasks context
      type (par_context_t)             :: lgt1_context                ! > 1st lev MPI tasks context

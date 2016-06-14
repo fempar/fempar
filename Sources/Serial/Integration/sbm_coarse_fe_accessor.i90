@@ -132,6 +132,51 @@ subroutine coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe ( this,
   end do
 end subroutine coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe
 
+! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
+subroutine coarse_fe_accessor_renumber_dofs_block ( this, block_id, perm_old2new )
+  implicit none
+  ! Parameters
+  class(coarse_fe_accessor_t), intent(inout) :: this
+  integer(ip)                , intent(in)    :: block_id
+  ! No way to know the size of perm_old2new() within the local scope
+  ! of class(coarse_fe_accessor_t). This is why I used an assumed-size dummy
+  ! argument in this context. This will be solved in the future whenever
+  ! class(coarse_fe_accessor_t) also has access to the whole mesh-like container.
+  integer(ip)               , intent(in) :: perm_old2new(*)
+  integer(ip)                            :: field_id
+  assert ( block_id >= 1 .and. block_id <= this%coarse_fe_space%get_number_blocks() )
+  do field_id=1, this%coarse_fe_space%get_number_fields()
+    if ( this%coarse_fe_space%field_blocks(field_id) == block_id ) then
+      call this%renumber_dofs_field( field_id, perm_old2new )
+    end if
+  end do 
+end subroutine coarse_fe_accessor_renumber_dofs_block
+
+! Renumbers the DoF identifiers corresponding to field with identifier field_id
+subroutine coarse_fe_accessor_renumber_dofs_field ( this, field_id, perm_old2new )
+  implicit none
+  ! Parameters
+  class(coarse_fe_accessor_t), intent(inout) :: this
+  integer(ip)               , intent(in) :: field_id
+  ! No way to know the size of perm_old2new() within the local scope
+  ! of class(coarse_fe_accessor_t). This is why I used an assumed-size dummy
+  ! argument in this context. This will be solved in the future whenever
+  ! class(coarse_fe_accessor_t) also has access to the whole mesh-like container.
+  integer(ip)               , intent(in) :: perm_old2new(*)
+  integer(ip) :: i, start_pos_lst_dofs_lids, end_pos_lst_dofs_lids
+  
+  start_pos_lst_dofs_lids = this%get_scan_sum_number_dofs(field_id)+1
+  end_pos_lst_dofs_lids   = this%get_scan_sum_number_dofs(field_id+1)
+  
+  assert ( field_id >= 1 .and. field_id <= this%coarse_fe_space%get_number_fields() )
+  do i = start_pos_lst_dofs_lids, end_pos_lst_dofs_lids
+    if ( this%coarse_fe_space%lst_dofs_lids(i) > 0 ) then
+      this%coarse_fe_space%lst_dofs_lids(i) = perm_old2new(this%coarse_fe_space%lst_dofs_lids(i))
+    end if
+  end do
+end subroutine coarse_fe_accessor_renumber_dofs_field
+
+
 ! Returns the sum of get_number_dofs() over all cells up-to the present one 
 ! (BUT without considering the present one), plus (+) number_dofs() over all fields 
 ! up-to field_id-1 in the present cell. 
@@ -164,6 +209,20 @@ pure function coarse_fe_accessor_get_number_dofs(this)
                                        this%coarse_fe_space%ptr_dofs_per_fe_and_field(spos)
 end function coarse_fe_accessor_get_number_dofs
 
+subroutine coarse_fe_accessor_get_elem2dof( this, elem2dof )
+  implicit none
+  class(coarse_fe_accessor_t), intent(in) :: this
+  type(i1p_t)                             :: elem2dof(this%coarse_fe_space%number_fields)
+  integer(ip) :: field_id, j, spos, epos
+  
+  j = (this%get_lid()-1)*this%coarse_fe_space%number_fields+1
+  do field_id = 1, this%coarse_fe_space%number_fields
+    spos = this%coarse_fe_space%ptr_dofs_per_fe_and_field(j)
+    epos = this%coarse_fe_space%ptr_dofs_per_fe_and_field(j+1)-1
+    elem2dof(field_id)%p => this%coarse_fe_space%lst_dofs_lids(spos:epos)
+    j=j+1
+  end do
+end subroutine coarse_fe_accessor_get_elem2dof
 
 function coarse_fe_accessor_get_coarse_fe_vef(this, ivef)
   implicit none

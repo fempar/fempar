@@ -1079,7 +1079,7 @@ end subroutine serial_fe_space_update_bc_value_tensor
  !===============================================================================================
  function serial_fe_space_get_triangulation( this) result(triangulation)
    class(serial_fe_space_t), intent(in)    :: this 
-   class(triangulation_t), pointer         :: triangulation
+   type(triangulation_t), pointer          :: triangulation
    
    triangulation => this%triangulation
  end function serial_fe_space_get_triangulation
