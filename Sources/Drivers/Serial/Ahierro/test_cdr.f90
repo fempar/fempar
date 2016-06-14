@@ -48,7 +48,7 @@
 ! ANALYTICAL LINEAR-STEADY FUNCTION                                                                 !
 ! Definition of the linear-steady analytical function for the CDR problem.                          !
 !***************************************************************************************************!
-# include "sbm_cdr_analytical_layer_solution.i90"
+!# include "sbm_cdr_analytical_layer_solution.i90"
 
 !***************************************************************************************************!
 ! ANALYTICAL FUNCTIONS                                                                              ! 
