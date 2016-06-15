@@ -680,22 +680,27 @@ module reference_fe_names
      procedure (fill_quadrature_interface)                 , deferred :: fill_quadrature
      procedure (fill_interpolation_interface)              , deferred :: fill_interpolation
      procedure (fill_face_interpolation_interface)         , deferred :: fill_face_interpolation
+     procedure (get_number_interior_points_x_dim_interface), deferred :: get_number_interior_points_x_dim
+     procedure (compute_permutation_2D_interface)          , deferred :: compute_permutation_2D
      procedure (compute_number_nodes_scalar_interface)     , deferred :: compute_number_nodes_scalar
      procedure (compute_number_quadrature_points_interface), deferred :: compute_number_quadrature_points
      ! Deferred TBP implementors
-     procedure :: create                          => lagrangian_reference_fe_create
-     procedure :: create_quadrature               => lagrangian_reference_fe_create_quadrature
-     procedure :: create_face_quadrature          => lagrangian_reference_fe_create_face_quadrature
-     procedure :: create_interpolation            => lagrangian_reference_fe_create_interpolation
-     procedure :: create_face_interpolation       => lagrangian_reference_fe_create_face_interpolation
-     procedure :: create_face_local_interpolation => lagrangian_reference_fe_create_face_local_interpolation
-     procedure :: update_interpolation            => lagrangian_reference_fe_update_interpolation
-     procedure :: update_interpolation_face       => lagrangian_reference_fe_update_interpolation_face
+     procedure :: create                           => lagrangian_reference_fe_create
+     procedure :: fill_interior_points_permutation => lagrangian_reference_fe_fill_interior_points_permutation
+     procedure :: create_quadrature                => lagrangian_reference_fe_create_quadrature
+     procedure :: create_face_quadrature           => lagrangian_reference_fe_create_face_quadrature
+     procedure :: create_interpolation             => lagrangian_reference_fe_create_interpolation
+     procedure :: create_face_interpolation        => lagrangian_reference_fe_create_face_interpolation
+     procedure :: create_face_local_interpolation  => lagrangian_reference_fe_create_face_local_interpolation
+     procedure :: update_interpolation             => lagrangian_reference_fe_update_interpolation
+     procedure :: update_interpolation_face        => lagrangian_reference_fe_update_interpolation_face
      ! Concrete TBPs of this derived data type
-     procedure :: fill                            => lagrangian_reference_fe_fill
-     procedure :: fill_field_components           => lagrangian_reference_fe_fill_field_components
-     procedure :: extend_list_components          => lagrangian_reference_fe_extend_list_components
-     procedure :: apply_femap_to_interpolation    => lagrangian_reference_fe_apply_femap_to_interpolation
+     procedure :: fill                             => lagrangian_reference_fe_fill
+     procedure :: fill_field_components            => lagrangian_reference_fe_fill_field_components
+     procedure :: fill_permutation_array           => lagrangian_reference_fe_fill_permutation_array
+     procedure :: compute_permutation_1D           => lagrangian_reference_fe_compute_permutation_1D
+     procedure :: extend_list_components           => lagrangian_reference_fe_extend_list_components
+     procedure :: apply_femap_to_interpolation     => lagrangian_reference_fe_apply_femap_to_interpolation
   end type lagrangian_reference_fe_t
 
   abstract interface
@@ -718,7 +723,7 @@ module reference_fe_names
        class(lagrangian_reference_fe_t), intent(in)    :: this
        type(interpolation_t)           , intent(inout) :: interpolation
        integer(ip)                     , intent(in)    :: order   
-       real(rp)           , allocatable, intent(in)    :: coord_ip(:,:)
+       real(rp)                        , intent(in)    :: coord_ip(:,:)
      end subroutine fill_interpolation_interface
  
      subroutine fill_face_interpolation_interface ( this, face_interpolation, local_quadrature, local_face_id )
@@ -729,7 +734,25 @@ module reference_fe_names
        type(quadrature_t)              , intent(in)    :: local_quadrature
        integer(ip)                     , intent(in)    :: local_face_id
      end subroutine fill_face_interpolation_interface
+     
+     function get_number_interior_points_x_dim_interface(this,number_interior_points,dimension)
+     import :: lagrangian_reference_fe_t,ip
+       implicit none
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(in)    :: number_interior_points, dimension
+       integer(ip) :: get_number_interior_points_x_dim_interface
+     end function get_number_interior_points_x_dim_interface
 
+     subroutine compute_permutation_2D_interface ( this, permutation, number_nodes_x_dim, orientation, rotation )
+     import :: lagrangian_reference_fe_t, ip
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(inout) :: permutation(:)
+       integer(ip)                     , intent(in)    :: number_nodes_x_dim
+       integer(ip)                     , intent(in)    :: orientation
+       integer(ip)                     , intent(in)    :: rotation
+     end subroutine compute_permutation_2D_interface
+     
      function compute_number_nodes_scalar_interface ( this, order, dimension )
      import :: lagrangian_reference_fe_t, ip
        implicit none 
@@ -757,11 +780,12 @@ module reference_fe_names
      private
    contains 
      ! Deferred TBP implementors
-     procedure :: compute_number_quadrature_points => quad_lagrangian_reference_fe_compute_number_quadrature_points
      procedure :: fill_quadrature                  => quad_lagrangian_reference_fe_fill_quadrature
      procedure :: fill_interpolation               => quad_lagrangian_reference_fe_fill_interpolation
      procedure :: fill_face_interpolation          => quad_lagrangian_reference_fe_fill_face_interpolation
+     procedure :: compute_permutation_2D           => quad_lagrangian_reference_fe_compute_permutation_2D
      procedure :: compute_number_nodes_scalar      => quad_lagrangian_reference_fe_compute_number_nodes_scalar
+     procedure :: compute_number_quadrature_points => quad_lagrangian_reference_fe_compute_number_quadrature_points
      
      procedure :: get_component_node     => quad_lagrangian_reference_fe_get_component_node
      procedure :: get_scalar_from_vector_node           => quad_lagrangian_reference_fe_get_scalar_from_vector_node
@@ -790,13 +814,9 @@ module reference_fe_names
      ! Concrete TBPs of this derived data type
      procedure :: free                      => quad_lagrangian_reference_fe_free
      procedure :: get_characteristic_length &
-          &                          => quad_lagrangian_reference_fe_get_characteristic_length
-     procedure :: fill_interior_points_permutation &
-          &                   => quad_lagrangian_reference_fe_fill_interior_points_permutation  
+          &                          => quad_lagrangian_reference_fe_get_characteristic_length  
      procedure :: get_number_interior_points_x_dim &
           &                   => quad_lagrangian_reference_fe_get_number_interior_points_x_dim
-     procedure :: fill_permutation_array => quad_lagrangian_reference_fe_fill_permutation_array
-     procedure :: permute_or_2d => quad_lagrangian_reference_fe_permute_or_2d
      procedure :: fill_scalar => quad_lagrangian_reference_fe_fill_scalar
      procedure :: get_subelements_connectivity => quad_lagrangian_reference_fe_get_subelements_connectivity
      procedure :: get_number_subelements => quad_lagrangian_reference_fe_get_number_subelements
@@ -810,12 +830,13 @@ module reference_fe_names
      private
    contains 
      ! Deferred TBP implementors
-     procedure :: compute_number_quadrature_points => tri_lagrangian_reference_fe_compute_number_quadrature_points
      procedure :: fill_quadrature                  => tri_lagrangian_reference_fe_fill_quadrature
      procedure :: fill_interpolation               => tri_lagrangian_reference_fe_fill_interpolation
      procedure :: fill_face_interpolation          => tri_lagrangian_reference_fe_fill_face_interpolation
+     procedure :: compute_permutation_2D           => tri_lagrangian_reference_fe_compute_permutation_2D
      procedure :: compute_number_nodes_scalar      => tri_lagrangian_reference_fe_compute_number_nodes_scalar
-     
+     procedure :: compute_number_quadrature_points => tri_lagrangian_reference_fe_compute_number_quadrature_points
+
      procedure :: get_component_node        => tri_lagrangian_reference_fe_get_component_node
      procedure :: get_scalar_from_vector_node           => tri_lagrangian_reference_fe_get_scalar_from_vector_node
      procedure :: check_compatibility_of_vefs                                         &
@@ -844,12 +865,8 @@ module reference_fe_names
      procedure :: free                      => tri_lagrangian_reference_fe_free
      procedure :: get_characteristic_length &
           &                          => tri_lagrangian_reference_fe_get_characteristic_length
-     procedure :: fill_interior_points_permutation &
-          &                   => tri_lagrangian_reference_fe_fill_interior_points_permutation
      procedure :: get_number_interior_points_x_dim &
           &                   => tri_lagrangian_reference_fe_get_number_interior_points_x_dim
-     procedure :: fill_permutation_array => tri_lagrangian_reference_fe_fill_permutation_array
-     procedure :: permute_or_2d => tri_lagrangian_reference_fe_permute_or_2d
      procedure :: fill_scalar => tri_lagrangian_reference_fe_fill_scalar
      procedure :: get_subelements_connectivity => tri_lagrangian_reference_fe_get_subelements_connectivity
      procedure :: get_number_subelements => tri_lagrangian_reference_fe_get_number_subelements
