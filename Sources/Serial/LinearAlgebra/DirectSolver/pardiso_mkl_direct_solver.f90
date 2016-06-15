@@ -416,26 +416,29 @@ contains
     end subroutine pardiso_mkl_direct_solver_solve_single_rhs_body
 
 
-    subroutine pardiso_mkl_direct_solver_solve_several_rhs_body(op, number_rows, number_rhs, x, y)
+    subroutine pardiso_mkl_direct_solver_solve_several_rhs_body(op, x, y)
     !-----------------------------------------------------------------
     ! Computes y <- A^-1 * x, using previously computed LU factorization
     !-----------------------------------------------------------------
         class(pardiso_mkl_direct_solver_t), intent(inout) :: op
-        integer(ip),                        intent(in)    :: number_rows
-        integer(ip),                        intent(in)    :: number_rhs
-        real(rp),                           intent(inout) :: x(number_rows, number_rhs)
-        real(rp),                           intent(inout) :: y(number_rows, number_rhs)
+        real(rp),                           intent(inout) :: x(:, :)
+        real(rp),                           intent(inout) :: y(:, :)
+        integer(ip)                                       :: number_rows
+        integer(ip)                                       :: number_rhs
         integer                                           :: error
         integer,  target                                  :: idum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
 !        print*, '(3) --> solve'
         ! (c) y  <- A^-1 * x
-        op%phase = 33 ! only Fwd/Bck substitution
+        op%phase    = 33 ! only Fwd/Bck substitution
+        number_rows = size(x,1)
+        number_rhs  = size(x,2)
 
         select type (matrix => op%matrix%get_pointer_to_base_matrix())
             type is (csr_sparse_matrix_t)
-                assert(matrix%get_num_rows()==number_rows)
+                assert(matrix%get_num_rows()==number_rows .and. size(y,1) == number_rows)
+                assert(size(y,2) == number_rhs)
                 ! Solve, iterative refinement
                 call pardiso(pt     = op%pardiso_mkl_pt,           & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
                              maxfct = op%max_number_of_factors,    & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time

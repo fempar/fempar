@@ -84,7 +84,7 @@ implicit none
         call direct_solver%solve(x,y)
         call direct_solver%log_info()
         call y%print(6)
-        call direct_solver%solve(sparse_matrix%get_num_rows(), nrhs, xx,yy)
+        call direct_solver%solve(xx,yy)
         call direct_solver%log_info()
         print*, yy
 
@@ -126,7 +126,7 @@ implicit none
         call direct_solver%solve(x,y)
         call direct_solver%log_info()
         call y%print(6)
-        call direct_solver%solve(sparse_matrix%get_num_rows(), nrhs, xx,yy)
+        call direct_solver%solve(xx,yy)
         call direct_solver%log_info()
         print*, yy
 

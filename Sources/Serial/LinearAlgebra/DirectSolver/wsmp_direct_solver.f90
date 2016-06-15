@@ -92,12 +92,10 @@ contains
         type(serial_scalar_array_t),  intent(inout) :: y
     end subroutine wsmp_direct_solver_solve_single_rhs_body
 
-    subroutine wsmp_direct_solver_solve_several_rhs_body(op, number_rows, number_rhs, x, y)
+    subroutine wsmp_direct_solver_solve_several_rhs_body(op, x, y)
         class(wsmp_direct_solver_t), intent(inout) :: op
-        integer(ip),                 intent(in)    :: number_rows
-        integer(ip),                 intent(in)    :: number_rhs
-        real(rp),                    intent(inout) :: x(number_rows, number_rhs)
-        real(rp),                    intent(inout) :: y(number_rows, number_rhs)
+        real(rp),                    intent(inout) :: x(:, :)
+        real(rp),                    intent(inout) :: y(:, :)
     end subroutine wsmp_direct_solver_solve_several_rhs_body
 
     subroutine wsmp_direct_solver_free_clean_body(this)
