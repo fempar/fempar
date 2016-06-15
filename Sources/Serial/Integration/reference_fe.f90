@@ -667,13 +667,21 @@ module reference_fe_names
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
   public :: topology_quad, topology_tet, fe_type_lagrangian
-
+  
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type, extends(reference_fe_t) :: quad_lagrangian_reference_fe_t
+  type, abstract, extends(reference_fe_t) :: lagrangian_reference_fe_t
      private
      integer(ip)              :: number_nodes_scalar
      integer(ip), allocatable :: node_component_array(:,:)
      integer(ip), allocatable :: node_array_component(:,:)
+   contains 
+  end type lagrangian_reference_fe_t
+  
+  public :: lagrangian_reference_fe_t  
+  
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type, extends(lagrangian_reference_fe_t) :: quad_lagrangian_reference_fe_t
+     private
    contains 
      ! Deferred TBP implementors
      procedure :: create                    => quad_lagrangian_reference_fe_create
@@ -742,11 +750,8 @@ module reference_fe_names
   public :: quad_lagrangian_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type, extends(reference_fe_t) :: tri_lagrangian_reference_fe_t
+  type, extends(lagrangian_reference_fe_t) :: tri_lagrangian_reference_fe_t
      private
-     integer(ip)              :: number_nodes_scalar
-     integer(ip), allocatable :: node_component_array(:,:)
-     integer(ip), allocatable :: node_array_component(:,:)
    contains 
      ! Deferred TBP implementors
      procedure :: create                    => tri_lagrangian_reference_fe_create

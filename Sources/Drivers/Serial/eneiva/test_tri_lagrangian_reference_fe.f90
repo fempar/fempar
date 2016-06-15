@@ -97,7 +97,7 @@ subroutine test_single_scalar_valued_reference_fe ()
                                       poisson_integration%neumann_faces )
     
     ! Simple case
-     reference_fe_array(1) =  make_reference_fe ( topology = topology_tet,             &
+     reference_fe_array(1) =  make_reference_fe ( topology = topology_quad,             &
                                                   fe_type = fe_type_lagrangian,         &
                                                   number_dimensions = f_trian%num_dims, &
                                                   order = params%order,                 &
@@ -188,7 +188,7 @@ subroutine test_single_scalar_valued_reference_fe ()
                                       vector_laplacian_integration%neumann_faces )
     
     ! Simple case
-     reference_fe_array(1) =  make_reference_fe ( topology = topology_tet, &
+     reference_fe_array(1) =  make_reference_fe ( topology = topology_quad, &
                                                   fe_type = fe_type_lagrangian, &
                                                   number_dimensions = f_trian%num_dims, &
                                                   order = params%order, &
@@ -279,14 +279,14 @@ subroutine test_single_scalar_valued_reference_fe ()
                                       vector_laplacian_integration%neumann_faces )
     
     ! Simple case
-    reference_fe_array(1) = make_reference_fe ( topology = topology_tet, &
+    reference_fe_array(1) = make_reference_fe ( topology = topology_quad, &
                                                     fe_type = fe_type_lagrangian, &
                                                     number_dimensions = f_trian%num_dims, &
                                                     order = params%order, &
                                                     field_type = field_type_scalar, &
                                                     continuity = .true. )
      
-    reference_fe_array(2) = make_reference_fe ( topology = topology_tet, &
+    reference_fe_array(2) = make_reference_fe ( topology = topology_quad, &
                                                 fe_type = fe_type_lagrangian, &
                                                 number_dimensions = f_trian%num_dims, &
                                                 order = params%order, & 
@@ -386,14 +386,14 @@ subroutine test_single_scalar_valued_reference_fe ()
                                       vector_laplacian_integration%neumann_faces )
     
     ! Simple case
-    reference_fe_array(1) = make_reference_fe ( topology = topology_tet, &
+    reference_fe_array(1) = make_reference_fe ( topology = topology_quad, &
                                                     fe_type = fe_type_lagrangian, &
                                                     number_dimensions = f_trian%num_dims, &
                                                     order = params%order, &
                                                     field_type = field_type_scalar, &
                                                     continuity = .true. )
      
-    reference_fe_array(2) = make_reference_fe ( topology = topology_tet, &
+    reference_fe_array(2) = make_reference_fe ( topology = topology_quad, &
                                                 fe_type = fe_type_lagrangian, &
                                                 number_dimensions = f_trian%num_dims, &
                                                 order = params%order, & 
