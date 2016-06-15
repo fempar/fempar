@@ -76,8 +76,9 @@ implicit none
         if(i==1) then
             call direct_solver%set_type_from_pl(direct_solver_params)
             call direct_solver%set_matrix(sparse_matrix)
+        else
+            call direct_solver%set_parameters_from_pl(direct_solver_params)
         endif
-        call direct_solver%set_parameters_from_pl(direct_solver_params)
 
         ! Direct solver: analisys, factorization and solve
         call direct_solver%solve(x,y)
@@ -117,8 +118,9 @@ implicit none
         if(i==1) then
             call direct_solver%set_type_from_pl(direct_solver_params)
             call direct_solver%set_matrix(sparse_matrix)
+        else
+            call direct_solver%set_parameters_from_pl(direct_solver_params)
         endif
-        call direct_solver%set_parameters_from_pl(direct_solver_params)
     
         ! Direct solver: analisys, factorization and solve
         call direct_solver%solve(x,y)
