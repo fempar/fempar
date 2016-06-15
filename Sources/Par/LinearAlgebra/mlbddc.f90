@@ -40,9 +40,13 @@ module mlbddc_names
  
  ! Linear Algebra related modules
  use matrix_names
- use base_sparse_matrix_names
+ use base_sparse_matrix_names, only : coo_sparse_matrix_t
  use sparse_matrix_names
  use par_sparse_matrix_names
+ use direct_solver_names
+ use direct_solver_parameters_names
+
+ 
  
  ! Parallel communication-related data structures
  use par_environment_names
@@ -93,57 +97,79 @@ module mlbddc_names
    !********************************************************************************!
    !**** END member variables which control coarse DoFs on top of coarse VEFs ****!
  
-   ! Constrained Neumann problem-related coefficient matrix
+   ! Constrained Neumann problem-related member variables
    ! B = [ A C^T ]
    !     [ C   0 ]
-   type(sparse_matrix_t)                       :: constrained_neumann_problem_matrix
+   type(direct_solver_t)                       :: constrained_neumann_solver
+   type(sparse_matrix_t)                       :: constrained_neumann_matrix
    
-   ! Dirichlet problem-related coefficient matrices
+   ! Dirichlet problem-related member variables
    ! A => [ A_II A_IG ]
    !      [ A_GI A_GG ]
+   type(direct_solver_t)                       :: dirichlet_solver
    type(sparse_matrix_t)                       :: A_II
    type(sparse_matrix_t)                       :: A_IG
    type(sparse_matrix_t)                       :: A_GI
    type(sparse_matrix_t)                       :: A_GG
    
+   ! Coarse-grid problem related member variables
+   real(rp), allocatable                       :: phi(:,:)
    ! Pointer to data structure which is in charge of coarse DoF handling.
    ! It will be a nullified pointer on L1 tasks, and associated
    ! via target allocation in the case of L2-Ln tasks.
    type(coarse_fe_space_t)       , pointer     :: coarse_fe_space => NULL()
-   
    ! Next level in the preconditioning hierarchy
    type(mlbddc_coarse_t)         , pointer     :: mlbddc_coarse   => NULL()
  contains
-    procedure, non_overridable          :: create                                        => mlbddc_create
+    procedure, non_overridable          :: create                                          => mlbddc_create
     
     ! Symbolic setup-related TBPs
-    procedure, non_overridable          :: symbolic_setup                                => mlbddc_symbolic_setup
-    procedure, non_overridable, private :: setup_dofs_objects_and_constraint_matrix      => mlbddc_setup_dofs_objects_and_constraint_matrix
-    procedure, non_overridable, private :: setup_coarse_fe_space                         => mlbddc_setup_coarse_fe_space
-    procedure, non_overridable, private :: transfer_number_fields                        => mlbddc_transfer_number_fields    
-    procedure, non_overridable, private :: transfer_field_type                           => mlbddc_transfer_field_type
-    procedure, non_overridable, private :: gather_ptr_dofs_per_fe_and_field              => mlbddc_gather_ptr_dofs_per_fe_and_field
-    procedure, non_overridable, private :: gather_coarse_dofs_gids_rcv_counts_and_displs => mlbddc_gather_coarse_dofs_gids_rcv_counts_and_displs
-    procedure, non_overridable, private :: gather_coarse_dofs_gids                       => mlbddc_gather_coarse_dofs_gids
-    procedure, non_overridable, private :: gather_vefs_gids_dofs_objects                 => mlbddc_gather_vefs_gids_dofs_objects
-    procedure, non_overridable, private :: symbolic_setup_dirichlet_problem              => mlbddc_symbolic_setup_dirichlet_problem
-    procedure, non_overridable, private :: symbolic_setup_mlbddc_coarse                  => mlbddc_symbolic_setup_mlbddc_coarse
+    procedure, non_overridable          :: symbolic_setup                                  => mlbddc_symbolic_setup
+    procedure, non_overridable, private :: setup_dofs_objects_and_constraint_matrix        => mlbddc_setup_dofs_objects_and_constraint_matrix
+    procedure, non_overridable, private :: setup_coarse_fe_space                           => mlbddc_setup_coarse_fe_space
+    procedure, non_overridable, private :: transfer_number_fields                          => mlbddc_transfer_number_fields    
+    procedure, non_overridable, private :: transfer_field_type                             => mlbddc_transfer_field_type
+    procedure, non_overridable, private :: gather_ptr_dofs_per_fe_and_field                => mlbddc_gather_ptr_dofs_per_fe_and_field
+    procedure, non_overridable, private :: gather_coarse_dofs_gids_rcv_counts_and_displs   => mlbddc_gather_coarse_dofs_gids_rcv_counts_and_displs
+    procedure, non_overridable, private :: gather_coarse_dofs_gids                         => mlbddc_gather_coarse_dofs_gids
+    procedure, non_overridable, private :: gather_vefs_gids_dofs_objects                   => mlbddc_gather_vefs_gids_dofs_objects
+    procedure, non_overridable, private :: symbolic_setup_dirichlet_problem                => mlbddc_symbolic_setup_dirichlet_problem
+    procedure, non_overridable, private :: symbolic_setup_dirichlet_solver                 => mlbddc_symbolic_setup_dirichlet_solver
+    procedure, non_overridable, private :: symbolic_setup_constrained_neumann_problem      => mlbddc_symbolic_setup_constrained_neumann_problem
+    procedure, non_overridable, private :: symbolic_setup_constrained_neumann_solver       => mlbddc_symbolic_setup_constrained_neumann_solver
+    procedure, non_overridable, private :: symbolic_setup_mlbddc_coarse                    => mlbddc_symbolic_setup_mlbddc_coarse
     
-    ! Numerical setup-related TBPS
-    procedure, non_overridable          :: numerical_setup                                => mlbddc_numerical_setup
-    procedure, non_overridable, private :: numerical_setup_dirichlet_problem              => mlbddc_numerical_setup_dirichlet_problem
+    ! Numerical setup-related TBPs
+    procedure, non_overridable          :: numerical_setup                                 => mlbddc_numerical_setup
+    procedure, non_overridable, private :: numerical_setup_dirichlet_problem               => mlbddc_numerical_setup_dirichlet_problem
+    procedure, non_overridable, private :: numerical_setup_dirichlet_solver                => mlbddc_numerical_setup_dirichlet_solver
+    procedure, non_overridable, private :: numerical_setup_constrained_neumann_problem     => mlbddc_numerical_constrained_neumann_problem
+    procedure, non_overridable, private :: numerical_setup_constrained_neumann_solver      => mlbddc_numerical_setup_constrained_neumann_solver
+    procedure, non_overridable, private :: allocate_coarse_grid_basis                      => mlbddc_allocate_coarse_grid_basis
+    procedure, non_overridable, private :: setup_coarse_grid_basis                         => mlbddc_setup_coarse_grid_basis
+
+    ! Free-related TBPs
+    procedure, non_overridable          :: free                                             => mlbddc_free
+    procedure, non_overridable          :: free_clean                                       => mlbddc_free_clean
+    procedure, non_overridable          :: free_symbolic_setup                              => mlbddc_free_symbolic_setup
+    procedure, non_overridable          :: free_dofs_objects_and_constraint_matrix          => mlbddc_free_dofs_objects_and_constraint_matrix
+    procedure, non_overridable          :: free_symbolic_setup_dirichlet_problem            => mlbddc_free_symbolic_setup_dirichlet_problem
+    procedure, non_overridable          :: free_symbolic_setup_dirichlet_solver             => mlbddc_free_symbolic_setup_dirichlet_solver
+    procedure, non_overridable          :: free_symbolic_setup_constrained_neumann_problem  => mlbddc_free_symbolic_setup_constrained_neumann_problem
+    procedure, non_overridable          :: free_symbolic_setup_constrained_neumann_solver   => mlbddc_free_symbolic_setup_constrained_neumann_solver
+    procedure, non_overridable          :: free_numerical_setup                             => mlbddc_free_numerical_setup
+    procedure, non_overridable          :: free_numerical_setup_dirichlet_problem           => mlbddc_free_numerical_setup_dirichlet_problem
+    procedure, non_overridable          :: free_numerical_setup_dirichlet_solver            => mlbddc_free_numerical_setup_dirichlet_solver
+    procedure, non_overridable          :: free_numerical_setup_constrained_neumann_problem => mlbddc_free_numerical_setup_constrained_neumann_problem
+    procedure, non_overridable          :: free_numerical_setup_constrained_neumann_solver  => mlbddc_free_numerical_setup_constrained_neumann_solver
+    procedure, non_overridable          :: free_coarse_grid_basis                           => mlbddc_free_coarse_grid_basis
     
-    procedure, non_overridable          :: free                                          => mlbddc_free
-    procedure, non_overridable          :: free_clean                                    => mlbddc_free_clean
-    procedure, non_overridable          :: free_symbolic_setup                           => mlbddc_free_symbolic_setup
-    procedure, non_overridable          :: free_dofs_objects_and_constraint_matrix       => mlbddc_free_dofs_objects_and_constraint_matrix
-    procedure, non_overridable          :: free_symbolic_setup_dirichlet_problem         => mlbddc_free_symbolic_setup_dirichlet_problem
-    procedure, non_overridable          :: free_numerical_setup                          => mlbddc_free_numerical_setup
-    procedure, non_overridable          :: free_numerical_setup_dirichlet_problem        => mlbddc_free_numerical_setup_dirichlet_problem
-    procedure, non_overridable, private :: get_par_sparse_matrix                         => mlbddc_get_par_sparse_matrix
-    procedure, non_overridable, private :: get_fe_space                                  => mlbddc_get_fe_space
-    procedure, non_overridable, private :: get_par_environment                           => mlbddc_get_par_environment
-    procedure, non_overridable, private :: am_i_l1_task                                  => mlbddc_am_i_l1_task
+    procedure, non_overridable, private :: get_total_number_coarse_dofs                     => mlbddc_get_total_number_coarse_dofs
+    procedure, non_overridable, private :: get_block_number_coarse_dofs                     => mlbddc_get_block_number_coarse_dofs
+    procedure, non_overridable, private :: get_par_sparse_matrix                            => mlbddc_get_par_sparse_matrix
+    procedure, non_overridable, private :: get_fe_space                                     => mlbddc_get_fe_space
+    procedure, non_overridable, private :: get_par_environment                              => mlbddc_get_par_environment
+    procedure, non_overridable, private :: am_i_l1_task                                     => mlbddc_am_i_l1_task
  end type mlbddc_t
  
  type :: mlbddc_coarse_t 
@@ -193,8 +219,6 @@ module mlbddc_names
    procedure, non_overridable, private :: gather_vefs_gids_dofs_objects                   => mlbddc_coarse_gather_vefs_gids_dofs_objects
    procedure, non_overridable, private :: symbolic_setup_dirichlet_problem                => mlbddc_coarse_symbolic_setup_dirichlet_problem
    procedure, non_overridable, private :: symbolic_setup_mlbddc_coarse                    => mlbddc_coarse_symbolic_setup_mlbddc_coarse
-   
-
    
    ! Numerical setup-related TBPS
    ! procedure, non_overridable          :: numerical_setup                                 => mlbddc_coarse_numerical_setup
@@ -246,6 +270,9 @@ contains
     call this%symbolic_setup_mlbddc_coarse()
     if ( par_environment%am_i_l1_task() ) then
       call this%symbolic_setup_dirichlet_problem()
+      call this%symbolic_setup_dirichlet_solver()
+      call this%symbolic_setup_constrained_neumann_problem()
+      call this%symbolic_setup_constrained_neumann_solver()
     end if
   end subroutine mlbddc_symbolic_setup
   
@@ -544,7 +571,6 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_symbolic_setup_dirichlet_problem ( this) 
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: par_environment
     type(par_fe_space_t)      , pointer       :: fe_space
     type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
     type(sparse_matrix_t)     , pointer       :: A
@@ -568,6 +594,43 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
                                   A_GG    = this%A_GG)
     end if
   end subroutine mlbddc_symbolic_setup_dirichlet_problem
+  
+  subroutine mlbddc_symbolic_setup_dirichlet_solver ( this) 
+    implicit none
+    class(mlbddc_t), intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%dirichlet_solver%set_type(name   = pardiso_mkl)
+    call this%dirichlet_solver%set_matrix(matrix = this%A_II)
+    call this%dirichlet_solver%symbolic_setup() 
+  end subroutine mlbddc_symbolic_setup_dirichlet_solver
+  
+  subroutine mlbddc_symbolic_setup_constrained_neumann_problem(this)
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    type(par_environment_t)   , pointer       :: par_environment
+    type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
+    type(sparse_matrix_t)     , pointer       :: A
+    
+    assert ( this%am_i_l1_task() )
+    par_sparse_matrix => this%get_par_sparse_matrix()
+    A => par_sparse_matrix%get_sparse_matrix()
+    
+    call A%expand_matrix_symbolic(C_T               = this%constraint_matrix, &
+                                  to                = this%constrained_neumann_matrix, &
+                                  symmetric_storage = A%get_symmetric_storage(), & 
+                                  symmetric         = A%is_symmetric(), &
+                                  sign              = SPARSE_MATRIX_SIGN_INDEFINITE)
+    
+  end subroutine mlbddc_symbolic_setup_constrained_neumann_problem
+  
+  subroutine mlbddc_symbolic_setup_constrained_neumann_solver(this)
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%constrained_neumann_solver%set_type(name   = pardiso_mkl)
+    call this%constrained_neumann_solver%set_matrix(matrix = this%constrained_neumann_matrix)
+    call this%constrained_neumann_solver%symbolic_setup() 
+  end subroutine mlbddc_symbolic_setup_constrained_neumann_solver
   
   subroutine mlbddc_symbolic_setup_mlbddc_coarse(this)
     implicit none
@@ -595,6 +658,10 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     
     if ( par_environment%am_i_l1_task() ) then
       call this%numerical_setup_dirichlet_problem()
+      call this%numerical_setup_dirichlet_solver()
+      call this%numerical_setup_constrained_neumann_problem()
+      call this%numerical_setup_constrained_neumann_solver()
+      call this%setup_coarse_grid_basis()
     end if
   
   end subroutine mlbddc_numerical_setup
@@ -603,7 +670,6 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_numerical_setup_dirichlet_problem (this) 
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(par_environment_t)   , pointer       :: par_environment
     type(par_fe_space_t)      , pointer       :: fe_space
     type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
     type(sparse_matrix_t)     , pointer       :: A
@@ -627,12 +693,170 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
                                   A_GG    = this%A_GG)
     end if
     
-    !call A%print(6)
-    !call this%A_II%print(6)
-    !call this%A_IG%print(6)
-    !call this%A_GG%print(6)
+    call A%print(6)
+    call this%A_II%print(6)
+    call this%A_IG%print(6)
+    call this%A_GG%print(6)
   end subroutine mlbddc_numerical_setup_dirichlet_problem
- 
+  
+  subroutine mlbddc_numerical_setup_dirichlet_solver(this)
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%dirichlet_solver%numerical_setup() 
+    call this%dirichlet_solver%log_info()
+  end subroutine mlbddc_numerical_setup_dirichlet_solver
+  
+  subroutine mlbddc_numerical_constrained_neumann_problem(this)
+   implicit none
+   class(mlbddc_t)           , intent(inout) :: this
+   type(par_fe_space_t)      , pointer       :: fe_space
+   type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
+   type(sparse_matrix_t)     , pointer       :: A
+    
+    assert ( this%am_i_l1_task() )
+    fe_space => this%get_fe_space()
+    par_sparse_matrix => this%get_par_sparse_matrix()
+    A => par_sparse_matrix%get_sparse_matrix()
+    call A%expand_matrix_numeric(C_T = this%constraint_matrix, &
+                                 to  = this%constrained_neumann_matrix)
+    
+    call this%constrained_neumann_matrix%print(6)
+  end subroutine  mlbddc_numerical_constrained_neumann_problem
+  
+  subroutine mlbddc_numerical_setup_constrained_neumann_solver(this)
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%constrained_neumann_solver%numerical_setup() 
+    call this%constrained_neumann_solver%log_info()
+  end subroutine mlbddc_numerical_setup_constrained_neumann_solver
+  
+  subroutine mlbddc_allocate_coarse_grid_basis ( this )
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    type(par_fe_space_t)      , pointer       :: fe_space
+    assert ( this%am_i_l1_task() )
+    fe_space => this%get_fe_space() 
+    call this%free_coarse_grid_basis()
+    call memalloc (fe_space%get_block_number_dofs(1), &
+                   this%get_block_number_coarse_dofs(1), &
+                   this%Phi, &
+                   __FILE__, &
+                   __LINE__) 
+  end subroutine mlbddc_allocate_coarse_grid_basis
+  
+  subroutine mlbddc_setup_coarse_grid_basis ( this )
+     implicit none
+     class(mlbddc_t)           , intent(inout) :: this
+     type(par_fe_space_t)      , pointer       :: fe_space
+     real(rp), allocatable                     :: work1(:,:)
+     real(rp), allocatable                     :: work2(:,:)
+     integer(ip)                               :: i, j
+     
+     assert ( this%am_i_l1_task() )
+     fe_space => this%get_fe_space() 
+     
+     call memalloc ( this%constrained_neumann_matrix%get_num_rows(), &
+                     this%get_block_number_coarse_dofs(1), &
+                     work1, __FILE__,__LINE__ )
+     
+     call memalloc ( this%constrained_neumann_matrix%get_num_rows(), &
+                     this%get_block_number_coarse_dofs(1), &
+                     work2, __FILE__,__LINE__ )
+     
+     work1 = 0.0_rp
+     work2 = 0.0_rp
+     j=1
+     do i = fe_space%get_block_number_dofs(1)+1, this%constrained_neumann_matrix%get_num_rows()
+       work1 (i,j) = 1.0_rp
+       j = j + 1 
+     end do
+     
+     call this%constrained_neumann_solver%solve(work1, &
+                                                work2)
+     
+     call this%allocate_coarse_grid_basis()
+     this%Phi = work2 (1:fe_space%get_block_number_dofs(1),:) 
+     
+     !do, i=1,this%constrained_neumann_matrix%get_num_rows()
+     !  write(*,"(100g15.5)") ( work1(i,j), j=1,this%get_block_number_coarse_dofs(1) )
+     !enddo
+     !do, i=1,this%constrained_neumann_matrix%get_num_rows()
+     !  write(*,"(100g15.5)") ( work2(i,j), j=1,this%get_block_number_coarse_dofs(1) )
+     !enddo
+     call memfree ( work1, __FILE__,__LINE__ )
+     call memfree ( work2, __FILE__,__LINE__ )
+  end subroutine mlbddc_setup_coarse_grid_basis 
+  
+  
+!    ! Computes the harmonic extensions, i.e., mlbddc%rPhi(:,:)
+!  subroutine compute_harmonic_extensions_with_constraints (mlbddc, A_rr, M_rr, rPhi, system, iparm, msglvl)
+!    implicit none
+!    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout), target        :: mlbddc
+!    integer                  , intent(in), target, optional :: iparm(64)
+!    integer                  , intent(in), optional         :: msglvl
+
+!    type(serial_scalar_matrix_t)      , intent(inout)   :: A_rr
+!    type(preconditioner_t)     , intent(inout)   :: M_rr
+!    real(rp)              , intent(inout)   :: rPhi( mlbddc%p_mat%dof_dist_domain%nl, &
+!                                                     mlbddc%nl_edges+mlbddc%nl_corners)    
+!    character(len=1)      , intent(in)      :: system ! Information about the regular system or the system assoc                                                        iated to the transpose matrix
+
+!    ! Locals
+!    real(rp), allocatable :: work1(:,:), work2(:,:), work3(:,:)
+!    integer(ip)           :: i, j, k, base, iadj, jdof, icoarse
+
+!    type(post_file_t)      :: lupos
+!    integer              :: me, np
+!    ! type(solver_control_t)      :: spars
+!    ! MATRIX MARKET          ! Write files with specified matrices
+!  integer(ip)              :: lunou    ! Creation of the file
+!  character(len=256)       :: filename ! Name of the file
+!    ! rPhi(:, 1:(mlbddc%nl_edges+mlbddc%nl_corners) ) = 0.0
+!    ! Set rPhi_c
+!    ! do i=1, mlbddc%nl_corners 
+!    !    rPhi(i, i) = 1.0_rp
+!    ! end do
+
+!    if ( mlbddc%nl_corners+mlbddc%nl_edges > 0 ) then
+!       call memalloc ( mlbddc%A_rr%graph%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work1, __FILE__,__LINE__ )
+!       call memalloc ( mlbddc%A_rr%graph%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work2, __FILE__,__LINE__ )
+
+!       work1 = 0.0_rp
+!       j = 1
+!       do i = mlbddc%p_mat%dof_dist_domain%nl   + 1, mlbddc%A_rr%graph%nv
+!         work1 (i,j) = 1.0_rp
+!         j = j + 1 
+!       end do
+!      
+!       mlbddc%spars_harm%nrhs=(mlbddc%nl_corners+mlbddc%nl_edges) 
+!       ! mlbddc%spars%method=direct
+!       work2 = 0.0_rp
+
+!       if ( mlbddc%internal_problems == handled_by_bddc_module) then
+!          call solve( A_rr, M_rr, &
+!                      work1, mlbddc%A_rr%graph%nv, &
+!                      work2,  mlbddc%A_rr%graph%nv, &
+!                      mlbddc%spars_harm)
+!       else 
+!          check(.false.)
+!!!$          call solve( mlbddc%A_rr_op, mlbddc%M_inv_op_rr, &
+!!!$                      work1, mlbddc%A_rr%graph%nv, &
+!!!$                      work2,  mlbddc%A_rr%graph%nv, &
+!!!$                      mlbddc%spars_harm)
+!       end if
+
+!             rPhi = work2 (1:mlbddc%p_mat%dof_dist_domain%nl ,:) 
+
+
+!       call memfree ( work1,__FILE__,__LINE__) 
+!       call memfree ( work2,__FILE__,__LINE__) 
+!    end if
+!  end subroutine compute_harmonic_extensions_with_constraints
+  
+  
+  
   subroutine mlbddc_free(this)
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
@@ -658,7 +882,10 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
       par_environment => this%get_par_environment()
       if ( par_environment%am_i_l1_task() ) then
         call this%free_dofs_objects_and_constraint_matrix()
+        call this%free_symbolic_setup_dirichlet_solver()
         call this%free_symbolic_setup_dirichlet_problem()
+        call this%free_symbolic_setup_constrained_neumann_solver()
+        call this%free_symbolic_setup_constrained_neumann_problem()
       else
         ! mlbddc_coarse should be freed before coarse_fe_space
         ! (as the former was created from the latter)
@@ -722,6 +949,27 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     call this%A_GG%free()
   end subroutine mlbddc_free_symbolic_setup_dirichlet_problem
   
+  subroutine mlbddc_free_symbolic_setup_dirichlet_solver(this)
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%dirichlet_solver%free()
+  end subroutine mlbddc_free_symbolic_setup_dirichlet_solver
+  
+  subroutine mlbddc_free_symbolic_setup_constrained_neumann_problem(this)
+    implicit none
+    class(mlbddc_t), intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%constrained_neumann_matrix%free()
+  end subroutine mlbddc_free_symbolic_setup_constrained_neumann_problem
+  
+  subroutine mlbddc_free_symbolic_setup_constrained_neumann_solver(this)
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%constrained_neumann_solver%free()
+  end subroutine mlbddc_free_symbolic_setup_constrained_neumann_solver
+  
   subroutine mlbddc_free_numerical_setup(this)
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
@@ -730,7 +978,11 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     if ( associated(this%fe_affine_operator) ) then 
       par_environment => this%get_par_environment()
       if ( par_environment%am_i_l1_task() ) then
+        call this%free_numerical_setup_dirichlet_solver()
         call this%free_numerical_setup_dirichlet_problem()
+        call this%free_numerical_setup_constrained_neumann_solver()
+        call this%free_numerical_setup_constrained_neumann_problem()
+        call this%free_coarse_grid_basis()
       end if
     end if
   end subroutine mlbddc_free_numerical_setup
@@ -744,6 +996,77 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     call this%A_GI%free_in_stages(free_numerical_setup)
     call this%A_GG%free_in_stages(free_numerical_setup)
   end subroutine mlbddc_free_numerical_setup_dirichlet_problem
+  
+  subroutine mlbddc_free_numerical_setup_dirichlet_solver(this)
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%dirichlet_solver%free_in_stages(free_numerical_setup)
+  end subroutine mlbddc_free_numerical_setup_dirichlet_solver
+  
+  subroutine mlbddc_free_numerical_setup_constrained_neumann_problem(this)
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%constrained_neumann_matrix%free_in_stages(free_numerical_setup)
+  end subroutine mlbddc_free_numerical_setup_constrained_neumann_problem
+  
+  subroutine mlbddc_free_numerical_setup_constrained_neumann_solver(this)
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%constrained_neumann_solver%free_in_stages(free_numerical_setup)
+  end subroutine mlbddc_free_numerical_setup_constrained_neumann_solver
+  
+  subroutine mlbddc_free_coarse_grid_basis ( this ) 
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    if ( allocated ( this%Phi ) ) then
+      call memfree ( this%Phi, __FILE__, __LINE__ )
+    end if
+  end subroutine mlbddc_free_coarse_grid_basis
+  
+  function mlbddc_get_total_number_coarse_dofs ( this )
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    integer(ip)                               :: mlbddc_get_total_number_coarse_dofs
+    type(par_fe_space_t)     , pointer        :: fe_space
+    integer(ip)                               :: field_id
+    
+    assert ( this%am_i_l1_task() )
+    
+    mlbddc_get_total_number_coarse_dofs = 0
+    fe_space => this%get_fe_space()
+    do field_id = 1, fe_space%get_number_fe_spaces()
+       mlbddc_get_total_number_coarse_dofs = mlbddc_get_total_number_coarse_dofs + & 
+                                             this%num_dofs_objects_per_field(field_id)
+    end do
+  end function mlbddc_get_total_number_coarse_dofs
+  
+  function mlbddc_get_block_number_coarse_dofs ( this, block_id )
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    integer(ip)               , intent(in)    :: block_id
+    integer(ip)                               :: mlbddc_get_block_number_coarse_dofs 
+    type(par_fe_space_t)      , pointer       :: fe_space
+    integer(ip)                               :: field_id
+    integer(ip)               , pointer       :: field_blocks(:)
+    assert ( this%am_i_l1_task() )
+    assert ( block_id == 1 )
+    
+    fe_space     => this%get_fe_space()
+    field_blocks => fe_space%get_field_blocks()
+    
+    mlbddc_get_block_number_coarse_dofs = 0
+    do field_id = 1, fe_space%get_number_fe_spaces()
+       if ( field_blocks(field_id) == block_id ) then
+         mlbddc_get_block_number_coarse_dofs = mlbddc_get_block_number_coarse_dofs + & 
+                                               this%num_dofs_objects_per_field(field_id)
+       end if                                      
+    end do
+  end function mlbddc_get_block_number_coarse_dofs
+  
   
   ! Helper function that extracts a run-time polymorphic class(matrix_t)
   ! from the fe_affine_operator, and dynamically casts it into  
