@@ -694,6 +694,19 @@ module reference_fe_names
      procedure :: create_face_local_interpolation  => lagrangian_reference_fe_create_face_local_interpolation
      procedure :: update_interpolation             => lagrangian_reference_fe_update_interpolation
      procedure :: update_interpolation_face        => lagrangian_reference_fe_update_interpolation_face
+     procedure :: get_component_node               => lagrangian_reference_fe_get_component_node
+     procedure :: get_scalar_from_vector_node      => lagrangian_reference_fe_get_scalar_from_vector_node
+     procedure :: get_number_nodes_scalar          => lagrangian_reference_fe_get_number_nodes_scalar
+     procedure :: get_value_scalar                 => lagrangian_reference_fe_get_value_scalar
+     procedure :: get_value_vector                 => lagrangian_reference_fe_get_value_vector
+     procedure :: get_gradient_scalar              => lagrangian_reference_fe_get_gradient_scalar
+     procedure :: get_gradient_vector              => lagrangian_reference_fe_get_gradient_vector
+     procedure :: get_divergence_vector            => lagrangian_reference_fe_get_divergence_vector
+     procedure :: get_curl_vector                  => lagrangian_reference_fe_get_curl_vector
+     procedure :: interpolate_nodal_values         => lagrangian_reference_fe_interpolate_nodal_values
+     procedure :: evaluate_fe_function_scalar      => lagrangian_reference_fe_evaluate_fe_function_scalar
+     procedure :: evaluate_fe_function_vector      => lagrangian_reference_fe_evaluate_fe_function_vector
+     procedure :: evaluate_fe_function_tensor      => lagrangian_reference_fe_evaluate_fe_function_tensor
      ! Concrete TBPs of this derived data type
      procedure :: fill                             => lagrangian_reference_fe_fill
      procedure :: fill_field_components            => lagrangian_reference_fe_fill_field_components
@@ -783,27 +796,14 @@ module reference_fe_names
      procedure :: fill_quadrature                  => quad_lagrangian_reference_fe_fill_quadrature
      procedure :: fill_interpolation               => quad_lagrangian_reference_fe_fill_interpolation
      procedure :: fill_face_interpolation          => quad_lagrangian_reference_fe_fill_face_interpolation
+     procedure :: get_number_interior_points_x_dim => quad_lagrangian_reference_fe_get_number_interior_points_x_dim
      procedure :: compute_permutation_2D           => quad_lagrangian_reference_fe_compute_permutation_2D
      procedure :: compute_number_nodes_scalar      => quad_lagrangian_reference_fe_compute_number_nodes_scalar
      procedure :: compute_number_quadrature_points => quad_lagrangian_reference_fe_compute_number_quadrature_points
      
-     procedure :: get_component_node     => quad_lagrangian_reference_fe_get_component_node
-     procedure :: get_scalar_from_vector_node           => quad_lagrangian_reference_fe_get_scalar_from_vector_node
+
      procedure :: check_compatibility_of_vefs                                         &
           &                 => quad_lagrangian_reference_fe_check_compatibility_of_vefs 
-
-     procedure :: get_value_scalar          => quad_lagrangian_reference_fe_get_value_scalar
-     procedure :: get_value_vector          => quad_lagrangian_reference_fe_get_value_vector
-     procedure :: get_gradient_scalar       => quad_lagrangian_reference_fe_get_gradient_scalar
-     procedure :: get_gradient_vector       => quad_lagrangian_reference_fe_get_gradient_vector
-     procedure :: get_divergence_vector     => quad_lagrangian_reference_fe_get_divergence_vector
-     procedure :: get_curl_vector           => quad_lagrangian_reference_fe_get_curl_vector
-
-     procedure :: interpolate_nodal_values => quad_lagrangian_reference_fe_interpolate_nodal_values
-
-     procedure :: evaluate_fe_function_scalar => quad_lagrangian_reference_fe_evaluate_fe_function_scalar
-     procedure :: evaluate_fe_function_vector => quad_lagrangian_reference_fe_evaluate_fe_function_vector
-     procedure :: evaluate_fe_function_tensor => quad_lagrangian_reference_fe_evaluate_fe_function_tensor
 
      procedure :: set_nodal_quadrature => quad_lagrangian_reference_fe_set_nodal_quadrature
      procedure :: fill_nodal_quadrature => quad_lagrangian_reference_fe_fill_nodal_quadrature
@@ -815,12 +815,9 @@ module reference_fe_names
      procedure :: free                      => quad_lagrangian_reference_fe_free
      procedure :: get_characteristic_length &
           &                          => quad_lagrangian_reference_fe_get_characteristic_length  
-     procedure :: get_number_interior_points_x_dim &
-          &                   => quad_lagrangian_reference_fe_get_number_interior_points_x_dim
      procedure :: fill_scalar => quad_lagrangian_reference_fe_fill_scalar
      procedure :: get_subelements_connectivity => quad_lagrangian_reference_fe_get_subelements_connectivity
      procedure :: get_number_subelements => quad_lagrangian_reference_fe_get_number_subelements
-     procedure :: get_number_nodes_scalar => quad_lagrangian_reference_fe_get_number_nodes_scalar
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t
@@ -833,27 +830,13 @@ module reference_fe_names
      procedure :: fill_quadrature                  => tri_lagrangian_reference_fe_fill_quadrature
      procedure :: fill_interpolation               => tri_lagrangian_reference_fe_fill_interpolation
      procedure :: fill_face_interpolation          => tri_lagrangian_reference_fe_fill_face_interpolation
+     procedure :: get_number_interior_points_x_dim => tri_lagrangian_reference_fe_get_number_interior_points_x_dim
      procedure :: compute_permutation_2D           => tri_lagrangian_reference_fe_compute_permutation_2D
      procedure :: compute_number_nodes_scalar      => tri_lagrangian_reference_fe_compute_number_nodes_scalar
      procedure :: compute_number_quadrature_points => tri_lagrangian_reference_fe_compute_number_quadrature_points
 
-     procedure :: get_component_node        => tri_lagrangian_reference_fe_get_component_node
-     procedure :: get_scalar_from_vector_node           => tri_lagrangian_reference_fe_get_scalar_from_vector_node
      procedure :: check_compatibility_of_vefs                                         &
           &                 => tri_lagrangian_reference_fe_check_compatibility_of_vefs 
-
-     procedure :: get_value_scalar          => tri_lagrangian_reference_fe_get_value_scalar
-     procedure :: get_value_vector          => tri_lagrangian_reference_fe_get_value_vector
-     procedure :: get_gradient_scalar       => tri_lagrangian_reference_fe_get_gradient_scalar
-     procedure :: get_gradient_vector       => tri_lagrangian_reference_fe_get_gradient_vector
-     procedure :: get_divergence_vector     => tri_lagrangian_reference_fe_get_divergence_vector
-     procedure :: get_curl_vector           => tri_lagrangian_reference_fe_get_curl_vector
-
-     procedure :: interpolate_nodal_values => tri_lagrangian_reference_fe_interpolate_nodal_values
-
-     procedure :: evaluate_fe_function_scalar => tri_lagrangian_reference_fe_evaluate_fe_function_scalar
-     procedure :: evaluate_fe_function_vector => tri_lagrangian_reference_fe_evaluate_fe_function_vector
-     procedure :: evaluate_fe_function_tensor => tri_lagrangian_reference_fe_evaluate_fe_function_tensor
 
      procedure :: set_nodal_quadrature => tri_lagrangian_reference_fe_set_nodal_quadrature
      procedure :: fill_nodal_quadrature => tri_lagrangian_reference_fe_fill_nodal_quadrature
@@ -865,12 +848,9 @@ module reference_fe_names
      procedure :: free                      => tri_lagrangian_reference_fe_free
      procedure :: get_characteristic_length &
           &                          => tri_lagrangian_reference_fe_get_characteristic_length
-     procedure :: get_number_interior_points_x_dim &
-          &                   => tri_lagrangian_reference_fe_get_number_interior_points_x_dim
      procedure :: fill_scalar => tri_lagrangian_reference_fe_fill_scalar
      procedure :: get_subelements_connectivity => tri_lagrangian_reference_fe_get_subelements_connectivity
      procedure :: get_number_subelements => tri_lagrangian_reference_fe_get_number_subelements
-     procedure :: get_number_nodes_scalar => tri_lagrangian_reference_fe_get_number_nodes_scalar
   end type tri_lagrangian_reference_fe_t
   
   public :: tri_lagrangian_reference_fe_t
