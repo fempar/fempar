@@ -26,22 +26,6 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine quad_lagrangian_reference_fe_create ( this, number_dimensions, order, field_type, continuity, enable_face_integration )
-  implicit none 
-  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
-  integer(ip)                          , intent(in)    :: number_dimensions
-  integer(ip)                          , intent(in)    :: order
-  character(*)                         , intent(in)    :: field_type
-  logical                              , intent(in)    :: continuity
-  logical                   , optional , intent(in)    :: enable_face_integration
-
-  call this%free()
-  call this%set_common_data ( number_dimensions, order, field_type, continuity, enable_face_integration )
-  call this%set_fe_type ( fe_type_lagrangian )
-  call this%fill( )
-  call this%set_nodal_quadrature ()
-end subroutine quad_lagrangian_reference_fe_create
-
 subroutine quad_lagrangian_reference_fe_create_quadrature ( this, quadrature, max_order )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this  
@@ -506,91 +490,6 @@ function quad_lagrangian_reference_fe_get_number_interior_points_x_dim(this,n,di
 end function quad_lagrangian_reference_fe_get_number_interior_points_x_dim
 
 !==================================================================================================
-subroutine quad_lagrangian_reference_fe_fill (this)
-  implicit none
-  ! Parameters
-  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
-  integer(ip) :: c, i, j, dimension, number_interior_nodes, number_interior_nodes_scalar
-  integer(ip) :: column, inode, idime, inode_scalar, num_columns
-  
-  call this%fill_scalar( )
-  
-  call memalloc (this%number_dimensions-1,this%number_rotations_per_dimension,__FILE__,__LINE__)
-  call memalloc (this%number_dimensions-1,this%number_orientations_per_dimension,__FILE__,__LINE__)
-  
-  if ( this%continuity ) allocate(this%own_node_permutations(this%number_dimensions-1))
-  
-  do dimension = 1, this%number_dimensions-1
-
-     if (dimension == 1) then
-        this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_edge()
-     elseif (dimension == 2) then 
-        this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_face()
-     end if
-     this%number_orientations_per_dimension(dimension) = dimension
-     
-     if ( this%continuity ) then
-       ! Compute the number of interior nodes X (edge or face)
-       j = this%get_first_vef_id_of_dimension(dimension)
-       number_interior_nodes = this%get_number_own_nodes_vef(j)
-          
-       call this%fill_interior_points_permutation(dimension,             &
-                                                  number_interior_nodes, &
-                                                  this%own_node_permutations(dimension)%a)
-     end if
-  end do
-  
-  if ( this%number_field_components /= 1 ) then
-     call this%fill_field_components( )
-     if ( this%continuity ) then
-       do dimension = 1, this%number_dimensions-1
-          ! Compute the number of interior nodes x edge or face
-          j = this%get_first_vef_id_of_dimension(dimension)
-          number_interior_nodes        = this%get_number_own_nodes_vef(j)
-          number_interior_nodes_scalar = number_interior_nodes/this%number_field_components
-          num_columns = this%number_rotations_per_dimension(dimension) * &
-                        this%number_orientations_per_dimension(dimension) 
-          call memrealloc ( number_interior_nodes, &
-                            num_columns, &
-                            this%own_node_permutations(dimension)%a, &
-                            __FILE__, &
-                            __LINE__  )
-          do column = 1, num_columns
-             ! Fill the rest of components
-             inode = number_interior_nodes_scalar
-             do idime = 2, this%number_field_components
-                ! This is taking advantage of the face that we know how the DoF are ordered
-                ! in case this ordering change, this will not work anymore.
-                do inode_scalar = 1, number_interior_nodes_scalar
-                   inode = inode + 1
-                   this%own_node_permutations(dimension)%a(inode,column) = number_interior_nodes_scalar * &
-                        (idime-1) +  this%own_node_permutations(dimension)%a(inode_scalar,column)
-                end do
-             end do
-          end do
-       end do
-     end if
-  else
-     this%number_nodes_scalar = this%number_nodes
-  end if
-  
-  call memalloc( this%number_nodes, 2, this%node_component_array, __FILE__, __LINE__ )
-  call memalloc( this%number_nodes_scalar, this%number_field_components, this%node_array_component, __FILE__, __LINE__ )
-
-  c = 1
-  do i = 1, this%number_field_components
-     do j = 1, this%number_nodes_scalar
-        this%node_component_array(c,1) = j
-        this%node_component_array(c,2) = i   
-        this%node_array_component(j,i) = c
-        c = c+1
-     end do
-  end do
-  
-end subroutine quad_lagrangian_reference_fe_fill
-!==================================================================================================
-
-!==================================================================================================
 subroutine quad_lagrangian_reference_fe_fill_permutation_array(this,               &
                                                                dimension,          &
                                                                number_nodes_x_dim, &
@@ -645,17 +544,6 @@ function quad_lagrangian_reference_fe_get_characteristic_length ( this )
 
   quad_lagrangian_reference_fe_get_characteristic_length =  2.0_rp
 end function quad_lagrangian_reference_fe_get_characteristic_length
-
-subroutine quad_lagrangian_reference_fe_fill_field_components (this)
-  implicit none
-  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
-  call this%extend_list_components( this%nodes_vef)
-  call this%extend_list_components( this%interior_nodes_vef)
-  call this%extend_list_components( this%own_nodes_vef )
-  call this%extend_list_components( this%face_integration_coupling_nodes_face )
-  this%number_nodes_scalar = this%number_nodes
-  this%number_nodes = this%number_nodes_scalar * this%number_field_components
-end subroutine quad_lagrangian_reference_fe_fill_field_components
 
 subroutine quad_lagrangian_reference_fe_set_nodal_quadrature (this)
   implicit none
@@ -731,45 +619,6 @@ subroutine quad_lagrangian_reference_fe_set_tensor_field_to_nodal_values (this, 
   check( .false. )
 
 end subroutine quad_lagrangian_reference_fe_set_tensor_field_to_nodal_values
-
-
-subroutine quad_lagrangian_reference_fe_extend_list_components(this, list_1d)
-  implicit none
-  ! Parameters
-  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
-  type(list_t), intent(inout) :: list_1d
-  type(list_t) :: list
-
-  integer(ip) :: ngaus, order, i, j, k, c, node_1d, aux_1, aux_2
-
-  call list%create(n=this%number_vefs+1)
-
-  list%p(1) = 1
-  do i = 2,this%number_vefs+2
-     list%p(i) = list%p(i-1) + ( list_1d%p(i)-list_1d%p(i-1) ) * this%number_field_components
-  end do
-
-  call list%allocate_list_from_pointer()
-
-  aux_1 = this%number_nodes
-  do i = 1,this%number_vefs+1
-     c = list%p(i)
-     do k = 1,this%number_field_components
-        aux_2 = aux_1*(k-1)
-        do j = list_1d%p(i),list_1d%p(i+1)-1
-           node_1d = list_1d%l(j)
-           list%l(c) = node_1d + aux_2
-           c = c + 1
-        end do
-     end do
-  end do
-
-  call memrealloc ( size(list%p), list_1d%p, __FILE__, __LINE__ )
-  call memrealloc ( size(list%l), list_1d%l, __FILE__, __LINE__ )
-  list_1d = list
-  call list%free() 
-
-end subroutine quad_lagrangian_reference_fe_extend_list_components
 
 subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   implicit none
