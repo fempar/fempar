@@ -70,6 +70,8 @@ print*, '!------------------------------------------------------------------'
 print*, '! EMPTY (NNZ==0) - SYMMETRIC STORAGE - NUMERIC - OPTIONAL I'
 print*, '!------------------------------------------------------------------'
 
+    call sparse_matrix%expand_matrix_symbolic(C_T = C_T,                    &
+                                             to  = expanded_sparse_matrix)
     call sparse_matrix%expand_matrix_numeric(C_T = C_T,                    &
                                              to  = expanded_sparse_matrix)
 
@@ -80,6 +82,9 @@ print*, '!------------------------------------------------------------------'
 print*, '! EMPTY (NNZ==0) - SYMMETRIC STORAGE - NUMERIC'
 print*, '!------------------------------------------------------------------'
 
+    call sparse_matrix%expand_matrix_symbolic(C_T = C_T,                   &
+                                             to  = expanded_sparse_matrix, &
+                                             I   = I)
     call sparse_matrix%expand_matrix_numeric(C_T = C_T,                    &
                                              to  = expanded_sparse_matrix, &
                                              I   = I)
@@ -91,6 +96,10 @@ print*, '!------------------------------------------------------------------'
 print*, '! EMPTY (NNZ==0) - SYMMETRIC STORAGE - NUMERIC - NON SYMETRIC STORAGE FOR EXPANDED'
 print*, '!------------------------------------------------------------------'
 
+    call sparse_matrix%expand_matrix_symbolic(C_T = C_T,                   &
+                                             to  = expanded_sparse_matrix, &
+                                             I   = I,                      &
+                                             symmetric_storage = .false.)
     call sparse_matrix%expand_matrix_numeric(C_T = C_T,                    &
                                              to  = expanded_sparse_matrix, &
                                              I   = I,                      &
@@ -142,6 +151,9 @@ print*, '!------------------------------------------------------------------'
 
     call sparse_matrix%convert('CSR')
 
+    call sparse_matrix%expand_matrix_symbolic(C_T = C_T,                   &
+                                             to  = expanded_sparse_matrix, &
+                                             I   = I)
     call sparse_matrix%expand_matrix_numeric(C_T = C_T,                    &
                                              to  = expanded_sparse_matrix, &
                                              I   = I)
@@ -153,6 +165,11 @@ print*, '!------------------------------------------------------------------'
 print*, '! EMPTY (NNZ==0) - NON SYMMETRIC STORAGE - NUMERIC - SYMETRIC STORAGE FOR EXPANDED'
 print*, '!------------------------------------------------------------------'
 
+
+    call sparse_matrix%expand_matrix_symbolic(C_T = C_T,                   &
+                                             to  = expanded_sparse_matrix, &
+                                             I   = I,                      &
+                                             symmetric_storage = .true.)
     call sparse_matrix%expand_matrix_numeric(C_T = C_T,                    &
                                              to  = expanded_sparse_matrix, &
                                              I   = I,                      &
@@ -226,6 +243,9 @@ print*, '!------------------------------------------------------------------'
 print*, '! SYMMETRIC STORAGE - NUMERIC'
 print*, '!------------------------------------------------------------------'
 
+    call sparse_matrix%expand_matrix_symbolic(C_T = C_T,                   &
+                                             to  = expanded_sparse_matrix, &
+                                             I   = I)
     call sparse_matrix%expand_matrix_numeric(C_T = C_T,                    &
                                              to  = expanded_sparse_matrix, &
                                              I   = I)
@@ -237,6 +257,10 @@ print*, '!------------------------------------------------------------------'
 print*, '! SYMMETRIC STORAGE - NUMERIC - NON SYMETRIC STORAGE FOR EXPANDED'
 print*, '!------------------------------------------------------------------'
 
+    call sparse_matrix%expand_matrix_symbolic(C_T = C_T,                   &
+                                             to  = expanded_sparse_matrix, &
+                                             I   = I,                      &
+                                             symmetric_storage = .false.)
     call sparse_matrix%expand_matrix_numeric(C_T = C_T,                    &
                                              to  = expanded_sparse_matrix, &
                                              I   = I,                      &
@@ -300,6 +324,9 @@ print*, '!------------------------------------------------------------------'
     call sparse_matrix%convert('CSR')
 
 
+    call sparse_matrix%expand_matrix_symbolic(C_T = C_T,                   &
+                                             to  = expanded_sparse_matrix, &
+                                             I   = I) 
     call sparse_matrix%expand_matrix_numeric(C_T = C_T,                    &
                                              to  = expanded_sparse_matrix, &
                                              I   = I) 
@@ -311,6 +338,10 @@ print*, '!------------------------------------------------------------------'
 print*, '! NON SYMMETRIC STORAGE - NUMERIC - SYMETRIC STORAGE FOR EXPANDED'
 print*, '!------------------------------------------------------------------'
 
+    call sparse_matrix%expand_matrix_symbolic(C_T = C_T,                   &
+                                             to  = expanded_sparse_matrix, &
+                                             I   = I,                      &
+                                             symmetric_storage = .true.)
     call sparse_matrix%expand_matrix_numeric(C_T = C_T,                    &
                                              to  = expanded_sparse_matrix, &
                                              I   = I,                      &

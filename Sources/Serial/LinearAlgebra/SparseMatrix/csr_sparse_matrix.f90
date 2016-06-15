@@ -1213,22 +1213,22 @@ contains
         integer(ip)                                        :: total_rows
         integer(ip)                                        :: sign
         integer(ip)                                        :: state
-        logical                                            :: is_properties_setted_state
+        logical                                            :: is_properties_set_state
     !-----------------------------------------------------------------
         ! Check state
         assert(this%state_is_assembled()) 
         state = A_II%get_state() 
-        is_properties_setted_state = A_II%state_is_properties_setted() 
+        is_properties_set_state = A_II%state_is_properties_set() 
         assert(state == A_IG%get_state() .and.  state == A_GG%get_state())
         if(present(A_GI)) then
             assert(state == A_II%get_state())
         endif
-        assert(is_properties_setted_state  .or. A_II%state_is_assembled_symbolic())
+        assert(is_properties_set_state  .or. A_II%state_is_assembled_symbolic())
 
         total_rows = this%get_num_rows()
         total_cols = this%get_num_cols()
 
-        if(is_properties_setted_state) then
+        if(is_properties_set_state) then
             ! Set properties to all submatrices
             call A_II%set_num_rows(num_row); call A_II%set_num_cols(num_col)
             call A_IG%set_num_rows(num_row); call A_IG%set_num_cols(total_cols-num_col)
@@ -1301,7 +1301,7 @@ contains
                     A_XX_lbound = A_II%irp(i); A_XX_ubound = A_II%irp(i)+nz-1
                     this_lbound = this%irp(i); this_ubound = this%irp(i)+nz-1
                     ! Assign columns and values
-                    if(is_properties_setted_state) then
+                    if(is_properties_set_state) then
                         A_II%irp(i+1)                     = A_XX_ubound+1
                         A_II%ja (A_XX_lbound:A_XX_ubound) = this%ja(this_lbound:this_ubound)
                         A_II%nnz = A_II%nnz + nz
@@ -1323,7 +1323,7 @@ contains
                         nz_ignored = nz_ignored+1
                     enddo
                     ! Assign columns and values
-                    if(is_properties_setted_state) then
+                    if(is_properties_set_state) then
                         A_II%irp(i+1)                                = A_XX_ubound-nz_ignored+1
                         A_II%ja(A_XX_lbound:A_XX_ubound-nz_ignored) = this%ja(this_lbound+nz_ignored:this_ubound)
                         A_II%nnz = A_II%nnz - nz_ignored + nz
@@ -1355,7 +1355,7 @@ contains
                 A_XX_lbound = A_IG%irp(i);           A_XX_ubound = A_IG%irp(i)+nz-1
                 this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
                 ! Assign columns and values
-                if(is_properties_setted_state) then
+                if(is_properties_set_state) then
                     A_IG%irp(i+1)                     = A_XX_ubound+1
                     A_IG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
                     A_IG%nnz = A_IG%nnz + nz
@@ -1374,7 +1374,7 @@ contains
             A_II%nnz = A_II%irp(num_row+1)-1
         endif
 
-        if(is_properties_setted_state) then
+        if(is_properties_set_state) then
             call memrealloc(A_II%nnz, A_II%ja,   __FILE__, __LINE__)
             call memrealloc(A_IG%nnz, A_IG%ja,   __FILE__, __LINE__)
             call memrealloc(A_II%nnz, A_II%val,  __FILE__, __LINE__)
@@ -1418,7 +1418,7 @@ contains
                     A_XX_lbound = A_GI%irp(i-num_row); A_XX_ubound = A_GI%irp(i-num_row)+nz-1
                     this_lbound = this%irp(i);         this_ubound = this%irp(i)+nz-1
                     ! Assign columns and values
-                    if(is_properties_setted_state) then
+                    if(is_properties_set_state) then
                         A_GI%irp(i-num_row+1)             = A_XX_ubound+1
                         A_GI%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)
                         A_GI%nnz = A_GI%nnz + nz
@@ -1439,14 +1439,14 @@ contains
                     A_XX_lbound = A_GG%irp(i-num_row);   A_XX_ubound = A_GG%irp(i-num_row)+nz-1
                     this_lbound = this%irp(i)+nz_offset; this_ubound = this%irp(i+1)-1
                     ! Assign columns and values
-                    if(is_properties_setted_state) then
+                    if(is_properties_set_state) then
                         A_GG%irp(i-num_row+1)             = A_XX_ubound+1
                         A_GG%ja (A_XX_lbound:A_XX_ubound) = this%ja (this_lbound:this_ubound)-num_col
                         A_GG%nnz = A_GG%nnz + nz
                     endif
                     A_GG%val(A_XX_lbound:A_XX_ubound) = this%val(this_lbound:this_ubound)
                 else
-                    if(is_properties_setted_state) A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
+                    if(is_properties_set_state) A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
                 endif
 
             else if(.not. this%get_symmetric_storage() .and. A_GG%get_symmetric_storage()) then
@@ -1462,14 +1462,14 @@ contains
                         nz_ignored = nz_ignored+1
                     enddo
                     ! Assign columns and values
-                    if(is_properties_setted_state) then
+                    if(is_properties_set_state) then
                         A_GG%irp(i-num_row+1)             = A_XX_ubound-nz_ignored+1
                         A_GG%ja (A_XX_lbound:A_XX_ubound-nz_ignored) = this%ja (this_lbound+nz_ignored:this_ubound)-num_col
                         A_GG%nnz = A_GG%nnz - nz_ignored + nz
                     endif
                     A_GG%val(A_XX_lbound:A_XX_ubound-nz_ignored) = this%val(this_lbound+nz_ignored:this_ubound)
                 else
-                    if(is_properties_setted_state) A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
+                    if(is_properties_set_state) A_GG%irp(i-num_row+1) = A_GG%irp(i-num_row)
                 endif
 
             else if(this%get_symmetric_storage() .and. .not. A_GG%get_symmetric_storage()) then
@@ -1496,11 +1496,11 @@ contains
             A_GG%nnz = A_GG%irp(A_GG%get_num_rows()+1)-1
         endif
 
-        if(present(A_GI) .and. is_properties_setted_state) then
+        if(present(A_GI) .and. is_properties_set_state) then
             call memrealloc(A_GI%nnz, A_GI%ja,   __FILE__, __LINE__)
             call memrealloc(A_GI%nnz, A_GI%val,  __FILE__, __LINE__)
         endif
-        if(is_properties_setted_state)  then
+        if(is_properties_set_state)  then
             call memrealloc(A_GG%nnz, A_GG%ja,   __FILE__, __LINE__)
             call memrealloc(A_GG%nnz, A_GG%val,  __FILE__, __LINE__)
         endif
@@ -1588,7 +1588,7 @@ contains
         ! Check state
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic() ) 
         state = A_II%get_state()
-        properties_are_setted = A_II%state_is_properties_setted()
+        properties_are_setted = A_II%state_is_properties_set()
         assert( state == A_IG%get_state() .and. state== A_GG%get_state())
         assert(properties_are_setted)
 
@@ -1910,7 +1910,7 @@ contains
         integer(ip)                                          :: iret,i,j
     !-----------------------------------------------------------------
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
-        assert(A_RR%state_is_properties_setted() .or. A_RR%state_is_assembled_symbolic())
+        assert(A_RR%state_is_properties_set() .or. A_RR%state_is_assembled_symbolic())
 
         total_num_rows = this%get_num_rows()
         total_num_cols = this%get_num_cols()
@@ -1930,7 +1930,7 @@ contains
         A_RR_num_cols = total_num_cols-num_col
         THIS_has_symmetric_storage = this%get_symmetric_storage()
         A_RR_has_symmetric_storage = A_RR%get_symmetric_storage()
-        if(A_RR%state_is_properties_setted()) then
+        if(A_RR%state_is_properties_set()) then
             call A_RR%set_num_rows(A_RR_num_rows)
             call A_RR%set_num_cols(A_RR_num_cols)
             if(THIS_has_symmetric_storage .and. .not. A_RR_has_symmetric_storage) then
@@ -2158,7 +2158,7 @@ contains
         integer(ip)                                          :: iret,i,j
     !-----------------------------------------------------------------
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
-        assert(A_RR%state_is_properties_setted())
+        assert(A_RR%state_is_properties_set())
 
         total_num_rows = this%get_num_rows()
         total_num_cols = this%get_num_cols()
@@ -2383,7 +2383,7 @@ contains
         logical                                        :: symmetric_storage
     !-----------------------------------------------------------------
         assert(this%state_is_assembled())
-        assert(to%state_is_properties_setted())
+        assert(to%state_is_properties_set() .or. to%state_is_assembled_symbolic())
         if(C_T_num_cols < 1) return
 
         initial_num_rows = this%get_num_rows()
@@ -2448,7 +2448,6 @@ contains
     !-----------------------------------------------------------------
     ! Alloc to%irp with the new number of rows and to%ja with the new number of nnz
     !-----------------------------------------------------------------
-        call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
         if(           this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
             new_nz=max(this%nnz, 2*this%nnz-initial_num_rows)+2*C_T_nz+sum(I_irp)
@@ -2460,7 +2459,13 @@ contains
         else if(      this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
             new_nz=this%nnz+C_T_nz+sum(I_irp)
         endif
-        call memalloc(new_nz, to%ja, __FILE__, __LINE__)
+        if(to%state_is_properties_set()) then
+            call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
+            call memalloc(new_nz, to%ja, __FILE__, __LINE__)
+        else
+            assert(size(to%irp) == initial_num_rows+C_T_num_cols+1)
+            assert(size(to%ja) == new_nz)
+        endif
         call memalloc(new_nz, to%val, __FILE__, __LINE__)
 
     !-----------------------------------------------------------------
@@ -2788,7 +2793,7 @@ contains
             assert(I_coo%state_is_assembled() .and. I_coo%is_by_rows())
             assert(C_T_coo%get_num_cols() == I_coo%get_num_cols() .and. I_coo%get_num_rows() == I_coo%get_num_cols())
         endif
-        assert(to%state_is_properties_setted())
+        assert(to%state_is_properties_set() .or. to%state_is_assembled_symbolic())
 
         C_T_num_cols =  C_T_coo%get_num_cols()
         C_T_num_rows =  C_T_coo%get_num_rows()
@@ -2838,10 +2843,11 @@ contains
             I_irp(I_ia(i)) = I_irp(I_ia(i)) + 1
         enddo
 
+        
     !-----------------------------------------------------------------
     ! Alloc to%irp with the new number of rows and to%ja with the new number of nnz
     !-----------------------------------------------------------------
-        call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
+            
         if(           this%get_symmetric_storage() .and. .not. to%get_symmetric_storage()) then
             ! All diagonal elements in the original matrix must appear in the sparsity pattern
             new_nz=max(this%nnz, 2*this%nnz-initial_num_rows)+2*C_T_nz+sum(I_irp)
@@ -2853,7 +2859,13 @@ contains
         else if(      this%get_symmetric_storage() .and.       to%get_symmetric_storage()) then
             new_nz=this%nnz+C_T_nz+sum(I_irp)
         endif
-        call memalloc(new_nz, to%ja, __FILE__, __LINE__)
+        if(to%state_is_properties_set()) then
+            call memalloc(initial_num_rows+C_T_num_cols+1, to%irp, __FILE__, __LINE__)
+            call memalloc(new_nz, to%ja, __FILE__, __LINE__)
+        else
+            assert(size(to%irp) == initial_num_rows+C_T_num_cols+1)
+            assert(size(to%ja) == new_nz)
+        endif
         call memalloc(new_nz, to%val, __FILE__, __LINE__)
 
     !-----------------------------------------------------------------
@@ -3196,7 +3208,7 @@ contains
         logical                                        :: symmetric_storage
     !-----------------------------------------------------------------
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
-        assert(to%state_is_properties_setted())
+        assert(to%state_is_properties_set())
         if(C_T_num_cols < 1) return
 
         initial_num_rows = this%get_num_rows()
@@ -3578,7 +3590,7 @@ contains
         logical(ip)                                    :: symmetric_storage
     !-----------------------------------------------------------------
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
-        assert(to%state_is_properties_setted())
+        assert(to%state_is_properties_set())
         assert(C_T_coo%state_is_assembled() .or. C_T_coo%state_is_assembled_symbolic())
         assert(C_T_coo%is_by_rows())
         if(present(I_coo)) then
