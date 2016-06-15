@@ -333,15 +333,16 @@ module serial_fe_space_names
    type(vector_field_t), allocatable :: quadrature_points_gradient_values(:)
    
   contains
-     procedure, non_overridable, private :: create                      => fe_function_scalar_create
-     procedure, non_overridable :: get_fe_space_id                      => fe_function_scalar_get_fe_space_id
-     procedure, non_overridable :: get_nodal_values                     => fe_function_scalar_get_nodal_values
-     procedure, non_overridable :: get_quadrature_points_values         => fe_function_scalar_get_quadrature_points_values
-     procedure, non_overridable :: get_value                            => fe_function_scalar_get_value
-     procedure, non_overridable :: get_gradient                         => fe_function_scalar_get_gradient
-     procedure, non_overridable :: set_current_number_nodes             => fe_function_scalar_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points => fe_function_scalar_set_current_number_quadrature_points
-     procedure, non_overridable :: free                                 => fe_function_scalar_free
+     procedure, non_overridable, private :: create                       => fe_function_scalar_create
+     procedure, non_overridable :: get_fe_space_id                       => fe_function_scalar_get_fe_space_id
+     procedure, non_overridable :: get_nodal_values                      => fe_function_scalar_get_nodal_values
+     procedure, non_overridable :: get_quadrature_points_values          => fe_function_scalar_get_quadrature_points_values
+     procedure, non_overridable :: get_quadrature_points_gradient_values => fe_function_scalar_get_quadrature_points_gradient_values
+     procedure, non_overridable :: get_value                             => fe_function_scalar_get_value
+     procedure, non_overridable :: get_gradient                          => fe_function_scalar_get_gradient
+     procedure, non_overridable :: set_current_number_nodes              => fe_function_scalar_set_current_number_nodes
+     procedure, non_overridable :: set_current_number_quadrature_points  => fe_function_scalar_set_current_number_quadrature_points
+     procedure, non_overridable :: free                                  => fe_function_scalar_free
   end type fe_function_scalar_t
   
   type fe_function_vector_t
@@ -359,15 +360,16 @@ module serial_fe_space_names
    type(tensor_field_t), allocatable :: quadrature_points_gradient_values(:)
    
   contains
-     procedure, non_overridable, private :: create                      => fe_function_vector_create
-     procedure, non_overridable :: get_fe_space_id                      => fe_function_vector_get_fe_space_id
-     procedure, non_overridable :: get_nodal_values                     => fe_function_vector_get_nodal_values      
-     procedure, non_overridable :: get_quadrature_points_values         => fe_function_vector_get_quadrature_points_values
-     procedure, non_overridable :: get_value                            => fe_function_vector_get_value
-     procedure, non_overridable :: get_gradient                         => fe_function_vector_get_gradient
-     procedure, non_overridable :: set_current_number_nodes             => fe_function_vector_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points => fe_function_vector_set_current_number_quadrature_points
-     procedure, non_overridable :: free                                 => fe_function_vector_free
+     procedure, non_overridable, private :: create                       => fe_function_vector_create
+     procedure, non_overridable :: get_fe_space_id                       => fe_function_vector_get_fe_space_id
+     procedure, non_overridable :: get_nodal_values                      => fe_function_vector_get_nodal_values      
+     procedure, non_overridable :: get_quadrature_points_values          => fe_function_vector_get_quadrature_points_values
+     procedure, non_overridable :: get_quadrature_points_gradient_values => fe_function_vector_get_quadrature_points_gradient_values
+     procedure, non_overridable :: get_value                             => fe_function_vector_get_value
+     procedure, non_overridable :: get_gradient                          => fe_function_vector_get_gradient
+     procedure, non_overridable :: set_current_number_nodes              => fe_function_vector_set_current_number_nodes
+     procedure, non_overridable :: set_current_number_quadrature_points  => fe_function_vector_set_current_number_quadrature_points
+     procedure, non_overridable :: free                                  => fe_function_vector_free
   end type fe_function_vector_t
   
   type fe_function_tensor_t

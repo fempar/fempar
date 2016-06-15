@@ -531,7 +531,7 @@ subroutine finite_element_update_vector_gradient_values (this, fe_function_vecto
 
   block_id = this%field_blocks(fe_space_id)
   nodal_values                      => fe_function_vector%get_nodal_values()
-  quadrature_points_gradient_values => fe_function_vector%get_quadrature_points_values()
+  quadrature_points_gradient_values => fe_function_vector%get_quadrature_points_gradient_values()
 
   ! Extract nodal values associated to dirichlet bcs
   strong_dirichlet_values_entries => fe_function%strong_dirichlet_values%get_entries()

@@ -414,7 +414,7 @@ subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor( this, &
 
 end subroutine quad_lagrangian_reference_fe_evaluate_fe_function_tensor
 
-subroutine quad_lagrangian_reference_fe_evaluate_gradient_fe_function_scalar( this, &
+subroutine quad_lagrangian_reference_fe_evaluate_grad_fe_function_scalar( this, &
                                                                   &  actual_cell_interpolation, &
                                                                   &  nodal_values, &
                                                                   &  quadrature_points_values)
@@ -423,22 +423,22 @@ subroutine quad_lagrangian_reference_fe_evaluate_gradient_fe_function_scalar( th
   type(interpolation_t)                , intent(in)    :: actual_cell_interpolation 
   real(rp)                             , intent(in)    :: nodal_values(:)
   type(vector_field_t)                 , intent(inout) :: quadrature_points_values(:)
-  integer(ip)                                          :: qpoin,ishape
+  integer(ip)                                          :: qpoint,ishape
   type(vector_field_t)                                 :: gradient_shape
 
   do qpoint = 1, actual_cell_interpolation%number_quadrature_points
-     call quadrature_points_values(qpoin)%init(0.0_rp)
+     call quadrature_points_values(qpoint)%init(0.0_rp)
      do ishape = 1, actual_cell_interpolation%number_shape_functions
-        call this%get_gradient(actual_cell_interpolation,ishape,qpoin,gradient_shape)
+        call this%get_gradient(actual_cell_interpolation,ishape,qpoint,gradient_shape)
         quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
-             &                             gradient_test * nodal_values(ishape)
+             &                             gradient_shape * nodal_values(ishape)
      end do
   end do
 
-end subroutine quad_lagrangian_reference_fe_evaluate_gradient_fe_function_scalar
+end subroutine quad_lagrangian_reference_fe_evaluate_grad_fe_function_scalar
 
 
-subroutine quad_lagrangian_reference_fe_evaluate_gradient_fe_function_vector( this, &
+subroutine quad_lagrangian_reference_fe_evaluate_grad_fe_function_vector( this, &
                                                                   &  actual_cell_interpolation, &
                                                                   &  nodal_values, &
                                                                   &  quadrature_points_values)
@@ -451,15 +451,15 @@ subroutine quad_lagrangian_reference_fe_evaluate_gradient_fe_function_vector( th
   type(tensor_field_t)                                 :: gradient_shape
 
   do qpoint = 1, actual_cell_interpolation%number_quadrature_points
-     call quadrature_points_values(qpoin)%init(0.0_rp)
+     call quadrature_points_values(qpoint)%init(0.0_rp)
      do inode = 1, this%number_nodes
-        call this%get_gradient(actual_cell_interpolation,inode,qpoin,gradient_shape)
+        call this%get_gradient(actual_cell_interpolation,inode,qpoint,gradient_shape)
         quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
-             &                             gradient_test * nodal_values(ishape)
+             &                             gradient_shape * nodal_values(inode)
      end do
   end do
 
-end subroutine quad_lagrangian_reference_fe_evaluate_gradient_fe_function_vector
+end subroutine quad_lagrangian_reference_fe_evaluate_grad_fe_function_vector
 
 !==================================================================================================
 function quad_lagrangian_reference_fe_check_compatibility_of_vefs                   &

@@ -553,6 +553,30 @@ module reference_fe_names
        real(rp)                , intent(in)    :: nodal_values(:)
        type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_tensor_interface     
+
+     subroutine evaluate_gradient_fe_function_scalar_interface( this, &
+                                                     & actual_cell_interpolation, &
+                                                     & nodal_values, &
+                                                     & quadrature_points_values)
+       import :: reference_fe_t, interpolation_t, rp, vector_field_t
+       implicit none
+       class(reference_fe_t)   , intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       real(rp)                , intent(in)    :: nodal_values(:)
+       type(vector_field_t)    , intent(inout) :: quadrature_points_values(:)
+     end subroutine evaluate_gradient_fe_function_scalar_interface
+
+     subroutine evaluate_gradient_fe_function_vector_interface( this, &
+                                                     & actual_cell_interpolation, &
+                                                     & nodal_values, &
+                                                     & quadrature_points_values)
+       import :: reference_fe_t, interpolation_t, rp, tensor_field_t
+       implicit none
+       class(reference_fe_t)   , intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       real(rp)                , intent(in)    :: nodal_values(:)
+       type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
+     end subroutine evaluate_gradient_fe_function_vector_interface
      
      function check_compatibility_of_vefs_interface(target_reference_fe, &
           &                       source_reference_fe, source_vef_id,target_vef_id)
@@ -710,8 +734,8 @@ module reference_fe_names
      procedure :: evaluate_fe_function_vector => quad_lagrangian_reference_fe_evaluate_fe_function_vector
      procedure :: evaluate_fe_function_tensor => quad_lagrangian_reference_fe_evaluate_fe_function_tensor
 
-     procedure :: evaluate_gradient_fe_function_scalar => quad_lagrangian_reference_fe_evaluate_gradient_fe_function_scalar
-     procedure :: evaluate_gradient_fe_function_vector => quad_lagrangian_reference_fe_evaluate_gradient_fe_function_vector
+     procedure :: evaluate_gradient_fe_function_scalar => quad_lagrangian_reference_fe_evaluate_grad_fe_function_scalar
+     procedure :: evaluate_gradient_fe_function_vector => quad_lagrangian_reference_fe_evaluate_grad_fe_function_vector
 
      procedure :: set_nodal_quadrature => quad_lagrangian_reference_fe_set_nodal_quadrature
 
