@@ -2,6 +2,7 @@ program test_coo_sort_and_compress
 
 USE types_names
 USE memor_names
+USE sparse_matrix_parameters_names
 USE base_sparse_matrix_names
 
 implicit none

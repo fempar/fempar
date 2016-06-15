@@ -1,8 +1,37 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module base_sparse_matrix_names
 
   USE types_names
   USE memor_names
   USE vector_names
+  USE sparse_matrix_utils_names
+  USE sparse_matrix_parameters_names
 
   implicit none
 
@@ -13,16 +42,6 @@ module base_sparse_matrix_names
   !---------------------------------------------------------------------
   !< BASE SPARSE MATRIX DERIVED  TYPE
   !---------------------------------------------------------------------
-
-  ! States
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_START              = 0
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_PROPERTIES_SET     = 1
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_CREATED            = 2
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_BUILD_SYMBOLIC     = 3
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_BUILD_NUMERIC      = 4
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC = 5
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_ASSEMBLED          = 6
-  integer(ip), parameter :: SPARSE_MATRIX_STATE_UPDATE             = 7
 
   !-----------------------------------------------------------------
   ! State transition diagram for type(base_sparse_matrix_t)
@@ -81,13 +100,7 @@ module base_sparse_matrix_names
   ! Update              | Insert (3-values)     | Update
   ! Update              | Apply                 | Update
   ! Update              | Convert               | Assembled
-  
-  ! Matrix sign
-  integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE     = 0
-  integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_POSITIVE_SEMIDEFINITE = 1
-  integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_INDEFINITE            = 2 ! Both positive and negative eigenvalues
-  integer(ip), public, parameter :: SPARSE_MATRIX_SIGN_UNKNOWN               = 3 ! No info
-  
+    
   type, abstract :: base_sparse_matrix_t
      private 
      integer(ip) :: num_rows                          ! Number of rows
@@ -306,11 +319,6 @@ module base_sparse_matrix_names
   !---------------------------------------------------------------------
   !< COO SPARSE MATRIX DERIVED TYPE
   !---------------------------------------------------------------------
-
-    integer(ip),      parameter :: COO_SPARSE_MATRIX_SORTED_NONE    = 20
-    integer(ip),      parameter :: COO_SPARSE_MATRIX_SORTED_BY_ROWS = 21
-    integer(ip),      parameter :: COO_SPARSE_MATRIX_SORTED_BY_COLS = 22
-    character(len=3), parameter :: coo_format = 'COO'
 
     type, extends(base_sparse_matrix_t) :: coo_sparse_matrix_t
         character(len=3)           :: format_name = coo_format    ! String format id
@@ -848,12 +856,6 @@ module base_sparse_matrix_names
     !---------------------------------------------------------------------
     
     interface 
-        subroutine duplicates_operation(input, output)
-            import rp
-            real(rp), intent(in)    :: input
-            real(rp), intent(inout) :: output
-        end subroutine duplicates_operation
-
 #ifdef ENABLE_MKL
         subroutine mkl_dcoomm (transa, m, n, k, alpha, matdescra, val, rowind, colind, nnz, b, ldb, beta, c, ldc)
         import rp
@@ -983,14 +985,6 @@ public :: base_sparse_matrix_iterator_t
 public :: coo_sparse_matrix_t
 public :: coo_format
 !public :: coo_sparse_matrix_iterator_t
-public :: duplicates_operation
-public :: assign_value
-public :: sum_value
-public :: binary_search
-public :: mergesort_link_list
-public :: reorder_ip_rp_from_link_list
-public :: reorder_ip_from_link_list
-
 
 contains
 
@@ -5213,333 +5207,7 @@ contains
             end if
         endif
     end function coo_sparse_matrix_get_entry
-
-!---------------------------------------------------------------------
-!< AUX PROCEDURES
-!---------------------------------------------------------------------
-
-    subroutine assign_value(input, output)
-    !-----------------------------------------------------------------
-    ! Assign an input value to the autput
-    !-----------------------------------------------------------------
-        real(rp), intent(in)    :: input
-        real(rp), intent(inout) :: output
-    !-------------------------------------------------------------
-        output = input
-    end subroutine assign_value
-
-
-    subroutine sum_value(input, output)
-    !-----------------------------------------------------------------
-    ! Sum an input value to the autput
-    !-----------------------------------------------------------------
-        real(rp), intent(in)    :: input
-        real(rp), intent(inout) :: output
-    !-----------------------------------------------------------------
-        output = output + input
-    end subroutine sum_value
-
-
-    function  binary_search(key,size,vector) result(ipos)
-    !-----------------------------------------------------------------
-    ! Perform binary search in a vector
-    !-----------------------------------------------------------------
-        integer(ip), intent(in) :: key
-        integer(ip), intent(in) :: size
-        integer(ip), intent(in) :: vector(size)
-        integer(ip)             :: ipos
-        integer(ip)             :: lowerbound
-        integer(ip)             :: upperbound
-        integer(ip)             :: midpoint
-    !-----------------------------------------------------------------
-        lowerbound = 1 
-        upperbound = size
-        ipos = -1 
-
-        do while (lowerbound.le.upperbound) 
-            midpoint = (lowerbound+upperbound)/2
-            if (key.eq.vector(midpoint))  then
-                ipos = midpoint
-                lowerbound  = upperbound + 1
-            else if (key < vector(midpoint))  then
-                upperbound = midpoint-1
-            else 
-                lowerbound = midpoint + 1
-            end if
-        enddo
-        return
-    end function binary_search
-
-
-    subroutine mergesort_link_list(n,k,l,iret)
-    !-------------------------------------------------------------
-    !   This subroutine sorts an integer array into ascending order.
-    !
-    ! Arguments:
-    !   n    -  integer           Input: size of the array 
-    !   k    -  integer(*)        input: array of keys to be sorted
-    !   l    -  integer(0:n+1)   output: link list 
-    !   iret -  integer          output: 0 Normal termination
-    !                                    1 the array was already sorted 
-    !
-    ! REFERENCES  = (1) D. E. Knuth
-    !                   The Art of Computer Programming,
-    !                     vol.3: Sorting and Searching
-    !                   Addison-Wesley, 1973
-    !-------------------------------------------------------------
-        use types_names
-        integer(ip), intent(in)  :: n
-        integer(ip), intent(in)  :: k(n)
-        integer(ip), intent(out) :: l(0:n+1)
-        integer(ip), intent(out) :: iret
-        integer(ip)              :: p,q,s,t
-    !-------------------------------------------------------------
-        iret = 0
-        !  first step: we are preparing ordered sublists, exploiting
-        !  what order was already in the input data; negative links
-        !  mark the end of the sublists
-        l(0) = 1
-        t = n + 1
-        do  p = 1,n - 1
-        if (k(p) <= k(p+1)) then
-            l(p) = p + 1
-            else
-                l(t) = - (p+1)
-                t = p
-            end if
-        end do
-        l(t) = 0
-        l(n) = 0
-        ! see if the input was already sorted
-        if (l(n+1) == 0) then
-            iret = 1
-            return 
-        else
-            l(n+1) = abs(l(n+1))
-        end if
-
-        mergepass: do 
-            ! otherwise, begin a pass through the list.
-            ! throughout all the subroutine we have:
-            !  p, q: pointing to the sublists being merged
-            !  s: pointing to the most recently processed record
-            !  t: pointing to the end of previously completed sublist
-            s = 0
-            t = n + 1
-            p = l(s)
-            q = l(t)
-            if (q == 0) exit mergepass
-
-            outer: do 
-
-                if (k(p) > k(q)) then 
-                    l(s) = sign(q,l(s))
-                    s = q
-                    q = l(q)
-                    if (q > 0) then 
-                        do 
-                            if (k(p) <= k(q)) cycle outer
-                            s = q
-                            q = l(q)
-                            if (q <= 0) exit
-                        end do
-                    end if
-                    l(s) = p
-                    s = t
-                    do 
-                        t = p
-                        p = l(p)
-                        if (p <= 0) exit
-                    end do
-
-                else 
-                    l(s) = sign(p,l(s))
-                    s = p
-                    p = l(p)
-                    if (p>0) then 
-                        do 
-                            if (k(p) > k(q)) cycle outer 
-                            s = p
-                            p = l(p)
-                            if (p <= 0) exit
-                        end do
-                    end if
-                    !  otherwise, one sublist ended, and we append to it the rest
-                    !  of the other one.
-                    l(s) = q
-                    s = t
-                    do 
-                        t = q
-                        q = l(q)
-                        if (q <= 0) exit
-                    end do
-                end if
-
-                p = -p
-                q = -q
-                if (q == 0) then
-                    l(s) = sign(p,l(s))
-                    l(t) = 0
-                    exit outer 
-                end if
-            end do outer
-        end do mergepass
-
-    end subroutine mergesort_link_list
-
-
-    subroutine reorder_numeric_coo_from_link_list(n,x,i1,i2,iaux)
-    !-------------------------------------------------------------
-    !  Reorder (an) input vector(s) based on a list sort output.
-    !  Based on: D. E. Knuth: The Art of Computer Programming
-    !            vol. 3: Sorting and Searching, Addison Wesley, 1973
-    !            ex. 5.2.12
-    !-------------------------------------------------------------
-        use types_names
-        integer(ip), intent(in)    :: n
-        real(rp),    intent(inout) :: x(*)
-        integer(ip), intent(inout) :: i1(*)
-        integer(ip), intent(inout) :: i2(*)
-        integer(ip), intent(inout) :: iaux(0:*) 
-        integer(ip) :: lswap, lp, k, isw1, isw2
-        real(rp)    :: swap
-    !-------------------------------------------------------------
-        lp = iaux(0)
-        k  = 1
-        do 
-            if ((lp == 0).or.(k>n)) exit
-            do 
-                if (lp >= k) exit
-                lp = iaux(lp)
-            end do
-            swap     = x(lp)
-            x(lp)    = x(k)
-            x(k)     = swap
-            isw1     = i1(lp)
-            i1(lp)   = i1(k)
-            i1(k)    = isw1
-            isw2     = i2(lp)
-            i2(lp)   = i2(k)
-            i2(k)    = isw2
-            lswap    = iaux(lp)
-            iaux(lp) = iaux(k)
-            iaux(k)  = lp
-            lp = lswap 
-            k  = k + 1
-        enddo
-        return
-    end subroutine reorder_numeric_coo_from_link_list
-
-
-    subroutine reorder_symbolic_coo_from_link_list(n,i1,i2,iaux)
-    !-------------------------------------------------------------
-    !  Reorder (an) input vector(s) based on a list sort output.
-    !  Based on: D. E. Knuth: The Art of Computer Programming
-    !            vol. 3: Sorting and Searching, Addison Wesley, 1973
-    !            ex. 5.2.12
-    !-------------------------------------------------------------
-        use types_names
-        integer(ip), intent(in)    :: n
-        integer(ip), intent(inout) :: i1(*)
-        integer(ip), intent(inout) :: i2(*)
-        integer(ip), intent(inout) :: iaux(0:*) 
-        integer(ip) :: lswap, lp, k, isw1, isw2
-    !-------------------------------------------------------------
-        lp = iaux(0)
-        k  = 1
-        do 
-            if ((lp == 0).or.(k>n)) exit
-            do 
-                if (lp >= k) exit
-                lp = iaux(lp)
-            end do
-            isw1     = i1(lp)
-            i1(lp)   = i1(k)
-            i1(k)    = isw1
-            isw2     = i2(lp)
-            i2(lp)   = i2(k)
-            i2(k)    = isw2
-            lswap    = iaux(lp)
-            iaux(lp) = iaux(k)
-            iaux(k)  = lp
-            lp = lswap 
-            k  = k + 1
-        enddo
-        return
-    end subroutine reorder_symbolic_coo_from_link_list
     
-
-    subroutine reorder_ip_from_link_list(n,i1,iaux)
-    !-------------------------------------------------------------
-    !  Reorder (an) input vector(s) based on a list sort output.
-    !  Based on: D. E. Knuth: The Art of Computer Programming
-    !            vol. 3: Sorting and Searching, Addison Wesley, 1973
-    !            ex. 5.2.12
-    !-------------------------------------------------------------
-        use types_names
-        integer(ip), intent(in)    :: n
-        integer(ip), intent(inout) :: i1(*)
-        integer(ip), intent(inout) :: iaux(0:*) 
-        integer(ip) :: lswap, lp, k, isw1
-    !-------------------------------------------------------------
-        lp = iaux(0)
-        k  = 1
-        do 
-            if ((lp == 0).or.(k>n)) exit
-            do 
-                if (lp >= k) exit
-                lp = iaux(lp)
-            end do
-            isw1     = i1(lp)
-            i1(lp)   = i1(k)
-            i1(k)    = isw1
-            lswap    = iaux(lp)
-            iaux(lp) = iaux(k)
-            iaux(k)  = lp
-            lp = lswap 
-            k  = k + 1
-        enddo
-        return
-    end subroutine reorder_ip_from_link_list
-
-    
-    subroutine reorder_ip_rp_from_link_list(n,x,i1,iaux)
-    !-------------------------------------------------------------
-    !  Reorder (an) input vector(s) based on a list sort output.
-    !  Based on: D. E. Knuth: The Art of Computer Programming
-    !            vol. 3: Sorting and Searching, Addison Wesley, 1973
-    !            ex. 5.2.12
-    !-------------------------------------------------------------
-        use types_names
-        integer(ip), intent(in)    :: n
-        real(rp),    intent(inout) :: x(*)
-        integer(ip), intent(inout) :: i1(*)
-        integer(ip), intent(inout) :: iaux(0:*) 
-        integer(ip) :: lswap, lp, k, isw1
-        real(rp)    :: swap
-    !-------------------------------------------------------------
-        lp = iaux(0)
-        k  = 1
-        do 
-            if ((lp == 0).or.(k>n)) exit
-            do 
-                if (lp >= k) exit
-                lp = iaux(lp)
-            end do
-            swap     = x(lp)
-            x(lp)    = x(k)
-            x(k)     = swap
-            isw1     = i1(lp)
-            i1(lp)   = i1(k)
-            i1(k)    = isw1
-            lswap    = iaux(lp)
-            iaux(lp) = iaux(k)
-            iaux(k)  = lp
-            lp = lswap 
-            k  = k + 1
-        enddo
-        return
-    end subroutine reorder_ip_rp_from_link_list
 
     !---------------------------------------------------------------------
     !< COO_SPARSE_MATRIX_ITERATOR PROCEDURES

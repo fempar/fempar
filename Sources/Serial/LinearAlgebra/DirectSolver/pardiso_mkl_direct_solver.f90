@@ -268,6 +268,7 @@ contains
 !        print*, '(1) --> symbolic_setup'
         this%phase               = 11 ! only reordering and symbolic factorization
         matrix                   => this%matrix%get_pointer_to_base_matrix()
+        if(.not. this%forced_matrix_type) call this%set_matrix_type_from_matrix()
 
         select type (matrix)
             type is (csr_sparse_matrix_t)
@@ -493,7 +494,6 @@ contains
         real(dp)                                          :: ddum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        if(.not. this%forced_matrix_type) call this%set_matrix_type_from_matrix()
 !        print*, '(5) --> free_symbolic'
         this%phase = -1 ! Release all internal memory for all matrices
         call pardiso(pt     = this%pardiso_mkl_pt,             & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
