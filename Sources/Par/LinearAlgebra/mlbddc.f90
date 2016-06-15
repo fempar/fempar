@@ -46,12 +46,17 @@ module mlbddc_names
  use direct_solver_names
  use direct_solver_parameters_names
 
- 
- 
+#ifdef ENABLE_BLAS
+ use blas77_interfaces_names
+#endif
+
+#ifdef ENABLE_LAPACK
+ use lapack77_interfaces_names
+#endif
+  
  ! Parallel communication-related data structures
  use par_environment_names
  
-
  implicit none
 # include "debug.i90"
  private
@@ -147,6 +152,9 @@ module mlbddc_names
     procedure, non_overridable, private :: numerical_setup_constrained_neumann_solver      => mlbddc_numerical_setup_constrained_neumann_solver
     procedure, non_overridable, private :: allocate_coarse_grid_basis                      => mlbddc_allocate_coarse_grid_basis
     procedure, non_overridable, private :: setup_coarse_grid_basis                         => mlbddc_setup_coarse_grid_basis
+    procedure, non_overridable, private :: compute_subdomain_elmat                         => mlbddc_compute_subdomain_elmat
+    procedure, non_overridable, private :: compute_and_gather_subdomain_elmat              => mlbddc_compute_and_gather_subdomain_elmat
+    procedure, non_overridable, private :: compute_subdomain_elmat_counts_and_displs       => mlbddc_compute_subdomain_elmat_counts_and_displs
 
     ! Free-related TBPs
     procedure, non_overridable          :: free                                             => mlbddc_free
@@ -789,72 +797,175 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
      call memfree ( work2, __FILE__,__LINE__ )
   end subroutine mlbddc_setup_coarse_grid_basis 
   
+  ! Computes subdomain_elmat = \Phi^t A_i \Phi 
+  subroutine mlbddc_compute_subdomain_elmat ( this, subdomain_elmat )
+    implicit none
+    class(mlbddc_t)      , intent(in)    :: this
+    real(rp), allocatable, intent(inout) :: subdomain_elmat(:,:)
+    
+    real(rp), allocatable :: work(:,:)
+    type(par_sparse_matrix_t), pointer :: par_sparse_matrix
+    type(sparse_matrix_t), pointer :: A
+    
+    assert ( this%am_i_l1_task() )
+    par_sparse_matrix => this%get_par_sparse_matrix()
+    A => par_sparse_matrix%get_sparse_matrix()
+    
+    if ( allocated(subdomain_elmat) ) then
+      call memfree ( subdomain_elmat, __FILE__, __LINE__ )
+    end if
+    
+    call memalloc ( this%get_block_number_coarse_dofs(1), &
+                    this%get_block_number_coarse_dofs(1), &
+                    subdomain_elmat, &
+                    __FILE__, &
+                    __LINE__ );
+    
+    call memalloc ( A%get_num_rows(), & 
+                    this%get_block_number_coarse_dofs(1), &
+                    work, &
+                    __FILE__, & 
+                    __LINE__ )
+
+    work = 0.0_rp
+    call A%apply_to_dense_matrix ( n     = this%get_block_number_coarse_dofs(1), &
+                                   alpha = 1.0_rp, &
+                                   ldb   = A%get_num_rows(), &
+                                   b     = this%Phi, &
+                                   beta  = 0.0_rp, &
+                                   ldc   = A%get_num_rows(), &
+                                   c     = work )        
+    subdomain_elmat = 0.0_rp
+#ifdef ENABLE_BLAS
+    call DGEMM( 'T', &
+                'N', &
+                this%get_block_number_coarse_dofs(1), &
+                this%get_block_number_coarse_dofs(1), &
+                A%get_num_rows(), &
+                1.0, &
+                this%Phi, &
+                A%get_num_rows() , &
+                work, &
+                A%get_num_rows(), &
+                0.0, &
+                subdomain_elmat, &
+                this%get_block_number_coarse_dofs(1))
+#else
+    write (0,*) 'Error: mlbddc.f90 was not compiled with -DENABLE_BLAS.'
+    write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
+    check(.false.)    
+#endif
+    call memfree ( work, __FILE__, __LINE__)
+  end subroutine mlbddc_compute_subdomain_elmat
+ 
+  subroutine mlbddc_compute_subdomain_elmat_counts_and_displs ( this, counts, displs )
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    integer(ip), allocatable  , intent(inout) :: counts(:)
+    integer(ip), allocatable  , intent(inout) :: displs(:)
+    type(par_environment_t), pointer :: par_environment
+    integer(ip) :: i, l1_to_l2_size
+    type(coarse_fe_iterator_t) :: iterator
+    type(coarse_fe_accessor_t) :: coarse_fe
+    
+    par_environment => this%get_par_environment()
+    assert (par_environment%am_i_l1_to_l2_root())
+    l1_to_l2_size = par_environment%get_l1_to_l2_size()
+    if ( allocated(counts) ) call memfree ( counts, __FILE__, __LINE__ )
+    if ( allocated(displs) ) call memfree ( displs, __FILE__, __LINE__ )
+    call memalloc ( l1_to_l2_size, counts, __FILE__, __LINE__ )
+    call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
+    
+    i = 1
+    counts(l1_to_l2_size) = 0
+    iterator = this%coarse_fe_space%create_coarse_fe_iterator()
+    do while ( .not. iterator%has_finished() )
+      coarse_fe = iterator%current()
+      counts(i) = coarse_fe%get_number_dofs()**2    
+      call iterator%next()
+      i = i +1
+    end do
+    
+    displs(1) = 0
+    do i=2, l1_to_l2_size
+      displs(i) = displs(i-1) + counts(i-1)
+    end do
+  end subroutine mlbddc_compute_subdomain_elmat_counts_and_displs
+    
   
-!    ! Computes the harmonic extensions, i.e., mlbddc%rPhi(:,:)
-!  subroutine compute_harmonic_extensions_with_constraints (mlbddc, A_rr, M_rr, rPhi, system, iparm, msglvl)
-!    implicit none
-!    type(par_preconditioner_dd_mlevel_bddc_t), intent(inout), target        :: mlbddc
-!    integer                  , intent(in), target, optional :: iparm(64)
-!    integer                  , intent(in), optional         :: msglvl
-
-!    type(serial_scalar_matrix_t)      , intent(inout)   :: A_rr
-!    type(preconditioner_t)     , intent(inout)   :: M_rr
-!    real(rp)              , intent(inout)   :: rPhi( mlbddc%p_mat%dof_dist_domain%nl, &
-!                                                     mlbddc%nl_edges+mlbddc%nl_corners)    
-!    character(len=1)      , intent(in)      :: system ! Information about the regular system or the system assoc                                                        iated to the transpose matrix
-
-!    ! Locals
-!    real(rp), allocatable :: work1(:,:), work2(:,:), work3(:,:)
-!    integer(ip)           :: i, j, k, base, iadj, jdof, icoarse
-
-!    type(post_file_t)      :: lupos
-!    integer              :: me, np
-!    ! type(solver_control_t)      :: spars
-!    ! MATRIX MARKET          ! Write files with specified matrices
-!  integer(ip)              :: lunou    ! Creation of the file
-!  character(len=256)       :: filename ! Name of the file
-!    ! rPhi(:, 1:(mlbddc%nl_edges+mlbddc%nl_corners) ) = 0.0
-!    ! Set rPhi_c
-!    ! do i=1, mlbddc%nl_corners 
-!    !    rPhi(i, i) = 1.0_rp
-!    ! end do
-
-!    if ( mlbddc%nl_corners+mlbddc%nl_edges > 0 ) then
-!       call memalloc ( mlbddc%A_rr%graph%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work1, __FILE__,__LINE__ )
-!       call memalloc ( mlbddc%A_rr%graph%nv, (mlbddc%nl_corners+mlbddc%nl_edges), work2, __FILE__,__LINE__ )
-
-!       work1 = 0.0_rp
-!       j = 1
-!       do i = mlbddc%p_mat%dof_dist_domain%nl   + 1, mlbddc%A_rr%graph%nv
-!         work1 (i,j) = 1.0_rp
-!         j = j + 1 
-!       end do
-!      
-!       mlbddc%spars_harm%nrhs=(mlbddc%nl_corners+mlbddc%nl_edges) 
-!       ! mlbddc%spars%method=direct
-!       work2 = 0.0_rp
-
-!       if ( mlbddc%internal_problems == handled_by_bddc_module) then
-!          call solve( A_rr, M_rr, &
-!                      work1, mlbddc%A_rr%graph%nv, &
-!                      work2,  mlbddc%A_rr%graph%nv, &
-!                      mlbddc%spars_harm)
-!       else 
-!          check(.false.)
-!!!$          call solve( mlbddc%A_rr_op, mlbddc%M_inv_op_rr, &
-!!!$                      work1, mlbddc%A_rr%graph%nv, &
-!!!$                      work2,  mlbddc%A_rr%graph%nv, &
-!!!$                      mlbddc%spars_harm)
-!       end if
-
-!             rPhi = work2 (1:mlbddc%p_mat%dof_dist_domain%nl ,:) 
-
-
-!       call memfree ( work1,__FILE__,__LINE__) 
-!       call memfree ( work2,__FILE__,__LINE__) 
-!    end if
-!  end subroutine compute_harmonic_extensions_with_constraints
-  
+  subroutine mlbddc_compute_and_gather_subdomain_elmat ( this, subdomain_elmat_gathered )
+     implicit none
+     class(mlbddc_t)      , intent(inout) :: this
+     real(rp), allocatable, intent(inout) :: subdomain_elmat_gathered(:)
+     type(par_environment_t), pointer :: par_environment
+     integer(ip), allocatable :: counts(:)
+     integer(ip), allocatable :: displs(:)
+     real(rp), allocatable :: subdomain_elmat(:,:)
+     real(rp) :: dummy_real_array_rp_2D(0,0)
+     real(rp) :: dummy_real_array_rp_1D(0)
+     integer(ip) :: dummy_integer_array_ip(0)
+     integer(ip) :: l1_to_l2_size
+     par_environment => this%get_par_environment()
+     assert (par_environment%am_i_l1_to_l2_task())
+     
+     if ( par_environment%am_i_l1_to_l2_root() ) then
+       call this%compute_subdomain_elmat_counts_and_displs(counts, displs)
+       l1_to_l2_size = par_environment%get_l1_to_l2_size()
+       
+       if ( allocated(subdomain_elmat_gathered) ) & 
+         call memfree (subdomain_elmat_gathered, __FILE__, __LINE__)
+         
+       call memalloc ( displs(l1_to_l2_size), & 
+                       subdomain_elmat_gathered, & 
+                       __FILE__, __LINE__ ) 
+       
+       call par_environment%l2_from_l1_gather( input_data      = dummy_real_array_rp_2D, &
+                                               recv_counts     = counts, &
+                                               displs          = displs, &
+                                               output_data     = subdomain_elmat_gathered )
+       
+       call memfree ( counts, __FILE__, __LINE__ )
+       call memfree ( displs, __FILE__, __LINE__ )
+     else
+       call this%compute_subdomain_elmat(subdomain_elmat)
+       call par_environment%l2_from_l1_gather( input_data      = subdomain_elmat, &
+                                               recv_counts     = dummy_integer_array_ip, &
+                                               displs          = dummy_integer_array_ip, &
+                                               output_data     = dummy_real_array_rp_1D )
+       call memfree ( subdomain_elmat, __FILE__, __LINE__ )
+     end if
+     
+     
+    ! if ( par_environment%am_i_l1_to_l2_root() ) then
+    !  l1_to_l2_size = par_environment%get_l1_to_l2_size()
+    !  if (allocated(lst_gids)) call memfree ( lst_gids, __FILE__, __LINE__ )
+    !  call memalloc ( displs(l1_to_l2_size), lst_gids, __FILE__, __LINE__ )
+    !  call par_environment%l2_from_l1_gather( input_data_size = 0, &
+    !                                                       input_data      = dummy_integer_array_igp, &
+    !                                                       recv_counts     = recv_counts, &
+    !                                                       displs          = displs, &
+    !                                                       output_data     = lst_gids )
+    !else
+    !  fe_space    => this%get_fe_space()
+    !  ! Pack dofs_objects_gids_per_field(:) into plain buffer for further data exchange
+    !  call memalloc ( sum(this%num_dofs_objects_per_field), buffer, __FILE__, __LINE__ ) 
+    !  spos = 1
+    !  do i=1, fe_space%get_number_fe_spaces()
+    !    epos = spos + this%num_dofs_objects_per_field(i)-1
+    !    buffer(spos:epos) = this%dofs_objects_gids_per_field(i)%a
+    !    spos = epos +1 
+    !  end do
+    !  
+    !  call par_environment%l2_from_l1_gather( input_data_size = size(buffer), &
+    !                                                       input_data      = buffer, &
+    !                                                       recv_counts     = dummy_integer_array_ip, &
+    !                                                       displs          = dummy_integer_array_ip, &
+    !                                                       output_data     = dummy_integer_array_igp )
+    !  call memfree ( buffer, __FILE__, __LINE__ )
+    !end if    
+     
+     
+  end subroutine mlbddc_compute_and_gather_subdomain_elmat
   
   
   subroutine mlbddc_free(this)
@@ -1029,7 +1140,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   
   function mlbddc_get_total_number_coarse_dofs ( this )
     implicit none
-    class(mlbddc_t)           , intent(inout) :: this
+    class(mlbddc_t)           , intent(in) :: this
     integer(ip)                               :: mlbddc_get_total_number_coarse_dofs
     type(par_fe_space_t)     , pointer        :: fe_space
     integer(ip)                               :: field_id
@@ -1046,7 +1157,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   
   function mlbddc_get_block_number_coarse_dofs ( this, block_id )
     implicit none
-    class(mlbddc_t)           , intent(inout) :: this
+    class(mlbddc_t)           , intent(in)    :: this
     integer(ip)               , intent(in)    :: block_id
     integer(ip)                               :: mlbddc_get_block_number_coarse_dofs 
     type(par_fe_space_t)      , pointer       :: fe_space
@@ -1398,7 +1509,6 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     end if    
   end subroutine mlbddc_coarse_gather_coarse_dofs_gids
 
-  
   subroutine mlbddc_coarse_gather_vefs_gids_dofs_objects ( this, recv_counts, displs, vef_gids )
     implicit none
     class(mlbddc_coarse_t)     , intent(in)   :: this

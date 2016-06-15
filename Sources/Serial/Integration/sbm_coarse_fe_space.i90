@@ -1499,6 +1499,21 @@ end function coarse_fe_space_create_itfc_coarse_fe_vef_iterator
     coarse_fe_space_get_par_environment => this%coarse_triangulation%get_par_environment()
   end function coarse_fe_space_get_par_environment
   
+  function coarse_fe_space_get_number_local_coarse_fes (this)
+    implicit none
+    class(coarse_fe_space_t), intent(in) :: this 
+    integer(ip)                          :: coarse_fe_space_get_number_local_coarse_fes
+    coarse_fe_space_get_number_local_coarse_fes = this%coarse_triangulation%get_num_local_cells()
+  end function coarse_fe_space_get_number_local_coarse_fes
+  
+  function coarse_fe_space_get_number_ghost_coarse_fes (this)
+    implicit none
+    class(coarse_fe_space_t), intent(in) :: this 
+    integer(ip)                          :: coarse_fe_space_get_number_ghost_coarse_fes
+    coarse_fe_space_get_number_ghost_coarse_fes = this%coarse_triangulation%get_num_ghost_cells()
+  end function coarse_fe_space_get_number_ghost_coarse_fes
+  
+  
   function coarse_fe_space_get_number_fields( this)
     implicit none
     class(coarse_fe_space_t), intent(in) :: this 
