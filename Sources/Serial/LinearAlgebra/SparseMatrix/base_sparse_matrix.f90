@@ -223,7 +223,7 @@ module base_sparse_matrix_names
      procedure, public :: set_state_assembled_symbolic     => base_sparse_matrix_set_state_assembled_symbolic
      procedure, public :: set_state_update                 => base_sparse_matrix_set_state_update
      procedure, public :: state_is_start                   => base_sparse_matrix_state_is_start
-     procedure, public :: state_is_properties_setted       => base_sparse_matrix_state_is_properties_setted
+     procedure, public :: state_is_properties_set          => base_sparse_matrix_state_is_properties_set
      procedure, public :: state_is_created                 => base_sparse_matrix_state_is_created
      procedure, public :: state_is_build_symbolic          => base_sparse_matrix_state_is_build_symbolic
      procedure, public :: state_is_build_numeric           => base_sparse_matrix_state_is_build_numeric
@@ -1112,7 +1112,7 @@ contains
     end function base_sparse_matrix_state_is_start
 
 
-    function base_sparse_matrix_state_is_properties_setted(this) result(state_properties_setted)
+    function base_sparse_matrix_state_is_properties_set(this) result(state_properties_setted)
     !-----------------------------------------------------------------
     !< Check if the matrix state is SPARSE_MATRIX_STATE_PROPERTIES_SET
     !-----------------------------------------------------------------
@@ -1120,7 +1120,7 @@ contains
         logical                                 :: state_properties_setted
     !-----------------------------------------------------------------
         state_properties_setted = (this%state == SPARSE_MATRIX_STATE_PROPERTIES_SET)
-    end function base_sparse_matrix_state_is_properties_setted
+    end function base_sparse_matrix_state_is_properties_set
 
 
     function base_sparse_matrix_state_is_created(this) result(state_created)
@@ -1415,7 +1415,7 @@ contains
         integer(ip), optional,       intent(in)    :: nz
     !-----------------------------------------------------------------
         assert(this%state == SPARSE_MATRIX_STATE_START .or. this%state == SPARSE_MATRIX_STATE_PROPERTIES_SET)
-        if(.not. this%state_is_properties_setted()) then
+        if(.not. this%state_is_properties_set()) then
             call this%set_symmetric_storage(.false.)
             this%symmetric = .false.
             this%sign = SPARSE_MATRIX_SIGN_UNKNOWN

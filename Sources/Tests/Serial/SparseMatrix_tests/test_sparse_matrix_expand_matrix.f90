@@ -56,6 +56,14 @@ print*, '!------------------------------------------------------------------'
 print*, '! EMPTY (NNZ==0) - SYMMETRIC STORAGE - NUMERIC'
 print*, '!------------------------------------------------------------------'
 
+    call sparse_matrix%expand_matrix_symbolic(C_T_nz = nz_to_expand,                     &
+                                             C_T_num_cols = num_rows_and_cols_to_expand, &
+                                             C_T_ia = C_T_ia,                            &
+                                             C_T_ja = C_T_ja,                            &
+                                             I_nz   = nz_to_expand,                      &
+                                             I_ia   = I_ia,                              &
+                                             I_ja   = I_ja,                              &
+                                             to     = expanded_sparse_matrix)
     call sparse_matrix%expand_matrix_numeric(C_T_nz = nz_to_expand,                      &
                                              C_T_num_cols = num_rows_and_cols_to_expand, &
                                              C_T_ia = C_T_ia,                            &
@@ -74,6 +82,16 @@ print*, '!------------------------------------------------------------------'
 print*, '! EMPTY (NNZ==0) - SYMMETRIC STORAGE - NUMERIC - NON SYMETRIC STORAGE FOR EXPANDED'
 print*, '!------------------------------------------------------------------'
 
+
+    call sparse_matrix%expand_matrix_symbolic(C_T_nz = nz_to_expand,                     &
+                                             C_T_num_cols = num_rows_and_cols_to_expand, &
+                                             C_T_ia = C_T_ia,                            &
+                                             C_T_ja = C_T_ja,                            &
+                                             I_nz   = nz_to_expand,                      &
+                                             I_ia   = I_ia,                              &
+                                             I_ja   = I_ja,                              &
+                                             to     = expanded_sparse_matrix,            &
+                                             symmetric_storage = .false.)
     call sparse_matrix%expand_matrix_numeric(C_T_nz = nz_to_expand,                      &
                                              C_T_num_cols = num_rows_and_cols_to_expand, &
                                              C_T_ia = C_T_ia,                            &
@@ -132,6 +150,15 @@ print*, '!------------------------------------------------------------------'
 
     call sparse_matrix%convert('CSR')
 
+
+    call sparse_matrix%expand_matrix_symbolic(C_T_nz = nz_to_expand,                     &
+                                             C_T_num_cols = num_rows_and_cols_to_expand, &
+                                             C_T_ia = C_T_ia,                            &
+                                             C_T_ja = C_T_ja,                            &
+                                             I_nz   = nz_to_expand,                      &
+                                             I_ia   = I_ia,                              &
+                                             I_ja   = I_ja,                              &
+                                             to     = expanded_sparse_matrix) 
     call sparse_matrix%expand_matrix_numeric(C_T_nz = nz_to_expand,                      &
                                              C_T_num_cols = num_rows_and_cols_to_expand, &
                                              C_T_ia = C_T_ia,                            &
@@ -150,6 +177,15 @@ print*, '!------------------------------------------------------------------'
 print*, '! EMPTY (NNZ==0) - NON SYMMETRIC STORAGE - NUMERIC - SYMETRIC STORAGE FOR EXPANDED'
 print*, '!------------------------------------------------------------------'
 
+    call sparse_matrix%expand_matrix_symbolic(C_T_nz = nz_to_expand,                     &
+                                             C_T_num_cols = num_rows_and_cols_to_expand, &
+                                             C_T_ia = C_T_ia,                            &
+                                             C_T_ja = C_T_ja,                            &
+                                             I_nz   = nz_to_expand,                      &
+                                             I_ia   = I_ia,                              &
+                                             I_ja   = I_ja,                              &
+                                             to     = expanded_sparse_matrix,            &
+                                             symmetric_storage = .true.)
     call sparse_matrix%expand_matrix_numeric(C_T_nz = nz_to_expand,                      &
                                              C_T_num_cols = num_rows_and_cols_to_expand, &
                                              C_T_ia = C_T_ia,                            &
@@ -241,6 +277,14 @@ print*, '!------------------------------------------------------------------'
 print*, '! SYMMETRIC STORAGE - NUMERIC'
 print*, '!------------------------------------------------------------------'
 
+    call sparse_matrix%expand_matrix_symbolic(C_T_nz = nz_to_expand,                     &
+                                             C_T_num_cols = num_rows_and_cols_to_expand, &
+                                             C_T_ia = C_T_ia,                            &
+                                             C_T_ja = C_T_ja,                            &
+                                             I_nz   = nz_to_expand,                      &
+                                             I_ia   = I_ia,                              &
+                                             I_ja   = I_ja,                              &
+                                             to     = expanded_sparse_matrix)
     call sparse_matrix%expand_matrix_numeric(C_T_nz = nz_to_expand,                      &
                                              C_T_num_cols = num_rows_and_cols_to_expand, &
                                              C_T_ia = C_T_ia,                            &
@@ -259,6 +303,15 @@ print*, '!------------------------------------------------------------------'
 print*, '! SYMMETRIC STORAGE - NUMERIC - NON SYMETRIC STORAGE FOR EXPANDED'
 print*, '!------------------------------------------------------------------'
 
+    call sparse_matrix%expand_matrix_symbolic(C_T_nz = nz_to_expand,                     &
+                                             C_T_num_cols = num_rows_and_cols_to_expand, &
+                                             C_T_ia = C_T_ia,                            &
+                                             C_T_ja = C_T_ja,                            &
+                                             I_nz   = nz_to_expand,                      &
+                                             I_ia   = I_ia,                              &
+                                             I_ja   = I_ja,                              &
+                                             to     = expanded_sparse_matrix,            &
+                                             symmetric_storage = .false.)
     call sparse_matrix%expand_matrix_numeric(C_T_nz = nz_to_expand,                      &
                                              C_T_num_cols = num_rows_and_cols_to_expand, &
                                              C_T_ia = C_T_ia,                            &
@@ -338,7 +391,14 @@ print*, '!------------------------------------------------------------------'
 
     call sparse_matrix%convert('CSR')
 
-
+    call sparse_matrix%expand_matrix_symbolic(C_T_nz = nz_to_expand,                     &
+                                             C_T_num_cols = num_rows_and_cols_to_expand, &
+                                             C_T_ia = C_T_ia,                            &
+                                             C_T_ja = C_T_ja,                            &
+                                             I_nz   = nz_to_expand,                      &
+                                             I_ia   = I_ia,                              &
+                                             I_ja   = I_ja,                              &
+                                             to     = expanded_sparse_matrix) 
     call sparse_matrix%expand_matrix_numeric(C_T_nz = nz_to_expand,                      &
                                              C_T_num_cols = num_rows_and_cols_to_expand, &
                                              C_T_ia = C_T_ia,                            &
@@ -357,6 +417,15 @@ print*, '!------------------------------------------------------------------'
 print*, '! NON SYMMETRIC STORAGE - NUMERIC - SYMETRIC STORAGE FOR EXPANDED'
 print*, '!------------------------------------------------------------------'
 
+    call sparse_matrix%expand_matrix_symbolic(C_T_nz = nz_to_expand,                     &
+                                             C_T_num_cols = num_rows_and_cols_to_expand, &
+                                             C_T_ia = C_T_ia,                            &
+                                             C_T_ja = C_T_ja,                            &
+                                             I_nz   = nz_to_expand,                      &
+                                             I_ia   = I_ia,                              &
+                                             I_ja   = I_ja,                              &
+                                             to     = expanded_sparse_matrix,            &
+                                             symmetric_storage = .true.)
     call sparse_matrix%expand_matrix_numeric(C_T_nz = nz_to_expand,                      &
                                              C_T_num_cols = num_rows_and_cols_to_expand, &
                                              C_T_ia = C_T_ia,                            &
