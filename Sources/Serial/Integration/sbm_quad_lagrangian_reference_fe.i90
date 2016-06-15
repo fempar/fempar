@@ -83,20 +83,6 @@ function quad_lagrangian_reference_fe_get_number_interior_points_x_dim(this,numb
      & int(real(number_interior_points,rp)**(1.0_rp/real(dimension,rp)),ip)
 end function quad_lagrangian_reference_fe_get_number_interior_points_x_dim
 
-!==================================================================================================
-subroutine quad_lagrangian_reference_fe_free ( this )
-  implicit none 
-  class(quad_lagrangian_reference_fe_t), intent(inout) :: this 
-  
-  ! quad_lagrangian_reference_fe_t variables
-  if(allocated(this%node_component_array)) & 
-       call memfree(this%node_component_array,__FILE__,__LINE__)
-  if(allocated(this%node_array_component)) & 
-       call memfree(this%node_array_component,__FILE__,__LINE__)
-  this%number_nodes_scalar = 0
-  call reference_fe_free ( this )
-end subroutine quad_lagrangian_reference_fe_free
-
 function quad_lagrangian_reference_fe_get_characteristic_length ( this )
   implicit none 
   class(quad_lagrangian_reference_fe_t), intent(in) :: this 
@@ -104,17 +90,6 @@ function quad_lagrangian_reference_fe_get_characteristic_length ( this )
 
   quad_lagrangian_reference_fe_get_characteristic_length =  2.0_rp
 end function quad_lagrangian_reference_fe_get_characteristic_length
-
-subroutine quad_lagrangian_reference_fe_set_nodal_quadrature (this)
-  implicit none
-  class(quad_lagrangian_reference_fe_t), intent(inout) :: this
-  
-  ! Create nodal quadrature
-  call this%nodal_quadrature%create(this%number_dimensions,this%number_nodes_scalar)
-
-  ! Fill nodal quadrature
-  call this%fill_nodal_quadrature ( this%nodal_quadrature, this%order )
-end subroutine quad_lagrangian_reference_fe_set_nodal_quadrature
 
 subroutine quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values (this, code, values, &
      &     nodal_codes, nodal_values, unknown_component)
@@ -1724,13 +1699,3 @@ end subroutine face_shapen
       end do
     end do
   end subroutine quad_lagrangian_reference_fe_get_subelements_connectivity
-
-!==================================================================================================
-  function quad_lagrangian_reference_fe_get_number_subelements(this) result(number_subelements)
-    implicit none
-    class(quad_lagrangian_reference_fe_t), intent(in)    :: this
-    integer(ip)                                          :: number_subelements
-
-    number_subelements = this%order**this%number_dimensions
-  end function quad_lagrangian_reference_fe_get_number_subelements
-  

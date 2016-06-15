@@ -678,6 +678,7 @@ module reference_fe_names
      ! Additional deferred methods
      procedure (fill_scalar_interface)                     , deferred :: fill_scalar
      procedure (fill_quadrature_interface)                 , deferred :: fill_quadrature
+     procedure (fill_nodal_quadrature_interface)           , deferred :: fill_nodal_quadrature     
      procedure (fill_interpolation_interface)              , deferred :: fill_interpolation
      procedure (fill_face_interpolation_interface)         , deferred :: fill_face_interpolation
      procedure (get_number_interior_points_x_dim_interface), deferred :: get_number_interior_points_x_dim
@@ -704,9 +705,15 @@ module reference_fe_names
      procedure :: get_divergence_vector            => lagrangian_reference_fe_get_divergence_vector
      procedure :: get_curl_vector                  => lagrangian_reference_fe_get_curl_vector
      procedure :: interpolate_nodal_values         => lagrangian_reference_fe_interpolate_nodal_values
+     procedure :: set_nodal_quadrature             => lagrangian_reference_fe_set_nodal_quadrature
+     procedure :: set_scalar_field_to_nodal_values => lagrangian_reference_fe_set_scalar_field_to_nodal_values
+     procedure :: set_vector_field_to_nodal_values => lagrangian_reference_fe_set_vector_field_to_nodal_values
+     procedure :: set_tensor_field_to_nodal_values => lagrangian_reference_fe_set_tensor_field_to_nodal_values
      procedure :: evaluate_fe_function_scalar      => lagrangian_reference_fe_evaluate_fe_function_scalar
      procedure :: evaluate_fe_function_vector      => lagrangian_reference_fe_evaluate_fe_function_vector
      procedure :: evaluate_fe_function_tensor      => lagrangian_reference_fe_evaluate_fe_function_tensor
+     procedure :: get_number_subelements           => lagrangian_reference_fe_get_number_subelements
+     procedure :: free                             => lagrangian_reference_fe_free
      ! Concrete TBPs of this derived data type
      procedure :: fill                             => lagrangian_reference_fe_fill
      procedure :: fill_field_components            => lagrangian_reference_fe_fill_field_components
@@ -729,6 +736,14 @@ module reference_fe_names
        class(lagrangian_reference_fe_t), intent(in)    :: this
        type(quadrature_t)              , intent(inout) :: quadrature       
      end subroutine fill_quadrature_interface
+     
+     subroutine fill_nodal_quadrature_interface ( this, quadrature, order )
+     import :: lagrangian_reference_fe_t, quadrature_t, ip
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       type(quadrature_t)              , intent(inout) :: quadrature
+       integer(ip)                     , intent(in)    :: order
+     end subroutine fill_nodal_quadrature_interface
      
      subroutine fill_interpolation_interface ( this, interpolation, order, coord_ip )
      import :: lagrangian_reference_fe_t, interpolation_t, ip, rp
@@ -792,32 +807,20 @@ module reference_fe_names
   type, extends(lagrangian_reference_fe_t) :: quad_lagrangian_reference_fe_t
      private
    contains 
-     ! Deferred TBP implementors
+     ! Deferred TBP implementors from reference_fe_t
+     procedure :: check_compatibility_of_vefs      => quad_lagrangian_reference_fe_check_compatibility_of_vefs
+     procedure :: get_characteristic_length        => quad_lagrangian_reference_fe_get_characteristic_length
+     procedure :: get_subelements_connectivity     => quad_lagrangian_reference_fe_get_subelements_connectivity
+     ! Deferred TBP implementors from lagrangian_reference_fe_t
+     procedure :: fill_scalar                      => quad_lagrangian_reference_fe_fill_scalar
      procedure :: fill_quadrature                  => quad_lagrangian_reference_fe_fill_quadrature
+     procedure :: fill_nodal_quadrature            => quad_lagrangian_reference_fe_fill_nodal_quadrature
      procedure :: fill_interpolation               => quad_lagrangian_reference_fe_fill_interpolation
      procedure :: fill_face_interpolation          => quad_lagrangian_reference_fe_fill_face_interpolation
      procedure :: get_number_interior_points_x_dim => quad_lagrangian_reference_fe_get_number_interior_points_x_dim
      procedure :: compute_permutation_2D           => quad_lagrangian_reference_fe_compute_permutation_2D
      procedure :: compute_number_nodes_scalar      => quad_lagrangian_reference_fe_compute_number_nodes_scalar
      procedure :: compute_number_quadrature_points => quad_lagrangian_reference_fe_compute_number_quadrature_points
-     
-
-     procedure :: check_compatibility_of_vefs                                         &
-          &                 => quad_lagrangian_reference_fe_check_compatibility_of_vefs 
-
-     procedure :: set_nodal_quadrature => quad_lagrangian_reference_fe_set_nodal_quadrature
-     procedure :: fill_nodal_quadrature => quad_lagrangian_reference_fe_fill_nodal_quadrature
-     procedure :: set_scalar_field_to_nodal_values => quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values
-     procedure :: set_vector_field_to_nodal_values => quad_lagrangian_reference_fe_set_vector_field_to_nodal_values
-     procedure :: set_tensor_field_to_nodal_values => quad_lagrangian_reference_fe_set_tensor_field_to_nodal_values
-
-     ! Concrete TBPs of this derived data type
-     procedure :: free                      => quad_lagrangian_reference_fe_free
-     procedure :: get_characteristic_length &
-          &                          => quad_lagrangian_reference_fe_get_characteristic_length  
-     procedure :: fill_scalar => quad_lagrangian_reference_fe_fill_scalar
-     procedure :: get_subelements_connectivity => quad_lagrangian_reference_fe_get_subelements_connectivity
-     procedure :: get_number_subelements => quad_lagrangian_reference_fe_get_number_subelements
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t
@@ -826,31 +829,20 @@ module reference_fe_names
   type, extends(lagrangian_reference_fe_t) :: tri_lagrangian_reference_fe_t
      private
    contains 
-     ! Deferred TBP implementors
+     ! Deferred TBP implementors from reference_fe_t
+     procedure :: check_compatibility_of_vefs      => tri_lagrangian_reference_fe_check_compatibility_of_vefs
+     procedure :: get_characteristic_length        => tri_lagrangian_reference_fe_get_characteristic_length
+     procedure :: get_subelements_connectivity     => tri_lagrangian_reference_fe_get_subelements_connectivity
+     ! Deferred TBP implementors from lagrangian_reference_fe_t
+     procedure :: fill_scalar                      => tri_lagrangian_reference_fe_fill_scalar
      procedure :: fill_quadrature                  => tri_lagrangian_reference_fe_fill_quadrature
+     procedure :: fill_nodal_quadrature            => tri_lagrangian_reference_fe_fill_nodal_quadrature
      procedure :: fill_interpolation               => tri_lagrangian_reference_fe_fill_interpolation
      procedure :: fill_face_interpolation          => tri_lagrangian_reference_fe_fill_face_interpolation
      procedure :: get_number_interior_points_x_dim => tri_lagrangian_reference_fe_get_number_interior_points_x_dim
      procedure :: compute_permutation_2D           => tri_lagrangian_reference_fe_compute_permutation_2D
      procedure :: compute_number_nodes_scalar      => tri_lagrangian_reference_fe_compute_number_nodes_scalar
      procedure :: compute_number_quadrature_points => tri_lagrangian_reference_fe_compute_number_quadrature_points
-
-     procedure :: check_compatibility_of_vefs                                         &
-          &                 => tri_lagrangian_reference_fe_check_compatibility_of_vefs 
-
-     procedure :: set_nodal_quadrature => tri_lagrangian_reference_fe_set_nodal_quadrature
-     procedure :: fill_nodal_quadrature => tri_lagrangian_reference_fe_fill_nodal_quadrature
-     procedure :: set_scalar_field_to_nodal_values => tri_lagrangian_reference_fe_set_scalar_field_to_nodal_values
-     procedure :: set_vector_field_to_nodal_values => tri_lagrangian_reference_fe_set_vector_field_to_nodal_values
-     procedure :: set_tensor_field_to_nodal_values => tri_lagrangian_reference_fe_set_tensor_field_to_nodal_values
-
-     ! Concrete TBPs of this derived data type
-     procedure :: free                      => tri_lagrangian_reference_fe_free
-     procedure :: get_characteristic_length &
-          &                          => tri_lagrangian_reference_fe_get_characteristic_length
-     procedure :: fill_scalar => tri_lagrangian_reference_fe_fill_scalar
-     procedure :: get_subelements_connectivity => tri_lagrangian_reference_fe_get_subelements_connectivity
-     procedure :: get_number_subelements => tri_lagrangian_reference_fe_get_number_subelements
   end type tri_lagrangian_reference_fe_t
   
   public :: tri_lagrangian_reference_fe_t

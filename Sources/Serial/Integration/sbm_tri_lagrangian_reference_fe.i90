@@ -112,19 +112,6 @@ function tri_lagrangian_reference_fe_get_number_interior_points_x_dim(this,numbe
   end if
 end function tri_lagrangian_reference_fe_get_number_interior_points_x_dim
 
-!==================================================================================================
-subroutine tri_lagrangian_reference_fe_free ( this )
-  implicit none 
-  class(tri_lagrangian_reference_fe_t), intent(inout) :: this 
-  ! tri_lagrangian_reference_fe_t variables
-  if(allocated(this%node_component_array)) & 
-       call memfree(this%node_component_array,__FILE__,__LINE__)
-  if(allocated(this%node_array_component)) & 
-       call memfree(this%node_array_component,__FILE__,__LINE__)
-  this%number_nodes_scalar = 0
-  call reference_fe_free ( this )
-end subroutine tri_lagrangian_reference_fe_free
-
 function tri_lagrangian_reference_fe_get_characteristic_length ( this )
   implicit none 
   class(tri_lagrangian_reference_fe_t), intent(in) :: this 
@@ -133,81 +120,6 @@ function tri_lagrangian_reference_fe_get_characteristic_length ( this )
   tri_lagrangian_reference_fe_get_characteristic_length =   &
      &   real(this%number_dimensions,rp)**(-1.0_rp/real(this%number_dimensions,rp))
 end function tri_lagrangian_reference_fe_get_characteristic_length
-
-subroutine tri_lagrangian_reference_fe_set_nodal_quadrature (this)
-  implicit none
-  class(tri_lagrangian_reference_fe_t), intent(inout) :: this
-  
-  ! Create nodal quadrature
-  call this%nodal_quadrature%create(this%number_dimensions,this%number_nodes_scalar)
-
-  ! Fill nodal quadrature
-  call this%fill_nodal_quadrature ( this%nodal_quadrature, this%order )
-end subroutine tri_lagrangian_reference_fe_set_nodal_quadrature
-
-subroutine tri_lagrangian_reference_fe_set_scalar_field_to_nodal_values (this, code, values, &
-     &     nodal_codes, nodal_values, unknown_component)
-  implicit none
-  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: code
-  real(rp)                            , intent(in)    :: values(:)
-  integer(ip)                         , intent(in)    :: nodal_codes(:)
-  real(rp)                            , intent(inout) :: nodal_values(:)
-  integer(ip), optional               , intent(in)    :: unknown_component
-  integer(ip) :: i, icomp
-
-  assert(size(nodal_values) == this%number_nodes)
-  assert(size(values) == this%number_nodes_scalar)
-
-  icomp = 1
-  if(present(unknown_component)) icomp = unknown_component
-
-  do i = 1, this%number_nodes_scalar
-     if(nodal_codes(this%node_array_component(i,icomp)) == code) then
-        nodal_values(this%node_array_component(i,icomp)) = values(i)
-     end if
-  end do
-     
-end subroutine tri_lagrangian_reference_fe_set_scalar_field_to_nodal_values
-
-subroutine tri_lagrangian_reference_fe_set_vector_field_to_nodal_values (this, code, values, &
-     &     nodal_codes, nodal_values)
-  implicit none
-  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: code
-  type(vector_field_t)                , intent(in)    :: values(:)
-  integer(ip)                         , intent(in)    :: nodal_codes(:)
-  real(rp)                            , intent(inout) :: nodal_values(:)
-  integer(ip) :: i, icomp
-
-  assert(size(nodal_values) == this%number_nodes)
-  assert(size(values) == this%number_nodes_scalar)
-
-  do icomp = 1, this%number_field_components
-     do i = 1, this%number_nodes_scalar
-        if(nodal_codes(this%node_array_component(i,icomp)) == code) then
-           nodal_values(this%node_array_component(i,icomp)) = values(i)%get(icomp)
-        end if
-     end do
-  end do
-     
-end subroutine tri_lagrangian_reference_fe_set_vector_field_to_nodal_values
-
-subroutine tri_lagrangian_reference_fe_set_tensor_field_to_nodal_values (this, code, values, &
-     &     nodal_codes, nodal_values)
-  implicit none
-  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: code
-  type(tensor_field_t)                , intent(in)    :: values(:)
-  integer(ip)                         , intent(in)    :: nodal_codes(:)
-  real(rp)                            , intent(inout) :: nodal_values(:)
-  integer(ip) :: i, icomp, jcomp
-
-  write(*,*) ' ERROR in: ',__FILE__,__LINE__
-  write(*,*) ' Subroutine not implemented for tensor field unknowns '
-  check( .false. )
-
-end subroutine tri_lagrangian_reference_fe_set_tensor_field_to_nodal_values
 
 subroutine tri_lagrangian_reference_fe_fill_scalar (this)
   implicit none
@@ -1583,33 +1495,6 @@ subroutine tri_lagrangian_reference_fe_fill_face_interpolation (this,face_interp
 end subroutine tri_lagrangian_reference_fe_fill_face_interpolation
 
 !==================================================================================================
-  subroutine P_matove(xmatr,vecto,ndime,ntens)
-    !-----------------------------------------------------------------------
-    !                                      
-    ! This routine stores a symmetric matrix XMATR into a vector VECTO
-    !
-    !-----------------------------------------------------------------------
-    implicit none
-    integer(ip), intent(in)  :: ndime,ntens
-    real(rp)   , intent(in)  :: xmatr(ndime,ndime)
-    real(rp)   , intent(out) :: vecto(ntens)
-
-    if(ndime.eq.2) then
-       vecto(1)=xmatr(1,1)
-       vecto(3)=xmatr(1,2)
-       vecto(2)=xmatr(2,2)
-    else
-       vecto(1)=xmatr(1,1)
-       vecto(4)=xmatr(1,2)
-       vecto(2)=xmatr(2,2)
-       vecto(5)=xmatr(1,3)
-       vecto(6)=xmatr(2,3)
-       vecto(3)=xmatr(3,3)
-    end if
-
-  end subroutine P_matove
-
-!==================================================================================================
   subroutine tri_lagrangian_reference_fe_get_subelements_connectivity(this, connectivity)
     implicit none
     class(tri_lagrangian_reference_fe_t), intent(in)    :: this
@@ -1627,13 +1512,4 @@ end subroutine tri_lagrangian_reference_fe_fill_face_interpolation
     check( .false. )
   
   end subroutine tri_lagrangian_reference_fe_get_subelements_connectivity
-
-!==================================================================================================
-  function tri_lagrangian_reference_fe_get_number_subelements(this) result(number_subelements)
-    implicit none
-    class(tri_lagrangian_reference_fe_t), intent(in)    :: this
-    integer(ip)                                          :: number_subelements
-
-    number_subelements = this%order**this%number_dimensions
-  end function tri_lagrangian_reference_fe_get_number_subelements
   
