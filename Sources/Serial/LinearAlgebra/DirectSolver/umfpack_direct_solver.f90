@@ -310,26 +310,30 @@ contains
     end subroutine umfpack_direct_solver_solve_single_rhs_body
 
 
-    subroutine umfpack_direct_solver_solve_several_rhs_body(op, number_rows, number_rhs, x, y)
+    subroutine umfpack_direct_solver_solve_several_rhs_body(op, x, y)
     !-----------------------------------------------------------------
     ! Computes y <- A^-1 * x, using previously computed LU factorization
     !-----------------------------------------------------------------
         class(umfpack_direct_solver_t), intent(inout) :: op
-        integer(ip),                    intent(in)    :: number_rows
-        integer(ip),                    intent(in)    :: number_rhs
-        real(rp),                       intent(inout) :: x(number_rows, number_rhs)
-        real(rp),                       intent(inout) :: y(number_rows, number_rhs)
+        real(rp),                       intent(inout) :: x(:, :)
+        real(rp),                       intent(inout) :: y(:, :)
         class(base_sparse_matrix_t), pointer          :: matrix
         real(rp),                    pointer          :: val(:)
+        integer(ip)                                   :: number_rows
+        integer(ip)                                   :: number_rhs
         integer(ip)                                   :: status
         integer(ip)                                   :: i
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         assert ( .not. op%matrix%get_symmetric_storage() )
 !        print*, '(3) --> solve'
-        matrix => op%matrix%get_pointer_to_base_matrix()
+        matrix      => op%matrix%get_pointer_to_base_matrix()
+        number_rows = size(x,1)
+        number_rhs  = size(x,2)
         select type (matrix)
             type is (csr_sparse_matrix_t)
+                assert(matrix%get_num_rows()==number_rows .and. size(y,1) == number_rows)
+                assert(size(y,2) == number_rhs)
                 ! Fortran to C numbering 
                 call op%Fortran_to_C_numbering()
                 val => matrix%val(:)

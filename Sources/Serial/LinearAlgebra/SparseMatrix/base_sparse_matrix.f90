@@ -5054,6 +5054,9 @@ contains
         write (lunou, '(a,i10)') 'Number of rows:', this%num_rows
         write (lunou, '(a,i10)') 'Number of cols:', this%num_cols
         write (lunou, '(a,i10)') 'Number of non zeros (nnz):', this%nnz
+        write (lunou, '(a,i2)')  'Sign:', this%sign
+        write (lunou, '(a,l2)')  'Symmetric:', this%symmetric
+        write (lunou, '(a,l2)')  'Symmetric storage:', this%symmetric_storage
     
         write (lunou, '(a)')     'Rows list (ia):'
         if(allocated(this%ia)) then

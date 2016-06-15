@@ -252,20 +252,18 @@ contains
     end subroutine direct_solver_solve_single_rhs
 
 
-    subroutine direct_solver_solve_several_rhs(op, number_rows, number_rhs, x, y)
+    subroutine direct_solver_solve_several_rhs(op, x, y)
     !-----------------------------------------------------------------
     !< Computes y <- A^-1 * x
     !-----------------------------------------------------------------
         class(direct_solver_t), intent(inout) :: op
-        integer(ip),            intent(in)    :: number_rows
-        integer(ip),            intent(in)    :: number_rhs
-        real(rp),               intent(inout) :: x(number_rows, number_rhs)
-        real(rp),               intent(inout) :: y(number_rows, number_rhs)
+        real(rp),               intent(inout) :: x(:, :)
+        real(rp),               intent(inout) :: y(:, :)
     !-----------------------------------------------------------------
         assert(associated(op%base_direct_solver))
         if(.not. op%vector_spaces_are_created()) &
             call op%create_vector_spaces()
-            call op%base_direct_solver%solve(number_rows, number_rhs, x, y)
+            call op%base_direct_solver%solve(x, y)
     end subroutine direct_solver_solve_several_rhs
 
 

@@ -168,15 +168,13 @@ module base_direct_solver_names
             type(serial_scalar_array_t), intent(inout) :: y
         end subroutine base_direct_solver_solve_single_rhs_body
 
-        subroutine base_direct_solver_solve_several_rhs_body(op, number_rows, number_rhs, x, y)
+        subroutine base_direct_solver_solve_several_rhs_body(op, x, y)
             import base_direct_solver_t
             import ip
             import rp
             class(base_direct_solver_t), intent(inout) :: op
-            integer(ip),                 intent(in)    :: number_rows
-            integer(ip),                 intent(in)    :: number_rhs
-            real(rp),                    intent(inout) :: x(number_rows, number_rhs)
-            real(rp),                    intent(inout) :: y(number_rows, number_rhs)
+            real(rp),                    intent(inout) :: x(:, :)
+            real(rp),                    intent(inout) :: y(:, :)
         end subroutine base_direct_solver_solve_several_rhs_body
 
         subroutine  base_direct_solver_free_clean_body(this)
@@ -232,15 +230,13 @@ contains
         ! post-conditions
     end subroutine base_direct_solver_solve_single_rhs
 
-    subroutine base_direct_solver_solve_several_rhs(op, number_rows, number_rhs, x, y)
+    subroutine base_direct_solver_solve_several_rhs(op, x, y)
         class(base_direct_solver_t),  intent(inout) :: op
-        integer,                      intent(in)    :: number_rows
-        integer,                      intent(in)    :: number_rhs
-        real(rp),                     intent(inout) :: x(number_rows, number_rhs)
-        real(rp),                     intent(inout) ::y(number_rows, number_rhs)
+        real(rp),                     intent(inout) :: x(:, :)
+        real(rp),                     intent(inout) :: y(:, :)
         ! Check pre-conditions
         if(.not. op%state_is_numeric() .or. op%get_numerical_setup_pending()) call op%numerical_setup()
-        call op%solve_several_rhs_body(number_rows, number_rhs, x, y)
+        call op%solve_several_rhs_body(x, y)
         ! post-conditions
     end subroutine base_direct_solver_solve_several_rhs
 
