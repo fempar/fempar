@@ -3998,6 +3998,10 @@ contains
         write (lunou, '(a,i10)') 'Number of rows:', this%get_num_rows()
         write (lunou, '(a,i10)') 'Number of cols:', this%get_num_cols()
         write (lunou, '(a,i10)') 'Number of non zeros (nnz):', this%get_nnz()
+        write (lunou, '(a,i2)')  'Sign:', this%get_sign()
+        write (lunou, '(a,l2)')  'Symmetric:', this%is_symmetric()
+        write (lunou, '(a,l2)')  'Symmetric storage:', this%get_symmetric_storage()
+    
     
         write (lunou, '(a)')     'Rows list (irp):'
         if(allocated(this%irp)) then
