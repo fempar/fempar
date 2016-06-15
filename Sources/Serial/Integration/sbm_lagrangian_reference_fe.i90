@@ -44,6 +44,145 @@ subroutine lagrangian_reference_fe_create ( this, number_dimensions, order, fiel
 end subroutine lagrangian_reference_fe_create
 
 !==================================================================================================
+subroutine lagrangian_reference_fe_create_quadrature ( this, quadrature, max_order )
+  implicit none 
+  class(lagrangian_reference_fe_t), intent(in)    :: this  
+  type(quadrature_t)              , intent(inout) :: quadrature
+  integer(ip)           , optional, intent(in)    :: max_order
+  
+  integer(ip) :: ngaus, order
+  order = this%order
+  if ( present(max_order) ) then
+     order = max_order
+  else
+     order = this%order
+  end if
+  ngaus = this%compute_number_quadrature_points(order,this%number_dimensions)
+  call quadrature%create( this%number_dimensions, ngaus )
+  call this%fill_quadrature( quadrature )
+end subroutine lagrangian_reference_fe_create_quadrature
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_create_face_quadrature ( this, quadrature, max_order )
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)              , intent(inout) :: quadrature
+  integer(ip)           , optional, intent(in)    :: max_order
+
+  integer(ip) :: ngaus, order, face_dimensions
+  order = this%order
+  if ( present(max_order) ) then
+     order = max_order
+  else
+     order = this%order
+  end if
+  face_dimensions = this%number_dimensions - 1
+  ngaus = this%compute_number_quadrature_points(order,face_dimensions)
+  call quadrature%create( face_dimensions, ngaus )
+  call this%fill_quadrature( quadrature )
+end subroutine lagrangian_reference_fe_create_face_quadrature
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_create_interpolation ( this, quadrature, interpolation, compute_hessian )
+  implicit none 
+  class(lagrangian_reference_fe_t), intent(in)    :: this 
+  type(quadrature_t)                  , intent(in)    :: quadrature
+  type(interpolation_t)               , intent(inout) :: interpolation
+  logical                   , optional, intent(in)    :: compute_hessian
+
+  integer(ip) :: ntens, i
+
+  ntens = 0
+  do i = 1, this%number_dimensions
+     ntens = ntens + i
+  end do
+
+  call interpolation%create( this%number_dimensions, this%number_nodes_scalar, &
+                             quadrature%number_quadrature_points, ntens, compute_hessian )
+  
+  call this%fill_interpolation( interpolation, this%order, quadrature%coordinates )
+  
+end subroutine lagrangian_reference_fe_create_interpolation
+
+!==================================================================================================
+! This routine creates the interpolation corresponding to the evaluation of the shape functions on
+! integration points given by local_quadrature either on the face 'local_face_id' of the element or
+! in all the faces of the element.
+subroutine lagrangian_reference_fe_create_face_interpolation( this,local_face_id,            &
+     &                               local_quadrature,face_interpolation)
+  implicit none 
+  class(lagrangian_reference_fe_t), intent(in)    :: this 
+  integer(ip)                         , intent(in)    :: local_face_id
+  type(quadrature_t)                  , intent(in)    :: local_quadrature
+  type(interpolation_t)               , intent(inout) :: face_interpolation
+
+  ! Allocate the arrays of the interpolation
+  call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar,              &
+       &                         local_quadrature%number_quadrature_points, 0 )
+
+  ! Fill the values of the shape functions
+  call this%fill_face_interpolation (face_interpolation,local_quadrature,local_face_id)
+end subroutine lagrangian_reference_fe_create_face_interpolation
+
+!==================================================================================================
+! This subroutine constructs a interpolation of order 1 of an element of one dimension less.
+! This is used to construct the geometrical interpolation of the face
+subroutine lagrangian_reference_fe_create_face_local_interpolation ( this, quadrature,       &
+     &                                                                   interpolation)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)               , intent(in)     :: quadrature
+  type(interpolation_t)            , intent(inout) :: interpolation
+
+  integer(ip) :: number_nodes_face_scalar, number_dimensions_face
+
+  ! I am assuming the geometric aproximation of the face can be linear
+  ! this might need to be modified in the future
+  number_dimensions_face   = this%number_dimensions - 1
+  number_nodes_face_scalar = this%compute_number_nodes_scalar( number_dimensions_face, &
+                                                                  &  this%order )
+
+  ! Allocate the arrays of the interpolation
+  call interpolation%create( number_dimensions_face, number_nodes_face_scalar, &
+                             quadrature%number_quadrature_points, 0)
+
+  ! Fill the values with the common routine for filling an interpolation
+  call this%fill_interpolation( interpolation, this%order, quadrature%coordinates )
+
+end subroutine lagrangian_reference_fe_create_face_local_interpolation
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_update_interpolation( this, fe_map,                           &
+     &                                                         interpolation_reference_cell,     &
+     &                                                         interpolation_real_cell )
+  implicit none 
+  class(lagrangian_reference_fe_t), intent(in)    :: this 
+  type(fe_map_t)                  , intent(in)    :: fe_map
+  type(interpolation_t)           , intent(in)    :: interpolation_reference_cell
+  type(interpolation_t)           , intent(inout) :: interpolation_real_cell
+
+  call this%apply_femap_to_interpolation( fe_map, interpolation_reference_cell,interpolation_real_cell )
+end subroutine lagrangian_reference_fe_update_interpolation
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_update_interpolation_face( this, local_face_id,                 &
+     &                                                              fe_map_face_restriction,       &
+     &                                                              interpolation_face_restriction )
+  implicit none 
+  class(lagrangian_reference_fe_t)      , intent(in)    :: this 
+  integer(ip)                           , intent(in)    :: local_face_id
+  type(fe_map_face_restriction_t)       , intent(in)    :: fe_map_face_restriction
+  type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
+
+  interpolation_face_restriction%active_face_id = local_face_id
+
+  call this%update_interpolation(fe_map_face_restriction%fe_map(local_face_id),                   &
+       &                         interpolation_face_restriction%interpolation(local_face_id),     &
+       &                         interpolation_face_restriction%interpolation_o_map)
+
+end subroutine lagrangian_reference_fe_update_interpolation_face
+
+!==================================================================================================
 subroutine lagrangian_reference_fe_fill (this)
   implicit none
   ! Parameters
@@ -177,3 +316,99 @@ subroutine lagrangian_reference_fe_extend_list_components(this, list_1d)
   call list%free() 
 
 end subroutine lagrangian_reference_fe_extend_list_components
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this 
+  type(fe_map_t)                  , intent(in)    :: map
+  type(interpolation_t)           , intent(in)    :: ref
+  type(interpolation_t)           , intent(inout) :: phy
+  real(rp), allocatable :: wmat1(:,:,:)
+  real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
+  integer(ip) :: ndime,nnode,nlocs,ntens
+  integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens
+  logical :: khes
+
+
+  khes = .false.
+  if ( allocated( ref%hessian ) ) then 
+     khes = .true.
+  end if
+
+  ndime = ref%number_dimensions
+  ntens = ref%number_entries_symmetric_tensor
+  nlocs = ref%number_quadrature_points
+  !nnode = ref%number_shape_functions
+  nnode = size(ref%shape_functions,1)
+
+  ! Shape functions do not change
+  !phy%shape_functions = ref%shape_functions 
+
+  ! First derivatives do
+  !if(phy%kder==1) then
+  phy%shape_derivatives=0.0_rp
+  do ilocs=1,phy%number_quadrature_points
+     do inode=1,size(phy%shape_functions,1)!phy%number_shape_functions
+        do idime=1,ndime
+           do jdime=1,ndime
+              phy%shape_derivatives(idime,inode,ilocs) = phy%shape_derivatives(idime,inode,ilocs) &
+                   + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(jdime,inode,ilocs)
+           end do
+        end do
+     end do
+  end do
+  !end if
+
+  ! Second derivatives are
+  !
+  !    d^2 N / d x_i d x_j
+  !       = (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j)
+  !       + (d N / d s_k) (d^2 s_k / d x_i d x_j) 
+  !
+  if( khes ) then
+     call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
+     call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
+     do ilocs=1,nlocs
+        if( khes ) then
+           ! Transforms the array HESSI to a symmetric matrix WMAT1
+           do inode=1,nnode
+              do itens = 1, ntens
+                 wvec1(itens) = ref%hessian(itens,inode,ilocs)
+              end do
+              call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
+           end do
+           ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
+           do inode=1,nnode
+              call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
+                   &        ndime,ndime)
+           end do
+        end if
+        if( khes ) then
+           ! Add second cartesian derivatives of the map times 
+           ! first derivatives of shape functions
+           do inode=1,nnode
+              do idime=1,ndime
+                 do jdime=1,ndime
+                    do kdime=1,ndime
+                       wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
+                            & + ref%shape_derivatives(kdime,inode,ilocs) &
+                            &   * map%d2sdx(kdime,idime,jdime,ilocs)
+                    end do
+                 end do
+              end do
+           end do
+        end if
+
+        ! Writes the Hessian matrix as an array
+        do inode=1,nnode
+           do itens = 1, ntens
+              wvec1(itens) = phy%hessian(itens,inode,ilocs)
+           end do
+           call P_matove(wmat2(1,1,inode),wvec1,ndime,ntens)
+        end do
+     end do
+     call memfree(wmat1,__FILE__,__LINE__)
+     call memfree(wmat2,__FILE__,__LINE__)
+  end if
+end subroutine lagrangian_reference_fe_apply_femap_to_interpolation

@@ -675,14 +675,27 @@ module reference_fe_names
      integer(ip), allocatable :: node_component_array(:,:)
      integer(ip), allocatable :: node_array_component(:,:)
    contains
-     ! Deferred TBP implementors
-     procedure :: create => lagrangian_reference_fe_create
      ! Additional deferred methods
-     procedure (fill_scalar_interface), deferred :: fill_scalar
+     procedure (fill_scalar_interface)                     , deferred :: fill_scalar
+     procedure (fill_quadrature_interface)                 , deferred :: fill_quadrature
+     procedure (fill_interpolation_interface)              , deferred :: fill_interpolation
+     procedure (fill_face_interpolation_interface)         , deferred :: fill_face_interpolation
+     procedure (compute_number_nodes_scalar_interface)     , deferred :: compute_number_nodes_scalar
+     procedure (compute_number_quadrature_points_interface), deferred :: compute_number_quadrature_points
+     ! Deferred TBP implementors
+     procedure :: create                          => lagrangian_reference_fe_create
+     procedure :: create_quadrature               => lagrangian_reference_fe_create_quadrature
+     procedure :: create_face_quadrature          => lagrangian_reference_fe_create_face_quadrature
+     procedure :: create_interpolation            => lagrangian_reference_fe_create_interpolation
+     procedure :: create_face_interpolation       => lagrangian_reference_fe_create_face_interpolation
+     procedure :: create_face_local_interpolation => lagrangian_reference_fe_create_face_local_interpolation
+     procedure :: update_interpolation            => lagrangian_reference_fe_update_interpolation
+     procedure :: update_interpolation_face       => lagrangian_reference_fe_update_interpolation_face
      ! Concrete TBPs of this derived data type
-     procedure :: fill                   => lagrangian_reference_fe_fill
-     procedure :: fill_field_components  => lagrangian_reference_fe_fill_field_components
-     procedure :: extend_list_components => lagrangian_reference_fe_extend_list_components
+     procedure :: fill                            => lagrangian_reference_fe_fill
+     procedure :: fill_field_components           => lagrangian_reference_fe_fill_field_components
+     procedure :: extend_list_components          => lagrangian_reference_fe_extend_list_components
+     procedure :: apply_femap_to_interpolation    => lagrangian_reference_fe_apply_femap_to_interpolation
   end type lagrangian_reference_fe_t
 
   abstract interface
@@ -692,13 +705,48 @@ module reference_fe_names
        class(lagrangian_reference_fe_t), intent(inout) :: this 
      end subroutine fill_scalar_interface
      
-     !subroutine create_quadrature_interface ( this, quadrature, max_order )
-     !  import :: reference_fe_t, quadrature_t, ip
-     !  implicit none 
-     !  class(reference_fe_t), intent(in)    :: this
-     !  type(quadrature_t), intent(inout) :: quadrature
-     !  integer(ip), optional, intent(in)    :: max_order
-     !end subroutine create_quadrature_interface
+     subroutine fill_quadrature_interface ( this, quadrature )
+     import :: lagrangian_reference_fe_t, quadrature_t
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       type(quadrature_t)              , intent(inout) :: quadrature       
+     end subroutine fill_quadrature_interface
+     
+     subroutine fill_interpolation_interface ( this, interpolation, order, coord_ip )
+     import :: lagrangian_reference_fe_t, interpolation_t, ip, rp
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       type(interpolation_t)           , intent(inout) :: interpolation
+       integer(ip)                     , intent(in)    :: order   
+       real(rp)           , allocatable, intent(in)    :: coord_ip(:,:)
+     end subroutine fill_interpolation_interface
+ 
+     subroutine fill_face_interpolation_interface ( this, face_interpolation, local_quadrature, local_face_id )
+     import :: lagrangian_reference_fe_t, interpolation_t, quadrature_t, ip
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       type(interpolation_t)           , intent(inout) :: face_interpolation
+       type(quadrature_t)              , intent(in)    :: local_quadrature
+       integer(ip)                     , intent(in)    :: local_face_id
+     end subroutine fill_face_interpolation_interface
+
+     function compute_number_nodes_scalar_interface ( this, order, dimension )
+     import :: lagrangian_reference_fe_t, ip
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(in)    :: order    
+       integer(ip)                     , intent(in)    :: dimension
+       integer(ip) :: compute_number_nodes_scalar_interface
+     end function compute_number_nodes_scalar_interface
+     
+     function compute_number_quadrature_points_interface ( this, order, dimension )
+     import :: lagrangian_reference_fe_t, ip
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(in)    :: order    
+       integer(ip)                     , intent(in)    :: dimension
+       integer(ip) :: compute_number_quadrature_points_interface
+     end function compute_number_quadrature_points_interface
 
   end interface
   
@@ -709,24 +757,12 @@ module reference_fe_names
      private
    contains 
      ! Deferred TBP implementors
-     procedure :: create_quadrature         => quad_lagrangian_reference_fe_create_quadrature
-     !procedure :: create_quadrature_on_faces                                                           &
-     !     &                           => quad_lagrangian_reference_fe_create_quadrature_on_faces
-     procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
-     procedure :: get_number_quadrature_points_of_dimension                                                      &
-          &                 => quad_lagrangian_reference_fe_get_nquad_of_dimension
-     procedure :: fill_quadrature  => quad_lagrangian_reference_fe_fill_quadrature
-     procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
-     procedure :: fill_interpolation => quad_lagrangian_reference_fe_fill_interpolation
-     procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
-     procedure :: fill_face_interpolation => quad_lagrangian_reference_fe_fill_face_interpolation
-     procedure :: create_face_local_interpolation                                                   &
-          &                          => quad_lagrangian_reference_fe_create_face_local_interpolation
-     procedure :: get_number_nodes_scalar_dim_order                                   &
-          &                 => quad_lagrangian_reference_fe_get_number_nodes_scalar_dim_order
-     procedure :: update_interpolation      => quad_lagrangian_reference_fe_update_interpolation
-     procedure :: apply_femap_to_interpolation => quad_lagrangian_reference_fe_apply_femap_to_interpolation
-     procedure :: update_interpolation_face => quad_lagrangian_reference_fe_update_interpolation_face
+     procedure :: compute_number_quadrature_points => quad_lagrangian_reference_fe_compute_number_quadrature_points
+     procedure :: fill_quadrature                  => quad_lagrangian_reference_fe_fill_quadrature
+     procedure :: fill_interpolation               => quad_lagrangian_reference_fe_fill_interpolation
+     procedure :: fill_face_interpolation          => quad_lagrangian_reference_fe_fill_face_interpolation
+     procedure :: compute_number_nodes_scalar      => quad_lagrangian_reference_fe_compute_number_nodes_scalar
+     
      procedure :: get_component_node     => quad_lagrangian_reference_fe_get_component_node
      procedure :: get_scalar_from_vector_node           => quad_lagrangian_reference_fe_get_scalar_from_vector_node
      procedure :: check_compatibility_of_vefs                                         &
@@ -774,24 +810,12 @@ module reference_fe_names
      private
    contains 
      ! Deferred TBP implementors
-     procedure :: create_quadrature         => tri_lagrangian_reference_fe_create_quadrature
-     !procedure :: create_quadrature_on_faces                                                           &
-     !     &                           => tri_lagrangian_reference_fe_create_quadrature_on_faces
-     procedure :: create_face_quadrature    => tri_lagrangian_reference_fe_create_face_quadrature
-     procedure :: get_number_quadrature_points_of_dimension                                                      &
-          &                 => tri_lagrangian_reference_fe_get_nquad_of_dimension
-     procedure :: fill_quadrature  => tri_lagrangian_reference_fe_fill_quadrature
-     procedure :: create_interpolation      => tri_lagrangian_reference_fe_create_interpolation
-     procedure :: fill_interpolation => tri_lagrangian_reference_fe_fill_interpolation
-     procedure :: create_face_interpolation => tri_lagrangian_reference_fe_create_face_interpolation
-     procedure :: fill_face_interpolation => tri_lagrangian_reference_fe_fill_face_interpolation
-     procedure :: create_face_local_interpolation                                                   &
-          &                          => tri_lagrangian_reference_fe_create_face_local_interpolation
-     procedure :: get_number_nodes_scalar_dim_order                                   &
-          &                 => tri_lagrangian_reference_fe_get_number_nodes_scalar_dim_order
-     procedure :: update_interpolation      => tri_lagrangian_reference_fe_update_interpolation
-     procedure :: apply_femap_to_interpolation => tri_lagrangian_reference_fe_apply_femap_to_interpolation
-     procedure :: update_interpolation_face => tri_lagrangian_reference_fe_update_interpolation_face
+     procedure :: compute_number_quadrature_points => tri_lagrangian_reference_fe_compute_number_quadrature_points
+     procedure :: fill_quadrature                  => tri_lagrangian_reference_fe_fill_quadrature
+     procedure :: fill_interpolation               => tri_lagrangian_reference_fe_fill_interpolation
+     procedure :: fill_face_interpolation          => tri_lagrangian_reference_fe_fill_face_interpolation
+     procedure :: compute_number_nodes_scalar      => tri_lagrangian_reference_fe_compute_number_nodes_scalar
+     
      procedure :: get_component_node        => tri_lagrangian_reference_fe_get_component_node
      procedure :: get_scalar_from_vector_node           => tri_lagrangian_reference_fe_get_scalar_from_vector_node
      procedure :: check_compatibility_of_vefs                                         &
