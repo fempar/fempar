@@ -296,6 +296,11 @@ module reference_fe_names
                                       & evaluate_fe_function_vector, &
                                       & evaluate_fe_function_tensor
      
+     procedure(evaluate_gradient_fe_function_scalar_interface), deferred :: evaluate_gradient_fe_function_scalar
+     procedure(evaluate_gradient_fe_function_vector_interface), deferred :: evaluate_gradient_fe_function_vector
+     generic :: evaluate_gradient_fe_function => evaluate_gradient_fe_function_scalar, &
+                                               & evaluate_gradient_fe_function_vector
+     
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
      procedure (check_compatibility_of_vefs_interface), deferred :: &
@@ -705,6 +710,9 @@ module reference_fe_names
      procedure :: evaluate_fe_function_vector => quad_lagrangian_reference_fe_evaluate_fe_function_vector
      procedure :: evaluate_fe_function_tensor => quad_lagrangian_reference_fe_evaluate_fe_function_tensor
 
+     procedure :: evaluate_gradient_fe_function_scalar => quad_lagrangian_reference_fe_evaluate_gradient_fe_function_scalar
+     procedure :: evaluate_gradient_fe_function_vector => quad_lagrangian_reference_fe_evaluate_gradient_fe_function_vector
+
      procedure :: set_nodal_quadrature => quad_lagrangian_reference_fe_set_nodal_quadrature
 
      procedure :: set_scalar_field_to_nodal_values => quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values
@@ -770,7 +778,7 @@ contains
   generic                             :: get_divergence => get_divergence_vector, &
                                                            get_divergence_tensor
 
-														   procedure, non_overridable, private :: get_curl_vector => volume_integrator_get_curl_vector
+  procedure, non_overridable, private :: get_curl_vector => volume_integrator_get_curl_vector
   generic                             :: get_curl => get_curl_vector
   
   ! We might want to have the following in the future:
@@ -785,6 +793,11 @@ contains
   generic :: evaluate_fe_function => volume_integrator_evaluate_fe_function_scalar, &
                                    & volume_integrator_evaluate_fe_function_vector, &
                                    & volume_integrator_evaluate_fe_function_tensor
+  
+  procedure, non_overridable, private :: volume_integrator_evaluate_gradient_fe_function_scalar
+  procedure, non_overridable, private :: volume_integrator_evaluate_gradient_fe_function_vector
+  generic :: evaluate_gradient_fe_function => volume_integrator_evaluate_gradient_fe_function_scalar, &
+                                            & volume_integrator_evaluate_gradient_fe_function_vector
 
 end type volume_integrator_t
 
