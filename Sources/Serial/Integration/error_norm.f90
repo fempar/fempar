@@ -55,6 +55,14 @@ module error_norms_names
      procedure          :: finalize => norm_finalize
   end type norm_t
 
+  type, extends(norm_t) :: l1_norm_t
+   contains
+     procedure :: norm_compute_scalar  => l1_norm_compute_scalar
+     procedure :: norm_compute_vector  => l1_norm_compute_vector
+     procedure :: norm_compute_tensor  => l1_norm_compute_tensor
+     procedure :: finalize             => l1_norm_finalize
+  end type l1_norm_t
+
   type, extends(norm_t) :: l2_norm_t
    contains
      procedure :: norm_compute_scalar  => l2_norm_compute_scalar
@@ -139,6 +147,71 @@ contains
     real(rp) :: value_out
     check(.false.)
   end function norm_finalize
+
+  !===================================================================================================
+  subroutine l1_norm_compute_scalar(this,quad,fe_map,value_in,value_out)
+    implicit none
+    class(l1_norm_t)  , intent(in)    :: this
+    type(quadrature_t), intent(in)    :: quad
+    type(fe_map_t)    , intent(in)    :: fe_map
+    real(rp)          , intent(in)    :: value_in(:)
+    real(rp)          , intent(inout) :: value_out
+    real(rp)    :: dvolume
+    integer(ip) :: qpoin
+    
+    ! Loop over quadrature points
+    do qpoin = 1, quad%get_number_quadrature_points()
+       ! |J]*wg
+       dvolume = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
+       ! Compute norm ( abs(f(u)) )
+       value_out = value_out + dvolume*abs(value_in(qpoin))
+    end do
+
+  end subroutine l1_norm_compute_scalar
+
+  !===================================================================================================
+  subroutine l1_norm_compute_vector(this,quad,fe_map,value_in,value_out)
+    implicit none
+    class(l1_norm_t)    , intent(in)    :: this
+    type(quadrature_t)  , intent(in)    :: quad
+    type(fe_map_t)      , intent(in)    :: fe_map
+    type(vector_field_t), intent(in)    :: value_in(:)
+    real(rp)            , intent(inout) :: value_out
+    real(rp)                            :: dvolume
+    integer(ip)                         :: qpoin,idime
+
+    ! Loop over quadrature points
+    do qpoin = 1, quad%get_number_quadrature_points()
+       ! |J]*wg
+       dvolume = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
+       do idime = 1,number_space_dimensions
+
+          ! Compute norm ( sum_{i=1}^{ndime} abs(f(u)_i) )
+          value_out = value_out + dvolume*abs(value_in(qpoin)%get(idime))
+
+       end do
+    end do
+  end subroutine l1_norm_compute_vector
+
+  !===================================================================================================
+  subroutine l1_norm_compute_tensor(this,quad,fe_map,value_in,value_out)
+    implicit none
+    class(l1_norm_t)    , intent(in)    :: this
+    type(quadrature_t)  , intent(in)    :: quad
+    type(fe_map_t)      , intent(in)    :: fe_map
+    type(tensor_field_t), intent(in)    :: value_in(:)
+    real(rp)            , intent(inout) :: value_out
+    check(.false.)
+  end subroutine l1_norm_compute_tensor
+
+  !===================================================================================================
+  function l1_norm_finalize(this,value_in) result(value_out)
+    implicit none
+    class(l1_norm_t), intent(in)    :: this
+    real(rp)        , intent(in)    :: value_in
+    real(rp) :: value_out
+    value_out = value_in
+  end function l1_norm_finalize  
 
   !===================================================================================================
   subroutine l2_norm_compute_scalar(this,quad,fe_map,value_in,value_out)
