@@ -34,7 +34,6 @@ module fe_affine_operator_names
   use serial_fe_space_names
   use operator_names
   use vector_names
-  use assembler_names
   use matrix_array_assembler_names
   use array_names
   use matrix_names

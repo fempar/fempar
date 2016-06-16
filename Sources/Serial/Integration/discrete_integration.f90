@@ -29,7 +29,7 @@ module discrete_integration_names
   use field_names
   use reference_fe_names
   use types_names
-  use assembler_names
+  use matrix_array_assembler_names
   use serial_fe_space_names
   use memor_names
 
@@ -49,12 +49,12 @@ module discrete_integration_names
   public :: discrete_integration_t, p_discrete_integration_t
 
   abstract interface
-     subroutine integrate_interface ( this, fe_space, assembler  )
-       import :: discrete_integration_t, serial_fe_space_t, assembler_t
+     subroutine integrate_interface ( this, fe_space, matrix_array_assembler  )
+       import :: discrete_integration_t, serial_fe_space_t, matrix_array_assembler_t
        implicit none
-       class(discrete_integration_t), intent(in)    :: this
-       class(serial_fe_space_t)     , intent(inout) :: fe_space
-       class(assembler_t)           , intent(inout) :: assembler
+       class(discrete_integration_t)  , intent(in)    :: this
+       class(serial_fe_space_t)       , intent(inout) :: fe_space
+       class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
      end subroutine integrate_interface
   end interface
 

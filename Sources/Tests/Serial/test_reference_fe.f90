@@ -150,11 +150,11 @@ module poisson_discrete_integration_names
   
 contains
   
-  subroutine integrate ( this, fe_space, assembler )
+  subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)          , intent(inout) :: fe_space
-    class(assembler_t)                , intent(inout) :: assembler
+    class(serial_fe_space_t)             , intent(inout) :: fe_space
+    class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
 
     type(finite_element_t), pointer :: fe
     type(volume_integrator_t), pointer :: vol_int
@@ -215,7 +215,7 @@ contains
        
        ! Apply boundary conditions
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )
+       call matrix_array_assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )
     end do
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
@@ -238,11 +238,11 @@ end type vector_laplacian_single_discrete_integration_t
 public :: vector_laplacian_single_discrete_integration_t
 
 contains
-  subroutine integrate ( this, fe_space, assembler )
+  subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
     class(vector_laplacian_single_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)                   , intent(inout) :: fe_space
-    class(assembler_t)                         , intent(inout) :: assembler
+    class(serial_fe_space_t)                             , intent(inout) :: fe_space
+    class(matrix_array_assembler_t)                      , intent(inout) :: matrix_array_assembler
 
     type(finite_element_t), pointer :: fe
     type(volume_integrator_t), pointer :: vol_int
@@ -303,7 +303,7 @@ contains
        end do
        
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
+       call matrix_array_assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
     end do
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
@@ -327,11 +327,11 @@ end type vector_laplacian_composite_discrete_integration_t
 public :: vector_laplacian_composite_discrete_integration_t
 
 contains
-  subroutine integrate ( this, fe_space, assembler )
+  subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
     class(vector_laplacian_composite_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)                   , intent(inout) :: fe_space
-    class(assembler_t)                         , intent(inout) :: assembler
+    class(serial_fe_space_t)                                , intent(inout) :: fe_space
+    class(matrix_array_assembler_t)                         , intent(inout) :: matrix_array_assembler
 
     type(finite_element_t), pointer :: fe
     type(volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
@@ -403,7 +403,7 @@ contains
           end do
        end do
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
+       call matrix_array_assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
     end do
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )

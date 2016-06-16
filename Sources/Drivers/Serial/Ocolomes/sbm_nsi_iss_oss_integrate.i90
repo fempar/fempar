@@ -57,11 +57,11 @@ subroutine free(this)
 end subroutine free
 
 !====================================================================================================
-subroutine integrate(this,fe_space,assembler)
+subroutine integrate(this,fe_space,matrix_array_assembler)
   implicit none
   class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
   class(serial_fe_space_t)                 , intent(inout) :: fe_space
-  class(assembler_t)                       , intent(inout) :: assembler
+  class(matrix_array_assembler_t)          , intent(inout) :: matrix_array_assembler
   ! Integers
   integer(ip)              :: number_fe_spaces, number_nodes, number_elements
   integer(ip)              :: number_dimensions, velocity_order
@@ -278,7 +278,7 @@ subroutine integrate(this,fe_space,assembler)
      end do gauss
     
      call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-     call assembler%assembly(number_fe_spaces,number_nodes_per_field,elem2dof,field_blocks,field_coupling,elmat,elvec)  
+     call matrix_array_assembler%assembly(number_fe_spaces,number_nodes_per_field,elem2dof,field_blocks,field_coupling,elmat,elvec)  
      
   end do element
 

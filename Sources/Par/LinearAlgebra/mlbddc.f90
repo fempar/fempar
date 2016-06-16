@@ -933,38 +933,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
                                                displs          = dummy_integer_array_ip, &
                                                output_data     = dummy_real_array_rp_1D )
        call memfree ( subdomain_elmat, __FILE__, __LINE__ )
-     end if
-     
-     
-    ! if ( par_environment%am_i_l1_to_l2_root() ) then
-    !  l1_to_l2_size = par_environment%get_l1_to_l2_size()
-    !  if (allocated(lst_gids)) call memfree ( lst_gids, __FILE__, __LINE__ )
-    !  call memalloc ( displs(l1_to_l2_size), lst_gids, __FILE__, __LINE__ )
-    !  call par_environment%l2_from_l1_gather( input_data_size = 0, &
-    !                                                       input_data      = dummy_integer_array_igp, &
-    !                                                       recv_counts     = recv_counts, &
-    !                                                       displs          = displs, &
-    !                                                       output_data     = lst_gids )
-    !else
-    !  fe_space    => this%get_fe_space()
-    !  ! Pack dofs_objects_gids_per_field(:) into plain buffer for further data exchange
-    !  call memalloc ( sum(this%num_dofs_objects_per_field), buffer, __FILE__, __LINE__ ) 
-    !  spos = 1
-    !  do i=1, fe_space%get_number_fe_spaces()
-    !    epos = spos + this%num_dofs_objects_per_field(i)-1
-    !    buffer(spos:epos) = this%dofs_objects_gids_per_field(i)%a
-    !    spos = epos +1 
-    !  end do
-    !  
-    !  call par_environment%l2_from_l1_gather( input_data_size = size(buffer), &
-    !                                                       input_data      = buffer, &
-    !                                                       recv_counts     = dummy_integer_array_ip, &
-    !                                                       displs          = dummy_integer_array_ip, &
-    !                                                       output_data     = dummy_integer_array_igp )
-    !  call memfree ( buffer, __FILE__, __LINE__ )
-    !end if    
-     
-     
+     end if     
   end subroutine mlbddc_compute_and_gather_subdomain_elmat
   
   
