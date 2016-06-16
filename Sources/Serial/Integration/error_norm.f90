@@ -290,6 +290,8 @@ contains
     this%environment => environment
     this%fe_space_id = fe_space_id
     select case(norm_type)
+    case(l1_norm)
+       allocate(l1_norm_t :: this%norm)
     case(l2_norm)
        allocate(l2_norm_t :: this%norm)
     case default
@@ -394,6 +396,8 @@ contains
     this%environment => environment
     this%fe_space_id = fe_space_id
     select case(norm_type)
+    case(l1_norm)
+       allocate(l1_norm_t :: this%norm)
     case(l2_norm)
        allocate(l2_norm_t :: this%norm)
     case default
