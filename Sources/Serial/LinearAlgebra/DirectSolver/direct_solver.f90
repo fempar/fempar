@@ -59,11 +59,13 @@ private
         procedure, non_overridable, public :: symbolic_setup          => direct_solver_symbolic_setup
         procedure, non_overridable, public :: numerical_setup         => direct_solver_numerical_setup
         procedure, non_overridable, public :: log_info                => direct_solver_log_info
-        procedure, non_overridable, public :: solve                   => direct_solver_solve
+        procedure, non_overridable         :: solve_single_rhs        => direct_solver_solve_single_rhs
+        procedure, non_overridable         :: solve_several_rhs       => direct_solver_solve_several_rhs
         procedure,                  public :: apply                   => direct_solver_apply
         procedure, non_overridable, public :: is_linear               => direct_solver_is_linear
         procedure, non_overridable, public :: free_in_stages          => direct_solver_free_in_stages
         procedure, non_overridable, public :: free                    => direct_solver_free
+        generic,                    public :: solve                   => solve_single_rhs, solve_several_rhs
     end type
 
 public :: direct_solver_t
@@ -225,7 +227,7 @@ contains
     end subroutine direct_solver_log_info
 
 
-    subroutine direct_solver_solve(op, x, y)
+    subroutine direct_solver_solve_single_rhs(op, x, y)
     !-----------------------------------------------------------------
     !< Computes y <- A^-1 * x
     !-----------------------------------------------------------------
@@ -247,7 +249,22 @@ contains
             class DEFAULT
                 check(.false.)
         end select
-    end subroutine direct_solver_solve
+    end subroutine direct_solver_solve_single_rhs
+
+
+    subroutine direct_solver_solve_several_rhs(op, x, y)
+    !-----------------------------------------------------------------
+    !< Computes y <- A^-1 * x
+    !-----------------------------------------------------------------
+        class(direct_solver_t), intent(inout) :: op
+        real(rp),               intent(inout) :: x(:, :)
+        real(rp),               intent(inout) :: y(:, :)
+    !-----------------------------------------------------------------
+        assert(associated(op%base_direct_solver))
+        if(.not. op%vector_spaces_are_created()) &
+            call op%create_vector_spaces()
+            call op%base_direct_solver%solve(x, y)
+    end subroutine direct_solver_solve_several_rhs
 
 
     subroutine direct_solver_apply(op, x, y)

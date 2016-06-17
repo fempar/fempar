@@ -170,7 +170,7 @@ contains
         check(a%get_symmetric_storage()  .eqv. b%get_symmetric_storage())
         check(a%get_sign()                == b%get_sign())
         check(a%get_sort_status()         == b%get_sort_status())
-        check(a%get_state()               == b%get_state())
+!        check(a%get_state()               == b%get_state()) State must change after conversion
         check(all(a%ia                    == b%ia))
         check(all(a%ja                    == b%ja))
         check(allocated(a%val)           .eqv. allocated(b%val))

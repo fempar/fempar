@@ -54,7 +54,8 @@ module wsmp_direct_solver_names
         procedure, public :: set_parameters_from_pl  => wsmp_direct_solver_set_parameters_from_pl
         procedure, public :: symbolic_setup_body     => wsmp_direct_solver_symbolic_setup_body
         procedure, public :: numerical_setup_body    => wsmp_direct_solver_numerical_setup_body
-        procedure, public :: solve_body              => wsmp_direct_solver_solve_body
+        procedure, public :: solve_single_rhs_body   => wsmp_direct_solver_solve_single_rhs_body
+        procedure, public :: solve_several_rhs_body  => wsmp_direct_solver_solve_several_rhs_body
     end type
 
 contains
@@ -85,11 +86,17 @@ contains
         logical                                            :: is_linear
     end function wsmp_direct_solver_is_linear
 
-    subroutine wsmp_direct_solver_solve_body(op, x, y)
+    subroutine wsmp_direct_solver_solve_single_rhs_body(op, x, y)
         class(wsmp_direct_solver_t),  intent(inout) :: op
         type(serial_scalar_array_t),  intent(in)    :: x
         type(serial_scalar_array_t),  intent(inout) :: y
-    end subroutine wsmp_direct_solver_solve_body
+    end subroutine wsmp_direct_solver_solve_single_rhs_body
+
+    subroutine wsmp_direct_solver_solve_several_rhs_body(op, x, y)
+        class(wsmp_direct_solver_t), intent(inout) :: op
+        real(rp),                    intent(inout) :: x(:, :)
+        real(rp),                    intent(inout) :: y(:, :)
+    end subroutine wsmp_direct_solver_solve_several_rhs_body
 
     subroutine wsmp_direct_solver_free_clean_body(this)
         class(wsmp_direct_solver_t), intent(inout) :: this
