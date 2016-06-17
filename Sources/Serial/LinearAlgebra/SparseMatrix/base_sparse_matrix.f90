@@ -2797,7 +2797,7 @@ contains
         class(coo_sparse_matrix_t), intent(inout)  :: this
         integer(ip), optional,      intent(in)     :: nz
     !-----------------------------------------------------------------
-        check(.not. allocated(this%val))
+        assert(.not. allocated(this%val))
         if(present(nz)) then
             call memalloc(nz, this%val, __FILE__, __LINE__)
         else

@@ -821,7 +821,7 @@ contains
         class(csr_sparse_matrix_t), intent(inout)  :: this
         integer(ip), optional,      intent(in)     :: nz
     !-----------------------------------------------------------------
-        check(.not. allocated(this%val))
+        assert(.not. allocated(this%val))
         if(present(nz)) then
             call memalloc(nz, this%val, __FILE__, __LINE__)
         else
@@ -1621,7 +1621,7 @@ contains
 
         total_rows = this%get_num_rows()
         total_cols = this%get_num_cols()
-        check(num_row>0 .and. num_row<total_rows .and. num_col>0 .and. num_col<total_cols)
+        assert(num_row>0 .and. num_row<total_rows .and. num_col>0 .and. num_col<total_cols)
 
         call A_II%set_num_rows(num_row); call A_II%set_num_cols(num_col)
         call A_IG%set_num_rows(num_row); call A_IG%set_num_cols(total_cols-num_col)
@@ -1941,7 +1941,7 @@ contains
 
         total_num_rows = this%get_num_rows()
         total_num_cols = this%get_num_cols()
-        check(num_row>0 .and. num_row<total_num_rows .and. num_col>0 .and. num_col<total_num_cols)
+        assert(num_row>0 .and. num_row<total_num_rows .and. num_col>0 .and. num_col<total_num_cols)
         perm_size = max(total_num_rows, total_num_cols)
 
         assert(size(perm) == perm_size)
@@ -2189,7 +2189,7 @@ contains
 
         total_num_rows = this%get_num_rows()
         total_num_cols = this%get_num_cols()
-        check(num_row>0 .and. num_row<total_num_rows .and. num_col>0 .and. num_col<total_num_cols)
+        assert(num_row>0 .and. num_row<total_num_rows .and. num_col>0 .and. num_col<total_num_cols)
         perm_size = max(total_num_rows, total_num_cols)
 
         assert(size(perm) == perm_size)
@@ -2445,7 +2445,7 @@ contains
             previous_ia = C_T_ia(i)
             previous_ja = C_T_ja(i)
         enddo
-        check(sorted)
+        assert(sorted)
     !-----------------------------------------------------------------
     ! Check if (I) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for I matrix
@@ -2462,7 +2462,7 @@ contains
             previous_ia = I_ia(i)
             previous_ja = I_ja(i)
         enddo
-        check(sorted)
+        assert(sorted)
 #endif
 
         ! Count number of elements of I finally added to the output matrix
@@ -3268,7 +3268,7 @@ contains
             previous_ia = C_T_ia(i)
             previous_ja = C_T_ja(i)
         enddo
-        check(sorted)
+        assert(sorted)
     !-----------------------------------------------------------------
     ! Check if (I) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for I matrix
@@ -3285,7 +3285,7 @@ contains
             previous_ia = I_ia(i)
             previous_ja = I_ja(i)
         enddo
-        check(sorted)
+        assert(sorted)
 #endif
 
         ! Count number of elements of I finally added to the output matrix

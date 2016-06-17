@@ -705,6 +705,7 @@ contains
             if(allocated(this%State)) deallocate(this%State)
             call move_alloc(from=tmp, to=this%State)
         endif
+        call this%State%state_transition_after_convert()
     end subroutine sparse_matrix_convert
 
 
