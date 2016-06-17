@@ -55,12 +55,12 @@ private
         procedure, public :: get_format_name                         => csr_sparse_matrix_get_format_name
         procedure, public :: set_nnz                                 => csr_sparse_matrix_set_nnz
         procedure, public :: get_nnz                                 => csr_sparse_matrix_get_nnz
-        procedure, public :: copy_to_coo                             => csr_sparse_matrix_copy_to_coo
-        procedure, public :: copy_from_coo                           => csr_sparse_matrix_copy_from_coo
-        procedure, public :: move_to_coo                             => csr_sparse_matrix_move_to_coo
-        procedure, public :: move_from_coo                           => csr_sparse_matrix_move_from_coo
-        procedure, public :: move_to_fmt                             => csr_sparse_matrix_move_to_fmt
-        procedure, public :: move_from_fmt                           => csr_sparse_matrix_move_from_fmt
+        procedure, public :: copy_to_coo_body                        => csr_sparse_matrix_copy_to_coo_body
+        procedure, public :: copy_from_coo_body                      => csr_sparse_matrix_copy_from_coo_body
+        procedure, public :: move_to_coo_body                        => csr_sparse_matrix_move_to_coo_body
+        procedure, public :: move_from_coo_body                      => csr_sparse_matrix_move_from_coo_body
+        procedure, public :: move_to_fmt_body                        => csr_sparse_matrix_move_to_fmt_body
+        procedure, public :: move_from_fmt_body                      => csr_sparse_matrix_move_from_fmt_body
         procedure         :: allocate_numeric                        => csr_sparse_matrix_allocate_numeric
         procedure         :: allocate_symbolic                       => csr_sparse_matrix_allocate_symbolic
         procedure, public :: allocate_values_body                    => csr_sparse_matrix_allocate_values_body
@@ -213,12 +213,12 @@ contains
     end function csr_sparse_matrix_get_format_name
 
 
-    subroutine csr_sparse_matrix_copy_to_coo(this, to)
+    subroutine csr_sparse_matrix_copy_to_coo_body(this, to)
     !-----------------------------------------------------------------
     !< Copy this (CSR) -> to (COO)
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t), intent(in)    :: this
-        class(coo_sparse_matrix_t), intent(inout) :: to
+        type(coo_sparse_matrix_t),  intent(inout) :: to
         integer(ip)                               :: nnz
         integer(ip)                               :: i
         integer(ip)                               :: j
@@ -249,15 +249,15 @@ contains
         endif
         call to%set_sort_status_by_rows()
         call to%set_state(this%get_state())
-    end subroutine csr_sparse_matrix_copy_to_coo
+    end subroutine csr_sparse_matrix_copy_to_coo_body
 
 
-    subroutine csr_sparse_matrix_copy_from_coo(this, from)
+    subroutine csr_sparse_matrix_copy_from_coo_body(this, from)
     !-----------------------------------------------------------------
     !< Copy from (COO) -> this (CSR)
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t), intent(inout) :: this
-        class(coo_sparse_matrix_t), intent(in)    :: from
+        type(coo_sparse_matrix_t),  intent(in)    :: from
         type(coo_sparse_matrix_t)                 :: tmp
         integer(ip), allocatable                  :: itmp(:)
         integer(ip)                               :: nnz
@@ -330,15 +330,15 @@ contains
         endif 
         call memfree(itmp, __FILE__, __LINE__)
         call this%set_state(from%get_state())
-    end subroutine csr_sparse_matrix_copy_from_coo
+    end subroutine csr_sparse_matrix_copy_from_coo_body
 
 
-    subroutine csr_sparse_matrix_move_to_coo(this, to)
+    subroutine csr_sparse_matrix_move_to_coo_body(this, to)
     !-----------------------------------------------------------------
     !< Move this (CSR) -> to (COO)
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t), intent(inout) :: this
-        class(coo_sparse_matrix_t), intent(inout) :: to
+        type(coo_sparse_matrix_t),  intent(inout) :: to
         integer(ip)                               :: nnz
         integer(ip)                               :: nr
         integer(ip)                               :: i
@@ -365,15 +365,15 @@ contains
         call to%set_sort_status_by_rows()
         call to%set_state(this%get_state())
         call this%free()
-    end subroutine csr_sparse_matrix_move_to_coo
+    end subroutine csr_sparse_matrix_move_to_coo_body
 
 
-    subroutine csr_sparse_matrix_move_from_coo(this, from)
+    subroutine csr_sparse_matrix_move_from_coo_body(this, from)
     !-----------------------------------------------------------------
     !< Move from (COO) -> this (CSR)
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t), intent(inout) :: this
-        class(coo_sparse_matrix_t), intent(inout) :: from
+        type(coo_sparse_matrix_t),  intent(inout) :: from
         integer(ip), allocatable                  :: itmp(:)
         integer(ip)                               :: nnz
         integer(ip)                               :: nr
@@ -431,10 +431,10 @@ contains
         endif 
         call this%set_state(from%get_state())
         call from%free()
-    end subroutine csr_sparse_matrix_move_from_coo
+    end subroutine csr_sparse_matrix_move_from_coo_body
 
 
-    subroutine csr_sparse_matrix_move_to_fmt(this, to)
+    subroutine csr_sparse_matrix_move_to_fmt_body(this, to)
     !-----------------------------------------------------------------
     !< Move this (CRS) -> to (FMT)
     !-----------------------------------------------------------------
@@ -464,10 +464,10 @@ contains
                 call this%move_to_coo(tmp)
                 call to%move_from_coo(tmp)
         end select
-    end subroutine csr_sparse_matrix_move_to_fmt
+    end subroutine csr_sparse_matrix_move_to_fmt_body
 
 
-    subroutine csr_sparse_matrix_move_from_fmt(this, from)
+    subroutine csr_sparse_matrix_move_from_fmt_body(this, from)
     !-----------------------------------------------------------------
     !< Move from (FMT) -> this (CSR)
     !-----------------------------------------------------------------
@@ -494,7 +494,7 @@ contains
                 call from%move_to_coo(tmp)
                 call this%move_from_coo(tmp)
         end select
-    end subroutine csr_sparse_matrix_move_from_fmt
+    end subroutine csr_sparse_matrix_move_from_fmt_body
 
 
     subroutine matvec(num_rows, num_cols, irp, ja, val, alpha, x, beta, y)
@@ -821,7 +821,7 @@ contains
         class(csr_sparse_matrix_t), intent(inout)  :: this
         integer(ip), optional,      intent(in)     :: nz
     !-----------------------------------------------------------------
-        check(.not. allocated(this%val))
+        assert(.not. allocated(this%val))
         if(present(nz)) then
             call memalloc(nz, this%val, __FILE__, __LINE__)
         else
@@ -1621,7 +1621,7 @@ contains
 
         total_rows = this%get_num_rows()
         total_cols = this%get_num_cols()
-        check(num_row>0 .and. num_row<total_rows .and. num_col>0 .and. num_col<total_cols)
+        assert(num_row>0 .and. num_row<total_rows .and. num_col>0 .and. num_col<total_cols)
 
         call A_II%set_num_rows(num_row); call A_II%set_num_cols(num_col)
         call A_IG%set_num_rows(num_row); call A_IG%set_num_cols(total_cols-num_col)
@@ -1941,7 +1941,7 @@ contains
 
         total_num_rows = this%get_num_rows()
         total_num_cols = this%get_num_cols()
-        check(num_row>0 .and. num_row<total_num_rows .and. num_col>0 .and. num_col<total_num_cols)
+        assert(num_row>0 .and. num_row<total_num_rows .and. num_col>0 .and. num_col<total_num_cols)
         perm_size = max(total_num_rows, total_num_cols)
 
         assert(size(perm) == perm_size)
@@ -2189,7 +2189,7 @@ contains
 
         total_num_rows = this%get_num_rows()
         total_num_cols = this%get_num_cols()
-        check(num_row>0 .and. num_row<total_num_rows .and. num_col>0 .and. num_col<total_num_cols)
+        assert(num_row>0 .and. num_row<total_num_rows .and. num_col>0 .and. num_col<total_num_cols)
         perm_size = max(total_num_rows, total_num_cols)
 
         assert(size(perm) == perm_size)
@@ -2445,7 +2445,7 @@ contains
             previous_ia = C_T_ia(i)
             previous_ja = C_T_ja(i)
         enddo
-        check(sorted)
+        assert(sorted)
     !-----------------------------------------------------------------
     ! Check if (I) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for I matrix
@@ -2462,7 +2462,7 @@ contains
             previous_ia = I_ia(i)
             previous_ja = I_ja(i)
         enddo
-        check(sorted)
+        assert(sorted)
 #endif
 
         ! Count number of elements of I finally added to the output matrix
@@ -3268,7 +3268,7 @@ contains
             previous_ia = C_T_ia(i)
             previous_ja = C_T_ja(i)
         enddo
-        check(sorted)
+        assert(sorted)
     !-----------------------------------------------------------------
     ! Check if (I) ia and ja arrays are sorted by rows
     ! It also counts number or colums per row for I matrix
@@ -3285,7 +3285,7 @@ contains
             previous_ia = I_ia(i)
             previous_ja = I_ja(i)
         enddo
-        check(sorted)
+        assert(sorted)
 #endif
 
         ! Count number of elements of I finally added to the output matrix
