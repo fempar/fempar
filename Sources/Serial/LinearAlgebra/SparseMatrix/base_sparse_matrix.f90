@@ -62,6 +62,7 @@ module base_sparse_matrix_names
   ! Created             | Free_numeric          | Assembled_symbolic
   ! Created             | Insert (2-values)     | Build_symbolic
   ! Created             | Insert (3-values)     | Build_numeric
+  ! Created             | Convert               | Assembled
   !-----------------------------------------------------------------
   ! Build_symbolic      | Free_clean            | Start
   ! Build_symbolic      | Free_symbolic         | Created
@@ -110,20 +111,20 @@ module base_sparse_matrix_names
      logical     :: sum_duplicates = .true.           ! If .false. overwrites duplicated values, else perform sum
      logical     :: symmetric                         ! Matrix is symmetric (.true.) or not (.false.)
      logical     :: symmetric_storage = .false.       ! .True.   Implicitly assumes that G=(V,E) is such that 
-     !          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
-     !          Only edges (i,j) with j>=i are stored.
-     ! .False.  All (i,j) \belongs E are stored.  
+                                                      !          (i,j) \belongs E <=> (j,i) \belongs E, forall i,j \belongs V.
+                                                      !          Only edges (i,j) with j>=i are stored.
+                                                      ! .False.  All (i,j) \belongs E are stored.  
    contains
      private
      procedure(base_sparse_matrix_is_by_rows),                public, deferred :: is_by_rows
      procedure(base_sparse_matrix_is_by_cols),                public, deferred :: is_by_cols
      procedure(base_sparse_matrix_get_format_name),           public, deferred :: get_format_name
-     procedure(base_sparse_matrix_copy_to_coo),               public, deferred :: copy_to_coo
-     procedure(base_sparse_matrix_copy_from_coo),             public, deferred :: copy_from_coo
-     procedure(base_sparse_matrix_move_to_coo),               public, deferred :: move_to_coo
-     procedure(base_sparse_matrix_move_from_coo),             public, deferred :: move_from_coo
-     procedure(base_sparse_matrix_move_to_fmt),               public, deferred :: move_to_fmt
-     procedure(base_sparse_matrix_move_from_fmt),             public, deferred :: move_from_fmt
+     procedure(base_sparse_matrix_copy_to_coo_body),                  deferred :: copy_to_coo_body
+     procedure(base_sparse_matrix_copy_from_coo_body),                deferred :: copy_from_coo_body
+     procedure(base_sparse_matrix_move_to_coo_body),                  deferred :: move_to_coo_body
+     procedure(base_sparse_matrix_move_from_coo_body),                deferred :: move_from_coo_body
+     procedure(base_sparse_matrix_move_to_fmt_body),                  deferred :: move_to_fmt_body
+     procedure(base_sparse_matrix_move_from_fmt_body),                deferred :: move_from_fmt_body
      procedure(base_sparse_matrix_initialize_values),         public, deferred :: initialize_values
      procedure(base_sparse_matrix_allocate_values_body),      public, deferred :: allocate_values_body
      procedure(base_sparse_matrix_update_bounded_values_body),              &
@@ -214,6 +215,15 @@ module base_sparse_matrix_names
      procedure, public :: is_symbolic                      => base_sparse_matrix_is_symbolic
      procedure, public :: copy_to_fmt                      => base_sparse_matrix_copy_to_fmt
      procedure, public :: copy_from_fmt                    => base_sparse_matrix_copy_from_fmt
+     procedure, public :: copy_to_coo                      => base_sparse_matrix_copy_to_coo
+     procedure, public :: copy_from_coo                    => base_sparse_matrix_copy_from_coo
+     procedure, public :: move_to_coo                      => base_sparse_matrix_move_to_coo
+     procedure, public :: move_from_coo                    => base_sparse_matrix_move_from_coo
+     procedure, public :: move_to_fmt                      => base_sparse_matrix_move_to_fmt
+     procedure, public :: move_from_fmt                    => base_sparse_matrix_move_from_fmt
+     procedure         :: copy_to_fmt_body                 => base_sparse_matrix_copy_to_fmt_body
+     procedure         :: copy_from_fmt_body               => base_sparse_matrix_copy_from_fmt_body
+     procedure, public :: state_transition_after_convert   => base_sparse_matrix_state_transition_after_convert
      procedure, public :: set_sign                         => base_sparse_matrix_set_sign
      procedure, public :: get_sign                         => base_sparse_matrix_get_sign
      procedure, public :: set_num_rows                     => base_sparse_matrix_set_num_rows
@@ -383,14 +393,14 @@ module base_sparse_matrix_names
         procedure, public :: allocate_coords                         => coo_sparse_matrix_allocate_coords
         procedure, public :: allocate_values_body                    => coo_sparse_matrix_allocate_values_body
         procedure, public :: initialize_values                       => coo_sparse_matrix_initialize_values
-        procedure, public :: copy_to_coo                             => coo_sparse_matrix_copy_to_coo
-        procedure, public :: copy_from_coo                           => coo_sparse_matrix_copy_from_coo
-        procedure, public :: copy_to_fmt                             => coo_sparse_matrix_copy_to_fmt
-        procedure, public :: copy_from_fmt                           => coo_sparse_matrix_copy_from_fmt
-        procedure, public :: move_to_coo                             => coo_sparse_matrix_move_to_coo
-        procedure, public :: move_from_coo                           => coo_sparse_matrix_move_from_coo
-        procedure, public :: move_to_fmt                             => coo_sparse_matrix_move_to_fmt
-        procedure, public :: move_from_fmt                           => coo_sparse_matrix_move_from_fmt
+        procedure, public :: copy_to_coo_body                        => coo_sparse_matrix_copy_to_coo_body
+        procedure, public :: copy_from_coo_body                      => coo_sparse_matrix_copy_from_coo_body
+        procedure, public :: copy_to_fmt_body                        => coo_sparse_matrix_copy_to_fmt_body
+        procedure, public :: copy_from_fmt_body                      => coo_sparse_matrix_copy_from_fmt_body
+        procedure, public :: move_to_coo_body                        => coo_sparse_matrix_move_to_coo_body
+        procedure, public :: move_from_coo_body                      => coo_sparse_matrix_move_from_coo_body
+        procedure, public :: move_to_fmt_body                        => coo_sparse_matrix_move_to_fmt_body
+        procedure, public :: move_from_fmt_body                      => coo_sparse_matrix_move_from_fmt_body
         procedure, public :: free_coords                             => coo_sparse_matrix_free_coords
         procedure, public :: free_val                                => coo_sparse_matrix_free_val
         procedure         :: apply_to_dense_matrix_body              => coo_sparse_matrix_apply_to_dense_matrix_body
@@ -474,45 +484,45 @@ module base_sparse_matrix_names
             integer(ip)                             :: nnz
         end function base_sparse_matrix_get_nnz
 
-        subroutine base_sparse_matrix_copy_to_coo(this, to)
+        subroutine base_sparse_matrix_copy_to_coo_body(this, to)
             import base_sparse_matrix_t
             import coo_sparse_matrix_t
             class(base_sparse_matrix_t), intent(in)    :: this
-            class(coo_sparse_matrix_t),  intent(inout) :: to
-        end subroutine base_sparse_matrix_copy_to_coo
+            type(coo_sparse_matrix_t),   intent(inout) :: to
+        end subroutine base_sparse_matrix_copy_to_coo_body
 
-        subroutine base_sparse_matrix_copy_from_coo(this, from)
+        subroutine base_sparse_matrix_copy_from_coo_body(this, from)
             import base_sparse_matrix_t
             import coo_sparse_matrix_t
             class(base_sparse_matrix_t), intent(inout) :: this
-            class(coo_sparse_matrix_t), intent(in)     :: from
-        end subroutine base_sparse_matrix_copy_from_coo
+            type(coo_sparse_matrix_t),  intent(in)     :: from
+        end subroutine base_sparse_matrix_copy_from_coo_body
 
-        subroutine base_sparse_matrix_move_to_coo(this, to)
+        subroutine base_sparse_matrix_move_to_coo_body(this, to)
             import base_sparse_matrix_t
             import coo_sparse_matrix_t
             class(base_sparse_matrix_t), intent(inout) :: this
-            class(coo_sparse_matrix_t),  intent(inout) :: to
-        end subroutine base_sparse_matrix_move_to_coo
+            type(coo_sparse_matrix_t),   intent(inout) :: to
+        end subroutine base_sparse_matrix_move_to_coo_body
 
-        subroutine base_sparse_matrix_move_from_coo(this, from)
+        subroutine base_sparse_matrix_move_from_coo_body(this, from)
             import base_sparse_matrix_t
             import coo_sparse_matrix_t
             class(base_sparse_matrix_t), intent(inout) :: this
-            class(coo_sparse_matrix_t),  intent(inout) :: from
-        end subroutine base_sparse_matrix_move_from_coo
+            type(coo_sparse_matrix_t),   intent(inout) :: from
+        end subroutine base_sparse_matrix_move_from_coo_body
 
-        subroutine base_sparse_matrix_move_to_fmt(this, to)
+        subroutine base_sparse_matrix_move_to_fmt_body(this, to)
             import base_sparse_matrix_t
             class(base_sparse_matrix_t), intent(inout) :: this
             class(base_sparse_matrix_t), intent(inout) :: to
-        end subroutine base_sparse_matrix_move_to_fmt
+        end subroutine base_sparse_matrix_move_to_fmt_body
 
-        subroutine base_sparse_matrix_move_from_fmt(this, from)
+        subroutine base_sparse_matrix_move_from_fmt_body(this, from)
             import base_sparse_matrix_t
             class(base_sparse_matrix_t), intent(inout) :: this
             class(base_sparse_matrix_t), intent(inout) :: from
-        end subroutine base_sparse_matrix_move_from_fmt
+        end subroutine base_sparse_matrix_move_from_fmt_body
 
         subroutine base_sparse_matrix_allocate_values_body(this, nz)
             import base_sparse_matrix_t
@@ -2343,7 +2353,7 @@ contains
         class(vector_t),             intent(in)    :: x
         class(vector_t),             intent(inout) :: y
     !-----------------------------------------------------------------
-        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. op%state == SPARSE_MATRIX_STATE_UPDATE)
+        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED)
         call op%apply_body(x, y)
     end subroutine base_sparse_matrix_apply
 
@@ -2374,7 +2384,7 @@ contains
         integer(ip),                 intent(in)    :: LDC                  ! Leading dimension of C matrix
         real(rp),                    intent(inout) :: c(LDC, n)            ! Matrix C
     !-----------------------------------------------------------------
-        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. op%state == SPARSE_MATRIX_STATE_UPDATE)
+        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED)
         call op%apply_to_dense_matrix_body(n, alpha, LDB, b, beta, LDC, c) 
     end subroutine base_sparse_matrix_apply_to_dense_matrix
 
@@ -2409,7 +2419,7 @@ contains
         integer(ip),                 intent(in)    :: LDC                  ! Leading dimension of C matrix
         real(rp),                    intent(inout) :: c(LDC, n)            ! Matrix C
     !-----------------------------------------------------------------
-        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED .or. op%state == SPARSE_MATRIX_STATE_UPDATE)
+        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED)
         call op%apply_transpose_to_dense_matrix_body(n, alpha, LDB, b, beta, LDC, c) 
     end subroutine base_sparse_matrix_apply_transpose_to_dense_matrix
 
@@ -2431,7 +2441,119 @@ contains
     end subroutine base_sparse_matrix_apply_transpose_to_dense_matrix_body
 
 
+    subroutine base_sparse_matrix_state_transition_after_convert(this)
+    !-----------------------------------------------------------------
+    ! Change (if needed) the current state to the right state
+    ! after calling convert()
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+    !-----------------------------------------------------------------
+        select case (this%get_state())
+            case (SPARSE_MATRIX_STATE_BUILD_SYMBOLIC)
+                call this%set_state(SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC)
+            case (SPARSE_MATRIX_STATE_CREATED, SPARSE_MATRIX_STATE_BUILD_NUMERIC, SPARSE_MATRIX_STATE_UPDATE)
+                call this%set_state(SPARSE_MATRIX_STATE_ASSEMBLED)
+        end select
+    end subroutine base_sparse_matrix_state_transition_after_convert
+
+
     subroutine base_sparse_matrix_copy_to_fmt(this, to)
+    !-----------------------------------------------------------------
+    !< Copy this (FTM) -> to (FMT)
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in)    :: this
+        class(base_sparse_matrix_t), intent(inout) :: to
+    !-----------------------------------------------------------------
+        assert(this%state_is_created() .or. this%state_is_build_symbolic() .or. this%state_is_build_numeric() .or. this%state_is_assembled_symbolic() .or. this%state_is_assembled() .or. this%state_is_update())
+        call this%copy_to_fmt_body(to)
+    end subroutine base_sparse_matrix_copy_to_fmt
+
+
+    subroutine base_sparse_matrix_copy_from_fmt(this, from)
+    !-----------------------------------------------------------------
+    !< Copy from (FTM) -> this (FMT)
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        class(base_sparse_matrix_t), intent(in)    :: from
+    !-----------------------------------------------------------------
+        assert(from%state_is_created() .or. from%state_is_build_symbolic() .or. from%state_is_build_numeric() .or. from%state_is_assembled_symbolic() .or. from%state_is_assembled() .or. from%state_is_update())
+        call this%copy_from_fmt_body(from)
+    end subroutine base_sparse_matrix_copy_from_fmt
+
+
+    subroutine base_sparse_matrix_copy_to_coo(this, to)
+    !-----------------------------------------------------------------
+    !< Copy this (FTM) -> to (COO)
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in)    :: this
+        type(coo_sparse_matrix_t),   intent(inout) :: to
+    !-----------------------------------------------------------------
+        assert(this%state_is_created() .or. this%state_is_build_symbolic() .or. this%state_is_build_numeric() .or. this%state_is_assembled_symbolic() .or. this%state_is_assembled() .or. this%state_is_update())
+        call this%copy_to_coo_body(to)
+    end subroutine base_sparse_matrix_copy_to_coo
+
+
+    subroutine base_sparse_matrix_copy_from_coo(this, from)
+    !-----------------------------------------------------------------
+    !< Copy from (COO) -> to (FMT)
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        type(coo_sparse_matrix_t),   intent(in)    :: from
+    !-----------------------------------------------------------------
+        assert(from%state_is_created() .or. from%state_is_build_symbolic() .or. from%state_is_build_numeric() .or. from%state_is_assembled_symbolic() .or. from%state_is_assembled() .or. from%state_is_update())
+        call this%copy_from_coo_body(from)
+    end subroutine base_sparse_matrix_copy_from_coo
+
+
+    subroutine base_sparse_matrix_move_to_coo(this, to)
+    !-----------------------------------------------------------------
+    !< Move this (FMT) to (COO)
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        type(coo_sparse_matrix_t),   intent(inout) :: to
+    !-----------------------------------------------------------------
+        assert(this%state_is_created() .or. this%state_is_build_symbolic() .or. this%state_is_build_numeric() .or. this%state_is_assembled_symbolic() .or. this%state_is_assembled() .or. this%state_is_update())
+        call this%move_to_coo_body(to)
+    end subroutine base_sparse_matrix_move_to_coo
+
+
+    subroutine base_sparse_matrix_move_from_coo(this, from)
+    !-----------------------------------------------------------------
+    !< Move from (COO) -> this (FMT)
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        type(coo_sparse_matrix_t),   intent(inout) :: from
+    !----------------------------------------------------------------
+        assert(from%state_is_created() .or. from%state_is_build_symbolic() .or. from%state_is_build_numeric() .or. from%state_is_assembled_symbolic() .or. from%state_is_assembled() .or. from%state_is_update())
+        call this%move_from_coo_body(from)
+    end subroutine base_sparse_matrix_move_from_coo
+
+
+    subroutine base_sparse_matrix_move_to_fmt(this, to)
+    !-----------------------------------------------------------------
+    !< Move this (FMT) -> to (FMT)
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        class(base_sparse_matrix_t), intent(inout) :: to
+    !-----------------------------------------------------------------
+        assert(this%state_is_created() .or. this%state_is_build_symbolic() .or. this%state_is_build_numeric() .or. this%state_is_assembled_symbolic() .or. this%state_is_assembled() .or. this%state_is_update())
+        call this%move_to_fmt_body(to)
+    end subroutine base_sparse_matrix_move_to_fmt
+
+
+    subroutine base_sparse_matrix_move_from_fmt(this, from)
+    !-----------------------------------------------------------------
+    !< Move from (FMT) -> this (FMT)
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(inout) :: this
+        class(base_sparse_matrix_t), intent(inout) :: from
+    !-----------------------------------------------------------------
+        assert(from%state_is_created() .or. from%state_is_build_symbolic() .or. from%state_is_build_numeric() .or. from%state_is_assembled_symbolic() .or. from%state_is_assembled() .or. from%state_is_update())
+        call this%move_from_fmt_body(from)
+    end subroutine base_sparse_matrix_move_from_fmt
+
+
+    subroutine base_sparse_matrix_copy_to_fmt_body(this, to)
     !-----------------------------------------------------------------
     !< Copy this (FTM) -> to (FMT)
     !-----------------------------------------------------------------
@@ -2446,10 +2568,10 @@ contains
                 call this%copy_to_coo(tmp)
                 call to%move_from_coo(tmp)
         end select
-    end subroutine base_sparse_matrix_copy_to_fmt
+    end subroutine base_sparse_matrix_copy_to_fmt_body
 
 
-    subroutine base_sparse_matrix_copy_from_fmt(this, from)
+    subroutine base_sparse_matrix_copy_from_fmt_body(this, from)
     !-----------------------------------------------------------------
     !< Copy from (FMT) -> this (FMT)
     !-----------------------------------------------------------------
@@ -2464,7 +2586,7 @@ contains
                 call from%copy_to_coo(tmp)
                 call this%move_from_coo(tmp)
         end select
-    end subroutine base_sparse_matrix_copy_from_fmt
+    end subroutine base_sparse_matrix_copy_from_fmt_body
 
 
     subroutine base_sparse_matrix_convert_body(this)
@@ -4754,12 +4876,12 @@ contains
     end subroutine coo_sparse_matrix_extract_diagonal
 
 
-    subroutine coo_sparse_matrix_copy_to_coo(this, to)
+    subroutine coo_sparse_matrix_copy_to_coo_body(this, to)
     !-----------------------------------------------------------------
     !< Copy this (COO) -> to (COO)
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t), intent(in)    :: this
-        class(coo_sparse_matrix_t), intent(inout) :: to
+        type(coo_sparse_matrix_t),  intent(inout) :: to
         integer(ip)                               :: nnz
     !-----------------------------------------------------------------
         nnz = this%nnz
@@ -4782,15 +4904,15 @@ contains
             to%val(1:nnz) = this%val(1:nnz)
         endif
         to%state = this%state
-    end subroutine coo_sparse_matrix_copy_to_coo
+    end subroutine coo_sparse_matrix_copy_to_coo_body
 
 
-    subroutine coo_sparse_matrix_copy_from_coo(this, from)
+    subroutine coo_sparse_matrix_copy_from_coo_body(this, from)
     !-----------------------------------------------------------------
     !< Copy from (COO) -> this (COO)
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t), intent(inout) :: this
-        class(coo_sparse_matrix_t), intent(in)    :: from
+        type(coo_sparse_matrix_t),  intent(in)    :: from
         integer(ip)                               :: nnz
     !-----------------------------------------------------------------
         nnz = from%get_nnz()
@@ -4813,37 +4935,37 @@ contains
             this%val(1:nnz) = from%val(1:nnz)
         endif
         this%state = from%state
-    end subroutine coo_sparse_matrix_copy_from_coo
+    end subroutine coo_sparse_matrix_copy_from_coo_body
 
 
-    subroutine coo_sparse_matrix_copy_to_fmt(this, to)
+    subroutine coo_sparse_matrix_copy_to_fmt_body(this, to)
     !-----------------------------------------------------------------
     !< Copy this (FTM) -> to (COO)
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t),  intent(in)    :: this
         class(base_sparse_matrix_t), intent(inout) :: to
     !-----------------------------------------------------------------
-        call to%copy_from_coo(from=this)
-    end subroutine coo_sparse_matrix_copy_to_fmt
+        call to%copy_from_coo_body(from=this)
+    end subroutine coo_sparse_matrix_copy_to_fmt_body
 
 
-    subroutine coo_sparse_matrix_copy_from_fmt(this, from)
+    subroutine coo_sparse_matrix_copy_from_fmt_body(this, from)
     !-----------------------------------------------------------------
     !< Copy from (FMT) -> this (COO)
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t),  intent(inout) :: this
         class(base_sparse_matrix_t), intent(in)    :: from
     !-----------------------------------------------------------------
-        call from%copy_to_coo(to=this)
-    end subroutine coo_sparse_matrix_copy_from_fmt
+        call from%copy_to_coo_body(to=this)
+    end subroutine coo_sparse_matrix_copy_from_fmt_body
 
 
-    subroutine coo_sparse_matrix_move_to_coo(this, to)
+    subroutine coo_sparse_matrix_move_to_coo_body(this, to)
     !-----------------------------------------------------------------
     !< Move this (COO) -> to (COO)
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t), intent(inout) :: this
-        class(coo_sparse_matrix_t), intent(inout) :: to
+        type(coo_sparse_matrix_t),  intent(inout) :: to
         integer(ip)                               :: nnz
     !-----------------------------------------------------------------
         nnz = this%nnz
@@ -4859,15 +4981,15 @@ contains
         call move_alloc(from=this%ja, to=to%ja)
         if(.not. this%is_symbolic()) call move_alloc(from=this%val, to=to%val)
         call this%free()
-    end subroutine coo_sparse_matrix_move_to_coo
+    end subroutine coo_sparse_matrix_move_to_coo_body
 
 
-    subroutine coo_sparse_matrix_move_from_coo(this, from)
+    subroutine coo_sparse_matrix_move_from_coo_body(this, from)
     !-----------------------------------------------------------------
     !< Move from (COO) -> this (COO)
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t), intent(inout) :: this
-        class(coo_sparse_matrix_t), intent(inout) :: from
+        type(coo_sparse_matrix_t),  intent(inout) :: from
         integer(ip)                               :: nnz
     !-----------------------------------------------------------------
         nnz = this%nnz
@@ -4883,29 +5005,29 @@ contains
         call move_alloc(from=from%ja, to=this%ja)
         if(.not. from%is_symbolic()) call move_alloc(from=from%val, to=this%val)
         call from%free()
-    end subroutine coo_sparse_matrix_move_from_coo
+    end subroutine coo_sparse_matrix_move_from_coo_body
 
 
-    subroutine coo_sparse_matrix_move_to_fmt(this, to)
+    subroutine coo_sparse_matrix_move_to_fmt_body(this, to)
     !-----------------------------------------------------------------
     !< Move this (COO) -> to (FMT)
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t),  intent(inout) :: this
         class(base_sparse_matrix_t), intent(inout) :: to
     !-----------------------------------------------------------------
-        call to%move_from_coo(from=this)
-    end subroutine coo_sparse_matrix_move_to_fmt
+        call to%move_from_coo_body(from=this)
+    end subroutine coo_sparse_matrix_move_to_fmt_body
 
 
-    subroutine coo_sparse_matrix_move_from_fmt(this, from)
+    subroutine coo_sparse_matrix_move_from_fmt_body(this, from)
     !-----------------------------------------------------------------
     !< Move from (FMT) -> this (COO)
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t),  intent(inout) :: this
         class(base_sparse_matrix_t), intent(inout) :: from
     !-----------------------------------------------------------------
-        call from%move_to_coo(to=this)
-    end subroutine coo_sparse_matrix_move_from_fmt
+        call from%move_to_coo_body(to=this)
+    end subroutine coo_sparse_matrix_move_from_fmt_body
 
 
     subroutine coo_sparse_matrix_free_coords(this)
