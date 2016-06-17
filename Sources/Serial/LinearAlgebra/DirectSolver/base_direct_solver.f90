@@ -264,6 +264,7 @@ contains
 
     subroutine  base_direct_solver_free_numerical(this)
         class(base_direct_solver_t), intent(inout) :: this
+                
         ! Check pre-conditions
         if(.not. this%state_is_numeric()) return
         call this%free_numerical_body

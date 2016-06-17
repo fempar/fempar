@@ -26,10 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module sparse_matrix_parameters_names
+   use types_names
 
-  USE types_names
-
-implicit none
+   implicit none
 
     ! Sparse matrix format ID's
     character(len=3), parameter :: coo_format = 'COO'
@@ -55,9 +54,4 @@ implicit none
     integer(ip),      parameter :: COO_SPARSE_MATRIX_SORTED_NONE    = 20
     integer(ip),      parameter :: COO_SPARSE_MATRIX_SORTED_BY_ROWS = 21
     integer(ip),      parameter :: COO_SPARSE_MATRIX_SORTED_BY_COLS = 22
-
-
-
-
-
 end module sparse_matrix_parameters_names

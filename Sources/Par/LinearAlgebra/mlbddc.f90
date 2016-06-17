@@ -39,8 +39,12 @@ module mlbddc_names
  use fe_affine_operator_names
  
  ! Linear Algebra related modules
+ use par_scalar_array_names
+ use serial_scalar_array_names
+ 
  use matrix_names
- use base_sparse_matrix_names, only : coo_sparse_matrix_t
+ use base_sparse_matrix_names
+ use sparse_matrix_parameters_names
  use sparse_matrix_names
  use par_sparse_matrix_names
  use direct_solver_names
@@ -119,11 +123,21 @@ module mlbddc_names
    
    ! Coarse-grid problem related member variables
    real(rp), allocatable                       :: phi(:,:)
+   
    ! Pointer to data structure which is in charge of coarse DoF handling.
-   ! It will be a nullified pointer on L1 tasks, and associated
-   ! via target allocation in the case of L2-Ln tasks.
+   ! It will be a nullified pointer on L1 tasks, and associated via target 
+   ! allocation in the case of L2-Ln tasks.
    type(coarse_fe_space_t)       , pointer     :: coarse_fe_space => NULL()
-   ! Next level in the preconditioning hierarchy
+   
+   ! Coarse-grid matrix. It is temporarily stored in a type(par_sparse_matrix_t)
+   ! data structure, although, in my opinion, in the seek of extensibility, 
+   ! some sort of operator is required here that plays the same role as
+   ! type(fe_affine_operator_t) on L1 tasks. It will be a nullified pointer on 
+   ! L1 tasks, and associated via target allocation in the case of L2-Ln tasks.
+   type(par_sparse_matrix_t)     , pointer     :: coarse_grid_matrix => NULL()
+   
+   ! Next level in the preconditioning hierarchy. It will be a nullified pointer on 
+   ! L1 tasks, and associated via target allocation in the case of L2-Ln tasks.
    type(mlbddc_coarse_t)         , pointer     :: mlbddc_coarse   => NULL()
  contains
     procedure, non_overridable          :: create                                          => mlbddc_create
@@ -142,6 +156,8 @@ module mlbddc_names
     procedure, non_overridable, private :: symbolic_setup_dirichlet_solver                 => mlbddc_symbolic_setup_dirichlet_solver
     procedure, non_overridable, private :: symbolic_setup_constrained_neumann_problem      => mlbddc_symbolic_setup_constrained_neumann_problem
     procedure, non_overridable, private :: symbolic_setup_constrained_neumann_solver       => mlbddc_symbolic_setup_constrained_neumann_solver
+    procedure, non_overridable, private :: symbolic_setup_coarse_grid_matrix               => mlbddc_symbolic_setup_coarse_grid_matrix
+    procedure, non_overridable, private :: coarse_grid_matrix_symbolic_assembly            => mlbddc_coarse_grid_matrix_symbolic_assembly 
     procedure, non_overridable, private :: symbolic_setup_mlbddc_coarse                    => mlbddc_symbolic_setup_mlbddc_coarse
     
     ! Numerical setup-related TBPs
@@ -155,6 +171,24 @@ module mlbddc_names
     procedure, non_overridable, private :: compute_subdomain_elmat                         => mlbddc_compute_subdomain_elmat
     procedure, non_overridable, private :: compute_and_gather_subdomain_elmat              => mlbddc_compute_and_gather_subdomain_elmat
     procedure, non_overridable, private :: compute_subdomain_elmat_counts_and_displs       => mlbddc_compute_subdomain_elmat_counts_and_displs
+    procedure, non_overridable, private :: numerical_setup_coarse_grid_matrix              => mlbddc_numerical_setup_coarse_grid_matrix
+    procedure, non_overridable, private :: coarse_grid_matrix_numerical_assembly           => mlbddc_coarse_grid_matrix_numerical_assembly 
+    procedure, non_overridable, private :: numerical_setup_mlbddc_coarse                   => mlbddc_numerical_setup_mlbddc_coarse
+    
+    ! Apply related TBPs
+    procedure, non_overridable          :: apply                                           => mlbddc_apply
+    
+    
+    procedure, non_overridable, private :: setup_coarse_grid_residual                      => mlbddc_setup_coarse_grid_residual
+    procedure, non_overridable, private :: compute_coarse_dofs_values                      => mlbddc_compute_coarse_dofs_values
+    procedure, non_overridable, private :: compute_and_gather_coarse_dofs_values           => mlbddc_compute_and_gather_coarse_dofs_values
+    procedure, non_overridable, private :: compute_coarse_dofs_values_counts_and_displs    => mlbddc_compute_coarse_dofs_values_counts_and_displs
+    procedure, non_overridable, private :: coarse_grid_residual_assembly                   => mlbddc_coarse_grid_residual_assembly
+    procedure, non_overridable, private :: scatter_and_interpolate_coarse_grid_correction  => mlbddc_scatter_and_interpolate_coarse_grid_correction
+    procedure, non_overridable, private :: scatter_coarse_grid_correction                  => mlbddc_scatter_coarse_grid_correction
+    procedure, non_overridable, private :: fill_coarse_dofs_values_scattered               => mlbddc_fill_coarse_dofs_values_scattered
+    procedure, non_overridable, private :: interpolate_coarse_grid_correction              => mlbddc_interpolate_coarse_grid_correction
+
 
     ! Free-related TBPs
     procedure, non_overridable          :: free                                             => mlbddc_free
@@ -165,6 +199,7 @@ module mlbddc_names
     procedure, non_overridable          :: free_symbolic_setup_dirichlet_solver             => mlbddc_free_symbolic_setup_dirichlet_solver
     procedure, non_overridable          :: free_symbolic_setup_constrained_neumann_problem  => mlbddc_free_symbolic_setup_constrained_neumann_problem
     procedure, non_overridable          :: free_symbolic_setup_constrained_neumann_solver   => mlbddc_free_symbolic_setup_constrained_neumann_solver
+    
     procedure, non_overridable          :: free_numerical_setup                             => mlbddc_free_numerical_setup
     procedure, non_overridable          :: free_numerical_setup_dirichlet_problem           => mlbddc_free_numerical_setup_dirichlet_problem
     procedure, non_overridable          :: free_numerical_setup_dirichlet_solver            => mlbddc_free_numerical_setup_dirichlet_solver
@@ -185,7 +220,8 @@ module mlbddc_names
    ! Some sort of operator is required here that plays the role of type(mlbddc_t)%fe_affine_operator.
    ! This operator should be built on the previous level and passed here. Let us use the 
    ! coarse_fe_space built on the previous level in the mean time.
-   type(coarse_fe_space_t)       , pointer     :: fe_space        => NULL()
+   type(coarse_fe_space_t)       , pointer     :: fe_space          => NULL()
+   type(par_sparse_matrix_t)     , pointer     :: par_sparse_matrix => NULL()
    
    !**** BEGIN member variables which control coarse DoFs on top of coarse VEFs ****!
    !********************************************************************************!
@@ -204,12 +240,39 @@ module mlbddc_names
    !********************************************************************************!
    !**** END member variables which control coarse DoFs on top of coarse VEFs ****!
    
+   
+   ! Constrained Neumann problem-related member variables
+   ! B = [ A C^T ]
+   !     [ C   0 ]
+   type(direct_solver_t)                       :: constrained_neumann_solver
+   type(sparse_matrix_t)                       :: constrained_neumann_matrix
+   
+   ! Dirichlet problem-related member variables
+   ! A => [ A_II A_IG ]
+   !      [ A_GI A_GG ]
+   type(direct_solver_t)                       :: dirichlet_solver
+   type(sparse_matrix_t)                       :: A_II
+   type(sparse_matrix_t)                       :: A_IG
+   type(sparse_matrix_t)                       :: A_GI
+   type(sparse_matrix_t)                       :: A_GG
+   
+   ! Coarse-grid problem related member variables
+   real(rp), allocatable                       :: phi(:,:)
+   
    ! Pointer to data structure which is in charge of coarse DoF handling.
-   ! It will be a nullified pointer on L1 tasks, and associated
-   ! via target allocation in the case of L2-Ln tasks.
+   ! It will be a nullified pointer on L1 tasks, and associated via target 
+   ! allocation in the case of L2-Ln tasks.
    type(coarse_fe_space_t)       , pointer     :: coarse_fe_space => NULL()
    
-   ! Next level in the preconditioning hierarchy
+   ! Coarse-grid matrix. It is temporarily stored in a type(par_sparse_matrix_t)
+   ! data structure, although, in my opinion, in the seek of extensibility, 
+   ! some sort of operator is required here that plays the same role as
+   ! type(fe_affine_operator_t) on L1 tasks. It will be a nullified pointer on 
+   ! L1 tasks, and associated via target allocation in the case of L2-Ln tasks.
+   type(par_sparse_matrix_t)     , pointer     :: coarse_grid_matrix => NULL()
+   
+   ! Next level in the preconditioning hierarchy. It will be a nullified pointer on 
+   ! L1 tasks, and associated via target allocation in the case of L2-Ln tasks.
    type(mlbddc_coarse_t)         , pointer     :: mlbddc_coarse   => NULL()
  contains
  
@@ -226,20 +289,48 @@ module mlbddc_names
    procedure, non_overridable, private :: gather_coarse_dofs_gids                         => mlbddc_coarse_gather_coarse_dofs_gids
    procedure, non_overridable, private :: gather_vefs_gids_dofs_objects                   => mlbddc_coarse_gather_vefs_gids_dofs_objects
    procedure, non_overridable, private :: symbolic_setup_dirichlet_problem                => mlbddc_coarse_symbolic_setup_dirichlet_problem
+   procedure, non_overridable, private :: symbolic_setup_dirichlet_solver                 => mlbddc_coarse_symbolic_setup_dirichlet_solver
+   procedure, non_overridable, private :: symbolic_setup_constrained_neumann_problem      => mlbddc_coarse_symbolic_setup_constrained_neumann_problem
+   procedure, non_overridable, private :: symbolic_setup_constrained_neumann_solver       => mlbddc_coarse_symbolic_setup_constrained_neumann_solver
+   procedure, non_overridable, private :: symbolic_setup_coarse_grid_matrix               => mlbddc_coarse_symbolic_setup_coarse_grid_matrix
+   procedure, non_overridable, private :: coarse_grid_matrix_symbolic_assembly            => mlbddc_coarse_coarse_grid_matrix_symbolic_assembly 
    procedure, non_overridable, private :: symbolic_setup_mlbddc_coarse                    => mlbddc_coarse_symbolic_setup_mlbddc_coarse
    
    ! Numerical setup-related TBPS
-   ! procedure, non_overridable          :: numerical_setup                                 => mlbddc_coarse_numerical_setup
-   ! procedure, non_overridable, private :: numerical_setup_dirichlet_problem               => mlbddc_coarse_numerical_setup_dirichlet_problem
-   ! 
-    procedure, non_overridable          :: free                                            => mlbddc_coarse_free
-    procedure, non_overridable          :: free_clean                                      => mlbddc_coarse_free_clean
-    procedure, non_overridable          :: free_symbolic_setup                             => mlbddc_coarse_free_symbolic_setup
-    procedure, non_overridable          :: free_dofs_objects_and_constraint_matrix         => mlbddc_coarse_free_dofs_objects_and_constraint_matrix
-    procedure, non_overridable          :: free_symbolic_setup_dirichlet_problem           => mlbddc_coarse_free_symbolic_setup_dirichlet_problem
-    procedure, non_overridable          :: free_numerical_setup                            => mlbddc_coarse_free_numerical_setup
-    procedure, non_overridable          :: free_numerical_setup_dirichlet_problem          => mlbddc_coarse_free_numerical_setup_dirichlet_problem
+   procedure, non_overridable          :: numerical_setup                                 => mlbddc_coarse_numerical_setup
+   procedure, non_overridable, private :: numerical_setup_dirichlet_problem               => mlbddc_coarse_numerical_setup_dirichlet_problem
+   procedure, non_overridable, private :: numerical_setup_dirichlet_solver                => mlbddc_coarse_numerical_setup_dirichlet_solver
+   procedure, non_overridable, private :: numerical_setup_constrained_neumann_problem     => mlbddc_coarse_numerical_constrained_neumann_problem
+   procedure, non_overridable, private :: numerical_setup_constrained_neumann_solver      => mlbddc_coarse_numerical_setup_constrained_neumann_solver
+   procedure, non_overridable, private :: allocate_coarse_grid_basis                      => mlbddc_coarse_allocate_coarse_grid_basis
+   procedure, non_overridable, private :: setup_coarse_grid_basis                         => mlbddc_coarse_setup_coarse_grid_basis
+   procedure, non_overridable, private :: compute_subdomain_elmat                         => mlbddc_coarse_compute_subdomain_elmat
+   procedure, non_overridable, private :: compute_and_gather_subdomain_elmat              => mlbddc_coarse_compute_and_gather_subdomain_elmat
+   procedure, non_overridable, private :: compute_subdomain_elmat_counts_and_displs       => mlbddc_coarse_compute_subdomain_elmat_counts_and_displs
+   procedure, non_overridable, private :: numerical_setup_coarse_grid_matrix              => mlbddc_coarse_numerical_setup_coarse_grid_matrix
+   procedure, non_overridable, private :: coarse_grid_matrix_numerical_assembly           => mlbddc_coarse_coarse_grid_matrix_numerical_assembly
+   procedure, non_overridable, private :: numerical_setup_mlbddc_coarse                   => mlbddc_coarse_numerical_setup_mlbddc_coarse
 
+   
+   procedure, non_overridable          :: free                                              => mlbddc_coarse_free
+   procedure, non_overridable          :: free_clean                                        => mlbddc_coarse_free_clean
+   procedure, non_overridable          :: free_symbolic_setup                               => mlbddc_coarse_free_symbolic_setup
+   procedure, non_overridable          :: free_dofs_objects_and_constraint_matrix           => mlbddc_coarse_free_dofs_objects_and_constraint_matrix
+   procedure, non_overridable          :: free_symbolic_setup_dirichlet_problem             => mlbddc_coarse_free_symbolic_setup_dirichlet_problem
+   procedure, non_overridable          :: free_symbolic_setup_dirichlet_solver              => mlbddc_coarse_free_symbolic_setup_dirichlet_solver
+   procedure, non_overridable          :: free_symbolic_setup_constrained_neumann_problem   => mlbddc_coarse_free_symbolic_setup_constrained_neumann_problem
+   procedure, non_overridable          :: free_symbolic_setup_constrained_neumann_solver    => mlbddc_coarse_free_symbolic_setup_constrained_neumann_solver
+
+    procedure, non_overridable          :: free_numerical_setup                             => mlbddc_coarse_free_numerical_setup
+    procedure, non_overridable          :: free_numerical_setup_dirichlet_problem           => mlbddc_coarse_free_numerical_setup_dirichlet_problem
+    procedure, non_overridable          :: free_numerical_setup_dirichlet_solver            => mlbddc_coarse_free_numerical_setup_dirichlet_solver
+    procedure, non_overridable          :: free_numerical_setup_constrained_neumann_problem => mlbddc_coarse_free_numerical_setup_constrained_neumann_problem
+    procedure, non_overridable          :: free_numerical_setup_constrained_neumann_solver  => mlbddc_coarse_free_numerical_setup_constrained_neumann_solver
+    procedure, non_overridable          :: free_coarse_grid_basis                           => mlbddc_coarse_free_coarse_grid_basis
+ 
+   
+   procedure, non_overridable, private  :: get_total_number_coarse_dofs                    => mlbddc_coarse_get_total_number_coarse_dofs
+   procedure, non_overridable, private  :: get_block_number_coarse_dofs                    => mlbddc_coarse_get_block_number_coarse_dofs
    procedure, non_overridable, private  :: get_par_sparse_matrix                           => mlbddc_coarse_get_par_sparse_matrix
    procedure, non_overridable, private  :: get_fe_space                                    => mlbddc_coarse_get_fe_space
    procedure, non_overridable, private  :: get_par_environment                             => mlbddc_coarse_get_par_environment
@@ -268,19 +359,25 @@ contains
   subroutine mlbddc_symbolic_setup ( this )
     implicit none
     class(mlbddc_t), intent(inout) :: this
-    type(par_environment_t), pointer :: par_environment
-        
+    type(par_environment_t), pointer :: par_environment  
     par_environment => this%get_par_environment()
-    if ( par_environment%am_i_l1_task() ) then
-      call this%setup_dofs_objects_and_constraint_matrix()
-    end if
-    call this%setup_coarse_fe_space()
-    call this%symbolic_setup_mlbddc_coarse()
-    if ( par_environment%am_i_l1_task() ) then
-      call this%symbolic_setup_dirichlet_problem()
-      call this%symbolic_setup_dirichlet_solver()
-      call this%symbolic_setup_constrained_neumann_problem()
-      call this%symbolic_setup_constrained_neumann_solver()
+    if ( par_environment%get_l1_size() > 1 ) then
+      if( par_environment%am_i_l1_task()  ) then
+        call this%setup_dofs_objects_and_constraint_matrix()
+      end if
+      
+      call this%setup_coarse_fe_space()
+      call this%symbolic_setup_coarse_grid_matrix()
+      call this%symbolic_setup_mlbddc_coarse()
+      
+      if ( par_environment%am_i_l1_task()  ) then
+        call this%symbolic_setup_dirichlet_problem()
+        call this%symbolic_setup_dirichlet_solver()
+        call this%symbolic_setup_constrained_neumann_problem()
+        call this%symbolic_setup_constrained_neumann_solver()
+      end if
+    else
+      check(.false.)
     end if
   end subroutine mlbddc_symbolic_setup
   
@@ -640,6 +737,84 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     call this%constrained_neumann_solver%symbolic_setup() 
   end subroutine mlbddc_symbolic_setup_constrained_neumann_solver
   
+  subroutine mlbddc_symbolic_setup_coarse_grid_matrix ( this )
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    type(par_environment_t)   , pointer       :: L1_environment
+    type(par_environment_t)   , pointer       :: L2_environment
+    integer(ip)                               :: istat
+    
+    L1_environment => this%get_par_environment()
+    if ( L1_environment%am_i_lgt1_task() ) then
+       ! lgt1 MPI tasks symbolically set-up this%coarse_grid_matrix
+       allocate  ( this%coarse_grid_matrix, stat = istat )
+       check( istat == 0 )
+
+       L2_environment => L1_environment%get_next_level()
+       call this%coarse_grid_matrix%create( p_env             = L2_environment, &
+                                            dof_import        = this%coarse_fe_space%get_block_dof_import(1), &
+                                            symmetric_storage = .true., &
+                                            is_symmetric      = .true., &
+                                            sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
+       
+       if ( L2_environment%am_i_l1_task() ) then
+          call this%coarse_grid_matrix_symbolic_assembly()
+       end if
+    else       
+       ! L1 tasks do not hold any piece of the coarse triangulation
+       nullify(this%coarse_grid_matrix)
+    end if
+  end subroutine mlbddc_symbolic_setup_coarse_grid_matrix
+  
+  subroutine mlbddc_coarse_grid_matrix_symbolic_assembly ( this )
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    type(par_environment_t)   , pointer       :: L1_environment
+    type(par_environment_t)   , pointer       :: L2_environment
+    type(coarse_fe_iterator_t) :: iterator
+    type(coarse_fe_accessor_t) :: coarse_fe
+    type(i1p_t), allocatable :: elem2dof(:)
+    logical, pointer :: field_coupling(:,:)
+    integer(ip) :: ifield, jfield, i, j, istat
+    
+    L1_environment => this%get_par_environment()
+    L2_environment => L1_environment%get_next_level()
+    assert ( associated (L2_environment) )
+    assert ( L2_environment%am_i_l1_task() )
+    
+    allocate ( elem2dof(this%coarse_fe_space%get_number_fields()), stat=istat)
+    check(istat==0)     
+    
+    field_coupling => this%coarse_fe_space%get_field_coupling()
+    
+    iterator  = this%coarse_fe_space%create_coarse_fe_iterator()
+    do while ( .not. iterator%has_finished() )
+       coarse_fe = iterator%current()
+       call coarse_fe%get_elem2dof(elem2dof)
+       do ifield=1, this%coarse_fe_space%get_number_fields()
+          do jfield=1, this%coarse_fe_space%get_number_fields()
+             if ((field_coupling(ifield,jfield))) then
+               do j=1, size(elem2dof(jfield)%p)
+                 do i=1, size(elem2dof(ifield)%p)
+                    call this%coarse_grid_matrix%insert(ia=elem2dof(ifield)%p(i), &
+                                                        ja=elem2dof(jfield)%p(j) )
+                 end do
+               end do  
+             end if
+          end do
+       end do
+       call iterator%next()
+    end do
+    
+    deallocate ( elem2dof, stat=istat )
+    check(istat==0)     
+    
+    call this%coarse_grid_matrix%convert(csr_format)
+    
+    call this%coarse_grid_matrix%print(6)
+  end subroutine mlbddc_coarse_grid_matrix_symbolic_assembly
+  
+  
   subroutine mlbddc_symbolic_setup_mlbddc_coarse(this)
     implicit none
     class(mlbddc_t), intent(inout)     :: this
@@ -651,27 +826,38 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
      ! lgt1 MPI tasks symbolically setup mlbddc coarse
      allocate  ( this%mlbddc_coarse, stat = istat )
      check( istat == 0 )
-     call this%mlbddc_coarse%create(this%coarse_fe_space)
+     call this%mlbddc_coarse%create(this%coarse_fe_space, &
+                                    this%coarse_grid_matrix)
      call this%mlbddc_coarse%symbolic_setup()
     else
       ! L1 tasks do not hold any piece of the coarse triangulation
       nullify(this%mlbddc_coarse)
      end if
   end subroutine mlbddc_symbolic_setup_mlbddc_coarse
-  
+   
   subroutine mlbddc_numerical_setup ( this )
     implicit none
     class(mlbddc_t)        , intent(inout)   :: this
     type(par_environment_t), pointer         :: par_environment
     
-    if ( par_environment%am_i_l1_task() ) then
-      call this%numerical_setup_dirichlet_problem()
-      call this%numerical_setup_dirichlet_solver()
-      call this%numerical_setup_constrained_neumann_problem()
-      call this%numerical_setup_constrained_neumann_solver()
-      call this%setup_coarse_grid_basis()
-    end if
-  
+    par_environment => this%get_par_environment()
+    if ( par_environment%get_l1_size() > 1 ) then  
+      if ( par_environment%am_i_l1_task() ) then
+        call this%numerical_setup_constrained_neumann_problem()
+        call this%numerical_setup_constrained_neumann_solver()
+        call this%setup_coarse_grid_basis()
+      end if
+    
+      call this%numerical_setup_coarse_grid_matrix()
+      call this%numerical_setup_mlbddc_coarse()
+    
+      if ( par_environment%am_i_l1_task() ) then
+        call this%numerical_setup_dirichlet_problem()
+        call this%numerical_setup_dirichlet_solver()
+      end if
+    else
+      check(.false.)
+    end if    
   end subroutine mlbddc_numerical_setup
   
   
@@ -881,9 +1067,11 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     iterator = this%coarse_fe_space%create_coarse_fe_iterator()
     do while ( .not. iterator%has_finished() )
       coarse_fe = iterator%current()
-      counts(i) = coarse_fe%get_number_dofs()**2    
+      if ( coarse_fe%is_local() ) then
+        counts(i) = coarse_fe%get_number_dofs()**2    
+        i = i +1
+      end if
       call iterator%next()
-      i = i +1
     end do
     
     displs(1) = 0
@@ -936,6 +1124,450 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
      end if     
   end subroutine mlbddc_compute_and_gather_subdomain_elmat
   
+  subroutine mlbddc_numerical_setup_coarse_grid_matrix ( this )
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    type(par_environment_t)   , pointer       :: L1_environment
+    type(par_environment_t)   , pointer       :: L2_environment
+    integer(ip)                               :: istat
+    real(rp), allocatable                     :: subdomain_elmat_gathered(:)
+    L1_environment => this%get_par_environment()
+    if ( L1_environment%am_i_l1_to_l2_task() ) then
+      call this%compute_and_gather_subdomain_elmat(subdomain_elmat_gathered)
+    end if
+    if ( L1_environment%am_i_lgt1_task() ) then
+      L2_environment => L1_environment%get_next_level() 
+      if ( L2_environment%am_i_l1_task() ) then
+          call this%coarse_grid_matrix_numerical_assembly(subdomain_elmat_gathered)
+       end if
+    end if
+    ! subdomain_elmat_gathered is only allocated on L2 MPI tasks
+    if (allocated(subdomain_elmat_gathered) ) call memfree(subdomain_elmat_gathered, __FILE__, __LINE__ )
+  end subroutine mlbddc_numerical_setup_coarse_grid_matrix
+  
+  subroutine mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_elmat_gathered )
+    implicit none
+    class(mlbddc_t)           , intent(inout) :: this
+    real(rp)                  , intent(in)    :: subdomain_elmat_gathered(*)
+    
+    type(par_environment_t)   , pointer       :: L1_environment
+    type(par_environment_t)   , pointer       :: L2_environment
+    type(coarse_fe_iterator_t) :: iterator
+    type(coarse_fe_accessor_t) :: coarse_fe
+    type(i1p_t), allocatable :: elem2dof(:)
+    logical, pointer :: field_coupling(:,:)
+    integer(ip) :: ifield, jfield, i, j, istat, current
+    
+    L1_environment => this%get_par_environment()
+    L2_environment => L1_environment%get_next_level()
+    assert ( associated (L2_environment) )
+    assert ( L2_environment%am_i_l1_task() )
+    allocate ( elem2dof(this%coarse_fe_space%get_number_fields()), stat=istat)
+    check(istat==0)     
+    field_coupling => this%coarse_fe_space%get_field_coupling()
+    current = 1
+    iterator  = this%coarse_fe_space%create_coarse_fe_iterator()
+    do while ( .not. iterator%has_finished() )
+       coarse_fe = iterator%current()
+       call coarse_fe%get_elem2dof(elem2dof)
+       if ( coarse_fe%is_local() ) then
+          do ifield=1, this%coarse_fe_space%get_number_fields()
+             do jfield=1, this%coarse_fe_space%get_number_fields()
+                if ((field_coupling(ifield,jfield))) then
+                   do j=1, size(elem2dof(jfield)%p)
+                      do i=1, size(elem2dof(ifield)%p)
+                         call this%coarse_grid_matrix%insert(ia =  elem2dof(ifield)%p(i), &
+                                                             ja  = elem2dof(jfield)%p(j), &
+                                                             val = subdomain_elmat_gathered(current) )
+                         current = current + 1
+                      end do
+                   end do
+                end if
+             end do
+          end do
+       end if
+       call iterator%next()
+    end do
+    deallocate ( elem2dof, stat=istat )
+    check(istat==0)     
+    call this%coarse_grid_matrix%convert(csr_format)
+    call this%coarse_grid_matrix%print(6)
+  end subroutine mlbddc_coarse_grid_matrix_numerical_assembly
+  
+  subroutine mlbddc_numerical_setup_mlbddc_coarse ( this )
+   implicit none
+   class(mlbddc_t)           , intent(inout) :: this
+   type(par_environment_t)  , pointer :: par_environment
+    
+    par_environment => this%get_par_environment()
+    if ( par_environment%am_i_lgt1_task() ) then
+     call this%mlbddc_coarse%numerical_setup()
+    end if
+  end subroutine mlbddc_numerical_setup_mlbddc_coarse 
+  
+  subroutine mlbddc_apply ( this, x, y )
+    implicit none
+    class(mlbddc_t)         , intent(in)    :: this
+    type(par_scalar_array_t), intent(in)    :: x
+    type(par_scalar_array_t), intent(inout) :: y
+    
+    type(par_scalar_array_t) ::  x_coarse
+    type(par_scalar_array_t) ::  v1
+    
+    ! 1. w <- Weight(x)
+    ! 2. 
+    call this%setup_coarse_grid_residual ( x, x_coarse )
+    call this%scatter_and_interpolate_coarse_grid_correction ( x_coarse, v1 )
+    
+    call x_coarse%free()
+    call v1%free()
+  end subroutine mlbddc_apply
+  
+  subroutine mlbddc_setup_coarse_grid_residual ( this, vector, coarse_grid_vector )
+    implicit none
+    class(mlbddc_t)         , intent(in)    :: this
+    type(par_scalar_array_t), intent(in)    :: vector
+    type(par_scalar_array_t), intent(inout) :: coarse_grid_vector
+    type(par_environment_t), pointer        :: L1_environment
+    type(par_environment_t), pointer        :: L2_environment
+    real(rp), allocatable                   :: coarse_dofs_values_gathered(:)
+    
+    L1_environment => this%get_par_environment()
+    if ( L1_environment%am_i_l1_to_l2_task() ) then
+      call this%compute_and_gather_coarse_dofs_values(vector, coarse_dofs_values_gathered)
+    end if
+    
+    if ( L1_environment%am_i_lgt1_task() ) then
+       L2_environment => L1_environment%get_next_level()
+       call coarse_grid_vector%create_and_allocate( p_env      = L2_environment, &
+                                                    dof_import = this%coarse_fe_space%get_block_dof_import(1) )
+       call coarse_grid_vector%init(0.0_rp) 
+       if ( L2_environment%am_i_l1_task() ) then
+          call this%coarse_grid_residual_assembly(coarse_dofs_values_gathered, coarse_grid_vector)
+       end if
+    else
+       call coarse_grid_vector%free()
+    end if
+    if ( allocated(coarse_dofs_values_gathered) ) call memfree(coarse_dofs_values_gathered, __FILE__, __LINE__ )
+  end subroutine mlbddc_setup_coarse_grid_residual
+  
+  
+  ! Computes subdomain_elvec = \Phi^t v_i
+  subroutine mlbddc_compute_coarse_dofs_values ( this, vector, coarse_dofs_values )
+    implicit none
+    class(mlbddc_t)         , intent(in) :: this
+    type(par_scalar_array_t), intent(in) :: vector
+    real(rp), allocatable, intent(inout) :: coarse_dofs_values(:)
+    type(serial_scalar_array_t), pointer :: serial_scalar_array
+    
+    assert ( this%am_i_l1_task() )
+    serial_scalar_array => vector%get_serial_scalar_array()
+    
+    if ( allocated(coarse_dofs_values) ) then
+      call memfree ( coarse_dofs_values, __FILE__, __LINE__ )
+    end if
+    
+    call memalloc ( this%get_block_number_coarse_dofs(1), &
+                    coarse_dofs_values, &
+                    __FILE__, &
+                    __LINE__ );
+    
+    coarse_dofs_values = 0.0_rp
+#ifdef ENABLE_BLAS
+    call DGEMV(  'T', & 
+                 serial_scalar_array%get_size(), &
+                 this%get_block_number_coarse_dofs(1), &
+                 1.0_rp, &
+                 this%Phi, &
+                 serial_scalar_array%get_size(), &
+                 serial_scalar_array%get_entries(), &
+                 1, &
+                 0.0_rp, & 
+                 coarse_dofs_values, & 
+                 1)
+#else
+    write (0,*) 'Error: mlbddc.f90 was not compiled with -DENABLE_BLAS.'
+    write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
+    check(.false.)    
+#endif
+  end subroutine mlbddc_compute_coarse_dofs_values
+ 
+  subroutine mlbddc_compute_coarse_dofs_values_counts_and_displs ( this, counts, displs )
+    implicit none
+    class(mlbddc_t)           , intent(in)    :: this
+    integer(ip), allocatable  , intent(inout) :: counts(:)
+    integer(ip), allocatable  , intent(inout) :: displs(:)
+    type(par_environment_t), pointer :: par_environment
+    integer(ip) :: i, l1_to_l2_size
+    type(coarse_fe_iterator_t) :: iterator
+    type(coarse_fe_accessor_t) :: coarse_fe
+    
+    par_environment => this%get_par_environment()
+    assert (par_environment%am_i_l1_to_l2_root())
+    l1_to_l2_size = par_environment%get_l1_to_l2_size()
+    if ( allocated(counts) ) call memfree ( counts, __FILE__, __LINE__ )
+    if ( allocated(displs) ) call memfree ( displs, __FILE__, __LINE__ )
+    call memalloc ( l1_to_l2_size, counts, __FILE__, __LINE__ )
+    call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
+    
+    i=1
+    counts(l1_to_l2_size) = 0
+    iterator = this%coarse_fe_space%create_coarse_fe_iterator()
+    do while ( .not. iterator%has_finished() )
+      coarse_fe = iterator%current()
+      if ( coarse_fe%is_local() ) then
+        counts(i) = coarse_fe%get_number_dofs()
+        i=i+1
+      end if
+      call iterator%next()
+    end do
+    
+    displs(1) = 0
+    do i=2, l1_to_l2_size
+      displs(i) = displs(i-1) + counts(i-1)
+    end do
+  end subroutine mlbddc_compute_coarse_dofs_values_counts_and_displs
+  
+  subroutine mlbddc_compute_and_gather_coarse_dofs_values ( this, vector, coarse_dofs_values_gathered )
+     implicit none
+     class(mlbddc_t)         , intent(in)    :: this
+     type(par_scalar_array_t), intent(in)    :: vector
+     real(rp)   , allocatable, intent(inout) :: coarse_dofs_values_gathered(:)
+     type(par_environment_t), pointer :: par_environment
+     integer(ip), allocatable :: counts(:)
+     integer(ip), allocatable :: displs(:)
+     real(rp), allocatable :: coarse_dofs_values(:)
+     real(rp) :: dummy_real_array_rp(0)
+     integer(ip) :: dummy_integer_array_ip(0)
+     integer(ip) :: l1_to_l2_size
+     par_environment => this%get_par_environment()
+     assert (par_environment%am_i_l1_to_l2_task())
+     
+     if ( par_environment%am_i_l1_to_l2_root() ) then
+       call this%compute_coarse_dofs_values_counts_and_displs(counts, displs)
+       l1_to_l2_size = par_environment%get_l1_to_l2_size()
+       
+       if ( allocated(coarse_dofs_values_gathered) ) & 
+         call memfree (coarse_dofs_values_gathered, __FILE__, __LINE__)
+         
+       call memalloc ( displs(l1_to_l2_size), & 
+                       coarse_dofs_values_gathered, & 
+                       __FILE__, __LINE__ ) 
+       
+       call par_environment%l2_from_l1_gather( input_data_size = 0, &
+                                               input_data      = dummy_real_array_rp, &
+                                               recv_counts     = counts, &
+                                               displs          = displs, &
+                                               output_data     = coarse_dofs_values_gathered )
+       
+       call memfree ( counts, __FILE__, __LINE__ )
+       call memfree ( displs, __FILE__, __LINE__ )
+     else
+       call this%compute_coarse_dofs_values(vector, coarse_dofs_values)
+       call par_environment%l2_from_l1_gather( input_data_size = size(coarse_dofs_values), &
+                                               input_data      = coarse_dofs_values, &
+                                               recv_counts     = dummy_integer_array_ip, &
+                                               displs          = dummy_integer_array_ip, &
+                                               output_data     = dummy_real_array_rp )
+       call memfree ( coarse_dofs_values, __FILE__, __LINE__ )
+     end if     
+  end subroutine mlbddc_compute_and_gather_coarse_dofs_values
+    
+  ! This subroutine assumes that coarse_grid_vector has been already created+allocated, and initialized to zero.
+  subroutine mlbddc_coarse_grid_residual_assembly ( this, coarse_dofs_values_gathered, coarse_grid_vector ) 
+    implicit none
+    class(mlbddc_t)         , intent(in)    :: this
+    real(rp)                , intent(in)    :: coarse_dofs_values_gathered(*)
+    type(par_scalar_array_t), intent(inout) :: coarse_grid_vector
+     
+    type(par_environment_t)   , pointer       :: L1_environment
+    type(par_environment_t)   , pointer       :: L2_environment
+    type(coarse_fe_iterator_t)                :: iterator
+    type(coarse_fe_accessor_t)                :: coarse_fe
+    
+    type(i1p_t), allocatable :: elem2dof(:)
+    integer(ip) :: ifield, i, istat, current
+    
+    L1_environment => this%get_par_environment()
+    L2_environment => L1_environment%get_next_level()
+    assert ( associated (L2_environment) )
+    assert ( L2_environment%am_i_l1_task() )
+
+    allocate ( elem2dof(this%coarse_fe_space%get_number_fields()), stat=istat)
+    check(istat==0)     
+    current = 1
+    iterator  = this%coarse_fe_space%create_coarse_fe_iterator()
+    do while ( .not. iterator%has_finished() )
+       coarse_fe = iterator%current()
+       call coarse_fe%get_elem2dof(elem2dof)
+       if ( coarse_fe%is_local() ) then
+          do ifield=1, this%coarse_fe_space%get_number_fields()
+            do i=1, size(elem2dof(ifield)%p)
+              call coarse_grid_vector%add(i   =  elem2dof(ifield)%p(i), &
+                                          val = coarse_dofs_values_gathered(current) )
+              current = current + 1
+            end do
+          end do
+       end if
+       call iterator%next()
+    end do
+    deallocate ( elem2dof, stat=istat )
+    check(istat==0)
+    call coarse_grid_vector%comm()
+  end subroutine mlbddc_coarse_grid_residual_assembly
+  
+  subroutine mlbddc_scatter_and_interpolate_coarse_grid_correction (this, coarse_grid_vector, vector)
+    implicit none
+    class(mlbddc_t)           , intent(in)    :: this
+    type(par_scalar_array_t)  , intent(in)    :: coarse_grid_vector
+    type(par_scalar_array_t)  , intent(inout) :: vector
+    type(par_environment_t)   , pointer :: L1_environment
+    real(rp), allocatable :: coarse_dofs_values(:)
+    type(par_fe_space_t), pointer :: fe_space
+    
+    L1_environment => this%get_par_environment()
+    if ( L1_environment%am_i_l1_to_l2_task() ) then
+      call this%scatter_coarse_grid_correction(coarse_grid_vector, coarse_dofs_values)
+    end if
+    
+    fe_space => this%get_fe_space()
+    call vector%create_and_allocate( p_env      = L1_environment, &
+                                     dof_import = fe_space%get_block_dof_import(1) )
+    
+    if ( L1_environment%am_i_l1_task() ) then
+      call this%interpolate_coarse_grid_correction(coarse_dofs_values, vector)
+    end if
+    
+    if ( allocated(coarse_dofs_values) ) call memfree(coarse_dofs_values, __FILE__, __LINE__ )
+  end subroutine mlbddc_scatter_and_interpolate_coarse_grid_correction
+  
+  subroutine mlbddc_scatter_coarse_grid_correction ( this, coarse_grid_vector, coarse_dofs_values )
+    implicit none
+    class(mlbddc_t)         , intent(in)    :: this
+    type(par_scalar_array_t), intent(in)    :: coarse_grid_vector
+    real(rp), allocatable   , intent(inout) :: coarse_dofs_values(:)
+    
+    integer(ip) :: l1_to_l2_size
+    real(rp), allocatable :: coarse_dofs_values_scattered(:)
+    integer(ip), allocatable :: counts(:), displs(:)
+    type(par_environment_t), pointer :: par_environment
+    real(rp) :: dummy_real_array_rp(0)
+    integer(ip) :: dummy_integer_array_ip(0)
+    
+    par_environment => this%get_par_environment()
+    assert (par_environment%am_i_l1_to_l2_task())
+    if ( par_environment%am_i_l1_to_l2_root() ) then
+       
+       call this%compute_coarse_dofs_values_counts_and_displs(counts, displs)
+       l1_to_l2_size = par_environment%get_l1_to_l2_size()
+       
+       call memalloc ( displs(l1_to_l2_size), & 
+                       coarse_dofs_values_scattered, & 
+                       __FILE__, __LINE__ ) 
+       
+       call this%fill_coarse_dofs_values_scattered ( coarse_grid_vector, &
+                                                     coarse_dofs_values_scattered)
+       
+       call par_environment%l2_to_l1_scatter( input_data       = coarse_dofs_values_scattered, &
+                                              send_counts      = counts, &
+                                              displs           = displs, &
+                                              output_data_size = 0, &
+                                              output_data      = dummy_real_array_rp )
+       
+       call memfree ( coarse_dofs_values_scattered, & 
+                       __FILE__, __LINE__ ) 
+       
+       call memfree ( counts, __FILE__, __LINE__ )
+       call memfree ( displs, __FILE__, __LINE__ )
+       
+    else 
+       if ( allocated (coarse_dofs_values) ) call memfree( coarse_dofs_values, __FILE__, __LINE__ )
+       call memalloc ( this%get_block_number_coarse_dofs(1), &
+                       coarse_dofs_values, &
+                       __FILE__, __LINE__ );
+       
+       call par_environment%l2_to_l1_scatter( input_data       = dummy_real_array_rp, &
+                                              send_counts      = dummy_integer_array_ip, &
+                                              displs           = dummy_integer_array_ip, &
+                                              output_data_size = size(coarse_dofs_values), &
+                                              output_data      = coarse_dofs_values )
+    end if
+  end subroutine mlbddc_scatter_coarse_grid_correction
+  
+  subroutine mlbddc_fill_coarse_dofs_values_scattered ( this, coarse_grid_vector, coarse_dofs_values_scattered ) 
+    implicit none
+    class(mlbddc_t)          , intent(in)     :: this
+    type(par_scalar_array_t) , intent(in)     :: coarse_grid_vector
+    real(rp)                 , intent(inout)  :: coarse_dofs_values_scattered(*)
+    type(par_environment_t), pointer    :: par_environment
+    type(i1p_t)           , allocatable :: elem2dof(:)
+    type(coarse_fe_iterator_t)          :: iterator
+    type(coarse_fe_accessor_t)          :: coarse_fe
+    integer(ip)                         :: istat, current, ifield
+    
+    par_environment => this%get_par_environment()
+    assert (par_environment%am_i_l1_to_l2_root())
+    
+    allocate ( elem2dof(this%coarse_fe_space%get_number_fields()), stat=istat)
+    check(istat==0)
+    
+    current = 1
+    iterator  = this%coarse_fe_space%create_coarse_fe_iterator()
+    do while ( .not. iterator%has_finished() )
+       coarse_fe = iterator%current()
+       call coarse_fe%get_elem2dof(elem2dof)
+       if ( coarse_fe%is_local() ) then
+          do ifield=1, this%coarse_fe_space%get_number_fields()
+              call coarse_grid_vector%extract_subvector ( iblock       = 1, &
+                                                          size_indices = size(elem2dof(ifield)%p), &
+                                                          indices     = elem2dof(ifield)%p, &
+                                                          values      = coarse_dofs_values_scattered(current) )
+              current = current + size(elem2dof(ifield)%p)
+          end do
+       end if
+       call iterator%next()
+    end do
+    
+    deallocate ( elem2dof, stat=istat )
+    check(istat==0)
+  end subroutine mlbddc_fill_coarse_dofs_values_scattered 
+    
+  subroutine mlbddc_interpolate_coarse_grid_correction (this, coarse_dofs_values, vector)
+    implicit none
+    class(mlbddc_t)            , intent(in)    :: this
+    real(rp)                   , intent(in)    :: coarse_dofs_values(*)
+    type(par_scalar_array_t)   , intent(inout) :: vector
+    type(par_environment_t)    , pointer       :: L1_environment
+    type(serial_scalar_array_t), pointer       :: serial_scalar_array 
+    real(rp)                   , pointer       :: serial_scalar_array_entries(:)
+    
+    L1_environment => this%get_par_environment()
+    assert ( L1_environment%am_i_l1_task() )
+    
+    call vector%init(0.0_rp)
+    serial_scalar_array         => vector%get_serial_scalar_array()
+    serial_scalar_array_entries => serial_scalar_array%get_entries()
+    
+#ifdef ENABLE_BLAS
+    call DGEMV(  'N', & 
+                  serial_scalar_array%get_size(), &
+                  this%get_block_number_coarse_dofs(1), &
+                  1.0_rp, &
+                  this%Phi, &
+                  serial_scalar_array%get_size(), &
+                  coarse_dofs_values, &
+                  1,    &
+                  0.0_rp,  & 
+                  serial_scalar_array_entries, & 
+                  1)
+#else
+     write (0,*) 'Error: mlbddc.f90 was not compiled with -DENABLE_BLAS.'
+     write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
+     check(.false.)    
+#endif
+     
+  end subroutine mlbddc_interpolate_coarse_grid_correction
+  
   
   subroutine mlbddc_free(this)
     implicit none
@@ -966,6 +1598,9 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
         call this%free_symbolic_setup_dirichlet_problem()
         call this%free_symbolic_setup_constrained_neumann_solver()
         call this%free_symbolic_setup_constrained_neumann_problem()
+        nullify (this%mlbddc_coarse)
+        nullify (this%coarse_grid_matrix)
+        nullify (this%coarse_fe_space)
       else
         ! mlbddc_coarse should be freed before coarse_fe_space
         ! (as the former was created from the latter)
@@ -974,6 +1609,10 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
         deallocate (this%mlbddc_coarse, stat=istat)
         check (istat==0)
       
+        call this%coarse_grid_matrix%free()
+        deallocate  ( this%coarse_grid_matrix, stat = istat )
+        check( istat == 0 )
+        
         call this%coarse_fe_space%free()
         deallocate (this%coarse_fe_space, stat=istat)
         check (istat==0)
@@ -1063,6 +1702,9 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
         call this%free_numerical_setup_constrained_neumann_solver()
         call this%free_numerical_setup_constrained_neumann_problem()
         call this%free_coarse_grid_basis()
+      else
+        call this%mlbddc_coarse%free_numerical_setup()
+        call this%coarse_grid_matrix%free_in_stages(free_numerical_setup)
       end if
     end if
   end subroutine mlbddc_free_numerical_setup
@@ -1204,12 +1846,14 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     mlbddc_am_i_l1_task = par_environment%am_i_l1_task()
   end function mlbddc_am_i_l1_task
   
-  subroutine mlbddc_coarse_create ( this, fe_space )
+  subroutine mlbddc_coarse_create ( this, fe_space, par_sparse_matrix )
     implicit none
-    class(mlbddc_coarse_t)         , intent(inout) :: this
-    type(coarse_fe_space_t), target, intent(in)    :: fe_space
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    type(coarse_fe_space_t)  , target, intent(in)    :: fe_space
+    type(par_sparse_matrix_t), target, intent(in)    :: par_sparse_matrix
     call this%free()
     this%fe_space => fe_space
+    this%par_sparse_matrix => par_sparse_matrix
   end subroutine mlbddc_coarse_create
   
   subroutine mlbddc_coarse_symbolic_setup ( this )
@@ -1218,14 +1862,24 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     type(par_environment_t), pointer :: par_environment
         
     par_environment => this%get_par_environment()
-    if ( par_environment%am_i_l1_task() ) then
-      call this%setup_dofs_objects_and_constraint_matrix()
-    end if
     
-    call this%setup_coarse_fe_space()
-    call this%symbolic_setup_mlbddc_coarse()    
-    if ( par_environment%am_i_l1_task() ) then
-      call this%symbolic_setup_dirichlet_problem()
+    if ( par_environment%get_l1_size() > 1 ) then
+      if( par_environment%am_i_l1_task()  ) then
+        call this%setup_dofs_objects_and_constraint_matrix()
+      end if
+      
+      call this%setup_coarse_fe_space()
+      call this%symbolic_setup_coarse_grid_matrix()
+      call this%symbolic_setup_mlbddc_coarse()
+      
+      if ( par_environment%am_i_l1_task()  ) then
+        call this%symbolic_setup_dirichlet_problem()
+        call this%symbolic_setup_dirichlet_solver()
+        call this%symbolic_setup_constrained_neumann_problem()
+        call this%symbolic_setup_constrained_neumann_solver()
+      end if
+    else
+      check(.false.)
     end if
   end subroutine mlbddc_coarse_symbolic_setup
   
@@ -1527,30 +2181,144 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_symbolic_setup_dirichlet_problem ( this) 
     implicit none
     class(mlbddc_coarse_t)    , intent(inout) :: this
-    !type(par_environment_t)   , pointer       :: par_environment
-    !type(par_fe_space_t)      , pointer       :: fe_space
-    !type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
-    !type(sparse_matrix_t)     , pointer       :: A
+    type(par_environment_t)   , pointer       :: par_environment
+    type(coarse_fe_space_t)   , pointer       :: fe_space
+    type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
+    type(sparse_matrix_t)     , pointer       :: A
     
-    !assert ( this%am_i_l1_task() )
-    !fe_space => this%get_fe_space()
-    !par_sparse_matrix => this%get_par_sparse_matrix()
-    !A => par_sparse_matrix%get_sparse_matrix()
-    !if ( A%get_symmetric_storage() ) then
-    !   call A%split_2x2_symbolic( num_row = fe_space%get_block_number_interior_dofs(1), &
-    !                              num_col = fe_space%get_block_number_interior_dofs(1), &
-    !                              A_II    = this%A_II, &
-    !                              A_IG    = this%A_IG, &
-    !                              A_GG    = this%A_GG)
-    !else
-    !   call A%split_2x2_symbolic( num_row = fe_space%get_block_number_interior_dofs(1), &
-    !                              num_col = fe_space%get_block_number_interior_dofs(1), &
-    !                              A_II    = this%A_II, &
-    !                              A_IG    = this%A_IG, &
-    !                              A_GI    = this%A_GI, &
-    !                              A_GG    = this%A_GG)
-    !end if
+    assert ( this%am_i_l1_task() )
+    fe_space => this%get_fe_space()
+    par_sparse_matrix => this%get_par_sparse_matrix()
+    A => par_sparse_matrix%get_sparse_matrix()
+    if ( A%get_symmetric_storage() ) then
+       call A%split_2x2_symbolic( num_row = fe_space%get_block_number_interior_dofs(1), &
+                                  num_col = fe_space%get_block_number_interior_dofs(1), &
+                                  A_II    = this%A_II, &
+                                  A_IG    = this%A_IG, &
+                                  A_GG    = this%A_GG)
+    else
+       call A%split_2x2_symbolic( num_row = fe_space%get_block_number_interior_dofs(1), &
+                                  num_col = fe_space%get_block_number_interior_dofs(1), &
+                                  A_II    = this%A_II, &
+                                  A_IG    = this%A_IG, &
+                                  A_GI    = this%A_GI, &
+                                  A_GG    = this%A_GG)
+    end if
   end subroutine mlbddc_coarse_symbolic_setup_dirichlet_problem
+  
+    subroutine mlbddc_coarse_symbolic_setup_dirichlet_solver ( this) 
+    implicit none
+    class(mlbddc_coarse_t), intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%dirichlet_solver%set_type(name   = pardiso_mkl)
+    call this%dirichlet_solver%set_matrix(matrix = this%A_II)
+    call this%dirichlet_solver%symbolic_setup() 
+  end subroutine mlbddc_coarse_symbolic_setup_dirichlet_solver
+  
+  subroutine mlbddc_coarse_symbolic_setup_constrained_neumann_problem(this)
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    type(par_environment_t)   , pointer       :: par_environment
+    type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
+    type(sparse_matrix_t)     , pointer       :: A
+    
+    assert ( this%am_i_l1_task() )
+    par_sparse_matrix => this%get_par_sparse_matrix()
+    A => par_sparse_matrix%get_sparse_matrix()
+    
+    call A%expand_matrix_symbolic(C_T               = this%constraint_matrix, &
+                                  to                = this%constrained_neumann_matrix, &
+                                  symmetric_storage = A%get_symmetric_storage(), & 
+                                  symmetric         = A%is_symmetric(), &
+                                  sign              = SPARSE_MATRIX_SIGN_INDEFINITE)
+    
+  end subroutine mlbddc_coarse_symbolic_setup_constrained_neumann_problem
+  
+  subroutine mlbddc_coarse_symbolic_setup_constrained_neumann_solver(this)
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%constrained_neumann_solver%set_type(name   = pardiso_mkl)
+    call this%constrained_neumann_solver%set_matrix(matrix = this%constrained_neumann_matrix)
+    call this%constrained_neumann_solver%symbolic_setup() 
+  end subroutine mlbddc_coarse_symbolic_setup_constrained_neumann_solver
+  
+  subroutine mlbddc_coarse_symbolic_setup_coarse_grid_matrix ( this )
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    type(par_environment_t)   , pointer       :: L1_environment
+    type(par_environment_t)   , pointer       :: L2_environment
+    integer(ip)                               :: istat
+    
+    L1_environment => this%get_par_environment()
+    if ( L1_environment%am_i_lgt1_task() ) then
+       ! lgt1 MPI tasks symbolically set-up this%coarse_grid_matrix
+       allocate  ( this%coarse_grid_matrix, stat = istat )
+       check( istat == 0 )
+
+       L2_environment => L1_environment%get_next_level()
+       call this%coarse_grid_matrix%create( p_env             = L2_environment, &
+                                            dof_import        = this%coarse_fe_space%get_block_dof_import(1), &
+                                            symmetric_storage = .true., &
+                                            is_symmetric      = .true., &
+                                            sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
+       
+       if ( L2_environment%am_i_l1_task() ) then
+          call this%coarse_grid_matrix_symbolic_assembly()
+       end if
+    else       
+       ! L1 tasks do not hold any piece of the coarse triangulation
+       nullify(this%coarse_grid_matrix)
+    end if
+  end subroutine mlbddc_coarse_symbolic_setup_coarse_grid_matrix
+  
+  subroutine mlbddc_coarse_coarse_grid_matrix_symbolic_assembly ( this )
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    type(par_environment_t)   , pointer       :: L1_environment
+    type(par_environment_t)   , pointer       :: L2_environment
+    type(coarse_fe_iterator_t) :: iterator
+    type(coarse_fe_accessor_t) :: coarse_fe
+    type(i1p_t), allocatable :: elem2dof(:)
+    logical, pointer :: field_coupling(:,:)
+    integer(ip) :: ifield, jfield, i, j, istat
+    
+    L1_environment => this%get_par_environment()
+    L2_environment => L1_environment%get_next_level()
+    assert ( associated (L2_environment) )
+    assert ( L2_environment%am_i_l1_task() )
+    
+    allocate ( elem2dof(this%coarse_fe_space%get_number_fields()), stat=istat)
+    check(istat==0)     
+    
+    field_coupling => this%coarse_fe_space%get_field_coupling()
+    
+    iterator  = this%coarse_fe_space%create_coarse_fe_iterator()
+    do while ( .not. iterator%has_finished() )
+       coarse_fe = iterator%current()
+       call coarse_fe%get_elem2dof(elem2dof)
+       do ifield=1, this%coarse_fe_space%get_number_fields()
+          do jfield=1, this%coarse_fe_space%get_number_fields()
+             if ((field_coupling(ifield,jfield))) then
+               do j=1, size(elem2dof(jfield)%p)
+                 do i=1, size(elem2dof(ifield)%p)
+                    call this%coarse_grid_matrix%insert(ia=elem2dof(ifield)%p(i), &
+                                                        ja=elem2dof(jfield)%p(j) )
+                 end do
+               end do  
+             end if
+          end do
+       end do
+       call iterator%next()
+    end do
+    
+    deallocate ( elem2dof, stat=istat )
+    check(istat==0)     
+    
+    call this%coarse_grid_matrix%convert(csr_format)
+    
+    call this%coarse_grid_matrix%print(6)
+  end subroutine mlbddc_coarse_coarse_grid_matrix_symbolic_assembly
   
   subroutine mlbddc_coarse_symbolic_setup_mlbddc_coarse(this)
     implicit none
@@ -1563,7 +2331,8 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
      ! lgt1 MPI tasks symbolically setup mlbddc coarse
      allocate  ( this%mlbddc_coarse, stat = istat )
      check( istat == 0 )
-     call this%mlbddc_coarse%create(this%coarse_fe_space)
+     call this%mlbddc_coarse%create(this%coarse_fe_space, &
+                                    this%coarse_grid_matrix)
      call this%mlbddc_coarse%symbolic_setup()
     else
       ! L1 tasks do not hold any piece of mlbddc_coarse
@@ -1571,6 +2340,375 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
      end if
   end subroutine mlbddc_coarse_symbolic_setup_mlbddc_coarse
   
+  subroutine mlbddc_coarse_numerical_setup ( this )
+    implicit none
+    class(mlbddc_coarse_t)        , intent(inout)   :: this
+    type(par_environment_t), pointer         :: par_environment
+    
+    par_environment => this%get_par_environment()
+    if ( par_environment%get_l1_size() > 1 ) then  
+      if ( par_environment%am_i_l1_task() ) then
+        call this%numerical_setup_constrained_neumann_problem()
+        call this%numerical_setup_constrained_neumann_solver()
+        call this%setup_coarse_grid_basis()
+      end if
+    
+      call this%numerical_setup_coarse_grid_matrix()
+      call this%numerical_setup_mlbddc_coarse()
+    
+      if ( par_environment%am_i_l1_task() ) then
+        call this%numerical_setup_dirichlet_problem()
+        call this%numerical_setup_dirichlet_solver()
+      end if
+    else
+      check(.false.)
+    end if
+  end subroutine mlbddc_coarse_numerical_setup
+  
+  
+  subroutine mlbddc_coarse_numerical_setup_dirichlet_problem (this) 
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    type(coarse_fe_space_t)      , pointer       :: fe_space
+    type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
+    type(sparse_matrix_t)     , pointer       :: A
+    
+    assert ( this%am_i_l1_task() )
+    fe_space => this%get_fe_space()
+    par_sparse_matrix => this%get_par_sparse_matrix()
+    A => par_sparse_matrix%get_sparse_matrix()
+    if ( A%get_symmetric_storage() ) then
+       call A%split_2x2_numeric(  num_row = fe_space%get_block_number_interior_dofs(1), &
+                                  num_col = fe_space%get_block_number_interior_dofs(1), &
+                                  A_II    = this%A_II, &
+                                  A_IG    = this%A_IG, &
+                                  A_GG    = this%A_GG)
+    else
+       call A%split_2x2_numeric(  num_row = fe_space%get_block_number_interior_dofs(1), &
+                                  num_col = fe_space%get_block_number_interior_dofs(1), &
+                                  A_II    = this%A_II, &
+                                  A_IG    = this%A_IG, &
+                                  A_GI    = this%A_GI, &
+                                  A_GG    = this%A_GG)
+    end if
+    
+    call A%print(6)
+    call this%A_II%print(6)
+    call this%A_IG%print(6)
+    call this%A_GG%print(6)
+  end subroutine mlbddc_coarse_numerical_setup_dirichlet_problem
+  
+  subroutine mlbddc_coarse_numerical_setup_dirichlet_solver(this)
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%dirichlet_solver%numerical_setup() 
+    call this%dirichlet_solver%log_info()
+  end subroutine mlbddc_coarse_numerical_setup_dirichlet_solver
+  
+  subroutine mlbddc_coarse_numerical_constrained_neumann_problem(this)
+   implicit none
+   class(mlbddc_coarse_t)           , intent(inout) :: this
+   type(coarse_fe_space_t)      , pointer       :: fe_space
+   type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
+   type(sparse_matrix_t)     , pointer       :: A
+    
+    assert ( this%am_i_l1_task() )
+    fe_space => this%get_fe_space()
+    par_sparse_matrix => this%get_par_sparse_matrix()
+    A => par_sparse_matrix%get_sparse_matrix()
+    call A%expand_matrix_numeric(C_T = this%constraint_matrix, &
+                                 to  = this%constrained_neumann_matrix)
+    
+    call this%constrained_neumann_matrix%print(6)
+  end subroutine  mlbddc_coarse_numerical_constrained_neumann_problem
+  
+  subroutine mlbddc_coarse_numerical_setup_constrained_neumann_solver(this)
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%constrained_neumann_solver%numerical_setup() 
+    call this%constrained_neumann_solver%log_info()
+  end subroutine mlbddc_coarse_numerical_setup_constrained_neumann_solver
+  
+  subroutine mlbddc_coarse_allocate_coarse_grid_basis ( this )
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    type(coarse_fe_space_t), pointer       :: fe_space
+    assert ( this%am_i_l1_task() )
+    fe_space => this%get_fe_space() 
+    call this%free_coarse_grid_basis()
+    call memalloc (fe_space%get_block_number_dofs(1), &
+                   this%get_block_number_coarse_dofs(1), &
+                   this%Phi, &
+                   __FILE__, &
+                   __LINE__) 
+  end subroutine mlbddc_coarse_allocate_coarse_grid_basis
+  
+  subroutine mlbddc_coarse_setup_coarse_grid_basis ( this )
+     implicit none
+     class(mlbddc_coarse_t)           , intent(inout) :: this
+     type(coarse_fe_space_t), pointer :: fe_space
+     real(rp), allocatable :: work1(:,:)
+     real(rp), allocatable :: work2(:,:)
+     integer(ip) :: i, j
+     
+     assert ( this%am_i_l1_task() )
+     fe_space => this%get_fe_space() 
+     
+     call memalloc ( this%constrained_neumann_matrix%get_num_rows(), &
+                     this%get_block_number_coarse_dofs(1), &
+                     work1, __FILE__,__LINE__ )
+     
+     call memalloc ( this%constrained_neumann_matrix%get_num_rows(), &
+                     this%get_block_number_coarse_dofs(1), &
+                     work2, __FILE__,__LINE__ )
+     
+     work1 = 0.0_rp
+     work2 = 0.0_rp
+     j=1
+     do i = fe_space%get_block_number_dofs(1)+1, this%constrained_neumann_matrix%get_num_rows()
+       work1 (i,j) = 1.0_rp
+       j = j + 1 
+     end do
+     
+     call this%constrained_neumann_solver%solve(work1, &
+                                                work2)
+     
+     call this%allocate_coarse_grid_basis()
+     this%Phi = work2 (1:fe_space%get_block_number_dofs(1),:) 
+     
+     !do, i=1,this%constrained_neumann_matrix%get_num_rows()
+     !  write(*,"(100g15.5)") ( work1(i,j), j=1,this%get_block_number_coarse_dofs(1) )
+     !enddo
+     !do, i=1,this%constrained_neumann_matrix%get_num_rows()
+     !  write(*,"(100g15.5)") ( work2(i,j), j=1,this%get_block_number_coarse_dofs(1) )
+     !enddo
+     call memfree ( work1, __FILE__,__LINE__ )
+     call memfree ( work2, __FILE__,__LINE__ )
+  end subroutine mlbddc_coarse_setup_coarse_grid_basis 
+  
+  ! Computes subdomain_elmat = \Phi^t A_i \Phi 
+  subroutine mlbddc_coarse_compute_subdomain_elmat ( this, subdomain_elmat )
+    implicit none
+    class(mlbddc_coarse_t)      , intent(in)    :: this
+    real(rp), allocatable, intent(inout) :: subdomain_elmat(:,:)
+    
+    real(rp), allocatable :: work(:,:)
+    type(par_sparse_matrix_t), pointer :: par_sparse_matrix
+    type(sparse_matrix_t), pointer :: A
+    
+    assert ( this%am_i_l1_task() )
+    par_sparse_matrix => this%get_par_sparse_matrix()
+    A => par_sparse_matrix%get_sparse_matrix()
+    
+    if ( allocated(subdomain_elmat) ) then
+      call memfree ( subdomain_elmat, __FILE__, __LINE__ )
+    end if
+    
+    call memalloc ( this%get_block_number_coarse_dofs(1), &
+                    this%get_block_number_coarse_dofs(1), &
+                    subdomain_elmat, &
+                    __FILE__, &
+                    __LINE__ );
+    
+    call memalloc ( A%get_num_rows(), & 
+                    this%get_block_number_coarse_dofs(1), &
+                    work, &
+                    __FILE__, & 
+                    __LINE__ )
+
+    work = 0.0_rp
+    call A%apply_to_dense_matrix ( n     = this%get_block_number_coarse_dofs(1), &
+                                   alpha = 1.0_rp, &
+                                   ldb   = A%get_num_rows(), &
+                                   b     = this%Phi, &
+                                   beta  = 0.0_rp, &
+                                   ldc   = A%get_num_rows(), &
+                                   c     = work )        
+    subdomain_elmat = 0.0_rp
+#ifdef ENABLE_BLAS
+    call DGEMM( 'T', &
+                'N', &
+                this%get_block_number_coarse_dofs(1), &
+                this%get_block_number_coarse_dofs(1), &
+                A%get_num_rows(), &
+                1.0, &
+                this%Phi, &
+                A%get_num_rows() , &
+                work, &
+                A%get_num_rows(), &
+                0.0, &
+                subdomain_elmat, &
+                this%get_block_number_coarse_dofs(1))
+#else
+    write (0,*) 'Error: mlbddc.f90 was not compiled with -DENABLE_BLAS.'
+    write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
+    check(.false.)    
+#endif
+    call memfree ( work, __FILE__, __LINE__)
+  end subroutine mlbddc_coarse_compute_subdomain_elmat
+ 
+  subroutine mlbddc_coarse_compute_subdomain_elmat_counts_and_displs ( this, counts, displs )
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    integer(ip), allocatable  , intent(inout) :: counts(:)
+    integer(ip), allocatable  , intent(inout) :: displs(:)
+    type(par_environment_t), pointer :: par_environment
+    integer(ip) :: i, l1_to_l2_size
+    type(coarse_fe_iterator_t) :: iterator
+    type(coarse_fe_accessor_t) :: coarse_fe
+    
+    par_environment => this%get_par_environment()
+    assert (par_environment%am_i_l1_to_l2_root())
+    l1_to_l2_size = par_environment%get_l1_to_l2_size()
+    if ( allocated(counts) ) call memfree ( counts, __FILE__, __LINE__ )
+    if ( allocated(displs) ) call memfree ( displs, __FILE__, __LINE__ )
+    call memalloc ( l1_to_l2_size, counts, __FILE__, __LINE__ )
+    call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
+    
+    i = 1
+    counts(l1_to_l2_size) = 0
+    iterator = this%coarse_fe_space%create_coarse_fe_iterator()
+    do while ( .not. iterator%has_finished() )
+      coarse_fe = iterator%current()
+      if ( coarse_fe%is_local() ) then
+        counts(i) = coarse_fe%get_number_dofs()**2    
+        i = i +1
+      end if
+      call iterator%next()
+    end do
+    
+    displs(1) = 0
+    do i=2, l1_to_l2_size
+      displs(i) = displs(i-1) + counts(i-1)
+    end do
+  end subroutine mlbddc_coarse_compute_subdomain_elmat_counts_and_displs
+    
+  
+  subroutine mlbddc_coarse_compute_and_gather_subdomain_elmat ( this, subdomain_elmat_gathered )
+     implicit none
+     class(mlbddc_coarse_t)      , intent(inout) :: this
+     real(rp), allocatable, intent(inout) :: subdomain_elmat_gathered(:)
+     type(par_environment_t), pointer :: par_environment
+     integer(ip), allocatable :: counts(:)
+     integer(ip), allocatable :: displs(:)
+     real(rp), allocatable :: subdomain_elmat(:,:)
+     real(rp) :: dummy_real_array_rp_2D(0,0)
+     real(rp) :: dummy_real_array_rp_1D(0)
+     integer(ip) :: dummy_integer_array_ip(0)
+     integer(ip) :: l1_to_l2_size
+     par_environment => this%get_par_environment()
+     assert (par_environment%am_i_l1_to_l2_task())
+     
+     if ( par_environment%am_i_l1_to_l2_root() ) then
+       call this%compute_subdomain_elmat_counts_and_displs(counts, displs)
+       l1_to_l2_size = par_environment%get_l1_to_l2_size()
+       
+       if ( allocated(subdomain_elmat_gathered) ) & 
+         call memfree (subdomain_elmat_gathered, __FILE__, __LINE__)
+         
+       call memalloc ( displs(l1_to_l2_size), & 
+                       subdomain_elmat_gathered, & 
+                       __FILE__, __LINE__ ) 
+       
+       call par_environment%l2_from_l1_gather( input_data      = dummy_real_array_rp_2D, &
+                                               recv_counts     = counts, &
+                                               displs          = displs, &
+                                               output_data     = subdomain_elmat_gathered )
+       
+       call memfree ( counts, __FILE__, __LINE__ )
+       call memfree ( displs, __FILE__, __LINE__ )
+     else
+       call this%compute_subdomain_elmat(subdomain_elmat)
+       call par_environment%l2_from_l1_gather( input_data      = subdomain_elmat, &
+                                               recv_counts     = dummy_integer_array_ip, &
+                                               displs          = dummy_integer_array_ip, &
+                                               output_data     = dummy_real_array_rp_1D )
+       call memfree ( subdomain_elmat, __FILE__, __LINE__ )
+     end if     
+  end subroutine mlbddc_coarse_compute_and_gather_subdomain_elmat
+  
+  subroutine mlbddc_coarse_numerical_setup_coarse_grid_matrix ( this )
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    type(par_environment_t)   , pointer       :: L1_environment
+    type(par_environment_t)   , pointer       :: L2_environment
+    integer(ip)                               :: istat
+    real(rp), allocatable                     :: subdomain_elmat_gathered(:)
+    L1_environment => this%get_par_environment()
+    if ( L1_environment%am_i_l1_to_l2_task() ) then
+      call this%compute_and_gather_subdomain_elmat(subdomain_elmat_gathered)
+    end if
+    if ( L1_environment%am_i_lgt1_task() ) then
+      L2_environment => L1_environment%get_next_level() 
+      if ( L2_environment%am_i_l1_task() ) then
+          call this%coarse_grid_matrix_numerical_assembly(subdomain_elmat_gathered)
+       end if
+    end if
+    ! subdomain_elmat_gathered is only allocated on L2 MPI tasks
+    if (allocated(subdomain_elmat_gathered) ) call memfree(subdomain_elmat_gathered, __FILE__, __LINE__ )
+  end subroutine mlbddc_coarse_numerical_setup_coarse_grid_matrix
+  
+  subroutine mlbddc_coarse_coarse_grid_matrix_numerical_assembly ( this, subdomain_elmat_gathered )
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    real(rp)                  , intent(in)    :: subdomain_elmat_gathered(*)
+    
+    type(par_environment_t)   , pointer       :: L1_environment
+    type(par_environment_t)   , pointer       :: L2_environment
+    type(coarse_fe_iterator_t) :: iterator
+    type(coarse_fe_accessor_t) :: coarse_fe
+    type(i1p_t), allocatable :: elem2dof(:)
+    logical, pointer :: field_coupling(:,:)
+    integer(ip) :: ifield, jfield, i, j, istat, current
+    
+    L1_environment => this%get_par_environment()
+    L2_environment => L1_environment%get_next_level()
+    assert ( associated (L2_environment) )
+    assert ( L2_environment%am_i_l1_task() )
+    allocate ( elem2dof(this%coarse_fe_space%get_number_fields()), stat=istat)
+    check(istat==0)     
+    field_coupling => this%coarse_fe_space%get_field_coupling()
+    current = 1
+    iterator  = this%coarse_fe_space%create_coarse_fe_iterator()
+    do while ( .not. iterator%has_finished() )
+       coarse_fe = iterator%current()
+       call coarse_fe%get_elem2dof(elem2dof)
+       if ( coarse_fe%is_local() ) then
+          do ifield=1, this%coarse_fe_space%get_number_fields()
+             do jfield=1, this%coarse_fe_space%get_number_fields()
+                if ((field_coupling(ifield,jfield))) then
+                   do j=1, size(elem2dof(jfield)%p)
+                      do i=1, size(elem2dof(ifield)%p)
+                         call this%coarse_grid_matrix%insert(ia =  elem2dof(ifield)%p(i), &
+                                                             ja  = elem2dof(jfield)%p(j), &
+                                                             val = subdomain_elmat_gathered(current) )
+                         current = current + 1
+                      end do
+                   end do
+                end if
+             end do
+          end do
+       end if
+       call iterator%next()
+    end do
+    deallocate ( elem2dof, stat=istat )
+    check(istat==0)     
+    call this%coarse_grid_matrix%convert(csr_format)
+    call this%coarse_grid_matrix%print(6)
+  end subroutine mlbddc_coarse_coarse_grid_matrix_numerical_assembly
+    
+  subroutine mlbddc_coarse_numerical_setup_mlbddc_coarse ( this )
+   implicit none
+   class(mlbddc_coarse_t)           , intent(inout) :: this
+   type(par_environment_t)  , pointer :: par_environment
+    
+    par_environment => this%get_par_environment()
+    if ( par_environment%am_i_lgt1_task() ) then
+     call this%mlbddc_coarse%numerical_setup()
+    end if
+  end subroutine mlbddc_coarse_numerical_setup_mlbddc_coarse 
   
   subroutine mlbddc_coarse_free(this)
     implicit none
@@ -1584,19 +2722,27 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     implicit none
     class(mlbddc_coarse_t)           , intent(inout) :: this
     nullify(this%coarse_fe_space)
+    nullify(this%par_sparse_matrix)
   end subroutine mlbddc_coarse_free_clean
   
   subroutine mlbddc_coarse_free_symbolic_setup(this)
     implicit none
-    class(mlbddc_coarse_t)  , intent(inout) :: this
-    type(par_environment_t) , pointer       :: par_environment
-    integer(ip)                             :: istat
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    type(par_environment_t)   , pointer       :: par_environment
+    integer(ip)                               :: istat
+    
     ! This will be replaced by an apropriate check on the state diagram
     if ( associated(this%fe_space) ) then 
       par_environment => this%get_par_environment()
       if ( par_environment%am_i_l1_task() ) then
         call this%free_dofs_objects_and_constraint_matrix()
+        call this%free_symbolic_setup_dirichlet_solver()
         call this%free_symbolic_setup_dirichlet_problem()
+        call this%free_symbolic_setup_constrained_neumann_solver()
+        call this%free_symbolic_setup_constrained_neumann_problem()
+        nullify (this%mlbddc_coarse)
+        nullify (this%coarse_grid_matrix)
+        nullify (this%coarse_fe_space)
       else
         ! mlbddc_coarse should be freed before coarse_fe_space
         ! (as the former was created from the latter)
@@ -1605,6 +2751,10 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
         deallocate (this%mlbddc_coarse, stat=istat)
         check (istat==0)
       
+        call this%coarse_grid_matrix%free()
+        deallocate  ( this%coarse_grid_matrix, stat = istat )
+        check( istat == 0 )
+        
         call this%coarse_fe_space%free()
         deallocate (this%coarse_fe_space, stat=istat)
         check (istat==0)
@@ -1650,15 +2800,37 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     call this%constraint_matrix%free()
   end subroutine mlbddc_coarse_free_dofs_objects_and_constraint_matrix
   
+
   subroutine mlbddc_coarse_free_symbolic_setup_dirichlet_problem(this)
     implicit none
     class(mlbddc_coarse_t)           , intent(inout) :: this
     assert ( this%am_i_l1_task() )
-    !call this%A_II%free()
-    !call this%A_IG%free()
-    !call this%A_GI%free()
-    !call this%A_GG%free()
+    call this%A_II%free()
+    call this%A_IG%free()
+    call this%A_GI%free()
+    call this%A_GG%free()
   end subroutine mlbddc_coarse_free_symbolic_setup_dirichlet_problem
+  
+  subroutine mlbddc_coarse_free_symbolic_setup_dirichlet_solver(this)
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%dirichlet_solver%free()
+  end subroutine mlbddc_coarse_free_symbolic_setup_dirichlet_solver
+  
+  subroutine mlbddc_coarse_free_symbolic_setup_constrained_neumann_problem(this)
+    implicit none
+    class(mlbddc_coarse_t), intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%constrained_neumann_matrix%free()
+  end subroutine mlbddc_coarse_free_symbolic_setup_constrained_neumann_problem
+  
+  subroutine mlbddc_coarse_free_symbolic_setup_constrained_neumann_solver(this)
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%constrained_neumann_solver%free()
+  end subroutine mlbddc_coarse_free_symbolic_setup_constrained_neumann_solver
   
   subroutine mlbddc_coarse_free_numerical_setup(this)
     implicit none
@@ -1668,7 +2840,13 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     if ( associated(this%fe_space) ) then 
       par_environment => this%get_par_environment()
       if ( par_environment%am_i_l1_task() ) then
+        call this%free_numerical_setup_dirichlet_solver()
         call this%free_numerical_setup_dirichlet_problem()
+        call this%free_numerical_setup_constrained_neumann_solver()
+        call this%free_numerical_setup_constrained_neumann_problem()
+        call this%free_coarse_grid_basis()
+      else
+        call this%coarse_grid_matrix%free_in_stages(free_numerical_setup)
       end if
     end if
   end subroutine mlbddc_coarse_free_numerical_setup
@@ -1676,12 +2854,83 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_coarse_free_numerical_setup_dirichlet_problem(this)
     implicit none
     class(mlbddc_coarse_t)           , intent(inout) :: this
-    !assert ( this%am_i_l1_task() )
-    !call this%A_II%free_in_stages(free_numerical_setup)
-    !call this%A_IG%free_in_stages(free_numerical_setup)
-    !call this%A_GI%free_in_stages(free_numerical_setup)
-    !call this%A_GG%free_in_stages(free_numerical_setup)
+    assert ( this%am_i_l1_task() )
+    call this%A_II%free_in_stages(free_numerical_setup)
+    call this%A_IG%free_in_stages(free_numerical_setup)
+    call this%A_GI%free_in_stages(free_numerical_setup)
+    call this%A_GG%free_in_stages(free_numerical_setup)
   end subroutine mlbddc_coarse_free_numerical_setup_dirichlet_problem
+  
+  subroutine mlbddc_coarse_free_numerical_setup_dirichlet_solver(this)
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%dirichlet_solver%free_in_stages(free_numerical_setup)
+  end subroutine mlbddc_coarse_free_numerical_setup_dirichlet_solver
+  
+  subroutine mlbddc_coarse_free_numerical_setup_constrained_neumann_problem(this)
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%constrained_neumann_matrix%free_in_stages(free_numerical_setup)
+  end subroutine mlbddc_coarse_free_numerical_setup_constrained_neumann_problem
+  
+  subroutine mlbddc_coarse_free_numerical_setup_constrained_neumann_solver(this)
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    call this%constrained_neumann_solver%free_in_stages(free_numerical_setup)
+  end subroutine mlbddc_coarse_free_numerical_setup_constrained_neumann_solver
+  
+  subroutine mlbddc_coarse_free_coarse_grid_basis ( this ) 
+    implicit none
+    class(mlbddc_coarse_t)           , intent(inout) :: this
+    assert ( this%am_i_l1_task() )
+    if ( allocated ( this%Phi ) ) then
+      call memfree ( this%Phi, __FILE__, __LINE__ )
+    end if
+  end subroutine mlbddc_coarse_free_coarse_grid_basis
+  
+  
+  function mlbddc_coarse_get_total_number_coarse_dofs ( this )
+    implicit none
+    class(mlbddc_coarse_t)           , intent(in) :: this
+    integer(ip)                                   :: mlbddc_coarse_get_total_number_coarse_dofs
+    type(coarse_fe_space_t)     , pointer         :: fe_space
+    integer(ip)                                   :: field_id
+    
+    assert ( this%am_i_l1_task() )
+    
+    mlbddc_coarse_get_total_number_coarse_dofs = 0
+    fe_space => this%get_fe_space()
+    do field_id = 1, fe_space%get_number_fields()
+       mlbddc_coarse_get_total_number_coarse_dofs = mlbddc_coarse_get_total_number_coarse_dofs + & 
+                                             this%num_dofs_objects_per_field(field_id)
+    end do
+  end function mlbddc_coarse_get_total_number_coarse_dofs
+  
+  function mlbddc_coarse_get_block_number_coarse_dofs ( this, block_id )
+    implicit none
+    class(mlbddc_coarse_t)           , intent(in)    :: this
+    integer(ip)               , intent(in)    :: block_id
+    integer(ip)                               :: mlbddc_coarse_get_block_number_coarse_dofs 
+    type(coarse_fe_space_t)      , pointer    :: fe_space
+    integer(ip)                               :: field_id
+    integer(ip)               , pointer       :: field_blocks(:)
+    assert ( this%am_i_l1_task() )
+    assert ( block_id == 1 )
+    
+    fe_space     => this%get_fe_space()
+    field_blocks => fe_space%get_field_blocks()
+    
+    mlbddc_coarse_get_block_number_coarse_dofs = 0
+    do field_id = 1, fe_space%get_number_fields()
+       if ( field_blocks(field_id) == block_id ) then
+         mlbddc_coarse_get_block_number_coarse_dofs = mlbddc_coarse_get_block_number_coarse_dofs + & 
+                                               this%num_dofs_objects_per_field(field_id)
+       end if                                      
+    end do
+  end function mlbddc_coarse_get_block_number_coarse_dofs
   
   ! Helper function that extracts a run-time polymorphic class(matrix_t)
   ! from XXX, and dynamically casts it into  
@@ -1692,6 +2941,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     implicit none
     class(mlbddc_coarse_t)   , intent(in) :: this
     type(par_sparse_matrix_t), pointer    :: mlbddc_coarse_get_par_sparse_matrix
+    mlbddc_coarse_get_par_sparse_matrix => this%par_sparse_matrix
   end function mlbddc_coarse_get_par_sparse_matrix
   
   ! Helper function that extracts type(coarse_fe_space_t) from XXX

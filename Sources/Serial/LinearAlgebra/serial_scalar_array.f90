@@ -79,6 +79,7 @@ module serial_scalar_array_names
      procedure :: set_view_entries       => serial_scalar_array_set_view_entries
      procedure :: print                  => serial_scalar_array_print
      procedure :: print_matrix_market    => serial_scalar_array_print_matrix_market
+     procedure :: get_size               => serial_scalar_array_get_size
      procedure :: get_entries            => serial_scalar_array_get_entries
      
      procedure, private :: serial_scalar_array_insert_single_entry
@@ -255,6 +256,14 @@ contains
     end do
     
   end subroutine serial_scalar_array_add_multiple_entries
+  
+  function serial_scalar_array_get_size ( this )
+    implicit none
+    class(serial_scalar_array_t), intent(in) :: this
+    integer(ip) :: serial_scalar_array_get_size
+    assert ( this%state == entries_ready )
+    serial_scalar_array_get_size = this%size
+  end function serial_scalar_array_get_size
   
   !=============================================================================
   function serial_scalar_array_get_entries ( this )

@@ -463,6 +463,8 @@ module serial_fe_space_names
      procedure, non_overridable                 :: get_number_ghost_coarse_fes                     => coarse_fe_space_get_number_ghost_coarse_fes
      procedure, non_overridable                 :: get_number_fields                               => coarse_fe_space_get_number_fields
      procedure, non_overridable                 :: get_number_blocks                               => coarse_fe_space_get_number_blocks
+     procedure, non_overridable                 :: get_field_coupling                              => coarse_fe_space_get_field_coupling
+     procedure, non_overridable                 :: get_field_blocks                                => coarse_fe_space_get_field_blocks
      procedure, non_overridable                 :: get_field_type                                  => coarse_fe_space_get_field_type
      procedure, non_overridable                 :: get_total_number_dofs                           => coarse_fe_space_get_total_number_dofs
      procedure, non_overridable                 :: get_field_number_dofs                           => coarse_fe_space_get_field_number_dofs
@@ -471,6 +473,7 @@ module serial_fe_space_names
      procedure, non_overridable                 :: get_total_number_interface_dofs                 => coarse_fe_space_get_total_number_interface_dofs
      procedure, non_overridable                 :: get_block_number_interior_dofs                  => coarse_fe_space_get_block_number_interior_dofs
      procedure, non_overridable                 :: get_block_number_interface_dofs                 => coarse_fe_space_get_block_number_interface_dofs
+     procedure, non_overridable                 :: get_block_dof_import                            => coarse_fe_space_get_block_dof_import
      procedure, non_overridable                 :: get_triangulation                               => coarse_fe_space_get_triangulation
      procedure, non_overridable                 :: get_par_environment                             => coarse_fe_space_get_par_environment
  end type coarse_fe_space_t
@@ -505,8 +508,7 @@ module serial_fe_space_names
      procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
      procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
      procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_gid                => par_fe_space_generate_non_consecutive_dof_gid
-
-     
+     procedure        , non_overridable          :: get_block_dof_import                            => par_fe_space_get_block_dof_import
      procedure                                   :: get_total_number_dofs                           => par_fe_space_get_total_number_dofs
      procedure                                   :: get_field_number_dofs                           => par_fe_space_get_field_number_dofs
      procedure                                   :: get_block_number_dofs                           => par_fe_space_get_block_number_dofs

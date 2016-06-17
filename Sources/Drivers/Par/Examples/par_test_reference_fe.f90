@@ -403,10 +403,7 @@ program par_test_reference_fe
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
   
-  call mlbddc%create(fe_affine_operator)
-  call mlbddc%symbolic_setup()
-  call mlbddc%numerical_setup()
-  call mlbddc%free()
+  
     
   call par_fe_space%create_global_fe_function(fe_function)
   
@@ -418,10 +415,18 @@ program par_test_reference_fe
   call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
   call iterative_linear_solver%free() 
   
-  !select type(dof_values)
-  !  type is (par_scalar_array_t)
-  !    call dof_values%print(6)
-  !end select
+  call mlbddc%create(fe_affine_operator)
+  call mlbddc%symbolic_setup()
+  call mlbddc%numerical_setup()
+  
+  select type(dof_values)
+    type is (par_scalar_array_t)
+       call mlbddc%apply(dof_values, dof_values) 
+  end select
+
+  call mlbddc%free()
+  
+  
   
   !call p_fe_space%par_fe_space_print()
   

@@ -542,6 +542,17 @@ function par_fe_space_generate_non_consecutive_dof_gid (cell_gid, lpos_dof_elem2
             ISHFT(int(field_id-1,igp),int(cell_gid_shift+dofs_per_reference_fe_shift,igp))
 end function par_fe_space_generate_non_consecutive_dof_gid
 
+! TBP temporarily required by type(mlbddc_t) in order to create
+! distributed-memory linear algebra data structures
+function par_fe_space_get_block_dof_import ( this, block_id )
+  implicit none
+  class(par_fe_space_t), target, intent(in) :: this
+  integer(ip)                     , intent(in) :: block_id
+  type(dof_import_t), pointer                  :: par_fe_space_get_block_dof_import
+  par_fe_space_get_block_dof_import => this%blocks_dof_import(block_id)
+end function par_fe_space_get_block_dof_import
+
+
 function par_fe_space_get_total_number_dofs ( this )
    implicit none
    class(par_fe_space_t), intent(in) :: this

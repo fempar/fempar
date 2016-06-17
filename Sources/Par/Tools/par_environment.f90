@@ -102,15 +102,19 @@ module par_environment_names
      procedure, private :: par_environment_l2_from_l1_gather_ip_1D_array
      procedure, private :: par_environment_l2_from_l1_gatherv_ip_1D_array
      procedure, private :: par_environment_l2_from_l1_gatherv_igp_1D_array
+     procedure, private :: par_environment_l2_from_l1_gatherv_rp_1D_array
      procedure, private :: par_environment_l2_from_l1_gatherv_rp_2D_array
-     
-     
      generic   :: l2_from_l1_gather => par_environment_l2_from_l1_gather_ip, &
                                        par_environment_l2_from_l1_gather_igp, &
                                        par_environment_l2_from_l1_gather_ip_1D_array, &
                                        par_environment_l2_from_l1_gatherv_ip_1D_array, &
                                        par_environment_l2_from_l1_gatherv_igp_1D_array, &
+                                       par_environment_l2_from_l1_gatherv_rp_1D_array, &
                                        par_environment_l2_from_l1_gatherv_rp_2D_array
+                                       
+     procedure, private :: par_environment_l2_to_l1_scatterv_rp_1D_array                                  
+     generic   :: l2_to_l1_scatter => par_environment_l2_to_l1_scatterv_rp_1D_array
+                                       
                                        
      procedure, private :: par_environment_l1_to_l2_transfer_ip
      procedure, private :: par_environment_l1_to_l2_transfer_ip_1D_array
@@ -1389,6 +1393,28 @@ contains
       check( iret == mpi_success )
    end subroutine par_environment_l2_from_l1_gatherv_igp_1D_array
 
+   subroutine par_environment_l2_from_l1_gatherv_rp_1D_array ( this, input_data_size, input_data, recv_counts, displs, output_data )
+      implicit none
+      class(par_environment_t), intent(in)   :: this
+      integer(ip)             , intent(in)   :: input_data_size
+      real(rp)                , intent(in)   :: input_data(input_data_size)
+      integer(ip)             , intent(in)   :: recv_counts(this%l1_to_l2_context%get_size())
+      integer(ip)             , intent(in)   :: displs(this%l1_to_l2_context%get_size())
+      real(rp)                , intent(out)  :: output_data(*)
+      
+      integer(ip)            :: icontxt
+      integer                :: the_mpi_comm, iret, root
+      
+      assert( this%am_i_l1_to_l2_task() )
+      root    = this%l1_to_l2_context%get_size() - 1 
+      icontxt = this%l1_to_l2_context%get_icontxt()
+      call psb_get_mpicomm (icontxt, the_mpi_comm)
+      call mpi_gatherv( input_data , input_data_size, psb_mpi_real, &
+                        output_data, recv_counts, displs, psb_mpi_real, &
+                        root, the_mpi_comm, iret)
+      check( iret == mpi_success )
+   end subroutine par_environment_l2_from_l1_gatherv_rp_1D_array
+   
    subroutine par_environment_l2_from_l1_gatherv_rp_2D_array ( this, input_data, recv_counts, displs, output_data )
       implicit none
       class(par_environment_t), intent(in)   :: this
@@ -1409,5 +1435,28 @@ contains
                         root, the_mpi_comm, iret)
       check( iret == mpi_success )
    end subroutine par_environment_l2_from_l1_gatherv_rp_2D_array
+   
+   
+     subroutine par_environment_l2_to_l1_scatterv_rp_1D_array ( this, input_data, send_counts, displs, output_data_size, output_data )
+      implicit none
+      class(par_environment_t), intent(in)   :: this
+      real(rp)                , intent(in)   :: input_data(*)
+      integer(ip)             , intent(in)   :: send_counts(this%l1_to_l2_context%get_size())
+      integer(ip)             , intent(in)   :: displs(this%l1_to_l2_context%get_size())
+      integer(ip)             , intent(in)   :: output_data_size
+      real(rp)                , intent(out)  :: output_data(output_data_size)
+      
+      integer(ip)            :: icontxt
+      integer                :: the_mpi_comm, iret, root
+      
+      assert( this%am_i_l1_to_l2_task() )
+      root    = this%l1_to_l2_context%get_size() - 1 
+      icontxt = this%l1_to_l2_context%get_icontxt()
+      call psb_get_mpicomm (icontxt, the_mpi_comm)
+      call mpi_scatterv( input_data, send_counts, displs, psb_mpi_real, &
+                         output_data, output_data_size, psb_mpi_real, &
+                         root, the_mpi_comm, iret)
+      check( iret == mpi_success )
+   end subroutine par_environment_l2_to_l1_scatterv_rp_1D_array
    
 end module par_environment_names

@@ -74,6 +74,29 @@ subroutine coarse_fe_space_create (this, &
      call this%renumber_dofs_first_interior_then_interface()
      call memfree (lst_dofs_gids_ghost_extended, __FILE__, __LINE__)
      call memfree (lst_vefs_gids_dofs_objects_ghost_extended,  __FILE__, __LINE__)
+  else
+     ! This is VERY DIRTY. Client types of type(coarse_fe_space_t) require 
+     ! that >L1 MPI tasks also know how many blocks there are. The actual number of
+     ! blocks is obtained as this%number_blocks = maxval(this%field_blocks), BUT provided
+     ! how the semantics of coarse_fe_space_create are currently defined, this%field_blocks
+     ! is only available on L1 MPI tasks!!!! I am setting this%number_blocks = 1 temporarily,
+     ! to let me advance (and also because the code is not currently prepared to work with
+     ! blocks at the coarse-grid matrix level), BUT clearly a solution is required here
+     this%number_blocks = 1
+     
+     ! This is VERY DIRTY. Several client types of type(coarse_fe_space_t) require 
+     ! that >L1 MPI tasks also know how many fields there are. The actual number of
+     ! fields is obtained from the number_fields dummy argument, BUT provided
+     ! how the semantics of coarse_fe_space_create are currently defined, number_fields
+     ! is only available on L1 MPI tasks!!!! I am setting this%number_fields = 1 temporarily,
+     ! to let me advance (and also because the code is not currently prepared to work with
+     ! multiple fields at the coarse-grid matrix level), BUT clearly a solution is required here
+     this%number_fields = 1
+     
+     ! This is a very DIRTY. type(sparse_matrix_t) requires that this%blocks_dof_import is also
+     ! allocated on >L1 MPI tasks. Once we have the actual value for this%number_blocks, I think
+     ! that, although still dirty, we could live with this.
+     allocate ( this%blocks_dof_import(this%number_blocks) )
   end if
 end subroutine coarse_fe_space_create
 
@@ -94,6 +117,13 @@ subroutine coarse_fe_space_free (this)
         call this%free_blocks_dof_import()
         this%number_fields = -1 
         this%number_blocks = -1
+      else
+        this%number_fields = -1 
+        this%number_blocks = -1
+        ! This is a very DIRTY. type(sparse_matrix_t) requires that this%blocks_dof_import is also
+        ! allocated on >L1 MPI tasks. Once we have the actual value for this%number_blocks, I think
+        ! that, although still dirty, we could live with this.
+        deallocate ( this%blocks_dof_import )
       end if
       nullify(this%coarse_triangulation)
    end if   
@@ -710,11 +740,12 @@ end subroutine coarse_fe_space_free_number_dofs_per_field_and_block
 subroutine coarse_fe_space_free_blocks_dof_import ( this )
   implicit none
   class(coarse_fe_space_t), intent(inout) :: this 
-  integer(ip) :: i
+  integer(ip) :: i, istat
   do i=1, this%number_blocks
      call this%blocks_dof_import(i)%free()
   end do
-  deallocate(this%blocks_dof_import) 
+  deallocate(this%blocks_dof_import, stat=istat)
+  check(istat == 0)
 end subroutine coarse_fe_space_free_blocks_dof_import 
 
 function coarse_fe_space_coarse_fe_size ( coarse_fe )
@@ -758,14 +789,15 @@ subroutine coarse_fe_space_compute_blocks_dof_import ( this, lst_dof_gids )
   implicit none
   class(coarse_fe_space_t), intent(inout) :: this
   integer(igp)            , intent(in)    :: lst_dof_gids(*)
-  integer(ip)                             :: iblock
+  integer(ip)                             :: iblock, istat
   type(par_environment_t), pointer        :: par_environment
   
   assert ( associated(this%coarse_triangulation) )
   par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )     
-  allocate ( this%blocks_dof_import(this%number_blocks) )
+  allocate ( this%blocks_dof_import(this%number_blocks), stat=istat )
+  check(istat == 0)
   do iblock=1, this%number_blocks
      call this%compute_dof_import(iblock, lst_dof_gids)
   end do
@@ -1616,6 +1648,17 @@ function coarse_fe_space_get_block_number_interior_dofs ( this, block_id )
    end if
 end function coarse_fe_space_get_block_number_interior_dofs
 
+! TBP temporarily required by type(mlbddc_t) in order to create
+! the type(par_sparse_matrix_t) data structure holding the coarse-grid
+! matrix.
+function coarse_fe_space_get_block_dof_import ( this, block_id )
+  implicit none
+  class(coarse_fe_space_t), target, intent(in) :: this
+  integer(ip)                     , intent(in) :: block_id
+  type(dof_import_t), pointer                  :: coarse_fe_space_get_block_dof_import
+  coarse_fe_space_get_block_dof_import => this%blocks_dof_import(block_id)
+end function coarse_fe_space_get_block_dof_import
+
 function coarse_fe_space_get_block_number_interface_dofs ( this, block_id )
    implicit none
    class(coarse_fe_space_t), intent(in) :: this
@@ -1641,6 +1684,20 @@ end function coarse_fe_space_get_block_number_interface_dofs
     integer(ip), pointer :: coarse_fe_space_get_field_type(:)
     coarse_fe_space_get_field_type => this%field_type
   end function coarse_fe_space_get_field_type
+  
+  function coarse_fe_space_get_field_coupling (this)
+    implicit none
+    class(coarse_fe_space_t), target, intent(in) :: this
+    logical, pointer :: coarse_fe_space_get_field_coupling(:,:)
+    coarse_fe_space_get_field_coupling => this%field_coupling
+  end function coarse_fe_space_get_field_coupling
+  
+  function coarse_fe_space_get_field_blocks (this)
+    implicit none
+    class(coarse_fe_space_t), target, intent(in) :: this
+    integer(ip), pointer :: coarse_fe_space_get_field_blocks(:)
+    coarse_fe_space_get_field_blocks => this%field_blocks
+  end function coarse_fe_space_get_field_blocks
   
   function coarse_fe_space_get_triangulation(this)
     implicit none
