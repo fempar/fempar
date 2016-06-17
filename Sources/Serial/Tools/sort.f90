@@ -36,7 +36,7 @@ use types_names
   end interface icomp
 
   interface sort
-     module procedure sort_ip, sort_igp
+     module procedure sort_ip, sort_igp, sort_rp
   end interface sort
 
   interface sort_array_cols_by_row_section
@@ -106,6 +106,16 @@ contains
 # define data_size_def
 # define data_input_def integer(igp) :: data(n)
 # define data_temp_def  integer(igp) :: datap, datat
+# define data_acces(n)  data(n)
+# define greater(a,b) (a)>(b)
+# include "sort.i90"
+
+! Specialization to a simple rp array
+# define name sort_rp
+# define interface (n,data,index)
+# define data_size_def
+# define data_input_def real(rp) :: data(n)
+# define data_temp_def  real(rp) :: datap, datat
 # define data_acces(n)  data(n)
 # define greater(a,b) (a)>(b)
 # include "sort.i90"

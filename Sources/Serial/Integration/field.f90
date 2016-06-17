@@ -83,7 +83,7 @@ module field_names
   end interface operator(+)
 
   interface operator(-)
-     module procedure sub_vector_vector
+     module procedure sub_point_point, sub_point_vector, sub_vector_vector
   end interface operator(-)
 
   interface assignment(=)
@@ -354,6 +354,23 @@ contains
 
     tensor_sum%value = tensor1%value + tensor2%value
   end function sum_tensor_tensor
+
+  function sub_point_point (point1,point2) result(vector_sub)
+    implicit none
+    type(point_t), intent(in) :: point1, point2
+    type(vector_field_t) :: vector_sub
+
+    vector_sub%value = point1%value - point2%value
+  end function sub_point_point
+
+  function sub_point_vector ( point, vector) result(vector_sub)
+    implicit none
+    type(point_t)       , intent(in) :: point
+    type(vector_field_t), intent(in) :: vector
+    type(vector_field_t) :: vector_sub
+
+    vector_sub%value = point%value - vector%value
+  end function sub_point_vector
 
   function sub_vector_vector ( vector1, vector2) result(vector_sub)
     implicit none

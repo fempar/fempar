@@ -230,6 +230,7 @@ module base_sparse_matrix_names
      procedure, public :: get_num_rows                     => base_sparse_matrix_get_num_rows
      procedure, public :: set_num_cols                     => base_sparse_matrix_set_num_cols
      procedure, public :: get_num_cols                     => base_sparse_matrix_get_num_cols
+     procedure, public :: is_diagonal                      => base_sparse_matrix_is_diagonal
      procedure, public :: set_sum_duplicates               => base_sparse_matrix_set_sum_duplicates
      procedure, public :: get_sum_duplicates               => base_sparse_matrix_get_sum_duplicates
      procedure, public :: set_symmetry                     => base_sparse_matrix_set_symmetry
@@ -1349,6 +1350,22 @@ contains
     !-----------------------------------------------------------------
         num_cols = this%num_cols
     end function base_sparse_matrix_get_num_cols
+
+
+    function base_sparse_matrix_is_diagonal(this) result(is_diagonal)
+    !-----------------------------------------------------------------
+    !< Return .true. if it is a diagonal matrix
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in) :: this
+        logical                                 :: is_diagonal
+    !-----------------------------------------------------------------
+        assert(this%state == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. this%state == SPARSE_MATRIX_STATE_ASSEMBLED)
+        if(this%num_rows /= this%num_cols) then
+            is_diagonal = .false.
+        else
+            is_diagonal = (this%num_rows == this%get_nnz())
+        endif
+    end function base_sparse_matrix_is_diagonal
 
 
     function base_sparse_matrix_is_symbolic(this) result(symbolic)
