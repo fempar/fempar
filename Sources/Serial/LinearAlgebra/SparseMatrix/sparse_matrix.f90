@@ -79,6 +79,7 @@ private
         procedure, non_overridable, public :: get_sign                         => sparse_matrix_get_sign
         procedure, non_overridable, public :: get_num_rows                     => sparse_matrix_get_num_rows
         procedure, non_overridable, public :: get_num_cols                     => sparse_matrix_get_num_cols
+        procedure, non_overridable, public :: is_diagonal                      => sparse_matrix_is_diagonal
         procedure, non_overridable, public :: get_symmetric_storage            => sparse_matrix_get_symmetric_storage 
         procedure, non_overridable, public :: is_by_rows                       => sparse_matrix_is_by_rows
         procedure, non_overridable, public :: is_by_cols                       => sparse_matrix_is_by_cols
@@ -244,6 +245,18 @@ contains
         assert(allocated(this%State))
         num_cols = this%State%get_num_cols()
     end function sparse_matrix_get_num_cols
+
+
+    function sparse_matrix_is_diagonal(this) result(is_diagonal)
+    !-----------------------------------------------------------------
+    !< Get the number of columns
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(in) :: this
+        logical                            :: is_diagonal
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        is_diagonal = this%State%is_diagonal()
+    end function sparse_matrix_is_diagonal
 
 
     function sparse_matrix_get_nnz(this) result(nnz)

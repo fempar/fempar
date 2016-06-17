@@ -538,6 +538,7 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
 !        print*, '(6) --> free_numerical'
+        if(this%matrix%is_diagonal()) return ! Avoid Pardiso MKL crash
         ! Release internal memory only for L and U factors
         this%phase = 0 ! Release internal memory for L and U matrix number mnum
         call pardiso(pt     = this%pardiso_mkl_pt,         & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
