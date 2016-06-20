@@ -53,7 +53,7 @@ function coarse_fe_vef_accessor_get_num_coarse_fes_around (this)
   implicit none
   class(coarse_fe_vef_accessor_t), intent(in) :: this
   integer(ip) :: coarse_fe_vef_accessor_get_num_coarse_fes_around
- coarse_fe_vef_accessor_get_num_coarse_fes_around = this%get_num_cells_around()
+ coarse_fe_vef_accessor_get_num_coarse_fes_around = this%get_num_interface_cells_around()
 end function coarse_fe_vef_accessor_get_num_coarse_fes_around
 
 function coarse_fe_vef_accessor_get_coarse_fe_around (this, icoarse_fe_around)
@@ -62,7 +62,7 @@ function coarse_fe_vef_accessor_get_coarse_fe_around (this, icoarse_fe_around)
   integer(ip)                    , intent(in) :: icoarse_fe_around
   type(coarse_fe_accessor_t)                  :: coarse_fe_vef_accessor_get_coarse_fe_around
   type(cell_accessor_t)                       :: cell
-  cell = this%get_cell_around(icoarse_fe_around)
+  cell = this%get_interface_cell_around(icoarse_fe_around)
   call coarse_fe_vef_accessor_get_coarse_fe_around%create(cell%get_lid(), this%coarse_fe_space)
 end function coarse_fe_vef_accessor_get_coarse_fe_around
 

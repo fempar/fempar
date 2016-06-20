@@ -431,7 +431,7 @@ program test_reference_fe
   call params%parse()
 
   ! Read mesh
-  call f_mesh%read (params%dir_path, params%prefix, permute_c2z=.true.)
+  call f_mesh%read (params%dir_path, params%prefix) ! , permute_c2z=.true.
 
   ! Read conditions 
   call conditions_read (params%dir_path, params%prefix, f_mesh%npoin, f_cond)

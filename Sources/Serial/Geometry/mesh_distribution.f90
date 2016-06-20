@@ -72,7 +72,8 @@ module mesh_distribution_names
      procedure, non_overridable :: print => mesh_distribution_print
      procedure, non_overridable :: read  => mesh_distribution_read
      procedure, non_overridable :: write => mesh_distribution_write
-     procedure, non_overridable :: read_file  => mesh_distribution_read_file
+     procedure, non_overridable :: read_file => mesh_distribution_read_file
+     procedure, non_overridable :: get_sizes => mesh_distribution_get_sizes
      procedure, non_overridable :: move_gids => mesh_distribution_move_gids
      procedure, non_overridable :: move_external_elements_info => mesh_distribution_move_external_elements_info
   end type mesh_distribution_t
@@ -120,6 +121,13 @@ module mesh_distribution_names
 
 contains
 
+  !=============================================================================
+  subroutine mesh_distribution_get_sizes(this,ipart,nparts)
+    class(mesh_distribution_t), intent(inout) :: this
+    integer(ip), intent(inout) :: ipart,nparts
+    ipart=this%ipart
+    nparts=this%nparts
+  end subroutine mesh_distribution_get_sizes
   !=============================================================================
   subroutine mesh_distribution_move_gids(this,cells_gid,vefs_gid)
     class(mesh_distribution_t), intent(inout) :: this

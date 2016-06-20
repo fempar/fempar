@@ -101,9 +101,9 @@ program par_test_triangulations
   implicit none
 #include "debug.i90"
   ! Our data
-  type(par_context_t)                    :: p_context
+  type(par_context_t)                    :: w_context
   type(par_environment_t)                :: p_env
-  type(par_triangulation_t)              :: triangulation
+  type(new_par_triangulation_t)          :: triangulation
   type(par_test_triangulations_params_t) :: test_params
 
   ! Arguments
@@ -117,8 +117,9 @@ program par_test_triangulations
   call meminit
 
   ! Start parallel execution
-  call p_context%create()
-  !call p_env%create (p_context,1)
+  call w_context%create()
+  ! This test only works with one levels.
+  call p_env%create(w_context,1,(/w_context%get_size()/),(/w_context%get_rank()+1/))
 
   ! Read IO parameters
   call read_flap_cli_par_test_triangulations(cli,test_params)
@@ -127,7 +128,9 @@ program par_test_triangulations
   call cli%get(switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
   call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
   !call cli%get(switch='-out',val=dir_path_out,error=istat); check(istat==0)
-  !call triangulation%create(dir_path,prefix)
+  call triangulation%create(p_env,dir_path,prefix)
+
+  call triangulation%print()
 
   !call mpi_barrier(p_context%icontxt,istat)
   
@@ -147,8 +150,8 @@ program par_test_triangulations
   !call par_conditions_free ( p_cond )
   !call par_mesh_free (p_mesh)
 
-  !call par_environment_free (p_env)
-  !call par_context_free ( p_context, .false. )
+  call p_env%free() 
+  call w_context%free(.true.) ! par_context_free ( p_context, .false. )
   call memstatus
 
 contains

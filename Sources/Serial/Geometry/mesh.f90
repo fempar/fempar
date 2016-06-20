@@ -286,7 +286,7 @@ contains
   end subroutine mesh_copy
   
   !=============================================================================
-  subroutine mesh_read_file(msh,lunio,permute_c2z)
+  subroutine mesh_read_file(msh,lunio)
     !------------------------------------------------------------------------
     !
     ! This routine reads a mesh writen by GiD according to fempar problem type.
@@ -295,29 +295,32 @@ contains
     implicit none
     integer(ip)      , intent(in)  :: lunio
     class(mesh_t)     , intent(out) :: msh
-    logical, optional, intent(in)  :: permute_c2z
+    !logical, optional, intent(in)  :: permute_c2z
     integer(ip)     :: idime,ipoin,inode,ielem,iboun,nnode,nnodb ! ,istat,jpoin,jelem,iboun
     character(14)   :: dum1
     character(7)    :: dum2
-    character(10)   :: dum3
-    character(7)    :: dum4
-    character(12)   :: dum5
+    character(7)    :: dum3
+    character(10)   :: dum4
+    character(7)    :: dum5
+    character(12)   :: dum6
     character(1000) :: tel
     integer(ip), allocatable :: lnods_aux(:)
     integer(ip), pointer     :: permu(:)
     logical                  :: permute_c2z_
 
-    if(present(permute_c2z)) then
-       permute_c2z_ = permute_c2z
-    else
-       permute_c2z_ = .true.
-    end if
+    ! if(present(permute_c2z)) then
+    !    permute_c2z_ = permute_c2z
+    ! else
+    !    permute_c2z_ = .false.
+    ! end if
+    ! write(*,*) 'Permuting c2z:',permute_c2z_
 
-    ! Read first line: "MESH dimension  3  types  1  elements        352  nodes        100  boundaries        144"
-    read(lunio,'(a14,1x,i2,a7,1x,i2,a10,1x,i10,a7,1x,i10,a12,1x,i10)') &
-         & dum1,msh%ndime,dum2,msh%nelty,dum3,msh%nelem,dum4,msh%npoin,dum5,msh%bound%n
+    ! Read first line: "MESH dimension  3  order  0  types  1  elements        352  nodes        100  boundaries        144"
+    ! Read first line: "MESH dimension  2  order  0  types  1  elements        100  nodes        121  boundaries         40"
+    read(lunio,'(a14,1x,i2,a7,1x,i2,a7,1x,i2,a10,1x,i10,a7,1x,i10,a12,1x,i10)') &
+         & dum1,msh%ndime,dum2,msh%order,dum3,msh%nelty,dum4,msh%nelem,dum5,msh%npoin,dum6,msh%bound%n
 
-    write(*,*) msh%ndime,msh%order,msh%nelty,msh%nelem,msh%npoin,msh%bound%n
+    write(*,*) 'Read mesh with parameters:',msh%ndime,msh%order,msh%nelty,msh%nelem,msh%npoin,msh%bound%n
 
     ! Read nodes
     call memalloc(msh%ndime,msh%npoin,msh%coord,__FILE__,__LINE__)
@@ -677,13 +680,13 @@ contains
    end subroutine mesh_read_files
 
   !=============================================================================
-   subroutine mesh_read (f_mesh,  dir_path, prefix, permute_c2z )
+   subroutine mesh_read (f_mesh,  dir_path, prefix ) !, permute_c2z
      implicit none 
      ! Parameters
      character (*)                , intent(in)  :: dir_path
      character (*)                , intent(in)  :: prefix
      class(mesh_t)                , intent(out) :: f_mesh
-     logical, optional, intent(in)  :: permute_c2z
+     !logical, optional, intent(in)  :: permute_c2z
      ! Locals
      integer(ip)                    :: lunio
      character(len=:), allocatable  :: name
@@ -691,7 +694,7 @@ contains
      ! Read mesh
      call mesh_compose_name ( prefix, name )
      lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
-     call f_mesh%read_file(lunio, permute_c2z)
+     call f_mesh%read_file(lunio)  !, permute_c2z
      call io_close(lunio)
    end subroutine mesh_read
 
@@ -1296,6 +1299,29 @@ contains
     integer(ip), allocatable :: local_visited(:)
     type(hash_table_ip_ip_t)   :: external_visited
 
+    if(my_part==0) then
+       write(*,*)  'Parts:'
+       do ielem=1,gmesh%nelem
+          write(*,*)  ielem, ldome(ielem)
+       end do
+       write(*,*)  'Global mesh:',gmesh%npoin,gmesh%nelem
+       do ielem=1,gmesh%nelem
+          write(*,*)  ielem, gmesh%lnods(gmesh%pnods(ielem):gmesh%pnods(ielem+1)-1)
+       end do
+       write(*,*)  'Global dual mesh:',gmesh%nelpo
+       do ipoin=1,gmesh%npoin
+          write(*,*)  ipoin, gmesh%lelpo(gmesh%pelpo(ipoin):gmesh%pelpo(ipoin+1)-1)
+       end do
+       write(*,*)  'Local mesh:',lmesh%npoin,lmesh%nelem
+       do lelem=1,lmesh%nelem
+          write(*,*)  lelem, l2ge(lelem),lmesh%lnods(lmesh%pnods(lelem):lmesh%pnods(lelem+1)-1)
+       end do
+       write(*,*)  'Local2Global (nodes)'
+       do lpoin=1,lmesh%npoin
+          write(*,*)  lpoin, l2gn(lpoin)
+       end do
+    end if
+
     ! Count boundary nodes
     nnbou = 0 
     do lpoin=1, lmesh%npoin
@@ -1338,8 +1364,8 @@ contains
     do lelem = 1, lmesh%nelem
        nexte = 0   ! number of external neighbours of this element
        ielem = l2ge(lelem)
-       inode1 = gmesh%pnods(lelem)
-       inode2 = gmesh%pnods(lelem+1)-1
+       inode1 = gmesh%pnods(ielem)
+       inode2 = gmesh%pnods(ielem+1)-1
        do pnode = inode1, inode2
           ipoin = gmesh%lnods(pnode)
           do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
@@ -1375,6 +1401,13 @@ contains
        call external_visited%print
     end do
 
+    if(my_part==0) then
+       write(*,*)  'Visited (boundary) elements:'
+       do lelem=1,lmesh%nelem
+          write(*,*)  local_visited(lelem)
+       end do
+    end if
+
     ! 2) Allocate arrays and store list and pointers to externals
     call memalloc(nebou  , lebou,__FILE__,__LINE__)
     call memalloc(nebou+1, pextn,__FILE__,__LINE__)
@@ -1391,14 +1424,21 @@ contains
        end if
     end do
 
+    if(my_part==0) then
+       write(*,*)  'Boundary elements:'
+       do iebou=1,nebou
+          write(*,*)  lebou(iebou)
+       end do
+    end if
+
     ! 3) Store boundary elements and external edges
     !do lelem = 1, lmesh%nelem
     do iebou = 1, nebou
        lelem = lebou(iebou)
        ielem = l2ge(lelem)
        nexte = 0   ! number of external neighbours of this element
-       inode1 = gmesh%pnods(lelem)
-       inode2 = gmesh%pnods(lelem+1)-1
+       inode1 = gmesh%pnods(ielem)
+       inode2 = gmesh%pnods(ielem+1)-1
        do pnode = inode1, inode2
           ipoin = gmesh%lnods(pnode)
           do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1

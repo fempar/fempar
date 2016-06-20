@@ -73,7 +73,7 @@ subroutine itfc_vef_iterator_create ( this, base_static_triangulation )
   call this%free()
   this%itfc_lid = 1
   if ( base_static_triangulation%num_itfc_vefs == 0 ) then
-     call this%current_vef_accessor%create(lid=base_static_triangulation%num_local_vefs+base_static_triangulation%num_ghost_vefs+1, &
+     call this%current_vef_accessor%create(lid=base_static_triangulation%num_vefs+1, &
           base_static_triangulation=base_static_triangulation)
   else
      call this%current_vef_accessor%create(lid=base_static_triangulation%lst_itfc_vefs(this%itfc_lid), &
@@ -95,7 +95,7 @@ subroutine itfc_vef_iterator_init (this)
   base_static_triangulation => this%current_vef_accessor%get_triangulation()
   this%itfc_lid = 1
   if ( base_static_triangulation%num_itfc_vefs == 0 ) then
-     call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_local_vefs+base_static_triangulation%num_ghost_vefs+1)
+     call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vefs+1)
   else
      call this%current_vef_accessor%set_lid(lid=base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
   end if
@@ -108,7 +108,7 @@ subroutine itfc_vef_iterator_next ( this )
   base_static_triangulation => this%current_vef_accessor%get_triangulation()
   this%itfc_lid = this%itfc_lid + 1
   if ( this%itfc_lid > base_static_triangulation%num_itfc_vefs ) then
-     call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_local_vefs+base_static_triangulation%num_ghost_vefs+1)
+     call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vefs+1)
   else
      call this%current_vef_accessor%set_lid(lid=base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
   end if

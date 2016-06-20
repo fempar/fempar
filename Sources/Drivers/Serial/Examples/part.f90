@@ -55,7 +55,8 @@ program partitioner
 
   call read_mesh_part_pars_cl(nparts,dir_path,prefix,dir_path_out)
 
-  call gmesh%read(dir_path, prefix, permute_c2z=.true.)
+  !call gmesh%read(dir_path, prefix, permute_c2z=.true.)
+  call gmesh%read(dir_path, prefix)
 
   ! To debug
   ! call gmesh%to_dual()

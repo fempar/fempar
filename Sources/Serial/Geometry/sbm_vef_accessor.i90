@@ -59,8 +59,9 @@ function vef_accessor_past_the_end(this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   logical :: vef_accessor_past_the_end
-  vef_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_local_vefs + &
-       this%base_static_triangulation%num_ghost_vefs)
+  vef_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_vefs)
+  !vef_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_local_vefs + &
+  !     this%base_static_triangulation%num_ghost_vefs)
 end function vef_accessor_past_the_end
 
 function vef_accessor_get_triangulation(this)
@@ -134,7 +135,7 @@ function vef_accessor_get_cell_around_interface_vef (this, icell_around)
   integer(ip)                       :: icell 
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
   assert ( this%at_interface() )
-  assert ( icell_around >= 1 .and. icell_around <= this%get_num_cells_around() )
+  assert ( icell_around >= 1 .and. icell_around <= this%get_num_interface_cells_around() )
   vef_itfc_lid = this%base_static_triangulation%vefs_itfc_lid(this%lid)
   position_in_lst_cells_around = this%base_static_triangulation%ptrs_cells_around(vef_itfc_lid) + icell_around-1
   icell = this%base_static_triangulation%lst_cells_around(position_in_lst_cells_around)
