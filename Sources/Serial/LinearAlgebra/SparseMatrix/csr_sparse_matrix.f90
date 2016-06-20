@@ -96,7 +96,8 @@ private
         procedure, public :: extract_diagonal                        => csr_sparse_matrix_extract_diagonal
         procedure, public :: free_coords                             => csr_sparse_matrix_free_coords
         procedure, public :: free_val                                => csr_sparse_matrix_free_val
-        procedure, public :: apply_body                              => csr_sparse_matrix_apply_body
+        procedure         :: apply_body                              => csr_sparse_matrix_apply_body
+        procedure         :: apply_transpose_body                    => csr_sparse_matrix_apply_transpose_body
         procedure         :: apply_to_dense_matrix_body              => csr_sparse_matrix_apply_to_dense_matrix_body
         procedure         :: apply_transpose_to_dense_matrix_body    => csr_sparse_matrix_apply_transpose_to_dense_matrix_body
         procedure, public :: print_matrix_market_body                => csr_sparse_matrix_print_matrix_market_body
@@ -580,7 +581,7 @@ contains
 
     subroutine csr_sparse_matrix_apply_body(op,x,y) 
     !-----------------------------------------------------------------
-    !< Apply matrix vector product
+    !< Apply matrix vector product y=op*x
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t), intent(in)    :: op
         class(vector_t),            intent(in)    :: x
@@ -625,6 +626,55 @@ contains
         end select
         call x%CleanTemp()
     end subroutine csr_sparse_matrix_apply_body
+
+
+    subroutine csr_sparse_matrix_apply_transpose_body(op,x,y) 
+    !-----------------------------------------------------------------
+    !< Apply transpose matrix vector product y=op'*x
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(in)    :: op
+        class(vector_t),            intent(in)    :: x
+        class(vector_t) ,           intent(inout) :: y 
+    !-----------------------------------------------------------------
+        real(rp), pointer :: x_entries(:)
+        real(rp), pointer :: y_entries(:)
+        
+        call x%GuardTemp()
+        select type(x)
+            class is (serial_scalar_array_t)
+                select type(y)
+                    class is(serial_scalar_array_t)
+                        x_entries => x%get_entries()
+                        y_entries => y%get_entries()
+                        y_entries = 0.0_rp
+                        if (op%get_symmetric_storage()) then
+                            call matvec_symmetric_storage(            &
+                                        num_rows = op%get_num_rows(), &
+                                        num_cols = op%get_num_cols(), &
+                                        irp      = op%irp,            &
+                                        ja       = op%ja,             &
+                                        val      = op%val,            &
+                                        alpha    = 1.0_rp,            &
+                                        x        = x_entries,         &
+                                        beta     = 0.0_rp,            &
+                                        y        = y_entries )
+                        else
+                            call transpose_matvec(num_rows = op%get_num_rows(), &
+                                        num_cols = op%get_num_cols(),           &
+                                        irp      = op%irp,                      &
+                                        ja       = op%ja,                       &
+                                        val      = op%val,                      &
+                                        alpha    = 1.0_rp,                      &
+                                        x        = x_entries,                   &
+                                        beta     = 0.0_rp,                      &
+                                        y        = y_entries )
+                    end if
+                end select
+            class DEFAULT
+                check(.false.)
+        end select
+        call x%CleanTemp()
+    end subroutine csr_sparse_matrix_apply_transpose_body
 
 
     subroutine csr_sparse_matrix_apply_to_dense_matrix_body(op, n, alpha, LDB, b, beta, LDC, c) 
