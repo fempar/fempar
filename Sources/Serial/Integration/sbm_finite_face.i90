@@ -155,3 +155,12 @@ function finite_face_get_relative_rotation(this)
   integer(ip) :: finite_face_get_relative_rotation
   finite_face_get_relative_rotation = this%face_topology%get_relative_rotation()
 end function finite_face_get_relative_rotation
+
+!==================================================================================================
+function finite_face_get_finite_element(this,i)
+  implicit none
+  class(finite_face_t), target, intent(in) :: this
+  integer(ip)                 , intent(in) :: i
+  type(finite_element_t)      , pointer    :: finite_face_get_finite_element
+  finite_face_get_finite_element => this%neighbour_fe(i)%p
+end function finite_face_get_finite_element

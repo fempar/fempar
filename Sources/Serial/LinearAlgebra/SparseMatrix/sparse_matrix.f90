@@ -129,6 +129,7 @@ private
         procedure,                  public :: extract_diagonal                 => sparse_matrix_extract_diagonal
         procedure,                  public :: free                             => sparse_matrix_free
         procedure,                  public :: apply                            => sparse_matrix_apply
+        procedure,                  public :: apply_transpose                  => sparse_matrix_apply_transpose
         procedure,                  public :: apply_to_dense_matrix            => sparse_matrix_apply_to_dense_matrix
         procedure,                  public :: apply_transpose_to_dense_matrix  => sparse_matrix_apply_transpose_to_dense_matrix
         procedure, non_overridable, public :: print                            => sparse_matrix_print
@@ -1221,6 +1222,21 @@ contains
         call op%abort_if_not_in_range(y)
         call op%State%apply(x,y)
     end subroutine sparse_matrix_apply
+
+
+    subroutine sparse_matrix_apply_transpose(op,x,y) 
+    !-----------------------------------------------------------------
+    !< Apply transpose matrix vector product y=op'*x
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(in)    :: op
+        class(vector_t),        intent(in)    :: x
+        class(vector_t),        intent(inout) :: y 
+    !-----------------------------------------------------------------
+        assert(allocated(op%State))
+        call op%abort_if_not_in_domain(y)
+        call op%abort_if_not_in_range(x)
+        call op%State%apply_transpose(x,y)
+    end subroutine sparse_matrix_apply_transpose
 
 
     subroutine sparse_matrix_apply_to_dense_matrix(op, n, alpha, LDB, b, beta, LDC, c) 
