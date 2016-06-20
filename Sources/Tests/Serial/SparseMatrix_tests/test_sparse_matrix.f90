@@ -15,6 +15,8 @@ implicit none
     type(csr_sparse_matrix_t)   :: csr_matrix
     type(serial_scalar_array_t) :: x
     type(serial_scalar_array_t) :: y
+    type(serial_scalar_array_t) :: x_t
+    type(serial_scalar_array_t) :: y_t
     real                        :: val(4,4) = 9
 
     call meminit()
@@ -24,7 +26,7 @@ implicit none
 ! EMPTY MATRIX (NNZ==0)
 !------------------------------------------------------------------
     ! Create: START=>CREATE
-    call sparse_matrix%create(num_rows=5,num_cols=5)
+    call sparse_matrix%create(num_rows=5,num_cols=6)
     call sparse_matrix%print( 6)
 
     ! Convert: CREATE=>ASSEMBLED
@@ -33,12 +35,18 @@ implicit none
     call sparse_matrix%convert(mold=csr_matrix)
 
     ! Apply
-    call x%create_and_allocate(sparse_matrix%get_num_rows())
-    call y%create_and_allocate(sparse_matrix%get_num_cols())
+    call x%create_and_allocate(sparse_matrix%get_num_cols())
+    call y%create_and_allocate(sparse_matrix%get_num_rows())
     call x%init(1.0_rp)
     call sparse_matrix%apply(x,y)
-    call x%print(6)
     call y%print(6)
+    call y%print(6)
+    ! Apply transpose
+    call x_t%create_and_allocate(sparse_matrix%get_num_rows())
+    call y_t%create_and_allocate(sparse_matrix%get_num_cols())
+    call x_t%init(1.0_rp)
+    call sparse_matrix%apply_transpose(x_t,y_t)
+    call y_t%print(6)
 
     ! Free: ASSEMBLED=>ASSEMBLED_SYMBOLIC
     call sparse_matrix%free_in_stages(free_numerical_setup)
@@ -51,12 +59,14 @@ implicit none
 
     call x%free()
     call y%free()
+    call x_t%free()
+    call y_t%free()
 
 !------------------------------------------------------------------
 ! NUMERIC
 !------------------------------------------------------------------
     ! Create: START=>CREATE
-    call sparse_matrix%create(num_rows=5,num_cols=5)
+    call sparse_matrix%create(num_rows=5,num_cols=6)
 !    call sparse_matrix%create(5, .true., .true., SPARSE_MATRIX_SIGN_UNKNOWN )
     ! Append: CREATE=>BUILD_NUMERIC
 
@@ -92,12 +102,17 @@ implicit none
     ! Update: UPDATE=>ASSEMBLED
     call sparse_matrix%convert(mold=csr_matrix)
     ! Apply
-    call x%create_and_allocate(sparse_matrix%get_num_rows())
-    call y%create_and_allocate(sparse_matrix%get_num_cols())
+    call x%create_and_allocate(sparse_matrix%get_num_cols())
+    call y%create_and_allocate(sparse_matrix%get_num_rows())
     call x%init(1.0_rp)
     call sparse_matrix%apply(x,y)
-    call x%print(6)
     call y%print(6)
+    ! Apply transpose
+    call x_t%create_and_allocate(sparse_matrix%get_num_rows())
+    call y_t%create_and_allocate(sparse_matrix%get_num_cols())
+    call x_t%init(1.0_rp)
+    call sparse_matrix%apply_transpose(x_t,y_t)
+    call y_t%print(6)
     ! Free: ASSEMBLED=>ASSEMBLED_SYMBOLIC
     call sparse_matrix%free_in_stages(free_numerical_setup)
     ! Update: ASSEMBLED_SYMBOLIC=>UPDATE
@@ -117,6 +132,8 @@ implicit none
 
     call x%free()
     call y%free()
+    call x_t%free()
+    call y_t%free()
 
 !------------------------------------------------------------------
 ! SYMBOLIC
