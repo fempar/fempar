@@ -60,7 +60,7 @@ function tri_lagrangian_reference_fe_set_number_quadrature_points( this, order, 
   integer(ip)                         , intent(in)    :: order
   integer(ip)                         , intent(in)    :: dimension
   integer(ip) :: tri_lagrangian_reference_fe_set_number_quadrature_points
-  tri_lagrangian_reference_fe_set_number_quadrature_points = P_nnods(order,dimension)
+  tri_lagrangian_reference_fe_set_number_quadrature_points = this%compute_number_nodes_scalar(order,dimension)
   if( dimension .eq. 2 ) then
      if( order .eq. 3 ) then
         tri_lagrangian_reference_fe_set_number_quadrature_points = 13
@@ -160,8 +160,8 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
 
   ! Fill number_vefs_dimension and compute nt, nc, nn
   do k = 0,nd
-     i   = bnm(nd+1,k+1)          ! #vefs of dimension k
-     j   = P_nnods(k,p)             ! #nodes vef dim k order p
+     i   = bnm(nd+1,k+1)            ! #vefs of dimension k
+     j   = this%compute_number_nodes_scalar(k,p) ! #nodes vef dim k order p
      no  = no + i                   ! compute #vefs
      nn  = nn + i*inods(k,p)        ! #nodes inside vefs of dimension k
      nt  = nt + i*j                 ! nodes in the closure of the vef
@@ -194,7 +194,7 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
   ! Loop over dimensions
   do k = 0,nd
      aux1 = inods(k,p)            ! Interior nodes for a vef of dim k
-     aux3 = P_nnods(k,p)          ! Total nodes for a vef of dim k
+     aux3 = this%compute_number_nodes_scalar(k,p) ! Total nodes for a vef of dim k
      if ( p == -1 ) then          ! In void_fes there are no nodes
         aux1 = 0
         aux3 = 0
@@ -253,8 +253,8 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
            end do
            
            ! Fill ntxobj and ndxobj for vef co
-           call ntxob_fill(this%nodes_vef%l,c4,0,p,1,idm,nd,k,p,objec,nt)
-           call ntxob_fill(this%interior_nodes_vef%l,c2,1,p-1,1,idm,nd,k,p,objec,nt)
+           call this%fill_nodes_vef(this%nodes_vef%l,c4,0,p,1,idm,nd,k,p,objec,nt)
+           call this%fill_nodes_vef(this%interior_nodes_vef%l,c2,1,p-1,1,idm,nd,k,p,objec,nt)
         end if
         
      end do
@@ -889,7 +889,7 @@ subroutine tri_lagrangian_reference_fe_fill_nodal_quadrature ( this, quadrature,
   ndime = quadrature%number_dimensions
   nquad = quadrature%number_quadrature_points
   
-  call P_reference_coordinates(quadrature%coordinates,ndime,order,nquad)
+  call this%get_node_coordinates_array(quadrature%coordinates,ndime,order,nquad)
   quadrature%weight = 1.0_rp
 
 end subroutine tri_lagrangian_reference_fe_fill_nodal_quadrature
@@ -927,13 +927,12 @@ subroutine tri_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
 end subroutine tri_lagrangian_reference_fe_fill_interpolation
 
 !==================================================================================================
-subroutine P_reference_coordinates(coordinates, num_dimensions,        &
-     &                             order, number_nodes)
+subroutine tri_lagrangian_reference_fe_get_node_coordinates_array(this,coordinates, num_dimensions, &
+     &                                                            order, number_nodes)
   implicit none
-  ! Parameters
-  integer(ip), intent(in)    :: num_dimensions,order,number_nodes
-  real(rp),    intent(inout) :: coordinates(num_dimensions,number_nodes)
-  ! Local variables
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: num_dimensions,order,number_nodes
+  real(rp)                            , intent(inout) :: coordinates(num_dimensions,number_nodes)
   integer(ip) :: ijk(num_dimensions),i,d
   real(rp)    :: c1d(order+1)
 
@@ -941,14 +940,14 @@ subroutine P_reference_coordinates(coordinates, num_dimensions,        &
 
   do i=1,number_nodes
 
-     call P_ijkg(ijk,i,num_dimensions,order)
+     call this%global_id_to_local_coordinates(ijk,i,num_dimensions,order)
      do d=1,num_dimensions
         coordinates(d,i) = c1d(ijk(d)+1)
      end do
      
   end do
   
-end subroutine P_reference_coordinates
+end subroutine tri_lagrangian_reference_fe_get_node_coordinates_array
 
 !==================================================================================================
 subroutine P_coord_1d (x,n)
@@ -1200,38 +1199,35 @@ subroutine evaluate_shape_functions_and_derivatives(coord,ndime,nnode,ntens,shap
 end subroutine evaluate_shape_functions_and_derivatives
 
 !==================================================================================================
-! P_IJKG(i,g,nd,p) returns coordinates of the g-th node in an elem(nd,p)
-subroutine P_ijkg(i,g,nd,p)
+subroutine tri_lagrangian_reference_fe_global_id_to_local_coordinates(this,local_coordinates,global_id,number_of_dimensions,order)
   implicit none
-  ! Parameters
-  integer(ip), intent(in)  :: nd,g,p
-  integer(ip), intent(out) :: i(nd)
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: number_of_dimensions,global_id,order
+  integer(ip)                         , intent(inout) :: local_coordinates(number_of_dimensions)
+  integer(ip) :: k,g0,g1,g2,j,q
 
-  ! Local variables
-  integer(ip)              :: k,g0,g1,g2,j,q
-
-  g0 = g-1
+  g0 = global_id-1
   j  = 0 
-  do while (pnods(nd,p-j+1,p)<=g0)
+  do while (this%compute_sum_of_nodes_in_simplices(number_of_dimensions,order-j+1,order)<=g0)
      j=j+1
   end do
-  i(nd) = j-1
-  g0 = g0 - pnods(nd,p-i(nd)+1,p)
+  local_coordinates(number_of_dimensions) = j-1
+  g0 = g0 - this%compute_sum_of_nodes_in_simplices(number_of_dimensions,order-local_coordinates(number_of_dimensions)+1,order)
 
-  do k=1,nd-1
+  do k=1,number_of_dimensions-1
      g2 = 0
      j  = 0
-     q = p-i(nd-k+1)
-     do while (pnods(nd-k,q-j+1,q)<=g0)
+     q = order-local_coordinates(number_of_dimensions-k+1)
+     do while (this%compute_sum_of_nodes_in_simplices(number_of_dimensions-k,q-j+1,q)<=g0)
         j=j+1
      end do
-     i(nd-k) = j-1
-     g0 = g0 - pnods(nd-k,q-i(nd-k)+1,q)
+     local_coordinates(number_of_dimensions-k) = j-1
+     g0 = g0 - this%compute_sum_of_nodes_in_simplices(number_of_dimensions-k,q-local_coordinates(number_of_dimensions-k)+1,q)
   end do
-end subroutine P_ijkg
+end subroutine tri_lagrangian_reference_fe_global_id_to_local_coordinates
 
 !=================================================================================================
-subroutine  tri_lagrangian_reference_fe_set_permutation_2D( this,permutation,number_nodes_x_dim,orientation,rotation )
+subroutine tri_lagrangian_reference_fe_set_permutation_2D( this,permutation,number_nodes_x_dim,orientation,rotation )
   implicit none
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(inout) :: permutation(:)
@@ -1250,59 +1246,34 @@ subroutine  tri_lagrangian_reference_fe_set_permutation_2D( this,permutation,num
         ij_t(1) = i
         ij_t(3) = number_nodes_x_dim-i-j-1
         ! Get the global numbering of node (i,j)
-        go = P_gijk(ij_t(1:2),2,number_nodes_x_dim-1)
+        go = this%local_coordinates_to_global_id(ij_t(1:2),2,number_nodes_x_dim-1)
         ! i,j coordinates for the o_r permutation
         ij_n(1:2) = ij_t(ij_perm_tet(1:2,o_r)) 
         ! Store the global numbering of node ij_n 
-        permutation(go) = P_gijk(ij_n,2,number_nodes_x_dim-1)
+        permutation(go) = this%local_coordinates_to_global_id(ij_n,2,number_nodes_x_dim-1)
      end do
   end do
 
 end subroutine tri_lagrangian_reference_fe_set_permutation_2D
 
 !=================================================================================================
-! P_NNODS(k,p) computes the #nodes in a simplex of dim k and order p
-integer(ip) recursive function P_nnods(k,p) result(nnods)
+function tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices(this,dimension,ini_order,end_order)
   implicit none
-  !integer(ip)                :: nnods
-  integer(ip), intent(in)    :: k, p
-
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: dimension, ini_order, end_order
+  integer(ip) :: tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
   integer(ip) :: q
-  if (k == 0) then
-     nnods = 1
-  elseif (p == 0) then
-     nnods = 1
-  elseif (k == 1) then
-     nnods = p+1
-  elseif (k == 2) then
-     nnods = int((p+1)*(p+2)/2)
+  if (dimension == 0) then
+     tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices = 1
+  elseif (ini_order > end_order) then
+     tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices = 0
   else
-     nnods = P_nnods(k-1,0)
-     do q=1,p
-        nnods = nnods + P_nnods(k-1,q)
+     tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices = this%compute_number_nodes_scalar(dimension-1,ini_order)
+     do q = ini_order+1,end_order
+        tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices = tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices + this%compute_number_nodes_scalar(dimension-1,q)
      end do
   end if
-end function P_nnods
-
-!=================================================================================================
-! PNODS(k,pi,pf) computes the sum of nodes in simplices of dimension k of order pi,...,pf
-integer(ip) function pnods(k,pi,pf)
-
-  implicit none
-  integer(ip), intent(in)    :: k, pi,pf
-
-  integer(ip) :: q
-  if (k == 0) then
-     pnods = 1
-  elseif (pi > pf) then
-     pnods = 0
-  else
-     pnods = P_nnods(k-1,pi)
-     do q=pi+1,pf
-        pnods = pnods + P_nnods(k-1,q)
-     end do
-  end if
-end function pnods
+end function tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
 
 !=================================================================================================
 ! INODS(k,p) computes the #{interior nodes} in a simplex of dim k and order p
@@ -1324,7 +1295,7 @@ integer(ip) recursive function inods(k,p) result(inodes)
   else
      inodes = inods(k-1,1)
      do q=2,p-1
-        inodes = inodes+ inods(k-1,q)
+        inodes = inodes + inods(k-1,q)
      end do
   end if
 end function inods
@@ -1362,12 +1333,12 @@ recursive subroutine crxob(idcro,k,i,idm,n,in,no,cc)
 end subroutine crxob
 
 !==================================================================================================
-! NTXOB_FILL constructs ntxob%l
-recursive subroutine ntxob_fill(ntxob,c3,ini,end,i,idm,nd,k,p,objec,nt)
+recursive subroutine tri_lagrangian_reference_fe_fill_nodes_vef(this,ntxob,c3,ini,end,i,idm,nd,k,p,objec,nt)
   implicit none
   ! Parameters
-  integer(ip), intent(in)    :: ini,end,nd,k,p,objec(nd,nd+1),nt,i
-  integer(ip), intent(inout) :: ntxob(nt),c3,idm(nd)
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: ini,end,nd,k,p,objec(nd,nd+1),nt,i
+  integer(ip)                         , intent(inout) :: ntxob(nt),c3,idm(nd)
 
   ! Local variables
   integer(ip) :: j,ijk(nd),m
@@ -1375,7 +1346,7 @@ recursive subroutine ntxob_fill(ntxob,c3,ini,end,i,idm,nd,k,p,objec,nt)
   if (k==0) then
      ! Dimension 0: objec gives the coordinates of the corner
      ijk = p*objec(:,1)
-     ntxob(c3) = P_gijk(ijk,nd,p)
+     ntxob(c3) = this%local_coordinates_to_global_id(ijk,nd,p)
      c3 = c3 + 1
   else
      ! Loop over the possible values of the i-th factor
@@ -1384,7 +1355,7 @@ recursive subroutine ntxob_fill(ntxob,c3,ini,end,i,idm,nd,k,p,objec,nt)
         idm(i) = j
         if (i<k) then
            ! Assign values of the i+1-th factor
-           call ntxob_fill(ntxob,c3,ini,end-j,i+1,idm,nd,k,p,objec,nt)
+           call this%fill_nodes_vef(ntxob,c3,ini,end-j,i+1,idm,nd,k,p,objec,nt)
         else
            ! Compute the coordinate of the c3-th node: objec(:,1)+idm*objec(:,2:k)
            ijk = p*objec(:,1)
@@ -1392,32 +1363,34 @@ recursive subroutine ntxob_fill(ntxob,c3,ini,end,i,idm,nd,k,p,objec,nt)
               ijk = ijk+idm(k-m+1)*objec(:,m+1)
            end do
            ! Store in ntxob the corresponding identifier of the node
-           ntxob(c3) = P_gijk(ijk,nd,p)
+           ntxob(c3) = this%local_coordinates_to_global_id(ijk,nd,p)
            c3 = c3 + 1
         end if
      end do
   end if
-end subroutine ntxob_fill
+end subroutine tri_lagrangian_reference_fe_fill_nodes_vef
 
 !==================================================================================================
-! P_GIJK(i,nd,p) returns the generic identifier of a node with coordinates i in an elem(nd,p)
-integer(ip) function P_gijk(i,nd,p)
+function tri_lagrangian_reference_fe_local_coordinates_to_global_id(this,local_coordinates,number_of_dimensions,order)
   implicit none
-  integer(ip) :: nd, i(nd),p,k,q
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: local_coordinates(number_of_dimensions),number_of_dimensions,order
+  integer(ip) :: tri_lagrangian_reference_fe_local_coordinates_to_global_id
+  integer(ip) :: k,q
 
-  if (sum(i)>p) then
-     write(*,*) 'ijk', i
+  if (sum(local_coordinates)>order) then
+     write(*,*) 'ijk', local_coordinates
      write(*,*) 'tets_setting:: gijk:: ERROR i+j+k<=p'
      stop
   end if
 
-  P_gijk = 1
-  do k =1,nd-1
-     q = p-i(k+1)
-     P_gijk = P_gijk + pnods(k,q-i(k)+1,q)
+  tri_lagrangian_reference_fe_local_coordinates_to_global_id = 1
+  do k =1,number_of_dimensions-1
+     q = order-local_coordinates(k+1)
+     tri_lagrangian_reference_fe_local_coordinates_to_global_id = tri_lagrangian_reference_fe_local_coordinates_to_global_id + this%compute_sum_of_nodes_in_simplices(k,q-local_coordinates(k)+1,q)
   end do
-  P_gijk = P_gijk + pnods(k,p-i(nd)+1,p)
-end function P_gijk
+  tri_lagrangian_reference_fe_local_coordinates_to_global_id = tri_lagrangian_reference_fe_local_coordinates_to_global_id + this%compute_sum_of_nodes_in_simplices(k,order-local_coordinates(number_of_dimensions)+1,order)
+end function tri_lagrangian_reference_fe_local_coordinates_to_global_id
 
 !==================================================================================================
 subroutine tri_lagrangian_reference_fe_fill_face_interpolation (this,face_interpolation,local_quadrature,local_face_id)
