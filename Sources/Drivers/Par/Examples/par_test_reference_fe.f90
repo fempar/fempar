@@ -421,7 +421,7 @@ program par_test_reference_fe
   
   select type(dof_values)
     type is (par_scalar_array_t)
-       call mlbddc%apply(dof_values, dof_values) 
+      call mlbddc%apply(dof_values, dof_values) 
   end select
 
   call mlbddc%free()

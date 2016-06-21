@@ -474,12 +474,13 @@ module serial_fe_space_names
      procedure, non_overridable                 :: get_total_number_interface_dofs                 => coarse_fe_space_get_total_number_interface_dofs
      procedure, non_overridable                 :: get_block_number_interior_dofs                  => coarse_fe_space_get_block_number_interior_dofs
      procedure, non_overridable                 :: get_block_number_interface_dofs                 => coarse_fe_space_get_block_number_interface_dofs
+     procedure, non_overridable                 :: get_number_coarse_fe_objects                    => coarse_fe_space_get_number_coarse_fe_objects
      procedure, non_overridable                 :: get_block_dof_import                            => coarse_fe_space_get_block_dof_import
      procedure, non_overridable                 :: get_triangulation                               => coarse_fe_space_get_triangulation
      procedure, non_overridable                 :: get_par_environment                             => coarse_fe_space_get_par_environment
  end type coarse_fe_space_t
  
- public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_accessor_t
+ public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_accessor_t, coarse_fe_object_accessor_t
   
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
