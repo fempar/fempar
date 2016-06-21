@@ -682,9 +682,9 @@ module reference_fe_names
      procedure (fill_interpolation_interface)              , deferred :: fill_interpolation
      procedure (fill_face_interpolation_interface)         , deferred :: fill_face_interpolation
      procedure (get_number_interior_points_x_dim_interface), deferred :: get_number_interior_points_x_dim
-     procedure (compute_permutation_2D_interface)          , deferred :: compute_permutation_2D
+     procedure (set_permutation_2D_interface)              , deferred :: set_permutation_2D
+     procedure (set_number_quadrature_points_interface)    , deferred :: set_number_quadrature_points
      procedure (compute_number_nodes_scalar_interface)     , deferred :: compute_number_nodes_scalar
-     procedure (compute_number_quadrature_points_interface), deferred :: compute_number_quadrature_points
      ! Deferred TBP implementors
      procedure :: create                           => lagrangian_reference_fe_create
      procedure :: fill_interior_points_permutation => lagrangian_reference_fe_fill_interior_points_permutation
@@ -718,7 +718,7 @@ module reference_fe_names
      procedure :: fill                             => lagrangian_reference_fe_fill
      procedure :: fill_field_components            => lagrangian_reference_fe_fill_field_components
      procedure :: fill_permutation_array           => lagrangian_reference_fe_fill_permutation_array
-     procedure :: compute_permutation_1D           => lagrangian_reference_fe_compute_permutation_1D
+     procedure :: set_permutation_1D               => lagrangian_reference_fe_set_permutation_1D
      procedure :: extend_list_components           => lagrangian_reference_fe_extend_list_components
      procedure :: apply_femap_to_interpolation     => lagrangian_reference_fe_apply_femap_to_interpolation
   end type lagrangian_reference_fe_t
@@ -771,7 +771,7 @@ module reference_fe_names
        integer(ip) :: get_number_interior_points_x_dim_interface
      end function get_number_interior_points_x_dim_interface
 
-     subroutine compute_permutation_2D_interface ( this, permutation, number_nodes_x_dim, orientation, rotation )
+     subroutine set_permutation_2D_interface ( this, permutation, number_nodes_x_dim, orientation, rotation )
      import :: lagrangian_reference_fe_t, ip
        implicit none 
        class(lagrangian_reference_fe_t), intent(in)    :: this
@@ -779,7 +779,16 @@ module reference_fe_names
        integer(ip)                     , intent(in)    :: number_nodes_x_dim
        integer(ip)                     , intent(in)    :: orientation
        integer(ip)                     , intent(in)    :: rotation
-     end subroutine compute_permutation_2D_interface
+     end subroutine set_permutation_2D_interface
+     
+     function set_number_quadrature_points_interface ( this, order, dimension )
+     import :: lagrangian_reference_fe_t, ip
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(in)    :: order    
+       integer(ip)                     , intent(in)    :: dimension
+       integer(ip) :: set_number_quadrature_points_interface
+     end function set_number_quadrature_points_interface
      
      function compute_number_nodes_scalar_interface ( this, order, dimension )
      import :: lagrangian_reference_fe_t, ip
@@ -789,15 +798,6 @@ module reference_fe_names
        integer(ip)                     , intent(in)    :: dimension
        integer(ip) :: compute_number_nodes_scalar_interface
      end function compute_number_nodes_scalar_interface
-     
-     function compute_number_quadrature_points_interface ( this, order, dimension )
-     import :: lagrangian_reference_fe_t, ip
-       implicit none 
-       class(lagrangian_reference_fe_t), intent(in)    :: this
-       integer(ip)                     , intent(in)    :: order    
-       integer(ip)                     , intent(in)    :: dimension
-       integer(ip) :: compute_number_quadrature_points_interface
-     end function compute_number_quadrature_points_interface
 
   end interface
   
@@ -818,9 +818,9 @@ module reference_fe_names
      procedure :: fill_interpolation               => quad_lagrangian_reference_fe_fill_interpolation
      procedure :: fill_face_interpolation          => quad_lagrangian_reference_fe_fill_face_interpolation
      procedure :: get_number_interior_points_x_dim => quad_lagrangian_reference_fe_get_number_interior_points_x_dim
-     procedure :: compute_permutation_2D           => quad_lagrangian_reference_fe_compute_permutation_2D
+     procedure :: set_permutation_2D               => quad_lagrangian_reference_fe_set_permutation_2D
+     procedure :: set_number_quadrature_points     => quad_lagrangian_reference_fe_set_number_quadrature_points
      procedure :: compute_number_nodes_scalar      => quad_lagrangian_reference_fe_compute_number_nodes_scalar
-     procedure :: compute_number_quadrature_points => quad_lagrangian_reference_fe_compute_number_quadrature_points
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t
@@ -840,9 +840,9 @@ module reference_fe_names
      procedure :: fill_interpolation               => tri_lagrangian_reference_fe_fill_interpolation
      procedure :: fill_face_interpolation          => tri_lagrangian_reference_fe_fill_face_interpolation
      procedure :: get_number_interior_points_x_dim => tri_lagrangian_reference_fe_get_number_interior_points_x_dim
-     procedure :: compute_permutation_2D           => tri_lagrangian_reference_fe_compute_permutation_2D
+     procedure :: set_permutation_2D               => tri_lagrangian_reference_fe_set_permutation_2D
+     procedure :: set_number_quadrature_points     => tri_lagrangian_reference_fe_set_number_quadrature_points
      procedure :: compute_number_nodes_scalar      => tri_lagrangian_reference_fe_compute_number_nodes_scalar
-     procedure :: compute_number_quadrature_points => tri_lagrangian_reference_fe_compute_number_quadrature_points
   end type tri_lagrangian_reference_fe_t
   
   public :: tri_lagrangian_reference_fe_t

@@ -54,20 +54,20 @@ recursive function tri_lagrangian_reference_fe_compute_number_nodes_scalar(this,
 end function tri_lagrangian_reference_fe_compute_number_nodes_scalar
 
 !=================================================================================================
-function tri_lagrangian_reference_fe_compute_number_quadrature_points( this, order, dimension )
+function tri_lagrangian_reference_fe_set_number_quadrature_points( this, order, dimension )
   implicit none
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: order
   integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: tri_lagrangian_reference_fe_compute_number_quadrature_points
-  tri_lagrangian_reference_fe_compute_number_quadrature_points = P_nnods(order,dimension)
+  integer(ip) :: tri_lagrangian_reference_fe_set_number_quadrature_points
+  tri_lagrangian_reference_fe_set_number_quadrature_points = P_nnods(order,dimension)
   if( dimension .eq. 2 ) then
      if( order .eq. 3 ) then
-        tri_lagrangian_reference_fe_compute_number_quadrature_points = 13
+        tri_lagrangian_reference_fe_set_number_quadrature_points = 13
      end if
   elseif( dimension .eq. 3 ) then
      if( order .eq. 2) then
-        tri_lagrangian_reference_fe_compute_number_quadrature_points = 11
+        tri_lagrangian_reference_fe_set_number_quadrature_points = 11
      end if
   end if
 end function
@@ -1231,7 +1231,7 @@ subroutine P_ijkg(i,g,nd,p)
 end subroutine P_ijkg
 
 !=================================================================================================
-subroutine  tri_lagrangian_reference_fe_compute_permutation_2D( this,permutation,number_nodes_x_dim,orientation,rotation )
+subroutine  tri_lagrangian_reference_fe_set_permutation_2D( this,permutation,number_nodes_x_dim,orientation,rotation )
   implicit none
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(inout) :: permutation(:)
@@ -1258,7 +1258,7 @@ subroutine  tri_lagrangian_reference_fe_compute_permutation_2D( this,permutation
      end do
   end do
 
-end subroutine tri_lagrangian_reference_fe_compute_permutation_2D
+end subroutine tri_lagrangian_reference_fe_set_permutation_2D
 
 !=================================================================================================
 ! P_NNODS(k,p) computes the #nodes in a simplex of dim k and order p

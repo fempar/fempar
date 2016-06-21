@@ -98,7 +98,7 @@ subroutine lagrangian_reference_fe_create_quadrature ( this, quadrature, max_ord
   else
      order = this%order
   end if
-  ngaus = this%compute_number_quadrature_points(order,this%number_dimensions)
+  ngaus = this%set_number_quadrature_points(order,this%number_dimensions)
   call quadrature%create( this%number_dimensions, ngaus )
   call this%fill_quadrature( quadrature )
 end subroutine lagrangian_reference_fe_create_quadrature
@@ -118,7 +118,7 @@ subroutine lagrangian_reference_fe_create_face_quadrature ( this, quadrature, ma
      order = this%order
   end if
   face_dimensions = this%number_dimensions - 1
-  ngaus = this%compute_number_quadrature_points(order,face_dimensions)
+  ngaus = this%set_number_quadrature_points(order,face_dimensions)
   call quadrature%create( face_dimensions, ngaus )
   call this%fill_quadrature( quadrature )
 end subroutine lagrangian_reference_fe_create_face_quadrature
@@ -680,14 +680,14 @@ subroutine lagrangian_reference_fe_fill_permutation_array(this,               &
   do iorientation = 1, this%number_orientations_per_dimension(dimension)
      do irotation = 1, this%number_rotations_per_dimension(dimension)
         if (dimension == 1) then
-           call this%compute_permutation_1D (permutation_array(:,column), &
-                                             number_nodes_x_dim,          &
-                                             irotation)
+           call this%set_permutation_1D (permutation_array(:,column), &
+                                         number_nodes_x_dim,          &
+                                         irotation)
         elseif (dimension == 2) then
-           call this%compute_permutation_2D (permutation_array(:,column), &
-                                             number_nodes_x_dim,          &
-                                             iorientation,                &
-                                             irotation)
+           call this%set_permutation_2D (permutation_array(:,column), &
+                                         number_nodes_x_dim,          &
+                                         iorientation,                &
+                                         irotation)
         else 
            check (.false.)
         end if
@@ -698,7 +698,7 @@ subroutine lagrangian_reference_fe_fill_permutation_array(this,               &
 end subroutine lagrangian_reference_fe_fill_permutation_array
 
 !=================================================================================================
-subroutine lagrangian_reference_fe_compute_permutation_1D( this,permutation,number_nodes_x_dim,rotation )
+subroutine lagrangian_reference_fe_set_permutation_1D( this,permutation,number_nodes_x_dim,rotation )
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                     , intent(inout) :: permutation(:)
@@ -713,9 +713,9 @@ subroutine lagrangian_reference_fe_compute_permutation_1D( this,permutation,numb
   elseif (rotation==2) then
      permutation = (/(number_nodes_x_dim-i,i=0,number_nodes_x_dim-1)/)
   else
-     write(*,*) __FILE__,__LINE__,'compute_permutation_1D :: ERROR! Delay cannot be >1 for edges'
+     write(*,*) __FILE__,__LINE__,'set_permutation_1D :: ERROR! Delay cannot be >1 for edges'
   end if
-end subroutine lagrangian_reference_fe_compute_permutation_1D
+end subroutine lagrangian_reference_fe_set_permutation_1D
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_extend_list_components(this, list_1d)

@@ -37,13 +37,13 @@ function quad_lagrangian_reference_fe_compute_number_nodes_scalar(this,order,dim
 end function quad_lagrangian_reference_fe_compute_number_nodes_scalar
 
 !==================================================================================================
-function quad_lagrangian_reference_fe_compute_number_quadrature_points( this, order, dimension )
+function quad_lagrangian_reference_fe_set_number_quadrature_points( this, order, dimension )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                          , intent(in)    :: order
   integer(ip)                          , intent(in)    :: dimension
-  integer(ip) :: quad_lagrangian_reference_fe_compute_number_quadrature_points
-  quad_lagrangian_reference_fe_compute_number_quadrature_points = (order + 1)**dimension
+  integer(ip) :: quad_lagrangian_reference_fe_set_number_quadrature_points
+  quad_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension
 end function
 
 !==================================================================================================
@@ -1506,7 +1506,7 @@ subroutine Q_ijkg(i,g,nd,p)
 end subroutine Q_ijkg
 
 !==================================================================================================
-subroutine quad_lagrangian_reference_fe_compute_permutation_2D( this,permutation,number_nodes_x_dim,orientation,rotation )
+subroutine quad_lagrangian_reference_fe_set_permutation_2D( this,permutation,number_nodes_x_dim,orientation,rotation )
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                          , intent(inout) :: permutation(:)
@@ -1536,7 +1536,7 @@ subroutine quad_lagrangian_reference_fe_compute_permutation_2D( this,permutation
      end do
   end do
   
-end subroutine quad_lagrangian_reference_fe_compute_permutation_2D
+end subroutine quad_lagrangian_reference_fe_set_permutation_2D
 
 !==================================================================================================
 subroutine quad_lagrangian_reference_fe_fill_face_interpolation (this,face_interpolation,local_quadrature,local_face_id)
