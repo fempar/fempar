@@ -172,6 +172,9 @@ module serial_fe_space_names
      procedure, non_overridable :: get_relative_orientation => finite_face_get_relative_orientation
      procedure, non_overridable :: get_relative_rotation => finite_face_get_relative_rotation
      procedure, non_overridable :: get_finite_element  => finite_face_get_finite_element
+     procedure, non_overridable :: get_neighbour_id    => finite_face_get_neighbour_id
+     procedure, non_overridable :: impose_strong_dirichlet_bcs => finite_face_impose_strong_dirichlet_bcs
+     procedure, non_overridable :: compute_surface     => finite_face_compute_surface
   end type finite_face_t
 
   public :: finite_face_t
