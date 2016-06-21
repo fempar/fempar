@@ -230,26 +230,9 @@ subroutine coarse_triangulation_allocate_and_fill_lst_itfc_vefs( this )
               end if
            end if
         end do
-<<<<<<< HEAD
      end if
      call cell_iterator%next()
   end do
   call visited_vefs%free()
 end subroutine coarse_triangulation_allocate_and_fill_lst_itfc_vefs
-=======
-        call cell_iterator%next()
-      end do
-      
-      vef_iterator = this%create_vef_iterator()
-      do while ( .not. vef_iterator%has_finished() )
-        vef = vef_iterator%current()
-        write(*,'(a,i10,a)') '**** local vef  : ',vef%get_lid(),'****'
-        write(*,'(a,i10,a)') '****       gid  : ',vef%get_gid(),'****'
-        write(*,'(a,i10,a)') '**** dimension  : ',vef%get_dimension(),'****'
-        write(*,'(a,l10,a)') '****at_interface: ',vef%at_interface(),'****'
-        flush(6)
-        call vef_iterator%next()
-      end do
-      
->>>>>>> 2e6c0463bdda2ef3c461df069b1ad436d23424af
 
