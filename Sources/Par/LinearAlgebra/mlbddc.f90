@@ -100,7 +100,7 @@ module mlbddc_names
    type(allocatable_array_igp1_t), allocatable :: dofs_objects_gids_per_field(:)
      
    ! GIDs of the VEFs objects the DoFs objects are put on top of
-   type(allocatable_array_igp1_t), allocatable :: vefs_gids_dofs_objects_per_field(:)
+   type(allocatable_array_ip1_t) , allocatable :: vefs_lids_dofs_objects_per_field(:)
    
    type(coo_sparse_matrix_t)                   :: constraint_matrix
    !********************************************************************************!
@@ -195,6 +195,7 @@ module mlbddc_names
     procedure, non_overridable, private :: apply_A_GI                                      => mlbddc_apply_A_GI
     procedure, non_overridable, private :: apply_A_IG                                      => mlbddc_apply_A_IG
     procedure, non_overridable, private :: solve_constrained_neumann_problem               => mlbddc_solve_constrained_neumann_problem
+    procedure, non_overridable, private :: apply_weight_operator                           => mlbddc_apply_weight_operator
     procedure, non_overridable, private :: create_interior_interface_views                 => mlbddc_create_interior_interface_views
     
 
@@ -450,7 +451,7 @@ contains
     call fe_space%setup_dofs_objects_and_constraint_matrix(this%num_dofs_objects_per_field, &
                                                            this%dofs_objects_per_field, &
                                                            this%dofs_objects_gids_per_field, &
-                                                           this%vefs_gids_dofs_objects_per_field, &
+                                                           this%vefs_lids_dofs_objects_per_field, &
                                                            this%constraint_matrix)
     
     write (*,'(a)') '****print mlbddc_setup_dofs_objects_and_constraint_matrix****'
@@ -695,10 +696,11 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     integer(ip)                               :: l1_to_l2_size
     integer(igp)                              :: dummy_integer_array_igp(0)
     integer(ip)                               :: dummy_integer_array_ip(0)
-    integer(ip)                               :: i, spos, epos
+    integer(ip)                               :: i, j, spos, epos
     integer(igp), allocatable                 :: buffer(:)
     type(par_environment_t)  , pointer        :: par_environment
     type(par_fe_space_t)     , pointer        :: fe_space
+    type(par_triangulation_t), pointer        :: triangulation 
     
     par_environment => this%get_par_environment()
     assert ( par_environment%am_i_l1_to_l2_task() )
@@ -712,13 +714,16 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
                                               displs          = displs, &
                                               output_data     = vef_gids )
     else
-      fe_space    => this%get_fe_space()
+      fe_space      => this%get_fe_space()
+      triangulation => fe_space%get_par_triangulation()
       ! Pack vefs_gid_dofs_objects_per_field(:) into plain buffer for further data exchange
       call memalloc ( sum(this%num_dofs_objects_per_field), buffer, __FILE__, __LINE__ ) 
       spos = 1
       do i=1, fe_space%get_number_fe_spaces()
         epos = spos + this%num_dofs_objects_per_field(i)-1
-        buffer(spos:epos) = this%vefs_gids_dofs_objects_per_field(i)%a
+        do j=spos,epos
+          buffer(j) = triangulation%objects_gids(this%vefs_lids_dofs_objects_per_field(i)%a(j))
+        end do
         spos = epos +1 
       end do
       call par_environment%l2_from_l1_gather( input_data_size = size(buffer), &
@@ -1354,44 +1359,34 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
       ! residual_G = residual_G - delta_G =
       !              residual_G - sum(A_GI*A_II^{-1}*residual_I,i=1..P)
       call residual_G%axpby(-1.0_rp, delta_G, 1.0_rp)
-    
-      ! WEIGHT RESIDUAL MISSING HERE !!!!
-    
-      call this%compute_coarse_correction(residual, coarse_correction)
-    
-      call this%solve_constrained_neumann_problem ( residual, constrained_neumann_correction )
 
+      call this%apply_weight_operator(residual,residual) 
+      call this%compute_coarse_correction(residual, coarse_correction)
+      call this%solve_constrained_neumann_problem ( residual, constrained_neumann_correction )
       call delta_G%copy (coarse_correction_G)
       call delta_G%axpby(1.0_rp, constrained_neumann_correction_G,1.0_rp)
-
-      ! WEIGHT DELTA MISSING HERE !!!!
+      call this%apply_weight_operator(delta,delta) 
       call delta%comm()
-
       ! y_G = delta_G
       call y_G%copy(delta_G)
 
       call this%apply_A_IG(delta_G, residual_I)
       call this%solve_dirichlet_problem(residual_I, delta_I)
-    
       ! y_I = y_I - delta_I
       call y_I%axpby(-1.0_rp, delta_I, 1.0_rp)
 
       call constrained_neumann_correction_I%free()
       call constrained_neumann_correction_G%free()
       call constrained_neumann_correction%free()
-    
       call coarse_correction_I%free()
       call coarse_correction_G%free()
       call coarse_correction%free()
-
       call delta_I%free()
       call delta_G%free()
       call delta%free()
-    
       call residual_I%free()
       call residual_G%free()
       call residual%free()
-    
       call y_I%free()
       call y_G%free()
     end if
@@ -1898,7 +1893,43 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
       call memfree ( augmented_y_entries, __FILE__,__LINE__)  
     end if  
   end subroutine mlbddc_solve_constrained_neumann_problem
-  
+       
+  subroutine mlbddc_apply_weight_operator(this, x, y)
+    implicit none
+    class(mlbddc_t)           , intent(in)    :: this
+    type(par_scalar_array_t)  , intent(in)    :: x
+    type(par_scalar_array_t)  , intent(inout) :: y
+    type(serial_scalar_array_t), pointer :: x_local
+    type(serial_scalar_array_t), pointer :: y_local
+    real(rp), pointer :: x_local_entries(:)
+    real(rp), pointer :: y_local_entries(:)
+
+    type(par_fe_space_t)     , pointer :: fe_space 
+    type(par_triangulation_t), pointer :: triangulation
+    type(list_iterator_t)              :: dofs_on_object 
+    type(list_iterator_t)              :: parts_around
+    integer(ip)                        :: iobj_dof  
+ 
+    if ( this%am_i_l1_task() ) then
+      x_local         => x%get_serial_scalar_array()
+      x_local_entries => x_local%get_entries()
+      y_local         => y%get_serial_scalar_array()
+      y_local_entries => y_local%get_entries()
+
+      fe_space      => this%get_fe_space()
+      triangulation => fe_space%get_par_triangulation() 
+      do iobj_dof = 1, this%num_dofs_objects_per_field(1)
+        dofs_on_object = this%dofs_objects_per_field(1)%create_iterator(iobj_dof) 
+        do while ( .not. dofs_on_object%is_upper_bound() )
+          write(*,*) 'OOO', dofs_on_object%get_current(), triangulation%parts_object%get_sublist_size(this%vefs_lids_dofs_objects_per_field(1)%a(iobj_dof))
+          y_local_entries(dofs_on_object%get_current()) = & 
+             x_local_entries(dofs_on_object%get_current())/triangulation%parts_object%get_sublist_size(this%vefs_lids_dofs_objects_per_field(1)%a(iobj_dof)) 
+          call dofs_on_object%next()
+        end do
+      end do
+    end if
+  end subroutine mlbddc_apply_weight_operator
+
   subroutine mlbddc_create_interior_interface_views ( this, x, x_I, X_G )
     implicit none
     class(mlbddc_t)         , intent(in)       :: this
@@ -1998,11 +2029,11 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
       check (istat == 0)  
     end if
   
-    if (allocated(this%vefs_gids_dofs_objects_per_field)) then
-      do i=1, size(this%vefs_gids_dofs_objects_per_field)
-        call this%vefs_gids_dofs_objects_per_field(i)%free()
+    if (allocated(this%vefs_lids_dofs_objects_per_field)) then
+      do i=1, size(this%vefs_lids_dofs_objects_per_field)
+        call this%vefs_lids_dofs_objects_per_field(i)%free()
       end do  
-      deallocate ( this%vefs_gids_dofs_objects_per_field, stat=istat )
+      deallocate ( this%vefs_lids_dofs_objects_per_field, stat=istat )
       check (istat == 0)  
     end if
     
@@ -2535,7 +2566,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
                                                            displs          = displs, &
                                                            output_data     = vef_gids )
     else
-      ! Pack vefs_gids_dofs_objects_per_field(:) into plain buffer for further data exchange
+      ! Pack vefs_lids_dofs_objects_per_field(:) into plain buffer for further data exchange
       call memalloc ( sum(this%num_dofs_objects_per_field), buffer, __FILE__, __LINE__ ) 
       spos = 1
       do i=1, fe_space%get_number_fields()
@@ -3122,7 +3153,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     call this%coarse_solver%log_info()
   end subroutine mlbddc_coarse_numerical_setup_coarse_solver
  
-    subroutine mlbddc_coarse_apply_weight_operator(this, x, y)
+  subroutine mlbddc_coarse_apply_weight_operator(this, x, y)
     implicit none
     class(mlbddc_coarse_t)    , intent(in)    :: this
     type(par_scalar_array_t)  , intent(in)    :: x
