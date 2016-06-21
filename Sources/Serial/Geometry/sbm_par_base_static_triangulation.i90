@@ -607,6 +607,14 @@ function par_base_static_tria_get_element_import ( this )
   par_base_static_tria_get_element_import => this%element_import
 end function par_base_static_tria_get_element_import 
 
+function par_base_static_tria_get_coarse_triangulation ( this )
+  implicit none
+  class(par_base_static_triangulation_t), target, intent(in) :: this
+  type(coarse_triangulation_t), pointer :: par_base_static_tria_get_coarse_triangulation
+  assert ( this%p_env%am_i_lgt1_task() )
+  par_base_static_tria_get_coarse_triangulation => this%coarse_triangulation
+end function par_base_static_tria_get_coarse_triangulation  
+
 subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     implicit none
     class(par_base_static_triangulation_t), intent(in)    :: this
@@ -642,7 +650,6 @@ subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs,
     
     
     itfc_vef_iterator = this%create_itfc_vef_iterator()
-    
     ivef_itfc = 1
     do while ( .not. itfc_vef_iterator%has_finished() )
       current_itfc_vef = itfc_vef_iterator%current()
@@ -654,7 +661,6 @@ subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs,
       do icell=1, current_itfc_vef%get_num_interface_cells_around()
         cell          = current_itfc_vef%get_interface_cell_around(icell)
         part_id       = cell%get_mypart()
-        
         if ( part_id /= mypart_id ) then
          local_part_id = this%element_import%get_local_neighbour_id(part_id)
          if (.not. touched_neighbours (local_part_id)) then
@@ -671,7 +677,6 @@ subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs,
       call itfc_vef_iterator%next()
       ivef_itfc = ivef_itfc + 1
     end do
-    
     call memalloc ( this%num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
     do ivef_itfc = 1, this%num_itfc_vefs
       perm_itfc_vefs(ivef_itfc) = ivef_itfc 
@@ -1438,3 +1443,19 @@ subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs,
       num_itfc_coarse_cells = 0
     end if
   end function par_base_static_tria_adapt_coarse_raw_arrays
+
+  function par_base_static_tria_create_object_iterator(this)
+    implicit none
+    class(par_base_static_triangulation_t), intent(in) :: this
+    type(object_iterator_t) :: par_base_static_tria_create_object_iterator
+    call par_base_static_tria_create_object_iterator%create(lid=1, &
+                                                            par_base_static_triangulation=this)
+  end function par_base_static_tria_create_object_iterator
+  
+  function par_base_static_tria_create_vefs_on_object_iterator(this, lid)
+    implicit none
+    class(par_base_static_triangulation_t), intent(in) :: this
+    integer(ip)                           , intent(in) :: lid
+    type(vefs_on_object_iterator_t)                    :: par_base_static_tria_create_vefs_on_object_iterator
+    call par_base_static_tria_create_vefs_on_object_iterator%create(lid, this)
+  end function par_base_static_tria_create_vefs_on_object_iterator

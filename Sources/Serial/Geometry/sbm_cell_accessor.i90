@@ -91,7 +91,6 @@ pure function cell_accessor_get_lid (this)
   implicit none
   class(cell_accessor_t), intent(in) :: this
   integer(ip) :: cell_accessor_get_lid
-  !assert ( this%lid >= 1 .and. .not. this%past_the_end() )
   cell_accessor_get_lid = this%lid
 end function cell_accessor_get_lid
 
@@ -211,10 +210,10 @@ end function cell_accessor_is_ghost
 ! comment (commit 0907e7b9d07e122ba69e02e0d72bac46546acc04), type(coarse_fe_space_t) needs 
 ! this TBP to efficiently locate a vef in the global type(list_t) data type which associates 
 ! DoFs to vefs. 
-function scan_sum_num_vefs(this)
+function cell_accessor_get_scan_sum_number_vefs(this)
   implicit none
   class(cell_accessor_t), intent(in) :: this
-  integer(ip) :: scan_sum_num_vefs
+  integer(ip) :: cell_accessor_get_scan_sum_number_vefs
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  scan_sum_num_vefs = this%base_static_triangulation%ptr_vefs_per_cell(this%lid)-1
-end function scan_sum_num_vefs
+  cell_accessor_get_scan_sum_number_vefs = this%base_static_triangulation%ptr_vefs_per_cell(this%lid)-1
+end function cell_accessor_get_scan_sum_number_vefs

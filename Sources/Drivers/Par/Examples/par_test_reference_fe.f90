@@ -94,11 +94,11 @@ module poisson_discrete_integration_names
   
 contains
   
-  subroutine integrate ( this, fe_space, assembler )
+  subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)          , intent(inout) :: fe_space
-    class(assembler_t)                , intent(inout) :: assembler
+    class(serial_fe_space_t)             , intent(inout) :: fe_space
+    class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
 
     type(finite_element_t), pointer :: fe
     type(volume_integrator_t), pointer :: vol_int
@@ -161,7 +161,7 @@ contains
        
        ! Apply boundary conditions
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )
+       call matrix_array_assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )
     end do
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
@@ -184,11 +184,11 @@ end type vector_laplacian_composite_discrete_integration_t
 public :: vector_laplacian_composite_discrete_integration_t
 
 contains
-  subroutine integrate ( this, fe_space, assembler )
+  subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
     class(vector_laplacian_composite_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)                   , intent(inout) :: fe_space
-    class(assembler_t)                         , intent(inout) :: assembler
+    class(serial_fe_space_t)                                , intent(inout) :: fe_space
+    class(matrix_array_assembler_t)                         , intent(inout) :: matrix_array_assembler
 
     type(finite_element_t), pointer :: fe
     type(volume_integrator_t), pointer :: vol_int_first_fe, vol_int_second_fe
@@ -260,7 +260,7 @@ contains
           end do
        end do
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
+       call matrix_array_assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )      
     end do
     call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
@@ -298,6 +298,7 @@ program par_test_reference_fe
   type(iterative_linear_solver_t)                         :: iterative_linear_solver
   type(fe_function_t)                                     :: fe_function
   class(vector_t), pointer                                :: dof_values
+  type(mlbddc_t)                                          :: mlbddc
   
   integer(ip)              :: num_levels
   integer(ip), allocatable :: parts_mapping(:), num_parts_per_level(:)
@@ -360,7 +361,7 @@ program par_test_reference_fe
   reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = 2, &
-                                                   order = 2, &
+                                                   order = 1, &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
   
@@ -386,6 +387,10 @@ program par_test_reference_fe
   !                                   fe_space_component = 2 )
   
   call par_fe_space%fill_dof_info()
+  ! call par_fe_space%print()
+  call par_fe_space%renumber_dofs_first_interior_then_interface()
+  ! call par_fe_space%print()
+
     
   call fe_affine_operator%create (sparse_matrix_storage_format=csr_format, &
                                   diagonal_blocks_symmetric_storage=(/.true./), &
@@ -397,6 +402,8 @@ program par_test_reference_fe
 
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
+  
+  
     
   call par_fe_space%create_global_fe_function(fe_function)
   
@@ -408,10 +415,18 @@ program par_test_reference_fe
   call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
   call iterative_linear_solver%free() 
   
-  !select type(dof_values)
-  !  type is (par_scalar_array_t)
-  !    call dof_values%print(6)
-  !end select
+  call mlbddc%create(fe_affine_operator)
+  call mlbddc%symbolic_setup()
+  call mlbddc%numerical_setup()
+  
+  select type(dof_values)
+    type is (par_scalar_array_t)
+       call mlbddc%apply(dof_values, dof_values) 
+  end select
+
+  call mlbddc%free()
+  
+  
   
   !call p_fe_space%par_fe_space_print()
   

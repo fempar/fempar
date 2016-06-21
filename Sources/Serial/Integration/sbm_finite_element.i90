@@ -232,6 +232,47 @@ subroutine finite_element_fill_dofs_face_integration_coupling ( this, face_local
   end do
 end subroutine finite_element_fill_dofs_face_integration_coupling
 
+! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
+subroutine finite_element_renumber_dofs_block ( this, block_id, perm_old2new )
+  implicit none
+  ! Parameters
+  class(finite_element_t), intent(inout) :: this
+  integer(ip)               , intent(in) :: block_id
+  ! No way to know the size of perm_old2new() within the local scope
+  ! of class(finite_element_t). This is why I used an assumed-size dummy
+  ! argument in this context. This will be solved in the future whenever
+  ! class(finite_element_t) also has access to the whole mesh-like container.
+  integer(ip)               , intent(in) :: perm_old2new(*)
+  integer(ip)                            :: field_id
+  assert ( block_id >= 1 .and. block_id <= this%number_blocks )
+  do field_id=1, this%number_fe_spaces
+    if ( this%field_blocks(field_id) == block_id ) then
+      call this%renumber_dofs_field( field_id, perm_old2new )
+    end if
+  end do 
+end subroutine finite_element_renumber_dofs_block
+
+! Renumbers the DoF identifiers corresponding to field with identifier field_id
+subroutine finite_element_renumber_dofs_field ( this, field_id, perm_old2new )
+  implicit none
+  ! Parameters
+  class(finite_element_t), intent(inout) :: this
+  integer(ip)               , intent(in) :: field_id
+  ! No way to know the size of perm_old2new() within the local scope
+  ! of class(finite_element_t). This is why I used an assumed-size dummy
+  ! argument in this context. This will be solved in the future whenever
+  ! class(finite_element_t) also has access to the whole mesh-like container.
+  integer(ip)               , intent(in) :: perm_old2new(*)
+  integer(ip) :: idof
+  
+  assert ( field_id >= 1 .and. field_id <= this%number_fe_spaces )
+  do idof = 1, this%reference_fe_phy(field_id)%p%get_number_nodes()
+    if ( this%elem2dof(field_id)%p(idof) > 0 ) then
+      this%elem2dof(field_id)%p(idof) = perm_old2new(this%elem2dof(field_id)%p(idof))
+    end if
+  end do
+end subroutine finite_element_renumber_dofs_field
+
 function finite_element_get_number_nodes ( this )
   implicit none
   class(finite_element_t), intent(in) :: this
@@ -460,6 +501,98 @@ subroutine finite_element_update_tensor_values (this, fe_function_tensor, fe_fun
                                                                   & quadrature_points_values )
   
 end subroutine finite_element_update_tensor_values
+
+subroutine finite_element_update_scalar_gradient_values (this, fe_function_scalar, fe_function )
+  implicit none
+  class(finite_element_t)   , intent(in)    :: this
+  type(fe_function_scalar_t), intent(inout) :: fe_function_scalar
+  type(fe_function_t)       , intent(in)    :: fe_function
+  
+  real(rp), pointer :: strong_dirichlet_values_entries(:)
+  
+  real(rp), pointer :: nodal_values(:)
+  type(vector_field_t), pointer :: quadrature_points_gradient_values(:)
+  
+  integer(ip)       :: inode, fe_space_id, block_id, number_nodes_fe_space
+  
+  assert ( associated(this%field_blocks) )
+
+  fe_space_id = fe_function_scalar%get_fe_space_id()
+  number_nodes_fe_space = this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
+
+  call fe_function_scalar%set_current_number_quadrature_points( &
+                          & this%quadrature%get_number_quadrature_points() )
+  call fe_function_scalar%set_current_number_nodes( number_nodes_fe_space )
+
+  block_id = this%field_blocks(fe_space_id)
+  nodal_values                      => fe_function_scalar%get_nodal_values()
+  quadrature_points_gradient_values => fe_function_scalar%get_quadrature_points_gradient_values()
+  
+  ! Extract nodal values associated to dirichlet bcs
+  strong_dirichlet_values_entries => fe_function%strong_dirichlet_values%get_entries()
+  do inode = 1, number_nodes_fe_space
+     if ( this%elem2dof(fe_space_id)%p(inode) < 0 ) then
+        nodal_values(inode) = strong_dirichlet_values_entries(-this%elem2dof(fe_space_id)%p(inode))
+     end if
+  end do
+  
+  ! Extract nodal values associated to dofs
+  call fe_function%dof_values%extract_subvector ( block_id, &
+                                                       & number_nodes_fe_space, &
+                                                       & this%elem2dof(fe_space_id)%p, &
+                                                       & nodal_values )
+  
+  ! Interpolate nodal values at quadrature points
+  call this%volume_integrator(fe_space_id)%p%evaluate_gradient_fe_function ( nodal_values, & 
+       &                                                                     quadrature_points_gradient_values )
+  
+end subroutine finite_element_update_scalar_gradient_values
+
+subroutine finite_element_update_vector_gradient_values (this, fe_function_vector, fe_function)
+  implicit none
+  class(finite_element_t)   , intent(in)    :: this
+  type(fe_function_vector_t), intent(inout) :: fe_function_vector
+  type(fe_function_t)       , intent(in)    :: fe_function
+
+  real(rp)            , pointer :: strong_dirichlet_values_entries(:)
+  
+  real(rp), pointer             :: nodal_values(:)
+  type(tensor_field_t), pointer :: quadrature_points_gradient_values(:)
+  
+  integer(ip)                   :: inode, fe_space_id, block_id, number_nodes_fe_space
+
+  assert ( associated(this%field_blocks) )
+
+  fe_space_id = fe_function_vector%get_fe_space_id()
+  number_nodes_fe_space = this%reference_fe_phy(fe_space_id)%p%get_number_nodes()
+  
+  call fe_function_vector%set_current_number_quadrature_points( &
+                          & this%quadrature%get_number_quadrature_points() )
+  call fe_function_vector%set_current_number_nodes( number_nodes_fe_space )
+
+  block_id = this%field_blocks(fe_space_id)
+  nodal_values                      => fe_function_vector%get_nodal_values()
+  quadrature_points_gradient_values => fe_function_vector%get_quadrature_points_gradient_values()
+
+  ! Extract nodal values associated to dirichlet bcs
+  strong_dirichlet_values_entries => fe_function%strong_dirichlet_values%get_entries()
+  do inode = 1, number_nodes_fe_space
+     if ( this%elem2dof(fe_space_id)%p(inode) < 0 ) then
+        nodal_values(inode) = strong_dirichlet_values_entries(-this%elem2dof(fe_space_id)%p(inode))
+     end if
+  end do
+  
+  ! Extract nodal values associated to dofs
+  call fe_function%dof_values%extract_subvector ( block_id, &
+                                                       & number_nodes_fe_space, &
+                                                       & this%elem2dof(fe_space_id)%p, &
+                                                       & nodal_values )
+  
+  ! Interpolate nodal values at quadrature points
+  call this%volume_integrator(fe_space_id)%p%evaluate_gradient_fe_function ( nodal_values, & 
+                                                                  & quadrature_points_gradient_values )
+  
+end subroutine finite_element_update_vector_gradient_values
 
 subroutine finite_element_impose_strong_dirichlet_bcs ( this, elmat, elvec )
  implicit none

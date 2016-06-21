@@ -52,7 +52,10 @@ module dof_import_names
      integer(ip)              :: part_id        ! Part identifier
      integer(ip)              :: number_parts   ! Number of parts
      
-     integer(ip)              :: number_dofs    ! Number of local dofs
+     integer(ip)              :: number_dofs             ! Number of local dofs
+     integer(ip)              :: number_interior_dofs    ! Number of interior dofs
+     integer(ip)              :: number_interface_dofs   ! Number of interface dofs
+
      real(rp)   , allocatable :: weight(:)      ! Weight operator for weighted dots, i.e., "<x,y> = y^t W x"
       
      integer(ip)              :: num_rcv        ! From how many neighbours does the part receive data ?
@@ -67,19 +70,23 @@ module dof_import_names
      integer(ip), allocatable :: pack_idx(:)    ! Where is located the data to be sent to 
                                                 ! each neighbour on the local vectors of the part ?
   contains
-    procedure, non_overridable :: create          => dof_import_create
-    procedure, non_overridable :: free            => dof_import_free
-    procedure, non_overridable :: print           => dof_import_print
-    procedure, non_overridable :: get_number_dofs => dof_import_get_number_dofs
-    procedure, non_overridable :: get_weight      => dof_import_get_weight
-    procedure, non_overridable :: get_num_rcv     => dof_import_get_num_rcv
-    procedure, non_overridable :: get_list_rcv    => dof_import_get_list_rcv
-    procedure, non_overridable :: get_rcv_ptrs    => dof_import_get_rcv_ptrs
-    procedure, non_overridable :: get_unpack_idx  => dof_import_get_unpack_idx
-    procedure, non_overridable :: get_num_snd     => dof_import_get_num_snd
-    procedure, non_overridable :: get_list_snd    => dof_import_get_list_snd
-    procedure, non_overridable :: get_snd_ptrs    => dof_import_get_snd_ptrs
-    procedure, non_overridable :: get_pack_idx    => dof_import_get_pack_idx    
+    procedure, non_overridable :: create                                 => dof_import_create
+    procedure, non_overridable :: free                                   => dof_import_free
+    procedure, non_overridable :: print                                  => dof_import_print
+    procedure, non_overridable :: get_number_dofs                        => dof_import_get_number_dofs
+    procedure, non_overridable :: get_number_interior_dofs               => dof_import_get_number_interior_dofs
+    procedure, non_overridable :: get_number_interface_dofs              => dof_import_get_number_interface_dofs
+    procedure, non_overridable :: get_weight                             => dof_import_get_weight
+    procedure, non_overridable :: get_num_rcv                            => dof_import_get_num_rcv
+    procedure, non_overridable :: get_list_rcv                           => dof_import_get_list_rcv
+    procedure, non_overridable :: get_rcv_ptrs                           => dof_import_get_rcv_ptrs
+    procedure, non_overridable :: get_unpack_idx                         => dof_import_get_unpack_idx
+    procedure, non_overridable :: get_num_snd                            => dof_import_get_num_snd
+    procedure, non_overridable :: get_list_snd                           => dof_import_get_list_snd
+    procedure, non_overridable :: get_snd_ptrs                           => dof_import_get_snd_ptrs
+    procedure, non_overridable :: get_pack_idx                           => dof_import_get_pack_idx 
+    procedure, non_overridable :: renumber_dofs                          => dof_import_renumber_dofs
+    procedure, non_overridable :: fill_first_I_then_G_renumbering        => dof_import_fill_first_I_then_G_renumbering
   end type dof_import_t
 
   ! Types
@@ -104,6 +111,7 @@ contains
     
     integer(ip), allocatable :: parts_rcv_visited(:)
     integer(ip), allocatable :: parts_snd_visited(:)
+    logical    , allocatable :: interface_dofs_visited(:)
     integer(ip)              :: col, neighbor_part_id, i
 
     this%part_id      = part_id
@@ -162,7 +170,9 @@ contains
     
     call memalloc ( this%snd_ptrs(this%num_snd+1)-1, this%pack_idx, __FILE__, __LINE__ )
     call memalloc ( this%rcv_ptrs(this%num_rcv+1)-1, this%unpack_idx, __FILE__, __LINE__ )
-    
+    call memalloc ( this%number_dofs, interface_dofs_visited, __FILE__, __LINE__ )
+    interface_dofs_visited = .false. 
+    this%number_interface_dofs = 0
     do col=1, num_itfc_couplings
        neighbor_part_id = raw_interface_data( neighbor_part_id_row, col)
        if ( raw_interface_data(owner_flag_row,col) == owner ) then
@@ -173,8 +183,16 @@ contains
          this%snd_ptrs(parts_snd_visited(neighbor_part_id)) = this%snd_ptrs(parts_snd_visited(neighbor_part_id)) + 1 
          this%weight(dofs_lid(col)) = 0.0_rp
        end if
+       
+       if ( .not. interface_dofs_visited(dofs_lid(col))) then
+         interface_dofs_visited(dofs_lid(col)) = .true. 
+         this%number_interface_dofs = this%number_interface_dofs + 1
+       end if
     end do
+
+    this%number_interior_dofs = this%number_dofs - this%number_interface_dofs
     
+    call memfree ( interface_dofs_visited, __FILE__, __LINE__ )
     call memfree ( parts_rcv_visited, __FILE__, __LINE__ )
     call memfree ( parts_snd_visited, __FILE__, __LINE__ )
      
@@ -224,6 +242,10 @@ contains
             &  this%num_rcv
        write(lu_out,'(a,i10)') 'Number dofs:', &
             &  this%number_dofs
+       write(lu_out,'(a,i10)') 'Number interior dofs:', &
+            &  this%number_interior_dofs
+       write(lu_out,'(a,i10)') 'Number interface dofs:', &
+            &  this%number_interface_dofs
        write(lu_out,*) 'Weight:', &
             &  this%weight         
        write(lu_out,'(a)') 'List of parts I have to receive from:'
@@ -251,6 +273,20 @@ contains
     integer(ip)                     :: dof_import_get_number_dofs
     dof_import_get_number_dofs = this%number_dofs
   end function dof_import_get_number_dofs
+  
+  function dof_import_get_number_interior_dofs(this)
+    implicit none
+    class(dof_import_t), intent(in) :: this
+    integer(ip) :: dof_import_get_number_interior_dofs
+    dof_import_get_number_interior_dofs = this%number_interior_dofs
+  end function dof_import_get_number_interior_dofs
+  
+  function dof_import_get_number_interface_dofs(this)
+    implicit none
+    class(dof_import_t), intent(in) :: this
+    integer(ip) :: dof_import_get_number_interface_dofs
+    dof_import_get_number_interface_dofs = this%number_interface_dofs 
+  end function dof_import_get_number_interface_dofs
   
   function dof_import_get_weight(this) 
     implicit none
@@ -323,6 +359,63 @@ contains
     
     dof_import_get_pack_idx => this%pack_idx
   end function dof_import_get_pack_idx
+    
+  subroutine dof_import_renumber_dofs( this, perm_old2new )
+    implicit none
+    class(dof_import_t), intent(inout) :: this
+    integer(ip)        , intent(in)    :: perm_old2new(this%number_dofs)
+    integer(ip)                        :: i
+    real(rp)           , allocatable   :: weight(:)
+    
+    do i=1, this%snd_ptrs(this%num_snd+1)-1
+      this%pack_idx(i) = perm_old2new(this%pack_idx(i))
+    end do
+    
+    do i=1, this%rcv_ptrs(this%num_rcv+1)-1
+      this%unpack_idx(i) = perm_old2new(this%unpack_idx(i))
+    end do
+        
+    call memalloc (this%number_dofs, weight, __FILE__, __LINE__)
+    do i=1, this%number_dofs
+       weight(perm_old2new(i)) = this%weight(i)
+    end do
+    this%weight = weight
+    call memfree (weight, __FILE__, __LINE__)
+  end subroutine dof_import_renumber_dofs
   
+  ! Generates a permutation of the DoF identifiers s.t. when applied via 
+  ! dof_import%renumber_dofs(perm_old2new), interior (I) DoFs are numbered
+  ! first, followed by DoFs on the interface \Gamma (G).
+  subroutine dof_import_fill_first_I_then_G_renumbering (this, perm_old2new) 
+    implicit none
+    class(dof_import_t)     , intent(in)    :: this
+    integer(ip)             , intent(inout) :: perm_old2new(this%number_dofs)
+    integer(ip)                             :: i, current_dof
+    
+    perm_old2new = -1    
+    current_dof = this%get_number_interior_dofs()+1
+    do i=1, this%snd_ptrs(this%num_snd+1)-1
+      if ( perm_old2new(this%pack_idx(i)) == -1) then
+          perm_old2new(this%pack_idx(i)) = current_dof
+          current_dof = current_dof + 1
+      end if
+    end do
+    
+    do i=1, this%rcv_ptrs(this%num_rcv+1)-1
+      if ( perm_old2new(this%unpack_idx(i)) == -1) then
+         perm_old2new(this%unpack_idx(i)) = current_dof
+         current_dof = current_dof + 1
+      end if
+    end do
+    
+    current_dof=1
+    do i=1, this%get_number_dofs()
+      ! is current DoF i an interior DoF ?
+      if ( perm_old2new(i) == -1 ) then
+          perm_old2new(i) = current_dof    
+          current_dof = current_dof + 1
+      end if
+    end do
+  end subroutine dof_import_fill_first_I_then_G_renumbering 
 
 end module dof_import_names

@@ -42,6 +42,7 @@ module par_names
   use par_scalar_array_names
   use par_block_array_names
   use par_sparse_matrix_names
+  use mlbddc_names
   
   ! Integration
     

@@ -34,7 +34,6 @@ module fe_affine_operator_names
   use serial_fe_space_names
   use operator_names
   use vector_names
-  use assembler_names
   use matrix_array_assembler_names
   use array_names
   use matrix_names
@@ -122,6 +121,7 @@ contains
   procedure          :: get_translation             => fe_affine_operator_get_translation
   procedure          :: get_matrix                  => fe_affine_operator_get_matrix
   procedure          :: get_array                   => fe_affine_operator_get_array
+  procedure          :: get_fe_space                => fe_affine_operator_get_fe_space
   procedure          :: free_in_stages              => fe_affine_operator_free_in_stages
   procedure          :: free                        => fe_affine_operator_free
   procedure          :: get_domain_vector_space     => fe_affine_operator_get_domain_vector_space
@@ -317,6 +317,14 @@ function fe_affine_operator_get_array(this)
  call this%fe_affine_operator_setup()
  fe_affine_operator_get_array => this%matrix_array_assembler%get_array()
 end function fe_affine_operator_get_array
+
+function fe_affine_operator_get_fe_space(this)
+ implicit none
+ class(fe_affine_operator_t), target, intent(in) :: this
+ class(serial_fe_space_t), pointer :: fe_affine_operator_get_fe_space
+ assert ( .not. this%state == start )
+ fe_affine_operator_get_fe_space => this%fe_space
+end function fe_affine_operator_get_fe_space
 
 ! op%apply(x,y) <=> y <- op*x
 ! Implicitly assumes that y is already allocated

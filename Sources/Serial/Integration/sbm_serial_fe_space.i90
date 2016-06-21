@@ -231,6 +231,19 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id )
        this%number_dofs_per_field(fe_space_id)     
 end subroutine serial_fe_space_fill_elem2dof_and_count_dofs
 
+subroutine serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: block_id
+  integer(ip)             , intent(in)    :: perm_old2new(this%number_dofs_per_block(block_id))
+  integer(ip)                             :: ielem
+  
+  do ielem = 1, this%get_number_elements()
+    call this%fe_array(ielem)%renumber_dofs_block ( block_id, perm_old2new )
+  end do
+  
+end subroutine serial_fe_space_renumber_dofs_block
+
 subroutine serial_fe_space_free( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
@@ -459,6 +472,39 @@ subroutine serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
   end select
 end subroutine serial_fe_space_symbolic_setup_assembler
 
+! Returns the sum of the number of DoFs associated to all fields
+function serial_fe_space_get_total_number_dofs ( this )
+   implicit none
+   class(serial_fe_space_t), intent(in) :: this
+   integer(ip)                          :: serial_fe_space_get_total_number_dofs 
+   integer(ip) :: field_id
+   serial_fe_space_get_total_number_dofs = 0 
+   do field_id = 1, this%number_fe_spaces
+     serial_fe_space_get_total_number_dofs = serial_fe_space_get_total_number_dofs  + &
+                                             this%number_dofs_per_field(field_id)
+   end do
+end function serial_fe_space_get_total_number_dofs 
+
+! Returns the number of DoFs associated to field with identifier field_id
+function serial_fe_space_get_field_number_dofs ( this, field_id )
+   implicit none
+   class(serial_fe_space_t), intent(in) :: this
+   integer(ip)             , intent(in) :: field_id
+   integer(ip)                          :: serial_fe_space_get_field_number_dofs
+   assert ( field_id >=1 .and. field_id <= this%number_fe_spaces ) 
+   serial_fe_space_get_field_number_dofs = this%number_dofs_per_field(field_id)
+end function serial_fe_space_get_field_number_dofs
+
+! Returns the number of DoFs associated to block with identifier block_id
+function serial_fe_space_get_block_number_dofs ( this, block_id )
+   implicit none
+   class(serial_fe_space_t), intent(in) :: this
+   integer(ip)             , intent(in) :: block_id
+   integer(ip)                          :: serial_fe_space_get_block_number_dofs
+   assert ( block_id >=1 .and. block_id <= this%number_blocks ) 
+   serial_fe_space_get_block_number_dofs  = this%number_dofs_per_block(block_id)
+end function serial_fe_space_get_block_number_dofs 
+
 function serial_fe_space_get_number_elements ( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this
@@ -486,6 +532,19 @@ function serial_fe_space_get_number_fe_spaces( this)
   integer(ip) :: serial_fe_space_get_number_fe_spaces
   serial_fe_space_get_number_fe_spaces = this%number_fe_spaces
 end function serial_fe_space_get_number_fe_spaces
+
+! Although in principle this%fe_space_type(:) was though to be
+! private member variable, I had to make it visible to the exterior
+! via a raw pointer it as type(mlbddc_t) requires it in order to construct 
+! the type(coarse_fe_space_t) instance that it aggregrates. Perhaps there is a 
+! better/cleaner solution, but at the present moment, this is the only solution 
+! that comes into my mind and lets me advance
+function serial_fe_space_get_fe_space_type (this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  integer(ip), pointer :: serial_fe_space_get_fe_space_type(:)
+  serial_fe_space_get_fe_space_type => this%fe_space_type
+end function serial_fe_space_get_fe_space_type
 
 function serial_fe_space_get_finite_element( this, ielem )
   implicit none
@@ -1020,7 +1079,7 @@ end subroutine serial_fe_space_update_bc_value_tensor
  !===============================================================================================
  function serial_fe_space_get_triangulation( this) result(triangulation)
    class(serial_fe_space_t), intent(in)    :: this 
-   class(triangulation_t), pointer         :: triangulation
+   type(triangulation_t), pointer          :: triangulation
    
    triangulation => this%triangulation
  end function serial_fe_space_get_triangulation

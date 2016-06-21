@@ -26,7 +26,7 @@ module cdr_analytical_functions_names
   use command_line_parameters_names
   use cdr_analytical_linear_functions_names
   use cdr_analytical_linear_transient_functions_names
-  use cdr_analytical_layer_functions_names
+  !use cdr_analytical_layer_functions_names
 # include "debug.i90"
   implicit none
   private
@@ -89,12 +89,12 @@ contains
        allocate(linear_transient_solution_gradient_field_t  :: this%solution_gradient)
        allocate(linear_transient_solution_laplacian_field_t :: this%solution_laplacian)
        allocate(linear_transient_convection_field_t         :: this%convection)
-    case(cdr_obliquous_layer)
-       allocate(layer_solution_field_t           :: this%solution)
-       allocate(layer_dt_solution_field_t        :: this%dt_solution)
-       allocate(layer_solution_gradient_field_t  :: this%solution_gradient)
-       allocate(layer_solution_laplacian_field_t :: this%solution_laplacian)
-       allocate(layer_convection_field_t         :: this%convection)
+!!$    case(cdr_obliquous_layer)
+!!$       allocate(layer_solution_field_t           :: this%solution)
+!!$       allocate(layer_dt_solution_field_t        :: this%dt_solution)
+!!$       allocate(layer_solution_gradient_field_t  :: this%solution_gradient)
+!!$       allocate(layer_solution_laplacian_field_t :: this%solution_laplacian)
+!!$       allocate(layer_convection_field_t         :: this%convection)
     case default
        check(.false.)
     end select

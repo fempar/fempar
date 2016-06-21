@@ -67,7 +67,7 @@ end function vef_accessor_past_the_end
 function vef_accessor_get_triangulation(this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
-  type(base_static_triangulation_t), pointer :: vef_accessor_get_triangulation
+  class(base_static_triangulation_t), pointer :: vef_accessor_get_triangulation
   vef_accessor_get_triangulation => this%base_static_triangulation
 end function vef_accessor_get_triangulation
 
@@ -75,7 +75,6 @@ function vef_accessor_get_lid (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   integer(ip) :: vef_accessor_get_lid
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
   vef_accessor_get_lid = this%lid
 end function vef_accessor_get_lid
 
@@ -83,7 +82,7 @@ function vef_accessor_get_gid (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   integer(igp) :: vef_accessor_get_gid
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert (this%lid >= 1 .and. .not. this%past_the_end())
   vef_accessor_get_gid = this%base_static_triangulation%vefs_gid(this%lid)
 end function vef_accessor_get_gid
 

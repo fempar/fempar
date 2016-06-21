@@ -2,6 +2,7 @@ program test_coo_csr_copy_move
 
 USE types_names
 USE memor_names
+USE sparse_matrix_parameters_names
 USE base_sparse_matrix_names
 USE csr_sparse_matrix_names
 

@@ -103,8 +103,8 @@ end subroutine itfc_vef_iterator_init
 
 subroutine itfc_vef_iterator_next ( this ) 
   implicit none
-  class(itfc_vef_iterator_t), intent(inout) :: this
-  type(base_static_triangulation_t), pointer            :: base_static_triangulation
+  class(itfc_vef_iterator_t), intent(inout)    :: this
+  class(base_static_triangulation_t), pointer  :: base_static_triangulation
   base_static_triangulation => this%current_vef_accessor%get_triangulation()
   this%itfc_lid = this%itfc_lid + 1
   if ( this%itfc_lid > base_static_triangulation%num_itfc_vefs ) then

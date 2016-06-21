@@ -588,7 +588,12 @@ contains
    integer(ip)              , intent(in)    :: size_indices
    integer(ip)              , intent(in)    :: indices(size_indices)
    real(rp)                 , intent(inout) :: values(*)
-   check( .false. )
+   if(this%p_env%am_i_l1_task()) then
+      call this%serial_scalar_array%extract_subvector(iblock, &
+                                                    & size_indices, &
+                                                    & indices, &
+                                                    & values )
+   end if
   end subroutine par_scalar_array_extract_subvector
 
   !=============================================================================
@@ -603,8 +608,13 @@ contains
    integer(ip)              , intent(in)    :: size_indices
    integer(ip)              , intent(in)    :: indices(size_indices)
    real(rp)                 , intent(in)    :: values(*)
-   check( .false. )
- end subroutine par_scalar_array_insert_subvector
+   if(this%p_env%am_i_l1_task()) then
+      call this%serial_scalar_array%insert_subvector(iblock, &
+                                                    & size_indices, &
+                                                    & indices, &
+                                                    & values )
+   end if
+   end subroutine par_scalar_array_insert_subvector
   
 
 end module par_scalar_array_names

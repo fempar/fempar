@@ -51,6 +51,7 @@ private
         procedure, non_overridable ::                                           par_sparse_matrix_convert_par_sparse_matrix_mold
         procedure, non_overridable ::                                           par_sparse_matrix_convert_base_par_sparse_matrix_mold
         procedure, non_overridable ::         create_vector_spaces           => par_sparse_matrix_create_vector_spaces
+        procedure, non_overridable, public :: get_sparse_matrix              => par_sparse_matrix_get_sparse_matrix
         procedure, non_overridable, public :: get_nnz                        => par_sparse_matrix_get_nnz
         procedure, non_overridable, public :: get_sign                       => par_sparse_matrix_get_sign
         procedure, non_overridable, public :: get_num_rows                   => par_sparse_matrix_get_num_rows
@@ -164,7 +165,15 @@ contains
         num_cols = this%sparse_matrix%get_num_cols()
     end function par_sparse_matrix_get_num_cols
 
-
+    function par_sparse_matrix_get_sparse_matrix(this) result(sparse_matrix)
+    !-----------------------------------------------------------------
+    !< Get the local portion of the parallel distributed-memory matrix
+    !-----------------------------------------------------------------
+      class(par_sparse_matrix_t), target, intent(in) :: this
+      type(sparse_matrix_t)     , pointer            :: sparse_matrix
+      sparse_matrix => this%sparse_matrix
+    end function par_sparse_matrix_get_sparse_matrix
+    
     function par_sparse_matrix_get_nnz(this) result(nnz)
     !-----------------------------------------------------------------
     !< Get the number of non zeros of the matrix
