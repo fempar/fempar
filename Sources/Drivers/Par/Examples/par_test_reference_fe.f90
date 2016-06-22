@@ -318,17 +318,22 @@ program par_test_reference_fe
   call test_params%set_cli()
   call test_params%parse()
 
-  ! This test only works with two levels.
-   num_levels = 3
+   !num_levels = 3
+   !call memalloc(num_levels, parts_mapping , __FILE__, __LINE__)
+   !call memalloc(num_levels, num_parts_per_level, __FILE__, __LINE__)
+   
+   !num_parts_per_level = (/test_params%nparts, 2, 1/)
+   !if ( w_context%get_rank() < test_params%nparts ) then
+   !  parts_mapping       = (/w_context%get_rank()+1, w_context%get_rank()/2+1, 1/)
+   !else if ( w_context%get_rank() >= test_params%nparts) then
+   !  parts_mapping       = (/w_context%get_rank()+1, w_context%get_rank()+1-test_params%nparts, 1/)
+   !end if
+  
+   num_levels = 2
    call memalloc(num_levels, parts_mapping , __FILE__, __LINE__)
    call memalloc(num_levels, num_parts_per_level, __FILE__, __LINE__)
-   
-   num_parts_per_level = (/test_params%nparts, 2, 1/)
-   if ( w_context%get_rank() < test_params%nparts ) then
-     parts_mapping       = (/w_context%get_rank()+1, w_context%get_rank()/2+1, 1/)
-   else if ( w_context%get_rank() >= test_params%nparts) then
-     parts_mapping       = (/w_context%get_rank()+1, w_context%get_rank()+1-test_params%nparts, 1/)
-   end if
+   num_parts_per_level = (/test_params%nparts, 1/)
+   parts_mapping       = (/w_context%get_rank()+1, 1/)
     
   !num_levels = 3
   !call memalloc(num_levels, parts_mapping , __FILE__, __LINE__)
@@ -403,30 +408,25 @@ program par_test_reference_fe
   call fe_affine_operator%symbolic_setup()
   call fe_affine_operator%numerical_setup()
   
-  
-    
   call par_fe_space%create_global_fe_function(fe_function)
-  
-  ! Create iterative linear solver, set operators and solve linear system
-  call iterative_linear_solver%create(par_env)
-  call iterative_linear_solver%set_type_from_string(cg_name)
-  call iterative_linear_solver%set_operators(fe_affine_operator, .identity. fe_affine_operator)
-  dof_values => fe_function%get_dof_values()
-  call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
-  call iterative_linear_solver%free() 
   
   call mlbddc%create(fe_affine_operator)
   call mlbddc%symbolic_setup()
   call mlbddc%numerical_setup()
   
-  select type(dof_values)
-    type is (par_scalar_array_t)
-      call mlbddc%apply(dof_values, dof_values) 
-  end select
-
+  ! Create iterative linear solver, set operators and solve linear system
+  call iterative_linear_solver%create(par_env)
+  call iterative_linear_solver%set_type_from_string(cg_name)
+  call iterative_linear_solver%set_operators(fe_affine_operator, mlbddc)
+  dof_values => fe_function%get_dof_values()
+  call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
+  call iterative_linear_solver%free()
   call mlbddc%free()
   
-  
+  select type(dof_values)
+   type is (par_scalar_array_t)
+     call dof_values%print(6)
+  end select
   
   !call p_fe_space%par_fe_space_print()
   

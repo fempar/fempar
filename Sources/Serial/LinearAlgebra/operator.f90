@@ -493,6 +493,7 @@ contains
        end select
        call op1%op_stored%GuardTemp()
        class default                 ! Cannot be temporary (I don't know how to copy it!)
+       
        op1%op => op2
        call op1%op%GuardTemp()
     end select
@@ -507,7 +508,6 @@ contains
     else
       check(.false.)
     end if
-    
   end subroutine dynamic_state_operator_constructor
 
   subroutine dynamic_state_operator_destructor(this)
