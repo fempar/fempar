@@ -396,7 +396,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
                  ijk_g(idm(k)+1) = auxt2(k,m)
               end do
               c2 = c2+1
-              this%vertices_vef%l(c2) = Q_gijk(ijk_g,nd,1) !store the vef numbering of the corner 
+              this%vertices_vef%l(c2) = this%local_coordinates_to_local_id(ijk_g,nd,1) !store the vef numbering of the corner 
            end do
         end do
 
@@ -416,7 +416,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
                  ijk_g(idm(k)+1) = auxt3(k,m)
               end do
               c3 = c3+1
-              this%interior_nodes_vef%l(c3) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ndxob%l
+              this%interior_nodes_vef%l(c3) = this%local_coordinates_to_local_id(ijk_g,nd,p) ! Store the local numbering in ndxob%l
            end do
         end do
 
@@ -435,7 +435,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
                  ijk_g(idm(k)+1) = auxt4(k,m)
               end do
               c4 = c4+1
-              this%nodes_vef%l(c4) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ntxob%l
+              this%nodes_vef%l(c4) = this%local_coordinates_to_local_id(ijk_g,nd,p) ! Store the local numbering in ntxob%l
            end do
         end do
         end if
@@ -457,7 +457,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
                  ijk_g(idm(k)+1) = auxt6(k,m)
               end do
               c6 = c6+1
-              ob2node(c6) = Q_gijk(ijk_g,nd,2) ! Store the local numbering in ndxob%l
+              ob2node(c6) = this%local_coordinates_to_local_id(ijk_g,nd,2) ! Store the local numbering in ndxob%l
            end do
         end do
 
@@ -475,7 +475,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
                  ijk_g(idm(k)+1) = auxt5(k,m)
               end do
               c5 = c5 +1
-              this%vefs_vef%l(c5) = Q_gijk(ijk_g,nd,2)
+              this%vefs_vef%l(c5) = this%local_coordinates_to_local_id(ijk_g,nd,2)
            end do
 
            ! Define ijk_g for the node in the center of the vef
@@ -484,7 +484,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
            end do
 
            ! Find the generic node numbering
-           m = Q_gijk(ijk_g,nd,2)
+           m = this%local_coordinates_to_local_id(ijk_g,nd,2)
 
            ! Fill ob2node array
            !ob2node(m) = co
@@ -598,20 +598,22 @@ recursive subroutine Q_r_ijk(co,d,ijk,nd,auxt1,p0,p1)
   end do
 end subroutine Q_r_ijk
 
-
 !==================================================================================================
-! Q_GIJK(i,nd,p) returns the generic identifier of a node with coordinates i in an elem(nd,p)
-!Given the coordinates ijk (in i) and the dimension nd and the order p of the 
-!quad, it returns the local numbering of the node: Q_gijk=i+j*(p+1)+k*(p+1)^2
-integer(ip) function Q_gijk(i,nd,p)
+function quad_lagrangian_reference_fe_local_coordinates_to_local_id( this, local_coordinates, &
+                                                                     number_of_dimensions,    &
+                                                                     order )
   implicit none
-  integer(ip) :: nd,i(nd),p,k
-  Q_gijk = 1
-  do k = 1,nd
-     Q_gijk = Q_gijk + i(k)*((p+1)**(k-1))
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: local_coordinates(:)
+  integer(ip)                          , intent(in)    :: number_of_dimensions
+  integer(ip)                          , intent(in)    :: order
+  integer(ip) :: quad_lagrangian_reference_fe_local_coordinates_to_local_id
+  integer(ip) :: idime
+  quad_lagrangian_reference_fe_local_coordinates_to_local_id = 1
+  do idime = 1,number_of_dimensions
+     quad_lagrangian_reference_fe_local_coordinates_to_local_id = quad_lagrangian_reference_fe_local_coordinates_to_local_id + local_coordinates(idime)*((order+1)**(idime-1))
   end do
-end function  Q_gijk
-
+end function quad_lagrangian_reference_fe_local_coordinates_to_local_id
 
 !==================================================================================================
 subroutine Q_orientation_vef(o,fdm,od,nd,l)
@@ -1295,13 +1297,13 @@ subroutine quad_lagrangian_reference_fe_fill_interpolation ( this, interpolation
 
   ! Compute the nd shape functions as the tensor product of 1d shape functions
   if ( allocated( interpolation%hessian ) )  then 
-     call shapen(interpolation%shape_functions,interpolation%shape_derivatives, &
-               & shpe1,shpd1,shph1,interpolation%number_dimensions,order,nlocs, &
-               & interpolation%number_entries_symmetric_tensor,khes,interpolation%hessian)
+     call this%shapen(interpolation%shape_functions,interpolation%shape_derivatives, &
+                    & shpe1,shpd1,shph1,interpolation%number_dimensions,order,nlocs, &
+                    & interpolation%number_entries_symmetric_tensor,khes,interpolation%hessian)
   else
-     call shapen(interpolation%shape_functions,interpolation%shape_derivatives, &
-               & shpe1,shpd1,shph1,interpolation%number_dimensions,order,nlocs, & 
-               & interpolation%number_entries_symmetric_tensor,khes)
+     call this%shapen(interpolation%shape_functions,interpolation%shape_derivatives, &
+                    & shpe1,shpd1,shph1,interpolation%number_dimensions,order,nlocs, & 
+                    & interpolation%number_entries_symmetric_tensor,khes)
   end if
   
   ! Deallocate auxiliary variables
@@ -1326,7 +1328,7 @@ subroutine quad_lagrangian_reference_fe_get_node_coordinates_array(this, coordin
 
   do i=1,number_nodes
 
-     call Q_ijkg(ijk,i,number_of_dimensions,order)
+     call this%local_id_to_local_coordinates(ijk,i,number_of_dimensions,order)
      do d=1,number_of_dimensions
         coordinates(d,i) = c1d(ijk(d)+1)
      end do
@@ -1400,12 +1402,12 @@ end subroutine shape1
 
 
 !==================================================================================================
-subroutine shapen (shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
+subroutine shapen (this,shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
   implicit none
-  ! Parameters
-  integer(ip)       , intent(in)  :: nd,p,ng,nt
-  logical, intent(in)      :: khes
-  real(rp)          , intent(in)  :: s1(p+1,ng),sd1(p+1,ng),sdd1(p+1,ng)
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this  
+  integer(ip)       , intent(in)   :: nd,p,ng,nt
+  logical           , intent(in)   :: khes
+  real(rp)          , intent(in)   :: s1(p+1,ng),sd1(p+1,ng),sdd1(p+1,ng)
   !real(rp)          , intent(out) :: shape((p+1)**nd,ng**nd)
   !real(rp)          , intent(out) :: deriv(nd,(p+1)**nd,ng**nd)
   !real(rp), optional, intent(out) :: hessi(nt,(p+1)**nd,ng**nd)
@@ -1435,14 +1437,14 @@ subroutine shapen (shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
   do i = 1,(p+1)**nd
 
      ! Set coordinates of node i 
-     call Q_ijkg(ijk,i,nd,p)
+     call this%local_id_to_local_coordinates(ijk,i,nd,p)
 
      ! Initialize Gauss point coordinates vector
      ijkg = 0; ijkg(1) = -1
      do ig = 1,ng**nd
 
         ! Set coordinates of Gauss point ig 
-        call Q_ijkg(ijkg,ig,nd,ng-1)
+        call this%local_id_to_local_coordinates(ijkg,ig,nd,ng-1)
 
         ! Initialize shape
         shape(i,ig) = 1.0_rp
@@ -1489,20 +1491,26 @@ subroutine shapen (shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
 end subroutine shapen
 
 !==================================================================================================
-! Q_IJKG(i,g,nd,p) returns coordinates of the g-th node in an elem(nd,p)
-subroutine Q_ijkg(i,g,nd,p)
+subroutine quad_lagrangian_reference_fe_local_id_to_local_coordinates(this,                 &
+                                                                      local_coordinates,    &
+                                                                      local_id,             &
+                                                                      number_of_dimensions, &
+                                                                      order)
   implicit none
-  integer(ip), intent(in)  :: nd,g,p
-  integer(ip), intent(out) :: i(nd)
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(inout) :: local_coordinates(:)
+  integer(ip)                          , intent(in)    :: local_id
+  integer(ip)                          , intent(in)    :: number_of_dimensions
+  integer(ip)                          , intent(in)    :: order
+  integer(ip) :: idime,current_local_number
 
-  integer(ip)              :: k,g2
-
-  g2 = g-1
-  do k=1,nd
-     i(k) = int(mod(g2,(p+1)**k)/(p+1)**(k-1))
-     g2 = g2 - i(k)*(p+1)**(k-1)
+  current_local_number = local_id-1
+  do idime=1,number_of_dimensions
+     local_coordinates(idime) = int(mod(current_local_number,(order+1)**idime)/(order+1)**(idime-1))
+     current_local_number = current_local_number - local_coordinates(idime)*(order+1)**(idime-1)
   end do
-end subroutine Q_ijkg
+  
+end subroutine quad_lagrangian_reference_fe_local_id_to_local_coordinates
 
 !==================================================================================================
 subroutine quad_lagrangian_reference_fe_set_permutation_2D( this,permutation,number_nodes_x_dim,orientation,rotation )
@@ -1527,11 +1535,11 @@ subroutine quad_lagrangian_reference_fe_set_permutation_2D( this,permutation,num
         ij_q(1) = i
         ij_q(3) = number_nodes_x_dim-1-i
         ! Get the global numbering of node (i,j)
-        go = Q_gijk(ij_q(1:2),2,number_nodes_x_dim-1)
+        go = this%local_coordinates_to_local_id(ij_q(1:2),2,number_nodes_x_dim-1)
         ! i,j coordinates for the o_r permutation
         ij_n(1:2) = ij_q(ij_perm_quad(1:2,o_r)) 
         ! Get the global numbering of node ij_n
-        permutation(go) = Q_gijk(ij_n,2,number_nodes_x_dim-1)
+        permutation(go) = this%local_coordinates_to_local_id(ij_n,2,number_nodes_x_dim-1)
      end do
   end do
   
@@ -1565,11 +1573,11 @@ subroutine quad_lagrangian_reference_fe_fill_face_interpolation (this,face_inter
 
   order_of_approximation = this%order
   ! Create the interpolation
-  call face_shapen(face_interpolation%shape_functions,face_interpolation%shape_derivatives,    &
-       &           local_interpolation%shape_functions,local_interpolation%shape_derivatives,  &
-       &           interp_1D_corners%shape_functions,interp_1D_corners%shape_derivatives,      &
-       &           face_interpolation%number_dimensions,order_of_approximation,                &
-       &           face_interpolation%number_quadrature_points,local_face_id)
+  call this%face_shapen(face_interpolation%shape_functions,face_interpolation%shape_derivatives,    &
+       &                local_interpolation%shape_functions,local_interpolation%shape_derivatives,  &
+       &                interp_1D_corners%shape_functions,interp_1D_corners%shape_derivatives,      &
+       &                face_interpolation%number_dimensions,order_of_approximation,                &
+       &                face_interpolation%number_quadrature_points,local_face_id)
 
   call face_reference_fe%free()
   call reference_fe_1D%free
@@ -1580,9 +1588,10 @@ subroutine quad_lagrangian_reference_fe_fill_face_interpolation (this,face_inter
 end subroutine quad_lagrangian_reference_fe_fill_face_interpolation
 
 !==================================================================================================
-subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
+subroutine face_shapen(this,shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
   implicit none
   ! Parameters
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)           , intent(in)  :: nd,p,ng, local_face_id
   real(rp)              , intent(in)  :: shp((p+1)**(nd-1),ng),drv(nd-1,(p+1)**(nd-1),ng) ! Face interpolation
   real(rp)              , intent(in)  :: sh1(p+1,2),dr1(1,p+1,2)
@@ -1600,7 +1609,7 @@ subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
   do inode = 1, (p+1)**nd ! node identifier
 
      ! Set coordinates of node i
-     call Q_ijkg(ijk,inode,nd,p)
+     call this%local_id_to_local_coordinates(ijk,inode,nd,p)
 
      ifc = 0
      do id = nd,1,-1   ! face normal direction
@@ -1613,7 +1622,7 @@ subroutine face_shapen(shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
               j = j+1
            end if
         end do
-        jnode = Q_gijk(ij,nd-1,p)
+        jnode = this%local_coordinates_to_local_id(ij,nd-1,p)
 
         do j = 1,2        ! 1 ---> -, 2 ---> +
            ifc = ifc + 1  ! face identifier
@@ -1690,11 +1699,11 @@ end subroutine face_shapen
     assert(size(connectivity,2) == num_subelems)
 
     do subelem = 1, num_subelems
-      call Q_ijkg(first_coord,subelem,this%number_dimensions,this%order-1)
+      call this%local_id_to_local_coordinates(first_coord,subelem,this%number_dimensions,this%order-1)
       do local_node = 1, geo_nnodes
-        call Q_ijkg(local_coord,local_node,this%number_dimensions,1)
+        call this%local_id_to_local_coordinates(local_coord,local_node,this%number_dimensions,1)
         global_coord = first_coord + local_coord
-        connectivity(local_node, subelem) = Q_gijk(global_coord,this%number_dimensions,this%order)
+        connectivity(local_node, subelem) = this%local_coordinates_to_local_id(global_coord,this%number_dimensions,this%order)
       end do
     end do
   end subroutine quad_lagrangian_reference_fe_get_subelements_connectivity
