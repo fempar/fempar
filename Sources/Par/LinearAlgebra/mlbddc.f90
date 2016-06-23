@@ -497,15 +497,15 @@ contains
                                                            this%vefs_lids_dofs_objects_per_field, &
                                                            this%constraint_matrix)
     
-    write (*,'(a)') '****print mlbddc_setup_dofs_objects_and_constraint_matrix****'
-    write (*,'(a,i10)'  ) 'num_dofs_objects_per_field:', this%num_dofs_objects_per_field 
-    do i=1, fe_space%get_number_fe_spaces()
-      write (*,'(a,i5)') '****FIELD ', i, '****'
-      write (*,'(a)') 'dofs_objects_per_field'
-      call this%dofs_objects_per_field(i)%print(6)
-      call this%constraint_matrix%print(6)
-    end do
-    write (*,'(a)') '****print mlbddc_setup_dofs_objects_and_constraint_matrix****'
+    !write (*,'(a)') '****print mlbddc_setup_dofs_objects_and_constraint_matrix****'
+    !write (*,'(a,i10)'  ) 'num_dofs_objects_per_field:', this%num_dofs_objects_per_field 
+    !do i=1, fe_space%get_number_fe_spaces()
+    !  write (*,'(a,i5)') '****FIELD ', i, '****'
+    !  write (*,'(a)') 'dofs_objects_per_field'
+    !  call this%dofs_objects_per_field(i)%print(6)
+    !  call this%constraint_matrix%print(6)
+    !end do
+    !write (*,'(a)') '****print mlbddc_setup_dofs_objects_and_constraint_matrix****'
   end subroutine mlbddc_setup_dofs_objects_and_constraint_matrix
   
   subroutine mlbddc_setup_coarse_fe_space(this)
@@ -916,7 +916,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     
     call this%coarse_grid_matrix%convert(csr_format)
     
-    call this%coarse_grid_matrix%print(6)
+    !call this%coarse_grid_matrix%print(6)
   end subroutine mlbddc_coarse_grid_matrix_symbolic_assembly
   
   
@@ -1008,10 +1008,10 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
                                   A_GG    = this%A_GG)
     end if
     
-    call A%print(6)
-    call this%A_II%print(6)
-    call this%A_IG%print(6)
-    call this%A_GG%print(6)
+    !call A%print(6)
+    !call this%A_II%print(6)
+    !call this%A_IG%print(6)
+    !call this%A_GG%print(6)
   end subroutine mlbddc_numerical_setup_dirichlet_problem
   
   subroutine mlbddc_numerical_setup_dirichlet_solver(this)
@@ -1019,7 +1019,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_t)           , intent(inout) :: this
     assert ( this%am_i_l1_task() )
     call this%dirichlet_solver%numerical_setup() 
-    call this%dirichlet_solver%log_info()
+    !call this%dirichlet_solver%log_info()
   end subroutine mlbddc_numerical_setup_dirichlet_solver
   
   subroutine mlbddc_numerical_constrained_neumann_problem(this)
@@ -1036,7 +1036,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     call A%expand_matrix_numeric(C_T = this%constraint_matrix, &
                                  to  = this%constrained_neumann_matrix)
     
-    call this%constrained_neumann_matrix%print(6)
+    !call this%constrained_neumann_matrix%print(6)
   end subroutine  mlbddc_numerical_constrained_neumann_problem
   
   subroutine mlbddc_numerical_setup_constrained_neumann_solver(this)
@@ -1044,7 +1044,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_t)           , intent(inout) :: this
     assert ( this%am_i_l1_task() )
     call this%constrained_neumann_solver%numerical_setup() 
-    call this%constrained_neumann_solver%log_info()
+    !call this%constrained_neumann_solver%log_info()
   end subroutine mlbddc_numerical_setup_constrained_neumann_solver
   
   subroutine mlbddc_allocate_coarse_grid_basis ( this )
@@ -1312,7 +1312,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     deallocate ( elem2dof, stat=istat )
     check(istat==0)     
     call this%coarse_grid_matrix%convert(csr_format)
-    call this%coarse_grid_matrix%print(6)
+    !call this%coarse_grid_matrix%print(6)
   end subroutine mlbddc_coarse_grid_matrix_numerical_assembly
   
   subroutine mlbddc_numerical_setup_mlbddc_coarse ( this )
@@ -1334,7 +1334,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     assert ( par_environment%get_l1_size() == 1 )
     assert ( par_environment%am_i_l1_task() )
     call this%coarse_solver%numerical_setup() 
-    call this%coarse_solver%log_info()
+    !call this%coarse_solver%log_info()
   end subroutine mlbddc_numerical_setup_coarse_solver
   
   !=============================================================================
@@ -2371,15 +2371,15 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
                                                            this%vefs_lids_dofs_objects_per_field, &
                                                            this%constraint_matrix)
     
-    write (*,'(a)') '****print mlbddc_coarse_setup_dofs_objects_and_constraint_matrix****'
-    write (*,'(a,i10)'  ) 'num_dofs_objects_per_field:', this%num_dofs_objects_per_field 
-    do i=1, fe_space%get_number_fields()
-      write (*,'(a,i5)') '****FIELD ', i, '****'
-      write (*,'(a)') 'dofs_objects_per_field'
-      call this%dofs_objects_per_field(i)%print(6)
-      call this%constraint_matrix%print(6)
-    end do
-    write (*,'(a)') '****print mlbddc_coarse_setup_dofs_objects_and_constraint_matrix****'
+    !write (*,'(a)') '****print mlbddc_coarse_setup_dofs_objects_and_constraint_matrix****'
+    !write (*,'(a,i10)'  ) 'num_dofs_objects_per_field:', this%num_dofs_objects_per_field 
+    !do i=1, fe_space%get_number_fields()
+    !  write (*,'(a,i5)') '****FIELD ', i, '****'
+    !  write (*,'(a)') 'dofs_objects_per_field'
+    !  call this%dofs_objects_per_field(i)%print(6)
+    !  call this%constraint_matrix%print(6)
+    !end do
+    !write (*,'(a)') '****print mlbddc_coarse_setup_dofs_objects_and_constraint_matrix****'
   end subroutine mlbddc_coarse_setup_dofs_objects_and_constraint_matrix
   
   subroutine mlbddc_coarse_setup_coarse_fe_space(this)
@@ -2797,7 +2797,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     
     call this%coarse_grid_matrix%convert(csr_format)
     
-    call this%coarse_grid_matrix%print(6)
+    !call this%coarse_grid_matrix%print(6)
   end subroutine mlbddc_coarse_coarse_grid_matrix_symbolic_assembly
   
   subroutine mlbddc_coarse_symbolic_setup_mlbddc_coarse(this)
@@ -2891,10 +2891,10 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
                                   A_GG    = this%A_GG)
     end if
     
-    call A%print(6)
-    call this%A_II%print(6)
-    call this%A_IG%print(6)
-    call this%A_GG%print(6)
+    !call A%print(6)
+    !call this%A_II%print(6)
+    !call this%A_IG%print(6)
+    !call this%A_GG%print(6)
   end subroutine mlbddc_coarse_numerical_setup_dirichlet_problem
   
   subroutine mlbddc_coarse_numerical_setup_dirichlet_solver(this)
@@ -2902,7 +2902,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_coarse_t)           , intent(inout) :: this
     assert ( this%am_i_l1_task() )
     call this%dirichlet_solver%numerical_setup() 
-    call this%dirichlet_solver%log_info()
+    !call this%dirichlet_solver%log_info()
   end subroutine mlbddc_coarse_numerical_setup_dirichlet_solver
   
   subroutine mlbddc_coarse_numerical_constrained_neumann_problem(this)
@@ -2919,7 +2919,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     call A%expand_matrix_numeric(C_T = this%constraint_matrix, &
                                  to  = this%constrained_neumann_matrix)
     
-    call this%constrained_neumann_matrix%print(6)
+    !call this%constrained_neumann_matrix%print(6)
   end subroutine  mlbddc_coarse_numerical_constrained_neumann_problem
   
   subroutine mlbddc_coarse_numerical_setup_constrained_neumann_solver(this)
@@ -2927,7 +2927,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_coarse_t)           , intent(inout) :: this
     assert ( this%am_i_l1_task() )
     call this%constrained_neumann_solver%numerical_setup() 
-    call this%constrained_neumann_solver%log_info()
+    !call this%constrained_neumann_solver%log_info()
   end subroutine mlbddc_coarse_numerical_setup_constrained_neumann_solver
   
   subroutine mlbddc_coarse_allocate_coarse_grid_basis ( this )
@@ -3195,7 +3195,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     deallocate ( elem2dof, stat=istat )
     check(istat==0)     
     call this%coarse_grid_matrix%convert(csr_format)
-    call this%coarse_grid_matrix%print(6)
+    !call this%coarse_grid_matrix%print(6)
   end subroutine mlbddc_coarse_coarse_grid_matrix_numerical_assembly
     
   subroutine mlbddc_coarse_numerical_setup_mlbddc_coarse ( this )
@@ -3217,7 +3217,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     assert ( par_environment%get_l1_size() == 1 )
     assert ( par_environment%am_i_l1_task() )
     call this%coarse_solver%numerical_setup() 
-    call this%coarse_solver%log_info()
+    !call this%coarse_solver%log_info()
   end subroutine mlbddc_coarse_numerical_setup_coarse_solver
   
   !=============================================================================

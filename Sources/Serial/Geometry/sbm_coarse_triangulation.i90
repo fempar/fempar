@@ -108,7 +108,7 @@
       call this%compute_number_global_objects_and_their_gids()
     end if
     call this%setup_coarse_triangulation()
-    call this%print()
+    !call this%print()
   end subroutine coarse_triangulation_create
   
   recursive subroutine coarse_triangulation_free ( this )

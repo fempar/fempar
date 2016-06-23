@@ -122,7 +122,7 @@ module par_triangulation_names
      procedure, non_overridable, private :: compute_objects_dimension                      => par_triangulation_compute_objects_dimension
      procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => par_triangulation_compute_objects_neighbours_exchange_data
      procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => par_triangulation_compute_number_global_objects_and_their_gids
-     procedure, non_overridable, private :: setup_coarse_triangulation                     => par_triangulation_setup_coarse_triangulation
+     procedure, non_overridable          :: setup_coarse_triangulation                     => par_triangulation_setup_coarse_triangulation
      procedure, non_overridable, private :: gather_coarse_cell_gids                        => par_triangulation_gather_coarse_cell_gids
      procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs       => par_triangulation_gather_coarse_vefs_rcv_counts_and_displs
      procedure, non_overridable, private :: gather_coarse_vefs_dimension                   => par_triangulation_gather_coarse_vefs_dimension
@@ -662,9 +662,9 @@ contains
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_neighbours, __FILE__, __LINE__ )
     
-    do ivef_itfc=1,this%num_itfc_vefs
-      write(6,'(10i10)') ivef_itfc, this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)), parts_itfc_vefs(:, ivef_itfc) 
-    end do
+    !do ivef_itfc=1,this%num_itfc_vefs
+    !  write(6,'(10i10)') ivef_itfc, this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)), parts_itfc_vefs(:, ivef_itfc) 
+    !end do
   end subroutine par_triangulation_compute_parts_itfc_vefs
   
   subroutine par_triangulation_compute_vefs_and_parts_object(this)
@@ -742,8 +742,8 @@ contains
        end do
     end do
     
-    call this%vefs_object%print(6)
-    call this%parts_object%print(6)
+    !call this%vefs_object%print(6)
+    !call this%parts_object%print(6)
     
     call memfree ( parts_itfc_vefs, __FILE__, __LINE__ )
     call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )

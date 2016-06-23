@@ -157,6 +157,8 @@ module generate_uniform_triangulation_names
   interface uniform_mesh_descriptor_create
      module procedure uniform_mesh_descriptor_create_from_cli,uniform_mesh_descriptor_create_without_cli
   end interface uniform_mesh_descriptor_create
+  
+  public :: uniform_mesh_descriptor_create, uniform_conditions_descriptor_create, uniform_conditions_descriptor_free
 
   ! Types
   public :: uniform_mesh_descriptor_t, uniform_conditions_descriptor_t

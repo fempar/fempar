@@ -210,8 +210,8 @@ subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs,
        end do
     end do
     
-    call this%vefs_object%print(6)
-    call this%parts_object%print(6)
+    !call this%vefs_object%print(6)
+    !call this%parts_object%print(6)
     
     call memfree ( parts_itfc_vefs, __FILE__, __LINE__ )
     call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )

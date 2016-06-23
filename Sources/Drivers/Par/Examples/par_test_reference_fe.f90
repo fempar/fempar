@@ -278,7 +278,6 @@ program par_test_reference_fe
   use par_names
   use command_line_parameters_names
   use poisson_discrete_integration_names
-  use vector_laplacian_composite_discrete_integration_names
 
 
   implicit none
@@ -294,7 +293,6 @@ program par_test_reference_fe
   type(p_reference_fe_t)                                  :: reference_fe_array_one(1)
   type(fe_affine_operator_t)                              :: fe_affine_operator
   type(poisson_discrete_integration_t)                    :: poisson_integration
-  type(vector_laplacian_composite_discrete_integration_t) :: vector_laplacian_integration
   type(iterative_linear_solver_t)                         :: iterative_linear_solver
   type(fe_function_t)                                     :: fe_function
   class(vector_t), pointer                                :: dof_values
@@ -307,8 +305,10 @@ program par_test_reference_fe
   
   type(par_test_reference_fe_parameters_t) :: test_params
   
-  integer(ip), allocatable :: data(:)
-
+  ! Uniform mesh generation related data
+  type(uniform_mesh_descriptor_t)       :: gdata
+  type(uniform_conditions_descriptor_t) :: bdata
+  
   call fempar_init()
 
   ! Start parallel execution
@@ -349,18 +349,48 @@ program par_test_reference_fe
   !                         npdir, npsoc, parts_mapping, num_parts_per_level)
   
   ! Create parallel environment
-  call par_env%create (w_context,num_levels,num_parts_per_level,parts_mapping )
+  call par_env%create (w_context,&
+                       num_levels,&
+                       num_parts_per_level,&
+                       parts_mapping )
   
-  call par_env%print()
+  !call par_env%print()
   
   ! Read mesh
-  call par_mesh_read ( test_params%dir_path, test_params%prefix, par_env, par_mesh )
-  
-  ! Read boundary conditions
-  call par_conditions_read(test_params%dir_path, test_params%prefix, par_mesh%f_mesh%npoin, par_env, par_conditions)
-
+  !call par_mesh_read ( test_params%dir_path, test_params%prefix, par_env, par_mesh )
+  !Read boundary conditions
+  !call par_conditions_read(test_params%dir_path, test_params%prefix, par_mesh%f_mesh%npoin, par_env, par_conditions)
   ! Generate triangulation
-  call par_mesh_to_triangulation (par_mesh, par_triangulation, par_conditions)
+  !call par_mesh_to_triangulation (par_mesh, par_triangulation, par_conditions)
+  
+  ! 4x4 quadrilateral mesh distributed among 2x2 subdomains
+  call uniform_mesh_descriptor_create(gdata, &
+                                      nex=8, ney=8, nez=0, &
+                                      npx=2, npy=2, npz=0, &
+                                      nsx=1, nsy=1, nsz=0, &
+                                      lx=1.0, ly=1.0, lz=0.0 )
+  
+  ! Create uniform conditions descriptor for a  
+  ! scalar problem (i.e., ncode=nvalu=1).
+  ! The uniform conditions descriptor is created within
+  ! this subroutine s.t. all DoFs on top of vefs at the
+  ! boundary of the domain are subject to strong Dirichlet
+  ! boundary conditions. Recall that the function to be
+  ! imposed is not extracted from the one prescribed within
+  ! bdata, but from the call to par_fe_space%update_bc_value
+  ! below.
+  call uniform_conditions_descriptor_create(bdata, &
+                                            ncode = 1,&
+                                            nvalu = 1,&
+                                            ndime=gdata%ndime) 
+  
+  !! Actually generate type(par_triangulation_t) and 
+  !! type(par_conditions_t).
+  call par_generate_uniform_triangulation(par_env, &
+                                          gdata, &
+                                          bdata, &
+                                          par_triangulation, &
+                                          par_conditions)
   
   ! Simple case
   reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
@@ -370,15 +400,8 @@ program par_test_reference_fe
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
   
-  !reference_fe_array_one(2) =  make_reference_fe ( topology = topology_quad, &
-  !                                                 fe_type = fe_type_lagrangian, &
-  !                                                 number_dimensions = 2, &
-  !                                                 order = 1, &
-  !                                                 field_type = field_type_scalar, &
-  !                                                 continuity = .true. )
-  
-  !call reference_fe_array_one(1)%p%print()
-  
+  ! call reference_fe_array_one(1)%p%print() 
+    
   call par_fe_space%create( par_triangulation = par_triangulation, &
                             par_boundary_conditions = par_conditions, &
                             reference_fe_phy = reference_fe_array_one ) 
@@ -386,10 +409,6 @@ program par_test_reference_fe
   call par_fe_space%update_bc_value (scalar_function=constant_scalar_function_t(1.0_rp), &
                                      bc_code = 1, &
                                      fe_space_component = 1 )
-  
-  !call par_fe_space%update_bc_value (scalar_function=constant_scalar_function_t(1.0_rp), &
-  !                                   bc_code = 1, &
-  !                                   fe_space_component = 2 )
   
   call par_fe_space%fill_dof_info()
   ! call par_fe_space%print()
@@ -423,23 +442,22 @@ program par_test_reference_fe
   call iterative_linear_solver%free()
   call mlbddc%free()
   
-  select type(dof_values)
-   type is (par_scalar_array_t)
-     call dof_values%print(6)
-  end select
+  !select type(dof_values)
+  ! type is (par_scalar_array_t)
+  !   call dof_values%print(6)
+  !end select
   
-  !call p_fe_space%par_fe_space_print()
   
   call fe_function%free()
   call fe_affine_operator%free()
   call par_fe_space%free()
   call reference_fe_array_one(1)%free()
-  !call reference_fe_array_one(2)%free()
 
-  
   call par_triangulation_free(par_triangulation)
   call par_conditions_free (par_conditions)
-  call par_mesh_free (par_mesh)
+  !call par_mesh_free (par_mesh)
+  
+  call uniform_conditions_descriptor_free(bdata)
 
   call memfree(parts_mapping , __FILE__, __LINE__)
   call memfree(num_parts_per_level, __FILE__, __LINE__)
@@ -447,7 +465,6 @@ program par_test_reference_fe
   
   call par_env%free()
   call w_context%free(finalize=.true.)
-  
   call fempar_finalize()
 
 contains

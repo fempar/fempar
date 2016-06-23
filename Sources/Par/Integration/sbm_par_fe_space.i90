@@ -1323,7 +1323,7 @@ subroutine par_fe_space_setup_dofs_objects_by_continuity ( this, &
        call vefs_object_iterator%next()
     end do
   end do
-  call dofs_objects%print(6)
+  !call dofs_objects%print(6)
 end subroutine par_fe_space_setup_dofs_objects_by_continuity
 
 subroutine par_fe_space_setup_constraint_matrix ( this, &
