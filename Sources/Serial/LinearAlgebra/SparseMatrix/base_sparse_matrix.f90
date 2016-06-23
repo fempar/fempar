@@ -2933,7 +2933,6 @@ contains
             newsize = max(newnnz, int(1.5*size(this%ia)))
             call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
             call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%val, __FILE__, __LINE__)
         endif
         ! Append the new entries
         do i=1, nz
@@ -3180,7 +3179,6 @@ contains
             newsize = max(newnnz, int(1.5*size(this%ia)))
             call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
             call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%val, __FILE__, __LINE__)
         endif
         ! Append the new entries
         if(ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or.             & ! Check imposed bounds
