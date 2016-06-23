@@ -923,21 +923,21 @@ subroutine tri_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
 end subroutine tri_lagrangian_reference_fe_fill_interpolation
 
 !==================================================================================================
-subroutine tri_lagrangian_reference_fe_get_node_coordinates_array(this,coordinates, num_dimensions, &
+subroutine tri_lagrangian_reference_fe_get_node_coordinates_array(this, coordinates, number_of_dimensions, &
      &                                                            order, number_nodes)
   implicit none
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: num_dimensions,order,number_nodes
-  real(rp)                            , intent(inout) :: coordinates(num_dimensions,number_nodes)
-  integer(ip) :: ijk(num_dimensions),i,d
+  integer(ip)                         , intent(in)    :: number_of_dimensions,order,number_nodes
+  real(rp)                            , intent(inout) :: coordinates(:,:)
+  integer(ip) :: ijk(number_of_dimensions),i,d
   real(rp)    :: c1d(order+1)
 
   call P_coord_1d(c1d,order+1)
 
   do i=1,number_nodes
 
-     call this%global_id_to_local_coordinates(ijk,i,num_dimensions,order)
-     do d=1,num_dimensions
+     call this%global_id_to_local_coordinates(ijk,i,number_of_dimensions,order)
+     do d=1,number_of_dimensions
         coordinates(d,i) = c1d(ijk(d)+1)
      end do
      
