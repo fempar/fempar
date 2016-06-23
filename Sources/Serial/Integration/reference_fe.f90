@@ -845,6 +845,7 @@ module reference_fe_names
      procedure :: compute_number_nodes_scalar       => tri_lagrangian_reference_fe_compute_number_nodes_scalar
      ! Concrete TBPs of this derived data type
      procedure :: fill_nodes_vef                    => tri_lagrangian_reference_fe_fill_nodes_vef
+     procedure :: fill_vef_dimension_and_vertices   => tri_lagrangian_reference_fe_fill_vef_dimension_and_vertices
      procedure :: compute_sum_of_nodes_in_simplices => tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
      procedure :: get_node_coordinates_array        => tri_lagrangian_reference_fe_get_node_coordinates_array
      procedure :: local_coordinates_to_global_id    => tri_lagrangian_reference_fe_local_coordinates_to_global_id

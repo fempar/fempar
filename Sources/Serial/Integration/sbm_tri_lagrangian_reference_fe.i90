@@ -27,7 +27,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !=================================================================================================
-! This is a TEMPORARY SUBROUTINE for the draft of the lagrangian_reference_fe_t interm. class
 recursive function tri_lagrangian_reference_fe_compute_number_nodes_scalar(this,order,dimension)
   implicit none
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this 
@@ -121,6 +120,7 @@ function tri_lagrangian_reference_fe_get_characteristic_length ( this )
      &   real(this%number_dimensions,rp)**(-1.0_rp/real(this%number_dimensions,rp))
 end function tri_lagrangian_reference_fe_get_characteristic_length
 
+!=================================================================================================
 subroutine tri_lagrangian_reference_fe_fill_scalar (this)
   implicit none
   ! Parameters
@@ -221,11 +221,7 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
   k = 1 
   idcro = -1
   do k=0,nd
-     call crxob(idcro,k,i,idm,nd,1,no,j)
-  end do
-  
-  do i = 1,nd+2
-     
+     call this%fill_vef_dimension_and_vertices(k,i,nd,1,no,j,idm,idcro)
   end do
   
   ! Initialize counters
@@ -1301,36 +1297,48 @@ integer(ip) recursive function inods(k,p) result(inodes)
 end function inods
 
 !==================================================================================================
-! CRXOB constructs idcro and idm
-! idcro(:,cc) = (k,idm(1:k+1))
-! k   :: vef dimension
-! i   :: position of idm we are modifying
-! idm :: array of dimension k+1 that will give the corners in the element
-! n   :: global dimension
-! in  :: value of the corner we can count from (knowing that idm(i)<idm(i+1))
-! no  :: total amount of vefs
-! cc  :: counter of the vefs
-recursive subroutine crxob(idcro,k,i,idm,n,in,no,cc)
+recursive subroutine tri_lagrangian_reference_fe_fill_vef_dimension_and_vertices (this,                 &
+                                                                                  vef_dimension,        &
+                                                                                  vertex_position,      &
+                                                                                  number_of_dimensions, &
+                                                                                  initial_vertex,       &
+                                                                                  number_of_vefs,       &
+                                                                                  vef_id,               &
+                                                                                  vertices_of_vef,      &
+                                                                                  vef_dimension_and_vertices)
   implicit none
   ! Parameters
-  integer(ip), intent(in)    :: k,i,n,in,no
-  integer(ip), intent(inout) :: idcro(n+2,no),idm(n+1),cc
-
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: vef_dimension
+  integer(ip)                         , intent(in)    :: vertex_position
+  integer(ip)                         , intent(in)    :: number_of_dimensions
+  integer(ip)                         , intent(in)    :: initial_vertex
+  integer(ip)                         , intent(in)    :: number_of_vefs
+  integer(ip)                         , intent(inout) :: vef_dimension_and_vertices(:,:)
+  integer(ip)                         , intent(inout) :: vertices_of_vef(:)
+  integer(ip)                         , intent(inout) :: vef_id
   ! Local variables
-  integer(ip)  :: j,m
+  integer(ip) :: vertex_id
 
-  do j=in,n+1
-     idm(i) = j
-     if(i+1<k+2) then
-        call crxob(idcro,k,i+1,idm,n,idm(i)+1,no,cc)
+  do vertex_id=initial_vertex,number_of_dimensions+1
+     vertices_of_vef(vertex_position) = vertex_id
+     if(vertex_position+1<vef_dimension+2) then
+        call this%fill_vef_dimension_and_vertices(vef_dimension,                      &
+                                                  vertex_position+1,                  &
+                                                  number_of_dimensions,               &
+                                                  vertices_of_vef(vertex_position)+1, &
+                                                  number_of_vefs,                     &
+                                                  vef_id,                             &
+                                                  vertices_of_vef,                    &
+                                                  vef_dimension_and_vertices)
      else
-        idcro(1,cc) = k
-        idcro(2:k+2,cc) = idm(1:k+1)
-        cc = cc + 1
+        vef_dimension_and_vertices(1,vef_id) = vef_dimension
+        vef_dimension_and_vertices(2:vef_dimension+2,vef_id) = vertices_of_vef(1:vef_dimension+1)
+        vef_id = vef_id + 1
      end if
   end do
 
-end subroutine crxob
+end subroutine tri_lagrangian_reference_fe_fill_vef_dimension_and_vertices
 
 !==================================================================================================
 recursive subroutine tri_lagrangian_reference_fe_fill_nodes_vef(this,ntxob,c3,ini,end,i,idm,nd,k,p,objec,nt)
