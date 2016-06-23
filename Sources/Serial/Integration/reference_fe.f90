@@ -684,10 +684,10 @@ module reference_fe_names
      procedure (get_number_interior_points_x_dim_interface), deferred :: get_number_interior_points_x_dim
      procedure (local_coordinates_to_local_id_interface)   , deferred :: local_coordinates_to_local_id
      procedure (local_id_to_local_coordinates_interface)   , deferred :: local_id_to_local_coordinates
+     procedure (set_coordinates_1D_interface)              , deferred :: set_coordinates_1D
      procedure (set_permutation_2D_interface)              , deferred :: set_permutation_2D
      procedure (set_number_quadrature_points_interface)    , deferred :: set_number_quadrature_points
      procedure (compute_number_nodes_scalar_interface)     , deferred :: compute_number_nodes_scalar
-     procedure (get_node_coordinates_array_interface)      , deferred :: get_node_coordinates_array
      ! Deferred TBP implementors
      procedure :: create                           => lagrangian_reference_fe_create
      procedure :: fill_interior_points_permutation => lagrangian_reference_fe_fill_interior_points_permutation
@@ -721,6 +721,7 @@ module reference_fe_names
      procedure :: fill                             => lagrangian_reference_fe_fill
      procedure :: fill_field_components            => lagrangian_reference_fe_fill_field_components
      procedure :: fill_permutation_array           => lagrangian_reference_fe_fill_permutation_array
+     procedure :: get_node_coordinates_array       => lagrangian_reference_fe_get_node_coordinates_array
      procedure :: set_permutation_1D               => lagrangian_reference_fe_set_permutation_1D
      procedure :: extend_list_components           => lagrangian_reference_fe_extend_list_components
      procedure :: apply_femap_to_interpolation     => lagrangian_reference_fe_apply_femap_to_interpolation
@@ -808,6 +809,14 @@ module reference_fe_names
        integer(ip)                     , intent(in)    :: order       
      end subroutine local_id_to_local_coordinates_interface
 
+     subroutine set_coordinates_1D_interface (this, abscissae, number_of_points)
+     import :: lagrangian_reference_fe_t, ip, rp
+       implicit none
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(in)    :: number_of_points
+       real(rp)                        , intent(inout) :: abscissae(:)
+     end subroutine set_coordinates_1D_interface
+     
      subroutine set_permutation_2D_interface ( this,               &
                                                permutation,        &
                                                number_nodes_x_dim, &
@@ -839,20 +848,6 @@ module reference_fe_names
        integer(ip)                     , intent(in)    :: dimension
        integer(ip) :: compute_number_nodes_scalar_interface
      end function compute_number_nodes_scalar_interface
-     
-     subroutine get_node_coordinates_array_interface ( this,                 &
-                                                       coordinates,          & 
-                                                       number_of_dimensions, &
-                                                       order,                &
-                                                       number_nodes )
-     import :: lagrangian_reference_fe_t, ip, rp
-       implicit none
-       class(lagrangian_reference_fe_t), intent(in)    :: this
-       integer(ip)                     , intent(in)    :: number_of_dimensions
-       integer(ip)                     , intent(in)    :: order
-       integer(ip)                     , intent(in)    :: number_nodes
-       real(rp)                        , intent(inout) :: coordinates(:,:)
-     end subroutine get_node_coordinates_array_interface
 
   end interface
   
@@ -874,10 +869,10 @@ module reference_fe_names
      procedure :: fill_face_interpolation          => quad_lagrangian_reference_fe_fill_face_interpolation
      procedure :: local_coordinates_to_local_id    => quad_lagrangian_reference_fe_local_coordinates_to_local_id
      procedure :: local_id_to_local_coordinates    => quad_lagrangian_reference_fe_local_id_to_local_coordinates
+     procedure :: set_coordinates_1D               => quad_lagrangian_reference_fe_set_coordinates_1D
      procedure :: set_permutation_2D               => quad_lagrangian_reference_fe_set_permutation_2D
      procedure :: set_number_quadrature_points     => quad_lagrangian_reference_fe_set_number_quadrature_points
      procedure :: compute_number_nodes_scalar      => quad_lagrangian_reference_fe_compute_number_nodes_scalar
-     procedure :: get_node_coordinates_array       => quad_lagrangian_reference_fe_get_node_coordinates_array
      procedure :: get_number_interior_points_x_dim => quad_lagrangian_reference_fe_get_number_interior_points_x_dim
      ! Concrete TBPs of this derived data type
      procedure :: shapen
@@ -902,10 +897,10 @@ module reference_fe_names
      procedure :: fill_face_interpolation           => tri_lagrangian_reference_fe_fill_face_interpolation
      procedure :: local_coordinates_to_local_id     => tri_lagrangian_reference_fe_local_coordinates_to_local_id
      procedure :: local_id_to_local_coordinates     => tri_lagrangian_reference_fe_local_id_to_local_coordinates
+     procedure :: set_coordinates_1D                => tri_lagrangian_reference_fe_set_coordinates_1D
      procedure :: set_permutation_2D                => tri_lagrangian_reference_fe_set_permutation_2D
      procedure :: set_number_quadrature_points      => tri_lagrangian_reference_fe_set_number_quadrature_points
      procedure :: compute_number_nodes_scalar       => tri_lagrangian_reference_fe_compute_number_nodes_scalar
-     procedure :: get_node_coordinates_array        => tri_lagrangian_reference_fe_get_node_coordinates_array
      procedure :: get_number_interior_points_x_dim  => tri_lagrangian_reference_fe_get_number_interior_points_x_dim
      ! Concrete TBPs of this derived data type
      procedure :: fill_nodes_vef                    => tri_lagrangian_reference_fe_fill_nodes_vef

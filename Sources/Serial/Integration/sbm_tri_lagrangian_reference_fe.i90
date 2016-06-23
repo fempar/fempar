@@ -923,42 +923,19 @@ subroutine tri_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
 end subroutine tri_lagrangian_reference_fe_fill_interpolation
 
 !==================================================================================================
-subroutine tri_lagrangian_reference_fe_get_node_coordinates_array(this, coordinates, number_of_dimensions, &
-     &                                                            order, number_nodes)
+subroutine tri_lagrangian_reference_fe_set_coordinates_1D (this, abscissae, number_of_points)
   implicit none
+  ! Parameters
   class(tri_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: number_of_dimensions,order,number_nodes
-  real(rp)                            , intent(inout) :: coordinates(:,:)
-  integer(ip) :: ijk(number_of_dimensions),i,d
-  real(rp)    :: c1d(order+1)
+  integer(ip)                         , intent(in)    :: number_of_points
+  real(rp)                            , intent(inout) :: abscissae(:)
+  ! Local variables
+  integer(ip) :: i
 
-  call P_coord_1d(c1d,order+1)
-
-  do i=1,number_nodes
-
-     call this%local_id_to_local_coordinates(ijk,i,number_of_dimensions,order)
-     do d=1,number_of_dimensions
-        coordinates(d,i) = c1d(ijk(d)+1)
-     end do
-     
+  do i = 0,number_of_points-1
+     abscissae(i+1) = real(i)/(real(number_of_points)-1)
   end do
-  
-end subroutine tri_lagrangian_reference_fe_get_node_coordinates_array
-
-!==================================================================================================
-subroutine P_coord_1d (x,n)
-    implicit none
-    ! Parameters
-    integer(ip), intent(in)  :: n
-    real(rp)   , intent(out) :: x(n)
-
-    ! Local variables
-    integer(ip)              :: i
-
-    do i = 0,n-1
-       x(i+1) = real(i)/(real(n)-1)
-    end do
-end subroutine P_coord_1d
+end subroutine tri_lagrangian_reference_fe_set_coordinates_1D
 
 !==================================================================================================
 subroutine evaluate_shape_functions_and_derivatives(coord,ndime,nnode,ntens,shape,deriv,heslo)

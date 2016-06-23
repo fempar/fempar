@@ -697,6 +697,29 @@ subroutine lagrangian_reference_fe_fill_permutation_array(this,               &
 
 end subroutine lagrangian_reference_fe_fill_permutation_array
 
+!==================================================================================================
+subroutine lagrangian_reference_fe_get_node_coordinates_array(this, coordinates, number_of_dimensions, &
+                                                                & order, number_nodes)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                     , intent(in)    :: number_of_dimensions,order,number_nodes
+  real(rp)                        , intent(inout) :: coordinates(:,:)
+  integer(ip) :: ijk(number_of_dimensions),i,d
+  real(rp)    :: c1d(order+1)
+
+  call this%set_coordinates_1D(c1d,order+1)
+
+  do i=1,number_nodes
+
+     call this%local_id_to_local_coordinates(ijk,i,number_of_dimensions,order)
+     do d=1,number_of_dimensions
+        coordinates(d,i) = c1d(ijk(d)+1)
+     end do
+     
+  end do
+  
+end subroutine lagrangian_reference_fe_get_node_coordinates_array
+
 !=================================================================================================
 subroutine lagrangian_reference_fe_set_permutation_1D( this,permutation,number_nodes_x_dim,rotation )
   implicit none

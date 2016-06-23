@@ -1291,7 +1291,7 @@ subroutine quad_lagrangian_reference_fe_fill_interpolation ( this, interpolation
   call memalloc(order+1,nlocs,shph1,__FILE__,__LINE__)
   
   ! Set the coordenades of the nodal points
-  call Q_coord_1d(coord,order+1)
+  call this%set_coordinates_1D(coord,order+1)
   ! Compute the 1d shape function on the gauss points
   call shape1(coord_ip(1,:),order,nlocs,coord,shpe1,shpd1,shph1,khes)
 
@@ -1315,40 +1315,19 @@ subroutine quad_lagrangian_reference_fe_fill_interpolation ( this, interpolation
 end subroutine quad_lagrangian_reference_fe_fill_interpolation
 
 !==================================================================================================
-subroutine quad_lagrangian_reference_fe_get_node_coordinates_array(this, coordinates, number_of_dimensions, &
-                                                                 & order, number_nodes)
-  implicit none
-  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: number_of_dimensions,order,number_nodes
-  real(rp)                             , intent(inout) :: coordinates(:,:)
-  integer(ip) :: ijk(number_of_dimensions),i,d
-  real(rp)    :: c1d(order+1)
-
-  call Q_coord_1d(c1d,order+1)
-
-  do i=1,number_nodes
-
-     call this%local_id_to_local_coordinates(ijk,i,number_of_dimensions,order)
-     do d=1,number_of_dimensions
-        coordinates(d,i) = c1d(ijk(d)+1)
-     end do
-  end do
-end subroutine quad_lagrangian_reference_fe_get_node_coordinates_array
-
-!==================================================================================================
-subroutine Q_coord_1d (x,n)
+subroutine quad_lagrangian_reference_fe_set_coordinates_1D (this, abscissae, number_of_points)
   implicit none
   ! Parameters
-  integer(ip), intent(in)  :: n
-  real(rp)   , intent(out) :: x(n)
-
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: number_of_points
+  real(rp)                             , intent(inout) :: abscissae(:)
   ! Local variables
-  integer(ip)              :: i
+  integer(ip) :: i
 
-  do i = 0,n-1
-     x(i+1) = 2*real(i)/(real(n)-1)-1
+  do i = 0,number_of_points-1
+     abscissae(i+1) = 2*real(i)/(real(number_of_points)-1)-1
   end do
-end subroutine Q_coord_1d
+end subroutine quad_lagrangian_reference_fe_set_coordinates_1D
 
 ! ===================================================================================================
 ! Compute the shape function and its derivative
