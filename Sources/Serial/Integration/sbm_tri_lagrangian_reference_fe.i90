@@ -160,7 +160,7 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
 
   ! Fill number_vefs_dimension and compute nt, nc, nn
   do k = 0,nd
-     i   = bnm(nd+1,k+1)            ! #vefs of dimension k
+     i   = get_binomial_coefficient(nd+1,k+1)            ! #vefs of dimension k
      j   = this%compute_number_nodes_scalar(k,p) ! #nodes vef dim k order p
      no  = no + i                   ! compute #vefs
      nn  = nn + i*this%compute_number_interior_nodes(k,p)        ! #nodes inside vefs of dimension k
@@ -234,7 +234,7 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
   do k = 0,nd
 
      ! Loop over the number of vefs of dimension k
-     do i=1, bnm(nd+1,k+1)
+     do i=1, get_binomial_coefficient(nd+1,k+1)
         ! Fill this%vertices_vef%l for vef co
         co = co + 1 
         call this%get_vef_orientation(this%orientation%a(co),k,nd,i)

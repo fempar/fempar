@@ -867,10 +867,65 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
            do itens = 1, ntens
               wvec1(itens) = phy%hessian(itens,inode,ilocs)
            end do
-           call matove(wmat2(1,1,inode),wvec1,ndime,ntens)
+           call store_symmetric_matrix_as_vector(wmat2(1,1,inode),wvec1,ndime,ntens)
         end do
      end do
      call memfree(wmat1,__FILE__,__LINE__)
      call memfree(wmat2,__FILE__,__LINE__)
   end if
 end subroutine lagrangian_reference_fe_apply_femap_to_interpolation
+
+!**************************************************************************************************
+! Auxiliary procedures called by the child-classes that are not bound to the attributes
+!**************************************************************************************************
+
+!=================================================================================================
+! BNM(A,B)=A!/((A-B)!B!) computes the binomial coefficient of (A,B), A>B
+integer (ip) function get_binomial_coefficient(a,b)
+  implicit none
+  integer(ip) :: a,b
+  if (a >= b) then
+     get_binomial_coefficient = int(get_factorial(a)/(get_factorial(b)*get_factorial(a-b)))
+  else
+     write(*,*) 'ERROR: no binomial coef for b > a'
+     check(.false.)
+  end if
+end function get_binomial_coefficient
+
+!==================================================================================================
+! FC(k)=k! computes the factorial of k 
+integer(ip) function get_factorial(i)
+  implicit none
+  integer(ip) :: i, k
+  get_factorial = 1
+  do k=2,i
+     get_factorial = get_factorial*k
+  end do
+end function get_factorial
+
+!==================================================================================================
+subroutine store_symmetric_matrix_as_vector(xmatr,vecto,ndime,ntens)
+  !-----------------------------------------------------------------------
+  !                                      
+  ! This routine stores a symmetric matrix XMATR into a vector VECTO
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  integer(ip), intent(in)  :: ndime,ntens
+  real(rp)   , intent(in)  :: xmatr(ndime,ndime)
+  real(rp)   , intent(out) :: vecto(ntens)
+
+  if(ndime.eq.2) then
+     vecto(1)=xmatr(1,1)
+     vecto(3)=xmatr(1,2)
+     vecto(2)=xmatr(2,2)
+  else
+     vecto(1)=xmatr(1,1)
+     vecto(4)=xmatr(1,2)
+     vecto(2)=xmatr(2,2)
+     vecto(5)=xmatr(1,3)
+     vecto(6)=xmatr(2,3)
+     vecto(3)=xmatr(3,3)
+  end if
+
+end subroutine store_symmetric_matrix_as_vector

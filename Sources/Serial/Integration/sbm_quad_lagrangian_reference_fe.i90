@@ -200,13 +200,13 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   this%number_vefs_dimension(1) = 1
 
   do k = 0,nd
-     i = int(2**(nd-k)*bnm(nd,k)) ! #vefs of dimension k
+     i = int(2**(nd-k)*get_binomial_coefficient(nd,k)) ! #vefs of dimension k
      no = no + i                  ! compute #vefs
      nn = nn + int(i*((p-1)**k))  ! #nodes inside vefs of dimension k
      nt = nt + int(i*((p+1)**k))  ! nodes in the clousure of the vef
      nt2 = nt2 + int(i*((3)**k))! vefs in the clousure of the vef
      nc = nc + int(i*2**k)        ! corners delimiting vefs of dimension k
-     nod = nod + bnm(nd,k)        ! #nodes/{displacement} (2^n = sum(bnm(n,k)), k=0,..,n)
+     nod = nod + get_binomial_coefficient(nd,k)        ! #nodes/{displacement} (2^n = sum(bnm(n,k)), k=0,..,n)
      ! Pointer to obj id by dim. Local obj of dim k are nvef_dim(k):nvef_dim(k+1)
      this%number_vefs_dimension(k+2) = this%number_vefs_dimension(k+1) + i 
      ! #nodes in vefs of dimension k 
@@ -347,7 +347,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
 
 
      ! For each dimension, there are bnm(nd,od) vefs up to translation
-     do j = 1,bnm(nd,od)
+     do j = 1,get_binomial_coefficient(nd,od)
         idm = -1 ! positions in which the nodes variates
         fdm = -1 ! Positions corresponding to the translation between paralel vefs
         aux = -1 ! auxiliar vector to construct fdm from idm
@@ -555,19 +555,6 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
 
 end subroutine quad_lagrangian_reference_fe_fill_scalar
 
-!=================================================================================================
-! BNM(A,B)=A!/((A-B)!B!) computes the binomial coefficient of (A,B), A>B
-integer (ip) function bnm(a,b)
-  implicit none
-  integer(ip) :: a,b
-  if (a >= b) then
-     bnm = int(fc(a)/(fc(b)*fc(a-b)))
-  else
-     write(*,*) 'ERROR: no binomial coef for b > a'
-     check(.false.)
-  end if
-end function bnm
-
 !==================================================================================================
 ! Given the dimension nd of the quad and the positions p0,...,p1 we want to consider is going
 ! to take values. The routine Q_R_IJK returns the number of nodes (co) and a matrix auxt1 that 
@@ -663,17 +650,6 @@ recursive subroutine quad_lagrangian_reference_fe_fill_vef_dimension_and_directi
      end if
   end do
 end subroutine quad_lagrangian_reference_fe_fill_vef_dimension_and_directions
-
-!==================================================================================================
-! FC(k)=k! computes the factorial of k 
-integer(ip) function fc(i)
-  implicit none
-  integer(ip) :: i, k
-  fc = 1
-  do k=2,i
-     fc = fc*k
-  end do
-end function fc
 
 !-----------------------------------------------------------------------
 subroutine quad_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
@@ -1632,33 +1608,6 @@ subroutine quad_lagrangian_reference_fe_evaluate_face_interpolation(this,shapf,d
   end do
 
 end subroutine quad_lagrangian_reference_fe_evaluate_face_interpolation
-
-!==================================================================================================
-  subroutine matove(xmatr,vecto,ndime,ntens)
-    !-----------------------------------------------------------------------
-    !                                      
-    ! This routine stores a symmetric matrix XMATR into a vector VECTO
-    !
-    !-----------------------------------------------------------------------
-    implicit none
-    integer(ip), intent(in)  :: ndime,ntens
-    real(rp)   , intent(in)  :: xmatr(ndime,ndime)
-    real(rp)   , intent(out) :: vecto(ntens)
-
-    if(ndime.eq.2) then
-       vecto(1)=xmatr(1,1)
-       vecto(3)=xmatr(1,2)
-       vecto(2)=xmatr(2,2)
-    else
-       vecto(1)=xmatr(1,1)
-       vecto(4)=xmatr(1,2)
-       vecto(2)=xmatr(2,2)
-       vecto(5)=xmatr(1,3)
-       vecto(6)=xmatr(2,3)
-       vecto(3)=xmatr(3,3)
-    end if
-
-  end subroutine matove
 
 !==================================================================================================
   subroutine quad_lagrangian_reference_fe_get_subelements_connectivity(this, connectivity)
