@@ -41,7 +41,7 @@ module reference_fe_names
   ! to integrate FE schemes. It includes the following types:
   !
   ! * reference_fe_t: the basic reference_fe object, which is an abstract type
-  ! * quad_lagrangian_reference_fe_t: one particular concrete version of the 
+  ! * hex_lagrangian_reference_fe_t: one particular concrete version of the 
   !   reference fe_t
   ! * quadrature_t: Set of points and weights to perform numerical integration.
   !   It is created by the concrete reference_fe_t by providing the maximum order
@@ -854,68 +854,68 @@ module reference_fe_names
   public :: lagrangian_reference_fe_t  
   
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type, extends(lagrangian_reference_fe_t) :: quad_lagrangian_reference_fe_t
+  type, extends(lagrangian_reference_fe_t) :: hex_lagrangian_reference_fe_t
      private
    contains 
      ! Deferred TBP implementors from reference_fe_t
-     procedure :: check_compatibility_of_vefs       => quad_lagrangian_reference_fe_check_compatibility_of_vefs
-     procedure :: get_characteristic_length         => quad_lagrangian_reference_fe_get_characteristic_length
-     procedure :: get_subelements_connectivity      => quad_lagrangian_reference_fe_get_subelements_connectivity
+     procedure :: check_compatibility_of_vefs       => hex_lagrangian_reference_fe_check_compatibility_of_vefs
+     procedure :: get_characteristic_length         => hex_lagrangian_reference_fe_get_characteristic_length
+     procedure :: get_subelements_connectivity      => hex_lagrangian_reference_fe_get_subelements_connectivity
      ! Deferred TBP implementors from lagrangian_reference_fe_t
-     procedure :: fill_scalar                       => quad_lagrangian_reference_fe_fill_scalar
-     procedure :: fill_quadrature                   => quad_lagrangian_reference_fe_fill_quadrature
-     procedure :: fill_nodal_quadrature             => quad_lagrangian_reference_fe_fill_nodal_quadrature
-     procedure :: fill_interpolation                => quad_lagrangian_reference_fe_fill_interpolation
-     procedure :: fill_face_interpolation           => quad_lagrangian_reference_fe_fill_face_interpolation
-     procedure :: local_coordinates_to_local_id     => quad_lagrangian_reference_fe_local_coordinates_to_local_id
-     procedure :: local_id_to_local_coordinates     => quad_lagrangian_reference_fe_local_id_to_local_coordinates
-     procedure :: set_coordinates_1D                => quad_lagrangian_reference_fe_set_coordinates_1D
-     procedure :: set_permutation_2D                => quad_lagrangian_reference_fe_set_permutation_2D
-     procedure :: set_number_quadrature_points      => quad_lagrangian_reference_fe_set_number_quadrature_points
-     procedure :: compute_number_nodes_scalar       => quad_lagrangian_reference_fe_compute_number_nodes_scalar
-     procedure :: get_number_interior_points_x_dim  => quad_lagrangian_reference_fe_get_number_interior_points_x_dim
+     procedure :: fill_scalar                       => hex_lagrangian_reference_fe_fill_scalar
+     procedure :: fill_quadrature                   => hex_lagrangian_reference_fe_fill_quadrature
+     procedure :: fill_nodal_quadrature             => hex_lagrangian_reference_fe_fill_nodal_quadrature
+     procedure :: fill_interpolation                => hex_lagrangian_reference_fe_fill_interpolation
+     procedure :: fill_face_interpolation           => hex_lagrangian_reference_fe_fill_face_interpolation
+     procedure :: local_coordinates_to_local_id     => hex_lagrangian_reference_fe_local_coordinates_to_local_id
+     procedure :: local_id_to_local_coordinates     => hex_lagrangian_reference_fe_local_id_to_local_coordinates
+     procedure :: set_coordinates_1D                => hex_lagrangian_reference_fe_set_coordinates_1D
+     procedure :: set_permutation_2D                => hex_lagrangian_reference_fe_set_permutation_2D
+     procedure :: set_number_quadrature_points      => hex_lagrangian_reference_fe_set_number_quadrature_points
+     procedure :: compute_number_nodes_scalar       => hex_lagrangian_reference_fe_compute_number_nodes_scalar
+     procedure :: get_number_interior_points_x_dim  => hex_lagrangian_reference_fe_get_number_interior_points_x_dim
      ! Concrete TBPs of this derived data type
-     procedure :: fill_vef_dimension_and_directions => quad_lagrangian_reference_fe_fill_vef_dimension_and_directions
-     procedure :: fill_vef_local_coordinates_nodes  => quad_lagrangian_reference_fe_fill_vef_local_coordinates_nodes
-     procedure :: get_vef_orientation               => quad_lagrangian_reference_fe_get_vef_orientation
-     procedure :: evaluate_interpolation_1D         => quad_lagrangian_reference_fe_evaluate_interpolation_1D 
-     procedure :: evaluate_interpolation            => quad_lagrangian_reference_fe_evaluate_interpolation 
-     procedure :: evaluate_face_interpolation       => quad_lagrangian_reference_fe_evaluate_face_interpolation
-  end type quad_lagrangian_reference_fe_t
+     procedure :: fill_vef_dimension_and_directions => hex_lagrangian_reference_fe_fill_vef_dimension_and_directions
+     procedure :: fill_vef_local_coordinates_nodes  => hex_lagrangian_reference_fe_fill_vef_local_coordinates_nodes
+     procedure :: get_vef_orientation               => hex_lagrangian_reference_fe_get_vef_orientation
+     procedure :: evaluate_interpolation_1D         => hex_lagrangian_reference_fe_evaluate_interpolation_1D 
+     procedure :: evaluate_interpolation            => hex_lagrangian_reference_fe_evaluate_interpolation 
+     procedure :: evaluate_face_interpolation       => hex_lagrangian_reference_fe_evaluate_face_interpolation
+  end type hex_lagrangian_reference_fe_t
   
-  public :: quad_lagrangian_reference_fe_t
+  public :: hex_lagrangian_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type, extends(lagrangian_reference_fe_t) :: tri_lagrangian_reference_fe_t
+  type, extends(lagrangian_reference_fe_t) :: tet_lagrangian_reference_fe_t
      private
    contains 
      ! Deferred TBP implementors from reference_fe_t
-     procedure :: check_compatibility_of_vefs       => tri_lagrangian_reference_fe_check_compatibility_of_vefs
-     procedure :: get_characteristic_length         => tri_lagrangian_reference_fe_get_characteristic_length
-     procedure :: get_subelements_connectivity      => tri_lagrangian_reference_fe_get_subelements_connectivity
+     procedure :: check_compatibility_of_vefs       => tet_lagrangian_reference_fe_check_compatibility_of_vefs
+     procedure :: get_characteristic_length         => tet_lagrangian_reference_fe_get_characteristic_length
+     procedure :: get_subelements_connectivity      => tet_lagrangian_reference_fe_get_subelements_connectivity
      ! Deferred TBP implementors from lagrangian_reference_fe_t
-     procedure :: fill_scalar                       => tri_lagrangian_reference_fe_fill_scalar
-     procedure :: fill_quadrature                   => tri_lagrangian_reference_fe_fill_quadrature
-     procedure :: fill_nodal_quadrature             => tri_lagrangian_reference_fe_fill_nodal_quadrature
-     procedure :: fill_interpolation                => tri_lagrangian_reference_fe_fill_interpolation
-     procedure :: fill_face_interpolation           => tri_lagrangian_reference_fe_fill_face_interpolation
-     procedure :: local_coordinates_to_local_id     => tri_lagrangian_reference_fe_local_coordinates_to_local_id
-     procedure :: local_id_to_local_coordinates     => tri_lagrangian_reference_fe_local_id_to_local_coordinates
-     procedure :: set_coordinates_1D                => tri_lagrangian_reference_fe_set_coordinates_1D
-     procedure :: set_permutation_2D                => tri_lagrangian_reference_fe_set_permutation_2D
-     procedure :: set_number_quadrature_points      => tri_lagrangian_reference_fe_set_number_quadrature_points
-     procedure :: compute_number_nodes_scalar       => tri_lagrangian_reference_fe_compute_number_nodes_scalar
-     procedure :: get_number_interior_points_x_dim  => tri_lagrangian_reference_fe_get_number_interior_points_x_dim
+     procedure :: fill_scalar                       => tet_lagrangian_reference_fe_fill_scalar
+     procedure :: fill_quadrature                   => tet_lagrangian_reference_fe_fill_quadrature
+     procedure :: fill_nodal_quadrature             => tet_lagrangian_reference_fe_fill_nodal_quadrature
+     procedure :: fill_interpolation                => tet_lagrangian_reference_fe_fill_interpolation
+     procedure :: fill_face_interpolation           => tet_lagrangian_reference_fe_fill_face_interpolation
+     procedure :: local_coordinates_to_local_id     => tet_lagrangian_reference_fe_local_coordinates_to_local_id
+     procedure :: local_id_to_local_coordinates     => tet_lagrangian_reference_fe_local_id_to_local_coordinates
+     procedure :: set_coordinates_1D                => tet_lagrangian_reference_fe_set_coordinates_1D
+     procedure :: set_permutation_2D                => tet_lagrangian_reference_fe_set_permutation_2D
+     procedure :: set_number_quadrature_points      => tet_lagrangian_reference_fe_set_number_quadrature_points
+     procedure :: compute_number_nodes_scalar       => tet_lagrangian_reference_fe_compute_number_nodes_scalar
+     procedure :: get_number_interior_points_x_dim  => tet_lagrangian_reference_fe_get_number_interior_points_x_dim
      ! Concrete TBPs of this derived data type
-     procedure :: fill_nodes_vef                    => tri_lagrangian_reference_fe_fill_nodes_vef
-     procedure :: fill_vef_dimension_and_vertices   => tri_lagrangian_reference_fe_fill_vef_dimension_and_vertices
-     procedure :: get_vef_orientation               => tri_lagrangian_reference_fe_get_vef_orientation
-     procedure :: compute_number_interior_nodes     => tri_lagrangian_reference_fe_compute_number_interior_nodes
-     procedure :: compute_sum_of_nodes_in_simplices => tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
-     procedure :: evaluate_interpolation            => tri_lagrangian_reference_fe_evaluate_interpolation
-  end type tri_lagrangian_reference_fe_t
+     procedure :: fill_nodes_vef                    => tet_lagrangian_reference_fe_fill_nodes_vef
+     procedure :: fill_vef_dimension_and_vertices   => tet_lagrangian_reference_fe_fill_vef_dimension_and_vertices
+     procedure :: get_vef_orientation               => tet_lagrangian_reference_fe_get_vef_orientation
+     procedure :: compute_number_interior_nodes     => tet_lagrangian_reference_fe_compute_number_interior_nodes
+     procedure :: compute_sum_of_nodes_in_simplices => tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
+     procedure :: evaluate_interpolation            => tet_lagrangian_reference_fe_evaluate_interpolation
+  end type tet_lagrangian_reference_fe_t
   
-  public :: tri_lagrangian_reference_fe_t
+  public :: tet_lagrangian_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -1054,9 +1054,9 @@ contains
 
 #include "sbm_lagrangian_reference_fe.i90"
 
-#include "sbm_quad_lagrangian_reference_fe.i90"
+#include "sbm_hex_lagrangian_reference_fe.i90"
 
-#include "sbm_tri_lagrangian_reference_fe.i90"
+#include "sbm_tet_lagrangian_reference_fe.i90"
 
 #include "sbm_volume_integrator.i90"
 

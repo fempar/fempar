@@ -39,7 +39,7 @@ USE vector_names,                only: vector_t
 USE triangulation_names,         only: triangulation_t
 USE serial_scalar_array_names,   only: serial_scalar_array_t
 USE serial_fe_space_names,       only: serial_fe_space_t, finite_element_t, fe_function_t
-USE reference_fe_names,          only: reference_fe_t, quad_lagrangian_reference_fe_t, fe_map_t,   &
+USE reference_fe_names,          only: reference_fe_t, hex_lagrangian_reference_fe_t, fe_map_t,    &
                                        quadrature_t, interpolation_t, topology_quad, topology_tet, &
                                        fe_type_lagrangian
 
