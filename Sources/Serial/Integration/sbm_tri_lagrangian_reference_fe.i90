@@ -163,7 +163,7 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
      i   = bnm(nd+1,k+1)            ! #vefs of dimension k
      j   = this%compute_number_nodes_scalar(k,p) ! #nodes vef dim k order p
      no  = no + i                   ! compute #vefs
-     nn  = nn + i*inods(k,p)        ! #nodes inside vefs of dimension k
+     nn  = nn + i*this%compute_number_interior_nodes(k,p)        ! #nodes inside vefs of dimension k
      nt  = nt + i*j                 ! nodes in the closure of the vef
      nc  = nc + i*(k+1)             ! corners delimiting vefs of dimension k
      ! Pointer to obj id by dim. Local obj of dim k are nvef_dim(k):nvef_dim(k+1)
@@ -193,7 +193,7 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
   
   ! Loop over dimensions
   do k = 0,nd
-     aux1 = inods(k,p)            ! Interior nodes for a vef of dim k
+     aux1 = this%compute_number_interior_nodes(k,p)            ! Interior nodes for a vef of dim k
      aux3 = this%compute_number_nodes_scalar(k,p) ! Total nodes for a vef of dim k
      if ( p == -1 ) then          ! In void_fes there are no nodes
         aux1 = 0
@@ -237,7 +237,7 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
      do i=1, bnm(nd+1,k+1)
         ! Fill this%vertices_vef%l for vef co
         co = co + 1 
-        call P_orientation_vef(this%orientation%a(co),k,nd,i)
+        call this%get_vef_orientation(this%orientation%a(co),k,nd,i)
         this%vertices_vef%l(c3+1:c3+k+1) = idcro(2:k+2,co)
         c3 = c3 + k + 1
 
@@ -297,11 +297,11 @@ subroutine tri_lagrangian_reference_fe_fill_scalar (this)
 end subroutine tri_lagrangian_reference_fe_fill_scalar
 
 !==================================================================================================
-subroutine P_orientation_vef(o,od,nd,io)
+subroutine tri_lagrangian_reference_fe_get_vef_orientation(this,o,od,nd,io)
   implicit none
-  ! Parameters
-  integer(ip), intent(out) :: o
-  integer(ip), intent(in)  :: od,nd,io  ! io=numbering of the vef in the od dimension
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(out)   :: o
+  integer(ip)                         , intent(in)    :: od,nd,io  ! io=numbering of the vef in the od dimension
 
   if (nd == 3 .and. od == 2) then
      o = modulo(io+1,2)
@@ -310,7 +310,8 @@ subroutine P_orientation_vef(o,od,nd,io)
   else
      o = 0
   end if
-end subroutine P_orientation_vef
+  
+end subroutine tri_lagrangian_reference_fe_get_vef_orientation
 
 !-------------------------------------------------------------------------
 subroutine tri_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
@@ -1256,29 +1257,30 @@ function tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices(this,dime
 end function tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
 
 !=================================================================================================
-! INODS(k,p) computes the #{interior nodes} in a simplex of dim k and order p
-integer(ip) recursive function inods(k,p) result(inodes)
+recursive function tri_lagrangian_reference_fe_compute_number_interior_nodes(this,dimension,order)
   implicit none
-  ! Parameters
-  integer(ip), intent(in)    :: k, p
-
-  ! Variables
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this  
+  integer(ip)                         , intent(in)    :: dimension, order
+  integer(ip) :: tri_lagrangian_reference_fe_compute_number_interior_nodes
   integer(ip) :: q
-  if (k == 0) then
-     inodes = 1
-  elseif (p == 1) then
-     inodes = 0
-  elseif (k == 1) then
-     inodes = p-1
-  elseif (k == 2) then
-     inodes = int((p-2)*(p-1)/2)
+  if (dimension == 0) then
+     tri_lagrangian_reference_fe_compute_number_interior_nodes = 1
+  elseif (order == 1) then
+     tri_lagrangian_reference_fe_compute_number_interior_nodes = 0
+  elseif (dimension == 1) then
+     tri_lagrangian_reference_fe_compute_number_interior_nodes = order-1
+  elseif (dimension == 2) then
+     tri_lagrangian_reference_fe_compute_number_interior_nodes = int((order-2)*(order-1)/2)
   else
-     inodes = inods(k-1,1)
-     do q=2,p-1
-        inodes = inodes + inods(k-1,q)
+     tri_lagrangian_reference_fe_compute_number_interior_nodes = & 
+      & this%compute_number_interior_nodes(dimension-1,1)
+     do q=2,order-1
+        tri_lagrangian_reference_fe_compute_number_interior_nodes =    & 
+         & tri_lagrangian_reference_fe_compute_number_interior_nodes + & 
+         & this%compute_number_interior_nodes(dimension-1,q)
      end do
   end if
-end function inods
+end function tri_lagrangian_reference_fe_compute_number_interior_nodes
 
 !==================================================================================================
 recursive subroutine tri_lagrangian_reference_fe_fill_vef_dimension_and_vertices (this,                 &

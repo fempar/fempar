@@ -27,7 +27,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !=================================================================================================
-! This is a TEMPORARY SUBROUTINE for the draft of the lagrangian_reference_fe_t interm. class
 function quad_lagrangian_reference_fe_compute_number_nodes_scalar(this,order,dimension)
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this
@@ -568,6 +567,7 @@ integer (ip) function bnm(a,b)
      check(.false.)
   end if
 end function bnm
+
 !==================================================================================================
 ! Given the dimension nd of the quad and the positions p0,...,p1 we want to consider is going
 ! to take values. The routine Q_R_IJK returns the number of nodes (co) and a matrix auxt1 that 

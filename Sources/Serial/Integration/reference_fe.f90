@@ -906,6 +906,8 @@ module reference_fe_names
      ! Concrete TBPs of this derived data type
      procedure :: fill_nodes_vef                    => tri_lagrangian_reference_fe_fill_nodes_vef
      procedure :: fill_vef_dimension_and_vertices   => tri_lagrangian_reference_fe_fill_vef_dimension_and_vertices
+     procedure :: get_vef_orientation               => tri_lagrangian_reference_fe_get_vef_orientation
+     procedure :: compute_number_interior_nodes     => tri_lagrangian_reference_fe_compute_number_interior_nodes
      procedure :: compute_sum_of_nodes_in_simplices => tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
      procedure :: evaluate_interpolation            => tri_lagrangian_reference_fe_evaluate_interpolation
   end type tri_lagrangian_reference_fe_t
