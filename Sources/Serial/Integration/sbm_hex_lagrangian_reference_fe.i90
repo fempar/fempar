@@ -26,38 +26,22 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!=================================================================================================
-function hex_lagrangian_reference_fe_compute_number_nodes_scalar(this,order,dimension)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: order, dimension
-  integer(ip) :: hex_lagrangian_reference_fe_compute_number_nodes_scalar 
-  hex_lagrangian_reference_fe_compute_number_nodes_scalar = int((order+1)**dimension)
-end function hex_lagrangian_reference_fe_compute_number_nodes_scalar
-
-!==================================================================================================
-function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, dimension )
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: order
-  integer(ip)                          , intent(in)    :: dimension
-  integer(ip) :: hex_lagrangian_reference_fe_set_number_quadrature_points
-  hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension
-end function
+!**************************************************************************************************
+! Deferred TBP implementors from reference_fe_t
+!**************************************************************************************************
 
 !==================================================================================================
 function hex_lagrangian_reference_fe_check_compatibility_of_vefs                   &
      &                      (target_reference_fe,source_reference_fe, source_vef_id,target_vef_id)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)  :: target_reference_fe
-  class(reference_fe_t)                , intent(in)  :: source_reference_fe
-  integer(ip)                          , intent(in)  :: source_vef_id ! Local vef ID
-  integer(ip)                          , intent(in)  :: target_vef_id ! Local vef ID
+  class(reference_fe_t)               , intent(in)  :: source_reference_fe
+  integer(ip)                         , intent(in)  :: source_vef_id ! Local vef ID
+  integer(ip)                         , intent(in)  :: target_vef_id ! Local vef ID
   logical :: hex_lagrangian_reference_fe_check_compatibility_of_vefs 
 
   select type(source_reference_fe)
      class is(hex_lagrangian_reference_fe_t)
-
         ! Get number nodes per dimension
         assert (target_reference_fe%order == source_reference_fe%order)
         assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
@@ -72,88 +56,49 @@ function hex_lagrangian_reference_fe_check_compatibility_of_vefs                
  
 end function hex_lagrangian_reference_fe_check_compatibility_of_vefs
 
-!=================================================================================================
-function hex_lagrangian_reference_fe_get_number_interior_points_x_dim(this,number_interior_points,dimension)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: number_interior_points, dimension
-  integer(ip) :: hex_lagrangian_reference_fe_get_number_interior_points_x_dim 
-  hex_lagrangian_reference_fe_get_number_interior_points_x_dim = & 
-     & int(real(number_interior_points,rp)**(1.0_rp/real(dimension,rp)),ip)
-end function hex_lagrangian_reference_fe_get_number_interior_points_x_dim
-
+!==================================================================================================
 function hex_lagrangian_reference_fe_get_characteristic_length ( this )
   implicit none 
   class(hex_lagrangian_reference_fe_t), intent(in) :: this 
   real(rp)  :: hex_lagrangian_reference_fe_get_characteristic_length 
-
   hex_lagrangian_reference_fe_get_characteristic_length =  2.0_rp
 end function hex_lagrangian_reference_fe_get_characteristic_length
 
-subroutine hex_lagrangian_reference_fe_set_scalar_field_to_nodal_values (this, code, values, &
-     &     nodal_codes, nodal_values, unknown_component)
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connectivity)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: code
-  real(rp)                             , intent(in)    :: values(:)
-  integer(ip)                          , intent(in)    :: nodal_codes(:)
-  real(rp)                             , intent(inout) :: nodal_values(:)
-  integer(ip), optional                , intent(in)    :: unknown_component
-  integer(ip) :: i, icomp
+  integer(ip),                           intent(inout) :: connectivity(:, :)
+  integer(ip)                                          :: num_subelems
+  integer(ip)                                          :: subelem
+  integer(ip)                                          :: geo_nnodes
+  integer(ip)                                          :: local_node
+  integer(ip)                                          :: first_coord(this%number_dimensions)
+  integer(ip)                                          :: local_coord(this%number_dimensions)
+  integer(ip)                                          :: global_coord(this%number_dimensions)
+ 
+  num_subelems = this%get_number_subelements()
+  geo_nnodes = this%get_number_vertices()
+  assert(size(connectivity,1) == geo_nnodes)
+  assert(size(connectivity,2) == num_subelems)
 
-  assert(size(nodal_values) == this%number_nodes)
-  assert(size(values) == this%number_nodes_scalar)
-
-  icomp = 1
-  if(present(unknown_component)) icomp = unknown_component
-
-  do i = 1, this%number_nodes_scalar
-     if(nodal_codes(this%node_array_component(i,icomp)) == code) then
-        nodal_values(this%node_array_component(i,icomp)) = values(i)
-     end if
+  do subelem = 1, num_subelems
+    call this%local_id_to_local_coordinates(first_coord,subelem, & 
+                                          & this%number_dimensions,this%order-1)
+    do local_node = 1, geo_nnodes
+      call this%local_id_to_local_coordinates(local_coord,local_node,this%number_dimensions,1)
+      global_coord = first_coord + local_coord
+      connectivity(local_node, subelem) = this%local_coordinates_to_local_id(global_coord, &
+                                                         & this%number_dimensions,this%order)
+    end do
   end do
-     
-end subroutine hex_lagrangian_reference_fe_set_scalar_field_to_nodal_values
+end subroutine hex_lagrangian_reference_fe_get_subelements_connectivity
 
-subroutine hex_lagrangian_reference_fe_set_vector_field_to_nodal_values (this, code, values, &
-     &     nodal_codes, nodal_values)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: code
-  type(vector_field_t)                 , intent(in)    :: values(:)
-  integer(ip)                          , intent(in)    :: nodal_codes(:)
-  real(rp)                             , intent(inout) :: nodal_values(:)
-  integer(ip) :: i, icomp
+!**************************************************************************************************
+! Deferred TBP implementors from lagrangian_reference_fe_t
+!**************************************************************************************************
 
-  assert(size(nodal_values) == this%number_nodes)
-  assert(size(values) == this%number_nodes_scalar)
-
-  do icomp = 1, this%number_field_components
-     do i = 1, this%number_nodes_scalar
-        if(nodal_codes(this%node_array_component(i,icomp)) == code) then
-           nodal_values(this%node_array_component(i,icomp)) = values(i)%get(icomp)
-        end if
-     end do
-  end do
-     
-end subroutine hex_lagrangian_reference_fe_set_vector_field_to_nodal_values
-
-subroutine hex_lagrangian_reference_fe_set_tensor_field_to_nodal_values (this, code, values, &
-     &     nodal_codes, nodal_values)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: code
-  type(tensor_field_t)                 , intent(in)    :: values(:)
-  integer(ip)                          , intent(in)    :: nodal_codes(:)
-  real(rp)                             , intent(inout) :: nodal_values(:)
-  integer(ip) :: i, icomp, jcomp
-
-  write(*,*) ' ERROR in: ',__FILE__,__LINE__
-  write(*,*) ' Subroutine not implemented for tensor field unknowns '
-  check( .false. )
-
-end subroutine hex_lagrangian_reference_fe_set_tensor_field_to_nodal_values
-
+!==================================================================================================
 subroutine hex_lagrangian_reference_fe_fill_scalar (this)
   implicit none
   ! Parameters
@@ -232,7 +177,7 @@ subroutine hex_lagrangian_reference_fe_fill_scalar (this)
   this%nodes_vef%p(1) = 1
   this%vefs_vef%p(1) = 1
   this%vertices_vef%p(1) = 1
-    
+  
   !Loop over dimensions
   do k = 0,nd
      aux1 = int(((p-1)**k)) ! interior nodes for an vef of dim k
@@ -556,102 +501,6 @@ subroutine hex_lagrangian_reference_fe_fill_scalar (this)
 end subroutine hex_lagrangian_reference_fe_fill_scalar
 
 !==================================================================================================
-! Given the dimension nd of the quad and the positions p0,...,p1 we want to consider is going
-! to take values. The routine Q_R_IJK returns the number of nodes (co) and a matrix auxt1 that 
-! for the nth node of the quad it gives the ijk position that it corresponds to
-!         | p0 p0   ... p0 p0   ... p1 |
-! auxt1 = | p0 p0   ... p0 p0+1 ... p1 |
-!         | p0 p0+1 ... p1 p0   ... p1 |
-recursive subroutine hex_lagrangian_reference_fe_fill_vef_local_coordinates_nodes(this,co,d,ijk,nd,auxt1,p0,p1)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: d,nd,p0,p1
-  integer(ip)                          , intent(inout) :: ijk(nd),co              !#nodes
-  integer(ip)                          , intent(inout) :: auxt1(nd,(p1+1-p0)**nd) ! ode ijk position matrix
-  ! Local variables
-  integer(ip)                :: dp,i,ipp
-
-  do ipp = p0,p1
-     if (d>nd) exit
-     ijk(nd-d+1) = ipp 
-     if (d < nd) call this%fill_vef_local_coordinates_nodes(co,d+1,ijk,nd,auxt1,p0,p1)
-     if (d == nd) then
-        co = co + 1
-        do i = 1,nd
-           auxt1(i,co) = ijk(i)
-        end do
-     end if
-  end do
-end subroutine hex_lagrangian_reference_fe_fill_vef_local_coordinates_nodes
-
-!==================================================================================================
-function hex_lagrangian_reference_fe_local_coordinates_to_local_id( this, local_coordinates, &
-                                                                     number_of_dimensions,    &
-                                                                     order )
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: local_coordinates(:)
-  integer(ip)                          , intent(in)    :: number_of_dimensions
-  integer(ip)                          , intent(in)    :: order
-  integer(ip) :: hex_lagrangian_reference_fe_local_coordinates_to_local_id
-  integer(ip) :: idime
-  hex_lagrangian_reference_fe_local_coordinates_to_local_id = 1
-  do idime = 1,number_of_dimensions
-     hex_lagrangian_reference_fe_local_coordinates_to_local_id = hex_lagrangian_reference_fe_local_coordinates_to_local_id + local_coordinates(idime)*((order+1)**(idime-1))
-  end do
-end function hex_lagrangian_reference_fe_local_coordinates_to_local_id
-
-!==================================================================================================
-subroutine hex_lagrangian_reference_fe_get_vef_orientation(this,o,fdm,od,nd,l)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(out)   :: o
-  integer(ip)                          , intent(in)    :: fdm(:)  ! fdm gives the orthogonal directions to the vef
-  integer(ip)                          , intent(in)    :: od,nd,l ! l=translation ordering
-
-  if (nd == 2 .and. od == 1) then
-     o = modulo(l+fdm(1),2)
-  elseif (nd == 3 .and. od == 2) then
-     o = modulo(l+fdm(1),2)
-  elseif (nd>3) then
-     write(*,*) __FILE__,__LINE__,'WARNING!! the orientation is not defined for dimension >3'
-  else
-     o = 0
-  end if
-  
-end subroutine hex_lagrangian_reference_fe_get_vef_orientation
-
-!==================================================================================================
-! For each vef, up to a displacement, we have an identifier id={1..nod}
-! obdla(id,1) = dimension of the vef
-! obdla(id,2:obdla(id,1)+1) = gives the directions that define the vef
-recursive subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directions(this,co,idm,ko,i,nd,od,obdla,nod)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: ko !space position we begin to count from (ij=>i<j)
-  integer(ip)                          , intent(in)    :: i  !i=local space position we are currently modifying (i=0..od)
-  integer(ip)                          , intent(in)    :: nd,od,nod
-  integer(ip)                          , intent(inout) :: obdla(nod,nd+1)
-  integer(ip)                          , intent(inout) :: idm(od) 
-  integer(ip)                          , intent(inout) :: co      ! Pointer to the position of the vef
-  integer(ip) :: aux,ijk_c(nd),j,cd,kn,s
-
-  !Given dimension od of the vef
-  do kn = ko,nd-od+i
-     idm(i+1) = kn 
-     if (i+1 < od) then
-        call this%fill_vef_dimension_and_directions(co,idm,kn+1,i+1,nd,od,obdla,nod)
-     else
-        obdla(co,1) = od
-        do j = 1,od
-           obdla(co,j+1) = idm(j)
-        end do
-        co = co + 1
-     end if
-  end do
-end subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directions
-
-!-----------------------------------------------------------------------
 subroutine hex_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
   !-----------------------------------------------------------------------
   !
@@ -675,9 +524,9 @@ subroutine hex_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
   !-----------------------------------------------------------------------
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  type(quadrature_t), intent(inout) :: quadrature
-  real(rp)                          :: posgl(20),weigl(20)
-  integer(ip)                       :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,ngaus
+  type(quadrature_t)                  , intent(inout) :: quadrature
+  real(rp)    :: posgl(20),weigl(20)
+  integer(ip) :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,ngaus
 
   ndime = quadrature%number_dimensions
   ngaus = quadrature%number_quadrature_points
@@ -1182,12 +1031,12 @@ subroutine hex_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
 
 end subroutine hex_lagrangian_reference_fe_fill_quadrature
 
-!-----------------------------------------------------------------------
+!==================================================================================================
 subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature ( this, quadrature, order ) 
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  type(quadrature_t)                   , intent(inout) :: quadrature
-  integer(ip)                          , intent(in)    :: order
+  type(quadrature_t)                  , intent(inout) :: quadrature
+  integer(ip)                         , intent(in)    :: order
   real(rp)    :: posgl(20),weigl(20)
   integer(ip) :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,nquad
 
@@ -1242,20 +1091,21 @@ subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature ( this, quadrature,
 
 end subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature
 
+!==================================================================================================
 subroutine hex_lagrangian_reference_fe_fill_interpolation ( this, interpolation, order, coord_ip )
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this   
-  type(interpolation_t)                , intent(inout) :: interpolation
-  integer(ip)                          , intent(in)    :: order
-  real(rp)                             , intent(in)    :: coord_ip(:,:)
+  type(interpolation_t)               , intent(inout) :: interpolation
+  integer(ip)                         , intent(in)    :: order
+  real(rp)                            , intent(in)    :: coord_ip(:,:)
 
-  logical                  :: khes
+  logical                  :: compute_hessian
   integer(ip)              :: nlocs
   real(rp)   , allocatable :: coord(:),shpe1(:,:),shpd1(:,:),shph1(:,:)
 
-  khes = .false.
+  compute_hessian = .false.
   if ( allocated( interpolation%hessian ) ) then 
-     khes = .true.
+     compute_hessian = .true.
   end if
   
   nlocs = int(real(interpolation%number_quadrature_points)**(1.0_rp/real(interpolation%number_dimensions)))
@@ -1269,17 +1119,18 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
   ! Set the coordenades of the nodal points
   call this%set_coordinates_1D(coord,order+1)
   ! Compute the 1d shape function on the gauss points
-  call this%evaluate_interpolation_1D(coord_ip(1,:),order,nlocs,coord,shpe1,shpd1,shph1,khes)
+  call this%evaluate_interpolation_1D(coord_ip(1,:),order,nlocs,coord,shpe1,shpd1,shph1,compute_hessian)
 
   ! Compute the nd shape functions as the tensor product of 1d shape functions
   if ( allocated( interpolation%hessian ) )  then 
      call this%evaluate_interpolation(interpolation%shape_functions,interpolation%shape_derivatives, &
                                     & shpe1,shpd1,shph1,interpolation%number_dimensions,order,nlocs, &
-                                    & interpolation%number_entries_symmetric_tensor,khes,interpolation%hessian)
+                                    & interpolation%number_entries_symmetric_tensor,compute_hessian, & 
+                                    & interpolation%hessian)
   else
      call this%evaluate_interpolation(interpolation%shape_functions,interpolation%shape_derivatives, &
                                     & shpe1,shpd1,shph1,interpolation%number_dimensions,order,nlocs, & 
-                                    & interpolation%number_entries_symmetric_tensor,khes)
+                                    & interpolation%number_entries_symmetric_tensor,compute_hessian)
   end if
   
   ! Deallocate auxiliary variables
@@ -1291,29 +1142,235 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
 end subroutine hex_lagrangian_reference_fe_fill_interpolation
 
 !==================================================================================================
+subroutine hex_lagrangian_reference_fe_fill_face_interpolation (this,face_interpolation, & 
+                                                              & local_quadrature,local_face_id)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  type(interpolation_t)               , intent(inout) :: face_interpolation
+  type(quadrature_t)                  , intent(in)    :: local_quadrature
+  integer(ip)                         , intent(in)    :: local_face_id
+  type(interpolation_t) :: interp_1D_corners, local_interpolation
+  type(quadrature_t)    :: nodal_coordinates_1D
+  integer(ip)           :: order_of_approximation
+  type(hex_lagrangian_reference_fe_t) :: face_reference_fe, reference_fe_1D
+
+  write(*,*) __FILE__,__LINE__,'Creation of 2 reference_FE!!'
+
+  ! Create a 1D interpolation evaluated on the corners
+  call nodal_coordinates_1D%create(1,2)
+  nodal_coordinates_1D%coordinates(1,1) = -1.0_rp
+  nodal_coordinates_1D%coordinates(1,2) =  1.0_rp
+  call reference_fe_1D%create(1,this%order,this%field_type,this%continuity)
+  call reference_fe_1D%create_interpolation(nodal_coordinates_1D,interp_1D_corners)
+
+  ! Create a ndime-1 interpolation on the local Gauss points in each face
+  call face_reference_fe%create(this%number_dimensions-1,this%order,this%field_type,this%continuity)
+  call face_reference_fe%create_interpolation(local_quadrature,local_interpolation)
+
+  order_of_approximation = this%order
+  ! Create the interpolation
+  call this%evaluate_face_interpolation(face_interpolation%shape_functions,          &
+                                      & face_interpolation%shape_derivatives,        &
+                                      & local_interpolation%shape_functions,         &  
+                                      & local_interpolation%shape_derivatives,       &
+                                      & interp_1D_corners%shape_functions,           & 
+                                      & interp_1D_corners%shape_derivatives,         &
+                                      & face_interpolation%number_dimensions,        &
+                                      & order_of_approximation,                      &
+                                      & face_interpolation%number_quadrature_points, & 
+                                      & local_face_id)
+
+  call face_reference_fe%free()
+  call reference_fe_1D%free
+  call local_interpolation%free()
+  call interp_1D_corners%free()
+  call nodal_coordinates_1D%free()
+
+end subroutine hex_lagrangian_reference_fe_fill_face_interpolation
+
+!==================================================================================================
+function hex_lagrangian_reference_fe_local_coordinates_to_local_id( this, local_coordinates, &
+                                                                    number_of_dimensions, order )
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: local_coordinates(:)
+  integer(ip)                         , intent(in)    :: number_of_dimensions
+  integer(ip)                         , intent(in)    :: order
+  integer(ip) :: hex_lagrangian_reference_fe_local_coordinates_to_local_id
+  integer(ip) :: idime
+  hex_lagrangian_reference_fe_local_coordinates_to_local_id = 1
+  do idime = 1,number_of_dimensions
+     hex_lagrangian_reference_fe_local_coordinates_to_local_id = & 
+   & hex_lagrangian_reference_fe_local_coordinates_to_local_id + & 
+   & local_coordinates(idime)*((order+1)**(idime-1))
+  end do
+end function hex_lagrangian_reference_fe_local_coordinates_to_local_id
+
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_local_id_to_local_coordinates(this,                 &
+                                                                     local_coordinates,    &
+                                                                     local_id,             &
+                                                                     number_of_dimensions, &
+                                                                     order)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(inout) :: local_coordinates(:)
+  integer(ip)                         , intent(in)    :: local_id
+  integer(ip)                         , intent(in)    :: number_of_dimensions
+  integer(ip)                         , intent(in)    :: order
+  integer(ip) :: idime,current_local_number
+  current_local_number = local_id-1
+  do idime=1,number_of_dimensions
+     local_coordinates(idime) = int(mod(current_local_number,(order+1)**idime)/(order+1)**(idime-1))
+     current_local_number = current_local_number - local_coordinates(idime)*(order+1)**(idime-1)
+  end do
+end subroutine hex_lagrangian_reference_fe_local_id_to_local_coordinates
+
+!==================================================================================================
 subroutine hex_lagrangian_reference_fe_set_coordinates_1D (this, abscissae, number_of_points)
   implicit none
-  ! Parameters
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: number_of_points
-  real(rp)                             , intent(inout) :: abscissae(:)
-  ! Local variables
+  integer(ip)                         , intent(in)    :: number_of_points
+  real(rp)                            , intent(inout) :: abscissae(:)
   integer(ip) :: i
-
   do i = 0,number_of_points-1
      abscissae(i+1) = 2*real(i)/(real(number_of_points)-1)-1
   end do
 end subroutine hex_lagrangian_reference_fe_set_coordinates_1D
+
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_set_permutation_2D( this,permutation,number_nodes_x_dim, & 
+                                                         & orientation,rotation )
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(inout) :: permutation(:)
+  integer(ip)                         , intent(in)    :: number_nodes_x_dim
+  integer(ip)                         , intent(in)    :: orientation
+  integer(ip)                         , intent(in)    :: rotation
+  integer(ip) :: o_r,i,j,ij_q(4) ! ij_q = (i,j,p-i,p-j)
+  integer(ip) :: ij_n(2),go
+  integer(ip) :: ij_perm_quad(2,8) = reshape((/ 1, 2, 2, 3, 4, 1, 3, 4, 2, 1, 3, 2, 1, 4, 4, 3/), &
+       &                                     (/2,8/))
+
+  ! Generic loop+rotation identifier
+  o_r = 4*(orientation-1)+rotation
+  do j = 0,number_nodes_x_dim-1
+     ij_q(2) = j
+     ij_q(4) = number_nodes_x_dim-1-j
+     do i = 0,number_nodes_x_dim-1
+        ij_q(1) = i
+        ij_q(3) = number_nodes_x_dim-1-i
+        ! Get the global numbering of node (i,j)
+        go = this%local_coordinates_to_local_id(ij_q(1:2),2,number_nodes_x_dim-1)
+        ! i,j coordinates for the o_r permutation
+        ij_n(1:2) = ij_q(ij_perm_quad(1:2,o_r)) 
+        ! Get the global numbering of node ij_n
+        permutation(go) = this%local_coordinates_to_local_id(ij_n,2,number_nodes_x_dim-1)
+     end do
+  end do
+  
+end subroutine hex_lagrangian_reference_fe_set_permutation_2D
+
+!==================================================================================================
+function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, dimension )
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: order
+  integer(ip)                         , intent(in)    :: dimension
+  integer(ip) :: hex_lagrangian_reference_fe_set_number_quadrature_points
+  hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension
+end function
+
+!=================================================================================================
+function hex_lagrangian_reference_fe_compute_number_nodes_scalar(this,order,dimension)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: order, dimension
+  integer(ip) :: hex_lagrangian_reference_fe_compute_number_nodes_scalar 
+  hex_lagrangian_reference_fe_compute_number_nodes_scalar = int((order+1)**dimension)
+end function hex_lagrangian_reference_fe_compute_number_nodes_scalar
+
+!=================================================================================================
+function hex_lagrangian_reference_fe_get_number_interior_points_x_dim(this,number_interior_points,dimension)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: number_interior_points, dimension
+  integer(ip) :: hex_lagrangian_reference_fe_get_number_interior_points_x_dim 
+  hex_lagrangian_reference_fe_get_number_interior_points_x_dim = & 
+     & int(real(number_interior_points,rp)**(1.0_rp/real(dimension,rp)),ip)
+end function hex_lagrangian_reference_fe_get_number_interior_points_x_dim
+
+!**************************************************************************************************
+! Concrete TBPs of this derived data type
+!**************************************************************************************************
+
+!==================================================================================================
+! For each vef, up to a displacement, we have an identifier id={1..nod}
+! obdla(id,1) = dimension of the vef
+! obdla(id,2:obdla(id,1)+1) = gives the directions that define the vef
+recursive subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directions(this,co,idm,ko,i,nd,od,obdla,nod)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: ko !space position we begin to count from (ij=>i<j)
+  integer(ip)                         , intent(in)    :: i  !i=local space position we are currently modifying (i=0..od)
+  integer(ip)                         , intent(in)    :: nd,od,nod
+  integer(ip)                         , intent(inout) :: obdla(nod,nd+1)
+  integer(ip)                         , intent(inout) :: idm(od) 
+  integer(ip)                         , intent(inout) :: co      ! Pointer to the position of the vef
+  integer(ip) :: aux,ijk_c(nd),j,cd,kn,s
+
+  !Given dimension od of the vef
+  do kn = ko,nd-od+i
+     idm(i+1) = kn 
+     if (i+1 < od) then
+        call this%fill_vef_dimension_and_directions(co,idm,kn+1,i+1,nd,od,obdla,nod)
+     else
+        obdla(co,1) = od
+        do j = 1,od
+           obdla(co,j+1) = idm(j)
+        end do
+        co = co + 1
+     end if
+  end do
+end subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directions
+
+!==================================================================================================
+! Given the dimension nd of the quad and the positions p0,...,p1 we want to consider is going
+! to take values. The routine Q_R_IJK returns the number of nodes (co) and a matrix auxt1 that 
+! for the nth node of the quad it gives the ijk position that it corresponds to
+!         | p0 p0   ... p0 p0   ... p1 |
+! auxt1 = | p0 p0   ... p0 p0+1 ... p1 |
+!         | p0 p0+1 ... p1 p0   ... p1 |
+recursive subroutine hex_lagrangian_reference_fe_fill_vef_local_coordinates_nodes(this,co,d,ijk,nd,auxt1,p0,p1)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: d,nd,p0,p1
+  integer(ip)                         , intent(inout) :: ijk(nd),co              !#nodes
+  integer(ip)                         , intent(inout) :: auxt1(nd,(p1+1-p0)**nd) ! ode ijk position matrix
+  integer(ip) :: dp,i,ipp
+
+  do ipp = p0,p1
+     if (d>nd) exit
+     ijk(nd-d+1) = ipp 
+     if (d < nd) call this%fill_vef_local_coordinates_nodes(co,d+1,ijk,nd,auxt1,p0,p1)
+     if (d == nd) then
+        co = co + 1
+        do i = 1,nd
+           auxt1(i,co) = ijk(i)
+        end do
+     end if
+  end do
+end subroutine hex_lagrangian_reference_fe_fill_vef_local_coordinates_nodes
 
 ! ===================================================================================================
 ! Compute the shape function and its derivative
 subroutine hex_lagrangian_reference_fe_evaluate_interpolation_1D (this,xg,p,ng,xn,shpe1,shpd1,shph1,khes)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: p,ng
-  logical                              , intent(in)    :: khes
-  real(rp)                             , intent(in)    :: xn(p+1),xg(ng)
-  real(rp)                             , intent(out) :: shpe1(p+1,ng),shpd1(p+1,ng),shph1(p+1,ng)
+  integer(ip)                         , intent(in)    :: p,ng
+  logical                             , intent(in)    :: khes
+  real(rp)                            , intent(in)    :: xn(p+1),xg(ng)
+  real(rp)                            , intent(out) :: shpe1(p+1,ng),shpd1(p+1,ng),shph1(p+1,ng)
   integer(ip) :: i,j,k,m,ig
   real(rp)    :: aux, aux2, aux3, auxv(ng),auxv2(ng),auxv3(ng)
 
@@ -1356,25 +1413,19 @@ subroutine hex_lagrangian_reference_fe_evaluate_interpolation_1D (this,xg,p,ng,x
   end do
 end subroutine hex_lagrangian_reference_fe_evaluate_interpolation_1D
 
-
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_evaluate_interpolation (this,shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
+subroutine hex_lagrangian_reference_fe_evaluate_interpolation (this,shape,deriv,s1,sd1,sdd1, & 
+                                                             & nd,p,ng,nt,khes,hessi)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this  
-  integer(ip)       , intent(in)   :: nd,p,ng,nt
-  logical           , intent(in)   :: khes
-  real(rp)          , intent(in)   :: s1(p+1,ng),sd1(p+1,ng),sdd1(p+1,ng)
-  !real(rp)          , intent(out) :: shape((p+1)**nd,ng**nd)
-  !real(rp)          , intent(out) :: deriv(nd,(p+1)**nd,ng**nd)
-  !real(rp), optional, intent(out) :: hessi(nt,(p+1)**nd,ng**nd)
-  real(rp)          , intent(inout) :: shape(:,:)
-  real(rp)          , intent(inout) :: deriv(:,:,:)
-  real(rp), optional, intent(inout) :: hessi(:,:,:)
-
-
-  ! Local variables
-  integer(ip)              :: i,ig,d,d2,d3,it
-  integer(ip)              :: ijk(nd),ijkg(nd),permu(nt)
+  integer(ip)                         , intent(in)    :: nd,p,ng,nt
+  logical                             , intent(in)    :: khes
+  real(rp)                            , intent(in)    :: s1(p+1,ng),sd1(p+1,ng),sdd1(p+1,ng)
+  real(rp)                            , intent(inout) :: shape(:,:)
+  real(rp)                            , intent(inout) :: deriv(:,:,:)
+  real(rp)                  , optional, intent(inout) :: hessi(:,:,:)
+  integer(ip) :: i,ig,d,d2,d3,it
+  integer(ip) :: ijk(nd),ijkg(nd),permu(nt)
 
   ! The presumed order of the varibles in the hessian is not the one obtained by generation
   if (nd == 2) then
@@ -1447,114 +1498,15 @@ subroutine hex_lagrangian_reference_fe_evaluate_interpolation (this,shape,deriv,
 end subroutine hex_lagrangian_reference_fe_evaluate_interpolation
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_local_id_to_local_coordinates(this,                 &
-                                                                      local_coordinates,    &
-                                                                      local_id,             &
-                                                                      number_of_dimensions, &
-                                                                      order)
+subroutine hex_lagrangian_reference_fe_evaluate_face_interpolation(this,shapf,derif,shp,drv, &
+                                                                 & sh1,dr1,nd,p,ng,local_face_id)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(inout) :: local_coordinates(:)
-  integer(ip)                          , intent(in)    :: local_id
-  integer(ip)                          , intent(in)    :: number_of_dimensions
-  integer(ip)                          , intent(in)    :: order
-  integer(ip) :: idime,current_local_number
-
-  current_local_number = local_id-1
-  do idime=1,number_of_dimensions
-     local_coordinates(idime) = int(mod(current_local_number,(order+1)**idime)/(order+1)**(idime-1))
-     current_local_number = current_local_number - local_coordinates(idime)*(order+1)**(idime-1)
-  end do
-  
-end subroutine hex_lagrangian_reference_fe_local_id_to_local_coordinates
-
-!==================================================================================================
-subroutine hex_lagrangian_reference_fe_set_permutation_2D( this,permutation,number_nodes_x_dim,orientation,rotation )
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                          , intent(inout) :: permutation(:)
-  integer(ip)                          , intent(in)    :: number_nodes_x_dim,orientation,rotation
-
-
-  ! Local variables
-  integer(ip) :: o_r,i,j,ij_q(4) ! ij_q = (i,j,p-i,p-j)
-  integer(ip) :: ij_n(2),go
-  integer(ip) :: ij_perm_quad(2,8) = reshape((/ 1, 2, 2, 3, 4, 1, 3, 4, 2, 1, 3, 2, 1, 4, 4, 3/), &
-       &                                     (/2,8/))
-
-  ! Generic loop+rotation identifier
-  o_r = 4*(orientation-1)+rotation
-  do j = 0,number_nodes_x_dim-1
-     ij_q(2) = j
-     ij_q(4) = number_nodes_x_dim-1-j
-     do i = 0,number_nodes_x_dim-1
-        ij_q(1) = i
-        ij_q(3) = number_nodes_x_dim-1-i
-        ! Get the global numbering of node (i,j)
-        go = this%local_coordinates_to_local_id(ij_q(1:2),2,number_nodes_x_dim-1)
-        ! i,j coordinates for the o_r permutation
-        ij_n(1:2) = ij_q(ij_perm_quad(1:2,o_r)) 
-        ! Get the global numbering of node ij_n
-        permutation(go) = this%local_coordinates_to_local_id(ij_n,2,number_nodes_x_dim-1)
-     end do
-  end do
-  
-end subroutine hex_lagrangian_reference_fe_set_permutation_2D
-
-!==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_face_interpolation (this,face_interpolation,local_quadrature,local_face_id)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  type(interpolation_t)                , intent(inout) :: face_interpolation
-  type(quadrature_t)                   , intent(in)    :: local_quadrature
-  integer(ip)                          , intent(in)    :: local_face_id
-
-  type(interpolation_t)                :: interp_1D_corners, local_interpolation
-  type(quadrature_t)                   :: nodal_coordinates_1D
-  integer(ip)                          :: order_of_approximation
-  type(hex_lagrangian_reference_fe_t) :: face_reference_fe, reference_fe_1D
-
-  write(*,*) __FILE__,__LINE__,'Creation of 2 reference_FE!!'
-
-  ! Create a 1D interpolation evaluated on the corners
-  call nodal_coordinates_1D%create(1,2)
-  nodal_coordinates_1D%coordinates(1,1) = -1.0_rp
-  nodal_coordinates_1D%coordinates(1,2) =  1.0_rp
-  call reference_fe_1D%create(1,this%order,this%field_type,this%continuity)
-  call reference_fe_1D%create_interpolation(nodal_coordinates_1D,interp_1D_corners)
-
-  ! Create a ndime-1 interpolation on the local Gauss points in each face
-  call face_reference_fe%create(this%number_dimensions-1,this%order,this%field_type,this%continuity)
-  call face_reference_fe%create_interpolation(local_quadrature,local_interpolation)
-
-  order_of_approximation = this%order
-  ! Create the interpolation
-  call this%evaluate_face_interpolation(face_interpolation%shape_functions,face_interpolation%shape_derivatives,    &
-       &                local_interpolation%shape_functions,local_interpolation%shape_derivatives,  &
-       &                interp_1D_corners%shape_functions,interp_1D_corners%shape_derivatives,      &
-       &                face_interpolation%number_dimensions,order_of_approximation,                &
-       &                face_interpolation%number_quadrature_points,local_face_id)
-
-  call face_reference_fe%free()
-  call reference_fe_1D%free
-  call local_interpolation%free()
-  call interp_1D_corners%free()
-  call nodal_coordinates_1D%free()
-
-end subroutine hex_lagrangian_reference_fe_fill_face_interpolation
-
-!==================================================================================================
-subroutine hex_lagrangian_reference_fe_evaluate_face_interpolation(this,shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
-  implicit none
-  ! Parameters
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)           , intent(in)  :: nd,p,ng, local_face_id
-  real(rp)              , intent(in)  :: shp((p+1)**(nd-1),ng),drv(nd-1,(p+1)**(nd-1),ng) ! Face interpolation
-  real(rp)              , intent(in)  :: sh1(p+1,2),dr1(1,p+1,2)
-  real(rp)              , intent(out) :: shapf(   (p+1)**nd,ng)
-  real(rp)              , intent(out) :: derif(nd,(p+1)**nd,ng)
-
-  ! Local variable
+  integer(ip)                         , intent(in)    :: nd,p,ng,local_face_id
+  real(rp)                            , intent(in)    :: shp(:,:),drv(:,:,:) ! Face interpolation
+  real(rp)                            , intent(in)    :: sh1(:,:),dr1(:,:,:)
+  real(rp)                            , intent(inout) :: shapf(:,:)
+  real(rp)                            , intent(inout) :: derif(:,:,:)
   integer(ip) :: ifc, id, j, ijk(nd), ij(nd-1), d, inode, jnode, ig, d2
   integer(ip) :: ig0, ign
 
@@ -1610,29 +1562,21 @@ subroutine hex_lagrangian_reference_fe_evaluate_face_interpolation(this,shapf,de
 end subroutine hex_lagrangian_reference_fe_evaluate_face_interpolation
 
 !==================================================================================================
-  subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connectivity)
-    implicit none
-    class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-    integer(ip),                           intent(inout) :: connectivity(:, :)
-    integer(ip)                                          :: num_subelems
-    integer(ip)                                          :: subelem
-    integer(ip)                                          :: geo_nnodes
-    integer(ip)                                          :: local_node
-    integer(ip)                                          :: first_coord(this%number_dimensions)
-    integer(ip)                                          :: local_coord(this%number_dimensions)
-    integer(ip)                                          :: global_coord(this%number_dimensions)
-   
-    num_subelems = this%get_number_subelements()
-    geo_nnodes = this%get_number_vertices()
-    assert(size(connectivity,1) == geo_nnodes)
-    assert(size(connectivity,2) == num_subelems)
+subroutine hex_lagrangian_reference_fe_get_vef_orientation(this,o,fdm,od,nd,l)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(inout) :: o
+  integer(ip)                         , intent(in)    :: fdm(:)  ! fdm gives the orthogonal directions to the vef
+  integer(ip)                         , intent(in)    :: od,nd,l ! l=translation ordering
 
-    do subelem = 1, num_subelems
-      call this%local_id_to_local_coordinates(first_coord,subelem,this%number_dimensions,this%order-1)
-      do local_node = 1, geo_nnodes
-        call this%local_id_to_local_coordinates(local_coord,local_node,this%number_dimensions,1)
-        global_coord = first_coord + local_coord
-        connectivity(local_node, subelem) = this%local_coordinates_to_local_id(global_coord,this%number_dimensions,this%order)
-      end do
-    end do
-  end subroutine hex_lagrangian_reference_fe_get_subelements_connectivity
+  if (nd == 2 .and. od == 1) then
+     o = modulo(l+fdm(1),2)
+  elseif (nd == 3 .and. od == 2) then
+     o = modulo(l+fdm(1),2)
+  elseif (nd>3) then
+     write(*,*) __FILE__,__LINE__,'WARNING!! the orientation is not defined for dimension >3'
+  else
+     o = 0
+  end if
+
+end subroutine hex_lagrangian_reference_fe_get_vef_orientation
