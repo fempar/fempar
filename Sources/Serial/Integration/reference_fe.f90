@@ -684,10 +684,8 @@ module reference_fe_names
      procedure (fill_nodal_quadrature_interface)           , deferred :: fill_nodal_quadrature     
      procedure (fill_interpolation_interface)              , deferred :: fill_interpolation
      procedure (fill_face_interpolation_interface)         , deferred :: fill_face_interpolation
-     procedure (local_coordinates_to_local_id_interface)   , deferred :: &
-              & local_coordinates_to_local_id
-     procedure (local_id_to_local_coordinates_interface)   , deferred :: &
-              & local_id_to_local_coordinates
+     procedure (get_node_local_id_interface)               , deferred :: get_node_local_id
+     procedure (get_node_local_coordinates_interface)      , deferred :: get_node_local_coordinates
      procedure (set_coordinates_1D_interface)              , deferred :: set_coordinates_1D
      procedure (set_permutation_2D_interface)              , deferred :: set_permutation_2D
      procedure (set_number_quadrature_points_interface)    , deferred :: &
@@ -766,20 +764,18 @@ module reference_fe_names
        type(quadrature_t)              , intent(inout) :: quadrature       
      end subroutine fill_quadrature_interface
      
-     subroutine fill_nodal_quadrature_interface ( this, quadrature, order )
+     subroutine fill_nodal_quadrature_interface ( this, quadrature )
      import :: lagrangian_reference_fe_t, quadrature_t, ip
        implicit none 
        class(lagrangian_reference_fe_t), intent(in)    :: this
        type(quadrature_t)              , intent(inout) :: quadrature
-       integer(ip)                     , intent(in)    :: order
      end subroutine fill_nodal_quadrature_interface
      
-     subroutine fill_interpolation_interface ( this, interpolation, order, coord_ip )
+     subroutine fill_interpolation_interface ( this, interpolation, coord_ip )
      import :: lagrangian_reference_fe_t, interpolation_t, ip, rp
        implicit none 
        class(lagrangian_reference_fe_t), intent(in)    :: this
-       type(interpolation_t)           , intent(inout) :: interpolation
-       integer(ip)                     , intent(in)    :: order   
+       type(interpolation_t)           , intent(inout) :: interpolation  
        real(rp)                        , intent(in)    :: coord_ip(:,:)
      end subroutine fill_interpolation_interface
  
@@ -795,24 +791,24 @@ module reference_fe_names
        integer(ip)                     , intent(in)    :: local_face_id
      end subroutine fill_face_interpolation_interface
      
-     function local_coordinates_to_local_id_interface ( this,                 &
-                                                        local_coordinates,    &
-                                                        number_of_dimensions, &
-                                                        order )
+     function get_node_local_id_interface ( this,                 &
+                                            local_coordinates,    &
+                                            number_of_dimensions, &
+                                            order )
      import :: lagrangian_reference_fe_t, ip
        implicit none
        class(lagrangian_reference_fe_t), intent(in)    :: this
        integer(ip)                     , intent(in)    :: local_coordinates(:)
        integer(ip)                     , intent(in)    :: number_of_dimensions
        integer(ip)                     , intent(in)    :: order
-       integer(ip) :: local_coordinates_to_local_id_interface
-     end function local_coordinates_to_local_id_interface
+       integer(ip) :: get_node_local_id_interface
+     end function get_node_local_id_interface
      
-     subroutine local_id_to_local_coordinates_interface( this,                 &
-                                                         local_coordinates,    &
-                                                         local_id,             &
-                                                         number_of_dimensions, &
-                                                         order )
+     subroutine get_node_local_coordinates_interface( this,                 &
+                                                      local_coordinates,    &
+                                                      local_id,             &
+                                                      number_of_dimensions, &
+                                                      order )
      import :: lagrangian_reference_fe_t, ip
        implicit none
        class(lagrangian_reference_fe_t), intent(in)    :: this
@@ -820,7 +816,7 @@ module reference_fe_names
        integer(ip)                     , intent(in)    :: local_id
        integer(ip)                     , intent(in)    :: number_of_dimensions
        integer(ip)                     , intent(in)    :: order       
-     end subroutine local_id_to_local_coordinates_interface
+     end subroutine get_node_local_coordinates_interface
 
      subroutine set_coordinates_1D_interface (this, abscissae, number_of_points)
      import :: lagrangian_reference_fe_t, ip, rp
@@ -891,8 +887,8 @@ module reference_fe_names
      procedure :: fill_nodal_quadrature             => tet_lagrangian_reference_fe_fill_nodal_quadrature
      procedure :: fill_interpolation                => tet_lagrangian_reference_fe_fill_interpolation
      procedure :: fill_face_interpolation           => tet_lagrangian_reference_fe_fill_face_interpolation
-     procedure :: local_coordinates_to_local_id     => tet_lagrangian_reference_fe_local_coordinates_to_local_id
-     procedure :: local_id_to_local_coordinates     => tet_lagrangian_reference_fe_local_id_to_local_coordinates
+     procedure :: get_node_local_id                 => tet_lagrangian_reference_fe_get_node_local_id
+     procedure :: get_node_local_coordinates        => tet_lagrangian_reference_fe_get_node_local_coordinates
      procedure :: set_coordinates_1D                => tet_lagrangian_reference_fe_set_coordinates_1D
      procedure :: set_permutation_2D                => tet_lagrangian_reference_fe_set_permutation_2D
      procedure :: set_number_quadrature_points      => tet_lagrangian_reference_fe_set_number_quadrature_points
@@ -923,8 +919,8 @@ module reference_fe_names
      procedure :: fill_nodal_quadrature             => hex_lagrangian_reference_fe_fill_nodal_quadrature
      procedure :: fill_interpolation                => hex_lagrangian_reference_fe_fill_interpolation
      procedure :: fill_face_interpolation           => hex_lagrangian_reference_fe_fill_face_interpolation
-     procedure :: local_coordinates_to_local_id     => hex_lagrangian_reference_fe_local_coordinates_to_local_id
-     procedure :: local_id_to_local_coordinates     => hex_lagrangian_reference_fe_local_id_to_local_coordinates
+     procedure :: get_node_local_id                 => hex_lagrangian_reference_fe_get_node_local_id
+     procedure :: get_node_local_coordinates        => hex_lagrangian_reference_fe_get_node_local_coordinates
      procedure :: set_coordinates_1D                => hex_lagrangian_reference_fe_set_coordinates_1D
      procedure :: set_permutation_2D                => hex_lagrangian_reference_fe_set_permutation_2D
      procedure :: set_number_quadrature_points      => hex_lagrangian_reference_fe_set_number_quadrature_points
