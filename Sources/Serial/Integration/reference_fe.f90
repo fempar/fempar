@@ -858,26 +858,29 @@ module reference_fe_names
      private
    contains 
      ! Deferred TBP implementors from reference_fe_t
-     procedure :: check_compatibility_of_vefs      => quad_lagrangian_reference_fe_check_compatibility_of_vefs
-     procedure :: get_characteristic_length        => quad_lagrangian_reference_fe_get_characteristic_length
-     procedure :: get_subelements_connectivity     => quad_lagrangian_reference_fe_get_subelements_connectivity
+     procedure :: check_compatibility_of_vefs       => quad_lagrangian_reference_fe_check_compatibility_of_vefs
+     procedure :: get_characteristic_length         => quad_lagrangian_reference_fe_get_characteristic_length
+     procedure :: get_subelements_connectivity      => quad_lagrangian_reference_fe_get_subelements_connectivity
      ! Deferred TBP implementors from lagrangian_reference_fe_t
-     procedure :: fill_scalar                      => quad_lagrangian_reference_fe_fill_scalar
-     procedure :: fill_quadrature                  => quad_lagrangian_reference_fe_fill_quadrature
-     procedure :: fill_nodal_quadrature            => quad_lagrangian_reference_fe_fill_nodal_quadrature
-     procedure :: fill_interpolation               => quad_lagrangian_reference_fe_fill_interpolation
-     procedure :: fill_face_interpolation          => quad_lagrangian_reference_fe_fill_face_interpolation
-     procedure :: local_coordinates_to_local_id    => quad_lagrangian_reference_fe_local_coordinates_to_local_id
-     procedure :: local_id_to_local_coordinates    => quad_lagrangian_reference_fe_local_id_to_local_coordinates
-     procedure :: set_coordinates_1D               => quad_lagrangian_reference_fe_set_coordinates_1D
-     procedure :: set_permutation_2D               => quad_lagrangian_reference_fe_set_permutation_2D
-     procedure :: set_number_quadrature_points     => quad_lagrangian_reference_fe_set_number_quadrature_points
-     procedure :: compute_number_nodes_scalar      => quad_lagrangian_reference_fe_compute_number_nodes_scalar
-     procedure :: get_number_interior_points_x_dim => quad_lagrangian_reference_fe_get_number_interior_points_x_dim
+     procedure :: fill_scalar                       => quad_lagrangian_reference_fe_fill_scalar
+     procedure :: fill_quadrature                   => quad_lagrangian_reference_fe_fill_quadrature
+     procedure :: fill_nodal_quadrature             => quad_lagrangian_reference_fe_fill_nodal_quadrature
+     procedure :: fill_interpolation                => quad_lagrangian_reference_fe_fill_interpolation
+     procedure :: fill_face_interpolation           => quad_lagrangian_reference_fe_fill_face_interpolation
+     procedure :: local_coordinates_to_local_id     => quad_lagrangian_reference_fe_local_coordinates_to_local_id
+     procedure :: local_id_to_local_coordinates     => quad_lagrangian_reference_fe_local_id_to_local_coordinates
+     procedure :: set_coordinates_1D                => quad_lagrangian_reference_fe_set_coordinates_1D
+     procedure :: set_permutation_2D                => quad_lagrangian_reference_fe_set_permutation_2D
+     procedure :: set_number_quadrature_points      => quad_lagrangian_reference_fe_set_number_quadrature_points
+     procedure :: compute_number_nodes_scalar       => quad_lagrangian_reference_fe_compute_number_nodes_scalar
+     procedure :: get_number_interior_points_x_dim  => quad_lagrangian_reference_fe_get_number_interior_points_x_dim
      ! Concrete TBPs of this derived data type
-     procedure :: evaluate_interpolation_1D        => quad_lagrangian_reference_fe_evaluate_interpolation_1D 
-     procedure :: evaluate_interpolation           => quad_lagrangian_reference_fe_evaluate_interpolation 
-     procedure :: evaluate_face_interpolation      => quad_lagrangian_reference_fe_evaluate_face_interpolation
+     procedure :: fill_vef_dimension_and_directions => quad_lagrangian_reference_fe_fill_vef_dimension_and_directions
+     procedure :: fill_vef_local_coordinates_nodes  => quad_lagrangian_reference_fe_fill_vef_local_coordinates_nodes
+     procedure :: get_vef_orientation               => quad_lagrangian_reference_fe_get_vef_orientation
+     procedure :: evaluate_interpolation_1D         => quad_lagrangian_reference_fe_evaluate_interpolation_1D 
+     procedure :: evaluate_interpolation            => quad_lagrangian_reference_fe_evaluate_interpolation 
+     procedure :: evaluate_face_interpolation       => quad_lagrangian_reference_fe_evaluate_face_interpolation
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t

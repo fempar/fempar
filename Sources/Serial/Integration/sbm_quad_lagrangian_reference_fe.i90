@@ -272,7 +272,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   obdla(1,1) = 0
   do od = 0,nd
      if (od > 0) then
-        call r_dim(j,idm(1:od),k,i,nd,od,obdla,nod)
+        call this%fill_vef_dimension_and_directions(j,idm(1:od),k,i,nd,od,obdla,nod)
      end if
   end do
 
@@ -298,7 +298,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
         kk    = 0
         aux1  = 1
         ijk   = 0
-        call Q_r_ijk(kk,aux1,ijk,nd-od,auxt1,0,1)
+        call this%fill_vef_local_coordinates_nodes(kk,aux1,ijk,nd-od,auxt1,0,1)
      end if
      ! Compute auxt2 the local numbering of the corners in an vef of dim od
      if (od >0) then
@@ -307,7 +307,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
         kk    = 0
         aux1  = 1
         ijk   = 0
-        call Q_r_ijk(kk,aux1,ijk,od,auxt2,0,1)
+        call this%fill_vef_local_coordinates_nodes(kk,aux1,ijk,od,auxt2,0,1)
 
         if (p > 1) then
            ! Compute auxt3 the local numbering of the interior nodes in an vef of dim od
@@ -316,7 +316,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
            kk    = 0
            aux1  = 1
            ijk   = 0
-           call Q_r_ijk(kk,aux1,ijk,od,auxt3,1,p-1)
+           call this%fill_vef_local_coordinates_nodes(kk,aux1,ijk,od,auxt3,1,p-1)
         end if
 
         ! Compute auxt4 the local numbering of all nodes in an vef of dim od
@@ -325,7 +325,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
         kk    = 0
         aux1  = 1
         ijk   = 0
-        call Q_r_ijk(kk,aux1,ijk,od,auxt4,0,p)
+        call this%fill_vef_local_coordinates_nodes(kk,aux1,ijk,od,auxt4,0,p)
 
         ! Compute auxt5 the local numbering of all nodes in an vef of dim od
         call memalloc(od,(2+1)**(od),auxt5,__FILE__,__LINE__)
@@ -333,7 +333,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
         kk    = 0
         aux1  = 1
         ijk   = 0
-        call Q_r_ijk(kk,aux1,ijk,od,auxt5,0,2)
+        call this%fill_vef_local_coordinates_nodes(kk,aux1,ijk,od,auxt5,0,2)
 
         ! Compute auxt6 the local numbering of the interior vefs in an vef of dim od
         call memalloc(od,(2-1)**(od),auxt6,__FILE__,__LINE__)
@@ -341,7 +341,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
         kk    = 0
         aux1  = 1
         ijk   = 0
-        call Q_r_ijk(kk,aux1,ijk,od,auxt6,1,2-1)
+        call this%fill_vef_local_coordinates_nodes(kk,aux1,ijk,od,auxt6,1,2-1)
 
      end if
 
@@ -381,7 +381,7 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
 
            ! Set orientation of the vef
            co = co +1
-           call Q_orientation_vef(this%orientation%a(co),fdm(1:nd-od),od,nd,l)
+           call this%get_vef_orientation(this%orientation%a(co),fdm(1:nd-od),od,nd,l)
 
            !ijk_g(jdm) will contain the translations from one vef to another
            !ijk_g(idm) will contain the variations inside the vef
@@ -575,20 +575,19 @@ end function bnm
 !         | p0 p0   ... p0 p0   ... p1 |
 ! auxt1 = | p0 p0   ... p0 p0+1 ... p1 |
 !         | p0 p0+1 ... p1 p0   ... p1 |
-recursive subroutine Q_r_ijk(co,d,ijk,nd,auxt1,p0,p1)
+recursive subroutine quad_lagrangian_reference_fe_fill_vef_local_coordinates_nodes(this,co,d,ijk,nd,auxt1,p0,p1)
   implicit none
-  ! Parameters
-  integer(ip), intent(in)    :: d,nd,p0,p1
-  integer(ip), intent(inout) :: ijk(nd),co              !#nodes
-  integer(ip), intent(inout) :: auxt1(nd,(p1+1-p0)**nd) ! ode ijk position matrix
-
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: d,nd,p0,p1
+  integer(ip)                          , intent(inout) :: ijk(nd),co              !#nodes
+  integer(ip)                          , intent(inout) :: auxt1(nd,(p1+1-p0)**nd) ! ode ijk position matrix
   ! Local variables
   integer(ip)                :: dp,i,ipp
 
   do ipp = p0,p1
      if (d>nd) exit
      ijk(nd-d+1) = ipp 
-     if (d < nd) call Q_r_ijk(co,d+1,ijk,nd,auxt1,p0,p1)
+     if (d < nd) call this%fill_vef_local_coordinates_nodes(co,d+1,ijk,nd,auxt1,p0,p1)
      if (d == nd) then
         co = co + 1
         do i = 1,nd
@@ -596,7 +595,7 @@ recursive subroutine Q_r_ijk(co,d,ijk,nd,auxt1,p0,p1)
         end do
      end if
   end do
-end subroutine Q_r_ijk
+end subroutine quad_lagrangian_reference_fe_fill_vef_local_coordinates_nodes
 
 !==================================================================================================
 function quad_lagrangian_reference_fe_local_coordinates_to_local_id( this, local_coordinates, &
@@ -616,12 +615,12 @@ function quad_lagrangian_reference_fe_local_coordinates_to_local_id( this, local
 end function quad_lagrangian_reference_fe_local_coordinates_to_local_id
 
 !==================================================================================================
-subroutine Q_orientation_vef(o,fdm,od,nd,l)
+subroutine quad_lagrangian_reference_fe_get_vef_orientation(this,o,fdm,od,nd,l)
   implicit none
-  ! Parameters
-  integer(ip), intent(out) :: o
-  integer(ip), intent(in)  :: fdm(:)  ! fdm gives the orthogonal directions to the vef
-  integer(ip), intent(in)  :: od,nd,l ! l=translation ordering
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(out)   :: o
+  integer(ip)                          , intent(in)    :: fdm(:)  ! fdm gives the orthogonal directions to the vef
+  integer(ip)                          , intent(in)    :: od,nd,l ! l=translation ordering
 
   if (nd == 2 .and. od == 1) then
      o = modulo(l+fdm(1),2)
@@ -632,28 +631,29 @@ subroutine Q_orientation_vef(o,fdm,od,nd,l)
   else
      o = 0
   end if
-end subroutine Q_orientation_vef
+  
+end subroutine quad_lagrangian_reference_fe_get_vef_orientation
 
 !==================================================================================================
-! R_DIM construct OBDLA matrix
 ! For each vef, up to a displacement, we have an identifier id={1..nod}
 ! obdla(id,1) = dimension of the vef
 ! obdla(id,2:obdla(id,1)+1) = gives the directions that define the vef
-recursive subroutine r_dim(co,idm,ko,i,nd,od,obdla,nod)
+recursive subroutine quad_lagrangian_reference_fe_fill_vef_dimension_and_directions(this,co,idm,ko,i,nd,od,obdla,nod)
   implicit none
-  integer(ip), intent(in)    :: ko !space position we begin to count from (ij=>i<j)
-  integer(ip), intent(in)    :: i  !i=local space position we are currently modifying (i=0..od)
-  integer(ip), intent(in)    :: nd,od,nod
-  integer(ip), intent(inout) :: obdla(nod,nd+1)
-  integer(ip), intent(inout) :: idm(od) 
-  integer(ip), intent(inout) :: co      ! Pointer to the position of the vef
-  integer(ip)                :: aux,ijk_c(nd),j,cd,kn,s
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: ko !space position we begin to count from (ij=>i<j)
+  integer(ip)                          , intent(in)    :: i  !i=local space position we are currently modifying (i=0..od)
+  integer(ip)                          , intent(in)    :: nd,od,nod
+  integer(ip)                          , intent(inout) :: obdla(nod,nd+1)
+  integer(ip)                          , intent(inout) :: idm(od) 
+  integer(ip)                          , intent(inout) :: co      ! Pointer to the position of the vef
+  integer(ip) :: aux,ijk_c(nd),j,cd,kn,s
 
   !Given dimension od of the vef
   do kn = ko,nd-od+i
      idm(i+1) = kn 
      if (i+1 < od) then
-        call r_dim(co,idm,kn+1,i+1,nd,od,obdla,nod)
+        call this%fill_vef_dimension_and_directions(co,idm,kn+1,i+1,nd,od,obdla,nod)
      else
         obdla(co,1) = od
         do j = 1,od
@@ -662,7 +662,7 @@ recursive subroutine r_dim(co,idm,ko,i,nd,od,obdla,nod)
         co = co + 1
      end if
   end do
-end subroutine r_dim
+end subroutine quad_lagrangian_reference_fe_fill_vef_dimension_and_directions
 
 !==================================================================================================
 ! FC(k)=k! computes the factorial of k 
