@@ -206,8 +206,8 @@ module reference_fe_names
   character(*), parameter :: field_type_tensor           = 'tensor'
   character(*), parameter :: field_type_symmetric_tensor = 'symmetric_tensor'
   
-  character(*), parameter :: topology_quad = "quad"
-  character(*), parameter :: topology_tet  = "tet"
+  character(*), parameter :: topology_hex = "hex"
+  character(*), parameter :: topology_tet = "tet"
   character(*), parameter :: fe_type_lagrangian = "Lagrangian"
   
   ! Abstract reference_fe
@@ -666,7 +666,7 @@ module reference_fe_names
 
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-  public :: topology_quad, topology_tet, fe_type_lagrangian
+  public :: topology_hex, topology_tet, fe_type_lagrangian
   
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, abstract, extends(reference_fe_t) :: lagrangian_reference_fe_t

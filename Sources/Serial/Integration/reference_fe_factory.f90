@@ -46,13 +46,13 @@ contains
     
     type(p_reference_fe_t)             :: make_reference_fe
     
-    assert ( topology == topology_quad .or. topology == topology_tet )
+    assert ( topology == topology_hex .or. topology == topology_tet )
     assert ( fe_type  == fe_type_lagrangian )
     
     if ( fe_type == fe_type_lagrangian ) then
-       if ( topology == topology_quad ) then
+       if ( topology == topology_hex ) then
           allocate ( hex_lagrangian_reference_fe_t :: make_reference_fe%p )
-          call make_reference_fe%p%set_topology ( topology_quad )
+          call make_reference_fe%p%set_topology ( topology_hex )
        elseif ( topology == topology_tet ) then
           allocate ( tet_lagrangian_reference_fe_t :: make_reference_fe%p )
           call make_reference_fe%p%set_topology ( topology_tet )
