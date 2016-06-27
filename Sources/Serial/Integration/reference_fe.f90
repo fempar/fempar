@@ -875,8 +875,9 @@ module reference_fe_names
      procedure :: compute_number_nodes_scalar      => quad_lagrangian_reference_fe_compute_number_nodes_scalar
      procedure :: get_number_interior_points_x_dim => quad_lagrangian_reference_fe_get_number_interior_points_x_dim
      ! Concrete TBPs of this derived data type
-     procedure :: shapen
-     procedure :: face_shapen
+     procedure :: evaluate_interpolation_1D        => quad_lagrangian_reference_fe_evaluate_interpolation_1D 
+     procedure :: evaluate_interpolation           => quad_lagrangian_reference_fe_evaluate_interpolation 
+     procedure :: evaluate_face_interpolation      => quad_lagrangian_reference_fe_evaluate_face_interpolation
   end type quad_lagrangian_reference_fe_t
   
   public :: quad_lagrangian_reference_fe_t
@@ -906,6 +907,7 @@ module reference_fe_names
      procedure :: fill_nodes_vef                    => tri_lagrangian_reference_fe_fill_nodes_vef
      procedure :: fill_vef_dimension_and_vertices   => tri_lagrangian_reference_fe_fill_vef_dimension_and_vertices
      procedure :: compute_sum_of_nodes_in_simplices => tri_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
+     procedure :: evaluate_interpolation            => tri_lagrangian_reference_fe_evaluate_interpolation
   end type tri_lagrangian_reference_fe_t
   
   public :: tri_lagrangian_reference_fe_t
@@ -917,8 +919,8 @@ type volume_integrator_t
   integer(ip)                    :: number_shape_functions
   integer(ip)                    :: number_quadrature_points
   class(reference_fe_t), pointer :: reference_fe
-  type(interpolation_t)       :: interpolation      ! Unknown interpolation_t in the reference element domain
-  type(interpolation_t)       :: interpolation_o_map! Unknown interpolation_t in the physical element domain
+  type(interpolation_t)          :: interpolation      ! Unknown interpolation_t in the reference element domain
+  type(interpolation_t)          :: interpolation_o_map! Unknown interpolation_t in the physical element domain
 contains
 
   procedure, non_overridable :: create => volume_integrator_create

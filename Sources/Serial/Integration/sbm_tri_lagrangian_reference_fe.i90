@@ -901,22 +901,22 @@ subroutine tri_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
 
   if ( allocated( interpolation%hessian ) )  then 
      do iquad = 1,interpolation%number_quadrature_points
-        call evaluate_shape_functions_and_derivatives( coord_ip(:,iquad),                             &
-                                                       interpolation%number_dimensions,               &
-                                                       interpolation%number_shape_functions,          &
-                                                       interpolation%number_entries_symmetric_tensor, &
-                                                       interpolation%shape_functions(:,iquad),        &
-                                                       interpolation%shape_derivatives(:,:,iquad),    &
-                                                       interpolation%hessian(:,:,iquad) )
+        call this%evaluate_interpolation( coord_ip(:,iquad),                             &
+                                          interpolation%number_dimensions,               &
+                                          interpolation%number_shape_functions,          &
+                                          interpolation%number_entries_symmetric_tensor, &
+                                          interpolation%shape_functions(:,iquad),        &
+                                          interpolation%shape_derivatives(:,:,iquad),    &
+                                          interpolation%hessian(:,:,iquad) )
      end do
   else
      do iquad = 1,interpolation%number_quadrature_points
-        call evaluate_shape_functions_and_derivatives( coord_ip(:,iquad),                             &
-                                                       interpolation%number_dimensions,               &
-                                                       interpolation%number_shape_functions,          &
-                                                       interpolation%number_entries_symmetric_tensor, &
-                                                       interpolation%shape_functions(:,iquad),        &
-                                                       interpolation%shape_derivatives(:,:,iquad) )
+        call this%evaluate_interpolation( coord_ip(:,iquad),                             &
+                                          interpolation%number_dimensions,               &
+                                          interpolation%number_shape_functions,          &
+                                          interpolation%number_entries_symmetric_tensor, &
+                                          interpolation%shape_functions(:,iquad),        &
+                                          interpolation%shape_derivatives(:,:,iquad) )
      end do
   end if
   
@@ -938,7 +938,7 @@ subroutine tri_lagrangian_reference_fe_set_coordinates_1D (this, abscissae, numb
 end subroutine tri_lagrangian_reference_fe_set_coordinates_1D
 
 !==================================================================================================
-subroutine evaluate_shape_functions_and_derivatives(coord,ndime,nnode,ntens,shape,deriv,heslo)
+subroutine tri_lagrangian_reference_fe_evaluate_interpolation(this,coord,ndime,nnode,ntens,shape,deriv,heslo)
   !-----------------------------------------------------------------------
   !
   ! This routine evaluates shape functions and their first and second
@@ -950,10 +950,11 @@ subroutine evaluate_shape_functions_and_derivatives(coord,ndime,nnode,ntens,shap
   !
   !-----------------------------------------------------------------------
   implicit none
-  real(rp)             , intent(in)    :: coord(:)
-  integer(ip)          , intent(in)    :: ndime,nnode,ntens
-  real(rp)             , intent(inout) :: shape(:),deriv(:,:)
-  real(rp)   , optional, intent(inout) :: heslo(:,:)
+  class(tri_lagrangian_reference_fe_t), intent(in)    :: this
+  real(rp)                            , intent(in)    :: coord(:)
+  integer(ip)                         , intent(in)    :: ndime,nnode,ntens
+  real(rp)                            , intent(inout) :: shape(:),deriv(:,:)
+  real(rp)                  , optional, intent(inout) :: heslo(:,:)
   integer(ip) :: i
   real(rp)    :: a1,a2,a3,a4,c
   if(ndime==1) then 
@@ -1169,7 +1170,7 @@ subroutine evaluate_shape_functions_and_derivatives(coord,ndime,nnode,ntens,shap
         end if
      end if
   end if
-end subroutine evaluate_shape_functions_and_derivatives
+end subroutine tri_lagrangian_reference_fe_evaluate_interpolation
 
 !==================================================================================================
 subroutine tri_lagrangian_reference_fe_local_id_to_local_coordinates( this,                 &
@@ -1418,13 +1419,13 @@ subroutine tri_lagrangian_reference_fe_fill_face_interpolation (this,face_interp
               & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,iquad)
         end if
         ! Evaluate shape functions and derivatives at the gauss points
-        call evaluate_shape_functions_and_derivatives( global_coordinates,                                 &
-                                                       face_interpolation%number_dimensions,               &
-                                                       face_interpolation%number_shape_functions,          &
-                                                       face_interpolation%number_entries_symmetric_tensor, &
-                                                       face_interpolation%shape_functions(:,iquad),        &
-                                                       face_interpolation%shape_derivatives(:,:,iquad),    &
-                                                       face_interpolation%hessian(:,:,iquad) )
+        call this%evaluate_interpolation( global_coordinates,                                 &
+                                          face_interpolation%number_dimensions,               &
+                                          face_interpolation%number_shape_functions,          &
+                                          face_interpolation%number_entries_symmetric_tensor, &
+                                          face_interpolation%shape_functions(:,iquad),        &
+                                          face_interpolation%shape_derivatives(:,:,iquad),    &
+                                          face_interpolation%hessian(:,:,iquad) )
      end do
   else
      do iquad = 1,face_interpolation%number_quadrature_points
@@ -1445,12 +1446,12 @@ subroutine tri_lagrangian_reference_fe_fill_face_interpolation (this,face_interp
            global_coordinates(1) = 1 - sum(local_quadrature%coordinates(:,iquad))
            global_coordinates(2:face_interpolation%number_dimensions) = local_quadrature%coordinates(:,iquad)
         end if
-        call evaluate_shape_functions_and_derivatives( global_coordinates,                                 &
-                                                       face_interpolation%number_dimensions,               &
-                                                       face_interpolation%number_shape_functions,          &
-                                                       face_interpolation%number_entries_symmetric_tensor, &
-                                                       face_interpolation%shape_functions(:,iquad),        &
-                                                       face_interpolation%shape_derivatives(:,:,iquad) )
+        call this%evaluate_interpolation( global_coordinates,                                 &
+                                          face_interpolation%number_dimensions,               &
+                                          face_interpolation%number_shape_functions,          &
+                                          face_interpolation%number_entries_symmetric_tensor, &
+                                          face_interpolation%shape_functions(:,iquad),        &
+                                          face_interpolation%shape_derivatives(:,:,iquad) )
      end do
   end if
   

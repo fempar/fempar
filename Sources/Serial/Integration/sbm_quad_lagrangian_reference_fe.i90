@@ -1293,17 +1293,17 @@ subroutine quad_lagrangian_reference_fe_fill_interpolation ( this, interpolation
   ! Set the coordenades of the nodal points
   call this%set_coordinates_1D(coord,order+1)
   ! Compute the 1d shape function on the gauss points
-  call shape1(coord_ip(1,:),order,nlocs,coord,shpe1,shpd1,shph1,khes)
+  call this%evaluate_interpolation_1D(coord_ip(1,:),order,nlocs,coord,shpe1,shpd1,shph1,khes)
 
   ! Compute the nd shape functions as the tensor product of 1d shape functions
   if ( allocated( interpolation%hessian ) )  then 
-     call this%shapen(interpolation%shape_functions,interpolation%shape_derivatives, &
-                    & shpe1,shpd1,shph1,interpolation%number_dimensions,order,nlocs, &
-                    & interpolation%number_entries_symmetric_tensor,khes,interpolation%hessian)
+     call this%evaluate_interpolation(interpolation%shape_functions,interpolation%shape_derivatives, &
+                                    & shpe1,shpd1,shph1,interpolation%number_dimensions,order,nlocs, &
+                                    & interpolation%number_entries_symmetric_tensor,khes,interpolation%hessian)
   else
-     call this%shapen(interpolation%shape_functions,interpolation%shape_derivatives, &
-                    & shpe1,shpd1,shph1,interpolation%number_dimensions,order,nlocs, & 
-                    & interpolation%number_entries_symmetric_tensor,khes)
+     call this%evaluate_interpolation(interpolation%shape_functions,interpolation%shape_derivatives, &
+                                    & shpe1,shpd1,shph1,interpolation%number_dimensions,order,nlocs, & 
+                                    & interpolation%number_entries_symmetric_tensor,khes)
   end if
   
   ! Deallocate auxiliary variables
@@ -1331,14 +1331,15 @@ end subroutine quad_lagrangian_reference_fe_set_coordinates_1D
 
 ! ===================================================================================================
 ! Compute the shape function and its derivative
-subroutine shape1(xg,p,ng,xn,shpe1,shpd1,shph1,khes)
+subroutine quad_lagrangian_reference_fe_evaluate_interpolation_1D (this,xg,p,ng,xn,shpe1,shpd1,shph1,khes)
   implicit none
-  integer(ip), intent(in)  :: p,ng
-  logical, intent(in)      :: khes
-  real(rp),    intent(in)  :: xn(p+1),xg(ng)
-  real(rp),    intent(out) :: shpe1(p+1,ng),shpd1(p+1,ng),shph1(p+1,ng)
-  integer(ip)              :: i,j,k,m,ig
-  real(rp)                 :: aux, aux2, aux3, auxv(ng),auxv2(ng),auxv3(ng)
+  class(quad_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                          , intent(in)    :: p,ng
+  logical                              , intent(in)    :: khes
+  real(rp)                             , intent(in)    :: xn(p+1),xg(ng)
+  real(rp)                             , intent(out) :: shpe1(p+1,ng),shpd1(p+1,ng),shph1(p+1,ng)
+  integer(ip) :: i,j,k,m,ig
+  real(rp)    :: aux, aux2, aux3, auxv(ng),auxv2(ng),auxv3(ng)
 
   shpe1 = 1.0_rp
   shpd1 = 0.0_rp
@@ -1377,11 +1378,11 @@ subroutine shape1(xg,p,ng,xn,shpe1,shpd1,shph1,khes)
         end if
      end do
   end do
-end subroutine shape1
+end subroutine quad_lagrangian_reference_fe_evaluate_interpolation_1D
 
 
 !==================================================================================================
-subroutine shapen (this,shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
+subroutine quad_lagrangian_reference_fe_evaluate_interpolation (this,shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
   implicit none
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this  
   integer(ip)       , intent(in)   :: nd,p,ng,nt
@@ -1467,7 +1468,7 @@ subroutine shapen (this,shape,deriv,s1,sd1,sdd1,nd,p,ng,nt,khes,hessi)
         end do
      end do
   end do
-end subroutine shapen
+end subroutine quad_lagrangian_reference_fe_evaluate_interpolation
 
 !==================================================================================================
 subroutine quad_lagrangian_reference_fe_local_id_to_local_coordinates(this,                 &
@@ -1552,7 +1553,7 @@ subroutine quad_lagrangian_reference_fe_fill_face_interpolation (this,face_inter
 
   order_of_approximation = this%order
   ! Create the interpolation
-  call this%face_shapen(face_interpolation%shape_functions,face_interpolation%shape_derivatives,    &
+  call this%evaluate_face_interpolation(face_interpolation%shape_functions,face_interpolation%shape_derivatives,    &
        &                local_interpolation%shape_functions,local_interpolation%shape_derivatives,  &
        &                interp_1D_corners%shape_functions,interp_1D_corners%shape_derivatives,      &
        &                face_interpolation%number_dimensions,order_of_approximation,                &
@@ -1567,7 +1568,7 @@ subroutine quad_lagrangian_reference_fe_fill_face_interpolation (this,face_inter
 end subroutine quad_lagrangian_reference_fe_fill_face_interpolation
 
 !==================================================================================================
-subroutine face_shapen(this,shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
+subroutine quad_lagrangian_reference_fe_evaluate_face_interpolation(this,shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
   implicit none
   ! Parameters
   class(quad_lagrangian_reference_fe_t), intent(in)    :: this
@@ -1630,7 +1631,7 @@ subroutine face_shapen(this,shapf,derif,shp,drv,sh1,dr1,nd,p,ng,local_face_id)
      end do
   end do
 
-end subroutine face_shapen
+end subroutine quad_lagrangian_reference_fe_evaluate_face_interpolation
 
 !==================================================================================================
   subroutine matove(xmatr,vecto,ndime,ntens)
