@@ -1277,12 +1277,12 @@ function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, 
 end function
 
 !=================================================================================================
-function hex_lagrangian_reference_fe_compute_number_nodes_scalar(this,order,dimension)
+function hex_lagrangian_reference_fe_compute_number_nodes_scalar(this, order, dimension)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: order, dimension
   integer(ip) :: hex_lagrangian_reference_fe_compute_number_nodes_scalar 
-  hex_lagrangian_reference_fe_compute_number_nodes_scalar = int((order+1)**dimension)
+  hex_lagrangian_reference_fe_compute_number_nodes_scalar = (order+1)**dimension
 end function hex_lagrangian_reference_fe_compute_number_nodes_scalar
 
 !=================================================================================================
