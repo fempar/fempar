@@ -1,5 +1,5 @@
 program test_sisl
-  use types
+  use types_names
   use iso_c_binding
   use sisl_names
   implicit none
@@ -63,8 +63,8 @@ program test_sisl
   write(*,*) 'Curve length status', stat
   write(*,*) 'Curve length', length
 
-  point(1) = 0.0_rp
-  point(2) = -10.0_rp
+  point(1) = -10.0_rp
+  point(2) = 0.0_rp
   point(3) = 0.0_rp
   call point_intersection(curve, point, ndime, tol, num_int, p_param, num_curves, wcurve, stat)
   p_shape(1) = num_int

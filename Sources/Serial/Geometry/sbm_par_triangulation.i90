@@ -64,7 +64,7 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
      call mesh%compose_name ( prefix, name )
      call par_filename( this%p_env%get_l1_context(), name )
      lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-     call mesh%read_file (lunio)  !, permute_c2z = .true. 
+     call mesh%read (lunio)  !, permute_c2z = .true. 
      call io_close(lunio)
 
      ! Extract data from mesh

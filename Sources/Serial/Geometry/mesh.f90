@@ -109,8 +109,9 @@ module mesh_names
      procedure, non_overridable :: move_coordinates     => mesh_move_coordinates
      procedure, non_overridable :: get_boundary         => mesh_get_boundary
      procedure, non_overridable :: free                 => mesh_free
-     procedure, non_overridable :: read                 => mesh_read
-     procedure, non_overridable :: read_file            => mesh_read_file
+     procedure, non_overridable :: read_from_unit       => mesh_read_from_unit
+     procedure, non_overridable :: read_from_file       => mesh_read_from_file
+     generic :: read => read_from_file, read_from_unit
      procedure, non_overridable, nopass :: compose_name => mesh_compose_name
      procedure, non_overridable :: write_file_for_postprocess => mesh_write_file_for_postprocess
   end type mesh_t
@@ -286,7 +287,7 @@ contains
   end subroutine mesh_copy
   
   !=============================================================================
-  subroutine mesh_read_file(msh,lunio)
+  subroutine mesh_read_from_unit(msh,lunio)
     !------------------------------------------------------------------------
     !
     ! This routine reads a mesh writen by GiD according to fempar problem type.
@@ -425,7 +426,7 @@ contains
        call memfree(lnods_aux,__FILE__,__LINE__)
     end if
 
-  end subroutine mesh_read_file
+  end subroutine mesh_read_from_unit
 
   !=============================================================================
   subroutine mesh_write_file (msh,lunio,title)
@@ -673,14 +674,14 @@ contains
         rename=name
         call numbered_filename_compose(i,nparts,rename)
         lunio = io_open( trim(dir_path) // '/' // trim(rename), 'read' )
-        call lmesh(i)%read_file(lunio)
+        call lmesh(i)%read(lunio)
         call io_close(lunio)
      end do
      
    end subroutine mesh_read_files
 
   !=============================================================================
-   subroutine mesh_read (f_mesh,  dir_path, prefix ) !, permute_c2z
+   subroutine mesh_read_from_file (f_mesh,  dir_path, prefix ) !, permute_c2z
      implicit none 
      ! Parameters
      character (*)                , intent(in)  :: dir_path
@@ -694,9 +695,9 @@ contains
      ! Read mesh
      call mesh_compose_name ( prefix, name )
      lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
-     call f_mesh%read_file(lunio)  !, permute_c2z
+     call f_mesh%read(lunio)  !, permute_c2z
      call io_close(lunio)
-   end subroutine mesh_read
+   end subroutine mesh_read_from_file
 
    !=============================================================================
    subroutine mesh_write_file_for_postprocess ( f_mesh, dir_path, prefix)

@@ -140,7 +140,7 @@ contains
        ! Read mesh
        lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
        !call p_mesh%f_mesh%read_file ( lunio, permute_c2z = .false. )
-       call p_mesh%f_mesh%read_file ( lunio )
+       call p_mesh%f_mesh%read( lunio )
        call io_close(lunio)
 
        call mesh_distribution_compose_name ( prefix, name )
