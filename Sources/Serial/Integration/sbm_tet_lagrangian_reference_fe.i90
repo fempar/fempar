@@ -1272,6 +1272,11 @@ subroutine tet_lagrangian_reference_fe_evaluate_interpolation(this,coord,ndime,n
   real(rp)                  , optional, intent(inout) :: heslo(:,:)
   integer(ip) :: i
   real(rp)    :: a1,a2,a3,a4,c
+  shape = 0.0_rp
+  deriv = 0.0_rp
+  if (present(heslo)) then
+     heslo = 0.0_rp
+  end if
   if(ndime==1) then 
      ! Hessian not computed for face interpolation
      ! Linear bar
