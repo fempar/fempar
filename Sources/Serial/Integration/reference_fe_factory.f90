@@ -52,13 +52,11 @@ contains
     if ( fe_type == fe_type_lagrangian ) then
        if ( topology == topology_hex ) then
           allocate ( hex_lagrangian_reference_fe_t :: make_reference_fe%p )
-          call make_reference_fe%p%set_topology ( topology_hex )
        elseif ( topology == topology_tet ) then
           allocate ( tet_lagrangian_reference_fe_t :: make_reference_fe%p )
-          call make_reference_fe%p%set_topology ( topology_tet )
        end if
     end if
-    call make_reference_fe%p%create( number_dimensions, order, field_type, continuity, enable_face_integration )
+    call make_reference_fe%p%create( topology, number_dimensions, order, field_type, continuity, enable_face_integration )
   
   end function make_reference_fe
 

@@ -373,10 +373,11 @@ module reference_fe_names
   end type p_reference_fe_t
 
   abstract interface
-     subroutine create_interface ( this, number_dimensions, order, field_type, continuity, enable_face_integration )
+     subroutine create_interface ( this, topology, number_dimensions, order, field_type, continuity, enable_face_integration )
        import :: reference_fe_t, ip
        implicit none 
        class(reference_fe_t), intent(inout) :: this 
+       character(*)         , intent(in)    :: topology
        integer(ip)          , intent(in)    :: number_dimensions
        integer(ip)          , intent(in)    :: order
        character(*)         , intent(in)    :: field_type

@@ -1155,11 +1155,11 @@ subroutine hex_lagrangian_reference_fe_fill_face_interpolation (this,face_interp
   call nodal_coordinates_1D%create(1,2)
   nodal_coordinates_1D%coordinates(1,1) = -1.0_rp
   nodal_coordinates_1D%coordinates(1,2) =  1.0_rp
-  call reference_fe_1D%create(1,this%order,this%field_type,this%continuity)
+  call reference_fe_1D%create(topology_hex,1,this%order,this%field_type,this%continuity)
   call reference_fe_1D%create_interpolation(nodal_coordinates_1D,interp_1D_corners)
 
   ! Create a ndime-1 interpolation on the local Gauss points in each face
-  call face_reference_fe%create(this%number_dimensions-1,this%order,this%field_type,this%continuity)
+  call face_reference_fe%create(topology_hex,this%number_dimensions-1,this%order,this%field_type,this%continuity)
   call face_reference_fe%create_interpolation(local_quadrature,local_interpolation)
 
   order_of_approximation = this%order
