@@ -73,7 +73,7 @@ module command_line_parameters_names
      ! Time integration
      character(len=:), allocatable :: default_initial_time
      ! CLI
-     type(Type_Command_Line_Interface) :: cli
+     type(Command_Line_Interface)  :: cli
      ! Parameters
      ! IO parameters
      character(len=2014)      :: dir_path
