@@ -112,6 +112,7 @@ module command_line_parameters_names
    contains
      procedure, non_overridable          :: create
      procedure, non_overridable, private :: set_default
+     procedure, non_overridable, private :: apply_default
      procedure, non_overridable, private :: add_to_cli 
      procedure, non_overridable          :: parse
      procedure, non_overridable          :: free  
