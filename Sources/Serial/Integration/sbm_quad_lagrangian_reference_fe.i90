@@ -461,6 +461,77 @@ subroutine quad_lagrangian_reference_fe_evaluate_grad_fe_function_vector( this, 
 
 end subroutine quad_lagrangian_reference_fe_evaluate_grad_fe_function_vector
 
+subroutine quad_lagrangian_reference_fe_blending(this,values)
+  implicit none
+  class(quad_lagrangian_reference_fe_t)   , intent(in)    :: this 
+  real(rp)                , intent(inout) :: values(:,:)
+
+  integer(ip) :: i,j, ipoin, nlocs, ndime,nnode
+
+  assert(size(values,1) == this%number_field_components)
+  assert(size(values,2) == this%number_nodes_scalar)
+
+
+  ndime = this%number_dimensions
+  nnode = this%number_nodes_scalar
+
+  if(ndime==1) then
+     nlocs=nnode
+  else if(ndime==2) then
+     nlocs=nint(sqrt(real(nnode,rp)))
+  else
+     nlocs=nint(real(nnode,rp)**(1.0_rp/3.0_rp))
+  end if
+
+  if(ndime==2) then
+     !ipoin=0
+     do j = 2, nlocs - 1
+        do i = 2, nlocs - 1
+           ipoin = nlocs*(j-1)+i 
+           !ipoin = ipoin + 1
+           call blend_2D(this%nodal_quadrature%coordinates(1,ipoin), & ! reference coordinates 
+                &        this%nodal_quadrature%coordinates(2,ipoin), &
+                &        values(:,1), &                 ! value at vertex 1
+                &        values(:,nlocs), &             ! value at vertex 2
+                &        values(:,nlocs*(nlocs-1)+1), & ! value at vertex 3
+                &        values(:,nlocs*nlocs), &       ! value at vertex 4
+                &        values(:,i), &                 ! value at edge 5
+                &        values(:,nlocs*(nlocs-1)+i), & ! value at edge 6
+                &        values(:,nlocs*(j-1)+1), &     ! value at edge 7
+                &        values(:,nlocs*j), &           ! value at edge 8
+                &        values(:,ipoin))               ! interpolated value
+
+        end do
+     end do
+  end if
+
+end subroutine quad_lagrangian_reference_fe_blending
+
+subroutine blend_2D(r,s,x1,x2,x3,x4,x5,x6,x7,x8,x)
+  implicit none
+  real(rp), intent(in)  :: r,s
+  real(rp), intent(in)  :: x1(:),x2(:),x3(:),x4(:),x5(:),x6(:),x7(:),x8(:)
+  real(rp), intent(out) :: x(:)
+
+!     3---6---------4
+!     |   .         |
+!     |   .         |
+!     |   .         |
+!     7...x........ 8
+!     |   .         |
+!     1---5---------2
+
+  x(:) = - 0.25_rp * (1-r) * (1-s)*x1(:) &
+       & - 0.25_rp * (1+r) * (1-s)*x2(:) &
+       & - 0.25_rp * (1-r) * (1+s)*x3(:) &
+       & - 0.25_rp * (1+r) * (1+s)*x4(:) &
+       & + 0.5_rp * (1-s) * x5(:) &
+       & + 0.5_rp * (1+s) * x6(:) &
+       & + 0.5_rp * (1-r) * x7(:) &
+       & + 0.5_rp * (1+r) * x8(:)
+
+end subroutine blend_2D
+
 !==================================================================================================
 function quad_lagrangian_reference_fe_check_compatibility_of_vefs                   &
      &                      (target_reference_fe,source_reference_fe, source_vef_id,target_vef_id)

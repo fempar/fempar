@@ -25,16 +25,29 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine serial_triangulation_create ( this, dir_path, prefix)
+  subroutine serial_triangulation_create ( this, dir_path, prefix, geometry_interpolation_order)
     implicit none
     class(serial_triangulation_t), intent(inout) :: this
     character(len=256)           , intent(in)    :: dir_path
     character(len=256)           , intent(in)    :: prefix
-    type(mesh_t) :: mesh
+    integer(ip)        , optional, intent(in)    :: geometry_interpolation_order
+
+    type(mesh_t)          :: mesh
     type(list_t), pointer :: boundary
     integer(ip) , pointer :: boundary_geo(:), boundary_set(:)
-    
+    integer(ip) :: order
+
     call this%free()
+
+    if(present(geometry_interpolation_order)) then
+       order=geometry_interpolation_order
+       if(order>1) then
+          call this%geometry%read(dir_path, prefix)
+       end if
+    else
+       order=1
+    end if
+    
     call mesh%read(dir_path, prefix) !, permute_c2z=.true.
     !call mesh%to_dual()
     !call mesh%generate_vefs()
@@ -48,20 +61,28 @@
     call mesh%move_cells(this%ptr_vefs_per_cell,this%lst_vefs_lids)
     !write(*,*) this%ptr_vefs_per_cell
     !write(*,*) this%lst_vefs_lids
-    call mesh%move_coordinates(this%coordinates)
+    !call mesh%move_coordinates(this%coordinates)
     !write(*,*) this%coordinates
     call mesh%get_boundary(boundary,boundary_geo,boundary_set)
     !write(*,*) boundary%p,boundary%l
 
-    ! Generate vefs
+    ! Generate dual mesh (at this point around vertices only)
     call this%allocate_and_fill_cells_around()
     !write(*,*) this%ptrs_cells_around
     !write(*,*) this%lst_cells_around
     write(*,*) 'Dual mesh ready'
 
-    call this%generate_vefs(boundary,boundary_geo,boundary_set)
+    call this%generate_vefs(order,boundary,boundary_geo,boundary_set)
     !call this%generate_vefs()
     write(*,*) 'Generating vefs done'
+
+    ! Generate dual mesh (around all vefs now)
+    call this%allocate_and_fill_cells_around()
+    !write(*,*) this%ptrs_cells_around
+    !write(*,*) this%lst_cells_around
+    write(*,*) 'Dual mesh ready'
+
+    call this%allocate_and_fill_coordinates(mesh%get_coordinates())
 
     call mesh%free()
   end subroutine serial_triangulation_create
@@ -72,6 +93,12 @@
     integer(ip)                                  :: icell, ivef, istat
     call this%free_ptr_vefs_per_cell()
     call this%free_lst_vefs_lids()
+
+    call this%free_cells_around()
+
+    if(allocated(this%vefs_geometry)) call memfree(this%vefs_geometry, __FILE__, __LINE__ )
+    if(allocated(this%vefs_set)) call memfree(this%vefs_set, __FILE__, __LINE__ )
+
     this%num_local_cells = -1
     this%num_vefs = -1
     !JP-TODO: free coordinates
@@ -79,7 +106,7 @@
 
   subroutine serial_triangulation_print ( this )
     class(serial_triangulation_t), intent(in) :: this
-    integer(ip) :: ivef
+    integer(ip) :: ivef,inode
     type(vef_iterator_t)  :: vef_iterator
     type(cell_iterator_t) :: cell_iterator
     type(cell_accessor_t) :: cell
@@ -100,6 +127,10 @@
        write (*,'(a)') 'vefs_lid:' 
        do ivef=1, cell%get_num_vefs()
           write (*,'(a,i10)'  ) 'vef_lid:', cell%get_vef_lid(ivef)
+       end do
+       write (*,'(a,i10)'  ) 'num_nodes :', cell%get_num_nodes()
+       do inode=1, cell%get_num_nodes()
+          write (*,'(a,i10,2x,e14.7)'  ) 'node:', cell%get_node(inode), this%coordinates(cell%get_node(inode))
        end do
        call cell_iterator%next()
     end do

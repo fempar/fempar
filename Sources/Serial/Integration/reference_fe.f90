@@ -301,6 +301,9 @@ module reference_fe_names
      generic :: evaluate_gradient_fe_function => evaluate_gradient_fe_function_scalar, &
                                                & evaluate_gradient_fe_function_vector
      
+     ! Blending function to generate interpolations in the interior (given values on the boundary)
+     procedure(blending_interface), deferred :: blending
+
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
      procedure (check_compatibility_of_vefs_interface), deferred :: &
@@ -577,7 +580,14 @@ module reference_fe_names
        real(rp)                , intent(in)    :: nodal_values(:)
        type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_vector_interface
-     
+
+     subroutine blending_interface( this,values)
+       import :: reference_fe_t, rp
+       implicit none
+       class(reference_fe_t)   , intent(in)    :: this 
+       real(rp)                , intent(inout) :: values(:,:)
+     end subroutine blending_interface
+
      function check_compatibility_of_vefs_interface(target_reference_fe, &
           &                       source_reference_fe, source_vef_id,target_vef_id)
        import :: reference_fe_t, ip
@@ -736,6 +746,8 @@ module reference_fe_names
 
      procedure :: evaluate_gradient_fe_function_scalar => quad_lagrangian_reference_fe_evaluate_grad_fe_function_scalar
      procedure :: evaluate_gradient_fe_function_vector => quad_lagrangian_reference_fe_evaluate_grad_fe_function_vector
+
+     procedure :: blending => quad_lagrangian_reference_fe_blending
 
      procedure :: set_nodal_quadrature => quad_lagrangian_reference_fe_set_nodal_quadrature
 

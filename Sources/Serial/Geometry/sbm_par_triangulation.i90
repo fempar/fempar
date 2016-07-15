@@ -76,7 +76,7 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
      call mesh%move_cells(ptr_vefs_per_cell,lst_vefs_lids)
      !write(*,*) this%ptr_vefs_per_cell
      !write(*,*) this%lst_vefs_lids
-     call mesh%move_coordinates(this%coordinates)
+     !call mesh%move_coordinates(this%coordinates)
      !write(*,*) this%coordinates
      call mesh%get_boundary(boundary,boundary_geo,boundary_set)
      !write(*,*) boundary%p,boundary%l
@@ -150,11 +150,12 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
      !write(*,*) this%lst_cells_around
      !write(*,*) 'Generating vefs'
      !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
-     call this%generate_vefs(boundary,boundary_geo,boundary_set)
+     call this%generate_vefs(1,boundary,boundary_geo,boundary_set)
      call this%compute_vefs_dimension()
      !write(*,*) 'vefs generated'
      !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
 
+     call this%allocate_and_fill_coordinates(mesh%get_coordinates())
      ! Allocate + fill vefs-related data
      !call this%compute_num_local_vefs()
      !call this%compute_num_ghost_vefs()

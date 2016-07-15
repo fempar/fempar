@@ -9,13 +9,13 @@ module geometry_names
   private
 #include "debug.i90"
 
-  type point_t
+  type gpoint_t
      private
      integer(ip) :: id
      real(rp)    :: coord(3)
    contains
      procedure, non_overridable :: read => point_read
-  end type point_t
+  end type gpoint_t
 
   type line_t
      private
@@ -76,7 +76,7 @@ module geometry_names
      type(hash_table_ip_ip_t) :: line_index
      type(hash_table_ip_ip_t) :: surface_index
      type(hash_table_ip_ip_t) :: volume_index
-     type(point_t)  , allocatable :: points(:)
+     type(gpoint_t) , allocatable :: points(:)
      type(line_t)   , allocatable :: lines(:)
      type(surface_t), allocatable :: surfaces(:)
      type(volume_t) , allocatable :: volumes(:)
@@ -90,7 +90,7 @@ module geometry_names
      procedure, non_overridable :: get_volume  => geometry_get_volume
   end type geometry_t
 
-  public :: geometry_t, point_t, line_t, surface_t, volume_t
+  public :: geometry_t, gpoint_t, line_t, surface_t, volume_t
 
 contains
 
@@ -101,8 +101,8 @@ contains
   !=============================================================================
   subroutine point_read(point,unit)
     implicit none
-    class(point_t), intent(inout) :: point
-    integer(ip)   , intent(in)    :: unit
+    class(gpoint_t), intent(inout) :: point
+    integer(ip)    , intent(in)    :: unit
     character(256)  :: tel
     read(unit,'(a)') tel
     do while(tel(1:5)/='Coord')
@@ -155,7 +155,11 @@ contains
     allocate(line%knots(line%n+line%p+1),stat=i)
     do i=1,line%n+line%p+1
        read(unit,'(a)') tel
-       read(tel(14:),*) line%knots(i)
+       if(i<10) then
+          read(tel(14:),*) line%knots(i)
+       else
+          read(tel(15:),*) line%knots(i)
+       end if
     end do
 
     ! Weights
@@ -190,7 +194,7 @@ contains
   subroutine line_init(line)
     implicit none
     class(line_t), intent(inout) :: line
-    type(point_t), pointer :: point 
+    type(gpoint_t), pointer :: point 
     integer(ip) :: i
 
     ! The magic constants: 2 means nurbs, always in 3D and 0 means point (not copy).
@@ -225,6 +229,7 @@ contains
     type(c_ptr)       :: wcurve
 
     call point_intersection(line%sisl_ptr, point_coords, 3, tol, num_int, p_param, num_curves, wcurve, stat)
+    !write(*,*) num_int
     assert(stat==0)
     assert(num_int==1)
     assert(num_curves==0)
@@ -281,7 +286,7 @@ contains
     implicit none
     class(geometry_t), target, intent(in) :: geometry
     integer(ip)              , intent(in) :: id
-    type(point_t) , pointer :: geometry_get_point
+    type(gpoint_t) , pointer :: geometry_get_point
     integer(ip) :: index,istat
     call geometry%point_index%get(key=id,val=index,stat=istat)
     assert(istat==key_found)
@@ -400,7 +405,7 @@ contains
           geometry%num_points   = geometry%num_points+1
           read(unit,'(a)') tel
           read(tel,*) dum1,geometry%points(geometry%num_points)%id
-          write(*,*) 'Read point', geometry%points(geometry%num_points)%id, geometry%num_points
+          !write(*,*) 'Read point', geometry%points(geometry%num_points)%id, geometry%num_points
           call geometry%point_index%put(key=geometry%points(geometry%num_points)%id, &
                &                        val=geometry%num_points,stat=istat)
           call geometry%points(geometry%num_points)%read(unit)
@@ -408,7 +413,7 @@ contains
           geometry%num_lines    = geometry%num_lines+1
           read(unit,'(a)') tel
           read(tel,*) dum1,geometry%lines(geometry%num_lines)%id
-          write(*,*) 'Read line', geometry%lines(geometry%num_lines)%id, geometry%num_lines
+          !write(*,*) 'Read line', geometry%lines(geometry%num_lines)%id, geometry%num_lines
           call geometry%line_index%put(key=geometry%lines(geometry%num_lines)%id, &
                &                       val=geometry%num_lines,stat=istat)
           call geometry%lines(geometry%num_lines)%set_geometry_pointer_to(geometry)
@@ -436,10 +441,10 @@ contains
     !do i=1,geometry%num_surfaces
     !end do
 
-    write(*,*) 'Finally read points:', geometry%num_points
-    write(*,*) 'Finally read lines:', geometry%num_lines   
-    write(*,*) 'Finally read surfaces:', geometry%num_surfaces
-    write(*,*) 'Finally read volumes:', geometry%num_volumes 
+    if(geometry%num_points>0)   write(*,*) 'Finally read points:'  , geometry%num_points
+    if(geometry%num_lines>0)    write(*,*) 'Finally read lines:'   , geometry%num_lines   
+    if(geometry%num_surfaces>0) write(*,*) 'Finally read surfaces:', geometry%num_surfaces
+    if(geometry%num_volumes>0)  write(*,*) 'Finally read volumes:' , geometry%num_volumes 
 
   end subroutine geometry_read_from_unit
 

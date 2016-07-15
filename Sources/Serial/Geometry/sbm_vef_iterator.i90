@@ -43,6 +43,7 @@ end subroutine vef_iterator_free
 subroutine vef_iterator_init ( this ) 
   implicit none
   class(vef_iterator_t), intent(inout) :: this
+  !write(*,*) 'Initializing vef iterator'
   call this%current_vef_accessor%set_lid(lid=1)
 end subroutine vef_iterator_init
 
@@ -127,3 +128,60 @@ function itfc_vef_iterator_current ( this )
   type(vef_accessor_t)         :: itfc_vef_iterator_current
   itfc_vef_iterator_current = this%current_vef_accessor
 end function itfc_vef_iterator_current
+
+
+subroutine vertices_iterator_next ( this ) 
+  implicit none
+  class(vertices_iterator_t), intent(inout)    :: this
+  class(base_static_triangulation_t), pointer  :: base_static_triangulation
+  !write(*,*) 'Initializing vertices iterator'
+  base_static_triangulation => this%current_vef_accessor%get_triangulation()
+  if ( this%current_vef_accessor%get_lid() >= base_static_triangulation%num_vertices ) then
+     call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vefs+1)
+  else
+     call this%current_vef_accessor%next()
+  end if
+end subroutine vertices_iterator_next
+
+subroutine edges_iterator_init (this) 
+  implicit none
+  class(edges_iterator_t), intent(inout) :: this
+  class(base_static_triangulation_t), pointer  :: base_static_triangulation
+  !write(*,*) 'Initializing edges iterator'
+  base_static_triangulation => this%current_vef_accessor%get_triangulation()
+  call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vertices+1)
+end subroutine edges_iterator_init
+
+subroutine edges_iterator_next ( this ) 
+  implicit none
+  class(edges_iterator_t), intent(inout)    :: this
+  class(base_static_triangulation_t), pointer  :: base_static_triangulation
+  base_static_triangulation => this%current_vef_accessor%get_triangulation()
+  if ( this%current_vef_accessor%get_lid() >= base_static_triangulation%num_vertices + base_static_triangulation%num_edges ) then
+     call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vefs+1)
+  else
+     call this%current_vef_accessor%next()
+  end if
+end subroutine edges_iterator_next
+
+subroutine faces_iterator_init (this) 
+  implicit none
+  class(faces_iterator_t), intent(inout) :: this
+  class(base_static_triangulation_t), pointer  :: base_static_triangulation
+  !write(*,*) 'Initializing faces iterator'
+  base_static_triangulation => this%current_vef_accessor%get_triangulation()
+  call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vertices+base_static_triangulation%num_edges+1)
+end subroutine faces_iterator_init
+
+! subroutine faces_iterator_next ( this ) 
+!   implicit none
+!   class(faces_iterator_t), intent(inout)    :: this
+!   class(base_static_triangulation_t), pointer  :: base_static_triangulation
+!   base_static_triangulation => this%current_vef_accessor%get_triangulation()
+!   if ( this%current_vef_accessor%get_lid() >= base_static_triangulation%num_vefs ) then
+!      call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vefs+1)
+!   else
+!      call this%current_vef_accessor%next()
+!   end if
+! end subroutine faces_iterator_next
+

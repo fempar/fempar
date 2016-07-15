@@ -40,6 +40,10 @@ module base_static_triangulation_names
   use par_io_names
   use stdio_names
 
+  ! Geometry modules
+  use sisl_names
+  use geometry_names
+
   ! Par modules
   use par_environment_names
 
@@ -70,6 +74,8 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_gid              => cell_accessor_get_gid
     procedure, non_overridable           :: get_mypart           => cell_accessor_get_mypart
     procedure, non_overridable           :: get_num_vefs         => cell_accessor_get_num_vefs
+    procedure, non_overridable           :: get_num_nodes        => cell_accessor_get_num_nodes
+    procedure, non_overridable           :: get_node             => cell_accessor_get_node
     procedure, non_overridable           :: get_vef_lid          => cell_accessor_get_vef_lid
     procedure, non_overridable           :: get_vef_gid          => cell_accessor_get_vef_gid
     procedure, non_overridable           :: find_lpos_vef_lid    => cell_accessor_find_lpos_vef_lid
@@ -116,19 +122,26 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_num_interface_cells_around => vef_accessor_get_num_cells_around_interface_vef
      procedure, non_overridable          :: get_cell_around                => vef_accessor_get_cell_around
      procedure, non_overridable          :: get_interface_cell_around      => vef_accessor_get_cell_around_interface_vef
+     procedure, non_overridable          :: get_vertices                   => vef_accessor_get_vertices
   end type vef_accessor_t
-  
+
+  ! In order to define iterators over vertices, edges and faces as extensions of vef_iterator
+  ! we need to overwrite init and next. The alternative is to repeat all TBPs.
+  ! I need to introduce all_vefs iterator because when using an allocatable
+  ! class(vef_iterator_t), allocated as face_iterator_t calling init results in a call
+  ! to the mother class function. Is it right? Is it a compiler (gnu) bug? In any case,
+  ! the solution is to use abstract functions....
   type vef_iterator_t
     private
     type(vef_accessor_t) :: current_vef_accessor
   contains
      procedure, non_overridable          :: create       => vef_iterator_create
      procedure, non_overridable          :: free         => vef_iterator_free
-     procedure, non_overridable          :: init         => vef_iterator_init
-     procedure, non_overridable          :: next         => vef_iterator_next
+     procedure          :: init         => vef_iterator_init
+     procedure          :: next         => vef_iterator_next
      procedure, non_overridable          :: has_finished => vef_iterator_has_finished
      procedure, non_overridable          :: current      => vef_iterator_current
-  end type vef_iterator_t  
+  end type vef_iterator_t
   
   type :: itfc_vef_iterator_t
     private
@@ -142,6 +155,27 @@ module base_static_triangulation_names
     procedure, non_overridable          :: has_finished => itfc_vef_iterator_has_finished
     procedure, non_overridable          :: current      => itfc_vef_iterator_current
   end type itfc_vef_iterator_t
+
+  type, extends(vef_iterator_t) :: vertices_iterator_t
+    private
+  contains
+     procedure, non_overridable          :: next         => vertices_iterator_next
+  end type vertices_iterator_t
+
+  type, extends(vef_iterator_t) :: edges_iterator_t
+    private
+  contains
+     procedure, non_overridable          :: init         => edges_iterator_init
+     procedure, non_overridable          :: next         => edges_iterator_next
+  end type edges_iterator_t
+
+  type, extends(vef_iterator_t) :: faces_iterator_t
+    private
+  contains
+     procedure, non_overridable          :: init         => faces_iterator_init
+     !procedure, non_overridable          :: next         => faces_iterator_next
+  end type faces_iterator_t
+
   
    ! JP-TODO: implement states: discuss with Alberto and Victor.
    !
@@ -171,6 +205,8 @@ module base_static_triangulation_names
 
   type base_static_triangulation_t ! Base class for serial_triangulation_t and par_base_static_triangulation_t
      private
+     type(geometry_t) :: geometry
+
      integer(ip)                           :: num_dimensions  = -1
      integer(ip)                           :: num_local_cells = -1
      integer(ip)                           :: num_ghost_cells = -1
@@ -186,8 +222,17 @@ module base_static_triangulation_names
      integer(ip) , allocatable             :: elems_reference_fe_geo(:)  ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: ptr_vefs_per_cell(:)       ! Num local cells + num ghost cells + 1
      integer(ip) , allocatable             :: lst_vefs_lids(:)
-          
+
+     ! Geometry interpolation
+     integer(ip)                           :: num_nodes
+     integer(ip) , allocatable             :: ptr_nodes_per_cell(:)       ! Num local cells + num ghost cells + 1
+     integer(ip) , allocatable             :: lst_nodes(:)
+     real(rp)    , allocatable             :: coordinates(:)
+
      integer(ip)                           :: num_vefs = -1        ! = num_local_vefs+num_ghost_vefs
+     integer(ip)                           :: num_vertices = 0
+     integer(ip)                           :: num_edges = 0
+     integer(ip)                           :: num_faces = 0
      integer(ip)                           :: num_local_vefs = -1
      integer(ip)                           :: num_ghost_vefs = -1
      integer(igp), allocatable             :: vefs_gid(:)          ! num_local_vefs + num_ghost_vefs
@@ -202,9 +247,7 @@ module base_static_triangulation_names
      integer(ip), allocatable              :: ptrs_cells_around(:) ! num_itfc_vefs+1
      integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
      
-     integer(ip)                           :: num_vertices
-     real(rp)   , allocatable              :: coordinates(:,:)
-  contains  
+ contains  
   
      ! Private methods for creating vef-related data
      procedure, non_overridable, private :: free_ptr_vefs_per_cell             => base_static_triangulation_free_ptr_vefs_per_cell
@@ -219,6 +262,11 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_cells_around                  => base_static_triangulation_free_cells_around
      procedure, non_overridable          :: generate_vefs                      => base_static_triangulation_generate_vefs
      procedure, non_overridable          :: compute_vefs_dimension             => base_static_triangulation_compute_vefs_dimension
+
+     ! Geometry interpolation
+     procedure, non_overridable          :: allocate_and_fill_coordinates      => base_static_triangulation_allocate_and_fill_coordinates
+     procedure, non_overridable          :: free_coordinates                   => base_static_triangulation_free_coordinates
+
      ! Getters
      procedure, non_overridable         :: get_num_local_vefs                  => base_static_triangulation_get_num_local_vefs
      procedure, non_overridable         :: get_num_ghost_vefs                  => base_static_triangulation_get_num_ghost_vefs
@@ -230,6 +278,9 @@ module base_static_triangulation_names
   
      ! Vef traversals-related TBPs
      procedure, non_overridable          :: create_vef_iterator                => base_static_triangulation_create_vef_iterator
+     procedure, non_overridable          :: create_vertices_iterator           => base_static_triangulation_create_vertices_iterator
+     procedure, non_overridable          :: create_edges_iterator              => base_static_triangulation_create_edges_iterator
+     procedure, non_overridable          :: create_faces_iterator              => base_static_triangulation_create_faces_iterator
      procedure, non_overridable          :: create_itfc_vef_iterator           => base_static_triangulation_create_itfc_vef_iterator
   end type base_static_triangulation_t
   

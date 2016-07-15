@@ -107,6 +107,7 @@ module mesh_names
      procedure, non_overridable :: get_sizes            => mesh_get_sizes
      procedure, non_overridable :: move_cells           => mesh_move_cells
      procedure, non_overridable :: move_coordinates     => mesh_move_coordinates
+     procedure, non_overridable :: get_coordinates      => mesh_get_coordinates
      procedure, non_overridable :: get_boundary         => mesh_get_boundary
      procedure, non_overridable :: free                 => mesh_free
      procedure, non_overridable :: read_from_unit       => mesh_read_from_unit
@@ -136,7 +137,6 @@ contains
     nelem=this%nelem  ! Number of elements
     nnode=this%nnode  ! Maximum number of nodes per element
   end subroutine mesh_get_sizes
-
   !=============================================================================
   subroutine mesh_move_cells(this,pvefs,lvefs)
     class(mesh_t)           , intent(inout) :: this
@@ -150,6 +150,12 @@ contains
     real(rp), allocatable, intent(inout) :: coord(:,:)
     call memmovealloc(this%coord,coord,__FILE__,__LINE__)
   end subroutine mesh_move_coordinates
+  !=============================================================================
+  function mesh_get_coordinates(this)
+    class(mesh_t), target, intent(inout) :: this
+    real(rp)     , pointer       :: mesh_get_coordinates(:,:)
+    mesh_get_coordinates => this%coord
+  end function mesh_get_coordinates
   !=============================================================================
   subroutine mesh_get_boundary(this,boundary,lbgeo,lbset)
     class(mesh_t), target   , intent(inout) :: this

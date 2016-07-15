@@ -37,6 +37,7 @@ module command_line_parameters_names
      character(len=:), allocatable :: default_dir_path
      character(len=:), allocatable :: default_prefix
      character(len=:), allocatable :: default_dir_path_out
+     character(len=:), allocatable :: default_order
    contains
      procedure :: set_default_params => test_triangulations_set_default_params
   end type test_triangulations_params_t
@@ -57,6 +58,7 @@ contains
     params%default_dir_path     = 'data/'
     params%default_prefix       = 'square'
     params%default_dir_path_out = 'output/'
+    params%default_order = '1'
   end subroutine test_triangulations_set_default_params
 
   !==================================================================================================
@@ -80,7 +82,10 @@ contains
     call cli%add(switch='--dir_path_out',switch_ab='-out',help='Output Directory',&
          &       required=.false.,act='store',def=trim(params%default_dir_path_out),error=error)
     check(error==0)
-    
+    call cli%add(switch='--order',switch_ab='-o',help='Geometry interpolation order',&
+         &       required=.false.,act='store',def=trim(params%default_order),error=error)
+    check(error==0)
+  
   end subroutine cli_add_params
 
 
@@ -104,7 +109,7 @@ program test_triangulations
   character(len=256)       :: dir_path, dir_path_out
   character(len=256)       :: prefix, filename
 
-  integer(ip) :: lunio, istat
+  integer(ip) :: lunio, istat, order
 
   type(Type_Command_Line_Interface):: cli 
  
@@ -113,10 +118,12 @@ program test_triangulations
   ! Read IO parameters
   call read_flap_cli_test_triangulations(cli,test_params)
  
-  ! Create triangulation reading from a mesh
+  ! Create triangulation reading from a mesh and a geometry
   call cli%get(switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
   call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
-  call triangulation%create(dir_path,prefix)
+  call cli%get(switch='-o'  ,val=order       ,error=istat); check(istat==0)
+
+  call triangulation%create(dir_path,prefix,order)
 
   !call cli%get(switch='-out',val=dir_path_out,error=istat); check(istat==0)
   !call mesh_read (dir_path, prefix, p_env, p_mesh)
