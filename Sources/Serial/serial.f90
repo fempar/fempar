@@ -35,7 +35,7 @@ module serial_names
   use postpro_names
   use environment_names
   use serial_environment_names
-  use Data_Type_Command_Line_Interface
+  use flap, only : command_line_interface
   use FPL
   use vtk_handler_names
   use error_norms_names
