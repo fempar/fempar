@@ -13,7 +13,7 @@ module command_line_parameters_names
      
      ! Number of parts in which the problem was split
      integer(ip)                       :: nparts
-     type(Type_Command_Line_Interface) :: cli
+     type(Command_Line_Interface) :: cli
   contains
      procedure :: set_default_params => par_test_reference_fe_parameters_set_default_params
      procedure :: set_cli            => par_test_reference_fe_parameters_set_cli
