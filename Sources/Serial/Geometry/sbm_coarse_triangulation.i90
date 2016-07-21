@@ -83,10 +83,10 @@
       call this%allocate_cells_mypart()
       call this%fill_local_cells_mypart()
       call this%fetch_ghost_cells_data(lst_vefs_gids, &
-                                       lst_vefs_dimension, &
                                        lst_vefs_gids_ghost_extended, &
+                                       lst_vefs_dimension, &
                                        lst_vefs_dimension_ghost_extended)
-            
+
       call this%allocate_and_fill_lst_vefs_lids(lst_vefs_gids_ghost_extended)
       
       ! Allocate + fill vefs-related data
@@ -360,10 +360,9 @@
           end       = this%ptr_vefs_per_cell(icell+1)-1
           start_buf = current
           end_buf   = current + cell_sizes(icell)-1
-          call this%cell_pack ( cell, &
+          call this%cell_pack ( cell, snd_buf(start_buf:end_buf) , &
                                 lst_vefs_gids_ghost_extended(start:end), &
-                                lst_vefs_dimension_ghost_extended(start:end), &
-                                snd_buf(start_buf:end_buf) )
+                                lst_vefs_dimension_ghost_extended(start:end) )
           current = current + cell_sizes(icell)
         end do
      end do

@@ -98,11 +98,18 @@ end elements
 *\ ------------------------------------------------------------
 *\ EDGES
 *\ ------------------------------------------------------------
-boundaries
+vefs
 *set var k=0
 *loop elems *OnlyInCond 
 *set var k=k+1
 *format "%8i %8i %8i %8i %8i %8i %8i %8i %8i %8i %8i"
-   *k *elemsNnode *elemsConec  *cond(1) *cond(2) 
+   *k *elemsNnode *elemsConec *cond(1) *cond(2) 
 *end
-end boundaries
+*set Cond Point_id *nodes
+*loop nodes *OnlyInCond 
+*set var k=k+1
+*set var numnodes=1
+*format "%8i %8i %8i %8i %8i %8i %8i %8i %8i %8i %8i"
+   *k *numnodes *NodesNum *cond(1) *cond(2) 
+*end
+end vefs

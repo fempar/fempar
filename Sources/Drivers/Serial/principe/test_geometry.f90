@@ -27,7 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module command_line_parameters_names
   use types_names
-  use Data_Type_Command_Line_Interface
+  !use Data_Type_Command_Line_Interface
+  use flap, only : command_line_interface
 # include "debug.i90"
 
   implicit none
@@ -62,7 +63,7 @@ contains
   !==================================================================================================
   subroutine cli_add_params(cli,params)
     implicit none
-    type(Type_Command_Line_Interface)    , intent(inout) :: cli
+    type(Command_Line_Interface)    , intent(inout) :: cli
     type(test_geometry_params_t)          , intent(in)    :: params
     !class(test_geometry_parallel_params_t), intent(inout) :: params
     ! Locals
@@ -94,7 +95,8 @@ program test_geometry
   use sisl_names
   use geometry_names
   use serial_names
-  use Data_Type_Command_Line_Interface
+  !use Data_Type_Command_Line_Interface
+  use flap, only : command_line_interface
   use command_line_parameters_names
   implicit none
   type(geometry_t)      :: geometry
@@ -104,7 +106,7 @@ program test_geometry
   character(len=256)       :: dir_path, dir_path_out
   character(len=256)       :: prefix, filename
   integer(ip) :: lunio, istat
-  type(Type_Command_Line_Interface):: cli 
+  type(Command_Line_Interface):: cli 
   type(test_geometry_params_t)     :: test_params
 
   call meminit
@@ -146,11 +148,11 @@ contains
 
   !==================================================================================================
   subroutine read_flap_cli_test_geometry(cli,test_params)
-    use Data_Type_Command_Line_Interface
+    !use Data_Type_Command_Line_Interface
     use command_line_parameters_names
     use serial_names
     implicit none
-    type(Type_Command_Line_Interface) , intent(out)   :: cli
+    type(Command_Line_Interface) , intent(out)   :: cli
     type(test_geometry_params_t), intent(inout) :: test_params
     
     ! Locals

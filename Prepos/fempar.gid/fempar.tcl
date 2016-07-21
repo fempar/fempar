@@ -30,3 +30,6 @@ proc AfterCreateSurface { num } {
 proc AfterCreateVolume { num } { 
      GiD_AssignData condition Volume_id volumes {0 0} $num
 }
+proc BeforeRunCalculation { batfilename basename dir problemtypedir gidexe args } { 
+    GiD_Process Mescape Files WriteAscii $basename.txt
+} 

@@ -27,7 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module command_line_parameters_names
   use types_names
-  use Data_Type_Command_Line_Interface
+  !use Data_Type_Command_Line_Interface
+  use FLAP
 # include "debug.i90"
 
   implicit none
@@ -64,7 +65,7 @@ contains
   !==================================================================================================
   subroutine cli_add_params(cli,params)
     implicit none
-    type(Type_Command_Line_Interface)    , intent(inout) :: cli
+    type(Command_Line_Interface)    , intent(inout) :: cli
     type(test_triangulations_params_t)          , intent(in)    :: params
     !class(test_triangulations_parallel_params_t), intent(inout) :: params
     ! Locals
@@ -96,7 +97,7 @@ end module command_line_parameters_names
 
 program test_triangulations
   use serial_names
-  use Data_Type_Command_Line_Interface
+  !use Data_Type_Command_Line_Interface
   use command_line_parameters_names
   
   implicit none
@@ -111,7 +112,7 @@ program test_triangulations
 
   integer(ip) :: lunio, istat, order
 
-  type(Type_Command_Line_Interface):: cli 
+  type(Command_Line_Interface):: cli 
  
   call meminit
 
@@ -154,11 +155,11 @@ contains
 
   !==================================================================================================
   subroutine read_flap_cli_test_triangulations(cli,test_params)
-    use Data_Type_Command_Line_Interface
+    !use Data_Type_Command_Line_Interface
     use command_line_parameters_names
     use serial_names
     implicit none
-    type(Type_Command_Line_Interface), intent(out)   :: cli
+    type(Command_Line_Interface), intent(out)   :: cli
     type(test_triangulations_params_t)      , intent(inout) :: test_params
     
     ! Locals
