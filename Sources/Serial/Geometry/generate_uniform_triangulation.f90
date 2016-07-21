@@ -35,7 +35,7 @@ module generate_uniform_triangulation_names
   use mesh_distribution_names
   use materials_names
   use map_names
-  use Data_Type_Command_Line_Interface
+  use flap, only : command_line_interface
   use FPL
   implicit none
 # include "debug.i90"
