@@ -114,6 +114,7 @@
   call fe_space%create_global_fe_function(fe_values)
   nsi_iss_oss_integration%fe_values => fe_values
   dof_values => fe_values%get_dof_values()
+  call dof_values%init(0.0_rp)
   ! Fill problem parameters
   call nsi_iss_oss_integration%create(params)
   ! Update initial boundary conditions

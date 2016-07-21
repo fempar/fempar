@@ -210,6 +210,7 @@ module base_sparse_matrix_names
      procedure         :: append_single_value_body         => base_sparse_matrix_append_single_value_body
      procedure         :: is_valid_sign                    => base_sparse_matrix_is_valid_sign
      procedure         :: apply_body                       => base_sparse_matrix_apply_body
+     procedure         :: apply_transpose_body             => base_sparse_matrix_apply_transpose_body
      procedure         :: apply_to_dense_matrix_body       => base_sparse_matrix_apply_to_dense_matrix_body
      procedure         :: apply_transpose_to_dense_matrix_body => base_sparse_matrix_apply_transpose_to_dense_matrix_body
      procedure, public :: is_symbolic                      => base_sparse_matrix_is_symbolic
@@ -259,6 +260,7 @@ module base_sparse_matrix_names
      procedure, public :: allocate_values                  => base_sparse_matrix_allocate_values
      procedure, public :: convert_body                     => base_sparse_matrix_convert_body
      procedure, public :: apply                            => base_sparse_matrix_apply
+     procedure, public :: apply_transpose                  => base_sparse_matrix_apply_transpose
      procedure, public :: apply_to_dense_matrix            => base_sparse_matrix_apply_to_dense_matrix
      procedure, public :: apply_transpose_to_dense_matrix  => base_sparse_matrix_apply_transpose_to_dense_matrix
      procedure, public :: print_matrix_market              => base_sparse_matrix_print_matrix_market
@@ -2362,6 +2364,7 @@ contains
         end if  
     end subroutine base_sparse_matrix_allocate_values
 
+
     subroutine base_sparse_matrix_apply(op, x, y)
     !-----------------------------------------------------------------
     !< Matrix vector product
@@ -2386,6 +2389,32 @@ contains
     !-----------------------------------------------------------------
         check(.false.)
     end subroutine base_sparse_matrix_apply_body
+
+
+    subroutine base_sparse_matrix_apply_transpose(op, x, y)
+    !-----------------------------------------------------------------
+    !< Matrix vector product
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in)    :: op
+        class(vector_t),             intent(in)    :: x
+        class(vector_t),             intent(inout) :: y
+    !-----------------------------------------------------------------
+        assert(op%state == SPARSE_MATRIX_STATE_ASSEMBLED)
+        call op%apply_transpose_body(x, y)
+    end subroutine base_sparse_matrix_apply_transpose
+
+
+    subroutine base_sparse_matrix_apply_transpose_body(op, x, y)
+    !-----------------------------------------------------------------
+    !< Allocate arrays
+    !< Must be overloaded 
+    !-----------------------------------------------------------------
+        class(base_sparse_matrix_t), intent(in)    :: op
+        class(vector_t),             intent(in)    :: x
+        class(vector_t),             intent(inout) :: y
+    !-----------------------------------------------------------------
+        check(.false.)
+    end subroutine base_sparse_matrix_apply_transpose_body
 
 
     subroutine base_sparse_matrix_apply_to_dense_matrix(op, n, alpha, LDB, b, beta, LDC, c) 
@@ -2904,7 +2933,6 @@ contains
             newsize = max(newnnz, int(1.5*size(this%ia)))
             call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
             call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%val, __FILE__, __LINE__)
         endif
         ! Append the new entries
         do i=1, nz
@@ -3151,7 +3179,6 @@ contains
             newsize = max(newnnz, int(1.5*size(this%ia)))
             call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
             call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
-            call memrealloc(newsize, this%val, __FILE__, __LINE__)
         endif
         ! Append the new entries
         if(ia<imin .or. ia>imax .or. ja<jmin .or. ja>jmax .or.             & ! Check imposed bounds

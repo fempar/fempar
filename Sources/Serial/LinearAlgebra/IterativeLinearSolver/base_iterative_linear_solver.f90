@@ -283,6 +283,7 @@ contains
      
      call A%GuardTemp()
      call M%GuardTemp()
+     
      A_domain => A%get_domain_vector_space()
      A_range  => A%get_range_vector_space()
      M_domain => M%get_domain_vector_space()
@@ -294,8 +295,9 @@ contains
        write(0,'(a)') 'base_iterative_linear_solver_t%set_operators :: range(A)/=range(M)' 
        write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: operators could not be set' 
      else
-       this%A = A%get_tangent()
-       this%M = M
+     
+       this%A = A%get_tangent()       
+       this%M = M   
        if ( this%state == start ) then
          call A_range%create_vector(this%initial_solution)
          call this%initial_solution%init(0.0_rp)

@@ -179,6 +179,10 @@ module serial_fe_space_names
      procedure, non_overridable :: get_face_integrator => finite_face_get_face_integrator
      procedure, non_overridable :: get_relative_orientation => finite_face_get_relative_orientation
      procedure, non_overridable :: get_relative_rotation => finite_face_get_relative_rotation
+     procedure, non_overridable :: get_finite_element  => finite_face_get_finite_element
+     procedure, non_overridable :: get_neighbour_id    => finite_face_get_neighbour_id
+     procedure, non_overridable :: impose_strong_dirichlet_bcs => finite_face_impose_strong_dirichlet_bcs
+     procedure, non_overridable :: compute_surface     => finite_face_compute_surface
   end type finite_face_t
 
   public :: finite_face_t
@@ -473,12 +477,13 @@ module serial_fe_space_names
      procedure, non_overridable                 :: get_total_number_interface_dofs                 => coarse_fe_space_get_total_number_interface_dofs
      procedure, non_overridable                 :: get_block_number_interior_dofs                  => coarse_fe_space_get_block_number_interior_dofs
      procedure, non_overridable                 :: get_block_number_interface_dofs                 => coarse_fe_space_get_block_number_interface_dofs
+     procedure, non_overridable                 :: get_number_coarse_fe_objects                    => coarse_fe_space_get_number_coarse_fe_objects
      procedure, non_overridable                 :: get_block_dof_import                            => coarse_fe_space_get_block_dof_import
      procedure, non_overridable                 :: get_triangulation                               => coarse_fe_space_get_triangulation
      procedure, non_overridable                 :: get_par_environment                             => coarse_fe_space_get_par_environment
  end type coarse_fe_space_t
  
- public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_accessor_t
+ public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_accessor_t, coarse_fe_object_accessor_t
   
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.

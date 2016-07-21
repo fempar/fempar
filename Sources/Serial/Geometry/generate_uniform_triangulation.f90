@@ -34,7 +34,8 @@ module generate_uniform_triangulation_names
   use triangulation_names
   use mesh_distribution_names
   use materials_names
-  use Data_Type_Command_Line_Interface
+  use map_names
+  use flap, only : command_line_interface
   use FPL
   implicit none
   private
@@ -156,6 +157,8 @@ module generate_uniform_triangulation_names
   interface uniform_mesh_descriptor_create
      module procedure uniform_mesh_descriptor_create_from_cli,uniform_mesh_descriptor_create_without_cli
   end interface uniform_mesh_descriptor_create
+  
+  public :: uniform_mesh_descriptor_create, uniform_conditions_descriptor_create, uniform_conditions_descriptor_free
 
   ! Types
   public :: uniform_mesh_descriptor_t, uniform_conditions_descriptor_t

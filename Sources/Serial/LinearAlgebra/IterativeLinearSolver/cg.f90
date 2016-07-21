@@ -162,7 +162,7 @@ contains
 
     ! 1.b) r=b-r
     call this%r%axpby(1.0, b ,-1.0)
-
+    
     ! 2) z=inv(M)r
     call M%apply(this%r,this%z)
 

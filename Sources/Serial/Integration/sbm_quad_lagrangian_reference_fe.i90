@@ -2251,7 +2251,7 @@ subroutine face_interpolation_shape_fill (this,face_interpolation,local_quadratu
   integer(ip)              :: order_of_approximation
   type(quad_lagrangian_reference_fe_t) :: face_reference_fe, reference_fe_1D
 
-  write(*,*) __FILE__,__LINE__,'Creation of 2 reference_FE!!'
+ ! write(*,*) __FILE__,__LINE__,'Creation of 2 reference_FE!!'
 
   ! Create a 1D interpolation evaluated on the corners
   call nodal_coordinates_1D%create(1,2)

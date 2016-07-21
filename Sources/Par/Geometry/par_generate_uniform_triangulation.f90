@@ -220,18 +220,13 @@ contains
              end do
           end do
        end do
-
        call hash%free
-
        call par_triangulation_to_dual ( p_trian )
-
        ! Deallocate
        call mesh_distribution_free(mdist)
-
        p_trian%state = par_triangulation_filled
-
     end if
-    
+    call p_trian%setup_coarse_triangulation()
   end subroutine par_generate_uniform_triangulation
 
 end module par_generate_uniform_triangulation_names

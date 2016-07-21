@@ -206,7 +206,7 @@ contains
     end do
     this%rcv_ptrs(1) = 1
     
-    call this%print(6)
+    !call this%print(6)
     
   end subroutine dof_import_create
 

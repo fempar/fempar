@@ -155,3 +155,66 @@ function finite_face_get_relative_rotation(this)
   integer(ip) :: finite_face_get_relative_rotation
   finite_face_get_relative_rotation = this%face_topology%get_relative_rotation()
 end function finite_face_get_relative_rotation
+
+!==================================================================================================
+function finite_face_get_finite_element(this,i)
+  implicit none
+  class(finite_face_t), target, intent(in) :: this
+  integer(ip)                 , intent(in) :: i
+  type(finite_element_t)      , pointer    :: finite_face_get_finite_element
+  finite_face_get_finite_element => this%neighbour_fe(i)%p
+end function finite_face_get_finite_element
+
+!==================================================================================================
+function finite_face_get_neighbour_id(this,i)
+  implicit none
+  class(finite_face_t), target, intent(in) :: this
+  integer(ip)                 , intent(in) :: i
+  integer(ip)                              :: finite_face_get_neighbour_id
+  finite_face_get_neighbour_id = this%face_topology%neighbour_elems_id(i)
+end function finite_face_get_neighbour_id
+
+!==================================================================================================
+subroutine finite_face_impose_strong_dirichlet_bcs ( this, facemat, facevec )
+ implicit none
+ class(finite_face_t), intent(in)    :: this
+ real(rp)            , intent(in)    :: facemat(:,:,:,:)
+ real(rp)            , intent(inout) :: facevec(:,:)  
+ integer(ip)                         :: inode,ineigh,jneigh, elmat_col, fe_space_id
+ real(rp), pointer :: strong_dirichlet_values_entries(:)
+ type(finite_element_t), pointer :: fe
+
+ do ineigh = 1,this%number_neighbours()
+    do jneigh = 1,this%number_neighbours()
+       fe => this%get_finite_element(jneigh)
+       strong_dirichlet_values_entries => fe%strong_dirichlet_values%get_entries()
+       elmat_col = 0
+       do fe_space_id = 1, this%number_fe_spaces
+          do inode = 1, fe%reference_fe_phy(fe_space_id)%p%get_number_nodes()
+             elmat_col = elmat_col + 1
+             if ( fe%elem2dof(fe_space_id)%p(inode) < 0 ) then
+                facevec(:,ineigh) = facevec(:,ineigh) - &
+                     facemat(:,elmat_col,ineigh,jneigh)*strong_dirichlet_values_entries(-fe%elem2dof(fe_space_id)%p(inode))
+             end if
+          end do
+       end do
+    end do
+ end do
+ 
+end subroutine finite_face_impose_strong_dirichlet_bcs
+
+!==================================================================================================
+function finite_face_compute_surface ( this )
+  implicit none
+  class(finite_face_t), intent(in) :: this
+  real(rp)                         :: finite_face_compute_surface
+  integer(ip) :: qpoin,number_quadrature_points
+
+  number_quadrature_points = this%quadrature%get_number_quadrature_points()
+  finite_face_compute_surface = 0.0_rp
+  do qpoin = 1, number_quadrature_points
+     finite_face_compute_surface = finite_face_compute_surface + &
+          &                        this%map%get_det_jacobian(qpoin) * &
+          &                        this%quadrature%get_weight(qpoin)
+  end do
+end function finite_face_compute_surface

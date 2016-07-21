@@ -292,9 +292,9 @@ module base_static_triangulation_names
     procedure                   :: object_accessor_create
     generic                     :: create                         => object_accessor_create
     procedure                   :: free                           => object_accessor_free
-    procedure, non_overridable  :: next                           => object_accessor_next
-    procedure, non_overridable  :: set_lid                        => object_accessor_set_lid
-    procedure, non_overridable  :: past_the_end                   => object_accessor_past_the_end
+    procedure                   :: next                           => object_accessor_next
+    procedure                   :: set_lid                        => object_accessor_set_lid
+    procedure                   :: past_the_end                   => object_accessor_past_the_end
     procedure, non_overridable  :: get_lid                        => object_accessor_get_lid
     procedure, non_overridable  :: get_gid                        => object_accessor_get_gid
     procedure, non_overridable  :: get_number_parts_around        => object_accessor_get_number_parts_around
@@ -401,6 +401,9 @@ module base_static_triangulation_names
      ! Objects-related traversals
      procedure, non_overridable          :: create_object_iterator                        => par_base_static_tria_create_object_iterator
      procedure, non_overridable          :: create_vefs_on_object_iterator                => par_base_static_tria_create_vefs_on_object_iterator
+     
+     ! Getters
+     procedure, non_overridable          :: get_number_objects                            => par_base_static_tria_get_number_objects
   end type par_base_static_triangulation_t
   
   type, extends(base_static_triangulation_t) :: serial_triangulation_t
