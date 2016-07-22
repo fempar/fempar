@@ -92,6 +92,7 @@
       ! Allocate + fill vefs-related data
       call this%compute_num_local_vefs()
       call this%compute_num_ghost_vefs()
+      this%num_vefs = this%get_num_local_vefs() + this%get_num_ghost_vefs()
 
       call this%allocate_and_fill_vefs_gid(lst_vefs_gids_ghost_extended)
       call this%allocate_and_fill_vefs_dimension(lst_vefs_dimension_ghost_extended)
