@@ -26,8 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_command_line_parameters_names
-  use types_names
-  use Data_Type_Command_Line_Interface
+  use serial_names
 # include "debug.i90"
 
   implicit none
@@ -50,7 +49,6 @@ module par_command_line_parameters_names
 contains
 
   subroutine par_test_triangulations_set_par_default_params(params)
-    use serial_names
     implicit none
     class(par_test_triangulations_params_t), intent(inout) :: params
     ! IO parameters
@@ -62,8 +60,8 @@ contains
   !==================================================================================================
   subroutine cli_add_par_params(cli,params)
     implicit none
-    type(Type_Command_Line_Interface)    , intent(inout) :: cli
-    type(par_test_triangulations_params_t)          , intent(in)    :: params
+    type(Command_Line_Interface)          , intent(inout) :: cli
+    type(par_test_triangulations_params_t), intent(in)    :: params
     !class(par_test_triangulations_parallel_params_t), intent(inout) :: par_params
     ! Locals
     integer(ip) :: error
@@ -92,11 +90,7 @@ end module par_command_line_parameters_names
 program par_test_triangulations
   use serial_names
   use par_names
-  !use JP_par_triangulation_names
-  !use JP_par_mesh_to_triangulation_names
-  use Data_Type_Command_Line_Interface
   use par_command_line_parameters_names
-  use mpi
   
   implicit none
 #include "debug.i90"
@@ -112,7 +106,7 @@ program par_test_triangulations
 
   integer(ip) :: lunio, istat
 
-  type(Type_Command_Line_Interface):: cli 
+  type(Command_Line_Interface):: cli 
  
   call meminit
 
@@ -149,7 +143,7 @@ program par_test_triangulations
   !call p_trian%free()
   !call par_conditions_free ( p_cond )
   !call par_mesh_free (p_mesh)
-
+  call cli%free()
   call p_env%free() 
   call w_context%free(.true.) ! par_context_free ( p_context, .false. )
   call memstatus
@@ -158,16 +152,15 @@ contains
 
   !==================================================================================================
   subroutine read_flap_cli_par_test_triangulations(cli,test_params)
-    use Data_Type_Command_Line_Interface
-    use par_command_line_parameters_names
-    use serial_names
     implicit none
-    type(Type_Command_Line_Interface), intent(out)   :: cli
-    type(par_test_triangulations_params_t)      , intent(inout) :: test_params
+    type(Command_Line_Interface)            , intent(inout)   :: cli
+    type(par_test_triangulations_params_t)  , intent(inout) :: test_params
     
     ! Locals
     integer(ip)                 :: istat
 
+    call cli%free()
+    
     ! Initialize Command Line Interface
     call cli%init(progname    = 'par_test_triangulations',                                                     &
          &        version     = '',                                                                 &

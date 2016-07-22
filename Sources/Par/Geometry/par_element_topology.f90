@@ -44,8 +44,7 @@ module par_element_topology_names
   private
 
   type, extends(cell_t) :: par_element_topology_t
-     !integer(ip)  :: interface  = -1           ! The boundary number ieboun (if this element is a interface element)
-     integer(ip)  :: interface  = -1
+     integer(ip)  :: interface  = -1           ! The boundary number ieboun (if this element is a interface element)
      integer(ip)  :: mypart     = -1           ! To which part this element is mapped to ?
      integer(igp) :: globalID   = -1           ! Global ID of this element
                                                ! Local ID is given by the element_set
@@ -98,7 +97,7 @@ contains
 
     call this%cell_t%create()
     assert(.not.allocated(this%vefs_GIDs))
-    this%interface   = .false.
+    this%interface   = -1
     this%mypart      = -1
     this%globalID    = -1
   end subroutine par_element_topology_create
@@ -112,7 +111,7 @@ contains
     if (allocated(this%vefs_GIDs)) then
        call memfree(this%vefs_GIDs, __FILE__, __LINE__)
     end if
-    this%interface = .false.
+    this%interface = -1
     this%mypart = -1 
   end subroutine par_element_topology_free
   

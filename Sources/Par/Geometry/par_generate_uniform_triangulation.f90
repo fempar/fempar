@@ -222,8 +222,7 @@ contains
        end do
        call hash%free
        call par_triangulation_to_dual ( p_trian )
-       ! Deallocate
-       call mesh_distribution_free(mdist)
+       call mdist%free()
        p_trian%state = par_triangulation_filled
     end if
     call p_trian%setup_coarse_triangulation()
