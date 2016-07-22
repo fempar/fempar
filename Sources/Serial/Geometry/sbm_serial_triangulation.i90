@@ -121,7 +121,7 @@
     write (*,'(a)') '**** Cells ****'
     cell_iterator = this%create_cell_iterator()
     do while ( .not. cell_iterator%has_finished() )
-       cell = cell_iterator%current()
+       call cell_iterator%current(cell)
        write(*,'(a,i10,a)') '**** cell: ', cell%get_lid(),'****'
        write (*,'(a,i10)'  ) 'num_vefs :', cell%get_num_vefs()
        write (*,'(a)') 'vefs_lid:' 

@@ -33,7 +33,7 @@ subroutine coarse_fe_vefs_on_object_iterator_create ( this, lid, coarse_fe_space
   type(vef_accessor_t)                                      :: vef
   call this%free()
   this%vefs_on_object_iterator = coarse_fe_space%coarse_triangulation%create_vefs_on_object_iterator(lid)
-  vef = this%vefs_on_object_iterator%current()
+  call this%vefs_on_object_iterator%current(vef)
   call this%current_coarse_fe_vef_accessor%create(vef%get_lid(), coarse_fe_space )
 end subroutine coarse_fe_vefs_on_object_iterator_create
 
@@ -49,7 +49,7 @@ subroutine coarse_fe_vefs_on_object_iterator_init ( this )
   class(coarse_fe_vefs_on_object_iterator_t), intent(inout) :: this
   type(vef_accessor_t)                                      :: vef
   call this%vefs_on_object_iterator%init()
-  vef = this%vefs_on_object_iterator%current()
+  call this%vefs_on_object_iterator%current(vef)
   call this%current_coarse_fe_vef_accessor%set_lid( vef%get_lid() )
 end subroutine coarse_fe_vefs_on_object_iterator_init
 
@@ -58,7 +58,7 @@ subroutine coarse_fe_vefs_on_object_iterator_next ( this )
   class(coarse_fe_vefs_on_object_iterator_t), intent(inout) :: this
   type(vef_accessor_t)                                      :: vef
   call this%vefs_on_object_iterator%next()
-  vef = this%vefs_on_object_iterator%current()
+  call this%vefs_on_object_iterator%current(vef)
   call this%current_coarse_fe_vef_accessor%set_lid( vef%get_lid() )
 end subroutine coarse_fe_vefs_on_object_iterator_next
 

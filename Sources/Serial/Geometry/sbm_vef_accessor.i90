@@ -141,23 +141,23 @@ function vef_accessor_get_cell_around_interface_vef (this, icell_around)
   call vef_accessor_get_cell_around_interface_vef%create(icell,this%base_static_triangulation)
 end function vef_accessor_get_cell_around_interface_vef
 
-function vef_accessor_get_cell_around (this, icell_around)
+subroutine vef_accessor_get_cell_around (this, icell_around, cell)
   implicit none
-  class(vef_accessor_t), intent(in) :: this
-  integer(ip)          , intent(in) :: icell_around
-  !type(cell_iterator_t)             :: vef_accessor_get_cell_around
-  type(cell_accessor_t)             :: vef_accessor_get_cell_around
-  integer(ip)                       :: position_in_lst_cells_around
-  integer(ip)                       :: icell 
+  class(vef_accessor_t), intent(in)     :: this
+  integer(ip)          , intent(in)    :: icell_around
+  !type(cell_iterator_t)               :: vef_accessor_get_cell_around
+  type(cell_accessor_t), intent(inout) :: cell
+  integer(ip)                          :: position_in_lst_cells_around
+  integer(ip)                          :: icell 
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
   assert ( icell_around >= 1 .and. icell_around <= this%get_num_cells_around() )
   !write(*,*) 'vef_accessor_get_cell_around:: this%lid, icell_around',this%lid, icell_around
   position_in_lst_cells_around = this%base_static_triangulation%ptrs_cells_around(this%lid) + icell_around-1
   icell = this%base_static_triangulation%lst_cells_around(position_in_lst_cells_around)
   !write(*,*) 'vef_accessor_get_cell_around:: icell',icell
-  call vef_accessor_get_cell_around%create(icell,this%base_static_triangulation)
+  call cell%create(icell,this%base_static_triangulation)
   !write(*,*) 'vef_accessor_get_cell_around:: end'
-end function vef_accessor_get_cell_around
+end subroutine vef_accessor_get_cell_around
 
 function vef_accessor_is_local (this)
   implicit none
@@ -185,7 +185,7 @@ subroutine vef_accessor_get_vertices(this,vertices)
   type(list_t), pointer             :: vertices_per_vef
   integer(ip) ::  ivef, cell_num_vefs, cell_type,num_vertices, istat
 
-  cell = this%get_cell_around (1) ! there is always one element around
+  call this%get_cell_around (1, cell) ! there is always one element around
   ivef = cell%find_lpos_vef_lid(this%get_lid())
   cell_num_vefs = cell%get_num_vefs()
   call this%base_static_triangulation%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)

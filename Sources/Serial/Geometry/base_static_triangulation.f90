@@ -68,6 +68,7 @@ module base_static_triangulation_names
     procedure, non_overridable, private  :: set_gid              => cell_accessor_set_gid
     procedure, non_overridable, private  :: set_mypart           => cell_accessor_set_mypart
     procedure, non_overridable, private  :: get_triangulation    => cell_accessor_get_triangulation
+    procedure, non_overridable, private  ::                         cell_accessor_get_vef
     procedure, non_overridable           :: past_the_end         => cell_accessor_past_the_end
     procedure, non_overridable           :: get_reference_fe_geo => cell_accessor_get_reference_fe_geo
     procedure, non_overridable           :: get_lid              => cell_accessor_get_lid
@@ -80,7 +81,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_vef_gid          => cell_accessor_get_vef_gid
     procedure, non_overridable           :: find_lpos_vef_lid    => cell_accessor_find_lpos_vef_lid
     procedure, non_overridable           :: find_lpos_vef_gid    => cell_accessor_find_lpos_vef_gid
-    procedure, non_overridable           :: get_vef              => cell_accessor_get_vef
+    generic                              :: get_vef              => cell_accessor_get_vef
     procedure, non_overridable           :: is_local             => cell_accessor_is_local
     procedure, non_overridable           :: is_ghost             => cell_accessor_is_ghost
     procedure, non_overridable           :: scan_sum_number_vefs => cell_accessor_get_scan_sum_number_vefs
@@ -90,12 +91,13 @@ module base_static_triangulation_names
     private
     type(cell_accessor_t) :: current_cell_accessor
   contains
+     procedure, non_overridable, private ::                 cell_iterator_current
      procedure, non_overridable, private :: create       => cell_iterator_create
      procedure, non_overridable          :: free         => cell_iterator_free
      procedure, non_overridable          :: init         => cell_iterator_init
      procedure, non_overridable          :: next         => cell_iterator_next
      procedure, non_overridable          :: has_finished => cell_iterator_has_finished
-     procedure, non_overridable          :: current      => cell_iterator_current
+     generic                             :: current      => cell_iterator_current
   end type cell_iterator_t  
   
   type vef_accessor_t
@@ -106,6 +108,7 @@ module base_static_triangulation_names
      ! create/free/next/set_lid/past_the_end/get_triangulation CANNOT longer be private as 
      ! type(coarse_fe_vef_accessor_t) extends type(vef_accessor_t), requires to call these TBPs
      procedure                           :: vef_accessor_create
+     procedure, non_overridable          :: vef_accessor_get_cell_around
      generic                             :: create => vef_accessor_create
      procedure                           :: free                      => vef_accessor_free
      procedure, non_overridable          :: next                      => vef_accessor_next
@@ -120,7 +123,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_dimension             => vef_accessor_get_dimension
      procedure, non_overridable          :: get_num_cells_around           => vef_accessor_get_num_cells_around
      procedure, non_overridable          :: get_num_interface_cells_around => vef_accessor_get_num_cells_around_interface_vef
-     procedure, non_overridable          :: get_cell_around                => vef_accessor_get_cell_around
+     generic                             :: get_cell_around                => vef_accessor_get_cell_around
      procedure, non_overridable          :: get_interface_cell_around      => vef_accessor_get_cell_around_interface_vef
      procedure, non_overridable          :: get_vertices                   => vef_accessor_get_vertices
   end type vef_accessor_t
@@ -135,12 +138,13 @@ module base_static_triangulation_names
     private
     type(vef_accessor_t) :: current_vef_accessor
   contains
+     procedure, non_overridable, private ::                 vef_iterator_current
      procedure, non_overridable          :: create       => vef_iterator_create
      procedure, non_overridable          :: free         => vef_iterator_free
-     procedure          :: init         => vef_iterator_init
-     procedure          :: next         => vef_iterator_next
+     procedure                           :: init         => vef_iterator_init
+     procedure                           :: next         => vef_iterator_next
      procedure, non_overridable          :: has_finished => vef_iterator_has_finished
-     procedure, non_overridable          :: current      => vef_iterator_current
+     generic                             :: current      => vef_iterator_current
   end type vef_iterator_t
   
   type :: itfc_vef_iterator_t
@@ -148,12 +152,13 @@ module base_static_triangulation_names
     integer(ip)          :: itfc_lid = -1
     type(vef_accessor_t) :: current_vef_accessor
   contains
+    procedure, non_overridable, private ::                 itfc_vef_iterator_current
     procedure, non_overridable          :: create       => itfc_vef_iterator_create
     procedure, non_overridable          :: free         => itfc_vef_iterator_free
     procedure, non_overridable          :: init         => itfc_vef_iterator_init
     procedure, non_overridable          :: next         => itfc_vef_iterator_next
     procedure, non_overridable          :: has_finished => itfc_vef_iterator_has_finished
-    procedure, non_overridable          :: current      => itfc_vef_iterator_current
+    generic                             :: current      => itfc_vef_iterator_current
   end type itfc_vef_iterator_t
 
   type, extends(vef_iterator_t) :: vertices_iterator_t
@@ -307,12 +312,13 @@ module base_static_triangulation_names
     private
     type(object_accessor_t) :: current_object_accessor
   contains
+     procedure, non_overridable, private ::                 object_iterator_current
      procedure, non_overridable          :: create       => object_iterator_create
      procedure, non_overridable          :: free         => object_iterator_free
      procedure, non_overridable          :: init         => object_iterator_init
      procedure, non_overridable          :: next         => object_iterator_next
      procedure, non_overridable          :: has_finished => object_iterator_has_finished
-     procedure, non_overridable          :: current      => object_iterator_current
+     generic                             :: current      => object_iterator_current
   end type object_iterator_t
   
   type :: vefs_on_object_iterator_t
@@ -320,12 +326,13 @@ module base_static_triangulation_names
     type(list_iterator_t) :: vefs_lids_on_object_iterator
     type(vef_accessor_t)  :: current_vef_accessor
   contains
+    procedure, non_overridable, private ::                 vefs_on_object_iterator_current
     procedure, non_overridable          :: create       => vefs_on_object_iterator_create
     procedure, non_overridable          :: free         => vefs_on_object_iterator_free
     procedure, non_overridable          :: init         => vefs_on_object_iterator_init
     procedure, non_overridable          :: next         => vefs_on_object_iterator_next
     procedure, non_overridable          :: has_finished => vefs_on_object_iterator_has_finished
-    procedure, non_overridable          :: current      => vefs_on_object_iterator_current
+    generic                             :: current      => vefs_on_object_iterator_current
   end type vefs_on_object_iterator_t
   
   

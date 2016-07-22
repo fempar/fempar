@@ -251,7 +251,7 @@ subroutine par_triangulation_compute_num_itfc_vefs ( this )
   ! Traverse local ghost elements (all interface vefs are there)
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-     cell = cell_iterator%current()
+     call cell_iterator%current(cell)
      if ( cell%is_ghost() ) then
         do ivef=1, cell%get_num_vefs()
            vef_lid = cell%get_vef_lid(ivef)
@@ -259,7 +259,7 @@ subroutine par_triangulation_compute_num_itfc_vefs ( this )
            call ivef_accessor%create(vef_lid,this)
            !write(*,*) 'Created with ID:',ivef_accessor%lid,'from:',vef_lid
            loop_around: do icell = 1, ivef_accessor%get_num_cells_around()
-              cell_around = ivef_accessor%get_cell_around(icell)
+              call ivef_accessor%get_cell_around(icell, cell_around)
               if(.not.cell_around%is_ghost()) then
                  call visited_vefs%put(key=vef_lid, val=1, stat=istat)
                  if ( istat == now_stored ) then
@@ -297,14 +297,14 @@ subroutine par_triangulation_allocate_and_fill_lst_itfc_vefs( this )
   ! Traverse local ghost elements (all interface vefs are there)
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-     cell = cell_iterator%current()
+     call cell_iterator%current(cell)
      if ( cell%is_ghost() ) then
         do ivef=1, cell%get_num_vefs()
            vef_lid = cell%get_vef_lid(ivef)
            ! Traverse elements around
            call ivef_accessor%create(vef_lid,this)
            loop_around: do icell = 1, ivef_accessor%get_num_cells_around()
-              cell_around = ivef_accessor%get_cell_around(icell)
+              call ivef_accessor%get_cell_around(icell, cell_around)
               if(.not.cell_around%is_ghost()) then
                  call visited_vefs%put(key=vef_lid, val=1, stat=istat)
                  if ( istat == now_stored ) then

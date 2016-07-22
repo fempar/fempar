@@ -59,9 +59,9 @@ function object_iterator_has_finished ( this )
   object_iterator_has_finished = this%current_object_accessor%past_the_end()
 end function object_iterator_has_finished
 
-function object_iterator_current ( this ) 
+subroutine object_iterator_current ( this, current ) 
   implicit none
-  class(object_iterator_t), target, intent(in) :: this
-  type(object_accessor_t) :: object_iterator_current
-  object_iterator_current = this%current_object_accessor
-end function object_iterator_current
+  class(object_iterator_t), target, intent(in)    :: this
+  type(object_accessor_t),          intent(inout) :: current
+  current = this%current_object_accessor
+end subroutine object_iterator_current

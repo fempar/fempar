@@ -39,7 +39,7 @@ subroutine par_base_static_tria_compute_num_local_vefs ( this )
 
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-     cell = cell_iterator%current()
+     call cell_iterator%current(cell)
      if ( cell%is_local() ) then
         do ivef=1, cell%get_num_vefs()
            vef_lid = cell%get_vef_lid(ivef)
@@ -66,7 +66,7 @@ subroutine par_base_static_tria_compute_num_ghost_vefs ( this )
 
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-     cell = cell_iterator%current()
+     call cell_iterator%current(cell)
      if ( cell%is_ghost() ) then
         do ivef=1, cell%get_num_vefs()
            vef_lid = cell%get_vef_lid(ivef)
@@ -220,7 +220,7 @@ subroutine par_bst_allocate_and_fill_cells_around_interface_vefs ( this )
 
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
-    cell = cell_iterator%current()
+    call cell_iterator%current(cell)
     do ivef=1, cell%get_num_vefs()
       vef_lid = cell%get_vef_lid(ivef)
       vef_itfc_lid = this%vefs_itfc_lid(vef_lid)
@@ -240,7 +240,7 @@ subroutine par_bst_allocate_and_fill_cells_around_interface_vefs ( this )
 
   call cell_iterator%init()
   do while ( .not. cell_iterator%has_finished() )
-    cell = cell_iterator%current()
+    call cell_iterator%current(cell)
     do ivef=1, cell%get_num_vefs()
        vef_lid = cell%get_vef_lid(ivef)
        vef_itfc_lid = this%vefs_itfc_lid(vef_lid)
@@ -316,7 +316,7 @@ end subroutine par_bst_allocate_and_fill_cells_around_interface_vefs
       
       cell_iterator = this%create_cell_iterator()
       do while ( .not. cell_iterator%has_finished() )
-        cell = cell_iterator%current()
+        call cell_iterator%current(cell)
         write(*,'(a,i10,a)') '**** cell: ', cell%get_lid(),'****'
         write(*,'(a,l10)') 'is_ghost  : ', cell%is_ghost()
         write (*,'(a,i10)'  ) 'gid      :', cell%get_gid()
@@ -335,7 +335,7 @@ end subroutine par_bst_allocate_and_fill_cells_around_interface_vefs
       
       vef_iterator = this%create_vef_iterator()
       do while ( .not. vef_iterator%has_finished() )
-        vef = vef_iterator%current()
+        call vef_iterator%current(vef)
         write(*,'(a,i10,a)') '**** local vef  : ',vef%get_lid(),'****'
         !write(*,'(a,i10,a)') '****       gid  : ',vef%get_gid(),'****'
         write(*,'(a,i10,a)') '**** dimension  : ',vef%get_dimension(),'****'
@@ -652,7 +652,7 @@ subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs,
     itfc_vef_iterator = this%create_itfc_vef_iterator()
     ivef_itfc = 1
     do while ( .not. itfc_vef_iterator%has_finished() )
-      current_itfc_vef = itfc_vef_iterator%current()
+      call itfc_vef_iterator%current(current_itfc_vef)
       touched_neighbours = .false.
       
       nparts_around = 1 

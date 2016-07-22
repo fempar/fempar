@@ -197,14 +197,14 @@ function cell_accessor_find_lpos_vef_gid (this, vef_gid)
   end do
 end function cell_accessor_find_lpos_vef_gid
 
-function cell_accessor_get_vef (this, ivef)
+subroutine cell_accessor_get_vef (this, ivef, vef)
   implicit none
-  class(cell_accessor_t), intent(in) :: this
-  integer(ip)                        :: ivef
-  type(vef_accessor_t)               :: cell_accessor_get_vef
+  class(cell_accessor_t), intent(in)    :: this
+  integer(ip),            intent(in)    :: ivef
+  type(vef_accessor_t),   intent(inout) :: vef
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  call cell_accessor_get_vef%create(this%get_vef_lid(ivef), this%base_static_triangulation)
-end function cell_accessor_get_vef
+  call vef%create(this%get_vef_lid(ivef), this%base_static_triangulation)
+end subroutine cell_accessor_get_vef
 
 function cell_accessor_is_local (this)
   implicit none

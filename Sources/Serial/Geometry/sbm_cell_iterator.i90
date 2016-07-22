@@ -59,9 +59,9 @@ function cell_iterator_has_finished ( this )
   cell_iterator_has_finished = this%current_cell_accessor%past_the_end()
 end function cell_iterator_has_finished
 
-function cell_iterator_current ( this ) 
+subroutine cell_iterator_current ( this, current ) 
   implicit none
-  class(cell_iterator_t), target, intent(in) :: this
-  type(cell_accessor_t) :: cell_iterator_current
-  cell_iterator_current = this%current_cell_accessor
-end function cell_iterator_current
+  class(cell_iterator_t), target, intent(in)    :: this
+  type(cell_accessor_t),          intent(inout) :: current
+  current = this%current_cell_accessor
+end subroutine cell_iterator_current

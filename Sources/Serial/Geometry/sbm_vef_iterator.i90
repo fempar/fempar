@@ -60,12 +60,12 @@ function vef_iterator_has_finished ( this )
   vef_iterator_has_finished = this%current_vef_accessor%past_the_end()
 end function vef_iterator_has_finished
 
-function vef_iterator_current ( this ) 
+subroutine vef_iterator_current ( this, current ) 
   implicit none
-  class(vef_iterator_t), target, intent(in) :: this
-  type(vef_accessor_t)  :: vef_iterator_current
-  vef_iterator_current = this%current_vef_accessor
-end function vef_iterator_current
+  class(vef_iterator_t), target, intent(in)    :: this
+  type(vef_accessor_t),          intent(inout) :: current
+  current = this%current_vef_accessor
+end subroutine vef_iterator_current
 
 subroutine itfc_vef_iterator_create ( this, base_static_triangulation ) 
   implicit none
@@ -122,12 +122,12 @@ function itfc_vef_iterator_has_finished ( this )
   itfc_vef_iterator_has_finished = this%current_vef_accessor%past_the_end()
 end function itfc_vef_iterator_has_finished
 
-function itfc_vef_iterator_current ( this ) 
+subroutine itfc_vef_iterator_current ( this, current ) 
   implicit none
-  class(itfc_vef_iterator_t), target, intent(in) :: this
-  type(vef_accessor_t)         :: itfc_vef_iterator_current
-  itfc_vef_iterator_current = this%current_vef_accessor
-end function itfc_vef_iterator_current
+  class(itfc_vef_iterator_t), target, intent(in)    :: this
+  type(vef_accessor_t),               intent(inout) :: current
+  current = this%current_vef_accessor
+end subroutine itfc_vef_iterator_current
 
 
 subroutine vertices_iterator_next ( this ) 
