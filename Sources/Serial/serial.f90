@@ -90,6 +90,7 @@ module serial_names
   use reference_fe_factory_names
   use field_names
   use serial_fe_space_names
+  use new_serial_fe_space_names
   use discrete_integration_names
   use matrix_array_assembler_names
   use fe_affine_operator_names

@@ -39,6 +39,13 @@ function base_static_triangulation_get_num_ghost_vefs(this)
   base_static_triangulation_get_num_ghost_vefs = this%num_ghost_vefs
 end function base_static_triangulation_get_num_ghost_vefs
 
+function base_static_triangulation_get_num_cells(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: base_static_triangulation_get_num_cells
+  base_static_triangulation_get_num_cells = this%get_num_local_cells() + this%get_num_ghost_cells()
+end function base_static_triangulation_get_num_cells
+
 function base_static_triangulation_get_num_local_cells(this)
   implicit none
   class(base_static_triangulation_t), intent(in) :: this

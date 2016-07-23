@@ -275,6 +275,7 @@ module base_static_triangulation_names
      ! Getters
      procedure, non_overridable         :: get_num_local_vefs                  => base_static_triangulation_get_num_local_vefs
      procedure, non_overridable         :: get_num_ghost_vefs                  => base_static_triangulation_get_num_ghost_vefs
+     procedure, non_overridable         :: get_num_cells                       => base_static_triangulation_get_num_cells
      procedure, non_overridable         :: get_num_local_cells                 => base_static_triangulation_get_num_local_cells
      procedure, non_overridable         :: get_num_ghost_cells                 => base_static_triangulation_get_num_ghost_cells
      

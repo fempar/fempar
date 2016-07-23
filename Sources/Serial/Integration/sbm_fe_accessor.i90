@@ -1,0 +1,292 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine fe_accessor_cell_accessor_create ( this, lid, base_static_triangulation )
+  implicit none
+  class(fe_accessor_t)                      , intent(inout) :: this
+  integer(ip)                               , intent(in)    :: lid
+  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
+  check(.false.)
+end subroutine fe_accessor_cell_accessor_create
+
+subroutine fe_accessor_create ( this, lid, fe_space )
+  implicit none
+  class(fe_accessor_t)               , intent(inout) :: this
+  integer(ip)                        , intent(in)    :: lid
+  type(new_serial_fe_space_t), target, intent(in)    :: fe_space
+  call this%cell_accessor_t%create(lid,fe_space%triangulation)
+  this%fe_space => fe_space
+end subroutine fe_accessor_create
+
+subroutine fe_accessor_free (this)
+  implicit none
+  class(fe_accessor_t), intent(inout) :: this
+  call this%cell_accessor_t%free()
+  nullify(this%fe_space)
+end subroutine fe_accessor_free
+
+function fe_accessor_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) result(list_iterator)
+  implicit none
+  class(fe_accessor_t), intent(in) :: this
+  integer(ip)         , intent(in) :: ivef
+  integer(ip)         , intent(in) :: field_id
+  type(list_iterator_t) :: list_iterator
+  integer(ip) :: position_own_dofs_vef
+  
+  !! In order to determine the position in own_dofs_vef_per_fe(field_id) of 
+  !! the vef in local position "ivef" within the current cell, we have to 
+  !! sum the following:
+  !! 1. The number of interior vefs of all cells up-to the present one, 
+  !!    but not including the present one (this%get_lid()-1)
+  !! 2. The number of boundary vefs of all cells up-to the present one,
+  !!    but not including the present one (this%sum_scan_num_vefs())
+  !! 3. The position of the vef in the current cell (ivef)
+  !position_own_dofs_vef = (this%get_lid()-1) + this%scan_sum_number_vefs() + ivef
+  !list_iterator = this%fe_space%own_dofs_vef_per_fe(field_id)%create_iterator(position_own_dofs_vef)
+end function fe_accessor_create_own_dofs_on_vef_iterator
+
+subroutine fe_accessor_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof )
+  implicit none
+  class(fe_accessor_t) , intent(inout) :: this
+  integer(ip)          , intent(in)    :: ivef
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip)          , intent(inout) :: current_dof
+  
+  integer(ip)           :: pos_ptr_dofs 
+  integer(ip)           :: base_pos_lst_dofs_lids
+  type(list_iterator_t) :: own_dofs_on_vef_iterator
+  
+  !! Determine position in lst_dofs_lids of the first dof associated to the
+  !! field "field_id" within the current coarse_fe
+  !base_pos_lst_dofs_lids = this%get_scan_sum_number_dofs(field_id)
+  
+  !! Iterate over all DoFs associated to field "field_id" on top of the vef
+  !! with local identifier ivef within current coarse_fe
+  !own_dofs_on_vef_iterator = this%create_own_dofs_on_vef_iterator(ivef,field_id)
+  !do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
+  !  current_dof = current_dof + 1
+  !  this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()) = current_dof
+  !  call own_dofs_on_vef_iterator%next()
+  !end do
+end subroutine fe_accessor_fill_own_dofs_on_vef
+
+subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, source_fe, source_ivef, field_id )
+  implicit none
+  class(fe_accessor_t) , intent(inout) :: this
+  integer(ip)          , intent(in)    :: target_ivef
+  class(fe_accessor_t) , intent(in)    :: source_fe
+  integer(ip)          , intent(in)    :: source_ivef
+  integer(ip)          , intent(in)    :: field_id
+
+  integer(ip)           :: pos_ptr_dofs_source 
+  integer(ip)           :: base_pos_lst_dofs_lids_source
+  type(list_iterator_t) :: own_dofs_on_vef_iterator_source
+  
+  integer(ip)           :: pos_ptr_dofs_target
+  integer(ip)           :: base_pos_lst_dofs_lids_target
+  type(list_iterator_t) :: own_dofs_on_vef_iterator_target
+  
+  
+  !base_pos_lst_dofs_lids_target = this%get_scan_sum_number_dofs(field_id)
+  
+  !! Iterate over all DoFs associated to field "field_id" on top of the vef
+  !! with local identifier ivef within target coarse_fe
+  !own_dofs_on_vef_iterator_target = this%create_own_dofs_on_vef_iterator(target_ivef,field_id)
+  
+  !base_pos_lst_dofs_lids_source = source_fe%get_scan_sum_number_dofs(field_id)
+  
+  !! Iterate over all DoFs associated to field "field_id" on top of the vef
+  !! with local identifier ivef within target coarse_fe
+  !own_dofs_on_vef_iterator_source = source_fe%create_own_dofs_on_vef_iterator(source_ivef,field_id)
+  !  
+  !assert (own_dofs_on_vef_iterator_source%get_size() == own_dofs_on_vef_iterator_target%get_size())
+  !do while (.not. own_dofs_on_vef_iterator_source%is_upper_bound())
+  !  this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_target+own_dofs_on_vef_iterator_target%get_current()) = &
+  !    this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_source+own_dofs_on_vef_iterator_source%get_current())
+  !  call own_dofs_on_vef_iterator_source%next()
+  !  call own_dofs_on_vef_iterator_target%next()
+  !end do
+end subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe
+
+! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
+subroutine fe_accessor_renumber_dofs_block ( this, block_id, perm_old2new )
+  implicit none
+  ! Parameters
+  class(fe_accessor_t)      , intent(inout) :: this
+  integer(ip)               , intent(in)    :: block_id
+  ! No way to know the size of perm_old2new() within the local scope
+  ! of class(fe_accessor_t). This is why I used an assumed-size dummy
+  ! argument in this context. This will be solved in the future whenever
+  ! class(fe_accessor_t) also has access to the whole mesh-like container.
+  integer(ip)               , intent(in)    :: perm_old2new(*)
+  !integer(ip)                            :: field_id
+  !assert ( block_id >= 1 .and. block_id <= this%fe_space%get_number_blocks() )
+  !do field_id=1, this%fe_space%get_number_fields()
+  !  if ( this%fe_space%field_blocks(field_id) == block_id ) then
+  !    call this%renumber_dofs_field( field_id, perm_old2new )
+  !  end if
+  !end do 
+end subroutine fe_accessor_renumber_dofs_block
+
+! Renumbers the DoF identifiers corresponding to field with identifier field_id
+subroutine fe_accessor_renumber_dofs_field ( this, field_id, perm_old2new )
+  implicit none
+  ! Parameters
+  class(fe_accessor_t), intent(inout) :: this
+  integer(ip)         , intent(in) :: field_id
+  ! No way to know the size of perm_old2new() within the local scope
+  ! of class(fe_accessor_t). This is why I used an assumed-size dummy
+  ! argument in this context. This will be solved in the future whenever
+  ! class(fe_accessor_t) also has access to the whole mesh-like container.
+  integer(ip)         , intent(in) :: perm_old2new(*)
+  !integer(ip) :: i, start_pos_lst_dofs_lids, end_pos_lst_dofs_lids
+  
+  !start_pos_lst_dofs_lids = this%get_scan_sum_number_dofs(field_id)+1
+  !end_pos_lst_dofs_lids   = this%get_scan_sum_number_dofs(field_id+1)
+  
+  !assert ( field_id >= 1 .and. field_id <= this%fe_space%get_number_fields() )
+  !do i = start_pos_lst_dofs_lids, end_pos_lst_dofs_lids
+  !  if ( this%fe_space%lst_dofs_lids(i) > 0 ) then
+  !    this%fe_space%lst_dofs_lids(i) = perm_old2new(this%fe_space%lst_dofs_lids(i))
+  !  end if
+  !end do
+end subroutine fe_accessor_renumber_dofs_field
+
+function fe_accessor_get_number_fields(this)
+  implicit none
+  class(fe_accessor_t), intent(in) :: this
+  integer(ip) :: fe_accessor_get_number_fields
+  fe_accessor_get_number_fields = this%fe_space%number_fields
+end function fe_accessor_get_number_fields
+
+pure function fe_accessor_get_number_dofs(this)
+  implicit none
+  class(fe_accessor_t), intent(in) :: this
+  integer(ip) :: fe_accessor_get_number_dofs
+  fe_accessor_get_number_dofs = this%fe_space%ptr_dofs_per_fe(this%fe_space%number_fields+1, this%get_lid())- &
+                                this%fe_space%ptr_dofs_per_fe(1                            , this%get_lid())
+end function fe_accessor_get_number_dofs
+
+subroutine fe_accessor_get_number_dofs_per_field (this, number_dofs_per_field )
+  implicit none
+  class(fe_accessor_t), intent(in)    :: this
+  integer(ip)         , intent(inout) :: number_dofs_per_field(this%fe_space%number_fields)
+  
+  integer(ip) :: field_id
+  do field_id = 1, this%get_number_fields()
+    number_dofs_per_field(field_id) = this%fe_space%ptr_dofs_per_fe(field_id+1, this%get_lid())- &
+                                      this%fe_space%ptr_dofs_per_fe(field_id  , this%get_lid())
+  end do
+end subroutine fe_accessor_get_number_dofs_per_field
+
+
+subroutine fe_accessor_get_elem2dof( this, elem2dof )
+  implicit none
+  class(fe_accessor_t), intent(in) :: this
+  type(i1p_t)                      :: elem2dof(this%fe_space%number_fields)
+  integer(ip) :: field_id, j, spos, epos
+ 
+  do field_id = 1, this%fe_space%number_fields
+    spos = this%fe_space%ptr_dofs_per_fe(field_id  ,this%get_lid())
+    epos = this%fe_space%ptr_dofs_per_fe(field_id+1,this%get_lid())-1
+    elem2dof(field_id)%p => this%fe_space%lst_dofs_lids(spos:epos)
+  end do
+end subroutine fe_accessor_get_elem2dof
+
+function fe_accessor_get_order( this, field_id )
+  implicit none
+  class(fe_accessor_t), intent(in) :: this
+  integer(ip)         , intent(in) :: field_id
+  integer(ip) :: fe_accessor_get_order
+  class(reference_fe_t), pointer :: reference_fe
+  reference_fe => this%get_reference_fe(field_id)
+  fe_accessor_get_order = reference_fe%get_order()
+end function fe_accessor_get_order
+
+function fe_accessor_get_quadrature ( this )
+  implicit none
+  class(fe_accessor_t), intent(in) :: this
+  type(quadrature_t), pointer      :: fe_accessor_get_quadrature
+  integer(ip) :: fe_quadratures_position
+  integer(ip) :: istat
+  call this%fe_space%fe_quadratures_and_maps_position%get(key=this%fe_space%max_order_per_fe(this%get_lid()), &
+                                                          val=fe_quadratures_position, &
+                                                          stat=istat)
+  assert ( .not. istat == key_not_found )
+  fe_accessor_get_quadrature => this%fe_space%fe_quadratures(fe_quadratures_position)
+end function fe_accessor_get_quadrature
+
+function fe_accessor_get_fe_map ( this )
+  implicit none
+  class(fe_accessor_t), intent(in) :: this
+  type(fe_map_t), pointer :: fe_accessor_get_fe_map
+  integer(ip) :: fe_maps_position
+  integer(ip) :: istat
+  call this%fe_space%fe_quadratures_and_maps_position%get(key=this%fe_space%max_order_per_fe(this%get_lid()), &
+                                                          val=fe_maps_position, &
+                                                          stat=istat)
+  assert ( .not. istat == key_not_found )
+  fe_accessor_get_fe_map => this%fe_space%fe_maps(fe_maps_position)
+end function fe_accessor_get_fe_map
+
+function fe_accessor_get_volume_integrator ( this, field_id )
+  implicit none
+  class(fe_accessor_t), intent(in)   :: this
+  integer(ip)         , intent(in)   :: field_id
+  type(volume_integrator_t), pointer :: fe_accessor_get_volume_integrator
+  integer(ip) :: fe_volume_integrators_position_key
+  integer(ip) :: fe_volume_integrators_position
+  integer(ip) :: istat
+  
+  fe_volume_integrators_position_key = &
+        this%fe_space%generate_fe_volume_integrators_position_key(this%fe_space%max_order_per_fe(this%get_lid()), &
+                                                                  this%fe_space%reference_fe_id_per_fe(field_id, this%get_lid()))
+  
+  call this%fe_space%fe_volume_integrators_position%get(key=fe_volume_integrators_position_key, &
+                                                        val=fe_volume_integrators_position, &
+                                                        stat=istat)
+  assert ( .not. istat == key_not_found )
+  fe_accessor_get_volume_integrator => this%fe_space%fe_volume_integrators(fe_volume_integrators_position)
+end function fe_accessor_get_volume_integrator
+
+subroutine fe_accessor_get_fe_vef(this, ivef, fe_vef)
+  implicit none
+  class(fe_accessor_t)   , intent(in)    :: this
+  integer(ip)            , intent(in)    :: ivef
+  type(fe_vef_accessor_t), intent(inout) :: fe_vef
+  type(vef_accessor_t) :: vef_accessor
+  !vef_accessor = this%get_vef(ivef)
+  !call fe_accessor_get_coarse_fe_vef%create(vef_accessor%get_lid(), this%fe_space)
+end subroutine fe_accessor_get_fe_vef
+
+function fe_accessor_get_reference_fe(this, field_id)
+  implicit none
+  class(fe_accessor_t), target   , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: field_id
+  class(reference_fe_t), pointer :: fe_accessor_get_reference_fe
+  fe_accessor_get_reference_fe => this%fe_space%reference_fes(this%fe_space%reference_fe_id_per_fe(field_id,this%get_lid()))%p
+end function fe_accessor_get_reference_fe
