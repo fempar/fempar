@@ -901,6 +901,11 @@ subroutine base_static_triangulation_allocate_and_fill_coordinates(this,vertices
      end do
      call vertices_iterator%next()
   end do
+  
+  ! In the case of a linear (i.e., order == 1) interpolation of the
+  ! geometry, skip the rest of steps where the this%geometry member
+  ! variable is involved
+  if (this%reference_fe_geo_list(1)%p%get_order() == 1) return
 
   ! if(this%num_dimensions==2) then
   !    !allocate( faces_iterator_t :: vef_iterator, stat=istat)
