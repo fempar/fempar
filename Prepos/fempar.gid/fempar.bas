@@ -5,7 +5,7 @@
 *\------------------------------------------------------------
 *set var nelty=0
 *set var netot=0
-*set var nboun=0
+*set var nvefs=0
 *if(ndime==2)
 *set elems(Triangle) 
 *if(nelem>0) 
@@ -34,6 +34,10 @@
 *endif 
 *endif 
 *\
+*set var nvefs0=0
+*set Cond Point_id *nodes
+*set var nvefs0=CondNumEntities
+*\
 *set elems(Linear)
 *set Cond Line_id *elems
 *if(ndime==3)
@@ -41,15 +45,15 @@
 *add elems(Quadrilateral)
 *add Cond Surface_id *elems
 *endif
-*set var nboun=CondNumEntities
+*set var nvefs=CondNumEntities+nvefs0
 *format "%2i %2i %10i %10i %10i"
-MESH dimension *ndime order  0  types *nelty elements *netot nodes *npoin boundaries *nboun
+MESH dimension *ndime order  0  types *nelty elements *netot vertices *npoin vefs *nvefs
 *\------------------------------------------------------------
 *\ COORDINATES
 *\------------------------------------------------------------
 coordinates
 *loop nodes
-*format "%8i %13.6e %13.6e %13.6e"
+*format "%8i %17.10e %17.10e %17.10e"
    *NodesNum *NodesCoord   
 *end
 end coordinates

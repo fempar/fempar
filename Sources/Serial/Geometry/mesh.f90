@@ -308,8 +308,8 @@ contains
     character(7)    :: dum2
     character(7)    :: dum3
     character(10)   :: dum4
-    character(7)    :: dum5
-    character(12)   :: dum6
+    character(10)   :: dum5
+    character(6)   :: dum6
     character(1000) :: tel
     integer(ip), allocatable :: lnods_aux(:)
     integer(ip), pointer     :: permu(:)
@@ -324,8 +324,9 @@ contains
 
     ! Read first line: "MESH dimension  3  order  0  types  1  elements        352  nodes        100  boundaries        144"
     ! Read first line: "MESH dimension  2  order  0  types  1  elements        100  nodes        121  boundaries         40"
-    read(lunio,'(a14,1x,i2,a7,1x,i2,a7,1x,i2,a10,1x,i10,a7,1x,i10,a12,1x,i10)') &
-         & dum1,msh%ndime,dum2,msh%order,dum3,msh%nelty,dum4,msh%nelem,dum5,msh%npoin,dum6,msh%bound%n
+    ! Read first line: "MESH dimension  2  order  0  types  1  elements          1  vertices          4  vefs          8
+    read(lunio,'(a14,1x,i2, a7,1x,i2, a7,1x,i2, a10,1x,i10, a10,1x,i10, a6,1x,i10)') &
+         & dum1,msh%ndime,dum2,msh%order,dum3,msh%nelty,dum4,msh%nelem, dum5,msh%npoin,dum6,msh%bound%n
 
     write(*,*) 'Read mesh with parameters:',msh%ndime,msh%order,msh%nelty,msh%nelem,msh%npoin,msh%bound%n
 
@@ -374,11 +375,11 @@ contains
 
     ! Read boundary elements' size (pnodb)
     call memalloc(msh%bound%n+1,msh%bound%p,__FILE__,__LINE__)
-    do while(tel(1:5).ne.'bound')
+    do while(tel(1:5).ne.'vefs')
        read(lunio,'(a)') tel
     end do
     read(lunio,'(a)') tel
-    do while(tel(1:5).ne.'end b')
+    do while(tel(1:5).ne.'end v')
        read(tel,*) iboun,msh%bound%p(iboun+1)
        read(lunio,'(a)') tel
     end do
@@ -395,11 +396,11 @@ contains
     call memalloc(msh%bound%n,msh%lbgeo,__FILE__,__LINE__)
     call memalloc(msh%bound%n,msh%lbset,__FILE__,__LINE__)
     call io_rewind(lunio)
-    do while(tel(1:5).ne.'bound')
+    do while(tel(1:5).ne.'vefs')
        read(lunio,'(a)') tel
     end do
     read(lunio,'(a)') tel
-    do while(tel(1:5).ne.'end b')
+    do while(tel(1:5).ne.'end v')
        read(tel,*) iboun,nnodb,(msh%bound%l(msh%bound%p(iboun)-1+inode),inode=1,nnodb),msh%lbset(iboun),msh%lbgeo(iboun)
        read(lunio,'(a)') tel
     end do

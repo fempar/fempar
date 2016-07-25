@@ -225,12 +225,12 @@ contains
     integer(ip)       :: p_shape(1)
     real(rp), pointer :: param(:)
     type(c_ptr)       :: p_param
-    integer(ip)       :: stat,num_int,num_curves
+    integer(ip)       :: istat,num_int,num_curves
     type(c_ptr)       :: wcurve
 
-    call point_intersection(line%sisl_ptr, point_coords, 3, tol, num_int, p_param, num_curves, wcurve, stat)
-    !write(*,*) num_int
-    assert(stat==0)
+    call point_intersection(line%sisl_ptr, point_coords, 3, tol, num_int, p_param, num_curves, wcurve, istat)
+    !write(*,*) num_int, istat
+    assert(istat==0)
     assert(num_int==1)
     assert(num_curves==0)
     p_shape(1) = num_int
