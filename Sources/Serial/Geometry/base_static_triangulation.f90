@@ -78,6 +78,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_num_nodes        => cell_accessor_get_num_nodes
     procedure, non_overridable           :: get_node             => cell_accessor_get_node
     procedure, non_overridable           :: get_vef_lid          => cell_accessor_get_vef_lid
+    procedure, non_overridable           :: get_vef_lids         => cell_accessor_get_vef_lids
     procedure, non_overridable           :: get_vef_gid          => cell_accessor_get_vef_gid
     procedure, non_overridable           :: find_lpos_vef_lid    => cell_accessor_find_lpos_vef_lid
     procedure, non_overridable           :: find_lpos_vef_gid    => cell_accessor_find_lpos_vef_gid
@@ -273,6 +274,8 @@ module base_static_triangulation_names
      procedure, non_overridable          :: free_coordinates                   => base_static_triangulation_free_coordinates
 
      ! Getters
+     procedure, non_overridable         :: get_num_dimensions                  => base_static_triangulation_get_num_dimensions
+     procedure, non_overridable         :: get_num_vefs                        => base_static_triangulation_get_num_vefs 
      procedure, non_overridable         :: get_num_local_vefs                  => base_static_triangulation_get_num_local_vefs
      procedure, non_overridable         :: get_num_ghost_vefs                  => base_static_triangulation_get_num_ghost_vefs
      procedure, non_overridable         :: get_num_cells                       => base_static_triangulation_get_num_cells

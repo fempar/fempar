@@ -34,7 +34,7 @@ subroutine new_serial_fe_space_create_same_reference_fes_on_all_cells( this, &
   implicit none
   class(new_serial_fe_space_t)          , intent(inout) :: this
   type(serial_triangulation_t), target  , intent(in)    :: triangulation
-  !type(conditions_t)              , intent(in)    :: boundary_conditions
+  !type(conditions_t)                   , intent(in)    :: boundary_conditions
   type(p_reference_fe_t)                ,  intent(in)   :: reference_fes(:)
   integer(ip)                 , optional, intent(in)    :: field_blocks(:)
   logical                     , optional, intent(in)    :: field_coupling(:,:)
@@ -50,30 +50,9 @@ subroutine new_serial_fe_space_create_same_reference_fes_on_all_cells( this, &
                                                         field_coupling)
   call this%allocate_ref_fe_id_per_fe()
   call this%fill_ref_fe_id_per_fe_same_on_all_cells()
+  call this%allocate_and_fill_field_type()
+  call this%allocate_and_init_ptr_lst_dofs()
   
-  !! Assuming only one geometrical reference FE for the moment  SB.alert
-  !! assuming we are going to use faces of 1 type
-  !allocate( this%quadrature(1), stat=istat )
-  !allocate( this%fe_map(1), stat=istat )
-
-  !allocate( this%volume_integrator(this%number_fields), stat=istat )
-  
-  !call memalloc ( this%number_fields, this%fe_space_type, __FILE__, __LINE__ )
-  
-  !call this%quadrature(1)%allocate()
-  !call this%fe_map(1)%allocate()
-  !do i  = 1, this%number_fields
-  !   this%reference_fes_list(i) = reference_fes(i)
-  !   call this%volume_integrator(i)%allocate()
-  !   if ( reference_fes(i)%p%get_continuity() ) then
-  !      this%fe_space_type(i) = fe_space_type_cg
-  !   else if ( reference_fes(i)%p%get_conformity() ) then
-  !      this%fe_space_type(i) = fe_space_type_dg_conforming
-  !   else
-  !      this%fe_space_type(i) = fe_space_type_dg
-  !   end if
-  !end do
-
   !allocate(this%fe_array(this%triangulation%num_elems))
   !do i = 1, this%triangulation%num_elems
   !   call this%fe_array(i)%create (this%triangulation%elems(i),&
@@ -88,7 +67,6 @@ subroutine new_serial_fe_space_create_same_reference_fes_on_all_cells( this, &
   !end do
 
   !call this%set_up_strong_dirichlet_bcs( boundary_conditions )
-
 end subroutine new_serial_fe_space_create_same_reference_fes_on_all_cells
 
 subroutine new_serial_fe_space_free (this)
@@ -97,8 +75,119 @@ subroutine new_serial_fe_space_free (this)
   call this%free_reference_fes()
   call this%free_field_blocks_and_coupling()
   call this%free_ref_fe_id_per_fe()
+  call this%free_field_type()
+  call this%free_ptr_lst_dofs()
   call this%free_fe_integration()
 end subroutine new_serial_fe_space_free
+
+subroutine new_serial_fe_space_print ( this )
+  class(new_serial_fe_space_t), intent(in)    :: this
+  type(fe_iterator_t)              :: fe_iterator
+  type(fe_accessor_t)              :: fe
+  type(i1p_t), allocatable         :: elem2dof(:)
+  integer(ip)                      :: field_id, istat
+  
+  write(*,'(a,i10,a)') '********* number_dofs_per_field ',this%number_dofs_per_field,'********'
+  write(*,'(a,i10,a)') '********* number_dofs_per_block ',this%number_dofs_per_block,'********'
+    
+  allocate ( elem2dof(this%get_number_fields()), stat=istat)
+  check(istat==0)
+    
+  fe_iterator = this%create_fe_iterator()
+  do while ( .not. fe_iterator%has_finished() ) 
+    call fe_iterator%current(fe)
+    write(*,'(a,i10,a)') '********* ELEMENT: ',fe%get_lid(),'********'
+    write(*,'(a)') '********* ELEMENT 2 DOF********'
+    call fe%get_elem2dof(elem2dof)
+    do field_id = 1, fe%get_number_fields()
+      write(*,'(a,i10,a)') '********* FIELD: ',field_id,'********'
+      write(*,'(10i10)') elem2dof(field_id)%p
+    end do
+    call fe_iterator%next()
+  end do
+  
+  deallocate ( elem2dof, stat=istat)
+  check(istat==0)
+end subroutine new_serial_fe_space_print
+
+
+subroutine new_serial_fe_space_allocate_and_fill_field_type(this)
+  implicit none
+  class(new_serial_fe_space_t), intent(inout) :: this
+  type(fe_iterator_t) :: fe_iterator
+  type(fe_accessor_t) :: fe
+  integer(ip) :: field_id
+  class(reference_fe_t), pointer ::reference_fe
+  
+  call memalloc ( this%number_fields, this%field_type, __FILE__, __LINE__ )
+  
+  fe_iterator = this%create_fe_iterator()
+  call fe_iterator%current(fe)
+  
+  do field_id=1, this%get_number_fields()
+    this%field_type(field_id) = fe%get_field_type(field_id)
+  end do
+  
+#ifdef DEBUG  
+  call fe_iterator%next()
+  do while ( .not. fe_iterator%has_finished() ) 
+    call fe_iterator%current(fe)
+    do field_id=1, this%get_number_fields()
+      assert ( this%field_type(field_id) == fe%get_field_type(field_id)  )
+    end do
+    call fe_iterator%next()
+  end do
+#endif  
+  
+end subroutine new_serial_fe_space_allocate_and_fill_field_type
+
+subroutine new_serial_fe_space_free_field_type(this)
+  implicit none
+  class(new_serial_fe_space_t), intent(inout) :: this
+  if ( allocated(this%field_type) ) call memfree ( this%field_type, __FILE__, __LINE__ )
+end subroutine new_serial_fe_space_free_field_type
+
+subroutine new_serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
+  implicit none
+  class(new_serial_fe_space_t), intent(inout) :: this
+  
+  integer(ip)                    :: field_id
+  type(fe_iterator_t)            :: fe_iterator
+  type(fe_accessor_t)            :: fe
+  class(reference_fe_t), pointer :: reference_fe
+  
+  call memalloc ( this%number_fields, &
+                  this%triangulation%get_num_cells()+1, &
+                  this%ptr_dofs_per_fe, __FILE__, __LINE__ )
+  
+  this%ptr_dofs_per_fe(1,1) = 1 
+  fe_iterator = this%create_fe_iterator()
+  do while ( .not. fe_iterator%has_finished() ) 
+    call fe_iterator%current(fe)
+    do field_id=1, fe%get_number_fields()-1
+      reference_fe => fe%get_reference_fe(field_id)
+      this%ptr_dofs_per_fe(field_id+1,fe%get_lid()) = & 
+        this%ptr_dofs_per_fe(field_id,fe%get_lid()) + reference_fe%get_number_nodes()
+    end do
+    reference_fe => fe%get_reference_fe(field_id)
+    this%ptr_dofs_per_fe(1,fe%get_lid()+1) = & 
+      this%ptr_dofs_per_fe(field_id,fe%get_lid()) + reference_fe%get_number_nodes()
+    call fe_iterator%next()
+  end do
+  
+  call memalloc ( this%ptr_dofs_per_fe(1,this%triangulation%get_num_cells()+1)-1,&
+                  this%lst_dofs_lids, &
+                  __FILE__, __LINE__ )
+  this%lst_dofs_lids = 0
+end subroutine new_serial_fe_space_allocate_and_init_ptr_lst_dofs
+
+subroutine new_serial_fe_space_free_ptr_lst_dofs(this)
+  implicit none
+  class(new_serial_fe_space_t), intent(inout) :: this
+  if (allocated(this%ptr_dofs_per_fe)) call memfree ( this%ptr_dofs_per_fe, __FILE__, __LINE__ )
+  if (allocated(this%lst_dofs_lids)) call memfree ( this%lst_dofs_lids, __FILE__, __LINE__ )
+end subroutine new_serial_fe_space_free_ptr_lst_dofs
+
 
 subroutine new_serial_fe_space_allocate_and_fill_field_blocks_and_coupling ( this, field_blocks, field_coupling )
   implicit none
@@ -121,6 +210,8 @@ subroutine new_serial_fe_space_allocate_and_fill_field_blocks_and_coupling ( thi
      this%field_blocks = 1
      this%field_coupling = .true.
   end if
+  this%number_blocks = maxval(this%field_blocks)
+
   
   call memalloc ( this%number_blocks, this%number_blocks, this%blocks_coupling, __FILE__, __LINE__)
   this%blocks_coupling = .false.
@@ -332,18 +423,29 @@ subroutine new_serial_fe_space_free_fe_integration ( this )
   call this%fe_quadratures_and_maps_position%free()
   call this%fe_volume_integrators_position%free()
   
-  do i=1, size(this%fe_quadratures)
-    call this%fe_quadratures(i)%free()
-  end do
+  if (allocated(this%fe_quadratures)) then
+    do i=1, size(this%fe_quadratures)
+      call this%fe_quadratures(i)%free()
+    end do
+    deallocate(this%fe_quadratures, stat=istat)
+    check(istat==0)
+  end if  
+    
+  if (allocated(this%fe_maps)) then
+    do i=1, size(this%fe_maps)
+      call this%fe_maps(i)%free()
+    end do
+    deallocate(this%fe_maps, stat=istat)
+    check(istat==0)
+  end if  
   
-  do i=1, size(this%fe_maps)
-    call this%fe_maps(i)%free()
-  end do
-  
-  do i=1, size(this%fe_volume_integrators)
-    call this%fe_volume_integrators(i)%free()
-  end do
-  
+  if (allocated(this%fe_volume_integrators)) then
+    do i=1, size(this%fe_volume_integrators)
+      call this%fe_volume_integrators(i)%free()
+    end do
+    deallocate(this%fe_volume_integrators, stat=istat)
+    check(istat==0)
+  end if  
 end subroutine new_serial_fe_space_free_fe_integration
 
 function new_serial_fe_space_generate_fe_volume_integrators_position_key ( this, max_order_within_fe, reference_fe_id )
@@ -356,6 +458,164 @@ function new_serial_fe_space_generate_fe_volume_integrators_position_key ( this,
     reference_fe_id + (max_order_within_fe-1)*this%reference_fes_size
 end function new_serial_fe_space_generate_fe_volume_integrators_position_key
 
+function new_serial_fe_space_create_assembler(this, &
+                                              diagonal_blocks_symmetric_storage,&
+                                              diagonal_blocks_symmetric, & 
+                                              diagonal_blocks_sign)
+  implicit none
+  class(new_serial_fe_space_t)      , intent(in) :: this
+  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
+  logical                           , intent(in) :: diagonal_blocks_symmetric(:)
+  integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
+  class(matrix_array_assembler_t)   , pointer    :: new_serial_fe_space_create_assembler
+
+  ! Locals
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
+  integer(ip)          :: ife_space, jfe_space
+  integer(ip)          :: iblock, jblock
+
+  if (this%number_blocks == 1) then
+     allocate ( sparse_matrix_array_assembler_t :: new_serial_fe_space_create_assembler )
+     allocate ( sparse_matrix_t :: matrix )
+     allocate ( serial_scalar_array_t  :: array )
+     select type(matrix)
+        class is(sparse_matrix_t)
+        call matrix%create(this%number_dofs_per_block(1), &
+             diagonal_blocks_symmetric_storage(1),&
+             diagonal_blocks_symmetric(1),&
+             diagonal_blocks_sign(1))
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_scalar_array_t)
+        call array%create(this%number_dofs_per_block(1))
+        class default
+        check(.false.)
+     end select
+  else
+     allocate ( block_sparse_matrix_array_assembler_t :: new_serial_fe_space_create_assembler )
+     allocate ( block_sparse_matrix_t :: matrix )
+     allocate ( serial_block_array_t  :: array )
+     select type(matrix)
+        class is (block_sparse_matrix_t)
+        call matrix%create(this%number_blocks, &
+             this%number_dofs_per_block,&
+             this%number_dofs_per_block,&
+             diagonal_blocks_symmetric_storage,&
+             diagonal_blocks_symmetric,&
+             diagonal_blocks_sign)
+
+        do jblock=1,this%number_blocks
+           do iblock=1,this%number_blocks
+              if (.not. this%blocks_coupling(iblock,jblock) ) then
+                 call matrix%set_block_to_zero(iblock,jblock)
+              end if
+           end do
+        end do
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_block_array_t)
+        call array%create(this%number_blocks,this%number_dofs_per_block)
+        class default
+        check(.false.)
+     end select
+  end if
+  call new_serial_fe_space_create_assembler%set_matrix(matrix)
+  call new_serial_fe_space_create_assembler%set_array(array)
+end function new_serial_fe_space_create_assembler  
+  
+
+subroutine new_serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
+  implicit none
+  class(new_serial_fe_space_t)    , intent(in)    :: this
+  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+  ! Polymorphic matrix 
+  class(matrix_t), pointer :: matrix
+
+  matrix => matrix_array_assembler%get_matrix()
+  select type(matrix)
+     class is(sparse_matrix_t)
+     class is(block_sparse_matrix_t)
+     class default
+     check(.false.)
+  end select
+end subroutine new_serial_fe_space_symbolic_setup_assembler
+
+
+subroutine new_serial_fe_space_fill_dof_info( this )
+  implicit none
+  class(new_serial_fe_space_t), intent(inout) :: this 
+  integer(ip) :: field_id
+
+  call memalloc( this%number_blocks, this%number_dofs_per_block, __FILE__, __LINE__ )
+  call memalloc( this%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )
+
+  this%number_dofs_per_block = 0
+  this%number_dofs_per_field = 0
+  do field_id = 1, this%number_fields
+     call this%fill_elem2dof_and_count_dofs( field_id )
+  end do
+end subroutine new_serial_fe_space_fill_dof_info
+
+subroutine new_serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id ) 
+  implicit none
+  ! Parameters
+  class(new_serial_fe_space_t), intent(inout) :: this 
+  integer(ip)                 ,  intent(in)   :: field_id
+
+  ! Local variables
+  integer(ip) :: ivef, vef_lid, ielem
+  integer(ip) :: iblock, init_dof_block, current_dof_block
+  integer(ip), allocatable :: visited_vef_to_fe_map(:,:)
+  type(fe_iterator_t) :: fe_iterator
+  type(fe_accessor_t) :: fe
+  type(fe_accessor_t) :: source_fe
+
+  iblock            = this%field_blocks(field_id)
+  init_dof_block    = this%number_dofs_per_block(iblock)
+  current_dof_block = init_dof_block
+
+  if ( this%field_type(field_id) == field_type_cg ) then
+     call source_fe%create(1, this)
+     call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
+     visited_vef_to_fe_map = -1
+     fe_iterator = this%create_fe_iterator()
+     do while ( .not. fe_iterator%has_finished() )
+        call fe_iterator%current(fe)
+        call fe%fill_own_dofs ( field_id, current_dof_block )
+        do ivef = 1, fe%get_num_vefs()
+           vef_lid = fe%get_vef_lid(ivef)
+           if ( visited_vef_to_fe_map ( 1, vef_lid ) == -1 ) then
+               visited_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
+               visited_vef_to_fe_map ( 2, vef_lid ) = ivef
+               call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block  ) 
+           else 
+               call source_fe%set_lid(visited_vef_to_fe_map(1,vef_lid))
+               call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                                                             source_fe, &
+                                                             visited_vef_to_fe_map(2,vef_lid), &
+                                                             field_id) 
+           end if
+        end do
+        call fe_iterator%next()
+     end do
+     call memfree ( visited_vef_to_fe_map,  __FILE__, __LINE__ )
+  else 
+     fe_iterator = this%create_fe_iterator()
+     do while ( .not. fe_iterator%has_finished() )
+        call fe_iterator%current(fe)
+        call fe%fill_own_dofs ( field_id, current_dof_block )
+        call fe_iterator%next()
+     end do
+  end if
+  this%number_dofs_per_field(field_id) = current_dof_block - init_dof_block
+  this%number_dofs_per_block(iblock) = this%number_dofs_per_block(iblock) + &
+       this%number_dofs_per_field(field_id)     
+end subroutine new_serial_fe_space_fill_elem2dof_and_count_dofs
 
 function new_serial_fe_space_get_number_fields ( this )
   implicit none

@@ -55,6 +55,7 @@
     ! Extract data from mesh
     call mesh%get_sizes(this%num_dimensions,this%num_vertices,this%max_vefs_per_cell,this%num_local_cells)
     this%num_vefs=this%num_vertices
+    this%num_local_vefs=this%num_vefs
     this%num_ghost_vefs=0
     this%num_ghost_cells=0
     !write(*,*) this%num_dimensions,this%num_vertices,this%num_vefs,this%max_vefs_per_cell,this%num_local_cells

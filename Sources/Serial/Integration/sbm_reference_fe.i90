@@ -366,6 +366,14 @@ end function reference_fe_get_conformity
     reference_fe_get_number_own_nodes_vef = this%own_nodes_vef%p(i+1)-this%own_nodes_vef%p(i)
   end function reference_fe_get_number_own_nodes_vef
   
+  function reference_fe_create_own_dofs_on_vef_iterator ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i
+    type(list_iterator_t) :: reference_fe_create_own_dofs_on_vef_iterator
+    reference_fe_create_own_dofs_on_vef_iterator = this%own_nodes_vef%create_iterator(i)    
+  end function reference_fe_create_own_dofs_on_vef_iterator  
+  
   function reference_fe_get_number_vertices_vef ( this, i )
     implicit none
     class(reference_fe_t), intent(in) :: this

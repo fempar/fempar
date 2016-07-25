@@ -147,6 +147,15 @@ function cell_accessor_get_vef_lid (this, ivef)
   cell_accessor_get_vef_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid)+ivef-1)
 end function cell_accessor_get_vef_lid
 
+function cell_accessor_get_vef_lids (this)
+  implicit none
+  class(cell_accessor_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(ip), pointer               :: cell_accessor_get_vef_lids(:)
+  cell_accessor_get_vef_lids => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid): &
+                                                                             this%base_static_triangulation%ptr_vefs_per_cell(this%lid+1)-1)
+end function cell_accessor_get_vef_lids
+
 function cell_accessor_get_node (this, inode)
   implicit none
   class(cell_accessor_t), intent(in) :: this

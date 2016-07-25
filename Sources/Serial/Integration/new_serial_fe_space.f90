@@ -77,7 +77,7 @@ module new_serial_fe_space_names
     generic                             :: create                                     => fe_accessor_create
     procedure                           :: cell_accessor_create                       => fe_accessor_cell_accessor_create
     procedure                           :: free                                       => fe_accessor_free
-    !procedure, non_overridable, private :: fill_own_dofs                              => fe_accessor_fill_own_dofs
+    procedure, non_overridable, private :: fill_own_dofs                              => fe_accessor_fill_own_dofs
     procedure, non_overridable, private :: fill_own_dofs_on_vef                       => fe_accessor_fill_own_dofs_on_vef
     procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_fe        => fe_accessor_fill_own_dofs_on_vef_from_source_fe
     !procedure, non_overridable, private :: fill_dofs_face_integration_coupling       => fe_accessor_fill_dofs_face_integration_coupling
@@ -85,6 +85,7 @@ module new_serial_fe_space_names
     procedure, non_overridable, private :: renumber_dofs_field                        => fe_accessor_renumber_dofs_field
 
     procedure, non_overridable          :: get_number_fields                          => fe_accessor_get_number_fields
+    procedure, non_overridable, private :: get_field_type                             => fe_accessor_get_field_type
     procedure, non_overridable          :: get_number_dofs                            => fe_accessor_get_number_dofs
     procedure, non_overridable          :: get_number_dofs_per_field                  => fe_accessor_get_number_dofs_per_field
     procedure, non_overridable          :: get_elem2dof                               => fe_accessor_get_elem2dof
@@ -150,7 +151,12 @@ module new_serial_fe_space_names
     !procedure, non_overridable          :: current      => itfc_coarse_fe_vef_iterator_current
   end type itfc_fe_vef_iterator_t
   
-  type :: new_serial_fe_space_t
+  
+  integer(ip), parameter :: field_type_cg            = 0 ! H^1 conforming FE space
+  integer(ip), parameter :: field_type_dg            = 1 ! L^2 conforming FE space + .not. H^1 conforming (weakly imposed via face integration)
+  integer(ip), parameter :: field_type_dg_conforming = 2 ! DG approximation of L^2 spaces (does not involve coupling by face)
+  
+  type :: new_serial_fe_space_t 
      private
      integer(ip)                                 :: number_fields   
      integer(ip)                   , allocatable :: field_type(:)
@@ -188,7 +194,7 @@ module new_serial_fe_space_names
                                                                               !       left_reference_fe_id (with 0 for boundary faces)]
     
      ! DoF identifiers associated to each FE and field within FE
-     integer(ip)                   , allocatable :: ptr_dofs_per_fe(:,:) ! (number_fields, number_fes)
+     integer(ip)                   , allocatable :: ptr_dofs_per_fe(:,:) ! (number_fields, number_fes+1)
      integer(ip)                   , allocatable :: lst_dofs_lids(:)
     
      ! Strong Dirichlet BCs-related member variables
@@ -210,6 +216,7 @@ module new_serial_fe_space_names
      procedure, non_overridable, private :: new_serial_fe_space_create_same_reference_fes_on_all_cells
      generic                             :: create                                       => new_serial_fe_space_create_same_reference_fes_on_all_cells
      procedure, non_overridable          :: free                                         => new_serial_fe_space_free
+     procedure, non_overridable          :: print                                        => new_serial_fe_space_print
      procedure, non_overridable, private :: allocate_and_fill_reference_fes              => new_serial_fe_space_allocate_and_fill_reference_fes
      procedure, non_overridable, private :: free_reference_fes                           => new_serial_fe_space_free_reference_fes
      procedure, non_overridable, private :: allocate_and_fill_field_blocks_and_coupling  => new_serial_fe_space_allocate_and_fill_field_blocks_and_coupling 
@@ -217,17 +224,31 @@ module new_serial_fe_space_names
      procedure, non_overridable, private :: allocate_ref_fe_id_per_fe                    => new_serial_fe_space_allocate_ref_fe_id_per_fe
      procedure, non_overridable, private :: free_ref_fe_id_per_fe                        => new_serial_fe_space_free_ref_fe_id_per_fe
      procedure, non_overridable, private :: fill_ref_fe_id_per_fe_same_on_all_cells      => new_serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
+     procedure, non_overridable, private :: allocate_and_fill_field_type                 => new_serial_fe_space_allocate_and_fill_field_type
+     procedure, non_overridable, private :: free_field_type                              => new_serial_fe_space_free_field_type
+     
+     procedure, non_overridable, private :: allocate_and_init_ptr_lst_dofs               => new_serial_fe_space_allocate_and_init_ptr_lst_dofs
+     procedure, non_overridable, private :: free_ptr_lst_dofs                            => new_serial_fe_space_free_ptr_lst_dofs
+     
      procedure, non_overridable, private :: initialize_fe_integration                    => new_serial_fe_space_initialize_fe_integration
      procedure, non_overridable, private :: free_fe_integration                          => new_serial_fe_space_free_fe_integration
      procedure, non_overridable, private :: generate_fe_volume_integrators_position_key  => new_serial_fe_space_generate_fe_volume_integrators_position_key
+     procedure, non_overridable          :: create_assembler                             => new_serial_fe_space_create_assembler
+     procedure, non_overridable          :: symbolic_setup_assembler                     => new_serial_fe_space_symbolic_setup_assembler
      
+     
+     procedure, non_overridable          :: fill_dof_info                                => new_serial_fe_space_fill_dof_info
+     procedure, non_overridable, private :: fill_elem2dof_and_count_dofs                 => new_serial_fe_space_fill_elem2dof_and_count_dofs
+     !procedure, non_overridable, private :: renumber_dofs_block                          => new_serial_fe_space_renumber_dofs_block
      procedure, non_overridable          :: get_number_fields                            => new_serial_fe_space_get_number_fields
      
      ! Coarse FE traversals-related TBPs
      procedure, non_overridable          :: create_fe_iterator                           => new_serial_fe_space_create_fe_iterator
-     
-     
  end type new_serial_fe_space_t  
+ 
+ public :: new_serial_fe_space_t   
+ public :: fe_iterator_t, fe_accessor_t
+ 
   
   ! This module includes the physical FE and FE space structure. It includes the
   ! following types:

@@ -25,6 +25,20 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+function base_static_triangulation_get_num_dimensions(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: base_static_triangulation_get_num_dimensions
+  base_static_triangulation_get_num_dimensions = this%num_dimensions
+end function base_static_triangulation_get_num_dimensions
+
+function base_static_triangulation_get_num_vefs(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: base_static_triangulation_get_num_vefs
+  base_static_triangulation_get_num_vefs = this%num_vefs
+end function base_static_triangulation_get_num_vefs
+
 function base_static_triangulation_get_num_local_vefs(this)
   implicit none
   class(base_static_triangulation_t), intent(in) :: this
