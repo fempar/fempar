@@ -234,7 +234,6 @@ module base_static_triangulation_names
      type(hash_table_ip_ip_t)              :: reference_fe_geo_index
      ! The reference fe for the geometry of each element need not to be stored as it can
      ! be recovered from the number of vefs
-     integer(ip) , allocatable             :: elems_reference_fe_geo(:)  ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: ptr_vefs_per_cell(:)       ! Num local cells + num ghost cells + 1
      integer(ip) , allocatable             :: lst_vefs_lids(:)
 

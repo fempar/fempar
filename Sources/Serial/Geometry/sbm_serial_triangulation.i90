@@ -135,6 +135,7 @@
        end do
        call cell_iterator%next()
     end do
+    write (*,'(a)') '**** End Cells ****'
 
     ! write (*,'(a)') '**** Vefs ****'
     ! vef_iterator = this%create_vef_iterator()
