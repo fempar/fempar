@@ -993,7 +993,7 @@ subroutine base_static_triangulation_allocate_and_fill_coordinates(this,vertices
      do idime=1,this%num_dimensions 
         do ipoin=1,num_points 
            inode = inode +1 
-           l_node = cell%get_node( this%reference_fe_geo_list(cell_type)%p%get_own_node_vef(inode,lpos) )
+           l_node = cell%get_node_lid( this%reference_fe_geo_list(cell_type)%p%get_own_node_vef(inode,lpos) )
            this%coordinates(l_node)=points(idime,ipoin)
         end do
      end do
@@ -1028,7 +1028,7 @@ subroutine base_static_triangulation_allocate_and_fill_coordinates(this,vertices
      do idime=1,this%num_dimensions 
         do ipoin=1,num_points
            inode = inode + 1 
-           l_node = cell%get_node(inode)
+           l_node = cell%get_node_lid(inode)
            coordinates(idime,ipoin) = this%coordinates(l_node)
         end do
      end do
@@ -1049,7 +1049,7 @@ subroutine base_static_triangulation_allocate_and_fill_coordinates(this,vertices
      do idime=1,this%num_dimensions 
         do ipoin=1,num_points
            inode = inode + 1 
-           l_node = cell%get_node(inode)
+           l_node = cell%get_node_lid(inode)
            this%coordinates(l_node) = coordinates(idime,ipoin)
         end do
      end do
