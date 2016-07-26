@@ -207,56 +207,6 @@ subroutine par_base_static_tria_allocate_and_fill_ptr_vefs_per_cell (this, ptr_v
     end do
   end subroutine par_base_static_tria_fill_local_cells_mypart
 
-subroutine par_bst_allocate_and_fill_cells_around_interface_vefs ( this )
-  implicit none
-  class(par_base_static_triangulation_t), intent(inout)  :: this
-  integer(ip)                                        :: ivef, vef_lid, vef_itfc_lid
-  type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t) :: cell
-  call this%free_cells_around()
-
-  call memalloc ( this%num_itfc_vefs+1, this%ptrs_cells_around, __FILE__, __LINE__ )
-  this%ptrs_cells_around = 0
-
-  cell_iterator = this%create_cell_iterator()
-  do while ( .not. cell_iterator%has_finished() )
-    call cell_iterator%current(cell)
-    do ivef=1, cell%get_num_vefs()
-      vef_lid = cell%get_vef_lid(ivef)
-      vef_itfc_lid = this%vefs_itfc_lid(vef_lid)
-      if ( vef_itfc_lid /= -1 ) then
-        this%ptrs_cells_around(vef_itfc_lid +1) = this%ptrs_cells_around(vef_itfc_lid+1) + 1
-      end if
-    end do
-    call cell_iterator%next()
-  end do
-
-  this%ptrs_cells_around(1) = 1
-  do ivef=2, this%num_itfc_vefs+1
-     this%ptrs_cells_around(ivef) = this%ptrs_cells_around(ivef) + this%ptrs_cells_around(ivef-1)
-  end do
-
-  call memalloc ( this%ptrs_cells_around(this%num_itfc_vefs+1)-1, this%lst_cells_around, __FILE__, __LINE__ )
-
-  call cell_iterator%init()
-  do while ( .not. cell_iterator%has_finished() )
-    call cell_iterator%current(cell)
-    do ivef=1, cell%get_num_vefs()
-       vef_lid = cell%get_vef_lid(ivef)
-       vef_itfc_lid = this%vefs_itfc_lid(vef_lid)
-       if ( vef_itfc_lid /= -1 ) then
-          this%lst_cells_around(this%ptrs_cells_around(vef_itfc_lid)) = cell%get_lid()
-          this%ptrs_cells_around(vef_itfc_lid) = this%ptrs_cells_around(vef_itfc_lid) + 1
-       end if
-    end do
-    call cell_iterator%next()
-  end do
-
-  do ivef=this%num_itfc_vefs+1,2,-1 
-     this%ptrs_cells_around(ivef) = this%ptrs_cells_around(ivef-1)
-  end do
-  this%ptrs_cells_around(1) = 1
-end subroutine par_bst_allocate_and_fill_cells_around_interface_vefs
 
   recursive subroutine par_base_static_tria_free ( this )
     implicit none
@@ -658,8 +608,8 @@ subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs,
       nparts_around = 1 
       parts_itfc_vefs(nparts_around+1,ivef_itfc) = mypart_id
       
-      do icell=1, current_itfc_vef%get_num_interface_cells_around()
-        cell          = current_itfc_vef%get_interface_cell_around(icell)
+      do icell=1, current_itfc_vef%get_num_cells_around()
+        call current_itfc_vef%get_cell_around(icell,cell)
         part_id       = cell%get_mypart()
         if ( part_id /= mypart_id ) then
          local_part_id = this%element_import%get_local_neighbour_id(part_id)

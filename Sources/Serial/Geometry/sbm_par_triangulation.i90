@@ -168,8 +168,8 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
      call this%compute_num_itfc_vefs()
      call this%allocate_and_fill_lst_itfc_vefs()
      call this%allocate_and_fill_vefs_itfc_lid()
-     write(*,*) 'Interface lists computed'
-     call this%allocate_and_fill_cells_around_interface_vefs()
+     !write(*,*) 'Interface lists computed'
+     !call this%allocate_and_fill_cells_around_interface_vefs()
 
      call memfree (lst_vefs_gids_ghost_extended, __FILE__, __LINE__)
      !call memfree (lst_vefs_dimension_ghost_extended, __FILE__, __LINE__)

@@ -102,19 +102,6 @@ function vef_accessor_get_dimension(this)
   vef_accessor_get_dimension  = this%base_static_triangulation%vefs_dimension(this%lid)
 end function vef_accessor_get_dimension
 
-function vef_accessor_get_num_cells_around_interface_vef (this)
-  implicit none
-  class(vef_accessor_t), intent(in) :: this
-  integer(ip) :: vef_accessor_get_num_cells_around_interface_vef
-  integer(ip) :: vef_itfc_lid
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  assert ( this%at_interface() )
-  vef_itfc_lid = this%base_static_triangulation%vefs_itfc_lid(this%lid)
-  vef_accessor_get_num_cells_around_interface_vef = &
-       & this%base_static_triangulation%ptrs_cells_around(vef_itfc_lid+1)- &
-       & this%base_static_triangulation%ptrs_cells_around(vef_itfc_lid)
-end function vef_accessor_get_num_cells_around_interface_vef
-
 function vef_accessor_get_num_cells_around (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
@@ -123,23 +110,6 @@ function vef_accessor_get_num_cells_around (this)
   vef_accessor_get_num_cells_around = this%base_static_triangulation%ptrs_cells_around(this%lid+1)- &
        this%base_static_triangulation%ptrs_cells_around(this%lid)
 end function vef_accessor_get_num_cells_around
-
-function vef_accessor_get_cell_around_interface_vef (this, icell_around)
-  implicit none
-  class(vef_accessor_t), intent(in) :: this
-  integer(ip)          , intent(in) :: icell_around
-  type(cell_accessor_t)             :: vef_accessor_get_cell_around_interface_vef
-  integer(ip)                       :: position_in_lst_cells_around
-  integer(ip)                       :: vef_itfc_lid
-  integer(ip)                       :: icell 
-  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  assert ( this%at_interface() )
-  assert ( icell_around >= 1 .and. icell_around <= this%get_num_interface_cells_around() )
-  vef_itfc_lid = this%base_static_triangulation%vefs_itfc_lid(this%lid)
-  position_in_lst_cells_around = this%base_static_triangulation%ptrs_cells_around(vef_itfc_lid) + icell_around-1
-  icell = this%base_static_triangulation%lst_cells_around(position_in_lst_cells_around)
-  call vef_accessor_get_cell_around_interface_vef%create(icell,this%base_static_triangulation)
-end function vef_accessor_get_cell_around_interface_vef
 
 subroutine vef_accessor_get_cell_around (this, icell_around, cell)
   implicit none
@@ -163,16 +133,37 @@ function vef_accessor_is_local (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   logical                           :: vef_accessor_is_local
+  type(cell_accessor_t) :: cell
+  integer(ip) :: icell
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  vef_accessor_is_local = (this%lid <= this%base_static_triangulation%num_local_vefs)
+
+  !vef_accessor_is_local = (this%lid <= this%base_static_triangulation%num_local_vefs)
+  vef_accessor_is_local = .true.
+  do icell = 1, this%get_num_cells_around()
+     call this%get_cell_around(icell,cell)
+     if(cell%is_ghost()) then
+        vef_accessor_is_local = .false.
+        exit  
+     end if
+  end do
 end function vef_accessor_is_local
 
 function vef_accessor_is_ghost (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
   logical                            :: vef_accessor_is_ghost
+  type(cell_accessor_t) :: cell
+  integer(ip) :: icell
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  vef_accessor_is_ghost = (this%lid > this%base_static_triangulation%num_ghost_vefs)
+  !vef_accessor_is_ghost = (this%lid > this%base_static_triangulation%num_ghost_vefs)
+  vef_accessor_is_ghost = .true.
+  do icell = 1, this%get_num_cells_around()
+     call this%get_cell_around(icell,cell)
+     if(cell%is_local()) then
+        vef_accessor_is_ghost = .false.
+        exit  
+     end if
+  end do  
 end function vef_accessor_is_ghost
 
 ! We need cells around to evaluate it. Storing faces of elements, 

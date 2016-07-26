@@ -121,12 +121,19 @@ module base_static_triangulation_names
      procedure, non_overridable          :: is_ghost                  => vef_accessor_is_ghost
      procedure, non_overridable          :: at_interface              => vef_accessor_at_interface
      procedure, non_overridable          :: get_dimension             => vef_accessor_get_dimension
-     procedure, non_overridable          :: get_num_cells_around           => vef_accessor_get_num_cells_around
-     procedure, non_overridable          :: get_num_interface_cells_around => vef_accessor_get_num_cells_around_interface_vef
-     generic                             :: get_cell_around                => vef_accessor_get_cell_around
-     procedure, non_overridable          :: get_interface_cell_around      => vef_accessor_get_cell_around_interface_vef
-     procedure, non_overridable          :: get_vertices                   => vef_accessor_get_vertices
+     procedure, non_overridable          :: get_num_cells_around      => vef_accessor_get_num_cells_around
+     generic                             :: get_cell_around           => vef_accessor_get_cell_around
+     procedure, non_overridable          :: get_vertices              => vef_accessor_get_vertices
   end type vef_accessor_t
+
+  type, extends(vef_accessor_t) :: vertex_accessor_t
+  end type vertex_accessor_t
+
+  type, extends(vef_accessor_t) :: edge_accessor_t
+  end type edge_accessor_t
+
+  type, extends(vef_accessor_t) :: face_accessor_t
+  end type face_accessor_t
 
   ! In order to define iterators over vertices, edges and faces as extensions of vef_iterator
   ! we need to overwrite init and next. The alternative is to repeat all TBPs.
@@ -248,7 +255,6 @@ module base_static_triangulation_names
 
      integer(ip)                           :: num_itfc_vefs  = -1
      integer(ip), allocatable              :: lst_itfc_vefs(:)
-     integer(ip)                           :: cells_around_which_vefs = all_vefs ! or interface_vefs
      integer(ip), allocatable              :: ptrs_cells_around(:) ! num_itfc_vefs+1
      integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
      
@@ -376,7 +382,7 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_cells_mypart                              => par_base_static_tria_free_cells_mypart
      procedure, non_overridable, private :: fill_local_cells_mypart                        => par_base_static_tria_fill_local_cells_mypart
 
-     procedure, non_overridable, private :: allocate_and_fill_cells_around_interface_vefs  => par_bst_allocate_and_fill_cells_around_interface_vefs
+     !procedure, non_overridable, private :: allocate_and_fill_cells_around_interface_vefs  => par_bst_allocate_and_fill_cells_around_interface_vefs
 
      procedure, non_overridable, private :: fetch_ghost_cells_data                         => par_base_static_tria_fetch_ghost_cells_data
      procedure, non_overridable, nopass, private :: cell_size                              => par_base_static_tria_cell_size
