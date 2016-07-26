@@ -25,149 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module command_line_parameters_names
-  use serial_names
-# include "debug.i90"
-
-  implicit none
-  private
-
-  type test_new_serial_fe_space_params_t
-     character(len=:), allocatable :: default_dir_path
-     character(len=:), allocatable :: default_prefix
-     character(len=:), allocatable :: default_dir_path_out
-   contains
-     procedure :: set_default_params => test_new_serial_fe_space_set_default_params
-  end type test_new_serial_fe_space_params_t
-
-  ! Types
-  public :: test_new_serial_fe_space_params_t
-
-  ! Functions
-  public :: cli_add_params
-
-contains
-
-  subroutine test_new_serial_fe_space_set_default_params(params)
-    implicit none
-    class(test_new_serial_fe_space_params_t), intent(inout) :: params
-    ! IO parameters
-    params%default_dir_path     = 'data/'
-    params%default_prefix       = 'square'
-    params%default_dir_path_out = 'output/'
-  end subroutine test_new_serial_fe_space_set_default_params
-
-  !==================================================================================================
-  subroutine cli_add_params(cli,params)
-    implicit none
-    type(Command_Line_Interface)       , intent(inout) :: cli
-    type(test_new_serial_fe_space_params_t) , intent(in)    :: params
-    !class(test_new_serial_fe_space_parallel_params_t), intent(inout) :: params
-    ! Locals
-    integer(ip) :: error
-    character   :: aux_string
-
-    ! IO parameters
-    call cli%add(switch='--dir_path',switch_ab='-d',                              &
-         &       help='Directory of the source files',required=.false., act='store',                &
-         &       def=trim(params%default_dir_path),error=error)
-    check(error==0)
-    call cli%add(switch='--prefix',switch_ab='-pr',help='Name of the GiD files',  &
-         &       required=.false.,act='store',def=trim(params%default_prefix),error=error) 
-    check(error==0)
-    call cli%add(switch='--dir_path_out',switch_ab='-out',help='Output Directory',&
-         &       required=.false.,act='store',def=trim(params%default_dir_path_out),error=error)
-    check(error==0)
-    
-  end subroutine cli_add_params
-  
-end module command_line_parameters_names
 
 !****************************************************************************************************
-!****************************************************************************************************
-
 program test_new_serial_fe_space
   use serial_names
-  use command_line_parameters_names
-  
+  use test_new_serial_fe_space_driver_names  
   implicit none
-#include "debug.i90"
-  ! Our data
-  type(serial_triangulation_t)       :: triangulation
-  type(test_new_serial_fe_space_params_t) :: test_params
-
-  ! Arguments
-  character(len=256)       :: dir_path, dir_path_out
-  character(len=256)       :: prefix, filename
-
-  integer(ip) :: lunio, istat
-
-  type(Command_Line_Interface):: cli 
- 
-  call meminit
-
-  ! Read IO parameters
-  call read_flap_cli_test_new_serial_fe_space(cli,test_params)
- 
-  ! Create triangulation reading from a mesh
-  call cli%get(switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
-  call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
-  call triangulation%create(dir_path,prefix)
-
-  !call cli%get(switch='-out',val=dir_path_out,error=istat); check(istat==0)
-  !call mesh_read (dir_path, prefix, p_env, p_mesh)
-
-  !call mpi_barrier(p_context%icontxt,istat)
-  
-  ! Read conditions 
-  !call conditions_read (dir_path, prefix, p_mesh%f_mesh%npoin, p_env, p_cond)
-
-  ! Generate efs and its boundary conditions
-  !call generate_efs(p_mesh%f_mesh, p_cond%f_conditions)
-
-  ! Construct triangulation
-  !call JP_mesh_to_triangulation ( p_mesh, p_trian)
-
-  ! Print triangulation
-  call triangulation%print()
-  call cli%free()
-
-  !call p_trian%free()
-  !call conditions_free ( p_cond )
-  !call mesh_free (p_mesh)
-
-  !call environment_free (p_env)
-  !call context_free ( p_context, .false. )
-  call memstatus
-
+  type(test_new_serial_fe_space_driver_t) :: test_driver
+  call fempar_init()
+  call test_driver%run_simulation()
+  call fempar_finalize()
 contains
-
-  !==================================================================================================
-  subroutine read_flap_cli_test_new_serial_fe_space(cli,test_params)
-    use serial_names
-    implicit none
-    type(Command_Line_Interface)            , intent(inout) :: cli
-    type(test_new_serial_fe_space_params_t)      , intent(inout) :: test_params
-    
-    ! Locals
-    integer(ip)                 :: istat
-    
-    call cli%free()
-
-    ! Initialize Command Line Interface
-    call cli%init(progname    = 'test_new_serial_fe_space',                                                     &
-         &        version     = '',                                                                 &
-         &        authors     = '',                                                                 &
-         &        license     = '',                                                                 &
-         &        description =  'FEMPAR driver to test the new serial fe space.', &
-         &        examples    = ['test_new_serial_fe_space -h  ', 'test_new_serial_fe_space -h  ' ])
-    
-    ! Set Parallel parameters
-    call test_params%set_default_params()
-    call cli_add_params(cli,test_params) 
-    
-    call cli%parse(error=istat)
-    check(istat == 0)
-  end subroutine read_flap_cli_test_new_serial_fe_space
-
 end program

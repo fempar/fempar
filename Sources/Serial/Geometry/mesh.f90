@@ -95,7 +95,7 @@ module mesh_names
           lelpo(:)
 
      real(rp), allocatable ::     &
-          coord(:,:)                         ! Node coordinates
+          coord(:,:)                         ! Vertex coordinates
 
      type(p_reference_fe_t)   ::  ref_fe_list(max_num_elem_types)
     

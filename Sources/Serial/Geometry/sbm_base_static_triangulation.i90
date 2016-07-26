@@ -25,6 +25,20 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+function base_static_triangulation_get_num_dimensions(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: base_static_triangulation_get_num_dimensions
+  base_static_triangulation_get_num_dimensions = this%num_dimensions
+end function base_static_triangulation_get_num_dimensions
+
+function base_static_triangulation_get_num_vefs(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: base_static_triangulation_get_num_vefs
+  base_static_triangulation_get_num_vefs = this%num_vefs
+end function base_static_triangulation_get_num_vefs
+
 function base_static_triangulation_get_num_local_vefs(this)
   implicit none
   class(base_static_triangulation_t), intent(in) :: this
@@ -901,6 +915,11 @@ subroutine base_static_triangulation_allocate_and_fill_coordinates(this,vertices
      end do
      call vertices_iterator%next()
   end do
+  
+  ! In the case of a linear (i.e., order == 1) interpolation of the
+  ! geometry, skip the rest of steps where the this%geometry member
+  ! variable is involved
+  if (this%reference_fe_geo_list(1)%p%get_order() == 1) return
 
   ! if(this%num_dimensions==2) then
   !    !allocate( faces_iterator_t :: vef_iterator, stat=istat)
@@ -974,7 +993,7 @@ subroutine base_static_triangulation_allocate_and_fill_coordinates(this,vertices
      do idime=1,this%num_dimensions 
         do ipoin=1,num_points 
            inode = inode +1 
-           l_node = cell%get_node( this%reference_fe_geo_list(cell_type)%p%get_own_node_vef(inode,lpos) )
+           l_node = cell%get_node_lid( this%reference_fe_geo_list(cell_type)%p%get_own_node_vef(inode,lpos) )
            this%coordinates(l_node)=points(idime,ipoin)
         end do
      end do
@@ -1009,7 +1028,7 @@ subroutine base_static_triangulation_allocate_and_fill_coordinates(this,vertices
      do idime=1,this%num_dimensions 
         do ipoin=1,num_points
            inode = inode + 1 
-           l_node = cell%get_node(inode)
+           l_node = cell%get_node_lid(inode)
            coordinates(idime,ipoin) = this%coordinates(l_node)
         end do
      end do
@@ -1030,7 +1049,7 @@ subroutine base_static_triangulation_allocate_and_fill_coordinates(this,vertices
      do idime=1,this%num_dimensions 
         do ipoin=1,num_points
            inode = inode + 1 
-           l_node = cell%get_node(inode)
+           l_node = cell%get_node_lid(inode)
            this%coordinates(l_node) = coordinates(idime,ipoin)
         end do
      end do

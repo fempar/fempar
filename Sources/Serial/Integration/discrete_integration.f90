@@ -30,6 +30,7 @@ module discrete_integration_names
   use reference_fe_names
   use types_names
   use matrix_array_assembler_names
+  use new_serial_fe_space_names
   use serial_fe_space_names
   use memor_names
 
@@ -39,7 +40,8 @@ module discrete_integration_names
 
   type, abstract :: discrete_integration_t
    contains
-     procedure (integrate_interface), deferred :: integrate
+     procedure (integrate_serial_fe_space_interface), deferred :: integrate
+     procedure                                                 :: integrate_new_serial_fe_space
   end type discrete_integration_t
 
   type p_discrete_integration_t
@@ -49,14 +51,22 @@ module discrete_integration_names
   public :: discrete_integration_t, p_discrete_integration_t
 
   abstract interface
-     subroutine integrate_interface ( this, fe_space, matrix_array_assembler  )
+     subroutine integrate_serial_fe_space_interface ( this, fe_space, matrix_array_assembler  )
        import :: discrete_integration_t, serial_fe_space_t, matrix_array_assembler_t
        implicit none
        class(discrete_integration_t)  , intent(in)    :: this
        class(serial_fe_space_t)       , intent(inout) :: fe_space
        class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
-     end subroutine integrate_interface
+     end subroutine integrate_serial_fe_space_interface
   end interface
 
+contains
+   subroutine integrate_new_serial_fe_space ( this, fe_space, matrix_array_assembler  )
+     implicit none
+     class(discrete_integration_t)  , intent(in)    :: this
+     class(new_serial_fe_space_t)   , intent(inout) :: fe_space
+     class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
+     check(.false.)
+   end subroutine integrate_new_serial_fe_space
 
 end module discrete_integration_names

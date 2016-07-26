@@ -112,6 +112,34 @@ function cell_accessor_get_reference_fe_geo (this)
        this%base_static_triangulation%reference_fe_geo_list(this%base_static_triangulation%elems_reference_fe_geo(this%lid))%p
 end function cell_accessor_get_reference_fe_geo
 
+subroutine cell_accessor_get_coordinates (this, cell_coordinates)
+  implicit none
+  class(cell_accessor_t), intent(in)    :: this
+  type(point_t)        ,  intent(inout) :: cell_coordinates(:)
+  
+  integer(ip) :: id_vertex, vertex_lid, idime
+  class(reference_fe_t), pointer :: reference_fe_geo
+
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( allocated ( this%base_static_triangulation%coordinates ) )
+  
+  reference_fe_geo => this%get_reference_fe_geo()
+  do id_vertex=1, reference_fe_geo%get_number_vertices()
+    cell_coordinates(id_vertex) = 0.0_rp
+    vertex_lid = reference_fe_geo%get_number_dimensions()*(this%get_vef_lid(id_vertex)-1)+1
+    do idime=1, reference_fe_geo%get_number_dimensions()
+      call cell_coordinates(id_vertex)%set(idime,this%base_static_triangulation%coordinates(vertex_lid))
+      vertex_lid = vertex_lid + 1 
+    end do
+  end do
+  
+  ! reference_fe_geo => this%get_reference_fe_geo()
+  ! do inode=1, this%reference_fe_geo%get_number_nodes()
+  !   cell_coordinates(inode) = this%coordinates(this%get_node_lid(inode))
+  ! end do
+  
+end subroutine cell_accessor_get_coordinates
+
 pure function cell_accessor_get_mypart (this)
   implicit none
   class(cell_accessor_t), intent(in) :: this
@@ -147,14 +175,33 @@ function cell_accessor_get_vef_lid (this, ivef)
   cell_accessor_get_vef_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid)+ivef-1)
 end function cell_accessor_get_vef_lid
 
-function cell_accessor_get_node (this, inode)
+function cell_accessor_get_vef_lids (this)
+  implicit none
+  class(cell_accessor_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(ip), pointer               :: cell_accessor_get_vef_lids(:)
+  cell_accessor_get_vef_lids => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid): &
+                                                                             this%base_static_triangulation%ptr_vefs_per_cell(this%lid+1)-1)
+end function cell_accessor_get_vef_lids
+
+function cell_accessor_get_node_lid (this, inode)
   implicit none
   class(cell_accessor_t), intent(in) :: this
   integer(ip)                        :: inode
-  integer(ip)                        :: cell_accessor_get_node
+  integer(ip)                        :: cell_accessor_get_node_lid
+  class(reference_fe_t), pointer     :: reference_fe_geo
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  cell_accessor_get_node = this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)+inode-1)
-end function cell_accessor_get_node
+  
+  reference_fe_geo => this%get_reference_fe_geo()
+  if ( reference_fe_geo%get_order() == 1 ) then
+    assert ( inode >=1 .and. inode <= reference_fe_geo%get_number_vertices() )
+    cell_accessor_get_node_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_per_cell(this%lid)+inode-1)
+  else
+    assert ( inode >=1 .and. inode <= reference_fe_geo%get_number_nodes() )
+    cell_accessor_get_node_lid = this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_per_cell(this%lid)+inode-1)
+  end if
+  
+end function cell_accessor_get_node_lid
 
 function cell_accessor_get_vef_gid (this, ivef)
   implicit none

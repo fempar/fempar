@@ -1,0 +1,160 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+module test_new_serial_fe_space_params_names
+  use serial_names
+# include "debug.i90"
+
+  implicit none
+  private
+
+  type test_new_serial_fe_space_params_t 
+     private 
+     ! IO parameters
+     character(len=:), allocatable :: default_dir_path
+     character(len=:), allocatable :: default_prefix
+     character(len=:), allocatable :: default_dir_path_out
+     
+     type(Command_Line_Interface):: cli 
+
+     ! IO parameters
+     character(len=256)            :: dir_path
+     character(len=256)            :: prefix
+     character(len=256)            :: dir_path_out
+     
+   contains
+     procedure, non_overridable             :: create       => test_new_serial_fe_space_create
+     procedure, non_overridable, private    :: set_default  => test_new_serial_fe_space_set_default
+     procedure, non_overridable, private    :: add_to_cli   => test_new_serial_fe_space_add_to_cli
+     procedure, non_overridable             :: parse        => test_new_serial_fe_space_parse 
+     procedure, non_overridable             :: free         => test_new_serial_fe_space_free
+     procedure, non_overridable             :: get_dir_path
+     procedure, non_overridable             :: get_prefix
+     procedure, non_overridable             :: get_dir_path_out
+  end type test_new_serial_fe_space_params_t
+
+  ! Types
+  public :: test_new_serial_fe_space_params_t
+
+contains
+
+  subroutine test_new_serial_fe_space_create(this)
+    implicit none
+    class(test_new_serial_fe_space_params_t), intent(inout) :: this
+    
+    call this%free()
+    
+     ! Initialize Command Line Interface
+    call this%cli%init(progname    = 'test_new_serial_fe_space',                                                     &
+         &        version     = '',                                                                 &
+         &        authors     = '',                                                                 &
+         &        license     = '',                                                                 &
+         &        description =  'FEMPAR driver to test the new serial fe space.', &
+         &        examples    = ['test_new_serial_fe_space -h  ', 'test_new_serial_fe_space -h  ' ])
+    
+    call this%set_default()
+    call this%add_to_cli()
+  end subroutine test_new_serial_fe_space_create
+  
+  subroutine test_new_serial_fe_space_set_default(this)
+    implicit none
+    class(test_new_serial_fe_space_params_t), intent(inout) :: this
+    ! IO parameters
+    this%default_dir_path     = 'data/'
+    this%default_prefix       = 'square'
+    this%default_dir_path_out = 'output/'
+  end subroutine test_new_serial_fe_space_set_default
+  
+  !==================================================================================================
+  subroutine test_new_serial_fe_space_add_to_cli(this)
+    implicit none
+    class(test_new_serial_fe_space_params_t) , intent(inout) :: this
+
+    ! Locals
+    integer(ip) :: error
+
+    ! IO parameters
+    call this%cli%add(switch='--dir_path',switch_ab='-d',                              &
+         &            help='Directory of the source files',required=.false., act='store',                &
+         &            def=trim(this%default_dir_path),error=error)
+    check(error==0)
+    call this%cli%add(switch='--prefix',switch_ab='-pr',help='Name of the GiD files',  &
+         &            required=.false.,act='store',def=trim(this%default_prefix),error=error) 
+    check(error==0)
+    call this%cli%add(switch='--dir_path_out',switch_ab='-out',help='Output Directory',&
+         &            required=.false.,act='store',def=trim(this%default_dir_path_out),error=error)
+    check(error==0)  
+  end subroutine test_new_serial_fe_space_add_to_cli
+  
+  subroutine test_new_serial_fe_space_parse(this)
+    implicit none
+    class(test_new_serial_fe_space_params_t), intent(inout) :: this
+    integer(ip) :: istat
+    
+    call this%cli%parse(error=istat); check(istat==0)
+    
+    ! IO parameters
+    call this%cli%get(switch='-d'  ,val=this%dir_path    ,error=istat); check(istat==0)
+    call this%cli%get(switch='-pr' ,val=this%prefix      ,error=istat); check(istat==0)
+    call this%cli%get(switch='-out',val=this%dir_path_out,error=istat); check(istat==0)
+  
+  end subroutine test_new_serial_fe_space_parse  
+
+  subroutine test_new_serial_fe_space_free(this)
+    implicit none
+    class(test_new_serial_fe_space_params_t), intent(inout) :: this
+    if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
+    if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
+    if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
+    call this%cli%free()
+  end subroutine test_new_serial_fe_space_free
+
+  ! GETTERS *****************************************************************************************
+  function get_dir_path(this)
+    implicit none
+    class(test_new_serial_fe_space_params_t) , intent(in) :: this
+    character(len=256) :: get_dir_path
+    get_dir_path = this%dir_path
+  end function get_dir_path
+
+  !==================================================================================================
+  function get_prefix(this)
+    implicit none
+    class(test_new_serial_fe_space_params_t) , intent(in) :: this
+    character(len=256) :: get_prefix
+    get_prefix = this%prefix
+  end function get_prefix
+
+  !==================================================================================================
+  function get_dir_path_out(this)
+    implicit none
+    class(test_new_serial_fe_space_params_t) , intent(in) :: this
+    character(len=256) :: get_dir_path_out
+    get_dir_path_out = this%dir_path_out
+  end function get_dir_path_out
+  
+end module test_new_serial_fe_space_params_names

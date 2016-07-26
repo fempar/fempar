@@ -55,6 +55,7 @@
     ! Extract data from mesh
     call mesh%get_sizes(this%num_dimensions,this%num_vertices,this%max_vefs_per_cell,this%num_local_cells)
     this%num_vefs=this%num_vertices
+    this%num_local_vefs=this%num_vefs
     this%num_ghost_vefs=0
     this%num_ghost_cells=0
     !write(*,*) this%num_dimensions,this%num_vertices,this%num_vefs,this%max_vefs_per_cell,this%num_local_cells
@@ -130,7 +131,7 @@
        end do
        write (*,'(a,i10)'  ) 'num_nodes :', cell%get_num_nodes()
        do inode=1, cell%get_num_nodes()
-          write (*,'(a,i10,2x,e14.7)'  ) 'node:', cell%get_node(inode), this%coordinates(cell%get_node(inode))
+          write (*,'(a,i10,2x,e14.7)'  ) 'node:', cell%get_node_lid(inode), this%coordinates(cell%get_node_lid(inode))
        end do
        call cell_iterator%next()
     end do

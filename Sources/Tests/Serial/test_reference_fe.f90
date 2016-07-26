@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module command_line_parameters_names
+module test_new_serial_fe_space_params_names 
   use types_names
   use flap, only : command_line_interface
 # include "debug.i90"
@@ -132,7 +132,7 @@ contains
   end subroutine test_reference_fe_params_free
   
   
-end module command_line_parameters_names
+end module test_new_serial_fe_space_params_names
 
 module poisson_discrete_integration_names
   use serial_names
@@ -415,7 +415,7 @@ end module vector_laplacian_composite_discrete_integration_names
 !****************************************************************************************************
 program test_reference_fe
   use serial_names
-  use command_line_parameters_names
+  use test_new_serial_fe_space_params_names
   implicit none
 #include "debug.i90"
 
