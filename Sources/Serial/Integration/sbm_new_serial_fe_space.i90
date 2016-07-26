@@ -361,6 +361,8 @@ subroutine new_serial_fe_space_initialize_fe_integration ( this )
   
   call this%fe_quadratures_and_maps_position%init()
   call this%fe_volume_integrators_position%init()
+  current_quadrature_and_map = 1
+  current_volume_integrator  = 1
   
   call fe_iterator%init()
   do while ( .not. fe_iterator%has_finished() ) 
@@ -623,7 +625,28 @@ function new_serial_fe_space_get_number_fields ( this )
   integer(ip) :: new_serial_fe_space_get_number_fields
   new_serial_fe_space_get_number_fields = this%number_fields
 end function new_serial_fe_space_get_number_fields
-  
+
+function new_serial_fe_space_get_number_blocks( this)
+  implicit none
+  class(new_serial_fe_space_t), intent(in) :: this 
+  integer(ip) :: new_serial_fe_space_get_number_blocks
+  new_serial_fe_space_get_number_blocks = this%number_blocks ! SB.alert 
+end function new_serial_fe_space_get_number_blocks
+
+function new_serial_fe_space_get_field_blocks( this )
+  implicit none
+  class(new_serial_fe_space_t), target, intent(in) :: this
+  integer(ip), pointer :: new_serial_fe_space_get_field_blocks(:)
+  new_serial_fe_space_get_field_blocks => this%field_blocks
+end function new_serial_fe_space_get_field_blocks
+
+function new_serial_fe_space_get_field_coupling( this )
+  implicit none
+  class(new_serial_fe_space_t), target, intent(in) :: this
+  logical, pointer :: new_serial_fe_space_get_field_coupling(:,:)
+  new_serial_fe_space_get_field_coupling => this%field_coupling
+end function new_serial_fe_space_get_field_coupling
+
 function new_serial_fe_space_create_fe_iterator ( this )
   implicit none
   class(new_serial_fe_space_t), intent(in) :: this
