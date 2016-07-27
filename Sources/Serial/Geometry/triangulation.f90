@@ -526,15 +526,16 @@ contains
     ! Locals
     integer(ip)              :: first, last, io, iv, jv, ivl, c
     type(list_t), pointer :: vertices_vef
+    type(list_iterator_t) :: vertices_vef_iterator
     
     vertices_vef => e%reference_fe_geo%get_vertices_vef()
     lid = -1
     do io = e%reference_fe_geo%get_first_vef_id_of_dimension(nd-1), e%reference_fe_geo%get_first_vef_id_of_dimension(nd)-1
-       first =  vertices_vef%p(io)
-       last = vertices_vef%p(io+1) -1
-       if ( last - first + 1  == no ) then 
-          do iv = first,last
-             ivl = e%vefs(vertices_vef%l(iv)) ! LID of vertices of the ef
+       if ( vertices_vef%get_sublist_size(io)  == no ) then
+          vertices_vef_iterator = vertices_vef%create_iterator(io) 
+          do while(.not. vertices_vef_iterator%is_upper_bound())
+             ivl = e%vefs(vertices_vef_iterator%get_current()) ! LID of vertices of the ef
+             call vertices_vef_iterator%next()
              c = 0
              do jv = 1,no
                 if ( ivl ==  list(jv) ) then
@@ -661,18 +662,21 @@ contains
     integer(ip)           :: i, idime, local_vef_id
     integer(ip)           :: local_element_corner
     type(list_t)         , pointer :: vertices_vef 
+    type(list_iterator_t)          :: vertices_vef_iterator
     class(reference_fe_t), pointer :: left_reference_fe_geo
 
     left_reference_fe_geo => this%neighbour_elems(1)%p%reference_fe_geo
     ! This is using corners_vef and assuming that the geometrical reference element is linear.
     local_vef_id = left_reference_fe_geo%get_first_face_id() + this%relative_face(1) - 1
     vertices_vef => left_reference_fe_geo%get_vertices_vef()
+    vertices_vef_iterator = vertices_vef%create_iterator(local_vef_id)
     do i = 1, left_reference_fe_geo%get_number_vertices_per_face()
-       local_element_corner = vertices_vef%l(vertices_vef%p(local_vef_id) + i-1)
+       local_element_corner = vertices_vef_iterator%get_current()
        face_topology_coordinates(i) = 0.0_rp
        do idime = 1, left_reference_fe_geo%get_number_dimensions()
          call face_topology_coordinates(i)%set(idime,this%neighbour_elems(1)%p%coordinates(idime,local_element_corner))
        end do  
+       call vertices_vef_iterator%next()
     end do
     
   end subroutine face_topology_get_coordinates

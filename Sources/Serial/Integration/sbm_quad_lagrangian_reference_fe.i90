@@ -831,36 +831,37 @@ subroutine extend_list_components(this, list_1d)
   class(quad_lagrangian_reference_fe_t), intent(inout) :: this
   type(list_t), intent(inout) :: list_1d
   type(list_t) :: list
+  type(list_iterator_t) :: list_1d_iterator
+  type(list_iterator_t) :: list_iterator
 
   integer(ip) :: ngaus, order, i, j, k, c, node_1d, aux_1, aux_2
 
   call list%create(n=this%number_vefs+1)
 
-  list%p(1) = 1
-  do i = 2,this%number_vefs+2
-     list%p(i) = list%p(i-1) + ( list_1d%p(i)-list_1d%p(i-1) ) * this%number_field_components
+  do i = 1,this%number_vefs+1
+     call list%sum_to_pointer_index(i, list_1d%get_sublist_size(i) * this%number_field_components)
   end do
 
+  call list%calculate_header()
   call list%allocate_list_from_pointer()
 
   aux_1 = this%number_nodes
   do i = 1,this%number_vefs+1
-     c = list%p(i)
+     list_iterator = list%create_iterator(i)
      do k = 1,this%number_field_components
         aux_2 = aux_1*(k-1)
-        do j = list_1d%p(i),list_1d%p(i+1)-1
-           node_1d = list_1d%l(j)
-           list%l(c) = node_1d + aux_2
-           c = c + 1
+        list_1d_iterator = list_1d%create_iterator(i)
+        do while(.not. list_1d_iterator%is_upper_bound())
+           node_1d = list_1d_iterator%get_current()
+           call list_iterator%set_current(node_1d + aux_2)
+           call list_1d_iterator%next()
+           call list_iterator%next()
         end do
      end do
   end do
 
-  call memrealloc ( size(list%p), list_1d%p, __FILE__, __LINE__ )
-  call memrealloc ( size(list%l), list_1d%l, __FILE__, __LINE__ )
   list_1d = list
   call list%free() 
-
 end subroutine extend_list_components
 
 subroutine quad_lagrangian_reference_fe_fill_scalar (this)
@@ -883,7 +884,11 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   integer(ip), allocatable  :: auxt1(:,:),auxt2(:,:),auxt3(:,:),auxt4(:,:),auxt5(:,:), auxt6(:,:)
   integer(ip), allocatable  :: obdla(:,:),node2ob(:),ob2node(:)
   integer(ip), allocatable  :: aux(:),idm(:),fdm(:),ijk(:),ijk_g(:)
-  type(list_iterator_t)     :: iterator
+  type(list_iterator_t)     :: own_nodes_vef_iterator
+  type(list_iterator_t)     :: vertices_vef_iterator
+  type(list_iterator_t)     :: nodes_vef_iterator
+  type(list_iterator_t)     :: vefs_vef_iterator
+  type(list_iterator_t)     :: interior_nodes_vef_iterator
 
   !  ! Initilize values
   nd = this%number_dimensions
@@ -935,12 +940,6 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   call memalloc(nod,nd+1,obdla,__FILE__,__LINE__)
   call memalloc(no, node2ob,__FILE__,__LINE__)        ! Auxiliar array
   call memalloc(no, ob2node,__FILE__,__LINE__)        ! Auxiliar array
-
-  !Initialize pointers
-  this%interior_nodes_vef%p(1) = 1
-  this%nodes_vef%p(1) = 1
-  this%vefs_vef%p(1) = 1
-  this%vertices_vef%p(1) = 1
     
   !Loop over dimensions
   do k = 0,nd
@@ -955,12 +954,17 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
 
      ! Loop over vefs of dimension k
      do i = this%number_vefs_dimension(k+1),this%number_vefs_dimension(k+2)-1 
-        this%interior_nodes_vef%p(i+1) = this%interior_nodes_vef%p(i) + aux1 ! assign pointers
-        this%nodes_vef%p(i+1) = this%nodes_vef%p(i) + aux3 ! assign pointers
-        this%vertices_vef%p(i+1) = this%vertices_vef%p(i) + aux2 ! assign pointers
-        this%vefs_vef%p(i+1) = this%vefs_vef%p(i) + aux4 ! assign pointers 
+        call this%interior_nodes_vef%sum_to_pointer_index(i, aux1) ! assign pointers
+        call this%nodes_vef%sum_to_pointer_index(i, aux3) ! assign pointers
+        call this%vertices_vef%sum_to_pointer_index(i, aux2) ! assign pointers
+        call this%vefs_vef%sum_to_pointer_index(i, aux4) ! assign pointers 
      end do
   end do
+
+  call this%interior_nodes_vef%calculate_header()
+  call this%nodes_vef%calculate_header()
+  call this%vertices_vef%calculate_header()
+  call this%vefs_vef%calculate_header()
   
   call this%interior_nodes_vef%allocate_list_from_pointer()
   call this%nodes_vef%allocate_list_from_pointer()
@@ -995,6 +999,11 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   c5  = 0 ! obxob%p counter
   c6  = 0 ! ob2node   counter
   co  = 0 ! counter of vefs
+
+  vefs_vef_iterator = this%vefs_vef%create_iterator()
+  nodes_vef_iterator = this%nodes_vef%create_iterator()
+  vertices_vef_iterator = this%vertices_vef%create_iterator()
+  interior_nodes_vef_iterator = this%interior_nodes_vef%create_iterator()
 
   ! Loop over vefs dimensions
   do od = 0,nd
@@ -1054,7 +1063,6 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
 
      end if
 
-
      ! For each dimension, there are bnm(nd,od) vefs up to translation
      do j = 1,bnm(nd,od)
         idm = -1 ! positions in which the nodes variates
@@ -1103,8 +1111,8 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
               do k = 1,od
                  ijk_g(idm(k)+1) = auxt2(k,m)
               end do
-              c2 = c2+1
-              this%vertices_vef%l(c2) = Q_gijk(ijk_g,nd,1) !store the vef numbering of the corner 
+              call vertices_vef_iterator%set_current(Q_gijk(ijk_g,nd,1)) !store the vef numbering of the corner 
+              call vertices_vef_iterator%next()
            end do
         end do
 
@@ -1123,8 +1131,8 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
               do k = 1,od
                  ijk_g(idm(k)+1) = auxt3(k,m)
               end do
-              c3 = c3+1
-              this%interior_nodes_vef%l(c3) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ndxob%l
+              call interior_nodes_vef_iterator%set_current(Q_gijk(ijk_g,nd,p)) ! Store the local numbering in ndxob%l
+              call interior_nodes_vef_iterator%next()
            end do
         end do
 
@@ -1142,8 +1150,8 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
               do k = 1,od
                  ijk_g(idm(k)+1) = auxt4(k,m)
               end do
-              c4 = c4+1
-              this%nodes_vef%l(c4) = Q_gijk(ijk_g,nd,p) ! Store the local numbering in ntxob%l
+              call nodes_vef_iterator%set_current(Q_gijk(ijk_g,nd,p)) ! Store the local numbering in ntxob%l
+              call nodes_vef_iterator%next()
            end do
         end do
         end if
@@ -1182,8 +1190,8 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
               do k = 1,od
                  ijk_g(idm(k)+1) = auxt5(k,m)
               end do
-              c5 = c5 +1
-              this%vefs_vef%l(c5) = Q_gijk(ijk_g,nd,2)
+              call vefs_vef_iterator%set_current(Q_gijk(ijk_g,nd,2))
+              call vefs_vef_iterator%next()
            end do
 
            ! Define ijk_g for the node in the center of the vef
@@ -1216,8 +1224,10 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
   end do
 
   ! Modify the identifiers of the nodes by the ids of the vef in obxob
+  vefs_vef_iterator = this%vefs_vef%create_iterator()
   do c5 = 1, nt2
-     this%vefs_vef%l(c5) = node2ob(this%vefs_vef%l(c5))
+     call vefs_vef_iterator%set_current(node2ob(vefs_vef_iterator%get_current()))
+     call vefs_vef_iterator%next()
   end do
   
   ! Create face_integration_coupling_nodes_vef
@@ -1233,11 +1243,11 @@ subroutine quad_lagrangian_reference_fe_fill_scalar (this)
      call this%own_nodes_vef%calculate_header()
      call this%own_nodes_vef%allocate_list_from_pointer()
      
-     iterator = this%own_nodes_vef%create_iterator()
+     own_nodes_vef_iterator = this%own_nodes_vef%create_iterator()
      i=1
-     do while(.not. iterator%is_upper_bound())
-        call iterator%set_current(i)
-        call iterator%next()
+     do while(.not. own_nodes_vef_iterator%is_upper_bound())
+        call own_nodes_vef_iterator%set_current(i)
+        call own_nodes_vef_iterator%next()
         i = i + 1 
     enddo
      
