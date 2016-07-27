@@ -34,8 +34,6 @@ module metis_interface_names
   ! An iso_c_bindings based Fortran2003 interface to metis (V5.1.0)  !
   !------------------------------------------------------------------!
 
-#ifdef ENABLE_METIS
-
 !!$/* The maximum length of the options[] array */
 !!$#define METIS_NOPTIONS          40
      integer(c_int), parameter ::  METIS_NOPTIONS    =  40
@@ -227,6 +225,8 @@ module metis_interface_names
   integer(c_int), parameter :: METIS_OBJTYPE_VOL =  1
   integer(c_int), parameter :: METIS_OBJTYPE_NODE = 2 
 
+
+#ifdef ENABLE_METIS
 #ifndef METIS_LONG_INTEGERS
 
   integer(c_int),target :: options(0:METIS_NOPTIONS-1)
