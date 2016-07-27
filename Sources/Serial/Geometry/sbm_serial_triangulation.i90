@@ -111,6 +111,7 @@
     type(vef_iterator_t)  :: vef_iterator
     type(cell_iterator_t) :: cell_iterator
     type(cell_accessor_t) :: cell
+    type(point_t), allocatable :: cell_coordinates(:)
     !type(vef_accessor_t)  :: vef
     integer(ip) :: vef_lid
 
@@ -121,6 +122,10 @@
      
     write (*,'(a)') '**** Cells ****'
     cell_iterator = this%create_cell_iterator()
+    ! Allocate cell_coordinates using size of first cell
+    call cell_iterator%current(cell)
+    call memalloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
+
     do while ( .not. cell_iterator%has_finished() )
        call cell_iterator%current(cell)
        write(*,'(a,i10,a)') '**** cell: ', cell%get_lid(),'****'
@@ -130,8 +135,11 @@
           write (*,'(a,i10)'  ) 'vef_lid:', cell%get_vef_lid(ivef)
        end do
        write (*,'(a,i10)'  ) 'num_nodes :', cell%get_num_nodes()
+       call memrealloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
+       call cell%get_coordinates (cell_coordinates)
+      
        do inode=1, cell%get_num_nodes()
-          write (*,'(a,i10,2x,e14.7)'  ) 'node:', cell%get_node_lid(inode), this%coordinates(cell%get_node_lid(inode))
+          write (*,'(a,i10,3(2x,e15.7))'  ) 'node:', cell%get_node_lid(inode), cell_coordinates(inode)%get_value()
        end do
        call cell_iterator%next()
     end do

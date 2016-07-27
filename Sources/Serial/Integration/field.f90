@@ -27,20 +27,26 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module field_names
   use types_names
+  use memor_names
+#ifdef memcheck
+  use iso_c_binding
+#endif
   implicit none
 # include "debug.i90"
-
   private
 
   type :: vector_field_t
      private
      real(rp) :: value(number_space_dimensions) = 0.0_rp
    contains
-     procedure, non_overridable :: init  => vector_field_init
+     procedure, non_overridable :: vector_field_init_with_scalar
+     procedure, non_overridable :: vector_field_init_with_vector
+     generic :: init  => vector_field_init_with_scalar, vector_field_init_with_vector
      procedure, non_overridable :: set   => vector_field_set
      procedure, non_overridable :: get   => vector_field_get	
      procedure, non_overridable :: add   => vector_field_add
      procedure, non_overridable :: nrm2  => vector_field_nrm2
+     procedure, non_overridable :: get_value => vector_field_get_value
   end type vector_field_t
   
   interface vector_field_t
@@ -98,14 +104,45 @@ module field_names
   public :: vector_field_t, tensor_field_t, symmetric_tensor_field_t, point_t 
   public :: operator(*), operator(+), operator(-), assignment(=)
   public :: double_contract
-contains
   
-  subroutine vector_field_init(this,value)
+# define var_attr allocatable, target
+# define point(a,b) call move_alloc(a,b)
+# define generic_status_test             allocated
+# define generic_memalloc_interface      memalloc
+# define generic_memrealloc_interface    memrealloc
+# define generic_memfree_interface       memfree
+# define generic_memmovealloc_interface  memmovealloc
+
+# define var_type type(point_t)
+# define var_size 8*number_space_dimensions
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+ 
+contains
+
+# include "mem_body.i90"
+
+  function vector_field_get_value(this)
+    implicit none
+    class(vector_field_t), intent(in) :: this
+    real(rp) :: vector_field_get_value(number_space_dimensions)
+    vector_field_get_value = this%value
+  end function vector_field_get_value
+
+  subroutine vector_field_init_with_scalar(this,value)
     implicit none
     class(vector_field_t), intent(inout) :: this
     real(rp)             , intent(in)    :: value
     this%value = value
-  end subroutine vector_field_init
+  end subroutine vector_field_init_with_scalar
+
+  subroutine vector_field_init_with_vector(this,value)
+    implicit none
+    class(vector_field_t), intent(inout) :: this
+    real(rp)             , intent(in)    :: value(number_space_dimensions)
+    this%value = value
+  end subroutine vector_field_init_with_vector
 
   subroutine vector_field_set(this,i,value)
     implicit none

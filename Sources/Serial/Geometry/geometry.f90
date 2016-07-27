@@ -5,17 +5,18 @@ module geometry_names
   use memor_names
   use hash_table_names
   use sisl_names
+  use field_names
   implicit none
   private
 #include "debug.i90"
 
-  type gpoint_t
+  type geometric_point_t
      private
      integer(ip) :: id
-     real(rp)    :: coord(3)
+     real(rp)    :: coord(number_space_dimensions)
    contains
      procedure, non_overridable :: read => point_read
-  end type gpoint_t
+  end type geometric_point_t 
 
   type line_t
      private
@@ -25,7 +26,7 @@ module geometry_names
      ! which is detected checking when n==0
      integer(ip) :: n=0
      integer(ip) :: p=0                           ! p as in sisl=order+1
-     real(rp), allocatable :: control_points(:)   ! (ndime+1)*n, including weights
+     real(rp), allocatable :: control_points(:)   ! (number_space_dimensions+1)*n, including weights
      real(rp), allocatable :: knots(:)            ! nu+pu+1
      type(c_ptr)               :: sisl_ptr = c_null_ptr
      type(geometry_t), pointer :: geometry
@@ -76,10 +77,10 @@ module geometry_names
      type(hash_table_ip_ip_t) :: line_index
      type(hash_table_ip_ip_t) :: surface_index
      type(hash_table_ip_ip_t) :: volume_index
-     type(gpoint_t) , allocatable :: points(:)
-     type(line_t)   , allocatable :: lines(:)
-     type(surface_t), allocatable :: surfaces(:)
-     type(volume_t) , allocatable :: volumes(:)
+     type(geometric_point_t) , allocatable :: points(:)
+     type(line_t)      , allocatable :: lines(:)
+     type(surface_t)   , allocatable :: surfaces(:)
+     type(volume_t)    , allocatable :: volumes(:)
    contains
      procedure, non_overridable :: read_from_file  =>  geometry_read_from_file
      procedure, non_overridable :: read_from_unit  =>  geometry_read_from_unit
@@ -90,7 +91,7 @@ module geometry_names
      procedure, non_overridable :: get_volume  => geometry_get_volume
   end type geometry_t
 
-  public :: geometry_t, gpoint_t, line_t, surface_t, volume_t
+  public :: geometry_t, geometric_point_t, line_t, surface_t, volume_t
 
 contains
 
@@ -101,15 +102,17 @@ contains
   !=============================================================================
   subroutine point_read(point,unit)
     implicit none
-    class(gpoint_t), intent(inout) :: point
-    integer(ip)    , intent(in)    :: unit
+    class(geometric_point_t), intent(inout) :: point
+    integer(ip)             , intent(in)    :: unit
+    integer(ip)     :: i 
     character(256)  :: tel
     read(unit,'(a)') tel
     do while(tel(1:5)/='Coord')
        read(unit,'(a)') tel
     end do
-    read(tel(7:),*) point%coord(1),point%coord(2),point%coord(3)
-  end subroutine point_read
+    read(tel(7:),*) (point%coord(i),i=1,number_space_dimensions)
+   
+    end subroutine point_read
 
   !=============================================================================
   !
@@ -122,7 +125,7 @@ contains
     integer(ip)  , intent(in)  :: unit
     character(256)  :: tel
     character(7)    :: dum
-    integer(ip)     :: i
+    integer(ip)     :: i,j
 
     ! Line end points
     read(unit,'(a)') tel
@@ -138,14 +141,15 @@ contains
        read(unit,'(a)') tel
     end do
     read(tel(26:),*) line%n,dum,line%p
-    allocate(line%control_points(line%n*4),stat=i)
+    allocate(line%control_points(line%n*(number_space_dimensions+1)),stat=i)
     !if(i/=0) check(.false.)
 
     do i=1,line%n
        read(unit,'(a)') tel
-       read(tel(16:),*) line%control_points(4*(i-1)+1), &
-            &           line%control_points(4*(i-1)+2), &
-            &           line%control_points(4*(i-1)+3)
+       read(tel(16:),*) (line%control_points((number_space_dimensions+1)*(i-1)+j),j=1,number_space_dimensions)
+       !read(tel(16:),*) line%control_points((number_space_dimensions+1)*(i-1)+1), &
+       !     &           line%control_points((number_space_dimensions+1)*(i-1)+2), &
+       !     &           line%control_points((number_space_dimensions+1)*(i-1)+3)
     end do
 
     ! knots
@@ -175,9 +179,9 @@ contains
 
     ! Define 4D control poitns (i.e. multiply by weights)
     do i=1,line%n
-       line%control_points(4*(i-1)+1) = line%control_points(4*(i-1)+1) * line%control_points(4*i)
-       line%control_points(4*(i-1)+2) = line%control_points(4*(i-1)+2) * line%control_points(4*i)
-       line%control_points(4*(i-1)+3) = line%control_points(4*(i-1)+3) * line%control_points(4*i)
+       do j=1,number_space_dimensions
+          line%control_points((number_space_dimensions+1)*(i-1)+j) = line%control_points((number_space_dimensions+1)*(i-1)+j) * line%control_points((number_space_dimensions+1)*i)
+       end do
     end do
 
   end subroutine line_read
@@ -194,41 +198,45 @@ contains
   subroutine line_init(line)
     implicit none
     class(line_t), intent(inout) :: line
-    type(gpoint_t), pointer :: point 
+    type(geometric_point_t), pointer :: point 
     integer(ip) :: i
 
     ! The magic constants: 2 means nurbs, always in 3D and 0 means point (not copy).
     if(line%n>0) then ! It is a nurbs
-       line%sisl_ptr = new_curve(line%n,line%p+1,line%knots,line%control_points,2,3,0)
+       line%sisl_ptr = new_curve(line%n,line%p+1,line%knots,line%control_points,2,number_space_dimensions,0)
     else              ! It is a STLINE, create a linear spline using extremes
        line%n = 2
        line%p = 1
-       allocate(line%control_points(line%n*3),stat=i)
+       allocate(line%control_points(line%n*number_space_dimensions),stat=i)
        allocate(line%knots(line%n+line%p+1),stat=i)
        line%knots = (/0.0,0.0,1.0,1.0/)
        point => line%geometry%get_point(line%point(1))
-       line%control_points(1:3) =  point%coord(1:3)
+       line%control_points(1:number_space_dimensions) =  point%coord
        point => line%geometry%get_point(line%point(2))
-       line%control_points(4:6) = point%coord(1:3)
-       line%sisl_ptr = new_curve(line%n,line%p+1,line%knots,line%control_points,1,3,0)
+       line%control_points(number_space_dimensions+1:2*number_space_dimensions) = point%coord
+       line%sisl_ptr = new_curve(line%n,line%p+1,line%knots,line%control_points,1,number_space_dimensions,0)
     end if
   end subroutine line_init
 
   !=============================================================================
-  function line_get_parameter(line,point_coords,tol)
+  !function line_get_parameter(line,point_coords,tol)
+  function line_get_parameter(line,point,tol)
     implicit none
     class(line_t), intent(in) :: line
-    real(rp)     , intent(in) :: point_coords(3)
+    type(point_t), intent(in) :: point
     real(rp)     , intent(in) :: tol
     real(rp)     line_get_parameter
 
+    !real(rp)          :: point_coords(number_space_dimensions)
     integer(ip)       :: p_shape(1)
     real(rp), pointer :: param(:)
     type(c_ptr)       :: p_param
     integer(ip)       :: istat,num_int,num_curves
     type(c_ptr)       :: wcurve
 
-    call point_intersection(line%sisl_ptr, point_coords, 3, tol, num_int, p_param, num_curves, wcurve, istat)
+    !point_coords = point%get_value()
+    !call point_intersection(line%sisl_ptr, point_coords, number_space_dimensions, tol, num_int, p_param, num_curves, wcurve, istat)
+    call point_intersection(line%sisl_ptr, point%get_value(), number_space_dimensions, tol, num_int, p_param, num_curves, wcurve, istat)
     !write(*,*) num_int, istat
     assert(istat==0)
     assert(num_int==1)
@@ -244,15 +252,28 @@ contains
     implicit none
     class(line_t)     , intent(in)  :: line
     real(rp)          , intent(in)  :: param
-    real(rp)          , intent(out) :: point(3)
-    real(rp), optional, intent(out) :: tangent(3)
+    type(point_t)     , intent(out) :: point
+    type(vector_field_t), optional, intent(out) :: tangent
+    !real(rp)          , intent(out) :: point(3)
+    !real(rp), optional, intent(out) :: tangent(3)
     real(rp)    :: values(6)
     integer(ip) :: leftknot = 0
     integer(ip) :: stat
-    call curve_left_evaluation(line%sisl_ptr, 1, param, leftknot, values, stat) 
+    integer(ip) :: number_of_derivatives_to_compute
+
+    number_of_derivatives_to_compute = 0
+    if(present(tangent)) number_of_derivatives_to_compute=1
+    
+    call curve_left_evaluation(line%sisl_ptr, number_of_derivatives_to_compute, param, leftknot, values, stat) 
+
     assert(stat==0)
-    point = values(1:3)
-    if(present(tangent)) tangent = values(4:6)
+    call point%init(values(1:number_space_dimensions))
+    if(present(tangent)) then
+       call tangent%init(values(number_space_dimensions+1:2*number_space_dimensions))
+    end if
+    
+    !point = values(1:3)
+    !if(present(tangent)) tangent = values(4:6)
   end subroutine line_evaluate
 
   !=============================================================================
@@ -286,7 +307,7 @@ contains
     implicit none
     class(geometry_t), target, intent(in) :: geometry
     integer(ip)              , intent(in) :: id
-    type(gpoint_t) , pointer :: geometry_get_point
+    type(geometric_point_t) , pointer :: geometry_get_point
     integer(ip) :: index,istat
     call geometry%point_index%get(key=id,val=index,stat=istat)
     assert(istat==key_found)

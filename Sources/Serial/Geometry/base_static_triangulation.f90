@@ -40,6 +40,7 @@ module base_static_triangulation_names
   use mesh_distribution_names
   use par_io_names
   use stdio_names
+  use field_names
 
   ! Geometry modules
   use sisl_names
@@ -73,6 +74,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: past_the_end         => cell_accessor_past_the_end
     procedure, non_overridable           :: get_reference_fe_geo => cell_accessor_get_reference_fe_geo
     procedure, non_overridable           :: get_coordinates      => cell_accessor_get_coordinates
+    procedure, non_overridable           :: set_coordinates      => cell_accessor_set_coordinates
     procedure, non_overridable           :: get_lid              => cell_accessor_get_lid
     procedure, non_overridable           :: get_gid              => cell_accessor_get_gid
     procedure, non_overridable           :: get_mypart           => cell_accessor_get_mypart
@@ -239,8 +241,8 @@ module base_static_triangulation_names
      integer(ip)                           :: num_nodes
      integer(ip) , allocatable             :: ptr_nodes_per_cell(:)       ! Num local cells + num ghost cells + 1
      integer(ip) , allocatable             :: lst_nodes(:)
-     real(rp)    , allocatable             :: coordinates(:)
-
+     type(point_t), allocatable            :: coordinates(:)
+     
      integer(ip)                           :: num_vefs = -1        ! = num_local_vefs+num_ghost_vefs
      integer(ip)                           :: num_vertices = 0
      integer(ip)                           :: num_edges = 0

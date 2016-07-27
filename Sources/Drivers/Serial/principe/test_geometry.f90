@@ -101,7 +101,9 @@ program test_geometry
   implicit none
   type(geometry_t)      :: geometry
   type(line_t), pointer :: line
-  real(rp)              :: point(3),param
+  type(point_t)         :: point
+  real(rp)              :: param
+  !real(rp)              :: point(3),param
 
   character(len=256)       :: dir_path, dir_path_out
   character(len=256)       :: prefix, filename
@@ -120,29 +122,33 @@ program test_geometry
   call geometry%read(dir_path,prefix)
   line => geometry%get_line(3)
 
-  point(1) = -10.0_rp
-  point(2) = 0.0_rp
-  point(3) = 0.0_rp
+  !point(1) = -10.0_rp
+  !point(2) = 0.0_rp
+  !point(3) = 0.0_rp
+  call point%init(0.0_rp)
+  call point%set(1,-10.0_rp)
   param = line%get_parameter(point,1.0e-8_rp)
   write(*,*) 'Line parameter', param
 
   param = 0.75_rp
   call line%evaluate(param,point)
-  write(*,*) 'Line evaluation', point
+  write(*,*) 'Line evaluation', point%get_value()
 
   ! Get line 1 of geometry and test its TBPs
   call geometry%read(dir_path,prefix)
   line => geometry%get_line(1)
 
-  point(1) = 0.0_rp
-  point(2) = 10.0_rp
-  point(3) = 20.0_rp
+  !point(1) = 0.0_rp
+  !point(2) = 10.0_rp
+  !point(3) = 20.0_rp
+  call point%init( (/0.0_rp,10.0_rp,20.0_rp/) )
+
   param = line%get_parameter(point,1.0e-8_rp)
   write(*,*) 'Line parameter', param
 
   param = 0.6_rp
   call line%evaluate(param,point)
-  write(*,*) 'Line evaluation', point
+  write(*,*) 'Line evaluation', point%get_value()
 
 contains
 
