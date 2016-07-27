@@ -294,7 +294,9 @@ subroutine base_static_triangulation_generate_vefs(this,order,boundary,boundary_
   call memmovealloc(this%ptr_vefs_per_cell,ptr_vertices,__FILE__,__LINE__)
   call memmovealloc(this%lst_vefs_lids,lst_vertices,__FILE__,__LINE__)
 
-  ! Build reference_fe list
+  ! Build reference_fe_geo index and list:
+  ! A scalar reference fe is used for the geometry as it is always interpolated
+  ! using a Lagrangian type fe and nodal values are stored into a point_t array.
   call pos_ref_fe%init(max_num_elem_types)
 
   cell_iterator = this%create_cell_iterator()
@@ -311,7 +313,7 @@ subroutine base_static_triangulation_generate_vefs(this,order,boundary,boundary_
               this%reference_fe_geo_list(ielem_type) = &
                    &    make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian, &
                    &                        number_dimensions = this%num_dimensions, order = order, &
-                   &                        field_type = field_type_vector, continuity = .true. )
+                   &                        field_type = field_type_scalar, continuity = .true. )
            end if
         else
            if(ielem_num_vertices==4) then ! Tetrahedra
@@ -375,10 +377,10 @@ subroutine base_static_triangulation_generate_vefs(this,order,boundary,boundary_
      this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem):this%ptr_vefs_per_cell(ielem)+ielem_num_vertices-1) = &
           & lst_vertices(ptr_vertices(ielem):ptr_vertices(ielem+1)-1)
      ! Fill nodes (same numbering as vertices)
+     !this%lst_nodes(this%ptr_nodes_per_cell(ielem):this%ptr_nodes_per_cell(ielem)+ielem_num_vertices-1) = lst_vertices(ptr_vertices(ielem):ptr_vertices(ielem+1)-1)
      call fill_nodes_on_vertices (this%reference_fe_geo_list(ielem_type)%p, &
           &                       lst_vertices(ptr_vertices(ielem):ptr_vertices(ielem+1)-1), &
           &                       this%lst_nodes(this%ptr_nodes_per_cell(ielem):this%ptr_nodes_per_cell(ielem+1)-1))
-
      call cell_iterator%next()
   end do
   write(*,*) 'Vertices filled'
@@ -787,9 +789,11 @@ subroutine fill_new_nodes_on_vef (reference_fe,vef_local_id, node_list, node_cou
   integer(ip) :: inode, l_node
 
   !write(*,*) vef_local_id, reference_fe%get_number_own_nodes_vef(vef_local_id)
+  !write(*,*) node_list
 
   do inode = 1,reference_fe%get_number_own_nodes_vef(vef_local_id)
     l_node = reference_fe%get_own_node_vef(inode,vef_local_id)
+    !write(*,*) l_node
     assert ( node_list(l_node) <= 0 )
     if ( node_list(l_node) == 0 ) then
       node_count = node_count + 1
@@ -811,14 +815,19 @@ subroutine fill_nodes_on_vertices (reference_fe, vertex_list, node_list)
   ndime = reference_fe%get_number_dimensions()
 
   ! Loop on vertices
+  !do ivef=1,reference_fe%get_number_vefs_of_dimension(0)
+  !   node_count = vertex_list(ivef)
+  !   do inode = 1,reference_fe%get_number_own_nodes_vef(ivef) ! = 1
+  !      l_node = reference_fe%get_own_node_vef(inode,ivef)
+  !      assert ( node_list(l_node) == 0 )
+  !      node_count = node_count + 1
+  !      node_list(l_node) = node_count
+  !   end do
+  !end do
   do ivef=1,reference_fe%get_number_vefs_of_dimension(0)
-     node_count = ndime*(vertex_list(ivef)-1)
-     do inode = 1,reference_fe%get_number_own_nodes_vef(ivef) ! = ndime
-        l_node = reference_fe%get_own_node_vef(inode,ivef)
-        assert ( node_list(l_node) == 0 )
-        node_count = node_count + 1
-        node_list(l_node) = node_count
-     end do
+     assert(reference_fe%get_number_own_nodes_vef(ivef)==1)
+     l_node = reference_fe%get_own_node_vef(1,ivef)
+     node_list(l_node) = vertex_list(ivef)
   end do
 
 end subroutine fill_nodes_on_vertices
@@ -885,56 +894,44 @@ subroutine base_static_triangulation_allocate_and_fill_coordinates(this,vertices
   real(rp)                          , intent(in)    :: vertices_coordinates(:,:)
   type(cell_iterator_t)     :: cell_iterator
   type(cell_accessor_t)     :: cell
-  !class(vef_iterator_t)   :: vef_iterator
   type(vertices_iterator_t) :: vertices_iterator
   type(edges_iterator_t)    :: edges_iterator
   type(faces_iterator_t)    :: faces_iterator
   type(vef_accessor_t)      :: vef
   type(line_t), pointer     :: line
   type(list_t), pointer     :: vertices_of_vefs
-  integer(ip) :: ivef, lpos, idime, inode, l_node, ipoin, num_nodes, num_points
-  integer(ip) :: istat, cell_num_vefs, cell_type
-  integer(ip) :: vertex1, vertex2
-  real(rp)    :: point1(3), point2(3),  points(3,10)
-  real(rp)    :: u_param1, u_param2, param, u_params(10)
-  real(rp), allocatable :: coordinates(:,:)
-
+  integer(ip)   :: istat, inode, l_node, order
+  integer(ip)   :: vertex1, vertex2, ivef_pos_in_cell, ivef 
+  integer(ip)   :: cell_num_vefs, cell_num_nodes, cell_type
+  integer(ip)   :: face_num_nodes
+  type(point_t) :: point1,point2
+  real(rp)      :: u_param1, u_param2, param, u_param
+  type(point_t), allocatable :: coordinates(:)
+  
   call this%free_coordinates()
   call memalloc(this%num_nodes,this%coordinates,__FILE__,__LINE__)
-  points   = 0.0_rp
-
+  
+  ! Store coordinates of vertices
   vertices_iterator = this%create_vertices_iterator()
   do while ( .not. vertices_iterator%has_finished() )
      call vertices_iterator%current(vef)
      ivef = vef%get_lid()
-     inode = this%num_dimensions*(ivef-1)
-     !write(*,*) ivef
-     do idime = 1,this%num_dimensions
-        inode = inode+1
-        this%coordinates(inode)=vertices_coordinates(idime,ivef)
-     end do
+     call this%coordinates(ivef)%init(vertices_coordinates(:,ivef))
      call vertices_iterator%next()
   end do
   
   ! In the case of a linear (i.e., order == 1) interpolation of the
   ! geometry, skip the rest of steps where the this%geometry member
   ! variable is involved
-  if (this%reference_fe_geo_list(1)%p%get_order() == 1) return
+  order = this%reference_fe_geo_list(1)%p%get_order() 
+  if (order == 1) return
 
-  ! if(this%num_dimensions==2) then
-  !    !allocate( faces_iterator_t :: vef_iterator, stat=istat)
-  !    !assert(istat==0)
-  !    write(*,*) 'Creating faces iterator'
-  !    call this%create_faces_iterator(vef_iterator)
-  !    write(*,*) 'Iterator created'
-  !    call vef_iterator%init()
-  ! else if(this%num_dimensions==3) then
-  !    !allocate( edges_iterator_t :: vef_iterator, stat=istat)
-  !    !assert(istat==0)
-  !    vef_iterator = this%create_edges_iterator()
-  !    call vef_iterator%init()
-  ! end if
+   ! High order interpolation is only working in 2D
+   assert(this%num_dimensions==2) 
 
+  ! Allocate local coordinates for faces
+  call memalloc(order+1, coordinates, __FILE__,__LINE__)
+   
   !write(*,*) 'Starting face loop'
   faces_iterator = this%create_faces_iterator()
   do while ( .not. faces_iterator%has_finished() )
@@ -942,119 +939,78 @@ subroutine base_static_triangulation_allocate_and_fill_coordinates(this,vertices
      ivef = vef%get_lid()
 
      call vef%get_cell_around (1, cell) ! there is always one element around
-     lpos = cell%find_lpos_vef_lid(ivef)
+     ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
      cell_num_vefs = cell%get_num_vefs()
      call this%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
      assert(istat==key_found)
      vertices_of_vefs => this%reference_fe_geo_list(cell_type)%p%get_vertices_vef()
-     ! edges have 2 vertices
-     !vertices(1:2) = vertices_of_vefs%l(vertices_of_vefs%p(ivef):vertices_of_vefs%p(ivef+1)-1)
+     face_num_nodes = this%reference_fe_geo_list(cell_type)%p%get_number_own_nodes_vef(ivef_pos_in_cell)
+     call memrealloc( face_num_nodes, coordinates, __FILE__,__LINE__)
+     ! assert(face_num_nodes<=10) ! see declaration of points above
 
-     !write(*,*) 'vertices of vef', ivef, vertices_of_vefs%l(vertices_of_vefs%p(lpos)), vertices_of_vefs%l(vertices_of_vefs%p(lpos)+1)
+     vertex1 = cell%get_vef_lid(  vertices_of_vefs%l(vertices_of_vefs%p(ivef_pos_in_cell)  ) )
+     vertex2 = cell%get_vef_lid(  vertices_of_vefs%l(vertices_of_vefs%p(ivef_pos_in_cell)+1) )
+     !write(*,*) 'vertices of vef', ivef, vvertex1, vertex2
 
-     num_nodes = this%reference_fe_geo_list(cell_type)%p%get_number_own_nodes_vef(lpos)
-     num_points = num_nodes/this%num_dimensions
-     assert(num_points<=10) ! see declaration of points above
-     !write(*,*) 'nodes and points of vef', ivef, num_nodes, num_points
-
-     ! Vertices
-     vertex1 = cell%get_vef_lid(  vertices_of_vefs%l(vertices_of_vefs%p(lpos)  ) )
-     vertex2 = cell%get_vef_lid(  vertices_of_vefs%l(vertices_of_vefs%p(lpos)+1) )
-     point1(1:this%num_dimensions) = vertices_coordinates(:,vertex1)
-     point2(1:this%num_dimensions) = vertices_coordinates(:,vertex2)
-
+     point1 = this%coordinates(vertex1)
+     point2 = this%coordinates(vertex2)
+    
      if(this%vefs_geometry(ivef)>0) then
         ! Put nodes according to geometry
         line => this%geometry%get_line( this%vefs_geometry(ivef) )
         u_param1 = line%get_parameter(point1,1.0e-8_rp)
         u_param2 = line%get_parameter(point2,1.0e-8_rp)
-        do ipoin = 1,num_points
-           param = real(ipoin,rp)/(num_points+1)
-           u_params(ipoin) = u_param1 * (1.0_rp - param) + &
+        do inode = 1,face_num_nodes
+           param = real(inode,rp)/(face_num_nodes+1)
+           u_param = u_param1 * (1.0_rp - param) + &
                 &            u_param2 * param 
-           call line%evaluate(u_params(ipoin),points(:,ipoin))
+           call line%evaluate(u_param,coordinates(inode))
         end do
      else
         ! Put nodes by linear interpolation
-        do ipoin = 1,num_points
-           u_params(ipoin) = real(ipoin,rp)/(num_points+1)
-           points(1:this%num_dimensions,ipoin) = point1 (1:this%num_dimensions)*(1.0_rp -u_params(ipoin)) + &
-                &                                point2 (1:this%num_dimensions)*u_params(ipoin)
+        do inode = 1,face_num_nodes
+           u_param = real(inode,rp)/(face_num_nodes+1)
+           coordinates(inode) = point1*(1.0_rp -u_param) + &
+                &               point2*u_param
         end do
      end if
      ! write(*,*) 'Vef points:' ,ivef ,vertex1, vertex2, num_points, this%vefs_geometry(ivef)
-     ! write(*,*) point1(:),u_param1
-     ! write(*,*) point2(:),u_param2
-     ! write(*,*) points(:,1),u_params(1)
-     ! write(*,*) points(:,2),u_params(2)
-     ! write(*,*) points(:,3),u_params(3)
+     ! write(*,*) point1%get_value(),u_param1
+     ! write(*,*) point2%get_value(),u_param2
+     ! write(*,*) points(1)%get_value()
+     ! write(*,*) points(2)%get_value()
+     ! write(*,*) points(3)%get_value()
 
-     inode = 0
-     do idime=1,this%num_dimensions 
-        do ipoin=1,num_points 
-           inode = inode +1 
-           l_node = cell%get_node_lid( this%reference_fe_geo_list(cell_type)%p%get_own_node_vef(inode,lpos) )
-           this%coordinates(l_node)=points(idime,ipoin)
-        end do
+     do inode=1,face_num_nodes
+        l_node = cell%get_node_lid( this%reference_fe_geo_list(cell_type)%p%get_own_node_vef(inode,ivef_pos_in_cell) )
+        this%coordinates(l_node) = coordinates(inode)
      end do
-     
+          
      call faces_iterator%next()
   end do
-
-  !num_vertices = vertices_per_vef%p(ivef+1)-vertices_per_vef%p(ivef)
-  ! Alternatively:
-  !num_vertices = this%reference_fe_geo_list(cell_type)%p%get_number_vertices_vef(ivef)
-
-  ! Allocate coordinates to the size given by the first cell
-  call cell%create(1,this)
-  cell_num_vefs = cell%get_num_vefs()
-  num_nodes = cell%get_num_nodes()
-  num_points = num_nodes/this%num_dimensions
-  call memalloc(this%num_dimensions, num_points, coordinates, __FILE__,__LINE__)
 
   ! Fill internal nodes
   write(*,*) 'Fill internal nodes'
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
      call cell_iterator%current(cell)
+     
+     ! Reallcate coordinates (if needed) and get them from cell
+     cell_num_nodes = cell%get_num_nodes()
+     call memrealloc( cell_num_nodes, coordinates, __FILE__,__LINE__)
+     call cell%get_coordinates(coordinates)
 
-     ! Reallcate coordinates (if needed)
-     num_nodes = cell%get_num_nodes()
-     num_points = num_nodes/this%num_dimensions
-     call memrealloc(this%num_dimensions, num_points, coordinates, __FILE__,__LINE__)
-
-     ! Get coordinates
-     inode = 0
-     do idime=1,this%num_dimensions 
-        do ipoin=1,num_points
-           inode = inode + 1 
-           l_node = cell%get_node_lid(inode)
-           coordinates(idime,ipoin) = this%coordinates(l_node)
-        end do
-     end do
-
-     !write(*,'(2(2x,e14.7))') coordinates
-     !write(*,*) 'Calling blending:'
- 
      ! Call reference_fe to make the blending
+     !write(*,*) 'Calling blending:'
      cell_num_vefs = cell%get_num_vefs()
      call this%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
      assert(istat==key_found)
      call this%reference_fe_geo_list(cell_type)%p%blending(coordinates)
 
-     !write(*,'(2(2x,e14.7))') coordinates
-
      ! Store coordinates
-     inode = 0
-     do idime=1,this%num_dimensions 
-        do ipoin=1,num_points
-           inode = inode + 1 
-           l_node = cell%get_node_lid(inode)
-           this%coordinates(l_node) = coordinates(idime,ipoin)
-        end do
-     end do
-
+     call cell%set_coordinates(coordinates)
      call cell_iterator%next()
+     
   end do
 
 end subroutine base_static_triangulation_allocate_and_fill_coordinates
