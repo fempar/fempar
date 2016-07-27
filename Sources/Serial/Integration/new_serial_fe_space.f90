@@ -83,6 +83,7 @@ module new_serial_fe_space_names
     !procedure, non_overridable, private :: fill_dofs_face_integration_coupling       => fe_accessor_fill_dofs_face_integration_coupling
     procedure, non_overridable, private :: renumber_dofs_block                        => fe_accessor_renumber_dofs_block
     procedure, non_overridable, private :: renumber_dofs_field                        => fe_accessor_renumber_dofs_field
+    procedure, non_overridable          :: update_integration                         => fe_accessor_update_integration
 
     procedure, non_overridable          :: get_number_fields                          => fe_accessor_get_number_fields
     procedure, non_overridable, private :: get_field_type                             => fe_accessor_get_field_type
@@ -230,7 +231,7 @@ module new_serial_fe_space_names
      procedure, non_overridable, private :: allocate_and_init_ptr_lst_dofs               => new_serial_fe_space_allocate_and_init_ptr_lst_dofs
      procedure, non_overridable, private :: free_ptr_lst_dofs                            => new_serial_fe_space_free_ptr_lst_dofs
      
-     procedure, non_overridable, private :: initialize_fe_integration                    => new_serial_fe_space_initialize_fe_integration
+     procedure, non_overridable          :: initialize_fe_integration                    => new_serial_fe_space_initialize_fe_integration
      procedure, non_overridable, private :: free_fe_integration                          => new_serial_fe_space_free_fe_integration
      procedure, non_overridable, private :: generate_fe_volume_integrators_position_key  => new_serial_fe_space_generate_fe_volume_integrators_position_key
      procedure, non_overridable          :: create_assembler                             => new_serial_fe_space_create_assembler
@@ -240,7 +241,12 @@ module new_serial_fe_space_names
      procedure, non_overridable          :: fill_dof_info                                => new_serial_fe_space_fill_dof_info
      procedure, non_overridable, private :: fill_elem2dof_and_count_dofs                 => new_serial_fe_space_fill_elem2dof_and_count_dofs
      !procedure, non_overridable, private :: renumber_dofs_block                          => new_serial_fe_space_renumber_dofs_block
+     
+     ! Getters
      procedure, non_overridable          :: get_number_fields                            => new_serial_fe_space_get_number_fields
+     procedure, non_overridable          :: get_number_blocks                            => new_serial_fe_space_get_number_blocks
+     procedure, non_overridable          :: get_field_blocks                             => new_serial_fe_space_get_field_blocks
+     procedure, non_overridable          :: get_field_coupling                           => new_serial_fe_space_get_field_coupling
      
      ! Coarse FE traversals-related TBPs
      procedure, non_overridable          :: create_fe_iterator                           => new_serial_fe_space_create_fe_iterator

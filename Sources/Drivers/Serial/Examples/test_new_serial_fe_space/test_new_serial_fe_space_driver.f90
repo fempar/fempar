@@ -136,6 +136,14 @@ contains
     call this%fe_affine_operator%numerical_setup()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
+    
+    select type(matrix)
+    class is (sparse_matrix_t)  
+       call matrix%print_matrix_market(6) 
+    class DEFAULT
+       assert(.false.) 
+    end select
+    
     select type(rhs)
     class is (serial_scalar_array_t)  
        call rhs%print(6) 

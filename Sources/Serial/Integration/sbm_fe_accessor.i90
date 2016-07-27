@@ -221,6 +221,28 @@ subroutine fe_accessor_renumber_dofs_field ( this, field_id, perm_old2new )
   !end do
 end subroutine fe_accessor_renumber_dofs_field
 
+subroutine fe_accessor_update_integration( this )
+  implicit none
+  class(fe_accessor_t), intent(inout) :: this 
+  integer(ip) :: field_id
+  type(point_t)            , pointer :: coordinates(:)
+  type(fe_map_t)           , pointer :: fe_map
+  type(quadrature_t)       , pointer :: quadrature
+  type(volume_integrator_t), pointer :: volume_integrator
+
+  fe_map      => this%get_fe_map()
+  coordinates => fe_map%get_coordinates()
+  call this%get_coordinates(coordinates)
+
+  quadrature => this%get_quadrature()
+  call fe_map%update(quadrature)
+  do field_id = 1, this%get_number_fields()
+     volume_integrator => this%get_volume_integrator(field_id) 
+     call volume_integrator%update(fe_map)
+  end do
+  
+end subroutine fe_accessor_update_integration
+
 function fe_accessor_get_number_fields(this)
   implicit none
   class(fe_accessor_t), intent(in) :: this
