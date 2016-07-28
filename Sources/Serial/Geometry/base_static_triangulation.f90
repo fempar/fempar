@@ -52,7 +52,29 @@ module base_static_triangulation_names
   implicit none
 # include "debug.i90"
   private
-  
+
+  ! Parameters to define vef_type. Observe that
+  ! mod(vef_type,10)     = dimension
+  ! mod(vef_type/10,10)  = interior (0) or boundary (1)
+  ! vef_type/100         = local (0), interface(1) or ghost(2)
+  integer(ip), parameter :: local_interior_dim0 =  0
+  integer(ip), parameter :: local_interior_dim1 =  1
+  integer(ip), parameter :: local_interior_dim2 =  2
+  integer(ip), parameter :: local_boundary_dim0 = 10
+  integer(ip), parameter :: local_boundary_dim1 = 11
+  integer(ip), parameter :: local_boundary_dim2 = 12
+
+  integer(ip), parameter :: interface_interior_dim0 = 100
+  integer(ip), parameter :: interface_interior_dim1 = 101
+  integer(ip), parameter :: interface_interior_dim2 = 102
+  integer(ip), parameter :: interface_boundary_dim0 = 110
+  integer(ip), parameter :: interface_boundary_dim1 = 111
+  integer(ip), parameter :: interface_boundary_dim2 = 112
+
+  integer(ip), parameter :: ghost_dim0 = 200
+  integer(ip), parameter :: ghost_dim1 = 201
+  integer(ip), parameter :: ghost_dim2 = 202
+
   type cell_accessor_t
     private
     integer(ip)                                 :: lid = -1
@@ -131,12 +153,15 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_vertices              => vef_accessor_get_vertices
   end type vef_accessor_t
 
+  ! So far this is just a rename
   type, extends(vef_accessor_t) :: vertex_accessor_t
   end type vertex_accessor_t
 
+  ! So far this is just a rename
   type, extends(vef_accessor_t) :: edge_accessor_t
   end type edge_accessor_t
 
+  ! This will include functions to ask for orientation, rotation, etc.
   type, extends(vef_accessor_t) :: face_accessor_t
   end type face_accessor_t
 
@@ -228,7 +253,7 @@ module base_static_triangulation_names
      integer(ip)                           :: num_local_cells = -1
      integer(ip)                           :: num_ghost_cells = -1
      integer(ip)                           :: max_vefs_per_cell = -1
-     
+
      integer(igp), allocatable             :: cells_gid(:)               ! Num local cells + num ghost cells
      integer(ip) , allocatable             :: cells_mypart(:)            ! Num local cells + num ghost cells
      
@@ -243,7 +268,7 @@ module base_static_triangulation_names
      integer(ip) , allocatable             :: lst_nodes(:)
      type(point_t), allocatable            :: coordinates(:)
      
-     integer(ip)                           :: num_vefs = -1        ! = num_local_vefs+num_ghost_vefs
+     integer(ip)                           :: num_vefs = -1        ! = num_local_vefs + num_ghost_vefs
      integer(ip)                           :: num_vertices = 0
      integer(ip)                           :: num_edges = 0
      integer(ip)                           :: num_faces = 0
@@ -253,6 +278,9 @@ module base_static_triangulation_names
      integer(ip) , allocatable             :: vefs_set(:)          ! num_local_vefs + num_ghost_vefs
      integer(ip) , allocatable             :: vefs_geometry(:)     ! num_local_vefs + num_ghost_vefs
      integer(ip) , allocatable             :: vefs_dimension(:)    ! num_local_vefs + num_ghost_vefs
+     integer(ip) , allocatable             :: vefs_type(:)         ! num_local_vefs + num_ghost_vefs, will replace vefs_dimension
+                                                                   ! above and vef_itfc_lid below (which is currently only accessed
+                                                                   ! to check whether a vef is interface or not).
      integer(ip) , allocatable             :: vefs_itfc_lid(:)     ! num_local_vefs + num_ghost_vefs
 
      integer(ip)                           :: num_itfc_vefs  = -1
@@ -275,6 +303,8 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_cells_around                  => base_static_triangulation_free_cells_around
      procedure, non_overridable          :: generate_vefs                      => base_static_triangulation_generate_vefs
      procedure, non_overridable          :: compute_vefs_dimension             => base_static_triangulation_compute_vefs_dimension
+     procedure, non_overridable, private :: allocate_and_fill_vef_type         => base_static_triangulation_allocate_and_fill_vef_type
+     procedure, non_overridable, private :: free_vefs_type                     => base_static_triangulation_free_vefs_type
 
      ! Geometry interpolation
      procedure, non_overridable          :: allocate_and_fill_coordinates      => base_static_triangulation_allocate_and_fill_coordinates

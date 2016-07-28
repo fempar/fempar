@@ -193,6 +193,12 @@ subroutine base_static_triangulation_free_vefs_dimension( this )
   if (allocated(this%vefs_dimension)) call memfree(this%vefs_dimension,__FILE__,__LINE__)
 end subroutine base_static_triangulation_free_vefs_dimension
 
+subroutine base_static_triangulation_free_vefs_type( this )
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  if (allocated(this%vefs_type)) call memfree(this%vefs_type,__FILE__,__LINE__)
+end subroutine base_static_triangulation_free_vefs_type
+
 subroutine base_static_triangulation_allocate_and_fill_cells_around ( this )
   implicit none
   class(base_static_triangulation_t), intent(inout)  :: this
@@ -363,7 +369,7 @@ subroutine base_static_triangulation_generate_vefs(this,order,boundary,boundary_
   !write(*,*) 'ptr_nodes_per_cell done'
   !write(*,*) this%ptr_nodes_per_cell
 
-  ! Fill vertices
+  ! Fill vertices (dim 0 vefs)
   call cell_iterator%init()
   do while ( .not. cell_iterator%has_finished() )
      call cell_iterator%current(icell)
@@ -386,7 +392,8 @@ subroutine base_static_triangulation_generate_vefs(this,order,boundary,boundary_
   write(*,*) 'Vertices filled'
   !write(*,*) this%lst_nodes
 
-  ! Fill edges (this%num_vefs = number of vertices at this point)
+  ! Fill dim 1 vefs (this%num_vefs = number of vertices at this point)
+  ! they only have two vertices
   this%num_nodes=this%num_dimensions*this%num_vefs
   call cell_iterator%init()
   do while ( .not. cell_iterator%has_finished() )
@@ -465,6 +472,7 @@ subroutine base_static_triangulation_generate_vefs(this,order,boundary,boundary_
      call cell_iterator%next()
   end do
 
+  ! These numbers (num_faces and num_edges) might not be necessary
   if(this%num_dimensions==2) then
      this%num_faces=this%num_vefs-this%num_vertices
      write(*,*) '2D faces filled',this%num_faces
@@ -472,7 +480,8 @@ subroutine base_static_triangulation_generate_vefs(this,order,boundary,boundary_
      this%num_edges=this%num_vefs-this%num_vertices
      write(*,*) '3D edges filled',this%num_edges
 
-     ! Fill faces (similar code except for the number of vertices of each face that is variable)
+     ! Fill dim 2 vefs (the code is similar to that of dim 1 vefs,
+     ! except for the number of vertices of each vef, that is variable)
      call cell_iterator%init()
      do while ( .not. cell_iterator%has_finished() )
         call cell_iterator%current(icell)
@@ -716,6 +725,71 @@ subroutine base_static_triangulation_generate_vefs(this,order,boundary,boundary_
   end if
 
 end subroutine base_static_triangulation_generate_vefs
+
+subroutine base_static_triangulation_allocate_and_fill_vef_type (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(ip)           :: ivef, icell, vef_lid, cell_num_vefs, cell_num_vertices, cell_num_edges ! , cell_num_faces
+  integer(ip)           :: cell_type, istat
+  type(cell_accessor_t) :: cell
+  type(vef_iterator_t)  :: vef_iterator
+  type(vef_accessor_t)  :: vef
+  type(list_t), pointer :: vefs_of_vef
+  integer(ip) :: ivef_pos_in_cell, cell_num_vefs_of_dim0, cell_num_vefs_of_dim1
+  logical     :: vef_is_local, vef_is_ghost
+
+  assert ( this%num_vefs >= 0 )
+  call this%free_vefs_type()
+  call memalloc(this%num_vefs, this%vefs_type,__FILE__,__LINE__) 
+
+  vef_iterator = this%create_vef_iterator()
+  do while ( .not. vef_iterator%has_finished() )
+     call vef_iterator%current(vef)
+     ivef = vef%get_lid()
+     vef_is_local = .true.
+     vef_is_ghost = .true.
+
+     call vef%get_cell_around(1,cell) ! There is always one cell around
+     cell_num_vefs_of_dim0   = this%reference_fe_geo_list(cell_type)%p%get_number_vefs_of_dimension(0)
+     cell_num_vefs_of_dim1   = this%reference_fe_geo_list(cell_type)%p%get_number_vefs_of_dimension(1)
+     ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
+     if(ivef_pos_in_cell<=cell_num_vefs_of_dim0) then
+     ! vef is of dim 0
+     else if(ivef_pos_in_cell<=cell_num_vefs_of_dim1) then
+     ! vef is of dim 1
+     else
+     ! vef is of dim 2
+     end if
+     if(cell%is_ghost()) then
+        vef_is_local = .false.
+     else if(cell%is_local()) then
+        vef_is_ghost = .false.
+     end if
+     if(vef%get_num_cells_around()==1) then ! vef is on the boundary
+        cell_num_vefs = cell%get_num_vefs()
+        call this%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
+        assert(istat==key_found)
+        vefs_of_vef => this%reference_fe_geo_list(cell_type)%p%get_vefs_vef()
+        ! They are also in the boundary, regardless of the number of cells they have around
+     else
+        do icell = 1, vef%get_num_cells_around()
+           call vef%get_cell_around(icell,cell)
+           if(cell%is_ghost()) then
+              vef_is_local = .false.
+           else if(cell%is_local()) then
+              vef_is_ghost = .false.
+           end if
+        end do
+     end if
+     if(vef_is_local) then
+     else if(vef_is_ghost) then
+     else ! vef is interface
+     end if
+     call vef_iterator%next()
+  end do
+
+end subroutine base_static_triangulation_allocate_and_fill_vef_type
+
 
 ! This functions is provided to make some code work. It can be reimplemented
 ! using the order of vertices edges and face defined in generate_vefs. Or, this
