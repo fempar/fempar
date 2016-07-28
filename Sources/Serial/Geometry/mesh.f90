@@ -253,11 +253,9 @@ contains
     msh%order=c_order
     msh%nelty=1
 
-    if (allocated(msh%bound%p)) call memfree (msh%bound%p,__FILE__,__LINE__)
-    if (allocated(msh%bound%l)) call memfree (msh%bound%l,__FILE__,__LINE__)
+    call msh%bound%free()
     if (allocated(msh%lbgeo)) call memfree (msh%lbgeo,__FILE__,__LINE__)
     if (allocated(msh%lbset)) call memfree (msh%lbset,__FILE__,__LINE__)
-    msh%bound%n=0
     msh%nnodb=0
 
     if (allocated(msh%pelpo)) call memfree (msh%pelpo,__FILE__,__LINE__)
@@ -301,7 +299,7 @@ contains
     integer(ip)      , intent(in)  :: lunio
     class(mesh_t)     , intent(out) :: msh
     !logical, optional, intent(in)  :: permute_c2z
-    integer(ip)     :: idime,ipoin,inode,ielem,iboun,nnode,nnodb ! ,istat,jpoin,jelem,iboun
+    integer(ip)     :: idime,ipoin,inode,ielem,nboun,iboun,vbound,nnode,nnodb ! ,istat,jpoin,jelem,iboun
     character(14)   :: dum1
     character(7)    :: dum2
     character(7)    :: dum3
@@ -310,6 +308,8 @@ contains
     character(6)   :: dum6
     character(1000) :: tel
     integer(ip), allocatable :: lnods_aux(:)
+    integer(ip), allocatable :: bound_list_aux(:)
+    type(list_iterator_t)    :: bound_iterator
     integer(ip), pointer     :: permu(:)
     logical                  :: permute_c2z_
 
@@ -324,9 +324,9 @@ contains
     ! Read first line: "MESH dimension  2  order  0  types  1  elements        100  nodes        121  boundaries         40"
     ! Read first line: "MESH dimension  2  order  0  types  1  elements          1  vertices          4  vefs          8
     read(lunio,'(a14,1x,i2, a7,1x,i2, a7,1x,i2, a10,1x,i10, a10,1x,i10, a6,1x,i10)') &
-         & dum1,msh%ndime,dum2,msh%order,dum3,msh%nelty,dum4,msh%nelem, dum5,msh%npoin,dum6,msh%bound%n
+         & dum1,msh%ndime,dum2,msh%order,dum3,msh%nelty,dum4,msh%nelem, dum5,msh%npoin,dum6,nboun
 
-    write(*,*) 'Read mesh with parameters:',msh%ndime,msh%order,msh%nelty,msh%nelem,msh%npoin,msh%bound%n
+    write(*,*) 'Read mesh with parameters:',msh%ndime,msh%order,msh%nelty,msh%nelem,msh%npoin,nboun
 
     ! Read nodes
     call memalloc(number_space_dimensions,msh%npoin,msh%coord,__FILE__,__LINE__)
@@ -373,34 +373,42 @@ contains
     end do
 
     ! Read boundary elements' size (pnodb)
-    call memalloc(msh%bound%n+1,msh%bound%p,__FILE__,__LINE__)
+    call msh%bound%create(nboun)
     do while(tel(1:5).ne.'vefs')
        read(lunio,'(a)') tel
     end do
     read(lunio,'(a)') tel
     do while(tel(1:5).ne.'end v')
-       read(tel,*) iboun,msh%bound%p(iboun+1)
+       read(tel,*) iboun, vbound
+       call msh%bound%sum_to_pointer_index(iboun, vbound)
        read(lunio,'(a)') tel
     end do
     ! Transform length to header and get mesh%nnodb
-    msh%bound%p(1) = 1
+    call msh%bound%calculate_header()
     msh%nnodb    = 0
-    do iboun = 2, msh%bound%n+1
-       msh%nnodb = max(msh%nnodb,msh%bound%p(iboun))
-       msh%bound%p(iboun) = msh%bound%p(iboun)+msh%bound%p(iboun-1)
+    do iboun = 2, msh%bound%get_num_pointers()+1
+       msh%nnodb = max(msh%nnodb,msh%bound%get_sublist_size(iboun))
     end do
 
     ! Read boundary elements
-    call memalloc(msh%bound%p(msh%bound%n+1)-1,msh%bound%l,__FILE__,__LINE__)
-    call memalloc(msh%bound%n,msh%lbgeo,__FILE__,__LINE__)
-    call memalloc(msh%bound%n,msh%lbset,__FILE__,__LINE__)
+    call msh%bound%allocate_list_from_pointer()
+    call memalloc(msh%bound%get_num_pointers(),msh%lbgeo,__FILE__,__LINE__)
+    call memalloc(msh%bound%get_num_pointers(),msh%lbset,__FILE__,__LINE__)
     call io_rewind(lunio)
     do while(tel(1:5).ne.'vefs')
        read(lunio,'(a)') tel
     end do
     read(lunio,'(a)') tel
     do while(tel(1:5).ne.'end v')
-       read(tel,*) iboun,nnodb,(msh%bound%l(msh%bound%p(iboun)-1+inode),inode=1,nnodb),msh%lbset(iboun),msh%lbgeo(iboun)
+       read(tel,*) iboun,nnodb
+       allocate(bound_list_aux(msh%bound%get_sublist_size(iboun)))
+       read(tel,*) iboun,nnodb, (bound_list_aux(inode),inode=1,nnodb),msh%lbset(iboun),msh%lbgeo(iboun)
+       bound_iterator = msh%bound%create_iterator(iboun)
+       do inode=1, nnodb
+          call bound_iterator%set_current(bound_list_aux(inode))
+          call bound_iterator%next()
+       enddo
+       deallocate(bound_list_aux)
        read(lunio,'(a)') tel
     end do
 
@@ -443,15 +451,18 @@ contains
     !------------------------------------------------------------------------
     implicit none
     integer(ip)  , intent(in)           :: lunio
-    class(mesh_t) , intent(in)           :: msh
+    class(mesh_t) , intent(in)          :: msh
     character(*) , intent(in), optional :: title
 
-    integer(ip)                    :: ielem, idime, ipoin, inode, iboun
+    integer(ip)                         :: ielem, idime, ipoin, inode, iboun, jboun
+    integer(ip), allocatable            :: bound_list_aux(:)
+    type(list_iterator_t)               :: bound_iterator
+
 
     ! Read first line: "MESH dimension  2  order  0  types  2  elements         86  nodes         63  boundaries         28"
     write(lunio,'(a14,1x,i2,a7,1x,i2,a7,1x,i2,a10,1x,i10,a7,1x,i10,a12,1x,i10)') &
          & 'MESH dimension',msh%ndime,'  order',msh%order,'  types',msh%nelty,'  elements', &
-         & msh%nelem,'  nodes',msh%npoin,'  boundaries',msh%bound%n
+         & msh%nelem,'  nodes',msh%npoin,'  boundaries',msh%bound%get_num_pointers()
 
     ! Coordinates
     write(lunio,'(a)')'coordinates'
@@ -471,9 +482,16 @@ contains
 
     ! Boundary elements
     write(lunio,'(a)')'boundaries'
-    do iboun=1,msh%bound%n
-       write(lunio,'(i10,65(1x,i10))') iboun, msh%bound%p(iboun+1)-msh%bound%p(iboun), &
-            &  msh%bound%l(msh%bound%p(iboun):msh%bound%p(iboun+1)-1),msh%lbset(iboun),msh%lbgeo(iboun)
+    do iboun=1,msh%bound%get_num_pointers()
+       allocate(bound_list_aux(msh%bound%get_sublist_size(iboun)))
+       bound_iterator = msh%bound%create_iterator(iboun)
+       do jboun=1, msh%bound%get_sublist_size(iboun)
+          bound_list_aux(jboun) = bound_iterator%get_current()
+          call bound_iterator%next()
+       enddo
+       write(lunio,'(i10,65(1x,i10))') iboun, bound_iterator%get_size(), &
+            &  bound_list_aux ,msh%lbset(iboun),msh%lbgeo(iboun)
+       deallocate(bound_list_aux)
     end do
     write(lunio,'(a)') 'end boundaries'
 
@@ -784,6 +802,9 @@ contains
     integer(ip) :: jelpo, jelem, jvef, jelem_type, jelem_num_nodes
     integer(ip) :: jelem_num_vefs, jelem_first_vef_id, jelem_num_vef_verts
     integer(ip) :: vertex_of_jvef(4)
+    type(list_iterator_t) :: vertices_ivef_iterator
+    type(list_iterator_t) :: vertices_jvef_iterator
+    type(list_iterator_t) :: bound_iterator
 
     ! We only require linear continuous elements so we could only have
     ! tetrahedra, hexahedra and prisms combined.
@@ -859,8 +880,9 @@ contains
           if(mesh%lvefs(mesh%pvefs(ielem)-1+ielem_first_vef_id-1+ivef)==0) then ! Not filled yet
              mesh%nvefs=mesh%nvefs+1                                               ! Count it
              mesh%lvefs(mesh%pvefs(ielem)-1+ielem_first_vef_id-1+ivef)=mesh%nvefs  ! Fill it
-             vertex_of_ivef(1) = mesh%lnods(mesh%pnods(ielem)-1+vertices_ivef%l(vertices_ivef%p(ielem_first_vef_id+ivef-1)))
-             vertex_of_ivef(2) = mesh%lnods(mesh%pnods(ielem)-1+vertices_ivef%l(vertices_ivef%p(ielem_first_vef_id+ivef-1)+1))
+             vertices_ivef_iterator = vertices_ivef%create_iterator(ielem_first_vef_id+ivef-1)
+             vertex_of_ivef(1) = mesh%lnods(mesh%pnods(ielem)-1+vertices_ivef_iterator%reach_from_current(0))
+             vertex_of_ivef(2) = mesh%lnods(mesh%pnods(ielem)-1+vertices_ivef_iterator%reach_from_current(1))
              do jelpo=mesh%pelpo(vertex_of_ivef(1)),mesh%pelpo(vertex_of_ivef(1)+1)-1
                 jelem=mesh%lelpo(jelpo)
                 if(jelem>ielem) then
@@ -870,9 +892,10 @@ contains
                    jelem_num_vefs     = mesh%ref_fe_list(jelem_type)%p%get_number_vefs_of_dimension(1)
                    jelem_first_vef_id = mesh%ref_fe_list(jelem_type)%p%get_first_vef_id_of_dimension(1)
                    vertices_jvef => mesh%ref_fe_list(jelem_type)%p%get_vertices_vef()
+                   vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+ivef-1)
                    do jvef=1,jelem_num_vefs
-                      vertex_of_jvef(1) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef%l(vertices_jvef%p(jelem_first_vef_id+ivef-1)))
-                      vertex_of_jvef(2) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef%l(vertices_jvef%p(jelem_first_vef_id+ivef-1)+1))
+                      vertex_of_jvef(1) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef_iterator%reach_from_current(0))
+                      vertex_of_jvef(2) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef_iterator%reach_from_current(1))
                       ! Compare, here we are using that edges have two vertices, hard coded
                       equal = (vertex_of_ivef(1)==vertex_of_jvef(1).and.vertex_of_ivef(2)==vertex_of_jvef(2)).or. &
                            &  (vertex_of_ivef(1)==vertex_of_jvef(2).and.vertex_of_ivef(2)==vertex_of_jvef(1))
@@ -896,8 +919,10 @@ contains
                 ielem_num_vef_verts = mesh%ref_fe_list(ielem_type)%p%get_number_vertices_vef(ielem_first_vef_id+ivef-1)
                 vertices_ivef => mesh%ref_fe_list(ielem_type)%p%get_vertices_vef()
                 vertex_of_ivef = 0
+                vertices_ivef_iterator = vertices_ivef%create_iterator(ielem_first_vef_id+ivef-1)
                 do ivert=1,ielem_num_vef_verts
-                   vertex_of_ivef(ivert)=mesh%lnods( mesh%pnods(ielem)-1+vertices_ivef%l(vertices_ivef%p(ielem_first_vef_id+ivef-1)+ivert-1))
+                   vertex_of_ivef(ivert)=mesh%lnods( mesh%pnods(ielem)-1+vertices_ivef_iterator%get_current())
+                   call vertices_ivef_iterator%next()
                 end do
                 do jelpo=mesh%pelpo(vertex_of_ivef(1)),mesh%pelpo(vertex_of_ivef(1)+1)-1
                    jelem=mesh%lelpo(jelpo)
@@ -910,10 +935,12 @@ contains
                       vertices_jvef => mesh%ref_fe_list(jelem_type)%p%get_vertices_vef()
                       do jvef=1,jelem_num_vefs
                          jelem_num_vef_verts = mesh%ref_fe_list(jelem_type)%p%get_number_vertices_vef(jelem_first_vef_id+jvef-1)
+                         vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+jvef-1)
                          if(jelem_num_vef_verts==ielem_num_vef_verts) then
                             vertex_of_jvef = 0
                             do jvert=1,jelem_num_vef_verts
-                               vertex_of_jvef(jvert)=mesh%lnods( mesh%pnods(jelem)-1+vertices_jvef%l(vertices_jvef%p(jelem_first_vef_id+jvef-1)+jvert-1))
+                               vertex_of_jvef(jvert)=mesh%lnods( mesh%pnods(jelem)-1+vertices_jvef_iterator%get_current())
+                               call vertices_jvef_iterator%next()
                             end do
                             count=0
                             do ivert=1,ielem_num_vef_verts
@@ -941,15 +968,16 @@ contains
     ! Identify boundary faces and assign set and geometry to vefs
     call memalloc(mesh%nvefs, mesh%lvef_geo, __FILE__, __LINE__ )
     call memalloc(mesh%nvefs, mesh%lvef_set, __FILE__, __LINE__ )
-    do iboun=1,mesh%bound%n
-       nnodb=mesh%bound%p(iboun+1)-mesh%bound%p(iboun)
+    do iboun=1,mesh%bound%get_num_pointers()
+       bound_iterator = mesh%bound%create_iterator(iboun)
+       nnodb=bound_iterator%get_size()
        if(nnodb==1) then      ! Vertex
-          ivert=mesh%bound%l(mesh%bound%p(iboun))
+          ivert=bound_iterator%reach_from_current(0)
           mesh%lvef_geo(ivert)=mesh%lbgeo(iboun)
           mesh%lvef_set(ivert)=mesh%lbset(iboun)
        else if(nnodb==2) then ! Edge
-          vertex_of_ivef(1) = mesh%bound%l(mesh%bound%p(iboun)) 
-          vertex_of_ivef(2) = mesh%bound%l(mesh%bound%p(iboun)+1)
+          vertex_of_ivef(1) = bound_iterator%reach_from_current(0)
+          vertex_of_ivef(2) = bound_iterator%reach_from_current(1)
           elems1: do jelpo=mesh%pelpo(vertex_of_ivef(1)),mesh%pelpo(vertex_of_ivef(1)+1)-1
              jelem=mesh%lelpo(jelpo)
              jelem_num_nodes=mesh%pnods(jelem+1)-mesh%pnods(jelem)
@@ -959,8 +987,9 @@ contains
              jelem_first_vef_id = mesh%ref_fe_list(jelem_type)%p%get_first_vef_id_of_dimension(1)
              vertices_jvef => mesh%ref_fe_list(jelem_type)%p%get_vertices_vef()
              do jvef=1,jelem_num_vefs
-                vertex_of_jvef(1) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef%l(vertices_jvef%p(jelem_first_vef_id+jvef-1)))
-                vertex_of_jvef(2) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef%l(vertices_jvef%p(jelem_first_vef_id+jvef-1)+1))
+                vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+jvef-1)
+                vertex_of_jvef(1) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef_iterator%reach_from_current(0))
+                vertex_of_jvef(2) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef_iterator%reach_from_current(1))
                 ! Compare, here we are using that edges have two vertices, hard coded
                 equal = (vertex_of_ivef(1)==vertex_of_jvef(1).and.vertex_of_ivef(2)==vertex_of_jvef(2)).or. &
                      &  (vertex_of_ivef(1)==vertex_of_jvef(2).and.vertex_of_ivef(2)==vertex_of_jvef(1))
@@ -972,10 +1001,10 @@ contains
              end do
           end do elems1
        else                   ! Face
-          ivert=mesh%bound%l(mesh%bound%p(iboun))
           vertex_of_ivef = 0
           do ivert=1,nnodb
-             vertex_of_ivef(ivert)= mesh%bound%l(mesh%bound%p(iboun)-1+ivert)
+             vertex_of_ivef(ivert)= bound_iterator%get_current()
+             call bound_iterator%next()
           end do
           elems2: do jelpo=mesh%pelpo(vertex_of_ivef(1)),mesh%pelpo(vertex_of_ivef(1)+1)-1
              jelem=mesh%lelpo(jelpo)
@@ -987,10 +1016,12 @@ contains
              vertices_jvef => mesh%ref_fe_list(jelem_type)%p%get_vertices_vef()
              do jvef=1,jelem_num_vefs
                 jelem_num_vef_verts = mesh%ref_fe_list(jelem_type)%p%get_number_vertices_vef(jelem_first_vef_id+jvef-1)
+                vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+jvef-1)
                 if(jelem_num_vef_verts==nnodb) then
                    vertex_of_jvef = 0
                    do jvert=1,jelem_num_vef_verts
-                      vertex_of_jvef(jvert)=mesh%lnods( mesh%pnods(jelem)-1+vertices_jvef%l(vertices_jvef%p(jelem_first_vef_id+jvef-1)+jvert-1))
+                      vertex_of_jvef(jvert)=mesh%lnods( mesh%pnods(jelem)-1+vertices_jvef_iterator%get_current())
+                      call vertices_jvef_iterator%next()
                    end do
                    count=0
                    do ivert=1,ielem_num_vef_verts
@@ -1148,14 +1179,14 @@ contains
     call count_elemental_graph(mesh%ndime,mesh%npoin,mesh%nelem, &
     !call count_elemental_graph(1,mesh%npoin,mesh%nelem, &
          &                     mesh%pnods,mesh%lnods,mesh%nnode,mesh%nelpo, &
-         &                     mesh%pelpo,mesh%lelpo,lelem,keadj,graph%p)
+         &                     mesh%pelpo,mesh%lelpo,lelem,keadj,graph)
 
     call graph%allocate_list_from_pointer()
 
     call list_elemental_graph(mesh%ndime,mesh%npoin,mesh%nelem, &
     !call list_elemental_graph(1,mesh%npoin,mesh%nelem, &
          &                    mesh%pnods,mesh%lnods,mesh%nnode,mesh%nelpo, &
-         &                    mesh%pelpo,mesh%lelpo,lelem,keadj,graph%p,graph%l)
+         &                    mesh%pelpo,mesh%lelpo,lelem,keadj,graph)
 
     call memfree(lelem,__FILE__,__LINE__)
     call memfree(keadj,__FILE__,__LINE__)
@@ -1164,26 +1195,27 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine count_elemental_graph(ncomm,npoin,nelem,pnods,lnods,nnode, &
-       &                           nelpo,pelpo,lelpo,lelem,keadj,ieadj)
+       &                           nelpo,pelpo,lelpo,lelem,keadj,graph)
     implicit none
-    integer(ip), intent(in)  :: ncomm,npoin,nelem
-    integer(ip), intent(in)  :: pnods(nelem+1),lnods(pnods(nelem+1))
-    integer(ip), intent(in)  :: nnode             ! Number of nodes of each element (max.)
-    integer(ip), intent(in)  :: nelpo             ! Number of elements around points (max.)
-    integer(ip), intent(in)  :: pelpo(npoin+1)    ! Number of elements around points
-    integer(ip), intent(in)  :: lelpo(pelpo(npoin+1))    ! List of elements around points
-    integer(ip), intent(out) :: ieadj(nelem+1)           ! Number of edges on each element
-    integer(ip), intent(out) :: lelem(nelem)             ! Auxiliar array
-    integer(ip), intent(out) :: keadj(nelpo*nnode)       ! Auxiliar array
-    integer(ip)              :: ielem,jelem,inode,knode  ! Indices
-    integer(ip)              :: ipoin,ielpo,index        ! Indices
-    integer(ip)              :: neadj,ielel,jelel,nelel  ! Indices
+    integer(ip),  intent(in)    :: ncomm,npoin,nelem
+    integer(ip),  intent(in)    :: pnods(nelem+1),lnods(pnods(nelem+1))
+    integer(ip),  intent(in)    :: nnode             ! Number of nodes of each element (max.)
+    integer(ip),  intent(in)    :: nelpo             ! Number of elements around points (max.)
+    integer(ip),  intent(in)    :: pelpo(npoin+1)    ! Number of elements around points
+    integer(ip),  intent(in)    :: lelpo(pelpo(npoin+1))    ! List of elements around points
+    type(list_t), intent(inout) :: graph                    ! Number of edges on each element (list_t)
+    integer(ip),  intent(out)   :: lelem(nelem)             ! Auxiliar array
+    integer(ip),  intent(out)   :: keadj(nelpo*nnode)       ! Auxiliar array
+    integer(ip)                 :: ielem,jelem,inode,knode  ! Indices
+    integer(ip)                 :: ipoin,ielpo,index        ! Indices
+    integer(ip)                 :: neadj,ielel,jelel,nelel  ! Indices
 
     lelem=0
     neadj=1
     knode=nnode
+    call graph%create(nelem)
     do ielem=1,nelem
-       ieadj(ielem)=neadj
+       call graph%sum_to_pointer_index(ielem-1, neadj)
        ! Loop over nodes and their surrounding elements and count
        ! how many times they are repeated as neighbors of ielem
        nelel=0
@@ -1221,26 +1253,27 @@ contains
        end do
     end do
 
-    ieadj(nelem+1)=neadj
+    call graph%sum_to_pointer_index(nelem, neadj)
+    call graph%calculate_header()
 
   end subroutine count_elemental_graph
   !-----------------------------------------------------------------------
   subroutine list_elemental_graph(ncomm,npoin,nelem,pnods,lnods,nnode, &
-       &                          nelpo,pelpo,lelpo,lelem,keadj,ieadj,jeadj)
+       &                          nelpo,pelpo,lelpo,lelem,keadj,graph)
     implicit none
-    integer(ip), intent(in)  :: ncomm,npoin,nelem
-    integer(ip), intent(in)  :: pnods(nelem+1),lnods(pnods(nelem+1))
-    integer(ip), intent(in)  :: nnode             ! Number of nodes of each element (max.)
-    integer(ip), intent(in)  :: nelpo             ! Number of elements around points (max.)
-    integer(ip), intent(in)  :: pelpo(npoin+1)    ! Number of elements around points
-    integer(ip), intent(in)  :: lelpo(pelpo(npoin+1))    ! List of elements around points
-    integer(ip), intent(in)  :: ieadj(nelem+1)           ! Number of edges on each element
-    integer(ip), intent(out) :: jeadj(ieadj(nelem+1))    ! List of edges on each element
-    integer(ip), intent(out) :: lelem(nelem)             ! Auxiliar array
-    integer(ip), intent(out) :: keadj(nelpo*nnode)       ! Auxiliar array
-    integer(ip)              :: ielem,jelem,inode,knode  ! Indices
-    integer(ip)              :: ipoin,ielpo,index        ! Indices
-    integer(ip)              :: neadj,ielel,jelel,nelel  ! Indices
+    integer(ip),  intent(in)    :: ncomm,npoin,nelem
+    integer(ip),  intent(in)    :: pnods(nelem+1),lnods(pnods(nelem+1))
+    integer(ip),  intent(in)    :: nnode             ! Number of nodes of each element (max.)
+    integer(ip),  intent(in)    :: nelpo             ! Number of elements around points (max.)
+    integer(ip),  intent(in)    :: pelpo(npoin+1)    ! Number of elements around points
+    integer(ip),  intent(in)    :: lelpo(pelpo(npoin+1))    ! List of elements around points
+    type(list_t), intent(inout) :: graph                    ! List of edges on each element (list_t)
+    integer(ip),  intent(out)   :: lelem(nelem)             ! Auxiliar array
+    integer(ip),  intent(out)   :: keadj(nelpo*nnode)       ! Auxiliar array
+    integer(ip)                 :: ielem,jelem,inode,knode  ! Indices
+    integer(ip)                 :: ipoin,ielpo,index        ! Indices
+    integer(ip)                 :: neadj,ielel,jelel,nelel  ! Indices
+    type(list_iterator_t)       :: graph_iterator
 
     lelem=0
     knode=nnode
@@ -1264,12 +1297,13 @@ contains
        end do
 
        ! Now we loop over the elements around ielem and define neighbors
-       jelel=ieadj(ielem)-1
+       call graph%allocate_list_from_pointer()
+       graph_iterator = graph%create_iterator(ielem)
        do ielel=1,nelel
           jelem=keadj(ielel)
           if(lelem(jelem)>=ncomm) then
-             jelel=jelel+1
-             jeadj(jelel)=jelem
+             call graph_iterator%set_current(jelem)
+             call graph_iterator%next()
           end if
        end do
 
@@ -1568,8 +1602,9 @@ contains
     integer(ip), allocatable :: emarked(:), vmarked(:)
     integer(ip), allocatable :: q(:)
     integer(ip)              :: head, tail, i, esize, vsize, current, & 
-         j, l, k, inods1d, inods2d, p_ipoin, ipoin, graph_num_rows
+         j, l, k, inods1d, inods2d, p_ipoin, ipoin, graph_num_rows, lconnn
     type(list_iterator_t)    :: graph_column_iterator
+    type(list_iterator_t)    :: lconn_iterator
 
     graph_num_rows = g%get_num_pointers()
     call memalloc ( graph_num_rows   , auxe     , __FILE__,__LINE__)
@@ -1579,14 +1614,14 @@ contains
     call memalloc ( m%npoin          , vmarked  , __FILE__,__LINE__)
     call memalloc ( graph_num_rows   ,  e       , __FILE__,__LINE__)
 
-    lconn%n  = 0
+    lconnn  = 0
     emarked  = 0
     current  = 1 
 
     do i=1, graph_num_rows
        if (emarked(i) == 0) then
           ! New connected component
-          lconn%n = lconn%n +1
+          lconnn = lconnn +1
           esize   = 0
           vsize   = 0
           vmarked = 0 
@@ -1641,27 +1676,27 @@ contains
                 call graph_column_iterator%next()
              end do
           end do
-          auxe(lconn%n) = esize
-          auxv(lconn%n) = vsize
+          auxe(lconnn) = esize
+          auxv(lconnn) = vsize
        end if
     end do
 
-    call lconn%create(lconn%n)
+    call lconn%create(lconnn)
 
-    lconn%p(1) = 1
-    do i=1, lconn%n
-       lconn%p(i+1) = lconn%p(i) + auxv(i)
+    do i=1, lconnn
+       call lconn%sum_to_pointer_index(i, auxv(i))
     end do
 
     call memfree( auxv   ,__FILE__,__LINE__)
     call memfree( q      ,__FILE__,__LINE__)
     call memfree( emarked,__FILE__,__LINE__)
 
+    call lconn%calculate_header()
     call lconn%allocate_list_from_pointer()
 
     current=1
-    l=1
-    do i=1, lconn%n
+    lconn_iterator = lconn%create_iterator()
+    do i=1, lconn_iterator%get_size()
        vmarked = 0
        ! Traverse elements of current connected component  
        do current=current,current+auxe(i)-1
@@ -1675,8 +1710,8 @@ contains
              ipoin = m%lnods(p_ipoin)
              if (vmarked(ipoin)==0) then
                 vmarked(ipoin)=1
-                lconn%l(l)=ipoin
-                l=l+1
+                call lconn_iterator%set_current(ipoin)
+                call lconn_iterator%next()
              end if
           end do
 
@@ -1700,9 +1735,9 @@ contains
     !-----------------------------------------------------------------------
     implicit none
     type(mesh_distribution_params_t), intent(in)         :: prt_parts
-    type(list_t)                    , target, intent(in) :: gp
-    integer(ip)                     , target, intent(out):: iperm(gp%n)
-    integer(ip)                     , target, intent(out):: lperm(gp%n)
+    type(list_t)                    , target, intent(inout) :: gp
+    integer(ip)                     , target, intent(out):: iperm(gp%get_size())
+    integer(ip)                     , target, intent(out):: lperm(gp%get_size())
     
     if ( gp%get_num_pointers() == 1 ) then
        lperm(1) = 1
@@ -1715,8 +1750,8 @@ contains
        options(METIS_OPTION_NUMBERING) = 1
        options(METIS_OPTION_DBGLVL)    = prt_parts%metis_option_debug
        
-       ierr = metis_nodend ( c_loc(gp%n) ,c_loc(gp%p) ,c_loc(gp%l),C_NULL_PTR,c_loc(options), &
-            &                c_loc(iperm),c_loc(lperm))
+       ierr = metis_nodend ( gp%get_num_pointers_c_loc() ,gp%get_pointers_c_loc() , gp%get_list_c_loc(), &
+            &                C_NULL_PTR, c_loc(options), c_loc(iperm),c_loc(lperm))
        
        assert(ierr == METIS_OK)
 #else
@@ -1733,8 +1768,8 @@ contains
     implicit none
     type(mesh_distribution_params_t), target, intent(in)    :: prt_parts
     type(list_t)                    , target, intent(inout) :: gp
-    integer(ip)                     , target, intent(out)   :: ldomn(gp%n)
-    integer(ip)                     , target, optional, intent(in)  :: weight(gp%p(gp%n+1)-1)
+    integer(ip)                     , target, intent(out)   :: ldomn(gp%get_num_pointers())
+    integer(ip)                     , target, optional, intent(in)  :: weight(gp%get_size())
 
     ! Local variables 
     integer(ip), target      :: kedge
@@ -1786,12 +1821,12 @@ contains
           write(*,*) 'calling metis',options(METIS_OPTION_CTYPE)
           options(METIS_OPTION_NITER) = 100
 
-          ierr = metis_partgraphkway( c_loc(gp%n) , c_loc(ncon), c_loc(gp%p)   , c_loc(gp%l) , & 
+          ierr = metis_partgraphkway( gp%get_num_pointers_c_loc(), c_loc(ncon), gp%get_pointers_c_loc(), gp%get_list_c_loc() , & 
 !                                    vw             vsize       adjw
                                       C_NULL_PTR  , C_NULL_PTR , c_loc(weight) , c_loc(prt_parts%nparts), &
                                       C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
        else
-          ierr = metis_partgraphkway( c_loc(gp%n) , c_loc(ncon), c_loc(gp%p)   , c_loc(gp%l) , & 
+          ierr = metis_partgraphkway( gp%get_num_pointers_c_loc(), c_loc(ncon), gp%get_pointers_c_loc(), gp%get_list_c_loc() , & 
                                       C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(prt_parts%nparts), &
                                       C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
        end if
@@ -1806,7 +1841,7 @@ contains
        options(METIS_OPTION_UFACTOR)   = prt_parts%metis_option_ufactor
 
        ncon = 1 
-       ierr = metis_partgraphrecursive( c_loc(gp%n) , c_loc(ncon), c_loc(gp%p)   , c_loc(gp%l) , & 
+       ierr = metis_partgraphrecursive( gp%get_num_pointers_c_loc(), c_loc(ncon), gp%get_pointers_c_loc(), gp%get_list_c_loc() , & 
                                         C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(prt_parts%nparts), &
                                         C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
     end if    
@@ -1827,7 +1862,7 @@ contains
        end do
     else if ( prt_parts%strat == part_rcm_strip ) then
        call memalloc ( gp%get_num_pointers(), iperm, __FILE__,__LINE__ )
-       call genrcm ( gp%get_num_pointers(), gp%p(gp%get_num_pointers()+1)-1, gp%p, gp%l, iperm )
+       call genrcm ( gp, iperm )
        j = gp%get_num_pointers()
        m = 0
        do ipart=1,prt_parts%nparts
@@ -1859,6 +1894,7 @@ contains
     integer(ip)                    :: aux, ipoin,inode,inodb,knode,knodb,lnodb_size,istat
     integer(ip)                    :: ielem_lmesh,ielem_gmesh,iboun_lmesh,iboun_gmesh
     integer(ip)                    :: p_ielem_gmesh,p_ipoin_lmesh,p_ipoin_gmesh
+    type(list_iterator_t)          :: bound_iterator
     logical :: count_it
 
 
@@ -1912,12 +1948,13 @@ contains
     iboun_lmesh=0
     lmesh%nnodb=0
     lnodb_size=0
-    do iboun_gmesh=1,gmesh%bound%n
-       p_ipoin_gmesh = gmesh%bound%p(iboun_gmesh)-1
-       knodb = gmesh%bound%p(iboun_gmesh+1)-gmesh%bound%p(iboun_gmesh)
+    do iboun_gmesh=1,gmesh%bound%get_num_pointers()
+       bound_iterator = gmesh%bound%create_iterator(iboun_gmesh)
+       knodb = bound_iterator%get_size()
        count_it=.true.
-       do inode=1,knodb
-          call ws_inmap%get(key=int(gmesh%bound%l(p_ipoin_gmesh+inode),igp),val=knode,stat=istat)
+       do while(.not. bound_iterator%is_upper_bound())
+          call ws_inmap%get(key=int(bound_iterator%get_current(),igp),val=knode,stat=istat)
+          call bound_iterator%next()
           if(istat==key_not_found) then
              count_it=.false.
              exit
@@ -1931,36 +1968,46 @@ contains
     end do
 
     if(iboun_lmesh>0) then
-       lmesh%bound%n=iboun_lmesh
-       call memalloc (  lmesh%nnodb,   node_list, __FILE__,__LINE__)
-       call memalloc (lmesh%bound%n+1, lmesh%bound%p, __FILE__,__LINE__)
-       call memalloc (   lnodb_size, lmesh%bound%l, __FILE__,__LINE__)
-       call memalloc(   lmesh%bound%n, lmesh%lbgeo, __FILE__,__LINE__)
-       call memalloc(   lmesh%bound%n, lmesh%lbset, __FILE__,__LINE__)
 
-       lmesh%bound%p=0
-       lmesh%bound%p(1)=1
-       iboun_lmesh=0
-       do iboun_gmesh=1,gmesh%bound%n
-          p_ipoin_gmesh = gmesh%bound%p(iboun_gmesh)-1
-          knodb = gmesh%bound%p(iboun_gmesh+1)-gmesh%bound%p(iboun_gmesh)
+       call memalloc (  lmesh%nnodb,   node_list, __FILE__,__LINE__)
+       call memalloc(   iboun_lmesh, lmesh%lbgeo, __FILE__,__LINE__)
+       call memalloc(   iboun_lmesh, lmesh%lbset, __FILE__,__LINE__)
+
+       call lmesh%bound%create(iboun_lmesh)
+
+       iboun_lmesh=2
+       do iboun_gmesh=1,gmesh%bound%get_num_pointers()
+          bound_iterator = gmesh%bound%create_iterator(iboun_gmesh)
+          knodb = bound_iterator%get_size()
           count_it=.true.
           do inode=1,knodb
-             call ws_inmap%get(key=int(gmesh%bound%l(p_ipoin_gmesh+inode),igp),val=node_list(inode),stat=istat)
+             call ws_inmap%get(key=int(bound_iterator%get_current(),igp),val=node_list(inode),stat=istat)
+             call bound_iterator%next()
              if(istat==key_not_found) then
                 count_it=.false.
                 exit
              end if
           end do
           if(count_it) then
-             iboun_lmesh=iboun_lmesh+1
-             lmesh%bound%p(iboun_lmesh+1)=lmesh%bound%p(iboun_lmesh)+knodb
-             p_ipoin_lmesh = lmesh%bound%p(iboun_lmesh)-1
-             lmesh%bound%l(p_ipoin_lmesh+1:p_ipoin_lmesh+knodb)=node_list(1:knodb)
+             call lmesh%bound%sum_to_pointer_index(iboun_lmesh, knodb)
              lmesh%lbgeo(iboun_lmesh)=gmesh%lbgeo(iboun_gmesh)
              lmesh%lbset(iboun_lmesh)=gmesh%lbset(iboun_gmesh)
+             iboun_lmesh=iboun_lmesh+1
           end if
        end do
+
+       call lmesh%bound%calculate_header()
+       call lmesh%bound%allocate_list_from_pointer()
+       do iboun_lmesh=1,lmesh%bound%get_num_pointers()
+          bound_iterator = lmesh%bound%create_iterator(iboun_lmesh)
+          knodb = bound_iterator%get_size()
+          do inode=1,knodb
+             call ws_inmap%get(key=int(bound_iterator%get_current(),igp),val=node_list(inode),stat=istat)
+			 call bound_iterator%set_current(node_list(inode))
+			 call bound_iterator%next()
+          enddo
+       enddo
+
        call memfree (node_list, __FILE__,__LINE__)
     end if
     

@@ -221,15 +221,15 @@ contains
     ! Locals
     integer(ip)              :: first, last, io, iv, jv, ivl, c
     type(list_t), pointer :: vertices_vef
+    type(list_iterator_t) :: vertices_vef_iterator
     
     vertices_vef => e%geo_reference_element%get_vertices_vef()
     lid = -1
     do io = e%geo_reference_element%get_first_vef_id_of_dimension(nd-1), e%geo_reference_element%get_first_vef_id_of_dimension(nd)-1
-       first =  vertices_vef%p(io)
-       last = vertices_vef%p(io+1) -1
-       if ( last - first + 1  == no ) then 
-          do iv = first,last
-             ivl = e%vefs(vertices_vef%l(iv)) ! LID of vertices of the ef
+       vertices_vef_iterator = vertices_vef%create_iterator(io)
+       if ( vertices_vef_iterator%get_size()  == no ) then 
+          do while(.not. vertices_vef_iterator%is_upper_bound())
+             ivl = e%vefs(vertices_vef_iterator%get_current()) ! LID of vertices of the ef
              c = 0
              do jv = 1,no
                 if ( ivl ==  list(jv) ) then
@@ -238,6 +238,7 @@ contains
                 end if
              end do
              if (c == 0) exit
+             call vertices_vef_iterator%next()
           end do
           if (c == 1) then ! vef in the external element
              lid = e%vefs(io)

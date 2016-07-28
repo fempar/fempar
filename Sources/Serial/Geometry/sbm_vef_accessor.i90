@@ -174,7 +174,8 @@ subroutine vef_accessor_get_vertices(this,vertices)
   integer(ip)                       :: vertices(:)
   type(cell_accessor_t)             :: cell
   type(list_t), pointer             :: vertices_per_vef
-  integer(ip) ::  ivef, cell_num_vefs, cell_type,num_vertices, istat
+  integer(ip) ::  ivef, cell_num_vefs, cell_type,num_vertices, istat, i
+  type(list_iterator_t) :: vertices_iterator
 
   call this%get_cell_around (1, cell) ! there is always one element around
   ivef = cell%find_lpos_vef_lid(this%get_lid())
@@ -182,9 +183,13 @@ subroutine vef_accessor_get_vertices(this,vertices)
   call this%base_static_triangulation%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
   assert(istat==key_found)
   vertices_per_vef => this%base_static_triangulation%reference_fe_geo_list(cell_type)%p%get_vertices_vef()
-  num_vertices = vertices_per_vef%p(ivef+1)-vertices_per_vef%p(ivef)
+  vertices_iterator = vertices_per_vef%create_iterator(ivef)
+  num_vertices = vertices_iterator%get_size()
   ! Alternatively:
   !num_vertices = this%reference_fe_geo_list(cell_type)%p%get_number_vertices_vef(ivef)
   assert(size(vertices)>=num_vertices)
-  vertices(1:num_vertices) = vertices_per_vef%l(vertices_per_vef%p(ivef):vertices_per_vef%p(ivef+1)-1)
+  do i=1, num_vertices
+     vertices(i) = vertices_iterator%get_current()
+     call vertices_iterator%next()
+  enddo
 end subroutine vef_accessor_get_vertices

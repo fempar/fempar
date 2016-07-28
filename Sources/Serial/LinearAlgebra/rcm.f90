@@ -1,5 +1,6 @@
 module rcm_renumbering_names
 use types_names
+use list_types_names
 use memor_names
   implicit none
   private
@@ -10,8 +11,7 @@ use memor_names
 contains 
 
 
-  subroutine degree ( root, adj_num, adj_row, adj, mask, deg, iccsze, ls, &
-       node_num )
+  subroutine degree ( root, gp , mask, deg, iccsze, ls)
 
     !*****************************************************************************80
     !
@@ -73,16 +73,14 @@ contains
 
     ! Parameters
     integer (ip), intent(in)    :: root
-    integer (ip), intent(in)    :: adj_num
-    integer (ip), intent(in)    :: node_num
-    integer (ip), intent(inout) :: adj_row(node_num+1)
-    integer (ip), intent(in)    :: adj(adj_num)
-    integer (ip), intent(in)    :: mask(node_num)
-    integer (ip), intent(out)   :: deg(node_num)
+    type(list_t), intent(inout) :: gp
+    integer (ip), intent(in)    :: mask(gp%get_num_pointers())
+    integer (ip), intent(out)   :: deg(gp%get_num_pointers())
     integer (ip), intent(out)   :: iccsze
-    integer (ip), intent(out)   :: ls(node_num)
+    integer (ip), intent(out)   :: ls(gp%get_num_pointers())
 
     ! Locals
+    type(list_iterator_t) :: node_iterator
     integer (ip) :: i
     integer (ip) :: ideg
     integer (ip) :: j
@@ -93,11 +91,13 @@ contains
     integer (ip) :: lvsize
     integer (ip) :: nbr
     integer (ip) :: node
+    integer (ip) :: adj_row(gp%get_num_pointers())
     !
     !  The sign of ADJ_ROW(I) is used to indicate if node I has been considered.
     !
+    adj_row = 1
     ls(1) = root
-    adj_row(root) = -adj_row(root)
+    adj_row(root) = -1
     lvlend = 0
     iccsze = 1
     !
@@ -115,25 +115,26 @@ contains
        do i = lbegin, lvlend
 
           node = ls(i)
-          jstrt = -adj_row(node)
-          jstop = abs ( adj_row(node+1) ) - 1
+          node_iterator = gp%create_iterator(node)
           ideg = 0
           
-          do j = jstrt, jstop
+          do while(.not. node_iterator%is_upper_bound())
              
-             nbr = adj(j)
+             nbr = node_iterator%get_current()
              
              if ( mask(nbr) /= 0 ) then
                 
                 ideg = ideg + 1
                 
                 if ( 0 <= adj_row(nbr) ) then
-                   adj_row(nbr) = -adj_row(nbr)
+                   adj_row(nbr) = -1
                    iccsze = iccsze + 1
                    ls(iccsze) = nbr
                 end if
                 
              end if
+
+             call node_iterator%next()
              
           end do
           
@@ -152,18 +153,18 @@ contains
        end if
        
     end do
-    !
-    !  Reset ADJ_ROW to its correct sign and return.
-    !
-    do i = 1, iccsze
-       node = ls(i)
-       adj_row(node) = -adj_row(node)
-    end do
+!    !
+!    !  Reset ADJ_ROW to its correct sign and return.
+!    !
+!    do i = 1, iccsze
+!       node = ls(i)
+!       adj_row(node) = -adj_row(node)
+!    end do
     
     return
   end subroutine degree
 
-  subroutine genrcm ( node_num, adj_num, adj_row, adj, perm )
+  subroutine genrcm ( gp, perm )
     !*****************************************************************************80
     !
     !! GENRCM finds the reverse Cuthill-Mckee ordering for a general graph.
@@ -217,11 +218,8 @@ contains
     implicit none
     
     ! Parameters
-    integer (ip), intent(in)    :: node_num
-    integer (ip), intent(in)    :: adj_num
-    integer (ip), intent(inout) :: adj_row(node_num+1)
-    integer (ip), intent(in)    :: adj(adj_num)
-    integer (ip), intent(out)   :: perm(node_num)
+    type(list_t), intent(inout) :: gp
+    integer (ip), intent(out)   :: perm(gp%get_num_pointers())
 
 
     ! Locals
@@ -232,6 +230,11 @@ contains
     integer (ip), allocatable :: level_row(:)
     integer (ip) :: num
     integer (ip) :: root
+    integer (ip) :: node_num
+    integer (ip) :: adj_num
+
+    node_num = gp%get_num_pointers()
+    adj_num = gp%get_size()
 
     call memalloc (node_num  , mask     , __FILE__,__LINE__)
     call memalloc (node_num+1, level_row, __FILE__,__LINE__)
@@ -251,13 +254,11 @@ contains
           !  Find a pseudo-peripheral node ROOT.  The level structure found by
           !  ROOT_FIND is stored starting at PERM(NUM).
           !
-          call root_find ( root, adj_num, adj_row, adj, mask, level_num, &
-               level_row, perm(num), node_num )
+          call root_find ( root, gp, mask, level_num, level_row, perm(num))
           !
           !  RCM orders the component using ROOT as the starting node.
           !
-          call rcm ( root, adj_num, adj_row, adj, mask, perm(num), iccsze, &
-               node_num )
+          call rcm ( root, gp, mask, perm(num), iccsze)
           
           num = num + iccsze
           !
@@ -367,8 +368,7 @@ contains
     return
   end subroutine vec_reverse
 
-  subroutine level_set ( root, adj_num, adj_row, adj, mask, level_num, &
-       level_row, level, node_num )
+  subroutine level_set ( root, gp, mask, level_num, level_row, level)
 
     !*****************************************************************************80
     !
@@ -433,16 +433,14 @@ contains
     
     ! Parameters
     integer (ip), intent(in)    :: root
-    integer (ip), intent(in)    :: adj_num
-    integer (ip), intent(in)    :: node_num
-    integer (ip), intent(inout) :: adj_row(node_num+1)
-    integer (ip), intent(in)    :: adj(adj_num)
-    integer (ip), intent(inout) :: mask(node_num)
+    type(list_t), intent(inout) :: gp
+    integer (ip), intent(inout) :: mask(gp%get_num_pointers())
     integer (ip), intent(out)   :: level_num
-    integer (ip), intent(out)   :: level_row(node_num+1)
-    integer (ip), intent(out)   :: level(node_num)
+    integer (ip), intent(out)   :: level_row(gp%get_num_pointers()+1)
+    integer (ip), intent(out)   :: level(gp%get_num_pointers())
     
     ! Locals
+    type(list_iterator_t) :: node_iterator
     integer (ip) :: i
     integer (ip) :: iccsze
     integer (ip) :: j
@@ -476,18 +474,19 @@ contains
        do i = lbegin, lvlend
           
           node = level(i)
-          jstrt = adj_row(node)
-          jstop = adj_row(node+1) - 1
+          node_iterator = gp%create_iterator(node)
           
-          do j = jstrt, jstop
-             
-             nbr = adj(j)
+          do while (.not. node_iterator%is_upper_bound())
+
+             nbr = node_iterator%get_current()
              
              if ( mask(nbr) /= 0 ) then
                 iccsze = iccsze + 1
                 level(iccsze) = nbr
                 mask(nbr) = 0
              end if
+
+            call node_iterator%next()
              
           end do
           
@@ -513,7 +512,7 @@ contains
     return
   end subroutine level_set
   
-  subroutine rcm ( root, adj_num, adj_row, adj, mask, perm, iccsze, node_num )
+  subroutine rcm ( root, gp , mask, perm, iccsze)
     
     !*****************************************************************************80
     !
@@ -588,16 +587,14 @@ contains
     implicit none
 
     ! Parameters
-    integer (ip), intent(in) :: root
-    integer (ip), intent(in) :: node_num
-    integer (ip), intent(in) :: adj_num
-    integer (ip), intent(inout) :: adj_row(node_num+1)
-    integer (ip), intent(in) :: adj(adj_num)
-    integer (ip), intent(inout) :: mask(node_num)
-    integer (ip), intent(out) :: perm(node_num)
-    integer (ip), intent(out) :: iccsze
+    integer (ip), intent(in)    :: root
+    type(list_t), intent(inout) :: gp
+    integer (ip), intent(inout) :: mask(gp%get_num_pointers())
+    integer (ip), intent(out)   :: perm(gp%get_num_pointers())
+    integer (ip), intent(out)   :: iccsze
 
     ! Locals
+    type(list_iterator_t) :: node_iterator
     integer (ip), allocatable :: deg(:)
     integer (ip) :: fnbr
     integer (ip) :: i
@@ -613,32 +610,32 @@ contains
     integer (ip) :: nbr
     integer (ip) :: node
 
-    call memalloc ( node_num, deg, __FILE__,__LINE__)
+    call memalloc ( gp%get_num_pointers(), deg, __FILE__,__LINE__)
 
     !
     !  Make sure NODE_NUM is legal.
     !
-    if ( node_num < 1 ) then
+    if ( gp%get_num_pointers() < 1 ) then
        write ( *, '(a)' ) ' '
        write ( *, '(a)' ) 'RCM - Fatal error!'
-       write ( *, '(a,i4)' ) '  Illegal input value of NODE_NUM = ', node_num
+       write ( *, '(a,i4)' ) '  Illegal input value of NODE_NUM = ', gp%get_num_pointers()
        write ( *, '(a,i4)' ) '  Acceptable values must be positive.'
        stop
     end if
     !
     !  Make sure ROOT is legal.
     !
-    if ( root < 1 .or. node_num < root ) then
+    if ( root < 1 .or. gp%get_num_pointers() < root ) then
        write ( *, '(a)' ) ' '
        write ( *, '(a)' ) 'RCM - Fatal error!'
        write ( *, '(a,i4)' ) '  Illegal input value of ROOT = ', root
-       write ( *, '(a,i4)' ) '  Acceptable values are between 1 and ', node_num
+       write ( *, '(a,i4)' ) '  Acceptable values are between 1 and ', gp%get_num_pointers()
        stop
     end if
     !
     !  Find the degrees of the nodes in the component specified by MASK and ROOT.
     !
-    call degree ( root, adj_num, adj_row, adj, mask, deg, iccsze, perm, node_num )
+    call degree ( root, gp, mask, deg, iccsze, perm)
     
     mask(root) = 0
     
@@ -673,8 +670,7 @@ contains
           !  For each node in the current level...
           !
           node = perm(i)
-          jstrt = adj_row(node)
-          jstop = adj_row(node+1) - 1
+          node_iterator = gp%create_iterator(node)
           !
           !  Find the unnumbered neighbors of NODE.
           !
@@ -683,15 +679,15 @@ contains
           !
           fnbr = lnbr + 1
           
-          do j = jstrt, jstop
+          do while (.not. node_iterator%is_upper_bound())
              
-             nbr = adj(j)
-             
+             nbr = node_iterator%get_current() 
              if ( mask(nbr) /= 0 ) then
                 lnbr = lnbr + 1
                 mask(nbr) = 0
                 perm(lnbr) = nbr
              end if
+            call node_iterator%next()
              
           end do
           !
@@ -743,8 +739,8 @@ contains
     return
   end subroutine rcm
   
-  subroutine root_find ( root, adj_num, adj_row, adj, mask, level_num, &
-       level_row, level, node_num )
+  subroutine root_find ( root, gp, mask, level_num, &
+       level_row, level)
     
     !*****************************************************************************80
     !
@@ -833,15 +829,13 @@ contains
     !
     implicit none
     integer (ip), intent(inout) :: root
-    integer (ip), intent(in) :: adj_num
-    integer (ip), intent(in) :: node_num
-    integer (ip), intent(inout) :: adj_row(node_num+1)
-    integer (ip), intent(in) :: adj(adj_num)
-    integer (ip), intent(inout) :: mask(node_num)
+    type(list_t), intent(inout) :: gp
+    integer (ip), intent(inout) :: mask(gp%get_num_pointers())
     integer (ip), intent(out) :: level_num
-    integer (ip), intent(out) :: level_row(node_num+1)
-    integer (ip), intent(out) :: level(node_num)
+    integer (ip), intent(out) :: level_row(gp%get_num_pointers()+1)
+    integer (ip), intent(out) :: level(gp%get_num_pointers())
     
+    type(list_iterator_t) :: node_iterator
     integer (ip) :: iccsze
     integer (ip) :: j
     integer (ip) :: jstrt
@@ -856,8 +850,8 @@ contains
     !
     !  Determine the level structure rooted at ROOT.
     !
-    call level_set ( root, adj_num, adj_row, adj, mask, level_num, &
-         level_row, level, node_num )
+    call level_set ( root, gp, mask, level_num, &
+         level_row, level )
     !
     !  Count the number of nodes in this level structure.
     !
@@ -895,14 +889,14 @@ contains
              
              node = level(j)
              ndeg = 0
-             kstrt = adj_row(node)
-             kstop = adj_row(node+1) - 1
+             node_iterator = gp%create_iterator(node)
              
-             do k = kstrt, kstop
-                nabor = adj(k)
+             do while (.not. node_iterator%is_upper_bound())
+                nabor = node_iterator%get_current()
                 if ( 0 < mask(nabor) ) then
                    ndeg = ndeg + 1
                 end if
+                call node_iterator%next()
              end do
              
              if ( ndeg < mindeg ) then
@@ -916,8 +910,8 @@ contains
        !
        !  Generate the rooted level structure associated with this node.
        !
-       call level_set ( root, adj_num, adj_row, adj, mask, level_num2, &
-            level_row, level, node_num )
+       call level_set ( root, gp, mask, level_num2, &
+            level_row, level)
        !
        !  If the number of levels did not increase, accept the new ROOT.
        !
