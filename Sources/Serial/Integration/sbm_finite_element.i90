@@ -44,7 +44,7 @@ subroutine finite_element_create ( this, &
   type(fe_map_t)             , target, intent(in)    :: fe_map
   type(p_volume_integrator_t), target, intent(in)    :: volume_integrator(number_fe_spaces)  
   integer(ip)                        , intent(in)    :: number_blocks
-  integer(ip)                , target, intent(in)    :: field_blocks(number_blocks)
+  integer(ip)                , target, intent(in)    :: field_blocks(number_fe_spaces)
   type(serial_scalar_array_t), target, intent(in)    :: strong_dirichlet_values
   
   integer(ip) :: j, number_nodes
