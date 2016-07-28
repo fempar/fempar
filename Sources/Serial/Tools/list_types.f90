@@ -315,7 +315,8 @@ contains
         class(list_t), intent(in)    :: this
         integer(ip)                  :: index
         integer(ip)                  :: sublist_size
-        assert(this%state == LIST_STATE_LIST_ALLOCATED)
+        !assert(this%state == LIST_STATE_LIST_ALLOCATED)
+        assert(this%state >= LIST_STATE_HEADER_BUILT)
         sublist_size = this%p(index+1)-this%p(index)
     end function list_get_sublist_size 
 
