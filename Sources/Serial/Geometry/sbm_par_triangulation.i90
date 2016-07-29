@@ -151,7 +151,11 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
      !write(*,*) 'Generating vefs'
      !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
      call this%generate_vefs(1,boundary,boundary_geo,boundary_set)
-     call this%compute_vefs_dimension()
+
+     call this%allocate_and_fill_cells_around()
+     call this%allocate_and_fill_vef_type()
+
+     !call this%compute_vefs_dimension()
      !write(*,*) 'vefs generated'
      !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
 
@@ -167,7 +171,7 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
      call this%allocate_and_fill_cells_around() ! Now around efs too
      call this%compute_num_itfc_vefs()
      call this%allocate_and_fill_lst_itfc_vefs()
-     call this%allocate_and_fill_vefs_itfc_lid()
+     !call this%allocate_and_fill_vefs_itfc_lid()
      !write(*,*) 'Interface lists computed'
      !call this%allocate_and_fill_cells_around_interface_vefs()
 

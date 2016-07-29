@@ -81,20 +81,20 @@ subroutine par_base_static_tria_compute_num_ghost_vefs ( this )
   call visited_vefs%free()
 end subroutine par_base_static_tria_compute_num_ghost_vefs
 
-subroutine par_base_static_tria_allocate_and_fill_vefs_itfc_lid( this )
-  implicit none
-  class(par_base_static_triangulation_t), intent(inout) :: this
-  integer(ip)                                  ::  vef_lid, ivef_itfc
+!subroutine par_base_static_tria_allocate_and_fill_vefs_itfc_lid( this )
+!  implicit none
+!  class(par_base_static_triangulation_t), intent(inout) :: this
+!  integer(ip)                                  ::  vef_lid, ivef_itfc
 
-  assert ( this%num_itfc_vefs >= 0 )
-  call this%free_vefs_itfc_lid()
-  call memalloc(this%num_vefs, this%vefs_itfc_lid,__FILE__,__LINE__)
-  this%vefs_itfc_lid = -1
-  do ivef_itfc = 1, this%num_itfc_vefs
-     vef_lid = this%lst_itfc_vefs(ivef_itfc)
-     this%vefs_itfc_lid ( vef_lid ) =  ivef_itfc
-  end do
-end subroutine par_base_static_tria_allocate_and_fill_vefs_itfc_lid
+!  assert ( this%num_itfc_vefs >= 0 )
+!  call this%free_vefs_itfc_lid()
+!  call memalloc(this%num_vefs, this%vefs_itfc_lid,__FILE__,__LINE__)
+!  this%vefs_itfc_lid = -1
+!  do ivef_itfc = 1, this%num_itfc_vefs
+!     vef_lid = this%lst_itfc_vefs(ivef_itfc)
+!     this%vefs_itfc_lid ( vef_lid ) =  ivef_itfc
+!  end do
+!end subroutine par_base_static_tria_allocate_and_fill_vefs_itfc_lid
 
 subroutine par_base_static_tria_free_lst_itfc_vefs( this )
   implicit none
@@ -102,11 +102,11 @@ subroutine par_base_static_tria_free_lst_itfc_vefs( this )
   if (allocated(this%lst_itfc_vefs)) call memfree(this%lst_itfc_vefs,__FILE__,__LINE__)
 end subroutine par_base_static_tria_free_lst_itfc_vefs
 
-subroutine par_base_static_tria_free_vefs_itfc_lid( this )
-  implicit none
-  class(par_base_static_triangulation_t), intent(inout) :: this
-  if (allocated(this%vefs_itfc_lid)) call memfree(this%vefs_itfc_lid,__FILE__,__LINE__)
-end subroutine par_base_static_tria_free_vefs_itfc_lid
+!subroutine par_base_static_tria_free_vefs_itfc_lid( this )
+!  implicit none
+!  class(par_base_static_triangulation_t), intent(inout) :: this
+!  if (allocated(this%vefs_itfc_lid)) call memfree(this%vefs_itfc_lid,__FILE__,__LINE__)
+!end subroutine par_base_static_tria_free_vefs_itfc_lid
 
 subroutine par_base_static_tria_allocate_and_fill_ptr_vefs_per_cell (this, ptr_vefs_per_cell)
     implicit none
@@ -225,13 +225,13 @@ subroutine par_base_static_tria_allocate_and_fill_ptr_vefs_per_cell (this, ptr_v
         this%num_local_cells = -1
         this%num_ghost_cells = -1
      
-        ! Free cell-related data
+        ! Free vef-related data
         call this%free_vefs_gid()
-        call this%free_vefs_dimension()
+        !call this%free_vefs_dimension()
         this%num_local_vefs = -1
         this%num_ghost_vefs = -1
         call this%free_lst_itfc_vefs()
-        call this%free_vefs_itfc_lid()
+        !call this%free_vefs_itfc_lid()
         call this%free_cells_around()
         this%num_itfc_vefs = -1
         
@@ -289,7 +289,7 @@ subroutine par_base_static_tria_allocate_and_fill_ptr_vefs_per_cell (this, ptr_v
         write(*,'(a,i10,a)') '**** local vef  : ',vef%get_lid(),'****'
         !write(*,'(a,i10,a)') '****       gid  : ',vef%get_gid(),'****'
         write(*,'(a,i10,a)') '**** dimension  : ',vef%get_dimension(),'****'
-        write(*,'(a,l10,a)') '****at_interface: ',vef%at_interface(),'****'
+        write(*,'(a,l10,a)') '****at_interface: ',vef%is_at_interface(),'****'
         call vef_iterator%next()
       end do
       
@@ -297,10 +297,10 @@ subroutine par_base_static_tria_allocate_and_fill_ptr_vefs_per_cell (this, ptr_v
       write(*,'(a,i10)')    '**** num_local_vefs: ', this%num_local_vefs
       write(*,'(a,i10)')    '**** num_ghost_vefs: ', this%num_ghost_vefs
       !write(*,'(a,10i10)')  '**** vefs_gid:       ', this%vefs_gid
-      write(*,'(a)')  '**** vefs_dimension: '
-      write(*,'(10i10)')    this%vefs_dimension
-      write(*,'(a)')  '**** vefs_itfc_lid:  '
-      write(*,'(10i10)')    this%vefs_itfc_lid
+      !write(*,'(a)')  '**** vefs_dimension: '
+      !write(*,'(10i10)')    this%vefs_dimension
+      !write(*,'(a)')  '**** vefs_itfc_lid:  '
+      !write(*,'(10i10)')    this%vefs_itfc_lid
       write(*,'(a,i10)')    '**** num_itfc_vefs:  ', this%num_itfc_vefs
       write(*,'(a)')  '**** lst_itfc_vefs:  '
       write(*,'(10i10)')    this%lst_itfc_vefs
@@ -740,14 +740,18 @@ subroutine par_base_static_tria_compute_parts_itfc_vefs ( this, parts_itfc_vefs,
     class(par_base_static_triangulation_t), intent(inout) :: this
     integer(ip)                                  :: iobj, vef_lid
     type(list_iterator_t)                        :: vefs_object_iterator
+    type(vef_accessor_t) :: vef
     
     call memalloc ( this%number_objects, this%objects_dimension, __FILE__, __LINE__ )
+    call vef%create(1,this)
     do iobj=1, this%number_objects
       vefs_object_iterator = this%vefs_object%create_iterator(iobj)
       this%objects_dimension(iobj) = 0
       do while(.not. vefs_object_iterator%is_upper_bound())
         vef_lid = vefs_object_iterator%get_current()
-        this%objects_dimension(iobj) = max ( this%objects_dimension(iobj), this%vefs_dimension(vef_lid) )  
+        !this%objects_dimension(iobj) = max ( this%objects_dimension(iobj), this%vefs_dimension(vef_lid) )  
+        call vef%set_lid(vef_lid)
+        this%objects_dimension(iobj) = max ( this%objects_dimension(iobj), vef%get_dimension() )  
         call vefs_object_iterator%next()
        end do
     end do

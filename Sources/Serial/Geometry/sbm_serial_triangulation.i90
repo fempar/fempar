@@ -83,6 +83,9 @@
     !write(*,*) this%lst_cells_around
     write(*,*) 'Dual mesh ready'
 
+    call this%allocate_and_fill_vef_type()
+
+    write(*,*) 'Filling coordinates'
     call this%allocate_and_fill_coordinates(mesh%get_coordinates())
 
     call mesh%free()
@@ -109,6 +112,7 @@
     class(serial_triangulation_t), intent(in) :: this
     integer(ip) :: ivef,inode
     type(vef_iterator_t)  :: vef_iterator
+    type(vef_accessor_t)  :: vef
     type(cell_iterator_t) :: cell_iterator
     type(cell_accessor_t) :: cell
     type(point_t), allocatable :: cell_coordinates(:)
@@ -145,13 +149,15 @@
     end do
     write (*,'(a)') '**** End Cells ****'
 
-    ! write (*,'(a)') '**** Vefs ****'
-    ! vef_iterator = this%create_vef_iterator()
-    ! do while ( .not. vef_iterator%has_finished() )
-    !    vef => vef_iterator%current()
-    !    vef_lid = vef%get_lid()
-    !    write(*,*) this%vefs_set(vef_lid),this%vefs_geometry(vef_lid)
-    !    call vef_iterator%next()
-    ! end do
+    write (*,'(a)') '**** Vefs ****'
+    write (*,'(a)') '        id          dim    is_at_bound       set        geom '
+    
+    vef_iterator = this%create_vef_iterator()
+    do while ( .not. vef_iterator%has_finished() )
+       call vef_iterator%current (vef) 
+       vef_lid = vef%get_lid()
+       write(*,'(2(i10,2x),10x,l1,5(2x,i10))') vef_lid,  vef%get_dimension(), vef%is_at_boundary(), this%vefs_set(vef_lid),this%vefs_geometry(vef_lid)
+       call vef_iterator%next()
+    end do
 
   end subroutine serial_triangulation_print

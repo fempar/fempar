@@ -98,7 +98,7 @@
       call this%allocate_and_fill_vefs_dimension(lst_vefs_dimension_ghost_extended)
       call this%compute_num_itfc_vefs()
       call this%allocate_and_fill_lst_itfc_vefs()
-      call this%allocate_and_fill_vefs_itfc_lid()
+      !call this%allocate_and_fill_vefs_itfc_lid()
       call this%allocate_and_fill_cells_around()
 
       call memfree (lst_vefs_gids_ghost_extended, __FILE__, __LINE__)
@@ -131,11 +131,11 @@
      
         ! Free cell-related data
         call this%free_vefs_gid()
-        call this%free_vefs_dimension()
+        !call this%free_vefs_dimension()
         this%num_local_vefs = -1
         this%num_ghost_vefs = -1
         call this%free_lst_itfc_vefs()
-        call this%free_vefs_itfc_lid()
+        !call this%free_vefs_itfc_lid()
         call this%free_cells_around()
         this%num_itfc_vefs = -1
         
@@ -503,8 +503,10 @@ subroutine coarse_triangulation_allocate_and_fill_vefs_dimension ( this, &
   type(cell_accessor_t) :: cell
   
   assert ( this%num_vefs >= 0 )
-  call this%free_vefs_dimension()
-  call memalloc(this%num_vefs, this%vefs_dimension,__FILE__,__LINE__) 
+  !call this%free_vefs_dimension()
+  !call memalloc(this%num_vefs, this%vefs_dimension,__FILE__,__LINE__) 
+  call this%free_vefs_type()
+  call memalloc(this%num_vefs, this%vefs_type,__FILE__,__LINE__) 
 
   current = 1
   cell_iterator = this%create_cell_iterator()
@@ -512,7 +514,8 @@ subroutine coarse_triangulation_allocate_and_fill_vefs_dimension ( this, &
      call cell_iterator%current(cell)
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_lid(ivef)
-        this%vefs_dimension(vef_lid) = lst_vefs_dimension(current)
+        !this%vefs_dimension(vef_lid) = lst_vefs_dimension(current)
+        this%vefs_type(vef_lid) = lst_vefs_dimension(current)
         current = current + 1 
      end do
      call cell_iterator%next()

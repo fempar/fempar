@@ -373,7 +373,7 @@ contains
     end do
 
     ! Read boundary elements' size (pnodb)
-    write(*,*) 'Reading boundaries sizes'
+    !write(*,*) 'Reading boundaries sizes'
     call msh%bound%create(nboun)
     do while(tel(1:5).ne.'vefs')
        read(lunio,'(a)') tel
@@ -381,19 +381,19 @@ contains
     read(lunio,'(a)') tel
     do while(tel(1:5).ne.'end v')
        read(tel,*) iboun, vbound
-       write(*,*) 'iboun bound', iboun, vbound
+       !write(*,*) 'iboun bound', iboun, vbound
        call msh%bound%sum_to_pointer_index(iboun, vbound)
        read(lunio,'(a)') tel
     end do
     ! Transform length to header and get mesh%nnodb
     call msh%bound%calculate_header()
     msh%nnodb    = 0
-    do iboun = 2, msh%bound%get_num_pointers()
+    do iboun = 1, msh%bound%get_num_pointers()
        msh%nnodb = max(msh%nnodb,msh%bound%get_sublist_size(iboun))
     end do
 
     ! Read boundary elements
-    write(*,*) 'Reading boundaries'
+    !write(*,*) 'Reading boundaries'
     call msh%bound%allocate_list_from_pointer()
     call memalloc(msh%bound%get_num_pointers(),msh%lbgeo,__FILE__,__LINE__)
     call memalloc(msh%bound%get_num_pointers(),msh%lbset,__FILE__,__LINE__)
@@ -404,7 +404,7 @@ contains
     read(lunio,'(a)') tel
     do while(tel(1:5).ne.'end v')
        read(tel,*) iboun,nnodb
-       write(*,*) 'iboun nnodb',iboun, nnodb
+       !write(*,*) 'iboun nnodb',iboun, nnodb
        allocate(bound_list_aux(msh%bound%get_sublist_size(iboun)))
        read(tel,*) iboun,nnodb, (bound_list_aux(inode),inode=1,nnodb),msh%lbset(iboun),msh%lbgeo(iboun)
        bound_iterator = msh%bound%create_iterator(iboun)
