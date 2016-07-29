@@ -27,14 +27,14 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine new_serial_fe_space_create_same_reference_fes_on_all_cells( this, &
                                                                        triangulation, &
-                                                                       !boundary_conditions, &
+                                                                       conditions, &
                                                                        reference_fes, &
                                                                        field_blocks, &
                                                                        field_coupling )
   implicit none
   class(new_serial_fe_space_t)          , intent(inout) :: this
   type(serial_triangulation_t), target  , intent(in)    :: triangulation
-  !type(conditions_t)                   , intent(in)    :: boundary_conditions
+  class(new_conditions_t)               , intent(in)    :: conditions
   type(p_reference_fe_t)                ,  intent(in)   :: reference_fes(:)
   integer(ip)                 , optional, intent(in)    :: field_blocks(:)
   logical                     , optional, intent(in)    :: field_coupling(:,:)
@@ -52,21 +52,9 @@ subroutine new_serial_fe_space_create_same_reference_fes_on_all_cells( this, &
   call this%fill_ref_fe_id_per_fe_same_on_all_cells()
   call this%allocate_and_fill_field_type()
   call this%allocate_and_init_ptr_lst_dofs()
+  call this%allocate_and_init_at_strong_dirichlet_bound()
   
-  !allocate(this%fe_array(this%triangulation%num_elems))
-  !do i = 1, this%triangulation%num_elems
-  !   call this%fe_array(i)%create (this%triangulation%elems(i),&
-  !        this%number_fields,&
-  !        this%reference_fes_list, &
-  !        this%quadrature(1)%p,&
-  !        this%fe_map(1)%p,&
-  !        this%volume_integrator,&
-  !        this%number_blocks,&
-  !        this%field_blocks,&
-  !        this%strong_dirichlet_values)
-  !end do
-
-  !call this%set_up_strong_dirichlet_bcs( boundary_conditions )
+  call this%set_up_strong_dirichlet_bcs( conditions )
 end subroutine new_serial_fe_space_create_same_reference_fes_on_all_cells
 
 subroutine new_serial_fe_space_free (this)
@@ -77,6 +65,10 @@ subroutine new_serial_fe_space_free (this)
   call this%free_ref_fe_id_per_fe()
   call this%free_field_type()
   call this%free_ptr_lst_dofs()
+  call this%free_at_strong_dirichlet_bound()
+  call this%strong_dirichlet_values%free()
+  if (allocated(this%number_dofs_per_block)) call memfree( this%number_dofs_per_block, __FILE__, __LINE__ )
+  if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
 end subroutine new_serial_fe_space_free
 
@@ -87,8 +79,9 @@ subroutine new_serial_fe_space_print ( this )
   type(i1p_t), allocatable         :: elem2dof(:)
   integer(ip)                      :: field_id, istat
   
-  write(*,'(a,i10,a)') '********* number_dofs_per_field ',this%number_dofs_per_field,'********'
-  write(*,'(a,i10,a)') '********* number_dofs_per_block ',this%number_dofs_per_block,'********'
+  write(*,'(a,i10,a)') '********* number_dofs_per_field       ',this%number_dofs_per_field,'********'
+  write(*,'(a,i10,a)') '********* number_dofs_per_block       ',this%number_dofs_per_block,'********'
+  write(*,'(a,i10,a)') '********* number_strong_dirichlet_dofs',this%number_strong_dirichlet_dofs,'********'
     
   allocate ( elem2dof(this%get_number_fields()), stat=istat)
   check(istat==0)
@@ -105,6 +98,8 @@ subroutine new_serial_fe_space_print ( this )
     end do
     call fe_iterator%next()
   end do
+  
+  call this%strong_dirichlet_values%print(6)
   
   deallocate ( elem2dof, stat=istat)
   check(istat==0)
@@ -188,6 +183,307 @@ subroutine new_serial_fe_space_free_ptr_lst_dofs(this)
   if (allocated(this%lst_dofs_lids)) call memfree ( this%lst_dofs_lids, __FILE__, __LINE__ )
 end subroutine new_serial_fe_space_free_ptr_lst_dofs
 
+subroutine new_serial_fe_space_allocate_and_init_at_strong_dirichlet_bound(this)
+  implicit none
+  class(new_serial_fe_space_t), intent(inout) :: this
+  call memalloc ( this%number_fields, &
+                  this%triangulation%get_num_cells(), &
+                  this%at_strong_dirichlet_boundary_per_fe, __FILE__, __LINE__ )
+  this%at_strong_dirichlet_boundary_per_fe = .false. 
+end subroutine new_serial_fe_space_allocate_and_init_at_strong_dirichlet_bound
+
+subroutine new_serial_fe_space_free_at_strong_dirichlet_bound (this)
+  implicit none
+  class(new_serial_fe_space_t), intent(inout) :: this
+  if (allocated(this%at_strong_dirichlet_boundary_per_fe)) then
+    call memfree ( this%at_strong_dirichlet_boundary_per_fe, __FILE__, __LINE__ )
+  end if
+end subroutine new_serial_fe_space_free_at_strong_dirichlet_bound
+
+subroutine new_serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
+  implicit none
+  class(new_serial_fe_space_t), intent(inout) :: this
+  class(new_conditions_t)     , intent(in)    :: conditions
+
+  integer(ip)             :: field_id
+  integer(ip)             :: ivef
+  integer(ip)             :: local_within_ref_fe_dof_id
+  integer(ip)             :: component_id, offset_component
+  integer(ip)             :: istat
+  type(list_iterator_t)   :: own_dofs_on_vef_iterator
+  type(fe_iterator_t)     :: fe_iterator
+  type(fe_accessor_t)     :: fe
+  type(vef_accessor_t)    :: vef
+  
+  type(i1p_t)          , allocatable :: elem2dof(:)
+  logical              , allocatable :: components_code(:)
+  class(reference_fe_t), pointer     :: reference_fe
+  
+  ! For every component of every field, we go through all FEs and look for DoFs 
+  ! subject to strong Dirichlet BCs. It would be desirable (for efficiency) to 
+  ! know a priori which FEs have DoFs which are subject to strong Dirichlet BCs, 
+  ! but at the present moment we do not have any way to determine such a thing
+  assert ( conditions%get_number_components() == this%get_number_components() )
+  call memalloc ( conditions%get_number_components(), &
+                  components_code, &
+                  __FILE__, __LINE__ )
+  
+  allocate ( elem2dof(this%get_number_fields()), stat=istat ) 
+  check ( istat == 0 )
+  
+  ! Count number_strong_dirichlet_dofs
+  this%number_strong_dirichlet_dofs = 0
+  
+  fe_iterator = this%create_fe_iterator()
+  do while (.not. fe_iterator%has_finished() )
+     call fe_iterator%current(fe)
+     
+     ! TO-DO: This call should ONLY be performed
+     !        if current cell is at the boundary. 
+     !        type(fe_accessor_t) does NOT currently 
+     !        provide any means to answer such a question.
+     call fe%get_elem2dof(elem2dof)
+     
+     do ivef = 1, fe%get_num_vefs()
+        call fe%get_vef(ivef, vef)
+     
+        ! Check whether a set_id different from 0 has been set for current vef. 
+        ! TO-DO: Should we also ask whether current vef is at the boundary?
+        !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
+        if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )
+        
+          ! Get components code corresponding to set_id assigned to current vef
+          ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
+          ! a more clever strategy. Does pay off to look carefully at this?
+          call conditions%get_components_code( vef%get_set_id(), components_code )
+          
+          offset_component = 0
+          do field_id = 1, this%get_number_fields()
+              ! TO-DO: there is no need to call this function for each inner loop iteration.
+              !        We could use an allocatable array of type(p_reference_fe_t) items, and
+              !        allocate/initialize it from the beginning.
+              reference_fe => fe%get_reference_fe(field_id)
+              
+              own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
+              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
+                component_id = offset_component + reference_fe%get_component_node(local_within_ref_fe_dof_id)
+                if ( components_code(component_id) ) then 
+                   this%number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs+1 
+                   elem2dof(field_id)%p(local_within_ref_fe_dof_id) = -this%number_strong_dirichlet_dofs
+                   this%at_strong_dirichlet_boundary_per_fe(field_id,fe%get_lid()) = .true.
+                end if
+                call own_dofs_on_vef_iterator%next()
+              end do 
+              offset_component = offset_component + reference_fe%get_number_field_components()
+          end do
+        end if  
+     end do
+     call fe_iterator%next()
+  end do
+  
+  call this%strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
+  
+  call memfree ( components_code, __FILE__, __LINE__ )
+  deallocate ( elem2dof, stat=istat ) 
+  check ( istat == 0 )
+end subroutine new_serial_fe_space_set_up_strong_dirichlet_bcs
+
+subroutine new_serial_fe_space_update_strong_dirichlet_bcs_values (this, conditions, time)
+  implicit none
+  class(new_serial_fe_space_t), intent(inout) :: this
+  class(new_conditions_t)     , intent(in)    :: conditions
+  real(rp)       , optional   , intent(in)    :: time
+  
+  !  Locals
+  integer(ip)                                :: field_id, istat
+  integer(ip)                                :: icomp, component_id
+  integer(ip)                                :: offset_component
+  integer(ip)                                :: local_within_ref_fe_dof_id
+  integer(ip)                                :: local_within_ref_fe_scalar_dof_id
+  integer(ip)                                :: strong_dirichlet_dof_id
+  integer(ip)                                :: ivef
+  real(rp)                                   :: time_(1)
+  type(allocatable_array_rp2_t), allocatable :: values(:)
+  type(fe_map_t)               , allocatable :: fe_maps(:)
+  type(p_quadrature_t)         , allocatable :: nodal_quadratures(:)
+  type(point_t)                , pointer     :: nodal_coordinates(:)
+  type(point_t)                , pointer     :: cell_coordinates(:)
+  logical                      , allocatable :: components_code(:)
+
+  class(reference_fe_t)        , pointer     :: reference_fe
+  class(scalar_function_t)     , pointer     :: scalar_function
+  
+  type(list_iterator_t)   :: own_dofs_on_vef_iterator
+  type(fe_iterator_t)      :: fe_iterator
+  type(fe_accessor_t)      :: fe
+  type(vef_accessor_t)     :: vef
+  type(i1p_t), allocatable :: elem2dof(:)
+
+  assert ( conditions%get_number_components() == this%get_number_components() )
+  call memalloc ( conditions%get_number_components(), &
+                  components_code, &
+                  __FILE__, __LINE__ )
+  
+  allocate(fe_maps(this%get_number_fields()), stat=istat)
+  check(istat==0)
+  allocate(nodal_quadratures(this%get_number_fields()), stat=istat)
+  check(istat==0)
+  allocate(values(this%get_number_components()), stat=istat)
+  check(istat==0)
+  allocate ( elem2dof(this%get_number_fields()), stat=istat ) 
+  check ( istat == 0 )
+  
+  fe_iterator = this%create_fe_iterator()
+  call fe_iterator%current(fe)
+  
+  ! IMPORTANT : The following code is implicitly assuming that the
+  !             composition of reference FEs is the same on all cells.
+  !             This assumption is reasonable provided that this 
+  !             FE space has the same assumption whenever we are dealing
+  !             with continuous Galerking FEs.
+  component_id = 1
+  do field_id = 1, fe%get_number_fields()
+    reference_fe => fe%get_reference_fe(field_id)
+    nodal_quadratures(field_id)%p => reference_fe%get_nodal_quadrature()
+    call fe_maps(field_id)%create(nodal_quadratures(field_id)%p, & 
+                                  fe%get_reference_fe_geo())
+    do icomp =1, reference_fe%get_number_field_components()
+      call values(component_id)%create(nodal_quadratures(field_id)%p%get_number_quadrature_points(),1) 
+      component_id = component_id + 1  
+    end do
+  end do
+  
+  if ( present(time) ) time_(1) = time
+
+  do while (.not. fe_iterator%has_finished() )
+     call fe_iterator%current(fe)
+
+     offset_component = 0
+     do field_id = 1, fe%get_number_fields()
+        reference_fe => fe%get_reference_fe(field_id)
+
+        if ( fe%at_strong_dirichlet_boundary(field_id) ) then
+           ! TO-DO: This call should ONLY be performed once 
+           !        per FE s.t. at least one of its fields
+           !        has DoFs subject to BCs. 
+           call fe%get_elem2dof(elem2dof)
+           
+           cell_coordinates => fe_maps(field_id)%get_coordinates()
+           call fe%get_coordinates(cell_coordinates)
+           call fe_maps(field_id)%compute_quadrature_coordinates()
+           nodal_coordinates => fe_maps(field_id)%get_quadrature_coordinates()
+
+           ! Go over all vefs within current FE
+           do ivef = 1, fe%get_num_vefs()
+              call fe%get_vef(ivef, vef)
+
+              ! Check whether a set_id different from 0 has been set for current vef. 
+              ! TO-DO: Should we also ask whether current vef is at the boundary?
+              !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
+              if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )              
+
+                 ! Get components code corresponding to set_id assigned to current vef
+                 ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
+                 ! a more clever strategy. Does it pay off to look carefully at this?
+                 call conditions%get_components_code( vef%get_set_id(), components_code )
+
+                 do icomp=1, reference_fe%get_number_field_components()
+                    component_id = offset_component + icomp
+                    if (components_code(component_id)) then
+                       call conditions%get_function( vef%get_set_id(), component_id, scalar_function )
+                       ! Evaluate function
+                       if(present(time)) then
+                          call scalar_function%get_values_set_space_time(nodal_coordinates,time_,values(component_id)%a)
+                       else
+                          call scalar_function%get_values_set_space(nodal_coordinates,values(component_id)%a(:,1))
+                       end if
+                    end if
+                 end do
+
+                 own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
+                 do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                    local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
+                    component_id = offset_component + reference_fe%get_component_node(local_within_ref_fe_dof_id)
+                    if ( components_code(component_id) ) then 
+                       ! Check if current node is subject to strong Dirichlet boundary conditions
+                       if(elem2dof(field_id)%p(local_within_ref_fe_dof_id) < 0) then
+                          local_within_ref_fe_scalar_dof_id = reference_fe%get_scalar_from_vector_node(local_within_ref_fe_dof_id)
+                          strong_dirichlet_dof_id = -elem2dof(field_id)%p(local_within_ref_fe_dof_id)
+                          call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(field_id)%a(strong_dirichlet_dof_id,1))
+                       end if
+                    end if
+                    call own_dofs_on_vef_iterator%next()
+                 end do
+              end if
+           end do
+        end if
+        offset_component = offset_component + reference_fe%get_number_field_components()
+     end do
+
+     call fe_iterator%next() 
+  end do
+
+  !      
+  !! Loop over elements
+  !do ielem = 1, this%triangulation%num_elems  
+  !   ! Get Finite element
+  !   fe => this%get_finite_element(ielem)   
+
+  !   if ( fe%is_at_strong_dirichlet_boundary(fe_space_component) ) then
+  !      ! Interpolate coordinates
+  !      vertex_coordinates => fe_map%get_coordinates()
+  !      call this%fe_array(ielem)%cell%get_coordinates(vertex_coordinates)
+  !      call fe_map%compute_quadrature_coordinates()
+  !      nodal_coordinates => fe_map%get_quadrature_coordinates()
+
+  !      ! Evaluate function
+  !      if(present(time)) then
+  !         call scalar_function%get_values_set_space_time(nodal_coordinates,time_,values)
+  !      else
+  !         call scalar_function%get_values_set_space(nodal_coordinates,values(:,1))
+  !      end if
+
+  !      ! Loop over nodes
+  !      do inode = 1, number_nodes
+  !         icomp = this%reference_fe_phy_list(fe_space_component)%p%get_component_node(inode)     
+  !         if ( present(unknown_component) ) then
+  !            if ( icomp /= unknown_component ) cycle
+  !         end if
+
+  !         ! Check if current node is subject to strong Dirichlet boundary conditions
+  !         if(fe%elem2dof(fe_space_component)%p(inode) < 0) then
+  !            inode_scalar = this%reference_fe_phy_list(fe_space_component)%p%get_scalar_from_vector_node(inode)
+  !            strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
+
+  !            ! Update strong_dirichlet_values
+  !            if(this%strong_dirichlet_codes(strong_dirichlet_dof_id) == bc_code) then
+  !               call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1))
+  !            end if
+  !         end if
+  !      end do
+  !   end if
+  !end do
+
+  call memfree ( components_code, __FILE__, __LINE__ )
+
+  
+  do field_id = 1, this%get_number_fields()
+    nullify(nodal_quadratures(field_id)%p) 
+    call fe_maps(field_id)%free()
+    call values(field_id)%free()
+  end do
+  
+  deallocate(elem2dof, stat=istat ) 
+  check (istat==0)
+  deallocate(fe_maps, stat=istat)
+  check(istat==0)
+  deallocate(nodal_quadratures, stat=istat)
+  check(istat==0)
+  deallocate(values, stat=istat)
+  check(istat==0)
+  
+end subroutine new_serial_fe_space_update_strong_dirichlet_bcs_values
 
 subroutine new_serial_fe_space_allocate_and_fill_field_blocks_and_coupling ( this, field_blocks, field_coupling )
   implicit none
@@ -626,6 +922,25 @@ function new_serial_fe_space_get_number_fields ( this )
   new_serial_fe_space_get_number_fields = this%number_fields
 end function new_serial_fe_space_get_number_fields
 
+function new_serial_fe_space_get_number_components ( this )
+  implicit none
+  class(new_serial_fe_space_t), intent(in) :: this
+  integer(ip) :: new_serial_fe_space_get_number_components
+  type(fe_iterator_t) :: fe_iterator
+  type(fe_accessor_t) :: fe
+  class(reference_fe_t), pointer :: reference_fe
+  integer(ip) :: field_id
+  
+  fe_iterator = this%create_fe_iterator()
+  call fe_iterator%current(fe)
+  new_serial_fe_space_get_number_components = 0
+  do field_id = 1, this%get_number_fields()
+    reference_fe => fe%get_reference_fe(field_id)
+    new_serial_fe_space_get_number_components = new_serial_fe_space_get_number_components + &
+                                                reference_fe%get_number_field_components()
+  end do
+end function new_serial_fe_space_get_number_components
+
 function new_serial_fe_space_get_number_blocks( this)
   implicit none
   class(new_serial_fe_space_t), intent(in) :: this 
@@ -647,134 +962,47 @@ function new_serial_fe_space_get_field_coupling( this )
   new_serial_fe_space_get_field_coupling => this%field_coupling
 end function new_serial_fe_space_get_field_coupling
 
-function new_serial_fe_space_create_fe_iterator ( this )
+ !===============================================================================================
+ subroutine new_serial_fe_space_create_global_fe_function ( this, fe_function )
+    implicit none
+    class(new_serial_fe_space_t), intent(in)    :: this
+    type(new_fe_function_t)         , intent(inout) :: fe_function
+    
+    class(vector_t), allocatable :: dof_values
+
+  if (this%number_blocks == 1) then
+     allocate ( serial_scalar_array_t  :: dof_values )
+     select type(dof_values)
+        class is(serial_scalar_array_t)
+        call dof_values%create_and_allocate(this%number_dofs_per_block(1))
+        class default
+        check(.false.)
+     end select
+  else
+     allocate ( serial_block_array_t  :: dof_values )
+     select type(dof_values)
+        class is(serial_block_array_t)
+        call dof_values%create_and_allocate(this%number_blocks,this%number_dofs_per_block)
+        class default
+        check(.false.)
+     end select
+  end if
+  call fe_function%create(this%strong_dirichlet_values, dof_values)
+ end subroutine new_serial_fe_space_create_global_fe_function
+
+ subroutine new_serial_fe_space_update_global_fe_function_bcs ( this, fe_function )
+   implicit none
+   class(new_serial_fe_space_t), intent(in)    :: this
+   type(new_fe_function_t)         , intent(inout) :: fe_function
+   call fe_function%copy_bc_values(this%strong_dirichlet_values)
+ end subroutine new_serial_fe_space_update_global_fe_function_bcs
+
+ function new_serial_fe_space_create_fe_iterator ( this )
   implicit none
   class(new_serial_fe_space_t), intent(in) :: this
   type(fe_iterator_t) :: new_serial_fe_space_create_fe_iterator
   call new_serial_fe_space_create_fe_iterator%create(1, this)
-end function new_serial_fe_space_create_fe_iterator
-
-!subroutine new_serial_fe_space_set_up_strong_dirichlet_bcs( this, boundary_conditions )
-!  implicit none
-!  class(new_serial_fe_space_t)        , intent(inout) :: this
-!  type(conditions_t)              , intent(in)    :: boundary_conditions
-
-!  integer(ip) :: j, ielem, ivef, vef_gid, inode, jnode, component, offset_component
-!  type(finite_element_t), pointer :: fe
-
-!  ! For every fe_space_component, we go through all FEs and look for DoFs 
-!  ! subject to strong Dirichlet BCs. It would be desirable (for efficiency) to 
-!  ! know a priori which FEs have DoFs which are subject to strong Dirichlet BCs, 
-!  ! but at the present moment we do not have any way to determine such a thing
-
-!  ! Count number_strong_dirichlet_dofs
-!  this%number_strong_dirichlet_dofs = 0  
-!  do ielem = 1, this%get_number_elements()
-!     fe => this%get_finite_element(ielem)
-!     do ivef = 1,fe%cell%num_vefs
-!        vef_gid = fe%cell%vefs(ivef)
-!        offset_component = 0
-!        do j = 1, this%number_fields
-!           do inode = 1, fe%reference_fes(j)%p%get_number_own_nodes_vef(ivef)
-!              jnode = fe%reference_fes(j)%p%get_own_node_vef(inode,ivef)
-!              component = offset_component+ fe%reference_fes(j)%p%get_component_node(jnode)
-!              if ( boundary_conditions%code(component,vef_gid) /= 0 ) then 
-!                 this%number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs+1 
-!                 fe%elem2dof(j)%p(jnode) = -this%number_strong_dirichlet_dofs
-!                 fe%at_strong_dirichlet_boundary(j) = .true.
-!              end if
-!           end do
-!           offset_component = offset_component + fe%reference_fes(j)%p%get_number_field_components()
-!        end do
-!     end do
-!  end do
-
-!  call memalloc ( this%number_strong_dirichlet_dofs, this%strong_dirichlet_codes, __FILE__, __LINE__ ) 
-!  call this%strong_dirichlet_values%create_and_allocate(this%number_strong_dirichlet_dofs)
-
-!  ! Fill strong_dirichlet_codes
-!  this%number_strong_dirichlet_dofs = 0
-!  do ielem = 1, this%get_number_elements()
-!     fe => this%get_finite_element(ielem)
-!     do ivef = 1,fe%cell%num_vefs
-!        vef_gid = fe%cell%vefs(ivef)
-!        offset_component = 0
-!        do j = 1, this%number_fields
-!           do inode = 1, fe%reference_fes(j)%p%get_number_own_nodes_vef(ivef)
-!              jnode = fe%reference_fes(j)%p%get_own_node_vef(inode,ivef)
-!              component = offset_component+ fe%reference_fes(j)%p%get_component_node(jnode)
-!              if ( boundary_conditions%code(component,vef_gid) /= 0 ) then 
-!                 this%number_strong_dirichlet_dofs = this%number_strong_dirichlet_dofs+1 
-!                 this%strong_dirichlet_codes(this%number_strong_dirichlet_dofs) = boundary_conditions%code(component,vef_gid)
-!              end if
-!           end do
-!           offset_component = offset_component + fe%reference_fes(j)%p%get_number_field_components()
-!        end do
-!     end do
-!  end do
-!  
-!end subroutine new_serial_fe_space_set_up_strong_dirichlet_bcs
-
-!subroutine new_serial_fe_space_fill_dof_info( this )
-!  implicit none
-!  class(new_serial_fe_space_t), intent(inout) :: this 
-!  integer(ip) :: fe_space_id
-
-!  call memalloc( this%number_blocks, this%number_dofs_per_block, __FILE__, __LINE__ )
-!  call memalloc( this%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )
-
-!  this%number_dofs_per_block = 0
-!  this%number_dofs_per_field = 0
-!  do fe_space_id = 1, this%number_fields
-!     call this%fill_elem2dof_and_count_dofs( fe_space_id )
-!  end do
-!end subroutine new_serial_fe_space_fill_dof_info
-
-!subroutine new_serial_fe_space_fill_elem2dof_and_count_dofs( this, fe_space_id ) 
-!  implicit none
-!  ! Parameters
-!  class(new_serial_fe_space_t), intent(inout) :: this 
-!  integer(ip)                , intent(in) :: fe_space_id
-
-!  ! Local variables
-!  integer(ip) :: ivef, vef_id, ielem
-!  integer(ip) :: iblock, init_dof_block, current_dof_block
-
-!  integer(ip), allocatable :: visited_vef_to_elem_map(:,:)
-
-!  iblock            = this%field_blocks(fe_space_id)
-!  init_dof_block    = this%number_dofs_per_block(iblock)
-!  current_dof_block = init_dof_block
-
-!  if ( this%fe_space_type(fe_space_id) == fe_space_type_cg ) then
-!     call memalloc ( 2, this%triangulation%num_vefs, visited_vef_to_elem_map,  __FILE__, __LINE__ )
-!     visited_vef_to_elem_map = -1
-!     do ielem = 1, this%get_number_elements()
-!        call this%fe_array(ielem)%fill_own_dofs ( fe_space_id, current_dof_block )
-!        do ivef = 1, this%fe_array(ielem)%cell%num_vefs
-!           vef_id = this%fe_array(ielem)%cell%vefs(ivef)
-!           if ( visited_vef_to_elem_map ( 1, vef_id ) == -1 ) then
-!              visited_vef_to_elem_map ( 1, vef_id ) = ielem
-!              visited_vef_to_elem_map ( 2, vef_id ) = ivef
-!              call this%fe_array(ielem)%fill_own_dofs_on_vef ( ivef, fe_space_id, current_dof_block  ) 
-!           else 
-!              call this%fe_array(ielem)%fill_own_dofs_on_vef_from_source_element ( ivef, &
-!                   this%fe_array(visited_vef_to_elem_map(1,vef_id)), &
-!                   visited_vef_to_elem_map(2,vef_id), &
-!                   fe_space_id) 
-!           end if
-!        end do
-!     end do
-!     call memfree ( visited_vef_to_elem_map,  __FILE__, __LINE__ )
-!  else 
-!     do ielem = 1, this%get_number_elements()
-!        call this%fe_array(ielem)%fill_own_dofs ( fe_space_id, current_dof_block )
-!     end do
-!  end if
-!  this%number_dofs_per_field(fe_space_id) = current_dof_block - init_dof_block
-!  this%number_dofs_per_block(iblock) = this%number_dofs_per_block(iblock) + &
-!       this%number_dofs_per_field(fe_space_id)     
-!end subroutine new_serial_fe_space_fill_elem2dof_and_count_dofs
+ end function new_serial_fe_space_create_fe_iterator
 
 !subroutine new_serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
 !  implicit none

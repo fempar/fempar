@@ -27,55 +27,55 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !**************************************************************************************************
-! Methods associated to fe_function_t
+! Methods associated to new_fe_function_t
 !*************************************************************************************************
- subroutine fe_function_create( this, strong_dirichlet_values, dof_values )
+ subroutine new_fe_function_create( this, strong_dirichlet_values, dof_values )
     implicit none
-    class(fe_function_t)            , intent(inout) :: this
+    class(new_fe_function_t)            , intent(inout) :: this
     type(serial_scalar_array_t)     , intent(in)    :: strong_dirichlet_values
     class(vector_t)    , allocatable, intent(inout) :: dof_values
     call this%free()
     call move_alloc(from=dof_values, to=this%dof_values)
     call this%strong_dirichlet_values%clone(strong_dirichlet_values)
     call this%strong_dirichlet_values%copy(strong_dirichlet_values)
-  end subroutine fe_function_create
+  end subroutine new_fe_function_create
  
  !===============================================================================================
- subroutine fe_function_copy_bc_values( this, strong_dirichlet_values )
+ subroutine new_fe_function_copy_bc_values( this, strong_dirichlet_values )
     implicit none
-    class(fe_function_t)       , intent(inout) :: this 
+    class(new_fe_function_t)       , intent(inout) :: this 
     type(serial_scalar_array_t), intent(in)    :: strong_dirichlet_values
     call this%strong_dirichlet_values%copy(strong_dirichlet_values)
-  end subroutine fe_function_copy_bc_values
+  end subroutine new_fe_function_copy_bc_values
   
-  subroutine fe_function_copy(this,other) 
+  subroutine new_fe_function_copy(this,other) 
     implicit none
-    class(fe_function_t), intent(inout) :: this
-    type (fe_function_t), intent(in)    :: other
+    class(new_fe_function_t), intent(inout) :: this
+    type (new_fe_function_t), intent(in)    :: other
     this%strong_dirichlet_values = other%strong_dirichlet_values
     this%dof_values       = other%dof_values
-  end subroutine fe_function_copy
+  end subroutine new_fe_function_copy
   
  !===============================================================================================
- function fe_function_get_dof_values ( this )
+ function new_fe_function_get_dof_values ( this )
     implicit none
-    class(fe_function_t), target, intent(in) :: this 
-    class(vector_t), pointer :: fe_function_get_dof_values
-    fe_function_get_dof_values => this%dof_values
- end function fe_function_get_dof_values
+    class(new_fe_function_t), target, intent(in) :: this 
+    class(vector_t), pointer :: new_fe_function_get_dof_values
+    new_fe_function_get_dof_values => this%dof_values
+ end function new_fe_function_get_dof_values
  
  !===============================================================================================
- function fe_function_get_strong_dirichlet_values ( this )
+ function new_fe_function_get_strong_dirichlet_values ( this )
     implicit none
-    class(fe_function_t), target, intent(in) :: this 
-    type(serial_scalar_array_t), pointer :: fe_function_get_strong_dirichlet_values
-    fe_function_get_strong_dirichlet_values => this%strong_dirichlet_values
- end function fe_function_get_strong_dirichlet_values
+    class(new_fe_function_t), target, intent(in) :: this 
+    type(serial_scalar_array_t), pointer :: new_fe_function_get_strong_dirichlet_values
+    new_fe_function_get_strong_dirichlet_values => this%strong_dirichlet_values
+ end function new_fe_function_get_strong_dirichlet_values
   
  !=============================================================================================== 
- subroutine fe_function_free( this )
+ subroutine new_fe_function_free( this )
     implicit none
-    class(fe_function_t), intent(inout) :: this
+    class(new_fe_function_t), intent(inout) :: this
     integer(ip)                         :: istat
     if( allocated(this%dof_values) ) then
       call this%dof_values%free()
@@ -83,4 +83,4 @@
       check (istat == 0)
     end if
     call this%strong_dirichlet_values%free()
-  end subroutine fe_function_free
+  end subroutine new_fe_function_free

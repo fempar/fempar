@@ -36,7 +36,7 @@ module new_serial_fe_space_names
   use hash_table_names
   
   use base_static_triangulation_names
-  use conditions_names
+  use new_conditions_names
   
   use reference_fe_names
   use field_names
@@ -91,15 +91,19 @@ module new_serial_fe_space_names
     procedure, non_overridable          :: get_number_dofs_per_field                  => fe_accessor_get_number_dofs_per_field
     procedure, non_overridable          :: get_elem2dof                               => fe_accessor_get_elem2dof
     procedure, non_overridable          :: get_order                                  => fe_accessor_get_order
+    procedure, non_overridable          :: at_strong_dirichlet_boundary               => fe_accessor_at_strong_dirichlet_boundary
+    
+    
     procedure, non_overridable          :: get_quadrature                             => fe_accessor_get_quadrature
     procedure, non_overridable          :: get_fe_map                                 => fe_accessor_get_fe_map
     procedure, non_overridable          :: get_volume_integrator                      => fe_accessor_get_volume_integrator    
-
     
-    generic                             :: get_vef                                    => fe_accessor_get_fe_vef
     procedure, non_overridable, private :: fe_accessor_get_fe_vef
+    generic                             :: get_vef                                    => fe_accessor_get_fe_vef
+    procedure, non_overridable          :: get_reference_fe                           => fe_accessor_get_reference_fe
     
-    procedure, non_overridable          :: get_reference_fe                           => fe_accessor_get_reference_fe    
+    procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_accessor_impose_strong_dirichlet_bcs
+    
   end type fe_accessor_t
   
   type fe_iterator_t
@@ -117,14 +121,14 @@ module new_serial_fe_space_names
   
   type, extends(vef_accessor_t) :: fe_vef_accessor_t
     private
-    type(new_serial_fe_space_t), pointer            :: fe_space
+    type(new_serial_fe_space_t), pointer :: fe_space
   contains
-     !procedure :: coarse_fe_vef_accessor_create
-     !procedure :: vef_accessor_create                                 => coarse_fe_vef_accessor_vef_accessor_create
-     !generic   :: create                                              => coarse_fe_vef_accessor_create
-     !procedure :: free                                                => coarse_fe_vef_accessor_free
-     !procedure, non_overridable          :: get_num_coarse_fes_around => coarse_fe_vef_accessor_get_num_coarse_fes_around
-     !procedure, non_overridable          :: get_coarse_fe_around      => coarse_fe_vef_accessor_get_coarse_fe_around
+     !procedure           :: fe_vef_accessor_create
+     !procedure           :: vef_accessor_create    => fe_vef_accessor_vef_accessor_create
+     !generic             :: create                 => fe_vef_accessor_create
+     !procedure           :: free                   => fe_vef_accessor_free
+     !procedure, private  :: get_fe_around          => fe_vef_accessor_get_fe_around
+     !generic             :: get_cell_around        => get_fe_around
   end type fe_vef_accessor_t
   
   type fe_vef_iterator_t
@@ -200,7 +204,6 @@ module new_serial_fe_space_names
     
      ! Strong Dirichlet BCs-related member variables
      integer(ip)                                 :: number_strong_dirichlet_dofs
-     integer(ip)                   , allocatable :: strong_dirichlet_codes(:)
      type(serial_scalar_array_t)                 :: strong_dirichlet_values
      logical                       , allocatable :: at_strong_dirichlet_boundary_per_fe(:,:)
      
@@ -227,9 +230,13 @@ module new_serial_fe_space_names
      procedure, non_overridable, private :: fill_ref_fe_id_per_fe_same_on_all_cells      => new_serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
      procedure, non_overridable, private :: allocate_and_fill_field_type                 => new_serial_fe_space_allocate_and_fill_field_type
      procedure, non_overridable, private :: free_field_type                              => new_serial_fe_space_free_field_type
-     
      procedure, non_overridable, private :: allocate_and_init_ptr_lst_dofs               => new_serial_fe_space_allocate_and_init_ptr_lst_dofs
      procedure, non_overridable, private :: free_ptr_lst_dofs                            => new_serial_fe_space_free_ptr_lst_dofs
+     procedure, non_overridable, private :: allocate_and_init_at_strong_dirichlet_bound  => new_serial_fe_space_allocate_and_init_at_strong_dirichlet_bound  
+     procedure, non_overridable, private :: free_at_strong_dirichlet_bound               => new_serial_fe_space_free_at_strong_dirichlet_bound
+     procedure, non_overridable, private :: set_up_strong_dirichlet_bcs                  => new_serial_fe_space_set_up_strong_dirichlet_bcs
+     procedure, non_overridable          :: update_strong_dirichlet_bcs_values           => new_serial_fe_space_update_strong_dirichlet_bcs_values 
+
      
      procedure, non_overridable          :: initialize_fe_integration                    => new_serial_fe_space_initialize_fe_integration
      procedure, non_overridable, private :: free_fe_integration                          => new_serial_fe_space_free_fe_integration
@@ -240,13 +247,19 @@ module new_serial_fe_space_names
      
      procedure, non_overridable          :: fill_dof_info                                => new_serial_fe_space_fill_dof_info
      procedure, non_overridable, private :: fill_elem2dof_and_count_dofs                 => new_serial_fe_space_fill_elem2dof_and_count_dofs
-     !procedure, non_overridable, private :: renumber_dofs_block                          => new_serial_fe_space_renumber_dofs_block
+     !procedure, non_overridable, private :: renumber_dofs_block                         => new_serial_fe_space_renumber_dofs_block
+     
+     procedure, non_overridable          :: create_global_fe_function                    => new_serial_fe_space_create_global_fe_function
+     procedure, non_overridable          :: update_global_fe_function_bcs                => new_serial_fe_space_update_global_fe_function_bcs
      
      ! Getters
      procedure, non_overridable          :: get_number_fields                            => new_serial_fe_space_get_number_fields
+     procedure, non_overridable          :: get_number_components                        => new_serial_fe_space_get_number_components
      procedure, non_overridable          :: get_number_blocks                            => new_serial_fe_space_get_number_blocks
      procedure, non_overridable          :: get_field_blocks                             => new_serial_fe_space_get_field_blocks
      procedure, non_overridable          :: get_field_coupling                           => new_serial_fe_space_get_field_coupling
+     
+     
      
      ! Coarse FE traversals-related TBPs
      procedure, non_overridable          :: create_fe_iterator                           => new_serial_fe_space_create_fe_iterator
@@ -721,19 +734,19 @@ module new_serial_fe_space_names
 
 !  public :: par_fe_space_t
 !  
-!   type fe_function_t
-!   private
-!   class(vector_t), allocatable  :: dof_values
-!   type(serial_scalar_array_t)   :: strong_dirichlet_values
-!  contains
-!     procedure, non_overridable, private :: create                      => fe_function_create
-!     procedure, non_overridable, private :: copy_bc_values              => fe_function_copy_bc_values
-!     procedure, non_overridable          :: copy                        => fe_function_copy
-!     procedure, non_overridable          :: get_dof_values              => fe_function_get_dof_values
-!     procedure, non_overridable          :: get_strong_dirichlet_values => fe_function_get_strong_dirichlet_values
-!     procedure, non_overridable          :: free                        => fe_function_free
-!     generic                             :: assignment(=)               => copy
-!  end type fe_function_t 
+  type new_fe_function_t
+   private
+   class(vector_t), allocatable  :: dof_values
+   type(serial_scalar_array_t)   :: strong_dirichlet_values
+  contains
+     procedure, non_overridable, private :: create                      => new_fe_function_create
+     procedure, non_overridable, private :: copy_bc_values              => new_fe_function_copy_bc_values
+     procedure, non_overridable          :: copy                        => new_fe_function_copy
+     procedure, non_overridable          :: get_dof_values              => new_fe_function_get_dof_values
+     procedure, non_overridable          :: get_strong_dirichlet_values => new_fe_function_get_strong_dirichlet_values
+     procedure, non_overridable          :: free                        => new_fe_function_free
+     generic                             :: assignment(=)               => copy
+  end type new_fe_function_t 
 !  
 !  type fe_function_scalar_t
 !   private
@@ -813,7 +826,7 @@ module new_serial_fe_space_names
 !     procedure, non_overridable :: free                                 => fe_function_tensor_free
 !  end type fe_function_tensor_t
 !  
-!  public :: fe_function_t, fe_function_scalar_t, fe_function_vector_t, fe_function_tensor_t
+ public :: new_fe_function_t !, fe_function_scalar_t, fe_function_vector_t, fe_function_tensor_t
 !  
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
@@ -831,5 +844,5 @@ contains
 !#include "sbm_coarse_fe_object_iterator.i90"
 !#include "sbm_coarse_fe_vefs_on_object_iterator.i90"
 !#include "sbm_serial_fe_space_faces.i90"
-!#include "sbm_fe_function.i90"
+#include "sbm_new_fe_function.i90"
 end module new_serial_fe_space_names

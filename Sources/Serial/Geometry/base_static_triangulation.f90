@@ -120,6 +120,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_triangulation         => vef_accessor_get_triangulation
      procedure, non_overridable          :: get_lid                   => vef_accessor_get_lid
      procedure, non_overridable          :: get_gid                   => vef_accessor_get_gid
+     procedure, non_overridable          :: get_set_id                => vef_accessor_get_set_id
      procedure, non_overridable          :: is_local                  => vef_accessor_is_local
      procedure, non_overridable          :: is_ghost                  => vef_accessor_is_ghost
      procedure, non_overridable          :: at_interface              => vef_accessor_at_interface

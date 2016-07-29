@@ -654,5 +654,6 @@ contains
 #include "sbm_coarse_fe_vefs_on_object_iterator.i90"
 #include "sbm_serial_fe_space_faces.i90"
 #include "sbm_fe_function.i90"
+#include "sbm_fe_function_scalar_vector_tensor.i90"
 
 end module serial_fe_space_names
