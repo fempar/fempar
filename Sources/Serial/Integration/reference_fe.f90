@@ -145,7 +145,7 @@ module reference_fe_names
      ! Coordinates of git  points (number_dimensions,number_quadrature_points)       
      type(point_t), allocatable    :: coordinates_quadrature(:)  
      ! Coordinates of evaluation points (number_dimensions,number_corners of element/face)  
-     type(point_t), allocatable    :: coordinates_vertices(:)  
+     type(point_t), allocatable    :: coordinates_nodes(:)  
      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
      real(rp), allocatable    :: normals(:,:)  
      ! Geometry interpolation_t in the reference element domain    
@@ -583,10 +583,10 @@ module reference_fe_names
      end subroutine evaluate_gradient_fe_function_vector_interface
 
      subroutine blending_interface( this,values)
-       import :: reference_fe_t, rp
+       import :: reference_fe_t, point_t
        implicit none
-       class(reference_fe_t)   , intent(in)    :: this 
-       real(rp)                , intent(inout) :: values(:,:)
+       class(reference_fe_t), intent(in)    :: this 
+       type(point_t)        , intent(inout) :: values(:)     
      end subroutine blending_interface
 
      function check_compatibility_of_vefs_interface(target_reference_fe, &

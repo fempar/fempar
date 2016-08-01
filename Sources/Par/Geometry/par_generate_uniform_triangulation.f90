@@ -69,6 +69,7 @@ contains
     integer(igp), allocatable    :: aux_igp(:)
     integer(ip) , allocatable    :: aux(:)
     type(list_t), pointer        :: vertices_vef
+    type(list_iterator_t)        :: vertices_vef_iterator
     type(par_context_t), pointer :: l1_context
     
     ! Assign environment
@@ -195,21 +196,25 @@ contains
                    if ( p_trian%triangulation%elems(jlele)%vefs(iobj) == -1) then ! efs not assigned yet
                       count = 1
                       ! loop over vertices of every ef
-                      do jobj = vertices_vef%p(iobj), vertices_vef%p(iobj+1)-1  
-                         ivere = vertices_vef%l(jobj)
+                      vertices_vef_iterator = vertices_vef%create_iterator(iobj)
+                      do while(.not. vertices_vef_iterator%is_upper_bound())
+                         ivere = vertices_vef_iterator%get_current()
                          if (p_trian%triangulation%elems(jlele)%vefs(ivere) == -1) then
                             count = 0 ! not an vef of the local triangulation
                             exit
                          end if
+                         call vertices_vef_iterator%next()
                       end do
                       if (count == 1) then
-                         nvert = vertices_vef%p(iobj+1)-vertices_vef%p(iobj)
+                         call vertices_vef_iterator%begin()
+                         nvert = vertices_vef_iterator%get_size()
                          call memalloc( nvert, aux, __FILE__, __LINE__)
                          count = 1
-                         do jobj = vertices_vef%p(iobj), vertices_vef%p(iobj+1)-1
-                            ivere = vertices_vef%l(jobj)
+                          do while(.not. vertices_vef_iterator%is_upper_bound())
+                            ivere = vertices_vef_iterator%get_current()
                             aux(count) = p_trian%triangulation%elems(jlele)%vefs(ivere)
                             count = count+1
+                            call vertices_vef_iterator%next()
                          end do
                          call local_id_from_vertices( p_trian%triangulation%elems(ilele), idime, aux, nvert, &
                               p_trian%triangulation%elems(jlele)%vefs(iobj) )

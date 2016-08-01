@@ -34,7 +34,7 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   type(quadrature_t)   , intent(in)    :: quadrature
   class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
-  integer(ip) :: number_vertices
+  integer(ip) :: number_nodes
   integer(ip) :: istat
 
   call this%free()
@@ -60,8 +60,8 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   allocate(this%coordinates_quadrature(this%number_quadrature_points), stat=istat)
   check(istat==0)
 
-  number_vertices = reference_fe_geometry%get_number_vertices()
-  allocate(this%coordinates_vertices(number_vertices), stat=istat)
+  number_nodes = reference_fe_geometry%get_number_nodes()
+  allocate(this%coordinates_nodes(number_nodes), stat=istat)
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
@@ -76,7 +76,7 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   type(quadrature_t), intent(in)    :: quadrature
   class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
-  integer(ip) :: number_vertices
+  integer(ip) :: number_nodes
   integer(ip) :: istat
 
   call this%free()
@@ -102,8 +102,8 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   allocate(this%coordinates_quadrature(this%number_quadrature_points), stat=istat)
   check(istat==0)
 
-  number_vertices = reference_fe_geometry%get_number_vertices()
-  allocate(this%coordinates_vertices(number_vertices), stat=istat)
+  number_nodes = reference_fe_geometry%get_number_nodes()
+  allocate(this%coordinates_nodes(number_nodes), stat=istat)
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
@@ -146,7 +146,7 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
   check(istat==0)
 
   number_vertices_face = reference_fe_geo%get_number_vertices_per_face() 
-  allocate(this%coordinates_vertices(number_vertices_face), stat=istat)
+  allocate(this%coordinates_nodes(number_vertices_face), stat=istat)
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
@@ -188,7 +188,7 @@ subroutine fe_map_update( this, quadrature)
      do jdime=1,ndime
         aux_vector = 0.0_rp
         do inode=1,nnode
-           aux_vector = aux_vector + this%coordinates_vertices(inode) * &
+           aux_vector = aux_vector + this%coordinates_nodes(inode) * &
                 & this%interpolation_geometry%shape_derivatives(jdime,inode,ilocs)
         end do
         do idime=1,ndime
@@ -283,7 +283,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
      do jdime=1, number_face_dimensions
         aux_vector = 0.0_rp
         do node_id = 1, this%interpolation_geometry%number_shape_functions
-           aux_vector = aux_vector + this%coordinates_vertices(node_id) * &
+           aux_vector = aux_vector + this%coordinates_nodes(node_id) * &
                 & this%interpolation_geometry%shape_derivatives(jdime,node_id,evaluation_point_id)
 
         end do
@@ -324,7 +324,7 @@ subroutine fe_map_free( this )
   if(allocated(this%det_jacobian)) call memfree(this%det_jacobian,__FILE__,__LINE__)
   if(allocated(this%d2sdx)) call memfree(this%d2sdx,__FILE__,__LINE__)
   if(allocated(this%coordinates_quadrature)) deallocate(this%coordinates_quadrature)
-  if(allocated(this%coordinates_vertices)) deallocate(this%coordinates_vertices)
+  if(allocated(this%coordinates_nodes)) deallocate(this%coordinates_nodes)
   if(allocated(this%normals)) call memfree(this%normals,__FILE__,__LINE__)
   call this%interpolation_geometry%free()
 end subroutine fe_map_free
@@ -445,7 +445,7 @@ function fe_map_get_coordinates(this)
   class(fe_map_t)   , target, intent(in) :: this
   type(point_t), pointer :: fe_map_get_coordinates(:)
 
-  fe_map_get_coordinates => this%coordinates_vertices
+  fe_map_get_coordinates => this%coordinates_nodes
 
 end function fe_map_get_coordinates
 
@@ -509,7 +509,7 @@ subroutine fe_map_compute_quadrature_coordinates(this)
      call this%coordinates_quadrature(qpoin)%init(0.0_rp)
      do inode=1,nnode
         this%coordinates_quadrature(qpoin) = this%coordinates_quadrature(qpoin) + &
-             & this%coordinates_vertices(inode) * this%interpolation_geometry%shape_functions(inode,qpoin)
+             & this%coordinates_nodes(inode) * this%interpolation_geometry%shape_functions(inode,qpoin)
      end do
   end do
   

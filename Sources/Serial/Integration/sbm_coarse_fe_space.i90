@@ -697,7 +697,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
         if ( coarse_fe%is_ghost() ) then
           do ivef = 1, coarse_fe%get_num_vefs()
             vef = coarse_fe%get_coarse_fe_vef(ivef)
-            if ( vef%at_interface() ) then
+            if ( vef%is_at_interface() ) then
                do ielem=1, vef%get_num_cells_around()
                  coarse_fe_around = vef%get_coarse_fe_around(ielem)
                  if ( coarse_fe_around%is_local() ) then

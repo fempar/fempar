@@ -25,19 +25,20 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
+subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, geometry_interpolation_order)
   implicit none
-  class(new_par_triangulation_t)    , intent(inout) :: this
+  class(new_par_triangulation_t), intent(inout) :: this
   type(par_environment_t),target, intent(in)    :: par_environment
+  character (*)                 , intent(in)    :: dir_path
+  character (*)                 , intent(in)    :: prefix
+  integer(ip)        , optional , intent(in)    :: geometry_interpolation_order
 
-  character (*)                , intent(in)    :: dir_path
-  character (*)                , intent(in)    :: prefix
   integer(ip)                    :: lunio
   character(len=:), allocatable  :: name
   type(mesh_t)              :: mesh
   type(mesh_distribution_t) :: mesh_distribution
-  type(list_t), pointer :: boundary
-  integer(ip) , pointer :: boundary_geo(:), boundary_set(:)
+  type(list_t), pointer :: given_vefs
+  integer(ip) , pointer :: lst_vefs_geo(:), lst_vefs_set(:)
 
   integer(igp), allocatable :: cells_gid(:)
   integer(igp), allocatable :: vertx_gid(:)
@@ -45,7 +46,7 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
   integer(ip) , allocatable :: lst_vefs_lids(:)
   integer(igp), allocatable :: lst_vefs_gids(:)
 
-  integer(ip)  :: i, ipart,npart
+  integer(ip)  :: i, ipart,npart, order
   integer(ip)  :: num_local_cells, num_itfc_cells
   integer(ip), allocatable :: lst_itfc_cells(:)
   integer(ip), allocatable :: ptr_ext_neighs_per_itfc_cell(:)
@@ -60,11 +61,20 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
   this%p_env => par_environment
   if(this%p_env%am_i_l1_task()) then
 
+     if(present(geometry_interpolation_order)) then
+        order=geometry_interpolation_order
+        if(order>1) then
+           call this%geometry%read(dir_path, prefix)
+        end if
+     else
+        order=1
+     end if
+  
      ! Read mesh
      call mesh%compose_name ( prefix, name )
      call par_filename( this%p_env%get_l1_context(), name )
      lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-     call mesh%read (lunio)  !, permute_c2z = .true. 
+     call mesh%read (lunio) 
      call io_close(lunio)
 
      ! Extract data from mesh
@@ -78,7 +88,7 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
      !write(*,*) this%lst_vefs_lids
      !call mesh%move_coordinates(this%coordinates)
      !write(*,*) this%coordinates
-     call mesh%get_boundary(boundary,boundary_geo,boundary_set)
+     call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
      !write(*,*) boundary%p,boundary%l
 
      ! Read mesh distribution 
@@ -150,8 +160,14 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
      !write(*,*) this%lst_cells_around
      !write(*,*) 'Generating vefs'
      !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
-     call this%generate_vefs(1,boundary,boundary_geo,boundary_set)
-     call this%compute_vefs_dimension()
+     call this%generate_vefs(order)
+     call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
+
+     call this%allocate_and_fill_cells_around()
+     call this%allocate_and_fill_vef_type()
+     call this%allocate_and_fill_nodes()
+
+     !call this%compute_vefs_dimension()
      !write(*,*) 'vefs generated'
      !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
 
@@ -167,7 +183,7 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
      call this%allocate_and_fill_cells_around() ! Now around efs too
      call this%compute_num_itfc_vefs()
      call this%allocate_and_fill_lst_itfc_vefs()
-     call this%allocate_and_fill_vefs_itfc_lid()
+     !call this%allocate_and_fill_vefs_itfc_lid()
      !write(*,*) 'Interface lists computed'
      !call this%allocate_and_fill_cells_around_interface_vefs()
 
@@ -182,7 +198,7 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix)
      call this%compute_number_global_objects_and_their_gids()
      write(*,*) 'End creating par_triangulation'
   end if
-  call this%print()
+  !call this%print()
 
 end subroutine par_triangulation_create
 

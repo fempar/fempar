@@ -111,6 +111,8 @@ contains
     
     class(reference_fe_t), pointer :: reference_fe_geo
     type(list_t)         , pointer :: vertices_vef
+    type(list_iterator_t)          :: vertices_vef_iterator
+    type(list_iterator_t)          :: subelems_around_vertices_iterator
     type(par_context_t)  , pointer :: l1_context
     
     p_mesh%p_env => p_trian%p_env
@@ -220,8 +222,9 @@ contains
                         p_trian%triangulation%elems(ielem)%coordinates(:,subelem_vertices(ivertex,isubelem))
                 else if ( vef_dimension == 1 ) then ! Vef is an edge
                    ! Extract local ids (within reference element) of vertices of current edge
-                   vertex1 = vertices_vef%l(vertices_vef%p(subelem_vertices(ivertex,isubelem)))
-                   vertex2 = vertices_vef%l(vertices_vef%p(subelem_vertices(ivertex,isubelem))+1)
+                   vertices_vef_iterator = vertices_vef%create_iterator(subelem_vertices(ivertex,isubelem))
+                   vertex1 = vertices_vef_iterator%reach_from_current(0)
+                   vertex2 = vertices_vef_iterator%reach_from_current(1)
                    do idime=1, p_mesh%f_mesh%ndime
                       p_mesh%f_mesh%coord(idime,old2new_vefs(vef_lid))= &
                            (p_trian%triangulation%elems(ielem)%coordinates(idime,vertex1) + &
@@ -341,9 +344,9 @@ contains
                          ! Traverse subelements around vef_lid in ghost element
 
                          ! Count only new subelements
-                         do jsubelem=subelems_around_vertices%p(vef_pos_in_neighbour),&
-                                     subelems_around_vertices%p(vef_pos_in_neighbour+1)-1  
-                            call subelems_visited%put(key=data(jelem_lid)%subelems_GIDs(subelems_around_vertices%l(jsubelem)), &
+                         subelems_around_vertices_iterator = subelems_around_vertices%create_iterator(vef_pos_in_neighbour)
+                         do while(.not. subelems_around_vertices_iterator%is_upper_bound())
+                            call subelems_visited%put(key=data(jelem_lid)%subelems_GIDs(subelems_around_vertices_iterator%get_current()), &
                                                       val=1, &
                                                       stat=istat)
                             if ( istat == now_stored ) then
@@ -351,6 +354,7 @@ contains
                                p_mesh%f_mesh_dist%pextn(num_subelems_interface+1)=&
                                       p_mesh%f_mesh_dist%pextn(num_subelems_interface+1)+1
                             end if
+                            call subelems_around_vertices_iterator%next()
                          end do
                       end if
                    end do
@@ -402,19 +406,20 @@ contains
                          assert ( vef_pos_in_neighbour <= p_trian%elems(jelem_lid)%num_vefs )
                          ! Traverse subelements around vef_lid in ghost element
                          ! Count only new subelements
-                         do jsubelem=subelems_around_vertices%p(vef_pos_in_neighbour),&
-                                     subelems_around_vertices%p(vef_pos_in_neighbour+1)-1  
-                            call subelems_visited%put(key=data(jelem_lid)%subelems_GIDs(subelems_around_vertices%l(jsubelem)), &
+                         subelems_around_vertices_iterator = subelems_around_vertices%create_iterator(vef_pos_in_neighbour)
+                         do while(.not. subelems_around_vertices_iterator%is_upper_bound())
+                            call subelems_visited%put(key=data(jelem_lid)%subelems_GIDs(subelems_around_vertices_iterator%get_current()), &
                                                       val=1, &
                                                       stat=istat)
                             if ( istat == now_stored ) then
                                p_mesh%f_mesh_dist%lextn(p_mesh%f_mesh_dist%pextn(num_subelems_interface))=&
-                                        data(jelem_lid)%subelems_GIDs(subelems_around_vertices%l(jsubelem))
+                                        data(jelem_lid)%subelems_GIDs(subelems_around_vertices_iterator%get_current())
                                p_mesh%f_mesh_dist%lextp(p_mesh%f_mesh_dist%pextn(num_subelems_interface))=&
                                     p_trian%elems(jelem_lid)%mypart
                                p_mesh%f_mesh_dist%pextn(num_subelems_interface)=&
                                     p_mesh%f_mesh_dist%pextn(num_subelems_interface)+1
                             end if
+                            call subelems_around_vertices_iterator%next()
                          end do
                       end if
                    end do
@@ -477,11 +482,13 @@ contains
     integer(ip), intent(out)                :: num_vertices_per_subelem
     integer(ip), intent(out)                :: num_subelems
     integer(ip), allocatable, intent(out)   :: subelem_vertices(:,:)
+    integer(ip)                             :: subelem_around_vertices_counter(10)
     type(list_t), intent(out)               :: subelems_around_vertices
+    type(list_iterator_t)                   :: subelems_around_vertices_iterator
 
     ! Locals
     integer(ip) :: num_vertices_per_elem 
-    integer(ip) :: ielem, ivertex
+    integer(ip) :: ielem, ivertex, subvertex
 
     assert ( reference_elem%get_topology() == topology_tet )
 
@@ -522,30 +529,22 @@ contains
     call subelems_around_vertices%create(num_vertices_per_elem)
     do ielem=1, num_subelems
        do ivertex=1, num_vertices_per_subelem
-          subelems_around_vertices%p(subelem_vertices(ivertex,ielem)+1) = &
-               subelems_around_vertices%p(subelem_vertices(ivertex,ielem)+1) + 1
+          call subelems_around_vertices%sum_to_pointer_index(subelem_vertices(ivertex,ielem), 1)
        end do
     end do
 
-    subelems_around_vertices%p(1) = 1
-    do ivertex=1, num_vertices_per_elem
-       subelems_around_vertices%p(ivertex+1) = subelems_around_vertices%p(ivertex+1) + &
-            subelems_around_vertices%p(ivertex)
-    end do
-
+    subelem_around_vertices_counter = 0
+    call subelems_around_vertices%calculate_header()
     call subelems_around_vertices%allocate_list_from_pointer()
+
     do ielem=1, num_subelems
        do ivertex=1, num_vertices_per_subelem
-          subelems_around_vertices%l(subelems_around_vertices%p(subelem_vertices(ivertex,ielem))) = ielem
-          subelems_around_vertices%p(subelem_vertices(ivertex,ielem)) = &
-               subelems_around_vertices%p(subelem_vertices(ivertex,ielem)) + 1
+          subvertex = subelem_vertices(ivertex,ielem)
+          subelems_around_vertices_iterator = subelems_around_vertices%create_iterator(subvertex)
+          call subelems_around_vertices_iterator%set_from_current(subelem_around_vertices_counter(subvertex), ielem)
+          subelem_around_vertices_counter(subvertex) = subelem_around_vertices_counter(subvertex)+1
        end do
     end do
-
-    do ivertex=num_vertices_per_elem,2,-1
-       subelems_around_vertices%p(ivertex) = subelems_around_vertices%p(ivertex-1)
-    end do
-    subelems_around_vertices%p(1) = 1
 
   end subroutine generate_data_subelems
 
