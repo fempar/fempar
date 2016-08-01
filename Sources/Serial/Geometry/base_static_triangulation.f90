@@ -306,14 +306,19 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: compute_num_vefs                   => base_static_triangulation_compute_num_vefs
      procedure, non_overridable, private :: allocate_and_fill_vefs_gid         => base_static_triangulation_allocate_and_fill_vefs_gid
      procedure, non_overridable, private :: free_vefs_gid                      => base_static_triangulation_free_vefs_gid
-     !procedure, non_overridable, private :: free_vefs_dimension                => base_static_triangulation_free_vefs_dimension
      
      procedure, non_overridable, private :: allocate_and_fill_cells_around     => base_static_triangulation_allocate_and_fill_cells_around
      procedure, non_overridable, private :: free_cells_around                  => base_static_triangulation_free_cells_around
-     procedure, non_overridable          :: generate_vefs                      => base_static_triangulation_generate_vefs
-     !procedure, non_overridable          :: compute_vefs_dimension             => base_static_triangulation_compute_vefs_dimension
+     procedure, non_overridable, private :: generate_vefs                      => base_static_triangulation_generate_vefs
+
+     procedure, non_overridable, private :: allocate_and_fill_geometry_and_set => base_static_triangulation_allocate_and_fill_geometry_and_set
+     procedure, non_overridable, private :: free_geometry_and_set              => base_static_triangulation_free_geometry_and_set
+     
      procedure, non_overridable, private :: allocate_and_fill_vef_type         => base_static_triangulation_allocate_and_fill_vef_type
      procedure, non_overridable, private :: free_vefs_type                     => base_static_triangulation_free_vefs_type
+     
+     procedure, non_overridable, private :: allocate_and_fill_nodes            => base_static_triangulation_allocate_and_fill_nodes
+     procedure, non_overridable, private :: free_nodes                         => base_static_triangulation_free_nodes
 
      ! Geometry interpolation
      procedure, non_overridable          :: allocate_and_fill_coordinates      => base_static_triangulation_allocate_and_fill_coordinates
@@ -337,6 +342,9 @@ module base_static_triangulation_names
      procedure, non_overridable          :: create_edges_iterator              => base_static_triangulation_create_edges_iterator
      procedure, non_overridable          :: create_faces_iterator              => base_static_triangulation_create_faces_iterator
      procedure, non_overridable          :: create_itfc_vef_iterator           => base_static_triangulation_create_itfc_vef_iterator
+
+     procedure, non_overridable          :: print                              => base_static_triangulation_print    
+ 
   end type base_static_triangulation_t
   
   type object_accessor_t
@@ -407,7 +415,7 @@ module base_static_triangulation_names
      type(coarse_triangulation_t), pointer   :: coarse_triangulation
   contains
      procedure, non_overridable          :: free                                           => par_base_static_tria_free
-     procedure, non_overridable          :: print                                          => par_base_static_tria_print    
+     !procedure, non_overridable          :: print                                          => par_base_static_tria_print    
 
      ! Getters
      procedure, non_overridable          :: get_par_environment                            => par_base_static_tria_get_par_environment
@@ -467,7 +475,7 @@ module base_static_triangulation_names
   contains
      procedure, non_overridable          :: create                              => serial_triangulation_create
      procedure, non_overridable          :: free                                => serial_triangulation_free
-     procedure, non_overridable          :: print                               => serial_triangulation_print
+     !procedure, non_overridable          :: print                               => serial_triangulation_print
   end type serial_triangulation_t
   
   type, extends(par_base_static_triangulation_t) :: new_par_triangulation_t

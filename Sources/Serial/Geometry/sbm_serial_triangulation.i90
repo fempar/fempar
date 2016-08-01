@@ -33,8 +33,8 @@
     integer(ip)        , optional, intent(in)    :: geometry_interpolation_order
 
     type(mesh_t)          :: mesh
-    type(list_t), pointer :: boundary
-    integer(ip) , pointer :: boundary_geo(:), boundary_set(:)
+    type(list_t), pointer :: given_vefs
+    integer(ip) , pointer :: lst_vefs_geo(:), lst_vefs_set(:)
     integer(ip) :: order
 
     call this%free()
@@ -48,7 +48,7 @@
        order=1
     end if
     
-    call mesh%read(dir_path, prefix) !, permute_c2z=.true.
+    call mesh%read(dir_path, prefix)
     !call mesh%to_dual()
     !call mesh%generate_vefs()
 
@@ -64,7 +64,7 @@
     !write(*,*) this%lst_vefs_lids
     !call mesh%move_coordinates(this%coordinates)
     !write(*,*) this%coordinates
-    call mesh%get_boundary(boundary,boundary_geo,boundary_set)
+    call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
     !write(*,*) boundary%p,boundary%l
 
     ! Generate dual mesh (at this point around vertices only)
@@ -73,7 +73,8 @@
     !write(*,*) this%lst_cells_around
     write(*,*) 'Dual mesh ready'
 
-    call this%generate_vefs(order,boundary,boundary_geo,boundary_set)
+    call this%generate_vefs(order)
+    call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
     !call this%generate_vefs()
     write(*,*) 'Generating vefs done'
 
@@ -84,6 +85,11 @@
     write(*,*) 'Dual mesh ready'
 
     call this%allocate_and_fill_vef_type()
+    call this%allocate_and_fill_nodes()
+    !write(*,*) 'List of nodes (ptr):'
+    !write(*,*) this%ptr_nodes_per_cell
+    !write(*,*) 'List of nodes (lst):'
+    !write(*,*) this%lst_nodes
 
     write(*,*) 'Filling coordinates'
     call this%allocate_and_fill_coordinates(mesh%get_coordinates())

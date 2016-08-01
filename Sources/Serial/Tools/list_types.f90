@@ -196,7 +196,7 @@ contains
         class(list_t), target, intent(inout) :: this
         type(c_ptr)                          :: num_pointers_c_loc
     !----------------------------------------------------------------- 
-        assert(this%state == LIST_STATE_CREATED)
+        assert(this%state >= LIST_STATE_CREATED)
         num_pointers_c_loc = c_loc(this%n)
     end function list_get_num_pointers_c_loc
 
@@ -208,7 +208,7 @@ contains
         class(list_t), target, intent(inout) :: this
         type(c_ptr)                          :: pointers_c_loc
     !----------------------------------------------------------------- 
-        assert(this%state == LIST_STATE_CREATED)
+        assert(this%state >= LIST_STATE_CREATED)
         pointers_c_loc = c_loc(this%p)
     end function list_get_pointers_c_loc
 
@@ -220,7 +220,7 @@ contains
         class(list_t), target, intent(inout) :: this
         type(c_ptr)                          :: list_c_loc
     !----------------------------------------------------------------- 
-        assert(this%state == LIST_STATE_LIST_ALLOCATED)
+        assert(this%state >= LIST_STATE_LIST_ALLOCATED)
         list_c_loc = c_loc(this%l)
     end function list_get_list_c_loc
 

@@ -236,14 +236,14 @@ module metis_interface_names
   interface
      function metis_nodend(nvtxs,xadj,adjncy,vwgt,options,perm,iperm) & 
         & bind(c,NAME='METIS_NodeND')
-use iso_c_binding
+       use iso_c_binding
        integer(c_int) :: fp_metis_nodendextractseparatortree
        type(c_ptr), value :: nvtxs
        type(c_ptr), value :: xadj, adjncy, vwgt, options, perm, iperm
      end function metis_nodend
      function metis_partgraphkway(nvtxs,ncon,xadj,adjncy,vwgt,vsize,adjwgt,nparts,tptwgts,ubvec,options,objval,part) &
         & bind(c,NAME='METIS_PartGraphKway')
-use iso_c_binding
+       use iso_c_binding
        integer(c_int) :: fp_metis_partgraphkway
        type(c_ptr), value :: nvtxs, ncon, nparts, objval, part
        type(c_ptr), value :: xadj, adjncy, vwgt, vsize, adjwgt, options
@@ -252,7 +252,7 @@ use iso_c_binding
      end function metis_partgraphkway
      function metis_partgraphrecursive(nvtxs,ncon,xadj,adjncy,vwgt,vsize,adjwgt,nparts,tptwgts,ubvec,options,objval,part) &
         & bind(c,NAME='METIS_PartGraphRecursive')
-use iso_c_binding
+       use iso_c_binding
        integer(c_int) :: fp_metis_partgraphrecursive
        type(c_ptr), value :: nvtxs, ncon, nparts, objval, part
        type(c_ptr), value :: xadj, adjncy, vwgt, vsize, adjwgt, options

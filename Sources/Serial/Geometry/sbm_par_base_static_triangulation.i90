@@ -258,6 +258,7 @@ subroutine par_base_static_tria_allocate_and_fill_ptr_vefs_per_cell (this, ptr_v
     type(cell_iterator_t) :: cell_iterator
     type(cell_accessor_t) :: cell
     type(vef_accessor_t)  :: vef
+    integer(ip) :: vef_lid
     
     assert( associated(this%p_env) )
     if ( this%p_env%am_i_l1_task() ) then
@@ -285,15 +286,22 @@ subroutine par_base_static_tria_allocate_and_fill_ptr_vefs_per_cell (this, ptr_v
       
       vef_iterator = this%create_vef_iterator()
       do while ( .not. vef_iterator%has_finished() )
-        call vef_iterator%current(vef)
-        write(*,'(a,i10,a)') '**** local vef  : ',vef%get_lid(),'****'
-        !write(*,'(a,i10,a)') '****       gid  : ',vef%get_gid(),'****'
-        write(*,'(a,i10,a)') '**** dimension  : ',vef%get_dimension(),'****'
-        write(*,'(a,l10,a)') '****at_interface: ',vef%is_at_interface(),'****'
-        call vef_iterator%next()
+         call vef_iterator%current (vef) 
+         vef_lid = vef%get_lid()
+         write(*,'(2(i10,2x),10x,l1,5(2x,i10))') vef_lid,  vef%get_dimension(), vef%is_at_boundary(), this%vefs_set(vef_lid),this%vefs_geometry(vef_lid)
+         call vef_iterator%next()
       end do
       
-
+      !vef_iterator = this%create_vef_iterator()
+      !do while ( .not. vef_iterator%has_finished() )
+      !  call vef_iterator%current(vef)
+      !  write(*,'(a,i10,a)') '**** local vef  : ',vef%get_lid(),'****'
+      !  !write(*,'(a,i10,a)') '****       gid  : ',vef%get_gid(),'****'
+      !  write(*,'(a,i10,a)') '**** dimension  : ',vef%get_dimension(),'****'
+      !  write(*,'(a,l10,a)') '****at_interface: ',vef%is_at_interface(),'****'
+      !  call vef_iterator%next()
+      !end do
+      
       write(*,'(a,i10)')    '**** num_local_vefs: ', this%num_local_vefs
       write(*,'(a,i10)')    '**** num_ghost_vefs: ', this%num_ghost_vefs
       !write(*,'(a,10i10)')  '**** vefs_gid:       ', this%vefs_gid

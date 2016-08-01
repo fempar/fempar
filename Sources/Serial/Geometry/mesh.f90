@@ -77,13 +77,14 @@ module mesh_names
           lvef_geo(:),            &         ! List of geometric entities (volume, surface, point) each vef lies in
           lvef_set(:)                       ! List of sets associated to each vef
 
-     ! Booundary (understood as a subset of vefs on which the definition of a set and a geometry is relevant,
-     ! e.g. an internal interface separating materials over which a force has to be computed)
+     ! List of vefs over which a definition of a set and/or a geometry is relevant. Tipically used
+     ! to set boundary conditions but also useful for other purposes, e.g. an internal interface 
+     ! separating materials over which a force has to be computed.
      type(list_t)             ::  &
-          bound                             ! boundary elements (vefs)      
+          given_vefs                        ! boundary elements (vefs)      
      integer(ip), allocatable ::  &
-          lbgeo(:),               &         ! List of geometric entities (volume, surface, point) each boundary lies in
-          lbset(:)                          ! List of sets associated to each boundary
+          lst_vefs_geo(:),        &         ! List of geometric entities (volume, surface, point) each vef lies in
+          lst_vefs_set(:)                   ! List of sets associated to each boundary
 
      ! Dual mesh (elements around vertices)
      integer(ip)              ::  &
@@ -101,12 +102,12 @@ module mesh_names
      ! JP-TODO: program get and set for variables.
      procedure, non_overridable :: to_dual              => mesh_to_dual_new
      procedure, non_overridable :: create_distribution  => create_mesh_distribution
-     procedure, non_overridable :: generate_vefs        => mesh_generate_vefs
+     !procedure, non_overridable :: generate_vefs        => mesh_generate_vefs
      procedure, non_overridable :: get_sizes            => mesh_get_sizes
      procedure, non_overridable :: move_cells           => mesh_move_cells
      procedure, non_overridable :: move_coordinates     => mesh_move_coordinates
      procedure, non_overridable :: get_coordinates      => mesh_get_coordinates
-     procedure, non_overridable :: get_boundary         => mesh_get_boundary
+     procedure, non_overridable :: get_given_vefs       => mesh_get_given_vefs
      procedure, non_overridable :: free                 => mesh_free
      procedure, non_overridable :: read_from_unit       => mesh_read_from_unit
      procedure, non_overridable :: read_from_file       => mesh_read_from_file
@@ -155,16 +156,16 @@ contains
     mesh_get_coordinates => this%coord
   end function mesh_get_coordinates
   !=============================================================================
-  subroutine mesh_get_boundary(this,boundary,lbgeo,lbset)
+  subroutine mesh_get_given_vefs(this,given_vefs,lst_vefs_geo,lst_vefs_set)
     class(mesh_t), target   , intent(inout) :: this
-    type(list_t), pointer   , intent(inout) :: boundary
-    integer(ip) , pointer   , intent(inout) :: lbgeo(:), lbset(:)
-    boundary => this%bound
-    lbgeo => this%lbgeo
-    lbset => this%lbset
+    type(list_t), pointer   , intent(inout) :: given_vefs
+    integer(ip) , pointer   , intent(inout) :: lst_vefs_geo(:), lst_vefs_set(:)
+    given_vefs => this%given_vefs
+    lst_vefs_geo => this%lst_vefs_geo
+    lst_vefs_set => this%lst_vefs_set
     !call memmovealloc(this%lbgeo,lbgeo,__FILE__,__LINE__)
     !call memmovealloc(this%lbset,lbset,__FILE__,__LINE__)
-  end subroutine mesh_get_boundary
+  end subroutine mesh_get_given_vefs
   !=============================================================================
   ! subroutine mesh_move_ref_fe(this,ref_fe_index,ref_fe_list)
   !   class(mesh_t), intent(inout) :: this
@@ -253,9 +254,9 @@ contains
     msh%order=c_order
     msh%nelty=1
 
-    call msh%bound%free()
-    if (allocated(msh%lbgeo)) call memfree (msh%lbgeo,__FILE__,__LINE__)
-    if (allocated(msh%lbset)) call memfree (msh%lbset,__FILE__,__LINE__)
+    call msh%given_vefs%free()
+    if (allocated(msh%lst_vefs_geo)) call memfree (msh%lst_vefs_geo,__FILE__,__LINE__)
+    if (allocated(msh%lst_vefs_set)) call memfree (msh%lst_vefs_set,__FILE__,__LINE__)
     msh%nnodb=0
 
     if (allocated(msh%pelpo)) call memfree (msh%pelpo,__FILE__,__LINE__)
@@ -313,15 +314,6 @@ contains
     integer(ip), pointer     :: permu(:)
     logical                  :: permute_c2z_
 
-    ! if(present(permute_c2z)) then
-    !    permute_c2z_ = permute_c2z
-    ! else
-    !    permute_c2z_ = .false.
-    ! end if
-    ! write(*,*) 'Permuting c2z:',permute_c2z_
-
-    ! Read first line: "MESH dimension  3  order  0  types  1  elements        352  nodes        100  boundaries        144"
-    ! Read first line: "MESH dimension  2  order  0  types  1  elements        100  nodes        121  boundaries         40"
     ! Read first line: "MESH dimension  2  order  0  types  1  elements          1  vertices          4  vefs          8
     read(lunio,'(a14,1x,i2, a7,1x,i2, a7,1x,i2, a10,1x,i10, a10,1x,i10, a6,1x,i10)') &
          & dum1,msh%ndime,dum2,msh%order,dum3,msh%nelty,dum4,msh%nelem, dum5,msh%npoin,dum6,nboun
@@ -374,7 +366,7 @@ contains
 
     ! Read boundary elements' size (pnodb)
     !write(*,*) 'Reading boundaries sizes'
-    call msh%bound%create(nboun)
+    call msh%given_vefs%create(nboun)
     do while(tel(1:5).ne.'vefs')
        read(lunio,'(a)') tel
     end do
@@ -382,21 +374,21 @@ contains
     do while(tel(1:5).ne.'end v')
        read(tel,*) iboun, vbound
        !write(*,*) 'iboun bound', iboun, vbound
-       call msh%bound%sum_to_pointer_index(iboun, vbound)
+       call msh%given_vefs%sum_to_pointer_index(iboun, vbound)
        read(lunio,'(a)') tel
     end do
     ! Transform length to header and get mesh%nnodb
-    call msh%bound%calculate_header()
+    call msh%given_vefs%calculate_header()
     msh%nnodb    = 0
-    do iboun = 1, msh%bound%get_num_pointers()
-       msh%nnodb = max(msh%nnodb,msh%bound%get_sublist_size(iboun))
+    do iboun = 1, msh%given_vefs%get_num_pointers()
+       msh%nnodb = max(msh%nnodb,msh%given_vefs%get_sublist_size(iboun))
     end do
 
     ! Read boundary elements
     !write(*,*) 'Reading boundaries'
-    call msh%bound%allocate_list_from_pointer()
-    call memalloc(msh%bound%get_num_pointers(),msh%lbgeo,__FILE__,__LINE__)
-    call memalloc(msh%bound%get_num_pointers(),msh%lbset,__FILE__,__LINE__)
+    call msh%given_vefs%allocate_list_from_pointer()
+    call memalloc(msh%given_vefs%get_num_pointers(),msh%lst_vefs_geo,__FILE__,__LINE__)
+    call memalloc(msh%given_vefs%get_num_pointers(),msh%lst_vefs_set,__FILE__,__LINE__)
     call io_rewind(lunio)
     do while(tel(1:5).ne.'vefs')
        read(lunio,'(a)') tel
@@ -405,9 +397,9 @@ contains
     do while(tel(1:5).ne.'end v')
        read(tel,*) iboun,nnodb
        !write(*,*) 'iboun nnodb',iboun, nnodb
-       allocate(bound_list_aux(msh%bound%get_sublist_size(iboun)))
-       read(tel,*) iboun,nnodb, (bound_list_aux(inode),inode=1,nnodb),msh%lbset(iboun),msh%lbgeo(iboun)
-       bound_iterator = msh%bound%create_iterator(iboun)
+       allocate(bound_list_aux(msh%given_vefs%get_sublist_size(iboun)))
+       read(tel,*) iboun,nnodb, (bound_list_aux(inode),inode=1,nnodb),msh%lst_vefs_set(iboun),msh%lst_vefs_geo(iboun)
+       bound_iterator = msh%given_vefs%create_iterator(iboun)
        do inode=1, nnodb
           call bound_iterator%set_current(bound_list_aux(inode))
           call bound_iterator%next()
@@ -462,12 +454,11 @@ contains
     integer(ip), allocatable            :: bound_list_aux(:)
     type(list_iterator_t)               :: bound_iterator
 
-
-    ! Read first line: "MESH dimension  2  order  0  types  2  elements         86  nodes         63  boundaries         28"
-    write(lunio,'(a14,1x,i2,a7,1x,i2,a7,1x,i2,a10,1x,i10,a7,1x,i10,a12,1x,i10)') &
+    ! Read first line: "MESH dimension  2  order  0  types  1  elements          1  vertices          4  vefs          8
+    write(lunio,'(a14,1x,i2, a7,1x,i2, a7,1x,i2, a10,1x,i10, a10,1x,i10, a6,1x,i10)') &
          & 'MESH dimension',msh%ndime,'  order',msh%order,'  types',msh%nelty,'  elements', &
-         & msh%nelem,'  nodes',msh%npoin,'  boundaries',msh%bound%get_num_pointers()
-
+         & msh%nelem,'  vertices',msh%npoin,'  vefs',msh%given_vefs%get_num_pointers()
+         
     ! Coordinates
     write(lunio,'(a)')'coordinates'
     assert(allocated(msh%coord))
@@ -485,19 +476,19 @@ contains
     write(lunio,'(a)') 'end elements'
 
     ! Boundary elements
-    write(lunio,'(a)')'boundaries'
-    do iboun=1,msh%bound%get_num_pointers()
-       allocate(bound_list_aux(msh%bound%get_sublist_size(iboun)))
-       bound_iterator = msh%bound%create_iterator(iboun)
-       do jboun=1, msh%bound%get_sublist_size(iboun)
+    write(lunio,'(a)')'vefs'
+    do iboun=1,msh%given_vefs%get_num_pointers()
+       allocate(bound_list_aux(msh%given_vefs%get_sublist_size(iboun)))
+       bound_iterator = msh%given_vefs%create_iterator(iboun)
+       do jboun=1, msh%given_vefs%get_sublist_size(iboun)
           bound_list_aux(jboun) = bound_iterator%get_current()
           call bound_iterator%next()
        enddo
        write(lunio,'(i10,65(1x,i10))') iboun, bound_iterator%get_size(), &
-            &  bound_list_aux ,msh%lbset(iboun),msh%lbgeo(iboun)
+            &  bound_list_aux ,msh%lst_vefs_set(iboun),msh%lst_vefs_geo(iboun)
        deallocate(bound_list_aux)
     end do
-    write(lunio,'(a)') 'end boundaries'
+    write(lunio,'(a)') 'end v'
 
   end subroutine mesh_write_file
 
@@ -747,311 +738,265 @@ contains
    end subroutine mesh_write_file_for_postprocess
 
   !==================================================================================================
-  ! subroutine mesh_generate_vefs_gid_and_dim(mesh,num_global_cells,num_global_verices,cells_gid,vertx_gid,vef_gid)
-  !   implicit none
-  !   ! Parameters
-  !   class(mesh_t), intent(inout) :: mesh
-  !   integer(igp) , intent(inout) :: num_global_cells,num_global_verices
-  !   integer(igp) , intent(inout) :: cells_gid(:)
-  !   integer(igp) , intent(inout) :: vertx_gid(:)
-  !   integer(igp) , allocatable, intent(inout) :: vef_gid(:)
-  !   integer(ip) :: ielem, ivef, num_vertices
+  !subroutine mesh_generate_vefs(mesh)
+  !  implicit none
+  !  ! Parameters
+  !  class(mesh_t), intent(inout) :: mesh
 
-  !   call memalloc(mesh%pvefs(nelem+1),lst_vefs_gid,__FILE__,__LINE__)
+  !  type(list_t), pointer    :: vertices_ivef
+  !  type(list_t), pointer    :: vertices_jvef
+  !  logical     :: equal
+  !  integer(ip) :: istat, count, iboun, ivert, jvert, nnodb
+  !  integer(ip) :: ielem, ivef, ielem_type, ielem_num_nodes
+  !  integer(ip) :: ielem_num_vefs, ielem_first_vef_id, ielem_num_vef_verts
+  !  integer(ip) :: vertex_of_ivef(4)
+  !  integer(ip) :: jelpo, jelem, jvef, jelem_type, jelem_num_nodes
+  !  integer(ip) :: jelem_num_vefs, jelem_first_vef_id, jelem_num_vef_verts
+  !  integer(ip) :: vertex_of_jvef(4)
+  !  type(list_iterator_t) :: vertices_ivef_iterator
+  !  type(list_iterator_t) :: vertices_jvef_iterator
+  !  type(list_iterator_t) :: bound_iterator
 
-  !   do ielem=1,mesh%nelem
-  !      num_vertices = mesh%pnods(ielem+1)-mesh%pnods(ielem)
-  !      !num_vefs     = mesh%pvefs(ielem+1)-mesh%pvefs(ielem)
-  !      call pos_ref_fe%get(key=num_vertices,val=ielem_type,stat=istat)
-  !      assert(istat==old_index)
-  !      num_edges = mesh%ref_fe_list(ielem_type)%p%get_number_vefs_of_dimension(1)
-  !      num_faces = mesh%ref_fe_list(ielem_type)%p%get_number_vefs_of_dimension(2)
-  !      index=mesh%pvefs(ielem)-1
-  !      do ivef=1,num_vertices
-  !         index=index+1
-  !         vef_lid = mesh%lvefs(index)
-  !         vef_gid(index) = vertx_gid(vef_lid)
-  !         vef_dim(index) = 0
-  !      end do
-  !      do ivef=num_vertices+1,num_vertices+num_edges
-  !         vef_lid = mesh%lvefs(index)
-  !         vef_gid(index) = ishft(int(ipart,igp),int(32,igp)) + int(vef_lid, igp) + ishft(int(1,igp),int(60,igp))
-  !         vef_dim(index) = 1
-  !      end do
-  !      do ivef=num_vertices+num_edges+1,num_vertices+num_edges+num_faces
-  !         vef_lid = mesh%lvefs(index)
-  !         vef_gid(index) = ishft(int(ipart,igp),int(32,igp)) + int(vef_lid, igp) + ishft(int(1,igp),int(60,igp))
-  !         vef_dim(index) = 2
-  !      end do
-  !   end do
+  !  ! We only require linear continuous elements so we could only have
+  !  ! tetrahedra, hexahedra and prisms combined.
+  !  type(position_hash_table_t) :: pos_ref_fe
 
-  ! end subroutine mesh_generate_vefs_gid_and_dim
-  !==================================================================================================
-  subroutine mesh_generate_vefs(mesh)
-    implicit none
-    ! Parameters
-    class(mesh_t), intent(inout) :: mesh
-    ! integer(igp) , optional, intent(inout) :: nelem_global, npoin_global 
-    ! integer(igp) , optional, intent(inout) :: cells_gid(:)
-    ! integer(igp) , optional, intent(inout) :: vertx_gid(:)
-    ! integer(igp) , optional, intent(inout) :: vef_gid(:)
+  !  ! if(present(nelem_global)) then
+  !  !    assert(present(npoin_global))
+  !  !    assert(present(cells_gid))
+  !  !    assert(present(vertx_gid))
+  !  !    assert(present(vef_gid))
+  !  !    assert(size(cells_gid)==mesh%nelem)
+  !  !    assert(size(vertx_gid)==mesh%npoin)
+  !  !    assert(size(vef_gid)==mesh%pvefs(mesh%nelem+1))
+  !  ! end if
 
-    type(list_t), pointer    :: vertices_ivef
-    type(list_t), pointer    :: vertices_jvef
-    logical     :: equal
-    integer(ip) :: istat, count, iboun, ivert, jvert, nnodb
-    integer(ip) :: ielem, ivef, ielem_type, ielem_num_nodes
-    integer(ip) :: ielem_num_vefs, ielem_first_vef_id, ielem_num_vef_verts
-    integer(ip) :: vertex_of_ivef(4)
-    integer(ip) :: jelpo, jelem, jvef, jelem_type, jelem_num_nodes
-    integer(ip) :: jelem_num_vefs, jelem_first_vef_id, jelem_num_vef_verts
-    integer(ip) :: vertex_of_jvef(4)
-    type(list_iterator_t) :: vertices_ivef_iterator
-    type(list_iterator_t) :: vertices_jvef_iterator
-    type(list_iterator_t) :: bound_iterator
+  !  ! Build reference_fe list
+  !  call pos_ref_fe%init(max_num_elem_types)
+  !  do ielem=1,mesh%nelem
+  !     ielem_num_nodes=mesh%pnods(ielem+1)-mesh%pnods(ielem)
+  !     call pos_ref_fe%get(key=ielem_num_nodes,val=ielem_type,stat=istat)
+  !     if ( istat == new_index ) then
+  !        if(mesh%ndime==2) then
+  !           if(ielem_num_nodes==3) then ! Triangle
+  !              assert(.false.)
+  !           else ! Quadrilateral
+  !              mesh%ref_fe_list(ielem_type) = &
+  !                   &    make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian, &
+  !                   &                        number_dimensions = mesh%ndime, order = 1,          &
+  !                   &                        field_type = field_type_vector, continuity = .true. )
+  !           end if
+  !        else
+  !           if(ielem_num_nodes==4) then ! Tetrahedra
+  !              assert(.false.)
+  !           else if(ielem_num_nodes==6) then ! Prism
+  !              assert(.false.)
+  !           else if(ielem_num_nodes==8) then ! Hexahedra
+  !              assert(.false.)
+  !           end if
+  !        end if
+  !     end if
+  !  end do
 
-    ! We only require linear continuous elements so we could only have
-    ! tetrahedra, hexahedra and prisms combined.
-    type(position_hash_table_t) :: pos_ref_fe
+  !  ! Compute mesh%pvefs and allocate mesh%lvefs
+  !  call memalloc(mesh%nelem+1, mesh%pvefs, __FILE__, __LINE__ )
+  !  mesh%pvefs(1)=1
+  !  do ielem=1,mesh%nelem
+  !     ielem_num_nodes=mesh%pnods(ielem+1)-mesh%pnods(ielem)
+  !     call pos_ref_fe%get(key=ielem_num_nodes,val=ielem_type,stat=istat)
+  !     assert(istat==old_index)
+  !     ielem_num_vefs = ielem_num_nodes &
+  !          &   + mesh%ref_fe_list(ielem_type)%p%get_number_vefs_of_dimension(1) 
+  !     if(mesh%ndime==3) ielem_num_vefs = ielem_num_vefs &
+  !          &   + mesh%ref_fe_list(ielem_type)%p%get_number_vefs_of_dimension(2)
+  !     mesh%pvefs(ielem+1)=mesh%pvefs(ielem)+ielem_num_vefs
+  !  end do
+  !  call memalloc(mesh%pvefs(mesh%nelem+1), mesh%lvefs , __FILE__, __LINE__ )
+  !  mesh%lvefs=0
+  !  !write(*,*) mesh%pvefs
 
-    ! if(present(nelem_global)) then
-    !    assert(present(npoin_global))
-    !    assert(present(cells_gid))
-    !    assert(present(vertx_gid))
-    !    assert(present(vef_gid))
-    !    assert(size(cells_gid)==mesh%nelem)
-    !    assert(size(vertx_gid)==mesh%npoin)
-    !    assert(size(vef_gid)==mesh%pvefs(mesh%nelem+1))
-    ! end if
+  !  ! Fill vefs
+  !  mesh%nvefs = mesh%npoin
+  !  do ielem=1,mesh%nelem
+  !     ielem_num_nodes = mesh%pnods(ielem+1)-mesh%pnods(ielem)
+  !     ! Fill vertices
+  !     mesh%lvefs(mesh%pvefs(ielem):mesh%pvefs(ielem)+ielem_num_nodes-1)=mesh%lnods(mesh%pnods(ielem):mesh%pnods(ielem+1)-1)
+  !     call pos_ref_fe%get(key=ielem_num_nodes,val=ielem_type,stat=istat)
+  !     assert(istat==old_index)
+  !     ! Fill edges
+  !     ielem_num_vefs     = mesh%ref_fe_list(ielem_type)%p%get_number_vefs_of_dimension(1)
+  !     ielem_first_vef_id = mesh%ref_fe_list(ielem_type)%p%get_first_vef_id_of_dimension(1)
+  !     vertices_ivef => mesh%ref_fe_list(ielem_type)%p%get_vertices_vef()
+  !     do ivef=1,ielem_num_vefs
+  !        if(mesh%lvefs(mesh%pvefs(ielem)-1+ielem_first_vef_id-1+ivef)==0) then ! Not filled yet
+  !           mesh%nvefs=mesh%nvefs+1                                               ! Count it
+  !           mesh%lvefs(mesh%pvefs(ielem)-1+ielem_first_vef_id-1+ivef)=mesh%nvefs  ! Fill it
+  !           vertices_ivef_iterator = vertices_ivef%create_iterator(ielem_first_vef_id+ivef-1)
+  !           vertex_of_ivef(1) = mesh%lnods(mesh%pnods(ielem)-1+vertices_ivef_iterator%reach_from_current(0))
+  !           vertex_of_ivef(2) = mesh%lnods(mesh%pnods(ielem)-1+vertices_ivef_iterator%reach_from_current(1))
+  !           do jelpo=mesh%pelpo(vertex_of_ivef(1)),mesh%pelpo(vertex_of_ivef(1)+1)-1
+  !              jelem=mesh%lelpo(jelpo)
+  !              if(jelem>ielem) then
+  !                 jelem_num_nodes=mesh%pnods(jelem+1)-mesh%pnods(jelem)
+  !                 call pos_ref_fe%get(key=jelem_num_nodes,val=jelem_type,stat=istat)
+  !                 assert(istat==old_index)
+  !                 jelem_num_vefs     = mesh%ref_fe_list(jelem_type)%p%get_number_vefs_of_dimension(1)
+  !                 jelem_first_vef_id = mesh%ref_fe_list(jelem_type)%p%get_first_vef_id_of_dimension(1)
+  !                 vertices_jvef => mesh%ref_fe_list(jelem_type)%p%get_vertices_vef()
+  !                 vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+ivef-1)
+  !                 do jvef=1,jelem_num_vefs
+  !                    vertex_of_jvef(1) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef_iterator%reach_from_current(0))
+  !                    vertex_of_jvef(2) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef_iterator%reach_from_current(1))
+  !                    ! Compare, here we are using that edges have two vertices, hard coded
+  !                    equal = (vertex_of_ivef(1)==vertex_of_jvef(1).and.vertex_of_ivef(2)==vertex_of_jvef(2)).or. &
+  !                         &  (vertex_of_ivef(1)==vertex_of_jvef(2).and.vertex_of_ivef(2)==vertex_of_jvef(1))
+  !                    if(equal) then ! Fill it
+  !                       mesh%lvefs(mesh%pvefs(jelem)-1+jelem_first_vef_id-1+jvef)=mesh%nvefs
+  !                       exit
+  !                    end if
+  !                 end do
+  !              end if
+  !           end do
+  !        end if
+  !     end do
+  !     ! Fill faces (similar code except for the number of vertices of each face that is variable)
+  !     if(mesh%ndime==3) then
+  !        ielem_num_vefs      = mesh%ref_fe_list(ielem_type)%p%get_number_vefs_of_dimension(2)
+  !        ielem_first_vef_id  = mesh%ref_fe_list(ielem_type)%p%get_first_vef_id_of_dimension(2)
+  !        do ivef=1,ielem_num_vefs
+  !           if(mesh%lvefs(mesh%pvefs(ielem)-1+ielem_first_vef_id-1+ivef)==0) then ! Not filled yet
+  !              mesh%nvefs=mesh%nvefs+1                                       ! Count it
+  !              mesh%lvefs(mesh%pvefs(ielem)-1+ielem_first_vef_id-1+ivef)=mesh%nvefs ! Fill it
+  !              ielem_num_vef_verts = mesh%ref_fe_list(ielem_type)%p%get_number_vertices_vef(ielem_first_vef_id+ivef-1)
+  !              vertices_ivef => mesh%ref_fe_list(ielem_type)%p%get_vertices_vef()
+  !              vertex_of_ivef = 0
+  !              vertices_ivef_iterator = vertices_ivef%create_iterator(ielem_first_vef_id+ivef-1)
+  !              do ivert=1,ielem_num_vef_verts
+  !                 vertex_of_ivef(ivert)=mesh%lnods( mesh%pnods(ielem)-1+vertices_ivef_iterator%get_current())
+  !                 call vertices_ivef_iterator%next()
+  !              end do
+  !              do jelpo=mesh%pelpo(vertex_of_ivef(1)),mesh%pelpo(vertex_of_ivef(1)+1)-1
+  !                 jelem=mesh%lelpo(jelpo)
+  !                 if(jelem>ielem) then
+  !                    jelem_num_nodes=mesh%pnods(jelem+1)-mesh%pnods(jelem)
+  !                    call pos_ref_fe%get(key=jelem_num_nodes,val=jelem_type,stat=istat)
+  !                    assert(istat==old_index)
+  !                    jelem_num_vefs      = mesh%ref_fe_list(jelem_type)%p%get_number_vefs_of_dimension(2)
+  !                    jelem_first_vef_id  = mesh%ref_fe_list(jelem_type)%p%get_first_vef_id_of_dimension(2)
+  !                    vertices_jvef => mesh%ref_fe_list(jelem_type)%p%get_vertices_vef()
+  !                    do jvef=1,jelem_num_vefs
+  !                       jelem_num_vef_verts = mesh%ref_fe_list(jelem_type)%p%get_number_vertices_vef(jelem_first_vef_id+jvef-1)
+  !                       vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+jvef-1)
+  !                       if(jelem_num_vef_verts==ielem_num_vef_verts) then
+  !                          vertex_of_jvef = 0
+  !                          do jvert=1,jelem_num_vef_verts
+  !                             vertex_of_jvef(jvert)=mesh%lnods( mesh%pnods(jelem)-1+vertices_jvef_iterator%get_current())
+  !                             call vertices_jvef_iterator%next()
+  !                          end do
+  !                          count=0
+  !                          do ivert=1,ielem_num_vef_verts
+  !                             do jvert=1,jelem_num_vef_verts
+  !                                if(vertex_of_ivef(ivert)==vertex_of_jvef(jvert)) then
+  !                                   count=count+1
+  !                                   exit
+  !                                end if
+  !                             end do
+  !                          end do
+  !                          equal=(count==ielem_num_vef_verts)
+  !                          if(equal) then ! Fill it
+  !                             mesh%lvefs(mesh%pvefs(jelem)-1+jelem_first_vef_id-1+jvef)=mesh%nvefs
+  !                             exit
+  !                          end if
+  !                       end if
+  !                    end do
+  !                 end if
+  !              end do
+  !           end if
+  !        end do
+  !     end if
+  !  end do
 
-    ! Build reference_fe list
-    call pos_ref_fe%init(max_num_elem_types)
-    do ielem=1,mesh%nelem
-       ielem_num_nodes=mesh%pnods(ielem+1)-mesh%pnods(ielem)
-       call pos_ref_fe%get(key=ielem_num_nodes,val=ielem_type,stat=istat)
-       if ( istat == new_index ) then
-          if(mesh%ndime==2) then
-             if(ielem_num_nodes==3) then ! Triangle
-                assert(.false.)
-             else ! Quadrilateral
-                mesh%ref_fe_list(ielem_type) = &
-                     &    make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian, &
-                     &                        number_dimensions = mesh%ndime, order = 1,          &
-                     &                        field_type = field_type_vector, continuity = .true. )
-             end if
-          else
-             if(ielem_num_nodes==4) then ! Tetrahedra
-                assert(.false.)
-             else if(ielem_num_nodes==6) then ! Prism
-                assert(.false.)
-             else if(ielem_num_nodes==8) then ! Hexahedra
-                assert(.false.)
-             end if
-          end if
-       end if
-    end do
+  !  ! Identify boundary faces and assign set and geometry to vefs
+  !  call memalloc(mesh%nvefs, mesh%lvef_geo, __FILE__, __LINE__ )
+  !  call memalloc(mesh%nvefs, mesh%lvef_set, __FILE__, __LINE__ )
+  !  do iboun=1,mesh%given_vefs%get_num_pointers()
+  !     bound_iterator = mesh%given_vefs%create_iterator(iboun)
+  !     nnodb=bound_iterator%get_size()
+  !     if(nnodb==1) then      ! Vertex
+  !        ivert=bound_iterator%reach_from_current(0)
+  !        mesh%lvef_geo(ivert)=mesh%lst_vefs_geo(iboun)
+  !        mesh%lvef_set(ivert)=mesh%lst_vefs_set(iboun)
+  !     else if(nnodb==2) then ! Edge
+  !        vertex_of_ivef(1) = bound_iterator%reach_from_current(0)
+  !        vertex_of_ivef(2) = bound_iterator%reach_from_current(1)
+  !        elems1: do jelpo=mesh%pelpo(vertex_of_ivef(1)),mesh%pelpo(vertex_of_ivef(1)+1)-1
+  !           jelem=mesh%lelpo(jelpo)
+  !           jelem_num_nodes=mesh%pnods(jelem+1)-mesh%pnods(jelem)
+  !           call pos_ref_fe%get(key=jelem_num_nodes,val=jelem_type,stat=istat)
+  !           assert(istat==old_index)
+  !           jelem_num_vefs     = mesh%ref_fe_list(jelem_type)%p%get_number_vefs_of_dimension(1)
+  !           jelem_first_vef_id = mesh%ref_fe_list(jelem_type)%p%get_first_vef_id_of_dimension(1)
+  !           vertices_jvef => mesh%ref_fe_list(jelem_type)%p%get_vertices_vef()
+  !           do jvef=1,jelem_num_vefs
+  !              vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+jvef-1)
+  !              vertex_of_jvef(1) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef_iterator%reach_from_current(0))
+  !              vertex_of_jvef(2) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef_iterator%reach_from_current(1))
+  !              ! Compare, here we are using that edges have two vertices, hard coded
+  !              equal = (vertex_of_ivef(1)==vertex_of_jvef(1).and.vertex_of_ivef(2)==vertex_of_jvef(2)).or. &
+  !                   &  (vertex_of_ivef(1)==vertex_of_jvef(2).and.vertex_of_ivef(2)==vertex_of_jvef(1))
+  !              if(equal) then ! Fill it
+  !                 mesh%lvef_geo( mesh%lvefs(mesh%pvefs(jelem)-1+jelem_first_vef_id-1+jvef)  ) = mesh%lst_vefs_geo(iboun)
+  !                 mesh%lvef_set( mesh%lvefs(mesh%pvefs(jelem)-1+jelem_first_vef_id-1+jvef)  ) = mesh%lst_vefs_set(iboun)
+  !                 exit elems1
+  !              end if
+  !           end do
+  !        end do elems1
+  !     else                   ! Face
+  !        vertex_of_ivef = 0
+  !        do ivert=1,nnodb
+  !           vertex_of_ivef(ivert)= bound_iterator%get_current()
+  !           call bound_iterator%next()
+  !        end do
+  !        elems2: do jelpo=mesh%pelpo(vertex_of_ivef(1)),mesh%pelpo(vertex_of_ivef(1)+1)-1
+  !           jelem=mesh%lelpo(jelpo)
+  !           jelem_num_nodes=mesh%pnods(jelem+1)-mesh%pnods(jelem)
+  !           call pos_ref_fe%get(key=jelem_num_nodes,val=jelem_type,stat=istat)
+  !           assert(istat==old_index)
+  !           jelem_num_vefs     = mesh%ref_fe_list(jelem_type)%p%get_number_vefs_of_dimension(2)
+  !           jelem_first_vef_id = mesh%ref_fe_list(jelem_type)%p%get_first_vef_id_of_dimension(2)
+  !           vertices_jvef => mesh%ref_fe_list(jelem_type)%p%get_vertices_vef()
+  !           do jvef=1,jelem_num_vefs
+  !              jelem_num_vef_verts = mesh%ref_fe_list(jelem_type)%p%get_number_vertices_vef(jelem_first_vef_id+jvef-1)
+  !              vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+jvef-1)
+  !              if(jelem_num_vef_verts==nnodb) then
+  !                 vertex_of_jvef = 0
+  !                 do jvert=1,jelem_num_vef_verts
+  !                    vertex_of_jvef(jvert)=mesh%lnods( mesh%pnods(jelem)-1+vertices_jvef_iterator%get_current())
+  !                    call vertices_jvef_iterator%next()
+  !                 end do
+  !                 count=0
+  !                 do ivert=1,ielem_num_vef_verts
+  !                    do jvert=1,jelem_num_vef_verts
+  !                       if(vertex_of_ivef(ivert)==vertex_of_jvef(jvert)) then
+  !                          count=count+1
+  !                          exit
+  !                       end if
+  !                    end do
+  !                 end do
+  !                 equal=(count==ielem_num_vef_verts)
+  !                 if(equal) then ! Fill it
+  !                    mesh%lvef_geo( mesh%lvefs(mesh%pvefs(jelem)-1+jelem_first_vef_id-1+jvef)  ) = mesh%lst_vefs_geo(iboun)
+  !                    mesh%lvef_set( mesh%lvefs(mesh%pvefs(jelem)-1+jelem_first_vef_id-1+jvef)  ) = mesh%lst_vefs_set(iboun)
+  !                    exit elems2
+  !                 end if
+  !              end if
+  !           end do
+  !        end do elems2
+  !     end if
+  !  end do
 
-    ! Compute mesh%pvefs and allocate mesh%lvefs
-    call memalloc(mesh%nelem+1, mesh%pvefs, __FILE__, __LINE__ )
-    mesh%pvefs(1)=1
-    do ielem=1,mesh%nelem
-       ielem_num_nodes=mesh%pnods(ielem+1)-mesh%pnods(ielem)
-       call pos_ref_fe%get(key=ielem_num_nodes,val=ielem_type,stat=istat)
-       assert(istat==old_index)
-       ielem_num_vefs = ielem_num_nodes &
-            &   + mesh%ref_fe_list(ielem_type)%p%get_number_vefs_of_dimension(1) 
-       if(mesh%ndime==3) ielem_num_vefs = ielem_num_vefs &
-            &   + mesh%ref_fe_list(ielem_type)%p%get_number_vefs_of_dimension(2)
-       mesh%pvefs(ielem+1)=mesh%pvefs(ielem)+ielem_num_vefs
-    end do
-    call memalloc(mesh%pvefs(mesh%nelem+1), mesh%lvefs , __FILE__, __LINE__ )
-    mesh%lvefs=0
-    !write(*,*) mesh%pvefs
+  !end subroutine mesh_generate_vefs
 
-    ! Fill vefs
-    mesh%nvefs = mesh%npoin
-    do ielem=1,mesh%nelem
-       ielem_num_nodes = mesh%pnods(ielem+1)-mesh%pnods(ielem)
-       ! Fill vertices
-       mesh%lvefs(mesh%pvefs(ielem):mesh%pvefs(ielem)+ielem_num_nodes-1)=mesh%lnods(mesh%pnods(ielem):mesh%pnods(ielem+1)-1)
-       call pos_ref_fe%get(key=ielem_num_nodes,val=ielem_type,stat=istat)
-       assert(istat==old_index)
-       ! Fill edges
-       ielem_num_vefs     = mesh%ref_fe_list(ielem_type)%p%get_number_vefs_of_dimension(1)
-       ielem_first_vef_id = mesh%ref_fe_list(ielem_type)%p%get_first_vef_id_of_dimension(1)
-       vertices_ivef => mesh%ref_fe_list(ielem_type)%p%get_vertices_vef()
-       do ivef=1,ielem_num_vefs
-          if(mesh%lvefs(mesh%pvefs(ielem)-1+ielem_first_vef_id-1+ivef)==0) then ! Not filled yet
-             mesh%nvefs=mesh%nvefs+1                                               ! Count it
-             mesh%lvefs(mesh%pvefs(ielem)-1+ielem_first_vef_id-1+ivef)=mesh%nvefs  ! Fill it
-             vertices_ivef_iterator = vertices_ivef%create_iterator(ielem_first_vef_id+ivef-1)
-             vertex_of_ivef(1) = mesh%lnods(mesh%pnods(ielem)-1+vertices_ivef_iterator%reach_from_current(0))
-             vertex_of_ivef(2) = mesh%lnods(mesh%pnods(ielem)-1+vertices_ivef_iterator%reach_from_current(1))
-             do jelpo=mesh%pelpo(vertex_of_ivef(1)),mesh%pelpo(vertex_of_ivef(1)+1)-1
-                jelem=mesh%lelpo(jelpo)
-                if(jelem>ielem) then
-                   jelem_num_nodes=mesh%pnods(jelem+1)-mesh%pnods(jelem)
-                   call pos_ref_fe%get(key=jelem_num_nodes,val=jelem_type,stat=istat)
-                   assert(istat==old_index)
-                   jelem_num_vefs     = mesh%ref_fe_list(jelem_type)%p%get_number_vefs_of_dimension(1)
-                   jelem_first_vef_id = mesh%ref_fe_list(jelem_type)%p%get_first_vef_id_of_dimension(1)
-                   vertices_jvef => mesh%ref_fe_list(jelem_type)%p%get_vertices_vef()
-                   vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+ivef-1)
-                   do jvef=1,jelem_num_vefs
-                      vertex_of_jvef(1) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef_iterator%reach_from_current(0))
-                      vertex_of_jvef(2) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef_iterator%reach_from_current(1))
-                      ! Compare, here we are using that edges have two vertices, hard coded
-                      equal = (vertex_of_ivef(1)==vertex_of_jvef(1).and.vertex_of_ivef(2)==vertex_of_jvef(2)).or. &
-                           &  (vertex_of_ivef(1)==vertex_of_jvef(2).and.vertex_of_ivef(2)==vertex_of_jvef(1))
-                      if(equal) then ! Fill it
-                         mesh%lvefs(mesh%pvefs(jelem)-1+jelem_first_vef_id-1+jvef)=mesh%nvefs
-                         exit
-                      end if
-                   end do
-                end if
-             end do
-          end if
-       end do
-       ! Fill faces (similar code except for the number of vertices of each face that is variable)
-       if(mesh%ndime==3) then
-          ielem_num_vefs      = mesh%ref_fe_list(ielem_type)%p%get_number_vefs_of_dimension(2)
-          ielem_first_vef_id  = mesh%ref_fe_list(ielem_type)%p%get_first_vef_id_of_dimension(2)
-          do ivef=1,ielem_num_vefs
-             if(mesh%lvefs(mesh%pvefs(ielem)-1+ielem_first_vef_id-1+ivef)==0) then ! Not filled yet
-                mesh%nvefs=mesh%nvefs+1                                       ! Count it
-                mesh%lvefs(mesh%pvefs(ielem)-1+ielem_first_vef_id-1+ivef)=mesh%nvefs ! Fill it
-                ielem_num_vef_verts = mesh%ref_fe_list(ielem_type)%p%get_number_vertices_vef(ielem_first_vef_id+ivef-1)
-                vertices_ivef => mesh%ref_fe_list(ielem_type)%p%get_vertices_vef()
-                vertex_of_ivef = 0
-                vertices_ivef_iterator = vertices_ivef%create_iterator(ielem_first_vef_id+ivef-1)
-                do ivert=1,ielem_num_vef_verts
-                   vertex_of_ivef(ivert)=mesh%lnods( mesh%pnods(ielem)-1+vertices_ivef_iterator%get_current())
-                   call vertices_ivef_iterator%next()
-                end do
-                do jelpo=mesh%pelpo(vertex_of_ivef(1)),mesh%pelpo(vertex_of_ivef(1)+1)-1
-                   jelem=mesh%lelpo(jelpo)
-                   if(jelem>ielem) then
-                      jelem_num_nodes=mesh%pnods(jelem+1)-mesh%pnods(jelem)
-                      call pos_ref_fe%get(key=jelem_num_nodes,val=jelem_type,stat=istat)
-                      assert(istat==old_index)
-                      jelem_num_vefs      = mesh%ref_fe_list(jelem_type)%p%get_number_vefs_of_dimension(2)
-                      jelem_first_vef_id  = mesh%ref_fe_list(jelem_type)%p%get_first_vef_id_of_dimension(2)
-                      vertices_jvef => mesh%ref_fe_list(jelem_type)%p%get_vertices_vef()
-                      do jvef=1,jelem_num_vefs
-                         jelem_num_vef_verts = mesh%ref_fe_list(jelem_type)%p%get_number_vertices_vef(jelem_first_vef_id+jvef-1)
-                         vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+jvef-1)
-                         if(jelem_num_vef_verts==ielem_num_vef_verts) then
-                            vertex_of_jvef = 0
-                            do jvert=1,jelem_num_vef_verts
-                               vertex_of_jvef(jvert)=mesh%lnods( mesh%pnods(jelem)-1+vertices_jvef_iterator%get_current())
-                               call vertices_jvef_iterator%next()
-                            end do
-                            count=0
-                            do ivert=1,ielem_num_vef_verts
-                               do jvert=1,jelem_num_vef_verts
-                                  if(vertex_of_ivef(ivert)==vertex_of_jvef(jvert)) then
-                                     count=count+1
-                                     exit
-                                  end if
-                               end do
-                            end do
-                            equal=(count==ielem_num_vef_verts)
-                            if(equal) then ! Fill it
-                               mesh%lvefs(mesh%pvefs(jelem)-1+jelem_first_vef_id-1+jvef)=mesh%nvefs
-                               exit
-                            end if
-                         end if
-                      end do
-                   end if
-                end do
-             end if
-          end do
-       end if
-    end do
-
-    ! Identify boundary faces and assign set and geometry to vefs
-    call memalloc(mesh%nvefs, mesh%lvef_geo, __FILE__, __LINE__ )
-    call memalloc(mesh%nvefs, mesh%lvef_set, __FILE__, __LINE__ )
-    do iboun=1,mesh%bound%get_num_pointers()
-       bound_iterator = mesh%bound%create_iterator(iboun)
-       nnodb=bound_iterator%get_size()
-       if(nnodb==1) then      ! Vertex
-          ivert=bound_iterator%reach_from_current(0)
-          mesh%lvef_geo(ivert)=mesh%lbgeo(iboun)
-          mesh%lvef_set(ivert)=mesh%lbset(iboun)
-       else if(nnodb==2) then ! Edge
-          vertex_of_ivef(1) = bound_iterator%reach_from_current(0)
-          vertex_of_ivef(2) = bound_iterator%reach_from_current(1)
-          elems1: do jelpo=mesh%pelpo(vertex_of_ivef(1)),mesh%pelpo(vertex_of_ivef(1)+1)-1
-             jelem=mesh%lelpo(jelpo)
-             jelem_num_nodes=mesh%pnods(jelem+1)-mesh%pnods(jelem)
-             call pos_ref_fe%get(key=jelem_num_nodes,val=jelem_type,stat=istat)
-             assert(istat==old_index)
-             jelem_num_vefs     = mesh%ref_fe_list(jelem_type)%p%get_number_vefs_of_dimension(1)
-             jelem_first_vef_id = mesh%ref_fe_list(jelem_type)%p%get_first_vef_id_of_dimension(1)
-             vertices_jvef => mesh%ref_fe_list(jelem_type)%p%get_vertices_vef()
-             do jvef=1,jelem_num_vefs
-                vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+jvef-1)
-                vertex_of_jvef(1) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef_iterator%reach_from_current(0))
-                vertex_of_jvef(2) = mesh%lnods(mesh%pnods(jelem)-1+vertices_jvef_iterator%reach_from_current(1))
-                ! Compare, here we are using that edges have two vertices, hard coded
-                equal = (vertex_of_ivef(1)==vertex_of_jvef(1).and.vertex_of_ivef(2)==vertex_of_jvef(2)).or. &
-                     &  (vertex_of_ivef(1)==vertex_of_jvef(2).and.vertex_of_ivef(2)==vertex_of_jvef(1))
-                if(equal) then ! Fill it
-                   mesh%lvef_geo( mesh%lvefs(mesh%pvefs(jelem)-1+jelem_first_vef_id-1+jvef)  ) = mesh%lbgeo(iboun)
-                   mesh%lvef_set( mesh%lvefs(mesh%pvefs(jelem)-1+jelem_first_vef_id-1+jvef)  ) = mesh%lbset(iboun)
-                   exit elems1
-                end if
-             end do
-          end do elems1
-       else                   ! Face
-          vertex_of_ivef = 0
-          do ivert=1,nnodb
-             vertex_of_ivef(ivert)= bound_iterator%get_current()
-             call bound_iterator%next()
-          end do
-          elems2: do jelpo=mesh%pelpo(vertex_of_ivef(1)),mesh%pelpo(vertex_of_ivef(1)+1)-1
-             jelem=mesh%lelpo(jelpo)
-             jelem_num_nodes=mesh%pnods(jelem+1)-mesh%pnods(jelem)
-             call pos_ref_fe%get(key=jelem_num_nodes,val=jelem_type,stat=istat)
-             assert(istat==old_index)
-             jelem_num_vefs     = mesh%ref_fe_list(jelem_type)%p%get_number_vefs_of_dimension(2)
-             jelem_first_vef_id = mesh%ref_fe_list(jelem_type)%p%get_first_vef_id_of_dimension(2)
-             vertices_jvef => mesh%ref_fe_list(jelem_type)%p%get_vertices_vef()
-             do jvef=1,jelem_num_vefs
-                jelem_num_vef_verts = mesh%ref_fe_list(jelem_type)%p%get_number_vertices_vef(jelem_first_vef_id+jvef-1)
-                vertices_jvef_iterator = vertices_jvef%create_iterator(jelem_first_vef_id+jvef-1)
-                if(jelem_num_vef_verts==nnodb) then
-                   vertex_of_jvef = 0
-                   do jvert=1,jelem_num_vef_verts
-                      vertex_of_jvef(jvert)=mesh%lnods( mesh%pnods(jelem)-1+vertices_jvef_iterator%get_current())
-                      call vertices_jvef_iterator%next()
-                   end do
-                   count=0
-                   do ivert=1,ielem_num_vef_verts
-                      do jvert=1,jelem_num_vef_verts
-                         if(vertex_of_ivef(ivert)==vertex_of_jvef(jvert)) then
-                            count=count+1
-                            exit
-                         end if
-                      end do
-                   end do
-                   equal=(count==ielem_num_vef_verts)
-                   if(equal) then ! Fill it
-                      mesh%lvef_geo( mesh%lvefs(mesh%pvefs(jelem)-1+jelem_first_vef_id-1+jvef)  ) = mesh%lbgeo(iboun)
-                      mesh%lvef_set( mesh%lvefs(mesh%pvefs(jelem)-1+jelem_first_vef_id-1+jvef)  ) = mesh%lbset(iboun)
-                      exit elems2
-                   end if
-                end if
-             end do
-          end do elems2
-       end if
-    end do
-
-  end subroutine mesh_generate_vefs
-
-  
-  
   subroutine create_mesh_distribution( femesh, prt_pars, distr, lmesh)
     !-----------------------------------------------------------------------
     ! 
@@ -1080,7 +1025,8 @@ contains
 
     ! Create dual (i.e. list of elements around elements)
     call create_dual_graph(femesh,fe_graph)
-
+    !call fe_graph%print(6)
+    
     ! ! Create a weigth according to advection
     ! call memalloc (femesh%ndime, coord_i, __FILE__,__LINE__)
     ! call memalloc (femesh%ndime, coord_j, __FILE__,__LINE__)
@@ -1178,7 +1124,7 @@ contains
     call memalloc(           mesh%nelem,lelem,__FILE__,__LINE__)
     call memalloc(mesh%nelpo*mesh%nnode,keadj,__FILE__,__LINE__)
     lelem=0
-    call graph%create(mesh%nelem)
+    !call graph%create(mesh%nelem)
 
     call count_elemental_graph(mesh%ndime,mesh%npoin,mesh%nelem, &
     !call count_elemental_graph(1,mesh%npoin,mesh%nelem, &
@@ -1215,11 +1161,11 @@ contains
     integer(ip)                 :: neadj,ielel,jelel,nelel  ! Indices
 
     lelem=0
-    neadj=1
+    !neadj=1
     knode=nnode
     call graph%create(nelem)
     do ielem=1,nelem
-       call graph%sum_to_pointer_index(ielem-1, neadj)
+       !call graph%sum_to_pointer_index(ielem-1, neadj)
        ! Loop over nodes and their surrounding elements and count
        ! how many times they are repeated as neighbors of ielem
        nelel=0
@@ -1248,7 +1194,8 @@ contains
           jelem=keadj(ielel)
           if(lelem(jelem)>=ncomm) jelel=jelel+1
        end do
-       neadj=neadj+jelel
+       !neadj=neadj+jelel
+       call graph%sum_to_pointer_index(ielem, jelel)
 
        ! Reset lelem
        do ielel=1,nelel
@@ -1256,8 +1203,8 @@ contains
           lelem(jelem)=0
        end do
     end do
-
-    call graph%sum_to_pointer_index(nelem, neadj)
+    !call graph%sum_to_pointer_index(nelem, neadj)
+    
     call graph%calculate_header()
 
   end subroutine count_elemental_graph
@@ -1301,7 +1248,7 @@ contains
        end do
 
        ! Now we loop over the elements around ielem and define neighbors
-       call graph%allocate_list_from_pointer()
+       !call graph%allocate_list_from_pointer()
        graph_iterator = graph%create_iterator(ielem)
        do ielel=1,nelel
           jelem=keadj(ielel)
@@ -1830,6 +1777,7 @@ contains
                                       C_NULL_PTR  , C_NULL_PTR , c_loc(weight) , c_loc(prt_parts%nparts), &
                                       C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
        else
+          !write(*,*) gp%get_num_pointers_c_loc(), gp%get_pointers_c_loc(), gp%get_list_c_loc()
           ierr = metis_partgraphkway( gp%get_num_pointers_c_loc(), c_loc(ncon), gp%get_pointers_c_loc(), gp%get_list_c_loc() , & 
                                       C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(prt_parts%nparts), &
                                       C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
@@ -1895,10 +1843,10 @@ contains
     type(hash_table_igp_ip_t)      :: ws_inmap
     type(hash_table_igp_ip_t)      :: el_inmap
     integer(ip)    , allocatable   :: node_list(:)
-    integer(ip)                    :: aux, ipoin,inode,inodb,knode,knodb,lnodb_size,istat
-    integer(ip)                    :: ielem_lmesh,ielem_gmesh,iboun_lmesh,iboun_gmesh
+    integer(ip)                    :: aux, ipoin,inode,knode,kvef_size,lvef_size,istat
+    integer(ip)                    :: ielem_lmesh,ielem_gmesh,ivef_lmesh,ivef_gmesh
     integer(ip)                    :: p_ielem_gmesh,p_ipoin_lmesh,p_ipoin_gmesh
-    type(list_iterator_t)          :: bound_iterator
+    type(list_iterator_t)          :: given_vefs_iterator
     logical :: count_it
 
 
@@ -1949,66 +1897,66 @@ contains
     end do
 
     ! Boundary elements
-    iboun_lmesh=0
+    ivef_lmesh=0
     lmesh%nnodb=0
-    lnodb_size=0
-    do iboun_gmesh=1,gmesh%bound%get_num_pointers()
-       bound_iterator = gmesh%bound%create_iterator(iboun_gmesh)
-       knodb = bound_iterator%get_size()
+    lvef_size=0
+    do ivef_gmesh=1,gmesh%given_vefs%get_num_pointers()
+       given_vefs_iterator = gmesh%given_vefs%create_iterator(ivef_gmesh)
+       kvef_size = given_vefs_iterator%get_size()
        count_it=.true.
-       do while(.not. bound_iterator%is_upper_bound())
-          call ws_inmap%get(key=int(bound_iterator%get_current(),igp),val=knode,stat=istat)
-          call bound_iterator%next()
+       do while(.not. given_vefs_iterator%is_upper_bound())
+          call ws_inmap%get(key=int(given_vefs_iterator%get_current(),igp),val=knode,stat=istat)
+          call given_vefs_iterator%next()
           if(istat==key_not_found) then
              count_it=.false.
              exit
           end if
        end do
        if(count_it) then
-          lnodb_size=lnodb_size+knodb
-          lmesh%nnodb=max(lmesh%nnodb,knodb)
-          iboun_lmesh=iboun_lmesh+1
+          lvef_size=lvef_size+kvef_size
+          lmesh%nnodb=max(lmesh%nnodb,kvef_size)
+          ivef_lmesh=ivef_lmesh+1
        end if
     end do
 
-    if(iboun_lmesh>0) then
+    if(ivef_lmesh>0) then
 
        call memalloc (  lmesh%nnodb,   node_list, __FILE__,__LINE__)
-       call memalloc(   iboun_lmesh, lmesh%lbgeo, __FILE__,__LINE__)
-       call memalloc(   iboun_lmesh, lmesh%lbset, __FILE__,__LINE__)
+       call memalloc(   ivef_lmesh, lmesh%lst_vefs_geo, __FILE__,__LINE__)
+       call memalloc(   ivef_lmesh, lmesh%lst_vefs_set, __FILE__,__LINE__)
 
-       call lmesh%bound%create(iboun_lmesh)
+       call lmesh%given_vefs%create(ivef_lmesh)
 
-       iboun_lmesh=2
-       do iboun_gmesh=1,gmesh%bound%get_num_pointers()
-          bound_iterator = gmesh%bound%create_iterator(iboun_gmesh)
-          knodb = bound_iterator%get_size()
+       ivef_lmesh=1
+       do ivef_gmesh=1,gmesh%given_vefs%get_num_pointers()
+          given_vefs_iterator = gmesh%given_vefs%create_iterator(ivef_gmesh)
+          kvef_size = given_vefs_iterator%get_size()
           count_it=.true.
-          do inode=1,knodb
-             call ws_inmap%get(key=int(bound_iterator%get_current(),igp),val=node_list(inode),stat=istat)
-             call bound_iterator%next()
+          do inode=1,kvef_size
+             call ws_inmap%get(key=int(given_vefs_iterator%get_current(),igp),val=node_list(inode),stat=istat)
+             call given_vefs_iterator%next()
              if(istat==key_not_found) then
                 count_it=.false.
                 exit
              end if
           end do
           if(count_it) then
-             call lmesh%bound%sum_to_pointer_index(iboun_lmesh, knodb)
-             lmesh%lbgeo(iboun_lmesh)=gmesh%lbgeo(iboun_gmesh)
-             lmesh%lbset(iboun_lmesh)=gmesh%lbset(iboun_gmesh)
-             iboun_lmesh=iboun_lmesh+1
+             call lmesh%given_vefs%sum_to_pointer_index(ivef_lmesh, kvef_size)
+             lmesh%lst_vefs_geo(ivef_lmesh)=gmesh%lst_vefs_geo(ivef_gmesh)
+             lmesh%lst_vefs_set(ivef_lmesh)=gmesh%lst_vefs_set(ivef_gmesh)
+             ivef_lmesh=ivef_lmesh+1
           end if
        end do
 
-       call lmesh%bound%calculate_header()
-       call lmesh%bound%allocate_list_from_pointer()
-       do iboun_lmesh=1,lmesh%bound%get_num_pointers()
-          bound_iterator = lmesh%bound%create_iterator(iboun_lmesh)
-          knodb = bound_iterator%get_size()
-          do inode=1,knodb
-             call ws_inmap%get(key=int(bound_iterator%get_current(),igp),val=node_list(inode),stat=istat)
-			 call bound_iterator%set_current(node_list(inode))
-			 call bound_iterator%next()
+       call lmesh%given_vefs%calculate_header()
+       call lmesh%given_vefs%allocate_list_from_pointer()
+       do ivef_lmesh=1,lmesh%given_vefs%get_num_pointers()
+          given_vefs_iterator = lmesh%given_vefs%create_iterator(ivef_lmesh)
+          kvef_size = given_vefs_iterator%get_size()
+          do inode=1,kvef_size
+             call ws_inmap%get(key=int(given_vefs_iterator%get_current(),igp),val=node_list(inode),stat=istat)
+			          call given_vefs_iterator%set_current(node_list(inode))
+			          call given_vefs_iterator%next()
           enddo
        enddo
 
