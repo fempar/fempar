@@ -35,44 +35,40 @@ module new_conditions_names
   ! Data type which is pretended to be extended by the user s.t.
   ! he might customize which function to be imposed on each boundary
   ! indicator + component combination
-  type new_conditions_t
+  type, abstract :: new_conditions_t
    contains
-     procedure :: get_number_components
-     procedure :: get_components_code
-     procedure :: get_function
+     procedure(get_number_components_interface), deferred :: get_number_components
+     procedure(get_components_code_interface)  , deferred :: get_components_code
+     procedure(get_function_interface)         , deferred :: get_function
   end type new_conditions_t
 
   ! Types
   public :: new_conditions_t
   
-contains
+  abstract interface
+     function get_number_components_interface(this)
+       import :: new_conditions_t, ip
+       implicit none
+       class(new_conditions_t), intent(in) :: this
+       integer(ip) :: get_number_components_interface
+     end function get_number_components_interface
 
-  function get_number_components(this)
-    implicit none
-    class(new_conditions_t), intent(in) :: this
-    integer(ip) :: get_number_components
-    assert(.false.)
-  end function get_number_components
-
-  subroutine get_components_code(this, boundary_id, components_code)
-    implicit none
-    class(new_conditions_t), intent(in)  :: this
-    integer(ip)            , intent(in)  :: boundary_id
-    logical                , intent(out) :: components_code(:)
-    assert ( size(components_code) == 1 )
-    components_code(1) = .false.
-    if ( boundary_id == 1 ) then 
-      components_code(1) = .true.
-    end if
-  end subroutine get_components_code
+     subroutine get_components_code_interface(this, boundary_id, components_code)
+       import :: new_conditions_t, ip
+       implicit none
+       class(new_conditions_t), intent(in)  :: this
+       integer(ip)            , intent(in)  :: boundary_id
+       logical                , intent(out) :: components_code(:)
+     end subroutine get_components_code_interface
   
-  subroutine get_function ( this, boundary_id, component_id, function )
-    implicit none
-    class(new_conditions_t), target  , intent(in)  :: this
-    integer(ip)                      , intent(in)  :: boundary_id
-    integer(ip)                      , intent(in)  :: component_id
-    class(scalar_function_t), pointer, intent(out) :: function
-  end subroutine get_function 
-  
+     subroutine get_function_interface ( this, boundary_id, component_id, function )
+       import :: new_conditions_t, ip, scalar_function_t
+       implicit none
+       class(new_conditions_t), target  , intent(in)  :: this
+       integer(ip)                      , intent(in)  :: boundary_id
+       integer(ip)                      , intent(in)  :: component_id
+       class(scalar_function_t), pointer, intent(out) :: function
+     end subroutine get_function_interface 
+  end interface
   
 end module new_conditions_names

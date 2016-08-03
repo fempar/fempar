@@ -365,6 +365,7 @@ module reference_fe_names
      procedure :: get_own_node_vef => reference_fe_get_own_node_vef
      procedure :: get_face_integration_coupling_number_nodes_face => reference_fe_get_face_integration_coupling_number_nodes_face
      procedure :: get_face_integration_coupling_node_face => reference_fe_get_face_integration_coupling_node_face
+     procedure :: create_face_integration_coupling_dofs_iterator => create_face_integration_coupling_dofs_iterator
      procedure :: get_orientation => reference_fe_get_orientation     
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation

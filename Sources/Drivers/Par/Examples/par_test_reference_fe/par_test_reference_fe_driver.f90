@@ -25,9 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module test_new_serial_fe_space_driver_names
+module par_test_reference_fe_driver_names
   use serial_names
-  use test_new_serial_fe_space_params_names
+  use par_names
+  use par_test_reference_fe_params_names
   use poisson_discrete_integration_names
   use poisson_conditions_names
 # include "debug.i90"
@@ -35,17 +36,17 @@ module test_new_serial_fe_space_driver_names
   implicit none
   private
 
-  type test_new_serial_fe_space_driver_t 
+  type par_test_reference_fe_driver_t 
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
-     type(test_new_serial_fe_space_params_t) :: test_params
+     type(par_test_reference_fe_params_t)      :: test_params
      
      ! Cells and lower dimension objects container
-     type(serial_triangulation_t)            :: triangulation
+     type(new_par_triangulation_t)             :: triangulation
      
      ! Discrete weak problem integration-related data type instances 
-     type(new_serial_fe_space_t)               :: fe_space 
+     type(new_par_fe_space_t)                  :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
      type(poisson_discrete_integration_t)      :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
@@ -60,9 +61,12 @@ module test_new_serial_fe_space_driver_names
      type(new_fe_function_t)                   :: solution
      
      ! Environment required for fe_affine_operator + vtk_handler
-     type(serial_environment_t)                :: serial_environment
+     type(par_context_t)                       :: w_context
+     type(par_environment_t)                   :: par_environment
    contains
      procedure                  :: run_simulation
+     procedure        , private :: setup_context
+     procedure        , private :: setup_par_environment
      procedure        , private :: parse_command_line_parameters
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
@@ -73,31 +77,48 @@ module test_new_serial_fe_space_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: free
-  end type test_new_serial_fe_space_driver_t
+  end type par_test_reference_fe_driver_t
 
   ! Types
-  public :: test_new_serial_fe_space_driver_t
+  public :: par_test_reference_fe_driver_t
 
 contains
 
   subroutine parse_command_line_parameters(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t ), intent(inout) :: this
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
     call this%test_params%parse()
   end subroutine parse_command_line_parameters
   
+  subroutine setup_context(this)
+    implicit none
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    ! Initialize MPI environment
+    call this%w_context%create()
+  end subroutine setup_context
+  
+  subroutine setup_par_environment(this)
+    implicit none
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    ! This test only works with one level.
+    call this%par_environment%create(this%w_context,&
+                                     1,&
+                                     [this%w_context%get_size()],&
+                                     [this%w_context%get_rank()+1])
+  end subroutine setup_par_environment
+  
   subroutine setup_triangulation(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
-    call this%triangulation%create(this%test_params%get_dir_path(),&
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    call this%triangulation%create(this%par_environment, &
+                                   this%test_params%get_dir_path(),&
                                    this%test_params%get_prefix())
-    !call this%triangulation%print()
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
     
     integer(ip) :: istat
     
@@ -115,7 +136,7 @@ contains
 
   subroutine setup_fe_space(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
     
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%poisson_conditions, &
@@ -126,27 +147,26 @@ contains
     call this%poisson_conditions%set_constant_function_value(1.0_rp)
     call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
     
-    
     call this%fe_space%print()
   end subroutine setup_fe_space
   
   subroutine setup_system (this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
     
-    ! if (test_single_scalar_valued_reference_fe) then
-    call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .true. ], &
-                                          diagonal_blocks_symmetric         = [ .true. ], &
-                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                          environment                       = this%serial_environment, &
-                                          fe_space                          = this%fe_space, &
-                                          discrete_integration              = this%poisson_integration )
+    !! if (test_single_scalar_valued_reference_fe) then
+    !call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+    !                                      diagonal_blocks_symmetric_storage = [ .true. ], &
+    !                                      diagonal_blocks_symmetric         = [ .true. ], &
+    !                                      diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+    !                                      environment                       = this%serial_environment, &
+    !                                      fe_space                          = this%fe_space, &
+    !                                      discrete_integration              = this%poisson_integration )
   end subroutine setup_system
   
   subroutine setup_solver (this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
     integer                                                 :: FPLError
     type(parameterlist_t)                                   :: parameter_list
     integer                                                 :: iparm(64)
@@ -163,49 +183,49 @@ contains
     !call this%direct_solver%set_parameters_from_pl(parameter_list)
     !call parameter_list%free()
     
-     call this%iterative_linear_solver%create(this%serial_environment)
-     call this%iterative_linear_solver%set_type_from_string(cg_name)
-     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+     !call this%iterative_linear_solver%create(this%serial_environment)
+     !call this%iterative_linear_solver%set_type_from_string(cg_name)
+     !call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
   end subroutine setup_solver
   
   
   subroutine assemble_system (this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
-    call this%fe_affine_operator%numerical_setup()
-    rhs                => this%fe_affine_operator%get_translation()
-    matrix             => this%fe_affine_operator%get_matrix()
+    !call this%fe_affine_operator%numerical_setup()
+    !rhs                => this%fe_affine_operator%get_translation()
+    !matrix             => this%fe_affine_operator%get_matrix()
     
-    select type(matrix)
-    class is (sparse_matrix_t)  
-       call matrix%print_matrix_market(6) 
-    class DEFAULT
-       assert(.false.) 
-    end select
+    !select type(matrix)
+    !class is (sparse_matrix_t)  
+    !   call matrix%print_matrix_market(6) 
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
     
-    select type(rhs)
-    class is (serial_scalar_array_t)  
-       call rhs%print(6) 
-    class DEFAULT
-       assert(.false.) 
-    end select
+    !select type(rhs)
+    !class is (serial_scalar_array_t)  
+    !   call rhs%print(6) 
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
   end subroutine assemble_system
   
   
   subroutine solve_system(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
     class(matrix_t)                         , pointer       :: matrix
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
 
-    matrix     => this%fe_affine_operator%get_matrix()
-    rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-                                            dof_values)
+    !matrix     => this%fe_affine_operator%get_matrix()
+    !rhs        => this%fe_affine_operator%get_translation()
+    !dof_values => this%solution%get_dof_values()
+    !call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
+    !                                        dof_values)
     
     !select type (dof_values)
     !class is (serial_scalar_array_t)  
@@ -225,29 +245,30 @@ contains
   
   subroutine check_solution(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
-    class(vector_t), allocatable :: exact_solution_vector
-    class(vector_t), pointer     :: computed_solution_vector
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    !class(vector_t), allocatable :: exact_solution_vector
+    !class(vector_t), pointer     :: computed_solution_vector
     
-    call this%fe_affine_operator%create_range_vector(exact_solution_vector)
-    call exact_solution_vector%init(1.0_rp)
+    !call this%fe_affine_operator%create_range_vector(exact_solution_vector)
+    !call exact_solution_vector%init(1.0_rp)
     
-    computed_solution_vector => this%solution%get_dof_values() 
+    !computed_solution_vector => this%solution%get_dof_values() 
     
-    exact_solution_vector = computed_solution_vector - exact_solution_vector
-   
-    check ( exact_solution_vector%nrm2()/computed_solution_vector%nrm2() < 1.0e-04 )
-     
-    call exact_solution_vector%free()
-    deallocate(exact_solution_vector)
+    !exact_solution_vector = computed_solution_vector - exact_solution_vector
+    !check ( computed_solution_vector%nrm2()/exact_solution_vector%nrm2() < 1.0e-04 )
+    ! 
+    !call exact_solution_vector%free()
+    !deallocate(exact_solution_vector)
     
   end subroutine check_solution
   
   
   subroutine run_simulation(this) 
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
-    call this%free()
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    !call this%free()
+    call this%setup_context()
+    call this%setup_par_environment()
     call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
@@ -255,20 +276,19 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%fe_space%create_global_fe_function(this%solution)
+    !call this%fe_space%create_global_fe_function(this%solution)
     call this%solve_system()
-    call this%check_solution()
     call this%free()
   end subroutine run_simulation
   
   subroutine free(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(par_test_reference_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     
-    call this%solution%free()
-    call this%iterative_linear_solver%free()
-    call this%fe_affine_operator%free()
+    !call this%solution%free()
+    !call this%iterative_linear_solver%free()
+    !call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)
@@ -279,6 +299,8 @@ contains
     end if
     call this%triangulation%free()
     call this%test_params%free()
+    call this%par_environment%free() 
+    call this%w_context%free(.true.)
   end subroutine free  
   
-end module test_new_serial_fe_space_driver_names
+end module par_test_reference_fe_driver_names

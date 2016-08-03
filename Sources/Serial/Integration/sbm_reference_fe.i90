@@ -402,7 +402,15 @@ end function reference_fe_get_conformity
     type(list_iterator_t)   :: iterator
     iterator = this%face_integration_coupling_nodes_face%create_iterator(j)
     reference_fe_get_face_integration_coupling_node_face = iterator%reach_from_current(i-1)
-  end function reference_fe_get_face_integration_coupling_node_face  
+  end function reference_fe_get_face_integration_coupling_node_face 
+  
+  function create_face_integration_coupling_dofs_iterator ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i
+    type(list_iterator_t) :: create_face_integration_coupling_dofs_iterator
+    create_face_integration_coupling_dofs_iterator = this%face_integration_coupling_nodes_face%create_iterator(i)    
+  end function create_face_integration_coupling_dofs_iterator  
 
   function reference_fe_get_orientation(this)
     class(reference_fe_t), target, intent(in) :: this

@@ -170,6 +170,14 @@ function vef_accessor_is_at_interface (this)
   vef_accessor_is_at_interface  = (this%base_static_triangulation%vefs_type(this%lid)/100==1)
 end function vef_accessor_is_at_interface
 
+function vef_accessor_is_face (this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  logical :: vef_accessor_is_face
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_accessor_is_face  = (this%base_static_triangulation%get_num_dimensions()-1 == this%get_dimension())
+end function vef_accessor_is_face
+
 function vef_accessor_is_ghost (this)
   implicit none
   class(vef_accessor_t), intent(in) :: this

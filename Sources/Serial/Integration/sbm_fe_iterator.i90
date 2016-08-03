@@ -27,9 +27,9 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine fe_iterator_create ( this, lid, fe_space ) 
   implicit none
-  class(fe_iterator_t)        , intent(inout) :: this
-  integer(ip)                 , intent(in)    :: lid
-  type(new_serial_fe_space_t) , intent(in)    :: fe_space
+  class(fe_iterator_t)         , intent(inout) :: this
+  integer(ip)                  , intent(in)    :: lid
+  class(new_serial_fe_space_t) , intent(in)    :: fe_space
   call this%free()
   call this%fe_accessor%create(lid=lid, fe_space=fe_space)
 end subroutine fe_iterator_create

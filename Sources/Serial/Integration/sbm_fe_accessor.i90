@@ -35,9 +35,9 @@ end subroutine fe_accessor_cell_accessor_create
 
 subroutine fe_accessor_create ( this, lid, fe_space )
   implicit none
-  class(fe_accessor_t)               , intent(inout) :: this
-  integer(ip)                        , intent(in)    :: lid
-  type(new_serial_fe_space_t), target, intent(in)    :: fe_space
+  class(fe_accessor_t)                , intent(inout) :: this
+  integer(ip)                         , intent(in)    :: lid
+  class(new_serial_fe_space_t), target, intent(in)    :: fe_space
   call this%cell_accessor_t%create(lid,fe_space%triangulation)
   this%fe_space => fe_space
 end subroutine fe_accessor_create
@@ -176,6 +176,34 @@ subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
      end do
   end if
 end subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe
+
+subroutine fe_accessor_fill_dofs_face_integration_coupling ( this, ivef, field_id, dof_count )
+  implicit none
+  ! Parameters
+  class(fe_accessor_t), intent(inout)   :: this
+  integer(ip)         , intent(in)      :: ivef
+  integer(ip)         , intent(in)      :: field_id
+  integer(ip)         , intent(inout)   :: dof_count
+
+  ! Local variables
+  integer(ip)                    :: idof, base_pos_lst_dofs_lids
+  class(reference_fe_t), pointer :: reference_fe
+  type(list_iterator_t)          :: face_integration_coupling_dofs 
+  
+  reference_fe => this%get_reference_fe(field_id)
+  assert ( reference_fe%get_vef_dimension(ivef) == reference_fe%get_number_dimensions()-1 )
+  
+  face_integration_coupling_dofs = reference_fe%create_face_integration_coupling_dofs_iterator(ivef)
+  base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())-1
+  do while (.not. face_integration_coupling_dofs%is_upper_bound())
+    idof = face_integration_coupling_dofs%get_current()
+    dof_count = dof_count +1 
+    this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+idof) = dof_count
+    call face_integration_coupling_dofs%next()
+  end do
+end subroutine fe_accessor_fill_dofs_face_integration_coupling
+
+
 
 ! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
 subroutine fe_accessor_renumber_dofs_block ( this, block_id, perm_old2new )
@@ -376,8 +404,8 @@ subroutine fe_accessor_get_fe_vef(this, ivef, fe_vef)
   integer(ip)            , intent(in)    :: ivef
   type(fe_vef_accessor_t), intent(inout) :: fe_vef
   type(vef_accessor_t) :: vef_accessor
-  !vef_accessor = this%get_vef(ivef)
-  !call fe_accessor_get_coarse_fe_vef%create(vef_accessor%get_lid(), this%fe_space)
+  call this%get_vef(ivef, vef_accessor)
+  call fe_vef%create(vef_accessor%get_lid(), this%fe_space)
 end subroutine fe_accessor_get_fe_vef
 
 function fe_accessor_get_reference_fe(this, field_id)
