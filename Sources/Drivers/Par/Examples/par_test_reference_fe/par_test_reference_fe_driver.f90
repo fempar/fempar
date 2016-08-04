@@ -128,8 +128,8 @@ contains
     
     this%reference_fes(1) =  make_reference_fe ( topology = topology_quad, &
                                                  fe_type = fe_type_lagrangian, &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                 order = 1, &
+                                                 number_dimensions = 2, &
+                                                 order = 4, &
                                                  field_type = field_type_scalar, &
                                                  continuity = .true. )
   end subroutine setup_reference_fes
@@ -154,22 +154,22 @@ contains
     implicit none
     class(par_test_reference_fe_driver_t), intent(inout) :: this
     
-    !! if (test_single_scalar_valued_reference_fe) then
-    !call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-    !                                      diagonal_blocks_symmetric_storage = [ .true. ], &
-    !                                      diagonal_blocks_symmetric         = [ .true. ], &
-    !                                      diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-    !                                      environment                       = this%serial_environment, &
-    !                                      fe_space                          = this%fe_space, &
-    !                                      discrete_integration              = this%poisson_integration )
+    ! if (test_single_scalar_valued_reference_fe) then
+    call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+                                          diagonal_blocks_symmetric_storage = [ .true. ], &
+                                          diagonal_blocks_symmetric         = [ .true. ], &
+                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                          environment                       = this%par_environment, &
+                                          fe_space                          = this%fe_space, &
+                                          discrete_integration              = this%poisson_integration )
   end subroutine setup_system
   
   subroutine setup_solver (this)
     implicit none
     class(par_test_reference_fe_driver_t), intent(inout) :: this
-    integer                                                 :: FPLError
-    type(parameterlist_t)                                   :: parameter_list
-    integer                                                 :: iparm(64)
+    integer                                              :: FPLError
+    type(parameterlist_t)                                :: parameter_list
+    integer                                              :: iparm(64)
 
     !call parameter_list%init()
     !FPLError = 0
@@ -183,9 +183,9 @@ contains
     !call this%direct_solver%set_parameters_from_pl(parameter_list)
     !call parameter_list%free()
     
-     !call this%iterative_linear_solver%create(this%serial_environment)
-     !call this%iterative_linear_solver%set_type_from_string(cg_name)
-     !call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+     call this%iterative_linear_solver%create(this%par_environment)
+     call this%iterative_linear_solver%set_type_from_string(cg_name)
+     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
   end subroutine setup_solver
   
   
@@ -194,9 +194,9 @@ contains
     class(par_test_reference_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
-    !call this%fe_affine_operator%numerical_setup()
-    !rhs                => this%fe_affine_operator%get_translation()
-    !matrix             => this%fe_affine_operator%get_matrix()
+    call this%fe_affine_operator%numerical_setup()
+    rhs                => this%fe_affine_operator%get_translation()
+    matrix             => this%fe_affine_operator%get_matrix()
     
     !select type(matrix)
     !class is (sparse_matrix_t)  
@@ -221,11 +221,11 @@ contains
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
 
-    !matrix     => this%fe_affine_operator%get_matrix()
-    !rhs        => this%fe_affine_operator%get_translation()
-    !dof_values => this%solution%get_dof_values()
-    !call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-    !                                        dof_values)
+    matrix     => this%fe_affine_operator%get_matrix()
+    rhs        => this%fe_affine_operator%get_translation()
+    dof_values => this%solution%get_dof_values()
+    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
+                                            dof_values)
     
     !select type (dof_values)
     !class is (serial_scalar_array_t)  
@@ -246,19 +246,20 @@ contains
   subroutine check_solution(this)
     implicit none
     class(par_test_reference_fe_driver_t), intent(inout) :: this
-    !class(vector_t), allocatable :: exact_solution_vector
-    !class(vector_t), pointer     :: computed_solution_vector
+    class(vector_t), allocatable :: exact_solution_vector
+    class(vector_t), pointer     :: computed_solution_vector
     
-    !call this%fe_affine_operator%create_range_vector(exact_solution_vector)
-    !call exact_solution_vector%init(1.0_rp)
+    call this%fe_affine_operator%create_range_vector(exact_solution_vector)
+    call exact_solution_vector%init(1.0_rp)
     
-    !computed_solution_vector => this%solution%get_dof_values() 
+    computed_solution_vector => this%solution%get_dof_values() 
     
-    !exact_solution_vector = computed_solution_vector - exact_solution_vector
-    !check ( computed_solution_vector%nrm2()/exact_solution_vector%nrm2() < 1.0e-04 )
-    ! 
-    !call exact_solution_vector%free()
-    !deallocate(exact_solution_vector)
+    exact_solution_vector = computed_solution_vector - exact_solution_vector
+   
+    check ( exact_solution_vector%nrm2()/computed_solution_vector%nrm2() < 1.0e-04 )
+     
+    call exact_solution_vector%free()
+    deallocate(exact_solution_vector)
     
   end subroutine check_solution
   
@@ -276,8 +277,9 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    !call this%fe_space%create_global_fe_function(this%solution)
+    call this%fe_space%create_global_fe_function(this%solution)
     call this%solve_system()
+    call this%check_solution()
     call this%free()
   end subroutine run_simulation
   
@@ -286,9 +288,9 @@ contains
     class(par_test_reference_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     
-    !call this%solution%free()
-    !call this%iterative_linear_solver%free()
-    !call this%fe_affine_operator%free()
+    call this%solution%free()
+    call this%iterative_linear_solver%free()
+    call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)

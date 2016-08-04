@@ -436,6 +436,8 @@ subroutine new_serial_fe_space_update_strong_dirichlet_bcs_values (this, conditi
      call fe_iterator%next() 
   end do
 
+  
+  call memfree ( reference_fes_touched, __FILE__, __LINE__ )
   call memfree ( components_code, __FILE__, __LINE__ )
 
   
@@ -1026,6 +1028,20 @@ function new_serial_fe_space_create_fe_iterator ( this )
   type(fe_iterator_t) :: new_serial_fe_space_create_fe_iterator
   call new_serial_fe_space_create_fe_iterator%create(1, this)
  end function new_serial_fe_space_create_fe_iterator
+  
+function new_serial_fe_space_create_fe_vef_iterator ( this )
+  implicit none
+  class(new_serial_fe_space_t), intent(in) :: this
+  type(fe_vef_iterator_t) :: new_serial_fe_space_create_fe_vef_iterator
+  call new_serial_fe_space_create_fe_vef_iterator%create(1, this)
+end function new_serial_fe_space_create_fe_vef_iterator
+
+function new_serial_fe_space_create_itfc_fe_vef_iterator ( this )
+  implicit none
+  class(new_serial_fe_space_t), intent(in) :: this
+  type(itfc_fe_vef_iterator_t) :: new_serial_fe_space_create_itfc_fe_vef_iterator
+  call new_serial_fe_space_create_itfc_fe_vef_iterator%create(this)
+end function new_serial_fe_space_create_itfc_fe_vef_iterator
 
 !subroutine new_serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
 !  implicit none

@@ -108,9 +108,9 @@ function itfc_fe_vef_iterator_has_finished ( this )
   itfc_fe_vef_iterator_has_finished = this%itfc_vef_iterator%has_finished()
 end function itfc_fe_vef_iterator_has_finished
 
-function itfc_fe_vef_iterator_current ( this ) 
+subroutine itfc_fe_vef_iterator_current ( this, vef ) 
   implicit none
   class(itfc_fe_vef_iterator_t), target, intent(in) :: this
-  type(fe_vef_accessor_t)            :: itfc_fe_vef_iterator_current
-  itfc_fe_vef_iterator_current = this%current_vef_accessor
-end function itfc_fe_vef_iterator_current
+  type(fe_vef_accessor_t)            :: vef
+  vef = this%current_vef_accessor
+end subroutine itfc_fe_vef_iterator_current

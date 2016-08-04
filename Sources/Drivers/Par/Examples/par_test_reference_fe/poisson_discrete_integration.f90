@@ -169,30 +169,34 @@ contains
        ! Get current FE
        call fe_iterator%current(fe)
        
-       ! Update FE-integration related data structures
-       call fe%update_integration()
+       if ( fe%is_local() ) then
        
-       ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
+         ! Update FE-integration related data structures
+         call fe%update_integration()
+       
+         ! Get DoF numbering within current FE
+         call fe%get_elem2dof(elem2dof)
 
-       ! Compute element matrix and vector
-       elmat = 0.0_rp
-       elvec = 0.0_rp
-       do qpoint = 1, num_quad_points
-          factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-          do idof = 1, num_dofs
-             call vol_int%get_gradient(idof, qpoint, grad_trial)
-             do jdof = 1, num_dofs
-                call vol_int%get_gradient(jdof, qpoint, grad_test)
-                ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                elmat(idof,jdof) = elmat(idof,jdof) + factor * grad_test * grad_trial
-             end do
-          end do
-       end do
+         ! Compute element matrix and vector
+         elmat = 0.0_rp
+         elvec = 0.0_rp
+         do qpoint = 1, num_quad_points
+            factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            do idof = 1, num_dofs
+               call vol_int%get_gradient(idof, qpoint, grad_trial)
+               do jdof = 1, num_dofs
+                  call vol_int%get_gradient(jdof, qpoint, grad_test)
+                  ! A_K(i,j) = (grad(phi_i),grad(phi_j))
+                  elmat(idof,jdof) = elmat(idof,jdof) + factor * grad_test * grad_trial
+               end do
+            end do
+         end do
        
-       ! Apply boundary conditions (IMPLEMENTATION PENDING)
-       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+         ! Apply boundary conditions (IMPLEMENTATION PENDING)
+         call fe%impose_strong_dirichlet_bcs( elmat, elvec )
+         call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+       end if
+       
        call fe_iterator%next()
     end do
     deallocate (elem2dof, stat=istat); check(istat==0);

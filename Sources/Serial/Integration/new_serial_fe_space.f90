@@ -237,7 +237,7 @@ module new_serial_fe_space_names
      procedure, non_overridable, private :: allocate_and_init_at_strong_dirichlet_bound  => new_serial_fe_space_allocate_and_init_at_strong_dirichlet_bound  
      procedure, non_overridable, private :: free_at_strong_dirichlet_bound               => new_serial_fe_space_free_at_strong_dirichlet_bound
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs                  => new_serial_fe_space_set_up_strong_dirichlet_bcs
-     procedure, non_overridable          :: update_strong_dirichlet_bcs_values           => new_serial_fe_space_update_strong_dirichlet_bcs_values 
+     procedure                           :: update_strong_dirichlet_bcs_values           => new_serial_fe_space_update_strong_dirichlet_bcs_values 
 
      
      procedure, non_overridable          :: initialize_fe_integration                    => new_serial_fe_space_initialize_fe_integration
@@ -246,8 +246,8 @@ module new_serial_fe_space_names
      procedure                           :: create_assembler                             => new_serial_fe_space_create_assembler
      procedure                           :: symbolic_setup_assembler                     => new_serial_fe_space_symbolic_setup_assembler
           
-     procedure, non_overridable          :: create_global_fe_function                    => new_serial_fe_space_create_global_fe_function
-     procedure, non_overridable          :: update_global_fe_function_bcs                => new_serial_fe_space_update_global_fe_function_bcs
+     procedure                           :: create_global_fe_function                    => new_serial_fe_space_create_global_fe_function
+     procedure                           :: update_global_fe_function_bcs                => new_serial_fe_space_update_global_fe_function_bcs
      procedure                           :: fill_dof_info                                => new_serial_fe_space_fill_dof_info
      procedure                 , private :: fill_elem2dof_and_count_dofs                 => new_serial_fe_space_fill_elem2dof_and_count_dofs
  
@@ -268,6 +268,8 @@ module new_serial_fe_space_names
      
      ! Coarse FE traversals-related TBPs
      procedure, non_overridable          :: create_fe_iterator                           => new_serial_fe_space_create_fe_iterator
+     procedure, non_overridable          :: create_fe_vef_iterator                       => new_serial_fe_space_create_fe_vef_iterator
+     procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => new_serial_fe_space_create_itfc_fe_vef_iterator
  end type new_serial_fe_space_t  
  
  public :: new_serial_fe_space_t   
@@ -290,13 +292,13 @@ module new_serial_fe_space_names
    procedure                         , private :: fill_elem2dof_and_count_dofs                    => new_par_fe_space_fill_elem2dof_and_count_dofs
    !procedure                                   :: renumber_dofs_first_interior_then_interface     => new_par_fe_space_renumber_dofs_first_interior_then_interface
    !procedure                         , private :: renumber_dofs_block                             => new_par_fe_space_renumber_dofs_block
-   !procedure        , non_overridable, private :: compute_blocks_dof_import                       => new_par_fe_space_compute_blocks_dof_import
-   !procedure        , non_overridable, private :: compute_dof_import                              => new_par_fe_space_compute_dof_import
-   !procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => new_par_fe_space_compute_raw_interface_data_by_continuity
-   !procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner   => new_par_fe_space_raw_interface_data_by_continuity_decide_owner
-   !procedure        , non_overridable, private :: compute_raw_interface_data_by_face_integ        => new_par_fe_space_compute_raw_interface_data_by_face_integ
-   !procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => new_par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
-   !procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => new_par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
+   procedure        , non_overridable, private :: compute_blocks_dof_import                       => new_par_fe_space_compute_blocks_dof_import
+   procedure        , non_overridable, private :: compute_dof_import                              => new_par_fe_space_compute_dof_import
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => new_par_fe_space_compute_raw_interface_data_by_continuity
+   procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner   => new_par_fe_space_raw_interface_data_by_continuity_decide_owner
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_face_integ        => new_par_fe_space_compute_raw_interface_data_by_face_integ
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => new_parfespace_compute_ubound_num_itfc_couplings_by_continuity
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => new_parfespace_compute_ubound_num_itfc_couplings_by_face_integ
    procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_gid                => new_par_fe_space_generate_non_consecutive_dof_gid
    procedure        , non_overridable          :: get_block_dof_import                            => new_par_fe_space_get_block_dof_import
    procedure                                   :: get_total_number_dofs                           => new_par_fe_space_get_total_number_dofs
@@ -312,8 +314,9 @@ module new_serial_fe_space_names
    procedure                                   :: free                                            => new_par_fe_space_free
    procedure                                   :: create_assembler                                => new_par_fe_space_create_assembler
    procedure                                   :: symbolic_setup_assembler                        => new_par_fe_space_symbolic_setup_assembler
-   !procedure                                   :: create_global_fe_function                       => new_par_fe_space_create_global_fe_function
-   !procedure                                   :: update_global_fe_function_bcs                   => new_par_fe_space_update_global_fe_function_bcs
+   procedure                                   :: update_strong_dirichlet_bcs_values              => new_par_fe_space_update_strong_dirichlet_bcs_values
+   procedure                                   :: create_global_fe_function                       => new_par_fe_space_create_global_fe_function
+   procedure                                   :: update_global_fe_function_bcs                   => new_par_fe_space_update_global_fe_function_bcs
  end type new_par_fe_space_t
  
  public :: new_par_fe_space_t

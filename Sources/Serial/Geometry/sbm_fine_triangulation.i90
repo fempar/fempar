@@ -719,6 +719,7 @@ subroutine fine_triangulation_compute_vefs_dimension (this)
   assert ( this%num_vefs >= 0 )
   call this%free_vefs_type()
   call memalloc(this%num_vefs, this%vefs_type,__FILE__,__LINE__) 
+  this%vefs_type = 0
 
   vef_iterator = this%create_vef_iterator()
   do while ( .not. vef_iterator%has_finished() )

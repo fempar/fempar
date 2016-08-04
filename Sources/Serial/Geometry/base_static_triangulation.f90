@@ -305,11 +305,11 @@ module base_static_triangulation_names
 
   integer(ip), parameter      :: max_num_elem_types = 3
 
-  type base_static_triangulation_t ! Base class for serial_triangulation_t and par_base_static_triangulation_t
+  type base_static_triangulation_t ! Base class for coarse_triangulation_t and fine_triangulation_t
      private
 
      ! Parallel environment describing MPI tasks among which the triangulation is distributed
-     ! (NULL for serial triangulation)
+     ! (NULL for serial_triangulation_t)
      type(par_environment_t),   pointer      :: p_env => NULL()
      
      ! Sizes
@@ -349,9 +349,6 @@ module base_static_triangulation_names
      integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
 
      ! Data structures to create objects
-     ! Perhaps the following three member variables should be packed within type(map_t) ?
-     ! I didn't do that because type(map_t) has extra members that do not make sense anymore
-     ! for the current situation with objects (i.e., interior, boundary, external) etc.
      integer(ip)                             :: number_global_objects = -1
      integer(ip)                             :: number_objects = -1
      integer(igp), allocatable               :: objects_gids(:)
@@ -361,14 +358,15 @@ module base_static_triangulation_names
      type(coarse_triangulation_t), pointer   :: coarse_triangulation
 
      ! Data structures that should be defined in fine_triangulation_t (which requires extensive refactoring)     
-     type(geometry_t) :: geometry
-     type(p_reference_fe_t)                :: reference_fe_geo_list(max_num_elem_types)
-     type(hash_table_ip_ip_t)              :: reference_fe_geo_index
+     type(geometry_t)                        :: geometry
+     type(p_reference_fe_t)                  :: reference_fe_geo_list(max_num_elem_types)
+     type(hash_table_ip_ip_t)                :: reference_fe_geo_index
+     
      ! Geometry interpolation
-     integer(ip)                           :: num_nodes
-     integer(ip) , allocatable             :: ptr_nodes_per_cell(:)       ! Num local cells + num ghost cells + 1
-     integer(ip) , allocatable             :: lst_nodes(:)
-     type(point_t), allocatable            :: coordinates(:)
+     integer(ip)                             :: num_nodes
+     integer(ip) , allocatable               :: ptr_nodes_per_cell(:)       ! Num local cells + num ghost cells + 1
+     integer(ip) , allocatable               :: lst_nodes(:)
+     type(point_t), allocatable              :: coordinates(:)
      
  contains  
 
