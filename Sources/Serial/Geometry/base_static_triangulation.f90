@@ -112,6 +112,7 @@ module base_static_triangulation_names
     procedure, non_overridable           :: is_local             => cell_accessor_is_local
     procedure, non_overridable           :: is_ghost             => cell_accessor_is_ghost
     procedure, non_overridable           :: scan_sum_number_vefs => cell_accessor_get_scan_sum_number_vefs
+    procedure, non_overridable           :: fill_nodes_on_vertices  => cell_accessor_fill_nodes_on_vertices
   end type cell_accessor_t
   
   type cell_iterator_t
@@ -384,6 +385,25 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_num_ghost_cells                 => bst_get_num_ghost_cells
      procedure, non_overridable          :: get_number_objects                  => bst_get_number_objects
 
+     ! Cell traversals-related TBPs
+     procedure, non_overridable          :: create_cell_iterator                => bst_create_cell_iterator
+  
+     ! Vef traversals-related TBPs
+     procedure, non_overridable          :: create_vef_iterator                 => bst_create_vef_iterator
+     procedure, non_overridable          :: create_vertices_iterator            => bst_create_vertices_iterator
+     procedure, non_overridable          :: create_edges_iterator               => bst_create_edges_iterator
+     procedure, non_overridable          :: create_faces_iterator               => bst_create_faces_iterator
+     procedure, non_overridable          :: create_itfc_vef_iterator            => bst_create_itfc_vef_iterator
+
+     ! Objects-related traversals
+     procedure, non_overridable          :: create_object_iterator              => bst_create_object_iterator
+     procedure, non_overridable          :: create_vefs_on_object_iterator      => bst_create_vefs_on_object_iterator
+  
+     ! Other
+     procedure, non_overridable          :: print                               => bst_print    
+     procedure                           :: free                                => bst_free
+   
+
      ! Private methods for creating cell-related data
      procedure, non_overridable, private :: compute_num_local_vefs              => bst_compute_num_local_vefs
      procedure, non_overridable, private :: compute_num_ghost_vefs              => bst_compute_num_ghost_vefs
@@ -431,24 +451,6 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: gather_coarse_dgraph_lextn_and_lextp           => bst_gather_coarse_dgraph_lextn_and_lextp
      procedure, non_overridable, private :: adapt_coarse_raw_arrays                        => bst_adapt_coarse_raw_arrays
      
-     ! Cell traversals-related TBPs
-     procedure, non_overridable          :: create_cell_iterator                => bst_create_cell_iterator
-  
-     ! Vef traversals-related TBPs
-     procedure, non_overridable          :: create_vef_iterator                 => bst_create_vef_iterator
-     procedure, non_overridable          :: create_vertices_iterator            => bst_create_vertices_iterator
-     procedure, non_overridable          :: create_edges_iterator               => bst_create_edges_iterator
-     procedure, non_overridable          :: create_faces_iterator               => bst_create_faces_iterator
-     procedure, non_overridable          :: create_itfc_vef_iterator            => bst_create_itfc_vef_iterator
-
-     ! Objects-related traversals
-     procedure, non_overridable          :: create_object_iterator              => bst_create_object_iterator
-     procedure, non_overridable          :: create_vefs_on_object_iterator      => bst_create_vefs_on_object_iterator
-  
-     ! Other
-     procedure, non_overridable          :: print                               => bst_print    
-     procedure                           :: free                                => bst_free
-   
   end type base_static_triangulation_t
   
   type, extends(base_static_triangulation_t) :: fine_triangulation_t

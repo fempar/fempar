@@ -781,13 +781,14 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   call cell_iterator%init()
   do while ( .not. cell_iterator%has_finished() )
      call cell_iterator%current(cell)
-     ielem = cell%get_lid()
-     call this%reference_fe_geo_index%get(key=cell%get_num_vefs(),val=cell_type,stat=istat)
-     assert(istat==key_found)
-     cell_num_vertices = this%reference_fe_geo_list(cell_type)%p%get_number_vefs_of_dimension(0)
-     call fill_nodes_on_vertices (this%reference_fe_geo_list(cell_type)%p, &
-          &                       this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem):this%ptr_vefs_per_cell(ielem)+cell_num_vertices-1), &
-          &                       this%lst_nodes(this%ptr_nodes_per_cell(ielem):this%ptr_nodes_per_cell(ielem+1)-1) )
+     !ielem = cell%get_lid()
+     !call this%reference_fe_geo_index%get(key=cell%get_num_vefs(),val=cell_type,stat=istat)
+     !assert(istat==key_found)
+     !cell_num_vertices = this%reference_fe_geo_list(cell_type)%p%get_number_vefs_of_dimension(0)
+     call cell%fill_nodes_on_vertices()
+     !call fill_nodes_on_vertices (this%reference_fe_geo_list(cell_type)%p, &
+     !     &                       this%lst_vefs_lids(this%ptr_vefs_per_cell(ielem):this%ptr_vefs_per_cell(ielem)+cell_num_vertices-1), &
+     !     &                       this%lst_nodes(this%ptr_nodes_per_cell(ielem):this%ptr_nodes_per_cell(ielem+1)-1) )
      call cell_iterator%next()
   end do
   this%num_nodes=this%num_vertices
@@ -910,6 +911,7 @@ subroutine fill_nodes_on_vertices (reference_fe, vertex_list, node_list)
   class(reference_fe_t) , intent(in)    :: reference_fe
   integer(ip)           , intent(in)    :: vertex_list(:)
   integer(ip)           , intent(inout) :: node_list(:)
+  type(vef_accessor_t) :: vef
 
   ! Local variables
   integer(ip) :: ivef, inode, l_node, node_count, ndime
@@ -917,6 +919,7 @@ subroutine fill_nodes_on_vertices (reference_fe, vertex_list, node_list)
   ndime = reference_fe%get_number_dimensions()
   do ivef=1,reference_fe%get_number_vefs_of_dimension(0)
      assert(reference_fe%get_number_own_nodes_vef(ivef)==1)
+
      l_node = reference_fe%get_own_node_vef(1,ivef)
      node_list(l_node) = vertex_list(ivef)
   end do

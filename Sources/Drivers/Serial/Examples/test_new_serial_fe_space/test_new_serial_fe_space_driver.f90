@@ -91,7 +91,7 @@ contains
     implicit none
     class(test_new_serial_fe_space_driver_t), intent(inout) :: this
     call this%triangulation%create(this%test_params%get_dir_path(),&
-                                   this%test_params%get_prefix())
+                                   this%test_params%get_prefix(),2)
     !call this%triangulation%print()
   end subroutine setup_triangulation
   
@@ -108,7 +108,7 @@ contains
     this%reference_fes(1) =  make_reference_fe ( topology = topology_quad, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                 order = 1, &
+                                                 order = 2, &
                                                  field_type = field_type_scalar, &
                                                  continuity = .true. )
   end subroutine setup_reference_fes

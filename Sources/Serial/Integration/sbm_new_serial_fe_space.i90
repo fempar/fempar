@@ -403,6 +403,7 @@ subroutine new_serial_fe_space_update_strong_dirichlet_bcs_values (this, conditi
                     component_id = offset_component + icomp
                     if (components_code(component_id)) then
                        call conditions%get_function( vef%get_set_id(), component_id, scalar_function )
+                       assert(associated(scalar_function))
                        ! Evaluate function
                        if(present(time)) then
                           call scalar_function%get_values_set_space_time(nodal_coordinates,time_,values(component_id,reference_fe_id)%a)
@@ -421,7 +422,7 @@ subroutine new_serial_fe_space_update_strong_dirichlet_bcs_values (this, conditi
                        if(elem2dof(field_id)%p(local_within_ref_fe_dof_id) < 0) then
                           local_within_ref_fe_scalar_dof_id = reference_fe%get_scalar_from_vector_node(local_within_ref_fe_dof_id)
                           strong_dirichlet_dof_id = -elem2dof(field_id)%p(local_within_ref_fe_dof_id)
-                          call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(component_id,field_id)%a(strong_dirichlet_dof_id,1))
+                          call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(component_id,field_id)%a(local_within_ref_fe_scalar_dof_id,1))
                        end if
                     end if
                     call own_dofs_on_vef_iterator%next()
