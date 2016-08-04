@@ -25,21 +25,21 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine object_accessor_create ( this, lid, par_base_static_triangulation )
+subroutine object_accessor_create ( this, lid, base_static_triangulation )
   implicit none
   class(object_accessor_t)                      , intent(inout) :: this
   integer(ip)                                   , intent(in)    :: lid
-  class(par_base_static_triangulation_t), target, intent(in)    :: par_base_static_triangulation
+  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
   call this%free()
   this%lid = lid
-  this%par_base_static_triangulation => par_base_static_triangulation
+  this%base_static_triangulation => base_static_triangulation
 end subroutine object_accessor_create
 
 subroutine object_accessor_free ( this)
   implicit none
   class(object_accessor_t), intent(inout) :: this
   this%lid = -1
-  nullify ( this%par_base_static_triangulation )
+  nullify ( this%base_static_triangulation )
 end subroutine object_accessor_free
 
 subroutine object_accessor_next(this)
@@ -59,7 +59,7 @@ function object_accessor_past_the_end(this)
   implicit none
   class(object_accessor_t), intent(in) :: this
   logical :: object_accessor_past_the_end
-  object_accessor_past_the_end = (this%lid > this%par_base_static_triangulation%number_objects)
+  object_accessor_past_the_end = (this%lid > this%base_static_triangulation%number_objects)
 end function object_accessor_past_the_end
 
 function object_accessor_get_lid (this)
@@ -74,7 +74,7 @@ function object_accessor_get_gid (this)
   class(object_accessor_t), intent(in) :: this
   integer(igp) :: object_accessor_get_gid
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  object_accessor_get_gid = this%par_base_static_triangulation%objects_gids(this%lid)
+  object_accessor_get_gid = this%base_static_triangulation%objects_gids(this%lid)
 end function object_accessor_get_gid
 
 function object_accessor_get_number_parts_around(this)
@@ -82,7 +82,7 @@ function object_accessor_get_number_parts_around(this)
   class(object_accessor_t), intent(in) :: this
   integer(ip) :: object_accessor_get_number_parts_around
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  object_accessor_get_number_parts_around = this%par_base_static_triangulation%parts_object%get_sublist_size(this%lid)
+  object_accessor_get_number_parts_around = this%base_static_triangulation%parts_object%get_sublist_size(this%lid)
 end function object_accessor_get_number_parts_around
 
 function object_accessor_create_parts_around_iterator(this)
@@ -90,7 +90,7 @@ function object_accessor_create_parts_around_iterator(this)
   class(object_accessor_t), intent(in) :: this
   type(list_iterator_t) :: object_accessor_create_parts_around_iterator
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  object_accessor_create_parts_around_iterator = this%par_base_static_triangulation%parts_object%create_iterator(this%lid)
+  object_accessor_create_parts_around_iterator = this%base_static_triangulation%parts_object%create_iterator(this%lid)
 end function object_accessor_create_parts_around_iterator
 
 function object_accessor_get_number_vefs_on_object(this)
@@ -98,12 +98,12 @@ function object_accessor_get_number_vefs_on_object(this)
   class(object_accessor_t), intent(in) :: this
   integer(ip) :: object_accessor_get_number_vefs_on_object
   assert ( this%lid >= 1 .and. .not. this%past_the_end() )
-  object_accessor_get_number_vefs_on_object = this%par_base_static_triangulation%vefs_object%get_sublist_size(this%lid)
+  object_accessor_get_number_vefs_on_object = this%base_static_triangulation%vefs_object%get_sublist_size(this%lid)
 end function object_accessor_get_number_vefs_on_object
 
 function object_accessor_get_vefs_on_object_iterator(this)
   implicit none
   class(object_accessor_t), intent(in) :: this
   type(vefs_on_object_iterator_t) :: object_accessor_get_vefs_on_object_iterator
-  call object_accessor_get_vefs_on_object_iterator%create(this%lid, this%par_base_static_triangulation)
+  call object_accessor_get_vefs_on_object_iterator%create(this%lid, this%base_static_triangulation)
 end function object_accessor_get_vefs_on_object_iterator

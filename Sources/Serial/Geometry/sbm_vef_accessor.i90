@@ -86,6 +86,22 @@ function vef_accessor_get_gid (this)
   vef_accessor_get_gid = this%base_static_triangulation%vefs_gid(this%lid)
 end function vef_accessor_get_gid
 
+subroutine vef_accessor_set_set_id(this,set_id)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  integer(ip)          , intent(in) :: set_id
+  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  this%base_static_triangulation%vefs_set(this%lid) = set_id
+end subroutine vef_accessor_set_set_id  
+
+subroutine vef_accessor_set_geom_id(this,geom_id)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  integer(ip)          , intent(in) :: geom_id
+  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  this%base_static_triangulation%vefs_geometry(this%lid) = geom_id
+end subroutine vef_accessor_set_geom_id  
+
 function vef_accessor_get_set_id(this)
   implicit none
   class(vef_accessor_t), intent(in) :: this
@@ -93,6 +109,14 @@ function vef_accessor_get_set_id(this)
   assert (this%lid >= 1 .and. .not. this%past_the_end())
   vef_accessor_get_set_id = this%base_static_triangulation%vefs_set(this%lid)
 end function vef_accessor_get_set_id  
+
+function vef_accessor_get_geom_id(this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  integer(ip) :: vef_accessor_get_geom_id
+  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  vef_accessor_get_geom_id = this%base_static_triangulation%vefs_geometry(this%lid)
+end function vef_accessor_get_geom_id  
 
 subroutine vef_accessor_set_dimension(this,vef_dim)
   implicit none
@@ -268,28 +292,28 @@ end subroutine vef_accessor_get_cell_around
 
 ! We need cells around to evaluate it. Storing faces of elements, 
 ! edges of faces and vertices of edges, this would not be necessary.
-subroutine vef_accessor_get_vertices(this,vertices)
-  implicit none
-  class(vef_accessor_t), intent(in) :: this
-  integer(ip)                       :: vertices(:)
-  type(cell_accessor_t)             :: cell
-  type(list_t), pointer             :: vertices_per_vef
-  integer(ip) ::  ivef, cell_num_vefs, cell_type,num_vertices, istat, i
-  type(list_iterator_t) :: vertices_iterator
+!subroutine vef_accessor_get_vertices(this,vertices)
+!  implicit none
+!  class(vef_accessor_t), intent(in) :: this
+!  integer(ip)                       :: vertices(:)
+!  type(cell_accessor_t)             :: cell
+!  type(list_t), pointer             :: vertices_per_vef
+!  integer(ip) ::  ivef, cell_num_vefs, cell_type,num_vertices, istat, i
+!  type(list_iterator_t) :: vertices_iterator
 
-  call this%get_cell_around (1, cell) ! there is always one element around
-  ivef = cell%find_lpos_vef_lid(this%get_lid())
-  cell_num_vefs = cell%get_num_vefs()
-  call this%base_static_triangulation%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
-  assert(istat==key_found)
-  vertices_per_vef => this%base_static_triangulation%reference_fe_geo_list(cell_type)%p%get_vertices_vef()
-  vertices_iterator = vertices_per_vef%create_iterator(ivef)
-  num_vertices = vertices_iterator%get_size()
-  ! Alternatively:
-  !num_vertices = this%reference_fe_geo_list(cell_type)%p%get_number_vertices_vef(ivef)
-  assert(size(vertices)>=num_vertices)
-  do i=1, num_vertices
-     vertices(i) = vertices_iterator%get_current()
-     call vertices_iterator%next()
-  enddo
-end subroutine vef_accessor_get_vertices
+!  call this%get_cell_around (1, cell) ! there is always one element around
+!  ivef = cell%find_lpos_vef_lid(this%get_lid())
+!  cell_num_vefs = cell%get_num_vefs()
+!  call this%base_static_triangulation%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
+!  assert(istat==key_found)
+!  vertices_per_vef => this%base_static_triangulation%reference_fe_geo_list(cell_type)%p%get_vertices_vef()
+!  vertices_iterator = vertices_per_vef%create_iterator(ivef)
+!  num_vertices = vertices_iterator%get_size()
+!  ! Alternatively:
+!  !num_vertices = this%reference_fe_geo_list(cell_type)%p%get_number_vertices_vef(ivef)
+!  assert(size(vertices)>=num_vertices)
+!  do i=1, num_vertices
+!     vertices(i) = vertices_iterator%get_current()
+!     call vertices_iterator%next()
+!  enddo
+!end subroutine vef_accessor_get_vertices

@@ -164,28 +164,13 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
      call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
 
      call this%allocate_and_fill_cells_around()
-     call this%allocate_and_fill_vef_type()
+     call this%compute_vefs_dimension()
+     call this%find_vefs_at_boundary()
+     call this%find_and_list_vefs_at_interfaces()
+     !call this%allocate_and_fill_vef_type()
+
      call this%allocate_and_fill_nodes()
-
-     !call this%compute_vefs_dimension()
-     !write(*,*) 'vefs generated'
-     !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
-
      call this%allocate_and_fill_coordinates(mesh%get_coordinates())
-     ! Allocate + fill vefs-related data
-     !call this%compute_num_local_vefs()
-     !call this%compute_num_ghost_vefs()
-
-     !call this%allocate_and_fill_vefs_gid(lst_vefs_gids_ghost_extended)
-     !call this%allocate_and_fill_vefs_dimension(lst_vefs_dimension_ghost_extended)
-
-     write(*,*) 'Computing interface lists'
-     call this%allocate_and_fill_cells_around() ! Now around efs too
-     call this%compute_num_itfc_vefs()
-     call this%allocate_and_fill_lst_itfc_vefs()
-     !call this%allocate_and_fill_vefs_itfc_lid()
-     !write(*,*) 'Interface lists computed'
-     !call this%allocate_and_fill_cells_around_interface_vefs()
 
      call memfree (lst_vefs_gids_ghost_extended, __FILE__, __LINE__)
      !call memfree (lst_vefs_dimension_ghost_extended, __FILE__, __LINE__)
@@ -252,6 +237,13 @@ subroutine par_triangulation_allocate_and_fill_lst_vefs_lids ( this, lst_vefs_li
 
 end subroutine par_triangulation_allocate_and_fill_lst_vefs_lids
 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! The following routines are not used, can be eliminated (after testing). Actually
+! they are not TBPs nor public (so they cannot be called).
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine par_triangulation_compute_num_itfc_vefs ( this )
   implicit none
   class(new_par_triangulation_t), intent(inout) :: this

@@ -84,86 +84,19 @@
     !write(*,*) this%lst_cells_around
     write(*,*) 'Dual mesh ready'
 
-    call this%allocate_and_fill_vef_type()
+    call this%compute_vefs_dimension()
+    call this%find_vefs_at_boundary()
+    call this%find_and_list_vefs_at_interfaces() ! Is this needed?
+    !call this%allocate_and_fill_vef_type()
+
+    write(*,*) 'Numbering nodes and filling coordinates'
     call this%allocate_and_fill_nodes()
     !write(*,*) 'List of nodes (ptr):'
     !write(*,*) this%ptr_nodes_per_cell
     !write(*,*) 'List of nodes (lst):'
     !write(*,*) this%lst_nodes
-
-    write(*,*) 'Filling coordinates'
     call this%allocate_and_fill_coordinates(mesh%get_coordinates())
 
     call mesh%free()
   end subroutine serial_triangulation_create
   
-  recursive subroutine serial_triangulation_free ( this )
-    implicit none
-    class(serial_triangulation_t), intent(inout) :: this
-    integer(ip)                                  :: icell, ivef, istat
-    call this%free_ptr_vefs_per_cell()
-    call this%free_lst_vefs_lids()
-
-    call this%free_cells_around()
-
-    if(allocated(this%vefs_geometry)) call memfree(this%vefs_geometry, __FILE__, __LINE__ )
-    if(allocated(this%vefs_set)) call memfree(this%vefs_set, __FILE__, __LINE__ )
-
-    this%num_local_cells = -1
-    this%num_vefs = -1
-    !JP-TODO: free coordinates
-  end subroutine serial_triangulation_free
-
-  subroutine serial_triangulation_print ( this )
-    class(serial_triangulation_t), intent(in) :: this
-    integer(ip) :: ivef,inode
-    type(vef_iterator_t)  :: vef_iterator
-    type(vef_accessor_t)  :: vef
-    type(cell_iterator_t) :: cell_iterator
-    type(cell_accessor_t) :: cell
-    type(point_t), allocatable :: cell_coordinates(:)
-    !type(vef_accessor_t)  :: vef
-    integer(ip) :: vef_lid
-
-    write (*,'(a)') '****print type(serial_triangulation_t)****'
-    write (*,'(a,i10)'  ) 'num_dimensions:', this%num_dimensions
-    write (*,'(a,i10)'  ) 'num_local_cells:', this%num_local_cells
-    write (*,'(a,i10)'  ) 'num_ghost_cells:', this%num_ghost_cells
-     
-    write (*,'(a)') '**** Cells ****'
-    cell_iterator = this%create_cell_iterator()
-    ! Allocate cell_coordinates using size of first cell
-    call cell_iterator%current(cell)
-    call memalloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
-
-    do while ( .not. cell_iterator%has_finished() )
-       call cell_iterator%current(cell)
-       write(*,'(a,i10,a)') '**** cell: ', cell%get_lid(),'****'
-       write (*,'(a,i10)'  ) 'num_vefs :', cell%get_num_vefs()
-       write (*,'(a)') 'vefs_lid:' 
-       do ivef=1, cell%get_num_vefs()
-          write (*,'(a,i10)'  ) 'vef_lid:', cell%get_vef_lid(ivef)
-       end do
-       write (*,'(a,i10)'  ) 'num_nodes :', cell%get_num_nodes()
-       call memrealloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
-       call cell%get_coordinates (cell_coordinates)
-      
-       do inode=1, cell%get_num_nodes()
-          write (*,'(a,i10,3(2x,e15.7))'  ) 'node:', cell%get_node_lid(inode), cell_coordinates(inode)%get_value()
-       end do
-       call cell_iterator%next()
-    end do
-    write (*,'(a)') '**** End Cells ****'
-
-    write (*,'(a)') '**** Vefs ****'
-    write (*,'(a)') '        id          dim    is_at_bound       set        geom '
-    
-    vef_iterator = this%create_vef_iterator()
-    do while ( .not. vef_iterator%has_finished() )
-       call vef_iterator%current (vef) 
-       vef_lid = vef%get_lid()
-       write(*,'(2(i10,2x),10x,l1,5(2x,i10))') vef_lid,  vef%get_dimension(), vef%is_at_boundary(), this%vefs_set(vef_lid),this%vefs_geometry(vef_lid)
-       call vef_iterator%next()
-    end do
-
-  end subroutine serial_triangulation_print

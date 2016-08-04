@@ -1941,6 +1941,7 @@ contains
              end if
           end do
           if(count_it) then
+             !write(*,*) '1',ivef_lmesh,node_list
              call lmesh%given_vefs%sum_to_pointer_index(ivef_lmesh, kvef_size)
              lmesh%lst_vefs_geo(ivef_lmesh)=gmesh%lst_vefs_geo(ivef_gmesh)
              lmesh%lst_vefs_set(ivef_lmesh)=gmesh%lst_vefs_set(ivef_gmesh)
@@ -1950,15 +1951,41 @@ contains
 
        call lmesh%given_vefs%calculate_header()
        call lmesh%given_vefs%allocate_list_from_pointer()
-       do ivef_lmesh=1,lmesh%given_vefs%get_num_pointers()
-          given_vefs_iterator = lmesh%given_vefs%create_iterator(ivef_lmesh)
+
+       ivef_lmesh=1
+       do ivef_gmesh=1,gmesh%given_vefs%get_num_pointers()
+          given_vefs_iterator = gmesh%given_vefs%create_iterator(ivef_gmesh)
           kvef_size = given_vefs_iterator%get_size()
+          count_it=.true.
           do inode=1,kvef_size
              call ws_inmap%get(key=int(given_vefs_iterator%get_current(),igp),val=node_list(inode),stat=istat)
-			          call given_vefs_iterator%set_current(node_list(inode))
-			          call given_vefs_iterator%next()
-          enddo
-       enddo
+             call given_vefs_iterator%next()
+             if(istat==key_not_found) then
+                count_it=.false.
+                exit
+             end if
+          end do
+          if(count_it) then
+             !write(*,*) '2',ivef_lmesh,node_list
+             given_vefs_iterator = lmesh%given_vefs%create_iterator(ivef_lmesh)
+             do inode=1,kvef_size
+			             call given_vefs_iterator%set_current(node_list(inode))
+			             call given_vefs_iterator%next()
+             enddo
+             ivef_lmesh=ivef_lmesh+1
+          end if
+       end do
+       
+       !do ivef_lmesh=1,lmesh%given_vefs%get_num_pointers()
+       !   given_vefs_iterator = lmesh%given_vefs%create_iterator(ivef_lmesh)
+       !   kvef_size = given_vefs_iterator%get_size()
+       !   do inode=1,kvef_size
+       !      call ws_inmap%get(key=int(given_vefs_iterator%get_current(),igp),val=node_list(inode),stat=istat)
+			    !      call given_vefs_iterator%set_current(node_list(inode))
+			    !      call given_vefs_iterator%next()
+       !   enddo
+       !   write(*,*) '2',ivef_lmesh,node_list
+       !enddo
 
        call memfree (node_list, __FILE__,__LINE__)
     end if

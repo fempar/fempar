@@ -25,13 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine object_iterator_create ( this, lid, par_base_static_triangulation ) 
+subroutine object_iterator_create ( this, lid, base_static_triangulation ) 
   implicit none
-  class(object_iterator_t)              , intent(inout) :: this
-  integer(ip)                           , intent(in)    :: lid
-  class(par_base_static_triangulation_t), intent(in)    :: par_base_static_triangulation
+  class(object_iterator_t)          , intent(inout) :: this
+  integer(ip)                       , intent(in)    :: lid
+  class(base_static_triangulation_t), intent(in)    :: base_static_triangulation
   call this%free()
-  call this%current_object_accessor%create(lid=lid, par_base_static_triangulation=par_base_static_triangulation )
+  call this%current_object_accessor%create(lid=lid, base_static_triangulation=base_static_triangulation )
 end subroutine object_iterator_create
 
 subroutine object_iterator_free ( this ) 

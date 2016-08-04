@@ -144,6 +144,10 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_triangulation         => vef_accessor_get_triangulation
      procedure, non_overridable          :: get_lid                   => vef_accessor_get_lid
      procedure, non_overridable          :: get_gid                   => vef_accessor_get_gid
+
+     procedure, non_overridable          :: set_geom_id               => vef_accessor_set_geom_id
+     procedure, non_overridable          :: set_set_id                => vef_accessor_set_set_id
+     procedure, non_overridable          :: get_geom_id               => vef_accessor_get_geom_id
      procedure, non_overridable          :: get_set_id                => vef_accessor_get_set_id
 
      procedure, non_overridable          :: set_dimension             => vef_accessor_set_dimension
@@ -161,7 +165,7 @@ module base_static_triangulation_names
      
      procedure, non_overridable          :: get_num_cells_around      => vef_accessor_get_num_cells_around
      generic                             :: get_cell_around           => vef_accessor_get_cell_around
-     procedure, non_overridable          :: get_vertices              => vef_accessor_get_vertices
+     !procedure, non_overridable          :: get_vertices              => vef_accessor_get_vertices
   end type vef_accessor_t
 
   ! So far this is just a rename
@@ -229,130 +233,11 @@ module base_static_triangulation_names
      !procedure, non_overridable          :: next         => faces_iterator_next
   end type faces_iterator_t
 
-  
-   ! JP-TODO: implement states: discuss with Alberto and Victor.
-   !
-   ! State transition diagram for type(base_static_triangulation_t). The
-   ! creation of reference elements must be performed together
-   ! with reading from mesh when going from created to elements_filled.
-   !
-   ! ------------------------------------------------...--------
-   ! Input State      | Action                    | Output State 
-   ! -----------------------------------------------------------
-   ! not_created      | create                    | created 
-   ! not_created      | free                      | not_created
-   ! created          | free                      | not_created
-   ! created          | external (read from mesh) | elements_filled
-   ! elements_filled  | create_dual               | vefs_filled
-   ! elements_filled  | free                      | not_created
-   ! vefs_filled      | free                      | not_created
 
-   !integer(ip), parameter :: base_static_triangulation_not_created     = 0 
-   !integer(ip), parameter :: base_static_triangulation_created         = 1 
-   !integer(ip), parameter :: base_static_triangulation_elements_filled = 2 
-   !integer(ip), parameter :: base_static_triangulation_vefs_filled     = 3 
-
-  integer(ip), parameter      :: max_num_elem_types = 3
-  integer(ip), parameter      :: all_vefs = 0
-  integer(ip), parameter      :: interface_vefs = 1
-
-  type base_static_triangulation_t ! Base class for serial_triangulation_t and par_base_static_triangulation_t
-     private
-     type(geometry_t) :: geometry
-
-     integer(ip)                           :: num_dimensions  = -1
-     integer(ip)                           :: num_local_cells = -1
-     integer(ip)                           :: num_ghost_cells = -1
-     integer(ip)                           :: max_vefs_per_cell = -1
-
-     integer(igp), allocatable             :: cells_gid(:)               ! Num local cells + num ghost cells
-     integer(ip) , allocatable             :: cells_mypart(:)            ! Num local cells + num ghost cells
-     
-     type(p_reference_fe_t)                :: reference_fe_geo_list(max_num_elem_types)
-     type(hash_table_ip_ip_t)              :: reference_fe_geo_index
-     integer(ip) , allocatable             :: ptr_vefs_per_cell(:)       ! Num local cells + num ghost cells + 1
-     integer(ip) , allocatable             :: lst_vefs_lids(:)
-
-     ! Geometry interpolation
-     integer(ip)                           :: num_nodes
-     integer(ip) , allocatable             :: ptr_nodes_per_cell(:)       ! Num local cells + num ghost cells + 1
-     integer(ip) , allocatable             :: lst_nodes(:)
-     type(point_t), allocatable            :: coordinates(:)
-     
-     integer(ip)                           :: num_vefs = -1        ! = num_local_vefs + num_ghost_vefs
-     integer(ip)                           :: num_vertices = 0
-     integer(ip)                           :: num_edges = 0
-     integer(ip)                           :: num_faces = 0
-     integer(ip)                           :: num_local_vefs = -1
-     integer(ip)                           :: num_ghost_vefs = -1
-     integer(igp), allocatable             :: vefs_gid(:)          ! num_local_vefs + num_ghost_vefs
-     integer(ip) , allocatable             :: vefs_set(:)          ! num_local_vefs + num_ghost_vefs
-     integer(ip) , allocatable             :: vefs_geometry(:)     ! num_local_vefs + num_ghost_vefs
-     integer(ip) , allocatable             :: vefs_dimension(:)    ! num_local_vefs + num_ghost_vefs
-     integer(ip) , allocatable             :: vefs_type(:)         ! num_local_vefs + num_ghost_vefs, will replace vefs_dimension
-                                                                   ! above and vef_itfc_lid below (which is currently only accessed
-                                                                   ! to check whether a vef is interface or not).
-     !integer(ip) , allocatable             :: vefs_itfc_lid(:)     ! num_local_vefs + num_ghost_vefs
-
-     integer(ip)                           :: num_itfc_vefs  = -1
-     integer(ip), allocatable              :: lst_itfc_vefs(:)
-     integer(ip), allocatable              :: ptrs_cells_around(:) ! num_itfc_vefs+1
-     integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
-     
- contains  
-  
-     ! Private methods for creating vef-related data
-     procedure, non_overridable, private :: free_ptr_vefs_per_cell             => base_static_triangulation_free_ptr_vefs_per_cell
-     procedure, non_overridable, private :: free_lst_vefs_lids                 => base_static_triangulation_free_lst_vefs_lids 
-
-     procedure, non_overridable, private :: compute_num_vefs                   => base_static_triangulation_compute_num_vefs
-     procedure, non_overridable, private :: allocate_and_fill_vefs_gid         => base_static_triangulation_allocate_and_fill_vefs_gid
-     procedure, non_overridable, private :: free_vefs_gid                      => base_static_triangulation_free_vefs_gid
-     
-     procedure, non_overridable, private :: allocate_and_fill_cells_around     => base_static_triangulation_allocate_and_fill_cells_around
-     procedure, non_overridable, private :: free_cells_around                  => base_static_triangulation_free_cells_around
-     procedure, non_overridable, private :: generate_vefs                      => base_static_triangulation_generate_vefs
-
-     procedure, non_overridable, private :: allocate_and_fill_geometry_and_set => base_static_triangulation_allocate_and_fill_geometry_and_set
-     procedure, non_overridable, private :: free_geometry_and_set              => base_static_triangulation_free_geometry_and_set
-     
-     procedure, non_overridable, private :: allocate_and_fill_vef_type         => base_static_triangulation_allocate_and_fill_vef_type
-     procedure, non_overridable, private :: free_vefs_type                     => base_static_triangulation_free_vefs_type
-     
-     procedure, non_overridable, private :: allocate_and_fill_nodes            => base_static_triangulation_allocate_and_fill_nodes
-     procedure, non_overridable, private :: free_nodes                         => base_static_triangulation_free_nodes
-
-     ! Geometry interpolation
-     procedure, non_overridable          :: allocate_and_fill_coordinates      => base_static_triangulation_allocate_and_fill_coordinates
-     procedure, non_overridable          :: free_coordinates                   => base_static_triangulation_free_coordinates
-
-     ! Getters
-     procedure, non_overridable          :: get_num_dimensions                 => base_static_triangulation_get_num_dimensions
-     procedure, non_overridable          :: get_num_vefs                       => base_static_triangulation_get_num_vefs 
-     procedure, non_overridable          :: get_num_local_vefs                 => base_static_triangulation_get_num_local_vefs
-     procedure, non_overridable          :: get_num_ghost_vefs                 => base_static_triangulation_get_num_ghost_vefs
-     procedure, non_overridable          :: get_num_cells                      => base_static_triangulation_get_num_cells
-     procedure, non_overridable          :: get_num_local_cells                => base_static_triangulation_get_num_local_cells
-     procedure, non_overridable          :: get_num_ghost_cells                => base_static_triangulation_get_num_ghost_cells
-     
-     ! Cell traversals-related TBPs
-     procedure, non_overridable          :: create_cell_iterator               => base_static_triangulation_create_cell_iterator
-  
-     ! Vef traversals-related TBPs
-     procedure, non_overridable          :: create_vef_iterator                => base_static_triangulation_create_vef_iterator
-     procedure, non_overridable          :: create_vertices_iterator           => base_static_triangulation_create_vertices_iterator
-     procedure, non_overridable          :: create_edges_iterator              => base_static_triangulation_create_edges_iterator
-     procedure, non_overridable          :: create_faces_iterator              => base_static_triangulation_create_faces_iterator
-     procedure, non_overridable          :: create_itfc_vef_iterator           => base_static_triangulation_create_itfc_vef_iterator
-
-     procedure, non_overridable          :: print                              => base_static_triangulation_print    
- 
-  end type base_static_triangulation_t
-  
   type object_accessor_t
     private
-    integer(ip)                                     :: lid = -1
-    class(par_base_static_triangulation_t), pointer :: par_base_static_triangulation
+    integer(ip)                                 :: lid = -1
+    class(base_static_triangulation_t), pointer :: base_static_triangulation
   contains
     procedure                   :: object_accessor_create
     generic                     :: create                         => object_accessor_create
@@ -394,115 +279,222 @@ module base_static_triangulation_names
     procedure, non_overridable          :: has_finished => vefs_on_object_iterator_has_finished
     generic                             :: current      => vefs_on_object_iterator_current
   end type vefs_on_object_iterator_t
-  
-  
-  type, extends(base_static_triangulation_t) :: par_base_static_triangulation_t
+   
+   ! JP-TODO: implement states: discuss with Alberto and Victor.
+   !
+   ! State transition diagram for type(base_static_triangulation_t). The
+   ! creation of reference elements must be performed together
+   ! with reading from mesh when going from created to elements_filled.
+   !
+   ! ------------------------------------------------...--------
+   ! Input State      | Action                    | Output State 
+   ! -----------------------------------------------------------
+   ! not_created      | create                    | created 
+   ! not_created      | free                      | not_created
+   ! created          | free                      | not_created
+   ! created          | external (read from mesh) | elements_filled
+   ! elements_filled  | create_dual               | vefs_filled
+   ! elements_filled  | free                      | not_created
+   ! vefs_filled      | free                      | not_created
+
+   !integer(ip), parameter :: base_static_triangulation_not_created     = 0 
+   !integer(ip), parameter :: base_static_triangulation_created         = 1 
+   !integer(ip), parameter :: base_static_triangulation_elements_filled = 2 
+   !integer(ip), parameter :: base_static_triangulation_vefs_filled     = 3 
+
+  integer(ip), parameter      :: max_num_elem_types = 3
+
+  type base_static_triangulation_t ! Base class for serial_triangulation_t and par_base_static_triangulation_t
      private
+
      ! Parallel environment describing MPI tasks among which the triangulation is distributed
+     ! (NULL for serial triangulation)
      type(par_environment_t),   pointer      :: p_env => NULL()
      
+     ! Sizes
+     integer(ip)                           :: num_dimensions  = -1
+
+     ! Data structures to store cell related information
+     integer(ip)                           :: num_local_cells = -1
+     integer(ip)                           :: num_ghost_cells = -1
+     integer(ip)                           :: max_vefs_per_cell = -1
+     integer(igp), allocatable             :: cells_gid(:)               ! Num local cells + num ghost cells
+     integer(ip) , allocatable             :: cells_mypart(:)            ! Num local cells + num ghost cells
+     integer(ip) , allocatable             :: ptr_vefs_per_cell(:)       ! Num local cells + num ghost cells + 1
+     integer(ip) , allocatable             :: lst_vefs_lids(:)
+
      ! Data type describing the layout in distributed-memory of the dual graph
      ! (It is required, e.g., for nearest neighbour comms on this graph)
-     type(element_import_t)                  :: element_import   
+     type(element_import_t)                :: element_import   
      
+     ! Data structures to store vef related information
+     integer(ip)                           :: num_vefs = -1        ! = num_local_vefs + num_ghost_vefs 
+                                                                   ! = num_vertices + num_edges + num_faces
+     integer(ip)                           :: num_local_vefs = -1
+     integer(ip)                           :: num_ghost_vefs = -1
+     integer(ip)                           :: num_vertices = 0
+     integer(ip)                           :: num_edges = 0
+     integer(ip)                           :: num_faces = 0
+     integer(igp), allocatable             :: vefs_gid(:)          ! num_local_vefs + num_ghost_vefs
+     integer(ip) , allocatable             :: vefs_set(:)          ! num_local_vefs + num_ghost_vefs
+     integer(ip) , allocatable             :: vefs_geometry(:)     ! num_local_vefs + num_ghost_vefs
+     integer(ip) , allocatable             :: vefs_dimension(:)    ! num_local_vefs + num_ghost_vefs
+     integer(ip) , allocatable             :: vefs_type(:)         ! num_local_vefs + num_ghost_vefs, will replace vefs_dimension
+                                                                   ! above and vef_itfc_lid below (which is currently only accessed
+                                                                   ! to check whether a vef is interface or not).
+     integer(ip)                           :: num_itfc_vefs  = -1
+     integer(ip), allocatable              :: lst_itfc_vefs(:)
+     integer(ip), allocatable              :: ptrs_cells_around(:) ! num_itfc_vefs+1
+     integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
+
+     ! Data structures to create objects
      ! Perhaps the following three member variables should be packed within type(map_t) ?
      ! I didn't do that because type(map_t) has extra members that do not make sense anymore
      ! for the current situation with objects (i.e., interior, boundary, external) etc.
      integer(ip)                             :: number_global_objects = -1
      integer(ip)                             :: number_objects = -1
      integer(igp), allocatable               :: objects_gids(:)
-     integer(ip), allocatable                :: objects_dimension(:)
+     integer(ip) , allocatable               :: objects_dimension(:)
      type(list_t)                            :: vefs_object
      type(list_t)                            :: parts_object
      type(coarse_triangulation_t), pointer   :: coarse_triangulation
-  contains
-     procedure, non_overridable          :: free                                           => par_base_static_tria_free
-     !procedure, non_overridable          :: print                                          => par_base_static_tria_print    
+
+     ! Data structures that should be defined in fine_triangulation_t (which requires extensive refactoring)     
+     type(geometry_t) :: geometry
+     type(p_reference_fe_t)                :: reference_fe_geo_list(max_num_elem_types)
+     type(hash_table_ip_ip_t)              :: reference_fe_geo_index
+     ! Geometry interpolation
+     integer(ip)                           :: num_nodes
+     integer(ip) , allocatable             :: ptr_nodes_per_cell(:)       ! Num local cells + num ghost cells + 1
+     integer(ip) , allocatable             :: lst_nodes(:)
+     type(point_t), allocatable            :: coordinates(:)
+     
+ contains  
 
      ! Getters
-     procedure, non_overridable          :: get_par_environment                            => par_base_static_tria_get_par_environment
-     procedure, non_overridable          :: get_element_import                             => par_base_static_tria_get_element_import
-     procedure, non_overridable          :: get_coarse_triangulation                       => par_base_static_tria_get_coarse_triangulation
-  
+     procedure, non_overridable          :: get_par_environment                 => bst_get_par_environment
+     procedure, non_overridable          :: get_element_import                  => bst_get_element_import
+     procedure, non_overridable          :: get_coarse_triangulation            => bst_get_coarse_triangulation
+     procedure, non_overridable          :: get_num_dimensions                  => bst_get_num_dimensions
+     procedure, non_overridable          :: get_num_vefs                        => bst_get_num_vefs 
+     procedure, non_overridable          :: get_num_local_vefs                  => bst_get_num_local_vefs
+     procedure, non_overridable          :: get_num_ghost_vefs                  => bst_get_num_ghost_vefs
+     procedure, non_overridable          :: get_num_cells                       => bst_get_num_cells
+     procedure, non_overridable          :: get_num_local_cells                 => bst_get_num_local_cells
+     procedure, non_overridable          :: get_num_ghost_cells                 => bst_get_num_ghost_cells
+     procedure, non_overridable          :: get_number_objects                  => bst_get_number_objects
+
      ! Private methods for creating cell-related data
-     procedure, non_overridable, private :: compute_num_local_vefs                         => par_base_static_tria_compute_num_local_vefs
-     procedure, non_overridable, private :: compute_num_ghost_vefs                         => par_base_static_tria_compute_num_ghost_vefs
-     procedure, non_overridable, private :: allocate_and_fill_ptr_vefs_per_cell            => par_base_static_tria_allocate_and_fill_ptr_vefs_per_cell
-     procedure, non_overridable, private :: allocate_cells_gid                             => par_base_static_tria_allocate_cells_gid
-     procedure, non_overridable, private :: free_cells_gid                                 => par_base_static_tria_free_cells_gid
-     procedure, non_overridable, private :: fill_local_cells_gid                           => par_base_static_tria_fill_local_cells_gid
-     procedure, non_overridable, private :: allocate_cells_mypart                          => par_base_static_tria_allocate_cells_mypart
-     procedure, non_overridable, private :: free_cells_mypart                              => par_base_static_tria_free_cells_mypart
-     procedure, non_overridable, private :: fill_local_cells_mypart                        => par_base_static_tria_fill_local_cells_mypart
+     procedure, non_overridable, private :: compute_num_local_vefs              => bst_compute_num_local_vefs
+     procedure, non_overridable, private :: compute_num_ghost_vefs              => bst_compute_num_ghost_vefs
+     procedure, non_overridable, private :: allocate_and_fill_ptr_vefs_per_cell => bst_allocate_and_fill_ptr_vefs_per_cell
+     procedure, non_overridable, private :: allocate_cells_gid                  => bst_allocate_cells_gid
+     procedure, non_overridable, private :: fill_local_cells_gid                => bst_fill_local_cells_gid
+     procedure, non_overridable, private :: allocate_cells_mypart               => bst_allocate_cells_mypart
+     procedure, non_overridable, private :: fill_local_cells_mypart             => bst_fill_local_cells_mypart
+     procedure, non_overridable, private :: free_ptr_vefs_per_cell              => bst_free_ptr_vefs_per_cell
+     procedure, non_overridable, private :: free_lst_vefs_lids                  => bst_free_lst_vefs_lids 
+     procedure, non_overridable, private :: free_cells_gid                      => bst_free_cells_gid
+     procedure, non_overridable, private :: free_cells_mypart                   => bst_free_cells_mypart
 
-     !procedure, non_overridable, private :: allocate_and_fill_cells_around_interface_vefs  => par_bst_allocate_and_fill_cells_around_interface_vefs
-
-     procedure, non_overridable, private :: fetch_ghost_cells_data                         => par_base_static_tria_fetch_ghost_cells_data
-     procedure, non_overridable, nopass, private :: cell_size                              => par_base_static_tria_cell_size
-     procedure, non_overridable, nopass, private :: cell_pack                              => par_base_static_tria_cell_pack
-     procedure, non_overridable, nopass, private :: cell_unpack                            => par_base_static_tria_cell_unpack
+     ! Private methods to perform nearest neighbor exchange
+     procedure, non_overridable, private :: fetch_ghost_cells_data              => bst_fetch_ghost_cells_data
+     procedure, non_overridable, nopass, private :: cell_size                   => bst_cell_size
+     procedure, non_overridable, nopass, private :: cell_pack                   => bst_cell_pack
+     procedure, non_overridable, nopass, private :: cell_unpack                 => bst_cell_unpack
 
      ! Private methods for creating vef-related data
-     !procedure, non_overridable, private :: allocate_and_fill_vefs_itfc_lid                => par_base_static_tria_allocate_and_fill_vefs_itfc_lid
-     procedure, non_overridable, private :: free_lst_itfc_vefs                             => par_base_static_tria_free_lst_itfc_vefs
-     !procedure, non_overridable, private :: free_vefs_itfc_lid                             => par_base_static_tria_free_vefs_itfc_lid
+     procedure, non_overridable, private :: compute_num_vefs                    => bst_compute_num_vefs
+     procedure, non_overridable, private :: allocate_and_fill_vefs_gid          => bst_allocate_and_fill_vefs_gid
+     procedure, non_overridable, private :: free_vefs_gid                       => bst_free_vefs_gid
+     procedure, non_overridable, private :: free_vefs_type                      => bst_triangulation_free_vefs_type
+     procedure, non_overridable, private :: allocate_and_fill_cells_around      => bst_allocate_and_fill_cells_around
+     procedure, non_overridable, private :: free_cells_around                   => bst_free_cells_around
+     procedure, non_overridable, private :: find_and_list_vefs_at_interfaces    => bst_find_and_list_vefs_at_interfaces
+     procedure, non_overridable, private :: free_lst_itfc_vefs                  => bst_free_lst_itfc_vefs
 
-     ! Private methods for creating coarse objects-related data
-     procedure, non_overridable, private :: compute_parts_itfc_vefs                        => par_base_static_tria_compute_parts_itfc_vefs
-     procedure, non_overridable, private :: compute_vefs_and_parts_object                  => par_base_static_tria_compute_vefs_and_parts_object
-     procedure, non_overridable, private :: compute_objects_dimension                      => par_base_static_tria_compute_objects_dimension
-     procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => par_base_static_tria_compute_objects_neighbours_exchange_data
-     procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => par_base_static_tria_compute_num_global_objs_and_their_gids
-     
+     ! Private methods to compute objects
+     procedure, non_overridable, private :: compute_vefs_and_parts_object                  => bst_compute_vefs_and_parts_object
+     procedure, non_overridable, private :: compute_objects_dimension                      => bst_compute_objects_dimension
+     procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => bst_compute_objects_neighbours_exchange_data
+     procedure, non_overridable, private :: compute_number_global_objects_and_their_gids   => bst_compute_num_global_objs_and_their_gids
+     procedure, non_overridable, private :: free_objects_gids_and_dim                      => bst_free_objects_gids_and_dim
+
      ! Private methods for coarser triangulation set-up
-     procedure, non_overridable, private :: setup_coarse_triangulation                     => par_base_static_tria_setup_coarse_triangulation
-     procedure, non_overridable, private :: gather_coarse_cell_gids                        => par_base_static_tria_gather_coarse_cell_gids
-     procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs       => par_base_static_tria_gather_coarse_vefs_rcv_counts_and_displs
-     procedure, non_overridable, private :: gather_coarse_vefs_gids                        => par_base_static_tria_gather_coarse_vefs_gids
-     procedure, non_overridable, private :: gather_coarse_vefs_dimension                   => par_base_static_tria_gather_coarse_vefs_dimension
-     procedure, non_overridable, private :: fetch_l2_part_id_neighbours                    => par_base_static_tria_fetch_l2_part_id_neighbours
-     procedure, non_overridable, private :: gather_coarse_dgraph_rcv_counts_and_displs     => par_base_static_tria_gather_coarse_dgraph_rcv_counts_and_displs
-     procedure, non_overridable, private :: gather_coarse_dgraph_lextn_and_lextp           => par_base_static_tria_gather_coarse_dgraph_lextn_and_lextp
-     procedure, non_overridable, private :: adapt_coarse_raw_arrays                        => par_base_static_tria_adapt_coarse_raw_arrays
+     procedure, non_overridable, private :: setup_coarse_triangulation                     => bst_setup_coarse_triangulation
+     procedure, non_overridable, private :: gather_coarse_cell_gids                        => bst_gather_coarse_cell_gids
+     procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs       => bst_gather_coarse_vefs_rcv_counts_and_displs
+     procedure, non_overridable, private :: gather_coarse_vefs_gids                        => bst_gather_coarse_vefs_gids
+     procedure, non_overridable, private :: gather_coarse_vefs_dimension                   => bst_gather_coarse_vefs_dimension
+     procedure, non_overridable, private :: fetch_l2_part_id_neighbours                    => bst_fetch_l2_part_id_neighbours
+     procedure, non_overridable, private :: gather_coarse_dgraph_rcv_counts_and_displs     => bst_gather_coarse_dgraph_rcv_counts_and_displs
+     procedure, non_overridable, private :: gather_coarse_dgraph_lextn_and_lextp           => bst_gather_coarse_dgraph_lextn_and_lextp
+     procedure, non_overridable, private :: adapt_coarse_raw_arrays                        => bst_adapt_coarse_raw_arrays
      
-     ! Objects-related traversals
-     procedure, non_overridable          :: create_object_iterator                        => par_base_static_tria_create_object_iterator
-     procedure, non_overridable          :: create_vefs_on_object_iterator                => par_base_static_tria_create_vefs_on_object_iterator
-     
-     ! Getters
-     procedure, non_overridable          :: get_number_objects                            => par_base_static_tria_get_number_objects
-  end type par_base_static_triangulation_t
+     ! Cell traversals-related TBPs
+     procedure, non_overridable          :: create_cell_iterator                => bst_create_cell_iterator
   
-  type, extends(base_static_triangulation_t) :: serial_triangulation_t
+     ! Vef traversals-related TBPs
+     procedure, non_overridable          :: create_vef_iterator                 => bst_create_vef_iterator
+     procedure, non_overridable          :: create_vertices_iterator            => bst_create_vertices_iterator
+     procedure, non_overridable          :: create_edges_iterator               => bst_create_edges_iterator
+     procedure, non_overridable          :: create_faces_iterator               => bst_create_faces_iterator
+     procedure, non_overridable          :: create_itfc_vef_iterator            => bst_create_itfc_vef_iterator
+
+     ! Objects-related traversals
+     procedure, non_overridable          :: create_object_iterator              => bst_create_object_iterator
+     procedure, non_overridable          :: create_vefs_on_object_iterator      => bst_create_vefs_on_object_iterator
+  
+     ! Other
+     procedure, non_overridable          :: print                               => bst_print    
+     procedure                           :: free                                => bst_free
+   
+  end type base_static_triangulation_t
+  
+  type, extends(base_static_triangulation_t) :: fine_triangulation_t
+     private
+  contains
+     ! Private methods to create vefs (these functions make use of the reference fe and therefore are not bounded
+     ! to the mother class)
+     procedure, non_overridable, private :: generate_vefs                       => fine_triangulation_generate_vefs
+     procedure, non_overridable, private :: allocate_and_fill_geometry_and_set  => fine_triangulation_allocate_and_fill_geometry_and_set
+     procedure, non_overridable, private :: free_geometry_and_set               => fine_triangulation_free_geometry_and_set
+     procedure, non_overridable, private :: compute_vefs_dimension              => fine_triangulation_compute_vefs_dimension
+     procedure, non_overridable, private :: find_vefs_at_boundary               => fine_triangulation_find_vefs_at_boundary
+     ! Geometry interpolation 
+     procedure, non_overridable, private :: allocate_and_fill_nodes             => fine_triangulation_allocate_and_fill_nodes
+     procedure, non_overridable, private :: free_nodes                          => fine_triangulation_free_nodes
+     procedure, non_overridable          :: allocate_and_fill_coordinates       => fine_triangulation_allocate_and_fill_coordinates
+     procedure, non_overridable          :: free_coordinates                    => fine_triangulation_free_coordinates
+     procedure, non_overridable          :: free                                => fine_triangulation_free     
+  end type fine_triangulation_t
+
+
+  type, extends(fine_triangulation_t) :: serial_triangulation_t
   contains
      procedure, non_overridable          :: create                              => serial_triangulation_create
-     procedure, non_overridable          :: free                                => serial_triangulation_free
-     !procedure, non_overridable          :: print                               => serial_triangulation_print
   end type serial_triangulation_t
   
-  type, extends(par_base_static_triangulation_t) :: new_par_triangulation_t
+  type, extends(fine_triangulation_t) :: new_par_triangulation_t
   contains
      procedure, non_overridable          :: create                              => par_triangulation_create
      procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => par_triangulation_allocate_and_fill_lst_vefs_lids 
      ! Private methods for creating vef-related data
-     procedure, non_overridable, private :: compute_num_itfc_vefs               => par_triangulation_compute_num_itfc_vefs
-     procedure, non_overridable, private :: allocate_and_fill_lst_itfc_vefs     => par_triangulation_allocate_and_fill_lst_itfc_vefs
+     !procedure, non_overridable, private :: compute_num_itfc_vefs               => par_triangulation_compute_num_itfc_vefs
+     !procedure, non_overridable, private :: allocate_and_fill_lst_itfc_vefs     => par_triangulation_allocate_and_fill_lst_itfc_vefs
   end type new_par_triangulation_t
 
-  type, extends(par_base_static_triangulation_t) :: coarse_triangulation_t
+  
+  type, extends(base_static_triangulation_t) :: coarse_triangulation_t
   contains
      procedure, non_overridable          :: create                              => coarse_triangulation_create
      ! Private methods for creating cell-related data
      procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => coarse_triangulation_allocate_and_fill_lst_vefs_lids 
      ! Private methods for creating vef-related data
      procedure, non_overridable, private :: allocate_and_fill_vefs_dimension    => coarse_triangulation_allocate_and_fill_vefs_dimension
-     procedure, non_overridable, private :: compute_num_itfc_vefs               => coarse_triangulation_compute_num_itfc_vefs
-     procedure, non_overridable, private :: allocate_and_fill_lst_itfc_vefs     => coarse_triangulation_allocate_and_fill_lst_itfc_vefs
+     !procedure, non_overridable, private :: compute_num_itfc_vefs               => coarse_triangulation_compute_num_itfc_vefs
+     !procedure, non_overridable, private :: allocate_and_fill_lst_itfc_vefs     => coarse_triangulation_allocate_and_fill_lst_itfc_vefs
   end type coarse_triangulation_t
-
-  !integer(ieep), parameter :: mold(1) = [0_ieep]
-  !integer(ip)  , parameter :: size_of_ip = size(transfer(1_ip, mold))
-  !integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,mold))
 
   public :: base_static_triangulation_t
   public :: serial_triangulation_t
@@ -517,11 +509,11 @@ contains
 #include "sbm_cell_iterator.i90"
 #include "sbm_vef_accessor.i90"
 #include "sbm_vef_iterator.i90"
-#include "sbm_base_static_triangulation.i90"
 #include "sbm_object_accessor.i90"
 #include "sbm_object_iterator.i90"
 #include "sbm_vefs_on_object_iterator.i90"
-#include "sbm_par_base_static_triangulation.i90"
+#include "sbm_base_static_triangulation.i90"
+#include "sbm_fine_triangulation.i90"
 #include "sbm_serial_triangulation.i90"
 #include "sbm_par_triangulation.i90"
 #include "sbm_coarse_triangulation.i90"

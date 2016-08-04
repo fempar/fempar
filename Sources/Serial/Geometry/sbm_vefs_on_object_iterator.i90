@@ -25,15 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine vefs_on_object_iterator_create ( this, lid, par_base_static_triangulation ) 
+subroutine vefs_on_object_iterator_create ( this, lid, base_static_triangulation ) 
   implicit none
   class(vefs_on_object_iterator_t)      , intent(inout) :: this
   integer(ip)                           , intent(in)    :: lid
-  class(par_base_static_triangulation_t), intent(in)    :: par_base_static_triangulation
+  class(base_static_triangulation_t), intent(in)    :: base_static_triangulation
   call this%free()
-  this%vefs_lids_on_object_iterator = par_base_static_triangulation%vefs_object%create_iterator(lid)
+  this%vefs_lids_on_object_iterator = base_static_triangulation%vefs_object%create_iterator(lid)
   call this%current_vef_accessor%create(this%vefs_lids_on_object_iterator%get_current(), &
-                                        par_base_static_triangulation )
+                                        base_static_triangulation )
 end subroutine vefs_on_object_iterator_create
 
 subroutine vefs_on_object_iterator_free ( this ) 
