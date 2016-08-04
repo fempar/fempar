@@ -101,11 +101,12 @@ contains
   subroutine setup_par_environment(this)
     implicit none
     class(par_test_reference_fe_driver_t), intent(inout) :: this
+    
     ! This test only works with one level.
     call this%par_environment%create(this%w_context,&
-                                     1,&
-                                     [this%w_context%get_size()],&
-                                     [this%w_context%get_rank()+1])
+                                     2,&
+                                     [this%test_params%get_nparts(), 1],&
+                                     [this%w_context%get_rank()+1,1])
   end subroutine setup_par_environment
   
   subroutine setup_triangulation(this)
@@ -129,7 +130,7 @@ contains
     this%reference_fes(1) =  make_reference_fe ( topology = topology_quad, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = 2, &
-                                                 order = 4, &
+                                                 order = 1, &
                                                  field_type = field_type_scalar, &
                                                  continuity = .true. )
   end subroutine setup_reference_fes
@@ -256,8 +257,10 @@ contains
     
     exact_solution_vector = computed_solution_vector - exact_solution_vector
    
-    check ( exact_solution_vector%nrm2()/computed_solution_vector%nrm2() < 1.0e-04 )
-     
+    if ( this%par_environment%am_i_l1_task() ) then
+      check ( exact_solution_vector%nrm2()/computed_solution_vector%nrm2() < 1.0e-04 )
+    end if 
+      
     call exact_solution_vector%free()
     deallocate(exact_solution_vector)
     
@@ -268,9 +271,9 @@ contains
     implicit none
     class(par_test_reference_fe_driver_t), intent(inout) :: this
     !call this%free()
+    call this%parse_command_line_parameters()
     call this%setup_context()
     call this%setup_par_environment()
-    call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()

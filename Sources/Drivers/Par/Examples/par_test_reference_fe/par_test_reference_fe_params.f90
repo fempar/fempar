@@ -77,7 +77,7 @@ contains
     check(error==0)
 
     call this%cli%add(switch='--nparts',switch_ab='-nparts',help='Number of parts in which the problem was split.',& 
-                       & required=.true., act='store', def=trim(this%default_nparts), error=error)
+                       & required=.false., act='store', def=trim(this%default_nparts), error=error)
     check(error==0)
   end subroutine par_test_reference_fe_params_add_to_cli
 

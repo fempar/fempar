@@ -238,95 +238,12 @@ subroutine par_triangulation_allocate_and_fill_lst_vefs_lids ( this, lst_vefs_li
 end subroutine par_triangulation_allocate_and_fill_lst_vefs_lids
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
-! The following routines are not used, can be eliminated (after testing). Actually
-! they are not TBPs nor public (so they cannot be called).
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine par_triangulation_compute_num_itfc_vefs ( this )
+subroutine par_triangulation_free ( this )
   implicit none
   class(new_par_triangulation_t), intent(inout) :: this
-  integer(ip) :: icell, vef_lid, ivef, istat
-  type(hash_table_ip_ip_t) :: visited_vefs
-  type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t) :: cell, cell_around
-  type(vef_accessor_t)  :: ivef_accessor
-
-  call visited_vefs%init(max(5,int(real(this%num_vefs,rp)*0.2_rp,ip)))
-
-  this%num_itfc_vefs = 0
-  ! Traverse local ghost elements (all interface vefs are there)
-  cell_iterator = this%create_cell_iterator()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(cell)
-     if ( cell%is_ghost() ) then
-        do ivef=1, cell%get_num_vefs()
-           vef_lid = cell%get_vef_lid(ivef)
-           ! Traverse elements around
-           call ivef_accessor%create(vef_lid,this)
-           !write(*,*) 'Created with ID:',ivef_accessor%lid,'from:',vef_lid
-           loop_around: do icell = 1, ivef_accessor%get_num_cells_around()
-              call ivef_accessor%get_cell_around(icell, cell_around)
-              if(.not.cell_around%is_ghost()) then
-                 call visited_vefs%put(key=vef_lid, val=1, stat=istat)
-                 if ( istat == now_stored ) then
-                    this%num_itfc_vefs = this%num_itfc_vefs + 1
-                 end if
-                 exit loop_around
-              end if
-           end do loop_around
-        end do
-     end if
-     call cell_iterator%next()
-  end do
-  call visited_vefs%free()
-  write(*,*) 'Num interface vefs:', this%num_itfc_vefs 
-
-end subroutine par_triangulation_compute_num_itfc_vefs
-
-subroutine par_triangulation_allocate_and_fill_lst_itfc_vefs( this )
-  implicit none
-  class(new_par_triangulation_t), intent(inout) :: this
-  integer(ip) :: vef_lid, ivef, icell, current, istat
-  type(hash_table_ip_ip_t) :: visited_vefs
-  type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t) :: cell, cell_around
-  type(vef_accessor_t)  :: ivef_accessor
-
-  assert ( this%num_itfc_vefs >= 0 ) 
-
-  call this%free_lst_itfc_vefs()
-  call memalloc(this%num_itfc_vefs, this%lst_itfc_vefs,__FILE__,__LINE__)
-
-  call visited_vefs%init(max(5,int(real(this%num_vefs,rp)*0.2_rp,ip)))
-  current=0
-
-  ! Traverse local ghost elements (all interface vefs are there)
-  cell_iterator = this%create_cell_iterator()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(cell)
-     if ( cell%is_ghost() ) then
-        do ivef=1, cell%get_num_vefs()
-           vef_lid = cell%get_vef_lid(ivef)
-           ! Traverse elements around
-           call ivef_accessor%create(vef_lid,this)
-           loop_around: do icell = 1, ivef_accessor%get_num_cells_around()
-              call ivef_accessor%get_cell_around(icell, cell_around)
-              if(.not.cell_around%is_ghost()) then
-                 call visited_vefs%put(key=vef_lid, val=1, stat=istat)
-                 if ( istat == now_stored ) then
-                    current=current+1
-                    this%lst_itfc_vefs(current) = vef_lid
-                 end if
-                 exit loop_around
-              end if
-           end do loop_around
-        end do
-     end if
-     call cell_iterator%next()
-  end do
-  call visited_vefs%free()
-
-end subroutine par_triangulation_allocate_and_fill_lst_itfc_vefs
-
+  if ( associated ( this%p_env ) ) then
+    if ( this%p_env%am_i_l1_task() ) then
+      call this%fine_triangulation_t%free()  
+    end if
+  end if
+end subroutine par_triangulation_free
