@@ -57,7 +57,7 @@ subroutine vefs_on_object_iterator_next ( this )
   call this%vefs_lids_on_object_iterator%next()
   if ( this%vefs_lids_on_object_iterator%is_upper_bound() ) then
      triangulation => this%current_vef_accessor%get_triangulation()
-     call this%current_vef_accessor%set_lid(lid=triangulation%num_local_vefs+triangulation%num_ghost_vefs+1)
+     call this%current_vef_accessor%set_lid(lid=triangulation%num_vefs+1)
   else
      call this%current_vef_accessor%set_lid(this%vefs_lids_on_object_iterator%get_current() )
   end if   

@@ -428,7 +428,7 @@ function coarse_fe_space_dof_gid2vef_gid(this, field_id, dof_gid )
   integer(ip)              , intent(in)  :: field_id
   integer(igp)             , intent(in)  :: dof_gid
   integer(igp) :: coarse_fe_space_dof_gid2vef_gid
-  assert ( this%field_type(field_id) == fe_space_type_cg )
+  assert ( this%field_type(field_id) == field_type_cg )
   coarse_fe_space_dof_gid2vef_gid = dof_gid
 end function coarse_fe_space_dof_gid2vef_gid
 
@@ -493,7 +493,7 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
   coarse_fe_iterator = this%create_coarse_fe_iterator()
   
   ! Count number of DoFs on each vef of each cell
-  if ( this%field_type(field_id) == fe_space_type_cg ) then
+  if ( this%field_type(field_id) == field_type_cg ) then
      ! In the case of DG coarse FE spaces, the boundary vefs do not have own coarse DoFs, i.e.,
      ! all interior coarse DoFs belong to the interior of the coarse cell
      base_pointer = 1
@@ -539,7 +539,7 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
   coarse_fe_iterator = this%create_coarse_fe_iterator()
   
   ! List DoFs on each vef of each cell
-  if ( this%field_type(field_id) == fe_space_type_cg ) then
+  if ( this%field_type(field_id) == field_type_cg ) then
      ! In the case of DG coarse FE spaces, the boundary vefs do not have own coarse DoFs, i.e.,
      ! all interior coarse DoFs belong to the interior of the coarse cell
      base_pointer = 1
@@ -668,7 +668,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
   call source_fe%create(1, this)
 
   ! Assign local identifiers to DoFs on local cells
-  if ( this%field_type(field_id) == fe_space_type_cg ) then
+  if ( this%field_type(field_id) == field_type_cg ) then
      coarse_fe_iterator = this%create_coarse_fe_iterator()
      do while ( .not. coarse_fe_iterator%has_finished() )
         coarse_fe = coarse_fe_iterator%current()
@@ -714,7 +714,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
         call coarse_fe_iterator%next()
      end do
   else 
-     ! fe_space_type_dg not implemented yet!
+     ! field_type_dg not implemented yet!
      check (.false.)
   end if
 
@@ -841,9 +841,9 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
   i = 1
   do field_id = 1, this%number_fields
      if ( this%field_blocks(field_id) == iblock ) then
-        if ( this%field_type(field_id) == fe_space_type_cg ) then
+        if ( this%field_type(field_id) == field_type_cg ) then
            ubound_num_itfc_couplings (i) = this%compute_ubound_num_itfc_couplings_by_continuity(field_id)
-        else if ( this%field_type(field_id) == fe_space_type_dg ) then
+        else if ( this%field_type(field_id) == field_type_dg ) then
            ! Not implemented yet
            check(.false.)
            !ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
@@ -864,7 +864,7 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
   i = 1
   do field_id = 1, this%number_fields
      if ( this%field_blocks(field_id) == iblock ) then
-        if ( this%field_type(field_id) == fe_space_type_cg ) then
+        if ( this%field_type(field_id) == field_type_cg ) then
            total_num_itfc_couplings = total_num_itfc_couplings + & 
                 this%compute_raw_interface_data_by_continuity(field_id, &
                                                               lst_dof_gids, &
@@ -872,7 +872,7 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
                                                               ubound_num_itfc_couplings(i),&
                                                               dofs_lid,&
                                                               raw_interface_data )
-        else if ( this%field_type(field_id) == fe_space_type_dg ) then
+        else if ( this%field_type(field_id) == field_type_dg ) then
            ! Not implemented yet
            check(.false.)
            !total_num_itfc_couplings = total_num_itfc_couplings + & 
@@ -1260,13 +1260,13 @@ subroutine coarse_fe_space_setup_dofs_objects_and_constraint_matrix ( this, &
   check ( istat == 0 )
   
   do field_id=1, this%number_fields
-    if ( this%field_type(field_id) == fe_space_type_cg ) then
+    if ( this%field_type(field_id) == field_type_cg ) then
       call this%setup_dofs_objects_by_continuity(field_id, &
                                                  num_dofs_objects_per_field(field_id), &
                                                  dofs_objects_per_field(field_id), &
                                                  dofs_objects_gids_per_field(field_id), & 
                                                  vefs_lids_dofs_objects_per_field(field_id) )
-    else if ( this%field_type(field_id) == fe_space_type_dg ) then
+    else if ( this%field_type(field_id) == field_type_dg ) then
       ! Not implemented yet
       check(.false.)
     end if

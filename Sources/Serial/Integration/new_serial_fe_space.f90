@@ -101,6 +101,7 @@ module new_serial_fe_space_names
     procedure, non_overridable, private :: fe_accessor_get_fe_vef
     generic                             :: get_vef                                    => fe_accessor_get_fe_vef
     procedure, non_overridable          :: get_reference_fe                           => fe_accessor_get_reference_fe
+    procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_accessor_create_own_dofs_on_vef_iterator
     
     procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_accessor_impose_strong_dirichlet_bcs
     
@@ -157,7 +158,6 @@ module new_serial_fe_space_names
     procedure, non_overridable, private :: itfc_fe_vef_iterator_current
     generic                             :: current      => itfc_fe_vef_iterator_current
   end type itfc_fe_vef_iterator_t
-  
   
   integer(ip), parameter :: field_type_cg            = 0 ! H^1 conforming FE space
   integer(ip), parameter :: field_type_dg            = 1 ! L^2 conforming FE space + .not. H^1 conforming (weakly imposed via face integration)
@@ -250,6 +250,8 @@ module new_serial_fe_space_names
      procedure                           :: update_global_fe_function_bcs                => new_serial_fe_space_update_global_fe_function_bcs
      procedure                           :: fill_dof_info                                => new_serial_fe_space_fill_dof_info
      procedure                 , private :: fill_elem2dof_and_count_dofs                 => new_serial_fe_space_fill_elem2dof_and_count_dofs
+     procedure                 , private :: renumber_dofs_block                          => new_serial_fe_space_renumber_dofs_block
+
  
      
      ! Getters
@@ -258,6 +260,7 @@ module new_serial_fe_space_names
      procedure                           :: get_block_number_dofs                        => new_serial_fe_space_get_block_number_dofs
      procedure, non_overridable          :: get_number_reference_fes                     => new_serial_fe_space_get_number_reference_fes
      procedure, non_overridable          :: get_number_fields                            => new_serial_fe_space_get_number_fields
+     procedure, non_overridable          :: get_field_type                               => new_serial_fe_space_get_field_type
      procedure, non_overridable          :: get_number_components                        => new_serial_fe_space_get_number_components
      procedure, non_overridable          :: get_number_blocks                            => new_serial_fe_space_get_number_blocks
      procedure, non_overridable          :: get_field_blocks                             => new_serial_fe_space_get_field_blocks
@@ -274,7 +277,45 @@ module new_serial_fe_space_names
  
  public :: new_serial_fe_space_t   
  public :: fe_iterator_t, fe_accessor_t
+ public :: fe_vef_iterator_t, itfc_fe_vef_iterator_t, fe_vef_accessor_t
  
+ 
+ type, extends(object_accessor_t) :: fe_object_accessor_t
+    private
+    type(new_par_fe_space_t), pointer :: fe_space
+  contains
+    procedure                            :: fe_object_accessor_create
+    generic                              :: create                            => fe_object_accessor_create
+    procedure                            :: free                              => fe_object_accessor_free
+    procedure, non_overridable           :: get_number_fe_vefs_on_object      => fe_object_accessor_get_number_fe_vefs_on_object
+    procedure, non_overridable           :: create_fe_vefs_on_object_iterator => fe_object_accessor_get_fe_vefs_on_object_iterator
+  end type fe_object_accessor_t
+  
+  type fe_object_iterator_t
+    private
+    type(fe_object_accessor_t) :: current_fe_object_accessor
+  contains
+    procedure, non_overridable          :: create       => fe_object_iterator_create
+    procedure, non_overridable          :: free         => fe_object_iterator_free
+    procedure, non_overridable          :: init         => fe_object_iterator_init
+    procedure, non_overridable          :: next         => fe_object_iterator_next
+    procedure, non_overridable          :: has_finished => fe_object_iterator_has_finished
+    procedure, non_overridable          :: current      => fe_object_iterator_current
+  end type fe_object_iterator_t
+  
+  type :: fe_vefs_on_object_iterator_t
+    private
+    type(vefs_on_object_iterator_t)     :: vefs_on_object_iterator
+    type(fe_vef_accessor_t)             :: current_fe_vef_accessor
+  contains
+    procedure, non_overridable          :: create       => fe_vefs_on_object_iterator_create
+    procedure, non_overridable          :: free         => fe_vefs_on_object_iterator_free
+    procedure, non_overridable          :: init         => fe_vefs_on_object_iterator_init
+    procedure, non_overridable          :: next         => fe_vefs_on_object_iterator_next
+    procedure, non_overridable          :: has_finished => fe_vefs_on_object_iterator_has_finished
+    procedure, non_overridable          :: current      => fe_vefs_on_object_iterator_current
+  end type fe_vefs_on_object_iterator_t
+  
  
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
@@ -290,8 +331,8 @@ module new_serial_fe_space_names
    procedure, private :: new_serial_fe_space_create_same_reference_fes_on_all_cells               => new_par_fe_space_create_same_reference_fes_on_all_cells 
    procedure                                   :: fill_dof_info                                   => new_par_fe_space_fill_dof_info
    procedure                         , private :: fill_elem2dof_and_count_dofs                    => new_par_fe_space_fill_elem2dof_and_count_dofs
-   !procedure                                   :: renumber_dofs_first_interior_then_interface     => new_par_fe_space_renumber_dofs_first_interior_then_interface
-   !procedure                         , private :: renumber_dofs_block                             => new_par_fe_space_renumber_dofs_block
+   procedure                                   :: renumber_dofs_first_interior_then_interface     => new_par_fe_space_renumber_dofs_first_interior_then_interface
+   procedure                         , private :: renumber_dofs_block                             => new_par_fe_space_renumber_dofs_block
    procedure        , non_overridable, private :: compute_blocks_dof_import                       => new_par_fe_space_compute_blocks_dof_import
    procedure        , non_overridable, private :: compute_dof_import                              => new_par_fe_space_compute_dof_import
    procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => new_par_fe_space_compute_raw_interface_data_by_continuity
@@ -308,8 +349,10 @@ module new_serial_fe_space_names
    procedure        , non_overridable          :: get_total_number_interface_dofs                 => new_par_fe_space_get_total_number_interface_dofs
    procedure        , non_overridable          :: get_block_number_interior_dofs                  => new_par_fe_space_get_block_number_interior_dofs
    procedure        , non_overridable          :: get_block_number_interface_dofs                 => new_par_fe_space_get_block_number_interface_dofs
+   procedure        , non_overridable          :: get_number_fe_objects                           => new_par_fe_space_get_number_fe_objects
    procedure                                   :: get_par_environment                             => new_par_fe_space_get_par_environment
    procedure                                   :: get_par_triangulation                           => new_par_fe_space_get_par_triangulation
+   
    procedure                                   :: print                                           => new_par_fe_space_print
    procedure                                   :: free                                            => new_par_fe_space_free
    procedure                                   :: create_assembler                                => new_par_fe_space_create_assembler
@@ -317,9 +360,20 @@ module new_serial_fe_space_names
    procedure                                   :: update_strong_dirichlet_bcs_values              => new_par_fe_space_update_strong_dirichlet_bcs_values
    procedure                                   :: create_global_fe_function                       => new_par_fe_space_create_global_fe_function
    procedure                                   :: update_global_fe_function_bcs                   => new_par_fe_space_update_global_fe_function_bcs
+   
+    procedure       , non_overridable          :: setup_dofs_objects_and_constraint_matrix        => new_par_fe_space_setup_dofs_objects_and_constraint_matrix
+    procedure       , non_overridable, private :: setup_dofs_objects_by_continuity                => new_par_fe_space_setup_dofs_objects_by_continuity
+    procedure       , non_overridable, private :: setup_constraint_matrix                         => new_par_fe_space_setup_constraint_matrix
+   
+   
+   ! Objects-related traversals
+   procedure, non_overridable                  :: create_fe_object_iterator                       => new_par_fe_space_create_fe_object_iterator
+   procedure, non_overridable                  :: create_fe_vefs_on_object_iterator               => new_par_fe_space_create_fe_vefs_on_object_iterator
+   
  end type new_par_fe_space_t
  
  public :: new_par_fe_space_t
+ public :: fe_object_accessor_t, fe_object_iterator_t, fe_vefs_on_object_iterator_t
   
   ! This module includes the physical FE and FE space structure. It includes the
   ! following types:
@@ -533,201 +587,202 @@ module new_serial_fe_space_names
 
 !  public :: serial_fe_space_t
 !  
-!  type, extends(cell_accessor_t) :: coarse_fe_accessor_t
-!    private
-!    type(coarse_fe_space_t), pointer :: coarse_fe_space
-!  contains
-!    procedure, private, non_overridable :: coarse_fe_accessor_create
-!    generic                             :: create                                     => coarse_fe_accessor_create
-!    procedure                           :: cell_accessor_create                       => coarse_fe_accessor_cell_accessor_create
-!    procedure                           :: free                                       => coarse_fe_accessor_free
-!    procedure, non_overridable, private :: create_own_dofs_on_vef_iterator            => coarse_fe_accessor_create_own_dofs_on_vef_iterator
-!    procedure, non_overridable, private :: fill_own_dofs_on_vef                       => coarse_fe_accessor_fill_own_dofs_on_vef
-!    procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_coarse_fe => coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe
-!    procedure, non_overridable, private :: renumber_dofs_block                        => coarse_fe_accessor_renumber_dofs_block
-!    procedure, non_overridable, private :: renumber_dofs_field                        => coarse_fe_accessor_renumber_dofs_field
-!    
-!    procedure, non_overridable, private :: get_scan_sum_number_dofs                   => coarse_fe_accessor_get_scan_sum_number_dofs
-!    procedure, non_overridable          :: get_number_fe_spaces                       => coarse_fe_accessor_get_number_fe_spaces
-!    procedure, non_overridable          :: get_number_dofs                            => coarse_fe_accessor_get_number_dofs
-!    procedure, non_overridable          :: get_elem2dof                               => coarse_fe_accessor_get_elem2dof
-!    procedure, non_overridable          :: get_coarse_fe_vef                          => coarse_fe_accessor_get_coarse_fe_vef
-!  end type coarse_fe_accessor_t
-!  
-!  type coarse_fe_iterator_t
-!    private
-!    type(coarse_fe_accessor_t) :: current_coarse_fe_accessor
-!  contains
-!    procedure, non_overridable, private :: create       => coarse_fe_iterator_create
-!    procedure, non_overridable          :: free         => coarse_fe_iterator_free
-!    procedure, non_overridable          :: init         => coarse_fe_iterator_init
-!    procedure, non_overridable          :: next         => coarse_fe_iterator_next
-!    procedure, non_overridable          :: has_finished => coarse_fe_iterator_has_finished
-!    procedure, non_overridable          :: current      => coarse_fe_iterator_current
-!  end type coarse_fe_iterator_t
-!  
-!  type, extends(vef_accessor_t) :: coarse_fe_vef_accessor_t
-!    private
-!    type(coarse_fe_space_t), pointer            :: coarse_fe_space
-!  contains
-!     procedure :: coarse_fe_vef_accessor_create
-!     procedure :: vef_accessor_create                                 => coarse_fe_vef_accessor_vef_accessor_create
-!     generic   :: create                                              => coarse_fe_vef_accessor_create
-!     procedure :: free                                                => coarse_fe_vef_accessor_free
-!     procedure, non_overridable          :: get_num_coarse_fes_around => coarse_fe_vef_accessor_get_num_coarse_fes_around
-!     procedure, non_overridable          :: get_coarse_fe_around      => coarse_fe_vef_accessor_get_coarse_fe_around
-!  end type coarse_fe_vef_accessor_t
-!  
-!  type coarse_fe_vef_iterator_t
-!    private
-!    type(coarse_fe_vef_accessor_t) :: current_coarse_fe_vef_accessor
-!  contains
-!     procedure, non_overridable, private :: create       => coarse_fe_vef_iterator_create
-!     procedure, non_overridable          :: free         => coarse_fe_vef_iterator_free
-!     procedure, non_overridable          :: init         => coarse_fe_vef_iterator_init
-!     procedure, non_overridable          :: next         => coarse_fe_vef_iterator_next
-!     procedure, non_overridable          :: has_finished => coarse_fe_vef_iterator_has_finished
-!     procedure, non_overridable          :: current      => coarse_fe_vef_iterator_current
-!  end type coarse_fe_vef_iterator_t  
-!  
-!  type :: itfc_coarse_fe_vef_iterator_t
-!    private
-!    type(itfc_vef_iterator_t)           :: itfc_vef_iterator
-!    type(coarse_fe_vef_accessor_t)      :: current_coarse_vef_accessor
-!  contains
-!    procedure, non_overridable, private :: create       => itfc_coarse_fe_vef_iterator_create
-!    procedure, non_overridable          :: free         => itfc_coarse_fe_vef_iterator_free
-!    procedure, non_overridable          :: init         => itfc_coarse_fe_vef_iterator_init
-!    procedure, non_overridable          :: next         => itfc_coarse_fe_vef_iterator_next
-!    procedure, non_overridable          :: has_finished => itfc_coarse_fe_vef_iterator_has_finished
-!    procedure, non_overridable          :: current      => itfc_coarse_fe_vef_iterator_current
-!  end type itfc_coarse_fe_vef_iterator_t
-!  
-!  
-!  type, extends(object_accessor_t) :: coarse_fe_object_accessor_t
-!    private
-!    type(coarse_fe_space_t), pointer :: coarse_fe_space
-!  contains
-!    procedure                            :: coarse_fe_object_accessor_create
-!    generic                              :: create                                   => coarse_fe_object_accessor_create
-!    procedure                            :: free                                     => coarse_fe_object_accessor_free
-!    procedure, non_overridable           :: get_number_coarse_fe_vefs_on_object      => coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object
-!    procedure, non_overridable           :: create_coarse_fe_vefs_on_object_iterator => coarse_fe_object_accessor_get_coarse_fe_vefs_on_object_iterator
-!  end type coarse_fe_object_accessor_t
-!  
-!  type coarse_fe_object_iterator_t
-!    private
-!    type(coarse_fe_object_accessor_t) :: current_coarse_fe_object_accessor
-!  contains
-!     procedure, non_overridable          :: create       => coarse_fe_object_iterator_create
-!     procedure, non_overridable          :: free         => coarse_fe_object_iterator_free
-!     procedure, non_overridable          :: init         => coarse_fe_object_iterator_init
-!     procedure, non_overridable          :: next         => coarse_fe_object_iterator_next
-!     procedure, non_overridable          :: has_finished => coarse_fe_object_iterator_has_finished
-!     procedure, non_overridable          :: current      => coarse_fe_object_iterator_current
-!  end type coarse_fe_object_iterator_t
-!  
-!  type :: coarse_fe_vefs_on_object_iterator_t
-!    private
-!    type(vefs_on_object_iterator_t)     :: vefs_on_object_iterator
-!    type(coarse_fe_vef_accessor_t)      :: current_coarse_fe_vef_accessor
-!  contains
-!    procedure, non_overridable          :: create       => coarse_fe_vefs_on_object_iterator_create
-!    procedure, non_overridable          :: free         => coarse_fe_vefs_on_object_iterator_free
-!    procedure, non_overridable          :: init         => coarse_fe_vefs_on_object_iterator_init
-!    procedure, non_overridable          :: next         => coarse_fe_vefs_on_object_iterator_next
-!    procedure, non_overridable          :: has_finished => coarse_fe_vefs_on_object_iterator_has_finished
-!    procedure, non_overridable          :: current      => coarse_fe_vefs_on_object_iterator_current
-!  end type coarse_fe_vefs_on_object_iterator_t
-!  
-! 
-!  type :: coarse_fe_space_t
-!    private
-!    integer(ip)                                 :: number_fields
-!    integer(ip) , allocatable                   :: field_type(:)
-!    integer(ip) , allocatable                   :: number_dofs_per_field(:)
-!    
-!    integer(ip)                                 :: number_blocks
-!    integer(ip)                   , allocatable :: field_blocks(:)
-!    logical                       , allocatable :: field_coupling(:,:)
-!    logical                       , allocatable :: blocks_coupling(:,:)
-!    integer(ip)                   , allocatable :: number_dofs_per_block(:)
-!    
-!    integer(ip) , allocatable                   :: ptr_dofs_per_fe_and_field(:)
-!    integer(ip) , allocatable                   :: lst_dofs_lids(:)
-!    type(list_t), allocatable                   :: own_dofs_vef_per_fe(:)
-!    
-!    type(dof_import_t)            , allocatable :: blocks_dof_import(:)
-!       
-!    ! Pointer to coarse triangulation this coarse_fe_space has been built from
-!    type(coarse_triangulation_t), pointer       :: coarse_triangulation => NULL()
-!  contains
-!    procedure                                   :: create                                          => coarse_fe_space_create
-!    procedure                                   :: free                                            => coarse_fe_space_free
-!    procedure, non_overridable                  :: print                                           => coarse_fe_space_print
-!    procedure, non_overridable, private         :: allocate_and_fill_field_blocks_and_coupling     => coarse_fe_space_allocate_and_fill_field_blocks_and_coupling
-!    procedure, non_overridable, private         :: free_field_blocks_and_coupling                  => coarse_fe_space_free_field_blocks_and_coupling
-!    procedure, non_overridable, private         :: allocate_and_fill_field_type                    => coarse_fe_space_allocate_and_fill_field_type
-!    procedure, non_overridable, private         :: free_field_type                                 => coarse_fe_space_free_field_type
-!    procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_per_fe_and_field     => coarse_fe_space_allocate_and_fill_ptr_dofs_per_fe_and_field
-!    procedure, non_overridable, private         :: free_ptr_dofs_per_fe_and_field                  => coarse_fe_space_free_ptr_dofs_per_fe_and_field
-!    procedure, non_overridable, private         :: fetch_ghost_fes_data                            => coarse_fe_space_fetch_ghost_fes_data
-!    procedure, non_overridable, private         :: allocate_and_fill_own_dofs_vef_per_fe           => coarse_fe_space_allocate_and_fill_own_dofs_vef_per_fe
-!    procedure, non_overridable, private         :: fill_own_dofs_per_fe_field                      => coarse_fe_space_fill_own_dofs_per_fe_field
-!    procedure, non_overridable, private         :: free_own_dofs_vef_per_fe                        => coarse_fe_space_free_free_own_dofs_vef_per_fe
-!    procedure, non_overridable, private         :: allocate_lst_dofs_lids                          => coarse_fe_space_allocate_lst_dofs_lids
-!    procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_lids                => coarse_fe_space_count_dofs_and_fill_lst_dof_lids
-!    procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_lids_field          => coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field
-!    procedure, non_overridable, private         :: free_lst_dofs_lids                              => coarse_fe_space_free_lst_dofs_lids
-!    procedure, non_overridable, private         :: free_number_dofs_per_field_and_block            => coarse_fe_space_free_number_dofs_per_field_and_block
-!    procedure, non_overridable, private         :: free_blocks_dof_import                          => coarse_fe_space_free_blocks_dof_import
-!    procedure, non_overridable, nopass, private :: coarse_fe_size                                  => coarse_fe_space_coarse_fe_size
-!    procedure, non_overridable, nopass, private :: coarse_fe_pack                                  => coarse_fe_space_coarse_fe_pack
-!    procedure, non_overridable, nopass, private :: coarse_fe_unpack                                => coarse_fe_space_coarse_fe_unpack
-!    procedure, non_overridable, private         :: compute_blocks_dof_import                       => coarse_fe_space_compute_blocks_dof_import
-!    procedure, non_overridable, private         :: compute_dof_import                              => coarse_fe_space_compute_dof_import
-!    procedure, non_overridable, private         :: compute_ubound_num_itfc_couplings_by_continuity => coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity
-!    procedure, non_overridable, private         :: compute_raw_interface_data_by_continuity        => coarse_fe_space_compute_raw_interface_data_by_continuity
-!    procedure, non_overridable, private         :: raw_interface_data_by_continuity_decide_owner   => coarse_fe_space_raw_interface_data_by_continuity_decide_owner
-!    procedure, non_overridable                  :: setup_dofs_objects_and_constraint_matrix        => coarse_fe_space_setup_dofs_objects_and_constraint_matrix
-!    procedure, non_overridable, private         :: setup_dofs_objects_by_continuity                => coarse_fe_space_setup_dofs_objects_by_continuity
-!    procedure, non_overridable, private         :: setup_constraint_matrix                         => coarse_fe_space_setup_constraint_matrix
-!    
-!    procedure                                   :: renumber_dofs_first_interior_then_interface     => coarse_fe_space_renumber_dofs_first_interior_then_interface
-!    procedure                         , private :: renumber_dofs_block                             => coarse_fe_space_renumber_dofs_block
-!    
-!    ! Coarse FE traversals-related TBPs
-!    procedure, non_overridable                  :: create_coarse_fe_iterator                       => coarse_fe_space_create_coarse_fe_iterator
-!    
-!    ! Coarse FE VEFS traversals-related TBPs
-!    procedure, non_overridable                  :: create_coarse_fe_vef_iterator                   => coarse_fe_space_create_coarse_fe_vef_iterator
-!    procedure, non_overridable                  :: create_itfc_coarse_fe_vef_iterator              => coarse_fe_space_create_itfc_coarse_fe_vef_iterator
-!    
-!     ! Objects-related traversals
-!     procedure, non_overridable                 :: create_coarse_fe_object_iterator                => coarse_fe_space_create_coarse_fe_object_iterator
-!     procedure, non_overridable                 :: create_coarse_fe_vefs_on_object_iterator        => coarse_fe_space_create_coarse_fe_vefs_on_object_iterator
-!     
-!     ! Getters
-!     procedure, non_overridable                 :: get_number_local_coarse_fes                     => coarse_fe_space_get_number_local_coarse_fes
-!     procedure, non_overridable                 :: get_number_ghost_coarse_fes                     => coarse_fe_space_get_number_ghost_coarse_fes
-!     procedure, non_overridable                 :: get_number_fields                               => coarse_fe_space_get_number_fields
-!     procedure, non_overridable                 :: get_number_blocks                               => coarse_fe_space_get_number_blocks
-!     procedure, non_overridable                 :: get_field_coupling                              => coarse_fe_space_get_field_coupling
-!     procedure, non_overridable                 :: get_field_blocks                                => coarse_fe_space_get_field_blocks
-!     procedure, non_overridable                 :: get_field_type                                  => coarse_fe_space_get_field_type
-!     procedure, non_overridable                 :: get_total_number_dofs                           => coarse_fe_space_get_total_number_dofs
-!     procedure, non_overridable                 :: get_field_number_dofs                           => coarse_fe_space_get_field_number_dofs
-!     procedure, non_overridable                 :: get_block_number_dofs                           => coarse_fe_space_get_block_number_dofs
-!     procedure, non_overridable                 :: get_total_number_interior_dofs                  => coarse_fe_space_get_total_number_interior_dofs
-!     procedure, non_overridable                 :: get_total_number_interface_dofs                 => coarse_fe_space_get_total_number_interface_dofs
-!     procedure, non_overridable                 :: get_block_number_interior_dofs                  => coarse_fe_space_get_block_number_interior_dofs
-!     procedure, non_overridable                 :: get_block_number_interface_dofs                 => coarse_fe_space_get_block_number_interface_dofs
-!     procedure, non_overridable                 :: get_block_dof_import                            => coarse_fe_space_get_block_dof_import
-!     procedure, non_overridable                 :: get_triangulation                               => coarse_fe_space_get_triangulation
-!     procedure, non_overridable                 :: get_par_environment                             => coarse_fe_space_get_par_environment
-! end type coarse_fe_space_t
-! 
-! public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_accessor_t
+  type, extends(cell_accessor_t) :: coarse_fe_accessor_t
+    private
+    type(coarse_fe_space_t), pointer :: coarse_fe_space
+  contains
+    procedure, private, non_overridable :: coarse_fe_accessor_create
+    generic                             :: create                                     => coarse_fe_accessor_create
+    procedure                           :: cell_accessor_create                       => coarse_fe_accessor_cell_accessor_create
+    procedure                           :: free                                       => coarse_fe_accessor_free
+    procedure, non_overridable, private :: create_own_dofs_on_vef_iterator            => coarse_fe_accessor_create_own_dofs_on_vef_iterator
+    procedure, non_overridable, private :: fill_own_dofs_on_vef                       => coarse_fe_accessor_fill_own_dofs_on_vef
+    procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_coarse_fe => coarse_fe_accessor_fill_own_dofs_on_vef_from_source_coarse_fe
+    procedure, non_overridable, private :: renumber_dofs_block                        => coarse_fe_accessor_renumber_dofs_block
+    procedure, non_overridable, private :: renumber_dofs_field                        => coarse_fe_accessor_renumber_dofs_field
+    
+    procedure, non_overridable, private :: get_scan_sum_number_dofs                   => coarse_fe_accessor_get_scan_sum_number_dofs
+    procedure, non_overridable          :: get_number_fe_spaces                       => coarse_fe_accessor_get_number_fe_spaces
+    procedure, non_overridable          :: get_number_dofs                            => coarse_fe_accessor_get_number_dofs
+    procedure, non_overridable          :: get_elem2dof                               => coarse_fe_accessor_get_elem2dof
+    procedure, non_overridable          :: get_coarse_fe_vef                          => coarse_fe_accessor_get_coarse_fe_vef
+  end type coarse_fe_accessor_t
+  
+  type coarse_fe_iterator_t
+    private
+    type(coarse_fe_accessor_t) :: current_coarse_fe_accessor
+  contains
+    procedure, non_overridable, private :: create       => coarse_fe_iterator_create
+    procedure, non_overridable          :: free         => coarse_fe_iterator_free
+    procedure, non_overridable          :: init         => coarse_fe_iterator_init
+    procedure, non_overridable          :: next         => coarse_fe_iterator_next
+    procedure, non_overridable          :: has_finished => coarse_fe_iterator_has_finished
+    procedure, non_overridable          :: current      => coarse_fe_iterator_current
+  end type coarse_fe_iterator_t
+  
+  type, extends(vef_accessor_t) :: coarse_fe_vef_accessor_t
+    private
+    type(coarse_fe_space_t), pointer            :: coarse_fe_space
+  contains
+     procedure :: coarse_fe_vef_accessor_create
+     procedure :: vef_accessor_create                                 => coarse_fe_vef_accessor_vef_accessor_create
+     generic   :: create                                              => coarse_fe_vef_accessor_create
+     procedure :: free                                                => coarse_fe_vef_accessor_free
+     procedure, non_overridable          :: get_num_coarse_fes_around => coarse_fe_vef_accessor_get_num_coarse_fes_around
+     procedure, non_overridable          :: get_coarse_fe_around      => coarse_fe_vef_accessor_get_coarse_fe_around
+  end type coarse_fe_vef_accessor_t
+  
+  type coarse_fe_vef_iterator_t
+    private
+    type(coarse_fe_vef_accessor_t) :: current_coarse_fe_vef_accessor
+  contains
+     procedure, non_overridable, private :: create       => coarse_fe_vef_iterator_create
+     procedure, non_overridable          :: free         => coarse_fe_vef_iterator_free
+     procedure, non_overridable          :: init         => coarse_fe_vef_iterator_init
+     procedure, non_overridable          :: next         => coarse_fe_vef_iterator_next
+     procedure, non_overridable          :: has_finished => coarse_fe_vef_iterator_has_finished
+     procedure, non_overridable          :: current      => coarse_fe_vef_iterator_current
+  end type coarse_fe_vef_iterator_t  
+  
+  type :: itfc_coarse_fe_vef_iterator_t
+    private
+    type(itfc_vef_iterator_t)           :: itfc_vef_iterator
+    type(coarse_fe_vef_accessor_t)      :: current_coarse_vef_accessor
+  contains
+    procedure, non_overridable, private :: create       => itfc_coarse_fe_vef_iterator_create
+    procedure, non_overridable          :: free         => itfc_coarse_fe_vef_iterator_free
+    procedure, non_overridable          :: init         => itfc_coarse_fe_vef_iterator_init
+    procedure, non_overridable          :: next         => itfc_coarse_fe_vef_iterator_next
+    procedure, non_overridable          :: has_finished => itfc_coarse_fe_vef_iterator_has_finished
+    procedure, non_overridable          :: current      => itfc_coarse_fe_vef_iterator_current
+  end type itfc_coarse_fe_vef_iterator_t
+  
+  
+  type, extends(object_accessor_t) :: coarse_fe_object_accessor_t
+    private
+    type(coarse_fe_space_t), pointer :: coarse_fe_space
+  contains
+    procedure                            :: coarse_fe_object_accessor_create
+    generic                              :: create                                   => coarse_fe_object_accessor_create
+    procedure                            :: free                                     => coarse_fe_object_accessor_free
+    procedure, non_overridable           :: get_number_coarse_fe_vefs_on_object      => coarse_fe_object_accessor_get_number_coarse_fe_vefs_on_object
+    procedure, non_overridable           :: create_coarse_fe_vefs_on_object_iterator => coarse_fe_object_accessor_get_coarse_fe_vefs_on_object_iterator
+  end type coarse_fe_object_accessor_t
+  
+  type coarse_fe_object_iterator_t
+    private
+    type(coarse_fe_object_accessor_t) :: current_coarse_fe_object_accessor
+  contains
+     procedure, non_overridable          :: create       => coarse_fe_object_iterator_create
+     procedure, non_overridable          :: free         => coarse_fe_object_iterator_free
+     procedure, non_overridable          :: init         => coarse_fe_object_iterator_init
+     procedure, non_overridable          :: next         => coarse_fe_object_iterator_next
+     procedure, non_overridable          :: has_finished => coarse_fe_object_iterator_has_finished
+     procedure, non_overridable          :: current      => coarse_fe_object_iterator_current
+  end type coarse_fe_object_iterator_t
+  
+  type :: coarse_fe_vefs_on_object_iterator_t
+    private
+    type(vefs_on_object_iterator_t)     :: vefs_on_object_iterator
+    type(coarse_fe_vef_accessor_t)      :: current_coarse_fe_vef_accessor
+  contains
+    procedure, non_overridable          :: create       => coarse_fe_vefs_on_object_iterator_create
+    procedure, non_overridable          :: free         => coarse_fe_vefs_on_object_iterator_free
+    procedure, non_overridable          :: init         => coarse_fe_vefs_on_object_iterator_init
+    procedure, non_overridable          :: next         => coarse_fe_vefs_on_object_iterator_next
+    procedure, non_overridable          :: has_finished => coarse_fe_vefs_on_object_iterator_has_finished
+    procedure, non_overridable          :: current      => coarse_fe_vefs_on_object_iterator_current
+  end type coarse_fe_vefs_on_object_iterator_t
+  
+ 
+  type :: coarse_fe_space_t
+    private
+    integer(ip)                                 :: number_fields
+    integer(ip) , allocatable                   :: field_type(:)
+    integer(ip) , allocatable                   :: number_dofs_per_field(:)
+    
+    integer(ip)                                 :: number_blocks
+    integer(ip)                   , allocatable :: field_blocks(:)
+    logical                       , allocatable :: field_coupling(:,:)
+    logical                       , allocatable :: blocks_coupling(:,:)
+    integer(ip)                   , allocatable :: number_dofs_per_block(:)
+    
+    integer(ip) , allocatable                   :: ptr_dofs_per_fe_and_field(:)
+    integer(ip) , allocatable                   :: lst_dofs_lids(:)
+    type(list_t), allocatable                   :: own_dofs_vef_per_fe(:)
+    
+    type(dof_import_t)            , allocatable :: blocks_dof_import(:)
+       
+    ! Pointer to coarse triangulation this coarse_fe_space has been built from
+    type(coarse_triangulation_t), pointer       :: coarse_triangulation => NULL()
+  contains
+    procedure                                   :: create                                          => coarse_fe_space_create
+    procedure                                   :: free                                            => coarse_fe_space_free
+    procedure, non_overridable                  :: print                                           => coarse_fe_space_print
+    procedure, non_overridable, private         :: allocate_and_fill_field_blocks_and_coupling     => coarse_fe_space_allocate_and_fill_field_blocks_and_coupling
+    procedure, non_overridable, private         :: free_field_blocks_and_coupling                  => coarse_fe_space_free_field_blocks_and_coupling
+    procedure, non_overridable, private         :: allocate_and_fill_field_type                    => coarse_fe_space_allocate_and_fill_field_type
+    procedure, non_overridable, private         :: free_field_type                                 => coarse_fe_space_free_field_type
+    procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_per_fe_and_field     => coarse_fe_space_allocate_and_fill_ptr_dofs_per_fe_and_field
+    procedure, non_overridable, private         :: free_ptr_dofs_per_fe_and_field                  => coarse_fe_space_free_ptr_dofs_per_fe_and_field
+    procedure, non_overridable, private         :: fetch_ghost_fes_data                            => coarse_fe_space_fetch_ghost_fes_data
+    procedure, non_overridable, private         :: allocate_and_fill_own_dofs_vef_per_fe           => coarse_fe_space_allocate_and_fill_own_dofs_vef_per_fe
+    procedure, non_overridable, private         :: fill_own_dofs_per_fe_field                      => coarse_fe_space_fill_own_dofs_per_fe_field
+    procedure, non_overridable, private         :: free_own_dofs_vef_per_fe                        => coarse_fe_space_free_free_own_dofs_vef_per_fe
+    procedure, non_overridable, private         :: allocate_lst_dofs_lids                          => coarse_fe_space_allocate_lst_dofs_lids
+    procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_lids                => coarse_fe_space_count_dofs_and_fill_lst_dof_lids
+    procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_lids_field          => coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field
+    procedure, non_overridable, private         :: free_lst_dofs_lids                              => coarse_fe_space_free_lst_dofs_lids
+    procedure, non_overridable, private         :: free_number_dofs_per_field_and_block            => coarse_fe_space_free_number_dofs_per_field_and_block
+    procedure, non_overridable, private         :: free_blocks_dof_import                          => coarse_fe_space_free_blocks_dof_import
+    procedure, non_overridable, nopass, private :: coarse_fe_size                                  => coarse_fe_space_coarse_fe_size
+    procedure, non_overridable, nopass, private :: coarse_fe_pack                                  => coarse_fe_space_coarse_fe_pack
+    procedure, non_overridable, nopass, private :: coarse_fe_unpack                                => coarse_fe_space_coarse_fe_unpack
+    procedure, non_overridable, private         :: compute_blocks_dof_import                       => coarse_fe_space_compute_blocks_dof_import
+    procedure, non_overridable, private         :: compute_dof_import                              => coarse_fe_space_compute_dof_import
+    procedure, non_overridable, private         :: compute_ubound_num_itfc_couplings_by_continuity => coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity
+    procedure, non_overridable, private         :: compute_raw_interface_data_by_continuity        => coarse_fe_space_compute_raw_interface_data_by_continuity
+    procedure, non_overridable, private         :: raw_interface_data_by_continuity_decide_owner   => coarse_fe_space_raw_interface_data_by_continuity_decide_owner
+    procedure, non_overridable                  :: setup_dofs_objects_and_constraint_matrix        => coarse_fe_space_setup_dofs_objects_and_constraint_matrix
+    procedure, non_overridable, private         :: setup_dofs_objects_by_continuity                => coarse_fe_space_setup_dofs_objects_by_continuity
+    procedure, non_overridable, private         :: setup_constraint_matrix                         => coarse_fe_space_setup_constraint_matrix
+    
+    procedure                                   :: renumber_dofs_first_interior_then_interface     => coarse_fe_space_renumber_dofs_first_interior_then_interface
+    procedure                         , private :: renumber_dofs_block                             => coarse_fe_space_renumber_dofs_block
+    
+    ! Coarse FE traversals-related TBPs
+    procedure, non_overridable                  :: create_coarse_fe_iterator                       => coarse_fe_space_create_coarse_fe_iterator
+    
+    ! Coarse FE VEFS traversals-related TBPs
+    procedure, non_overridable                  :: create_coarse_fe_vef_iterator                   => coarse_fe_space_create_coarse_fe_vef_iterator
+    procedure, non_overridable                  :: create_itfc_coarse_fe_vef_iterator              => coarse_fe_space_create_itfc_coarse_fe_vef_iterator
+    
+     ! Objects-related traversals
+     procedure, non_overridable                 :: create_coarse_fe_object_iterator                => coarse_fe_space_create_coarse_fe_object_iterator
+     procedure, non_overridable                 :: create_coarse_fe_vefs_on_object_iterator        => coarse_fe_space_create_coarse_fe_vefs_on_object_iterator
+     
+     ! Getters
+     procedure, non_overridable                 :: get_number_local_coarse_fes                     => coarse_fe_space_get_number_local_coarse_fes
+     procedure, non_overridable                 :: get_number_ghost_coarse_fes                     => coarse_fe_space_get_number_ghost_coarse_fes
+     procedure, non_overridable                 :: get_number_fields                               => coarse_fe_space_get_number_fields
+     procedure, non_overridable                 :: get_number_blocks                               => coarse_fe_space_get_number_blocks
+     procedure, non_overridable                 :: get_field_coupling                              => coarse_fe_space_get_field_coupling
+     procedure, non_overridable                 :: get_field_blocks                                => coarse_fe_space_get_field_blocks
+     procedure, non_overridable                 :: get_field_type                                  => coarse_fe_space_get_field_type
+     procedure, non_overridable                 :: get_total_number_dofs                           => coarse_fe_space_get_total_number_dofs
+     procedure, non_overridable                 :: get_field_number_dofs                           => coarse_fe_space_get_field_number_dofs
+     procedure, non_overridable                 :: get_block_number_dofs                           => coarse_fe_space_get_block_number_dofs
+     procedure, non_overridable                 :: get_total_number_interior_dofs                  => coarse_fe_space_get_total_number_interior_dofs
+     procedure, non_overridable                 :: get_total_number_interface_dofs                 => coarse_fe_space_get_total_number_interface_dofs
+     procedure, non_overridable                 :: get_block_number_interior_dofs                  => coarse_fe_space_get_block_number_interior_dofs
+     procedure, non_overridable                 :: get_block_number_interface_dofs                 => coarse_fe_space_get_block_number_interface_dofs
+     procedure, non_overridable                 :: get_number_coarse_fe_objects                    => coarse_fe_space_get_number_coarse_fe_objects
+     procedure, non_overridable                 :: get_block_dof_import                            => coarse_fe_space_get_block_dof_import
+     procedure, non_overridable                 :: get_triangulation                               => coarse_fe_space_get_triangulation
+     procedure, non_overridable                 :: get_par_environment                             => coarse_fe_space_get_par_environment
+ end type coarse_fe_space_t
+ 
+ public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_accessor_t, coarse_fe_object_accessor_t
 !  
 !  ! These parameter constants are used in order to generate a unique (non-consecutive) 
 !  ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
@@ -885,15 +940,25 @@ contains
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
 !#include "sbm_finite_face.i90"
 #include "sbm_new_serial_fe_space.i90"
-#include "sbm_new_par_fe_space.i90"
-!#include "sbm_coarse_fe_space.i90"
+!#include "sbm_serial_fe_space_faces.i90"
+#include "sbm_new_fe_function.i90"
 #include "sbm_fe_accessor.i90"
 #include "sbm_fe_iterator.i90"
 #include "sbm_fe_vef_accessor.i90"
 #include "sbm_fe_vef_iterator.i90"
-!#include "sbm_coarse_fe_object_accessor.i90"
-!#include "sbm_coarse_fe_object_iterator.i90"
-!#include "sbm_coarse_fe_vefs_on_object_iterator.i90"
-!#include "sbm_serial_fe_space_faces.i90"
-#include "sbm_new_fe_function.i90"
+#include "sbm_new_par_fe_space.i90"
+#include "sbm_fe_object_accessor.i90"
+#include "sbm_fe_object_iterator.i90"
+#include "sbm_fe_vefs_on_object_iterator.i90"
+
+#include "sbm_coarse_fe_space.i90"
+#include "sbm_coarse_fe_object_accessor.i90"
+#include "sbm_coarse_fe_object_iterator.i90"
+#include "sbm_coarse_fe_vefs_on_object_iterator.i90"
+#include "sbm_coarse_fe_accessor.i90"
+#include "sbm_coarse_fe_iterator.i90"
+#include "sbm_coarse_fe_vef_accessor.i90"
+#include "sbm_coarse_fe_vef_iterator.i90"
+
+
 end module new_serial_fe_space_names

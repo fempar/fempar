@@ -249,36 +249,31 @@ subroutine new_par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
        (current_dof_block - init_dof_block) 
 end subroutine new_par_fe_space_fill_elem2dof_and_count_dofs
 
-!subroutine new_par_fe_space_renumber_dofs_first_interior_then_interface( this )
-!  implicit none
-!  class(new_par_fe_space_t), intent(inout) :: this 
-!  integer(ip) :: iblock
-!  integer(ip), allocatable :: perm_old2new_block(:)
-!  assert ( associated (this%par_triangulation) )
-!  if ( par_environment%am_i_l1_task() ) then
-!    do iblock=1, this%get_number_blocks()
-!      call memalloc (this%number_dofs_per_block(iblock), perm_old2new_block, __FILE__, __LINE__)
-!      call this%blocks_dof_import(iblock)%fill_first_I_then_G_renumbering(perm_old2new_block)
-!      call this%renumber_dofs_block(iblock, perm_old2new_block)
-!      call this%blocks_dof_import(iblock)%renumber_dofs(perm_old2new_block)
-!      call memfree (perm_old2new_block, __FILE__, __LINE__)
-!    end do
-!  end if
-!end subroutine new_par_fe_space_renumber_dofs_first_interior_then_interface
+subroutine new_par_fe_space_renumber_dofs_first_interior_then_interface( this )
+  implicit none
+  class(new_par_fe_space_t), intent(inout) :: this 
+  integer(ip) :: iblock
+  integer(ip), allocatable :: perm_old2new_block(:)
+  type(par_environment_t), pointer :: par_environment
+  par_environment => this%get_par_environment()
+  if ( par_environment%am_i_l1_task() ) then
+    do iblock=1, this%get_number_blocks()
+      call memalloc (this%number_dofs_per_block(iblock), perm_old2new_block, __FILE__, __LINE__)
+      call this%blocks_dof_import(iblock)%fill_first_I_then_G_renumbering(perm_old2new_block)
+      call this%renumber_dofs_block(iblock, perm_old2new_block)
+      call this%blocks_dof_import(iblock)%renumber_dofs(perm_old2new_block)
+      call memfree (perm_old2new_block, __FILE__, __LINE__)
+    end do
+  end if
+end subroutine new_par_fe_space_renumber_dofs_first_interior_then_interface
 
-!subroutine new_par_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
-!  implicit none
-!  class(new_par_fe_space_t)   , intent(inout) :: this
-!  integer(ip)             , intent(in)    :: block_id
-!  integer(ip)             , intent(in)    :: perm_old2new(this%number_dofs_per_block(block_id))
-!  integer(ip)                             :: ighost
-!  assert ( associated (this%par_triangulation) )
-!  assert ( par_environment%am_i_l1_task() )
-!  call this%serial_fe_space_t%renumber_dofs_block(block_id, perm_old2new)
-!  do ighost = 1, this%par_triangulation%num_ghosts
-!    call this%ghost_fe_array(ighost)%renumber_dofs_block( block_id, perm_old2new )         
-!  end do
-!end subroutine new_par_fe_space_renumber_dofs_block
+subroutine new_par_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
+  implicit none
+  class(new_par_fe_space_t)   , intent(inout) :: this
+  integer(ip)                 , intent(in)    :: block_id
+  integer(ip)                 , intent(in)    :: perm_old2new(this%number_dofs_per_block(block_id))
+  call this%new_serial_fe_space_t%renumber_dofs_block(block_id, perm_old2new)
+end subroutine new_par_fe_space_renumber_dofs_block
 
 subroutine new_par_fe_space_compute_blocks_dof_import ( this )
   implicit none
@@ -289,7 +284,6 @@ subroutine new_par_fe_space_compute_blocks_dof_import ( this )
      call this%compute_dof_import(iblock)
   end do
 end subroutine new_par_fe_space_compute_blocks_dof_import
-
 
 subroutine new_par_fe_space_compute_dof_import ( this, iblock )
   implicit none
@@ -615,6 +609,14 @@ function new_par_fe_space_get_block_number_interface_dofs ( this, block_id )
         new_par_fe_space_get_block_number_interface_dofs = this%blocks_dof_import(block_id)%get_number_interface_dofs()
    end if
 end function new_par_fe_space_get_block_number_interface_dofs
+
+function new_par_fe_space_get_number_fe_objects ( this )
+  implicit none
+  class(new_par_fe_space_t), intent(in) :: this
+  integer(ip) :: new_par_fe_space_get_number_fe_objects
+  new_par_fe_space_get_number_fe_objects = this%triangulation%get_number_objects()
+end function new_par_fe_space_get_number_fe_objects 
+
 
 function new_par_fe_space_compute_raw_interface_data_by_continuity (  this, &
                                                                       field_id, &
@@ -1062,13 +1064,291 @@ end subroutine new_par_fe_space_update_strong_dirichlet_bcs_values
     call fe_function%create(this%strong_dirichlet_values, dof_values)
  end subroutine new_par_fe_space_create_global_fe_function
 
+ subroutine new_par_fe_space_setup_dofs_objects_and_constraint_matrix ( this, &
+                                                                      num_dofs_objects_per_field, &
+                                                                      dofs_objects_per_field, &
+                                                                      dofs_objects_gids_per_field, &
+                                                                      vefs_lids_dofs_objects_per_field, &
+                                                                      constraint_matrix)
+  implicit none
+  class(new_par_fe_space_t)                   , intent(inout) :: this
+  integer(ip)                   , allocatable, intent(inout) :: num_dofs_objects_per_field(:)
+  type(list_t)                  , allocatable, intent(inout) :: dofs_objects_per_field(:)
+  type(allocatable_array_igp1_t), allocatable, intent(inout) :: dofs_objects_gids_per_field(:)
+  type(allocatable_array_ip1_t) , allocatable, intent(inout) :: vefs_lids_dofs_objects_per_field(:)
+  type(coo_sparse_matrix_t)                  , intent(inout) :: constraint_matrix
+  
+  integer(ip)                       :: istat, field_id
+  type(par_environment_t), pointer  :: par_environment
+  
+  ! This routine only works temporarily for single scalar-valued reference FE cases
+  ! We should think about:
+  !  * How should it work for single vector-valued reference FE cases? (next more general case)
+  !  * How should it work for arbitrary composite cases ? (most general case)
+  assert ( this%number_fields == 1 )
+  assert ( associated(this%triangulation) )
+  par_environment => this%get_par_environment()
+  assert ( associated ( par_environment ) )
+  assert ( par_environment%am_i_l1_task() )   
+  
+  ! On the other hand, we should have control over on which type (accordingly to their dimension) of coarse vefs we want to put DoFs.
+  ! E.g., either on vertices, vertices+edges, or just on faces. This is currently a MLBDDC preconditioner parameter
+  ! so that this seems to indicate that type(new_par_fe_space_t) is not the proper place to store coarse DoF-related
+  ! data and code. For simplicity, I will temporarily place associated data and code within type(new_par_fe_space_t), but I
+  ! am pretty convinced that it should be moved to another place in the future.
+  if (allocated(num_dofs_objects_per_field)) then 
+    call memfree ( num_dofs_objects_per_field, __FILE__, __LINE__ )
+  end if
+  
+  if (allocated(dofs_objects_per_field)) then
+    do field_id=1, size(dofs_objects_per_field)
+      call dofs_objects_per_field(field_id)%free()
+    end do  
+    deallocate ( dofs_objects_per_field, stat=istat )
+    check (istat == 0)  
+  end if
+  
+  if (allocated(dofs_objects_gids_per_field)) then
+    do field_id=1, size(dofs_objects_gids_per_field)
+      call dofs_objects_gids_per_field(field_id)%free()
+    end do  
+    deallocate ( dofs_objects_gids_per_field, stat=istat )
+    check (istat == 0)  
+  end if
+  
+  if (allocated(vefs_lids_dofs_objects_per_field)) then
+    do field_id=1, size(vefs_lids_dofs_objects_per_field)
+      call vefs_lids_dofs_objects_per_field(field_id)%free()
+    end do  
+    deallocate ( vefs_lids_dofs_objects_per_field, stat=istat )
+    check (istat == 0)  
+  end if
+  
+  call memalloc ( this%number_fields, num_dofs_objects_per_field, __FILE__, __LINE__ )
+  
+  allocate ( dofs_objects_per_field(this%number_fields), stat=istat )
+  check ( istat == 0 )
+  
+  allocate ( dofs_objects_gids_per_field(this%number_fields), stat=istat )
+  check ( istat == 0 )
+  
+  allocate ( vefs_lids_dofs_objects_per_field(this%number_fields), stat=istat )
+  check ( istat == 0 )
+  
+  do field_id=1, this%number_fields
+    if ( this%field_type(field_id) == field_type_cg ) then
+      call this%setup_dofs_objects_by_continuity(field_id, &
+                                                 num_dofs_objects_per_field(field_id), &
+                                                 dofs_objects_per_field(field_id), &
+                                                 dofs_objects_gids_per_field(field_id), & 
+                                                 vefs_lids_dofs_objects_per_field(field_id) )
+    else if ( this%field_type(field_id) == field_type_dg ) then
+      ! Not implemented yet
+      check(.false.)
+    end if
+  end do
+  
+  call this%setup_constraint_matrix( block_id               = 1,                      &
+                                     dofs_objects_per_field = dofs_objects_per_field, &
+                                     constraint_matrix      = constraint_matrix )
+end subroutine new_par_fe_space_setup_dofs_objects_and_constraint_matrix
+
+subroutine new_par_fe_space_setup_dofs_objects_by_continuity ( this, &
+                                                              field_id, &
+                                                              num_dofs_objects, &
+                                                              dofs_objects, &
+                                                              dofs_objects_gids, &
+                                                              vefs_lids_dofs_objects)
+  implicit none
+  class(new_par_fe_space_t)      , intent(inout)  :: this
+  integer(ip)                   , intent(in)     :: field_id
+  integer(ip)                   , intent(inout)  :: num_dofs_objects
+  type(list_t)                  , intent(inout)  :: dofs_objects
+  type(allocatable_array_igp1_t), intent(inout)  :: dofs_objects_gids
+  type(allocatable_array_ip1_t) , intent(inout)  :: vefs_lids_dofs_objects
+  
+  type(list_iterator_t)                :: vefs_object_iterator, dofs_object_iterator
+  integer(ip)                          :: iobj_vef, iobj_dof, elem_lid, vef_lid, ivef
+  integer(ip)                          :: idof_interior, idof, dof_lid
+  integer(ip)                          :: number_dofs_on_vef_object
+  integer(ip)                          :: offset, i
+  integer(ip)                          :: istat
+  logical                              :: dofs_on_vef
+  integer(ip)                          :: current_dof_object
+  integer(ip)                          :: base_pos_lst_dofs
+  type(par_environment_t), pointer     :: par_environment
+  type(fe_object_iterator_t)           :: object_iterator
+  type(fe_object_accessor_t)           :: object
+  type(fe_vefs_on_object_iterator_t)   :: vefs_on_object_iterator
+  type(fe_vef_accessor_t)              :: vef
+  type(fe_accessor_t)                  :: fe
+  type(list_iterator_t)                :: own_dofs_on_vef_iterator
+  type(i1p_t), allocatable             :: elem2dof(:)
+  
+  assert ( this%number_fields == 1 )
+  assert ( associated(this%triangulation) )
+  par_environment => this%get_par_environment()
+  assert ( associated ( par_environment ) )
+  assert ( par_environment%am_i_l1_task() )
+  
+  num_dofs_objects = 0
+  
+  object_iterator = this%create_fe_object_iterator()
+  do while ( .not. object_iterator%has_finished() )
+     call object_iterator%current(object)
+     vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+     do while ( .not. vefs_on_object_iterator%has_finished() )
+       call vefs_on_object_iterator%current(vef)
+       call vef%get_cell_around(1,fe)
+       ivef = fe%find_lpos_vef_lid(vef%get_lid())
+       own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
+       if ( own_dofs_on_vef_iterator%get_size() > 0 ) then
+         num_dofs_objects = num_dofs_objects + 1
+         exit
+       end if
+       call vefs_on_object_iterator%next()
+     end do 
+     call object_iterator%next()
+  end do
+  
+  ! Count number of dofs per dof object; set dofs_objects_gids
+  call dofs_objects%create(num_dofs_objects)
+  call dofs_objects_gids%create(num_dofs_objects)
+  call vefs_lids_dofs_objects%create(num_dofs_objects)
+  
+  current_dof_object = 1
+  call object_iterator%init()
+  do while ( .not. object_iterator%has_finished() )
+     number_dofs_on_vef_object = 0
+     call object_iterator%current(object)
+     vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+     do while ( .not. vefs_on_object_iterator%has_finished() )
+       call vefs_on_object_iterator%current(vef)
+       call vef%get_cell_around(1,fe)
+       ivef = fe%find_lpos_vef_lid(vef%get_lid())
+       own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
+       number_dofs_on_vef_object = number_dofs_on_vef_object + own_dofs_on_vef_iterator%get_size() 
+       call vefs_on_object_iterator%next()
+     end do 
+     if ( number_dofs_on_vef_object > 0 ) then
+       dofs_objects_gids%a(current_dof_object) = object%get_gid()
+       vefs_lids_dofs_objects%a(current_dof_object) = object%get_lid()
+       call dofs_objects%sum_to_pointer_index(current_dof_object, number_dofs_on_vef_object)
+       current_dof_object = current_dof_object + 1
+     end if
+     call object_iterator%next()
+  end do
+  
+  allocate ( elem2dof(this%get_number_fields()), stat=istat)
+  check (istat == 0)
+  
+  call dofs_objects%calculate_header()
+  call dofs_objects%allocate_list_from_pointer()
+  do iobj_dof=1, dofs_objects%get_num_pointers()
+     dofs_object_iterator = dofs_objects%create_iterator(iobj_dof)
+     iobj_vef = vefs_lids_dofs_objects%a(iobj_dof)
+     vefs_on_object_iterator = this%create_fe_vefs_on_object_iterator(iobj_vef)
+     do while ( .not. vefs_on_object_iterator%has_finished() )
+       call vefs_on_object_iterator%current(vef)
+       call vef%get_cell_around(1,fe)
+       call fe%get_elem2dof(elem2dof)
+       
+       ivef = fe%find_lpos_vef_lid(vef%get_lid())
+       own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
+       do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
+          dof_lid = elem2dof(field_id)%p(own_dofs_on_vef_iterator%get_current())
+          call dofs_object_iterator%set_current(dof_lid)
+          call dofs_object_iterator%next()
+          call own_dofs_on_vef_iterator%next()
+       end do
+       call vefs_on_object_iterator%next()
+     end do
+  end do
+  
+  deallocate ( elem2dof, stat=istat)
+  check (istat == 0)
+end subroutine new_par_fe_space_setup_dofs_objects_by_continuity
+
+subroutine new_par_fe_space_setup_constraint_matrix ( this, &
+                                                     block_id, &
+                                                     dofs_objects_per_field, &
+                                                     constraint_matrix )
+   implicit none
+   class(new_par_fe_space_t)     , intent(in)    :: this
+   integer(ip)               , intent(in)        :: block_id
+   type(list_t)              , intent(in)        :: dofs_objects_per_field(this%number_fields)
+   type(coo_sparse_matrix_t) , intent(inout)     :: constraint_matrix
+   
+   real(rp)              :: constraint_matrix_entry
+   integer(ip)           :: field_id
+   integer(ip)           :: num_rows, num_cols 
+   integer(ip)           :: row_offset, i, j
+   integer(ip)           :: num_dofs_current_row
+   type(list_iterator_t) :: dofs_on_current_object
+   
+   assert ( this%number_fields == 1 )
+   assert ( block_id == 1 ) 
+   assert ( this%number_blocks == 1 )
+   
+   ! Free any dynamic memory that constraint_matrix may have inside
+   call constraint_matrix%free()
+   
+   num_cols = this%number_dofs_per_block(block_id)
+
+   num_rows = 0
+   do field_id = 1, this%number_fields
+     if ( this%field_blocks(field_id) == block_id  ) then
+         num_rows = num_rows + dofs_objects_per_field(field_id)%get_num_pointers()
+     end if
+   end do
+   
+   ! Create constraint matrix (transposed)
+   call constraint_matrix%create ( num_cols, num_rows )
+   
+   ! Fill constraint matrix entries (transposed)
+   row_offset = 0
+   do field_id = 1, this%number_fields
+     if ( this%field_blocks(field_id) == block_id  ) then
+         do i=1, dofs_objects_per_field(field_id)%get_num_pointers()
+             dofs_on_current_object  = dofs_objects_per_field(field_id)%create_iterator(i)
+             num_dofs_current_row    = dofs_on_current_object%get_size()
+             constraint_matrix_entry = 1.0_rp/real(num_dofs_current_row,rp)
+             do while ( .not. dofs_on_current_object%is_upper_bound() )
+               j = dofs_on_current_object%get_current()
+               call constraint_matrix%insert(j, row_offset+i, constraint_matrix_entry)
+               call dofs_on_current_object%next()
+             end do
+         end do
+         row_offset = row_offset + dofs_objects_per_field(field_id)%get_num_pointers()
+     end if
+   end do
+   call constraint_matrix%sort_and_compress()
+end subroutine new_par_fe_space_setup_constraint_matrix
+ 
+ 
  !===============================================================================================
  subroutine new_par_fe_space_update_global_fe_function_bcs ( this, fe_function )
     implicit none
     class(new_par_fe_space_t), intent(in)    :: this
-    type(new_fe_function_t)     , intent(inout) :: fe_function
+    type(new_fe_function_t)  , intent(inout) :: fe_function
     call fe_function%copy_bc_values(this%strong_dirichlet_values)
  end subroutine new_par_fe_space_update_global_fe_function_bcs
+ 
+ function new_par_fe_space_create_fe_object_iterator (this)
+    implicit none
+    class(new_par_fe_space_t), intent(in) :: this
+    type(fe_object_iterator_t) :: new_par_fe_space_create_fe_object_iterator
+    call new_par_fe_space_create_fe_object_iterator%create(1,this)
+ end function new_par_fe_space_create_fe_object_iterator
+  
+ function new_par_fe_space_create_fe_vefs_on_object_iterator(this, lid)
+    implicit none
+    class(new_par_fe_space_t), intent(in) :: this
+    integer(ip)              , intent(in) :: lid
+    type(fe_vefs_on_object_iterator_t) :: new_par_fe_space_create_fe_vefs_on_object_iterator
+    call new_par_fe_space_create_fe_vefs_on_object_iterator%create(lid, this)
+ end function new_par_fe_space_create_fe_vefs_on_object_iterator
+ 
 
 !subroutine new_par_fe_space_setup_dofs_objects_and_constraint_matrix ( this, &
 !                                                                   num_dofs_objects_per_field, &

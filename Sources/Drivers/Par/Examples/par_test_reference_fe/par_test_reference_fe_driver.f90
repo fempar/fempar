@@ -54,6 +54,9 @@ module par_test_reference_fe_driver_names
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(new_fe_affine_operator_t)            :: fe_affine_operator
      
+     ! MLBDDC preconditioner
+     type(mlbddc_t)                            :: mlbddc
+     
      ! Iterative linear solvers data type
      type(iterative_linear_solver_t)           :: iterative_linear_solver
  
@@ -152,7 +155,7 @@ contains
     this%reference_fes(1) =  make_reference_fe ( topology = topology_quad, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = 2, &
-                                                 order = 2, &
+                                                 order = 1, &
                                                  field_type = field_type_scalar, &
                                                  continuity = .true. )
   end subroutine setup_reference_fes
@@ -167,6 +170,9 @@ contains
     
     call this%fe_space%fill_dof_info() 
     
+    ! Step required by the MLBDDC preconditioner
+    call this%fe_space%renumber_dofs_first_interior_then_interface()
+
     call this%poisson_conditions%set_constant_function_value(1.0_rp)
     call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
     
@@ -190,25 +196,15 @@ contains
   subroutine setup_solver (this)
     implicit none
     class(par_test_reference_fe_driver_t), intent(inout) :: this
-    integer                                              :: FPLError
-    type(parameterlist_t)                                :: parameter_list
-    integer                                              :: iparm(64)
 
-    !call parameter_list%init()
-    !FPLError = 0
-    !FPLError = FPLError + parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
-    !FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_spd)
-    !FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
-    !iparm = 0
-    !FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
-    !check(FPLError == 0)
-    !call this%direct_solver%set_type_from_pl(parameter_list)
-    !call this%direct_solver%set_parameters_from_pl(parameter_list)
-    !call parameter_list%free()
+    ! Set-up MLBDDC preconditioner
+    call this%mlbddc%create(this%fe_affine_operator)
+    call this%mlbddc%symbolic_setup()
+    call this%mlbddc%numerical_setup()
     
-     call this%iterative_linear_solver%create(this%par_environment)
-     call this%iterative_linear_solver%set_type_from_string(cg_name)
-     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    call this%iterative_linear_solver%create(this%par_environment)
+    call this%iterative_linear_solver%set_type_from_string(cg_name)
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
   end subroutine setup_solver
   
   
@@ -314,6 +310,7 @@ contains
     integer(ip) :: i, istat
     
     call this%solution%free()
+    call this%mlbddc%free()
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
     call this%fe_space%free()

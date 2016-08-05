@@ -893,6 +893,24 @@ subroutine new_serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
        this%number_dofs_per_field(field_id)     
 end subroutine new_serial_fe_space_fill_elem2dof_and_count_dofs
 
+subroutine new_serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
+  implicit none
+  class(new_serial_fe_space_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: block_id
+  integer(ip)             , intent(in)    :: perm_old2new(this%number_dofs_per_block(block_id))
+  type(fe_iterator_t) :: fe_iterator
+  type(fe_accessor_t) :: fe
+  
+  fe_iterator = this%create_fe_iterator()
+  do while ( .not. fe_iterator%has_finished() )
+    call fe_iterator%current(fe)
+    call fe%renumber_dofs_block ( block_id, perm_old2new )
+    call fe_iterator%next()
+  end do
+  
+end subroutine new_serial_fe_space_renumber_dofs_block
+
+
 ! Returns the number of DoFs associated to field with identifier field_id
 function new_serial_fe_space_get_field_number_dofs ( this, field_id )
    implicit none
@@ -939,6 +957,20 @@ function new_serial_fe_space_get_number_fields ( this )
   integer(ip) :: new_serial_fe_space_get_number_fields
   new_serial_fe_space_get_number_fields = this%number_fields
 end function new_serial_fe_space_get_number_fields
+
+! Although in principle this%field_type(:) was though to be
+! private member variable, I had to make it visible to the exterior
+! via a raw pointer as type(mlbddc_t) requires it in order to construct 
+! the type(coarse_fe_space_t) instance that it aggregrates. Perhaps there is a 
+! better/cleaner solution, but at the present moment, this is the only solution 
+! that comes into my mind and lets me advance
+function new_serial_fe_space_get_field_type (this)
+  implicit none
+  class(new_serial_fe_space_t), target, intent(in) :: this
+  integer(ip), pointer :: new_serial_fe_space_get_field_type(:)
+  new_serial_fe_space_get_field_type => this%field_type
+end function new_serial_fe_space_get_field_type
+
 
 function new_serial_fe_space_get_number_components ( this )
   implicit none
