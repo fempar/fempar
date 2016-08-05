@@ -1718,7 +1718,7 @@ subroutine bst_print ( this )
         this%number_global_objects = -1
         
       else ! I am lgt1_task
-      
+       call this%coarse_triangulation%print()
        call this%coarse_triangulation%free()
        deallocate ( this%coarse_triangulation, stat=istat)
        check(istat == 0)

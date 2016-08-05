@@ -183,6 +183,7 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
      call this%compute_number_global_objects_and_their_gids()
      write(*,*) 'End creating par_triangulation'
   end if
+  call this%setup_coarse_triangulation()
   !call this%print()
 
 end subroutine par_triangulation_create
@@ -237,13 +238,3 @@ subroutine par_triangulation_allocate_and_fill_lst_vefs_lids ( this, lst_vefs_li
 
 end subroutine par_triangulation_allocate_and_fill_lst_vefs_lids
 
-
-subroutine par_triangulation_free ( this )
-  implicit none
-  class(new_par_triangulation_t), intent(inout) :: this
-  if ( associated ( this%p_env ) ) then
-    if ( this%p_env%am_i_l1_task() ) then
-      call this%fine_triangulation_t%free()  
-    end if
-  end if
-end subroutine par_triangulation_free

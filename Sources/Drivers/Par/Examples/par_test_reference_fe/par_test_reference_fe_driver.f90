@@ -102,11 +102,33 @@ contains
     implicit none
     class(par_test_reference_fe_driver_t), intent(inout) :: this
     
-    ! This test only works with one level.
-    call this%par_environment%create(this%w_context,&
-                                     2,&
-                                     [this%test_params%get_nparts(), 1],&
-                                     [this%w_context%get_rank()+1,1])
+    integer(ip)              :: num_levels
+    integer(ip), allocatable :: parts_mapping(:)
+    integer(ip), allocatable :: num_parts_per_level(:)
+    
+    num_levels = 3
+    call memalloc(num_levels, parts_mapping , __FILE__, __LINE__)
+    call memalloc(num_levels, num_parts_per_level, __FILE__, __LINE__)
+   
+    num_parts_per_level = [ this%test_params%get_nparts(), 2, 1 ]
+    if ( this%w_context%get_rank() < this%test_params%get_nparts() ) then
+      parts_mapping       = [ this%w_context%get_rank()+1, this%w_context%get_rank()/2+1, 1 ]
+    else if ( this%w_context%get_rank() >= this%test_params%get_nparts()) then
+      parts_mapping       = [ this%w_context%get_rank()+1, this%w_context%get_rank()+1-this%test_params%get_nparts(), 1 ]
+    end if
+    
+    call this%par_environment%create ( this%w_context,&
+                                       num_levels,&
+                                       num_parts_per_level,&
+                                       parts_mapping )
+    
+    call memfree(parts_mapping, __FILE__, __LINE__)
+    call memfree(num_parts_per_level, __FILE__, __LINE__)
+    
+    !call this%par_environment%create(this%w_context,&
+    !                                 2,&
+    !                                 [this%test_params%get_nparts(), 1],&
+    !                                 [this%w_context%get_rank()+1,1])
   end subroutine setup_par_environment
   
   subroutine setup_triangulation(this)
@@ -130,7 +152,7 @@ contains
     this%reference_fes(1) =  make_reference_fe ( topology = topology_quad, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = 2, &
-                                                 order = 1, &
+                                                 order = 2, &
                                                  field_type = field_type_scalar, &
                                                  continuity = .true. )
   end subroutine setup_reference_fes

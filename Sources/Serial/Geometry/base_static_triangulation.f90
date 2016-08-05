@@ -398,7 +398,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: create_vefs_on_object_iterator      => bst_create_vefs_on_object_iterator
   
      ! Other
-     procedure, non_overridable          :: print                               => bst_print    
+     procedure                           :: print                               => bst_print    
      procedure                           :: free                                => bst_free
    
 
@@ -479,7 +479,6 @@ module base_static_triangulation_names
   contains
      procedure, non_overridable          :: create                              => par_triangulation_create
      procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => par_triangulation_allocate_and_fill_lst_vefs_lids 
-     procedure                           :: free                                => par_triangulation_free     
   end type new_par_triangulation_t
 
   
@@ -490,6 +489,7 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => coarse_triangulation_allocate_and_fill_lst_vefs_lids 
      ! Private methods for creating vef-related data
      procedure, non_overridable, private :: allocate_and_fill_vefs_dimension    => coarse_triangulation_allocate_and_fill_vefs_dimension
+     procedure                           :: print                               => coarse_triangulation_print
      !procedure, non_overridable, private :: compute_num_itfc_vefs               => coarse_triangulation_compute_num_itfc_vefs
      !procedure, non_overridable, private :: allocate_and_fill_lst_itfc_vefs     => coarse_triangulation_allocate_and_fill_lst_itfc_vefs
   end type coarse_triangulation_t
