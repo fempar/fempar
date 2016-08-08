@@ -709,20 +709,22 @@ module reference_fe_names
      integer(ip), allocatable :: node_array_component(:,:)
    contains
      ! Additional deferred methods
-     procedure (fill_scalar_interface)                     , deferred :: fill_scalar
-     procedure (fill_quadrature_interface)                 , deferred :: fill_quadrature
-     procedure (fill_nodal_quadrature_interface)           , deferred :: fill_nodal_quadrature     
-     procedure (fill_interpolation_interface)              , deferred :: fill_interpolation
-     procedure (fill_face_interpolation_interface)         , deferred :: fill_face_interpolation
-     procedure (get_node_local_id_interface)               , deferred :: get_node_local_id
-     procedure (get_node_local_coordinates_interface)      , deferred :: get_node_local_coordinates
-     procedure (set_coordinates_1D_interface)              , deferred :: set_coordinates_1D
-     procedure (set_permutation_2D_interface)              , deferred :: set_permutation_2D
-     procedure (set_number_quadrature_points_interface)    , deferred :: &
+     procedure (fill_scalar_interface)            , private, deferred :: fill_scalar
+     procedure (fill_quadrature_interface)        , private, deferred :: fill_quadrature   
+     procedure (fill_interpolation_interface)     , private, deferred :: fill_interpolation
+     procedure (fill_face_interpolation_interface), private, deferred :: fill_face_interpolation
+     procedure (get_node_local_id_interface)      , private, deferred :: get_node_local_id
+     procedure (get_node_local_coordinates_interface)      , private, deferred :: &
+              & get_node_local_coordinates
+     procedure (set_coordinates_1D_interface)              , private, deferred :: &
+              & set_coordinates_1D
+     procedure (set_permutation_2D_interface)              , private, deferred :: &
+              & set_permutation_2D
+     procedure (set_number_quadrature_points_interface)    , private, deferred :: &
               & set_number_quadrature_points
-     procedure (compute_number_nodes_scalar_interface)     , deferred :: &
+     procedure (compute_number_nodes_scalar_interface)     , private, deferred :: &
               & compute_number_nodes_scalar
-     procedure (get_number_interior_points_x_dim_interface), deferred :: &
+     procedure (get_number_interior_points_x_dim_interface), private, deferred :: &
               & get_number_interior_points_x_dim
      ! Deferred TBP implementors
      procedure :: create                    => lagrangian_reference_fe_create
@@ -767,19 +769,21 @@ module reference_fe_names
      procedure :: get_number_subelements    => lagrangian_reference_fe_get_number_subelements
      procedure :: free                      => lagrangian_reference_fe_free
      ! Concrete TBPs of this derived data type
-     procedure, non_overridable :: fill                             & 
+     procedure, private, non_overridable :: fill                         & 
       & => lagrangian_reference_fe_fill
-     procedure, non_overridable :: fill_field_components            & 
+     procedure, private, non_overridable :: fill_field_components        & 
       & => lagrangian_reference_fe_fill_field_components
-     procedure, non_overridable :: fill_permutation_array           &
+     procedure, private, non_overridable :: fill_permutation_array       &
       & => lagrangian_reference_fe_fill_permutation_array
-     procedure, non_overridable :: get_node_coordinates_array       & 
+     procedure, private, non_overridable :: fill_nodal_quadrature        &
+      & => lagrangian_reference_fe_fill_nodal_quadrature
+     procedure, private, non_overridable :: get_node_coordinates_array   & 
       & => lagrangian_reference_fe_get_node_coordinates_array
-     procedure, non_overridable :: set_permutation_1D               & 
+     procedure, private, non_overridable :: set_permutation_1D           & 
       & => lagrangian_reference_fe_set_permutation_1D
-     procedure, non_overridable :: extend_list_components           & 
+     procedure, private, non_overridable :: extend_list_components       & 
       & => lagrangian_reference_fe_extend_list_components
-     procedure, non_overridable :: apply_femap_to_interpolation     & 
+     procedure, private, non_overridable :: apply_femap_to_interpolation & 
       & => lagrangian_reference_fe_apply_femap_to_interpolation
   end type lagrangian_reference_fe_t
 
@@ -797,13 +801,6 @@ module reference_fe_names
        class(lagrangian_reference_fe_t), intent(in)    :: this
        type(quadrature_t)              , intent(inout) :: quadrature       
      end subroutine fill_quadrature_interface
-     
-     subroutine fill_nodal_quadrature_interface ( this, quadrature )
-     import :: lagrangian_reference_fe_t, quadrature_t, ip
-       implicit none 
-       class(lagrangian_reference_fe_t), intent(in)    :: this
-       type(quadrature_t)              , intent(inout) :: quadrature
-     end subroutine fill_nodal_quadrature_interface
      
      subroutine fill_interpolation_interface ( this, interpolation, coord_ip )
      import :: lagrangian_reference_fe_t, interpolation_t, ip, rp
@@ -912,29 +909,48 @@ module reference_fe_names
      private
    contains 
      ! Deferred TBP implementors from reference_fe_t
-     procedure :: check_compatibility_of_vefs       => tet_lagrangian_reference_fe_check_compatibility_of_vefs
-     procedure :: get_characteristic_length         => tet_lagrangian_reference_fe_get_characteristic_length
-     procedure :: get_subelements_connectivity      => tet_lagrangian_reference_fe_get_subelements_connectivity
+     procedure :: check_compatibility_of_vefs                                 &
+           &   => tet_lagrangian_reference_fe_check_compatibility_of_vefs
+     procedure :: get_characteristic_length                                   &
+           &   => tet_lagrangian_reference_fe_get_characteristic_length
+     procedure :: get_subelements_connectivity                                &
+           &   => tet_lagrangian_reference_fe_get_subelements_connectivity
      ! Deferred TBP implementors from lagrangian_reference_fe_t
-     procedure :: fill_scalar                       => tet_lagrangian_reference_fe_fill_scalar
-     procedure :: fill_quadrature                   => tet_lagrangian_reference_fe_fill_quadrature
-     procedure :: fill_nodal_quadrature             => tet_lagrangian_reference_fe_fill_nodal_quadrature
-     procedure :: fill_interpolation                => tet_lagrangian_reference_fe_fill_interpolation
-     procedure :: fill_face_interpolation           => tet_lagrangian_reference_fe_fill_face_interpolation
-     procedure :: get_node_local_id                 => tet_lagrangian_reference_fe_get_node_local_id
-     procedure :: get_node_local_coordinates        => tet_lagrangian_reference_fe_get_node_local_coordinates
-     procedure :: set_coordinates_1D                => tet_lagrangian_reference_fe_set_coordinates_1D
-     procedure :: set_permutation_2D                => tet_lagrangian_reference_fe_set_permutation_2D
-     procedure :: set_number_quadrature_points      => tet_lagrangian_reference_fe_set_number_quadrature_points
-     procedure :: compute_number_nodes_scalar       => tet_lagrangian_reference_fe_compute_number_nodes_scalar
-     procedure :: get_number_interior_points_x_dim  => tet_lagrangian_reference_fe_get_number_interior_points_x_dim
+     procedure, private :: fill_scalar                                        &
+           & => tet_lagrangian_reference_fe_fill_scalar
+     procedure, private :: fill_quadrature                                    &
+           & => tet_lagrangian_reference_fe_fill_quadrature
+     procedure, private :: fill_interpolation                                 &
+           & => tet_lagrangian_reference_fe_fill_interpolation
+     procedure, private :: fill_face_interpolation                            &
+           & => tet_lagrangian_reference_fe_fill_face_interpolation
+     procedure, private :: get_node_local_id                                  &
+           & => tet_lagrangian_reference_fe_get_node_local_id
+     procedure, private :: get_node_local_coordinates                         &
+           & => tet_lagrangian_reference_fe_get_node_local_coordinates
+     procedure, private :: set_coordinates_1D                                 &
+           & => tet_lagrangian_reference_fe_set_coordinates_1D
+     procedure, private :: set_permutation_2D                                 &
+           & => tet_lagrangian_reference_fe_set_permutation_2D
+     procedure, private :: set_number_quadrature_points                       &
+           & => tet_lagrangian_reference_fe_set_number_quadrature_points
+     procedure, private :: compute_number_nodes_scalar                        &
+           & => tet_lagrangian_reference_fe_compute_number_nodes_scalar
+     procedure, private :: get_number_interior_points_x_dim                   &
+           & => tet_lagrangian_reference_fe_get_number_interior_points_x_dim
      ! Concrete TBPs of this derived data type
-     procedure :: fill_nodes_vef                    => tet_lagrangian_reference_fe_fill_nodes_vef
-     procedure :: fill_vef_dimension_and_vertices   => tet_lagrangian_reference_fe_fill_vef_dimension_and_vertices
-     procedure :: compute_number_interior_nodes     => tet_lagrangian_reference_fe_compute_number_interior_nodes
-     procedure :: compute_sum_of_nodes_in_simplices => tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
-     procedure :: evaluate_interpolation            => tet_lagrangian_reference_fe_evaluate_interpolation
-     procedure :: get_vef_orientation               => tet_lagrangian_reference_fe_get_vef_orientation
+     procedure, private, non_overridable :: fill_nodes_vef                    &
+           & => tet_lagrangian_reference_fe_fill_nodes_vef
+     procedure, private, non_overridable :: fill_vef_dimension_and_vertices   &
+           & => tet_lagrangian_reference_fe_fill_vef_dimension_and_vertices
+     procedure, private, non_overridable :: compute_number_interior_nodes     &
+           & => tet_lagrangian_reference_fe_compute_number_interior_nodes
+     procedure, private, non_overridable :: compute_sum_of_nodes_in_simplices &
+           & => tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
+     procedure, private, non_overridable :: evaluate_interpolation            &
+           & => tet_lagrangian_reference_fe_evaluate_interpolation
+     procedure, private, non_overridable :: get_vef_orientation               &
+           & => tet_lagrangian_reference_fe_get_vef_orientation
   end type tet_lagrangian_reference_fe_t
   
   public :: tet_lagrangian_reference_fe_t
@@ -944,29 +960,47 @@ module reference_fe_names
      private
    contains 
      ! Deferred TBP implementors from reference_fe_t
-     procedure :: check_compatibility_of_vefs       => hex_lagrangian_reference_fe_check_compatibility_of_vefs
-     procedure :: get_characteristic_length         => hex_lagrangian_reference_fe_get_characteristic_length
-     procedure :: get_subelements_connectivity      => hex_lagrangian_reference_fe_get_subelements_connectivity
+     procedure :: check_compatibility_of_vefs                                 &
+           &   => hex_lagrangian_reference_fe_check_compatibility_of_vefs
+     procedure :: get_characteristic_length                                   &
+           &   => hex_lagrangian_reference_fe_get_characteristic_length
+     procedure :: get_subelements_connectivity                                &
+           &   => hex_lagrangian_reference_fe_get_subelements_connectivity
      ! Deferred TBP implementors from lagrangian_reference_fe_t
-     procedure :: fill_scalar                       => hex_lagrangian_reference_fe_fill_scalar
-     procedure :: fill_quadrature                   => hex_lagrangian_reference_fe_fill_quadrature
-     procedure :: fill_nodal_quadrature             => hex_lagrangian_reference_fe_fill_nodal_quadrature
-     procedure :: fill_interpolation                => hex_lagrangian_reference_fe_fill_interpolation
-     procedure :: fill_face_interpolation           => hex_lagrangian_reference_fe_fill_face_interpolation
-     procedure :: get_node_local_id                 => hex_lagrangian_reference_fe_get_node_local_id
-     procedure :: get_node_local_coordinates        => hex_lagrangian_reference_fe_get_node_local_coordinates
-     procedure :: set_coordinates_1D                => hex_lagrangian_reference_fe_set_coordinates_1D
-     procedure :: set_permutation_2D                => hex_lagrangian_reference_fe_set_permutation_2D
-     procedure :: set_number_quadrature_points      => hex_lagrangian_reference_fe_set_number_quadrature_points
-     procedure :: compute_number_nodes_scalar       => hex_lagrangian_reference_fe_compute_number_nodes_scalar
-     procedure :: get_number_interior_points_x_dim  => hex_lagrangian_reference_fe_get_number_interior_points_x_dim
+     procedure, private :: fill_scalar => hex_lagrangian_reference_fe_fill_scalar
+     procedure, private :: fill_quadrature                                    &
+           & => hex_lagrangian_reference_fe_fill_quadrature
+     procedure, private :: fill_interpolation                                 &
+           & => hex_lagrangian_reference_fe_fill_interpolation
+     procedure, private :: fill_face_interpolation                            &
+           & => hex_lagrangian_reference_fe_fill_face_interpolation
+     procedure, private :: get_node_local_id                                  &
+           & => hex_lagrangian_reference_fe_get_node_local_id
+     procedure, private :: get_node_local_coordinates                         &
+           & => hex_lagrangian_reference_fe_get_node_local_coordinates
+     procedure, private :: set_coordinates_1D                                 &
+           & => hex_lagrangian_reference_fe_set_coordinates_1D
+     procedure, private :: set_permutation_2D                                 &
+           & => hex_lagrangian_reference_fe_set_permutation_2D
+     procedure, private :: set_number_quadrature_points                       &
+           & => hex_lagrangian_reference_fe_set_number_quadrature_points
+     procedure, private :: compute_number_nodes_scalar                        &
+           & => hex_lagrangian_reference_fe_compute_number_nodes_scalar
+     procedure, private :: get_number_interior_points_x_dim                   &
+           & => hex_lagrangian_reference_fe_get_number_interior_points_x_dim
      ! Concrete TBPs of this derived data type
-     procedure :: fill_vef_dimension_and_directions => hex_lagrangian_reference_fe_fill_vef_dimension_and_directions
-     procedure :: fill_vef_local_coordinates_nodes  => hex_lagrangian_reference_fe_fill_vef_local_coordinates_nodes
-     procedure :: evaluate_interpolation_1D         => hex_lagrangian_reference_fe_evaluate_interpolation_1D 
-     procedure :: evaluate_interpolation            => hex_lagrangian_reference_fe_evaluate_interpolation 
-     procedure :: evaluate_face_interpolation       => hex_lagrangian_reference_fe_evaluate_face_interpolation
-     procedure :: get_vef_orientation               => hex_lagrangian_reference_fe_get_vef_orientation
+     procedure, private, non_overridable :: fill_vef_dimension_and_directions &
+           & => hex_lagrangian_reference_fe_fill_vef_dimension_and_directions
+     procedure, private, non_overridable :: fill_vef_local_coordinates_nodes  &
+           & => hex_lagrangian_reference_fe_fill_vef_local_coordinates_nodes
+     procedure, private, non_overridable :: evaluate_interpolation_1D         &
+           & => hex_lagrangian_reference_fe_evaluate_interpolation_1D 
+     procedure, private, non_overridable :: evaluate_interpolation            &
+           & => hex_lagrangian_reference_fe_evaluate_interpolation 
+     procedure, private, non_overridable :: evaluate_face_interpolation       &
+           & => hex_lagrangian_reference_fe_evaluate_face_interpolation
+     procedure, private, non_overridable :: get_vef_orientation               &
+           & => hex_lagrangian_reference_fe_get_vef_orientation
   end type hex_lagrangian_reference_fe_t
   
   public :: hex_lagrangian_reference_fe_t
