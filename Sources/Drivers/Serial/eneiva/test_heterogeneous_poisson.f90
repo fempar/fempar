@@ -34,7 +34,7 @@
 
 module command_line_parameters_names
   use types_names
-  use Data_Type_Command_Line_Interface
+  use FLAP
 # include "debug.i90"
 
   implicit none
@@ -89,7 +89,7 @@ contains
 
   subroutine cli_add_params(cli,params,group)
     implicit none
-    type(Type_Command_Line_Interface)        , intent(inout) :: cli
+    type(Command_Line_Interface)             , intent(inout) :: cli
     type(test_heterogeneous_poisson_params_t), intent(in)    :: params
     character(*)                             , intent(in)    :: group
     ! Locals
@@ -427,7 +427,7 @@ program test_heterogeneous_poisson
 
   integer(ip)                          :: lunio, istat
 
-  type(Type_Command_Line_Interface)    :: cli 
+  type(Command_Line_Interface)         :: cli 
   character(len=:), allocatable        :: group
 
   type(serial_fe_space_t)              :: fe_space
@@ -615,7 +615,7 @@ contains
   !==================================================================================================
   subroutine read_flap_cli_test_cdr(cli)
     implicit none
-    type(Type_Command_Line_Interface), intent(out) :: cli
+    type(Command_Line_Interface), intent(out) :: cli
     ! Locals
     type(test_heterogeneous_poisson_params_t) :: test_params
     logical                                   :: authors_print

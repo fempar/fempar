@@ -126,6 +126,53 @@ subroutine set_default(this)
 end subroutine set_default
 
 !==================================================================================================
+subroutine apply_default(this)
+  implicit none
+  class(test_nsi_iss_oss_params_t), intent(inout) :: this
+
+  ! IO parameters
+  this%dir_path = this%default_dir_path
+  this%prefix = this%default_prefix
+  this%dir_path_out = this%default_dir_path_out
+
+  ! Mesh
+  this%is_structured_mesh = .true.
+  this%number_elements = (/2,2/)
+  this%number_parts = (/1,1/)
+  this%number_sockets = (/1,1/)
+  this%discretization_type = (/0,0/)
+  this%domain_length = (/1.0,1.0/)
+  this%periodic_boundaries = (/0,0/)
+  this%origin = (/0.0,0.0/)
+  this% stretching_parameter = (/2.75,2.75/)
+  this%number_elements_boundary = (/0,0/)
+  this%size_boundary = (/0.0,0.0/)
+  this%material_case = 0
+  
+  ! FE space
+  this%velocity_order = 2
+  this%pressure_order = 1
+
+  ! Problem
+  this%viscosity = 1.0
+  this%c1 = 12.0
+  this%c2 = 4.0
+  this%cc = 1.0
+  this%elemental_length_flag = 0
+  this%convection_activated = .true.
+
+  ! Solution
+  this%is_analytical_solution = .true.
+  this%is_initial_solution = .true.
+  this%is_temporal_solution = .false.
+  this%analytical_function_name = 'NSI-LINEAR-STEADY'
+
+  ! Time integration
+  this%initial_time = 0.0
+
+end subroutine apply_default
+
+!==================================================================================================
 subroutine add_to_cli(this,group)
   implicit none
   class(test_nsi_iss_oss_params_t) , intent(inout) :: this
@@ -244,76 +291,78 @@ subroutine parse(this)
   
   call this%cli%parse(error=istat)
   if(this%cli%run_command('analytical')) then
-     group = 'analytical'
+      group = 'analytical'
+
+      ! IO parameters
+      call this%cli%get(group=trim(group),switch='-pwd_in',val=this%dir_path,error=istat)
+      check(istat==0)
+      call this%cli%get(group=trim(group),switch='-prf',val=this%prefix,error=istat)
+      check(istat==0)
+      call this%cli%get(group=trim(group),switch='-pwd_out',val=this%dir_path_out,error=istat)
+      check(istat==0)
+
+      ! Mesh
+      call this%cli%get(group=trim(group),switch='-str',val=this%is_structured_mesh,error=istat)
+      check(istat==0)
+      call this%cli%get_varying(group=trim(group),switch='-ne',val=this%number_elements,error=istat)   
+      check(istat==0)           
+      call this%cli%get_varying(group=trim(group),switch='-np',val=this%number_parts,error=istat)     
+      check(istat==0)             
+      call this%cli%get_varying(group=trim(group),switch='-ns',val=this%number_sockets,error=istat)  
+      check(istat==0)                 
+      call this%cli%get_varying(group=trim(group),switch='--discretization_type',val=this%discretization_type,error=istat)
+      check(istat==0)
+      call this%cli%get_varying(group=trim(group),switch='-dl',val=this%domain_length,error=istat)           
+      check(istat==0)         
+      call this%cli%get_varying(group=trim(group),switch='-peri',val=this%periodic_boundaries,error=istat)   
+      check(istat==0)          
+      call this%cli%get_varying(group=trim(group),switch='-O',val=this%origin,error=istat)          
+      check(istat==0)           
+      call this%cli%get_varying(group=trim(group),switch='-st',val=this%stretching_parameter,error=istat)    
+      check(istat==0)    
+      call this%cli%get_varying(group=trim(group),switch='-nb',val=this%number_elements_boundary,error=istat)  
+      check(istat==0)
+      call this%cli%get_varying(group=trim(group),switch='-sb',val=this%size_boundary,error=istat)    
+      check(istat==0)
+      call this%cli%get(group=trim(group),switch='-mc',val=this%material_case,error=istat) 
+      check(istat==0)
+
+      ! FE space
+      call this%cli%get(group=trim(group),switch='-vo',val=this%velocity_order,error=istat)
+      check(istat==0)
+      call this%cli%get(group=trim(group),switch='-po',val=this%pressure_order,error=istat)
+      check(istat==0)
+
+      ! Problem
+      call this%cli%get(group=trim(group),switch='-nu',val=this%viscosity,error=istat)
+      check(istat==0)
+      call this%cli%get(group=trim(group),switch='-c1',val=this%c1,error=istat)
+      check(istat==0)
+      call this%cli%get(group=trim(group),switch='-c2',val=this%c2,error=istat) 
+      check(istat==0)
+      call this%cli%get(group=trim(group),switch='-cc',val=this%cc,error=istat) 
+      check(istat==0)
+      call this%cli%get(group=trim(group),switch='-h_flg',val=this%elemental_length_flag,error=istat)
+      check(istat==0)
+      call this%cli%get(group=trim(group),switch='-cnv',val=this%convection_activated,error=istat)
+      check(istat==0)
+      call this%cli%get(group=trim(group),switch='-ana',val=this%is_analytical_solution,error=istat)
+      check(istat==0)
+      call this%cli%get(group=trim(group),switch='-ini',val=this%is_initial_solution,error=istat)
+      check(istat==0)
+      call this%cli%get(group=trim(group),switch='-tmp',val=this%is_temporal_solution,error=istat)
+      check(istat==0)
+
+      ! Solution
+      call this%cli%get(group=trim(group),switch='-af',val=this%analytical_function_name,error=istat)
+      check(istat==0)
+
+      ! Time integration
+      call this%cli%get(group=trim(group),switch='-it',val=this%initial_time,error=istat)
+      check(istat==0)
+  else
+      call this%apply_default()
   end if
-
-  ! IO parameters
-  call this%cli%get(group=trim(group),switch='-pwd_in',val=this%dir_path,error=istat)
-  check(istat==0)
-  call this%cli%get(group=trim(group),switch='-prf',val=this%prefix,error=istat)
-  check(istat==0)
-  call this%cli%get(group=trim(group),switch='-pwd_out',val=this%dir_path_out,error=istat)
-  check(istat==0)
-
-  ! Mesh
-  call this%cli%get(group=trim(group),switch='-str',val=this%is_structured_mesh,error=istat)
-  check(istat==0)
-  call this%cli%get_varying(group=trim(group),switch='-ne',val=this%number_elements,error=istat)   
-  check(istat==0)           
-  call this%cli%get_varying(group=trim(group),switch='-np',val=this%number_parts,error=istat)     
-  check(istat==0)             
-  call this%cli%get_varying(group=trim(group),switch='-ns',val=this%number_sockets,error=istat)  
-  check(istat==0)                 
-  call this%cli%get_varying(group=trim(group),switch='--discretization_type',val=this%discretization_type,error=istat)
-  check(istat==0)
-  call this%cli%get_varying(group=trim(group),switch='-dl',val=this%domain_length,error=istat)           
-  check(istat==0)         
-  call this%cli%get_varying(group=trim(group),switch='-peri',val=this%periodic_boundaries,error=istat)   
-  check(istat==0)          
-  call this%cli%get_varying(group=trim(group),switch='-O',val=this%origin,error=istat)          
-  check(istat==0)           
-  call this%cli%get_varying(group=trim(group),switch='-st',val=this%stretching_parameter,error=istat)    
-  check(istat==0)    
-  call this%cli%get_varying(group=trim(group),switch='-nb',val=this%number_elements_boundary,error=istat)  
-  check(istat==0)
-  call this%cli%get_varying(group=trim(group),switch='-sb',val=this%size_boundary,error=istat)    
-  check(istat==0)
-  call this%cli%get(group=trim(group),switch='-mc',val=this%material_case,error=istat) 
-  check(istat==0)
-
-  ! FE space
-  call this%cli%get(group=trim(group),switch='-vo',val=this%velocity_order,error=istat)
-  check(istat==0)
-  call this%cli%get(group=trim(group),switch='-po',val=this%pressure_order,error=istat)
-  check(istat==0)
-
-  ! Problem
-  call this%cli%get(group=trim(group),switch='-nu',val=this%viscosity,error=istat)
-  check(istat==0)
-  call this%cli%get(group=trim(group),switch='-c1',val=this%c1,error=istat)
-  check(istat==0)
-  call this%cli%get(group=trim(group),switch='-c2',val=this%c2,error=istat) 
-  check(istat==0)
-  call this%cli%get(group=trim(group),switch='-cc',val=this%cc,error=istat) 
-  check(istat==0)
-  call this%cli%get(group=trim(group),switch='-h_flg',val=this%elemental_length_flag,error=istat)
-  check(istat==0)
-  call this%cli%get(group=trim(group),switch='-cnv',val=this%convection_activated,error=istat)
-  check(istat==0)
-  call this%cli%get(group=trim(group),switch='-ana',val=this%is_analytical_solution,error=istat)
-  check(istat==0)
-  call this%cli%get(group=trim(group),switch='-ini',val=this%is_initial_solution,error=istat)
-  check(istat==0)
-  call this%cli%get(group=trim(group),switch='-tmp',val=this%is_temporal_solution,error=istat)
-  check(istat==0)
-
-  ! Solution
-  call this%cli%get(group=trim(group),switch='-af',val=this%analytical_function_name,error=istat)
-  check(istat==0)
-
-  ! Time integration
-  call this%cli%get(group=trim(group),switch='-it',val=this%initial_time,error=istat)
-  check(istat==0)
 
 end subroutine parse
 

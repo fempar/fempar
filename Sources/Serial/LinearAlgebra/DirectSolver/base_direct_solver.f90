@@ -99,14 +99,16 @@ module base_direct_solver_names
         procedure(base_direct_solver_free_numerical_body),             deferred :: free_numerical_body
         procedure(base_direct_solver_symbolic_setup_body),             deferred :: symbolic_setup_body
         procedure(base_direct_solver_numerical_setup_body),            deferred :: numerical_setup_body
-        procedure(base_direct_solver_solve_body),                      deferred :: solve_body
+        procedure(base_direct_solver_solve_single_rhs_body),           deferred :: solve_single_rhs_body
+        procedure(base_direct_solver_solve_several_rhs_body),          deferred :: solve_several_rhs_body
         procedure(base_direct_solver_set_parameters_from_pl),  public, deferred :: set_parameters_from_pl
         procedure, non_overridable, public :: free_clean                   => base_direct_solver_free_clean
         procedure, non_overridable, public :: free_symbolic                => base_direct_solver_free_symbolic
         procedure, non_overridable, public :: free_numerical               => base_direct_solver_free_numerical
         procedure, non_overridable, public :: symbolic_setup               => base_direct_solver_symbolic_setup
         procedure, non_overridable, public :: numerical_setup              => base_direct_solver_numerical_setup
-        procedure, non_overridable, public :: solve                        => base_direct_solver_solve
+        procedure, non_overridable         :: solve_single_rhs             => base_direct_solver_solve_single_rhs
+        procedure, non_overridable         :: solve_several_rhs            => base_direct_solver_solve_several_rhs
         procedure, non_overridable, public :: reset                        => base_direct_solver_reset
         procedure, non_overridable, public :: set_name                     => base_direct_solver_set_name
         procedure, non_overridable, public :: set_matrix                   => base_direct_solver_set_matrix
@@ -132,6 +134,7 @@ module base_direct_solver_names
         procedure, non_overridable, public :: get_nz_factors               => base_direct_solver_get_nz_factors
         procedure, non_overridable, public :: get_Mflops                   => base_direct_solver_get_Mflops
         procedure, non_overridable, public :: log_info                     => base_direct_solver_log_info
+        generic,                    public :: solve                        => solve_single_rhs, solve_several_rhs
     end type
 
     abstract interface
@@ -157,13 +160,22 @@ module base_direct_solver_names
             class(base_direct_solver_t), intent(inout) :: this
         end subroutine base_direct_solver_numerical_setup_body
 
-        subroutine base_direct_solver_solve_body(op, x, y)
+        subroutine base_direct_solver_solve_single_rhs_body(op, x, y)
             import base_direct_solver_t
             import serial_scalar_array_t
             class(base_direct_solver_t), intent(inout) :: op
             type(serial_scalar_array_t), intent(in)    :: x
             type(serial_scalar_array_t), intent(inout) :: y
-        end subroutine base_direct_solver_solve_body
+        end subroutine base_direct_solver_solve_single_rhs_body
+
+        subroutine base_direct_solver_solve_several_rhs_body(op, x, y)
+            import base_direct_solver_t
+            import ip
+            import rp
+            class(base_direct_solver_t), intent(inout) :: op
+            real(rp),                    intent(inout) :: x(:, :)
+            real(rp),                    intent(inout) :: y(:, :)
+        end subroutine base_direct_solver_solve_several_rhs_body
 
         subroutine  base_direct_solver_free_clean_body(this)
             import base_direct_solver_t
@@ -206,17 +218,27 @@ contains
         call this%set_state_numeric()
     end subroutine base_direct_solver_numerical_setup
 
-    subroutine base_direct_solver_solve(op, x, y)
+    subroutine base_direct_solver_solve_single_rhs(op, x, y)
         class(base_direct_solver_t),  intent(inout) :: op
         type(serial_scalar_array_t), intent(in)    :: x
         type(serial_scalar_array_t), intent(inout) :: y
         ! Check pre-conditions
         if(.not. op%state_is_numeric() .or. op%get_numerical_setup_pending()) call op%numerical_setup()
         call x%GuardTemp()
-        call op%solve_body(x, y)
+        call op%solve_single_rhs_body(x, y)
         call x%CleanTemp()
         ! post-conditions
-    end subroutine base_direct_solver_solve
+    end subroutine base_direct_solver_solve_single_rhs
+
+    subroutine base_direct_solver_solve_several_rhs(op, x, y)
+        class(base_direct_solver_t),  intent(inout) :: op
+        real(rp),                     intent(inout) :: x(:, :)
+        real(rp),                     intent(inout) :: y(:, :)
+        ! Check pre-conditions
+        if(.not. op%state_is_numeric() .or. op%get_numerical_setup_pending()) call op%numerical_setup()
+        call op%solve_several_rhs_body(x, y)
+        ! post-conditions
+    end subroutine base_direct_solver_solve_several_rhs
 
     subroutine  base_direct_solver_free_clean(this)
         class(base_direct_solver_t), intent(inout) :: this

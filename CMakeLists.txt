@@ -84,7 +84,6 @@ IF(MPI_FOUND)
     # Add MPI directories
     ADD_DEFINITIONS(${MPI_Fortran_COMPILE_FLAGS})
     INCLUDE_DIRECTORIES(${MPI_Fortran_INCLUDE_PATH})
-    LINK_DIRECTORIES(${MPI_Fortran_LIBRARIES})
 
     # Find mpi.mod
     FIND_PATH(MPI_MOD_FOUND mpi.mod  PATHS ${MPI_Fortran_INCLUDE_PATH})
@@ -113,7 +112,7 @@ ENDIF()
 
 FOREACH(EXT_LIB ${EXT_LIBS})
     IF(DEFINED ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND NOT ${EXT_LIB}_FOUND)
-        IF(DEFINED MKL_FOUND AND MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
+        IF(MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
 #           IF MKL WAS FOUND DO NOT LINK WITH BLAS AND LAPACK LIBRARIES
             OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" ON)
             SET(${EXT_LIB}_FOUND TRUE)
@@ -125,13 +124,10 @@ FOREACH(EXT_LIB ${EXT_LIBS})
                 IF (DEFINED MKL_FOUND AND MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
 #                   IF MKL WAS FOUND DO NOT LINK WITH BLAS AND LAPACK LIBRARIES
                 ELSE()
-#                  SET(MACROS "${MACROS} -DENABLE_${EXT_LIB}")
                    ADD_DEFINITIONS(-DENABLE_${EXT_LIB})
                    IF(IS_DIRECTORY ${${EXT_LIB}_INCLUDE_DIR})
                        INCLUDE_DIRECTORIES(${${EXT_LIB}_INCLUDE_DIR})
                    ENDIF()
-#                  SET(INCLUDES "${INCLUDES} -I${${EXT_LIB}_INCLUDE_DIR}" )
-                   LINK_DIRECTORIES(${${EXT_LIB}_LIBRARIES})
                 ENDIF()
             ENDIF()
         ENDIF()
@@ -144,7 +140,7 @@ FOREACH(EXT_LIB ${EXT_LIBS})
         UNSET(${EXT_LIB}_LIBRARIES CACHE)
 
     ELSE(NOT DEFINED ${PROJECT_NAME}_ENABLE_${EXT_LIB})
-        IF(DEFINED(MKL_FOUND) AND MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
+        IF(MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
 #           IF MKL WAS FOUND DO NOT LINK WITH BLAS AND LAPACK LIBRARIES
             OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" ON)
             SET(${EXT_LIB}_FOUND TRUE)
@@ -158,7 +154,6 @@ FOREACH(EXT_LIB ${EXT_LIBS})
             IF (${${EXT_LIB}_FOUND})
                SET(NO_LIBS FALSE)
                OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" ON)
-#              SET(MACROS "${MACROS} -DENABLE_${EXT_LIB}")
                ADD_DEFINITIONS(-DENABLE_${EXT_LIB})
                IF(IS_DIRECTORY ${${EXT_LIB}_INCLUDE_DIR})
                    INCLUDE_DIRECTORIES(${${EXT_LIB}_INCLUDE_DIR})
@@ -168,7 +163,7 @@ FOREACH(EXT_LIB ${EXT_LIBS})
                UNSET(${EXT_LIB}_INCLUDES CACHE)
                UNSET(${EXT_LIB}_LIBS CACHE)
                UNSET(${EXT_LIB}_INCLUDE_DIR CACHE)
-              UNSET(${EXT_LIB}_LIBRARIES CACHE)
+               UNSET(${EXT_LIB}_LIBRARIES CACHE)
             ENDIF()
         ENDIF()
     ENDIF()
@@ -202,16 +197,15 @@ IF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES
   set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
   set (CMAKE_Fortran_FLAGS_DEBUG   "-g -fbacktrace -fbounds-check -fprofile-arcs -ftest-coverage -Wimplicit-interface ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
 ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel" OR Fortran_COMPILER_NAME MATCHES "ifort*")
-  # ifort (untested)
+  # ifort
   set(FORTRAN_FLAGS "-r8 -fpp -W1 -fPIC -assume realloc-lhs ${EXTRA_FLAGS} ")
   set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
   set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
   set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all,noarg_temp_created -ftrapuv -warn nointerfaces ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
 # A partir de CMake 3.1
 # -prof-gen:srcpos -prof-dir${PROJECT_BINARY_DIR}
-
 ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "XL" OR Fortran_COMPILER_NAME MATCHES "xlf*")
-  # xlf (untested)
+  # xlf
   set(FORTRAN_FLAGS "-q64 -qrealsize=8 -qsuffix=f=f90:cpp=f90 ${EXTRA_FLAGS} ")
   set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
   set (CMAKE_Fortran_FLAGS_RELEASE "-O3 -qstrict ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
@@ -274,23 +268,17 @@ ADD_SUBDIRECTORY(${PAR_PATH})
 #################################################################
 
 ADD_LIBRARY(${PROJECT_NAME} ${SERIAL_SRC} ${PAR_SRC})
-TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${MPI_Fortran_LIBRARIES})
-FOREACH(EXT_LIB ${EXT_LIBS})
-    IF(${EXT_LIB}_FOUND)
-        TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${${EXT_LIB}_LIBRARIES})
-    ENDIF()
-ENDFOREACH()
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES VERSION ${${PROJECT_NAME}_VERSION} SOVERSION ${${PROJECT_NAME}_SOVERSION})
 
 #################################################################
 # ADD TESTS AND DRIVERS SOURCE SUBDIRS
 #################################################################
 
-ADD_SUBDIRECTORY(${SERIAL_DRIVERS_PATH})
-ADD_SUBDIRECTORY(${PAR_DRIVERS_PATH})
-
 ADD_SUBDIRECTORY(${SERIAL_TESTS_PATH})
 ADD_SUBDIRECTORY(${PAR_TESTS_PATH})
+
+ADD_SUBDIRECTORY(${SERIAL_DRIVERS_PATH})
+ADD_SUBDIRECTORY(${PAR_DRIVERS_PATH})
 
 #################################################################
 # CREATE TAGS

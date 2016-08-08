@@ -109,6 +109,9 @@
     
     allocate ( this%quadrature_points_values(max_npoint), stat = istat )
     check(istat==0)
+
+    allocate ( this%quadrature_points_gradient_values(max_npoint), stat = istat )
+    check(istat==0)
     
  end subroutine fe_function_scalar_create
 
@@ -137,6 +140,14 @@
  end function fe_function_scalar_get_quadrature_points_values
  
  !===============================================================================================
+ function fe_function_scalar_get_quadrature_points_gradient_values ( this )
+    implicit none
+    class(fe_function_scalar_t), target, intent(in) :: this 
+    type(vector_field_t), pointer :: fe_function_scalar_get_quadrature_points_gradient_values(:)
+    fe_function_scalar_get_quadrature_points_gradient_values => this%quadrature_points_gradient_values
+  end function fe_function_scalar_get_quadrature_points_gradient_values
+ 
+ !===============================================================================================
  subroutine fe_function_scalar_get_value ( this, point, value )
     implicit none
     class(fe_function_scalar_t), intent(in)    :: this 
@@ -147,6 +158,18 @@
     value = this%quadrature_points_values(point)
     
  end subroutine fe_function_scalar_get_value
+ 
+ !===============================================================================================
+ subroutine fe_function_scalar_get_gradient ( this, point, value )
+    implicit none
+    class(fe_function_scalar_t), intent(in)    :: this 
+    integer(ip)                , intent(in)    :: point
+    type(vector_field_t)       , intent(inout) :: value
+    
+    assert ( point <= this%current_number_quadrature_points )
+    value = this%quadrature_points_gradient_values(point)
+    
+ end subroutine fe_function_scalar_get_gradient
 
  !===============================================================================================
  subroutine fe_function_scalar_set_current_number_nodes ( this, value )
@@ -247,6 +270,14 @@
  end function fe_function_vector_get_quadrature_points_values
  
  !===============================================================================================
+ function fe_function_vector_get_quadrature_points_gradient_values ( this )
+    implicit none
+    class(fe_function_vector_t), target, intent(in) :: this 
+    type(tensor_field_t), pointer :: fe_function_vector_get_quadrature_points_gradient_values(:)
+    fe_function_vector_get_quadrature_points_gradient_values => this%quadrature_points_gradient_values
+ end function fe_function_vector_get_quadrature_points_gradient_values
+ 
+ !===============================================================================================
  subroutine fe_function_vector_get_value ( this, point, value )
     implicit none
     class(fe_function_vector_t), intent(in)    :: this 
@@ -257,6 +288,18 @@
     value = this%quadrature_points_values(point)
     
  end subroutine fe_function_vector_get_value
+ 
+ !===============================================================================================
+ subroutine fe_function_vector_get_gradient ( this, point, value )
+    implicit none
+    class(fe_function_vector_t), intent(in)    :: this 
+    integer(ip)                , intent(in)    :: point
+    type(tensor_field_t)       , intent(inout) :: value
+    
+    assert ( point <= this%current_number_quadrature_points )
+    value = this%quadrature_points_gradient_values(point)
+    
+ end subroutine fe_function_vector_get_gradient
 
  !===============================================================================================
  subroutine fe_function_vector_set_current_number_nodes ( this, value )

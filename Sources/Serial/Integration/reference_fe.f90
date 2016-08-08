@@ -299,6 +299,11 @@ module reference_fe_names
                                       & evaluate_fe_function_vector, &
                                       & evaluate_fe_function_tensor
      
+     procedure(evaluate_gradient_fe_function_scalar_interface), deferred :: evaluate_gradient_fe_function_scalar
+     procedure(evaluate_gradient_fe_function_vector_interface), deferred :: evaluate_gradient_fe_function_vector
+     generic :: evaluate_gradient_fe_function => evaluate_gradient_fe_function_scalar, &
+                                               & evaluate_gradient_fe_function_vector
+     
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
      procedure (check_compatibility_of_vefs_interface), deferred :: &
@@ -552,6 +557,30 @@ module reference_fe_names
        real(rp)             , intent(in)    :: nodal_values(:)
        type(tensor_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_tensor_interface     
+
+     subroutine evaluate_gradient_fe_function_scalar_interface( this, &
+                                                     & actual_cell_interpolation, &
+                                                     & nodal_values, &
+                                                     & quadrature_points_values)
+       import :: reference_fe_t, interpolation_t, rp, vector_field_t
+       implicit none
+       class(reference_fe_t)   , intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       real(rp)                , intent(in)    :: nodal_values(:)
+       type(vector_field_t)    , intent(inout) :: quadrature_points_values(:)
+     end subroutine evaluate_gradient_fe_function_scalar_interface
+
+     subroutine evaluate_gradient_fe_function_vector_interface( this, &
+                                                     & actual_cell_interpolation, &
+                                                     & nodal_values, &
+                                                     & quadrature_points_values)
+       import :: reference_fe_t, interpolation_t, rp, tensor_field_t
+       implicit none
+       class(reference_fe_t)   , intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       real(rp)                , intent(in)    :: nodal_values(:)
+       type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
+     end subroutine evaluate_gradient_fe_function_vector_interface
      
      function check_compatibility_of_vefs_interface(target_reference_fe, &
           &                       source_reference_fe, source_vef_id,target_vef_id)
@@ -697,18 +726,18 @@ module reference_fe_names
               & get_number_interior_points_x_dim
      ! Deferred TBP implementors
      procedure :: create                    => lagrangian_reference_fe_create
-     procedure :: fill_interior_points_permutation & 
+     procedure :: fill_interior_points_permutation     & 
       & => lagrangian_reference_fe_fill_interior_points_permutation
      procedure :: create_quadrature         => lagrangian_reference_fe_create_quadrature
      procedure :: create_face_quadrature    => lagrangian_reference_fe_create_face_quadrature
      procedure :: create_interpolation      => lagrangian_reference_fe_create_interpolation
      procedure :: create_face_interpolation => lagrangian_reference_fe_create_face_interpolation
-     procedure :: create_face_local_interpolation  & 
+     procedure :: create_face_local_interpolation      & 
       & => lagrangian_reference_fe_create_face_local_interpolation
      procedure :: update_interpolation      => lagrangian_reference_fe_update_interpolation
      procedure :: update_interpolation_face => lagrangian_reference_fe_update_interpolation_face
      procedure :: get_component_node        => lagrangian_reference_fe_get_component_node
-     procedure :: get_scalar_from_vector_node      & 
+     procedure :: get_scalar_from_vector_node          & 
       & => lagrangian_reference_fe_get_scalar_from_vector_node
      procedure :: get_number_nodes_scalar   => lagrangian_reference_fe_get_number_nodes_scalar
      procedure :: get_value_scalar          => lagrangian_reference_fe_get_value_scalar
@@ -719,18 +748,22 @@ module reference_fe_names
      procedure :: get_curl_vector           => lagrangian_reference_fe_get_curl_vector
      procedure :: interpolate_nodal_values  => lagrangian_reference_fe_interpolate_nodal_values
      procedure :: set_nodal_quadrature      => lagrangian_reference_fe_set_nodal_quadrature
-     procedure :: set_scalar_field_to_nodal_values & 
+     procedure :: set_scalar_field_to_nodal_values     & 
       & => lagrangian_reference_fe_set_scalar_field_to_nodal_values
-     procedure :: set_vector_field_to_nodal_values & 
+     procedure :: set_vector_field_to_nodal_values     & 
       & => lagrangian_reference_fe_set_vector_field_to_nodal_values
-     procedure :: set_tensor_field_to_nodal_values & 
+     procedure :: set_tensor_field_to_nodal_values     & 
       & => lagrangian_reference_fe_set_tensor_field_to_nodal_values
-     procedure :: evaluate_fe_function_scalar      &
+     procedure :: evaluate_fe_function_scalar          &
       & => lagrangian_reference_fe_evaluate_fe_function_scalar
-     procedure :: evaluate_fe_function_vector      & 
+     procedure :: evaluate_fe_function_vector          & 
       & => lagrangian_reference_fe_evaluate_fe_function_vector
-     procedure :: evaluate_fe_function_tensor      & 
+     procedure :: evaluate_fe_function_tensor          & 
       & => lagrangian_reference_fe_evaluate_fe_function_tensor
+     procedure :: evaluate_gradient_fe_function_scalar & 
+      & => lagrangian_reference_fe_evaluate_gradient_fe_function_scalar
+     procedure :: evaluate_gradient_fe_function_vector &
+      & => lagrangian_reference_fe_evaluate_gradient_fe_function_vector
      procedure :: get_number_subelements    => lagrangian_reference_fe_get_number_subelements
      procedure :: free                      => lagrangian_reference_fe_free
      ! Concrete TBPs of this derived data type
@@ -982,7 +1015,7 @@ contains
   generic                             :: get_divergence => get_divergence_vector, &
                                                            get_divergence_tensor
 
-														   procedure, non_overridable, private :: get_curl_vector => volume_integrator_get_curl_vector
+  procedure, non_overridable, private :: get_curl_vector => volume_integrator_get_curl_vector
   generic                             :: get_curl => get_curl_vector
   
   ! We might want to have the following in the future:
@@ -997,6 +1030,11 @@ contains
   generic :: evaluate_fe_function => volume_integrator_evaluate_fe_function_scalar, &
                                    & volume_integrator_evaluate_fe_function_vector, &
                                    & volume_integrator_evaluate_fe_function_tensor
+  
+  procedure, non_overridable, private :: volume_integrator_evaluate_gradient_fe_function_scalar
+  procedure, non_overridable, private :: volume_integrator_evaluate_gradient_fe_function_vector
+  generic :: evaluate_gradient_fe_function => volume_integrator_evaluate_gradient_fe_function_scalar, &
+                                            & volume_integrator_evaluate_gradient_fe_function_vector
 
 end type volume_integrator_t
 

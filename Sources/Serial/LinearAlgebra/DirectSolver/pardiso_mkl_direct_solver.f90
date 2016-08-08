@@ -62,7 +62,6 @@ module pardiso_mkl_direct_solver_names
         integer                     :: matrix_type           = -1500
         integer                     :: max_number_of_factors = 1
         integer                     :: actual_matrix         = 1
-        integer                     :: number_of_rhs         = 1
         integer                     :: message_level         = 0
         logical                     :: forced_matrix_type    = .false.
     contains
@@ -76,7 +75,8 @@ module pardiso_mkl_direct_solver_names
         procedure, public :: set_parameters_from_pl      => pardiso_mkl_direct_solver_set_parameters_from_pl
         procedure, public :: symbolic_setup_body         => pardiso_mkl_direct_solver_symbolic_setup_body
         procedure, public :: numerical_setup_body        => pardiso_mkl_direct_solver_numerical_setup_body
-        procedure, public :: solve_body                  => pardiso_mkl_direct_solver_solve_body
+        procedure, public :: solve_single_rhs_body       => pardiso_mkl_direct_solver_solve_single_rhs_body
+        procedure, public :: solve_several_rhs_body      => pardiso_mkl_direct_solver_solve_several_rhs_body
 #ifndef ENABLE_MKL
         procedure         :: not_enabled_error           => pardiso_mkl_direct_solver_not_enabled_error
 #endif
@@ -135,7 +135,6 @@ contains
 #ifdef ENABLE_MKL
         this%max_number_of_factors = 1
         this%actual_matrix         = 1
-        this%number_of_rhs         = 1
         this%message_level         = pardiso_mkl_default_message_level
         this%matrix_type           = pardiso_mkl_default_matrix_type
         this%pardiso_mkl_iparm     = pardiso_mkl_default_iparm
@@ -269,6 +268,7 @@ contains
 !        print*, '(1) --> symbolic_setup'
         this%phase               = 11 ! only reordering and symbolic factorization
         matrix                   => this%matrix%get_pointer_to_base_matrix()
+        if(.not. this%forced_matrix_type) call this%set_matrix_type_from_matrix()
 
         select type (matrix)
             type is (csr_sparse_matrix_t)
@@ -284,7 +284,7 @@ contains
                              ia     = matrix%irp,                  & !< Pointers to columns in CSR format
                              ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
-                             nrhs   = this%number_of_rhs,          & !< Number of right-hand sides that need to be solved for
+                             nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = this%pardiso_mkl_iparm,      & !< This array is used to pass various parameters to Intel MKL PARDISO 
                              msglvl = this%message_level,          & !< Message level information
                              b      = ddum,                        & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix
@@ -338,7 +338,7 @@ contains
                              ia     = matrix%irp,                  & !< Pointers to columns in CSR format
                              ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
-                             nrhs   = this%number_of_rhs,          & !< Number of right-hand sides that need to be solved for
+                             nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = this%pardiso_mkl_iparm,      & !< This array is used to pass various parameters to Intel MKL PARDISO 
                              msglvl = this%message_level,          & !< Message level information
                              b      = ddum,                        & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix
@@ -363,7 +363,7 @@ contains
     end subroutine pardiso_mkl_direct_solver_numerical_setup_body
 
 
-    subroutine pardiso_mkl_direct_solver_solve_body(op, x, y)
+    subroutine pardiso_mkl_direct_solver_solve_single_rhs_body(op, x, y)
     !-----------------------------------------------------------------
     ! Computes y <- A^-1 * x, using previously computed LU factorization
     !-----------------------------------------------------------------
@@ -376,7 +376,6 @@ contains
         integer,  target                                  :: idum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        assert (op%number_of_rhs == 1)
 !        print*, '(3) --> solve'
         ! (c) y  <- A^-1 * x
         op%phase = 33 ! only Fwd/Bck substitution
@@ -396,7 +395,7 @@ contains
                              ia     = matrix%irp,                  & !< Pointers to columns in CSR format
                              ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
-                             nrhs   = op%number_of_rhs,            & !< Number of right-hand sides that need to be solved for
+                             nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                              iparm  = op%pardiso_mkl_iparm,        & !< This array is used to pass various parameters to Intel MKL PARDISO 
                              msglvl = op%message_level,            & !< Message level information
                              b      = x_b,                         & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix
@@ -414,7 +413,62 @@ contains
 #else
         call op%not_enabled_error()
 #endif
-    end subroutine pardiso_mkl_direct_solver_solve_body
+    end subroutine pardiso_mkl_direct_solver_solve_single_rhs_body
+
+
+    subroutine pardiso_mkl_direct_solver_solve_several_rhs_body(op, x, y)
+    !-----------------------------------------------------------------
+    ! Computes y <- A^-1 * x, using previously computed LU factorization
+    !-----------------------------------------------------------------
+        class(pardiso_mkl_direct_solver_t), intent(inout) :: op
+        real(rp),                           intent(inout) :: x(:, :)
+        real(rp),                           intent(inout) :: y(:, :)
+        integer(ip)                                       :: number_rows
+        integer(ip)                                       :: number_rhs
+        integer                                           :: error
+        integer,  target                                  :: idum(1)
+    !-----------------------------------------------------------------
+#ifdef ENABLE_MKL
+!        print*, '(3) --> solve'
+        ! (c) y  <- A^-1 * x
+        op%phase    = 33 ! only Fwd/Bck substitution
+        number_rows = size(x,1)
+        number_rhs  = size(x,2)
+
+        select type (matrix => op%matrix%get_pointer_to_base_matrix())
+            type is (csr_sparse_matrix_t)
+                assert(matrix%get_num_rows()==number_rows .and. size(y,1) == number_rows)
+                assert(size(y,2) == number_rhs)
+                ! Solve, iterative refinement
+                call pardiso(pt     = op%pardiso_mkl_pt,           & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
+                             maxfct = op%max_number_of_factors,    & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
+                             mnum   = op%actual_matrix,            & !< Actual matrix for the solution phase. The value must be: 1 <= mnum <= maxfct. 
+                             mtype  = op%matrix_type,              & !< Defines the matrix type, which influences the pivoting method
+                             phase  = op%phase,                    & !< Controls the execution of the solver (33 == Solve, iterative refinement)
+                             n      = matrix%get_num_rows(),       & !< Number of equations in the sparse linear systems of equations
+                             a      = matrix%val,                  & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             ia     = matrix%irp,                  & !< Pointers to columns in CSR format
+                             ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
+                             perm   = idum,                        & !< Permutation vector
+                             nrhs   = number_rhs,                  & !< Number of right-hand sides that need to be solved for
+                             iparm  = op%pardiso_mkl_iparm,        & !< This array is used to pass various parameters to Intel MKL PARDISO 
+                             msglvl = op%message_level,            & !< Message level information
+                             b      = x,                           & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix
+                             x      = y,                           & !< Array, size (n, nrhs). If iparm(6)=0 it contains solution vector/matrix X
+                             error  = error )
+
+                if (error /= 0) then
+                    write (0,*) 'Error, PARDISO_MKL: the following ERROR was detected: ', & 
+                            error, 'during stage', op%phase
+                    check(.false.)
+                end if
+            class DEFAULT
+                check(.false.)
+        end select
+#else
+        call op%not_enabled_error()
+#endif
+    end subroutine pardiso_mkl_direct_solver_solve_several_rhs_body
 
 
     subroutine pardiso_mkl_direct_solver_free_clean_body(this)
@@ -443,7 +497,6 @@ contains
         real(dp)                                          :: ddum(1)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        if(.not. this%forced_matrix_type) call this%set_matrix_type_from_matrix()
 !        print*, '(5) --> free_symbolic'
         this%phase = -1 ! Release all internal memory for all matrices
         call pardiso(pt     = this%pardiso_mkl_pt,             & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
@@ -456,7 +509,7 @@ contains
                      ia     = idum,                            & !< Pointers to columns in CSR format
                      ja     = idum,                            & !< Column indices of the CSR sparse matrix
                      perm   = idum,                            & !< Permutation vector
-                     nrhs   = this%number_of_rhs,              & !< Number of right-hand sides that need to be solved for
+                     nrhs   = 1,                               & !< Number of right-hand sides that need to be solved for
                      iparm  = this%pardiso_mkl_iparm,          & !< This array is used to pass various parameters to Intel MKL PARDISO 
                      msglvl = this%message_level,              & !< Message level information
                      b      = ddum,                            & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix
@@ -485,6 +538,7 @@ contains
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
 !        print*, '(6) --> free_numerical'
+        if(this%matrix%is_diagonal()) return ! Avoid Pardiso MKL crash
         ! Release internal memory only for L and U factors
         this%phase = 0 ! Release internal memory for L and U matrix number mnum
         call pardiso(pt     = this%pardiso_mkl_pt,         & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
@@ -497,7 +551,7 @@ contains
                      ia     = idum,                        & !< Pointers to columns in CSR format
                      ja     = idum,                        & !< Column indices of the CSR sparse matrix
                      perm   = idum,                        & !< Permutation vector
-                     nrhs   = this%number_of_rhs,          & !< Number of right-hand sides that need to be solved for
+                     nrhs   = 1,                           & !< Number of right-hand sides that need to be solved for
                      iparm  = this%pardiso_mkl_iparm,      & !< This array is used to pass various parameters to Intel MKL PARDISO 
                      msglvl = this%message_level,          & !< Message level information
                      b      = ddum,                        & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix

@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module command_line_parameters_names
   use types_names
-  use Data_Type_Command_Line_Interface
+  use flap, only : command_line_interface
 # include "debug.i90"
 
   implicit none
@@ -43,7 +43,7 @@ module command_line_parameters_names
      character(len=:), allocatable     :: default_laplacian_type
      character(len=2014)               :: laplacian_type
      
-     type(Type_Command_Line_Interface) :: cli
+     type(Command_Line_Interface)      :: cli
   contains
      procedure, private :: set_defaults => test_reference_fe_params_set_defaults
      procedure          :: create       => test_reference_fe_params_create
