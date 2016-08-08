@@ -608,7 +608,7 @@ program test_cdr
   dG_CDR_integration%theta_method => theta_method
 
   ! Composite case
-  reference_fe_array_one(1) = make_reference_fe ( topology = topology_quad,                         &
+  reference_fe_array_one(1) = make_reference_fe ( topology = topology_hex,                         &
        &                                          fe_type  = fe_type_lagrangian,                    &
        &                                          number_dimensions = f_trian%num_dims,             &
        &                                          order = order,                                    &

@@ -644,7 +644,7 @@ subroutine serial_fe_space_update_bc_value_scalar( this, scalar_function, bc_cod
   number_nodes     =  this%reference_fe_phy_list(fe_space_component)%p%get_number_nodes()
 
   if ( present(time) ) time_(1) = time
-
+  
   ! Create FE map
   call fe_map%create(nodal_quadrature, this%triangulation%reference_fe_geo_list(1)%p)
   allocate ( values(nodal_quadrature%get_number_quadrature_points(),1), stat=istat)

@@ -1,7 +1,7 @@
 module list_types_names
 
 use iso_c_binding, only: c_loc, c_ptr
-use types_names,   only: ip
+use types_names,   only: ip, runend
 use memor_names
 
 implicit none
@@ -37,7 +37,7 @@ implicit none
     !-----------------------------------------------------------------
     !< List_t derived type
     !----------------------------------------------------------------- 
-    private
+        !private
         integer(ip), private     :: state = LIST_STATE_START
         integer(ip)              :: n
         integer(ip), allocatable :: p(:) 

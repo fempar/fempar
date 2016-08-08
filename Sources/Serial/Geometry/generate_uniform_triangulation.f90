@@ -464,7 +464,7 @@ contains
     type(uniform_mesh_descriptor_t), intent(in)  :: geometry_data
     type(p_reference_fe_t)         , intent(inout) :: reference_fe_geo_array(1)
 
-    reference_fe_geo_array(1) = make_reference_fe(topology      = topology_quad,       &
+    reference_fe_geo_array(1) = make_reference_fe(topology      = topology_hex,       &
          &                                    fe_type           = fe_type_lagrangian,  &
          &                                    number_dimensions = geometry_data%ndime, &
          &                                    order             = geometry_data%pdegr, &

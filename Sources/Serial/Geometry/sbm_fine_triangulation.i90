@@ -79,7 +79,7 @@ subroutine fine_triangulation_generate_vefs(this,order,boundary,boundary_geometr
               assert(.false.)
            else ! Quadrilateral
               this%reference_fe_geo_list(ielem_type) = &
-                   &    make_reference_fe ( topology = topology_quad, fe_type = fe_type_lagrangian, &
+                   &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
                    &                        number_dimensions = this%num_dimensions, order = order, &
                    &                        field_type = field_type_scalar, continuity = .true. )
            end if

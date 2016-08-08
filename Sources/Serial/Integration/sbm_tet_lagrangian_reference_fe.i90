@@ -1,0 +1,1503 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**************************************************************************************************
+! Deferred TBP implementors from reference_fe_t
+!**************************************************************************************************
+
+!==================================================================================================
+function tet_lagrangian_reference_fe_check_compatibility_of_vefs                   &
+     &                      (target_reference_fe,source_reference_fe, source_vef_id,target_vef_id)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)  :: target_reference_fe
+  class(reference_fe_t)               , intent(in)  :: source_reference_fe
+  integer(ip)                         , intent(in)  :: source_vef_id ! Local vef ID
+  integer(ip)                         , intent(in)  :: target_vef_id ! Local vef ID
+  logical :: tet_lagrangian_reference_fe_check_compatibility_of_vefs 
+
+  select type(source_reference_fe)
+     class is(tet_lagrangian_reference_fe_t)
+        ! Get number nodes per dimension
+        assert (target_reference_fe%order == source_reference_fe%order)
+        assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
+        assert (target_reference_fe%get_vef_dimension(target_vef_id) ==  source_reference_fe%get_vef_dimension(source_vef_id))
+        assert (target_reference_fe%get_vef_dimension(target_vef_id) < 3)
+        assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
+        assert (target_reference_fe%get_number_own_nodes_vef(target_vef_id) == source_reference_fe%get_number_own_nodes_vef(source_vef_id))
+        tet_lagrangian_reference_fe_check_compatibility_of_vefs = .true.
+     class default
+        tet_lagrangian_reference_fe_check_compatibility_of_vefs = .false.
+  end select
+ 
+end function tet_lagrangian_reference_fe_check_compatibility_of_vefs
+
+!=================================================================================================
+function tet_lagrangian_reference_fe_get_characteristic_length ( this )
+  implicit none 
+  class(tet_lagrangian_reference_fe_t), intent(in) :: this 
+  real(rp)  :: tet_lagrangian_reference_fe_get_characteristic_length 
+  tet_lagrangian_reference_fe_get_characteristic_length =   &
+     &   real(get_factorial(this%number_dimensions),rp)**(-1.0_rp/real(this%number_dimensions,rp))
+end function tet_lagrangian_reference_fe_get_characteristic_length
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_get_subelements_connectivity ( this, connectivity )
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip),                          intent(inout) :: connectivity(:,:)
+  integer(ip) :: num_subelems
+  integer(ip) :: subelem
+  integer(ip) :: geo_nnodes
+  integer(ip) :: local_node
+  integer(ip) :: first_coord(this%number_dimensions)
+  integer(ip) :: local_coord(this%number_dimensions)
+  integer(ip) :: global_coord(this%number_dimensions)
+ 
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for triangles/tetrahedra '
+  check( .false. )
+
+end subroutine tet_lagrangian_reference_fe_get_subelements_connectivity
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_blending(this,values)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  type(point_t)                       , intent(inout) :: values(:)
+  check(.false.)
+end subroutine tet_lagrangian_reference_fe_blending
+
+!**************************************************************************************************
+! Deferred TBP implementors from lagrangian_reference_fe_t
+!**************************************************************************************************
+
+!=================================================================================================
+subroutine tet_lagrangian_reference_fe_fill_scalar (this)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(inout) :: this
+  integer(ip)              :: nd,p
+  integer(ip)              :: i,j,k
+  integer(ip)              :: co,c2,c3,c4       ! Counters
+  integer(ip)              :: aux1,aux2,aux3
+  integer(ip)              :: no                ! #vefs in the element
+  integer(ip)              :: nn                ! #nodes 
+  integer(ip)              :: nt                ! Length of ntxob
+  integer(ip)              :: nc                ! #corners x #{vefs delimited by each corner}
+  integer(ip), allocatable :: idm(:)            ! Stores the corners f each element
+  integer(ip), allocatable :: idcro(:,:)        ! Array of corners belonging to the nth vef
+  integer(ip), allocatable :: nodes(:,:)        ! Coordinates of the corners of the element
+  integer(ip), allocatable :: objec(:,:)        ! Coordinates that define an vef
+  type(list_iterator_t)    :: iterator
+
+  ! Initilize values
+  nd = this%number_dimensions
+  p  = this%order
+  no = 0
+  nn = 0
+  nt = 0
+  nc = 0
+
+  ! Allocate auxiliary arrays
+  call memalloc(     nd+1,   idm, __FILE__, __LINE__ )
+  call memalloc( nd, nd+1, nodes, __FILE__, __LINE__ )
+  call memalloc( nd, nd+1, objec, __FILE__, __LINE__ )
+
+  ! Initialize number_vefs_dimension
+  this%number_vefs_dimension    = 0
+  this%number_vefs_dimension(1) = 1
+
+  ! Fill number_vefs_dimension and compute nt, nc, nn
+  do k = 0,nd
+     i   = get_binomial_coefficient(nd+1,k+1)             ! #vefs of dimension k
+     j   = this%compute_number_nodes_scalar(k,p)          ! #nodes vef dim k order p
+     no  = no + i                                         ! compute #vefs
+     nn  = nn + i*this%compute_number_interior_nodes(k,p) ! #nodes inside vefs of dimension k
+     nt  = nt + i*j                                       ! nodes in the closure of the vef
+     nc  = nc + i*(k+1)                                   ! corners delimiting vefs of dimension k
+     ! Pointer to obj id by dim. Local obj of dim k are nvef_dim(k):nvef_dim(k+1)
+     this%number_vefs_dimension(k+2) = this%number_vefs_dimension(k+1) + i 
+  end do
+
+  ! Set constant values of reference_element
+  this%number_vefs  = no - 1
+  this%number_nodes = nn
+
+  ! Allocate arrays
+  call this%orientation%create(no)
+  call this%interior_nodes_vef%create(n=no)
+  call this%nodes_vef%create(n=no)
+  call this%vertices_vef%create(n=no)
+
+  ! Create auxiliar matrix nodes with the coordinates of the corners
+  nodes = 0
+  do k=1,nd
+     nodes(k,k+1) = 1
+  end do
+
+  !Initialize pointers
+  this%interior_nodes_vef%p(1) = 1
+  this%nodes_vef%p(1)          = 1
+  this%vertices_vef%p(1)       = 1
+  
+  ! Loop over dimensions
+  do k = 0,nd
+     aux1 = this%compute_number_interior_nodes(k,p) ! Interior nodes for a vef of dim k
+     aux3 = this%compute_number_nodes_scalar(k,p)   ! Total nodes for a vef of dim k
+     if ( p == -1 ) then          ! In void_fes there are no nodes
+        aux1 = 0
+        aux3 = 0
+     end if
+     aux2 = k+1                   ! Corners for a vef of dim k
+
+     ! Loop over vefs of dimension k
+     do i = this%number_vefs_dimension(k+1),this%number_vefs_dimension(k+2)-1 
+        this%interior_nodes_vef%p(i+1) = this%interior_nodes_vef%p(i) + aux1 ! assign pointers
+        this%nodes_vef%p(i+1)          = this%nodes_vef%p(i)          + aux3 ! assign pointers
+        this%vertices_vef%p(i+1)       = this%vertices_vef%p(i)       + aux2 ! assign pointers
+     end do
+  end do
+  
+  call this%interior_nodes_vef%allocate_list_from_pointer()
+  call this%nodes_vef%allocate_list_from_pointer()
+  call this%vertices_vef%allocate_list_from_pointer()
+
+  call memalloc( nd+2, no, idcro, __FILE__, __LINE__) ! Array of dim and corners belonging to each vef
+  
+  ! Each vef of dimension k is defined by a set of k+1 corners (idcro stores this info)
+  i = 1
+  j = 1
+  k = 1 
+  idcro = -1
+  do k=0,nd
+     call this%fill_vef_dimension_and_vertices(k,i,nd,1,no,j,idm,idcro)
+  end do
+  
+  ! Initialize counters
+  co = 0 ! Counter of vef
+  c2 = 1 ! this%interior_nodes_vef%p counter
+  c3 = 0 ! this%vertices_vef%p counter
+  c4 = 1 ! this%nodes_vef%p counter
+
+  ! Loop over vefs dimensions
+  do k = 0,nd
+
+     ! Loop over the number of vefs of dimension k
+     do i=1, get_binomial_coefficient(nd+1,k+1)
+        ! Fill this%vertices_vef%l for vef co
+        co = co + 1 
+        call this%get_vef_orientation(this%orientation%a(co),k,nd,i)
+        this%vertices_vef%l(c3+1:c3+k+1) = idcro(2:k+2,co)
+        c3 = c3 + k + 1
+
+        if ( p > 0 ) then ! Do nothing for void fe
+           ! Objec stores the coordinates of the corners defining vef co
+           objec(:,1) = nodes(:,idcro(2,co))
+           do j=1,k
+              objec(:,j+1) = nodes(:,idcro(j+2,co)) - nodes(:,idcro(2,co))
+           end do
+           
+           ! Fill ntxobj and ndxobj for vef co
+           call this%fill_nodes_vef(this%nodes_vef%l,c4,0,p,1,idm,nd,k,p,objec,nt)
+           call this%fill_nodes_vef(this%interior_nodes_vef%l,c2,1,p-1,1,idm,nd,k,p,objec,nt)
+        end if
+        
+     end do
+     
+  end do
+  
+  ! Create face_integration_coupling_nodes_vef
+  if ( this%continuity ) then
+     this%own_nodes_vef = this%interior_nodes_vef
+     ! Create a void face_integration_coupling_nodes_face type(list_t)
+     call this%face_integration_coupling_nodes_face%create(n=no)
+     call this%face_integration_coupling_nodes_face%calculate_header()
+     call this%face_integration_coupling_nodes_face%allocate_list_from_pointer()
+  else
+     call this%own_nodes_vef%create(n=no)
+     call this%own_nodes_vef%sum_to_pointer_index(this%own_nodes_vef%get_num_pointers(), & 
+                                                & this%number_nodes)
+     call this%own_nodes_vef%calculate_header()
+     call this%own_nodes_vef%allocate_list_from_pointer()
+     
+     iterator = this%own_nodes_vef%create_iterator()
+     i=1
+     do while(.not. iterator%is_upper_bound())
+        call iterator%set_current(i)
+        call iterator%next()
+        i = i + 1 
+    enddo
+     
+     if ( this%conformity ) then
+       ! Create a void face_integration_coupling_nodes_face type(list_t)
+       call this%face_integration_coupling_nodes_face%create(n=no)
+       call this%face_integration_coupling_nodes_face%calculate_header()
+       call this%face_integration_coupling_nodes_face%allocate_list_from_pointer()
+     else
+       this%face_integration_coupling_nodes_face = this%nodes_vef
+     end if
+  end if
+
+  ! Deallocate auxiliary arrays
+  call memfree(   idm, __FILE__, __LINE__ )  
+  call memfree( idcro, __FILE__, __LINE__ )
+  call memfree( nodes, __FILE__, __LINE__ )
+  call memfree( objec, __FILE__, __LINE__ )
+  
+end subroutine tet_lagrangian_reference_fe_fill_scalar
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
+  !-----------------------------------------------------------------------
+  ! 
+  !     This routine sets up the integration constants of open rules for
+  !     triangles and tetrahedra
+  ! 
+  !             NDIME = 2             NDIME = 3
+  ! 
+  !          NGAUS  EXACT POL.     NGAUS  EXACT POL. 
+  !          -----  ----------     -----  ----------
+  !            1       p1            1       p1
+  !            3       p2            4       p2
+  !            4       p3            5       p3
+  !            6       p4           11       p4
+  !            7       p5           14       p5
+  !           13       p7
+  !           19       p9
+  !           28       p11
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)                  , intent(inout) :: quadrature
+  real(rp)    :: a,b,c,d,e,f,g,h,p,q,r,s,t,u,v,w,x,y,z
+  real(rp)    :: w1,w2,w3,w4,w5,w6,w7,w8
+  real(rp)    :: ex1,et1,ez1,ex2,et2,ez2
+  integer(ip) :: ndime,ngaus
+
+  ndime = quadrature%number_dimensions
+  ngaus = quadrature%number_quadrature_points
+
+  ! Line integral (the same as for brick elements)
+  if(ndime==1) then
+     if(ngaus==1) then
+        quadrature%coordinates(1,1)=0.5_rp
+        quadrature%weight(  1)=1.0_rp
+     else if(ngaus==2) then
+        quadrature%coordinates(1,1)= 0.211324865405187_rp
+        quadrature%coordinates(1,2)= 0.788675134594813_rp
+        quadrature%weight(  1)= 0.5_rp
+        quadrature%weight(  2)= 0.5_rp
+     else if(ngaus==3) then
+        quadrature%coordinates(1,1)= 0.112701665379258_rp
+        quadrature%coordinates(1,2)= 0.5_rp
+        quadrature%coordinates(1,3)= 0.887298334620742_rp
+        quadrature%weight(  1)= 0.277777777777778_rp
+        quadrature%weight(  2)= 0.444444444444444_rp
+        quadrature%weight(  3)= 0.277777777777778_rp
+     else
+        write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
+        check(.false.)
+     end if
+
+  ! Area integral (triangles)
+  else if(ndime==2) then
+     if(ngaus==1) then
+        quadrature%coordinates(1,1)= 1.0_rp/3.0_rp
+        quadrature%coordinates(2,1)= 1.0_rp/3.0_rp
+        quadrature%weight(  1)= 1.0_rp/2.0_rp
+     else if(ngaus==3) then
+        quadrature%coordinates(1,2)= 2.0_rp/3.0_rp
+        quadrature%coordinates(2,2)= 1.0_rp/6.0_rp
+        quadrature%coordinates(1,3)= 1.0_rp/6.0_rp
+        quadrature%coordinates(2,3)= 2.0_rp/3.0_rp
+        quadrature%coordinates(1,1)= 1.0_rp/6.0_rp
+        quadrature%coordinates(2,1)= 1.0_rp/6.0_rp
+        quadrature%weight(  2)= 1.0_rp/6.0_rp
+        quadrature%weight(  3)= 1.0_rp/6.0_rp
+        quadrature%weight(  1)= 1.0_rp/6.0_rp
+     else if(ngaus==4) then
+        quadrature%coordinates(1,1)= 1.0_rp/3.0_rp
+        quadrature%coordinates(2,1)= 1.0_rp/3.0_rp
+        quadrature%coordinates(1,2)= 1.0_rp/5.0_rp
+        quadrature%coordinates(2,2)= 1.0_rp/5.0_rp
+        quadrature%coordinates(1,3)= 3.0_rp/5.0_rp
+        quadrature%coordinates(2,3)= 1.0_rp/5.0_rp
+        quadrature%coordinates(1,4)= 1.0_rp/5.0_rp
+        quadrature%coordinates(2,4)= 3.0_rp/5.0_rp
+        quadrature%weight(  1)=-27.0_rp/96.0_rp
+        quadrature%weight(  2)= 25.0_rp/96.0_rp
+        quadrature%weight(  3)= 25.0_rp/96.0_rp
+        quadrature%weight(  4)= 25.0_rp/96.0_rp 
+     else if(ngaus==6) then
+        ex1 = 0.816847572980459_rp
+        et1 = 0.091576213509771_rp
+        ez1 = 0.091576213509771_rp
+        ex2 = 0.108103018168070_rp
+        et2 = 0.445948490915965_rp
+        ez2 = 0.445948490915965_rp
+        quadrature%coordinates(1,3)= ex1
+        quadrature%coordinates(2,3)= et1
+        quadrature%coordinates(1,1)= et1
+        quadrature%coordinates(2,1)= ez1
+        quadrature%coordinates(1,6)= ez1
+        quadrature%coordinates(2,6)= ex1
+        quadrature%coordinates(1,4)= ex2
+        quadrature%coordinates(2,4)= et2
+        quadrature%coordinates(1,5)= et2
+        quadrature%coordinates(2,5)= ez2
+        quadrature%coordinates(1,2)= ez2
+        quadrature%coordinates(2,2)= ex2
+        a = 0.054975870996713638_rp
+        b = 0.1116907969117165_rp    
+        quadrature%weight(3)  = a
+        quadrature%weight(1)  = a
+        quadrature%weight(6)  = a
+        quadrature%weight(4)  = b
+        quadrature%weight(5)  = b
+        quadrature%weight(2)  = b
+     else if(ngaus==7) then
+        a = 1.0_rp / 3.0_rp
+        b = ( 9.0_rp + 2.0_rp * sqrt ( 15.0_rp ) ) / 21.0_rp
+        c = ( 6.0_rp -          sqrt ( 15.0_rp ) ) / 21.0_rp
+        d = ( 9.0_rp - 2.0_rp * sqrt ( 15.0_rp ) ) / 21.0_rp
+        e = ( 6.0_rp +          sqrt ( 15.0_rp ) ) / 21.0_rp
+        w1 = 0.1125_rp
+        w2 = ( 155.0_rp - sqrt ( 15.0_rp ) ) / 2400.0_rp
+        w3 = ( 155.0_rp + sqrt ( 15.0_rp ) ) / 2400.0_rp
+        quadrature%coordinates(1,1)= a
+        quadrature%coordinates(2,1)= a
+        quadrature%coordinates(1,2)= b
+        quadrature%coordinates(2,2)= c
+        quadrature%coordinates(1,3)= c
+        quadrature%coordinates(2,3)= b
+        quadrature%coordinates(1,4)= c
+        quadrature%coordinates(2,4)= c
+        quadrature%coordinates(1,5)= d
+        quadrature%coordinates(2,5)= e
+        quadrature%coordinates(1,6)= e
+        quadrature%coordinates(2,6)= d
+        quadrature%coordinates(1,7)= e
+        quadrature%coordinates(2,7)= e
+        quadrature%weight(  1)= w1
+        quadrature%weight(  2)= w2
+        quadrature%weight(  3)= w2
+        quadrature%weight(  4)= w2
+        quadrature%weight(  5)= w3
+        quadrature%weight(  6)= w3
+        quadrature%weight(  7)= w3
+     else if(ngaus==13) then
+        a = 0.333333333333333_rp
+        b = 0.479308067841923_rp
+        c = 0.869739794195568_rp
+        d = 0.638444188569809_rp
+        e = 0.260345966079038_rp
+        f = 0.065130102902216_rp
+        g = 0.312865496004875_rp
+        h = 0.048690315425316_rp
+        w1=-0.149570044467670_rp/2.0_rp
+        w2= 0.175615257433204_rp/2.0_rp
+        w3= 0.053347235608839_rp/2.0_rp
+        w4= 0.077113760890257_rp/2.0_rp
+        quadrature%coordinates(1, 1)= a
+        quadrature%coordinates(2, 1)= a         
+        quadrature%coordinates(1, 2)= e
+        quadrature%coordinates(2, 2)= e
+        quadrature%coordinates(1, 3)= b
+        quadrature%coordinates(2, 3)= e        
+        quadrature%coordinates(1, 4)= e
+        quadrature%coordinates(2, 4)= b        
+        quadrature%coordinates(1, 5)= f
+        quadrature%coordinates(2, 5)= f        
+        quadrature%coordinates(1, 6)= c
+        quadrature%coordinates(2, 6)= f        
+        quadrature%coordinates(1, 7)= f
+        quadrature%coordinates(2, 7)= c        
+        quadrature%coordinates(1, 8)= d
+        quadrature%coordinates(2, 8)= g        
+        quadrature%coordinates(1, 9)= d
+        quadrature%coordinates(2, 9)= h        
+        quadrature%coordinates(1,10)= g
+        quadrature%coordinates(2,10)= d        
+        quadrature%coordinates(1,11)= g
+        quadrature%coordinates(2,11)= h        
+        quadrature%coordinates(1,12)= h
+        quadrature%coordinates(2,12)= d        
+        quadrature%coordinates(1,13)= h
+        quadrature%coordinates(2,13)= g
+        quadrature%weight( 1) = w1
+        quadrature%weight( 2) = w2
+        quadrature%weight( 3) = w2
+        quadrature%weight( 4) = w2
+        quadrature%weight( 5) = w3
+        quadrature%weight( 6) = w3
+        quadrature%weight( 7) = w3
+        quadrature%weight( 8) = w4
+        quadrature%weight( 9) = w4
+        quadrature%weight(10) = w4
+        quadrature%weight(11) = w4
+        quadrature%weight(12) = w4
+        quadrature%weight(13) = w4
+     else if(ngaus.eq.19) then
+        a = 1.0_rp / 3.0_rp
+        b = 0.02063496160252593_rp
+        c = 0.4896825191987370_rp
+        d = 0.1258208170141290_rp
+        e = 0.4370895914929355_rp
+        f = 0.6235929287619356_rp
+        g = 0.1882035356190322_rp
+        r = 0.9105409732110941_rp
+        s = 0.04472951339445297_rp
+        t = 0.7411985987844980_rp
+        u = 0.03683841205473626_rp
+        v = 0.22196288916076574_rp
+
+        w1 = 0.09713579628279610_rp/2.0_rp
+        w2 = 0.03133470022713983_rp/2.0_rp
+        w3 = 0.07782754100477543_rp/2.0_rp
+        w4 = 0.07964773892720910_rp/2.0_rp
+        w5 = 0.02557767565869810_rp/2.0_rp
+        w6 = 0.04328353937728940_rp/2.0_rp
+
+        quadrature%coordinates(1, 1) = a 
+        quadrature%coordinates(1, 2) = b
+        quadrature%coordinates(1, 3) = c 
+        quadrature%coordinates(1, 4) = c 
+        quadrature%coordinates(1, 5) = d 
+        quadrature%coordinates(1, 6) = e
+        quadrature%coordinates(1, 7) = e
+        quadrature%coordinates(1, 8) = f 
+        quadrature%coordinates(1, 9) = g 
+        quadrature%coordinates(1,10) = g
+        quadrature%coordinates(1,11) = r
+        quadrature%coordinates(1,12) = s
+        quadrature%coordinates(1,13) = s
+        quadrature%coordinates(1,14) = t
+        quadrature%coordinates(1,15) = t
+        quadrature%coordinates(1,16) = u
+        quadrature%coordinates(1,17) = u
+        quadrature%coordinates(1,18) = v
+        quadrature%coordinates(1,19) = v
+
+        quadrature%coordinates(2, 1) = a
+        quadrature%coordinates(2, 2) = c
+        quadrature%coordinates(2, 3) = b
+        quadrature%coordinates(2, 4) = c
+        quadrature%coordinates(2, 5) = e
+        quadrature%coordinates(2, 6) = d
+        quadrature%coordinates(2, 7) = e
+        quadrature%coordinates(2, 8) = g
+        quadrature%coordinates(2, 9) = f
+        quadrature%coordinates(2,10) = g
+        quadrature%coordinates(2,11) = s
+        quadrature%coordinates(2,12) = r
+        quadrature%coordinates(2,13) = s
+        quadrature%coordinates(2,14) = u
+        quadrature%coordinates(2,15) = v
+        quadrature%coordinates(2,16) = t
+        quadrature%coordinates(2,17) = v
+        quadrature%coordinates(2,18) = t
+        quadrature%coordinates(2,19) = u
+
+        quadrature%weight( 1) = w1
+        quadrature%weight( 2) = w2
+        quadrature%weight( 3) = w2
+        quadrature%weight( 4) = w2
+        quadrature%weight( 5) = w3
+        quadrature%weight( 6) = w3
+        quadrature%weight( 7) = w3
+        quadrature%weight( 8) = w4
+        quadrature%weight( 9) = w4
+        quadrature%weight(10) = w4
+        quadrature%weight(11) = w5
+        quadrature%weight(12) = w5
+        quadrature%weight(13) = w5
+        quadrature%weight(14) = w6
+        quadrature%weight(15) = w6
+        quadrature%weight(16) = w6
+        quadrature%weight(17) = w6
+        quadrature%weight(18) = w6
+        quadrature%weight(19) = w6
+     else if(ngaus.eq.28) then
+        a = 1.0_rp / 3.0_rp
+        b = 0.9480217181434233_rp
+        c = 0.02598914092828833_rp
+        d = 0.8114249947041546_rp
+        e = 0.09428750264792270_rp
+        f = 0.01072644996557060_rp
+        g = 0.4946367750172147_rp
+        p = 0.5853132347709715_rp
+        q = 0.2073433826145142_rp
+        r = 0.1221843885990187_rp
+        s = 0.4389078057004907_rp
+        t = 0.6779376548825902_rp
+        u = 0.04484167758913055_rp
+        v = 0.27722066752827925_rp
+        w = 0.8588702812826364_rp
+        x = 0.0_rp
+        y = 0.1411297187173636_rp
+
+        w1 = 0.08797730116222190_rp/2.0_rp
+        w2 = 0.008744311553736190_rp/2.0_rp
+        w3 = 0.03808157199393533_rp/2.0_rp
+        w4 = 0.01885544805613125_rp/2.0_rp
+        w5 = 0.07215969754474100_rp/2.0_rp
+        w6 = 0.06932913870553720_rp/2.0_rp
+        w7 = 0.04105631542928860_rp/2.0_rp
+        w8 = 0.007362383783300573_rp/2.0_rp
+
+        quadrature%coordinates(1, 1) = a  
+        quadrature%coordinates(1, 2) = b  
+        quadrature%coordinates(1, 3) = c  
+        quadrature%coordinates(1, 4) = c  
+        quadrature%coordinates(1, 5) = d  
+        quadrature%coordinates(1, 6) = e  
+        quadrature%coordinates(1, 7) = e  
+        quadrature%coordinates(1, 8) = f  
+        quadrature%coordinates(1, 9) = g
+        quadrature%coordinates(1,10) = g
+        quadrature%coordinates(1,11) = p 
+        quadrature%coordinates(1,12) = q 
+        quadrature%coordinates(1,13) = q
+        quadrature%coordinates(1,14) = r 
+        quadrature%coordinates(1,15) = s 
+        quadrature%coordinates(1,16) = s 
+        quadrature%coordinates(1,17) = t 
+        quadrature%coordinates(1,18) = t 
+        quadrature%coordinates(1,19) = u 
+        quadrature%coordinates(1,20) = u 
+        quadrature%coordinates(1,21) = v 
+        quadrature%coordinates(1,22) = v 
+        quadrature%coordinates(1,23) = w 
+        quadrature%coordinates(1,24) = w 
+        quadrature%coordinates(1,25) = x 
+        quadrature%coordinates(1,26) = x 
+        quadrature%coordinates(1,27) = y 
+        quadrature%coordinates(1,28) = y
+
+        quadrature%coordinates(2, 1) = a  
+        quadrature%coordinates(2, 2) = c  
+        quadrature%coordinates(2, 3) = b  
+        quadrature%coordinates(2, 4) = c  
+        quadrature%coordinates(2, 5) = e  
+        quadrature%coordinates(2, 6) = d  
+        quadrature%coordinates(2, 7) = e  
+        quadrature%coordinates(2, 8) = g  
+        quadrature%coordinates(2, 9) = f  
+        quadrature%coordinates(2,10) = g  
+        quadrature%coordinates(2,11) = q  
+        quadrature%coordinates(2,12) = p  
+        quadrature%coordinates(2,13) = q
+        quadrature%coordinates(2,14) = s  
+        quadrature%coordinates(2,15) = r  
+        quadrature%coordinates(2,16) = s  
+        quadrature%coordinates(2,17) = u  
+        quadrature%coordinates(2,18) = v  
+        quadrature%coordinates(2,19) = t  
+        quadrature%coordinates(2,20) = v  
+        quadrature%coordinates(2,21) = t  
+        quadrature%coordinates(2,22) = u  
+        quadrature%coordinates(2,23) = x  
+        quadrature%coordinates(2,24) = y  
+        quadrature%coordinates(2,25) = w  
+        quadrature%coordinates(2,26) = y  
+        quadrature%coordinates(2,27) = w  
+        quadrature%coordinates(2,28) = x
+
+        quadrature%weight( 1) = w1 
+        quadrature%weight( 2) = w2
+        quadrature%weight( 3) = w2 
+        quadrature%weight( 4) = w2 
+        quadrature%weight( 5) = w3 
+        quadrature%weight( 6) = w3 
+        quadrature%weight( 7) = w3 
+        quadrature%weight( 8) = w4 
+        quadrature%weight( 9) = w4 
+        quadrature%weight(10) = w4 
+        quadrature%weight(11) = w5 
+        quadrature%weight(12) = w5 
+        quadrature%weight(13) = w5
+        quadrature%weight(14) = w6 
+        quadrature%weight(15) = w6 
+        quadrature%weight(16) = w6 
+        quadrature%weight(17) = w7 
+        quadrature%weight(18) = w7 
+        quadrature%weight(19) = w7 
+        quadrature%weight(20) = w7 
+        quadrature%weight(21) = w7 
+        quadrature%weight(22) = w7 
+        quadrature%weight(23) = w8 
+        quadrature%weight(24) = w8 
+        quadrature%weight(25) = w8 
+        quadrature%weight(26) = w8 
+        quadrature%weight(27) = w8 
+        quadrature%weight(28) = w8
+     else
+        write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
+        check(.false.)
+     end if
+
+     ! Volume integral ( tetrahedra )
+  else if(ndime==3) then
+     if(ngaus==1) then
+        quadrature%coordinates(1,1)= 1.0_rp/4.0_rp
+        quadrature%coordinates(2,1)= 1.0_rp/4.0_rp
+        quadrature%coordinates(3,1)= 1.0_rp/4.0_rp
+        quadrature%weight(1)  = 1.0_rp/6.0_rp
+     else if(ngaus==4) then
+        a=0.5854101966249685_rp
+        b=0.1381966011250105_rp
+        quadrature%coordinates(1,1)= b
+        quadrature%coordinates(2,1)= b
+        quadrature%coordinates(3,1)= b
+        quadrature%coordinates(1,2)= a
+        quadrature%coordinates(2,2)= b
+        quadrature%coordinates(3,2)= b
+        quadrature%coordinates(1,3)= b
+        quadrature%coordinates(2,3)= a
+        quadrature%coordinates(3,3)= b
+        quadrature%coordinates(1,4)= b
+        quadrature%coordinates(2,4)= b
+        quadrature%coordinates(3,4)= a
+        quadrature%weight(  1)= 1.0_rp/24.0_rp
+        quadrature%weight(  2)= 1.0_rp/24.0_rp
+        quadrature%weight(  3)= 1.0_rp/24.0_rp
+        quadrature%weight(  4)= 1.0_rp/24.0_rp
+     else if(ngaus==5) then
+        quadrature%coordinates(1,1)= 1.0_rp/4.0_rp
+        quadrature%coordinates(2,1)= 1.0_rp/4.0_rp
+        quadrature%coordinates(3,1)= 1.0_rp/4.0_rp
+        quadrature%coordinates(1,2)= 1.0_rp/6.0_rp
+        quadrature%coordinates(2,2)= 1.0_rp/6.0_rp
+        quadrature%coordinates(3,2)= 1.0_rp/6.0_rp
+        quadrature%coordinates(1,3)= 1.0_rp/2.0_rp
+        quadrature%coordinates(2,3)= 1.0_rp/6.0_rp
+        quadrature%coordinates(3,3)= 1.0_rp/6.0_rp
+        quadrature%coordinates(1,4)= 1.0_rp/6.0_rp
+        quadrature%coordinates(2,4)= 1.0_rp/2.0_rp
+        quadrature%coordinates(3,4)= 1.0_rp/6.0_rp
+        quadrature%coordinates(1,5)= 1.0_rp/6.0_rp
+        quadrature%coordinates(2,5)= 1.0_rp/6.0_rp
+        quadrature%coordinates(3,5)= 1.0_rp/2.0_rp
+        quadrature%weight(  1)=-2.0_rp/15.0_rp
+        quadrature%weight(  2)= 1.5_rp/20.0_rp
+        quadrature%weight(  3)= 1.5_rp/20.0_rp
+        quadrature%weight(  4)= 1.5_rp/20.0_rp
+        quadrature%weight(  5)= 1.5_rp/20.0_rp
+     else if(ngaus==11) then
+        a=0.3994035761667992_rp
+        b=0.1005964238332008_rp
+        c=343.0_rp/7500.0_rp/6.0_rp
+        d=56.0_rp/375.0_rp/6.0_rp
+        quadrature%coordinates(1,1) = 1.0_rp/4.0_rp
+        quadrature%coordinates(2,1) = 1.0_rp/4.0_rp
+        quadrature%coordinates(3,1) = 1.0_rp/4.0_rp
+        quadrature%coordinates(1,2) = 11.0_rp/14.0_rp
+        quadrature%coordinates(2,2) = 1.0_rp/14.0_rp
+        quadrature%coordinates(3,2) = 1.0_rp/14.0_rp
+        quadrature%coordinates(1,3) = 1.0_rp/14.0_rp
+        quadrature%coordinates(2,3) = 11.0_rp/14.0_rp
+        quadrature%coordinates(3,3) = 1.0_rp/14.0_rp
+        quadrature%coordinates(1,4) = 1.0_rp/14.0_rp
+        quadrature%coordinates(2,4) = 1.0_rp/14.0_rp
+        quadrature%coordinates(3,4) = 11.0_rp/14.0_rp
+        quadrature%coordinates(1,5) = 1.0_rp/14.0_rp
+        quadrature%coordinates(2,5) = 1.0_rp/14.0_rp
+        quadrature%coordinates(3,5) = 1.0_rp/14.0_rp
+        quadrature%coordinates(1,6) = a
+        quadrature%coordinates(2,6) = a
+        quadrature%coordinates(3,6) = b
+        quadrature%coordinates(1,7) = a
+        quadrature%coordinates(2,7) = b
+        quadrature%coordinates(3,7) = a
+        quadrature%coordinates(1,8) = a
+        quadrature%coordinates(2,8) = b
+        quadrature%coordinates(3,8) = b
+        quadrature%coordinates(1,9) = b
+        quadrature%coordinates(2,9) = a
+        quadrature%coordinates(3,9) = a
+        quadrature%coordinates(1,10)= b
+        quadrature%coordinates(2,10)= a
+        quadrature%coordinates(3,10)= b
+        quadrature%coordinates(1,11)= b
+        quadrature%coordinates(2,11)= b
+        quadrature%coordinates(3,11)= a
+        quadrature%weight(1)   =-148.0_rp/1875.0_rp/6.0_rp
+        quadrature%weight(2)   = c
+        quadrature%weight(3)   = c
+        quadrature%weight(4)   = c
+        quadrature%weight(5)   = c
+        quadrature%weight(6)   = d
+        quadrature%weight(7)   = d
+        quadrature%weight(8)   = d
+        quadrature%weight(9)   = d
+        quadrature%weight(10)  = d
+        quadrature%weight(11)  = d
+     else if(ngaus==14) then
+        a=0.0673422422100983_rp
+        b=0.3108859192633005_rp
+        c=0.7217942490673264_rp
+        d=0.0927352503108912_rp
+        e=0.4544962958743506_rp
+        f=0.0455037041256494_rp
+        p=0.1126879257180162_rp/6.0_rp
+        q=0.0734930431163619_rp/6.0_rp
+        r=0.0425460207770812_rp/6.0_rp
+        quadrature%coordinates(1,1) = a
+        quadrature%coordinates(2,1) = b
+        quadrature%coordinates(3,1) = b
+        quadrature%coordinates(1,2) = b
+        quadrature%coordinates(2,2) = a
+        quadrature%coordinates(3,2) = b
+        quadrature%coordinates(1,3) = b
+        quadrature%coordinates(2,3) = b
+        quadrature%coordinates(3,3) = a
+        quadrature%coordinates(1,4) = b
+        quadrature%coordinates(2,4) = b
+        quadrature%coordinates(3,4) = b
+        quadrature%coordinates(1,5) = c
+        quadrature%coordinates(2,5) = d
+        quadrature%coordinates(3,5) = d
+        quadrature%coordinates(1,6) = d
+        quadrature%coordinates(2,6) = c
+        quadrature%coordinates(3,6) = d
+        quadrature%coordinates(1,7) = d
+        quadrature%coordinates(2,7) = d
+        quadrature%coordinates(3,7) = c
+        quadrature%coordinates(1,8) = d
+        quadrature%coordinates(2,8) = d
+        quadrature%coordinates(3,8) = d
+        quadrature%coordinates(1,9) = e
+        quadrature%coordinates(2,9) = e
+        quadrature%coordinates(3,9) = f
+        quadrature%coordinates(1,10)= e
+        quadrature%coordinates(2,10)= f
+        quadrature%coordinates(3,10)= e
+        quadrature%coordinates(1,11)= e
+        quadrature%coordinates(2,11)= f
+        quadrature%coordinates(3,11)= f
+        quadrature%coordinates(1,12)= f
+        quadrature%coordinates(2,12)= e
+        quadrature%coordinates(3,12)= e
+        quadrature%coordinates(1,13)= f
+        quadrature%coordinates(2,13)= e
+        quadrature%coordinates(3,13)= f
+        quadrature%coordinates(1,14)= f
+        quadrature%coordinates(2,14)= f
+        quadrature%coordinates(3,14)= e
+        quadrature%weight(1)   = p
+        quadrature%weight(2)   = p
+        quadrature%weight(3)   = p
+        quadrature%weight(4)   = p
+        quadrature%weight(5)   = q
+        quadrature%weight(6)   = q
+        quadrature%weight(7)   = q
+        quadrature%weight(8)   = q
+        quadrature%weight(9)   = r
+        quadrature%weight(10)  = r
+        quadrature%weight(11)  = r
+        quadrature%weight(12)  = r
+        quadrature%weight(13)  = r
+        quadrature%weight(14)  = r
+     else
+        write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
+        check(.false.)
+     end if
+  end if
+  
+end subroutine tet_lagrangian_reference_fe_fill_quadrature
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_fill_interpolation ( this, interpolation, coord_ip ) 
+  implicit none 
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  type(interpolation_t)               , intent(inout) :: interpolation
+  real(rp)                            , intent(in)    :: coord_ip(:,:)
+
+  integer(ip) :: iquad
+
+  if ( allocated( interpolation%hessian ) )  then 
+     do iquad = 1,interpolation%number_quadrature_points
+        call this%evaluate_interpolation( coord_ip(:,iquad),                             &
+                                          interpolation%number_dimensions,               &
+                                          interpolation%number_shape_functions,          &
+                                          interpolation%number_entries_symmetric_tensor, &
+                                          interpolation%shape_functions(:,iquad),        &
+                                          interpolation%shape_derivatives(:,:,iquad),    &
+                                          interpolation%hessian(:,:,iquad) )
+     end do
+  else
+     do iquad = 1,interpolation%number_quadrature_points
+        call this%evaluate_interpolation( coord_ip(:,iquad),                             &
+                                          interpolation%number_dimensions,               &
+                                          interpolation%number_shape_functions,          &
+                                          interpolation%number_entries_symmetric_tensor, &
+                                          interpolation%shape_functions(:,iquad),        &
+                                          interpolation%shape_derivatives(:,:,iquad) )
+     end do
+  end if
+  
+end subroutine tet_lagrangian_reference_fe_fill_interpolation
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_fill_face_interpolation (this, face_interpolation, &
+                                                              & local_quadrature, local_face_id)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  type(interpolation_t)               , intent(inout) :: face_interpolation
+  type(quadrature_t)                  , intent(in)    :: local_quadrature
+  integer(ip)                         , intent(in)    :: local_face_id
+  real(rp)   , allocatable :: global_coordinates(:)
+  integer(ip)              :: idime, iquad, p_local_coordinate
+
+  call memalloc(face_interpolation%number_dimensions,global_coordinates,__FILE__,__LINE__)
+  
+  ! Evaluate shape functions and derivatives at the gauss points
+  if ( allocated( face_interpolation%hessian ) )  then 
+     do iquad = 1,face_interpolation%number_quadrature_points
+        ! Transform face local coordinates to element global coordinates
+        if (local_face_id .le. face_interpolation%number_dimensions ) then 
+           ! Orthogonal face in the reference element
+           p_local_coordinate = 1
+           do idime = 1, face_interpolation%number_dimensions
+              if (idime .eq. face_interpolation%number_dimensions + 1 - local_face_id ) then
+                 global_coordinates(idime) = 0.0_rp
+              else
+                 global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
+                 p_local_coordinate = p_local_coordinate + 1
+              end if
+           end do
+        else 
+           ! Non-orthogonal face in the reference element
+           global_coordinates(1) = 1 - local_quadrature%coordinates(1,iquad)
+           global_coordinates(2:face_interpolation%number_dimensions) = &
+              & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,iquad)
+        end if
+        ! Evaluate shape functions and derivatives at the gauss points
+        call this%evaluate_interpolation( global_coordinates,                                 &
+                                          face_interpolation%number_dimensions,               &
+                                          face_interpolation%number_shape_functions,          &
+                                          face_interpolation%number_entries_symmetric_tensor, &
+                                          face_interpolation%shape_functions(:,iquad),        &
+                                          face_interpolation%shape_derivatives(:,:,iquad),    &
+                                          face_interpolation%hessian(:,:,iquad) )
+     end do
+  else
+     do iquad = 1,face_interpolation%number_quadrature_points
+        ! Transform face local coordinates to element global coordinates
+        if (local_face_id .le. face_interpolation%number_dimensions ) then 
+           ! Orthogonal face in the reference element
+           p_local_coordinate = 1
+           do idime = 1, face_interpolation%number_dimensions
+              if (idime .eq. face_interpolation%number_dimensions + 1 - local_face_id ) then
+                 global_coordinates(idime) = 0.0_rp
+              else
+                 global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
+                 p_local_coordinate = p_local_coordinate + 1
+              end if
+           end do
+        else 
+           ! Non-orthogonal face in the reference element
+           global_coordinates(1) = 1 - sum(local_quadrature%coordinates(:,iquad))
+           global_coordinates(2:face_interpolation%number_dimensions) = & 
+                              & local_quadrature%coordinates(:,iquad)
+        end if
+        call this%evaluate_interpolation( global_coordinates,                                 &
+                                          face_interpolation%number_dimensions,               &
+                                          face_interpolation%number_shape_functions,          &
+                                          face_interpolation%number_entries_symmetric_tensor, &
+                                          face_interpolation%shape_functions(:,iquad),        &
+                                          face_interpolation%shape_derivatives(:,:,iquad) )
+     end do
+  end if
+  
+  call memfree(global_coordinates,__FILE__,__LINE__)
+
+end subroutine tet_lagrangian_reference_fe_fill_face_interpolation
+
+!==================================================================================================
+function tet_lagrangian_reference_fe_get_node_local_id (this, local_coordinates, & 
+                                                      & number_of_dimensions, order)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: local_coordinates(:)
+  integer(ip)                         , intent(in)    :: number_of_dimensions
+  integer(ip)                         , intent(in)    :: order
+  integer(ip) :: tet_lagrangian_reference_fe_get_node_local_id
+  integer(ip) :: k,q
+
+  if (sum(local_coordinates)>order) then
+     write(*,*) 'ijk', local_coordinates
+     write(*,*) 'tets_setting:: gijk:: ERROR i+j+k<=p'
+     check(.false.)
+  end if
+
+  tet_lagrangian_reference_fe_get_node_local_id = 1
+  do k =1,number_of_dimensions-1
+     q = order-local_coordinates(k+1)
+     tet_lagrangian_reference_fe_get_node_local_id =   & 
+     & tet_lagrangian_reference_fe_get_node_local_id + & 
+     & this%compute_sum_of_nodes_in_simplices(k,q-local_coordinates(k)+1,q)
+  end do
+  tet_lagrangian_reference_fe_get_node_local_id =   & 
+  & tet_lagrangian_reference_fe_get_node_local_id + & 
+  & this%compute_sum_of_nodes_in_simplices(k,order-local_coordinates(number_of_dimensions)+1,order)
+
+end function tet_lagrangian_reference_fe_get_node_local_id
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_get_node_local_coordinates( this,                 &
+                                                                   local_coordinates,    &
+                                                                   local_id,             &
+                                                                   number_of_dimensions, &
+                                                                   order )
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(inout) :: local_coordinates(:)
+  integer(ip)                         , intent(in)    :: local_id
+  integer(ip)                         , intent(in)    :: number_of_dimensions
+  integer(ip)                         , intent(in)    :: order
+  integer(ip) :: k,g0,g1,g2,j,q
+
+  g0 = local_id-1
+  j  = 0 
+  do while (this%compute_sum_of_nodes_in_simplices(number_of_dimensions,order-j+1,order)<=g0)
+     j=j+1
+  end do
+  local_coordinates(number_of_dimensions) = j-1
+  g0 = g0 - this%compute_sum_of_nodes_in_simplices(number_of_dimensions, &
+                                           & order-local_coordinates(number_of_dimensions)+1,order)
+
+  do k=1,number_of_dimensions-1
+     g2 = 0
+     j  = 0
+     q = order-local_coordinates(number_of_dimensions-k+1)
+     do while (this%compute_sum_of_nodes_in_simplices(number_of_dimensions-k,q-j+1,q)<=g0)
+        j=j+1
+     end do
+     local_coordinates(number_of_dimensions-k) = j-1
+     g0 = g0 - this%compute_sum_of_nodes_in_simplices(number_of_dimensions-k, & 
+                                           & q-local_coordinates(number_of_dimensions-k)+1,q)
+  end do
+end subroutine tet_lagrangian_reference_fe_get_node_local_coordinates
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_set_coordinates_1D (this, abscissae, number_of_points)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  real(rp)                            , intent(inout) :: abscissae(:)
+  integer(ip)                         , intent(in)    :: number_of_points
+  integer(ip) :: i
+
+  do i = 0,number_of_points-1
+     abscissae(i+1) = real(i)/(real(number_of_points)-1)
+  end do
+  
+end subroutine tet_lagrangian_reference_fe_set_coordinates_1D
+
+!=================================================================================================
+subroutine tet_lagrangian_reference_fe_set_permutation_2D( this, permutation, number_nodes_x_dim, &
+                                                         & orientation, rotation )
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(inout) :: permutation(:)
+  integer(ip)                         , intent(in)    :: number_nodes_x_dim,orientation,rotation
+  integer(ip) :: o_r,i,j,ij_t(3)     ! ij_t = (i,j,p-i-j)
+  integer(ip) :: ij_n(2),go,gn
+  integer(ip) :: ij_perm_tet(2,6) = reshape((/ 1, 2, 2, 3, 3, 1, 2, 1, 3, 2, 1, 3/), (/2,6/) )
+
+  ! Generic loop+rotation identifier  
+  o_r = 3*(orientation-1)+rotation
+  do j = 0,number_nodes_x_dim-1
+     ij_t(2) = j
+     do i = 0,number_nodes_x_dim-j-1
+        ij_t(1) = i
+        ij_t(3) = number_nodes_x_dim-i-j-1
+        ! Get the global numbering of node (i,j)
+        go = this%get_node_local_id(ij_t(1:2),2,number_nodes_x_dim-1)
+        ! i,j coordinates for the o_r permutation
+        ij_n(1:2) = ij_t(ij_perm_tet(1:2,o_r)) 
+        ! Store the global numbering of node ij_n 
+        permutation(go) = this%get_node_local_id(ij_n,2,number_nodes_x_dim-1)
+     end do
+  end do
+
+end subroutine tet_lagrangian_reference_fe_set_permutation_2D
+
+!=================================================================================================
+function tet_lagrangian_reference_fe_set_number_quadrature_points( this, order, dimension )
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: order
+  integer(ip)                         , intent(in)    :: dimension
+  integer(ip) :: tet_lagrangian_reference_fe_set_number_quadrature_points
+  tet_lagrangian_reference_fe_set_number_quadrature_points = & 
+   & this%compute_number_nodes_scalar( order, dimension )
+  if( dimension .eq. 2 ) then
+     if( order .eq. 3 ) then
+        tet_lagrangian_reference_fe_set_number_quadrature_points = 13
+     end if
+  elseif( dimension .eq. 3 ) then
+     if( order .eq. 2) then
+        tet_lagrangian_reference_fe_set_number_quadrature_points = 11
+     end if
+  end if
+end function
+
+!=================================================================================================
+recursive function tet_lagrangian_reference_fe_compute_number_nodes_scalar(this, order, dimension)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this 
+  integer(ip)                         , intent(in)    :: dimension
+  integer(ip)                         , intent(in)    :: order
+  integer(ip) :: tet_lagrangian_reference_fe_compute_number_nodes_scalar
+  integer(ip) :: q
+  if (dimension == 0) then
+     tet_lagrangian_reference_fe_compute_number_nodes_scalar = 1
+  elseif (order == 0) then
+     tet_lagrangian_reference_fe_compute_number_nodes_scalar = 1
+  elseif (dimension == 1) then
+     tet_lagrangian_reference_fe_compute_number_nodes_scalar = order+1
+  elseif (dimension == 2) then
+     tet_lagrangian_reference_fe_compute_number_nodes_scalar = int((order+1)*(order+2)/2)
+  else
+     tet_lagrangian_reference_fe_compute_number_nodes_scalar = & 
+       & this%compute_number_nodes_scalar(dimension-1,0)
+     do q=1,order
+        tet_lagrangian_reference_fe_compute_number_nodes_scalar = & 
+          & tet_lagrangian_reference_fe_compute_number_nodes_scalar + & 
+          & this%compute_number_nodes_scalar(dimension-1,q)
+     end do
+  end if
+end function tet_lagrangian_reference_fe_compute_number_nodes_scalar
+
+!=================================================================================================
+function tet_lagrangian_reference_fe_get_number_interior_points_x_dim(this,                   & 
+                                                                    & number_interior_points, & 
+                                                                    & dimension)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: number_interior_points
+  integer(ip)                         , intent(in)    :: dimension
+  integer(ip) :: tet_lagrangian_reference_fe_get_number_interior_points_x_dim 
+  if (dimension .eq. 1) then
+     tet_lagrangian_reference_fe_get_number_interior_points_x_dim = number_interior_points
+  else
+     tet_lagrangian_reference_fe_get_number_interior_points_x_dim = & 
+      & (-1 + int(sqrt(real(1+8*number_interior_points))))/2
+  end if
+end function tet_lagrangian_reference_fe_get_number_interior_points_x_dim
+
+!**************************************************************************************************
+! Concrete TBPs of this derived data type
+!**************************************************************************************************
+
+!==================================================================================================
+recursive subroutine tet_lagrangian_reference_fe_fill_nodes_vef(this,ntxob,c3,ini,end, &
+                                                              & i,idm,nd,k,p,objec,nt)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: ini,end,nd,k,p,objec(nd,nd+1),nt,i
+  integer(ip)                         , intent(inout) :: ntxob(nt),c3,idm(nd)
+  integer(ip) :: j,ijk(nd),m
+
+  if (k==0) then
+     ! Dimension 0: objec gives the coordinates of the corner
+     ijk = p*objec(:,1)
+     ntxob(c3) = this%get_node_local_id(ijk,nd,p)
+     c3 = c3 + 1
+  else
+     ! Loop over the possible values of the i-th factor
+     do j=ini,end
+        ! Assign value of the i-th factor
+        idm(i) = j
+        if (i<k) then
+           ! Assign values of the i+1-th factor
+           call this%fill_nodes_vef(ntxob,c3,ini,end-j,i+1,idm,nd,k,p,objec,nt)
+        else
+           ! Compute the coordinate of the c3-th node: objec(:,1)+idm*objec(:,2:k)
+           ijk = p*objec(:,1)
+           do m=1,k
+              ijk = ijk+idm(k-m+1)*objec(:,m+1)
+           end do
+           ! Store in ntxob the corresponding identifier of the node
+           ntxob(c3) = this%get_node_local_id(ijk,nd,p)
+           c3 = c3 + 1
+        end if
+     end do
+  end if
+  
+end subroutine tet_lagrangian_reference_fe_fill_nodes_vef
+
+!==================================================================================================
+recursive subroutine tet_lagrangian_reference_fe_fill_vef_dimension_and_vertices (this,       &
+                                                                        vef_dimension,        &
+                                                                        vertex_position,      &
+                                                                        number_of_dimensions, &
+                                                                        initial_vertex,       &
+                                                                        number_of_vefs,       &
+                                                                        vef_id,               &
+                                                                        vertices_of_vef,      &
+                                                                        vef_dimension_and_vertices)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: vef_dimension
+  integer(ip)                         , intent(in)    :: vertex_position
+  integer(ip)                         , intent(in)    :: number_of_dimensions
+  integer(ip)                         , intent(in)    :: initial_vertex
+  integer(ip)                         , intent(in)    :: number_of_vefs
+  integer(ip)                         , intent(inout) :: vef_dimension_and_vertices(:,:)
+  integer(ip)                         , intent(inout) :: vertices_of_vef(:)
+  integer(ip)                         , intent(inout) :: vef_id
+  integer(ip) :: vertex_id
+
+  do vertex_id=initial_vertex,number_of_dimensions+1
+     vertices_of_vef(vertex_position) = vertex_id
+     if(vertex_position+1<vef_dimension+2) then
+        call this%fill_vef_dimension_and_vertices(vef_dimension,                      &
+                                                  vertex_position+1,                  &
+                                                  number_of_dimensions,               &
+                                                  vertices_of_vef(vertex_position)+1, &
+                                                  number_of_vefs,                     &
+                                                  vef_id,                             &
+                                                  vertices_of_vef,                    &
+                                                  vef_dimension_and_vertices)
+     else
+        vef_dimension_and_vertices(1,vef_id) = vef_dimension
+        vef_dimension_and_vertices(2:vef_dimension+2,vef_id) = vertices_of_vef(1:vef_dimension+1)
+        vef_id = vef_id + 1
+     end if
+  end do
+
+end subroutine tet_lagrangian_reference_fe_fill_vef_dimension_and_vertices
+
+!=================================================================================================
+recursive function tet_lagrangian_reference_fe_compute_number_interior_nodes(this,dimension,order)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this  
+  integer(ip)                         , intent(in)    :: dimension, order
+  integer(ip) :: tet_lagrangian_reference_fe_compute_number_interior_nodes
+  integer(ip) :: q
+  if (dimension == 0) then
+     tet_lagrangian_reference_fe_compute_number_interior_nodes = 1
+  elseif (order == 1) then
+     tet_lagrangian_reference_fe_compute_number_interior_nodes = 0
+  elseif (dimension == 1) then
+     tet_lagrangian_reference_fe_compute_number_interior_nodes = order-1
+  elseif (dimension == 2) then
+     tet_lagrangian_reference_fe_compute_number_interior_nodes = int((order-2)*(order-1)/2)
+  else
+     tet_lagrangian_reference_fe_compute_number_interior_nodes = & 
+      & this%compute_number_interior_nodes(dimension-1,1)
+     do q=2,order-1
+        tet_lagrangian_reference_fe_compute_number_interior_nodes =    & 
+         & tet_lagrangian_reference_fe_compute_number_interior_nodes + & 
+         & this%compute_number_interior_nodes(dimension-1,q)
+     end do
+  end if
+end function tet_lagrangian_reference_fe_compute_number_interior_nodes
+
+!=================================================================================================
+function tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices(this,dimension, & 
+                                                                     & ini_order,end_order)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: dimension, ini_order, end_order
+  integer(ip) :: tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
+  integer(ip) :: q
+  if (dimension == 0) then
+     tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices = 1
+  elseif (ini_order > end_order) then
+     tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices = 0
+  else
+     tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices = & 
+       & this%compute_number_nodes_scalar(dimension-1,ini_order)
+     do q = ini_order+1,end_order
+        tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices =   & 
+        & tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices + &
+        & this%compute_number_nodes_scalar(dimension-1,q)
+     end do
+  end if
+end function tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_evaluate_interpolation(this,coord,ndime,nnode, & 
+                                                            & ntens,shape,deriv,heslo)
+  !-----------------------------------------------------------------------
+  !
+  ! This routine evaluates shape functions and their first and second
+  ! derivatives for 2D or 3D continuos standard interpolation elements.
+  !
+  !    BARS                2  &   3  nodes
+  !    TRIANGLES       3   6  &  10  nodes
+  !    TETRAHEDRA          4  &  10  nodes
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  real(rp)                            , intent(in)    :: coord(:)
+  integer(ip)                         , intent(in)    :: ndime,nnode,ntens
+  real(rp)                            , intent(inout) :: shape(:),deriv(:,:)
+  real(rp)                  , optional, intent(inout) :: heslo(:,:)
+  integer(ip) :: i
+  real(rp)    :: a1,a2,a3,a4,c
+  shape = 0.0_rp
+  deriv = 0.0_rp
+  if (present(heslo)) then
+     heslo = 0.0_rp
+  end if
+  if(ndime==1) then 
+     ! Hessian not computed for face interpolation
+     ! Linear bar
+     if(nnode==2) then
+     shape(1)=1.0_rp-coord(1)                              
+     shape(2)=coord(1)                                    
+     deriv(1,1)=-1.0_rp                                   
+     deriv(1,2)= 1.0_rp                                   
+     ! Quadratic bar
+     else if(nnode==3) then
+     shape(1)=2.0_rp*(coord(1)-0.5_rp)*(coord(1)-1.0_rp)                           
+     shape(2)=-4.0_rp*coord(1)*(coord(1)-1.0_rp)  
+     shape(3)=2.0_rp*coord(1)*(coord(1)-0.5_rp)
+     deriv(1,1)=2.0_rp*(2.0_rp*coord(1)-1.5_rp)                                    
+     deriv(1,2)=-4.0_rp*(2.0_rp*coord(1)-1.0_rp)
+     deriv(1,3)=2.0_rp*(2.0_rp*coord(1)-0.5_rp)
+     ! Cubic bar
+     else if(nnode==4) then
+        write(*,*) __FILE__,__LINE__,'ERROR:: Interpolation not defined',ndime,nnode
+        check(.false.)
+     end if
+  elseif(ndime==2) then
+     ! Linear triangle
+     if(nnode==3) then     
+        shape(1)=1.0_rp-coord(1)-coord(2)                                
+        shape(2)=coord(1)                                  
+        shape(3)=coord(2)                                           
+        deriv(1,1)=-1.0_rp                                   !  3 
+        deriv(1,2)= 1.0_rp                                   !
+        deriv(1,3)= 0.0_rp                                   !
+        deriv(2,1)=-1.0_rp                                   !         
+        deriv(2,2)= 0.0_rp                                   !  1       2
+        deriv(2,3)= 1.0_rp
+     ! Quadratic triangle
+     else if(nnode==6) then
+        a1=1.0_rp-coord(1)-coord(2)
+        a2=coord(1)                                             
+        a3=coord(2)
+        shape( 1)=(2.0_rp*a1-1.0_rp)*a1                      !  6
+        shape( 3)=(2.0_rp*a2-1.0_rp)*a2                      !   
+        shape( 6)=(2.0_rp*a3-1.0_rp)*a3                      !   
+        shape( 2)=4.0_rp*a1*a2                               !  4      5
+        shape( 5)=4.0_rp*a2*a3                               !     
+        shape( 4)=4.0_rp*a1*a3                               !                                !  1     2     3
+        deriv(1,1)= 1.0_rp-4.0_rp*a1                        
+        deriv(1,3)= 4.0_rp*a2-1.0_rp    
+        deriv(1,6)= 0.0_rp           
+        deriv(1,2)= 4.0_rp*(a1-a2)   
+        deriv(1,5)= 4.0_rp*a3        
+        deriv(1,4)=-4.0_rp*a3       
+        deriv(2,1)= 1.0_rp-4.0_rp*a1    
+        deriv(2,3)= 0.0_rp           
+        deriv(2,6)= 4.0_rp*a3-1.0_rp    
+        deriv(2,2)=-4.0_rp*a2       
+        deriv(2,5)= 4.0_rp*a2        
+        deriv(2,4)= 4.0_rp*(a1-a3)
+        if (present(heslo)) then
+           heslo(1,1)= 4.0_rp
+           heslo(1,3)= 4.0_rp
+           heslo(1,2)=-8.0_rp
+           heslo(2,1)= 4.0_rp
+           heslo(2,6)= 4.0_rp
+           heslo(2,4)=-8.0_rp
+           heslo(3,1)= 4.0_rp
+           heslo(3,2)=-4.0_rp
+           heslo(3,5)= 4.0_rp
+           heslo(3,4)=-4.0_rp
+        end if
+     ! Cubic triangle
+     else if(nnode==10) then
+        c=9.0_rp/2.0_rp
+        a1=1.0_rp-coord(1)-coord(2)
+        a2=2.0_rp/3.0_rp-coord(1)-coord(2)
+        a3=1.0_rp/3.0_rp-coord(1)-coord(2)
+        shape( 1)=c*a1*a2*a3                                 !  10
+        shape( 4)=c*(1.0_rp/3.0_rp-coord(1))*(2.0_rp/3.0_rp-coord(1))*coord(1)    !
+        shape(10)=c*(1.0_rp/3.0_rp-coord(2))*(2.0_rp/3.0_rp-coord(2))*coord(2)    !
+        shape( 2)= 3.0_rp*c*a1*a2*coord(1)                          !  8    9
+        shape( 3)=-3.0_rp*c*a1*(1.0_rp/3.0_rp-coord(1))*coord(1)           !
+        shape( 7)=-3.0_rp*c*(1.0_rp/3.0_rp-coord(1))*coord(1)*coord(2)            !
+        shape( 9)=-3.0_rp*c*coord(1)*(1.0_rp/3.0_rp-coord(2))*coord(2)            !  5    6     7
+        shape( 8)=-3.0_rp*c*a1*(1.0_rp/3.0_rp-coord(2))*coord(2)           !
+        shape( 5)= 3.0_rp*c*a1*a2*coord(2)                          !
+        shape( 6)= 6.0_rp*c*a1*coord(1)*coord(2)                           !  1    2    3    4
+        deriv(1, 1)=-c*(a1*a2+a1*a3+a2*a3)       
+        deriv(1, 4)=-c*((2.0_rp/3.0_rp-coord(1))*coord(1)&
+             + (1.0_rp/3.0_rp-coord(1))*coord(1)-(1.0_rp/3.0_rp-coord(1))*(2.0_rp/3.0_rp-coord(1)))
+        deriv(1, 10)=0.0_rp
+        deriv(1, 2)= 3.0_rp*c*(a1*a2-a1*coord(1)-a2*coord(1))
+        deriv(1, 3)=-3.0_rp*c*(a1*(1.0_rp/3.0_rp-coord(1))&
+             - a1*coord(1)-(1.0_rp/3.0_rp-coord(1))*coord(1))
+        deriv(1, 7)=-3.0_rp*c*((1.0_rp/3.0_rp-coord(1))*coord(2)-coord(1)*coord(2))
+        deriv(1, 9)=-3.0_rp*c*((1.0_rp/3.0_rp-coord(2))*coord(2))
+        deriv(1, 8)= 3.0_rp*c*((1.0_rp/3.0_rp-coord(2))*coord(2))
+        deriv(1, 5)= 3.0_rp*c*(-a1*coord(2)-a2*coord(2))
+        deriv(1,6)= 6.0_rp*c*(a1*coord(2)-coord(1)*coord(2))
+        deriv(2, 1)=-c*(a1*a2+a1*a3+a2*a3)
+        deriv(2, 4)= 0.0_rp
+        deriv(2, 10)=-c*((2.0_rp/3.0_rp-coord(2))*coord(2)&
+             + (1.0_rp/3.0_rp-coord(2))*coord(2)-(1.0_rp/3.0_rp-coord(2))*(2.0_rp/3.0_rp-coord(2)))
+        deriv(2, 2)= 3.0_rp*c*(-a1*coord(1)-a2*coord(1))
+        deriv(2, 3)=-3.0_rp*c*(-(1.0_rp/3.0_rp-coord(1))*coord(1))
+        deriv(2, 7)=-3.0_rp*c*((1.0_rp/3.0_rp-coord(1))*coord(1))
+        deriv(2, 9)=-3.0_rp*c*((1.0_rp/3.0_rp-coord(2))*coord(1)-coord(1)*coord(2))
+        deriv(2, 8)=-3.0_rp*c*(-(1.0_rp/3.0_rp-coord(2))*coord(2)&
+             - a1*coord(2)+a1*(1.0_rp/3.0_rp-coord(2)))
+        deriv(2, 5)= 3.0_rp*c*(-a1*coord(2)-a2*coord(2)+a1*a2)
+        deriv(2,6)= 6.0_rp*c*(a1*coord(1)-coord(1)*coord(2))
+        if (present(heslo)) then
+           heslo(1, 1)= c*2.0_rp*(a1+a2+a3) 
+           heslo(1, 4)= c*(6.0_rp*coord(1)-2.0_rp) 
+           heslo(1, 10)= 0.0_rp 
+           heslo(1, 2)= c*( 18.0_rp*coord(1)+12.0_rp*coord(2)-10.0_rp)
+           heslo(1, 3)= c*(-18.0_rp*coord(1)- 6.0_rp*coord(2)+ 8.0_rp)
+           heslo(1, 7)= c*6.0_rp*coord(2) 
+           heslo(1, 9)= 0.0_rp 
+           heslo(1, 8)= 0.0_rp  
+           heslo(1, 5)= c*6.0_rp*coord(2) 
+           heslo(1,6)=-c*12.0_rp*coord(2) 
+           heslo(2, 1)= c*2.0_rp*(a1+a2+a3) 
+           heslo(2, 4)= 0.0_rp 
+           heslo(2, 10)= c*(6.0_rp*coord(2)-2.0_rp) 
+           heslo(2, 2)= c*6.0_rp*coord(1)
+           heslo(2, 3)= 0.0_rp
+           heslo(2, 7)= 0.0_rp
+           heslo(2, 9)= c*6.0_rp*coord(1)
+           heslo(2, 8)= c*( -6.0_rp*coord(1)-18.0*coord(2)+ 8.0_rp)
+           heslo(2, 5)= c*( 12.0_rp*coord(1)+18.0*coord(2)-10.0_rp)
+           heslo(2,6)=-c*12.0_rp*coord(1)
+           heslo(3, 1)= 2.0_rp*c*(a1+a2+a3) 
+           heslo(3, 4)= 0.0_rp  
+           heslo(3, 10)= 0.0_rp 
+           heslo(3, 2)= c*( 12.0_rp*coord(1)+6.0_rp*coord(2)-5.0_rp) 
+           heslo(3, 3)= c*(- 6.0_rp*coord(1)+1.0_rp) 
+           heslo(3, 7)= c*(  6.0_rp*coord(1)-1.0_rp) 
+           heslo(3, 9)= c*(  6.0_rp*coord(2)-1.0_rp) 
+           heslo(3, 8)= c*(- 6.0_rp*coord(2)+1.0_rp)  
+           heslo(3, 5)= c*(  6.0_rp*coord(1)+12.0_rp*coord(2)-5.0_rp) 
+           heslo(3,6)= c*(-12.0_rp*coord(1)-12.0_rp*coord(2)+6.0_rp) 
+        end if
+     end if
+  elseif (ndime==3) then
+     ! Linear tetrahedron 
+     if(nnode==4) then
+        shape(   1) = 1.0_rp-coord(1)-coord(2)-coord(3)
+        shape(   2) = coord(1)
+        shape(   3) = coord(2)
+        shape(   4) = coord(3)
+        deriv(1, 1) =-1.0_rp
+        deriv(2, 1) =-1.0_rp
+        deriv(3, 1) =-1.0_rp
+        deriv(3, 4) = 1.0_rp
+        deriv(1, 2) = 1.0_rp
+        deriv(2, 3) = 1.0_rp
+     ! Quadratic tetrahedron 
+     else if(nnode==10) then
+        a1= 1.0_rp-coord(1)-coord(2)-coord(3)
+        a2=coord(1)
+        a3=coord(2)
+        a4=coord(3)
+        shape(   1) = (2.0_rp*a1-1.0_rp)*a1
+        deriv(1, 1) = 1.0_rp-4.0_rp*a1
+        deriv(2, 1) = 1.0_rp-4.0_rp*a1
+        deriv(3, 1) = 1.0_rp-4.0_rp*a1
+        shape(   3) = (2.0_rp*a2-1.0_rp)*a2
+        deriv(1, 3) = 4.0_rp*a2-1.0_rp
+        shape(   6) = (2.0_rp*a3-1.0_rp)*a3
+        deriv(2, 6) = 4.0_rp*a3-1.0_rp
+        shape(  10) = (2.0_rp*a4-1.0_rp)*a4
+        deriv(3,10) = 4.0_rp*a4-1.0_rp
+        shape(   2) = 4.0_rp*a1*a2
+        deriv(1, 2) = 4.0_rp*(a1-a2)
+        deriv(2, 2) =-4.0_rp*a2
+        deriv(3, 2) =-4.0_rp*a2
+        shape(   5) = 4.0_rp*a2*a3
+        deriv(1, 5) = 4.0_rp*a3
+        deriv(2, 5) = 4.0_rp*a2
+        shape(   4) = 4.0_rp*a1*a3
+        deriv(1, 4) =-4.0_rp*a3
+        deriv(2, 4) = 4.0_rp*(a1-a3)
+        deriv(3, 4) =-4.0_rp*a3
+        shape(   7) = 4.0_rp*a1*a4
+        deriv(1, 7) =-4.0_rp*a4
+        deriv(2, 7) =-4.0_rp*a4
+        deriv(3, 7) = 4.0_rp*(a1-a4)
+        shape(   8) = 4.0_rp*a2*a4
+        deriv(1, 8) = 4.0_rp*a4
+        deriv(3, 8) = 4.0_rp*a2
+        shape(   9) = 4.0_rp*a3*a4
+        deriv(2, 9) = 4.0_rp*a4
+        deriv(3, 9) = 4.0_rp*a3
+        if (present(heslo)) then
+           do i = 1,6
+              heslo(i, 1) = 4.0_rp
+           end do
+           heslo(1, 3) = 4.0_rp
+           heslo(2, 6) = 4.0_rp
+           heslo(3,10) = 4.0_rp
+           heslo(1, 2) =-8.0_rp
+           heslo(4, 2) =-4.0_rp
+           heslo(5, 2) =-4.0_rp
+           heslo(4, 5) = 4.0_rp
+           heslo(2, 4) =-8.0_rp
+           heslo(4, 4) =-4.0_rp
+           heslo(6, 4) =-4.0_rp
+           heslo(3, 7) =-8.0_rp
+           heslo(5, 7) =-4.0_rp
+           heslo(6, 7) =-4.0_rp
+           heslo(5, 8) = 4.0_rp
+           heslo(6, 9) = 4.0_rp
+        end if
+     end if
+  end if
+end subroutine tet_lagrangian_reference_fe_evaluate_interpolation
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_get_vef_orientation(this,o,od,nd,io)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(inout) :: o
+  integer(ip)                         , intent(in)    :: od
+  integer(ip)                         , intent(in)    :: nd
+  integer(ip)                         , intent(in)    :: io  ! io=numbering of the vef in the od dimension
+  if (nd == 3 .and. od == 2) then
+     o = modulo(io+1,2)
+  elseif (nd>3) then
+     write(*,*) __FILE__,__LINE__,'WARNING!! the orientation is not defined for dimension >3'
+  else
+     o = 0
+  end if
+end subroutine tet_lagrangian_reference_fe_get_vef_orientation

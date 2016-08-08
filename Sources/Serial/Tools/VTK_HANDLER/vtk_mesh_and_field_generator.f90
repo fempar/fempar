@@ -39,8 +39,8 @@ USE vector_names,                only: vector_t
 USE triangulation_names,         only: triangulation_t
 USE serial_scalar_array_names,   only: serial_scalar_array_t
 USE serial_fe_space_names,       only: serial_fe_space_t, finite_element_t, fe_function_t
-USE reference_fe_names,          only: reference_fe_t, quad_lagrangian_reference_fe_t, fe_map_t,   &
-                                       quadrature_t, interpolation_t, topology_quad, topology_tet, &
+USE reference_fe_names,          only: reference_fe_t, hex_lagrangian_reference_fe_t, fe_map_t,    &
+                                       quadrature_t, interpolation_t, topology_hex, topology_tet, &
                                        fe_type_lagrangian
 
 implicit none
@@ -388,7 +388,7 @@ contains
         ! Fill VTK cell type and offset arrays and and count nodes
         number_nodes = 0
         do i=1, this%number_of_elements
-            if(triangulation%elems(i)%reference_fe_geo%get_topology() == topology_quad) then
+            if(triangulation%elems(i)%reference_fe_geo%get_topology() == topology_hex) then
                 this%cell_types(i) = vtk_pixel
             else
                 write(error_unit,*) 'fill_mesh_from_triangulation: Topology not supported'

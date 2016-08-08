@@ -105,10 +105,10 @@ contains
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_quad, &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                 order = 2, &
+                                                 order = 1, &
                                                  field_type = field_type_scalar, &
                                                  continuity = .true. )
   end subroutine setup_reference_fes

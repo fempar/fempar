@@ -471,7 +471,7 @@ contains
     class(array_t)             , pointer :: array    
     
     ! Simple case
-     reference_fe_array(1) =  make_reference_fe ( topology = topology_quad, &
+     reference_fe_array(1) =  make_reference_fe ( topology = topology_hex, &
                                                   fe_type = fe_type_lagrangian, &
                                                   number_dimensions = f_trian%num_dims, &
                                                   order = params%order, &
@@ -555,7 +555,7 @@ contains
     class(array_t)             , pointer          :: array
 
     ! Simple case
-     reference_fe_array(1) =  make_reference_fe ( topology = topology_quad, &
+     reference_fe_array(1) =  make_reference_fe ( topology = topology_hex, &
                                                   fe_type = fe_type_lagrangian, &
                                                   number_dimensions = f_trian%num_dims, &
                                                   order = params%order, &
@@ -638,14 +638,14 @@ contains
     class(array_t)             , pointer          :: array
 
     ! Simple case
-    reference_fe_array(1) = make_reference_fe ( topology = topology_quad, &
+    reference_fe_array(1) = make_reference_fe ( topology = topology_hex, &
                                                     fe_type = fe_type_lagrangian, &
                                                     number_dimensions = f_trian%num_dims, &
                                                     order = params%order, &
                                                     field_type = field_type_scalar, &
                                                     continuity = .true. )
      
-    reference_fe_array(2) = make_reference_fe ( topology = topology_quad, &
+    reference_fe_array(2) = make_reference_fe ( topology = topology_hex, &
                                                 fe_type = fe_type_lagrangian, &
                                                 number_dimensions = f_trian%num_dims, &
                                                 order = params%order, & 
@@ -737,14 +737,14 @@ contains
     class(array_t)             , pointer          :: array
 
     ! Simple case
-    reference_fe_array(1) = make_reference_fe ( topology = topology_quad, &
+    reference_fe_array(1) = make_reference_fe ( topology = topology_hex, &
                                                     fe_type = fe_type_lagrangian, &
                                                     number_dimensions = f_trian%num_dims, &
                                                     order = params%order, &
                                                     field_type = field_type_scalar, &
                                                     continuity = .true. )
      
-    reference_fe_array(2) = make_reference_fe ( topology = topology_quad, &
+    reference_fe_array(2) = make_reference_fe ( topology = topology_hex, &
                                                 fe_type = fe_type_lagrangian, &
                                                 number_dimensions = f_trian%num_dims, &
                                                 order = params%order, & 

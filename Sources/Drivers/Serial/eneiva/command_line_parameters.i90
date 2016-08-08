@@ -1,0 +1,136 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+module command_line_parameters_names
+  use types_names
+  use FLAP
+# include "debug.i90"
+
+  implicit none
+  private
+
+  type test_reference_fe_params_t
+     character(len=:), allocatable     :: default_dir_path
+     character(len=1024)               :: dir_path
+     character(len=:), allocatable     :: default_prefix
+     character(len=2014)               :: prefix
+     character(len=:), allocatable     :: default_order
+     integer(ip)                       :: order
+     character(len=:), allocatable     :: default_laplacian_type
+     character(len=2014)               :: laplacian_type
+     
+     type(Command_Line_Interface) :: cli
+  contains
+     procedure, private :: set_defaults => test_reference_fe_params_set_defaults
+     procedure          :: create       => test_reference_fe_params_create
+     procedure          :: parse        => test_reference_fe_params_parse
+     procedure          :: free         => test_reference_fe_params_free
+  end type test_reference_fe_params_t
+
+  ! Types
+  public :: test_reference_fe_params_t
+
+contains
+
+  subroutine test_reference_fe_params_set_defaults(this)
+    implicit none
+    class(test_reference_fe_params_t), intent(inout) :: this
+    ! IO parameters
+    this%default_dir_path       = 'data'
+    this%default_prefix         = 'square_vector'
+    this%default_order          = '1' 
+    this%default_laplacian_type = 'scalar'
+  end subroutine test_reference_fe_params_set_defaults
+  !==================================================================================================
+
+  subroutine test_reference_fe_params_create(this)
+    implicit none
+    class(test_reference_fe_params_t), intent(inout) :: this
+    ! Locals
+    integer(ip) :: error
+
+    call this%set_defaults()
+    
+    ! Initialize Command Line Interface
+    call this%cli%init(progname    = 'test_tri_lagrangian_reference_fe', &
+         &               version     = '',                               &
+         &               authors     = '',                               &
+         &               license     = '',                               &
+         &               description = "FEMPAR sequential test driver to solve a Scalar or Vector-Valued Laplacian problem with&
+                                     & Galerkin FEM, (arbitrary order) continuous Lagrangian FEs, and a Krylov solver without preconditioning. The&
+                                     & GiD input data should be set-up such that the solution is u=1 in the whole domain.", &
+         &               examples    = ['test_tri_lagrangian_reference_fe -h'] )
+    
+    
+    ! Set Command Line Arguments
+    ! IO parameters
+    call this%cli%add(switch='--dir_path',switch_ab='-d',                              &
+         &            help='Absolute or relative PATH to the data files. Must end with /',required=.false., act='store', &
+         &            def=trim(this%default_dir_path),error=error)
+    check(error==0)
+    call this%cli%add(switch='--prefix',switch_ab='-p',help='Prefix for all input files (mesh, conditions, etc.). & 
+                       & E.g., if these files were generated from square.gid GiD project, then --prefix square.', &
+         &             required=.false.,act='store',def=trim(this%default_prefix),error=error) 
+    check(error==0)
+    call this%cli%add(switch='--order',switch_ab='-o',help='Polynomial order for Lagrangian FEs',  &
+         &       required=.false.,act='store',def=trim(this%default_order), error=error) 
+    check(error==0)
+    
+    call this%cli%add(switch='--laplacian_type',switch_ab='-lt',help='Scalar or Vector Laplacian.',  &
+         &       required=.false.,choices='scalar,vector', act='store',def=trim(this%default_laplacian_type), error=error) 
+    check(error==0)
+
+  end subroutine test_reference_fe_params_create
+  
+    subroutine test_reference_fe_params_parse(this)
+    implicit none
+    class(test_reference_fe_params_t), intent(inout) :: this
+    ! Locals
+    integer(ip) :: error
+    call this%cli%parse(error=error)
+    check(error==0)
+    
+    call this%cli%get(switch='-d',val=this%dir_path,error=error); check(error==0)
+    call this%cli%get(switch='-p',val=this%prefix,error=error); check(error==0)
+    call this%cli%get(switch='-o',val=this%order,error=error); check(error==0)
+    call this%cli%get(switch='-lt',val=this%laplacian_type,error=error); check(error==0)
+    
+  end subroutine test_reference_fe_params_parse
+
+  subroutine test_reference_fe_params_free(this)
+    implicit none
+    class(test_reference_fe_params_t), intent(inout) :: this
+    ! IO parameters
+    deallocate(this%default_dir_path)
+    deallocate(this%default_prefix)
+    deallocate(this%default_order)
+    ! How to free the cli?
+  end subroutine test_reference_fe_params_free
+  
+  
+end module command_line_parameters_names
