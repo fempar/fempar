@@ -179,6 +179,14 @@ module base_static_triangulation_names
 
   ! This will include functions to ask for orientation, rotation, etc.
   type, extends(vef_accessor_t) :: face_accessor_t
+    private
+  contains
+    procedure, non_overridable          :: get_face_lid                     => face_accessor_get_face_lid
+    procedure, non_overridable          :: get_face_lpos_within_cell_around => face_accessor_get_face_lpos_within_cell_around
+    procedure, non_overridable          :: get_face_orientation             => face_accessor_get_face_orientation
+    procedure, non_overridable          :: get_face_rotation                => face_accessor_get_face_rotation
+    procedure, non_overridable, private :: set_face_orientation             => face_accessor_set_face_orientation
+    procedure, non_overridable, private :: set_face_rotation                => face_accessor_set_face_rotation
   end type face_accessor_t
 
   ! In order to define iterators over vertices, edges and faces as extensions of vef_iterator
@@ -214,25 +222,26 @@ module base_static_triangulation_names
     generic                             :: current      => itfc_vef_iterator_current
   end type itfc_vef_iterator_t
 
-  type, extends(vef_iterator_t) :: vertices_iterator_t
+  type, extends(vef_iterator_t) :: vertex_iterator_t
     private
   contains
-     procedure, non_overridable          :: next         => vertices_iterator_next
-  end type vertices_iterator_t
+    procedure, non_overridable          :: next         => vertex_iterator_next
+  end type vertex_iterator_t
 
-  type, extends(vef_iterator_t) :: edges_iterator_t
+  type, extends(vef_iterator_t) :: edge_iterator_t
     private
   contains
-     procedure, non_overridable          :: init         => edges_iterator_init
-     procedure, non_overridable          :: next         => edges_iterator_next
-  end type edges_iterator_t
+    procedure, non_overridable          :: init         => edge_iterator_init
+    procedure, non_overridable          :: next         => edge_iterator_next
+  end type edge_iterator_t
 
-  type, extends(vef_iterator_t) :: faces_iterator_t
+  type, extends(vef_iterator_t) :: face_iterator_t
     private
   contains
-     procedure, non_overridable          :: init         => faces_iterator_init
-     !procedure, non_overridable          :: next         => faces_iterator_next
-  end type faces_iterator_t
+    procedure, non_overridable          :: init         => face_iterator_init
+    procedure, non_overridable, private :: face_iterator_current
+    generic                             :: current      => face_iterator_current
+  end type face_iterator_t
 
 
   type object_accessor_t
@@ -347,6 +356,10 @@ module base_static_triangulation_names
      integer(ip), allocatable              :: lst_itfc_vefs(:)
      integer(ip), allocatable              :: ptrs_cells_around(:) ! num_itfc_vefs+1
      integer(ip), allocatable              :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
+     
+     ! Data structures related to face integration
+     integer(ip), allocatable              :: face_orientation(:)
+     integer(ip), allocatable              :: face_rotation(:)
 
      ! Data structures to create objects
      integer(ip)                             :: number_global_objects = -1
@@ -388,9 +401,9 @@ module base_static_triangulation_names
   
      ! Vef traversals-related TBPs
      procedure, non_overridable          :: create_vef_iterator                 => bst_create_vef_iterator
-     procedure, non_overridable          :: create_vertices_iterator            => bst_create_vertices_iterator
-     procedure, non_overridable          :: create_edges_iterator               => bst_create_edges_iterator
-     procedure, non_overridable          :: create_faces_iterator               => bst_create_faces_iterator
+     procedure, non_overridable          :: create_vertex_iterator              => bst_create_vertex_iterator
+     procedure, non_overridable          :: create_edge_iterator                => bst_create_edge_iterator
+     procedure, non_overridable          :: create_face_iterator                => bst_create_face_iterator
      procedure, non_overridable          :: create_itfc_vef_iterator            => bst_create_itfc_vef_iterator
 
      ! Objects-related traversals
@@ -430,6 +443,10 @@ module base_static_triangulation_names
      procedure, non_overridable, private :: free_cells_around                   => bst_free_cells_around
      procedure, non_overridable, private :: find_and_list_vefs_at_interfaces    => bst_find_and_list_vefs_at_interfaces
      procedure, non_overridable, private :: free_lst_itfc_vefs                  => bst_free_lst_itfc_vefs
+     
+     ! Private methods for creating face-related data (for face integration)
+     procedure, non_overridable, private :: allocate_and_fill_face_orientation_rotation => bst_allocate_and_fill_face_orientation_rotation
+     procedure, non_overridable, private :: free_face_orientation_rotation              => bst_free_face_orientation_rotation
 
      ! Private methods to compute objects
      procedure, non_overridable, private :: compute_vefs_and_parts_object                  => bst_compute_vefs_and_parts_object
@@ -498,8 +515,8 @@ module base_static_triangulation_names
   public :: serial_triangulation_t
   public :: coarse_triangulation_t 
   public :: new_par_triangulation_t
-  public :: cell_iterator_t, vef_iterator_t, itfc_vef_iterator_t, object_iterator_t, vefs_on_object_iterator_t
-  public :: cell_accessor_t, vef_accessor_t, object_accessor_t
+  public :: cell_iterator_t, vef_iterator_t, face_iterator_t, itfc_vef_iterator_t, object_iterator_t, vefs_on_object_iterator_t
+  public :: cell_accessor_t, vef_accessor_t, face_accessor_t, object_accessor_t
   
 contains
 

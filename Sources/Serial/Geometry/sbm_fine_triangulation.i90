@@ -991,9 +991,9 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   real(rp)                          , intent(in)    :: vertices_coordinates(:,:)
   type(cell_iterator_t)     :: cell_iterator
   type(cell_accessor_t)     :: cell
-  type(vertices_iterator_t) :: vertices_iterator
-  type(edges_iterator_t)    :: edges_iterator
-  type(faces_iterator_t)    :: faces_iterator
+  type(vertex_iterator_t) :: vertices_iterator
+  type(edge_iterator_t)    :: edges_iterator
+  type(face_iterator_t)    :: faces_iterator
   type(vef_accessor_t)      :: vef
   type(line_t), pointer     :: line
   type(list_t), pointer     :: vertices_of_vefs
@@ -1010,7 +1010,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   call memalloc(this%num_nodes,this%coordinates,__FILE__,__LINE__)
   
   ! Store coordinates of vertices
-  vertices_iterator = this%create_vertices_iterator()
+  vertices_iterator = this%create_vertex_iterator()
   do while ( .not. vertices_iterator%has_finished() )
      call vertices_iterator%current(vef)
      ivef = vef%get_lid()
@@ -1031,7 +1031,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   call memalloc(order+1, coordinates, __FILE__,__LINE__)
    
   !write(*,*) 'Starting face loop'
-  faces_iterator = this%create_faces_iterator()
+  faces_iterator = this%create_face_iterator()
   do while ( .not. faces_iterator%has_finished() )
      call faces_iterator%current(vef)
      if ( .not. vef%is_ghost() ) then

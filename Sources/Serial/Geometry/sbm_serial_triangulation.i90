@@ -88,6 +88,8 @@
     call this%find_vefs_at_boundary()
     call this%find_and_list_vefs_at_interfaces() ! Is this needed?
     !call this%allocate_and_fill_vef_type()
+    
+    call this%allocate_and_fill_face_orientation_rotation()
 
     write(*,*) 'Numbering nodes and filling coordinates'
     call this%allocate_and_fill_nodes()

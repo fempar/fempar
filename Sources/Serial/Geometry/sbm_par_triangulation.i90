@@ -168,6 +168,8 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
      call this%find_vefs_at_boundary()
      call this%find_and_list_vefs_at_interfaces()
      !call this%allocate_and_fill_vef_type()
+     
+     call this%allocate_and_fill_face_orientation_rotation()
 
      call this%allocate_and_fill_nodes()
      call this%allocate_and_fill_coordinates(mesh%get_coordinates())

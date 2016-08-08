@@ -461,9 +461,15 @@ end function reference_fe_get_conformity
     type(list_iterator_t)              :: target_vefs_iterator
 
     integer(ip) :: source_first_vertex_global_id, i, target_vertex_global_id 
+    logical     :: implemented
+    
+    implemented = (.not. present(source_subface))
+    if ( present(source_subface) ) then
+      if (source_subface == 0 ) implemented = .true.
+    end if
 
     ! Relative Rotation
-    if (.not. present(source_subface) .or. source_subface == 0) then 
+    if (implemented) then 
        source_vefs_iterator = source_reference_fe%vertices_vef%create_iterator(source_vef_id)
        target_vefs_iterator = target_reference_fe%vertices_vef%create_iterator(target_vef_id)
        source_first_vertex_global_id = source_vefs(source_vefs_iterator%get_current())

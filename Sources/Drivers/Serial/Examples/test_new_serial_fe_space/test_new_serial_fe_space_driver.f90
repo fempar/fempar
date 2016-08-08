@@ -91,7 +91,7 @@ contains
     implicit none
     class(test_new_serial_fe_space_driver_t), intent(inout) :: this
     call this%triangulation%create(this%test_params%get_dir_path(),&
-                                   this%test_params%get_prefix(),2)
+                                   this%test_params%get_prefix())
     !call this%triangulation%print()
   end subroutine setup_triangulation
   
