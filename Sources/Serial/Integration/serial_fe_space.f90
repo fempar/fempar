@@ -937,13 +937,13 @@ module fe_space_names
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
-#include "sbm_new_serial_fe_space.i90"
-#include "sbm_new_fe_function.i90"
+#include "sbm_serial_fe_space.i90"
+#include "sbm_fe_function.i90"
 #include "sbm_fe_accessor.i90"
 #include "sbm_fe_iterator.i90"
 #include "sbm_fe_vef_accessor.i90"
 #include "sbm_fe_vef_iterator.i90"
-#include "sbm_new_par_fe_space.i90"
+#include "sbm_par_fe_space.i90"
 #include "sbm_fe_object_accessor.i90"
 #include "sbm_fe_object_iterator.i90"
 #include "sbm_fe_vefs_on_object_iterator.i90"
