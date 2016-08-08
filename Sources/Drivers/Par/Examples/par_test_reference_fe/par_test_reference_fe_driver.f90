@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_test_reference_fe_driver_names
+module par_test_poisson_driver_names
   use serial_names
   use par_names
-  use par_test_reference_fe_params_names
+  use par_test_poisson_params_names
   use poisson_discrete_integration_names
   use poisson_conditions_names
 # include "debug.i90"
@@ -36,23 +36,23 @@ module par_test_reference_fe_driver_names
   implicit none
   private
 
-  type par_test_reference_fe_driver_t 
+  type par_test_poisson_fe_driver_t 
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
-     type(par_test_reference_fe_params_t)      :: test_params
+     type(par_test_poisson_params_t)      :: test_params
      
      ! Cells and lower dimension objects container
-     type(new_par_triangulation_t)             :: triangulation
+     type(par_triangulation_t)             :: triangulation
      
      ! Discrete weak problem integration-related data type instances 
-     type(new_par_fe_space_t)                  :: fe_space 
+     type(par_fe_space_t)                  :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
      type(poisson_discrete_integration_t)      :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
-     type(new_fe_affine_operator_t)            :: fe_affine_operator
+     type(fe_affine_operator_t)            :: fe_affine_operator
      
      ! MLBDDC preconditioner
      type(mlbddc_t)                            :: mlbddc
@@ -61,7 +61,7 @@ module par_test_reference_fe_driver_names
      type(iterative_linear_solver_t)           :: iterative_linear_solver
  
      ! Poisson problem solution FE function
-     type(new_fe_function_t)                   :: solution
+     type(fe_function_t)                   :: solution
      
      ! Environment required for fe_affine_operator + vtk_handler
      type(par_context_t)                       :: w_context
@@ -80,30 +80,30 @@ module par_test_reference_fe_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: free
-  end type par_test_reference_fe_driver_t
+  end type par_test_poisson_fe_driver_t
 
   ! Types
-  public :: par_test_reference_fe_driver_t
+  public :: par_test_poisson_fe_driver_t
 
 contains
 
   subroutine parse_command_line_parameters(this)
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
     call this%test_params%parse()
   end subroutine parse_command_line_parameters
   
   subroutine setup_context(this)
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
     ! Initialize MPI environment
     call this%w_context%create()
   end subroutine setup_context
   
   subroutine setup_par_environment(this)
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
     
     integer(ip)              :: num_levels
     integer(ip), allocatable :: parts_mapping(:)
@@ -136,7 +136,7 @@ contains
   
   subroutine setup_triangulation(this)
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
     call this%triangulation%create(this%par_environment, &
                                    this%test_params%get_dir_path(),&
                                    this%test_params%get_prefix())
@@ -144,7 +144,7 @@ contains
   
   subroutine setup_reference_fes(this)
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
     
     integer(ip) :: istat
     
@@ -162,7 +162,7 @@ contains
 
   subroutine setup_fe_space(this)
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
     
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%poisson_conditions, &
@@ -181,7 +181,7 @@ contains
   
   subroutine setup_system (this)
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
     
     ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
@@ -195,7 +195,7 @@ contains
   
   subroutine setup_solver (this)
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
 
     ! Set-up MLBDDC preconditioner
     call this%mlbddc%create(this%fe_affine_operator)
@@ -210,7 +210,7 @@ contains
   
   subroutine assemble_system (this)
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%numerical_setup()
@@ -235,7 +235,7 @@ contains
   
   subroutine solve_system(this)
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
     class(matrix_t)                         , pointer       :: matrix
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
@@ -264,7 +264,7 @@ contains
   
   subroutine check_solution(this)
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
     class(vector_t), allocatable :: exact_solution_vector
     class(vector_t), pointer     :: computed_solution_vector
     
@@ -287,7 +287,7 @@ contains
   
   subroutine run_simulation(this) 
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
     !call this%free()
     call this%parse_command_line_parameters()
     call this%setup_context()
@@ -306,7 +306,7 @@ contains
   
   subroutine free(this)
     implicit none
-    class(par_test_reference_fe_driver_t), intent(inout) :: this
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     
     call this%solution%free()
@@ -327,4 +327,4 @@ contains
     call this%w_context%free(.true.)
   end subroutine free  
   
-end module par_test_reference_fe_driver_names
+end module par_test_poisson_driver_names

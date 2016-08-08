@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module new_serial_fe_space_names
+module fe_space_names
   
  ! Serial modules
   use types_names
@@ -36,7 +36,7 @@ module new_serial_fe_space_names
   use hash_table_names
   
   use base_static_triangulation_names
-  use new_conditions_names
+  use conditions_names
   
   use reference_fe_names
   use field_names
@@ -59,7 +59,7 @@ module new_serial_fe_space_names
   use par_environment_names
   use par_context_names
   use dof_import_names
-  use element_import_names
+  use cell_import_names
   use par_sparse_matrix_names
   use par_scalar_array_names
   use par_sparse_matrix_array_assembler_names
@@ -70,7 +70,7 @@ module new_serial_fe_space_names
   
   type, extends(cell_accessor_t) :: fe_accessor_t
     private
-    class(new_serial_fe_space_t), pointer :: fe_space
+    class(serial_fe_space_t), pointer :: fe_space
   contains
     procedure, private, non_overridable :: fe_accessor_create
     generic                             :: create                                     => fe_accessor_create
@@ -121,7 +121,7 @@ module new_serial_fe_space_names
   
   type, extends(vef_accessor_t) :: fe_vef_accessor_t
     private
-    class(new_serial_fe_space_t), pointer :: fe_space
+    class(serial_fe_space_t), pointer :: fe_space
   contains
      procedure                 , private :: fe_vef_accessor_create
      procedure                           :: vef_accessor_create               => fe_vef_accessor_vef_accessor_create
@@ -162,7 +162,7 @@ module new_serial_fe_space_names
   integer(ip), parameter :: field_type_dg            = 1 ! L^2 conforming FE space + .not. H^1 conforming (weakly imposed via face integration)
   integer(ip), parameter :: field_type_dg_conforming = 2 ! DG approximation of L^2 spaces (does not involve coupling by face)
   
-  type :: new_serial_fe_space_t 
+  type :: serial_fe_space_t 
      private
      integer(ip)                                 :: number_fields   
      integer(ip)                   , allocatable :: field_type(:)
@@ -218,70 +218,70 @@ module new_serial_fe_space_names
      integer(ip)                   , allocatable :: number_dofs_per_block(:)
      integer(ip)                   , allocatable :: number_dofs_per_field(:)
    contains
-     procedure,                  private :: new_serial_fe_space_create_same_reference_fes_on_all_cells
-     generic                             :: create                                       => new_serial_fe_space_create_same_reference_fes_on_all_cells
-     procedure                           :: free                                         => new_serial_fe_space_free
-     procedure                           :: print                                        => new_serial_fe_space_print
-     procedure, non_overridable, private :: allocate_and_fill_reference_fes              => new_serial_fe_space_allocate_and_fill_reference_fes
-     procedure, non_overridable, private :: free_reference_fes                           => new_serial_fe_space_free_reference_fes
-     procedure, non_overridable, private :: allocate_and_fill_field_blocks_and_coupling  => new_serial_fe_space_allocate_and_fill_field_blocks_and_coupling 
-     procedure, non_overridable, private :: free_field_blocks_and_coupling               => new_serial_fe_space_free_field_blocks_and_coupling
-     procedure, non_overridable, private :: allocate_ref_fe_id_per_fe                    => new_serial_fe_space_allocate_ref_fe_id_per_fe
-     procedure, non_overridable, private :: free_ref_fe_id_per_fe                        => new_serial_fe_space_free_ref_fe_id_per_fe
-     procedure, non_overridable, private :: fill_ref_fe_id_per_fe_same_on_all_cells      => new_serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
-     procedure, non_overridable, private :: allocate_and_fill_field_type                 => new_serial_fe_space_allocate_and_fill_field_type
-     procedure, non_overridable, private :: free_field_type                              => new_serial_fe_space_free_field_type
-     procedure, non_overridable, private :: allocate_and_init_ptr_lst_dofs               => new_serial_fe_space_allocate_and_init_ptr_lst_dofs
-     procedure, non_overridable, private :: free_ptr_lst_dofs                            => new_serial_fe_space_free_ptr_lst_dofs
-     procedure, non_overridable, private :: allocate_and_init_at_strong_dirichlet_bound  => new_serial_fe_space_allocate_and_init_at_strong_dirichlet_bound  
-     procedure, non_overridable, private :: free_at_strong_dirichlet_bound               => new_serial_fe_space_free_at_strong_dirichlet_bound
-     procedure, non_overridable, private :: set_up_strong_dirichlet_bcs                  => new_serial_fe_space_set_up_strong_dirichlet_bcs
-     procedure                           :: update_strong_dirichlet_bcs_values           => new_serial_fe_space_update_strong_dirichlet_bcs_values 
+     procedure,                  private :: serial_fe_space_create_same_reference_fes_on_all_cells
+     generic                             :: create                                       => serial_fe_space_create_same_reference_fes_on_all_cells
+     procedure                           :: free                                         => serial_fe_space_free
+     procedure                           :: print                                        => serial_fe_space_print
+     procedure, non_overridable, private :: allocate_and_fill_reference_fes              => serial_fe_space_allocate_and_fill_reference_fes
+     procedure, non_overridable, private :: free_reference_fes                           => serial_fe_space_free_reference_fes
+     procedure, non_overridable, private :: allocate_and_fill_field_blocks_and_coupling  => serial_fe_space_allocate_and_fill_field_blocks_and_coupling 
+     procedure, non_overridable, private :: free_field_blocks_and_coupling               => serial_fe_space_free_field_blocks_and_coupling
+     procedure, non_overridable, private :: allocate_ref_fe_id_per_fe                    => serial_fe_space_allocate_ref_fe_id_per_fe
+     procedure, non_overridable, private :: free_ref_fe_id_per_fe                        => serial_fe_space_free_ref_fe_id_per_fe
+     procedure, non_overridable, private :: fill_ref_fe_id_per_fe_same_on_all_cells      => serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
+     procedure, non_overridable, private :: allocate_and_fill_field_type                 => serial_fe_space_allocate_and_fill_field_type
+     procedure, non_overridable, private :: free_field_type                              => serial_fe_space_free_field_type
+     procedure, non_overridable, private :: allocate_and_init_ptr_lst_dofs               => serial_fe_space_allocate_and_init_ptr_lst_dofs
+     procedure, non_overridable, private :: free_ptr_lst_dofs                            => serial_fe_space_free_ptr_lst_dofs
+     procedure, non_overridable, private :: allocate_and_init_at_strong_dirichlet_bound  => serial_fe_space_allocate_and_init_at_strong_dirichlet_bound  
+     procedure, non_overridable, private :: free_at_strong_dirichlet_bound               => serial_fe_space_free_at_strong_dirichlet_bound
+     procedure, non_overridable, private :: set_up_strong_dirichlet_bcs                  => serial_fe_space_set_up_strong_dirichlet_bcs
+     procedure                           :: update_strong_dirichlet_bcs_values           => serial_fe_space_update_strong_dirichlet_bcs_values 
 
      
-     procedure, non_overridable          :: initialize_fe_integration                    => new_serial_fe_space_initialize_fe_integration
-     procedure, non_overridable, private :: free_fe_integration                          => new_serial_fe_space_free_fe_integration
-     procedure, non_overridable, private :: generate_fe_volume_integrators_position_key  => new_serial_fe_space_generate_fe_volume_integrators_position_key
-     procedure                           :: create_assembler                             => new_serial_fe_space_create_assembler
-     procedure                           :: symbolic_setup_assembler                     => new_serial_fe_space_symbolic_setup_assembler
+     procedure, non_overridable          :: initialize_fe_integration                    => serial_fe_space_initialize_fe_integration
+     procedure, non_overridable, private :: free_fe_integration                          => serial_fe_space_free_fe_integration
+     procedure, non_overridable, private :: generate_fe_volume_integrators_position_key  => serial_fe_space_generate_fe_volume_integrators_position_key
+     procedure                           :: create_assembler                             => serial_fe_space_create_assembler
+     procedure                           :: symbolic_setup_assembler                     => serial_fe_space_symbolic_setup_assembler
           
-     procedure                           :: create_global_fe_function                    => new_serial_fe_space_create_global_fe_function
-     procedure                           :: update_global_fe_function_bcs                => new_serial_fe_space_update_global_fe_function_bcs
-     procedure                           :: fill_dof_info                                => new_serial_fe_space_fill_dof_info
-     procedure                 , private :: fill_elem2dof_and_count_dofs                 => new_serial_fe_space_fill_elem2dof_and_count_dofs
-     procedure                 , private :: renumber_dofs_block                          => new_serial_fe_space_renumber_dofs_block
+     procedure                           :: create_global_fe_function                    => serial_fe_space_create_global_fe_function
+     procedure                           :: update_global_fe_function_bcs                => serial_fe_space_update_global_fe_function_bcs
+     procedure                           :: fill_dof_info                                => serial_fe_space_fill_dof_info
+     procedure                 , private :: fill_elem2dof_and_count_dofs                 => serial_fe_space_fill_elem2dof_and_count_dofs
+     procedure                 , private :: renumber_dofs_block                          => serial_fe_space_renumber_dofs_block
 
  
      
      ! Getters
-     procedure                           :: get_total_number_dofs                        => new_serial_fe_space_get_total_number_dofs
-     procedure                           :: get_field_number_dofs                        => new_serial_fe_space_get_field_number_dofs
-     procedure                           :: get_block_number_dofs                        => new_serial_fe_space_get_block_number_dofs
-     procedure, non_overridable          :: get_number_reference_fes                     => new_serial_fe_space_get_number_reference_fes
-     procedure, non_overridable          :: get_number_fields                            => new_serial_fe_space_get_number_fields
-     procedure, non_overridable          :: get_field_type                               => new_serial_fe_space_get_field_type
-     procedure, non_overridable          :: get_number_components                        => new_serial_fe_space_get_number_components
-     procedure, non_overridable          :: get_number_blocks                            => new_serial_fe_space_get_number_blocks
-     procedure, non_overridable          :: get_field_blocks                             => new_serial_fe_space_get_field_blocks
-     procedure, non_overridable          :: get_field_coupling                           => new_serial_fe_space_get_field_coupling
-     procedure, non_overridable          :: get_triangulation                            => new_serial_fe_space_get_triangulation
+     procedure                           :: get_total_number_dofs                        => serial_fe_space_get_total_number_dofs
+     procedure                           :: get_field_number_dofs                        => serial_fe_space_get_field_number_dofs
+     procedure                           :: get_block_number_dofs                        => serial_fe_space_get_block_number_dofs
+     procedure, non_overridable          :: get_number_reference_fes                     => serial_fe_space_get_number_reference_fes
+     procedure, non_overridable          :: get_number_fields                            => serial_fe_space_get_number_fields
+     procedure, non_overridable          :: get_field_type                               => serial_fe_space_get_field_type
+     procedure, non_overridable          :: get_number_components                        => serial_fe_space_get_number_components
+     procedure, non_overridable          :: get_number_blocks                            => serial_fe_space_get_number_blocks
+     procedure, non_overridable          :: get_field_blocks                             => serial_fe_space_get_field_blocks
+     procedure, non_overridable          :: get_field_coupling                           => serial_fe_space_get_field_coupling
+     procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      
      
      
      ! Coarse FE traversals-related TBPs
-     procedure, non_overridable          :: create_fe_iterator                           => new_serial_fe_space_create_fe_iterator
-     procedure, non_overridable          :: create_fe_vef_iterator                       => new_serial_fe_space_create_fe_vef_iterator
-     procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => new_serial_fe_space_create_itfc_fe_vef_iterator
- end type new_serial_fe_space_t  
+     procedure, non_overridable          :: create_fe_iterator                           => serial_fe_space_create_fe_iterator
+     procedure, non_overridable          :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator
+     procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => serial_fe_space_create_itfc_fe_vef_iterator
+ end type serial_fe_space_t  
  
- public :: new_serial_fe_space_t   
+ public :: serial_fe_space_t   
  public :: fe_iterator_t, fe_accessor_t
  public :: fe_vef_iterator_t, itfc_fe_vef_iterator_t, fe_vef_accessor_t
  
  
  type, extends(object_accessor_t) :: fe_object_accessor_t
     private
-    type(new_par_fe_space_t), pointer :: fe_space
+    type(par_fe_space_t), pointer :: fe_space
   contains
     procedure                            :: fe_object_accessor_create
     generic                              :: create                            => fe_object_accessor_create
@@ -324,54 +324,54 @@ module new_serial_fe_space_names
   integer(ip), parameter :: number_fields_shift         = igp*8-(cell_gid_shift+dofs_per_reference_fe_shift)-1
  
  
- type, extends(new_serial_fe_space_t) :: new_par_fe_space_t
+ type, extends(serial_fe_space_t) :: par_fe_space_t
    type(dof_import_t)       , allocatable :: blocks_dof_import(:)
  contains
-   procedure, private :: new_serial_fe_space_create_same_reference_fes_on_all_cells               => new_par_fe_space_create_same_reference_fes_on_all_cells 
-   procedure                                   :: fill_dof_info                                   => new_par_fe_space_fill_dof_info
-   procedure                         , private :: fill_elem2dof_and_count_dofs                    => new_par_fe_space_fill_elem2dof_and_count_dofs
-   procedure                                   :: renumber_dofs_first_interior_then_interface     => new_par_fe_space_renumber_dofs_first_interior_then_interface
-   procedure                         , private :: renumber_dofs_block                             => new_par_fe_space_renumber_dofs_block
-   procedure        , non_overridable, private :: compute_blocks_dof_import                       => new_par_fe_space_compute_blocks_dof_import
-   procedure        , non_overridable, private :: compute_dof_import                              => new_par_fe_space_compute_dof_import
-   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => new_par_fe_space_compute_raw_interface_data_by_continuity
-   procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner   => new_par_fe_space_raw_interface_data_by_continuity_decide_owner
-   procedure        , non_overridable, private :: compute_raw_interface_data_by_face_integ        => new_par_fe_space_compute_raw_interface_data_by_face_integ
-   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => new_parfespace_compute_ubound_num_itfc_couplings_by_continuity
-   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => new_parfespace_compute_ubound_num_itfc_couplings_by_face_integ
-   procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_gid                => new_par_fe_space_generate_non_consecutive_dof_gid
-   procedure        , non_overridable          :: get_block_dof_import                            => new_par_fe_space_get_block_dof_import
-   procedure                                   :: get_total_number_dofs                           => new_par_fe_space_get_total_number_dofs
-   procedure                                   :: get_field_number_dofs                           => new_par_fe_space_get_field_number_dofs
-   procedure                                   :: get_block_number_dofs                           => new_par_fe_space_get_block_number_dofs
-   procedure        , non_overridable          :: get_total_number_interior_dofs                  => new_par_fe_space_get_total_number_interior_dofs
-   procedure        , non_overridable          :: get_total_number_interface_dofs                 => new_par_fe_space_get_total_number_interface_dofs
-   procedure        , non_overridable          :: get_block_number_interior_dofs                  => new_par_fe_space_get_block_number_interior_dofs
-   procedure        , non_overridable          :: get_block_number_interface_dofs                 => new_par_fe_space_get_block_number_interface_dofs
-   procedure        , non_overridable          :: get_number_fe_objects                           => new_par_fe_space_get_number_fe_objects
-   procedure                                   :: get_par_environment                             => new_par_fe_space_get_par_environment
-   procedure                                   :: get_par_triangulation                           => new_par_fe_space_get_par_triangulation
+   procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_create_same_reference_fes_on_all_cells 
+   procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info
+   procedure                         , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
+   procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface
+   procedure                         , private :: renumber_dofs_block                             => par_fe_space_renumber_dofs_block
+   procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
+   procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
+   procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner   => par_fe_space_raw_interface_data_by_continuity_decide_owner
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_face_integ        => par_fe_space_compute_raw_interface_data_by_face_integ
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => parfespace_compute_ubound_num_itfc_couplings_by_continuity
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => parfespace_compute_ubound_num_itfc_couplings_by_face_integ
+   procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_gid                => par_fe_space_generate_non_consecutive_dof_gid
+   procedure        , non_overridable          :: get_block_dof_import                            => par_fe_space_get_block_dof_import
+   procedure                                   :: get_total_number_dofs                           => par_fe_space_get_total_number_dofs
+   procedure                                   :: get_field_number_dofs                           => par_fe_space_get_field_number_dofs
+   procedure                                   :: get_block_number_dofs                           => par_fe_space_get_block_number_dofs
+   procedure        , non_overridable          :: get_total_number_interior_dofs                  => par_fe_space_get_total_number_interior_dofs
+   procedure        , non_overridable          :: get_total_number_interface_dofs                 => par_fe_space_get_total_number_interface_dofs
+   procedure        , non_overridable          :: get_block_number_interior_dofs                  => par_fe_space_get_block_number_interior_dofs
+   procedure        , non_overridable          :: get_block_number_interface_dofs                 => par_fe_space_get_block_number_interface_dofs
+   procedure        , non_overridable          :: get_number_fe_objects                           => par_fe_space_get_number_fe_objects
+   procedure                                   :: get_par_environment                             => par_fe_space_get_par_environment
+   procedure                                   :: get_par_triangulation                           => par_fe_space_get_par_triangulation
    
-   procedure                                   :: print                                           => new_par_fe_space_print
-   procedure                                   :: free                                            => new_par_fe_space_free
-   procedure                                   :: create_assembler                                => new_par_fe_space_create_assembler
-   procedure                                   :: symbolic_setup_assembler                        => new_par_fe_space_symbolic_setup_assembler
-   procedure                                   :: update_strong_dirichlet_bcs_values              => new_par_fe_space_update_strong_dirichlet_bcs_values
-   procedure                                   :: create_global_fe_function                       => new_par_fe_space_create_global_fe_function
-   procedure                                   :: update_global_fe_function_bcs                   => new_par_fe_space_update_global_fe_function_bcs
+   procedure                                   :: print                                           => par_fe_space_print
+   procedure                                   :: free                                            => par_fe_space_free
+   procedure                                   :: create_assembler                                => par_fe_space_create_assembler
+   procedure                                   :: symbolic_setup_assembler                        => par_fe_space_symbolic_setup_assembler
+   procedure                                   :: update_strong_dirichlet_bcs_values              => par_fe_space_update_strong_dirichlet_bcs_values
+   procedure                                   :: create_global_fe_function                       => par_fe_space_create_global_fe_function
+   procedure                                   :: update_global_fe_function_bcs                   => par_fe_space_update_global_fe_function_bcs
    
-    procedure       , non_overridable          :: setup_dofs_objects_and_constraint_matrix        => new_par_fe_space_setup_dofs_objects_and_constraint_matrix
-    procedure       , non_overridable, private :: setup_dofs_objects_by_continuity                => new_par_fe_space_setup_dofs_objects_by_continuity
-    procedure       , non_overridable, private :: setup_constraint_matrix                         => new_par_fe_space_setup_constraint_matrix
+    procedure       , non_overridable          :: setup_dofs_objects_and_constraint_matrix        => par_fe_space_setup_dofs_objects_and_constraint_matrix
+    procedure       , non_overridable, private :: setup_dofs_objects_by_continuity                => par_fe_space_setup_dofs_objects_by_continuity
+    procedure       , non_overridable, private :: setup_constraint_matrix                         => par_fe_space_setup_constraint_matrix
    
    
    ! Objects-related traversals
-   procedure, non_overridable                  :: create_fe_object_iterator                       => new_par_fe_space_create_fe_object_iterator
-   procedure, non_overridable                  :: create_fe_vefs_on_object_iterator               => new_par_fe_space_create_fe_vefs_on_object_iterator
+   procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
+   procedure, non_overridable                  :: create_fe_vefs_on_object_iterator               => par_fe_space_create_fe_vefs_on_object_iterator
    
- end type new_par_fe_space_t
+ end type par_fe_space_t
  
- public :: new_par_fe_space_t
+ public :: par_fe_space_t
  public :: fe_object_accessor_t, fe_object_iterator_t, fe_vefs_on_object_iterator_t
   
   ! This module includes the physical FE and FE space structure. It includes the
@@ -840,19 +840,19 @@ module new_serial_fe_space_names
 
 !  public :: par_fe_space_t
 !  
-  type new_fe_function_t
+  type fe_function_t
    private
    class(vector_t), allocatable  :: dof_values
    type(serial_scalar_array_t)   :: strong_dirichlet_values
   contains
-     procedure, non_overridable, private :: create                      => new_fe_function_create
-     procedure, non_overridable, private :: copy_bc_values              => new_fe_function_copy_bc_values
-     procedure, non_overridable          :: copy                        => new_fe_function_copy
-     procedure, non_overridable          :: get_dof_values              => new_fe_function_get_dof_values
-     procedure, non_overridable          :: get_strong_dirichlet_values => new_fe_function_get_strong_dirichlet_values
-     procedure, non_overridable          :: free                        => new_fe_function_free
+     procedure, non_overridable, private :: create                      => fe_function_create
+     procedure, non_overridable, private :: copy_bc_values              => fe_function_copy_bc_values
+     procedure, non_overridable          :: copy                        => fe_function_copy
+     procedure, non_overridable          :: get_dof_values              => fe_function_get_dof_values
+     procedure, non_overridable          :: get_strong_dirichlet_values => fe_function_get_strong_dirichlet_values
+     procedure, non_overridable          :: free                        => fe_function_free
      generic                             :: assignment(=)               => copy
-  end type new_fe_function_t 
+  end type fe_function_t 
 !  
 !  type fe_function_scalar_t
 !   private
@@ -932,14 +932,12 @@ module new_serial_fe_space_names
 !     procedure, non_overridable :: free                                 => fe_function_tensor_free
 !  end type fe_function_tensor_t
 !  
- public :: new_fe_function_t !, fe_function_scalar_t, fe_function_vector_t, fe_function_tensor_t
+ public :: fe_function_t !, fe_function_scalar_t, fe_function_vector_t, fe_function_tensor_t
 !  
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
-!#include "sbm_finite_face.i90"
 #include "sbm_new_serial_fe_space.i90"
-!#include "sbm_serial_fe_space_faces.i90"
 #include "sbm_new_fe_function.i90"
 #include "sbm_fe_accessor.i90"
 #include "sbm_fe_iterator.i90"
@@ -959,5 +957,4 @@ contains
 #include "sbm_coarse_fe_vef_accessor.i90"
 #include "sbm_coarse_fe_vef_iterator.i90"
 
-
-end module new_serial_fe_space_names
+end module fe_space_names

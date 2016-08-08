@@ -27,13 +27,13 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !****************************************************************************************************
-program test_new_serial_fe_space
+program test_poisson
   use serial_names
-  use test_new_serial_fe_space_driver_names  
+  use test_poisson_driver_names  
   implicit none
-  type(test_new_serial_fe_space_driver_t) :: test_driver
+  type(test_poisson_driver_t) :: test_driver
   call fempar_init()
   call test_driver%run_simulation()
   call fempar_finalize()
 contains
-end program
+end program test_poisson

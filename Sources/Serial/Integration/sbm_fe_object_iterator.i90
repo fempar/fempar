@@ -29,7 +29,7 @@ subroutine fe_object_iterator_create ( this, lid, fe_space )
   implicit none
   class(fe_object_iterator_t)  , intent(inout) :: this
   integer(ip)                  , intent(in)    :: lid
-  type(new_par_fe_space_t)     , intent(in)    :: fe_space
+  type(par_fe_space_t)     , intent(in)    :: fe_space
   call this%free()
   call this%current_fe_object_accessor%create(lid, fe_space )
 end subroutine fe_object_iterator_create

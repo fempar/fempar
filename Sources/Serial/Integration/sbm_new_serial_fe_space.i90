@@ -25,16 +25,16 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine new_serial_fe_space_create_same_reference_fes_on_all_cells( this, &
+subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this, &
                                                                        triangulation, &
                                                                        conditions, &
                                                                        reference_fes, &
                                                                        field_blocks, &
                                                                        field_coupling )
   implicit none
-  class(new_serial_fe_space_t)                , intent(inout) :: this
+  class(serial_fe_space_t)                , intent(inout) :: this
   class(base_static_triangulation_t)  , target, intent(in)    :: triangulation
-  class(new_conditions_t)                     , intent(in)    :: conditions
+  class(conditions_t)                     , intent(in)    :: conditions
   type(p_reference_fe_t)                      ,  intent(in)   :: reference_fes(:)
   integer(ip)                       , optional, intent(in)    :: field_blocks(:)
   logical                           , optional, intent(in)    :: field_coupling(:,:)
@@ -55,11 +55,11 @@ subroutine new_serial_fe_space_create_same_reference_fes_on_all_cells( this, &
   call this%allocate_and_init_at_strong_dirichlet_bound()
   
   call this%set_up_strong_dirichlet_bcs( conditions )
-end subroutine new_serial_fe_space_create_same_reference_fes_on_all_cells
+end subroutine serial_fe_space_create_same_reference_fes_on_all_cells
 
-subroutine new_serial_fe_space_free (this)
+subroutine serial_fe_space_free (this)
   implicit none
-  class(new_serial_fe_space_t)    , intent(inout) :: this
+  class(serial_fe_space_t)    , intent(inout) :: this
   call this%free_reference_fes()
   call this%free_field_blocks_and_coupling()
   call this%free_ref_fe_id_per_fe()
@@ -70,10 +70,10 @@ subroutine new_serial_fe_space_free (this)
   if (allocated(this%number_dofs_per_block)) call memfree( this%number_dofs_per_block, __FILE__, __LINE__ )
   if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
-end subroutine new_serial_fe_space_free
+end subroutine serial_fe_space_free
 
-subroutine new_serial_fe_space_print ( this )
-  class(new_serial_fe_space_t), intent(in)    :: this
+subroutine serial_fe_space_print ( this )
+  class(serial_fe_space_t), intent(in)    :: this
   type(fe_iterator_t)              :: fe_iterator
   type(fe_accessor_t)              :: fe
   type(i1p_t), allocatable         :: elem2dof(:)
@@ -103,12 +103,12 @@ subroutine new_serial_fe_space_print ( this )
   
   deallocate ( elem2dof, stat=istat)
   check(istat==0)
-end subroutine new_serial_fe_space_print
+end subroutine serial_fe_space_print
 
 
-subroutine new_serial_fe_space_allocate_and_fill_field_type(this)
+subroutine serial_fe_space_allocate_and_fill_field_type(this)
   implicit none
-  class(new_serial_fe_space_t), intent(inout) :: this
+  class(serial_fe_space_t), intent(inout) :: this
   type(fe_iterator_t) :: fe_iterator
   type(fe_accessor_t) :: fe
   integer(ip) :: field_id
@@ -134,17 +134,17 @@ subroutine new_serial_fe_space_allocate_and_fill_field_type(this)
   end do
 #endif  
   
-end subroutine new_serial_fe_space_allocate_and_fill_field_type
+end subroutine serial_fe_space_allocate_and_fill_field_type
 
-subroutine new_serial_fe_space_free_field_type(this)
+subroutine serial_fe_space_free_field_type(this)
   implicit none
-  class(new_serial_fe_space_t), intent(inout) :: this
+  class(serial_fe_space_t), intent(inout) :: this
   if ( allocated(this%field_type) ) call memfree ( this%field_type, __FILE__, __LINE__ )
-end subroutine new_serial_fe_space_free_field_type
+end subroutine serial_fe_space_free_field_type
 
-subroutine new_serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
+subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
   implicit none
-  class(new_serial_fe_space_t), intent(inout) :: this
+  class(serial_fe_space_t), intent(inout) :: this
   
   integer(ip)                    :: field_id
   type(fe_iterator_t)            :: fe_iterator
@@ -174,36 +174,36 @@ subroutine new_serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
                   this%lst_dofs_lids, &
                   __FILE__, __LINE__ )
   this%lst_dofs_lids = 0
-end subroutine new_serial_fe_space_allocate_and_init_ptr_lst_dofs
+end subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs
 
-subroutine new_serial_fe_space_free_ptr_lst_dofs(this)
+subroutine serial_fe_space_free_ptr_lst_dofs(this)
   implicit none
-  class(new_serial_fe_space_t), intent(inout) :: this
+  class(serial_fe_space_t), intent(inout) :: this
   if (allocated(this%ptr_dofs_per_fe)) call memfree ( this%ptr_dofs_per_fe, __FILE__, __LINE__ )
   if (allocated(this%lst_dofs_lids)) call memfree ( this%lst_dofs_lids, __FILE__, __LINE__ )
-end subroutine new_serial_fe_space_free_ptr_lst_dofs
+end subroutine serial_fe_space_free_ptr_lst_dofs
 
-subroutine new_serial_fe_space_allocate_and_init_at_strong_dirichlet_bound(this)
+subroutine serial_fe_space_allocate_and_init_at_strong_dirichlet_bound(this)
   implicit none
-  class(new_serial_fe_space_t), intent(inout) :: this
+  class(serial_fe_space_t), intent(inout) :: this
   call memalloc ( this%number_fields, &
                   this%triangulation%get_num_cells(), &
                   this%at_strong_dirichlet_boundary_per_fe, __FILE__, __LINE__ )
   this%at_strong_dirichlet_boundary_per_fe = .false. 
-end subroutine new_serial_fe_space_allocate_and_init_at_strong_dirichlet_bound
+end subroutine serial_fe_space_allocate_and_init_at_strong_dirichlet_bound
 
-subroutine new_serial_fe_space_free_at_strong_dirichlet_bound (this)
+subroutine serial_fe_space_free_at_strong_dirichlet_bound (this)
   implicit none
-  class(new_serial_fe_space_t), intent(inout) :: this
+  class(serial_fe_space_t), intent(inout) :: this
   if (allocated(this%at_strong_dirichlet_boundary_per_fe)) then
     call memfree ( this%at_strong_dirichlet_boundary_per_fe, __FILE__, __LINE__ )
   end if
-end subroutine new_serial_fe_space_free_at_strong_dirichlet_bound
+end subroutine serial_fe_space_free_at_strong_dirichlet_bound
 
-subroutine new_serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
+subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   implicit none
-  class(new_serial_fe_space_t), intent(inout) :: this
-  class(new_conditions_t)     , intent(in)    :: conditions
+  class(serial_fe_space_t), intent(inout) :: this
+  class(conditions_t)     , intent(in)    :: conditions
 
   integer(ip)             :: field_id
   integer(ip)             :: ivef
@@ -287,12 +287,12 @@ subroutine new_serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   call memfree ( components_code, __FILE__, __LINE__ )
   deallocate ( elem2dof, stat=istat ) 
   check ( istat == 0 )
-end subroutine new_serial_fe_space_set_up_strong_dirichlet_bcs
+end subroutine serial_fe_space_set_up_strong_dirichlet_bcs
 
-subroutine new_serial_fe_space_update_strong_dirichlet_bcs_values (this, conditions, time)
+subroutine serial_fe_space_update_strong_dirichlet_bcs_values (this, conditions, time)
   implicit none
-  class(new_serial_fe_space_t), intent(inout) :: this
-  class(new_conditions_t)     , intent(in)    :: conditions
+  class(serial_fe_space_t), intent(inout) :: this
+  class(conditions_t)     , intent(in)    :: conditions
   real(rp)       , optional   , intent(in)    :: time
   
   !  Locals
@@ -457,11 +457,11 @@ subroutine new_serial_fe_space_update_strong_dirichlet_bcs_values (this, conditi
   deallocate(values, stat=istat)
   check(istat==0)
   
-end subroutine new_serial_fe_space_update_strong_dirichlet_bcs_values
+end subroutine serial_fe_space_update_strong_dirichlet_bcs_values
 
-subroutine new_serial_fe_space_allocate_and_fill_field_blocks_and_coupling ( this, field_blocks, field_coupling )
+subroutine serial_fe_space_allocate_and_fill_field_blocks_and_coupling ( this, field_blocks, field_coupling )
   implicit none
-  class(new_serial_fe_space_t)    , intent(inout) :: this
+  class(serial_fe_space_t)    , intent(inout) :: this
   integer(ip)           , optional, intent(in)    :: field_blocks(:)
   logical               , optional, intent(in)    :: field_coupling(:,:)
   
@@ -491,20 +491,20 @@ subroutine new_serial_fe_space_allocate_and_fill_field_blocks_and_coupling ( thi
      end do
   end do
   
-end subroutine new_serial_fe_space_allocate_and_fill_field_blocks_and_coupling
+end subroutine serial_fe_space_allocate_and_fill_field_blocks_and_coupling
 
-subroutine new_serial_fe_space_free_field_blocks_and_coupling ( this )
+subroutine serial_fe_space_free_field_blocks_and_coupling ( this )
   implicit none
-  class(new_serial_fe_space_t)    , intent(inout) :: this
+  class(serial_fe_space_t)    , intent(inout) :: this
   if (allocated(this%field_blocks))    call memfree( this%field_blocks, __FILE__, __LINE__)
   if (allocated(this%field_coupling))  call memfree( this%field_coupling, __FILE__, __LINE__)
   if (allocated(this%blocks_coupling)) call memfree ( this%blocks_coupling, __FILE__, __LINE__)
-end subroutine new_serial_fe_space_free_field_blocks_and_coupling
+end subroutine serial_fe_space_free_field_blocks_and_coupling
 
 
-subroutine new_serial_fe_space_allocate_and_fill_reference_fes ( this, reference_fes )
+subroutine serial_fe_space_allocate_and_fill_reference_fes ( this, reference_fes )
   implicit none
-  class(new_serial_fe_space_t)          , intent(inout) :: this
+  class(serial_fe_space_t)          , intent(inout) :: this
   type(p_reference_fe_t)                ,  intent(in)   :: reference_fes(:)
   integer(ip) :: i, istat
   
@@ -515,38 +515,38 @@ subroutine new_serial_fe_space_allocate_and_fill_reference_fes ( this, reference
   do i  = 1, this%reference_fes_size
      this%reference_fes(i) = reference_fes(i)
   end do    
-end subroutine new_serial_fe_space_allocate_and_fill_reference_fes
+end subroutine serial_fe_space_allocate_and_fill_reference_fes
 
-subroutine new_serial_fe_space_free_reference_fes ( this )
+subroutine serial_fe_space_free_reference_fes ( this )
   implicit none
-  class(new_serial_fe_space_t)          , intent(inout) :: this
+  class(serial_fe_space_t)          , intent(inout) :: this
   integer(ip) :: istat
   this%reference_fes_size = 0
   if (allocated(this%reference_fes)) then
     deallocate( this%reference_fes, stat=istat )
     check ( istat == 0 )
   end if
-end subroutine new_serial_fe_space_free_reference_fes
+end subroutine serial_fe_space_free_reference_fes
 
-subroutine new_serial_fe_space_allocate_ref_fe_id_per_fe ( this )
-  class(new_serial_fe_space_t), intent(inout) :: this
+subroutine serial_fe_space_allocate_ref_fe_id_per_fe ( this )
+  class(serial_fe_space_t), intent(inout) :: this
   call memalloc (this%number_fields, &
                  this%triangulation%get_num_cells(), &
                  this%reference_fe_id_per_fe, &
                  __FILE__, __LINE__)
-end subroutine new_serial_fe_space_allocate_ref_fe_id_per_fe
+end subroutine serial_fe_space_allocate_ref_fe_id_per_fe
 
-subroutine new_serial_fe_space_free_ref_fe_id_per_fe ( this )
-  class(new_serial_fe_space_t), intent(inout) :: this
+subroutine serial_fe_space_free_ref_fe_id_per_fe ( this )
+  class(serial_fe_space_t), intent(inout) :: this
   if (allocated(this%reference_fe_id_per_fe)) then
     call memfree (this%reference_fe_id_per_fe, &
                   __FILE__, __LINE__)
   end if  
-end subroutine new_serial_fe_space_free_ref_fe_id_per_fe
+end subroutine serial_fe_space_free_ref_fe_id_per_fe
 
-subroutine new_serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells ( this )
+subroutine serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells ( this )
   implicit none
-  class(new_serial_fe_space_t)          , intent(inout) :: this
+  class(serial_fe_space_t)          , intent(inout) :: this
   
   integer(ip) :: ifield
   integer(ip) :: ife
@@ -557,11 +557,11 @@ subroutine new_serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells ( this )
    end do
   end do 
   
-end subroutine new_serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
+end subroutine serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
 
-subroutine new_serial_fe_space_initialize_fe_integration ( this )
+subroutine serial_fe_space_initialize_fe_integration ( this )
   implicit none
-  class(new_serial_fe_space_t)          , intent(inout) :: this
+  class(serial_fe_space_t)          , intent(inout) :: this
   
   type(fe_iterator_t) :: fe_iterator
   type(fe_accessor_t) :: fe
@@ -673,11 +673,11 @@ subroutine new_serial_fe_space_initialize_fe_integration ( this )
     end do
     call fe_iterator%next()
   end do
-end subroutine new_serial_fe_space_initialize_fe_integration
+end subroutine serial_fe_space_initialize_fe_integration
 
-subroutine new_serial_fe_space_free_fe_integration ( this )
+subroutine serial_fe_space_free_fe_integration ( this )
   implicit none
-  class(new_serial_fe_space_t), intent(inout) :: this
+  class(serial_fe_space_t), intent(inout) :: this
   
   type(fe_iterator_t) :: fe_iterator
   type(fe_accessor_t) :: fe
@@ -718,28 +718,28 @@ subroutine new_serial_fe_space_free_fe_integration ( this )
     deallocate(this%fe_volume_integrators, stat=istat)
     check(istat==0)
   end if  
-end subroutine new_serial_fe_space_free_fe_integration
+end subroutine serial_fe_space_free_fe_integration
 
-function new_serial_fe_space_generate_fe_volume_integrators_position_key ( this, max_order_within_fe, reference_fe_id )
+function serial_fe_space_generate_fe_volume_integrators_position_key ( this, max_order_within_fe, reference_fe_id )
   implicit none
-  class(new_serial_fe_space_t), intent(in) :: this
+  class(serial_fe_space_t), intent(in) :: this
   integer(ip)                 , intent(in) :: max_order_within_fe
   integer(ip)                 , intent(in) :: reference_fe_id
-  integer(ip) :: new_serial_fe_space_generate_fe_volume_integrators_position_key
-  new_serial_fe_space_generate_fe_volume_integrators_position_key =  &
+  integer(ip) :: serial_fe_space_generate_fe_volume_integrators_position_key
+  serial_fe_space_generate_fe_volume_integrators_position_key =  &
     reference_fe_id + (max_order_within_fe-1)*this%reference_fes_size
-end function new_serial_fe_space_generate_fe_volume_integrators_position_key
+end function serial_fe_space_generate_fe_volume_integrators_position_key
 
-function new_serial_fe_space_create_assembler(this, &
+function serial_fe_space_create_assembler(this, &
                                               diagonal_blocks_symmetric_storage,&
                                               diagonal_blocks_symmetric, & 
                                               diagonal_blocks_sign)
   implicit none
-  class(new_serial_fe_space_t)      , intent(in) :: this
+  class(serial_fe_space_t)      , intent(in) :: this
   logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
   logical                           , intent(in) :: diagonal_blocks_symmetric(:)
   integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
-  class(matrix_array_assembler_t)   , pointer    :: new_serial_fe_space_create_assembler
+  class(matrix_array_assembler_t)   , pointer    :: serial_fe_space_create_assembler
 
   ! Locals
   class(matrix_t), pointer :: matrix
@@ -748,7 +748,7 @@ function new_serial_fe_space_create_assembler(this, &
   integer(ip)          :: iblock, jblock
 
   if (this%number_blocks == 1) then
-     allocate ( sparse_matrix_array_assembler_t :: new_serial_fe_space_create_assembler )
+     allocate ( sparse_matrix_array_assembler_t :: serial_fe_space_create_assembler )
      allocate ( sparse_matrix_t :: matrix )
      allocate ( serial_scalar_array_t  :: array )
      select type(matrix)
@@ -767,7 +767,7 @@ function new_serial_fe_space_create_assembler(this, &
         check(.false.)
      end select
   else
-     allocate ( block_sparse_matrix_array_assembler_t :: new_serial_fe_space_create_assembler )
+     allocate ( block_sparse_matrix_array_assembler_t :: serial_fe_space_create_assembler )
      allocate ( block_sparse_matrix_t :: matrix )
      allocate ( serial_block_array_t  :: array )
      select type(matrix)
@@ -796,14 +796,14 @@ function new_serial_fe_space_create_assembler(this, &
         check(.false.)
      end select
   end if
-  call new_serial_fe_space_create_assembler%set_matrix(matrix)
-  call new_serial_fe_space_create_assembler%set_array(array)
-end function new_serial_fe_space_create_assembler  
+  call serial_fe_space_create_assembler%set_matrix(matrix)
+  call serial_fe_space_create_assembler%set_array(array)
+end function serial_fe_space_create_assembler  
   
 
-subroutine new_serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
+subroutine serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
   implicit none
-  class(new_serial_fe_space_t)    , intent(in)    :: this
+  class(serial_fe_space_t)    , intent(in)    :: this
   class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
   ! Polymorphic matrix 
   class(matrix_t), pointer :: matrix
@@ -815,12 +815,12 @@ subroutine new_serial_fe_space_symbolic_setup_assembler(this,matrix_array_assemb
      class default
      check(.false.)
   end select
-end subroutine new_serial_fe_space_symbolic_setup_assembler
+end subroutine serial_fe_space_symbolic_setup_assembler
 
 
-subroutine new_serial_fe_space_fill_dof_info( this )
+subroutine serial_fe_space_fill_dof_info( this )
   implicit none
-  class(new_serial_fe_space_t), intent(inout) :: this 
+  class(serial_fe_space_t), intent(inout) :: this 
   integer(ip) :: field_id
 
   call memalloc( this%number_blocks, this%number_dofs_per_block, __FILE__, __LINE__ )
@@ -831,12 +831,12 @@ subroutine new_serial_fe_space_fill_dof_info( this )
   do field_id = 1, this%number_fields
      call this%fill_elem2dof_and_count_dofs( field_id )
   end do
-end subroutine new_serial_fe_space_fill_dof_info
+end subroutine serial_fe_space_fill_dof_info
 
-subroutine new_serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id ) 
+subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id ) 
   implicit none
   ! Parameters
-  class(new_serial_fe_space_t), intent(inout) :: this 
+  class(serial_fe_space_t), intent(inout) :: this 
   integer(ip)                 ,  intent(in)   :: field_id
 
   ! Local variables
@@ -891,11 +891,11 @@ subroutine new_serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   this%number_dofs_per_field(field_id) = current_dof_block - init_dof_block
   this%number_dofs_per_block(iblock) = this%number_dofs_per_block(iblock) + &
        this%number_dofs_per_field(field_id)     
-end subroutine new_serial_fe_space_fill_elem2dof_and_count_dofs
+end subroutine serial_fe_space_fill_elem2dof_and_count_dofs
 
-subroutine new_serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
+subroutine serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
   implicit none
-  class(new_serial_fe_space_t), intent(inout) :: this
+  class(serial_fe_space_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: block_id
   integer(ip)             , intent(in)    :: perm_old2new(this%number_dofs_per_block(block_id))
   type(fe_iterator_t) :: fe_iterator
@@ -908,55 +908,55 @@ subroutine new_serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new
     call fe_iterator%next()
   end do
   
-end subroutine new_serial_fe_space_renumber_dofs_block
+end subroutine serial_fe_space_renumber_dofs_block
 
 
 ! Returns the number of DoFs associated to field with identifier field_id
-function new_serial_fe_space_get_field_number_dofs ( this, field_id )
+function serial_fe_space_get_field_number_dofs ( this, field_id )
    implicit none
-   class(new_serial_fe_space_t), intent(in) :: this
+   class(serial_fe_space_t), intent(in) :: this
    integer(ip)                 , intent(in) :: field_id
-   integer(ip)                              :: new_serial_fe_space_get_field_number_dofs
+   integer(ip)                              :: serial_fe_space_get_field_number_dofs
    assert ( field_id >=1 .and. field_id <= this%number_fields ) 
-   new_serial_fe_space_get_field_number_dofs = this%number_dofs_per_field(field_id)
-end function new_serial_fe_space_get_field_number_dofs
+   serial_fe_space_get_field_number_dofs = this%number_dofs_per_field(field_id)
+end function serial_fe_space_get_field_number_dofs
 
 ! Returns the number of DoFs associated to block with identifier block_id
-function new_serial_fe_space_get_block_number_dofs ( this, block_id )
+function serial_fe_space_get_block_number_dofs ( this, block_id )
    implicit none
-   class(new_serial_fe_space_t), intent(in) :: this
+   class(serial_fe_space_t), intent(in) :: this
    integer(ip)             , intent(in) :: block_id
-   integer(ip)                          :: new_serial_fe_space_get_block_number_dofs
+   integer(ip)                          :: serial_fe_space_get_block_number_dofs
    assert ( block_id >=1 .and. block_id <= this%number_blocks ) 
-   new_serial_fe_space_get_block_number_dofs  = this%number_dofs_per_block(block_id)
-end function new_serial_fe_space_get_block_number_dofs 
+   serial_fe_space_get_block_number_dofs  = this%number_dofs_per_block(block_id)
+end function serial_fe_space_get_block_number_dofs 
 
 ! Returns the sum of the number of DoFs associated to all fields
-function new_serial_fe_space_get_total_number_dofs ( this )
+function serial_fe_space_get_total_number_dofs ( this )
    implicit none
-   class(new_serial_fe_space_t), intent(in) :: this
-   integer(ip)                          :: new_serial_fe_space_get_total_number_dofs 
+   class(serial_fe_space_t), intent(in) :: this
+   integer(ip)                          :: serial_fe_space_get_total_number_dofs 
    integer(ip) :: field_id
-   new_serial_fe_space_get_total_number_dofs = 0 
+   serial_fe_space_get_total_number_dofs = 0 
    do field_id = 1, this%number_fields
-     new_serial_fe_space_get_total_number_dofs = new_serial_fe_space_get_total_number_dofs  + &
+     serial_fe_space_get_total_number_dofs = serial_fe_space_get_total_number_dofs  + &
                                              this%number_dofs_per_field(field_id)
    end do
-end function new_serial_fe_space_get_total_number_dofs 
+end function serial_fe_space_get_total_number_dofs 
 
-function new_serial_fe_space_get_number_reference_fes ( this )
+function serial_fe_space_get_number_reference_fes ( this )
   implicit none
-  class(new_serial_fe_space_t), intent(in) :: this
-  integer(ip) :: new_serial_fe_space_get_number_reference_fes
-  new_serial_fe_space_get_number_reference_fes = size(this%reference_fes)
-end function new_serial_fe_space_get_number_reference_fes
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip) :: serial_fe_space_get_number_reference_fes
+  serial_fe_space_get_number_reference_fes = size(this%reference_fes)
+end function serial_fe_space_get_number_reference_fes
 
-function new_serial_fe_space_get_number_fields ( this )
+function serial_fe_space_get_number_fields ( this )
   implicit none
-  class(new_serial_fe_space_t), intent(in) :: this
-  integer(ip) :: new_serial_fe_space_get_number_fields
-  new_serial_fe_space_get_number_fields = this%number_fields
-end function new_serial_fe_space_get_number_fields
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip) :: serial_fe_space_get_number_fields
+  serial_fe_space_get_number_fields = this%number_fields
+end function serial_fe_space_get_number_fields
 
 ! Although in principle this%field_type(:) was though to be
 ! private member variable, I had to make it visible to the exterior
@@ -964,18 +964,18 @@ end function new_serial_fe_space_get_number_fields
 ! the type(coarse_fe_space_t) instance that it aggregrates. Perhaps there is a 
 ! better/cleaner solution, but at the present moment, this is the only solution 
 ! that comes into my mind and lets me advance
-function new_serial_fe_space_get_field_type (this)
+function serial_fe_space_get_field_type (this)
   implicit none
-  class(new_serial_fe_space_t), target, intent(in) :: this
-  integer(ip), pointer :: new_serial_fe_space_get_field_type(:)
-  new_serial_fe_space_get_field_type => this%field_type
-end function new_serial_fe_space_get_field_type
+  class(serial_fe_space_t), target, intent(in) :: this
+  integer(ip), pointer :: serial_fe_space_get_field_type(:)
+  serial_fe_space_get_field_type => this%field_type
+end function serial_fe_space_get_field_type
 
 
-function new_serial_fe_space_get_number_components ( this )
+function serial_fe_space_get_number_components ( this )
   implicit none
-  class(new_serial_fe_space_t), intent(in) :: this
-  integer(ip) :: new_serial_fe_space_get_number_components
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip) :: serial_fe_space_get_number_components
   type(fe_iterator_t) :: fe_iterator
   type(fe_accessor_t) :: fe
   class(reference_fe_t), pointer :: reference_fe
@@ -983,40 +983,40 @@ function new_serial_fe_space_get_number_components ( this )
   
   fe_iterator = this%create_fe_iterator()
   call fe_iterator%current(fe)
-  new_serial_fe_space_get_number_components = 0
+  serial_fe_space_get_number_components = 0
   do field_id = 1, this%get_number_fields()
     reference_fe => fe%get_reference_fe(field_id)
-    new_serial_fe_space_get_number_components = new_serial_fe_space_get_number_components + &
+    serial_fe_space_get_number_components = serial_fe_space_get_number_components + &
                                                 reference_fe%get_number_field_components()
   end do
-end function new_serial_fe_space_get_number_components
+end function serial_fe_space_get_number_components
 
-function new_serial_fe_space_get_number_blocks( this)
+function serial_fe_space_get_number_blocks( this)
   implicit none
-  class(new_serial_fe_space_t), intent(in) :: this 
-  integer(ip) :: new_serial_fe_space_get_number_blocks
-  new_serial_fe_space_get_number_blocks = this%number_blocks ! SB.alert 
-end function new_serial_fe_space_get_number_blocks
+  class(serial_fe_space_t), intent(in) :: this 
+  integer(ip) :: serial_fe_space_get_number_blocks
+  serial_fe_space_get_number_blocks = this%number_blocks ! SB.alert 
+end function serial_fe_space_get_number_blocks
 
-function new_serial_fe_space_get_field_blocks( this )
+function serial_fe_space_get_field_blocks( this )
   implicit none
-  class(new_serial_fe_space_t), target, intent(in) :: this
-  integer(ip), pointer :: new_serial_fe_space_get_field_blocks(:)
-  new_serial_fe_space_get_field_blocks => this%field_blocks
-end function new_serial_fe_space_get_field_blocks
+  class(serial_fe_space_t), target, intent(in) :: this
+  integer(ip), pointer :: serial_fe_space_get_field_blocks(:)
+  serial_fe_space_get_field_blocks => this%field_blocks
+end function serial_fe_space_get_field_blocks
 
-function new_serial_fe_space_get_field_coupling( this )
+function serial_fe_space_get_field_coupling( this )
   implicit none
-  class(new_serial_fe_space_t), target, intent(in) :: this
-  logical, pointer :: new_serial_fe_space_get_field_coupling(:,:)
-  new_serial_fe_space_get_field_coupling => this%field_coupling
-end function new_serial_fe_space_get_field_coupling
+  class(serial_fe_space_t), target, intent(in) :: this
+  logical, pointer :: serial_fe_space_get_field_coupling(:,:)
+  serial_fe_space_get_field_coupling => this%field_coupling
+end function serial_fe_space_get_field_coupling
 
  !===============================================================================================
- subroutine new_serial_fe_space_create_global_fe_function ( this, fe_function )
+ subroutine serial_fe_space_create_global_fe_function ( this, fe_function )
     implicit none
-    class(new_serial_fe_space_t), intent(in)    :: this
-    type(new_fe_function_t)         , intent(inout) :: fe_function
+    class(serial_fe_space_t), intent(in)    :: this
+    type(fe_function_t)         , intent(inout) :: fe_function
     
     class(vector_t), allocatable :: dof_values
 
@@ -1038,46 +1038,46 @@ end function new_serial_fe_space_get_field_coupling
      end select
   end if
   call fe_function%create(this%strong_dirichlet_values, dof_values)
- end subroutine new_serial_fe_space_create_global_fe_function
+ end subroutine serial_fe_space_create_global_fe_function
 
- subroutine new_serial_fe_space_update_global_fe_function_bcs ( this, fe_function )
+ subroutine serial_fe_space_update_global_fe_function_bcs ( this, fe_function )
    implicit none
-   class(new_serial_fe_space_t), intent(in)    :: this
-   type(new_fe_function_t)         , intent(inout) :: fe_function
+   class(serial_fe_space_t), intent(in)    :: this
+   type(fe_function_t)         , intent(inout) :: fe_function
    call fe_function%copy_bc_values(this%strong_dirichlet_values)
- end subroutine new_serial_fe_space_update_global_fe_function_bcs
+ end subroutine serial_fe_space_update_global_fe_function_bcs
 
-function new_serial_fe_space_get_triangulation( this) result(triangulation)
-   class(new_serial_fe_space_t)      , intent(in)    :: this 
+function serial_fe_space_get_triangulation( this) result(triangulation)
+   class(serial_fe_space_t)      , intent(in)    :: this 
    class(base_static_triangulation_t), pointer       :: triangulation
    assert ( associated(this%triangulation) )
    triangulation => this%triangulation
-end function new_serial_fe_space_get_triangulation
+end function serial_fe_space_get_triangulation
 
-function new_serial_fe_space_create_fe_iterator ( this )
+function serial_fe_space_create_fe_iterator ( this )
   implicit none
-  class(new_serial_fe_space_t), intent(in) :: this
-  type(fe_iterator_t) :: new_serial_fe_space_create_fe_iterator
-  call new_serial_fe_space_create_fe_iterator%create(1, this)
- end function new_serial_fe_space_create_fe_iterator
+  class(serial_fe_space_t), intent(in) :: this
+  type(fe_iterator_t) :: serial_fe_space_create_fe_iterator
+  call serial_fe_space_create_fe_iterator%create(1, this)
+ end function serial_fe_space_create_fe_iterator
   
-function new_serial_fe_space_create_fe_vef_iterator ( this )
+function serial_fe_space_create_fe_vef_iterator ( this )
   implicit none
-  class(new_serial_fe_space_t), intent(in) :: this
-  type(fe_vef_iterator_t) :: new_serial_fe_space_create_fe_vef_iterator
-  call new_serial_fe_space_create_fe_vef_iterator%create(1, this)
-end function new_serial_fe_space_create_fe_vef_iterator
+  class(serial_fe_space_t), intent(in) :: this
+  type(fe_vef_iterator_t) :: serial_fe_space_create_fe_vef_iterator
+  call serial_fe_space_create_fe_vef_iterator%create(1, this)
+end function serial_fe_space_create_fe_vef_iterator
 
-function new_serial_fe_space_create_itfc_fe_vef_iterator ( this )
+function serial_fe_space_create_itfc_fe_vef_iterator ( this )
   implicit none
-  class(new_serial_fe_space_t), intent(in) :: this
-  type(itfc_fe_vef_iterator_t) :: new_serial_fe_space_create_itfc_fe_vef_iterator
-  call new_serial_fe_space_create_itfc_fe_vef_iterator%create(this)
-end function new_serial_fe_space_create_itfc_fe_vef_iterator
+  class(serial_fe_space_t), intent(in) :: this
+  type(itfc_fe_vef_iterator_t) :: serial_fe_space_create_itfc_fe_vef_iterator
+  call serial_fe_space_create_itfc_fe_vef_iterator%create(this)
+end function serial_fe_space_create_itfc_fe_vef_iterator
 
-!subroutine new_serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
+!subroutine serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
 !  implicit none
-!  class(new_serial_fe_space_t), intent(inout) :: this
+!  class(serial_fe_space_t), intent(inout) :: this
 !  integer(ip)             , intent(in)    :: block_id
 !  integer(ip)             , intent(in)    :: perm_old2new(this%number_dofs_per_block(block_id))
 !  integer(ip)                             :: ielem
@@ -1086,11 +1086,11 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !    call this%fe_array(ielem)%renumber_dofs_block ( block_id, perm_old2new )
 !  end do
 !  
-!end subroutine new_serial_fe_space_renumber_dofs_block
+!end subroutine serial_fe_space_renumber_dofs_block
 
-!subroutine new_serial_fe_space_free( this )
+!subroutine serial_fe_space_free( this )
 !  implicit none
-!  class(new_serial_fe_space_t), intent(inout) :: this
+!  class(serial_fe_space_t), intent(inout) :: this
 
 !  integer(ip) :: iblock, i, j, number_nodes, istat, iobje, obje_g, inode, jnode
 
@@ -1153,10 +1153,10 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !  if (allocated(this%field_coupling)) call memfree( this%field_coupling, __FILE__, __LINE__)
 !  if (allocated(this%blocks_coupling)) call memfree ( this%blocks_coupling, __FILE__, __LINE__)
 !  nullify(this%triangulation)
-!end subroutine new_serial_fe_space_free
+!end subroutine serial_fe_space_free
 
-!subroutine new_serial_fe_space_print ( this )
-!  class(new_serial_fe_space_t), intent(in)                 :: this 
+!subroutine serial_fe_space_print ( this )
+!  class(serial_fe_space_t), intent(in)                 :: this 
 
 !  integer(ip) :: i,j
 
@@ -1180,22 +1180,22 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !     write(*,*) this%face_array(i)%neighbour_fe(2)%p%elem2dof(1)%p
 !  end do
 
-!end subroutine new_serial_fe_space_print
+!end subroutine serial_fe_space_print
 
-!subroutine new_serial_fe_space_initialize_integration( this, max_order )
+!subroutine serial_fe_space_initialize_integration( this, max_order )
 !  implicit none
 !  ! Parameters
-!  class(new_serial_fe_space_t), intent(inout) :: this  
+!  class(serial_fe_space_t), intent(inout) :: this  
 !  integer(ip), optional, intent(in)  :: max_order
 !  call this%initialize_quadrature(max_order)
 !  call this%initialize_fe_map()
 !  call this%initialize_volume_integrator()
-!end subroutine new_serial_fe_space_initialize_integration
+!end subroutine serial_fe_space_initialize_integration
 
-!subroutine new_serial_fe_space_initialize_quadrature( this, max_order )
+!subroutine serial_fe_space_initialize_quadrature( this, max_order )
 !  implicit none
 !  ! Parameters
-!  class(new_serial_fe_space_t), intent(inout) :: this  
+!  class(serial_fe_space_t), intent(inout) :: this  
 !  integer(ip), optional, intent(in)  :: max_order
 !  integer(ip) :: i, max_order_
 
@@ -1207,38 +1207,38 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !  do i = 1, size(this%quadrature)
 !     call this%reference_fes_list(i)%p%create_quadrature( this%quadrature(i)%p, max_order_ )
 !  end do
-!end subroutine new_serial_fe_space_initialize_quadrature
+!end subroutine serial_fe_space_initialize_quadrature
 
-!subroutine new_serial_fe_space_initialize_volume_integrator( this )
+!subroutine serial_fe_space_initialize_volume_integrator( this )
 !  implicit none
-!  class(new_serial_fe_space_t), intent(inout) :: this
+!  class(serial_fe_space_t), intent(inout) :: this
 !  integer(ip) :: i
 !  do i = 1, this%number_fields
 !     call this%volume_integrator(i)%p%create( this%quadrature(1)%p, & 
 !          this%reference_fes_list(i)%p )
 !  end do
-!end subroutine new_serial_fe_space_initialize_volume_integrator
+!end subroutine serial_fe_space_initialize_volume_integrator
 
-!subroutine new_serial_fe_space_initialize_fe_map(this)
+!subroutine serial_fe_space_initialize_fe_map(this)
 !  implicit none
-!  class(new_serial_fe_space_t), intent(inout) :: this  
+!  class(serial_fe_space_t), intent(inout) :: this  
 !  integer(ip) :: i
 !  do i = 1, size(this%fe_map)
 !     call this%fe_map(i)%p%create( this%quadrature(i)%p, &
 !          this%triangulation%reference_fe_geo_list(1)%p )
 !  end do
-!end subroutine new_serial_fe_space_initialize_fe_map
+!end subroutine serial_fe_space_initialize_fe_map
 
-!function new_serial_fe_space_create_assembler(this, &
+!function serial_fe_space_create_assembler(this, &
 !     diagonal_blocks_symmetric_storage,&
 !     diagonal_blocks_symmetric, & 
 !     diagonal_blocks_sign)
 !  implicit none
-!  class(new_serial_fe_space_t)          , intent(in) :: this
+!  class(serial_fe_space_t)          , intent(in) :: this
 !  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
 !  logical                           , intent(in) :: diagonal_blocks_symmetric(:)
 !  integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
-!  class(matrix_array_assembler_t)   , pointer    :: new_serial_fe_space_create_assembler
+!  class(matrix_array_assembler_t)   , pointer    :: serial_fe_space_create_assembler
 
 !  ! Locals
 !  class(matrix_t), pointer :: matrix
@@ -1247,7 +1247,7 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !  integer(ip)          :: iblock, jblock
 
 !  if (this%number_blocks == 1) then
-!     allocate ( sparse_matrix_array_assembler_t :: new_serial_fe_space_create_assembler )
+!     allocate ( sparse_matrix_array_assembler_t :: serial_fe_space_create_assembler )
 !     allocate ( sparse_matrix_t :: matrix )
 !     allocate ( serial_scalar_array_t  :: array )
 !     select type(matrix)
@@ -1266,7 +1266,7 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !        check(.false.)
 !     end select
 !  else
-!     allocate ( block_sparse_matrix_array_assembler_t :: new_serial_fe_space_create_assembler )
+!     allocate ( block_sparse_matrix_array_assembler_t :: serial_fe_space_create_assembler )
 !     allocate ( block_sparse_matrix_t :: matrix )
 !     allocate ( serial_block_array_t  :: array )
 !     select type(matrix)
@@ -1295,14 +1295,14 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !        check(.false.)
 !     end select
 !  end if
-!  call new_serial_fe_space_create_assembler%set_matrix(matrix)
-!  call new_serial_fe_space_create_assembler%set_array(array)
-!end function new_serial_fe_space_create_assembler
+!  call serial_fe_space_create_assembler%set_matrix(matrix)
+!  call serial_fe_space_create_assembler%set_array(array)
+!end function serial_fe_space_create_assembler
 
 
-!subroutine new_serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
+!subroutine serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
 !  implicit none
-!  class(new_serial_fe_space_t)        , intent(in)    :: this
+!  class(serial_fe_space_t)        , intent(in)    :: this
 !  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
 !  ! Polymorphic matrix 
 !  class(matrix_t), pointer :: matrix
@@ -1314,68 +1314,68 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !     class default
 !     check(.false.)
 !  end select
-!end subroutine new_serial_fe_space_symbolic_setup_assembler
+!end subroutine serial_fe_space_symbolic_setup_assembler
 
 !! Returns the sum of the number of DoFs associated to all fields
-!function new_serial_fe_space_get_total_number_dofs ( this )
+!function serial_fe_space_get_total_number_dofs ( this )
 !   implicit none
-!   class(new_serial_fe_space_t), intent(in) :: this
-!   integer(ip)                          :: new_serial_fe_space_get_total_number_dofs 
+!   class(serial_fe_space_t), intent(in) :: this
+!   integer(ip)                          :: serial_fe_space_get_total_number_dofs 
 !   integer(ip) :: field_id
-!   new_serial_fe_space_get_total_number_dofs = 0 
+!   serial_fe_space_get_total_number_dofs = 0 
 !   do field_id = 1, this%number_fields
-!     new_serial_fe_space_get_total_number_dofs = new_serial_fe_space_get_total_number_dofs  + &
+!     serial_fe_space_get_total_number_dofs = serial_fe_space_get_total_number_dofs  + &
 !                                             this%number_dofs_per_field(field_id)
 !   end do
-!end function new_serial_fe_space_get_total_number_dofs 
+!end function serial_fe_space_get_total_number_dofs 
 
 !! Returns the number of DoFs associated to field with identifier field_id
-!function new_serial_fe_space_get_field_number_dofs ( this, field_id )
+!function serial_fe_space_get_field_number_dofs ( this, field_id )
 !   implicit none
-!   class(new_serial_fe_space_t), intent(in) :: this
+!   class(serial_fe_space_t), intent(in) :: this
 !   integer(ip)             , intent(in) :: field_id
-!   integer(ip)                          :: new_serial_fe_space_get_field_number_dofs
+!   integer(ip)                          :: serial_fe_space_get_field_number_dofs
 !   assert ( field_id >=1 .and. field_id <= this%number_fields ) 
-!   new_serial_fe_space_get_field_number_dofs = this%number_dofs_per_field(field_id)
-!end function new_serial_fe_space_get_field_number_dofs
+!   serial_fe_space_get_field_number_dofs = this%number_dofs_per_field(field_id)
+!end function serial_fe_space_get_field_number_dofs
 
 !! Returns the number of DoFs associated to block with identifier block_id
-!function new_serial_fe_space_get_block_number_dofs ( this, block_id )
+!function serial_fe_space_get_block_number_dofs ( this, block_id )
 !   implicit none
-!   class(new_serial_fe_space_t), intent(in) :: this
+!   class(serial_fe_space_t), intent(in) :: this
 !   integer(ip)             , intent(in) :: block_id
-!   integer(ip)                          :: new_serial_fe_space_get_block_number_dofs
+!   integer(ip)                          :: serial_fe_space_get_block_number_dofs
 !   assert ( block_id >=1 .and. block_id <= this%number_blocks ) 
-!   new_serial_fe_space_get_block_number_dofs  = this%number_dofs_per_block(block_id)
-!end function new_serial_fe_space_get_block_number_dofs 
+!   serial_fe_space_get_block_number_dofs  = this%number_dofs_per_block(block_id)
+!end function serial_fe_space_get_block_number_dofs 
 
-!function new_serial_fe_space_get_number_elements ( this )
+!function serial_fe_space_get_number_elements ( this )
 !  implicit none
-!  class(new_serial_fe_space_t), intent(in) :: this
-!  integer(ip)                 :: new_serial_fe_space_get_number_elements
-!  new_serial_fe_space_get_number_elements = this%triangulation%num_elems
-!end function new_serial_fe_space_get_number_elements
+!  class(serial_fe_space_t), intent(in) :: this
+!  integer(ip)                 :: serial_fe_space_get_number_elements
+!  serial_fe_space_get_number_elements = this%triangulation%num_elems
+!end function serial_fe_space_get_number_elements
 
-!function new_serial_fe_space_get_number_interior_faces ( this )
+!function serial_fe_space_get_number_interior_faces ( this )
 !  implicit none
-!  class(new_serial_fe_space_t), intent(in) :: this
-!  integer(ip)                 :: new_serial_fe_space_get_number_interior_faces
-!  new_serial_fe_space_get_number_interior_faces = this%triangulation%number_interior_faces
-!end function new_serial_fe_space_get_number_interior_faces
+!  class(serial_fe_space_t), intent(in) :: this
+!  integer(ip)                 :: serial_fe_space_get_number_interior_faces
+!  serial_fe_space_get_number_interior_faces = this%triangulation%number_interior_faces
+!end function serial_fe_space_get_number_interior_faces
 
-!function new_serial_fe_space_get_number_boundary_faces ( this )
+!function serial_fe_space_get_number_boundary_faces ( this )
 !  implicit none
-!  class(new_serial_fe_space_t), intent(in) :: this
-!  integer(ip)                 :: new_serial_fe_space_get_number_boundary_faces
-!  new_serial_fe_space_get_number_boundary_faces = this%triangulation%number_boundary_faces
-!end function new_serial_fe_space_get_number_boundary_faces
+!  class(serial_fe_space_t), intent(in) :: this
+!  integer(ip)                 :: serial_fe_space_get_number_boundary_faces
+!  serial_fe_space_get_number_boundary_faces = this%triangulation%number_boundary_faces
+!end function serial_fe_space_get_number_boundary_faces
 
-!function new_serial_fe_space_get_number_fields( this)
+!function serial_fe_space_get_number_fields( this)
 !  implicit none
-!  class(new_serial_fe_space_t), intent(in) :: this 
-!  integer(ip) :: new_serial_fe_space_get_number_fields
-!  new_serial_fe_space_get_number_fields = this%number_fields
-!end function new_serial_fe_space_get_number_fields
+!  class(serial_fe_space_t), intent(in) :: this 
+!  integer(ip) :: serial_fe_space_get_number_fields
+!  serial_fe_space_get_number_fields = this%number_fields
+!end function serial_fe_space_get_number_fields
 
 !! Although in principle this%fe_space_type(:) was though to be
 !! private member variable, I had to make it visible to the exterior
@@ -1383,90 +1383,90 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !! the type(coarse_fe_space_t) instance that it aggregrates. Perhaps there is a 
 !! better/cleaner solution, but at the present moment, this is the only solution 
 !! that comes into my mind and lets me advance
-!function new_serial_fe_space_get_fe_space_type (this)
+!function serial_fe_space_get_fe_space_type (this)
 !  implicit none
-!  class(new_serial_fe_space_t), target, intent(in) :: this
-!  integer(ip), pointer :: new_serial_fe_space_get_fe_space_type(:)
-!  new_serial_fe_space_get_fe_space_type => this%fe_space_type
-!end function new_serial_fe_space_get_fe_space_type
+!  class(serial_fe_space_t), target, intent(in) :: this
+!  integer(ip), pointer :: serial_fe_space_get_fe_space_type(:)
+!  serial_fe_space_get_fe_space_type => this%fe_space_type
+!end function serial_fe_space_get_fe_space_type
 
-!function new_serial_fe_space_get_finite_element( this, ielem )
+!function serial_fe_space_get_finite_element( this, ielem )
 !  implicit none
-!  class(new_serial_fe_space_t), target, intent(in) :: this
+!  class(serial_fe_space_t), target, intent(in) :: this
 !  integer(ip)                     , intent(in) :: ielem
-!  type(finite_element_t), pointer :: new_serial_fe_space_get_finite_element
-!  new_serial_fe_space_get_finite_element => this%fe_array(ielem)
-!end function new_serial_fe_space_get_finite_element
+!  type(finite_element_t), pointer :: serial_fe_space_get_finite_element
+!  serial_fe_space_get_finite_element => this%fe_array(ielem)
+!end function serial_fe_space_get_finite_element
 
-!function new_serial_fe_space_get_finite_face( this, i )
+!function serial_fe_space_get_finite_face( this, i )
 !  implicit none
-!  class(new_serial_fe_space_t), target, intent(in) :: this
+!  class(serial_fe_space_t), target, intent(in) :: this
 !  integer(ip) :: i
-!  class(finite_face_t), pointer :: new_serial_fe_space_get_finite_face
-!  new_serial_fe_space_get_finite_face => this%face_array(i)
-!end function new_serial_fe_space_get_finite_face
+!  class(finite_face_t), pointer :: serial_fe_space_get_finite_face
+!  serial_fe_space_get_finite_face => this%face_array(i)
+!end function serial_fe_space_get_finite_face
 
-!function new_serial_fe_space_get_number_blocks( this)
+!function serial_fe_space_get_number_blocks( this)
 !  implicit none
-!  class(new_serial_fe_space_t), intent(in) :: this 
-!  integer(ip) :: new_serial_fe_space_get_number_blocks
-!  new_serial_fe_space_get_number_blocks = this%number_blocks ! SB.alert 
-!end function new_serial_fe_space_get_number_blocks
+!  class(serial_fe_space_t), intent(in) :: this 
+!  integer(ip) :: serial_fe_space_get_number_blocks
+!  serial_fe_space_get_number_blocks = this%number_blocks ! SB.alert 
+!end function serial_fe_space_get_number_blocks
 
-!function new_serial_fe_space_get_field_blocks( this )
+!function serial_fe_space_get_field_blocks( this )
 !  implicit none
-!  class(new_serial_fe_space_t), target, intent(in) :: this
-!  integer(ip), pointer :: new_serial_fe_space_get_field_blocks(:)
-!  new_serial_fe_space_get_field_blocks => this%field_blocks
-!end function new_serial_fe_space_get_field_blocks
+!  class(serial_fe_space_t), target, intent(in) :: this
+!  integer(ip), pointer :: serial_fe_space_get_field_blocks(:)
+!  serial_fe_space_get_field_blocks => this%field_blocks
+!end function serial_fe_space_get_field_blocks
 
-!function new_serial_fe_space_get_field_coupling( this )
+!function serial_fe_space_get_field_coupling( this )
 !  implicit none
-!  class(new_serial_fe_space_t), target, intent(in) :: this
-!  logical, pointer :: new_serial_fe_space_get_field_coupling(:,:)
-!  new_serial_fe_space_get_field_coupling => this%field_coupling
-!end function new_serial_fe_space_get_field_coupling
+!  class(serial_fe_space_t), target, intent(in) :: this
+!  logical, pointer :: serial_fe_space_get_field_coupling(:,:)
+!  serial_fe_space_get_field_coupling => this%field_coupling
+!end function serial_fe_space_get_field_coupling
 
-!function new_serial_fe_space_get_max_number_nodes_field( this, ifield )
+!function serial_fe_space_get_max_number_nodes_field( this, ifield )
 !  implicit none
-!  class(new_serial_fe_space_t), intent(in) :: this 
+!  class(serial_fe_space_t), intent(in) :: this 
 !  integer(ip)                , intent(in) :: ifield
-!  integer(ip) :: new_serial_fe_space_get_max_number_nodes_field, ielem
+!  integer(ip) :: serial_fe_space_get_max_number_nodes_field, ielem
 !  assert(ifield <= this%number_fields)
-!  new_serial_fe_space_get_max_number_nodes_field = 0
+!  serial_fe_space_get_max_number_nodes_field = 0
 !  do ielem = 1, this%get_number_elements()
-!     new_serial_fe_space_get_max_number_nodes_field = max(this%fe_array(ielem)%reference_fes(ifield)%p%get_number_nodes(), &
-!          new_serial_fe_space_get_max_number_nodes_field)
+!     serial_fe_space_get_max_number_nodes_field = max(this%fe_array(ielem)%reference_fes(ifield)%p%get_number_nodes(), &
+!          serial_fe_space_get_max_number_nodes_field)
 !  end do
-!end function new_serial_fe_space_get_max_number_nodes_field
+!end function serial_fe_space_get_max_number_nodes_field
 
-!function new_serial_fe_space_get_max_number_nodes_fe_space( this )
+!function serial_fe_space_get_max_number_nodes_fe_space( this )
 !  implicit none
-!  class(new_serial_fe_space_t), intent(in) :: this 
-!  integer(ip) :: new_serial_fe_space_get_max_number_nodes_fe_space, ielem, ifield
-!  new_serial_fe_space_get_max_number_nodes_fe_space = 0
+!  class(serial_fe_space_t), intent(in) :: this 
+!  integer(ip) :: serial_fe_space_get_max_number_nodes_fe_space, ielem, ifield
+!  serial_fe_space_get_max_number_nodes_fe_space = 0
 !  do ielem = 1, this%get_number_elements()
 !     do ifield = 1, this%number_fields
-!        new_serial_fe_space_get_max_number_nodes_fe_space = max(this%fe_array(ielem)%reference_fes(ifield)%p%get_number_nodes(), &
-!             new_serial_fe_space_get_max_number_nodes_fe_space)
+!        serial_fe_space_get_max_number_nodes_fe_space = max(this%fe_array(ielem)%reference_fes(ifield)%p%get_number_nodes(), &
+!             serial_fe_space_get_max_number_nodes_fe_space)
 !     end do
 !  end do
-!end function new_serial_fe_space_get_max_number_nodes_fe_space
+!end function serial_fe_space_get_max_number_nodes_fe_space
 
-!function new_serial_fe_space_get_max_number_quadrature_points( this )
+!function serial_fe_space_get_max_number_quadrature_points( this )
 !  implicit none
-!  class(new_serial_fe_space_t), intent(in) :: this 
-!  integer(ip) :: new_serial_fe_space_get_max_number_quadrature_points, iquad
-!  new_serial_fe_space_get_max_number_quadrature_points = 0
+!  class(serial_fe_space_t), intent(in) :: this 
+!  integer(ip) :: serial_fe_space_get_max_number_quadrature_points, iquad
+!  serial_fe_space_get_max_number_quadrature_points = 0
 !  do iquad = 1, size(this%quadrature)
-!     new_serial_fe_space_get_max_number_quadrature_points = max(this%quadrature(iquad)%p%get_number_quadrature_points(), &
-!          new_serial_fe_space_get_max_number_quadrature_points)
+!     serial_fe_space_get_max_number_quadrature_points = max(this%quadrature(iquad)%p%get_number_quadrature_points(), &
+!          serial_fe_space_get_max_number_quadrature_points)
 !  end do
-!end function new_serial_fe_space_get_max_number_quadrature_points
+!end function serial_fe_space_get_max_number_quadrature_points
 
-!subroutine new_serial_fe_space_update_bc_value_scalar( this, scalar_function, bc_code, fe_space_component, time, unknown_component)
+!subroutine serial_fe_space_update_bc_value_scalar( this, scalar_function, bc_code, fe_space_component, time, unknown_component)
 !  implicit none
-!  class(new_serial_fe_space_t), intent(inout) :: this 
+!  class(serial_fe_space_t), intent(inout) :: this 
 !  class(scalar_function_t), intent(in)    :: scalar_function
 !  integer(ip)             , intent(in)    :: bc_code
 !  integer(ip)             , intent(in)    :: fe_space_component
@@ -1540,11 +1540,11 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !  deallocate ( values, stat=istat )
 !  check(istat==0)
 
-!end subroutine new_serial_fe_space_update_bc_value_scalar
+!end subroutine serial_fe_space_update_bc_value_scalar
 
-!subroutine new_serial_fe_space_update_bc_value_vector( this, vector_function, bc_code, fe_space_component, time)
+!subroutine serial_fe_space_update_bc_value_vector( this, vector_function, bc_code, fe_space_component, time)
 !  implicit none
-!  class(new_serial_fe_space_t), intent(inout) :: this 
+!  class(serial_fe_space_t), intent(inout) :: this 
 !  class(vector_function_t), intent(in)    :: vector_function
 !  integer(ip)             , intent(in)    :: bc_code
 !  integer(ip)             , intent(in)    :: fe_space_component
@@ -1615,22 +1615,22 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !  deallocate ( values, stat=istat )
 !  check(istat==0)
 
-!end subroutine new_serial_fe_space_update_bc_value_vector
+!end subroutine serial_fe_space_update_bc_value_vector
 
-!subroutine new_serial_fe_space_update_bc_value_tensor( this, tensor_function, bc_code, fe_space_component, time)
+!subroutine serial_fe_space_update_bc_value_tensor( this, tensor_function, bc_code, fe_space_component, time)
 !  implicit none
-!  class(new_serial_fe_space_t), intent(inout) :: this 
+!  class(serial_fe_space_t), intent(inout) :: this 
 !  class(tensor_function_t), intent(in)    :: tensor_function
 !  integer(ip)             , intent(in)    :: bc_code
 !  integer(ip)             , intent(in)    :: fe_space_component
 !  real(rp)   , optional   , intent(in)    :: time
 !  check( .false. )
-!end subroutine new_serial_fe_space_update_bc_value_tensor
+!end subroutine serial_fe_space_update_bc_value_tensor
 
 ! !===============================================================================================
-! subroutine new_serial_fe_space_create_global_fe_function ( this, fe_function )
+! subroutine serial_fe_space_create_global_fe_function ( this, fe_function )
 !    implicit none
-!    class(new_serial_fe_space_t), intent(in)    :: this
+!    class(serial_fe_space_t), intent(in)    :: this
 !    type(fe_function_t)     , intent(inout) :: fe_function
 !    
 !    class(vector_t), allocatable :: dof_values
@@ -1653,20 +1653,20 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !     end select
 !  end if
 !  call fe_function%create(this%strong_dirichlet_values, dof_values)
-! end subroutine new_serial_fe_space_create_global_fe_function
+! end subroutine serial_fe_space_create_global_fe_function
 
 ! !===============================================================================================
-! subroutine new_serial_fe_space_update_global_fe_function_bcs ( this, fe_function )
+! subroutine serial_fe_space_update_global_fe_function_bcs ( this, fe_function )
 !    implicit none
-!    class(new_serial_fe_space_t), intent(in)    :: this
+!    class(serial_fe_space_t), intent(in)    :: this
 !    type(fe_function_t)     , intent(inout) :: fe_function
 !    call fe_function%copy_bc_values(this%strong_dirichlet_values)
-! end subroutine new_serial_fe_space_update_global_fe_function_bcs
+! end subroutine serial_fe_space_update_global_fe_function_bcs
 
 !!===============================================================================================
-! subroutine new_serial_fe_space_create_fe_function_scalar ( this, fe_space_id, fe_function_scalar )
+! subroutine serial_fe_space_create_fe_function_scalar ( this, fe_space_id, fe_function_scalar )
 !    implicit none
-!    class(new_serial_fe_space_t)  , intent(in)    :: this
+!    class(serial_fe_space_t)  , intent(in)    :: this
 !    integer(ip)               , intent(in)    :: fe_space_id
 !    type(fe_function_scalar_t), intent(inout) :: fe_function_scalar
 
@@ -1677,12 +1677,12 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !                                & this%get_max_number_nodes(fe_space_id), &
 !                                & this%get_max_number_quadrature_points() )
 ! 
-! end subroutine new_serial_fe_space_create_fe_function_scalar
+! end subroutine serial_fe_space_create_fe_function_scalar
 
 ! !===============================================================================================
-! subroutine new_serial_fe_space_create_fe_function_vector ( this, fe_space_id, fe_function_vector )
+! subroutine serial_fe_space_create_fe_function_vector ( this, fe_space_id, fe_function_vector )
 !    implicit none
-!    class(new_serial_fe_space_t)  , intent(in)    :: this
+!    class(serial_fe_space_t)  , intent(in)    :: this
 !    integer(ip)               , intent(in)    :: fe_space_id
 !    type(fe_function_vector_t), intent(inout) :: fe_function_vector
 
@@ -1693,12 +1693,12 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !                                & this%get_max_number_nodes(fe_space_id), &
 !                                & this%get_max_number_quadrature_points() )
 ! 
-! end subroutine new_serial_fe_space_create_fe_function_vector
+! end subroutine serial_fe_space_create_fe_function_vector
 
 ! !===============================================================================================
-! subroutine new_serial_fe_space_create_fe_function_tensor ( this, fe_space_id, fe_function_tensor )
+! subroutine serial_fe_space_create_fe_function_tensor ( this, fe_space_id, fe_function_tensor )
 !    implicit none
-!    class(new_serial_fe_space_t)  , intent(in)    :: this
+!    class(serial_fe_space_t)  , intent(in)    :: this
 !    integer(ip)               , intent(in)    :: fe_space_id
 !    type(fe_function_tensor_t), intent(inout) :: fe_function_tensor
 
@@ -1709,14 +1709,14 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !                                & this%get_max_number_nodes(fe_space_id), &
 !                                & this%get_max_number_quadrature_points() )
 ! 
-! end subroutine new_serial_fe_space_create_fe_function_tensor
+! end subroutine serial_fe_space_create_fe_function_tensor
 
 ! !===============================================================================================
-! subroutine new_serial_fe_space_interpolate_fe_function_scalar( this, scalar_function,           &
+! subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function,           &
 !      &                                                     fe_space_component, fe_function, &
 !      &                                                     time, unknown_component)
 !   implicit none
-!   class(new_serial_fe_space_t), intent(in)    :: this 
+!   class(serial_fe_space_t), intent(in)    :: this 
 !   class(scalar_function_t), intent(in)    :: scalar_function
 !   integer(ip)             , intent(in)    :: fe_space_component
 !   type(fe_function_t)     , intent(inout) :: fe_function
@@ -1791,13 +1791,13 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !   deallocate ( values, stat=istat )
 !   check(istat==0)
 
-! end subroutine new_serial_fe_space_interpolate_fe_function_scalar
+! end subroutine serial_fe_space_interpolate_fe_function_scalar
 
 ! !===============================================================================================
-! subroutine new_serial_fe_space_interpolate_fe_function_vector( this, vector_function, &
+! subroutine serial_fe_space_interpolate_fe_function_vector( this, vector_function, &
 !      &                                                     fe_space_component, fe_function, time)
 !   implicit none
-!   class(new_serial_fe_space_t), intent(in)    :: this 
+!   class(serial_fe_space_t), intent(in)    :: this 
 !   class(vector_function_t), intent(in)    :: vector_function
 !   type(fe_function_t)     , intent(inout) :: fe_function
 !   integer(ip)             , intent(in)    :: fe_space_component
@@ -1879,37 +1879,37 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !   deallocate ( values, stat=istat )
 !   check(istat==0)
 
-! end subroutine new_serial_fe_space_interpolate_fe_function_vector
+! end subroutine serial_fe_space_interpolate_fe_function_vector
 
 ! !===============================================================================================
-! subroutine new_serial_fe_space_interpolate_fe_function_tensor( this, tensor_function, bc_code, &
+! subroutine serial_fe_space_interpolate_fe_function_tensor( this, tensor_function, bc_code, &
 !      &                                                     fe_function, fe_space_component, time)
 !   implicit none
-!   class(new_serial_fe_space_t), intent(in)    :: this 
+!   class(serial_fe_space_t), intent(in)    :: this 
 !   class(tensor_function_t), intent(in)    :: tensor_function
 !   integer(ip)             , intent(in)    :: bc_code
 !   type(fe_function_t)     , intent(inout) :: fe_function
 !   integer(ip)             , intent(in)    :: fe_space_component
 !   real(rp)   , optional   , intent(in)    :: time
 !   check( .false. )
-! end subroutine new_serial_fe_space_interpolate_fe_function_tensor
+! end subroutine serial_fe_space_interpolate_fe_function_tensor
 ! 
 ! !===============================================================================================
-! function new_serial_fe_space_get_max_order( this ) result(max_order)
+! function serial_fe_space_get_max_order( this ) result(max_order)
 ! implicit none
-!   class(new_serial_fe_space_t), intent(in) :: this 
+!   class(serial_fe_space_t), intent(in) :: this 
 !   integer(ip)                          :: max_order
 !   integer(ip)                          :: fe_space_component
 !   max_order = 0
 !   do fe_space_component = 1, this%number_fields
 !      max_order = max( max_order, this%reference_fes_list(fe_space_component)%p%get_order() )
 !   end do
-! end function new_serial_fe_space_get_max_order
+! end function serial_fe_space_get_max_order
 ! 
 !  !===============================================================================================
-! function new_serial_fe_space_get_max_order_fe_space_component( this ) result(max_order_fe_space_component)
+! function serial_fe_space_get_max_order_fe_space_component( this ) result(max_order_fe_space_component)
 ! implicit none
-!   class(new_serial_fe_space_t), intent(in) :: this 
+!   class(serial_fe_space_t), intent(in) :: this 
 !   integer(ip)                          :: max_order
 !   integer(ip)                          :: max_order_fe_space_component
 !   integer(ip)                          :: fe_space_component
@@ -1918,30 +1918,30 @@ end function new_serial_fe_space_create_itfc_fe_vef_iterator
 !      if(max_order<this%reference_fes_list(fe_space_component)%p%get_order()) max_order_fe_space_component = fe_space_component
 !      max_order = max( max_order, this%reference_fes_list(fe_space_component)%p%get_order() )
 !   end do
-! end function new_serial_fe_space_get_max_order_fe_space_component
+! end function serial_fe_space_get_max_order_fe_space_component
 
 ! !===============================================================================================
-! function new_serial_fe_space_get_triangulation( this) result(triangulation)
-!   class(new_serial_fe_space_t), intent(in)    :: this 
+! function serial_fe_space_get_triangulation( this) result(triangulation)
+!   class(serial_fe_space_t), intent(in)    :: this 
 !   type(triangulation_t), pointer          :: triangulation
 !   
 !   triangulation => this%triangulation
-! end function new_serial_fe_space_get_triangulation
+! end function serial_fe_space_get_triangulation
 !  
 ! !===============================================================================================
-! function new_serial_fe_space_get_reference_fes( this, fe_space_component) result(reference_fes)
-!   class(new_serial_fe_space_t), intent(in)    :: this 
+! function serial_fe_space_get_reference_fes( this, fe_space_component) result(reference_fes)
+!   class(serial_fe_space_t), intent(in)    :: this 
 !   integer(ip)             , intent(in)    :: fe_space_component
 !   class(reference_fe_t), pointer          :: reference_fes
 !   
 !   reference_fes => this%reference_fes_list(fe_space_component)%p
-! end function new_serial_fe_space_get_reference_fes
+! end function serial_fe_space_get_reference_fes
 ! 
 ! !===============================================================================================
-! function new_serial_fe_space_get_reference_fe_geo( this) result(reference_fe_geo)
-!   class(new_serial_fe_space_t), intent(in)    :: this 
+! function serial_fe_space_get_reference_fe_geo( this) result(reference_fe_geo)
+!   class(serial_fe_space_t), intent(in)    :: this 
 !   class(reference_fe_t), pointer          :: reference_fe_geo
 !   
 !   reference_fe_geo => this%triangulation%reference_fe_geo_list(1)%p
-! end function new_serial_fe_space_get_reference_fe_geo
+! end function serial_fe_space_get_reference_fe_geo
 ! 

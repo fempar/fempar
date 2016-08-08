@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module test_new_serial_fe_space_driver_names
+module test_poisson_driver_names
   use serial_names
-  use test_new_serial_fe_space_params_names
+  use test_poisson_params_names
   use poisson_discrete_integration_names
   use poisson_conditions_names
 # include "debug.i90"
@@ -35,29 +35,29 @@ module test_new_serial_fe_space_driver_names
   implicit none
   private
 
-  type test_new_serial_fe_space_driver_t 
+  type test_poisson_driver_t 
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
-     type(test_new_serial_fe_space_params_t) :: test_params
+     type(test_poisson_params_t)   :: test_params
      
      ! Cells and lower dimension objects container
-     type(serial_triangulation_t)            :: triangulation
+     type(serial_triangulation_t)              :: triangulation
      
      ! Discrete weak problem integration-related data type instances 
-     type(new_serial_fe_space_t)               :: fe_space 
+     type(serial_fe_space_t)                   :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
      type(poisson_discrete_integration_t)      :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
-     type(new_fe_affine_operator_t)            :: fe_affine_operator
+     type(fe_affine_operator_t)            :: fe_affine_operator
      
      ! Iterative linear solvers data type
      type(iterative_linear_solver_t)           :: iterative_linear_solver
  
      ! Poisson problem solution FE function
-     type(new_fe_function_t)                   :: solution
+     type(fe_function_t)                   :: solution
      
      ! Environment required for fe_affine_operator + vtk_handler
      type(serial_environment_t)                :: serial_environment
@@ -73,23 +73,23 @@ module test_new_serial_fe_space_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: free
-  end type test_new_serial_fe_space_driver_t
+  end type test_poisson_driver_t
 
   ! Types
-  public :: test_new_serial_fe_space_driver_t
+  public :: test_poisson_driver_t
 
 contains
 
   subroutine parse_command_line_parameters(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t ), intent(inout) :: this
+    class(test_poisson_driver_t ), intent(inout) :: this
     call this%test_params%create()
     call this%test_params%parse()
   end subroutine parse_command_line_parameters
   
   subroutine setup_triangulation(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(test_poisson_driver_t), intent(inout) :: this
     call this%triangulation%create(this%test_params%get_dir_path(),&
                                    this%test_params%get_prefix())
     !call this%triangulation%print()
@@ -97,7 +97,7 @@ contains
   
   subroutine setup_reference_fes(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(test_poisson_driver_t), intent(inout) :: this
     
     integer(ip) :: istat
     
@@ -115,7 +115,7 @@ contains
 
   subroutine setup_fe_space(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(test_poisson_driver_t), intent(inout) :: this
     
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%poisson_conditions, &
@@ -132,7 +132,7 @@ contains
   
   subroutine setup_system (this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(test_poisson_driver_t), intent(inout) :: this
     
     ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
@@ -146,7 +146,7 @@ contains
   
   subroutine setup_solver (this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(test_poisson_driver_t), intent(inout) :: this
     integer                                                 :: FPLError
     type(parameterlist_t)                                   :: parameter_list
     integer                                                 :: iparm(64)
@@ -171,7 +171,7 @@ contains
   
   subroutine assemble_system (this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(test_poisson_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%numerical_setup()
@@ -196,7 +196,7 @@ contains
   
   subroutine solve_system(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(test_poisson_driver_t), intent(inout) :: this
     class(matrix_t)                         , pointer       :: matrix
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
@@ -225,7 +225,7 @@ contains
   
   subroutine check_solution(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(test_poisson_driver_t), intent(inout) :: this
     class(vector_t), allocatable :: exact_solution_vector
     class(vector_t), pointer     :: computed_solution_vector
     
@@ -246,7 +246,7 @@ contains
   
   subroutine run_simulation(this) 
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(test_poisson_driver_t), intent(inout) :: this
     call this%free()
     call this%parse_command_line_parameters()
     call this%setup_triangulation()
@@ -263,7 +263,7 @@ contains
   
   subroutine free(this)
     implicit none
-    class(test_new_serial_fe_space_driver_t), intent(inout) :: this
+    class(test_poisson_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     
     call this%solution%free()
@@ -281,4 +281,4 @@ contains
     call this%test_params%free()
   end subroutine free  
   
-end module test_new_serial_fe_space_driver_names
+end module test_poisson_driver_names

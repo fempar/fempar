@@ -29,7 +29,7 @@ subroutine fe_vef_iterator_create ( this, lid, fe_space )
   implicit none
   class(fe_vef_iterator_t)    , intent(inout) :: this
   integer(ip)                 , intent(in)    :: lid
-  class(new_serial_fe_space_t), intent(in)    :: fe_space
+  class(serial_fe_space_t), intent(in)    :: fe_space
   call this%free()
   call this%current_fe_vef_accessor%create(lid, fe_space )
 end subroutine fe_vef_iterator_create
@@ -69,7 +69,7 @@ end subroutine fe_vef_iterator_current
 subroutine itfc_fe_vef_iterator_create ( this, fe_space ) 
   implicit none
   class(itfc_fe_vef_iterator_t), intent(inout) :: this
-  class(new_serial_fe_space_t) , intent(in)    :: fe_space
+  class(serial_fe_space_t) , intent(in)    :: fe_space
   type(vef_accessor_t) :: vef
   call this%itfc_vef_iterator%create(fe_space%triangulation)
   call this%itfc_vef_iterator%current(vef)

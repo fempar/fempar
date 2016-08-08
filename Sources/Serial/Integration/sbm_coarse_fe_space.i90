@@ -223,7 +223,7 @@ subroutine coarse_fe_space_allocate_and_fill_ptr_dofs_per_fe_and_field (this, pt
   integer(ip)                      :: num_local_cells
   integer(ip)                      :: num_ghost_cells
   type(par_environment_t), pointer :: par_environment
-  type(element_import_t) , pointer :: element_import
+  type(cell_import_t) , pointer :: cell_import
 
   par_environment => this%get_par_environment()
 
@@ -241,15 +241,15 @@ subroutine coarse_fe_space_allocate_and_fill_ptr_dofs_per_fe_and_field (this, pt
      this%ptr_dofs_per_fe_and_field(i+1) = ptr_dofs_per_fe_and_field(i+1) - ptr_dofs_per_fe_and_field(i)
   end do
 
-  element_import => this%coarse_triangulation%get_element_import()
-  call par_environment%l1_neighbours_exchange ( element_import%get_number_neighbours(), &
-                                                element_import%get_neighbours_ids(),&
-                                                element_import%get_rcv_ptrs(),&
-                                                element_import%get_rcv_leids(),&
-                                                element_import%get_number_neighbours(), &
-                                                element_import%get_neighbours_ids(),&
-                                                element_import%get_snd_ptrs(),&
-                                                element_import%get_snd_leids(),&
+  cell_import => this%coarse_triangulation%get_cell_import()
+  call par_environment%l1_neighbours_exchange ( cell_import%get_number_neighbours(), &
+                                                cell_import%get_neighbours_ids(),&
+                                                cell_import%get_rcv_ptrs(),&
+                                                cell_import%get_rcv_leids(),&
+                                                cell_import%get_number_neighbours(), &
+                                                cell_import%get_neighbours_ids(),&
+                                                cell_import%get_snd_ptrs(),&
+                                                cell_import%get_snd_leids(),&
                                                 this%ptr_dofs_per_fe_and_field(2:), &
                                                 chunk_size = this%number_fields )
   this%ptr_dofs_per_fe_and_field(1) = 1
@@ -290,7 +290,7 @@ subroutine coarse_fe_space_fetch_ghost_fes_data(this, &
   integer(ip)                      :: coarse_fe_id, spos, epos
   integer(ip)                      :: start_buf, end_buf, current, i, j, number_neighbours
   type(par_environment_t), pointer :: par_environment
-  type(element_import_t) , pointer :: element_import
+  type(cell_import_t) , pointer :: cell_import
   integer(ip)                      :: num_local_cells
   integer(ip)                      :: num_ghost_cells
 
@@ -320,12 +320,12 @@ subroutine coarse_fe_space_fetch_ghost_fes_data(this, &
                   __FILE__, &
                   __LINE__ )
 
-  element_import  => this%coarse_triangulation%get_element_import()
-  number_neighbours = element_import%get_number_neighbours()
-  snd_ptrs => element_import%get_snd_ptrs()
-  rcv_ptrs => element_import%get_rcv_ptrs()
-  snd_leids => element_import%get_snd_leids()
-  rcv_leids => element_import%get_rcv_leids()
+  cell_import  => this%coarse_triangulation%get_cell_import()
+  number_neighbours = cell_import%get_number_neighbours()
+  snd_ptrs => cell_import%get_snd_ptrs()
+  rcv_ptrs => cell_import%get_rcv_ptrs()
+  snd_leids => cell_import%get_snd_leids()
+  rcv_leids => cell_import%get_rcv_leids()
 
   call memalloc ( number_neighbours+1, snd_ptrs_buf, __FILE__, __LINE__ )
   call memalloc ( number_neighbours+1, rcv_ptrs_buf, __FILE__, __LINE__ )
@@ -391,7 +391,7 @@ subroutine coarse_fe_space_fetch_ghost_fes_data(this, &
 
   ! Exchange data with nearest neighbours
   call par_environment%l1_neighbours_exchange ( number_neighbours,&
-                                                element_import%get_neighbours_ids(),&
+                                                cell_import%get_neighbours_ids(),&
                                                 snd_ptrs_buf,&
                                                 snd_buf,&
                                                 rcv_ptrs_buf,&
@@ -912,7 +912,7 @@ function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, 
   logical, allocatable                :: touched_neighbours(:)
   type(par_context_t)    , pointer    :: l1_context
   type(par_environment_t), pointer    :: par_environment
-  type(element_import_t)  , pointer   :: element_import
+  type(cell_import_t)    , pointer    :: cell_import
   type(itfc_coarse_fe_vef_iterator_t) :: itfc_coarse_fe_vef_iterator
   type(coarse_fe_vef_accessor_t)      :: coarse_fe_vef
   type(coarse_fe_accessor_t)          :: coarse_fe
@@ -926,9 +926,9 @@ function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, 
   
   l1_context => par_environment%get_l1_context()
   mypart_id = l1_context%get_rank() + 1 
-  element_import => this%coarse_triangulation%get_element_import()
+  cell_import => this%coarse_triangulation%get_cell_import()
   
-  call memalloc ( element_import%get_number_neighbours(), &
+  call memalloc ( cell_import%get_number_neighbours(), &
                   touched_neighbours, &
                   __FILE__, __LINE__ )
 
@@ -940,7 +940,7 @@ function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, 
     do ielem=1, coarse_fe_vef%get_num_coarse_fes_around()
        coarse_fe = coarse_fe_vef%get_coarse_fe_around(ielem)
        if ( coarse_fe%get_mypart() /= mypart_id ) then
-          local_part_id = element_import%get_local_neighbour_id(coarse_fe%get_mypart())
+          local_part_id = cell_import%get_local_neighbour_id(coarse_fe%get_mypart())
           if (.not. touched_neighbours (local_part_id)) then
              touched_neighbours (local_part_id) = .true.
              ivef = coarse_fe%find_lpos_vef_lid(coarse_fe_vef%get_lid())
@@ -990,7 +990,7 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
   integer(ip)               :: base_pos_lst_dofs
   type(par_context_t)    , pointer :: l1_context
   type(par_environment_t), pointer :: par_environment
-  type(element_import_t) , pointer :: element_import
+  type(cell_import_t) , pointer :: cell_import
   type(itfc_coarse_fe_vef_iterator_t) :: itfc_coarse_fe_vef_iterator
   type(coarse_fe_vef_accessor_t)      :: coarse_fe_vef
   type(list_iterator_t)               :: own_dofs_on_vef_iterator
@@ -1003,15 +1003,15 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )  
   
-  element_import => this%coarse_triangulation%get_element_import()
+  cell_import => this%coarse_triangulation%get_cell_import()
   l1_context => par_environment%get_l1_context()
   mypart_id = l1_context%get_rank() + 1
 
   call memalloc ( ubound_num_itfc_couplings, dofs_max_part_id, __FILE__, __LINE__ )
-  call memalloc ( element_import%get_number_neighbours(), &
+  call memalloc ( cell_import%get_number_neighbours(), &
                   touched_neighbours, &
                   __FILE__, __LINE__ )
-  call memalloc ( element_import%get_number_neighbours(), &
+  call memalloc ( cell_import%get_number_neighbours(), &
                   parts_visited, &
                   __FILE__, __LINE__ )
   
@@ -1029,7 +1029,7 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
         coarse_fe = coarse_fe_vef%get_coarse_fe_around(ielem)
         part_id = coarse_fe%get_mypart()
         if ( part_id /= mypart_id ) then 
-           local_part_id = element_import%get_local_neighbour_id(part_id)
+           local_part_id = cell_import%get_local_neighbour_id(part_id)
            if ( .not. touched_neighbours(local_part_id) ) then
               touched_neighbours (local_part_id) = .true.
               num_parts = num_parts + 1

@@ -36,12 +36,12 @@ function bst_get_par_environment ( this )
   bst_get_par_environment => this%p_env
 end function bst_get_par_environment
 
-function bst_get_element_import ( this )
+function bst_get_cell_import ( this )
   implicit none
   class(base_static_triangulation_t), target, intent(in) :: this
-  type(element_import_t), pointer                            :: bst_get_element_import
-  bst_get_element_import => this%element_import
-end function bst_get_element_import 
+  type(cell_import_t), pointer                            :: bst_get_cell_import
+  bst_get_cell_import => this%cell_import
+end function bst_get_cell_import 
 
 function bst_get_coarse_triangulation ( this )
   implicit none
@@ -195,14 +195,14 @@ subroutine bst_allocate_and_fill_ptr_vefs_per_cell (this, ptr_vefs_per_cell)
     ! write(*,*) this%element_import%get_snd_ptrs()
     ! write(*,*) this%element_import%get_snd_leids()
 
-    call this%p_env%l1_neighbours_exchange ( this%element_import%get_number_neighbours(), &
-                                             this%element_import%get_neighbours_ids(),&
-                                             this%element_import%get_rcv_ptrs(),&
-                                             this%element_import%get_rcv_leids(),&
-                                             this%element_import%get_number_neighbours(), &
-                                             this%element_import%get_neighbours_ids(),&
-                                             this%element_import%get_snd_ptrs(),&
-                                             this%element_import%get_snd_leids(),&
+    call this%p_env%l1_neighbours_exchange ( this%cell_import%get_number_neighbours(), &
+                                             this%cell_import%get_neighbours_ids(),&
+                                             this%cell_import%get_rcv_ptrs(),&
+                                             this%cell_import%get_rcv_leids(),&
+                                             this%cell_import%get_number_neighbours(), &
+                                             this%cell_import%get_neighbours_ids(),&
+                                             this%cell_import%get_snd_ptrs(),&
+                                             this%cell_import%get_snd_leids(),&
                                              this%ptr_vefs_per_cell(2:) )
     this%ptr_vefs_per_cell(1) = 1
     do icell = 1, this%num_local_cells+this%num_ghost_cells
@@ -330,11 +330,11 @@ end subroutine bst_free_cells_mypart
                     __FILE__, &
                     __LINE__ )
       
-    number_neighbours = this%element_import%get_number_neighbours()
-    snd_ptrs => this%element_import%get_snd_ptrs()
-    rcv_ptrs => this%element_import%get_rcv_ptrs()
-    snd_leids => this%element_import%get_snd_leids()
-    rcv_leids => this%element_import%get_rcv_leids()
+    number_neighbours = this%cell_import%get_number_neighbours()
+    snd_ptrs => this%cell_import%get_snd_ptrs()
+    rcv_ptrs => this%cell_import%get_rcv_ptrs()
+    snd_leids => this%cell_import%get_snd_leids()
+    rcv_leids => this%cell_import%get_rcv_leids()
     
     call memalloc ( number_neighbours+1, snd_ptrs_buf, __FILE__, __LINE__ )
     call memalloc ( number_neighbours+1, rcv_ptrs_buf, __FILE__, __LINE__ )
@@ -409,7 +409,7 @@ end subroutine bst_free_cells_mypart
      
      ! Exchange data with nearest neighbours
      call this%p_env%l1_neighbours_exchange ( number_neighbours,&
-                                              this%element_import%get_neighbours_ids(),&
+                                              this%cell_import%get_neighbours_ids(),&
                                               snd_ptrs_buf,&
                                               snd_buf,&
                                               rcv_ptrs_buf,&
@@ -780,7 +780,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     
     mypart_id = this%p_env%get_l1_rank() + 1 
    
-    num_neighbours = this%element_import%get_number_neighbours()    
+    num_neighbours = this%cell_import%get_number_neighbours()    
     call memalloc ( num_neighbours, touched_neighbours, __FILE__, __LINE__ )
     
     ! The two extra rows in parts_per_itfc_vef are required in order to: (1) hold the number of parts around an interface vef
@@ -804,7 +804,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
         call current_itfc_vef%get_cell_around(icell,cell)
         part_id       = cell%get_mypart()
         if ( part_id /= mypart_id ) then
-         local_part_id = this%element_import%get_local_neighbour_id(part_id)
+         local_part_id = this%cell_import%get_local_neighbour_id(part_id)
          if (.not. touched_neighbours (local_part_id)) then
            touched_neighbours (local_part_id) = .true.
            nparts_around = nparts_around + 1 
@@ -989,7 +989,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     if (allocated(pack_idx)) call memfree(pack_idx,__FILE__,__LINE__)
     
     my_part_id     = this%p_env%get_l1_rank() + 1
-    num_neighbours = this%element_import%get_number_neighbours()  
+    num_neighbours = this%cell_import%get_number_neighbours()  
     
     call position_parts_rcv%init(num_neighbours)
     call position_parts_snd%init(num_neighbours)
@@ -1423,12 +1423,12 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     integer(ip) :: num_neighbours
     assert ( this%p_env%am_i_l1_to_l2_task() )
     if (this%p_env%am_i_l1_task()) then
-      num_neighbours = this%element_import%get_number_neighbours()
+      num_neighbours = this%cell_import%get_number_neighbours()
       my_l2_part_id  = this%p_env%get_l2_part_id_l1_task_is_mapped_to()
       if (allocated(l2_part_id_neighbours)) call memfree ( l2_part_id_neighbours, __FILE__, __LINE__ )
       call memalloc ( num_neighbours, l2_part_id_neighbours, __FILE__, __LINE__ )
       call this%p_env%l1_neighbours_exchange ( num_neighbours  = num_neighbours, &
-                                               list_neighbours = this%element_import%get_neighbours_ids(), &
+                                               list_neighbours = this%cell_import%get_neighbours_ids(), &
                                                input_data      = my_l2_part_id,&
                                                output_data     = l2_part_id_neighbours)
     end if
@@ -1440,7 +1440,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
                                                                             displs )
     implicit none
     class(base_static_triangulation_t), intent(in)    :: this
-    integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%element_import%get_number_neighbours())
+    integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%cell_import%get_number_neighbours())
     integer(ip) , allocatable , intent(inout) :: recv_counts(:) 
     integer(ip) , allocatable , intent(inout) :: displs(:)
     integer(ip) :: i
@@ -1465,7 +1465,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       end do
     else
       assert ( this%p_env%am_i_l1_task() )
-      num_neighbours = this%element_import%get_number_neighbours()
+      num_neighbours = this%cell_import%get_number_neighbours()
       my_l2_part_id  = this%p_env%get_l2_part_id_l1_task_is_mapped_to()
       num_external_l2_elements = 0
       do i = 1, num_neighbours
@@ -1486,7 +1486,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
                                                                      lextp)
     implicit none
     class(base_static_triangulation_t), intent(in)    :: this
-    integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%element_import%get_number_neighbours())
+    integer(ip)               , intent(in)    :: l2_part_id_neighbours(this%cell_import%get_number_neighbours())
     integer(ip)               , intent(in)    :: recv_counts(this%p_env%get_l1_to_l2_size()) 
     integer(ip)               , intent(in)    :: displs(this%p_env%get_l1_to_l2_size())
     integer(ip), allocatable  , intent(inout) :: lextn(:)
@@ -1523,8 +1523,8 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
                                          output_data     = lextp )
     else
       assert ( this%p_env%am_i_l1_task() )
-      num_neighbours =  this%element_import%get_number_neighbours()
-      neighbours_ids => this%element_import%get_neighbours_ids()
+      num_neighbours =  this%cell_import%get_number_neighbours()
+      neighbours_ids => this%cell_import%get_neighbours_ids()
       my_l2_part_id  = this%p_env%get_l2_part_id_l1_task_is_mapped_to()
       num_external_l2_elements = 0
       do i = 1, num_neighbours
@@ -1536,7 +1536,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
       call memalloc (num_external_l2_elements, lst_external_l2_part_ids, __FILE__, __LINE__)
       call memalloc (num_external_l2_elements, lst_external_l2_element_gids,__FILE__, __LINE__)
       num_external_l2_elements = 0
-      neighbours_ids => this%element_import%get_neighbours_ids()
+      neighbours_ids => this%cell_import%get_neighbours_ids()
       do i = 1, num_neighbours
         if ( my_l2_part_id /= l2_part_id_neighbours(i) ) then
           num_external_l2_elements = num_external_l2_elements + 1
@@ -1753,7 +1753,7 @@ subroutine bst_print ( this )
         call this%free_cells_gid()
         call this%free_cells_mypart() 
         
-        call this%element_import%free()
+        call this%cell_import%free()
         this%num_local_cells = -1
         this%num_ghost_cells = -1
      

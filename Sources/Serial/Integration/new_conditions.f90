@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module new_conditions_names
+module conditions_names
   use types_names
   use function_names
   implicit none
@@ -35,40 +35,40 @@ module new_conditions_names
   ! Data type which is pretended to be extended by the user s.t.
   ! he might customize which function to be imposed on each boundary
   ! indicator + component combination
-  type, abstract :: new_conditions_t
+  type, abstract :: conditions_t
    contains
      procedure(get_number_components_interface), deferred :: get_number_components
      procedure(get_components_code_interface)  , deferred :: get_components_code
      procedure(get_function_interface)         , deferred :: get_function
-  end type new_conditions_t
+  end type conditions_t
 
   ! Types
-  public :: new_conditions_t
+  public :: conditions_t
   
   abstract interface
      function get_number_components_interface(this)
-       import :: new_conditions_t, ip
+       import :: conditions_t, ip
        implicit none
-       class(new_conditions_t), intent(in) :: this
+       class(conditions_t), intent(in) :: this
        integer(ip) :: get_number_components_interface
      end function get_number_components_interface
 
      subroutine get_components_code_interface(this, boundary_id, components_code)
-       import :: new_conditions_t, ip
+       import :: conditions_t, ip
        implicit none
-       class(new_conditions_t), intent(in)  :: this
+       class(conditions_t), intent(in)  :: this
        integer(ip)            , intent(in)  :: boundary_id
        logical                , intent(out) :: components_code(:)
      end subroutine get_components_code_interface
   
      subroutine get_function_interface ( this, boundary_id, component_id, function )
-       import :: new_conditions_t, ip, scalar_function_t
+       import :: conditions_t, ip, scalar_function_t
        implicit none
-       class(new_conditions_t), target  , intent(in)  :: this
+       class(conditions_t), target  , intent(in)  :: this
        integer(ip)                      , intent(in)  :: boundary_id
        integer(ip)                      , intent(in)  :: component_id
        class(scalar_function_t), pointer, intent(out) :: function
      end subroutine get_function_interface 
   end interface
   
-end module new_conditions_names
+end module conditions_names

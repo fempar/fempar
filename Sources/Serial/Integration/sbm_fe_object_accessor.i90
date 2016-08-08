@@ -29,7 +29,7 @@ subroutine fe_object_accessor_create ( this, lid, fe_space )
   implicit none
   class(fe_object_accessor_t)            , intent(inout) :: this
   integer(ip)                            , intent(in)    :: lid
-  type(new_par_fe_space_t), target       , intent(in)    :: fe_space
+  type(par_fe_space_t), target       , intent(in)    :: fe_space
   call this%free()
   call this%object_accessor_t%create(lid, fe_space%triangulation)
   this%fe_space => fe_space

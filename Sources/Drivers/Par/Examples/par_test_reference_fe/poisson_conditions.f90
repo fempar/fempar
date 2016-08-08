@@ -31,7 +31,7 @@ module poisson_conditions_names
   implicit none
 # include "debug.i90"
   private
-  type, extends(new_conditions_t) :: poisson_conditions_t
+  type, extends(conditions_t) :: poisson_conditions_t
      private
      type(constant_scalar_function_t) :: constant_scalar_function
    contains

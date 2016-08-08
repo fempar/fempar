@@ -1,11 +1,11 @@
-module par_test_reference_fe_params_names
+module par_test_poisson_params_names
   use serial_names
   implicit none
 #include "debug.i90" 
   private
   
   ! Types
-  type par_test_reference_fe_params_t
+  type par_test_poisson_params_t
      private
   
      ! IO parameters
@@ -20,50 +20,50 @@ module par_test_reference_fe_params_names
  
      type(Command_Line_Interface)  :: cli
   contains
-     procedure, non_overridable             :: create       => par_test_reference_fe_params_create
-     procedure, non_overridable, private    :: set_default  => par_test_reference_fe_params_set_default
-     procedure, non_overridable, private    :: add_to_cli   => par_test_reference_fe_params_add_to_cli
-     procedure, non_overridable             :: parse        => par_test_reference_fe_params_parse 
-     procedure, non_overridable             :: free         => par_test_reference_fe_params_free
+     procedure, non_overridable             :: create       => par_test_poisson_params_create
+     procedure, non_overridable, private    :: set_default  => par_test_poisson_params_set_default
+     procedure, non_overridable, private    :: add_to_cli   => par_test_poisson_params_add_to_cli
+     procedure, non_overridable             :: parse        => par_test_poisson_params_parse 
+     procedure, non_overridable             :: free         => par_test_poisson_params_free
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_nparts
-  end type par_test_reference_fe_params_t
+  end type par_test_poisson_params_t
 
   ! Types
-  public :: par_test_reference_fe_params_t
+  public :: par_test_poisson_params_t
 
 contains
-  subroutine par_test_reference_fe_params_create ( this )
+  subroutine par_test_poisson_params_create ( this )
     implicit none
-    class(par_test_reference_fe_params_t), intent(inout) :: this
+    class(par_test_poisson_params_t), intent(inout) :: this
      
     call this%free()
     
     ! Initialize Command Line Interface
-    call this%cli%init(progname    = 'par_test_reference_fe', &
+    call this%cli%init(progname    = 'par_test_poisson', &
          &             version     = '', &
          &             authors     = '', &
          &             license     = '', &
          &             description = "FEMPAR parallel test driver", &
-         &             examples    = ['par_test_reference_fe -h'] )
+         &             examples    = ['par_test_poisson -h'] )
     call this%set_default()
     call this%add_to_cli()
-  end subroutine par_test_reference_fe_params_create 
+  end subroutine par_test_poisson_params_create 
 
   !==================================================================================================
-  subroutine par_test_reference_fe_params_set_default(this)
+  subroutine par_test_poisson_params_set_default(this)
     implicit none
-    class(par_test_reference_fe_params_t), intent(inout) :: this
+    class(par_test_poisson_params_t), intent(inout) :: this
     this%default_dir_path     = 'PARTS_4/'
     this%default_prefix       = 'square'
     this%default_nparts       = '4'
-  end subroutine par_test_reference_fe_params_set_default
+  end subroutine par_test_poisson_params_set_default
 
   !==================================================================================================
-  subroutine par_test_reference_fe_params_add_to_cli(this)
+  subroutine par_test_poisson_params_add_to_cli(this)
     implicit none
-    class(par_test_reference_fe_params_t), intent(inout) :: this
+    class(par_test_poisson_params_t), intent(inout) :: this
     integer(ip) :: error
 
     ! Set Command Line Arguments
@@ -79,33 +79,33 @@ contains
     call this%cli%add(switch='--nparts',switch_ab='-nparts',help='Number of parts in which the problem was split.',& 
                        & required=.false., act='store', def=trim(this%default_nparts), error=error)
     check(error==0)
-  end subroutine par_test_reference_fe_params_add_to_cli
+  end subroutine par_test_poisson_params_add_to_cli
 
   !==================================================================================================
-  subroutine par_test_reference_fe_params_parse(this)
+  subroutine par_test_poisson_params_parse(this)
     implicit none
-    class(par_test_reference_fe_params_t), intent(inout) :: this
+    class(par_test_poisson_params_t), intent(inout) :: this
     integer(ip) :: error
     call this%cli%parse(error=error)
     check(error==0)
     call this%cli%get(switch='-dir-path',val=this%dir_path,error=error); check(error==0)
     call this%cli%get(switch='-prefix',val=this%prefix,error=error); check(error==0)
     call this%cli%get(switch='-nparts',val=this%nparts,error=error); check(error==0)
-  end subroutine par_test_reference_fe_params_parse
+  end subroutine par_test_poisson_params_parse
   
-  subroutine par_test_reference_fe_params_free(this)
+  subroutine par_test_poisson_params_free(this)
     implicit none
-    class(par_test_reference_fe_params_t), intent(inout) :: this
+    class(par_test_poisson_params_t), intent(inout) :: this
     if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
     if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
     if(allocated(this%default_nparts)) deallocate(this%default_nparts)
     call this%cli%free()
-  end subroutine par_test_reference_fe_params_free
+  end subroutine par_test_poisson_params_free
   
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
     implicit none
-    class(par_test_reference_fe_params_t) , intent(in) :: this
+    class(par_test_poisson_params_t) , intent(in) :: this
     character(len=256) :: get_dir_path
     get_dir_path = this%dir_path
   end function get_dir_path
@@ -113,7 +113,7 @@ contains
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(par_test_reference_fe_params_t) , intent(in) :: this
+    class(par_test_poisson_params_t) , intent(in) :: this
     character(len=256) :: get_prefix
     get_prefix = this%prefix
   end function get_prefix
@@ -121,9 +121,9 @@ contains
   !==================================================================================================
   function get_nparts(this)
     implicit none
-    class(par_test_reference_fe_params_t) , intent(in) :: this
+    class(par_test_poisson_params_t) , intent(in) :: this
     integer(ip) :: get_nparts
     get_nparts = this%nparts
   end function get_nparts
   
-end module par_test_reference_fe_params_names
+end module par_test_poisson_params_names

@@ -1,8 +1,8 @@
-program par_test_reference_fe
+program par_test_poisson
   use serial_names
-  use par_test_reference_fe_driver_names
+  use par_test_poisson_driver_names
   implicit none
-  type(par_test_reference_fe_driver_t)     :: test_driver  
+  type(par_test_poisson_fe_driver_t)     :: test_driver  
   call fempar_init()  
   call test_driver%run_simulation()
   call fempar_finalize()
@@ -336,4 +336,4 @@ contains
   !  end do
   !end function  ijk_to_global
   
-end program par_test_reference_fe
+end program par_test_poisson

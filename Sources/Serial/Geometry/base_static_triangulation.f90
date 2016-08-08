@@ -33,7 +33,7 @@ module base_static_triangulation_names
   use reference_fe_names
   use reference_fe_factory_names
   use field_names
-  use element_import_names
+  use cell_import_names
   use hash_table_names
   use list_types_names
   use mesh_names
@@ -335,7 +335,7 @@ module base_static_triangulation_names
 
      ! Data type describing the layout in distributed-memory of the dual graph
      ! (It is required, e.g., for nearest neighbour comms on this graph)
-     type(element_import_t)                :: element_import   
+     type(cell_import_t)                   :: cell_import   
      
      ! Data structures to store vef related information
      integer(ip)                           :: num_vefs = -1        ! = num_local_vefs + num_ghost_vefs 
@@ -385,7 +385,7 @@ module base_static_triangulation_names
 
      ! Getters
      procedure, non_overridable          :: get_par_environment                 => bst_get_par_environment
-     procedure, non_overridable          :: get_element_import                  => bst_get_element_import
+     procedure, non_overridable          :: get_cell_import                     => bst_get_cell_import
      procedure, non_overridable          :: get_coarse_triangulation            => bst_get_coarse_triangulation
      procedure, non_overridable          :: get_num_dimensions                  => bst_get_num_dimensions
      procedure, non_overridable          :: get_num_vefs                        => bst_get_num_vefs 
@@ -492,11 +492,11 @@ module base_static_triangulation_names
      procedure, non_overridable          :: create                              => serial_triangulation_create
   end type serial_triangulation_t
   
-  type, extends(fine_triangulation_t) :: new_par_triangulation_t
+  type, extends(fine_triangulation_t) :: par_triangulation_t
   contains
      procedure, non_overridable          :: create                              => par_triangulation_create
      procedure, non_overridable, private :: allocate_and_fill_lst_vefs_lids     => par_triangulation_allocate_and_fill_lst_vefs_lids 
-  end type new_par_triangulation_t
+  end type par_triangulation_t
 
   
   type, extends(base_static_triangulation_t) :: coarse_triangulation_t
@@ -514,7 +514,7 @@ module base_static_triangulation_names
   public :: base_static_triangulation_t
   public :: serial_triangulation_t
   public :: coarse_triangulation_t 
-  public :: new_par_triangulation_t
+  public :: par_triangulation_t
   public :: cell_iterator_t, vef_iterator_t, face_iterator_t, itfc_vef_iterator_t, object_iterator_t, vefs_on_object_iterator_t
   public :: cell_accessor_t, vef_accessor_t, face_accessor_t, object_accessor_t
   

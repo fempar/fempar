@@ -64,7 +64,7 @@
       ! in order to determine the number of ghost elements. This
       ! in turn is required as a precondition for the allocate_cell_array
       ! TBP below.
-      call this%element_import%create  ( this%p_env%get_l1_rank()+1, &
+      call this%cell_import%create  ( this%p_env%get_l1_rank()+1, &
                                          this%p_env%get_l1_size(), &
                                          num_local_cells, &
                                          num_itfc_cells, &
@@ -74,7 +74,7 @@
                                          lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
       this%num_dimensions  = num_dimensions      
       this%num_local_cells = num_local_cells
-      this%num_ghost_cells = this%element_import%get_number_ghost_elements()
+      this%num_ghost_cells = this%cell_import%get_number_ghost_elements()
       
       ! Allocate + fill cells-related data
       call this%allocate_and_fill_ptr_vefs_per_cell(ptr_vefs_per_cell)
@@ -244,14 +244,14 @@ subroutine coarse_triangulation_print ( this )
       this%ptr_vefs_per_cell(icell+1) = ptr_vefs_per_cell(icell+1) - ptr_vefs_per_cell(icell)
     end do
    
-    call this%p_env%l1_neighbours_exchange ( this%element_import%get_number_neighbours(), &
-                                             this%element_import%get_neighbours_ids(),&
-                                             this%element_import%get_rcv_ptrs(),&
-                                             this%element_import%get_rcv_leids(),&
-                                             this%element_import%get_number_neighbours(), &
-                                             this%element_import%get_neighbours_ids(),&
-                                             this%element_import%get_snd_ptrs(),&
-                                             this%element_import%get_snd_leids(),&
+    call this%p_env%l1_neighbours_exchange ( this%cell_import%get_number_neighbours(), &
+                                             this%cell_import%get_neighbours_ids(),&
+                                             this%cell_import%get_rcv_ptrs(),&
+                                             this%cell_import%get_rcv_leids(),&
+                                             this%cell_import%get_number_neighbours(), &
+                                             this%cell_import%get_neighbours_ids(),&
+                                             this%cell_import%get_snd_ptrs(),&
+                                             this%cell_import%get_snd_leids(),&
                                              this%ptr_vefs_per_cell(2:) )
     this%ptr_vefs_per_cell(1) = 1
     do icell = 1, this%num_local_cells+this%num_ghost_cells
@@ -372,11 +372,11 @@ subroutine coarse_triangulation_print ( this )
                     __FILE__, &
                     __LINE__ )
       
-    number_neighbours = this%element_import%get_number_neighbours()
-    snd_ptrs => this%element_import%get_snd_ptrs()
-    rcv_ptrs => this%element_import%get_rcv_ptrs()
-    snd_leids => this%element_import%get_snd_leids()
-    rcv_leids => this%element_import%get_rcv_leids()
+    number_neighbours = this%cell_import%get_number_neighbours()
+    snd_ptrs => this%cell_import%get_snd_ptrs()
+    rcv_ptrs => this%cell_import%get_rcv_ptrs()
+    snd_leids => this%cell_import%get_snd_leids()
+    rcv_leids => this%cell_import%get_rcv_leids()
     
     call memalloc ( number_neighbours+1, snd_ptrs_buf, __FILE__, __LINE__ )
     call memalloc ( number_neighbours+1, rcv_ptrs_buf, __FILE__, __LINE__ )
@@ -441,7 +441,7 @@ subroutine coarse_triangulation_print ( this )
      
      ! Exchange data with nearest neighbours
      call this%p_env%l1_neighbours_exchange ( number_neighbours,&
-                                              this%element_import%get_neighbours_ids(),&
+                                              this%cell_import%get_neighbours_ids(),&
                                               snd_ptrs_buf,&
                                               snd_buf,&
                                               rcv_ptrs_buf,&

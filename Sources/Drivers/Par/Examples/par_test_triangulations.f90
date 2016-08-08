@@ -97,7 +97,7 @@ program par_test_triangulations
   ! Our data
   type(par_context_t)                    :: w_context
   type(par_environment_t)                :: p_env
-  type(new_par_triangulation_t)          :: triangulation
+  type(par_triangulation_t)          :: triangulation
   type(par_test_triangulations_params_t) :: test_params
 
   ! Arguments

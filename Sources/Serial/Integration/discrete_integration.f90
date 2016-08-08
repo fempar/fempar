@@ -30,7 +30,7 @@ module discrete_integration_names
   use reference_fe_names
   use types_names
   use matrix_array_assembler_names
-  use new_serial_fe_space_names
+  use fe_space_names
   use memor_names
 
   implicit none
@@ -50,10 +50,10 @@ module discrete_integration_names
 
   abstract interface
      subroutine integrate_serial_fe_space_interface ( this, fe_space, matrix_array_assembler  )
-       import :: discrete_integration_t, new_serial_fe_space_t, matrix_array_assembler_t
+       import :: discrete_integration_t, serial_fe_space_t, matrix_array_assembler_t
        implicit none
        class(discrete_integration_t)  , intent(in)    :: this
-       class(new_serial_fe_space_t)       , intent(inout) :: fe_space
+       class(serial_fe_space_t)       , intent(inout) :: fe_space
        class(matrix_array_assembler_t), intent(inout) :: matrix_array_assembler
      end subroutine integrate_serial_fe_space_interface
   end interface

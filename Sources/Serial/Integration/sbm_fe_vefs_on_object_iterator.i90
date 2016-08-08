@@ -29,7 +29,7 @@ subroutine fe_vefs_on_object_iterator_create ( this, lid, fe_space )
   implicit none
   class(fe_vefs_on_object_iterator_t), intent(inout) :: this
   integer(ip)                        ,    intent(in) :: lid
-  type(new_par_fe_space_t)           , intent(in)    :: fe_space
+  type(par_fe_space_t)           , intent(in)    :: fe_space
   type(vef_accessor_t)                               :: vef
   call this%free()
   this%vefs_on_object_iterator = fe_space%triangulation%create_vefs_on_object_iterator(lid)

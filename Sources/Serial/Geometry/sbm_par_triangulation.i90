@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, geometry_interpolation_order)
   implicit none
-  class(new_par_triangulation_t), intent(inout) :: this
+  class(par_triangulation_t), intent(inout) :: this
   type(par_environment_t),target, intent(in)    :: par_environment
   character (*)                 , intent(in)    :: dir_path
   character (*)                 , intent(in)    :: prefix
@@ -127,7 +127,7 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
      ! in order to determine the number of ghost elements. This
      ! in turn is required as a precondition for the allocate_cell_array
      ! TBP below.
-     call this%element_import%create  ( this%p_env%get_l1_rank()+1, &
+     call this%cell_import%create  ( this%p_env%get_l1_rank()+1, &
           this%p_env%get_l1_size(), &
           this%num_local_cells, &
           num_itfc_cells, &
@@ -135,7 +135,7 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
           ptr_ext_neighs_per_itfc_cell(1:num_itfc_cells+1), &
           lst_ext_neighs_gids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1), &
           lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
-     this%num_ghost_cells = this%element_import%get_number_ghost_elements()
+     this%num_ghost_cells = this%cell_import%get_number_ghost_elements()
      write(*,*) 'Get from import num_ghost_cells',this%num_ghost_cells
 
      ! Allocate + fill cells-related data
@@ -192,7 +192,7 @@ end subroutine par_triangulation_create
 
 subroutine par_triangulation_allocate_and_fill_lst_vefs_lids ( this, lst_vefs_lids, lst_vefs_gids)                                                     
   implicit none
-  class(new_par_triangulation_t), intent(inout) :: this
+  class(par_triangulation_t), intent(inout) :: this
   integer(ip)               , intent(in)    :: lst_vefs_lids(this%ptr_vefs_per_cell(this%num_local_cells+1)-1)
   integer(igp)              , intent(in)    :: lst_vefs_gids(this%ptr_vefs_per_cell(this%num_local_cells+this%num_ghost_cells+1)-1)
 

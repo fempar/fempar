@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module element_import_names
+module cell_import_names
   use types_names
   use memor_names
   use hash_table_names
@@ -37,7 +37,7 @@ module element_import_names
   ! Element_Import
   ! Host for data needed to perform nearest neighbour communications for
   ! the distributed dual graph associated to the triangulation
-  type element_import_t
+  type cell_import_t
      private
      integer(ip)               :: part_id
      integer(ip)               :: number_parts
@@ -51,33 +51,33 @@ module element_import_names
      integer(ip), allocatable  :: snd_leids(:)               ! Local elements IDs of the elements to be sent to each neighbour ?
   contains
      
-     procedure, private, non_overridable :: element_import_create_ip
-     procedure, private, non_overridable :: element_import_create_igp
-     generic                             :: create => element_import_create_ip, &
-                                                      element_import_create_igp
-     procedure, private, non_overridable :: compute_number_neighbours     => element_import_compute_number_neighbours
-     procedure, private, non_overridable :: compute_neighbours_ids        => element_import_compute_neighbour_ids
-     procedure, private, non_overridable :: compute_snd_rcv_ptrs          => element_import_compute_snd_rcv_ptrs
-     procedure, private, non_overridable :: compute_snd_rcv_leids         => element_import_compute_snd_rcv_leids
-     procedure, non_overridable :: free                                   => element_import_free
-     procedure, non_overridable :: print                                  => element_import_print
-     procedure, non_overridable :: get_number_ghost_elements              => element_import_get_number_ghost_elements
-     procedure, non_overridable :: get_number_neighbours                  => element_import_get_number_neighbours
-     procedure, non_overridable :: get_neighbours_ids                     => element_import_get_neighbours_ids
-     procedure, non_overridable :: get_rcv_ptrs                           => element_import_get_rcv_ptrs
-     procedure, non_overridable :: get_rcv_leids                          => element_import_get_rcv_leids
-     procedure, non_overridable :: get_snd_ptrs                           => element_import_get_snd_ptrs
-     procedure, non_overridable :: get_snd_leids                          => element_import_get_snd_leids
-     procedure, non_overridable :: get_global_neighbour_id                => element_import_get_global_neighbour_id
-     procedure, non_overridable :: get_local_neighbour_id                 => element_import_get_local_neighbour_id
-  end type element_import_t
+     procedure, private, non_overridable :: cell_import_create_ip
+     procedure, private, non_overridable :: cell_import_create_igp
+     generic                             :: create => cell_import_create_ip, &
+                                                      cell_import_create_igp
+     procedure, private, non_overridable :: compute_number_neighbours     => cell_import_compute_number_neighbours
+     procedure, private, non_overridable :: compute_neighbours_ids        => cell_import_compute_neighbour_ids
+     procedure, private, non_overridable :: compute_snd_rcv_ptrs          => cell_import_compute_snd_rcv_ptrs
+     procedure, private, non_overridable :: compute_snd_rcv_leids         => cell_import_compute_snd_rcv_leids
+     procedure, non_overridable :: free                                   => cell_import_free
+     procedure, non_overridable :: print                                  => cell_import_print
+     procedure, non_overridable :: get_number_ghost_elements              => cell_import_get_number_ghost_elements
+     procedure, non_overridable :: get_number_neighbours                  => cell_import_get_number_neighbours
+     procedure, non_overridable :: get_neighbours_ids                     => cell_import_get_neighbours_ids
+     procedure, non_overridable :: get_rcv_ptrs                           => cell_import_get_rcv_ptrs
+     procedure, non_overridable :: get_rcv_leids                          => cell_import_get_rcv_leids
+     procedure, non_overridable :: get_snd_ptrs                           => cell_import_get_snd_ptrs
+     procedure, non_overridable :: get_snd_leids                          => cell_import_get_snd_leids
+     procedure, non_overridable :: get_global_neighbour_id                => cell_import_get_global_neighbour_id
+     procedure, non_overridable :: get_local_neighbour_id                 => cell_import_get_local_neighbour_id
+  end type cell_import_t
 
   ! Types
-  public :: element_import_t
+  public :: cell_import_t
 
 contains
 
-  subroutine element_import_create_igp (this,                                 & ! Passed-object dummy argument
+  subroutine cell_import_create_igp (this,                                 & ! Passed-object dummy argument
                                         part_id,                              & ! My part identifier
                                         number_parts,                         & ! Number of parts
                                         number_elements,                      & ! Number of local elements
@@ -87,7 +87,7 @@ contains
                                         lst_ext_neighs_gids,    & ! List of GIDs of external neighbours
                                         lst_ext_neighs_part_ids ) ! Part IDs the external neighbours are mapped to
     implicit none
-    class(element_import_t)  , intent(inout) :: this
+    class(cell_import_t)  , intent(inout) :: this
     integer(ip)              , intent(in)    :: part_id
     integer(ip)              , intent(in)    :: number_parts
     integer(ip)              , intent(in)    :: number_elements
@@ -122,9 +122,9 @@ contains
                                      lst_ext_neighs_part_ids)
     
     this%number_ghost_elements = this%rcv_ptrs(this%number_neighbours+1)-1    
-  end subroutine element_import_create_igp
+  end subroutine cell_import_create_igp
   
-  subroutine element_import_create_ip (this,                                 & ! Passed-object dummy argument
+  subroutine cell_import_create_ip (this,                                 & ! Passed-object dummy argument
                                        part_id,                              & ! My part identifier
                                        number_parts,                         & ! Number of parts
                                        number_elements,                      & ! Number of local elements
@@ -134,7 +134,7 @@ contains
                                        lst_ext_neighs_gids,                  & ! List of GIDs of external neighbours
                                        lst_ext_neighs_part_ids )               ! Part IDs the external neighbours are mapped to
     implicit none
-    class(element_import_t)  , intent(inout) :: this
+    class(cell_import_t)  , intent(inout) :: this
     integer(ip)              , intent(in)    :: part_id
     integer(ip)              , intent(in)    :: number_parts
     integer(ip)              , intent(in)    :: number_elements
@@ -152,7 +152,7 @@ contains
     
     lst_ext_neighs_gids_igp = lst_ext_neighs_gids
     
-    call this%element_import_create_igp ( part_id, & 
+    call this%cell_import_create_igp ( part_id, & 
                                           number_parts, & 
                                           number_elements, & 
                                           num_itfc_elems, & 
@@ -162,14 +162,14 @@ contains
                                           lst_ext_neighs_part_ids )
     
     call memfree ( lst_ext_neighs_gids_igp, __FILE__, __LINE__)
-  end subroutine element_import_create_ip
+  end subroutine cell_import_create_ip
   
-  subroutine element_import_compute_number_neighbours ( this, &
+  subroutine cell_import_compute_number_neighbours ( this, &
                                                         num_itfc_elems, &
                                                         ptr_ext_neighs_per_itfc_elem, &
                                                         lst_ext_neighs_part_ids)
     implicit none
-    class(element_import_t), intent(inout) :: this
+    class(cell_import_t), intent(inout) :: this
     integer(ip)            , intent(in)    :: num_itfc_elems
     integer(ip)            , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
     integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
@@ -189,14 +189,14 @@ contains
     end do
     call parts_visited%free()
 
-  end subroutine element_import_compute_number_neighbours
+  end subroutine cell_import_compute_number_neighbours
 
-  subroutine element_import_compute_neighbour_ids ( this, &
+  subroutine cell_import_compute_neighbour_ids ( this, &
                                                     num_itfc_elems, &
                                                     ptr_ext_neighs_per_itfc_elem, &
                                                     lst_ext_neighs_part_ids)
     implicit none
-    class(element_import_t), intent(inout) :: this
+    class(cell_import_t), intent(inout) :: this
     integer(ip)            , intent(in)    :: num_itfc_elems
     integer(ip)            , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
     integer(ip)            , intent(in)    :: lst_ext_neighs_part_ids(ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)-1)
@@ -216,16 +216,16 @@ contains
        end if
     end do
     call parts_visited%free()
-  end subroutine element_import_compute_neighbour_ids
+  end subroutine cell_import_compute_neighbour_ids
 
-  subroutine element_import_compute_snd_rcv_ptrs (this, &
+  subroutine cell_import_compute_snd_rcv_ptrs (this, &
                                                   num_itfc_elems, &
                                                   lst_itfc_elems, &
                                                   ptr_ext_neighs_per_itfc_elem, &
                                                   lst_ext_neighs_gids, &
                                                   lst_ext_neighs_part_ids)
     implicit none
-    class(element_import_t), intent(inout) :: this
+    class(cell_import_t), intent(inout) :: this
     integer(ip)            , intent(in)    :: num_itfc_elems
     integer(ip)            , intent(in)    :: lst_itfc_elems(num_itfc_elems)
     integer(ip)            , intent(in)    :: ptr_ext_neighs_per_itfc_elem(num_itfc_elems+1)
@@ -279,9 +279,9 @@ contains
        this%rcv_ptrs(local_neighbour_id+1) = this%rcv_ptrs(local_neighbour_id) + this%rcv_ptrs(local_neighbour_id+1)
     end do
 
-  end subroutine element_import_compute_snd_rcv_ptrs
+  end subroutine cell_import_compute_snd_rcv_ptrs
 
-  subroutine element_import_compute_snd_rcv_leids (this, &
+  subroutine cell_import_compute_snd_rcv_leids (this, &
                                                    number_elements, &
                                                    num_itfc_elems, &
                                                    lst_itfc_elems, &
@@ -289,7 +289,7 @@ contains
                                                    lst_ext_neighs_gids, &
                                                    lst_ext_neighs_part_ids)
     implicit none
-    class(element_import_t), intent(inout) :: this
+    class(cell_import_t), intent(inout) :: this
     integer(ip)            , intent(in)    :: number_elements
     integer(ip)            , intent(in)    :: num_itfc_elems
     integer(ip)            , intent(in)    :: lst_itfc_elems(num_itfc_elems)
@@ -346,12 +346,12 @@ contains
     end do
     this%snd_ptrs(1) = 1
     this%rcv_ptrs(1) = 1
-  end subroutine element_import_compute_snd_rcv_leids
+  end subroutine cell_import_compute_snd_rcv_leids
   
   !=============================================================================
-  subroutine element_import_free ( this )
+  subroutine cell_import_free ( this )
     implicit none
-    class(element_import_t), intent(inout) :: this
+    class(cell_import_t), intent(inout) :: this
     if (allocated(this%neighbours_ids)) call memfree ( this%neighbours_ids,__FILE__,__LINE__)
     if (allocated(this%rcv_ptrs)) call memfree ( this%rcv_ptrs,__FILE__,__LINE__)
     if (allocated(this%rcv_leids)) call memfree ( this%rcv_leids,__FILE__,__LINE__)
@@ -361,23 +361,23 @@ contains
     this%number_parts      = -1
     this%number_ghost_elements     = -1
     this%number_neighbours = -1
-  end subroutine element_import_free
+  end subroutine cell_import_free
 
   !=============================================================================
-  subroutine element_import_print (this, lu_out)
+  subroutine cell_import_print (this, lu_out)
     !-----------------------------------------------------------------------
-    ! This routine prints an element_import object
+    ! This routine prints an cell_import object
     !-----------------------------------------------------------------------
     implicit none
     ! Parameters
-    class(element_import_t), intent(in)  :: this
+    class(cell_import_t), intent(in)  :: this
     integer(ip)            , intent(in)  :: lu_out
 
     ! Local variables
     integer (ip) :: i, j
 
     if(lu_out>0) then
-       write(lu_out,'(a)') '*** begin element_import_t data structure ***'
+       write(lu_out,'(a)') '*** begin cell_import_t data structure ***'
 
        write(lu_out,'(a,i10)') 'Number of parts:', &
             &  this%number_parts
@@ -402,76 +402,76 @@ contains
        write(lu_out,'(a)') 'Snd_leids:'
        write(lu_out,'(10i10)') this%snd_leids
     end if
-  end subroutine element_import_print
+  end subroutine cell_import_print
 
-  pure function element_import_get_number_ghost_elements ( this )
+  pure function cell_import_get_number_ghost_elements ( this )
     implicit none
-    class(element_import_t), intent(in) :: this
-    integer(ip)                      :: element_import_get_number_ghost_elements
-    element_import_get_number_ghost_elements = this%number_ghost_elements
-  end function element_import_get_number_ghost_elements
+    class(cell_import_t), intent(in) :: this
+    integer(ip)                      :: cell_import_get_number_ghost_elements
+    cell_import_get_number_ghost_elements = this%number_ghost_elements
+  end function cell_import_get_number_ghost_elements
   
-  pure function element_import_get_number_neighbours ( this )
+  pure function cell_import_get_number_neighbours ( this )
     implicit none
-    class(element_import_t), intent(in) :: this
-    integer(ip)                      :: element_import_get_number_neighbours
-    element_import_get_number_neighbours = this%number_neighbours
-  end function element_import_get_number_neighbours
+    class(cell_import_t), intent(in) :: this
+    integer(ip)                      :: cell_import_get_number_neighbours
+    cell_import_get_number_neighbours = this%number_neighbours
+  end function cell_import_get_number_neighbours
   
-  function element_import_get_neighbours_ids ( this )
+  function cell_import_get_neighbours_ids ( this )
     implicit none
-    class(element_import_t), target, intent(in) :: this
-    integer(ip), pointer                        :: element_import_get_neighbours_ids(:)
-    element_import_get_neighbours_ids => this%neighbours_ids
-  end function element_import_get_neighbours_ids
+    class(cell_import_t), target, intent(in) :: this
+    integer(ip), pointer                        :: cell_import_get_neighbours_ids(:)
+    cell_import_get_neighbours_ids => this%neighbours_ids
+  end function cell_import_get_neighbours_ids
   
-  function element_import_get_rcv_ptrs ( this )
+  function cell_import_get_rcv_ptrs ( this )
     implicit none
-    class(element_import_t), target, intent(in) :: this
-    integer(ip), pointer                        :: element_import_get_rcv_ptrs(:)
-    element_import_get_rcv_ptrs => this%rcv_ptrs
-  end function element_import_get_rcv_ptrs
+    class(cell_import_t), target, intent(in) :: this
+    integer(ip), pointer                        :: cell_import_get_rcv_ptrs(:)
+    cell_import_get_rcv_ptrs => this%rcv_ptrs
+  end function cell_import_get_rcv_ptrs
  
-  function element_import_get_rcv_leids ( this )
+  function cell_import_get_rcv_leids ( this )
     implicit none
-    class(element_import_t), target, intent(in) :: this
-    integer(ip), pointer                        :: element_import_get_rcv_leids(:)
-    element_import_get_rcv_leids => this%rcv_leids
-  end function element_import_get_rcv_leids
+    class(cell_import_t), target, intent(in) :: this
+    integer(ip), pointer                        :: cell_import_get_rcv_leids(:)
+    cell_import_get_rcv_leids => this%rcv_leids
+  end function cell_import_get_rcv_leids
   
-  function element_import_get_snd_ptrs ( this )
+  function cell_import_get_snd_ptrs ( this )
     implicit none
-    class(element_import_t), target, intent(in) :: this
-    integer(ip), pointer                        :: element_import_get_snd_ptrs(:)
-    element_import_get_snd_ptrs => this%snd_ptrs
-  end function element_import_get_snd_ptrs
+    class(cell_import_t), target, intent(in) :: this
+    integer(ip), pointer                        :: cell_import_get_snd_ptrs(:)
+    cell_import_get_snd_ptrs => this%snd_ptrs
+  end function cell_import_get_snd_ptrs
   
-  function element_import_get_snd_leids ( this )
+  function cell_import_get_snd_leids ( this )
     implicit none
-    class(element_import_t), target, intent(in) :: this
-    integer(ip), pointer                        :: element_import_get_snd_leids(:)
-    element_import_get_snd_leids => this%snd_leids
-  end function element_import_get_snd_leids
+    class(cell_import_t), target, intent(in) :: this
+    integer(ip), pointer                        :: cell_import_get_snd_leids(:)
+    cell_import_get_snd_leids => this%snd_leids
+  end function cell_import_get_snd_leids
   
-  function element_import_get_global_neighbour_id ( this, local_neighbour_id )
+  function cell_import_get_global_neighbour_id ( this, local_neighbour_id )
     implicit none
-    class(element_import_t), intent(in) :: this
+    class(cell_import_t), intent(in) :: this
     integer(ip)         , intent(in) :: local_neighbour_id
-    integer(ip)                      :: element_import_get_global_neighbour_id
+    integer(ip)                      :: cell_import_get_global_neighbour_id
     assert ( local_neighbour_id >=1 .and. local_neighbour_id <= this%number_neighbours )
-    element_import_get_global_neighbour_id = this%neighbours_ids(local_neighbour_id)
-  end function element_import_get_global_neighbour_id
+    cell_import_get_global_neighbour_id = this%neighbours_ids(local_neighbour_id)
+  end function cell_import_get_global_neighbour_id
   
-  function element_import_get_local_neighbour_id ( this, global_neighbour_id )
+  function cell_import_get_local_neighbour_id ( this, global_neighbour_id )
     implicit none
-    class(element_import_t), intent(in) :: this
+    class(cell_import_t), intent(in) :: this
     integer(ip)            , intent(in) :: global_neighbour_id
-    integer(ip)                      :: element_import_get_local_neighbour_id
+    integer(ip)                      :: cell_import_get_local_neighbour_id
         
-    do element_import_get_local_neighbour_id = 1, this%number_neighbours
-      if ( this%neighbours_ids(element_import_get_local_neighbour_id) == global_neighbour_id ) return
+    do cell_import_get_local_neighbour_id = 1, this%number_neighbours
+      if ( this%neighbours_ids(cell_import_get_local_neighbour_id) == global_neighbour_id ) return
     end do
-    assert ( .not. (element_import_get_local_neighbour_id == this%number_neighbours+1) )
-  end function element_import_get_local_neighbour_id
+    assert ( .not. (cell_import_get_local_neighbour_id == this%number_neighbours+1) )
+  end function cell_import_get_local_neighbour_id
   
-end module element_import_names
+end module cell_import_names

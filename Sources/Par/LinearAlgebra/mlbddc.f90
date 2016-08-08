@@ -34,8 +34,8 @@ module mlbddc_names
  
  ! Integration related modules
  use base_static_triangulation_names
- use new_serial_fe_space_names
- use new_fe_affine_operator_names
+ use fe_space_names
+ use fe_affine_operator_names
  
  ! Linear Algebra related modules
  use operator_names
@@ -98,7 +98,7 @@ module mlbddc_names
    private
  
    ! Pointer to the fe_affine_operator_t this mlbddc_t instance has been created from
-   type(new_fe_affine_operator_t)    , pointer :: fe_affine_operator => NULL()
+   type(fe_affine_operator_t)    , pointer :: fe_affine_operator => NULL()
    
    !**** BEGIN member variables which control coarse DoFs on top of coarse VEFs ****!
    !********************************************************************************!
@@ -453,8 +453,8 @@ contains
   subroutine mlbddc_create ( this, fe_affine_operator )
     implicit none
     class(mlbddc_t)                       , intent(inout) :: this
-    type(new_fe_affine_operator_t), target, intent(in)    :: fe_affine_operator
-    type(new_par_fe_space_t), pointer :: fe_space
+    type(fe_affine_operator_t), target, intent(in)    :: fe_affine_operator
+    type(par_fe_space_t), pointer :: fe_space
     
     call this%free()
     
@@ -515,7 +515,7 @@ contains
     implicit none
     class(mlbddc_t)                   , intent(inout) :: this
     type(par_environment_t), pointer :: par_environment
-    type(new_par_fe_space_t)   , pointer :: fe_space
+    type(par_fe_space_t)   , pointer :: fe_space
     integer(ip)                      :: i 
     
     assert ( this%am_i_l1_task() )
@@ -550,8 +550,8 @@ contains
   integer(igp), allocatable            :: lst_vefs_gids_dofs_objects(:)
   
   type(par_environment_t)  , pointer     :: par_environment
-  type(new_par_fe_space_t)     , pointer     :: fe_space
-  type(new_par_triangulation_t), pointer     :: triangulation
+  type(par_fe_space_t)     , pointer     :: fe_space
+  type(par_triangulation_t), pointer     :: triangulation
   
   par_environment => this%get_par_environment()
   fe_space        => this%get_fe_space()
@@ -608,7 +608,7 @@ subroutine mlbddc_transfer_number_fields ( this, number_fields )
   integer(ip)       , intent(out)            :: number_fields
   integer(ip)                                :: dummy_integer_ip
   type(par_environment_t), pointer           :: par_environment
-  type(new_par_fe_space_t), pointer              :: fe_space
+  type(par_fe_space_t), pointer              :: fe_space
 
   par_environment => this%get_par_environment()
   assert ( par_environment%am_i_l1_to_l2_task() )
@@ -631,7 +631,7 @@ subroutine mlbddc_transfer_field_type ( this, number_fields, field_type )
   integer(ip), allocatable, intent(inout) :: field_type(:)
   integer(ip)                             :: dummy_integer_array_ip(0)
   type(par_environment_t)  , pointer      :: par_environment
-  type(new_par_fe_space_t)     , pointer      :: fe_space
+  type(par_fe_space_t)     , pointer      :: fe_space
   
   par_environment => this%get_par_environment()
   fe_space        => this%get_fe_space()
@@ -656,8 +656,8 @@ subroutine mlbddc_gather_ptr_dofs_per_fe_and_field( this, number_fields, ptr_dof
   integer(ip)                             :: i, num_local_cells
   integer(ip)                             :: dummy_integer_array(0)
   type(par_environment_t)     , pointer   :: par_environment
-  type(new_par_fe_space_t)        , pointer   :: fe_space
-  type(new_par_triangulation_t)   , pointer   :: triangulation
+  type(par_fe_space_t)        , pointer   :: fe_space
+  type(par_triangulation_t)   , pointer   :: triangulation
   type(coarse_triangulation_t), pointer   :: coarse_triangulation
   
   par_environment => this%get_par_environment()  
@@ -725,7 +725,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     integer(ip)                               :: i, spos, epos
     integer(igp), allocatable                 :: buffer(:)
     type(par_environment_t)  , pointer        :: par_environment
-    type(new_par_fe_space_t)     , pointer        :: fe_space
+    type(par_fe_space_t)     , pointer        :: fe_space
     
     par_environment => this%get_par_environment()
     assert ( par_environment%am_i_l1_to_l2_task() )
@@ -771,8 +771,8 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     integer(ip)                               :: i, j, spos, epos
     integer(igp), allocatable                 :: buffer(:)
     type(par_environment_t)  , pointer        :: par_environment
-    type(new_par_fe_space_t)     , pointer    :: fe_space
-    type(new_par_triangulation_t), pointer    :: triangulation 
+    type(par_fe_space_t)     , pointer    :: fe_space
+    type(par_triangulation_t), pointer    :: triangulation 
     
     type(dof_object_iterator_t)        :: dofs_object_iterator
     type(dof_object_accessor_t)        :: dof_object
@@ -816,7 +816,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_symbolic_setup_dirichlet_problem ( this) 
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(new_par_fe_space_t)      , pointer       :: fe_space
+    type(par_fe_space_t)      , pointer       :: fe_space
     type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
     type(sparse_matrix_t)     , pointer       :: A
     
@@ -1020,7 +1020,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_numerical_setup_dirichlet_problem (this) 
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(new_par_fe_space_t)      , pointer       :: fe_space
+    type(par_fe_space_t)      , pointer       :: fe_space
     type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
     type(sparse_matrix_t)     , pointer       :: A
     
@@ -1060,7 +1060,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_numerical_constrained_neumann_problem(this)
    implicit none
    class(mlbddc_t)           , intent(inout) :: this
-   type(new_par_fe_space_t)      , pointer       :: fe_space
+   type(par_fe_space_t)      , pointer       :: fe_space
    type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
    type(sparse_matrix_t)     , pointer       :: A
     
@@ -1085,7 +1085,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_allocate_coarse_grid_basis ( this )
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
-    type(new_par_fe_space_t)      , pointer       :: fe_space
+    type(par_fe_space_t)      , pointer       :: fe_space
     assert ( this%am_i_l1_task() )
     fe_space => this%get_fe_space() 
     call this%free_coarse_grid_basis()
@@ -1099,7 +1099,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   subroutine mlbddc_setup_coarse_grid_basis ( this )
      implicit none
      class(mlbddc_t)           , intent(inout) :: this
-     type(new_par_fe_space_t)      , pointer       :: fe_space
+     type(par_fe_space_t)      , pointer       :: fe_space
      real(rp), allocatable                     :: work1(:,:)
      real(rp), allocatable                     :: work2(:,:)
      integer(ip)                               :: i, j
@@ -1945,7 +1945,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_t)            , intent(in)    :: this
     type(par_scalar_array_t)   , intent(in)    :: x
     type(par_scalar_array_t)   , intent(inout) :: y
-    type(new_par_fe_space_t)       , pointer :: par_fe_space
+    type(par_fe_space_t)       , pointer :: par_fe_space
     type(serial_scalar_array_t), pointer :: x_serial
     type(serial_scalar_array_t), pointer :: y_serial
     real(rp)                   , pointer :: y_serial_entries(:)
@@ -2027,7 +2027,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     type(par_scalar_array_t), intent(in)       :: x
     type(par_scalar_array_t), intent(inout)    :: x_I
     type(par_scalar_array_t), intent(inout)    :: x_G
-    type(new_par_fe_space_t), pointer :: par_fe_space
+    type(par_fe_space_t), pointer :: par_fe_space
     par_fe_space => this%get_fe_space()
     call x%create_view(1, &
                        par_fe_space%get_block_number_interior_dofs(1), &
@@ -2248,7 +2248,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     implicit none
     class(mlbddc_t)           , intent(in) :: this
     integer(ip)                               :: mlbddc_get_total_number_coarse_dofs
-    type(new_par_fe_space_t)     , pointer        :: fe_space
+    type(par_fe_space_t)     , pointer        :: fe_space
     integer(ip)                               :: field_id
     
     assert ( this%am_i_l1_task() )
@@ -2266,7 +2266,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     class(mlbddc_t)           , intent(in)    :: this
     integer(ip)               , intent(in)    :: block_id
     integer(ip)                               :: mlbddc_get_block_number_coarse_dofs 
-    type(new_par_fe_space_t)  , pointer       :: fe_space
+    type(par_fe_space_t)  , pointer       :: fe_space
     integer(ip)                               :: field_id
     integer(ip)               , pointer       :: field_blocks(:)
     assert ( this%am_i_l1_task() )
@@ -2321,11 +2321,11 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   function mlbddc_get_fe_space(this)
     implicit none
     class(mlbddc_t)          , intent(in) :: this
-    type(new_par_fe_space_t)     , pointer    :: mlbddc_get_fe_space
-    class(new_serial_fe_space_t) , pointer    :: fe_space
+    type(par_fe_space_t)     , pointer    :: mlbddc_get_fe_space
+    class(serial_fe_space_t) , pointer    :: fe_space
     fe_space => this%fe_affine_operator%get_fe_space()
     select type(fe_space)
-    type is (new_par_fe_space_t)
+    type is (par_fe_space_t)
       mlbddc_get_fe_space => fe_space
     class default
       check(.false.)
@@ -2336,7 +2336,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     implicit none
     class(mlbddc_t)          , intent(in) :: this
     type(par_environment_t)  , pointer    :: mlbddc_get_par_environment
-    type(new_par_fe_space_t)     , pointer    :: coarse_fe_space
+    type(par_fe_space_t)     , pointer    :: coarse_fe_space
     coarse_fe_space => this%get_fe_space()
     mlbddc_get_par_environment => coarse_fe_space%get_par_environment()
   end function mlbddc_get_par_environment

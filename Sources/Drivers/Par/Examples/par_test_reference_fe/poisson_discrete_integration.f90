@@ -43,7 +43,7 @@ contains
   subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_discrete_integration_t), intent(in)    :: this
-    class(new_serial_fe_space_t)         , intent(inout) :: fe_space
+    class(serial_fe_space_t)         , intent(inout) :: fe_space
     class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types

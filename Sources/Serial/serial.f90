@@ -43,7 +43,7 @@ module serial_names
   use mesh_distribution_names
   use base_static_triangulation_names
 
-  use element_import_names
+  use cell_import_names
   use materials_names
   use materials_io_names
   use renumbering_names
@@ -75,11 +75,11 @@ module serial_names
   use reference_fe_names
   use reference_fe_factory_names
   use field_names
-  use new_serial_fe_space_names
-  use new_conditions_names
+  use fe_space_names
+  use conditions_names
   use discrete_integration_names
   use matrix_array_assembler_names
-  use new_fe_affine_operator_names
+  use fe_affine_operator_names
   use function_names
   use function_library_names
 

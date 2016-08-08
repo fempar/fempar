@@ -25,14 +25,14 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module test_new_serial_fe_space_params_names
+module test_poisson_params_names
   use serial_names
 # include "debug.i90"
 
   implicit none
   private
 
-  type test_new_serial_fe_space_params_t 
+  type test_poisson_params_t 
      private 
      ! IO parameters
      character(len=:), allocatable :: default_dir_path
@@ -47,52 +47,52 @@ module test_new_serial_fe_space_params_names
      character(len=256)            :: dir_path_out
      
    contains
-     procedure, non_overridable             :: create       => test_new_serial_fe_space_create
-     procedure, non_overridable, private    :: set_default  => test_new_serial_fe_space_set_default
-     procedure, non_overridable, private    :: add_to_cli   => test_new_serial_fe_space_add_to_cli
-     procedure, non_overridable             :: parse        => test_new_serial_fe_space_parse 
-     procedure, non_overridable             :: free         => test_new_serial_fe_space_free
+     procedure, non_overridable             :: create       => test_poisson_create
+     procedure, non_overridable, private    :: set_default  => test_poisson_set_default
+     procedure, non_overridable, private    :: add_to_cli   => test_poisson_add_to_cli
+     procedure, non_overridable             :: parse        => test_poisson_parse 
+     procedure, non_overridable             :: free         => test_poisson_free
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
-  end type test_new_serial_fe_space_params_t
+  end type test_poisson_params_t
 
   ! Types
-  public :: test_new_serial_fe_space_params_t
+  public :: test_poisson_params_t
 
 contains
 
-  subroutine test_new_serial_fe_space_create(this)
+  subroutine test_poisson_create(this)
     implicit none
-    class(test_new_serial_fe_space_params_t), intent(inout) :: this
+    class(test_poisson_params_t), intent(inout) :: this
     
     call this%free()
     
      ! Initialize Command Line Interface
-    call this%cli%init(progname    = 'test_new_serial_fe_space',                                                     &
+    call this%cli%init(progname    = 'test_poisson',                                                     &
          &        version     = '',                                                                 &
          &        authors     = '',                                                                 &
          &        license     = '',                                                                 &
          &        description =  'FEMPAR driver to test the new serial fe space.', &
-         &        examples    = ['test_new_serial_fe_space -h  ', 'test_new_serial_fe_space -h  ' ])
+         &        examples    = ['test_poisson -h  ', 'test_poisson -h  ' ])
     
     call this%set_default()
     call this%add_to_cli()
-  end subroutine test_new_serial_fe_space_create
+  end subroutine test_poisson_create
   
-  subroutine test_new_serial_fe_space_set_default(this)
+  subroutine test_poisson_set_default(this)
     implicit none
-    class(test_new_serial_fe_space_params_t), intent(inout) :: this
+    class(test_poisson_params_t), intent(inout) :: this
     ! IO parameters
     this%default_dir_path     = 'data/'
     this%default_prefix       = 'square'
     this%default_dir_path_out = 'output/'
-  end subroutine test_new_serial_fe_space_set_default
+  end subroutine test_poisson_set_default
   
   !==================================================================================================
-  subroutine test_new_serial_fe_space_add_to_cli(this)
+  subroutine test_poisson_add_to_cli(this)
     implicit none
-    class(test_new_serial_fe_space_params_t) , intent(inout) :: this
+    class(test_poisson_params_t) , intent(inout) :: this
 
     ! Locals
     integer(ip) :: error
@@ -108,11 +108,11 @@ contains
     call this%cli%add(switch='--dir_path_out',switch_ab='-out',help='Output Directory',&
          &            required=.false.,act='store',def=trim(this%default_dir_path_out),error=error)
     check(error==0)  
-  end subroutine test_new_serial_fe_space_add_to_cli
+  end subroutine test_poisson_add_to_cli
   
-  subroutine test_new_serial_fe_space_parse(this)
+  subroutine test_poisson_parse(this)
     implicit none
-    class(test_new_serial_fe_space_params_t), intent(inout) :: this
+    class(test_poisson_params_t), intent(inout) :: this
     integer(ip) :: istat
     
     call this%cli%parse(error=istat); check(istat==0)
@@ -122,21 +122,21 @@ contains
     call this%cli%get(switch='-pr' ,val=this%prefix      ,error=istat); check(istat==0)
     call this%cli%get(switch='-out',val=this%dir_path_out,error=istat); check(istat==0)
   
-  end subroutine test_new_serial_fe_space_parse  
+  end subroutine test_poisson_parse  
 
-  subroutine test_new_serial_fe_space_free(this)
+  subroutine test_poisson_free(this)
     implicit none
-    class(test_new_serial_fe_space_params_t), intent(inout) :: this
+    class(test_poisson_params_t), intent(inout) :: this
     if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
     if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
     if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
     call this%cli%free()
-  end subroutine test_new_serial_fe_space_free
+  end subroutine test_poisson_free
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
     implicit none
-    class(test_new_serial_fe_space_params_t) , intent(in) :: this
+    class(test_poisson_params_t) , intent(in) :: this
     character(len=256) :: get_dir_path
     get_dir_path = this%dir_path
   end function get_dir_path
@@ -144,7 +144,7 @@ contains
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(test_new_serial_fe_space_params_t) , intent(in) :: this
+    class(test_poisson_params_t) , intent(in) :: this
     character(len=256) :: get_prefix
     get_prefix = this%prefix
   end function get_prefix
@@ -152,9 +152,9 @@ contains
   !==================================================================================================
   function get_dir_path_out(this)
     implicit none
-    class(test_new_serial_fe_space_params_t) , intent(in) :: this
+    class(test_poisson_params_t) , intent(in) :: this
     character(len=256) :: get_dir_path_out
     get_dir_path_out = this%dir_path_out
   end function get_dir_path_out
   
-end module test_new_serial_fe_space_params_names
+end module test_poisson_params_names

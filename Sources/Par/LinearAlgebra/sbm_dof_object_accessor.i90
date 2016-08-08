@@ -34,7 +34,7 @@ subroutine dof_object_accessor_create ( this, &
   integer(ip)                         , intent(in)    :: field_id
   integer(ip)                         , intent(in)    :: dof_object_lid
   type(mlbddc_t), target              , intent(in)    :: mlbddc
-  class(new_par_fe_space_t), pointer :: fe_space
+  class(par_fe_space_t), pointer :: fe_space
   call this%free()
   
   fe_space => mlbddc%get_fe_space()
@@ -71,7 +71,7 @@ subroutine dof_object_accessor_set_lid(this, lid)
   implicit none
   class(dof_object_accessor_t), intent(inout) :: this
   integer(ip)                 , intent(in)    :: lid
-  class(new_par_fe_space_t), pointer :: fe_space
+  class(par_fe_space_t), pointer :: fe_space
   this%dof_object_lid = lid
   if ( lid >  this%mlbddc%num_dofs_objects_per_field(this%field_id) ) then
     fe_space => this%mlbddc%get_fe_space()
