@@ -77,21 +77,21 @@
   !----------------------!
   number_dimensions = f_trian%num_dims
   ! Velocity reference FE
-  reference_fe_array(1) = make_reference_fe(topology          = topology_quad,               &
+  reference_fe_array(1) = make_reference_fe(topology          = topology_hex,                &
        &                                    fe_type           = fe_type_lagrangian,          &
        &                                    number_dimensions = number_dimensions,           &
        &                                    order             = params%get_velocity_order(), &
        &                                    field_type        = field_type_vector,           &
        &                                    continuity        = .true.)
   ! Pressure reference FE
-  reference_fe_array(2) = make_reference_fe(topology          = topology_quad,               &
+  reference_fe_array(2) = make_reference_fe(topology          = topology_hex,                &
        &                                    fe_type           = fe_type_lagrangian,          &
        &                                    number_dimensions = number_dimensions,           &
        &                                    order             = params%get_pressure_order(), &
        &                                    field_type        = field_type_scalar,           &
        &                                    continuity        = .true.)
   ! Projection reference FE
-  reference_fe_array(3) = make_reference_fe(topology          = topology_quad,               &
+  reference_fe_array(3) = make_reference_fe(topology          = topology_hex,                &
        &                                    fe_type           = fe_type_lagrangian,          &
        &                                    number_dimensions = number_dimensions,           &
        &                                    order             = params%get_velocity_order(), &

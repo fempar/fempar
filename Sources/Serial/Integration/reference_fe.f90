@@ -41,8 +41,11 @@ module reference_fe_names
   ! to integrate FE schemes. It includes the following types:
   !
   ! * reference_fe_t: the basic reference_fe object, which is an abstract type
-  ! * quad_lagrangian_reference_fe_t: one particular concrete version of the 
-  !   reference fe_t
+  ! * lagrangian_reference_fe_t: an intermediate abstract class 
+  ! * hex_lagrangian_reference_fe_t: one particular concrete version of the 
+  !   lagrangian_reference_fe_t for quadrilaterals and hexahedra
+  ! * hex_lagrangian_reference_fe_t: one particular concrete version of the 
+  !   lagrangian_reference_fe_t for triangles and tetrahedra
   ! * quadrature_t: Set of points and weights to perform numerical integration.
   !   It is created by the concrete reference_fe_t by providing the maximum order
   !   to be integrated exactly for zero order terms, e.g., mass matrix
@@ -206,8 +209,8 @@ module reference_fe_names
   character(*), parameter :: field_type_tensor           = 'tensor'
   character(*), parameter :: field_type_symmetric_tensor = 'symmetric_tensor'
   
-  character(*), parameter :: topology_quad = "quad"
-  character(*), parameter :: topology_tet  = "tet"
+  character(*), parameter :: topology_hex = "hex"
+  character(*), parameter :: topology_tet = "tet"
   character(*), parameter :: fe_type_lagrangian = "Lagrangian"
   
   ! Abstract reference_fe
@@ -375,14 +378,15 @@ module reference_fe_names
   end type p_reference_fe_t
 
   abstract interface
-     subroutine create_interface ( this, number_dimensions, order, field_type, continuity, enable_face_integration )
+     subroutine create_interface ( this, topology, number_dimensions, order, field_type, continuity, enable_face_integration )
        import :: reference_fe_t, ip
        implicit none 
        class(reference_fe_t), intent(inout) :: this 
+       character(*)         , intent(in)    :: topology
        integer(ip)          , intent(in)    :: number_dimensions
        integer(ip)          , intent(in)    :: order
        character(*)         , intent(in)    :: field_type
-       logical             , intent(in)    :: continuity
+       logical              , intent(in)    :: continuity
        logical, optional    , intent(in)    :: enable_face_integration
      end subroutine create_interface
      
@@ -390,7 +394,7 @@ module reference_fe_names
        import :: reference_fe_t, quadrature_t, ip
        implicit none 
        class(reference_fe_t), intent(in)    :: this
-       type(quadrature_t), intent(inout) :: quadrature
+       type(quadrature_t)   , intent(inout) :: quadrature
        integer(ip), optional, intent(in)    :: max_order
      end subroutine create_quadrature_interface
  
@@ -398,23 +402,23 @@ module reference_fe_names
        import :: reference_fe_t, quadrature_t, ip
        implicit none
        class(reference_fe_t), intent(in)    :: this
-       type(quadrature_t), intent(inout) :: quadrature
+       type(quadrature_t)   , intent(inout) :: quadrature
        integer(ip), optional, intent(in)    :: max_order
      end subroutine create_face_quadrature_interface
      
      subroutine create_interpolation_interface ( this, quadrature, interpolation, compute_hessian )
        import :: reference_fe_t, quadrature_t, interpolation_t
        implicit none 
-       class(reference_fe_t)   , intent(in)    :: this 
+       class(reference_fe_t), intent(in)    :: this 
        type(quadrature_t)   , intent(in)    :: quadrature
        type(interpolation_t), intent(inout) :: interpolation
-       logical       , optional, intent(in)    :: compute_hessian
+       logical    , optional, intent(in)    :: compute_hessian
      end subroutine create_interpolation_interface
 
      subroutine create_face_local_interpolation_interface ( this, quadrature, interpolation )
        import :: reference_fe_t, quadrature_t, interpolation_t
        implicit none
-       class(reference_fe_t)   , intent(in)    :: this
+       class(reference_fe_t), intent(in)    :: this
        type(quadrature_t)   , intent(in)    :: quadrature
        type(interpolation_t), intent(inout) :: interpolation
      end subroutine create_face_local_interpolation_interface
@@ -423,17 +427,17 @@ module reference_fe_names
           &                                           face_interpolation)
        import :: reference_fe_t, ip, quadrature_t, interpolation_t
        implicit none 
-       class(reference_fe_t)     , intent(in)    :: this
-       integer(ip)               , intent(in)    :: local_face_id
-       type(quadrature_t)     , intent(in)    :: local_quadrature
-       type(interpolation_t)  , intent(inout) :: face_interpolation
+       class(reference_fe_t), intent(in)    :: this
+       integer(ip)          , intent(in)    :: local_face_id
+       type(quadrature_t)   , intent(in)    :: local_quadrature
+       type(interpolation_t), intent(inout) :: face_interpolation
      end subroutine create_face_interpolation_interface
  
      function get_component_node_interface( this, node )
        import :: reference_fe_t, ip
        implicit none
        class(reference_fe_t), intent(in) :: this 
-       integer(ip), intent(in) :: node
+       integer(ip)          , intent(in) :: node
        integer(ip) :: get_component_node_interface
      end function get_component_node_interface
  
@@ -441,7 +445,7 @@ module reference_fe_names
        import :: reference_fe_t, ip
        implicit none
        class(reference_fe_t), intent(in) :: this 
-       integer(ip), intent(in) :: node
+       integer(ip)          , intent(in) :: node
        integer(ip) :: get_scalar_from_vector_node_interface
      end function get_scalar_from_vector_node_interface
 
@@ -456,102 +460,102 @@ module reference_fe_names
           &                                 scalar_field )
        import :: reference_fe_t, interpolation_t, ip, rp
        implicit none
-       class(reference_fe_t)   , intent(in)  :: this 
-       type(interpolation_t), intent(in)  :: actual_cell_interpolation 
-       integer(ip)             , intent(in)  :: ishape
-       integer(ip)             , intent(in)  :: qpoint
-       real(rp)                , intent(out) :: scalar_field
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       integer(ip)          , intent(in)    :: ishape
+       integer(ip)          , intent(in)    :: qpoint
+       real(rp)             , intent(inout) :: scalar_field
      end subroutine get_value_scalar_interface
      
      subroutine get_value_vector_interface( this, actual_cell_interpolation, ishape, qpoint,        &
           &                                 vector_field )
        import :: reference_fe_t, interpolation_t, vector_field_t, ip
        implicit none
-       class(reference_fe_t)   , intent(in)  :: this 
-       type(interpolation_t), intent(in)  :: actual_cell_interpolation 
-       integer(ip)             , intent(in)  :: ishape
-       integer(ip)             , intent(in)  :: qpoint
-       type(vector_field_t)    , intent(out) :: vector_field
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       integer(ip)          , intent(in)    :: ishape
+       integer(ip)          , intent(in)    :: qpoint
+       type(vector_field_t) , intent(inout) :: vector_field
      end subroutine get_value_vector_interface
      
      subroutine get_gradient_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,     &
           &                                    vector_field )
        import :: reference_fe_t, interpolation_t, vector_field_t, ip
        implicit none
-       class(reference_fe_t)   , intent(in)  :: this 
-       type(interpolation_t), intent(in)  :: actual_cell_interpolation 
-       integer(ip)             , intent(in)  :: ishape
-       integer(ip)             , intent(in)  :: qpoint
-       type(vector_field_t)    , intent(out) :: vector_field
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       integer(ip)          , intent(in)    :: ishape
+       integer(ip)          , intent(in)    :: qpoint
+       type(vector_field_t) , intent(inout) :: vector_field
      end subroutine get_gradient_scalar_interface
      
      subroutine get_gradient_vector_interface( this, actual_cell_interpolation, ishape, qpoint,     &
           &                                    tensor_field )
        import :: reference_fe_t, interpolation_t, tensor_field_t, ip
        implicit none
-       class(reference_fe_t)   , intent(in)  :: this 
-       type(interpolation_t), intent(in)  :: actual_cell_interpolation 
-       integer(ip)             , intent(in)  :: ishape
-       integer(ip)             , intent(in)  :: qpoint
-       type(tensor_field_t)    , intent(out) :: tensor_field
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       integer(ip)          , intent(in)    :: ishape
+       integer(ip)          , intent(in)    :: qpoint
+       type(tensor_field_t) , intent(inout) :: tensor_field
      end subroutine get_gradient_vector_interface
 
      subroutine get_divergence_vector_interface( this, actual_cell_interpolation, ishape, qpoint,        &
           &                                 scalar_field )
       import :: reference_fe_t, interpolation_t, ip, rp
        implicit none
-       class(reference_fe_t)   , intent(in)  :: this 
-       type(interpolation_t), intent(in)  :: actual_cell_interpolation 
-       integer(ip)             , intent(in)  :: ishape
-       integer(ip)             , intent(in)  :: qpoint
-       real(rp)                , intent(out) :: scalar_field
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       integer(ip)          , intent(in)    :: ishape
+       integer(ip)          , intent(in)    :: qpoint
+       real(rp)             , intent(inout) :: scalar_field
      end subroutine get_divergence_vector_interface
 
      subroutine get_curl_vector_interface( this, actual_cell_interpolation, ishape, qpoint,     &
           &                                    vector_field )
        import :: reference_fe_t, interpolation_t, vector_field_t, ip
        implicit none
-       class(reference_fe_t)   , intent(in)  :: this 
-       type(interpolation_t), intent(in)  :: actual_cell_interpolation 
-       integer(ip)             , intent(in)  :: ishape
-       integer(ip)             , intent(in)  :: qpoint
-       type(vector_field_t)    , intent(out) :: vector_field
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       integer(ip)          , intent(in)    :: ishape
+       integer(ip)          , intent(in)    :: qpoint
+       type(vector_field_t) , intent(inout) :: vector_field
      end subroutine get_curl_vector_interface
 
-     subroutine evaluate_fe_function_scalar_interface( this, &
+     subroutine evaluate_fe_function_scalar_interface( this,                      &
                                                      & actual_cell_interpolation, &
-                                                     & nodal_values, &
+                                                     & nodal_values,              &
                                                      & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp
        implicit none
-       class(reference_fe_t)   , intent(in)    :: this 
+       class(reference_fe_t), intent(in)    :: this 
        type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)                , intent(in)    :: nodal_values(:)
-       real(rp)                , intent(inout) :: quadrature_points_values(:)
+       real(rp)             , intent(in)    :: nodal_values(:)
+       real(rp)             , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_scalar_interface
 
-     subroutine evaluate_fe_function_vector_interface( this, &
+     subroutine evaluate_fe_function_vector_interface( this,                      &
                                                      & actual_cell_interpolation, &
-                                                     & nodal_values, &
+                                                     & nodal_values,              &
                                                      & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp, vector_field_t
        implicit none
-       class(reference_fe_t)   , intent(in)    :: this 
+       class(reference_fe_t), intent(in)    :: this 
        type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)                , intent(in)    :: nodal_values(:)
-       type(vector_field_t)    , intent(inout) :: quadrature_points_values(:)
+       real(rp)             , intent(in)    :: nodal_values(:)
+       type(vector_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_vector_interface
 
-     subroutine evaluate_fe_function_tensor_interface( this, &
+     subroutine evaluate_fe_function_tensor_interface( this,                      &
                                                      & actual_cell_interpolation, &
-                                                     & nodal_values, &
+                                                     & nodal_values,              &
                                                      & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp, tensor_field_t
        implicit none
-       class(reference_fe_t)   , intent(in)    :: this 
+       class(reference_fe_t), intent(in)    :: this 
        type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)                , intent(in)    :: nodal_values(:)
-       type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
+       real(rp)             , intent(in)    :: nodal_values(:)
+       type(tensor_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_tensor_interface     
 
      subroutine evaluate_gradient_fe_function_scalar_interface( this, &
@@ -582,10 +586,10 @@ module reference_fe_names
           &                       source_reference_fe, source_vef_id,target_vef_id)
        import :: reference_fe_t, ip
        implicit none
-       class(reference_fe_t), intent(in) :: target_reference_fe
-       class(reference_fe_t), intent(in)  :: source_reference_fe
-       integer(ip)          , intent(in)  :: source_vef_id
-       integer(ip)          , intent(in)  :: target_vef_id 
+       class(reference_fe_t), intent(in)    :: target_reference_fe
+       class(reference_fe_t), intent(in)    :: source_reference_fe
+       integer(ip)          , intent(in)    :: source_vef_id
+       integer(ip)          , intent(in)    :: target_vef_id 
        logical :: check_compatibility_of_vefs_interface
      end function  check_compatibility_of_vefs_interface
 
@@ -600,10 +604,10 @@ module reference_fe_names
           &                            interpolation_real_cell )
        import :: reference_fe_t, fe_map_t, interpolation_t
        implicit none 
-       class(reference_fe_t)    , intent(in)    :: this 
-       type(fe_map_t)           , intent(in)    :: fe_map
-       type(interpolation_t) , intent(in)    :: interpolation_reference_cell
-       type(interpolation_t) , intent(inout) :: interpolation_real_cell
+       class(reference_fe_t), intent(in)    :: this 
+       type(fe_map_t)       , intent(in)    :: fe_map
+       type(interpolation_t), intent(in)    :: interpolation_reference_cell
+       type(interpolation_t), intent(inout) :: interpolation_real_cell
      end subroutine update_interpolation_interface
 
      subroutine update_interpolation_face_interface ( this, local_face_id,fe_map_face_restriction,  &
@@ -665,7 +669,7 @@ module reference_fe_names
        class(reference_fe_t)                 , intent(inout) :: this 
        integer(ip)                           , intent(in)    :: dimension
        integer(ip)                           , intent(in)    :: number_interior_points
-       integer(ip)      , allocatable        , intent(inout) :: interior_points_permutation(:,:)
+       integer(ip)             , allocatable , intent(inout) :: interior_points_permutation(:,:)
      end subroutine fill_interior_points_permutation_interface
 
      subroutine interpolate_nodal_values_interface(this,nodal_interpolation,nodal_values_origin, &
@@ -695,78 +699,321 @@ module reference_fe_names
 
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-  public :: topology_quad, topology_tet, fe_type_lagrangian
-
+  public :: topology_hex, topology_tet, fe_type_lagrangian
+  
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type, extends(reference_fe_t) :: quad_lagrangian_reference_fe_t
+  type, abstract, extends(reference_fe_t) :: lagrangian_reference_fe_t
      private
      integer(ip)              :: number_nodes_scalar
      integer(ip), allocatable :: node_component_array(:,:)
      integer(ip), allocatable :: node_array_component(:,:)
-   contains 
+   contains
+     ! Additional deferred methods
+     procedure (fill_scalar_interface)            , private, deferred :: fill_scalar
+     procedure (fill_quadrature_interface)        , private, deferred :: fill_quadrature   
+     procedure (fill_interpolation_interface)     , private, deferred :: fill_interpolation
+     procedure (fill_face_interpolation_interface), private, deferred :: fill_face_interpolation
+     procedure (get_node_local_id_interface)      , private, deferred :: get_node_local_id
+     procedure (get_node_local_coordinates_interface)      , private, deferred :: &
+              & get_node_local_coordinates
+     procedure (set_coordinates_1D_interface)              , private, deferred :: &
+              & set_coordinates_1D
+     procedure (set_permutation_2D_interface)              , private, deferred :: &
+              & set_permutation_2D
+     procedure (set_number_quadrature_points_interface)    , private, deferred :: &
+              & set_number_quadrature_points
+     procedure (compute_number_nodes_scalar_interface)     , private, deferred :: &
+              & compute_number_nodes_scalar
+     procedure (get_number_interior_points_x_dim_interface), private, deferred :: &
+              & get_number_interior_points_x_dim
      ! Deferred TBP implementors
-     procedure :: create                    => quad_lagrangian_reference_fe_create
-     procedure :: create_quadrature         => quad_lagrangian_reference_fe_create_quadrature
-     !procedure :: create_quadrature_on_faces                                                           &
-     !     &                           => quad_lagrangian_reference_fe_create_quadrature_on_faces
-     procedure :: create_face_quadrature    => quad_lagrangian_reference_fe_create_face_quadrature
-     procedure :: create_interpolation      => quad_lagrangian_reference_fe_create_interpolation
-     procedure :: create_face_interpolation => quad_lagrangian_reference_fe_create_face_interpolation
-     procedure :: create_face_local_interpolation                                                   &
-          &                          => quad_lagrangian_reference_fe_create_face_local_interpolation
-     procedure :: update_interpolation      => quad_lagrangian_reference_fe_update_interpolation
-     procedure :: update_interpolation_face => quad_lagrangian_reference_fe_update_interpolation_face
-     procedure :: get_component_node     => quad_lagrangian_reference_fe_get_component_node
-     procedure :: get_scalar_from_vector_node           => quad_lagrangian_reference_fe_get_scalar_from_vector_node
-     procedure :: check_compatibility_of_vefs                                         &
-          &                 => quad_lagrangian_reference_fe_check_compatibility_of_vefs 
-
-     procedure :: get_value_scalar          => quad_lagrangian_reference_fe_get_value_scalar
-     procedure :: get_value_vector          => quad_lagrangian_reference_fe_get_value_vector
-     procedure :: get_gradient_scalar       => quad_lagrangian_reference_fe_get_gradient_scalar
-     procedure :: get_gradient_vector       => quad_lagrangian_reference_fe_get_gradient_vector
-     procedure :: get_divergence_vector     => quad_lagrangian_reference_fe_get_divergence_vector
-     procedure :: get_curl_vector           => quad_lagrangian_reference_fe_get_curl_vector
-
-     procedure :: interpolate_nodal_values => quad_lagrangian_reference_fe_interpolate_nodal_values
-
-     procedure :: evaluate_fe_function_scalar => quad_lagrangian_reference_fe_evaluate_fe_function_scalar
-     procedure :: evaluate_fe_function_vector => quad_lagrangian_reference_fe_evaluate_fe_function_vector
-     procedure :: evaluate_fe_function_tensor => quad_lagrangian_reference_fe_evaluate_fe_function_tensor
-
-     procedure :: evaluate_gradient_fe_function_scalar => quad_lagrangian_reference_fe_evaluate_grad_fe_function_scalar
-     procedure :: evaluate_gradient_fe_function_vector => quad_lagrangian_reference_fe_evaluate_grad_fe_function_vector
-
-     procedure :: set_nodal_quadrature => quad_lagrangian_reference_fe_set_nodal_quadrature
-
-     procedure :: set_scalar_field_to_nodal_values => quad_lagrangian_reference_fe_set_scalar_field_to_nodal_values
-     procedure :: set_vector_field_to_nodal_values => quad_lagrangian_reference_fe_set_vector_field_to_nodal_values
-     procedure :: set_tensor_field_to_nodal_values => quad_lagrangian_reference_fe_set_tensor_field_to_nodal_values
-
+     procedure :: create                    => lagrangian_reference_fe_create
+     procedure :: fill_interior_points_permutation     & 
+      & => lagrangian_reference_fe_fill_interior_points_permutation
+     procedure :: create_quadrature         => lagrangian_reference_fe_create_quadrature
+     procedure :: create_face_quadrature    => lagrangian_reference_fe_create_face_quadrature
+     procedure :: create_interpolation      => lagrangian_reference_fe_create_interpolation
+     procedure :: create_face_interpolation => lagrangian_reference_fe_create_face_interpolation
+     procedure :: create_face_local_interpolation      & 
+      & => lagrangian_reference_fe_create_face_local_interpolation
+     procedure :: update_interpolation      => lagrangian_reference_fe_update_interpolation
+     procedure :: update_interpolation_face => lagrangian_reference_fe_update_interpolation_face
+     procedure :: get_component_node        => lagrangian_reference_fe_get_component_node
+     procedure :: get_scalar_from_vector_node          & 
+      & => lagrangian_reference_fe_get_scalar_from_vector_node
+     procedure :: get_number_nodes_scalar   => lagrangian_reference_fe_get_number_nodes_scalar
+     procedure :: get_value_scalar          => lagrangian_reference_fe_get_value_scalar
+     procedure :: get_value_vector          => lagrangian_reference_fe_get_value_vector
+     procedure :: get_gradient_scalar       => lagrangian_reference_fe_get_gradient_scalar
+     procedure :: get_gradient_vector       => lagrangian_reference_fe_get_gradient_vector
+     procedure :: get_divergence_vector     => lagrangian_reference_fe_get_divergence_vector
+     procedure :: get_curl_vector           => lagrangian_reference_fe_get_curl_vector
+     procedure :: interpolate_nodal_values  => lagrangian_reference_fe_interpolate_nodal_values
+     procedure :: set_nodal_quadrature      => lagrangian_reference_fe_set_nodal_quadrature
+     procedure :: set_scalar_field_to_nodal_values     & 
+      & => lagrangian_reference_fe_set_scalar_field_to_nodal_values
+     procedure :: set_vector_field_to_nodal_values     & 
+      & => lagrangian_reference_fe_set_vector_field_to_nodal_values
+     procedure :: set_tensor_field_to_nodal_values     & 
+      & => lagrangian_reference_fe_set_tensor_field_to_nodal_values
+     procedure :: evaluate_fe_function_scalar          &
+      & => lagrangian_reference_fe_evaluate_fe_function_scalar
+     procedure :: evaluate_fe_function_vector          & 
+      & => lagrangian_reference_fe_evaluate_fe_function_vector
+     procedure :: evaluate_fe_function_tensor          & 
+      & => lagrangian_reference_fe_evaluate_fe_function_tensor
+     procedure :: evaluate_gradient_fe_function_scalar & 
+      & => lagrangian_reference_fe_evaluate_gradient_fe_function_scalar
+     procedure :: evaluate_gradient_fe_function_vector &
+      & => lagrangian_reference_fe_evaluate_gradient_fe_function_vector
+     procedure :: get_number_subelements    => lagrangian_reference_fe_get_number_subelements
+     procedure :: free                      => lagrangian_reference_fe_free
      ! Concrete TBPs of this derived data type
-     procedure :: fill                      => quad_lagrangian_reference_fe_fill
-     procedure :: free                      => quad_lagrangian_reference_fe_free
-     procedure :: get_characteristic_length &
-          &                          => quad_lagrangian_reference_fe_get_characteristic_length
-          
-     procedure :: fill_interior_points_permutation &
-          &                   => quad_lagrangian_reference_fe_fill_interior_points_permutation     
-     procedure :: get_subelements_connectivity => quad_lagrangian_reference_fe_get_subelements_connectivity
-     procedure :: get_number_subelements => quad_lagrangian_reference_fe_get_number_subelements
-     procedure :: get_number_nodes_scalar => quad_lagrangian_reference_fe_get_number_nodes_scalar
-  end type quad_lagrangian_reference_fe_t
-  
-  public :: quad_lagrangian_reference_fe_t
+     procedure, private, non_overridable :: fill                         & 
+      & => lagrangian_reference_fe_fill
+     procedure, private, non_overridable :: fill_field_components        & 
+      & => lagrangian_reference_fe_fill_field_components
+     procedure, private, non_overridable :: fill_permutation_array       &
+      & => lagrangian_reference_fe_fill_permutation_array
+     procedure, private, non_overridable :: fill_nodal_quadrature        &
+      & => lagrangian_reference_fe_fill_nodal_quadrature
+     procedure, private, non_overridable :: get_node_coordinates_array   & 
+      & => lagrangian_reference_fe_get_node_coordinates_array
+     procedure, private, non_overridable :: set_permutation_1D           & 
+      & => lagrangian_reference_fe_set_permutation_1D
+     procedure, private, non_overridable :: extend_list_components       & 
+      & => lagrangian_reference_fe_extend_list_components
+     procedure, private, non_overridable :: apply_femap_to_interpolation & 
+      & => lagrangian_reference_fe_apply_femap_to_interpolation
+  end type lagrangian_reference_fe_t
 
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  abstract interface
+  
+     subroutine fill_scalar_interface ( this )
+     import :: lagrangian_reference_fe_t
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(inout) :: this 
+     end subroutine fill_scalar_interface
+     
+     subroutine fill_quadrature_interface ( this, quadrature )
+     import :: lagrangian_reference_fe_t, quadrature_t
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       type(quadrature_t)              , intent(inout) :: quadrature       
+     end subroutine fill_quadrature_interface
+     
+     subroutine fill_interpolation_interface ( this, interpolation, coord_ip )
+     import :: lagrangian_reference_fe_t, interpolation_t, ip, rp
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       type(interpolation_t)           , intent(inout) :: interpolation  
+       real(rp)                        , intent(in)    :: coord_ip(:,:)
+     end subroutine fill_interpolation_interface
+ 
+     subroutine fill_face_interpolation_interface ( this,               &
+                                                    face_interpolation, &
+                                                    local_quadrature,   &
+                                                    local_face_id )
+     import :: lagrangian_reference_fe_t, interpolation_t, quadrature_t, ip
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       type(interpolation_t)           , intent(inout) :: face_interpolation
+       type(quadrature_t)              , intent(in)    :: local_quadrature
+       integer(ip)                     , intent(in)    :: local_face_id
+     end subroutine fill_face_interpolation_interface
+     
+     function get_node_local_id_interface ( this,                 &
+                                            local_coordinates,    &
+                                            number_of_dimensions, &
+                                            order )
+     import :: lagrangian_reference_fe_t, ip
+       implicit none
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(in)    :: local_coordinates(:)
+       integer(ip)                     , intent(in)    :: number_of_dimensions
+       integer(ip)                     , intent(in)    :: order
+       integer(ip) :: get_node_local_id_interface
+     end function get_node_local_id_interface
+     
+     subroutine get_node_local_coordinates_interface( this,                 &
+                                                      local_coordinates,    &
+                                                      local_id,             &
+                                                      number_of_dimensions, &
+                                                      order )
+     import :: lagrangian_reference_fe_t, ip
+       implicit none
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(inout) :: local_coordinates(:)
+       integer(ip)                     , intent(in)    :: local_id
+       integer(ip)                     , intent(in)    :: number_of_dimensions
+       integer(ip)                     , intent(in)    :: order       
+     end subroutine get_node_local_coordinates_interface
+
+     subroutine set_coordinates_1D_interface (this, abscissae, number_of_points)
+     import :: lagrangian_reference_fe_t, ip, rp
+       implicit none
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(in)    :: number_of_points
+       real(rp)                        , intent(inout) :: abscissae(:)
+     end subroutine set_coordinates_1D_interface
+     
+     subroutine set_permutation_2D_interface ( this,               &
+                                               permutation,        &
+                                               number_nodes_x_dim, &
+                                               orientation,        &
+                                               rotation )
+     import :: lagrangian_reference_fe_t, ip
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(inout) :: permutation(:)
+       integer(ip)                     , intent(in)    :: number_nodes_x_dim
+       integer(ip)                     , intent(in)    :: orientation
+       integer(ip)                     , intent(in)    :: rotation
+     end subroutine set_permutation_2D_interface
+     
+     function set_number_quadrature_points_interface ( this, order, dimension )
+     import :: lagrangian_reference_fe_t, ip
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(in)    :: order    
+       integer(ip)                     , intent(in)    :: dimension
+       integer(ip) :: set_number_quadrature_points_interface
+     end function set_number_quadrature_points_interface
+     
+     function compute_number_nodes_scalar_interface ( this, order, dimension )
+     import :: lagrangian_reference_fe_t, ip
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(in)    :: order    
+       integer(ip)                     , intent(in)    :: dimension
+       integer(ip) :: compute_number_nodes_scalar_interface
+     end function compute_number_nodes_scalar_interface
+
+     function get_number_interior_points_x_dim_interface ( this,                   &
+                                                           number_interior_points, &
+                                                           dimension)
+     import :: lagrangian_reference_fe_t, ip
+       implicit none
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       integer(ip)                     , intent(in)    :: number_interior_points
+       integer(ip)                     , intent(in)    :: dimension
+       integer(ip) :: get_number_interior_points_x_dim_interface
+     end function get_number_interior_points_x_dim_interface
+     
+  end interface
+  
+  public :: lagrangian_reference_fe_t  
+  
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type, extends(lagrangian_reference_fe_t) :: tet_lagrangian_reference_fe_t
+     private
+   contains 
+     ! Deferred TBP implementors from reference_fe_t
+     procedure :: check_compatibility_of_vefs                                 &
+           &   => tet_lagrangian_reference_fe_check_compatibility_of_vefs
+     procedure :: get_characteristic_length                                   &
+           &   => tet_lagrangian_reference_fe_get_characteristic_length
+     procedure :: get_subelements_connectivity                                &
+           &   => tet_lagrangian_reference_fe_get_subelements_connectivity
+     ! Deferred TBP implementors from lagrangian_reference_fe_t
+     procedure, private :: fill_scalar                                        &
+           & => tet_lagrangian_reference_fe_fill_scalar
+     procedure, private :: fill_quadrature                                    &
+           & => tet_lagrangian_reference_fe_fill_quadrature
+     procedure, private :: fill_interpolation                                 &
+           & => tet_lagrangian_reference_fe_fill_interpolation
+     procedure, private :: fill_face_interpolation                            &
+           & => tet_lagrangian_reference_fe_fill_face_interpolation
+     procedure, private :: get_node_local_id                                  &
+           & => tet_lagrangian_reference_fe_get_node_local_id
+     procedure, private :: get_node_local_coordinates                         &
+           & => tet_lagrangian_reference_fe_get_node_local_coordinates
+     procedure, private :: set_coordinates_1D                                 &
+           & => tet_lagrangian_reference_fe_set_coordinates_1D
+     procedure, private :: set_permutation_2D                                 &
+           & => tet_lagrangian_reference_fe_set_permutation_2D
+     procedure, private :: set_number_quadrature_points                       &
+           & => tet_lagrangian_reference_fe_set_number_quadrature_points
+     procedure, private :: compute_number_nodes_scalar                        &
+           & => tet_lagrangian_reference_fe_compute_number_nodes_scalar
+     procedure, private :: get_number_interior_points_x_dim                   &
+           & => tet_lagrangian_reference_fe_get_number_interior_points_x_dim
+     ! Concrete TBPs of this derived data type
+     procedure, private, non_overridable :: fill_nodes_vef                    &
+           & => tet_lagrangian_reference_fe_fill_nodes_vef
+     procedure, private, non_overridable :: fill_vef_dimension_and_vertices   &
+           & => tet_lagrangian_reference_fe_fill_vef_dimension_and_vertices
+     procedure, private, non_overridable :: compute_number_interior_nodes     &
+           & => tet_lagrangian_reference_fe_compute_number_interior_nodes
+     procedure, private, non_overridable :: compute_sum_of_nodes_in_simplices &
+           & => tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
+     procedure, private, non_overridable :: evaluate_interpolation            &
+           & => tet_lagrangian_reference_fe_evaluate_interpolation
+     procedure, private, non_overridable :: get_vef_orientation               &
+           & => tet_lagrangian_reference_fe_get_vef_orientation
+  end type tet_lagrangian_reference_fe_t
+  
+  public :: tet_lagrangian_reference_fe_t
+  
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type, extends(lagrangian_reference_fe_t) :: hex_lagrangian_reference_fe_t
+     private
+   contains 
+     ! Deferred TBP implementors from reference_fe_t
+     procedure :: check_compatibility_of_vefs                                 &
+           &   => hex_lagrangian_reference_fe_check_compatibility_of_vefs
+     procedure :: get_characteristic_length                                   &
+           &   => hex_lagrangian_reference_fe_get_characteristic_length
+     procedure :: get_subelements_connectivity                                &
+           &   => hex_lagrangian_reference_fe_get_subelements_connectivity
+     ! Deferred TBP implementors from lagrangian_reference_fe_t
+     procedure, private :: fill_scalar => hex_lagrangian_reference_fe_fill_scalar
+     procedure, private :: fill_quadrature                                    &
+           & => hex_lagrangian_reference_fe_fill_quadrature
+     procedure, private :: fill_interpolation                                 &
+           & => hex_lagrangian_reference_fe_fill_interpolation
+     procedure, private :: fill_face_interpolation                            &
+           & => hex_lagrangian_reference_fe_fill_face_interpolation
+     procedure, private :: get_node_local_id                                  &
+           & => hex_lagrangian_reference_fe_get_node_local_id
+     procedure, private :: get_node_local_coordinates                         &
+           & => hex_lagrangian_reference_fe_get_node_local_coordinates
+     procedure, private :: set_coordinates_1D                                 &
+           & => hex_lagrangian_reference_fe_set_coordinates_1D
+     procedure, private :: set_permutation_2D                                 &
+           & => hex_lagrangian_reference_fe_set_permutation_2D
+     procedure, private :: set_number_quadrature_points                       &
+           & => hex_lagrangian_reference_fe_set_number_quadrature_points
+     procedure, private :: compute_number_nodes_scalar                        &
+           & => hex_lagrangian_reference_fe_compute_number_nodes_scalar
+     procedure, private :: get_number_interior_points_x_dim                   &
+           & => hex_lagrangian_reference_fe_get_number_interior_points_x_dim
+     ! Concrete TBPs of this derived data type
+     procedure, private, non_overridable :: fill_vef_dimension_and_directions &
+           & => hex_lagrangian_reference_fe_fill_vef_dimension_and_directions
+     procedure, private, non_overridable :: fill_vef_local_coordinates_nodes  &
+           & => hex_lagrangian_reference_fe_fill_vef_local_coordinates_nodes
+     procedure, private, non_overridable :: evaluate_interpolation_1D         &
+           & => hex_lagrangian_reference_fe_evaluate_interpolation_1D 
+     procedure, private, non_overridable :: evaluate_interpolation            &
+           & => hex_lagrangian_reference_fe_evaluate_interpolation 
+     procedure, private, non_overridable :: evaluate_face_interpolation       &
+           & => hex_lagrangian_reference_fe_evaluate_face_interpolation
+     procedure, private, non_overridable :: get_vef_orientation               &
+           & => hex_lagrangian_reference_fe_get_vef_orientation
+  end type hex_lagrangian_reference_fe_t
+  
+  public :: hex_lagrangian_reference_fe_t
+
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 type volume_integrator_t 
   private
   integer(ip)                    :: number_shape_functions
   integer(ip)                    :: number_quadrature_points
   class(reference_fe_t), pointer :: reference_fe
-  type(interpolation_t)       :: interpolation      ! Unknown interpolation_t in the reference element domain
-  type(interpolation_t)       :: interpolation_o_map! Unknown interpolation_t in the physical element domain
+  type(interpolation_t)          :: interpolation      ! Unknown interpolation_t in the reference element domain
+  type(interpolation_t)          :: interpolation_o_map! Unknown interpolation_t in the physical element domain
 contains
 
   procedure, non_overridable :: create => volume_integrator_create
@@ -898,7 +1145,11 @@ contains
 
 #include "sbm_reference_fe.i90"
 
-#include "sbm_quad_lagrangian_reference_fe.i90"
+#include "sbm_lagrangian_reference_fe.i90"
+
+#include "sbm_hex_lagrangian_reference_fe.i90"
+
+#include "sbm_tet_lagrangian_reference_fe.i90"
 
 #include "sbm_volume_integrator.i90"
 

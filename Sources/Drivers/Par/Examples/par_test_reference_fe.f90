@@ -355,7 +355,7 @@ program par_test_reference_fe
   call par_mesh_to_triangulation (par_mesh, par_triangulation, par_conditions)
   
   ! Simple case
-  reference_fe_array_one(1) =  make_reference_fe ( topology = topology_quad, &
+  reference_fe_array_one(1) =  make_reference_fe ( topology = topology_hex, &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = 2, &
                                                    order = 1, &
