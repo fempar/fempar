@@ -34,7 +34,6 @@ module poisson_discrete_integration_names
   type, extends(discrete_integration_t) :: poisson_discrete_integration_t
    contains
      procedure :: integrate
-     procedure :: integrate_new_serial_fe_space
   end type poisson_discrete_integration_t
   
   public :: poisson_discrete_integration_t
@@ -42,78 +41,6 @@ module poisson_discrete_integration_names
 contains
   
   subroutine integrate ( this, fe_space, matrix_array_assembler )
-    implicit none
-    class(poisson_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)             , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
-
-    type(finite_element_t), pointer :: fe
-    type(volume_integrator_t), pointer :: vol_int
-    real(rp), allocatable :: elmat(:,:), elvec(:)
-    type(fe_map_t), pointer :: fe_map
-    type(quadrature_t), pointer :: quad
-
-    integer(ip)  :: igaus,inode,jnode,ngaus
-    real(rp)     :: factor
-
-    type(vector_field_t) :: grad_test, grad_trial
-
-    integer(ip) :: number_fe_spaces
-
-    integer(ip), pointer :: field_blocks(:)
-    logical, pointer :: field_coupling(:,:)
-
-    integer(ip) :: ielem, iapprox, number_nodes
-    type(i1p_t), pointer :: elem2dof(:)
-    integer(ip), allocatable :: number_nodes_per_field(:)  
-
-    number_fe_spaces = fe_space%get_number_fe_spaces()
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
-
-    fe => fe_space%get_finite_element(1)
-    number_nodes = fe%get_number_nodes()
-    call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
-    call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fe_spaces, number_nodes_per_field, __FILE__, __LINE__ )
-    call fe%get_number_nodes_per_field( number_nodes_per_field )
-
-    call fe_space%initialize_integration()
-    
-    quad => fe%get_quadrature()
-    ngaus = quad%get_number_quadrature_points()
-    do ielem = 1, fe_space%get_number_elements()
-       elmat = 0.0_rp
-       elvec = 0.0_rp
-
-       fe => fe_space%get_finite_element(ielem)
-       call fe%update_integration()
-       
-       fe_map   => fe%get_fe_map()
-       vol_int  => fe%get_volume_integrator(1)
-       elem2dof => fe%get_elem2dof()
-
-       do igaus = 1,ngaus
-          factor = fe_map%get_det_jacobian(igaus) * quad%get_weight(igaus)
-          do inode = 1, number_nodes
-             call vol_int%get_gradient(inode,igaus,grad_trial)
-             do jnode = 1, number_nodes
-                call vol_int%get_gradient(jnode,igaus,grad_test)
-                elmat(inode,jnode) = elmat(inode,jnode) + factor * grad_test * grad_trial
-             end do
-          end do
-       end do
-       
-       ! Apply boundary conditions
-       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call matrix_array_assembler%assembly( number_fe_spaces, number_nodes_per_field, elem2dof, field_blocks,  field_coupling, elmat, elvec )
-    end do
-    call memfree ( number_nodes_per_field, __FILE__, __LINE__ )
-    call memfree ( elmat, __FILE__, __LINE__ )
-    call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate
-  
-  subroutine integrate_new_serial_fe_space ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_discrete_integration_t), intent(in)    :: this
     class(new_serial_fe_space_t)         , intent(inout) :: fe_space
@@ -203,6 +130,6 @@ contains
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate_new_serial_fe_space
+  end subroutine integrate
   
 end module poisson_discrete_integration_names

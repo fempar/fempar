@@ -28,7 +28,6 @@
 module new_fe_affine_operator_names
   use types_names
   use memor_names
-  use triangulation_names
   use vector_space_names
   use reference_fe_names
   use new_serial_fe_space_names
@@ -426,7 +425,7 @@ subroutine new_fe_affine_operator_fill_values(this)
   implicit none
   class(new_fe_affine_operator_t), intent(inout) :: this
   if ( this%environment%am_i_l1_task() ) then
-    call this%discrete_integration%integrate_new_serial_fe_space( this%fe_space, this%matrix_array_assembler )
+    call this%discrete_integration%integrate( this%fe_space, this%matrix_array_assembler )
   end if  
 end subroutine new_fe_affine_operator_fill_values
 

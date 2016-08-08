@@ -58,7 +58,6 @@ module new_serial_fe_space_names
  ! Parallel modules
   use par_environment_names
   use par_context_names
-  use par_conditions_names
   use dof_import_names
   use element_import_names
   use par_sparse_matrix_names

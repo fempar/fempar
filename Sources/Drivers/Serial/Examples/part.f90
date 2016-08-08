@@ -36,7 +36,6 @@ program partitioner
   type(materials_t)               :: gmat
   type(mesh_distribution_t) , allocatable :: distr(:)
   type(mesh_t)      , allocatable :: lmesh(:)
-  type(conditions_t), allocatable :: lnodes(:),lbouns(:)
   type(materials_t),  allocatable :: lmater(:)
   type(post_file_t)                 :: lupos
   integer(ip)                       :: ipart,idof,ndofn,ndime,prob,gid_sq

@@ -32,11 +32,6 @@ module par_names
   use par_environment_names
 
   ! Geometry
-  use par_mesh_names
-  use par_triangulation_names
-  use par_conditions_names
-  use par_generate_uniform_triangulation_names
-  use par_uniform_refinement_names
 
   ! Linear algebra
   use par_scalar_array_names

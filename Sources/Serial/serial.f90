@@ -37,32 +37,18 @@ module serial_names
   use serial_environment_names
   use flap, only : command_line_interface
   use FPL
-  use vtk_handler_names
-  use error_norms_names
 
   ! Geometry
   use metis_interface_names
-  use triangulation_names
-  use mesh_to_triangulation_names
-  use triangulation_names
-  use mesh_to_triangulation_names
   use mesh_distribution_names
-  !use create_mesh_distribution_names
-  use generate_uniform_triangulation_names
   use base_static_triangulation_names
 
   use element_import_names
-  use conditions_names
-  use conditions_io_names
   use materials_names
   use materials_io_names
-  use elem_to_subset_id_names
-  !use generate_vefs_mesh_conditions_names
   use renumbering_names
   use mesh_names
-  !use create_mesh_distribution_names
   use geometry_names
-  use migratory_element_names
 
   ! Linear Algebra
   use iterative_linear_solver_names
@@ -89,12 +75,10 @@ module serial_names
   use reference_fe_names
   use reference_fe_factory_names
   use field_names
-  use serial_fe_space_names
   use new_serial_fe_space_names
   use new_conditions_names
   use discrete_integration_names
   use matrix_array_assembler_names
-  use fe_affine_operator_names
   use new_fe_affine_operator_names
   use function_names
   use function_library_names
