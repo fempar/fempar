@@ -106,13 +106,6 @@ module reference_fe_names
      procedure, non_overridable :: free   => interpolation_free
      procedure, non_overridable :: copy   => interpolation_copy
      procedure, non_overridable :: print  => interpolation_print
-     !procedure, non_overridable :: get_number_dimensions => interpolation_get_number_dimensions
-     !procedure, non_overridable :: get_number_shape_functions => interpolation_get_number_shape_functions
-     !procedure, non_overridable :: get_number_evaluation_points => interpolation_get_number_evaluation_points
-     !procedure, non_overridable :: get_number_entries_symmetric_tensor => interpolation_get_number_entries_symmetric_tensor
-     !procedure, non_overridable :: get_shape_function => interpolation_get_shape_function
-     !procedure, non_overridable :: get_shape_derivative => interpolation_get_shape_derivative
-     !procedure, non_overridable :: get_hessian  => interpolation_get_hessian
   end type interpolation_t
 
   public :: interpolation_t
