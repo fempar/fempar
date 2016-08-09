@@ -467,7 +467,7 @@ contains
     beta1 = this%r1%dot(this%v1)
 
     beta1_lt_zero = ( beta1 < zero )
-    call environment%bcast(beta1_lt_zero)
+    call environment%l1_lgt1_bcast(beta1_lt_zero)
 
     if (beta1_lt_zero) then     ! M must be indefinite.
         istop = 8
@@ -475,14 +475,14 @@ contains
     end if
 
     beta1_eq_zero = ( beta1 == zero )
-    call environment%bcast(beta1_eq_zero)
+    call environment%l1_lgt1_bcast(beta1_eq_zero)
 
     if (beta1_eq_zero) then    ! r1 = 0 exactly.  Stop with x
         istop = 0
         go to 900
     end if
 
-    if ( environment%am_i_fine_task() ) then ! Am I a fine task ?
+    if ( environment%am_i_l1_task() ) then ! Am I a fine task ?
         beta1  = sqrt( beta1 )         ! Normalize y to get v1 later.
     end if
 
@@ -513,7 +513,7 @@ contains
     do
         num_iterations = num_iterations + 1               ! k = itn = 1 first time through
 
-        if ( environment%am_i_fine_task() ) then
+        if ( environment%am_i_l1_task() ) then
             !----------------------------------------------------------------
             ! Obtain quantities for the next Lanczos vector vk+1, k = 1, 2,...
             ! The general iteration is similar to the case k = 1 with v0 = 0:
@@ -560,7 +560,7 @@ contains
 
             beta_lt_zero = (beta < zero)
 
-            call environment%bcast(beta_lt_zero)
+            call environment%l1_lgt1_bcast(beta_lt_zero)
             if (beta_lt_zero) then
                 istop = 6
                 go to 900
@@ -704,21 +704,21 @@ contains
 !!!$        end if
 
             istop_neq_zero = (istop /= 0)
-            call environment%bcast(istop_neq_zero)
+            call environment%l1_lgt1_bcast(istop_neq_zero)
 
             if (istop_neq_zero) exit
 
         else
             ! y = inv(M) r2
             call M%apply(this%r2, this%y)
-            call environment%bcast(beta_lt_zero)
+            call environment%l1_lgt1_bcast(beta_lt_zero)
 
             if (beta_lt_zero) then
                 istop = 6
                 go to 900
             end if
 
-            call environment%bcast(istop_neq_zero)            
+            call environment%l1_lgt1_bcast(istop_neq_zero)            
 
             if (istop_neq_zero) exit
 
@@ -735,7 +735,7 @@ contains
         did_converge = .false.
     end if
 
-    call environment%bcast(did_converge)
+    call environment%l1_lgt1_bcast(did_converge)
     call this%print_convergence_history_footer(luout)
 
     call environment%info(me,np)

@@ -1,7 +1,8 @@
 module list_types_names
 
-USE types_names, ONLY: ip
-USE memor_names
+use iso_c_binding, only: c_loc, c_ptr
+use types_names,   only: ip, runend
+use memor_names
 
 implicit none
 
@@ -36,6 +37,7 @@ implicit none
     !-----------------------------------------------------------------
     !< List_t derived type
     !----------------------------------------------------------------- 
+        !private
         integer(ip), private     :: state = LIST_STATE_START
         integer(ip)              :: n
         integer(ip), allocatable :: p(:) 
@@ -48,9 +50,13 @@ implicit none
         procedure, non_overridable          :: create                     => list_create
         procedure, non_overridable          :: get_num_pointers           => list_get_num_pointers
         procedure, non_overridable          :: get_size                   => list_get_size
+        procedure, non_overridable          :: get_sublist_size           => list_get_sublist_size
         procedure, non_overridable          :: sum_to_pointer_index       => list_sum_to_pointer_index
         procedure, non_overridable          :: calculate_header           => list_calculate_header
         procedure, non_overridable          :: allocate_list_from_pointer => list_allocate_list_from_p
+        procedure, non_overridable          :: get_num_pointers_c_loc     => list_get_num_pointers_c_loc
+        procedure, non_overridable          :: get_pointers_c_loc         => list_get_pointers_c_loc
+        procedure, non_overridable          :: get_list_c_loc             => list_get_list_c_loc
         procedure, non_overridable          :: free                       => list_free
         generic                             :: create_iterator            => list_get_full_list_iterator,  &
                                                                              list_get_list_range_iterator, &
@@ -76,26 +82,19 @@ implicit none
         procedure, non_overridable          :: print                      => list_2d_print
     end type list_2d_t
 
-    type list_pointer_t
-    !-----------------------------------------------------------------
-    !< List_pointer_t derived type
-    !----------------------------------------------------------------- 
-        type(list_t), pointer :: p => NULL()
-    end type list_pointer_t
-
-
     type list_iterator_t
     private
     !-----------------------------------------------------------------
     !< List_t derived type
     !----------------------------------------------------------------- 
-        type(list_pointer_t)  :: list 
+        type(list_t), pointer :: list 
         integer(ip)           :: first
         integer(ip)           :: current
         integer(ip)           :: last
     contains
     private
         procedure, non_overridable         :: init                        => list_iterator_init
+        procedure, non_overridable, public :: free                        => list_iterator_free
         procedure, non_overridable         :: is_in_range                 => list_iterator_is_in_range
         procedure, non_overridable, public :: is_lower_bound              => list_iterator_is_lower_bound
         procedure, non_overridable, public :: is_upper_bound              => list_iterator_is_upper_bound
@@ -111,6 +110,7 @@ implicit none
         procedure, non_overridable, public :: get_current                 => list_iterator_get_current
         procedure, non_overridable, public :: set_current                 => list_iterator_set_current
         procedure, non_overridable, public :: reach_from_current          => list_iterator_reach_from_current
+        procedure, non_overridable, public :: set_from_current            => list_iterator_set_from_current
     end type list_iterator_t
 
 contains
@@ -155,7 +155,7 @@ contains
         integer(ip),   intent(in)    :: index
         integer(ip),   intent(in)    :: value
     !----------------------------------------------------------------- 
-!        assert(this%state == LIST_STATE_CREATED)
+        assert(this%state == LIST_STATE_CREATED)
         this%p(index+1) = this%p(index+1) + value
     end subroutine list_sum_to_pointer_index
 
@@ -167,7 +167,7 @@ contains
         class(list_t), intent(inout) :: this
         integer(ip)                  :: i
     !----------------------------------------------------------------- 
-!        assert(this%state == LIST_STATE_CREATED)
+        assert(this%state == LIST_STATE_CREATED)
         this%p(1) = 1
         do i=1, this%n
             this%p(i+1) = this%p(i+1) + this%p(i)
@@ -182,21 +182,57 @@ contains
     !----------------------------------------------------------------- 
         class(list_t), intent(inout) :: this
     !----------------------------------------------------------------- 
-!        assert(this%state == LIST_STATE_HEADER_BUILT)
+        assert(this%state == LIST_STATE_HEADER_BUILT)
         call memalloc(this%p(this%n+1)-1, this%l, __FILE__, __LINE__)
         this%l = 0
         this%state = LIST_STATE_LIST_ALLOCATED
     end subroutine list_allocate_list_from_p  
 
 
+    function list_get_num_pointers_c_loc( this ) result(num_pointers_c_loc)
+    !----------------------------------------------------------------- 
+    !< Return the C pointer to This%n
+    !----------------------------------------------------------------- 
+        class(list_t), target, intent(inout) :: this
+        type(c_ptr)                          :: num_pointers_c_loc
+    !----------------------------------------------------------------- 
+        assert(this%state >= LIST_STATE_CREATED)
+        num_pointers_c_loc = c_loc(this%n)
+    end function list_get_num_pointers_c_loc
+
+
+    function list_get_pointers_c_loc( this ) result(pointers_c_loc)
+    !----------------------------------------------------------------- 
+    !< Return the C pointer to This%p
+    !----------------------------------------------------------------- 
+        class(list_t), target, intent(inout) :: this
+        type(c_ptr)                          :: pointers_c_loc
+    !----------------------------------------------------------------- 
+        assert(this%state >= LIST_STATE_CREATED)
+        pointers_c_loc = c_loc(this%p)
+    end function list_get_pointers_c_loc
+
+
+    function list_get_list_c_loc( this ) result(list_c_loc)
+    !----------------------------------------------------------------- 
+    !< Return the C pointer to This%l
+    !----------------------------------------------------------------- 
+        class(list_t), target, intent(inout) :: this
+        type(c_ptr)                          :: list_c_loc
+    !----------------------------------------------------------------- 
+        assert(this%state >= LIST_STATE_LIST_ALLOCATED)
+        list_c_loc = c_loc(this%l)
+    end function list_get_list_c_loc
+
+
     function list_get_full_list_iterator( this ) result(list_iterator)
     !----------------------------------------------------------------- 
     !< Allocate list_t%l using the pointer info
     !----------------------------------------------------------------- 
-        class(list_t), target, intent(inout) :: this
+        class(list_t), target, intent(in)    :: this
         type(list_iterator_t)                :: list_iterator
     !----------------------------------------------------------------- 
-!        assert(this%state == LIST_STATE_LIST_STATE_LIST_ALLOCATED)
+        assert(this%state == LIST_STATE_LIST_ALLOCATED)
         call list_iterator%init(list=this, first=this%p(1), current=this%p(1), last=this%p(this%n+1)-1)
     end function list_get_full_list_iterator
 
@@ -205,12 +241,12 @@ contains
     !----------------------------------------------------------------- 
     !< Allocate list_t%l using the pointer info
     !----------------------------------------------------------------- 
-        class(list_t), target, intent(inout) :: this
+        class(list_t), target, intent(in)    :: this
         integer(ip),           intent(in)    :: start
         integer(ip),           intent(in)    :: end
         type(list_iterator_t)                :: list_iterator
     !----------------------------------------------------------------- 
-!        assert(this%state == LIST_STATE_LIST_STATE_LIST_ALLOCATED)
+        assert(this%state == LIST_STATE_LIST_ALLOCATED)
         assert( (start <= end) .and. (start>=1) .and. (end<= this%n) )
         call list_iterator%init(list=this, first=this%p(start), current=this%p(start), last=this%p(end+1)-1)
     end function list_get_list_range_iterator
@@ -220,11 +256,11 @@ contains
     !----------------------------------------------------------------- 
     !< Allocate list_t%l using the pointer info
     !----------------------------------------------------------------- 
-        class(list_t), target, intent(inout) :: this
+        class(list_t), target, intent(in)    :: this
         integer(ip),           intent(in)    :: index
         type(list_iterator_t)                :: list_iterator
     !----------------------------------------------------------------- 
-!        assert(this%state == LIST_STATE_LIST_STATE_LIST_ALLOCATED)
+        assert(this%state == LIST_STATE_LIST_ALLOCATED)
         assert( (index>=1) .and. (index<= this%n) )
         call list_iterator%init(list=this, first=this%p(index), current=this%p(index), last=this%p(index+1)-1)
     end function list_get_list_index_iterator
@@ -237,7 +273,7 @@ contains
         class(list_t), intent(inout):: this
         type(list_t), intent(in):: list
     !----------------------------------------------------------------- 
-!        assert(list%state == LIST_STATE_LIST_ALLOCATED)
+        assert(list%state == LIST_STATE_LIST_ALLOCATED)
         call this%free()
         call this%create(n=list%n)
         this%p(:) = list%p(:)
@@ -247,29 +283,42 @@ contains
     end subroutine list_assign
 
 
-    function list_get_num_pointers( this ) result(num_pointers)
+    pure function list_get_num_pointers( this ) result(num_pointers)
     !-----------------------------------------------------------------
     !< Return the number of pointers
     !----------------------------------------------------------------- 
-        class(list_t), intent(inout) :: this
+        class(list_t), intent(in)    :: this
         integer(ip)                  :: num_pointers
     !----------------------------------------------------------------- 
-!        assert(this%state == LIST_STATE_CREATED)
+        ! IO UNIT in WRITE statement must be an internal file in a PURE procedure
+        !assert(this%state == LIST_STATE_CREATED) 
         num_pointers = this%n
     end function list_get_num_pointers
 
 
-    function list_get_size( this ) result(list_size)
+    pure function list_get_size( this ) result(list_size)
     !-----------------------------------------------------------------
     !< Return the size of the list
     !----------------------------------------------------------------- 
-        class(list_t), intent(inout) :: this
+        class(list_t), intent(in)    :: this
         integer(ip)                  :: list_size
     !----------------------------------------------------------------- 
-!        assert(this%state == LIST_STATE_LIST_ALLOCATED)
-        list_size = size(this%l)
+        ! IO UNIT in WRITE statement must be an internal file in a PURE procedure
+        ! assert(this%state == LIST_STATE_LIST_ALLOCATED)
+        list_size = this%p(this%n+1)-this%p(1)
     end function list_get_size
-
+    
+    function list_get_sublist_size ( this, index ) result(sublist_size)
+    !-----------------------------------------------------------------
+    !< Return the size of the sublist corresponding to index
+    !----------------------------------------------------------------- 
+        class(list_t), intent(in)    :: this
+        integer(ip)                  :: index
+        integer(ip)                  :: sublist_size
+        !assert(this%state == LIST_STATE_LIST_ALLOCATED)
+        assert(this%state >= LIST_STATE_HEADER_BUILT)
+        sublist_size = this%p(index+1)-this%p(index)
+    end function list_get_sublist_size 
 
     subroutine list_print( this, lunou )
     !----------------------------------------------------------------- 
@@ -369,7 +418,6 @@ contains
 !--------------------------------------------------------------------- -----------------------------------------------------------
 !< List_iterator_t derived type TBP's
 !--------------------------------------------------------------------- -----------------------------------------------------------
-
     subroutine list_iterator_init(this, list, first, current, last)
     !----------------------------------------------------------------- 
     !< A list_T initializes an iterator
@@ -380,55 +428,66 @@ contains
         integer(ip),            intent(in)    :: current
         integer(ip),            intent(in)    :: last
     !----------------------------------------------------------------- 
-        this%list%p  => list
+        this%list    => list
         this%first   = first
         this%current = current
         this%last    = last
     end subroutine list_iterator_init
+    
+    subroutine list_iterator_free(this)
+    !----------------------------------------------------------------- 
+    !< "Frees" list_iterator_t
+    !----------------------------------------------------------------- 
+        class(list_iterator_t), intent(inout) :: this
+    !----------------------------------------------------------------- 
+        nullify(this%list)
+        this%first   = -1
+        this%current = -1
+        this%last    = -1
+    end subroutine list_iterator_free
 
-
-    function list_iterator_is_in_range(this, index) result(in_range)
+    pure function list_iterator_is_in_range(this, index) result(in_range)
     !----------------------------------------------------------------- 
     !< Check if a given index is in iterator range
     !----------------------------------------------------------------- 
-        class(list_iterator_t), intent(inout) :: this
-        integer(ip),            intent(in)    :: index
-        logical                               :: in_range
+        class(list_iterator_t), intent(in) :: this
+        integer(ip),            intent(in) :: index
+        logical                            :: in_range
     !----------------------------------------------------------------- 
         in_range = ( (index>=this%first) .and. (index<=this%last) )
     end function list_iterator_is_in_range
 
 
-    function list_iterator_get_size(this) result(size)
+    pure function list_iterator_get_size(this) result(size)
     !----------------------------------------------------------------- 
     !< Returns the total size of the iterator
     !----------------------------------------------------------------- 
-        class(list_iterator_t), intent(inout) :: this
-        integer(ip)                           :: size
+        class(list_iterator_t), intent(in) :: this
+        integer(ip)                        :: size
     !----------------------------------------------------------------- 
         size = this%last-this%first+1
     end function list_iterator_get_size
 
 
-    function list_iterator_get_distance_to_lower_bound(this) result(distance)
+    pure function list_iterator_get_distance_to_lower_bound(this) result(distance)
     !----------------------------------------------------------------- 
     !< Returns the distance from the current position (included) to the
     !< lower bound of the iterator
     !----------------------------------------------------------------- 
-        class(list_iterator_t), intent(inout) :: this
-        integer(ip)                           :: distance
+        class(list_iterator_t), intent(in) :: this
+        integer(ip)                        :: distance
     !----------------------------------------------------------------- 
         distance = this%current-this%first+1
     end function list_iterator_get_distance_to_lower_bound
 
 
-    function list_iterator_get_distance_to_upper_bound(this) result(distance)
+    pure function list_iterator_get_distance_to_upper_bound(this) result(distance)
     !----------------------------------------------------------------- 
     !< Returns the distance from the current position (included) to the
     !< upper bound of the iterator
     !----------------------------------------------------------------- 
-        class(list_iterator_t), intent(inout) :: this
-        integer(ip)                           :: distance
+        class(list_iterator_t), intent(in) :: this
+        integer(ip)                        :: distance
     !----------------------------------------------------------------- 
         distance = this%last-this%current+1
     end function list_iterator_get_distance_to_upper_bound
@@ -458,8 +517,8 @@ contains
     !----------------------------------------------------------------- 
     !< Check if the current component is a lower bound of the iterator
     !----------------------------------------------------------------- 
-        class(list_iterator_t), intent(inout) :: this
-        logical                               :: is_lower_bound
+        class(list_iterator_t), intent(in) :: this
+        logical                            :: is_lower_bound
     !----------------------------------------------------------------- 
         is_lower_bound = (this%current < this%first)
     end function list_iterator_is_lower_bound
@@ -469,8 +528,8 @@ contains
     !----------------------------------------------------------------- 
     !< Check if the current component is a upper bound of the iterator
     !----------------------------------------------------------------- 
-        class(list_iterator_t), intent(inout) :: this
-        logical                               :: is_upper_bound
+        class(list_iterator_t), intent(in) :: this
+        logical                            :: is_upper_bound
     !----------------------------------------------------------------- 
         is_upper_bound = (this%current > this%last)
     end function list_iterator_is_upper_bound
@@ -480,8 +539,8 @@ contains
     !----------------------------------------------------------------- 
     !< Check if the current component has next
     !----------------------------------------------------------------- 
-        class(list_iterator_t), intent(inout) :: this
-        logical                               :: has_next
+        class(list_iterator_t), intent(in) :: this
+        logical                            :: has_next
     !----------------------------------------------------------------- 
         has_next = (this%current < this%last)
     end function list_iterator_has_next
@@ -491,8 +550,8 @@ contains
     !----------------------------------------------------------------- 
     !< Check if the current component has next
     !----------------------------------------------------------------- 
-        class(list_iterator_t), intent(inout) :: this
-        logical                               :: has_previous
+        class(list_iterator_t), intent(in) :: this
+        logical                            :: has_previous
     !----------------------------------------------------------------- 
         has_previous = (this%current > this%first)
     end function list_iterator_has_previous
@@ -502,10 +561,10 @@ contains
     !----------------------------------------------------------------- 
     !< Returns the current component of the iterator
     !----------------------------------------------------------------- 
-        class(list_iterator_t), intent(inout) :: this
-        integer(ip)                           :: component
+        class(list_iterator_t), intent(in) :: this
+        integer(ip)                        :: component
     !----------------------------------------------------------------- 
-        component = this%list%p%l(this%current)
+        component = this%list%l(this%current)
     end function list_iterator_get_current
 
 
@@ -516,20 +575,34 @@ contains
         class(list_iterator_t), intent(inout) :: this
         integer(ip),            intent(in)    :: value
     !----------------------------------------------------------------- 
-        this%list%p%l(this%current) = value
+        this%list%l(this%current) = value
     end subroutine list_iterator_set_current
+
+
+    subroutine list_iterator_set_from_current(this, offset, value)
+    !----------------------------------------------------------------- 
+    !< Set the current + offset component of the iterator
+    !----------------------------------------------------------------- 
+        class(list_iterator_t), intent(in)    :: this
+        integer(ip),            intent(in)    :: offset
+        integer(ip),            intent(in)    :: value
+        integer(ip)                           :: component
+    !----------------------------------------------------------------- 
+        assert( this%is_in_range(this%current+offset) )
+        this%list%l(this%current+offset) = value
+    end subroutine list_iterator_set_from_current
 
 
     function list_iterator_reach_from_current(this, offset) result(component)
     !----------------------------------------------------------------- 
     !< Returns the current + offset component of the iterator
     !----------------------------------------------------------------- 
-        class(list_iterator_t), intent(inout) :: this
+        class(list_iterator_t), intent(in)    :: this
         integer(ip),            intent(in)    :: offset
         integer(ip)                           :: component
     !----------------------------------------------------------------- 
         assert( this%is_in_range(this%current+offset) )
-        component = this%list%p%l(this%current+offset)
+        component = this%list%l(this%current+offset)
     end function list_iterator_reach_from_current
 
 
@@ -551,6 +624,5 @@ contains
     !----------------------------------------------------------------- 
         if(.not. this%is_upper_bound()) this%current = this%current+1
     end subroutine list_iterator_next
-
 
 end module list_types_names

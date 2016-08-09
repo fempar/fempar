@@ -1,0 +1,179 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine vef_iterator_create ( this, lid, base_static_triangulation ) 
+  implicit none
+  class(vef_iterator_t)             , intent(inout) :: this
+  integer(ip)                       , intent(in)    :: lid
+  class(base_static_triangulation_t), intent(in)    :: base_static_triangulation
+  call this%free()
+  call this%current_vef_accessor%create(lid=lid, base_static_triangulation=base_static_triangulation )
+end subroutine vef_iterator_create
+
+subroutine vef_iterator_free ( this ) 
+  implicit none
+  class(vef_iterator_t), intent(inout) :: this
+  call this%current_vef_accessor%free()
+end subroutine vef_iterator_free
+
+subroutine vef_iterator_init ( this ) 
+  implicit none
+  class(vef_iterator_t), intent(inout) :: this
+  !write(*,*) 'Initializing vef iterator'
+  call this%current_vef_accessor%set_lid(lid=1)
+end subroutine vef_iterator_init
+
+subroutine vef_iterator_next ( this ) 
+  implicit none
+  class(vef_iterator_t), intent(inout) :: this
+  call this%current_vef_accessor%next()
+end subroutine vef_iterator_next
+
+function vef_iterator_has_finished ( this ) 
+  implicit none
+  class(vef_iterator_t), intent(in) :: this
+  logical                                  :: vef_iterator_has_finished
+  vef_iterator_has_finished = this%current_vef_accessor%past_the_end()
+end function vef_iterator_has_finished
+
+subroutine vef_iterator_current ( this, current ) 
+  implicit none
+  class(vef_iterator_t), target, intent(in)    :: this
+  type(vef_accessor_t),          intent(inout) :: current
+  current = this%current_vef_accessor
+end subroutine vef_iterator_current
+
+subroutine itfc_vef_iterator_create ( this, base_static_triangulation ) 
+  implicit none
+  class(itfc_vef_iterator_t), intent(inout) :: this
+  class(base_static_triangulation_t)     , intent(in)    :: base_static_triangulation
+  call this%free()
+  this%itfc_lid = 1
+  if ( base_static_triangulation%num_itfc_vefs == 0 ) then
+     call this%current_vef_accessor%create(lid=base_static_triangulation%num_vefs+1, &
+          base_static_triangulation=base_static_triangulation)
+  else
+     call this%current_vef_accessor%create(lid=base_static_triangulation%lst_itfc_vefs(this%itfc_lid), &
+          base_static_triangulation=base_static_triangulation)
+  end if
+end subroutine itfc_vef_iterator_create
+
+subroutine itfc_vef_iterator_free ( this ) 
+  implicit none
+  class(itfc_vef_iterator_t), intent(inout) :: this
+  this%itfc_lid = -1
+  call this%current_vef_accessor%free()
+end subroutine itfc_vef_iterator_free
+
+subroutine itfc_vef_iterator_init (this) 
+  implicit none
+  class(itfc_vef_iterator_t), intent(inout) :: this
+  type(base_static_triangulation_t), pointer            :: base_static_triangulation
+  base_static_triangulation => this%current_vef_accessor%get_triangulation()
+  this%itfc_lid = 1
+  if ( base_static_triangulation%num_itfc_vefs == 0 ) then
+     call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vefs+1)
+  else
+     call this%current_vef_accessor%set_lid(lid=base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
+  end if
+end subroutine itfc_vef_iterator_init
+
+subroutine itfc_vef_iterator_next ( this ) 
+  implicit none
+  class(itfc_vef_iterator_t), intent(inout)    :: this
+  class(base_static_triangulation_t), pointer  :: base_static_triangulation
+  base_static_triangulation => this%current_vef_accessor%get_triangulation()
+  this%itfc_lid = this%itfc_lid + 1
+  if ( this%itfc_lid > base_static_triangulation%num_itfc_vefs ) then
+     call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vefs+1)
+  else
+     call this%current_vef_accessor%set_lid(lid=base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
+  end if
+end subroutine itfc_vef_iterator_next
+
+function itfc_vef_iterator_has_finished ( this ) 
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  logical                                  :: itfc_vef_iterator_has_finished
+  itfc_vef_iterator_has_finished = this%current_vef_accessor%past_the_end()
+end function itfc_vef_iterator_has_finished
+
+subroutine itfc_vef_iterator_current ( this, current ) 
+  implicit none
+  class(itfc_vef_iterator_t), target, intent(in)    :: this
+  type(vef_accessor_t),               intent(inout) :: current
+  current = this%current_vef_accessor
+end subroutine itfc_vef_iterator_current
+
+
+subroutine vertex_iterator_next ( this ) 
+  implicit none
+  class(vertex_iterator_t), intent(inout)    :: this
+  class(base_static_triangulation_t), pointer  :: base_static_triangulation
+  base_static_triangulation => this%current_vef_accessor%get_triangulation()
+  if ( this%current_vef_accessor%get_lid() >= base_static_triangulation%num_vertices ) then
+     call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vefs+1)
+  else
+     call this%current_vef_accessor%next()
+  end if
+end subroutine vertex_iterator_next
+
+subroutine edge_iterator_init (this) 
+  implicit none
+  class(edge_iterator_t), intent(inout) :: this
+  class(base_static_triangulation_t), pointer  :: base_static_triangulation
+  base_static_triangulation => this%current_vef_accessor%get_triangulation()
+  call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vertices+1)
+end subroutine edge_iterator_init
+
+subroutine edge_iterator_next ( this ) 
+  implicit none
+  class(edge_iterator_t), intent(inout)    :: this
+  class(base_static_triangulation_t), pointer  :: base_static_triangulation
+  base_static_triangulation => this%current_vef_accessor%get_triangulation()
+  if ( this%current_vef_accessor%get_lid() >= base_static_triangulation%num_vertices + base_static_triangulation%num_edges ) then
+     call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vefs+1)
+  else
+     call this%current_vef_accessor%next()
+  end if
+end subroutine edge_iterator_next
+
+subroutine face_iterator_init (this) 
+  implicit none
+  class(face_iterator_t), intent(inout) :: this
+  class(base_static_triangulation_t), pointer  :: base_static_triangulation
+  base_static_triangulation => this%current_vef_accessor%get_triangulation()
+  call this%current_vef_accessor%set_lid(lid=base_static_triangulation%num_vertices+base_static_triangulation%num_edges+1)
+end subroutine face_iterator_init
+
+subroutine face_iterator_current ( this, current ) 
+  implicit none
+  class(face_iterator_t), target, intent(in)    :: this
+  type(face_accessor_t),          intent(inout) :: current
+  call current%create (this%current_vef_accessor%get_lid(), this%current_vef_accessor%base_static_triangulation)
+end subroutine face_iterator_current
+

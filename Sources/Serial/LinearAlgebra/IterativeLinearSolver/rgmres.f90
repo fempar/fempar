@@ -220,7 +220,7 @@ contains
     
     exit_loop = (error_estimate_convergence_test <= rhs_convergence_test)
     ! Send converged to coarse-grid tasks
-    call environment%bcast(exit_loop)
+    call environment%l1_lgt1_bcast(exit_loop)
     
     call this%print_convergence_history_header(luout)
     
@@ -243,7 +243,7 @@ contains
        ! Normalize residual direction (i.e., v_1 = r/||r||_2)
        bkryv => this%bkry%get(1)
        call bkryv%clone(x)
-       if ( environment%am_i_fine_task() ) then 
+       if ( environment%am_i_l1_task() ) then 
           if (res_norm /= 0.0_rp) then
              call bkryv%scal(1.0_rp/res_norm, this%r)
           end if
@@ -267,7 +267,7 @@ contains
           call bkryv%clone(x)
           call A%apply(this%z, bkryv)
 
-          if ( environment%am_i_fine_task() ) then
+          if ( environment%am_i_l1_task() ) then
              ! Orthogonalize
              select case( this%orthonorm_strat )
              case ( mgsro )
@@ -282,7 +282,7 @@ contains
                 ! The coarse-grid task should exit 
                 ! the inner-do loop. Send signal.
                 exit_loop = .true.
-                call environment%bcast(exit_loop) 
+                call environment%l1_lgt1_bcast(exit_loop) 
                 exit inner ! Exit inner do-loop
              end if
 
@@ -317,19 +317,19 @@ contains
           end if
           exit_loop = (error_estimate_convergence_test <= rhs_convergence_test) 
           ! Send converged to coarse-grid tasks
-          call environment%bcast(exit_loop)
+          call environment%l1_lgt1_bcast(exit_loop)
 
           call this%print_convergence_history_new_line(luout)
        end do inner
 
        if ( kloc > 0 ) then
-          if ( environment%am_i_fine_task() ) then
+          if ( environment%am_i_l1_task() ) then
              if ( ierrc == -2 ) then
                 write (luout,*) '** Warning: RGMRES: ortho failed due to abnormal numbers, no way to proceed'
                 ! The coarse-grid task should exit 
                 ! the outer-do loop. Send signal. 
                 exit_loop = .true.
-                call environment%bcast(exit_loop)
+                call environment%l1_lgt1_bcast(exit_loop)
                 exit outer ! Exit main do-loop
              end if
 
@@ -344,7 +344,7 @@ contains
              if ( kloc <= 0 ) then
                 write (luout,*) '** Warning: RGMRES: triangular system in GMRES has null rank'
                 exit_loop = .true.
-                call environment%bcast(exit_loop)
+                call environment%l1_lgt1_bcast(exit_loop)
                 exit outer ! Exit main do loop     
              end if
 
@@ -378,12 +378,12 @@ contains
 
           exit_loop = (error_estimate_convergence_test <= rhs_convergence_test)
           ! Send converged to coarse-grid tasks
-          call environment%bcast(exit_loop)
+          call environment%l1_lgt1_bcast(exit_loop)
        end if
     end do outer
     did_converge = (error_estimate_convergence_test <= rhs_convergence_test)
     ! Send converged to coarse-grid tasks
-    call environment%bcast(did_converge)
+    call environment%l1_lgt1_bcast(did_converge)
     call this%print_convergence_history_footer(luout)
   end subroutine rgmres_solve_body
 

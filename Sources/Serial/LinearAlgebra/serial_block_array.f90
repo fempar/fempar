@@ -31,7 +31,6 @@ module serial_block_array_names
   use serial_scalar_array_names
   use array_names
   use vector_names
-  use graph_names
   implicit none
 # include "debug.i90"
 

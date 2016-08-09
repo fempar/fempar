@@ -222,7 +222,7 @@ end module command_line_parameters_names
 !****************************************************************************************************
 module stokes_discrete_integration_names
 use field_names
-use assembler_names
+use matrix_array_assembler_names
 use serial_fe_space_names
 use discrete_integration_names
 use reference_fe_names
@@ -429,7 +429,7 @@ program test_reference_fe
   call cli%get(group=trim(group),switch='-out',val=dir_path_out,error=istat); check(istat==0)
 
   ! Read mesh
-  call mesh_read (dir_path, prefix, f_mesh, permute_c2z=.true.)
+  call f_mesh%read (dir_path, prefix, permute_c2z=.true.)
 
   ! Read conditions 
   call conditions_read (dir_path, prefix, f_mesh%npoin, f_cond)
@@ -514,7 +514,7 @@ write(*,*) 'Pressure error norm: ', vector%blocks(2)%nrm2()
   call composite_reference_array(2)%free()
   call triangulation_free(f_trian)
   call conditions_free ( f_cond )
-  call mesh_free (f_mesh)
+  call f_mesh%free()
   call memstatus 
 
 contains

@@ -1,0 +1,316 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine vef_accessor_create ( this, lid, base_static_triangulation )
+  implicit none
+  class(vef_accessor_t)               , intent(inout) :: this
+  integer(ip)                         , intent(in)    :: lid
+  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
+  call this%free()
+  this%lid = lid
+  this%base_static_triangulation => base_static_triangulation
+end subroutine vef_accessor_create
+
+subroutine vef_accessor_free ( this)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  this%lid = -1
+  nullify ( this%base_static_triangulation )
+end subroutine vef_accessor_free
+
+subroutine vef_accessor_next(this)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  this%lid = this%lid + 1
+end subroutine vef_accessor_next
+
+subroutine vef_accessor_set_lid(this, lid)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  integer(ip)        , intent(in)    :: lid
+  this%lid = lid
+end subroutine vef_accessor_set_lid
+
+function vef_accessor_past_the_end(this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  logical :: vef_accessor_past_the_end
+  vef_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_vefs)
+  !vef_accessor_past_the_end = (this%lid > this%base_static_triangulation%num_local_vefs + &
+  !     this%base_static_triangulation%num_ghost_vefs)
+end function vef_accessor_past_the_end
+
+function vef_accessor_get_triangulation(this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  class(base_static_triangulation_t), pointer :: vef_accessor_get_triangulation
+  vef_accessor_get_triangulation => this%base_static_triangulation
+end function vef_accessor_get_triangulation
+
+function vef_accessor_get_lid (this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  integer(ip) :: vef_accessor_get_lid
+  vef_accessor_get_lid = this%lid
+end function vef_accessor_get_lid
+
+function vef_accessor_get_gid (this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  integer(igp) :: vef_accessor_get_gid
+  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  vef_accessor_get_gid = this%base_static_triangulation%vefs_gid(this%lid)
+end function vef_accessor_get_gid
+
+subroutine vef_accessor_set_set_id(this,set_id)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  integer(ip)          , intent(in) :: set_id
+  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  this%base_static_triangulation%vefs_set(this%lid) = set_id
+end subroutine vef_accessor_set_set_id  
+
+subroutine vef_accessor_set_geom_id(this,geom_id)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  integer(ip)          , intent(in) :: geom_id
+  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  this%base_static_triangulation%vefs_geometry(this%lid) = geom_id
+end subroutine vef_accessor_set_geom_id  
+
+function vef_accessor_get_set_id(this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  integer(ip) :: vef_accessor_get_set_id
+  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  vef_accessor_get_set_id = this%base_static_triangulation%vefs_set(this%lid)
+end function vef_accessor_get_set_id  
+
+function vef_accessor_get_geom_id(this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  integer(ip) :: vef_accessor_get_geom_id
+  assert (this%lid >= 1 .and. .not. this%past_the_end())
+  vef_accessor_get_geom_id = this%base_static_triangulation%vefs_geometry(this%lid)
+end function vef_accessor_get_geom_id  
+
+subroutine vef_accessor_set_dimension(this,vef_dim)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: vef_dim
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  this%base_static_triangulation%vefs_type(this%lid) = (this%base_static_triangulation%vefs_type(this%lid)/10) * 10 + vef_dim
+end subroutine vef_accessor_set_dimension
+
+subroutine vef_accessor_set_it_at_boundary(this)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  integer(ip) :: vef_dim
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_dim = mod(this%base_static_triangulation%vefs_type(this%lid),10)
+  this%base_static_triangulation%vefs_type(this%lid) = (this%base_static_triangulation%vefs_type(this%lid)/100) * 100 + 10 + vef_dim
+end subroutine vef_accessor_set_it_at_boundary
+
+subroutine vef_accessor_set_it_as_local(this)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  integer(ip) :: vef_dim_and_bound
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%lid),100)
+  this%base_static_triangulation%vefs_type(this%lid) = vef_dim_and_bound
+end subroutine vef_accessor_set_it_as_local
+
+subroutine vef_accessor_set_it_at_interface(this)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  integer(ip) :: vef_dim_and_bound
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%lid),100)
+  this%base_static_triangulation%vefs_type(this%lid) = 100 + vef_dim_and_bound
+end subroutine vef_accessor_set_it_at_interface
+
+subroutine vef_accessor_set_it_as_ghost(this)
+  implicit none
+  class(vef_accessor_t), intent(inout) :: this
+  integer(ip) :: vef_dim_and_bound
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%lid),100)
+  this%base_static_triangulation%vefs_type(this%lid) = 200 + vef_dim_and_bound
+end subroutine vef_accessor_set_it_as_ghost
+
+function vef_accessor_get_dimension(this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  integer(ip) :: vef_accessor_get_dimension
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_accessor_get_dimension  = mod(this%base_static_triangulation%vefs_type(this%lid),10)
+end function vef_accessor_get_dimension
+
+function vef_accessor_is_at_boundary (this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  logical :: vef_accessor_is_at_boundary 
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_accessor_is_at_boundary  = (mod(this%base_static_triangulation%vefs_type(this%lid)/10,10)==1)
+end function vef_accessor_is_at_boundary
+
+function vef_accessor_is_local (this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  logical :: vef_accessor_is_local 
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_accessor_is_local  = (this%base_static_triangulation%vefs_type(this%lid)/100==0)
+end function vef_accessor_is_local
+
+function vef_accessor_is_at_interface (this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  logical :: vef_accessor_is_at_interface 
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_accessor_is_at_interface  = (this%base_static_triangulation%vefs_type(this%lid)/100==1)
+end function vef_accessor_is_at_interface
+
+function vef_accessor_is_face (this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  logical :: vef_accessor_is_face
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_accessor_is_face  = (this%base_static_triangulation%get_num_dimensions()-1 == this%get_dimension())
+end function vef_accessor_is_face
+
+function vef_accessor_is_ghost (this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  logical :: vef_accessor_is_ghost 
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_accessor_is_ghost  = (this%base_static_triangulation%vefs_type(this%lid)/100==2)
+end function vef_accessor_is_ghost
+
+function vef_accessor_get_num_cells_around (this)
+  implicit none
+  class(vef_accessor_t), intent(in) :: this
+  integer(ip) :: vef_accessor_get_num_cells_around
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  vef_accessor_get_num_cells_around = this%base_static_triangulation%ptrs_cells_around(this%lid+1)- &
+       this%base_static_triangulation%ptrs_cells_around(this%lid)
+end function vef_accessor_get_num_cells_around
+
+subroutine vef_accessor_get_cell_around (this, icell_around, cell)
+  implicit none
+  class(vef_accessor_t), intent(in)     :: this
+  integer(ip)          , intent(in)    :: icell_around
+  type(cell_accessor_t), intent(inout) :: cell
+  integer(ip)                          :: position_in_lst_cells_around
+  integer(ip)                          :: icell 
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( icell_around >= 1 .and. icell_around <= this%get_num_cells_around() )
+  position_in_lst_cells_around = this%base_static_triangulation%ptrs_cells_around(this%lid) + icell_around-1
+  icell = this%base_static_triangulation%lst_cells_around(position_in_lst_cells_around)
+  call cell%create(icell,this%base_static_triangulation)
+end subroutine vef_accessor_get_cell_around
+
+function face_accessor_get_face_lid (this) result(face_lid)
+  implicit none
+  class(face_accessor_t), intent(in)    :: this
+  integer(ip) :: face_lid
+  face_lid = this%lid - (this%base_static_triangulation%num_vertices+&
+                         this%base_static_triangulation%num_edges)
+end function face_accessor_get_face_lid
+
+function face_accessor_get_face_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
+  implicit none
+  class(face_accessor_t), intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  integer(ip)                           :: face_lpos_within_cell_around
+  
+  type(cell_accessor_t)          :: cell
+  class(reference_fe_t), pointer :: reference_fe_geo
+  
+  call this%get_cell_around(icell_around, cell)
+  reference_fe_geo => cell%get_reference_fe_geo()
+  assert ( cell%find_lpos_vef_lid (this%lid) /= -1 )
+  
+  face_lpos_within_cell_around = reference_fe_geo%get_first_face_id() - &
+                                 cell%find_lpos_vef_lid(this%lid) + 1
+end function face_accessor_get_face_lpos_within_cell_around
+
+function face_accessor_get_face_orientation ( this ) result(face_orientation)
+  implicit none
+  class(face_accessor_t), intent(in)    :: this
+  integer(ip)                           :: face_orientation
+  face_orientation = this%base_static_triangulation%face_orientation(this%get_face_lid())
+end function face_accessor_get_face_orientation 
+
+function face_accessor_get_face_rotation ( this ) result(face_rotation)
+  implicit none
+  class(face_accessor_t), intent(in)    :: this
+  integer(ip)                           :: face_rotation
+  face_rotation = this%base_static_triangulation%face_rotation(this%get_face_lid())
+end function face_accessor_get_face_rotation
+
+subroutine face_accessor_set_face_orientation (this, face_orientation)
+  implicit none
+  class(face_accessor_t), intent(inout)    :: this
+  integer(ip)           , intent(in)       :: face_orientation
+  this%base_static_triangulation%face_orientation(this%get_face_lid()) = face_orientation
+end subroutine face_accessor_set_face_orientation 
+
+subroutine face_accessor_set_face_rotation ( this, face_rotation)
+  implicit none
+  class(face_accessor_t), intent(inout) :: this
+  integer(ip)           , intent(in)    :: face_rotation
+  this%base_static_triangulation%face_rotation(this%get_face_lid()) = face_rotation 
+end subroutine face_accessor_set_face_rotation
+
+
+! We need cells around to evaluate it. Storing faces of elements, 
+! edges of faces and vertices of edges, this would not be necessary.
+!subroutine vef_accessor_get_vertices(this,vertices)
+!  implicit none
+!  class(vef_accessor_t), intent(in) :: this
+!  integer(ip)                       :: vertices(:)
+!  type(cell_accessor_t)             :: cell
+!  type(list_t), pointer             :: vertices_per_vef
+!  integer(ip) ::  ivef, cell_num_vefs, cell_type,num_vertices, istat, i
+!  type(list_iterator_t) :: vertices_iterator
+
+!  call this%get_cell_around (1, cell) ! there is always one element around
+!  ivef = cell%find_lpos_vef_lid(this%get_lid())
+!  cell_num_vefs = cell%get_num_vefs()
+!  call this%base_static_triangulation%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
+!  assert(istat==key_found)
+!  vertices_per_vef => this%base_static_triangulation%reference_fe_geo_list(cell_type)%p%get_vertices_vef()
+!  vertices_iterator = vertices_per_vef%create_iterator(ivef)
+!  num_vertices = vertices_iterator%get_size()
+!  ! Alternatively:
+!  !num_vertices = this%reference_fe_geo_list(cell_type)%p%get_number_vertices_vef(ivef)
+!  assert(size(vertices)>=num_vertices)
+!  do i=1, num_vertices
+!     vertices(i) = vertices_iterator%get_current()
+!     call vertices_iterator%next()
+!  enddo
+!end subroutine vef_accessor_get_vertices

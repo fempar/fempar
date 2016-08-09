@@ -26,15 +26,13 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module metis_interface_names
-use types_names
-use iso_c_binding
+  use types_names
+  use iso_c_binding
   implicit none
 
   !------------------------------------------------------------------!
   ! An iso_c_bindings based Fortran2003 interface to metis (V5.1.0)  !
   !------------------------------------------------------------------!
-
-#ifdef ENABLE_METIS
 
 !!$/* The maximum length of the options[] array */
 !!$#define METIS_NOPTIONS          40
@@ -227,6 +225,8 @@ use iso_c_binding
   integer(c_int), parameter :: METIS_OBJTYPE_VOL =  1
   integer(c_int), parameter :: METIS_OBJTYPE_NODE = 2 
 
+
+#ifdef ENABLE_METIS
 #ifndef METIS_LONG_INTEGERS
 
   integer(c_int),target :: options(0:METIS_NOPTIONS-1)
@@ -236,14 +236,14 @@ use iso_c_binding
   interface
      function metis_nodend(nvtxs,xadj,adjncy,vwgt,options,perm,iperm) & 
         & bind(c,NAME='METIS_NodeND')
-use iso_c_binding
+       use iso_c_binding
        integer(c_int) :: fp_metis_nodendextractseparatortree
        type(c_ptr), value :: nvtxs
        type(c_ptr), value :: xadj, adjncy, vwgt, options, perm, iperm
      end function metis_nodend
      function metis_partgraphkway(nvtxs,ncon,xadj,adjncy,vwgt,vsize,adjwgt,nparts,tptwgts,ubvec,options,objval,part) &
         & bind(c,NAME='METIS_PartGraphKway')
-use iso_c_binding
+       use iso_c_binding
        integer(c_int) :: fp_metis_partgraphkway
        type(c_ptr), value :: nvtxs, ncon, nparts, objval, part
        type(c_ptr), value :: xadj, adjncy, vwgt, vsize, adjwgt, options
@@ -252,7 +252,7 @@ use iso_c_binding
      end function metis_partgraphkway
      function metis_partgraphrecursive(nvtxs,ncon,xadj,adjncy,vwgt,vsize,adjwgt,nparts,tptwgts,ubvec,options,objval,part) &
         & bind(c,NAME='METIS_PartGraphRecursive')
-use iso_c_binding
+       use iso_c_binding
        integer(c_int) :: fp_metis_partgraphrecursive
        type(c_ptr), value :: nvtxs, ncon, nparts, objval, part
        type(c_ptr), value :: xadj, adjncy, vwgt, vsize, adjwgt, options

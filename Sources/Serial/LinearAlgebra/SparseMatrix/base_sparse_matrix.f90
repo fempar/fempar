@@ -46,7 +46,7 @@ module base_sparse_matrix_names
   !-----------------------------------------------------------------
   ! State transition diagram for type(base_sparse_matrix_t)
   !-----------------------------------------------------------------
-  ! Note: it is desireable that the state management occurs only
+  ! Note: it is desirable that the state management occurs only
   !       inside this class to get a cleaner implementation
   !       of the son classes
   !-----------------------------------------------------------------

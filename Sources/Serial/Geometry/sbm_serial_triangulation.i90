@@ -1,0 +1,104 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine serial_triangulation_create ( this, dir_path, prefix, geometry_interpolation_order)
+    implicit none
+    class(serial_triangulation_t), intent(inout) :: this
+    character(len=256)           , intent(in)    :: dir_path
+    character(len=256)           , intent(in)    :: prefix
+    integer(ip)        , optional, intent(in)    :: geometry_interpolation_order
+
+    type(mesh_t)          :: mesh
+    type(list_t), pointer :: given_vefs
+    integer(ip) , pointer :: lst_vefs_geo(:), lst_vefs_set(:)
+    integer(ip) :: order
+
+    call this%free()
+
+    if(present(geometry_interpolation_order)) then
+       order=geometry_interpolation_order
+       if(order>1) then
+          call this%geometry%read(dir_path, prefix)
+       end if
+    else
+       order=1
+    end if
+    
+    call mesh%read(dir_path, prefix)
+    !call mesh%to_dual()
+    !call mesh%generate_vefs()
+
+    ! Extract data from mesh
+    call mesh%get_sizes(this%num_dimensions,this%num_vertices,this%max_vefs_per_cell,this%num_local_cells)
+    this%num_vefs=this%num_vertices
+    this%num_local_vefs=this%num_vefs
+    this%num_ghost_vefs=0
+    this%num_ghost_cells=0
+    !write(*,*) this%num_dimensions,this%num_vertices,this%num_vefs,this%max_vefs_per_cell,this%num_local_cells
+    call mesh%move_cells(this%ptr_vefs_per_cell,this%lst_vefs_lids)
+    !write(*,*) this%ptr_vefs_per_cell
+    !write(*,*) this%lst_vefs_lids
+    !call mesh%move_coordinates(this%coordinates)
+    !write(*,*) this%coordinates
+    call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
+    !write(*,*) boundary%p,boundary%l
+
+    ! Generate dual mesh (at this point around vertices only)
+    call this%allocate_and_fill_cells_around()
+    !write(*,*) this%ptrs_cells_around
+    !write(*,*) this%lst_cells_around
+    write(*,*) 'Dual mesh ready'
+
+    call this%generate_vefs(order)
+    call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
+    !call this%generate_vefs()
+    write(*,*) 'Generating vefs done'
+
+    ! Generate dual mesh (around all vefs now)
+    call this%allocate_and_fill_cells_around()
+    !write(*,*) this%ptrs_cells_around
+    !write(*,*) this%lst_cells_around
+    write(*,*) 'Dual mesh ready'
+
+    call this%compute_vefs_dimension()
+    call this%find_vefs_at_boundary()
+    call this%find_and_list_vefs_at_interfaces() ! Is this needed?
+    !call this%allocate_and_fill_vef_type()
+    
+    call this%allocate_and_fill_face_orientation_rotation()
+
+    write(*,*) 'Numbering nodes and filling coordinates'
+    call this%allocate_and_fill_nodes()
+    !write(*,*) 'List of nodes (ptr):'
+    !write(*,*) this%ptr_nodes_per_cell
+    !write(*,*) 'List of nodes (lst):'
+    !write(*,*) this%lst_nodes
+    call this%allocate_and_fill_coordinates(mesh%get_coordinates())
+
+    call mesh%free()
+  end subroutine serial_triangulation_create
+  

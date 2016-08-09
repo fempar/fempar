@@ -42,7 +42,7 @@
   structured_mesh: if(.not.params%get_is_structured_mesh()) then
 
      ! Read mesh
-     call mesh_read(params%get_dir_path(),params%get_prefix(),f_mesh,permute_c2z=.true.)
+     call f_mesh%read(params%get_dir_path(),params%get_prefix()) ! ,permute_c2z=.true.
 
      ! Read conditions
      call conditions_read(params%get_dir_path(),params%get_prefix(),f_mesh%npoin,f_cond)
@@ -223,7 +223,7 @@
   call reference_fe_array(3)%free()
   call triangulation_free(f_trian)
   call conditions_free(f_cond)
-  if(.not.params%get_is_structured_mesh()) call mesh_free(f_mesh)
+  if(.not.params%get_is_structured_mesh()) call f_mesh%free()
   if(params%get_is_structured_mesh()) then
      call boundary_data%free()
      call mesh_parameters%free()

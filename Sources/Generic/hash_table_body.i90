@@ -206,6 +206,8 @@ subroutine init_hash_table(tbl,tbl_len,tbl_min,tbl_max)
   integer(ip), optional, intent(in)    :: tbl_len
   integer(ip) :: i
 
+  call tbl%free()
+  
   ! Define table size
   if(present(tbl_min)) tbl%vec_min = tbl_min
   if(present(tbl_len).and.present(tbl_max)) then
@@ -219,9 +221,6 @@ subroutine init_hash_table(tbl,tbl_len,tbl_min,tbl_max)
   end if
   tbl%counter = 0
 
-  ! Allocate table
-  if (allocated(tbl%vec)) deallocate(tbl%vec)
-  !write(*,*) tbl%vec_min,tbl%vec_min+tbl%vec_len-1
   allocate(tbl%vec(tbl%vec_min:tbl%vec_min+tbl%vec_len-1))
 
   ! Initialize keys
@@ -277,7 +276,7 @@ subroutine put_hash_table(tbl,key,val,stat)
   integer(ip)                        :: hash
   val_type                           :: val_
 
-  assert (key>=int(tbl%vec_min,key_size))
+  assert ( key>=int(tbl%vec_min,key_size) )
   ! mod function is always a problem if mixed integers are used.
   ! hash = tbl%vec_min +  mod((key-tbl%vec_min),tbl%vec_len)
   ! hash = tbl%vec_min + (key-tbl%vec_min) - ((key-tbl%vec_min)/tbl%vec_len) * tbl%vec_len

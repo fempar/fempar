@@ -834,34 +834,40 @@ subroutine lagrangian_reference_fe_extend_list_components(this, list_1d)
   type(list_t)                    , intent(inout) :: list_1d
   type(list_t) :: list
   integer(ip)  :: ngaus, order, i, j, k, c, node_1d, aux_1, aux_2
+  type(list_iterator_t) :: list_1d_iterator
+  type(list_iterator_t) :: list_iterator
 
   call list%create(n=this%number_vefs+1)
 
-  list%p(1) = 1
-  do i = 2,this%number_vefs+2
-     list%p(i) = list%p(i-1) + ( list_1d%p(i)-list_1d%p(i-1) ) * this%number_field_components
+  !list%p(1) = 1
+  !do i = 2,this%number_vefs+2
+  !   list%p(i) = list%p(i-1) + ( list_1d%p(i)-list_1d%p(i-1) ) * this%number_field_components
+  !end do
+  
+  do i = 1,this%number_vefs+1
+    call list%sum_to_pointer_index(i, list_1d%get_sublist_size(i) * this%number_field_components)
   end do
 
+  call list%calculate_header()
   call list%allocate_list_from_pointer()
 
   aux_1 = this%number_nodes
   do i = 1,this%number_vefs+1
-     c = list%p(i)
+     list_iterator = list%create_iterator(i)
      do k = 1,this%number_field_components
         aux_2 = aux_1*(k-1)
-        do j = list_1d%p(i),list_1d%p(i+1)-1
-           node_1d = list_1d%l(j)
-           list%l(c) = node_1d + aux_2
-           c = c + 1
+        list_1d_iterator = list_1d%create_iterator(i)
+        do while(.not. list_1d_iterator%is_upper_bound())
+           node_1d = list_1d_iterator%get_current()
+           call list_iterator%set_current(node_1d + aux_2)
+           call list_1d_iterator%next()
+           call list_iterator%next()
         end do
      end do
   end do
-
-  call memrealloc ( size(list%p), list_1d%p, __FILE__, __LINE__ )
-  call memrealloc ( size(list%l), list_1d%l, __FILE__, __LINE__ )
+  
   list_1d = list
   call list%free() 
-
 end subroutine lagrangian_reference_fe_extend_list_components
 
 !==================================================================================================

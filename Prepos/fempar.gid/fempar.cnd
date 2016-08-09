@@ -1,0 +1,32 @@
+NUMBER: 11    CONDITION: Point_id
+CONDTYPE:     over points
+CONDMESHTYPE: over nodes
+QUESTION:     ID:
+VALUE:        0
+QUESTION:     Point_number#FUNC#(NumEntity) 
+VALUE:        0 
+END CONDITION
+NUMBER: 21    CONDITION: Line_id
+CONDTYPE:     over lines
+CONDMESHTYPE: over body elements
+QUESTION:     ID:
+VALUE:        0
+QUESTION:     Line_number#FUNC#(NumEntity) 
+VALUE:        0 
+END CONDITION
+NUMBER: 31    CONDITION: Surface_id
+CONDTYPE:     over surfaces
+CONDMESHTYPE: over body elements
+QUESTION:     ID:
+VALUE:        0
+QUESTION:     Surface_number#FUNC#(NumEntity) 
+VALUE:        0 
+END CONDITION
+NUMBER: 41    CONDITION: Volume_id
+CONDTYPE:     over volumes
+CONDMESHTYPE: over body elements
+QUESTION:     ID:
+VALUE:        0
+QUESTION:     Volume_number#FUNC#(NumEntity) 
+VALUE:        0 
+END CONDITION

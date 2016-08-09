@@ -41,6 +41,7 @@ module stdio_names
 
   ! private module
   private
+# include "debug.i90"
 
   integer, parameter :: IOSTAT_OK = 0  ! extra parameter for iso_fortran_env
 

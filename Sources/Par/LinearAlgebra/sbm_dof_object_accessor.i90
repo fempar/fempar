@@ -1,0 +1,100 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine dof_object_accessor_create ( this, &
+                                        field_id, &
+                                        dof_object_lid, &
+                                        mlbddc )
+  implicit none
+  class(dof_object_accessor_t)        , intent(inout) :: this
+  integer(ip)                         , intent(in)    :: field_id
+  integer(ip)                         , intent(in)    :: dof_object_lid
+  type(mlbddc_t), target              , intent(in)    :: mlbddc
+  class(par_fe_space_t), pointer :: fe_space
+  call this%free()
+  
+  fe_space => mlbddc%get_fe_space()
+  assert ( field_id >= 1 .and. field_id <= fe_space%get_number_fields() )  
+  if ( dof_object_lid >  mlbddc%num_dofs_objects_per_field(field_id)) then
+    call this%fe_object_accessor_t%create(fe_space%get_number_fe_objects()+1, &
+                                          fe_space)
+  else
+    call this%fe_object_accessor_t%create(int(mlbddc%vefs_lids_dofs_objects_per_field(field_id)%a(dof_object_lid),ip), &
+                                              fe_space)
+  end if  
+  this%field_id = field_id
+  this%dof_object_lid = dof_object_lid
+  this%mlbddc => mlbddc
+end subroutine dof_object_accessor_create
+
+subroutine dof_object_accessor_free ( this)
+  implicit none
+  class(dof_object_accessor_t), intent(inout) :: this
+  call this%fe_object_accessor_t%free()
+  this%field_id = -1
+  this%dof_object_lid = -1
+  nullify ( this%mlbddc )
+end subroutine dof_object_accessor_free
+
+subroutine dof_object_accessor_next(this)
+  implicit none
+  class(dof_object_accessor_t), intent(inout) :: this
+  this%dof_object_lid = this%dof_object_lid + 1
+  call this%set_lid(this%dof_object_lid)
+end subroutine dof_object_accessor_next
+
+subroutine dof_object_accessor_set_lid(this, lid)
+  implicit none
+  class(dof_object_accessor_t), intent(inout) :: this
+  integer(ip)                 , intent(in)    :: lid
+  class(par_fe_space_t), pointer :: fe_space
+  this%dof_object_lid = lid
+  if ( lid >  this%mlbddc%num_dofs_objects_per_field(this%field_id) ) then
+    fe_space => this%mlbddc%get_fe_space()
+    call this%fe_object_accessor_t%set_lid(fe_space%get_number_fe_objects()+1)
+  else
+    call this%fe_object_accessor_t%set_lid(int(this%mlbddc%vefs_lids_dofs_objects_per_field(this%field_id)%a(lid),ip))
+  end if 
+end subroutine dof_object_accessor_set_lid
+
+function dof_object_accessor_get_number_dofs_on_object(this)
+  implicit none
+  class(dof_object_accessor_t), intent(inout) :: this
+  integer(ip) :: dof_object_accessor_get_number_dofs_on_object
+  type(list_iterator_t) :: dofs_on_object_iterator
+  dofs_on_object_iterator = this%get_dofs_on_object_iterator()
+  dof_object_accessor_get_number_dofs_on_object = &
+    this%mlbddc%dofs_objects_per_field(this%field_id)%get_sublist_size(this%dof_object_lid)
+end function dof_object_accessor_get_number_dofs_on_object
+
+function dof_object_accessor_get_dofs_on_object_iterator(this)
+  implicit none
+  class(dof_object_accessor_t), intent(inout) :: this
+  type(list_iterator_t) :: dof_object_accessor_get_dofs_on_object_iterator
+  dof_object_accessor_get_dofs_on_object_iterator = &
+    this%mlbddc%dofs_objects_per_field(this%field_id)%create_iterator(this%dof_object_lid)
+end function dof_object_accessor_get_dofs_on_object_iterator

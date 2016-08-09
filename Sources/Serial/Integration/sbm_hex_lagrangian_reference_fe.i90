@@ -94,6 +94,76 @@ subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connec
   end do
 end subroutine hex_lagrangian_reference_fe_get_subelements_connectivity
 
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_blending(this,values)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  type(point_t)                       , intent(inout) :: values(:)
+
+  integer(ip) :: i,j, ipoin, nlocs, ndime,nnode
+
+  assert(size(values) == this%number_nodes_scalar)
+
+  ndime = this%number_dimensions
+  nnode = this%number_nodes_scalar
+
+  if(ndime==1) then
+     nlocs=nnode
+  else if(ndime==2) then
+     nlocs=nint(sqrt(real(nnode,rp)))
+  else
+     nlocs=nint(real(nnode,rp)**(1.0_rp/3.0_rp))
+  end if
+
+  if(ndime==2) then
+     !ipoin=0
+     do j = 2, nlocs - 1
+        do i = 2, nlocs - 1
+           ipoin = nlocs*(j-1)+i
+           !ipoin = ipoin + 1
+           call blend_2D(this%nodal_quadrature%coordinates(1,ipoin), & ! reference coordinates
+                &        this%nodal_quadrature%coordinates(2,ipoin), &
+                &        values(1), &                 ! value at vertex 1
+                &        values(nlocs), &             ! value at vertex 2
+                &        values(nlocs*(nlocs-1)+1), & ! value at vertex 3
+                &        values(nlocs*nlocs), &       ! value at vertex 4
+                &        values(i), &                 ! value at edge 5
+                &        values(nlocs*(nlocs-1)+i), & ! value at edge 6
+                &        values(nlocs*(j-1)+1), &     ! value at edge 7
+                &        values(nlocs*j), &           ! value at edge 8
+                &        values(ipoin))               ! interpolated value
+
+        end do
+     end do
+  end if
+
+end subroutine hex_lagrangian_reference_fe_blending
+
+subroutine blend_2D(r,s,x1,x2,x3,x4,x5,x6,x7,x8,x)
+  implicit none
+  real(rp), intent(in)  :: r,s
+  type(point_t), intent(in)  :: x1,x2,x3,x4,x5,x6,x7,x8
+  type(point_t), intent(out) :: x
+
+!     3---6---------4
+!     |   .         |
+!     |   .         |
+!     |   .         |
+!     7...x........ 8
+!     |   .         |
+!     1---5---------2
+
+  x =   ( - 0.25_rp * (1-r) * (1-s)) *x1 &
+    & + ( - 0.25_rp * (1+r) * (1-s)) *x2 &
+    & + ( - 0.25_rp * (1-r) * (1+s)) *x3 &
+    & + ( - 0.25_rp * (1+r) * (1+s)) *x4 &
+    & + ( 0.5_rp * (1-s)) * x5 &
+    & + ( 0.5_rp * (1+s)) * x6 &
+    & + ( 0.5_rp * (1-r)) * x7 &
+    & + ( 0.5_rp * (1+r)) * x8
+
+ end subroutine blend_2D
+
 !**************************************************************************************************
 ! Deferred TBP implementors from lagrangian_reference_fe_t
 !**************************************************************************************************
@@ -116,7 +186,12 @@ subroutine hex_lagrangian_reference_fe_fill_scalar (this)
   integer(ip), allocatable  :: auxt1(:,:),auxt2(:,:),auxt3(:,:),auxt4(:,:),auxt5(:,:),auxt6(:,:)
   integer(ip), allocatable  :: obdla(:,:),node2ob(:),ob2node(:)
   integer(ip), allocatable  :: aux(:),idm(:),fdm(:),ijk(:),ijk_g(:)
-  type(list_iterator_t)     :: iterator
+  type(list_iterator_t)     :: own_nodes_vef_iterator
+  type(list_iterator_t)     :: vertices_vef_iterator
+  type(list_iterator_t)     :: nodes_vef_iterator
+  type(list_iterator_t)     :: vefs_vef_iterator
+  type(list_iterator_t)     :: interior_nodes_vef_iterator
+
 
   !  ! Initilize values
   nd = this%number_dimensions
@@ -169,11 +244,6 @@ subroutine hex_lagrangian_reference_fe_fill_scalar (this)
   call memalloc(no, node2ob,__FILE__,__LINE__)        ! Auxiliar array
   call memalloc(no, ob2node,__FILE__,__LINE__)        ! Auxiliar array
 
-  !Initialize pointers
-  this%interior_nodes_vef%p(1) = 1
-  this%nodes_vef%p(1) = 1
-  this%vefs_vef%p(1) = 1
-  this%vertices_vef%p(1) = 1
   
   !Loop over dimensions
   do k = 0,nd
@@ -188,12 +258,18 @@ subroutine hex_lagrangian_reference_fe_fill_scalar (this)
 
      ! Loop over vefs of dimension k
      do i = this%number_vefs_dimension(k+1),this%number_vefs_dimension(k+2)-1 
-        this%interior_nodes_vef%p(i+1) = this%interior_nodes_vef%p(i) + aux1 ! assign pointers
-        this%nodes_vef%p(i+1) = this%nodes_vef%p(i) + aux3 ! assign pointers
-        this%vertices_vef%p(i+1) = this%vertices_vef%p(i) + aux2 ! assign pointers
-        this%vefs_vef%p(i+1) = this%vefs_vef%p(i) + aux4 ! assign pointers 
+       call this%interior_nodes_vef%sum_to_pointer_index(i, aux1) ! assign pointers
+       call this%nodes_vef%sum_to_pointer_index(i, aux3) ! assign pointers
+       call this%vertices_vef%sum_to_pointer_index(i, aux2) ! assign pointers
+       call this%vefs_vef%sum_to_pointer_index(i, aux4) ! assign pointers 
      end do
   end do
+  
+  call this%interior_nodes_vef%calculate_header()
+  call this%nodes_vef%calculate_header()
+  call this%vertices_vef%calculate_header()
+  call this%vefs_vef%calculate_header()
+
   
   call this%interior_nodes_vef%allocate_list_from_pointer()
   call this%nodes_vef%allocate_list_from_pointer()
@@ -229,6 +305,11 @@ subroutine hex_lagrangian_reference_fe_fill_scalar (this)
   c6  = 0 ! ob2node   counter
   co  = 0 ! counter of vefs
 
+  vefs_vef_iterator = this%vefs_vef%create_iterator()
+  nodes_vef_iterator = this%nodes_vef%create_iterator()
+  vertices_vef_iterator = this%vertices_vef%create_iterator()
+  interior_nodes_vef_iterator = this%interior_nodes_vef%create_iterator()
+  
   ! Loop over vefs dimensions
   do od = 0,nd
      ! Create ijk tables (od)
@@ -336,8 +417,8 @@ subroutine hex_lagrangian_reference_fe_fill_scalar (this)
               do k = 1,od
                  ijk_g(idm(k)+1) = auxt2(k,m)
               end do
-              c2 = c2+1
-              this%vertices_vef%l(c2) = this%get_node_local_id(ijk_g,nd,1) !store the vef numbering of the corner 
+              call vertices_vef_iterator%set_current(this%get_node_local_id(ijk_g,nd,1)) !store the vef numbering of the corner 
+              call vertices_vef_iterator%next()
            end do
         end do
 
@@ -356,8 +437,8 @@ subroutine hex_lagrangian_reference_fe_fill_scalar (this)
               do k = 1,od
                  ijk_g(idm(k)+1) = auxt3(k,m)
               end do
-              c3 = c3+1
-              this%interior_nodes_vef%l(c3) = this%get_node_local_id(ijk_g,nd,p) ! Store the local numbering in ndxob%l
+              call interior_nodes_vef_iterator%set_current(this%get_node_local_id(ijk_g,nd,p)) ! Store the local numbering in ndxob%l
+              call interior_nodes_vef_iterator%next()
            end do
         end do
 
@@ -375,8 +456,8 @@ subroutine hex_lagrangian_reference_fe_fill_scalar (this)
               do k = 1,od
                  ijk_g(idm(k)+1) = auxt4(k,m)
               end do
-              c4 = c4+1
-              this%nodes_vef%l(c4) = this%get_node_local_id(ijk_g,nd,p) ! Store the local numbering in ntxob%l
+              call nodes_vef_iterator%set_current(this%get_node_local_id(ijk_g,nd,p)) ! Store the local numbering in ntxob%l
+              call nodes_vef_iterator%next()
            end do
         end do
         end if
@@ -415,8 +496,8 @@ subroutine hex_lagrangian_reference_fe_fill_scalar (this)
               do k = 1,od
                  ijk_g(idm(k)+1) = auxt5(k,m)
               end do
-              c5 = c5 +1
-              this%vefs_vef%l(c5) = this%get_node_local_id(ijk_g,nd,2)
+              call vefs_vef_iterator%set_current(this%get_node_local_id(ijk_g,nd,2))
+              call vefs_vef_iterator%next()
            end do
 
            ! Define ijk_g for the node in the center of the vef
@@ -449,8 +530,10 @@ subroutine hex_lagrangian_reference_fe_fill_scalar (this)
   end do
 
   ! Modify the identifiers of the nodes by the ids of the vef in obxob
+  vefs_vef_iterator = this%vefs_vef%create_iterator()
   do c5 = 1, nt2
-     this%vefs_vef%l(c5) = node2ob(this%vefs_vef%l(c5))
+     call vefs_vef_iterator%set_current(node2ob(vefs_vef_iterator%get_current()))
+     call vefs_vef_iterator%next()
   end do
   
   ! Create face_integration_coupling_nodes_vef
@@ -466,11 +549,11 @@ subroutine hex_lagrangian_reference_fe_fill_scalar (this)
      call this%own_nodes_vef%calculate_header()
      call this%own_nodes_vef%allocate_list_from_pointer()
      
-     iterator = this%own_nodes_vef%create_iterator()
+     own_nodes_vef_iterator = this%own_nodes_vef%create_iterator()
      i=1
-     do while(.not. iterator%is_upper_bound())
-        call iterator%set_current(i)
-        call iterator%next()
+     do while(.not. own_nodes_vef_iterator%is_upper_bound())
+        call own_nodes_vef_iterator%set_current(i)
+        call own_nodes_vef_iterator%next()
         i = i + 1 
     enddo
      

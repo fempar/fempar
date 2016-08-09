@@ -26,12 +26,12 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module postpro_names
-use types_names
-use stdio_names
-#ifdef ENABLE_GIDPOST
-use gidpost_names
-#endif
+  use types_names
+  use stdio_names
   use renumbering_names
+#ifdef ENABLE_GIDPOST
+  use gidpost_names
+#endif
   implicit none
   private
 

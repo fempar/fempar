@@ -593,7 +593,7 @@ program test_cdr
   call cli%get(group=trim(group),switch='-p',val=order,error=istat); check(istat==0)
 
   ! Read mesh
-  call mesh_read (dir_path, prefix, f_mesh, permute_c2z=.true.)
+  call f_mesh%read (dir_path, prefix, permute_c2z=.true.)
 
   ! Read conditions 
   call conditions_read (dir_path, prefix, f_mesh%npoin, f_cond)
@@ -615,10 +615,24 @@ program test_cdr
        &                                          field_type = field_type_scalar,                   &
        &                                          continuity = continuity )
 
+<<<<<<< HEAD
+  call triangulation_free ( f_trian )
+  call conditions_free ( f_cond )
+  call f_mesh%free()
+  call memstatus
+contains
+  !==================================================================================================
+  subroutine  test_reference_face_stuff(f_trian, f_cond,cli,group)
+    use serial_names
+    use CDR_discrete_integration_names
+    use vector_dG_CDR_discrete_integration_names
+    use block_sparse_matrix_names
+=======
   call fe_space%create( triangulation = f_trian, boundary_conditions = f_cond,                      &
        &                reference_fe_phy = reference_fe_array_one,                                  &
        &                field_blocks = (/1/),                                                       &
        &                field_coupling = reshape((/.true./),(/1,1/)) )
+>>>>>>> 87e2a42bf8ff75972e1b11df558c97063a7261ec
 
   call fe_space%create_face_array()
 

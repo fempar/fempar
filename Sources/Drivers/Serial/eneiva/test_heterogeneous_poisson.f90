@@ -458,7 +458,7 @@ program test_heterogeneous_poisson
   call cli%get(group=trim(group),switch='-out',val=dir_path_out,error=istat); check(istat==0)
 
   ! Read mesh
-  call mesh_read (dir_path, prefix, mesh, permute_c2z=.true.)
+  call f_mesh%read (dir_path, prefix, permute_c2z=.true.)
 
   ! Read scalar conditions 
   call conditions_read (dir_path, prefix, mesh%npoin, scalar_conds)
@@ -606,10 +606,8 @@ program test_heterogeneous_poisson
   call triangulation_free(triangulation)
   call conditions_free(scalar_conds)
   call conditions_free(composed_conds)
-  call mesh_free(mesh)
-
+  call f_mesh%free()
   call memstatus 
-
 contains
   
   !==================================================================================================

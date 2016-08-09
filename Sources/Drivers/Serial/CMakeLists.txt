@@ -24,8 +24,9 @@ IF(MPI_FOUND)
                     TARGET_LINK_LIBRARIES(${EXE_NAME} ${${EXT_LIB}_LIBRARIES})
                 ENDIF()
             ENDFOREACH()
-            ADD_TEST(${EXE_NAME}_TEST 
-                 ${EXECUTABLE_OUTPUT_PATH}/${EXE_NAME} ${CMAKE_SOURCE_DIR}/Sources/Drivers/Data/${EXE_NAME}.txt)
+            FOREACH(SISL_LIBRARY ${SISL_LIBS})
+                TARGET_LINK_LIBRARIES(${EXE_NAME} ${SISL_LIBRARY})
+            ENDFOREACH()
         ENDFOREACH()
 
     ENDIF()

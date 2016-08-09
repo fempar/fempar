@@ -28,25 +28,16 @@
 module par_names
   ! Tools
   use par_context_names
-  use psb_penv_mod_names
-  use par_sparse_global_collectives_names
-  use par_element_exchange_names
   use par_timer_names
-  use par_io_names
   use par_environment_names
 
   ! Geometry
-  use par_mesh_names
-  use par_triangulation_names
-  use par_mesh_to_triangulation_names
-  use par_conditions_names
-  use par_generate_uniform_triangulation_names
-  use par_uniform_refinement_names
 
   ! Linear algebra
   use par_scalar_array_names
   use par_block_array_names
   use par_sparse_matrix_names
+  use mlbddc_names
   
   ! Integration
     

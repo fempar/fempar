@@ -1,0 +1,116 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine coarse_fe_vef_iterator_create ( this, lid, coarse_fe_space ) 
+  implicit none
+  class(coarse_fe_vef_iterator_t)  , intent(inout) :: this
+  integer(ip)                      , intent(in)    :: lid
+  type(coarse_fe_space_t)          , intent(in)    :: coarse_fe_space
+  call this%free()
+  call this%current_coarse_fe_vef_accessor%create(lid, coarse_fe_space )
+end subroutine coarse_fe_vef_iterator_create
+
+subroutine coarse_fe_vef_iterator_free ( this ) 
+  implicit none
+  class(coarse_fe_vef_iterator_t), intent(inout) :: this
+  call this%current_coarse_fe_vef_accessor%free()
+end subroutine coarse_fe_vef_iterator_free
+
+subroutine coarse_fe_vef_iterator_init ( this ) 
+  implicit none
+  class(coarse_fe_vef_iterator_t), intent(inout) :: this
+  call this%current_coarse_fe_vef_accessor%set_lid(lid=1)
+end subroutine coarse_fe_vef_iterator_init
+
+subroutine coarse_fe_vef_iterator_next ( this ) 
+  implicit none
+  class(coarse_fe_vef_iterator_t), intent(inout) :: this
+  call this%current_coarse_fe_vef_accessor%next()
+end subroutine coarse_fe_vef_iterator_next
+
+function coarse_fe_vef_iterator_has_finished ( this ) 
+  implicit none
+  class(coarse_fe_vef_iterator_t), intent(in) :: this
+  logical                                  :: coarse_fe_vef_iterator_has_finished
+  coarse_fe_vef_iterator_has_finished = this%current_coarse_fe_vef_accessor%past_the_end()
+end function coarse_fe_vef_iterator_has_finished
+
+function coarse_fe_vef_iterator_current ( this ) 
+  implicit none
+  class(coarse_fe_vef_iterator_t), target, intent(in) :: this
+  type(coarse_fe_vef_accessor_t) :: coarse_fe_vef_iterator_current
+  coarse_fe_vef_iterator_current = this%current_coarse_fe_vef_accessor
+end function coarse_fe_vef_iterator_current
+
+subroutine itfc_coarse_fe_vef_iterator_create ( this, coarse_fe_space ) 
+  implicit none
+  class(itfc_coarse_fe_vef_iterator_t), intent(inout) :: this
+  type(coarse_fe_space_t)             , intent(in)    :: coarse_fe_space
+  type(vef_accessor_t) :: vef
+  call this%itfc_vef_iterator%create(coarse_fe_space%coarse_triangulation)
+  call this%itfc_vef_iterator%current(vef)
+  call this%current_coarse_vef_accessor%create(vef%get_lid(), coarse_fe_space)
+end subroutine itfc_coarse_fe_vef_iterator_create
+
+subroutine itfc_coarse_fe_vef_iterator_free ( this ) 
+  implicit none
+  class(itfc_coarse_fe_vef_iterator_t), intent(inout) :: this
+  call this%itfc_vef_iterator%free()
+  call this%current_coarse_vef_accessor%free()
+end subroutine itfc_coarse_fe_vef_iterator_free
+
+subroutine itfc_coarse_fe_vef_iterator_init (this) 
+  implicit none
+  class(itfc_coarse_fe_vef_iterator_t), intent(inout) :: this
+  type(vef_accessor_t) :: vef
+  call this%itfc_vef_iterator%init()
+  call this%itfc_vef_iterator%current(vef)
+  call this%current_coarse_vef_accessor%set_lid(vef%get_lid())
+end subroutine itfc_coarse_fe_vef_iterator_init
+
+subroutine itfc_coarse_fe_vef_iterator_next ( this ) 
+  implicit none
+  class(itfc_coarse_fe_vef_iterator_t), intent(inout) :: this
+  type(vef_accessor_t) :: vef
+  call this%itfc_vef_iterator%next()
+  call this%itfc_vef_iterator%current(vef)
+  call this%current_coarse_vef_accessor%set_lid(vef%get_lid())
+end subroutine itfc_coarse_fe_vef_iterator_next
+
+function itfc_coarse_fe_vef_iterator_has_finished ( this ) 
+  implicit none
+  class(itfc_coarse_fe_vef_iterator_t), intent(in) :: this
+  logical                                  :: itfc_coarse_fe_vef_iterator_has_finished
+  itfc_coarse_fe_vef_iterator_has_finished = this%itfc_vef_iterator%has_finished()
+end function itfc_coarse_fe_vef_iterator_has_finished
+
+function itfc_coarse_fe_vef_iterator_current ( this ) 
+  implicit none
+  class(itfc_coarse_fe_vef_iterator_t), target, intent(in) :: this
+  type(coarse_fe_vef_accessor_t)            :: itfc_coarse_fe_vef_iterator_current
+  itfc_coarse_fe_vef_iterator_current = this%current_coarse_vef_accessor
+end function itfc_coarse_fe_vef_iterator_current

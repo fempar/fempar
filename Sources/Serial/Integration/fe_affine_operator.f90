@@ -28,13 +28,11 @@
 module fe_affine_operator_names
   use types_names
   use memor_names
-  use triangulation_names
   use vector_space_names
   use reference_fe_names
-  use serial_fe_space_names
+  use fe_space_names
   use operator_names
   use vector_names
-  use assembler_names
   use matrix_array_assembler_names
   use array_names
   use matrix_names
@@ -103,13 +101,13 @@ module fe_affine_operator_names
   !                        abort_if_not_in_domain         "
 
 
-  type, extends(operator_t):: fe_affine_operator_t
+ type, extends(operator_t):: fe_affine_operator_t
   private
   integer(ip)                                     :: state  = start
   character(:)                      , allocatable :: sparse_matrix_storage_format
   class(environment_t)              , pointer     :: environment
-  class(serial_fe_space_t)          , pointer     :: fe_space               => NULL() ! trial_fe_space
-  class(serial_fe_space_t)          , pointer     :: test_fe_space          => NULL() ! To be used in the future
+  class(serial_fe_space_t)      , pointer     :: fe_space               => NULL() ! trial_fe_space
+  class(serial_fe_space_t)      , pointer     :: test_fe_space          => NULL() ! To be used in the future
   class(discrete_integration_t)     , pointer     :: discrete_integration   => NULL()
   class(matrix_array_assembler_t)   , pointer     :: matrix_array_assembler => NULL()
 contains
@@ -122,6 +120,7 @@ contains
   procedure          :: get_translation             => fe_affine_operator_get_translation
   procedure          :: get_matrix                  => fe_affine_operator_get_matrix
   procedure          :: get_array                   => fe_affine_operator_get_array
+  procedure          :: get_fe_space                => fe_affine_operator_get_fe_space
   procedure          :: free_in_stages              => fe_affine_operator_free_in_stages
   procedure          :: free                        => fe_affine_operator_free
   procedure          :: get_domain_vector_space     => fe_affine_operator_get_domain_vector_space
@@ -157,7 +156,7 @@ subroutine fe_affine_operator_create (this, &
  logical                                     , intent(in)  :: diagonal_blocks_symmetric(:)
  integer(ip)                                 , intent(in)  :: diagonal_blocks_sign(:)
  class(environment_t)             , target,  intent(in) :: environment
- class(serial_fe_space_t)         , target, intent(in)  :: fe_space
+ class(serial_fe_space_t)     , target, intent(in)  :: fe_space
  class(discrete_integration_t)    , target, intent(in)  :: discrete_integration
 
  assert(this%state == start)
@@ -318,6 +317,14 @@ function fe_affine_operator_get_array(this)
  fe_affine_operator_get_array => this%matrix_array_assembler%get_array()
 end function fe_affine_operator_get_array
 
+function fe_affine_operator_get_fe_space(this)
+ implicit none
+ class(fe_affine_operator_t), target, intent(in) :: this
+ class(serial_fe_space_t), pointer :: fe_affine_operator_get_fe_space
+ assert ( .not. this%state == start )
+ fe_affine_operator_get_fe_space => this%fe_space
+end function fe_affine_operator_get_fe_space
+
 ! op%apply(x,y) <=> y <- op*x
 ! Implicitly assumes that y is already allocated
 subroutine fe_affine_operator_apply(op,x,y) 
@@ -417,7 +424,7 @@ end subroutine fe_affine_operator_setup
 subroutine fe_affine_operator_fill_values(this)
   implicit none
   class(fe_affine_operator_t), intent(inout) :: this
-  if ( this%environment%am_i_fine_task() ) then
+  if ( this%environment%am_i_l1_task() ) then
     call this%discrete_integration%integrate( this%fe_space, this%matrix_array_assembler )
   end if  
 end subroutine fe_affine_operator_fill_values

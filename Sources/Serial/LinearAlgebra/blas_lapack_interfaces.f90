@@ -42,7 +42,7 @@ module blas77_interfaces_names
 
   interface
      SUBROUTINE DSWAP(N,DX,INCX,DY,INCY)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN)    :: INCX, INCY, N
@@ -52,7 +52,7 @@ use blas77_precision_names
      END SUBROUTINE DSWAP
 
      SUBROUTINE SSWAP(N,DX,INCX,DY,INCY)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none   
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN)    :: INCX, INCY, N
@@ -62,7 +62,7 @@ use blas77_precision_names
      END SUBROUTINE SSWAP
 
      SUBROUTINE DSCAL(N, DA, DX, INCX)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        REAL(DP), INTENT(IN)    :: DA
@@ -73,7 +73,7 @@ use blas77_precision_names
      END SUBROUTINE DSCAL
 
      SUBROUTINE SSCAL(N, DA, DX, INCX)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none   
        ! .. Scalar Arguments ..
        REAL(SP), INTENT(IN)    :: DA
@@ -84,7 +84,7 @@ use blas77_precision_names
      END SUBROUTINE SSCAL
 
      SUBROUTINE DCOPY(N, DX, INCX, DY, INCY)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN) :: INCX, INCY, N
@@ -95,7 +95,7 @@ use blas77_precision_names
      END SUBROUTINE DCOPY
 
      SUBROUTINE SCOPY(N, DX, INCX, DY, INCY)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none   
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN) :: INCX, INCY, N
@@ -106,7 +106,7 @@ use blas77_precision_names
      END SUBROUTINE SCOPY
 
      SUBROUTINE DAXPY(N, DA, DX, INCX, DY, INCY)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none   
        ! .. Scalar Arguments ..
        REAL(DP), INTENT(IN) :: DA
@@ -130,7 +130,7 @@ use blas77_precision_names
      END SUBROUTINE SAXPY
 
      FUNCTION DDOT(N, DX, INCX, DY, INCY)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none   
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN) :: INCX, INCY, N
@@ -142,7 +142,7 @@ use blas77_precision_names
      END FUNCTION DDOT
 
      FUNCTION SDOT(N, DX, INCX, DY, INCY)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN) :: INCX, INCY, N
@@ -154,7 +154,7 @@ use blas77_precision_names
      END FUNCTION SDOT
 
      FUNCTION DNRM2(N,X,INCX)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none   
        ! .. Scalar Arguments ..
        INTEGER , INTENT(IN) :: INCX, N
@@ -165,7 +165,7 @@ use blas77_precision_names
      END FUNCTION DNRM2
 
      FUNCTION SNRM2(N,X,INCX)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none   
 
        ! .. Scalar Arguments ..
@@ -177,7 +177,7 @@ use blas77_precision_names
      END FUNCTION SNRM2
 
      SUBROUTINE DGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none  
 
        ! .. Scalar Arguments ..
@@ -192,7 +192,7 @@ use blas77_precision_names
      END SUBROUTINE DGEMV
 
      SUBROUTINE SGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none  
 
        ! .. Scalar Arguments ..
@@ -207,7 +207,7 @@ use blas77_precision_names
      END SUBROUTINE SGEMV
 
      SUBROUTINE DTRSV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none
 
        ! .. Scalar Arguments ..
@@ -221,7 +221,7 @@ use blas77_precision_names
      END SUBROUTINE DTRSV
 
      SUBROUTINE STRSV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none
 
        ! .. Scalar Arguments ..
@@ -235,7 +235,7 @@ use blas77_precision_names
      END SUBROUTINE STRSV
 
      SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        REAL(DP) , INTENT(IN)   :: ALPHA, BETA
@@ -248,7 +248,7 @@ use blas77_precision_names
      END SUBROUTINE DGEMM
 
      SUBROUTINE SGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none
        ! .. Scalar Arguments ..
        REAL(SP) , INTENT(IN)   :: ALPHA, BETA
@@ -261,7 +261,7 @@ use blas77_precision_names
      END SUBROUTINE SGEMM
 
      SUBROUTINE DTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none
        ! *     .. Scalar Arguments ..
        REAL(DP) , INTENT(IN)    :: ALPHA
@@ -274,7 +274,7 @@ use blas77_precision_names
      END SUBROUTINE DTRSM
 
      SUBROUTINE STRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none
        ! *     .. Scalar Arguments ..
        REAL(SP) , INTENT(IN)    :: ALPHA
@@ -295,7 +295,7 @@ module lapack77_interfaces_names
 
   interface
      SUBROUTINE DGETRF( M, N, A, LDA, IPIV, INFO )
-use blas77_precision_names
+       use blas77_precision_names
        implicit none
 
        ! *     .. Scalar Arguments ..
@@ -309,7 +309,7 @@ use blas77_precision_names
      END SUBROUTINE DGETRF
 
      SUBROUTINE DGETRS(TRANS, N, NRHS, A, LDA, IPIV, B, LDB, INFO)
-use blas77_precision_names
+       use blas77_precision_names
        implicit none
 
        ! *     .. Scalar Arguments ..
@@ -325,7 +325,7 @@ use blas77_precision_names
      END SUBROUTINE DGETRS 
 
      SUBROUTINE DPOTRF( UPLO, N, A, LDA, INFO )
-use blas77_precision_names
+       use blas77_precision_names
        implicit none  
        ! .. Scalar Arguments ..
        CHARACTER, INTENT(IN)     :: UPLO
@@ -337,14 +337,14 @@ use blas77_precision_names
      END SUBROUTINE DPOTRF
 
      INTEGER FUNCTION ILAENV( ISPEC, NAME, OPTS, N1, N2, N3, N4 )
-use blas77_precision_names
+       use blas77_precision_names
        ! .. Scalar Arguments ..
        CHARACTER*(*), INTENT(IN) :: NAME, OPTS
        INTEGER      , INTENT(IN) :: ISPEC, N1, N2, N3, N4  
      END FUNCTION ILAENV
 
      SUBROUTINE DSYTRF( UPLO, N, A, LDA, IPIV, WORK, LWORK, INFO )
-use blas77_precision_names
+       use blas77_precision_names
        ! .. Scalar Arguments ..
        CHARACTER, INTENT(IN)  :: UPLO
        INTEGER  , INTENT(IN)  :: LDA, LWORK, N
@@ -356,7 +356,7 @@ use blas77_precision_names
      END SUBROUTINE DSYTRF
 
      SUBROUTINE DSYTRS( UPLO, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
-use blas77_precision_names
+       use blas77_precision_names
        ! .. Scalar Arguments ..
        CHARACTER, INTENT(IN)  :: UPLO
        INTEGER  , INTENT(IN)  :: LDA, LDB, N, NRHS

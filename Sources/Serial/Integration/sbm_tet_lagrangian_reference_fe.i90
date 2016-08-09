@@ -84,6 +84,14 @@ subroutine tet_lagrangian_reference_fe_get_subelements_connectivity ( this, conn
 
 end subroutine tet_lagrangian_reference_fe_get_subelements_connectivity
 
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_blending(this,values)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  type(point_t)                       , intent(inout) :: values(:)
+  check(.false.)
+end subroutine tet_lagrangian_reference_fe_blending
+
 !**************************************************************************************************
 ! Deferred TBP implementors from lagrangian_reference_fe_t
 !**************************************************************************************************

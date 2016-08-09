@@ -33,6 +33,8 @@ SET(DATA_TESTS_PATH ${TESTS_PATH}/Data)
 
 SET(GENERIC_PATH ${SRC_PATH}/Generic)
 
+SET(THIRDPARTY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/ThirdParty)
+
 SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake/Modules/")
 
 #################################################################
@@ -65,13 +67,37 @@ IF(NOT CMAKE_BUILD_TYPE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 
 #################################################################
+# Add external projects
+#################################################################
+
+include(ExternalProject)
+SET(SISL_LIB SISL)
+
+SET(${SISL_LIB}_SRC_PATH ${CMAKE_SOURCE_DIR}/ThirdParty/${SISL_LIB})
+SET(${SISL_LIB}_BINARY_PATH ${THIRDPARTY_OUTPUT_PATH}/${SISL_LIB})
+EXTERNALPROJECT_Add(${SISL_LIB}
+    DOWNLOAD_COMMAND ""
+    SOURCE_DIR ${${SISL_LIB}_SRC_PATH}
+    BINARY_DIR ${${SISL_LIB}_BINARY_PATH}
+    INSTALL_DIR ${INSTALL_PREFIX}
+    CONFIGURE_COMMAND cmake -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} ${${SISL_LIB}_SRC_PATH}
+    BUILD_COMMAND cmake --build .
+    TEST_COMMAND ""
+    INSTALL_COMMAND ""
+)
+
+SET(SISL_LIBS ${${SISL_LIB}_BINARY_PATH}/libsisl.a)
+
+INCLUDE_DIRECTORIES(${${SISL_LIB}_SRC_PATH}/include)
+
+#################################################################
 # List of external libraries
 #################################################################
 
 # LIBRARY ORDER IS IMPORTANT IN THE CASE OF MKL, BLAS AND LAPACK
 # IF MKL WAS FOUND BLAS AND LAPACK MACRO DEFITIONS ARE ACTIVE 
 # BUT LIBRARIES ARE NOT LINKED
-SET(EXT_LIBS MKL BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZOLTAN )
+SET(EXT_LIBS MKL BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZOLTAN ZLIB )
 SET(MKL_FIND_QUIETLY TRUE) 
 
 #################################################################

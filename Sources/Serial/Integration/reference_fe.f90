@@ -106,13 +106,6 @@ module reference_fe_names
      procedure, non_overridable :: free   => interpolation_free
      procedure, non_overridable :: copy   => interpolation_copy
      procedure, non_overridable :: print  => interpolation_print
-     !procedure, non_overridable :: get_number_dimensions => interpolation_get_number_dimensions
-     !procedure, non_overridable :: get_number_shape_functions => interpolation_get_number_shape_functions
-     !procedure, non_overridable :: get_number_evaluation_points => interpolation_get_number_evaluation_points
-     !procedure, non_overridable :: get_number_entries_symmetric_tensor => interpolation_get_number_entries_symmetric_tensor
-     !procedure, non_overridable :: get_shape_function => interpolation_get_shape_function
-     !procedure, non_overridable :: get_shape_derivative => interpolation_get_shape_derivative
-     !procedure, non_overridable :: get_hessian  => interpolation_get_hessian
   end type interpolation_t
 
   public :: interpolation_t
@@ -148,7 +141,7 @@ module reference_fe_names
      ! Coordinates of git  points (number_dimensions,number_quadrature_points)       
      type(point_t), allocatable    :: coordinates_quadrature(:)  
      ! Coordinates of evaluation points (number_dimensions,number_corners of element/face)  
-     type(point_t), allocatable    :: coordinates_vertices(:)  
+     type(point_t), allocatable    :: coordinates_nodes(:)  
      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
      real(rp), allocatable    :: normals(:,:)  
      ! Geometry interpolation_t in the reference element domain    
@@ -298,12 +291,15 @@ module reference_fe_names
      generic :: evaluate_fe_function => evaluate_fe_function_scalar, &
                                       & evaluate_fe_function_vector, &
                                       & evaluate_fe_function_tensor
-     
+
      procedure(evaluate_gradient_fe_function_scalar_interface), deferred :: evaluate_gradient_fe_function_scalar
      procedure(evaluate_gradient_fe_function_vector_interface), deferred :: evaluate_gradient_fe_function_vector
      generic :: evaluate_gradient_fe_function => evaluate_gradient_fe_function_scalar, &
                                                & evaluate_gradient_fe_function_vector
      
+     ! Blending function to generate interpolations in the interior (given values on the boundary)
+     procedure(blending_interface), deferred :: blending
+
      ! This subroutine gives the reodering (o2n) of the nodes of an vef given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same vef.
      procedure (check_compatibility_of_vefs_interface), deferred :: &
@@ -361,9 +357,11 @@ module reference_fe_names
      procedure :: get_vefs_vef   =>   reference_fe_get_vefs_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
      procedure :: get_number_own_nodes_vef => reference_fe_get_number_own_nodes_vef
+     procedure :: create_own_dofs_on_vef_iterator => reference_fe_create_own_dofs_on_vef_iterator
      procedure :: get_own_node_vef => reference_fe_get_own_node_vef
      procedure :: get_face_integration_coupling_number_nodes_face => reference_fe_get_face_integration_coupling_number_nodes_face
      procedure :: get_face_integration_coupling_node_face => reference_fe_get_face_integration_coupling_node_face
+     procedure :: create_face_integration_coupling_dofs_iterator => create_face_integration_coupling_dofs_iterator
      procedure :: get_orientation => reference_fe_get_orientation     
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
@@ -581,7 +579,14 @@ module reference_fe_names
        real(rp)                , intent(in)    :: nodal_values(:)
        type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_vector_interface
-     
+
+     subroutine blending_interface( this,values)
+       import :: reference_fe_t, point_t
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       type(point_t)        , intent(inout) :: values(:)     
+     end subroutine blending_interface
+
      function check_compatibility_of_vefs_interface(target_reference_fe, &
           &                       source_reference_fe, source_vef_id,target_vef_id)
        import :: reference_fe_t, ip
@@ -726,7 +731,7 @@ module reference_fe_names
               & compute_number_nodes_scalar
      procedure (get_number_interior_points_x_dim_interface), private, deferred :: &
               & get_number_interior_points_x_dim
-     ! Deferred TBP implementors
+
      procedure :: create                    => lagrangian_reference_fe_create
      procedure :: fill_interior_points_permutation     & 
       & => lagrangian_reference_fe_fill_interior_points_permutation
@@ -915,6 +920,8 @@ module reference_fe_names
            &   => tet_lagrangian_reference_fe_get_characteristic_length
      procedure :: get_subelements_connectivity                                &
            &   => tet_lagrangian_reference_fe_get_subelements_connectivity
+     procedure :: blending                                                    &
+           &   => tet_lagrangian_reference_fe_blending 
      ! Deferred TBP implementors from lagrangian_reference_fe_t
      procedure, private :: fill_scalar                                        &
            & => tet_lagrangian_reference_fe_fill_scalar
@@ -966,6 +973,9 @@ module reference_fe_names
            &   => hex_lagrangian_reference_fe_get_characteristic_length
      procedure :: get_subelements_connectivity                                &
            &   => hex_lagrangian_reference_fe_get_subelements_connectivity
+     procedure :: blending                                                    &
+           &   => hex_lagrangian_reference_fe_blending
+           
      ! Deferred TBP implementors from lagrangian_reference_fe_t
      procedure, private :: fill_scalar => hex_lagrangian_reference_fe_fill_scalar
      procedure, private :: fill_quadrature                                    &

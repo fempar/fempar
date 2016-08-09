@@ -32,6 +32,7 @@ module renumbering_names
   implicit none
 # include "debug.i90"
   private
+# include "debug.i90"
 
   type renumbering_t
      integer(ip)                :: &
