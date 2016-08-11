@@ -255,7 +255,7 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%fe_space%create_global_fe_function(this%solution)
+    call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
     call this%check_solution()
     call this%free()

@@ -115,7 +115,7 @@ subroutine integrate(this,fe_space,matrix_array_assembler)
 
   ! Initialize integration
   call fe_space%initialize_integration()
-  call fe_space%create_fe_function(1,fe_velocity)
+  call fe_space%create_cell_fe_function(1,fe_velocity)
   call source_vector%init(0.0_rp)
   
   ! Initialize discrete integration structures

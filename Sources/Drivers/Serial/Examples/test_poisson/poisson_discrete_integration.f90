@@ -61,7 +61,7 @@ contains
 
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
-    integer(ip)  :: idof, jdof, num_dofs
+    integer(ip)  :: idof, jdof, number_nodes
     real(rp)     :: factor
 
     integer(ip)  :: number_fields

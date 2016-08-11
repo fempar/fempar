@@ -255,15 +255,15 @@ module fe_space_names
      procedure                           :: create_assembler                             => serial_fe_space_create_assembler
      procedure                           :: symbolic_setup_assembler                     => serial_fe_space_symbolic_setup_assembler
           
-     procedure                           :: create_global_fe_function                    => serial_fe_space_create_global_fe_function
-     procedure                           :: update_global_fe_function_bcs                => serial_fe_space_update_global_fe_function_bcs
+     procedure                           :: create_fe_function                           => serial_fe_space_create_fe_function
+     procedure                           :: update_fe_function_bcs                       => serial_fe_space_update_fe_function_bcs
      
-     procedure, private                  :: create_fe_function_scalar                    => serial_fe_space_create_fe_function_scalar
-     procedure, private                  :: create_fe_function_vector                    => serial_fe_space_create_fe_function_vector
-     procedure, private                  :: create_fe_function_tensor                    => serial_fe_space_create_fe_function_tensor
-     generic                             :: create_fe_function                           => create_fe_function_scalar, &
-                                                                                            create_fe_function_vector, &
-                                                                                            create_fe_function_tensor
+     procedure, private                  :: create_cell_fe_function_scalar               => serial_fe_space_create_cell_fe_function_scalar
+     procedure, private                  :: create_cell_fe_function_vector               => serial_fe_space_create_cell_fe_function_vector
+     procedure, private                  :: create_cell_fe_function_tensor               => serial_fe_space_create_cell_fe_function_tensor
+     generic                             :: create_cell_fe_function                      => create_cell_fe_function_scalar, &
+                                                                                            create_cell_fe_function_vector, &
+                                                                                            create_cell_fe_function_tensor
      
      procedure                           :: fill_dof_info                                => serial_fe_space_fill_dof_info
      procedure                 , private :: fill_elem2dof_and_count_dofs                 => serial_fe_space_fill_elem2dof_and_count_dofs

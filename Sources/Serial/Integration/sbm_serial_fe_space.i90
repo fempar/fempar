@@ -291,9 +291,9 @@ end subroutine serial_fe_space_set_up_strong_dirichlet_bcs
 
 subroutine serial_fe_space_update_strong_dirichlet_bcs_values (this, conditions, time)
   implicit none
-  class(serial_fe_space_t), intent(inout) :: this
-  class(conditions_t)     , intent(in)    :: conditions
-  real(rp)       , optional   , intent(in)    :: time
+  class(serial_fe_space_t), intent(inout)  :: this
+  class(conditions_t)     , intent(in)     :: conditions
+  real(rp)       , optional   , intent(in) :: time
 
   !  Locals
   integer(ip)                                :: field_id, istat
@@ -1058,7 +1058,7 @@ function serial_fe_space_get_field_coupling( this )
 end function serial_fe_space_get_field_coupling
 
 !===============================================================================================
-subroutine serial_fe_space_create_global_fe_function ( this, fe_function )
+subroutine serial_fe_space_create_fe_function ( this, fe_function )
   implicit none
   class(serial_fe_space_t), intent(in)    :: this
   type(fe_function_t)         , intent(inout) :: fe_function
@@ -1083,16 +1083,16 @@ subroutine serial_fe_space_create_global_fe_function ( this, fe_function )
      end select
   end if
   call fe_function%create(this%strong_dirichlet_values, dof_values)
-end subroutine serial_fe_space_create_global_fe_function
+end subroutine serial_fe_space_create_fe_function
 
-subroutine serial_fe_space_update_global_fe_function_bcs ( this, fe_function )
+subroutine serial_fe_space_update_fe_function_bcs ( this, fe_function )
   implicit none
   class(serial_fe_space_t), intent(in)    :: this
   type(fe_function_t)         , intent(inout) :: fe_function
   call fe_function%copy_bc_values(this%strong_dirichlet_values)
-end subroutine serial_fe_space_update_global_fe_function_bcs
+end subroutine serial_fe_space_update_fe_function_bcs
 
-subroutine serial_fe_space_create_fe_function_scalar ( this, field_id, fe_function_scalar )
+subroutine serial_fe_space_create_cell_fe_function_scalar ( this, field_id, fe_function_scalar )
   implicit none
   class(serial_fe_space_t)       , intent(in)    :: this
   integer(ip)                    , intent(in)    :: field_id
@@ -1105,9 +1105,9 @@ subroutine serial_fe_space_create_fe_function_scalar ( this, field_id, fe_functi
                                   this%get_max_number_nodes(field_id), &
                                   this%get_max_number_quadrature_points() )
 
-end subroutine serial_fe_space_create_fe_function_scalar
+end subroutine serial_fe_space_create_cell_fe_function_scalar
 
-subroutine serial_fe_space_create_fe_function_vector ( this, field_id, fe_function_vector )
+subroutine serial_fe_space_create_cell_fe_function_vector ( this, field_id, fe_function_vector )
   implicit none
   class(serial_fe_space_t)       , intent(in)    :: this
   integer(ip)                    , intent(in)    :: field_id
@@ -1120,9 +1120,9 @@ subroutine serial_fe_space_create_fe_function_vector ( this, field_id, fe_functi
                                   this%get_max_number_nodes(field_id), &
                                   this%get_max_number_quadrature_points() )
 
-end subroutine serial_fe_space_create_fe_function_vector
+end subroutine serial_fe_space_create_cell_fe_function_vector
 
-subroutine serial_fe_space_create_fe_function_tensor ( this, field_id, fe_function_tensor )
+subroutine serial_fe_space_create_cell_fe_function_tensor ( this, field_id, fe_function_tensor )
   implicit none
   class(serial_fe_space_t)       , intent(in)    :: this
   integer(ip)                    , intent(in)    :: field_id
@@ -1135,7 +1135,7 @@ subroutine serial_fe_space_create_fe_function_tensor ( this, field_id, fe_functi
                                   this%get_max_number_nodes(field_id), &
                                   this%get_max_number_quadrature_points() )
 
-end subroutine serial_fe_space_create_fe_function_tensor
+end subroutine serial_fe_space_create_cell_fe_function_tensor
 
 
 function serial_fe_space_get_triangulation( this) result(triangulation)
