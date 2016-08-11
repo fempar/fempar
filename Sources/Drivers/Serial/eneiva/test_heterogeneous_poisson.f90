@@ -300,8 +300,8 @@ contains
     type(i1p_t), pointer               :: elem2dof(:)
     integer(ip), allocatable           :: number_nodes_per_field(:)
     
-    type(fe_function_scalar_t)         :: scalar_unknown
-    type(fe_function_vector_t)         :: vector_unknown
+    type(cell_fe_function_scalar_t)         :: scalar_unknown
+    type(cell_fe_function_vector_t)         :: vector_unknown
     
     real(rp)                           :: qpoint_value_scalar
     type(vector_field_t)               :: qpoint_value_vector

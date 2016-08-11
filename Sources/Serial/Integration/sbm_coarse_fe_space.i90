@@ -28,7 +28,7 @@
 subroutine coarse_fe_space_create (this, &
                                   coarse_triangulation, &
                                   number_fields, &
-                                  field_type, &
+                                  fe_space_type_per_field, &
                                   ptr_dofs_per_fe_and_field, &
                                   lst_dofs_gids, &
                                   lst_vefs_gids_dofs_objects, &
@@ -38,7 +38,7 @@ subroutine coarse_fe_space_create (this, &
   class(coarse_fe_space_t)            , intent(inout) :: this
   type(coarse_triangulation_t), target, intent(in)    :: coarse_triangulation
   integer(ip)                         , intent(in)    :: number_fields
-  integer(ip)                         , intent(in)    :: field_type(*)
+  integer(ip)                         , intent(in)    :: fe_space_type_per_field(*)
   integer(ip)                         , intent(in)    :: ptr_dofs_per_fe_and_field(*)
   integer(igp)                        , intent(in)    :: lst_dofs_gids(*)
   integer(igp)                        , intent(in)    :: lst_vefs_gids_dofs_objects(*)
@@ -59,7 +59,7 @@ subroutine coarse_fe_space_create (this, &
      assert ( number_fields == 1 )
      call this%allocate_and_fill_field_blocks_and_coupling(field_blocks,field_coupling)
      this%number_blocks = maxval(this%field_blocks)
-     call this%allocate_and_fill_field_type(field_type)
+     call this%allocate_and_fill_fe_space_type_per_field(fe_space_type_per_field)
      ! Allocate + fill coarse fes-related data
      call this%allocate_and_fill_ptr_dofs_per_fe_and_field( ptr_dofs_per_fe_and_field )
      call this%fetch_ghost_fes_data( lst_dofs_gids, & 
@@ -109,7 +109,7 @@ subroutine coarse_fe_space_free (this)
       par_environment => this%get_par_environment()
       if (par_environment%am_i_l1_task()) then
         call this%free_field_blocks_and_coupling()
-        call this%free_field_type()
+        call this%free_fe_space_type_per_field()
         call this%free_ptr_dofs_per_fe_and_field()
         call this%free_own_dofs_vef_per_fe()
         call this%free_lst_dofs_lids()
@@ -163,23 +163,23 @@ subroutine coarse_fe_space_print ( this )
  end if   
 end subroutine coarse_fe_space_print
 
-subroutine coarse_fe_space_allocate_and_fill_field_type(this, field_type)
+subroutine coarse_fe_space_allocate_and_fill_fe_space_type(this, fe_space_type_per_field)
   implicit none
   class(coarse_fe_space_t), intent(inout) :: this
-  integer(ip)             , intent(in)    :: field_type(this%number_fields)
+  integer(ip)             , intent(in)    :: fe_space_type_per_field(this%number_fields)
   type(par_environment_t), pointer        :: par_environment
   par_environment => this%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
-  call memalloc ( this%number_fields, this%field_type, __FILE__, __LINE__ )
-  this%field_type = field_type
-end subroutine coarse_fe_space_allocate_and_fill_field_type
+  call memalloc ( this%number_fields, this%fe_space_type_per_field, __FILE__, __LINE__ )
+  this%fe_space_type_per_field = fe_space_type_per_field
+end subroutine coarse_fe_space_allocate_and_fill_fe_space_type
 
-subroutine coarse_fe_space_free_field_type(this)
+subroutine coarse_fe_space_free_fe_space_type(this)
  implicit none
  class(coarse_fe_space_t), intent(inout) :: this
- if (allocated(this%field_type)) call memfree ( this%field_type, __FILE__, __LINE__ )
-end subroutine coarse_fe_space_free_field_type
+ if (allocated(this%fe_space_type_per_field)) call memfree ( this%fe_space_type_per_field, __FILE__, __LINE__ )
+end subroutine coarse_fe_space_free_fe_space_type
 
 subroutine coarse_fe_space_allocate_and_fill_field_blocks_and_coupling ( this, field_blocks, field_coupling )
   implicit none
@@ -428,7 +428,7 @@ function coarse_fe_space_dof_gid2vef_gid(this, field_id, dof_gid )
   integer(ip)              , intent(in)  :: field_id
   integer(igp)             , intent(in)  :: dof_gid
   integer(igp) :: coarse_fe_space_dof_gid2vef_gid
-  assert ( this%field_type(field_id) == field_type_cg )
+  assert ( this%fe_space_type_per_field(field_id) == fe_space_type_cg )
   coarse_fe_space_dof_gid2vef_gid = dof_gid
 end function coarse_fe_space_dof_gid2vef_gid
 
@@ -493,7 +493,7 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
   coarse_fe_iterator = this%create_coarse_fe_iterator()
   
   ! Count number of DoFs on each vef of each cell
-  if ( this%field_type(field_id) == field_type_cg ) then
+  if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
      ! In the case of DG coarse FE spaces, the boundary vefs do not have own coarse DoFs, i.e.,
      ! all interior coarse DoFs belong to the interior of the coarse cell
      base_pointer = 1
@@ -539,7 +539,7 @@ subroutine coarse_fe_space_fill_own_dofs_per_fe_field(this, &
   coarse_fe_iterator = this%create_coarse_fe_iterator()
   
   ! List DoFs on each vef of each cell
-  if ( this%field_type(field_id) == field_type_cg ) then
+  if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
      ! In the case of DG coarse FE spaces, the boundary vefs do not have own coarse DoFs, i.e.,
      ! all interior coarse DoFs belong to the interior of the coarse cell
      base_pointer = 1
@@ -668,7 +668,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
   call source_fe%create(1, this)
 
   ! Assign local identifiers to DoFs on local cells
-  if ( this%field_type(field_id) == field_type_cg ) then
+  if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
      coarse_fe_iterator = this%create_coarse_fe_iterator()
      do while ( .not. coarse_fe_iterator%has_finished() )
         coarse_fe = coarse_fe_iterator%current()
@@ -714,7 +714,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
         call coarse_fe_iterator%next()
      end do
   else 
-     ! field_type_dg not implemented yet!
+     ! fe_space_type_dg not implemented yet!
      check (.false.)
   end if
 
@@ -841,9 +841,9 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
   i = 1
   do field_id = 1, this%number_fields
      if ( this%field_blocks(field_id) == iblock ) then
-        if ( this%field_type(field_id) == field_type_cg ) then
+        if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
            ubound_num_itfc_couplings (i) = this%compute_ubound_num_itfc_couplings_by_continuity(field_id)
-        else if ( this%field_type(field_id) == field_type_dg ) then
+        else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
            ! Not implemented yet
            check(.false.)
            !ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
@@ -864,7 +864,7 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
   i = 1
   do field_id = 1, this%number_fields
      if ( this%field_blocks(field_id) == iblock ) then
-        if ( this%field_type(field_id) == field_type_cg ) then
+        if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
            total_num_itfc_couplings = total_num_itfc_couplings + & 
                 this%compute_raw_interface_data_by_continuity(field_id, &
                                                               lst_dof_gids, &
@@ -872,7 +872,7 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
                                                               ubound_num_itfc_couplings(i),&
                                                               dofs_lid,&
                                                               raw_interface_data )
-        else if ( this%field_type(field_id) == field_type_dg ) then
+        else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
            ! Not implemented yet
            check(.false.)
            !total_num_itfc_couplings = total_num_itfc_couplings + & 
@@ -1260,13 +1260,13 @@ subroutine coarse_fe_space_setup_dofs_objects_and_constraint_matrix ( this, &
   check ( istat == 0 )
   
   do field_id=1, this%number_fields
-    if ( this%field_type(field_id) == field_type_cg ) then
+    if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
       call this%setup_dofs_objects_by_continuity(field_id, &
                                                  num_dofs_objects_per_field(field_id), &
                                                  dofs_objects_per_field(field_id), &
                                                  dofs_objects_gids_per_field(field_id), & 
                                                  vefs_lids_dofs_objects_per_field(field_id) )
-    else if ( this%field_type(field_id) == field_type_dg ) then
+    else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
       ! Not implemented yet
       check(.false.)
     end if
@@ -1672,18 +1672,18 @@ function coarse_fe_space_get_number_coarse_fe_objects ( this )
   coarse_fe_space_get_number_coarse_fe_objects = this%coarse_triangulation%get_number_objects()
 end function coarse_fe_space_get_number_coarse_fe_objects 
 
-  ! Although in principle this%field_type(:) was though to be
+  ! Although in principle this%fe_space_type_per_field(:) was though to be
   ! private member variable, I had to make it visible to the exterior
   ! via a raw pointer it as type(mlbddc_coarse_t) requires it in order to construct 
   ! the type(coarse_fe_space_t) instance that it aggregrates. Perhaps there is a 
   ! better/cleaner solution, but at the present moment, this is the only solution 
   ! that comes into my mind and lets me advance
-  function coarse_fe_space_get_field_type (this)
+  function coarse_fe_space_get_fe_space_type (this)
     implicit none
     class(coarse_fe_space_t), target, intent(in) :: this
-    integer(ip), pointer :: coarse_fe_space_get_field_type(:)
-    coarse_fe_space_get_field_type => this%field_type
-  end function coarse_fe_space_get_field_type
+    integer(ip), pointer :: coarse_fe_space_get_fe_space_type(:)
+    coarse_fe_space_get_fe_space_type => this%fe_space_type_per_field
+  end function coarse_fe_space_get_fe_space_type
   
   function coarse_fe_space_get_field_coupling (this)
     implicit none

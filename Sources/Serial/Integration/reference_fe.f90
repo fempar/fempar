@@ -556,28 +556,28 @@ module reference_fe_names
        type(tensor_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_tensor_interface     
 
-     subroutine evaluate_gradient_fe_function_scalar_interface( this, &
+     subroutine evaluate_gradient_fe_function_scalar_interface( this,             &
                                                      & actual_cell_interpolation, &
-                                                     & nodal_values, &
+                                                     & nodal_values,              &
                                                      & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp, vector_field_t
        implicit none
-       class(reference_fe_t)   , intent(in)    :: this 
+       class(reference_fe_t), intent(in)    :: this 
        type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)                , intent(in)    :: nodal_values(:)
-       type(vector_field_t)    , intent(inout) :: quadrature_points_values(:)
+       real(rp)             , intent(in)    :: nodal_values(:)
+       type(vector_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_scalar_interface
 
-     subroutine evaluate_gradient_fe_function_vector_interface( this, &
+     subroutine evaluate_gradient_fe_function_vector_interface( this,             &
                                                      & actual_cell_interpolation, &
-                                                     & nodal_values, &
+                                                     & nodal_values,              &
                                                      & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp, tensor_field_t
        implicit none
-       class(reference_fe_t)   , intent(in)    :: this 
+       class(reference_fe_t), intent(in)    :: this 
        type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)                , intent(in)    :: nodal_values(:)
-       type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
+       real(rp)             , intent(in)    :: nodal_values(:)
+       type(tensor_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_vector_interface
 
      subroutine blending_interface( this,values)

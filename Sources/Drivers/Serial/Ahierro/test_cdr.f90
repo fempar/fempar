@@ -162,7 +162,7 @@ contains
     integer(ip)                :: igaus,inode,jnode,ngaus
     real(rp)                   :: factor, h_length, bcvalue, source, outflow, time, time_factor
     real(rp)                   :: u_value_previous
-    type(fe_function_scalar_t) :: fe_unknown_current, fe_unknown_previous
+    type(cell_fe_function_scalar_t) :: fe_unknown_current, fe_unknown_previous
 
     real(rp)                   :: shape_test_scalar, shape_trial_scalar
     type(vector_field_t)       :: grad_test_scalar, grad_trial_scalar
