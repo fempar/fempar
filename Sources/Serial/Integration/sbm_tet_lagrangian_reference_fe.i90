@@ -163,8 +163,10 @@ subroutine tet_lagrangian_reference_fe_fill_scalar (this)
   this%interior_nodes_vef%p(1) = 1
   this%nodes_vef%p(1)          = 1
   this%vertices_vef%p(1)       = 1
+  this%vefs_vef%p(1)           = 1
   
   ! Loop over dimensions
+  aux4 = 0
   do k = 0,nd
      aux1 = this%compute_number_interior_nodes(k,p) ! Interior nodes for a vef of dim k
      aux3 = this%compute_number_nodes_scalar(k,p)   ! Total nodes for a vef of dim k
@@ -173,18 +175,21 @@ subroutine tet_lagrangian_reference_fe_fill_scalar (this)
         aux3 = 0
      end if
      aux2 = k+1                   ! Corners for a vef of dim k
+     aux4 = 2*aux4+1              ! Vefs for a vef o dim k
 
      ! Loop over vefs of dimension k
      do i = this%number_vefs_dimension(k+1),this%number_vefs_dimension(k+2)-1 
         this%interior_nodes_vef%p(i+1) = this%interior_nodes_vef%p(i) + aux1 ! assign pointers
         this%nodes_vef%p(i+1)          = this%nodes_vef%p(i)          + aux3 ! assign pointers
         this%vertices_vef%p(i+1)       = this%vertices_vef%p(i)       + aux2 ! assign pointers
+        this%vefs_vef%p(i+1)           = this%vefs_vef%p(i)           + aux4 ! assign pointers
      end do
   end do
   
   call this%interior_nodes_vef%allocate_list_from_pointer()
   call this%nodes_vef%allocate_list_from_pointer()
   call this%vertices_vef%allocate_list_from_pointer()
+  call this%vefs_vef%allocate_list_from_pointer()
 
   call memalloc( nd+2, no, idcro, __FILE__, __LINE__) ! Array of dim and corners belonging to each vef
   
@@ -1501,3 +1506,50 @@ subroutine tet_lagrangian_reference_fe_get_vef_orientation(this,o,od,nd,io)
      o = 0
   end if
 end subroutine tet_lagrangian_reference_fe_get_vef_orientation
+
+
+
+
+! Create the set of objects
+
+! Given an object, compute vertices
+
+! Given an object, compute all vefs it contains
+
+! Coefficients in the ijk_to_index
+! To be used for any type of element, given its topology
+! topology(ndim)
+
+
+! Store for the element as private data
+ijk_coefficients(1) = 1
+do i = 2, ndim
+   ! Assuming topology(i) = 0 or 1
+   ijk_coefficients(i) = ijk_coefficients(i-1)*2*topology(i-1) + (ijk_coefficients(i-1)+1)*(1-topology(i-1))
+end do  
+   
+! ijk to index is simple
+index = ijk*ijk_coefficients
+
+! Given ijk and adding + 1 in the l-direction 
+! compute resulting node
+if topology(l) == 0
+   ijk = 0
+end
+   ijk(l) = 1
+   
+
+
+! Obtain the subentities of an entity of dimension od
+ object  
+ ijk_index = object(1:ndim)
+ do 1 = 1,od
+ ijk_index(object(ndim+i)) = 0
+ ! store new node
+ ijk_index = push_ijk( ijk_index,object(ndim+i) )
+ ! store new node
+ end
+ do 
+
+
+

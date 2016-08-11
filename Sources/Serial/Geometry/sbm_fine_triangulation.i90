@@ -76,7 +76,10 @@ subroutine fine_triangulation_generate_vefs(this,order,boundary,boundary_geometr
      if ( istat == new_index ) then
         if(this%num_dimensions==2) then
            if(ielem_num_vertices==3) then ! Triangle
-              assert(.false.)
+              this%reference_fe_geo_list(ielem_type) = &
+                   &    make_reference_fe ( topology = topology_tet, fe_type = fe_type_lagrangian, &
+                   &                        number_dimensions = this%num_dimensions, order = order, &
+                   &                        field_type = field_type_scalar, continuity = .true. )
            else ! Quadrilateral
               this%reference_fe_geo_list(ielem_type) = &
                    &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
@@ -133,7 +136,7 @@ subroutine fine_triangulation_generate_vefs(this,order,boundary,boundary_geometr
           & lst_vertices(ptr_vertices(ielem):ptr_vertices(ielem+1)-1)
      call cell_iterator%next()
   end do
-  write(*,*) 'Vertices filled'
+  !write(*,*) 'Vertices filled'
   
   ! Fill dim 1 vefs (this%num_vefs = number of vertices at this point)
   ! they only have two vertices
@@ -202,10 +205,10 @@ subroutine fine_triangulation_generate_vefs(this,order,boundary,boundary_geometr
   if(this%num_dimensions==2) then
      this%num_edges = 0
      this%num_faces=this%num_vefs-this%num_vertices
-     write(*,*) '2D faces filled',this%num_faces
+     !write(*,*) '2D faces filled',this%num_faces
   else if(this%num_dimensions==3) then
      this%num_edges=this%num_vefs-this%num_vertices
-     write(*,*) '3D edges filled',this%num_edges
+     !write(*,*) '3D edges filled',this%num_edges
 
      ! Fill dim 2 vefs (the code is similar to that of dim 1 vefs,
      ! except for the number of vertices of each vef, that is variable)

@@ -71,18 +71,18 @@
     call this%allocate_and_fill_cells_around()
     !write(*,*) this%ptrs_cells_around
     !write(*,*) this%lst_cells_around
-    write(*,*) 'Dual mesh ready'
+    !write(*,*) 'Dual mesh ready'
 
     call this%generate_vefs(order)
     call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
     !call this%generate_vefs()
-    write(*,*) 'Generating vefs done'
+    !write(*,*) 'Generating vefs done'
 
     ! Generate dual mesh (around all vefs now)
     call this%allocate_and_fill_cells_around()
     !write(*,*) this%ptrs_cells_around
     !write(*,*) this%lst_cells_around
-    write(*,*) 'Dual mesh ready'
+    !write(*,*) 'Dual mesh ready'
 
     call this%compute_vefs_dimension()
     call this%find_vefs_at_boundary()
@@ -91,7 +91,7 @@
     
     call this%allocate_and_fill_face_orientation_rotation()
 
-    write(*,*) 'Numbering nodes and filling coordinates'
+    !write(*,*) 'Numbering nodes and filling coordinates'
     call this%allocate_and_fill_nodes()
     !write(*,*) 'List of nodes (ptr):'
     !write(*,*) this%ptr_nodes_per_cell

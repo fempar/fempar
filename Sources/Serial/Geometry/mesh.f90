@@ -318,7 +318,7 @@ contains
     read(lunio,'(a14,1x,i2, a7,1x,i2, a7,1x,i2, a10,1x,i10, a10,1x,i10, a6,1x,i10)') &
          & dum1,msh%ndime,dum2,msh%order,dum3,msh%nelty,dum4,msh%nelem, dum5,msh%npoin,dum6,nboun
 
-    write(*,*) 'Read mesh with parameters:',msh%ndime,msh%order,msh%nelty,msh%nelem,msh%npoin,nboun
+    !write(*,*) 'Read mesh with parameters:',msh%ndime,msh%order,msh%nelty,msh%nelem,msh%npoin,nboun
 
     ! Read nodes
     call memalloc(number_space_dimensions,msh%npoin,msh%coord,__FILE__,__LINE__)

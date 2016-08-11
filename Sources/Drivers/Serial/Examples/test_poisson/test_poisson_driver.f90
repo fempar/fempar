@@ -105,7 +105,7 @@ contains
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = 1, &
@@ -127,7 +127,7 @@ contains
     call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
     
     
-    call this%fe_space%print()
+    !call this%fe_space%print()
   end subroutine setup_fe_space
   
   subroutine setup_system (this)
@@ -180,14 +180,14 @@ contains
     
     select type(matrix)
     class is (sparse_matrix_t)  
-       call matrix%print_matrix_market(6) 
+       !call matrix%print_matrix_market(6) 
     class DEFAULT
        assert(.false.) 
     end select
     
     select type(rhs)
     class is (serial_scalar_array_t)  
-       call rhs%print(6) 
+       !call rhs%print(6) 
     class DEFAULT
        assert(.false.) 
     end select

@@ -840,9 +840,9 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_neighbours, __FILE__, __LINE__ )
     
-    do ivef_itfc=1,this%num_itfc_vefs
-      write(6,'(10i10)') ivef_itfc, this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)), parts_itfc_vefs(:, ivef_itfc) 
-    end do
+    !do ivef_itfc=1,this%num_itfc_vefs
+    !  write(6,'(10i10)') ivef_itfc, this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)), parts_itfc_vefs(:, ivef_itfc) 
+    !end do
   end subroutine bst_compute_parts_itfc_vefs
   
   subroutine bst_compute_vefs_and_parts_object(this)
@@ -1777,7 +1777,7 @@ subroutine bst_print ( this )
         this%number_global_objects = -1
         
       else ! I am lgt1_task
-       call this%coarse_triangulation%print()
+       !call this%coarse_triangulation%print()
        call this%coarse_triangulation%free()
        deallocate ( this%coarse_triangulation, stat=istat)
        check(istat == 0)
