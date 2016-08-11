@@ -56,24 +56,24 @@ public :: element_sparse_matrix_assembly, element_serial_scalar_array_assembly
 
 contains
 subroutine sparse_matrix_array_assembler_assembly( this, & 
-                                                   number_fe_spaces, &
-                                                   number_nodes, &
-                                                   elem2dof, &
-                                                   field_blocks, &
-                                                   field_coupling, &
-                                                   elmat, &
-                                                   elvec ) 
+                                                   number_fields,    &
+                                                   number_dofs,     &
+                                                   elem2dof,         &
+                                                   field_blocks,     &
+                                                   field_coupling,   &
+                                                   elmat,            &
+                                                   elvec )
  implicit none
  class(sparse_matrix_array_assembler_t), intent(inout) :: this
- integer(ip)                              , intent(in)    :: number_fe_spaces
- integer(ip)                              , intent(in)    :: number_nodes(number_fe_spaces)
- type(i1p_t)                              , intent(in)    :: elem2dof(number_fe_spaces)
- integer(ip)                              , intent(in)    :: field_blocks(number_fe_spaces)
- logical                                  , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
- ! elmat MUST have as many rows/columns as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
- real(rp)                                 , intent(in)    :: elmat(:,:) 
- ! elvec MUST have as many entries as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
- real(rp)                                 , intent(in)    :: elvec(:)  
+ integer(ip)                           , intent(in)    :: number_fields
+ integer(ip)                           , intent(in)    :: number_dofs(number_fields)
+ type(i1p_t)                           , intent(in)    :: elem2dof(number_fields)
+ integer(ip)                           , intent(in)    :: field_blocks(number_fields)
+ logical                               , intent(in)    :: field_coupling(number_fields,number_fields)
+ ! elmat MUST have as many rows/columns as \sum_{i=1}^{number_fields} number_dofs(i)
+ real(rp)                              , intent(in)    :: elmat(:,:) 
+ ! elvec MUST have as many entries as \sum_{i=1}^{number_fields} number_dofs(i)
+ real(rp)                              , intent(in)    :: elvec(:)    
 
  class(matrix_t), pointer :: matrix
  class(array_t) , pointer :: array
@@ -84,8 +84,8 @@ subroutine sparse_matrix_array_assembler_assembly( this, &
  select type(matrix)
     class is(sparse_matrix_t)
     call element_sparse_matrix_assembly( matrix, &
-                                         number_fe_spaces, &
-                                         number_nodes, &
+                                         number_fields, &
+                                         number_dofs, &
                                          elem2dof, &
                                          field_blocks, &
                                          field_coupling, &
@@ -97,8 +97,8 @@ subroutine sparse_matrix_array_assembler_assembly( this, &
  select type(array)
     class is(serial_scalar_array_t)
     call element_serial_scalar_array_assembly( array, &
-                                               number_fe_spaces, &
-                                               number_nodes, &
+                                               number_fields, &
+                                               number_dofs, &
                                                elem2dof, &
                                                field_blocks, &
                                                elvec )
@@ -190,23 +190,27 @@ subroutine element_serial_scalar_array_assembly( array, number_fe_spaces, number
 end subroutine element_serial_scalar_array_assembly
 
 !====================================================================================================
-subroutine sparse_matrix_array_assembler_face_assembly(this,number_fe_spaces,test_number_nodes,     &
-     &                                                 trial_number_nodes,test_elem2dof,            &
-     &                                                 trial_elem2dof,field_blocks,field_coupling,  &
-     &                                                 facemat,elvec ) 
+subroutine sparse_matrix_array_assembler_face_assembly(this, &
+                                                       number_fields, &
+                                                       test_number_dofs, &
+                                                       trial_number_dofs, &
+                                                       test_elem2dof, &
+                                                       trial_elem2dof, &
+                                                       field_blocks, &
+                                                       field_coupling, &
+                                                       facemat, &
+                                                       facevec) 
   implicit none
   class(sparse_matrix_array_assembler_t), intent(inout) :: this
-  integer(ip)                              , intent(in)    :: number_fe_spaces
-  integer(ip)                              , intent(in)    :: test_number_nodes(number_fe_spaces)
-  integer(ip)                              , intent(in)    :: trial_number_nodes(number_fe_spaces)
-  type(i1p_t)                              , intent(in)    :: test_elem2dof(number_fe_spaces)
-  type(i1p_t)                              , intent(in)    :: trial_elem2dof(number_fe_spaces)
-  integer(ip)                              , intent(in)    :: field_blocks(number_fe_spaces)
-  logical                                  , intent(in)    :: field_coupling(number_fe_spaces,number_fe_spaces)
-  ! elmat MUST have as many rows/columns as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
-  real(rp)                                 , intent(in)    :: facemat(:,:) 
-  ! elvec MUST have as many entries as \sum_{i=1}^{number_fe_spaces} number_nodes(i)
-  real(rp)                                 , intent(in)    :: elvec(:)  
+  integer(ip)                           , intent(in)    :: number_fields
+  integer(ip)                           , intent(in)    :: test_number_dofs(number_fields)
+  integer(ip)                           , intent(in)    :: trial_number_dofs(number_fields)
+  type(i1p_t)                           , intent(in)    :: test_elem2dof(number_fields)
+  type(i1p_t)                           , intent(in)    :: trial_elem2dof(number_fields)
+  integer(ip)                           , intent(in)    :: field_blocks(number_fields)
+  logical                               , intent(in)    :: field_coupling(number_fields,number_fields)
+  real(rp)                              , intent(in)    :: facemat(:,:) 
+  real(rp)                              , intent(in)    :: facevec(:) 
 
   class(matrix_t), pointer :: matrix
   class(array_t) , pointer :: array
@@ -216,8 +220,8 @@ subroutine sparse_matrix_array_assembler_face_assembly(this,number_fe_spaces,tes
 
   select type(matrix)
      class is(sparse_matrix_t)
-     call element_sparse_matrix_face_assembly(matrix,number_fe_spaces,test_number_nodes,             &
-          &                              trial_number_nodes,test_elem2dof,trial_elem2dof,            &
+     call element_sparse_matrix_face_assembly(matrix,number_fields,test_number_dofs,             &
+          &                              trial_number_dofs,test_elem2dof,trial_elem2dof,            &
           &                              field_blocks,field_coupling,facemat )
      class default
      check(.false.)
@@ -225,8 +229,8 @@ subroutine sparse_matrix_array_assembler_face_assembly(this,number_fe_spaces,tes
 
   select type(array)
      class is(serial_scalar_array_t)
-     call element_serial_scalar_array_assembly( array,number_fe_spaces,test_number_nodes,            &
-          &                                     test_elem2dof,field_blocks,elvec )
+     call element_serial_scalar_array_assembly( array,number_fields,test_number_dofs,            &
+          &                                     test_elem2dof,field_blocks,facevec )
      class default
      check(.false.)
   end select

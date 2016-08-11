@@ -38,6 +38,7 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_dir_path
      character(len=:), allocatable :: default_prefix
      character(len=:), allocatable :: default_dir_path_out
+     character(len=:), allocatable :: default_fe_formulation
      
      type(Command_Line_Interface):: cli 
 
@@ -45,6 +46,8 @@ module test_poisson_params_names
      character(len=256)            :: dir_path
      character(len=256)            :: prefix
      character(len=256)            :: dir_path_out
+     character(len=256)            :: fe_formulation
+
      
    contains
      procedure, non_overridable             :: create       => test_poisson_create
@@ -55,6 +58,7 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
+     procedure, non_overridable             :: get_fe_formulation
   end type test_poisson_params_t
 
   ! Types
@@ -84,9 +88,10 @@ contains
     implicit none
     class(test_poisson_params_t), intent(inout) :: this
     ! IO parameters
-    this%default_dir_path     = 'data/'
-    this%default_prefix       = 'square'
-    this%default_dir_path_out = 'output/'
+    this%default_dir_path       = 'data/'
+    this%default_prefix         = 'square'
+    this%default_dir_path_out   = 'output/'
+    this%default_fe_formulation = 'cG'
   end subroutine test_poisson_set_default
   
   !==================================================================================================
@@ -98,16 +103,20 @@ contains
     integer(ip) :: error
 
     ! IO parameters
-    call this%cli%add(switch='--dir_path',switch_ab='-d',                              &
+    call this%cli%add(switch='--dir-path',switch_ab='-d',                              &
          &            help='Directory of the source files',required=.false., act='store',                &
          &            def=trim(this%default_dir_path),error=error)
     check(error==0)
-    call this%cli%add(switch='--prefix',switch_ab='-pr',help='Name of the GiD files',  &
+    call this%cli%add(switch='--prefix',switch_ab='-p',help='Name of the GiD files',  &
          &            required=.false.,act='store',def=trim(this%default_prefix),error=error) 
     check(error==0)
-    call this%cli%add(switch='--dir_path_out',switch_ab='-out',help='Output Directory',&
+    call this%cli%add(switch='--dir-path-out',switch_ab='-o',help='Output Directory',&
          &            required=.false.,act='store',def=trim(this%default_dir_path_out),error=error)
     check(error==0)  
+    call this%cli%add(switch='--fe-formulation',switch_ab='-f',help='cG or dG FE formulation for Poisson problem',&
+         &            required=.false.,act='store',def=trim(this%default_fe_formulation), choices='cG,dG', error=error)
+    check(error==0)  
+    
   end subroutine test_poisson_add_to_cli
   
   subroutine test_poisson_parse(this)
@@ -119,9 +128,9 @@ contains
     
     ! IO parameters
     call this%cli%get(switch='-d'  ,val=this%dir_path    ,error=istat); check(istat==0)
-    call this%cli%get(switch='-pr' ,val=this%prefix      ,error=istat); check(istat==0)
-    call this%cli%get(switch='-out',val=this%dir_path_out,error=istat); check(istat==0)
-  
+    call this%cli%get(switch='-p' ,val=this%prefix      ,error=istat); check(istat==0)
+    call this%cli%get(switch='-o',val=this%dir_path_out,error=istat); check(istat==0)
+    call this%cli%get(switch='-f',val=this%fe_formulation,error=istat); check(istat==0)
   end subroutine test_poisson_parse  
 
   subroutine test_poisson_free(this)
@@ -156,5 +165,13 @@ contains
     character(len=256) :: get_dir_path_out
     get_dir_path_out = this%dir_path_out
   end function get_dir_path_out
+  
+  !==================================================================================================
+  function get_fe_formulation(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    character(len=256) :: get_fe_formulation
+    get_fe_formulation = this%fe_formulation
+  end function get_fe_formulation
   
 end module test_poisson_params_names

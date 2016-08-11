@@ -79,12 +79,12 @@ program test_reference_fe
 contains  
   
 subroutine test_single_scalar_valued_reference_fe ()
-    use poisson_discrete_integration_names
+    use poisson_cG_discrete_integration_names
     implicit none
     type(p_reference_fe_t)               :: reference_fe_array(1)
     type(serial_fe_space_t)              :: fe_space
     type(fe_affine_operator_t)           :: fe_affine_operator
-    type(poisson_discrete_integration_t) :: poisson_integration
+    type(poisson_cG_discrete_integration_t) :: poisson_integration
     type(iterative_linear_solver_t)      :: iterative_linear_solver
     type(serial_environment_t)           :: senv
     class(vector_t), allocatable         :: computed_solution_vector, exact_solution_vector

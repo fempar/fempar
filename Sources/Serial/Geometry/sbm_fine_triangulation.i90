@@ -65,7 +65,7 @@ subroutine fine_triangulation_generate_vefs(this,order,boundary,boundary_geometr
   ! Build reference_fe_geo index and list:
   ! A scalar reference fe is used for the geometry as it is always interpolated
   ! using a Lagrangian type fe and nodal values are stored into a point_t array.
-  call pos_ref_fe%init(max_num_elem_types)
+  call pos_ref_fe%init(max_num_reference_fes_geo)
 
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
@@ -376,7 +376,7 @@ subroutine fine_triangulation_generate_vefs(this,order,boundary,boundary_geometr
   end if
 
   ! Generate the ref fe position hash table using the number of vefs (instead of vertices) as keys
-  call  this%reference_fe_geo_index%init(max_num_elem_types)
+  call  this%reference_fe_geo_index%init(max_num_reference_fes_geo)
   if(this%num_dimensions==3) then
      ! Tetrahedra
      ielem_num_vertices=4

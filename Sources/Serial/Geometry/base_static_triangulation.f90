@@ -85,33 +85,34 @@ module base_static_triangulation_names
     ! either within this module or within a submodule of base_static_triangulation_names
     ! due to module dependencies cycle
     procedure                            :: cell_accessor_create
-    generic                              :: create               => cell_accessor_create
-    procedure                            :: free                 => cell_accessor_free
-    procedure, non_overridable           :: next                 => cell_accessor_next
-    procedure, non_overridable           :: set_lid              => cell_accessor_set_lid
-    procedure, non_overridable, private  :: set_gid              => cell_accessor_set_gid
-    procedure, non_overridable, private  :: set_mypart           => cell_accessor_set_mypart
-    procedure, non_overridable, private  :: get_triangulation    => cell_accessor_get_triangulation
-    procedure, non_overridable, private  ::                         cell_accessor_get_vef
-    procedure, non_overridable           :: past_the_end         => cell_accessor_past_the_end
-    procedure, non_overridable           :: get_reference_fe_geo => cell_accessor_get_reference_fe_geo
-    procedure, non_overridable           :: get_coordinates      => cell_accessor_get_coordinates
-    procedure, non_overridable           :: set_coordinates      => cell_accessor_set_coordinates
-    procedure, non_overridable           :: get_lid              => cell_accessor_get_lid
-    procedure, non_overridable           :: get_gid              => cell_accessor_get_gid
-    procedure, non_overridable           :: get_mypart           => cell_accessor_get_mypart
-    procedure, non_overridable           :: get_num_vefs         => cell_accessor_get_num_vefs
-    procedure, non_overridable           :: get_num_nodes        => cell_accessor_get_num_nodes
-    procedure, non_overridable           :: get_node_lid         => cell_accessor_get_node_lid
-    procedure, non_overridable           :: get_vef_lid          => cell_accessor_get_vef_lid
-    procedure, non_overridable           :: get_vef_lids         => cell_accessor_get_vef_lids
-    procedure, non_overridable           :: get_vef_gid          => cell_accessor_get_vef_gid
-    procedure, non_overridable           :: find_lpos_vef_lid    => cell_accessor_find_lpos_vef_lid
-    procedure, non_overridable           :: find_lpos_vef_gid    => cell_accessor_find_lpos_vef_gid
-    generic                              :: get_vef              => cell_accessor_get_vef
-    procedure, non_overridable           :: is_local             => cell_accessor_is_local
-    procedure, non_overridable           :: is_ghost             => cell_accessor_is_ghost
-    procedure, non_overridable           :: scan_sum_number_vefs => cell_accessor_get_scan_sum_number_vefs
+    generic                              :: create                  => cell_accessor_create
+    procedure                            :: free                    => cell_accessor_free
+    procedure, non_overridable           :: next                    => cell_accessor_next
+    procedure, non_overridable           :: set_lid                 => cell_accessor_set_lid
+    procedure, non_overridable, private  :: set_gid                 => cell_accessor_set_gid
+    procedure, non_overridable, private  :: set_mypart              => cell_accessor_set_mypart
+    procedure, non_overridable, private  :: get_triangulation       => cell_accessor_get_triangulation
+    procedure, non_overridable, private  :: cell_accessor_get_vef
+    procedure, non_overridable           :: past_the_end            => cell_accessor_past_the_end
+    procedure, non_overridable           :: get_reference_fe_geo    => cell_accessor_get_reference_fe_geo
+    procedure, non_overridable           :: get_reference_fe_geo_id => cell_accessor_get_reference_fe_geo_id
+    procedure, non_overridable           :: get_coordinates         => cell_accessor_get_coordinates
+    procedure, non_overridable           :: set_coordinates         => cell_accessor_set_coordinates
+    procedure, non_overridable           :: get_lid                 => cell_accessor_get_lid
+    procedure, non_overridable           :: get_gid                 => cell_accessor_get_gid
+    procedure, non_overridable           :: get_mypart              => cell_accessor_get_mypart
+    procedure, non_overridable           :: get_num_vefs            => cell_accessor_get_num_vefs
+    procedure, non_overridable           :: get_num_nodes           => cell_accessor_get_num_nodes
+    procedure, non_overridable           :: get_node_lid            => cell_accessor_get_node_lid
+    procedure, non_overridable           :: get_vef_lid             => cell_accessor_get_vef_lid
+    procedure, non_overridable           :: get_vef_lids            => cell_accessor_get_vef_lids
+    procedure, non_overridable           :: get_vef_gid             => cell_accessor_get_vef_gid
+    procedure, non_overridable           :: find_lpos_vef_lid       => cell_accessor_find_lpos_vef_lid
+    procedure, non_overridable           :: find_lpos_vef_gid       => cell_accessor_find_lpos_vef_gid
+    generic                              :: get_vef                 => cell_accessor_get_vef
+    procedure, non_overridable           :: is_local                => cell_accessor_is_local
+    procedure, non_overridable           :: is_ghost                => cell_accessor_is_ghost
+    procedure, non_overridable           :: scan_sum_number_vefs    => cell_accessor_get_scan_sum_number_vefs
     procedure, non_overridable           :: fill_nodes_on_vertices  => cell_accessor_fill_nodes_on_vertices
   end type cell_accessor_t
   
@@ -181,6 +182,7 @@ module base_static_triangulation_names
   type, extends(vef_accessor_t) :: face_accessor_t
     private
   contains
+    procedure, non_overridable          :: get_coordinates                  => face_accessor_get_coordinates
     procedure, non_overridable          :: get_face_lid                     => face_accessor_get_face_lid
     procedure, non_overridable          :: get_face_lpos_within_cell_around => face_accessor_get_face_lpos_within_cell_around
     procedure, non_overridable          :: get_face_orientation             => face_accessor_get_face_orientation
@@ -191,10 +193,6 @@ module base_static_triangulation_names
 
   ! In order to define iterators over vertices, edges and faces as extensions of vef_iterator
   ! we need to overwrite init and next. The alternative is to repeat all TBPs.
-  ! I need to introduce all_vefs iterator because when using an allocatable
-  ! class(vef_iterator_t), allocated as face_iterator_t calling init results in a call
-  ! to the mother class function. Is it right? Is it a compiler (gnu) bug? In any case,
-  ! the solution is to use abstract functions....
   type vef_iterator_t
     private
     type(vef_accessor_t) :: current_vef_accessor
@@ -312,7 +310,7 @@ module base_static_triangulation_names
    !integer(ip), parameter :: base_static_triangulation_elements_filled = 2 
    !integer(ip), parameter :: base_static_triangulation_vefs_filled     = 3 
 
-  integer(ip), parameter      :: max_num_elem_types = 3
+  integer(ip), parameter      :: max_num_reference_fes_geo = 3
 
   type base_static_triangulation_t ! Base class for coarse_triangulation_t and fine_triangulation_t
      private
@@ -372,7 +370,7 @@ module base_static_triangulation_names
 
      ! Data structures that should be defined in fine_triangulation_t (which requires extensive refactoring)     
      type(geometry_t)                        :: geometry
-     type(p_reference_fe_t)                  :: reference_fe_geo_list(max_num_elem_types)
+     type(p_reference_fe_t)                  :: reference_fe_geo_list(max_num_reference_fes_geo)
      type(hash_table_ip_ip_t)                :: reference_fe_geo_index
      
      ! Geometry interpolation
@@ -391,6 +389,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_num_vefs                        => bst_get_num_vefs 
      procedure, non_overridable          :: get_num_local_vefs                  => bst_get_num_local_vefs
      procedure, non_overridable          :: get_num_ghost_vefs                  => bst_get_num_ghost_vefs
+     procedure, non_overridable          :: get_num_faces                       => bst_get_num_faces
      procedure, non_overridable          :: get_num_cells                       => bst_get_num_cells
      procedure, non_overridable          :: get_num_local_cells                 => bst_get_num_local_cells
      procedure, non_overridable          :: get_num_ghost_cells                 => bst_get_num_ghost_cells
@@ -413,6 +412,9 @@ module base_static_triangulation_names
      ! Other
      procedure                           :: print                               => bst_print    
      procedure                           :: free                                => bst_free
+     
+     ! Getters
+     procedure                           :: get_number_reference_fes_geo        => bst_get_number_reference_fes_geo
    
 
      ! Private methods for creating cell-related data

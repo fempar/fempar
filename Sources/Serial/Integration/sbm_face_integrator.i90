@@ -92,7 +92,7 @@ end function fe_map_face_restriction_get_coordinates
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! face_map_t procedures
-subroutine face_map_create(this,left_geo_reference_fe,right_geo_reference_fe, quadrature )
+subroutine face_map_create(this, quadrature, left_geo_reference_fe, right_geo_reference_fe )
   implicit none
   ! Parameters
   class(face_map_t)             , intent(inout) :: this
@@ -136,20 +136,19 @@ subroutine face_map_update(this,local_face_id,face_quadrature,left_reference_fe_
   type(quadrature_t), intent(in)    :: face_quadrature
   class(reference_fe_t), intent(in)    :: left_reference_fe_geo
 
-  assert((local_face_id(2)<=0) .eqv. this%is_boundary)
   call this%face_map%face_map_update(local_face_id(1),left_reference_fe_geo,face_quadrature)
-  
   call this%fe_maps(1)%update(local_face_id(1),face_quadrature)
-  if (local_face_id(2)>0) then
+  if (.not. this%is_boundary) then
+     assert ( local_face_id(2) >= 1 )
      call this%fe_maps(2)%update(local_face_id(2),face_quadrature)
   end if
 end subroutine face_map_update
 
 !==================================================================================================
-function face_map_compute_characteristic_length(this,qpoin, number_neighbours)
+function face_map_compute_characteristic_length(this,qpoin)
   implicit none
   class(face_map_t), target, intent(in) :: this
-  integer(ip)              , intent(in) :: qpoin, number_neighbours
+  integer(ip)              , intent(in) :: qpoin
   real(rp) :: face_map_compute_characteristic_length
 
   real(rp)    :: h
