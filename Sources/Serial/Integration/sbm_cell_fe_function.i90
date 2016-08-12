@@ -157,6 +157,11 @@ subroutine cell_fe_function_scalar_free ( this )
      check(istat==0)
   end if
 
+  if (allocated(this%quadrature_points_gradients)) then
+     deallocate ( this%quadrature_points_gradients, stat = istat )
+     check(istat==0)
+  end if
+  
 end subroutine cell_fe_function_scalar_free
 
 
@@ -184,6 +189,9 @@ subroutine cell_fe_function_vector_create ( this, ifield, max_nnode, max_npoint 
   allocate ( this%quadrature_points_values(max_npoint), stat = istat )
   check(istat==0)
 
+  allocate ( this%quadrature_points_gradients(max_npoint), stat = istat )
+  check(istat==0)
+  
 end subroutine cell_fe_function_vector_create
 
 !===============================================================================================
@@ -285,6 +293,11 @@ subroutine cell_fe_function_vector_free ( this )
 
   if (allocated(this%quadrature_points_values)) then
      deallocate ( this%quadrature_points_values, stat = istat )
+     check(istat==0)
+  end if
+
+  if (allocated(this%quadrature_points_gradients)) then
+     deallocate ( this%quadrature_points_gradients, stat = istat )
      check(istat==0)
   end if
 

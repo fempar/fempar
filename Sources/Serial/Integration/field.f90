@@ -89,7 +89,7 @@ module field_names
   end interface operator(+)
 
   interface operator(-)
-     module procedure sub_point_point, sub_point_vector, sub_vector_vector
+     module procedure sub_point_point, sub_point_vector, sub_vector_vector, sub_tensor_tensor
   end interface operator(-)
 
   interface assignment(=)
@@ -416,6 +416,14 @@ contains
 
     vector_sub%value = vector1%value - vector2%value
   end function sub_vector_vector
+  
+  function sub_tensor_tensor ( tensor1, tensor2) result(tensor_sub)
+    implicit none
+    type(tensor_field_t), intent(in) :: tensor1, tensor2
+    type(tensor_field_t):: tensor_sub
+
+    tensor_sub%value = tensor1%value - tensor2%value
+  end function sub_tensor_tensor
   
   subroutine assign_scalar_to_point ( point, scalar )
     implicit none

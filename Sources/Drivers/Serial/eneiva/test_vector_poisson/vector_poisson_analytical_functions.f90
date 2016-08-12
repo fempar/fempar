@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module poisson_analytical_functions_names
+module vector_poisson_analytical_functions_names
   use serial_names
   implicit none
 # include "debug.i90"
@@ -42,17 +42,17 @@ module poisson_analytical_functions_names
      procedure :: get_value_space => boundary_values_get_value_space
   end type boundary_values_t
 
-  type, extends(scalar_function_t) :: solution_values_t
+  type, extends(vector_function_t) :: solution_values_t
    contains
      procedure :: get_value_space => solution_values_get_value_space
   end type solution_values_t
   
-  type, extends(vector_function_t) :: solution_gradient_t
+  type, extends(tensor_function_t) :: solution_gradient_t
    contains
      procedure :: get_value_space => solution_gradient_get_value_space
   end type solution_gradient_t
 
-  type poisson_analytical_functions_t
+  type vector_poisson_analytical_functions_t
      private
      type(source_term_t)       :: source_term
      type(boundary_values_t)   :: boundary_values
@@ -63,9 +63,9 @@ module poisson_analytical_functions_names
      procedure :: get_boundary_values   => poisson_analytical_functions_get_boundary_values
      procedure :: get_solution_values   => poisson_analytical_functions_get_solution_values
      procedure :: get_solution_gradient => poisson_analytical_functions_get_solution_gradient
-  end type poisson_analytical_functions_t
+  end type vector_poisson_analytical_functions_t
 
-  public :: poisson_analytical_functions_t
+  public :: vector_poisson_analytical_functions_t
 
 contains  
 
@@ -92,8 +92,9 @@ contains
     implicit none
     class(solution_values_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
-    real(rp)                , intent(inout) :: result
-    result = sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1)   
+    type(vector_field_t)    , intent(inout) :: result
+    call result%set(1, sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1) )
+    call result%set(2, sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1) )
   end subroutine solution_values_get_value_space
   
   !===============================================================================================
@@ -101,15 +102,17 @@ contains
     implicit none
     class(solution_gradient_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
-    type(vector_field_t)      , intent(inout) :: result
-    call result%set( 1, pi * cos ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + 1.0_rp ) 
-    call result%set( 2, pi * sin ( pi * point%get(1) ) * cos ( pi * point%get(2) ) )
+    type(tensor_field_t)      , intent(inout) :: result
+    call result%set( 1, 1, pi * cos ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + 1.0_rp ) 
+    call result%set( 2, 1, pi * sin ( pi * point%get(1) ) * cos ( pi * point%get(2) ) )
+    call result%set( 1, 2, pi * cos ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + 1.0_rp ) 
+    call result%set( 2, 2, pi * sin ( pi * point%get(1) ) * cos ( pi * point%get(2) ) )
   end subroutine solution_gradient_get_value_space
   
   !===============================================================================================
   function poisson_analytical_functions_get_source_term ( this )
     implicit none
-    class(poisson_analytical_functions_t), target, intent(in)    :: this
+    class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: poisson_analytical_functions_get_source_term
     poisson_analytical_functions_get_source_term => this%source_term
   end function poisson_analytical_functions_get_source_term
@@ -117,7 +120,7 @@ contains
   !===============================================================================================
   function poisson_analytical_functions_get_boundary_values ( this )
     implicit none
-    class(poisson_analytical_functions_t), target, intent(in)    :: this
+    class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: poisson_analytical_functions_get_boundary_values
     poisson_analytical_functions_get_boundary_values => this%boundary_values
   end function poisson_analytical_functions_get_boundary_values
@@ -125,20 +128,20 @@ contains
   !===============================================================================================
   function poisson_analytical_functions_get_solution_values ( this )
     implicit none
-    class(poisson_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: poisson_analytical_functions_get_solution_values
+    class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
+    class(vector_function_t), pointer :: poisson_analytical_functions_get_solution_values
     poisson_analytical_functions_get_solution_values => this%solution_values
   end function poisson_analytical_functions_get_solution_values
   
   !===============================================================================================
   function poisson_analytical_functions_get_solution_gradient ( this )
     implicit none
-    class(poisson_analytical_functions_t), target, intent(in)    :: this
-    class(vector_function_t), pointer :: poisson_analytical_functions_get_solution_gradient
+    class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
+    class(tensor_function_t), pointer :: poisson_analytical_functions_get_solution_gradient
     poisson_analytical_functions_get_solution_gradient => this%solution_gradient
   end function poisson_analytical_functions_get_solution_gradient
 
-end module poisson_analytical_functions_names
+end module vector_poisson_analytical_functions_names
 !***************************************************************************************************
 
 
