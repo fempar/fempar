@@ -29,108 +29,129 @@
 !****************************************************************************************************
 program abstract_reference_element
   implicit none
-  type(object) :: object
-  !call XXX()
-  
-  integer(ip), parameter :: DIM = number_space_dimensions
-  
-  
-    
+  type(object_tree_t) :: object_tree
+  integer(ip), parameter :: DIM = 3 !number_space_dimensions
+
+  ! 1D
+  ! line 0 = 1 ( 0 = 1 )
+
+  ! 2D
+  ! square   10 = 11 ( 2 = 3 )
+  ! triangle 00 = 01 ( 0 = 1 )
+
+  ! 3D
+  ! tetrahedron 000 = 001 ( 0 = 1 )
+  ! pyramid     010 = 011 ( 2 = 3 )
+  ! prysm       100 = 101 ( 4 = 5 )  
+  ! cube        110 = 111 ( 6 = 7 )
+
+  call object_tree%create( 6 )
+
+end program abstract_reference_element
+
 contains
-  type object_tree_t
-     private
-     integer(ip) :: topology
-     integer(ip), allocatable :: objects_array(:)     
-     integer(ip), allocatable :: ijk_to_index(:)
-     integer(ip) :: current = 1    
-     contains
-     procedure :: create_object_tree
-     procedure, private :: fill_tree
-     procedure :: create_children_iterator
-  end type object_tree_t
-  ! Types
-  public :: object_tree_t
-  
-  type children_iterator_t
-    private 
-    type(object_tree_t), pointer :: object_tree
-    integer(ip)                  :: parent
-    integer(ip)                  :: i ! Choose a better name for i,j
-    integer(ip)                  :: j
-  contains
-    procedure :: create        => children_iterator_create
-    procedure :: init          => children_iterator_init
-    procedure :: next          => children_iterator_next
-    procedure :: has_finished  => children_iterator_has_finished
-    proecudre :: free          => children_iterator_free
-  end type children_iterator_t
-  
+type object_tree_t
+   private
+   integer(ip) :: topology
+   integer(ip), allocatable :: objects_array(:)     
+   integer(ip), allocatable :: ijk_to_index(:)
+   integer(ip) :: current = 1    
+ contains
+   procedure :: create_object_tree
+   procedure, private :: fill_tree
+   procedure :: create_children_iterator
+end type object_tree_t
+! Types
+public :: object_tree_t, children_iterator_t
+
+type children_iterator_t
+   private 
+   type(object_tree_t), pointer :: object_tree
+   integer(ip)                  :: parent
+   integer(ip)                  :: component
+   integer(ip)                  :: coordinate
+ contains
+   procedure :: create        => children_iterator_create
+   procedure :: init          => children_iterator_init
+   procedure :: next          => children_iterator_next
+   procedure :: has_finished  => children_iterator_has_finished
+   procedure :: free          => children_iterator_free
+end type children_iterator_t
+
 contains
-
-
-
 
 subroutine create_object_tree( this, topology )
-   implicit none
-   this%topology = topology
-   c = 0
-   dim = number_of_space_dimensions
-   do i = 0,dim
-      c = c + 2**(dim-i)*(factorial(dim)/(factorial(i)*factorial(dim-i)))
-   end do
-   call memalloc ( c, this%objects_array, __FILE__, __LINE__ )       ! c = number objects hypercube dim
-   call memalloc ( this%ijk_to_index, ISHFT(ISHFT(1_ip,dim)-1,dim), -1, __FILE__, __LINE__  ) ! (2**dim-1)*2**dim max id object
-   
-   this%current = 0   
-   call this%fill_tree(ISHFT(ISHFT(1_ip,dim)-1,dim)) ! Root object (volume)
-   
-   call memrealloc ( this%current, this%objects_array, __FILE__, __LINE__ ) 
-   call sort( this%current, this%objects_array )
-   do i =1,this%current
-      ijk_to_index(objects_array(i)) = i
-   end do
-   this%current = 1
-end subroutine
+  implicit none
+  type(object_tree_t), intent(inout) :: this
+  integer(ip)        , intent(in)    :: topology
+  integer(ip) :: c
+
+  this%topology = topology
+  ! Compute number of object (all dimensions) for the hypercube
+  ! c = (2**dim-1)*2**dim max id object
+  c = 0
+  dim = number_of_space_dimensions
+  do i = 0,dim
+     c = c + 2**(dim-i)*(factorial(dim)/(factorial(i)*factorial(dim-i)))
+  end do
+  ! Pre-allocate this%objects_array with c (exact for hypercube)
+  call memalloc ( c, this%objects_array, __FILE__, __LINE__ )
+  ! Pre-allocate the ijk_to_index. Maximum ijk_to_index is [111000] for dim = 3
+  ! = ISHFT(ISHFT(1_ip,dim)-1,dim) = (2**dim-1)*2**dim
+  call memalloc ( this%ijk_to_index, ISHFT(ISHFT(1_ip,dim)-1,dim), -1, __FILE__, __LINE__  )
+  ! Initialize current object 
+  this%current = 0   
+  ! Call the recursive fill_tree procedure starting with the volume object
+  call this%fill_tree( ISHFT(ISHFT(1_ip,dim)-1, dim ) ) ! Root object (volume)
+  ! Re-allocate the objects_array to the exact number of objects
+  call memrealloc ( this%current, this%objects_array, __FILE__, __LINE__ )
+  ! Sort objects based on its bit-based index
+  call sort( this%current, this%objects_array )
+  ! Create tje bit-index to consecutive index array (0 for bit-indexes wo/ associated object)
+  do i =1,this%current
+     ijk_to_index(objects_array(i)) = i
+  end do
+  ! Put the array pointing to volume object
+  this%current = 1
+end subroutine create_object_tree
 
 recursive subroutine fill_tree( this, root )
-   implicit none
-   
-   type(children_iterator_t) :: children_iterator
-   
-   
-   if ( this%ijk_to_index(root) /= -1 ) then 
-     children_iterator = this%create_children_iterator(root)
+  implicit none
+  type(object_tree_t), intent(inout) :: this
+  integer(ip)        , intent(in)    :: root
+  type(children_iterator_t) :: children_iterator
+  integer(ip)               :: children
+
+  ! If the object not already inserted (use ijk_to_index as touch table)
+  if ( this%ijk_to_index(root) /= -1 ) then 
+     ! Increase one position current object in object_tree
      this%current = this%current + 1
+     ! Put root as new object in object_tree
      this%objects_array(this%current) = root
+     ! Mark root as touched (already inserted)
      this%ijk_to_index(root) = 1
+     ! Create iterator over children of root object
+     children_iterator = this%create_children_iterator(root)
+     ! Loop over children
      do while (.not. children_iterator%has_finished() )
-       son = children_iterator%current()
-       call this%fill_tree(son)
-       call children_iterator%next()
+        children = children_iterator%current()
+        ! Put childrens of child (recursive call)
+        call this%fill_tree( children )
+        ! Move to the next child
+        call children_iterator%next()
      end do
-     !do i = 1, DIM
-     !   if ( this%is_component_free( root, i) ) then
-     !      do j = 0,1
-     !         son = this%generate_son( root, i, j)
-     !         if ( this%is_admisible(son) ) then
-     !            call this%fill_tree( son )
-     !         end if
-     !      end do
-     !   end if 
-     !end do   
-     
-   end if
-   
- end subroutine fill_tree
- 
- subroutine is_component_free
-    
- subroutine generate_son
- 
- subroutine is_admisible
- 
- subroutine object_dimension
- 
+  end if
+end subroutine fill_tree
+
+subroutine is_component_free
+end subroutine is_component_free
+subroutine generate_son
+end subroutine generate_son
+subroutine is_admisible
+end subroutine is_admisible
+subroutine object_dimension
+end subroutine object_dimension
+
 function object_tree_create_children_iterator(this, parent)
   implicit none
   class(object_tree_t), intent(in) :: this
@@ -138,7 +159,7 @@ function object_tree_create_children_iterator(this, parent)
   type(children_iterator_t) :: object_tree_create_children_iterator
   call object_tree_create_children_iterator%create(this, parent)
 end function object_tree_create_children_iterator
-   
+
 subroutine children_iterator_create ( this, object_tree, parent )
   implicit none
   class(children_iterator_t)        , intent(inout) :: this
@@ -150,17 +171,17 @@ subroutine children_iterator_create ( this, object_tree, parent )
   call this%init()
 end subroutine children_iterator_create
 
-subroutine children_iterator_init ( this)
+subroutine children_iterator_init ( this )
   implicit none
   class(children_iterator_t), intent(inout) :: this
   this%i = 1
   this%j = 0
-  if ( .not. is admisible(i,j) ) then
-    call this%children_iterator_next()
-  end if  
+  if ( .not. this%is_admisible(i,j) ) then
+     call this%children_iterator_next()
+  end if
 end subroutine children_iterator_init
 
-recursive subroutine children_iterator_next ( this)
+recursive subroutine children_iterator_next ( this )
   implicit none
   class(children_iterator_t), intent(inout) :: this
   if ( this%has_finished() ) return 
@@ -171,137 +192,51 @@ recursive subroutine children_iterator_next ( this)
      this%j = 1
   end if
   if ( .not. is admisible(i,j) ) then
-      call this%children_iterator_next()
-  end if  
-end subroutine children_iterator_next  
-  
-function children_iterator_has_finished ( this)
+     call this%children_iterator_next()
+  end if
+end subroutine children_iterator_next
+
+function children_iterator_has_finished ( this )
   implicit none
   class(children_iterator_t), intent(in) :: this
   logical :: children_iterator_has_finished
   children_iterator_has_finished = ( this%i > DIM )
 end function children_iterator_has_finished
 
-function children_iterator_current ( this)
+function children_iterator_current ( this )
   implicit none
   class(children_iterator_t), intent(in) :: this
   integer(ip) :: children_iterator_current
   assert ( .not. this%has_finished() )
-  children_iterator_current = F(this%parent,i,j)
+  children_iterator_current = XXXXXXXXXX(this%parent,i,j)
 end function children_iterator_current
 
-
-! Creates the son, stores a pointer to the son, and provides the son
-              !new_object%free_component(i) = 0 ! Fix component
-              !new_object%coordinates(i) = j
-              !new_object%object_dimension = this%object_dimension-1
-              !new_object%
-  
-
-
-
-
-
-
-  
-  
-  
-  
-contains
-  type object_tree
-     private
-     type(object_t)  :: object_array
-     type(has_table) :: bit_to_index_table
-     
-     integer(ip)     :: object_accesor = 1
-     contains
-     procedure :: create_object_tree
-     procedure :: allocate_object_array
-  
-  type object_t 
-     private 
-     ! Data
-     ! ...
-     integer(ip) :: object_dimension
-     integer(ip) :: topology(number_dimensions)
-     integer(ip) :: free_components(number_dimensions)
-     integer(ip) :: coordinates(number_dimensions)
-          
-     type(p_object_t), allocatable :: sons()
-     
-     integer(ip)     :: son_accesor = 1
-          
-     contains
-     ! TBP
-     procedure, private :: numbering_all_sub_objects
-     procedure, private :: list_sub_objects_of_a_given_dimension
-     procedure, private :: apply_displacement_object
-     procedure, private :: check_admisible_displacement
-  end type object_t
-  ! Types
-  public :: object_t
-contains
-
-  subroutine set_object(this, object_dimension, topology, object_type, coordinates)
-     implicit none
-     integer(ip) :: object_dimension
-     real(rp) :: topology(number_dimensions)
-     real(rp) :: object_type(number_dimensions)
-     real(rp) :: coordinates(number_dimensions)
-     
-     this%object_dimension = object_dimension
-     this%topology = topology
-     this%coordinates = coordinates
-     
-     call this%allocate_sons()
-  end subroutine
-    
-  subroutine allocate_sons( this )
-     implicit none
-     allocate ( this%sons, 2**(this%number_dimensions-this%object_dimension), __THIS__, __LINE__ )
-  end subroutine
-  
-  subroutine allocate_object_array( this )
-     implicit none
-     c = 0
-     do i = 0,space_dimension
-        c = c + 2**(this%number_dimensions-this%object_dimension)
-     end do
-     allocate ( this%sons, c, __THIS__, __LINE__ ) ! Maximum number (hexahedron case)
-  end subroutine
-  
-  subroutine start_object_tree(this, object_dimension, topology, object_type)
-  
-  current_object => this%current_object()
-  call create_object( current_object, space_dimension, topology, object_type, coordinates)
-  
-  end start_object_tree
-  
-  subroutine create_object_tree( this )
-  
-  current_object => this%get_current_object()
-  do i = 1, space_dimension
-     if ( current_object%free_components(i) ) then
-        do j = 0,1
-           if ( this%is_admissible_son(i,j) ) then
-              this%move_object_head()
-              son_object => this%get_current_object()
-              call current_object%create_son( son_object ) ! Creates the son, stores a pointer to the son, and provides the son
-              !new_object%free_component(i) = 0 ! Fix component
-              !new_object%coordinates(i) = j
-              !new_object%object_dimension = this%object_dimension-1
-              !new_object%
-              call create_object_tree( this )
-              son_object%free()
-           end if
-        end do
+function is_admissible( object_tree, root, i, j )
+  implicit none
+  class(object_tree_t), intent(in) :: this
+  integer(ip)         , intent(in) :: root, i, j
+  logical                          :: is_admissible
+  is_admissible = .false.
+  if ( IGET( root, DIM+i ) == 1) then
+     if ( IGET( object_tree%topology, i ) == 1 ) then
+        is_admissible = .true.
+        ! Be careful w/ i = 1
+     else if ( j == 0 .or. i == 1. or. IGET( root, DIM+i-1, DIM+1 ) == 0 ) then
+        is_admissible = .true.
      end if
-  end do
-  current_object%free()
-  
-  end
-  
-  
-   
+  end if
+end function is_admissible
 
-end program abstract_reference_element
+function get_child( root, i, j )
+  integer(ip), intent(in) :: root, i, j
+  integer(ip) :: get_child
+  get_child = root
+  ! Fix component i
+  IPUT( get_child, DIM + i, 0 )
+  ! Put value j in this component 
+  IPUT( get_child, i, j )
+end function get_child
+
+
+end program
+
