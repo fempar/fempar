@@ -37,10 +37,15 @@ module poisson_analytical_functions_names
      procedure :: get_value_space => source_term_get_value_space
   end type source_term_t
 
-  type, extends(scalar_function_t) :: boundary_values_t
+  type, extends(scalar_function_t) :: dirichlet_values_t
    contains
-     procedure :: get_value_space => boundary_values_get_value_space
-  end type boundary_values_t
+     procedure :: get_value_space => dirichlet_values_get_value_space
+  end type dirichlet_values_t
+  
+  type, extends(scalar_function_t) :: neumann_values_t
+   contains
+     procedure :: get_value_space => neumann_values_get_value_space
+  end type neumann_values_t
 
   type, extends(scalar_function_t) :: solution_values_t
    contains
@@ -55,12 +60,14 @@ module poisson_analytical_functions_names
   type poisson_analytical_functions_t
      private
      type(source_term_t)       :: source_term
-     type(boundary_values_t)   :: boundary_values
+     type(dirichlet_values_t)  :: dirichlet_values
+     type(neumann_values_t)    :: neumann_values
      type(solution_values_t)   :: solution_values
      type(solution_gradient_t) :: solution_gradient
    contains
      procedure :: get_source_term       => poisson_analytical_functions_get_source_term
-     procedure :: get_boundary_values   => poisson_analytical_functions_get_boundary_values
+     procedure :: get_dirichlet_values  => poisson_analytical_functions_get_dirichlet_values
+     procedure :: get_neumann_values    => poisson_analytical_functions_get_neumann_values
      procedure :: get_solution_values   => poisson_analytical_functions_get_solution_values
      procedure :: get_solution_gradient => poisson_analytical_functions_get_solution_gradient
   end type poisson_analytical_functions_t
@@ -75,18 +82,27 @@ contains
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
-    result = 2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
+    result = 2.0_rp * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
   end subroutine source_term_get_value_space
 
   !===============================================================================================
-  subroutine boundary_values_get_value_space ( this, point, result )
+  subroutine dirichlet_values_get_value_space ( this, point, result )
     implicit none
-    class(boundary_values_t), intent(in)    :: this
+    class(dirichlet_values_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
     result = sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1)
-  end subroutine boundary_values_get_value_space
+  end subroutine dirichlet_values_get_value_space
 
+  !===============================================================================================
+  subroutine neumann_values_get_value_space ( this, point, result )
+    implicit none
+    class(neumann_values_t), intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+    real(rp)                , intent(inout) :: result
+    result = -1.0_rp * pi * sin ( pi * point%get(1) )
+  end subroutine neumann_values_get_value_space
+  
   !===============================================================================================
   subroutine solution_values_get_value_space ( this, point, result )
     implicit none
@@ -115,12 +131,20 @@ contains
   end function poisson_analytical_functions_get_source_term
   
   !===============================================================================================
-  function poisson_analytical_functions_get_boundary_values ( this )
+  function poisson_analytical_functions_get_dirichlet_values ( this )
     implicit none
     class(poisson_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: poisson_analytical_functions_get_boundary_values
-    poisson_analytical_functions_get_boundary_values => this%boundary_values
-  end function poisson_analytical_functions_get_boundary_values
+    class(scalar_function_t), pointer :: poisson_analytical_functions_get_dirichlet_values
+    poisson_analytical_functions_get_dirichlet_values => this%dirichlet_values
+  end function poisson_analytical_functions_get_dirichlet_values
+  
+  !===============================================================================================
+  function poisson_analytical_functions_get_neumann_values ( this )
+    implicit none
+    class(poisson_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: poisson_analytical_functions_get_neumann_values
+    poisson_analytical_functions_get_neumann_values => this%neumann_values
+  end function poisson_analytical_functions_get_neumann_values
   
   !===============================================================================================
   function poisson_analytical_functions_get_solution_values ( this )

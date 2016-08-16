@@ -179,11 +179,17 @@ module fe_space_names
     generic                             :: get_cell_around                            => fe_face_accessor_get_fe_around
     procedure, private, non_overridable :: fe_face_accessor_get_fe_around
     procedure         , non_overridable :: update_integration                         => fe_face_accessor_update_integration 
-    procedure         , non_overridable :: get_field_elem2dof                         => fe_face_accessor_get_field_elem2dof
     procedure         , non_overridable :: get_elem2dof                               => fe_face_accessor_get_elem2dof
     procedure         , non_overridable :: get_quadrature                             => fe_face_accessor_get_quadrature
     procedure         , non_overridable :: get_face_map                               => fe_face_accessor_get_face_map
     procedure         , non_overridable :: get_face_integrator                        => fe_face_accessor_get_face_integrator
+    procedure, private, non_overridable :: update_cell_fe_function_scalar             => fe_face_accessor_update_cell_fe_function_scalar
+    procedure, private, non_overridable :: update_cell_fe_function_vector             => fe_face_accessor_update_cell_fe_function_vector  
+    procedure, private, non_overridable :: update_cell_fe_function_tensor             => fe_face_accessor_update_cell_fe_function_tensor
+    generic                             :: update_cell_fe_function                    => update_cell_fe_function_scalar, &
+                                                                                         update_cell_fe_function_vector, &
+                                                                                         update_cell_fe_function_tensor
+    
     procedure         , non_overridable :: impose_strong_dirichlet_bcs                => fe_face_accessor_impose_strong_dirichlet_bcs
     procedure         , non_overridable :: compute_surface                            => fe_face_accessor_compute_surface
   end type fe_face_accessor_t

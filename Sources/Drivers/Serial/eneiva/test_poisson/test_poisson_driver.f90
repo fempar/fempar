@@ -123,7 +123,7 @@ contains
          conditions          = this%poisson_conditions, &
          reference_fes       = this%reference_fes)
     call this%fe_space%fill_dof_info() 
-    call this%poisson_conditions%set_boundary_function(this%problem_functions%get_boundary_values())
+    call this%poisson_conditions%set_boundary_function(this%problem_functions%get_dirichlet_values())
     call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
   end subroutine setup_fe_space
 
@@ -131,6 +131,7 @@ contains
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
     call this%poisson_integration%set_source_term(this%problem_functions%get_source_term())
+    call this%poisson_integration%set_neumann_values(this%problem_functions%get_neumann_values())
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
          diagonal_blocks_symmetric_storage = [ .true. ], &
          diagonal_blocks_symmetric         = [ .true. ], &
