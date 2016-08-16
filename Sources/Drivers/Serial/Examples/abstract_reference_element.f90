@@ -62,11 +62,29 @@ module abstract_reference_element_names
      procedure :: has_finished  => children_iterator_has_finished
      !     procedure :: free          => children_iterator_free
      procedure :: print         => children_iterator_print
-     procedure, private :: is_admissible   
+     procedure, private :: is_admissible => children_iterator_is_admissible   
   end type children_iterator_t
 
+  type node_iterator_t
+     private 
+     type(object_tree_t), pointer :: object_tree
+     integer(ip)                  :: object
+     integer(ip)                  :: displacement(DIM)
+     integer(ip)                  :: start ! 0 or 1
+     integer(ip)                  :: end   ! order or order-1
+   contains
+     procedure :: create        => node_iterator_create     
+     procedure :: current       => node_iterator_current
+     procedure :: init          => node_iterator_init
+     procedure :: next          => node_iterator_next
+     procedure :: has_finished  => node_iterator_has_finished
+     !     procedure :: free          => node_iterator_free
+     procedure :: print         => node_iterator_print
+     procedure, private :: is_admissible   
+  end type node_iterator_t
+
   ! Types
-  public :: object_tree_t, children_iterator_t
+  public :: object_tree_t, children_iterator_t, node_iterator_t
 
 contains
 
@@ -176,6 +194,8 @@ contains
 
   end subroutine fill_tree
 
+  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
   function object_tree_create_children_iterator(this, parent)
     implicit none
     class(object_tree_t), intent(in) :: this
@@ -267,7 +287,7 @@ contains
     !write(*,'(B32)') children_iterator_current
   end function children_iterator_current
 
-  function is_admissible( this )
+  function children_iterator_is_admissible( this )
     implicit none
     class(children_iterator_t), intent(inout) :: this
     logical                          :: is_admissible
@@ -284,8 +304,113 @@ contains
           is_admissible = .true.
        end if
     end if
-  end function is_admissible
+  end function children_iterator_is_admissible
 end module abstract_reference_element_names
+
+! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function object_tree_create_node_iterator(this, parent)
+  implicit none
+  class(object_tree_t), intent(in) :: this
+  integer(ip)         , intent(in) :: parent
+  type(node_iterator_t) :: object_tree_create_node_iterator
+  !write(*,*) 'CHILDREN ITERATOR CREATED FOR OBJECT'
+  !write(*,'(B32)') parent
+  call object_tree_create_node_iterator%create(this, parent)
+end function object_tree_create_node_iterator
+
+subroutine node_iterator_create ( this, object_tree, object )
+  implicit none
+  class(node_iterator_t)        , intent(inout) :: this
+  type(object_tree_t)       , target, intent(in)    :: object_tree
+  integer(ip)                       , intent(in)    :: object
+  !call this%free()
+  this%object_tree => object_tree
+  this%object = object
+  call this%displacement = 0
+  if ( type == 'open' ) then
+     this%max = order-1
+     this%min = 1
+  else
+     this%max = order
+     this%min = 0
+  end if
+end subroutine node_iterator_create
+
+subroutine node_iterator_init ( this )
+  implicit none
+  class(node_iterator_t), intent(inout) :: this
+  this%displacement = min
+  do i = 1, DIM
+     if ( IBITS( object, DIM+i, 1 ) == 0 .and. IBITS( object, i, 1 ) == 1 ) then
+        this%displacement = max
+     end if
+  end do
+end subroutine node_iterator_init
+
+function object_dimension( object )
+  integer(ip), intent(in) :: object
+  integer(ip) :: object_dimension, aux
+  object_dimension = 0
+  do i = 0,DIM-1
+     object_dimension = object_dimension + IBITS( object, DIM+i, 1 )
+  end do
+end function object_dimension
+
+subroutine node_iterator_print( this )
+  implicit none
+  class(node_iterator_t), intent(inout) :: this
+  write(*,*) '***NODE_ITERATOR ***'
+  write(*,*) 'object: '
+  write(*,'(B32)') this%parent
+  write(*,*) 'displacement: ',this%displacement
+end subroutine node_iterator_print
+
+recursive subroutine node_iterator_next ( this )
+  implicit none
+  class(node_iterator_t), intent(inout) :: this
+  if ( this%has_finished() ) return 
+  comp = object_dimension( this%object )
+  if ( comp > 0 )  then
+     this%displacement(comp) = this%displacement(comp)+1
+     do while( comp > 0 )
+        comp = comp-1
+        if ( this%displacement(comp+1) > max( topology(comp+1)*this%max, this%displacement(comp) ) ) then
+           this%displacement(comp+1) = 0
+           this%displacement(comp) = this%displacement(comp)+1
+        end if
+     end do
+  end if
+  write '(this%displacement)',this%displacement
+end subroutine node_iterator_next
+
+function node_iterator_has_finished ( this )
+  implicit none
+  class(node_iterator_t), intent(in) :: this
+  logical :: node_iterator_has_finished
+  node_iterator_has_finished = ( object_dimension( this%object ) == 0 .or. &
+       &this%this%displacement(1) > max )
+end function node_iterator_has_finished
+
+function node_iterator_current ( this )
+  implicit none
+  class(node_iterator_t), intent(in) :: this
+  integer(ip) :: node_iterator_current, j
+  assert ( .not. this%has_finished() )
+  c = 0
+  do comp = DIM,-1,1
+     if ( component(comp) == 1 ) then
+        node(comp) = ijk(comp)
+        if( topology(comp) == 0) then
+           node(comp) = node(comp) - c
+           c = ijk(comp)
+        end if
+     end if
+  end do
+end function node_iterator_current
+
+! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 program abstract_reference_element
   use serial_names
@@ -295,9 +420,28 @@ program abstract_reference_element
   type(children_iterator_t) :: children_iterator
   integer(ip), parameter :: DIM = 3
   integer(ip) :: root, children
- 
+
 
   call object_tree%create( 4 )
+
+  
+
+  ! FINISHED
+  ijk(1) > order
+
+  ! CURRENT
+  node = coordinate*order
+  c = 0
+  do comp = DIM,-1,1
+     if ( component(comp) == 1 ) then
+        node(comp) = ijk(comp)
+        if( topology(comp) == 0) then
+           node(comp) = node(comp) - c
+           c = ijk(comp)
+        end if
+     end if
+  end do
+
 
 
   !root = 12
