@@ -233,6 +233,31 @@ subroutine vef_accessor_get_cell_around (this, icell_around, cell)
   call cell%create(icell,this%base_static_triangulation)
 end subroutine vef_accessor_get_cell_around
 
+subroutine face_accessor_get_coordinates (this, face_coordinates)
+  implicit none
+  class(face_accessor_t), intent(in)    :: this
+  type(point_t)        ,  intent(inout) :: face_coordinates(:)
+  integer(ip)                           :: inode_within_cell
+  integer(ip)                           :: inode_within_face
+  type(cell_accessor_t)                 :: cell
+  class(reference_fe_t), pointer        :: reference_fe_geo
+  type(list_iterator_t)                 :: dofs_on_vef_iterator
+
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  assert ( allocated ( this%base_static_triangulation%coordinates ) )
+  
+  call this%get_cell_around(1, cell)
+  reference_fe_geo => cell%get_reference_fe_geo()
+  dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_vef_iterator(cell%find_lpos_vef_lid(this%get_lid()))
+  inode_within_face = 1
+  do while (.not. dofs_on_vef_iterator%is_upper_bound())     
+    inode_within_cell = dofs_on_vef_iterator%get_current()
+    face_coordinates(inode_within_face) = this%base_static_triangulation%coordinates(cell%get_node_lid(inode_within_cell))
+    call dofs_on_vef_iterator%next()
+    inode_within_face = inode_within_face + 1
+  end do  
+end subroutine face_accessor_get_coordinates
+
 function face_accessor_get_face_lid (this) result(face_lid)
   implicit none
   class(face_accessor_t), intent(in)    :: this
@@ -254,8 +279,7 @@ function face_accessor_get_face_lpos_within_cell_around(this, icell_around) resu
   reference_fe_geo => cell%get_reference_fe_geo()
   assert ( cell%find_lpos_vef_lid (this%lid) /= -1 )
   
-  face_lpos_within_cell_around = reference_fe_geo%get_first_face_id() - &
-                                 cell%find_lpos_vef_lid(this%lid) + 1
+  face_lpos_within_cell_around = cell%find_lpos_vef_lid(this%lid) - reference_fe_geo%get_first_face_id() + 1
 end function face_accessor_get_face_lpos_within_cell_around
 
 function face_accessor_get_face_orientation ( this ) result(face_orientation)

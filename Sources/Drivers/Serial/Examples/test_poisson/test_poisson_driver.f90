@@ -28,7 +28,8 @@
 module test_poisson_driver_names
   use serial_names
   use test_poisson_params_names
-  use poisson_discrete_integration_names
+  use poisson_cG_discrete_integration_names
+  use poisson_dG_discrete_integration_names
   use poisson_conditions_names
 # include "debug.i90"
 
@@ -47,17 +48,18 @@ module test_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(serial_fe_space_t)                   :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(poisson_discrete_integration_t)      :: poisson_integration
+     type(poisson_cG_discrete_integration_t)   :: poisson_cG_integration
+     type(poisson_dG_discrete_integration_t)   :: poisson_dG_integration
      type(poisson_conditions_t)                :: poisson_conditions
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
-     type(fe_affine_operator_t)            :: fe_affine_operator
+     type(fe_affine_operator_t)                :: fe_affine_operator
      
      ! Iterative linear solvers data type
      type(iterative_linear_solver_t)           :: iterative_linear_solver
  
      ! Poisson problem solution FE function
-     type(fe_function_t)                   :: solution
+     type(fe_function_t)                       :: solution
      
      ! Environment required for fe_affine_operator + vtk_handler
      type(serial_environment_t)                :: serial_environment
@@ -98,19 +100,23 @@ contains
   subroutine setup_reference_fes(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
+    integer(ip)                                 :: istat
+    logical                                     :: continuity
     
-    integer(ip) :: istat
-    
-    ! if (test_single_scalar_valued_reference_fe) then
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
+    
+    continuity = .true.
+    if ( trim(this%test_params%get_fe_formulation()) == 'dG' ) then
+      continuity = .false.
+    end if
     
     this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = 1, &
                                                  field_type = field_type_scalar, &
-                                                 continuity = .true. )
+                                                 continuity = continuity )
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
@@ -126,7 +132,6 @@ contains
     call this%poisson_conditions%set_constant_function_value(1.0_rp)
     call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
     
-    
     call this%fe_space%print()
   end subroutine setup_fe_space
   
@@ -134,14 +139,24 @@ contains
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
     
-    ! if (test_single_scalar_valued_reference_fe) then
-    call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .true. ], &
-                                          diagonal_blocks_symmetric         = [ .true. ], &
-                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                          environment                       = this%serial_environment, &
-                                          fe_space                          = this%fe_space, &
-                                          discrete_integration              = this%poisson_integration )
+    if ( trim(this%test_params%get_fe_formulation()) == 'cG' ) then
+       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+            diagonal_blocks_symmetric_storage = [ .true. ], &
+            diagonal_blocks_symmetric         = [ .true. ], &
+            diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+            environment                       = this%serial_environment, &
+            fe_space                          = this%fe_space, &
+            discrete_integration              = this%poisson_cG_integration )
+
+    else
+       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+            diagonal_blocks_symmetric_storage = [ .true. ], &
+            diagonal_blocks_symmetric         = [ .true. ], &
+            diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+            environment                       = this%serial_environment, &
+            fe_space                          = this%fe_space, &
+            discrete_integration              = this%poisson_dG_integration )
+    end if
   end subroutine setup_system
   
   subroutine setup_solver (this)
@@ -187,7 +202,7 @@ contains
     
     select type(rhs)
     class is (serial_scalar_array_t)  
-       call rhs%print(6) 
+       call rhs%print_matrix_market(6) 
     class DEFAULT
        assert(.false.) 
     end select

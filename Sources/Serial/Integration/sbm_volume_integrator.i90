@@ -117,10 +117,11 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
   type(quadrature_t) , intent(in)    :: quadrature
   class(reference_fe_t) , intent(in)    :: reference_fe_geo
 
-  integer(ip) :: number_face_dimensions
-  integer(ip) :: number_vertices_face
-  integer(ip) :: istat
-
+  integer(ip)           :: number_face_dimensions
+  integer(ip)           :: number_vertices_face
+  integer(ip)           :: istat
+  integer(ip)           :: number_dofs_on_face
+  
   call this%free()
   this%number_dimensions        = reference_fe_geo%number_dimensions
   this%number_quadrature_points = quadrature%number_quadrature_points
@@ -129,7 +130,6 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
   call reference_fe_geo%create_face_local_interpolation                                      &
        &                ( quadrature, this%interpolation_geometry)
 
-  
   call memalloc(this%number_dimensions, &
                 number_face_dimensions, &
                 this%number_quadrature_points, &
@@ -145,8 +145,8 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
   allocate(this%coordinates_quadrature(this%number_quadrature_points), stat=istat)
   check(istat==0)
 
-  number_vertices_face = reference_fe_geo%get_number_vertices_per_face() 
-  allocate(this%coordinates_nodes(number_vertices_face), stat=istat)
+  number_dofs_on_face = reference_fe_geo%get_number_dofs_on_vef(reference_fe_geo%get_first_face_id())
+  allocate(this%coordinates_nodes(number_dofs_on_face), stat=istat)
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()

@@ -70,6 +70,7 @@ subroutine serial_fe_space_free (this)
   if (allocated(this%number_dofs_per_block)) call memfree( this%number_dofs_per_block, __FILE__, __LINE__ )
   if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
+  call this%free_fe_face_integration()
 end subroutine serial_fe_space_free
 
 subroutine serial_fe_space_print ( this )
@@ -680,15 +681,6 @@ end subroutine serial_fe_space_initialize_fe_integration
 subroutine serial_fe_space_free_fe_integration ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-
-  type(fe_iterator_t) :: fe_iterator
-  type(fe_accessor_t) :: fe
-  integer(ip)         :: current_quadrature_and_map
-  integer(ip)         :: current_volume_integrator
-
-  integer(ip)         :: field_id
-  integer(ip)         :: max_order_within_fe, max_order_field_id
-  integer(ip)         :: fe_volume_integrators_position_key
   integer(ip)         :: i, istat
 
   class(reference_fe_t), pointer :: reference_fe
@@ -724,6 +716,9 @@ subroutine serial_fe_space_free_fe_integration ( this )
   end if
 end subroutine serial_fe_space_free_fe_integration
 
+! Some comments:
+!   * max_order_within_fe >= 0 
+!   * reference_fe_id can range from 1 to this%reference_fes_size
 function serial_fe_space_generate_fe_volume_integrators_position_key ( this, max_order_within_fe, reference_fe_id )
   implicit none
   class(serial_fe_space_t), intent(in) :: this
@@ -731,8 +726,281 @@ function serial_fe_space_generate_fe_volume_integrators_position_key ( this, max
   integer(ip)                 , intent(in) :: reference_fe_id
   integer(ip) :: serial_fe_space_generate_fe_volume_integrators_position_key
   serial_fe_space_generate_fe_volume_integrators_position_key =  &
-       reference_fe_id + (max_order_within_fe-1)*this%reference_fes_size
+    reference_fe_id + (max_order_within_fe)*this%reference_fes_size
 end function serial_fe_space_generate_fe_volume_integrators_position_key
+
+subroutine serial_fe_space_initialize_fe_face_integration ( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  
+  type(fe_face_iterator_t) :: fe_face_iterator
+  type(fe_face_accessor_t) :: fe_face
+  type(fe_accessor_t)      :: fe
+  
+  integer(ip) :: current_fe_face_quadrature
+  integer(ip) :: current_fe_face_map
+  integer(ip) :: current_fe_face_integrator
+  
+  integer(ip)            :: max_order_fes_around_fe_face
+  integer(ip)            :: reference_fes_geo_id(2)
+  type(p_reference_fe_t) :: reference_fes_geo(2)
+  
+  integer(ip)            :: reference_fes_id(2)
+  type(p_reference_fe_t) :: reference_fes(2)
+  
+  integer(ip) :: fe_face_maps_position_key
+  integer(ip) :: fe_face_integrators_position_key
+  
+  integer(ip) :: field_id, istat, icell_around
+  
+  class(reference_fe_t), pointer :: reference_fe
+  
+  call this%free_fe_face_integration()
+  
+  call memalloc ( this%triangulation%get_num_faces(), &
+                  this%max_order_per_fe_face, &
+                  __FILE__, __LINE__ )
+  
+  ! Determine the size of fe_face_quadratures, fe_face_maps, 
+  ! and fe_face_integrators while filling the corresponding hash tables
+  call this%fe_face_quadratures_position%init()
+  call this%fe_face_maps_position%init()
+  call this%fe_face_integrators_position%init()
+  current_fe_face_quadrature = 1
+  current_fe_face_map = 1
+  current_fe_face_integrator = 1
+  
+  fe_face_iterator = this%create_fe_face_iterator()
+  do while ( .not. fe_face_iterator%has_finished() ) 
+    call fe_face_iterator%current(fe_face)
+    
+    max_order_fes_around_fe_face = -1
+    reference_fes_geo_id(2) = 0 
+    do icell_around = 1, fe_face%get_num_cells_around()
+     call fe_face%get_cell_around(icell_around, fe)
+     reference_fes_geo_id(icell_around) = fe%get_reference_fe_geo_id()
+     do field_id=1, fe%get_number_fields()
+       if ( max_order_fes_around_fe_face < fe%get_order(field_id) ) then
+         max_order_fes_around_fe_face = fe%get_order(field_id)
+       end if
+     end do      
+    end do
+    
+    this%max_order_per_fe_face(fe_face%get_face_lid()) = max_order_fes_around_fe_face
+    call this%fe_face_quadratures_position%put(key  = max_order_fes_around_fe_face, &
+                                               val  = current_fe_face_quadrature, &
+                                               stat = istat)  
+    if (istat == now_stored) then
+      current_fe_face_quadrature = current_fe_face_quadrature + 1
+    end if
+    
+    fe_face_maps_position_key = &
+       this%generate_fe_face_maps_position_key(max_order_fes_around_fe_face, &
+                                               reference_fes_geo_id(1), &
+                                               reference_fes_geo_id(2) )
+       
+    call this%fe_face_maps_position%put(key=fe_face_maps_position_key, &
+                                        val=current_fe_face_map, &
+                                        stat=istat)   
+    
+    if (istat == now_stored) then
+      current_fe_face_map = current_fe_face_map + 1
+    end if
+    
+    do field_id=1, this%get_number_fields()
+      reference_fes_id(2) = 0  
+      do icell_around = 1, fe_face%get_num_cells_around()
+        call fe_face%get_cell_around(icell_around, fe)
+        reference_fes_id(icell_around) = this%reference_fe_id_per_fe(field_id, fe%get_lid())
+      end do
+      
+      fe_face_integrators_position_key = &
+       this%generate_fe_face_integrators_position_key(max_order_fes_around_fe_face, &
+                                                      reference_fes_id(1), &
+                                                      reference_fes_id(2) )
+       
+      call this%fe_face_integrators_position%put(key=fe_face_integrators_position_key, &
+                                                 val=current_fe_face_integrator, &
+                                                 stat=istat)
+      if (istat == now_stored) then
+        current_fe_face_integrator = current_fe_face_integrator + 1
+      end if
+    end do  
+    
+    call fe_face_iterator%next()
+  end do
+  
+  allocate ( this%fe_face_quadratures(current_fe_face_quadrature-1), stat=istat)
+  check (istat==0)
+  
+  allocate ( this%fe_face_maps(current_fe_face_map-1), stat=istat)
+  check (istat==0)
+  
+  allocate ( this%fe_face_integrators(current_fe_face_integrator-1), stat=istat)
+  check (istat==0)
+  
+  call this%fe_face_quadratures_position%init()
+  call this%fe_face_maps_position%init()
+  call this%fe_face_integrators_position%init()
+  current_fe_face_quadrature = 1
+  current_fe_face_map = 1
+  current_fe_face_integrator = 1
+  
+  call fe_face_iterator%init()
+  do while ( .not. fe_face_iterator%has_finished() ) 
+    call fe_face_iterator%current(fe_face)
+    max_order_fes_around_fe_face = -1
+    reference_fes_geo_id(2) = 0 
+    nullify(reference_fes_geo(2)%p)
+    do icell_around = 1, fe_face%get_num_cells_around()
+     call fe_face%get_cell_around(icell_around, fe)
+     reference_fes_geo_id(icell_around) =  fe%get_reference_fe_geo_id()
+     reference_fes_geo(icell_around)%p  => fe%get_reference_fe_geo()
+     do field_id=1, fe%get_number_fields()
+       if ( max_order_fes_around_fe_face < fe%get_order(field_id) ) then
+         max_order_fes_around_fe_face = fe%get_order(field_id)
+         reference_fe => fe%get_reference_fe(field_id)
+       end if
+     end do      
+    end do
+   
+    call this%fe_face_quadratures_position%put(key  = max_order_fes_around_fe_face, &
+                                               val  = current_fe_face_quadrature, &
+                                               stat = istat)  
+    if (istat == now_stored) then
+      call reference_fe%create_face_quadrature(this%fe_face_quadratures(current_fe_face_quadrature))
+      current_fe_face_quadrature = current_fe_face_quadrature + 1
+    end if
+    
+    fe_face_maps_position_key = &
+       this%generate_fe_face_maps_position_key(max_order_fes_around_fe_face, &
+                                               reference_fes_geo_id(1), &
+                                               reference_fes_geo_id(2) )
+       
+    call this%fe_face_maps_position%put(key=fe_face_maps_position_key, &
+                                        val=current_fe_face_map, &
+                                        stat=istat)   
+    
+    if (istat == now_stored) then
+      call this%fe_face_maps(current_fe_face_map)%create(fe_face%get_quadrature(), &
+                                                         reference_fes_geo(1)%p, &
+                                                         reference_fes_geo(2)%p )
+      current_fe_face_map = current_fe_face_map + 1
+    end if
+   
+
+    do field_id=1, this%get_number_fields()
+      reference_fes_id(2) = 0  
+      nullify(reference_fes(2)%p)
+      do icell_around = 1, fe_face%get_num_cells_around()
+        call fe_face%get_cell_around(icell_around, fe)
+        reference_fes_id(icell_around) = this%reference_fe_id_per_fe(field_id, fe%get_lid())
+        reference_fes(icell_around)%p => fe%get_reference_fe(field_id)
+      end do
+      
+      fe_face_integrators_position_key = &
+       this%generate_fe_face_integrators_position_key(max_order_fes_around_fe_face, &
+                                                      reference_fes_id(1), &
+                                                      reference_fes_id(2) )
+       
+      call this%fe_face_integrators_position%put(key=fe_face_integrators_position_key, &
+                                                 val=current_fe_face_integrator, &
+                                                 stat=istat)
+      if (istat == now_stored) then
+        call this%fe_face_integrators(current_fe_face_integrator)%create(fe_face%get_quadrature(), &
+                                                                         reference_fes(1)%p, &
+                                                                         reference_fes(2)%p )
+        current_fe_face_integrator = current_fe_face_integrator + 1
+      end if
+    end do  
+
+    call fe_face_iterator%next()
+  end do
+  
+  
+  
+end subroutine serial_fe_space_initialize_fe_face_integration
+
+subroutine serial_fe_space_free_fe_face_integration ( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  integer(ip) :: i, istat
+  
+  if (allocated(this%max_order_per_fe_face)) call memfree ( this%max_order_per_fe_face, __FILE__, __LINE__ )
+  
+  call this%fe_face_quadratures_position%free()
+  call this%fe_face_maps_position%free()
+  call this%fe_face_integrators_position%free()
+  
+  if (allocated(this%fe_face_quadratures)) then
+    do i=1, size(this%fe_face_quadratures)
+      call this%fe_face_quadratures(i)%free()
+    end do
+    deallocate(this%fe_face_quadratures, stat=istat)
+    check(istat==0)
+  end if  
+    
+  if (allocated(this%fe_face_maps)) then
+    do i=1, size(this%fe_face_maps)
+      call this%fe_face_maps(i)%free()
+    end do
+    deallocate(this%fe_face_maps, stat=istat)
+    check(istat==0)
+  end if  
+  
+  if (allocated(this%fe_face_integrators)) then
+    do i=1, size(this%fe_face_integrators)
+      call this%fe_face_integrators(i)%free()
+    end do
+    deallocate(this%fe_face_integrators, stat=istat)
+    check(istat==0)
+  end if  
+end subroutine serial_fe_space_free_fe_face_integration
+
+! Provided the identifiers of the reference_fes_geo corresponding 
+! to the cells around a fe_face, and the maximum order of the fes 
+! around it, computes a unique key that is used to retrieve the position 
+! in the "this%fe_face_maps(:)" allocatable array through the corresponding 
+! hash table. Some comments:
+!    * [max_order_fes_around_fe_face >= 0]
+!    * right_geo_reference_fe_id can range from 0 to number_reference_fes_geo 
+!      (with 0 for boundary fe_faces)
+!    * left_geo_reference_fe_id can range from 1 to number_reference_fes_geo
+function serial_fe_space_fe_face_maps_position_key ( this, max_order_fes_around_fe_face, left_geo_reference_fe_id, right_geo_reference_fe_id )
+  implicit none
+  class(serial_fe_space_t)    , intent(in) :: this
+  integer(ip)                 , intent(in) :: max_order_fes_around_fe_face
+  integer(ip)                 , intent(in) :: left_geo_reference_fe_id
+  integer(ip)                 , intent(in) :: right_geo_reference_fe_id
+  integer(ip) :: serial_fe_space_fe_face_maps_position_key
+  integer(ip) :: num_reference_fes_geo
+  
+  num_reference_fes_geo = this%triangulation%get_number_reference_fes_geo()
+  serial_fe_space_fe_face_maps_position_key = left_geo_reference_fe_id + &
+                                              (num_reference_fes_geo)*(right_geo_reference_fe_id) + &
+                                              (num_reference_fes_geo)*(num_reference_fes_geo-1)*(max_order_fes_around_fe_face)
+end function serial_fe_space_fe_face_maps_position_key
+
+! For a given field, provided the identifiers of the reference_fes corresponding 
+! to the cells around a fe_face, and the maximum order of the fes 
+! around it (among all fields), computes a unique key that is used to retrieve the position 
+! in the "this%fe_face_maps(:)" allocatable array through the corresponding 
+! hash table. Some comments:
+!    * [max_order_fes_around_fe_face >= 0]
+!    * right_reference_fe_id can range from 1 to this%reference_fes_size 
+!      (with 0 for boundary fe_faces)
+!    * left_reference_fe_id can range from 1 to this%reference_fes_size
+function serial_fe_space_fe_face_integrators_position_key(this, max_order_fes_around_fe_face, left_reference_fe_id, right_reference_fe_id)
+  implicit none
+  class(serial_fe_space_t)    , intent(in) :: this
+  integer(ip)                 , intent(in) :: max_order_fes_around_fe_face
+  integer(ip)                 , intent(in) :: left_reference_fe_id
+  integer(ip)                 , intent(in) :: right_reference_fe_id
+  integer(ip) :: serial_fe_space_fe_face_integrators_position_key
+  serial_fe_space_fe_face_integrators_position_key = left_reference_fe_id + &
+                                                     (this%reference_fes_size)*(right_reference_fe_id) + &
+                                                     (this%reference_fes_size)*(this%reference_fes_size-1)*(max_order_fes_around_fe_face)
+end function serial_fe_space_fe_face_integrators_position_key
 
 function serial_fe_space_create_assembler(this, &
      diagonal_blocks_symmetric_storage,&
@@ -1165,6 +1433,14 @@ function serial_fe_space_create_itfc_fe_vef_iterator ( this )
   type(itfc_fe_vef_iterator_t) :: serial_fe_space_create_itfc_fe_vef_iterator
   call serial_fe_space_create_itfc_fe_vef_iterator%create(this)
 end function serial_fe_space_create_itfc_fe_vef_iterator
+
+
+function serial_fe_space_create_fe_face_iterator ( this )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  type(fe_face_iterator_t) :: serial_fe_space_create_fe_face_iterator
+  call serial_fe_space_create_fe_face_iterator%create(this)
+end function serial_fe_space_create_fe_face_iterator
 
 !subroutine serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
 !  implicit none

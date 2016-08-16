@@ -113,6 +113,16 @@ function cell_accessor_get_reference_fe_geo (this)
   cell_accessor_get_reference_fe_geo => this%base_static_triangulation%reference_fe_geo_list(cell_type)%p
 end function cell_accessor_get_reference_fe_geo
 
+function cell_accessor_get_reference_fe_geo_id (this) 
+  implicit none
+  class(cell_accessor_t), intent(in) :: this
+  integer(ip) :: cell_accessor_get_reference_fe_geo_id
+  integer(ip) :: istat
+  call this%base_static_triangulation%reference_fe_geo_index%get(key=this%get_num_vefs(), &
+                                                                 val=cell_accessor_get_reference_fe_geo_id, &
+                                                                 stat=istat)
+end function cell_accessor_get_reference_fe_geo_id
+
 subroutine cell_accessor_get_coordinates (this, cell_coordinates)
   implicit none
   class(cell_accessor_t), intent(in)    :: this
@@ -126,7 +136,6 @@ subroutine cell_accessor_get_coordinates (this, cell_coordinates)
   
    reference_fe_geo => this%get_reference_fe_geo()
    do inode=1, reference_fe_geo%get_number_nodes()
-     write(*,*) inode, this%get_node_lid(inode)
      cell_coordinates(inode) = this%base_static_triangulation%coordinates(this%get_node_lid(inode))
    end do
   

@@ -79,6 +79,13 @@ function bst_get_num_ghost_vefs(this)
   bst_get_num_ghost_vefs = this%num_ghost_vefs
 end function bst_get_num_ghost_vefs
 
+function bst_get_num_faces(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: bst_get_num_faces
+  bst_get_num_faces = this%num_faces
+end function bst_get_num_faces
+
 function bst_get_num_cells(this)
   implicit none
   class(base_static_triangulation_t), intent(in) :: this
@@ -1787,4 +1794,9 @@ subroutine bst_print ( this )
      
    end subroutine bst_free
 
-  
+   function bst_get_number_reference_fes_geo ( this ) 
+     implicit none
+     class(base_static_triangulation_t), intent(in) :: this
+     integer(ip) :: bst_get_number_reference_fes_geo
+     bst_get_number_reference_fes_geo = max_num_reference_fes_geo
+   end function bst_get_number_reference_fes_geo

@@ -356,9 +356,14 @@ module reference_fe_names
      procedure :: get_nodes_vef   =>   reference_fe_get_nodes_vef
      procedure :: get_vefs_vef   =>   reference_fe_get_vefs_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
+
+     procedure :: get_number_dofs_on_vef => reference_fe_get_number_dofs_on_vef
+     procedure :: create_dofs_on_vef_iterator => reference_fe_create_dofs_on_vef_iterator
+     
      procedure :: get_number_own_nodes_vef => reference_fe_get_number_own_nodes_vef
      procedure :: create_own_dofs_on_vef_iterator => reference_fe_create_own_dofs_on_vef_iterator
      procedure :: get_own_node_vef => reference_fe_get_own_node_vef
+
      procedure :: get_face_integration_coupling_number_nodes_face => reference_fe_get_face_integration_coupling_number_nodes_face
      procedure :: get_face_integration_coupling_node_face => reference_fe_get_face_integration_coupling_node_face
      procedure :: create_face_integration_coupling_dofs_iterator => create_face_integration_coupling_dofs_iterator
