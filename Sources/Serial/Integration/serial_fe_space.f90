@@ -179,6 +179,7 @@ module fe_space_names
     generic                             :: get_cell_around                            => fe_face_accessor_get_fe_around
     procedure, private, non_overridable :: fe_face_accessor_get_fe_around
     procedure         , non_overridable :: update_integration                         => fe_face_accessor_update_integration 
+    procedure         , non_overridable :: get_field_elem2dof                         => fe_face_accessor_get_field_elem2dof
     procedure         , non_overridable :: get_elem2dof                               => fe_face_accessor_get_elem2dof
     procedure         , non_overridable :: get_quadrature                             => fe_face_accessor_get_quadrature
     procedure         , non_overridable :: get_face_map                               => fe_face_accessor_get_face_map
