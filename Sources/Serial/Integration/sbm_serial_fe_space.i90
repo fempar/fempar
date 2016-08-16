@@ -1362,38 +1362,48 @@ subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function
 
   ! Locals
   real(rp)                       :: time_(1)
-  real(rp), allocatable       :: values(:,:)
-  integer(ip)                    :: inode,icomp,ivef,block_id
-  type(fe_iterator_t) :: fe_iterator
-  type(fe_accessor_t) :: fe
-  type(vef_accessor_t)    :: vef
+  real(rp)         , allocatable :: values(:,:)
+  integer(ip)                    :: number_nodes,number_reference_fes
+  integer(ip)                    :: block_id
+  integer(ip)                    :: reference_fe_id
+  integer(ip)                    :: strong_dirichlet_dof_id
+  integer(ip)                    :: inode,icomp,ivef,istat
+  type(fe_iterator_t)            :: fe_iterator
+  type(fe_accessor_t)            :: fe
+  type(vef_accessor_t)           :: vef
   class(reference_fe_t), pointer :: reference_fe
-  type(fe_map_t)    , pointer :: fe_map
-  type(i1p_t)                    :: elem2dof
-  type(quadrature_t), pointer :: nodal_quadrature
-  type(point_t)     , pointer :: nodal_coordinates(:)
-  type(point_t)     , pointer :: cell_coordinates(:)
+  type(fe_map_t)       , pointer :: fe_map
+  type(quadrature_t)   , pointer :: nodal_quadrature
+  type(point_t)        , pointer :: nodal_coordinates(:)
+  type(point_t)        , pointer :: cell_coordinates(:)
+  type(i1p_t)      , allocatable :: elem2dof(:)
 
    if ( present(time) ) time_(1) = time
 
-  ! Create FE iterator
-  fe_iterator = this%create_fe_iterator()
+   ! Create FE iterator
+   fe_iterator = this%create_fe_iterator()
+
+   ! Allocate elem2dof
+   number_reference_fes = this%get_number_reference_fes()
+   allocate ( elem2dof(number_reference_fes), stat=istat ) 
+   check (istat==0)
 
   ! Loop over the elements
-  do while ( .not. fe_iterator%has_finished)
+  do while ( .not. fe_iterator%has_finished())
 
      ! Get current FE
      call fe_iterator%current(fe)
 
      ! Get reference FE
-     reference_fe => fe%get_reference_fe(field_id)
+     reference_fe    => fe%get_reference_fe(field_id)
+     reference_fe_id =  this%reference_fe_id_per_fe(field_id, fe%get_lid()) 
 
      ! Get elem2dof
      ! TO-DO: This call should ONLY be performed
      !        if current cell is at the boundary. 
      !        type(fe_accessor_t) does NOT currently 
      !        provide any means to answer such a question.
-     call fe%get_elem2dof(elem2dof)
+     call fe%get_elem2dof(elem2dof(reference_fe_id))
 
      ! Get block_id
      ! !!!!!!!! WARNING !!!!!!
@@ -1401,7 +1411,7 @@ subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function
      block_id = 1
 
      ! Create FE map
-     nodal_quadrature => reference_fe&get_nodal_quadrature()
+     nodal_quadrature => reference_fe%get_nodal_quadrature()
      call fe_map%create(nodal_quadrature,fe%get_reference_fe_geo())
 
      ! Interpolate coordinates
@@ -1442,7 +1452,7 @@ subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function
         if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )
 
            ! Get dof on the boundary
-           strong_dirichlet_dof_id = - elem2dof%p(inode)
+           strong_dirichlet_dof_id = - elem2dof(reference_fe_id)%p(inode)
            
            ! Update strong_dirichlet_values
            call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(ivef,1))
@@ -1451,7 +1461,8 @@ subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function
      end do
 
      ! Update vector_dof_values of fe_function
-     call fe_function%dof_values%insert_subvector(block_id,number_nodes,elem2dof%p,values(:,1))
+     call fe_function%dof_values%insert_subvector(block_id,number_nodes,elem2dof(reference_fe_id)%p, &
+          &                                       values(:,1))
 
      ! Deallocate interpolated values
      call memfree(values,__FILE__,__LINE__)
@@ -1461,7 +1472,12 @@ subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function
      
      ! Go to next FE
      call fe_iterator%next()
+     
   end do
+
+  ! Deallocate elem2dof
+  deallocate(elem2dof, stat=istat ) 
+  check (istat==0)
   
 end subroutine serial_fe_space_interpolate_fe_function_scalar
 
