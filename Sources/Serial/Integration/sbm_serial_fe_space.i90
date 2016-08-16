@@ -1363,18 +1363,18 @@ subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function
   ! Locals
   real(rp)                       :: time_(1)
   real(rp), allocatable       :: values(:,:)
+  integer(ip)                    :: inode,icomp,ivef,block_id
   type(fe_iterator_t) :: fe_iterator
   type(fe_accessor_t) :: fe
+  type(vef_accessor_t)    :: vef
   class(reference_fe_t), pointer :: reference_fe
   type(fe_map_t)    , pointer :: fe_map
+  type(i1p_t)                    :: elem2dof
   type(quadrature_t), pointer :: nodal_quadrature
   type(point_t)     , pointer :: nodal_coordinates(:)
   type(point_t)     , pointer :: cell_coordinates(:)
 
    if ( present(time) ) time_(1) = time
-
-  ! Create FE map
-  call fe_map%create(nodal_quadrature, this%
 
   ! Create FE iterator
   fe_iterator = this%create_fe_iterator()
@@ -1388,6 +1388,18 @@ subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function
      ! Get reference FE
      reference_fe => fe%get_reference_fe(field_id)
 
+     ! Get elem2dof
+     ! TO-DO: This call should ONLY be performed
+     !        if current cell is at the boundary. 
+     !        type(fe_accessor_t) does NOT currently 
+     !        provide any means to answer such a question.
+     call fe%get_elem2dof(elem2dof)
+
+     ! Get block_id
+     ! !!!!!!!! WARNING !!!!!!
+     ! I don't know how to get the block_id. It should be on the fe_accessor, right?
+     block_id = 1
+
      ! Create FE map
      nodal_quadrature => reference_fe&get_nodal_quadrature()
      call fe_map%create(nodal_quadrature,fe%get_reference_fe_geo())
@@ -1399,7 +1411,7 @@ subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function
      nodal_coordinates => fe_map%get_quadrature_coordinates()
 
      ! Allocate interpolated values array
-     number_nodes = fe%get_number_nodes()
+     number_nodes = nodal_quadrature%get_number_quadrature_points()
      call memalloc(number_nodes,1,values,__FILE__,__LINE__)     
 
      ! Evaluate function
@@ -1409,23 +1421,45 @@ subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function
         call scalar_function%get_values_set_space(nodal_coordinates,values(:,1))
      end if
 
-     ! Insert values on the Strong Dirichlet BCs
-!!$     do inode = 1, number_nodes
-!!$        icomp = reference_fe%get_component_node(inode)    
-!!$        if ( present(unknown_component) ) then
-!!$           if ( icomp /= unknown_component ) cycle
-!!$        end if
-!!$        ! Check if current node is subject to strong Dirichlet boundary conditions
-!!$        if(fe%elem2dof(fe_space_component)%p(inode) < 0) then
-!!$           inode_scalar = this%reference_fes_list(fe_space_component)%p%get_scalar_from_vector_node(inode) 
-!!$           strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
-!!$           ! Update strong_dirichlet_values
-!!$           call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1))
-!!$        end if
-!!$     end do
+     ! Loop over all nodes (dofs) to Insert values on the Strong Dirichlet BCs
+     do inode = 1, number_nodes
+
+        ! Get component and vef associated to current node
+        icomp = reference_fe%get_component_node(inode)
+        ivef  = reference_fe%get_scalar_from_vector_node(inode)
+        call fe%get_vef(ivef, vef)
+
+        ! Check if the component is the same as the prescribed (optional)
+        if ( present(unknown_component) ) then
+           if ( icomp /= unknown_component ) cycle
+        end if
+        
+        ! Check if current node is subject to strong Dirichlet boundary conditions
+        ! Same comment as line 252 of this file:
+        ! Check whether a set_id different from 0 has been set for current vef. 
+        ! TO-DO: Should we also ask whether current vef is at the boundary?
+        !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
+        if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )
+
+           ! Get dof on the boundary
+           strong_dirichlet_dof_id = - elem2dof%p(inode)
+           
+           ! Update strong_dirichlet_values
+           call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(ivef,1))
+           
+        end if
+     end do
+
+     ! Update vector_dof_values of fe_function
+     call fe_function%dof_values%insert_subvector(block_id,number_nodes,elem2dof%p,values(:,1))
+
+     ! Deallocate interpolated values
+     call memfree(values,__FILE__,__LINE__)
+
+     ! Free FE map
+     call fe_map%free()
      
-     
-     ! Got to next FE
+     ! Go to next FE
      call fe_iterator%next()
   end do
   
