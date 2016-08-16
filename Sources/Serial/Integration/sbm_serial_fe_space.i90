@@ -1349,6 +1349,88 @@ function serial_fe_space_create_fe_face_iterator ( this )
   call serial_fe_space_create_fe_face_iterator%create(this)
 end function serial_fe_space_create_fe_face_iterator
 
+subroutine serial_fe_space_interpolate_fe_function_scalar( this, scalar_function, &
+     &                                                     field_id, fe_function, &
+     &                                                     time, unknown_component)
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this
+  class(scalar_function_t), intent(in)    :: scalar_function
+  integer(ip)             , intent(in)    :: field_id
+  type(fe_function_t)     , intent(inout) :: fe_function
+  real(rp)   , optional   , intent(in)    :: time
+  integer(ip), optional   , intent(in)    :: unknown_component
+
+  ! Locals
+  real(rp)                       :: time_(1)
+  real(rp), allocatable       :: values(:,:)
+  type(fe_iterator_t) :: fe_iterator
+  type(fe_accessor_t) :: fe
+  class(reference_fe_t), pointer :: reference_fe
+  type(fe_map_t)    , pointer :: fe_map
+  type(quadrature_t), pointer :: nodal_quadrature
+  type(point_t)     , pointer :: nodal_coordinates(:)
+  type(point_t)     , pointer :: cell_coordinates(:)
+
+   if ( present(time) ) time_(1) = time
+
+  ! Create FE map
+  call fe_map%create(nodal_quadrature, this%
+
+  ! Create FE iterator
+  fe_iterator = this%create_fe_iterator()
+
+  ! Loop over the elements
+  do while ( .not. fe_iterator%has_finished)
+
+     ! Get current FE
+     call fe_iterator%current(fe)
+
+     ! Get reference FE
+     reference_fe => fe%get_reference_fe(field_id)
+
+     ! Create FE map
+     nodal_quadrature => reference_fe&get_nodal_quadrature()
+     call fe_map%create(nodal_quadrature,fe%get_reference_fe_geo())
+
+     ! Interpolate coordinates
+     cell_coordinates => fe_map%get_coordinates()
+     call fe%get_coordinates(cell_coordinates)
+     call fe_map%compute_quadrature_coordinates()
+     nodal_coordinates => fe_map%get_quadrature_coordinates()
+
+     ! Allocate interpolated values array
+     number_nodes = fe%get_number_nodes()
+     call memalloc(number_nodes,1,values,__FILE__,__LINE__)     
+
+     ! Evaluate function
+     if(present(time)) then
+        call scalar_function%get_values_set_space_time(nodal_coordinates,time_,values)
+     else
+        call scalar_function%get_values_set_space(nodal_coordinates,values(:,1))
+     end if
+
+     ! Insert values on the Strong Dirichlet BCs
+!!$     do inode = 1, number_nodes
+!!$        icomp = reference_fe%get_component_node(inode)    
+!!$        if ( present(unknown_component) ) then
+!!$           if ( icomp /= unknown_component ) cycle
+!!$        end if
+!!$        ! Check if current node is subject to strong Dirichlet boundary conditions
+!!$        if(fe%elem2dof(fe_space_component)%p(inode) < 0) then
+!!$           inode_scalar = this%reference_fes_list(fe_space_component)%p%get_scalar_from_vector_node(inode) 
+!!$           strong_dirichlet_dof_id = -fe%elem2dof(fe_space_component)%p(inode)
+!!$           ! Update strong_dirichlet_values
+!!$           call fe_function%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(inode_scalar,1))
+!!$        end if
+!!$     end do
+     
+     
+     ! Got to next FE
+     call fe_iterator%next()
+  end do
+  
+end subroutine serial_fe_space_interpolate_fe_function_scalar
+
 !subroutine serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
 !  implicit none
 !  class(serial_fe_space_t), intent(inout) :: this
