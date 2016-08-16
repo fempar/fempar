@@ -184,12 +184,12 @@ end subroutine l1_norm_compute_scalar
 
 !===================================================================================================
 subroutine l1_norm_compute_vector(this,quad,fe_map,value_in,value_out)
-implicit none
-class(l1_norm_t)    , intent(in)    :: this
-type(quadrature_t)  , intent(in)    :: quad
-type(fe_map_t)      , intent(in)    :: fe_map
-type(vector_field_t), intent(in)    :: value_in(:)
-real(rp)            , intent(inout) :: value_out
+  implicit none
+  class(l1_norm_t)    , intent(in)    :: this
+  type(quadrature_t)  , intent(in)    :: quad
+  type(fe_map_t)      , intent(in)    :: fe_map
+  type(vector_field_t), intent(in)    :: value_in(:)
+  real(rp)            , intent(inout) :: value_out
   real(rp)    :: dvolume
   integer(ip) :: qpoin,idime
 
