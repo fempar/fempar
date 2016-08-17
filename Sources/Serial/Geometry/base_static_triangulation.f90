@@ -336,18 +336,15 @@ module base_static_triangulation_names
      type(cell_import_t)                   :: cell_import   
      
      ! Data structures to store vef related information
-     integer(ip)                           :: num_vefs = -1        ! = num_local_vefs + num_ghost_vefs 
-                                                                   ! = num_vertices + num_edges + num_faces
-     integer(ip)                           :: num_local_vefs = -1
-     integer(ip)                           :: num_ghost_vefs = -1
+     integer(ip)                           :: num_vefs = -1        ! = num_vertices + num_edges + num_faces
      integer(ip)                           :: num_vertices = 0
      integer(ip)                           :: num_edges = 0
      integer(ip)                           :: num_faces = 0
-     integer(igp), allocatable             :: vefs_gid(:)          ! num_local_vefs + num_ghost_vefs
-     integer(ip) , allocatable             :: vefs_set(:)          ! num_local_vefs + num_ghost_vefs
-     integer(ip) , allocatable             :: vefs_geometry(:)     ! num_local_vefs + num_ghost_vefs
-     integer(ip) , allocatable             :: vefs_dimension(:)    ! num_local_vefs + num_ghost_vefs
-     integer(ip) , allocatable             :: vefs_type(:)         ! num_local_vefs + num_ghost_vefs, will replace vefs_dimension
+     integer(igp), allocatable             :: vefs_gid(:)          ! num_vefs
+     integer(ip) , allocatable             :: vefs_set(:)          ! num_vefs
+     integer(ip) , allocatable             :: vefs_geometry(:)     ! num_vefs
+     integer(ip) , allocatable             :: vefs_dimension(:)    ! num_vefs
+     integer(ip) , allocatable             :: vefs_type(:)         ! num_vefs, will replace vefs_dimension
                                                                    ! above and vef_itfc_lid below (which is currently only accessed
                                                                    ! to check whether a vef is interface or not).
      integer(ip)                           :: num_itfc_vefs  = -1
@@ -387,8 +384,6 @@ module base_static_triangulation_names
      procedure, non_overridable          :: get_coarse_triangulation            => bst_get_coarse_triangulation
      procedure, non_overridable          :: get_num_dimensions                  => bst_get_num_dimensions
      procedure, non_overridable          :: get_num_vefs                        => bst_get_num_vefs 
-     procedure, non_overridable          :: get_num_local_vefs                  => bst_get_num_local_vefs
-     procedure, non_overridable          :: get_num_ghost_vefs                  => bst_get_num_ghost_vefs
      procedure, non_overridable          :: get_num_faces                       => bst_get_num_faces
      procedure, non_overridable          :: get_num_cells                       => bst_get_num_cells
      procedure, non_overridable          :: get_num_local_cells                 => bst_get_num_local_cells
@@ -418,8 +413,6 @@ module base_static_triangulation_names
    
 
      ! Private methods for creating cell-related data
-     procedure, non_overridable, private :: compute_num_local_vefs              => bst_compute_num_local_vefs
-     procedure, non_overridable, private :: compute_num_ghost_vefs              => bst_compute_num_ghost_vefs
      procedure, non_overridable, private :: allocate_and_fill_ptr_vefs_per_cell => bst_allocate_and_fill_ptr_vefs_per_cell
      procedure, non_overridable, private :: allocate_cells_gid                  => bst_allocate_cells_gid
      procedure, non_overridable, private :: fill_local_cells_gid                => bst_fill_local_cells_gid

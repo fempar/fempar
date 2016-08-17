@@ -662,7 +662,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_lids_field ( this, field_
   init_dof_block    = this%number_dofs_per_block(iblock)
   current_dof_block = init_dof_block
 
-  call memalloc ( 2, this%coarse_triangulation%get_num_local_vefs(), visited_vef_to_coarse_fe_map,  __FILE__, __LINE__ )
+  call memalloc ( 2, this%coarse_triangulation%get_num_vefs(), visited_vef_to_coarse_fe_map,  __FILE__, __LINE__ )
   visited_vef_to_coarse_fe_map = -1
 
   call source_fe%create(1, this)
