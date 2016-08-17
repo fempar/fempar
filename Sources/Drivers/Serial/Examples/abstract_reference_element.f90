@@ -17,7 +17,7 @@
 !
 ! Additional permission under GNU GPL version 3 section 7
 !
-! If you modify this Program, or any covered work, by linking or combining it 
+! If you modify this Program, or any covered work, by linking or combining it
 ! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
 ! and/or the HSL Mathematical Software Library (or a modified version of them), 
 ! containing parts covered by the terms of their respective licenses, the
@@ -46,6 +46,7 @@ module abstract_reference_element_names
      procedure :: create => create_object_tree
      procedure, private :: fill_tree
      procedure :: create_children_iterator => object_tree_create_children_iterator
+     procedure :: create_node_iterator => object_tree_create_node_iterator
   end type object_tree_t
 
   type children_iterator_t
@@ -67,11 +68,15 @@ module abstract_reference_element_names
 
   type node_iterator_t
      private 
-     type(object_tree_t), pointer :: object_tree
      integer(ip)                  :: object
-     integer(ip)                  :: displacement(DIM)
-     integer(ip)                  :: start ! 0 or 1
-     integer(ip)                  :: end   ! order or order-1
+     integer(ip), public                  :: base_topology
+     integer(ip), public                  :: topology
+     integer(ip), public                  :: displacement(0:DIM-1)
+     integer(ip)                  :: coordinate(0:DIM-1)
+     logical                      :: overflow
+     integer(ip)                  :: order
+     integer(ip)                  :: max ! 0 or 1
+     integer(ip)                  :: min ! order or order-1
    contains
      procedure :: create        => node_iterator_create     
      procedure :: current       => node_iterator_current
@@ -80,7 +85,7 @@ module abstract_reference_element_names
      procedure :: has_finished  => node_iterator_has_finished
      !     procedure :: free          => node_iterator_free
      procedure :: print         => node_iterator_print
-     procedure, private :: is_admissible   
+     procedure, private :: in_bound => node_iterator_in_bound 
   end type node_iterator_t
 
   ! Types
@@ -102,15 +107,15 @@ contains
        c = c + 2**(DIM-i)*(get_binomial_coefficient(DIM,i))
     end do
     ! Pre-allocate this%objects_array with c (exact for hypercube)
-    !call memalloc ( c, this%objects_array, __FILE__, __LINE__ )
-    allocate( this%objects_array(c), stat=istat )    
+    call memalloc ( c, this%objects_array, __FILE__, __LINE__ )
+    !allocate( this%objects_array(c), stat=istat )    
     !write(*,*) 'Max number of objects:', c
     !write(*,*) 'Max ijk index'
     write(*,'(B32)'), ISHFT(ISHFT(1,DIM)-1,DIM)
-    ! Pre-allocate the ijk_to_index. Maximum ijk_to_index is [111000] for dim = 3
+    ! Pre-allocate the ijk_to_index. Maximum ijk_to_index is [111000]+1 for dim = 3
     ! = ISHFT(ISHFT(1_ip,dim)-1,dim) = (2**dim-1)*2**dim
-    !call memalloc ( ISHFT(ISHFT(1_ip,DIM)-1,DIM), this%ijk_to_index, __FILE__, __LINE__  )
-    allocate( this%ijk_to_index(ISHFT(ISHFT(1,DIM)-1,DIM) + 1) , stat=istat )
+    call memalloc ( ISHFT(ISHFT(1_ip,DIM)-1,DIM)+1, this%ijk_to_index, __FILE__, __LINE__  )
+    !allocate( this%ijk_to_index(ISHFT(ISHFT(1,DIM)-1,DIM) + 1) , stat=istat )
     this%ijk_to_index = 0
     ! Initialize current object 
     this%current = 0
@@ -126,7 +131,7 @@ contains
     do i =1,this%current
        write(*,*) 'object(',i,') :'
        write(*,'(B32)') this%objects_array(i)
-       this%ijk_to_index( this%objects_array(i) + 1 ) = i
+       this%ijk_to_index( this%objects_array(i)+1 ) = i
     end do
     ! Put the array pointing to volume object
     this%current = 1
@@ -290,127 +295,227 @@ contains
   function children_iterator_is_admissible( this )
     implicit none
     class(children_iterator_t), intent(inout) :: this
-    logical                          :: is_admissible
-    is_admissible = .false.
+    logical                          :: children_iterator_is_admissible
+    children_iterator_is_admissible = .false.
     !call this%print()
     !write(*,*) 'IBITS( this%parent, DIM, this%component-1 ) == 0',IBITS( this%parent, DIM, this%component-1 ) 
     if ( IBITS( this%parent, DIM + this%component, 1 ) == 1) then
        if ( IBITS( this%object_tree%topology, this%component, 1 ) == 1 ) then
-          is_admissible = .true.
+          children_iterator_is_admissible = .true.
           ! Be careful w/ i = 0
        else if ( this%coordinate == 0 .or. this%component == 0 & 
             & .or. IBITS( this%parent, DIM, this%component ) == 0 ) then
           !write(*,*) 'IS ADM',IBITS( this%parent, DIM, this%component )  
-          is_admissible = .true.
+          children_iterator_is_admissible = .true.
        end if
     end if
   end function children_iterator_is_admissible
+
+  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  function object_tree_create_node_iterator(this, parent, order, own_boundary )
+    implicit none
+    class(object_tree_t), intent(in) :: this
+    integer(ip)         , intent(in) :: parent
+    integer(ip)         , intent(in) :: order 
+    logical             , intent(in) :: own_boundary
+    type(node_iterator_t) :: object_tree_create_node_iterator
+    !write(*,*) 'CHILDREN ITERATOR CREATED FOR OBJECT'
+    !write(*,'(B32)') parent
+    call object_tree_create_node_iterator%create(this%topology, parent, order, own_boundary )
+  end function object_tree_create_node_iterator
+
+  subroutine node_iterator_create ( this, topology, object, order, own_boundary )
+    implicit none
+    class(node_iterator_t)            , intent(inout) :: this
+    integer(ip)                       , intent(in)    :: topology
+    integer(ip)                       , intent(in)    :: object
+    integer(ip)                       , intent(in)    :: order 
+    logical                           , intent(in)    :: own_boundary
+    integer(ip) :: c, i
+    !call this%free()
+    this%base_topology = topology
+    this%topology = 0
+    this%object = object
+    this%order = order
+    if ( own_boundary) then
+       this%max = order
+       this%min = 0
+    else
+       this%max = order-1
+       this%min = 1
+    end if
+    do i = 0, DIM-1
+       if ( IBITS( this%object, DIM+i, 1 ) == 1 ) then 
+          if ( IBITS( this%base_topology, i, 1 ) == 1 ) this%topology = IBSET( this%topology, c )
+          c = c+1
+       end if
+    end do
+  end subroutine node_iterator_create
+
+  subroutine node_iterator_init ( this )
+    implicit none
+    class(node_iterator_t), intent(inout) :: this
+    integer(ip) :: c, i
+    this%displacement = 0
+    this%coordinate = 0
+    this%overflow = .true.
+    if ( object_dimension(this%object) > 0 ) this%overflow = .false.
+    c = 0
+    do i = 0, DIM-1
+       if ( IBITS( this%object, DIM+i, 1 ) == 0 ) then ! if is fixed component in object
+          if ( IBITS( this%object, i, 1 ) == 0 ) then  ! if coordinate of anchor node == 0
+             this%coordinate(i) = 0           ! fixed coordinate = min value
+          else
+             this%coordinate(i) = this%order  ! fixed coordinate = max value   
+          end if
+       else 
+          this%displacement(c) = this%min
+          c = c+1
+       end if
+    end do    
+ 
+  if ( object_dimension(this%object) > 0 ) this%displacement(0) = this%displacement(0)-1
+  call this%next()
+  end subroutine node_iterator_init
+
+  function object_dimension( object )
+    integer(ip), intent(in) :: object
+    integer(ip) :: object_dimension, i
+    object_dimension = 0
+    do i = 0,DIM-1
+       object_dimension = object_dimension + IBITS( object, DIM+i, 1 )
+    end do
+  end function object_dimension
+
+  subroutine node_iterator_print( this )
+    implicit none
+    class(node_iterator_t), intent(inout) :: this
+    write(*,*) '***NODE_ITERATOR ***'
+    write(*,*) 'object: '
+    write(*,'(B32)') this%object
+    write(*,*) 'displacement: ',this%displacement
+  end subroutine node_iterator_print
+
+  subroutine node_iterator_next ( this )
+    implicit none
+    class(node_iterator_t), intent(inout) :: this
+    integer(ip) :: comp, end_comp, i
+    if ( this%has_finished() ) return 
+    !comp = object_dimension( this%object )-1
+    comp = 0 
+    end_comp = object_dimension(this%object)-1
+    this%overflow = .true.
+    do while( comp <= end_comp)
+       if ( this%overflow ) then 
+          this%displacement(comp) = this%displacement(comp)+1
+          if ( this%in_bound(comp, end_comp) ) then
+             this%overflow = .false.
+             do i = comp-1,0,-1
+                if ( .not. this%in_bound( i, end_comp ) ) then
+                   this%overflow = .true.
+                end if
+             end do 
+             exit
+          else 
+             this%displacement(comp) = this%min
+          end if
+       end if
+       comp = comp+1
+    end do
+    !write '(this%displacement)',this%displacement
+  end subroutine node_iterator_next
+
+  function node_iterator_in_bound( this, comp, end_comp )
+    implicit none
+    class(node_iterator_t), intent(in) :: this
+    integer(ip)           , intent(in) :: comp, end_comp
+    logical :: node_iterator_in_bound
+    integer(ip) :: bound, i
+    node_iterator_in_bound = .true.
+    bound = this%max
+    do i = comp+1,end_comp
+       if ( IBITS( this%topology, i, 1 ) == 0 ) then
+          bound = bound - this%displacement(i)
+       end if
+    end do
+    if ( this%displacement(comp) > bound ) node_iterator_in_bound = .false.
+
+    !if( comp > 0 .and. IBITS( this%topology, comp, 1 ) == 0 ) then
+    !   if ( this%displacement(comp) > this%displacement(comp-1) ) node_iterator_in_bound = .false. 
+    !else
+    !   if ( this%displacement(comp) > this%max ) node_iterator_in_bound = .false.
+    !end if
+
+  end function node_iterator_in_bound
+
+  function node_iterator_has_finished ( this )
+    implicit none
+    class(node_iterator_t), intent(in) :: this
+    logical :: node_iterator_has_finished
+    node_iterator_has_finished = this%overflow
+  end function node_iterator_has_finished
+
+  function node_iterator_current ( this )
+    implicit none
+    class(node_iterator_t), intent(inout) :: this
+    integer(ip) :: node_iterator_current(0:DIM-1)
+    integer(ip) :: coord(0:DIM-1), c, comp, j
+    !assert ( .not. this%has_finished() )
+
+    ! First put free coordinates as such (fixed ones introduced when initializing)
+    c = 0
+    do comp =0,DIM-1
+       if ( IBITS ( this%object, comp+DIM, 1 ) == 1 ) then
+          this%coordinate(comp) = this%displacement(c)
+          c = c+1
+       end if
+    end do
+    ! Next, translate fixed coordinates if needed
+    do comp =0,DIM-1
+       if ( IBITS ( this%object, comp+DIM, 1 ) == 0 .and. IBITS( this%object, comp, 1 ) == 1 ) then
+          this%coordinate(comp) = this%order
+          do j = comp+1,DIM-1
+             if ( IBITS ( this%base_topology, j, 1 ) == 0 .and. IBITS ( this%object, j+DIM, 1 ) == 1 ) then
+                this%coordinate(comp) = this%coordinate(comp) - this%coordinate(j)
+             end if
+          end do
+       end if
+    end do
+
+    !coord = this%displacement
+    !do comp = object_dimension(this%object)-2,0,-1
+    !   if( IBITS( this%topology, comp, 1 ) == 0) then
+    !      coord(comp) = coord(comp) - this%displacement(comp+1)
+    !   end if
+    !end do
+    !   
+    !! Here we put the free coordinates in this%coordinate
+    !c = 0
+    !do comp = 0,DIM-1
+    !   if ( IBITS ( this%object, comp+DIM, 1 ) == 1 ) then
+    !      this%coordinate(comp) = coord(c)
+    !      c = c+1
+    !   end if
+    !end do
+
+
+    !if ( this%order /= this%max ) then
+
+    !do comp = 0, DIM-1
+    !      if ( IBITS( this%object, DIM+comp, 1 ) == 1 ) then 
+    !         this%coordinate(comp) = this%coordinate(comp)+1
+    !      end if
+    !end do
+    !end if   
+
+
+    node_iterator_current = this%coordinate
+  end function node_iterator_current
+
+  ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 end module abstract_reference_element_names
-
-! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-function object_tree_create_node_iterator(this, parent)
-  implicit none
-  class(object_tree_t), intent(in) :: this
-  integer(ip)         , intent(in) :: parent
-  type(node_iterator_t) :: object_tree_create_node_iterator
-  !write(*,*) 'CHILDREN ITERATOR CREATED FOR OBJECT'
-  !write(*,'(B32)') parent
-  call object_tree_create_node_iterator%create(this, parent)
-end function object_tree_create_node_iterator
-
-subroutine node_iterator_create ( this, object_tree, object )
-  implicit none
-  class(node_iterator_t)        , intent(inout) :: this
-  type(object_tree_t)       , target, intent(in)    :: object_tree
-  integer(ip)                       , intent(in)    :: object
-  !call this%free()
-  this%object_tree => object_tree
-  this%object = object
-  call this%displacement = 0
-  if ( type == 'open' ) then
-     this%max = order-1
-     this%min = 1
-  else
-     this%max = order
-     this%min = 0
-  end if
-end subroutine node_iterator_create
-
-subroutine node_iterator_init ( this )
-  implicit none
-  class(node_iterator_t), intent(inout) :: this
-  this%displacement = min
-  do i = 1, DIM
-     if ( IBITS( object, DIM+i, 1 ) == 0 .and. IBITS( object, i, 1 ) == 1 ) then
-        this%displacement = max
-     end if
-  end do
-end subroutine node_iterator_init
-
-function object_dimension( object )
-  integer(ip), intent(in) :: object
-  integer(ip) :: object_dimension, aux
-  object_dimension = 0
-  do i = 0,DIM-1
-     object_dimension = object_dimension + IBITS( object, DIM+i, 1 )
-  end do
-end function object_dimension
-
-subroutine node_iterator_print( this )
-  implicit none
-  class(node_iterator_t), intent(inout) :: this
-  write(*,*) '***NODE_ITERATOR ***'
-  write(*,*) 'object: '
-  write(*,'(B32)') this%parent
-  write(*,*) 'displacement: ',this%displacement
-end subroutine node_iterator_print
-
-recursive subroutine node_iterator_next ( this )
-  implicit none
-  class(node_iterator_t), intent(inout) :: this
-  if ( this%has_finished() ) return 
-  comp = object_dimension( this%object )
-  if ( comp > 0 )  then
-     this%displacement(comp) = this%displacement(comp)+1
-     do while( comp > 0 )
-        comp = comp-1
-        if ( this%displacement(comp+1) > max( topology(comp+1)*this%max, this%displacement(comp) ) ) then
-           this%displacement(comp+1) = 0
-           this%displacement(comp) = this%displacement(comp)+1
-        end if
-     end do
-  end if
-  write '(this%displacement)',this%displacement
-end subroutine node_iterator_next
-
-function node_iterator_has_finished ( this )
-  implicit none
-  class(node_iterator_t), intent(in) :: this
-  logical :: node_iterator_has_finished
-  node_iterator_has_finished = ( object_dimension( this%object ) == 0 .or. &
-       &this%this%displacement(1) > max )
-end function node_iterator_has_finished
-
-function node_iterator_current ( this )
-  implicit none
-  class(node_iterator_t), intent(in) :: this
-  integer(ip) :: node_iterator_current, j
-  assert ( .not. this%has_finished() )
-  c = 0
-  do comp = DIM,-1,1
-     if ( component(comp) == 1 ) then
-        node(comp) = ijk(comp)
-        if( topology(comp) == 0) then
-           node(comp) = node(comp) - c
-           c = ijk(comp)
-        end if
-     end if
-  end do
-end function node_iterator_current
-
-! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 
 program abstract_reference_element
   use serial_names
@@ -418,46 +523,56 @@ program abstract_reference_element
   implicit none
   type(object_tree_t) :: object_tree
   type(children_iterator_t) :: children_iterator
+  type(node_iterator_t) :: node_iterator
   integer(ip), parameter :: DIM = 3
-  integer(ip) :: root, children
+  integer(ip) :: root, children, node(0:DIM-1), c
 
-
+  call fempar_init()
+  !call object_tree%create( 4 )
   call object_tree%create( 4 )
 
-  
-
-  ! FINISHED
-  ijk(1) > order
-
-  ! CURRENT
-  node = coordinate*order
-  c = 0
-  do comp = DIM,-1,1
-     if ( component(comp) == 1 ) then
-        node(comp) = ijk(comp)
-        if( topology(comp) == 0) then
-           node(comp) = node(comp) - c
-           c = ijk(comp)
-        end if
-     end if
-  end do
+  !children = 56
+  children = 49
+  !children = 12
+  !children_iterator = object_tree%create_children_iterator(children)
 
 
-
-  !root = 12
-  !children_iterator = object_tree%create_children_iterator(root)
-  !write(*,'(B32)') root
 
   ! Loop over children
+  !call children_iterator%init()
   !do while (.not. children_iterator%has_finished() )
   !   children = children_iterator%current()
   !   write(*,*) 'current children: '
   !   write(*,'(B32)') children
-  !   ! Put children of child (recursive call)
-  !   !call this%fill_tree( children )
-  !   ! Move to the next child
+  ! Put children of child (recursive call)
+  !call this%fill_tree( children )
+
+  node_iterator = object_tree%create_node_iterator( children, order = 3, own_boundary = .false. )
+  ! Loop over children
+  call node_iterator%init()
+  c = 0
+  do while (.not. node_iterator%has_finished() )
+     node = node_iterator%current()
+     write(*,*) 'current displacement: ', node_iterator%displacement
+     write(*,*) 'current node: ', node
+     call node_iterator%next()
+     node = node_iterator%current()
+     c = c+1
+  end do
+  write(*,*) 'Number of nodes:',c
+
+  ! Move to the next child
   !   call children_iterator%next()
   !end do
+
+
+
+
+  call fempar_finalize()
+
+
+
+
 
   ! 1D
   ! line 0 = 1 ( 0 = 1 )
