@@ -82,7 +82,6 @@ module serial_names
   use fe_affine_operator_names
   use function_names
   use function_library_names
-  use error_norms_names
 
 contains
 

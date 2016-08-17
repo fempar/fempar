@@ -1,0 +1,325 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+!**************************************************************************************************
+! Methods associated to face_fe_function_scalar_t
+!**************************************************************************************************
+
+!===============================================================================================
+subroutine face_fe_function_scalar_create ( this, ifield, max_nnode, max_npoint )
+  implicit none
+  class(face_fe_function_scalar_t), intent(inout) :: this 
+  integer(ip)                     , intent(in)    :: ifield, max_nnode, max_npoint
+  call this%free()
+  call this%cell_fe_function_scalar(1)%create(ifield, max_nnode, max_npoint)
+  call this%cell_fe_function_scalar(2)%create(ifield, max_nnode, max_npoint)
+end subroutine face_fe_function_scalar_create
+
+!===============================================================================================
+function face_fe_function_scalar_get_field_id ( this )
+  implicit none
+  class(face_fe_function_scalar_t), intent(in) :: this 
+  integer(ip) :: face_fe_function_scalar_get_field_id
+  face_fe_function_scalar_get_field_id = this%cell_fe_function_scalar(1)%get_field_id()
+end function face_fe_function_scalar_get_field_id
+
+!===============================================================================================
+function face_fe_function_scalar_get_nodal_values ( this, ineigh ) 
+  implicit none
+  class(face_fe_function_scalar_t), intent(in) :: this 
+  integer(ip)                     , intent(in) :: ineigh
+  real(rp), pointer :: face_fe_function_scalar_get_nodal_values(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  face_fe_function_scalar_get_nodal_values => this%cell_fe_function_scalar(ineigh)%get_nodal_values()
+end function face_fe_function_scalar_get_nodal_values
+
+!===============================================================================================
+function face_fe_function_scalar_get_quadrature_points_values ( this, ineigh )
+  implicit none
+  class(face_fe_function_scalar_t), intent(in) :: this 
+  integer(ip)                     , intent(in) :: ineigh
+  real(rp), pointer :: face_fe_function_scalar_get_quadrature_points_values(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  face_fe_function_scalar_get_quadrature_points_values => this%cell_fe_function_scalar(ineigh)%get_quadrature_points_values()
+end function face_fe_function_scalar_get_quadrature_points_values
+
+!===============================================================================================
+function face_fe_function_scalar_get_quadrature_points_gradients ( this, ineigh )
+  implicit none
+  class(face_fe_function_scalar_t), intent(in) :: this 
+  integer(ip)                     , intent(in) :: ineigh
+  type(vector_field_t), pointer :: face_fe_function_scalar_get_quadrature_points_gradients(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  face_fe_function_scalar_get_quadrature_points_gradients => this%cell_fe_function_scalar(ineigh)%get_quadrature_points_gradients()
+end function face_fe_function_scalar_get_quadrature_points_gradients
+
+!===============================================================================================
+subroutine face_fe_function_scalar_get_value ( this, point, ineigh, value )
+  implicit none
+  class(face_fe_function_scalar_t), intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: point
+  integer(ip)                     , intent(in)    :: ineigh
+  real(rp)                        , intent(inout) :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  assert ( point <= this%cell_fe_function_scalar(ineigh)%current_number_quadrature_points )
+  value = this%cell_fe_function_scalar(ineigh)%quadrature_points_values(point)
+end subroutine face_fe_function_scalar_get_value
+
+!===============================================================================================
+subroutine face_fe_function_scalar_get_gradient ( this, point, ineigh, value )
+  implicit none
+  class(face_fe_function_scalar_t), intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: point
+  integer(ip)                     , intent(in)    :: ineigh
+  type(vector_field_t)            , intent(inout) :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  assert ( point <= this%cell_fe_function_scalar(ineigh)%current_number_quadrature_points )
+  value = this%cell_fe_function_scalar(ineigh)%quadrature_points_gradients(point)
+end subroutine face_fe_function_scalar_get_gradient
+
+!===============================================================================================
+subroutine face_fe_function_scalar_set_current_number_nodes ( this, ineigh, value )
+  implicit none
+  class(face_fe_function_scalar_t), intent(inout) :: this 
+  integer(ip)                     , intent(in)    :: ineigh
+  integer(ip)                     , intent(in)    :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  assert ( value <= this%cell_fe_function_scalar(ineigh)%max_number_nodes )
+  this%cell_fe_function_scalar(ineigh)%current_number_nodes = value
+end subroutine face_fe_function_scalar_set_current_number_nodes
+
+!===============================================================================================
+subroutine face_fe_function_scalar_set_current_number_quadrature_points ( this, ineigh, value )
+  implicit none
+  class(face_fe_function_scalar_t), intent(inout) :: this 
+  integer(ip)                     , intent(in)    :: ineigh
+  integer(ip)                     , intent(in)    :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  assert ( value <= this%cell_fe_function_scalar(ineigh)%max_number_quadrature_points ) 
+  this%cell_fe_function_scalar(ineigh)%current_number_quadrature_points = value
+end subroutine face_fe_function_scalar_set_current_number_quadrature_points
+
+!===============================================================================================
+subroutine face_fe_function_scalar_free ( this )
+  implicit none
+  class(face_fe_function_scalar_t), intent(inout) :: this
+  call this%cell_fe_function_scalar(1)%free()
+  call this%cell_fe_function_scalar(2)%free()
+end subroutine face_fe_function_scalar_free
+
+
+!**************************************************************************************************
+! Methods associated to face_fe_function_vector_t
+!**************************************************************************************************
+
+!===============================================================================================
+subroutine face_fe_function_vector_create ( this, ifield, max_nnode, max_npoint )
+  implicit none
+  class(face_fe_function_vector_t), intent(inout) :: this 
+  integer(ip)                     , intent(in)    :: ifield, max_nnode, max_npoint
+  call this%free()
+  call this%cell_fe_function_vector(1)%create(ifield, max_nnode, max_npoint)
+  call this%cell_fe_function_vector(2)%create(ifield, max_nnode, max_npoint)
+end subroutine face_fe_function_vector_create
+
+!===============================================================================================
+function face_fe_function_vector_get_field_id ( this )
+  implicit none
+  class(face_fe_function_vector_t), intent(in) :: this 
+  integer(ip) :: face_fe_function_vector_get_field_id
+  face_fe_function_vector_get_field_id = this%cell_fe_function_vector(1)%get_field_id()
+end function face_fe_function_vector_get_field_id
+
+!===============================================================================================
+function face_fe_function_vector_get_nodal_values ( this, ineigh ) 
+  implicit none
+  class(face_fe_function_vector_t), intent(in) :: this 
+  integer(ip)                     , intent(in) :: ineigh
+  real(rp), pointer :: face_fe_function_vector_get_nodal_values(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  face_fe_function_vector_get_nodal_values => this%cell_fe_function_vector(ineigh)%get_nodal_values()
+end function face_fe_function_vector_get_nodal_values
+
+!===============================================================================================
+function face_fe_function_vector_get_quadrature_points_values ( this, ineigh )
+  implicit none
+  class(face_fe_function_vector_t), intent(in) :: this 
+  integer(ip)                     , intent(in) :: ineigh
+  type(vector_field_t), pointer :: face_fe_function_vector_get_quadrature_points_values(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  face_fe_function_vector_get_quadrature_points_values => this%cell_fe_function_vector(ineigh)%get_quadrature_points_values()
+end function face_fe_function_vector_get_quadrature_points_values
+
+!===============================================================================================
+function face_fe_function_vector_get_quadrature_points_gradients ( this, ineigh )
+  implicit none
+  class(face_fe_function_vector_t), intent(in) :: this 
+  integer(ip)                     , intent(in) :: ineigh
+  type(tensor_field_t), pointer :: face_fe_function_vector_get_quadrature_points_gradients(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  face_fe_function_vector_get_quadrature_points_gradients => this%cell_fe_function_vector(ineigh)%get_quadrature_points_gradients()
+end function face_fe_function_vector_get_quadrature_points_gradients
+
+!===============================================================================================
+subroutine face_fe_function_vector_get_value ( this, point, ineigh, value )
+  implicit none
+  class(face_fe_function_vector_t), intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: point
+  integer(ip)                     , intent(in)    :: ineigh
+  type(vector_field_t)            , intent(inout) :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  assert ( point <= this%cell_fe_function_vector(ineigh)%current_number_quadrature_points )
+  value = this%cell_fe_function_vector(ineigh)%quadrature_points_values(point)
+end subroutine face_fe_function_vector_get_value
+
+!===============================================================================================
+subroutine face_fe_function_vector_get_gradient ( this, point, ineigh, value )
+  implicit none
+  class(face_fe_function_vector_t), intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: point
+  integer(ip)                     , intent(in)    :: ineigh
+  type(tensor_field_t)            , intent(inout) :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  assert ( point <= this%cell_fe_function_vector(ineigh)%current_number_quadrature_points )
+  value = this%cell_fe_function_vector(ineigh)%quadrature_points_gradients(point)
+end subroutine face_fe_function_vector_get_gradient
+
+!===============================================================================================
+subroutine face_fe_function_vector_set_current_number_nodes ( this, ineigh, value )
+  implicit none
+  class(face_fe_function_vector_t), intent(inout) :: this 
+  integer(ip)                     , intent(in)    :: ineigh
+  integer(ip)                     , intent(in)    :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  assert ( value <= this%cell_fe_function_vector(ineigh)%max_number_nodes )
+  this%cell_fe_function_vector(ineigh)%current_number_nodes = value
+end subroutine face_fe_function_vector_set_current_number_nodes
+
+!===============================================================================================
+subroutine face_fe_function_vector_set_current_number_quadrature_points ( this, ineigh, value )
+  implicit none
+  class(face_fe_function_vector_t), intent(inout) :: this 
+  integer(ip)                     , intent(in)    :: ineigh
+  integer(ip)                     , intent(in)    :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  assert ( value <= this%cell_fe_function_vector(ineigh)%max_number_quadrature_points ) 
+  this%cell_fe_function_vector(ineigh)%current_number_quadrature_points = value
+end subroutine face_fe_function_vector_set_current_number_quadrature_points
+
+!===============================================================================================
+subroutine face_fe_function_vector_free ( this )
+  implicit none
+  class(face_fe_function_vector_t), intent(inout) :: this
+  call this%cell_fe_function_vector(1)%free()
+  call this%cell_fe_function_vector(2)%free()
+end subroutine face_fe_function_vector_free
+
+!**************************************************************************************************
+! Methods associated to face_fe_function_tensor_t
+!**************************************************************************************************
+
+!===============================================================================================
+subroutine face_fe_function_tensor_create ( this, ifield, max_nnode, max_npoint )
+  implicit none
+  class(face_fe_function_tensor_t), intent(inout) :: this 
+  integer(ip)                     , intent(in)    :: ifield, max_nnode, max_npoint
+  call this%free()
+  call this%cell_fe_function_tensor(1)%create(ifield, max_nnode, max_npoint)
+  call this%cell_fe_function_tensor(2)%create(ifield, max_nnode, max_npoint)
+end subroutine face_fe_function_tensor_create
+
+!===============================================================================================
+function face_fe_function_tensor_get_field_id ( this )
+  implicit none
+  class(face_fe_function_tensor_t), intent(in) :: this 
+  integer(ip) :: face_fe_function_tensor_get_field_id
+  face_fe_function_tensor_get_field_id = this%cell_fe_function_tensor(1)%get_field_id()
+end function face_fe_function_tensor_get_field_id
+
+!===============================================================================================
+function face_fe_function_tensor_get_nodal_values ( this, ineigh ) 
+  implicit none
+  class(face_fe_function_tensor_t), intent(in) :: this 
+  integer(ip)                     , intent(in) :: ineigh
+  real(rp), pointer :: face_fe_function_tensor_get_nodal_values(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  face_fe_function_tensor_get_nodal_values => this%cell_fe_function_tensor(ineigh)%get_nodal_values()
+end function face_fe_function_tensor_get_nodal_values
+
+!===============================================================================================
+function face_fe_function_tensor_get_quadrature_points_values ( this, ineigh )
+  implicit none
+  class(face_fe_function_tensor_t), intent(in) :: this 
+  integer(ip)                     , intent(in) :: ineigh
+  type(tensor_field_t), pointer :: face_fe_function_tensor_get_quadrature_points_values(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  face_fe_function_tensor_get_quadrature_points_values => this%cell_fe_function_tensor(ineigh)%get_quadrature_points_values()
+end function face_fe_function_tensor_get_quadrature_points_values
+
+!===============================================================================================
+subroutine face_fe_function_tensor_get_value ( this, point, ineigh, value )
+  implicit none
+  class(face_fe_function_tensor_t), intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: point
+  integer(ip)                     , intent(in)    :: ineigh
+  type(tensor_field_t)            , intent(inout) :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  assert ( point <= this%cell_fe_function_tensor(ineigh)%current_number_quadrature_points )
+  value = this%cell_fe_function_tensor(ineigh)%quadrature_points_values(point)
+end subroutine face_fe_function_tensor_get_value
+
+!===============================================================================================
+subroutine face_fe_function_tensor_set_current_number_nodes ( this, ineigh, value )
+  implicit none
+  class(face_fe_function_tensor_t), intent(inout) :: this 
+  integer(ip)                     , intent(in)    :: ineigh
+  integer(ip)                     , intent(in)    :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  assert ( value <= this%cell_fe_function_tensor(ineigh)%max_number_nodes )
+  this%cell_fe_function_tensor(ineigh)%current_number_nodes = value
+end subroutine face_fe_function_tensor_set_current_number_nodes
+
+!===============================================================================================
+subroutine face_fe_function_tensor_set_current_number_quadrature_points ( this, ineigh, value )
+  implicit none
+  class(face_fe_function_tensor_t), intent(inout) :: this 
+  integer(ip)                     , intent(in)    :: ineigh
+  integer(ip)                     , intent(in)    :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_boundary) )
+  assert ( value <= this%cell_fe_function_tensor(ineigh)%max_number_quadrature_points ) 
+  this%cell_fe_function_tensor(ineigh)%current_number_quadrature_points = value
+end subroutine face_fe_function_tensor_set_current_number_quadrature_points
+
+!===============================================================================================
+subroutine face_fe_function_tensor_free ( this )
+  implicit none
+  class(face_fe_function_tensor_t), intent(inout) :: this
+  call this%cell_fe_function_tensor(1)%free()
+  call this%cell_fe_function_tensor(2)%free()
+end subroutine face_fe_function_tensor_free

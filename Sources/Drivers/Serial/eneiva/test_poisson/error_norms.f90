@@ -439,7 +439,7 @@ function error_norm_scalar_compute_values(this,fe_function,scalar_function,time)
         quadrature_coordinates => fe_map%get_quadrature_coordinates()          
 
         ! Update cell FE function
-        call fe%update_cell_fe_function(fe_unknown,fe_function)
+        call fe%update_cell_fe_function(fe_function,fe_unknown)
 
         ! Evaluate function on quadrature points
         if(present(time)) then
@@ -519,7 +519,7 @@ function error_norm_scalar_compute_gradients(this,fe_function,vector_function,ti
         quadrature_coordinates => fe_map%get_quadrature_coordinates()          
 
         ! Update cell FE function
-        call fe%update_cell_fe_function(fe_unknown,fe_function)
+        call fe%update_cell_fe_function(fe_function,fe_unknown)
 
         ! Evaluate function on quadrature points
         if(present(time)) then
@@ -644,7 +644,7 @@ function error_norm_vector_compute_values(this,fe_function,vector_function,time)
         quadrature_coordinates => fe_map%get_quadrature_coordinates()          
 
         ! Update cell FE function
-        call fe%update_cell_fe_function(fe_unknown,fe_function)
+        call fe%update_cell_fe_function(fe_function,fe_unknown)
 
         ! Evaluate function on quadrature points
         if(present(time)) then
@@ -726,7 +726,7 @@ function error_norm_vector_compute_gradients(this,fe_function,tensor_function,ti
         quadrature_coordinates => fe_map%get_quadrature_coordinates()          
 
         ! Update cell FE function
-        call fe%update_cell_fe_function(fe_unknown,fe_function)
+        call fe%update_cell_fe_function(fe_function,fe_unknown)
 
         ! Evaluate function on quadrature points
         if(present(time)) then

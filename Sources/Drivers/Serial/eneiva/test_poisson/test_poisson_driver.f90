@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_poisson_driver_names
   use serial_names
+  use error_norms_names
   use test_poisson_params_names
   use poisson_analytical_functions_names
   use poisson_discrete_integration_names

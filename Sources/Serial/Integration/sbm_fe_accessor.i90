@@ -456,11 +456,12 @@ function fe_accessor_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) re
   list_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
 end function fe_accessor_create_own_dofs_on_vef_iterator
 
-subroutine fe_accessor_update_cell_fe_function_scalar ( this, cell_fe_function_scalar, fe_function )
+subroutine fe_accessor_update_cell_fe_function_scalar ( this, fe_function, cell_fe_function_scalar )
   implicit none
   class(fe_accessor_t)           , intent(in)    :: this
-  type(cell_fe_function_scalar_t), intent(inout) :: cell_fe_function_scalar
   type(fe_function_t)            , intent(in)    :: fe_function
+  type(cell_fe_function_scalar_t), intent(inout) :: cell_fe_function_scalar
+
   
   integer(ip)                        :: inode, field_id, block_id
   integer(ip)                        :: number_nodes_field, number_quadrature_points
@@ -515,11 +516,11 @@ subroutine fe_accessor_update_cell_fe_function_scalar ( this, cell_fe_function_s
   
 end subroutine fe_accessor_update_cell_fe_function_scalar
 
-subroutine fe_accessor_update_cell_fe_function_vector ( this, cell_fe_function_vector, fe_function )
+subroutine fe_accessor_update_cell_fe_function_vector ( this, fe_function, cell_fe_function_vector )
   implicit none
   class(fe_accessor_t)           , intent(in)    :: this
-  type(cell_fe_function_vector_t), intent(inout) :: cell_fe_function_vector
   type(fe_function_t)            , intent(in)    :: fe_function
+  type(cell_fe_function_vector_t), intent(inout) :: cell_fe_function_vector
   
   integer(ip)                        :: inode, field_id, block_id
   integer(ip)                        :: number_nodes_field, number_quadrature_points
@@ -574,12 +575,12 @@ subroutine fe_accessor_update_cell_fe_function_vector ( this, cell_fe_function_v
   
 end subroutine fe_accessor_update_cell_fe_function_vector
 
-subroutine fe_accessor_update_cell_fe_function_tensor ( this, cell_fe_function_tensor, fe_function )
+subroutine fe_accessor_update_cell_fe_function_tensor ( this, fe_function, cell_fe_function_tensor )
   implicit none
   class(fe_accessor_t)           , intent(in)    :: this
-  type(cell_fe_function_tensor_t), intent(inout) :: cell_fe_function_tensor
   type(fe_function_t)            , intent(in)    :: fe_function
-  
+  type(cell_fe_function_tensor_t), intent(inout) :: cell_fe_function_tensor
+
   integer(ip)                        :: inode, field_id, block_id
   integer(ip)                        :: number_nodes_field, number_quadrature_points
   integer(ip)              , pointer :: elem2dof(:)

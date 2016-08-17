@@ -620,8 +620,6 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
 
      call fe_iterator%next()
   end do
-
-  this%number_fe_quadratures = current_quadrature_and_map-1
   
   allocate ( this%fe_quadratures(current_quadrature_and_map-1), stat=istat)
   check (istat==0)
@@ -684,8 +682,6 @@ subroutine serial_fe_space_free_fe_integration ( this )
   integer(ip)         :: i, istat
 
   class(reference_fe_t), pointer :: reference_fe
-
-  this%number_fe_quadratures = 0
   
   if (allocated(this%max_order_per_fe)) call memfree ( this%max_order_per_fe, __FILE__, __LINE__ )
   call this%fe_quadratures_and_maps_position%free()
@@ -1297,12 +1293,25 @@ function serial_fe_space_get_max_number_quadrature_points( this )
   integer(ip) :: serial_fe_space_get_max_number_quadrature_points
   integer(ip) :: iquad
   serial_fe_space_get_max_number_quadrature_points = 0
-  do iquad = 1, this%number_fe_quadratures
+  do iquad = 1, size(this%fe_quadratures)
      serial_fe_space_get_max_number_quadrature_points =       & 
         max(serial_fe_space_get_max_number_quadrature_points, &
             this%fe_quadratures(iquad)%get_number_quadrature_points())
   end do
 end function serial_fe_space_get_max_number_quadrature_points
+
+function serial_fe_space_get_max_number_face_quadrature_points( this )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this 
+  integer(ip) :: serial_fe_space_get_max_number_face_quadrature_points
+  integer(ip) :: iquad
+  serial_fe_space_get_max_number_face_quadrature_points = 0
+  do iquad = 1, size(this%fe_face_quadratures)
+     serial_fe_space_get_max_number_face_quadrature_points =       & 
+        max(serial_fe_space_get_max_number_face_quadrature_points, &
+            this%fe_face_quadratures(iquad)%get_number_quadrature_points())
+  end do
+end function serial_fe_space_get_max_number_face_quadrature_points
 
 function serial_fe_space_get_number_blocks( this)
   implicit none
@@ -1405,6 +1414,20 @@ subroutine serial_fe_space_create_cell_fe_function_tensor ( this, field_id, fe_f
 
 end subroutine serial_fe_space_create_cell_fe_function_tensor
 
+subroutine serial_fe_space_create_face_fe_function_scalar ( this, field_id, face_fe_function_scalar )
+  implicit none
+  class(serial_fe_space_t)       , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: field_id
+  type(face_fe_function_scalar_t), intent(inout) :: face_fe_function_scalar
+
+  assert ( field_id >=1 .and. field_id <= this%number_fields )
+  assert ( this%get_field_type(field_id) == field_type_scalar )
+
+  call face_fe_function_scalar%create( field_id,                       &
+                                       this%get_max_number_nodes(field_id), &
+                                       this%get_max_number_face_quadrature_points() )
+
+end subroutine serial_fe_space_create_face_fe_function_scalar
 
 function serial_fe_space_get_triangulation( this) result(triangulation)
   class(serial_fe_space_t)      , intent(in)    :: this 
