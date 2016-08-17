@@ -357,83 +357,85 @@ subroutine serial_fe_space_update_strong_dirichlet_bcs_values (this, conditions,
   fe_iterator = this%create_fe_iterator()
   do while (.not. fe_iterator%has_finished() )
      call fe_iterator%current(fe)
+     
+     if ( fe%is_local() ) then 
 
-     offset_component = 0
-     do field_id = 1, fe%get_number_fields()
-        reference_fe => fe%get_reference_fe(field_id)
+        offset_component = 0
+        do field_id = 1, fe%get_number_fields()
+           reference_fe => fe%get_reference_fe(field_id)
 
-        if ( fe%at_strong_dirichlet_boundary(field_id) ) then
-           reference_fe_id = this%reference_fe_id_per_fe(field_id, fe%get_lid()) 
-           if ( .not. reference_fes_touched(reference_fe_id) ) then
-             reference_fes_touched(reference_fe_id) = .true.
-             nodal_quadratures(reference_fe_id)%p => reference_fe%get_nodal_quadrature()
-             call fe_maps(reference_fe_id)%create(nodal_quadratures(reference_fe_id)%p, & 
-                                                  fe%get_reference_fe_geo())
-             
-             do icomp=1, reference_fe%get_number_field_components()
-               component_id = offset_component + icomp
-               call values(component_id,reference_fe_id)%create(nodal_quadratures(reference_fe_id)%p%get_number_quadrature_points(),1) 
-             end do
-           end if
-        
-           ! TO-DO: This call should ONLY be performed once 
-           !        per FE s.t. at least one of its fields
-           !        has DoFs subject to BCs. 
-           call fe%get_elem2dof(elem2dof(reference_fe_id))
-           
-           cell_coordinates => fe_maps(reference_fe_id)%get_coordinates()
-           call fe%get_coordinates(cell_coordinates)
-           call fe_maps(reference_fe_id)%compute_quadrature_coordinates()
-           nodal_coordinates => fe_maps(reference_fe_id)%get_quadrature_coordinates()
-
-           ! Go over all vefs within current FE
-           do ivef = 1, fe%get_num_vefs()
-              call fe%get_vef(ivef, vef)
-
-              ! Check whether a set_id different from 0 has been set for current vef. 
-              ! TO-DO: Should we also ask whether current vef is at the boundary?
-              !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
-              if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )              
-
-                 ! Get components code corresponding to set_id assigned to current vef
-                 ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
-                 ! a more clever strategy. Does it pay off to look carefully at this?
-                 call conditions%get_components_code( vef%get_set_id(), components_code )
+           if ( fe%at_strong_dirichlet_boundary(field_id) ) then
+              reference_fe_id = this%reference_fe_id_per_fe(field_id, fe%get_lid()) 
+              if ( .not. reference_fes_touched(reference_fe_id) ) then
+                 reference_fes_touched(reference_fe_id) = .true.
+                 nodal_quadratures(reference_fe_id)%p => reference_fe%get_nodal_quadrature()
+                 call fe_maps(reference_fe_id)%create(nodal_quadratures(reference_fe_id)%p, & 
+                      fe%get_reference_fe_geo())
 
                  do icomp=1, reference_fe%get_number_field_components()
                     component_id = offset_component + icomp
-                    if (components_code(component_id)) then
-                       call conditions%get_function( vef%get_set_id(), component_id, scalar_function )
-                       assert(associated(scalar_function))
-                       ! Evaluate function
-                       if(present(time)) then
-                          call scalar_function%get_values_set_space_time(nodal_coordinates,time_,values(component_id,reference_fe_id)%a)
-                       else
-                          call scalar_function%get_values_set_space(nodal_coordinates,values(component_id,reference_fe_id)%a(:,1))
-                       end if
-                    end if
-                 end do
-
-                 own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
-                 do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-                    local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
-                    component_id = offset_component + reference_fe%get_component_node(local_within_ref_fe_dof_id)
-                    if ( components_code(component_id) ) then 
-                       ! Check if current node is subject to strong Dirichlet boundary conditions
-                       if(elem2dof(field_id)%p(local_within_ref_fe_dof_id) < 0) then
-                          local_within_ref_fe_scalar_dof_id = reference_fe%get_scalar_from_vector_node(local_within_ref_fe_dof_id)
-                          strong_dirichlet_dof_id = -elem2dof(field_id)%p(local_within_ref_fe_dof_id)
-                          call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(component_id,field_id)%a(local_within_ref_fe_scalar_dof_id,1))
-                       end if
-                    end if
-                    call own_dofs_on_vef_iterator%next()
+                    call values(component_id,reference_fe_id)%create(nodal_quadratures(reference_fe_id)%p%get_number_quadrature_points(),1) 
                  end do
               end if
-           end do
-        end if
-        offset_component = offset_component + reference_fe%get_number_field_components()
-     end do
 
+              ! TO-DO: This call should ONLY be performed once 
+              !        per FE s.t. at least one of its fields
+              !        has DoFs subject to BCs. 
+              call fe%get_elem2dof(elem2dof(reference_fe_id))
+
+              cell_coordinates => fe_maps(reference_fe_id)%get_coordinates()
+              call fe%get_coordinates(cell_coordinates)
+              call fe_maps(reference_fe_id)%compute_quadrature_coordinates()
+              nodal_coordinates => fe_maps(reference_fe_id)%get_quadrature_coordinates()
+
+              ! Go over all vefs within current FE
+              do ivef = 1, fe%get_num_vefs()
+                 call fe%get_vef(ivef, vef)
+
+                 ! Check whether a set_id different from 0 has been set for current vef. 
+                 ! TO-DO: Should we also ask whether current vef is at the boundary?
+                 !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
+                 if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )              
+
+                    ! Get components code corresponding to set_id assigned to current vef
+                    ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
+                    ! a more clever strategy. Does it pay off to look carefully at this?
+                    call conditions%get_components_code( vef%get_set_id(), components_code )
+
+                    do icomp=1, reference_fe%get_number_field_components()
+                       component_id = offset_component + icomp
+                       if (components_code(component_id)) then
+                          call conditions%get_function( vef%get_set_id(), component_id, scalar_function )
+                          assert(associated(scalar_function))
+                          ! Evaluate function
+                          if(present(time)) then
+                             call scalar_function%get_values_set_space_time(nodal_coordinates,time_,values(component_id,reference_fe_id)%a)
+                          else
+                             call scalar_function%get_values_set_space(nodal_coordinates,values(component_id,reference_fe_id)%a(:,1))
+                          end if
+                       end if
+                    end do
+
+                    own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
+                    do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                       local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
+                       component_id = offset_component + reference_fe%get_component_node(local_within_ref_fe_dof_id)
+                       if ( components_code(component_id) ) then 
+                          ! Check if current node is subject to strong Dirichlet boundary conditions
+                          if(elem2dof(field_id)%p(local_within_ref_fe_dof_id) < 0) then
+                             local_within_ref_fe_scalar_dof_id = reference_fe%get_scalar_from_vector_node(local_within_ref_fe_dof_id)
+                             strong_dirichlet_dof_id = -elem2dof(field_id)%p(local_within_ref_fe_dof_id)
+                             call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(component_id,field_id)%a(local_within_ref_fe_scalar_dof_id,1))
+                          end if
+                       end if
+                       call own_dofs_on_vef_iterator%next()
+                    end do
+                 end if
+              end do
+           end if
+           offset_component = offset_component + reference_fe%get_number_field_components()
+        end do
+     end if
      call fe_iterator%next() 
   end do
 
