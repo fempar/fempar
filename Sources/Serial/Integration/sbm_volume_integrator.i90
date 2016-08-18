@@ -713,7 +713,7 @@ subroutine volume_integrator_evaluate_fe_function_scalar ( this, nodal_values, q
   real(rp)                     , intent(in)    :: nodal_values(:)
   real(rp)                     , intent(inout) :: quadrature_points_values(:)
 
-  call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+  call this%reference_fe%evaluate_fe_function ( this%interpolation, nodal_values, quadrature_points_values )
 end subroutine volume_integrator_evaluate_fe_function_scalar
 
 subroutine volume_integrator_evaluate_fe_function_vector ( this, nodal_values, quadrature_points_values )
@@ -722,7 +722,7 @@ subroutine volume_integrator_evaluate_fe_function_vector ( this, nodal_values, q
   real(rp)                     , intent(in)    :: nodal_values(:)
   type(vector_field_t)         , intent(inout) :: quadrature_points_values(:)
 
-  call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+  call this%reference_fe%evaluate_fe_function ( this%interpolation, nodal_values, quadrature_points_values )
 end subroutine volume_integrator_evaluate_fe_function_vector
 
 subroutine volume_integrator_evaluate_fe_function_tensor ( this, nodal_values, quadrature_points_values )
@@ -731,7 +731,7 @@ subroutine volume_integrator_evaluate_fe_function_tensor ( this, nodal_values, q
   real(rp)                     , intent(in)    :: nodal_values(:)
   type(tensor_field_t)         , intent(inout) :: quadrature_points_values(:)
 
-  call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
+  call this%reference_fe%evaluate_fe_function ( this%interpolation, nodal_values, quadrature_points_values )
 end subroutine volume_integrator_evaluate_fe_function_tensor
 
 subroutine volume_integrator_evaluate_gradient_fe_function_scalar ( this, nodal_values, quadrature_points_values )

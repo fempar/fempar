@@ -894,7 +894,7 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
   !nnode = ref%number_shape_functions
   nnode = size(ref%shape_functions,1)
 
-  ! Shape functions do not change BUT are permuted
+  ! Shape functions do not change
   !phy%shape_functions = ref%shape_functions 
 
   ! First derivatives do
