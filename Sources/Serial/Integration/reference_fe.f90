@@ -118,8 +118,8 @@ module reference_fe_names
      integer(ip)                           :: number_quadrature_points
      integer(ip)                           :: number_faces
      integer(ip)                           :: active_face_id
-     type(interpolation_t), allocatable :: interpolation(:)
-     type(interpolation_t)              :: interpolation_o_map
+     type(interpolation_t), allocatable    :: interpolation(:)
+     type(interpolation_t), allocatable    :: interpolation_o_map(:)
    contains
      procedure, non_overridable :: create => interpolation_face_restriction_create
      procedure, non_overridable :: free   => interpolation_face_restriction_free

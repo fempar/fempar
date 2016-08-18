@@ -614,7 +614,7 @@ subroutine volume_integrator_get_value_scalar (this, ishape, qpoint, scalar_fiel
   integer(ip)                  , intent(in)    :: qpoint
   real(rp)                     , intent(out)   :: scalar_field
   assert( this%reference_fe%field_type == field_type_scalar )
-  call this%reference_fe%get_value(this%interpolation,ishape,qpoint,scalar_field)
+  call this%reference_fe%get_value(this%interpolation_o_map,ishape,qpoint,scalar_field)
 end subroutine volume_integrator_get_value_scalar
 
 subroutine volume_integrator_get_value_vector (this, ishape, qpoint, vector_field)
@@ -624,7 +624,7 @@ subroutine volume_integrator_get_value_vector (this, ishape, qpoint, vector_fiel
   integer(ip)                  , intent(in)    :: qpoint
   type(vector_field_t)         , intent(out)   :: vector_field
   assert( this%reference_fe%field_type == field_type_vector )
-  call this%reference_fe%get_value(this%interpolation,ishape,qpoint,vector_field)
+  call this%reference_fe%get_value(this%interpolation_o_map,ishape,qpoint,vector_field)
 end subroutine volume_integrator_get_value_vector
 
 subroutine volume_integrator_get_value_tensor (this, ishape, qpoint, tensor_field)
@@ -690,7 +690,7 @@ subroutine volume_integrator_get_divergence_tensor (this, ishape, qpoint, vector
   integer(ip)                  , intent(in)    :: ishape
   integer(ip)                  , intent(in)    :: qpoint
   type(vector_field_t)         , intent(out)   :: vector_field
-  assert( this%reference_fe%field_type == field_type_tensor .or. this%reference_fe%field_type == field_type_symmetric_tensor  ) 
+  assert( this%reference_fe%field_type == field_type_tensor .or. this%reference_fe%field_type == field_type_symmetric_tensor  )
 end subroutine volume_integrator_get_divergence_tensor
 
 subroutine volume_integrator_get_curl_vector (this, ishape, qpoint, vector_field)
@@ -713,7 +713,7 @@ subroutine volume_integrator_evaluate_fe_function_scalar ( this, nodal_values, q
   real(rp)                     , intent(in)    :: nodal_values(:)
   real(rp)                     , intent(inout) :: quadrature_points_values(:)
 
-  call this%reference_fe%evaluate_fe_function ( this%interpolation, nodal_values, quadrature_points_values )
+  call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
 end subroutine volume_integrator_evaluate_fe_function_scalar
 
 subroutine volume_integrator_evaluate_fe_function_vector ( this, nodal_values, quadrature_points_values )
@@ -722,7 +722,7 @@ subroutine volume_integrator_evaluate_fe_function_vector ( this, nodal_values, q
   real(rp)                     , intent(in)    :: nodal_values(:)
   type(vector_field_t)         , intent(inout) :: quadrature_points_values(:)
 
-  call this%reference_fe%evaluate_fe_function ( this%interpolation, nodal_values, quadrature_points_values )
+  call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
 end subroutine volume_integrator_evaluate_fe_function_vector
 
 subroutine volume_integrator_evaluate_fe_function_tensor ( this, nodal_values, quadrature_points_values )
@@ -731,7 +731,7 @@ subroutine volume_integrator_evaluate_fe_function_tensor ( this, nodal_values, q
   real(rp)                     , intent(in)    :: nodal_values(:)
   type(tensor_field_t)         , intent(inout) :: quadrature_points_values(:)
 
-  call this%reference_fe%evaluate_fe_function ( this%interpolation, nodal_values, quadrature_points_values )
+  call this%reference_fe%evaluate_fe_function ( this%interpolation_o_map, nodal_values, quadrature_points_values )
 end subroutine volume_integrator_evaluate_fe_function_tensor
 
 subroutine volume_integrator_evaluate_gradient_fe_function_scalar ( this, nodal_values, quadrature_points_values )

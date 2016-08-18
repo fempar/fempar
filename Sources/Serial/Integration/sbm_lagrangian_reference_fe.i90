@@ -234,7 +234,7 @@ subroutine lagrangian_reference_fe_update_interpolation_face( this, local_face_i
   
   call this%update_interpolation(fe_map_face_restriction%fe_map(local_face_id),                   &
        &                         interpolation_face_restriction%interpolation(local_face_id),     &
-       &                         interpolation_face_restriction%interpolation_o_map)
+       &                         interpolation_face_restriction%interpolation_o_map(local_face_id))
 
 end subroutine lagrangian_reference_fe_update_interpolation_face
 
