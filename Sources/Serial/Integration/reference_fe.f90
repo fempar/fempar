@@ -1139,7 +1139,8 @@ type face_integrator_t
    generic                    :: get_value         => get_value_scalar
    procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
    generic                    :: get_gradient => get_gradient_scalar
-
+   procedure, non_overridable :: get_current_qpoints_perm => face_integrator_get_current_qpoints_perm
+   
    procedure, non_overridable, private :: face_integrator_evaluate_fe_function_scalar
    procedure, non_overridable, private :: face_integrator_evaluate_fe_function_vector
    procedure, non_overridable, private :: face_integrator_evaluate_fe_function_tensor

@@ -315,11 +315,11 @@ module fe_space_names
                                                                                             create_cell_fe_function_tensor
                                                                                             
      procedure, private                  :: create_face_fe_function_scalar               => serial_fe_space_create_face_fe_function_scalar
-     !procedure, private                  :: create_face_fe_function_vector               => serial_fe_space_create_face_fe_function_vector
-     !procedure, private                  :: create_face_fe_function_tensor               => serial_fe_space_create_face_fe_function_tensor
-     generic                             :: create_face_fe_function                      => create_face_fe_function_scalar!, &
-                                                                                            !create_face_fe_function_vector!, &
-                                                                                            !create_face_fe_function_tensor                                                                                       
+     procedure, private                  :: create_face_fe_function_vector               => serial_fe_space_create_face_fe_function_vector
+     procedure, private                  :: create_face_fe_function_tensor               => serial_fe_space_create_face_fe_function_tensor
+     generic                             :: create_face_fe_function                      => create_face_fe_function_scalar, &
+                                                                                            create_face_fe_function_vector, &
+                                                                                            create_face_fe_function_tensor                                                                                       
                                                                                             
      
      procedure                           :: fill_dof_info                                => serial_fe_space_fill_dof_info
@@ -1010,6 +1010,7 @@ module fe_space_names
   type face_fe_function_scalar_t
    private
    logical                         :: is_boundary
+   type(i1p_t)                     :: quadrature_points_permutation(2)   
    type(cell_fe_function_scalar_t) :: cell_fe_function_scalar(2)
   contains
      procedure, non_overridable, private :: create                       => face_fe_function_scalar_create
@@ -1027,6 +1028,7 @@ module fe_space_names
   type face_fe_function_vector_t
    private
    logical                         :: is_boundary
+   type(i1p_t)                     :: quadrature_points_permutation(2)  
    type(cell_fe_function_vector_t) :: cell_fe_function_vector(2)
   contains
      procedure, non_overridable, private :: create                       => face_fe_function_vector_create
@@ -1044,6 +1046,7 @@ module fe_space_names
   type face_fe_function_tensor_t
    private
    logical                         :: is_boundary
+   type(i1p_t)                     :: quadrature_points_permutation(2)    
    type(cell_fe_function_tensor_t) :: cell_fe_function_tensor(2)
   contains
      procedure, non_overridable, private :: create                       => face_fe_function_tensor_create

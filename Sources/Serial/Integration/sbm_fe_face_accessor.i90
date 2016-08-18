@@ -227,6 +227,9 @@ subroutine fe_face_accessor_update_face_fe_function_scalar ( this, fe_function, 
   face_integrator => this%get_face_integrator(field_id)
   
   do icell_around=1, this%get_num_cells_around()
+    
+    face_fe_function_scalar%quadrature_points_permutation(icell_around)%p => &
+      face_integrator%get_current_qpoints_perm(icell_around)
   
     call this%get_cell_around(icell_around, fe)
     
@@ -257,7 +260,7 @@ subroutine fe_face_accessor_update_face_fe_function_scalar ( this, fe_function, 
                                                     number_nodes_field, &
                                                     elem2dof,           &
                                                     nodal_values )
-  
+    
     ! Evaluate values and gradients at quadrature points
     call face_integrator%evaluate_fe_function ( icell_around, &
                                                 nodal_values, & 
@@ -300,6 +303,9 @@ subroutine fe_face_accessor_update_face_fe_function_vector ( this, fe_function, 
   face_integrator => this%get_face_integrator(field_id)
   
   do icell_around=1, this%get_num_cells_around()
+  
+    face_fe_function_vector%quadrature_points_permutation(icell_around)%p => &
+      face_integrator%get_current_qpoints_perm(icell_around)
   
     call this%get_cell_around(icell_around, fe)
     
@@ -372,6 +378,9 @@ subroutine fe_face_accessor_update_face_fe_function_tensor ( this, fe_function, 
   face_integrator => this%get_face_integrator(field_id)
   
   do icell_around=1, this%get_num_cells_around()
+  
+    face_fe_function_tensor%quadrature_points_permutation(icell_around)%p => &
+      face_integrator%get_current_qpoints_perm(icell_around)
   
     call this%get_cell_around(icell_around, fe)
     

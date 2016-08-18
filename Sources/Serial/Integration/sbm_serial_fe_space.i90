@@ -1429,6 +1429,36 @@ subroutine serial_fe_space_create_face_fe_function_scalar ( this, field_id, face
 
 end subroutine serial_fe_space_create_face_fe_function_scalar
 
+subroutine serial_fe_space_create_face_fe_function_vector ( this, field_id, face_fe_function_vector )
+  implicit none
+  class(serial_fe_space_t)       , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: field_id
+  type(face_fe_function_vector_t), intent(inout) :: face_fe_function_vector
+
+  assert ( field_id >=1 .and. field_id <= this%number_fields )
+  assert ( this%get_field_type(field_id) == field_type_vector )
+
+  call face_fe_function_vector%create( field_id,                       &
+                                       this%get_max_number_nodes(field_id), &
+                                       this%get_max_number_face_quadrature_points() )
+
+end subroutine serial_fe_space_create_face_fe_function_vector
+
+subroutine serial_fe_space_create_face_fe_function_tensor ( this, field_id, face_fe_function_tensor )
+  implicit none
+  class(serial_fe_space_t)       , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: field_id
+  type(face_fe_function_tensor_t), intent(inout) :: face_fe_function_tensor
+
+  assert ( field_id >=1 .and. field_id <= this%number_fields )
+  assert ( this%get_field_type(field_id) == field_type_tensor )
+
+  call face_fe_function_tensor%create( field_id,                       &
+                                       this%get_max_number_nodes(field_id), &
+                                       this%get_max_number_face_quadrature_points() )
+
+end subroutine serial_fe_space_create_face_fe_function_tensor
+
 function serial_fe_space_get_triangulation( this) result(triangulation)
   class(serial_fe_space_t)      , intent(in)    :: this 
   class(base_static_triangulation_t), pointer       :: triangulation

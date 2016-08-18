@@ -413,56 +413,135 @@ function error_norm_scalar_compute_values(this,fe_function,scalar_function,time)
   real(rp)                       , pointer     :: unknown_values_at_qpoints(:)
   integer(ip)                                  :: number_qpoints
 
+  type(fe_face_iterator_t)                     :: fe_face_iterator
+  type(fe_face_accessor_t)                     :: fe_face
+  type(face_map_t)               , pointer     :: face_map  
+  type(face_fe_function_scalar_t)              :: fe_face_unknown
+  real(rp)    :: dvolume
+  integer(ip) :: qpoin
+  
+  !if(this%environment%am_i_l1_task()) then
+  !   ! Initialize
+  !   norm = 0.0_rp
+  !   fe_iterator = this%fe_space%create_fe_iterator()
+  !   call fe_iterator%current(fe)
+  !   call this%fe_space%initialize_fe_integration()
+  !   call this%fe_space%create_cell_fe_function(this%field_id,fe_unknown)
+  !   if ( present(time) ) time_(1) = time
+
+  !   call fe_iterator%current(fe)
+  !   quad                   => fe%get_quadrature()
+  !   fe_map                 => fe%get_fe_map()
+  !   number_qpoints         = quad%get_number_quadrature_points()
+
+  !   do while ( .not. fe_iterator%has_finished() )
+
+  !      ! Get current FE
+  !      call fe_iterator%current(fe)
+
+  !      ! Update FE-integration related data structures
+  !      call fe%update_integration()
+
+  !      ! Get quadrature coordinates
+  !      quadrature_coordinates => fe_map%get_quadrature_coordinates()          
+
+  !      ! Update cell FE function
+  !      call fe%update_cell_fe_function(fe_function,fe_unknown)
+
+  !      ! Evaluate function on quadrature points
+  !      if(present(time)) then
+  !         call scalar_function%get_values_set_space_time(quadrature_coordinates,time_, &
+  !                                                        this%quadrature_points_values)
+  !      else
+  !         call scalar_function%get_values_set_space(quadrature_coordinates, &
+  !                                                   this%quadrature_points_values(:,1))
+  !      end if
+
+  !      unknown_values_at_qpoints => fe_unknown%get_quadrature_points_values()
+  !      this%quadrature_points_values(1:number_qpoints,1) =    &
+  !           this%quadrature_points_values(1:number_qpoints,1) &
+  !           - unknown_values_at_qpoints(1:number_qpoints)
+
+  !      ! Compute element contribution to the global norm
+  !      call this%norm%compute(quad,fe_map,this%quadrature_points_values(:,1),norm)
+
+  !      call fe_iterator%next()
+  !   end do
+
+  !   ! Free
+  !   call fe_unknown%free()
+
+  !   ! All reduce
+  !   call this%environment%l1_sum(norm)
+
+  !   ! Finalize norm
+  !   norm = this%norm%finalize(norm)
+  !end if
+  
   if(this%environment%am_i_l1_task()) then
-     ! Initialize
+  !   ! Initialize
      norm = 0.0_rp
-     fe_iterator = this%fe_space%create_fe_iterator()
-     call fe_iterator%current(fe)
-     call this%fe_space%initialize_fe_integration()
-     call this%fe_space%create_cell_fe_function(this%field_id,fe_unknown)
+     fe_face_iterator = this%fe_space%create_fe_face_iterator()
+     call fe_face_iterator%current(fe_face)
+     do while ( .not. fe_face%is_at_boundary() ) 
+        call fe_face_iterator%next()
+        call fe_face_iterator%current(fe_face)
+     end do
+     call this%fe_space%initialize_fe_face_integration()
+     call this%fe_space%create_face_fe_function(this%field_id,fe_face_unknown)
      if ( present(time) ) time_(1) = time
 
-     call fe_iterator%current(fe)
-     quad                   => fe%get_quadrature()
-     fe_map                 => fe%get_fe_map()
-     number_qpoints         = quad%get_number_quadrature_points()
+    quad           => fe_face%get_quadrature()
+    number_qpoints = quad%get_number_quadrature_points()
+    face_map       => fe_face%get_face_map()
 
-     do while ( .not. fe_iterator%has_finished() )
+    do while ( .not. fe_face_iterator%has_finished() )
 
         ! Get current FE
-        call fe_iterator%current(fe)
+        call fe_face_iterator%current(fe_face)
 
-        ! Update FE-integration related data structures
-        call fe%update_integration()
+        if ( fe_face%is_at_boundary() .and. fe_face%get_set_id() == 0 ) then
+    
+           ! Update FE-integration related data structures
+           call fe_face%update_integration()
 
-        ! Get quadrature coordinates to evaluate boundary value
-        quadrature_coordinates => fe_map%get_quadrature_coordinates()          
+           ! Get quadrature coordinates
+           quadrature_coordinates => face_map%get_quadrature_coordinates()          
 
-        ! Update cell FE function
-        call fe%update_cell_fe_function(fe_function,fe_unknown)
+           ! Update cell FE function
+           call fe_face%update_face_fe_function(fe_function,fe_face_unknown)
 
-        ! Evaluate function on quadrature points
-        if(present(time)) then
-           call scalar_function%get_values_set_space_time(quadrature_coordinates,time_, &
-                                                          this%quadrature_points_values)
-        else
-           call scalar_function%get_values_set_space(quadrature_coordinates, &
-                                                     this%quadrature_points_values(:,1))
+           ! Evaluate function on quadrature points
+           if(present(time)) then
+              call scalar_function%get_values_set_space_time(quadrature_coordinates,time_, &
+                                                             this%quadrature_points_values)
+           else
+              call scalar_function%get_values_set_space(quadrature_coordinates, &
+                                                        this%quadrature_points_values(:,1))
+           end if
+
+           unknown_values_at_qpoints => fe_face_unknown%get_quadrature_points_values(1)
+           this%quadrature_points_values(1:number_qpoints,1) =    &
+                this%quadrature_points_values(1:number_qpoints,1) &
+                - unknown_values_at_qpoints(1:number_qpoints)
+
+           ! Compute element contribution to the global norm
+           ! Loop over quadrature points
+           do qpoin = 1, quad%get_number_quadrature_points()
+              ! |J]*wg
+              dvolume = face_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
+              ! Compute norm ( f(u)**2 )
+              norm = norm + dvolume*(this%quadrature_points_values(qpoin,1)**2)
+           end do
+           
         end if
-
-        unknown_values_at_qpoints => fe_unknown%get_quadrature_points_values()
-        this%quadrature_points_values(1:number_qpoints,1) =    &
-             this%quadrature_points_values(1:number_qpoints,1) &
-             - unknown_values_at_qpoints(1:number_qpoints)
-
-        ! Compute element contribution to the global norm
-        call this%norm%compute(quad,fe_map,this%quadrature_points_values(:,1),norm)
-
-        call fe_iterator%next()
+        
+        call fe_face_iterator%next()
+        
      end do
 
      ! Free
-     call fe_unknown%free()
+     call fe_face_unknown%free()
 
      ! All reduce
      call this%environment%l1_sum(norm)
@@ -470,6 +549,7 @@ function error_norm_scalar_compute_values(this,fe_function,scalar_function,time)
      ! Finalize norm
      norm = this%norm%finalize(norm)
   end if
+  
 end function error_norm_scalar_compute_values
 
 !====================================================================================================
@@ -515,7 +595,7 @@ function error_norm_scalar_compute_gradients(this,fe_function,vector_function,ti
         ! Update FE-integration related data structures
         call fe%update_integration()
 
-        ! Get quadrature coordinates to evaluate boundary value
+        ! Get quadrature coordinates
         quadrature_coordinates => fe_map%get_quadrature_coordinates()          
 
         ! Update cell FE function
@@ -640,7 +720,7 @@ function error_norm_vector_compute_values(this,fe_function,vector_function,time)
         ! Update FE-integration related data structures
         call fe%update_integration()
 
-        ! Get quadrature coordinates to evaluate boundary value
+        ! Get quadrature coordinates
         quadrature_coordinates => fe_map%get_quadrature_coordinates()          
 
         ! Update cell FE function
@@ -722,7 +802,7 @@ function error_norm_vector_compute_gradients(this,fe_function,tensor_function,ti
         ! Update FE-integration related data structures
         call fe%update_integration()
 
-        ! Get quadrature coordinates to evaluate boundary value
+        ! Get quadrature coordinates
         quadrature_coordinates => fe_map%get_quadrature_coordinates()          
 
         ! Update cell FE function

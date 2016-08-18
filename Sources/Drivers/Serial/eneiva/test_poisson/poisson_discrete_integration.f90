@@ -191,7 +191,7 @@ contains
        facemat = 0.0_rp
        facevec = 0.0_rp
        call fe_face_iterator%current(fe_face)
-       if ( fe_face%is_at_boundary() ) then
+       if ( fe_face%is_at_boundary() .and. fe_face%get_set_id() == 0 ) then
          call fe_face%update_integration()    
          quad_coords => face_map%get_quadrature_coordinates()
          do qpoint = 1, num_quad_points
