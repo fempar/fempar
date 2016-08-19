@@ -1266,7 +1266,7 @@ contains
 
 #include "sbm_tet_lagrangian_reference_fe.i90"
 
-#include "sbm_cell_topology.i90"
+#include "sbm_polytope_topology.i90"
 
 #include "sbm_volume_integrator.i90"
 
