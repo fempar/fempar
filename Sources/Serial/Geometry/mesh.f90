@@ -272,7 +272,7 @@ contains
     msh_new%lnods = msh_old%lnods
 
     if (allocated(msh_old%coord)) then
-       call memalloc(number_space_dimensions,msh_new%npoin,msh_new%coord,__FILE__,__LINE__)
+       call memalloc(SPACE_DIM,msh_new%npoin,msh_new%coord,__FILE__,__LINE__)
        msh_new%coord = msh_old%coord
     end if
 
@@ -310,7 +310,7 @@ contains
     !write(*,*) 'Read mesh with parameters:',msh%ndime,msh%order,msh%nelty,msh%nelem,msh%npoin,nboun
 
     ! Read nodes
-    call memalloc(number_space_dimensions,msh%npoin,msh%coord,__FILE__,__LINE__)
+    call memalloc(SPACE_DIM,msh%npoin,msh%coord,__FILE__,__LINE__)
     msh%coord = 0.0_rp
     do while(tel(1:5).ne.'coord')
        read(lunio,'(a)') tel
@@ -1685,7 +1685,7 @@ contains
     call ws_inmap%free
     call el_inmap%free
 
-    call memalloc(number_space_dimensions, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
+    call memalloc(SPACE_DIM, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
     !call map_apply_g2l(nmap, gmesh%ndime, gmesh%coord, lmesh%coord)
     do ipoin=1,num_local_vertices
        lmesh%coord(:,ipoin)=gmesh%coord(:,l2g_vertices(ipoin))

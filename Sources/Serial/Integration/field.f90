@@ -37,7 +37,7 @@ module field_names
 
   type :: vector_field_t
      private
-     real(rp) :: value(number_space_dimensions) = 0.0_rp
+     real(rp) :: value(SPACE_DIM) = 0.0_rp
    contains
      procedure, non_overridable :: vector_field_init_with_scalar
      procedure, non_overridable :: vector_field_init_with_vector
@@ -55,7 +55,7 @@ module field_names
 
   type :: tensor_field_t
      private
-     real(rp)  :: value(number_space_dimensions,number_space_dimensions) = 0.0_rp
+     real(rp)  :: value(SPACE_DIM,SPACE_DIM) = 0.0_rp
    contains
      procedure, non_overridable :: init  => tensor_field_init
      procedure, non_overridable :: set   => tensor_field_set
@@ -65,7 +65,7 @@ module field_names
   
   type :: symmetric_tensor_field_t
      private
-     real(rp)  :: value(number_space_dimensions,number_space_dimensions)
+     real(rp)  :: value(SPACE_DIM,SPACE_DIM)
    contains			
      procedure, non_overridable :: init  => symmetric_tensor_field_init
      procedure, non_overridable :: set   => symmetric_tensor_field_set					
@@ -114,7 +114,7 @@ module field_names
 # define generic_memmovealloc_interface  memmovealloc
 
 # define var_type type(point_t)
-# define var_size 8*number_space_dimensions
+# define var_size 8*SPACE_DIM
 # define bound_kind ip
 # include "mem_header.i90"
   public :: memalloc,  memrealloc,  memfree, memmovealloc
@@ -126,7 +126,7 @@ contains
   function vector_field_get_value(this)
     implicit none
     class(vector_field_t), intent(in) :: this
-    real(rp) :: vector_field_get_value(number_space_dimensions)
+    real(rp) :: vector_field_get_value(SPACE_DIM)
     vector_field_get_value = this%value
   end function vector_field_get_value
 
@@ -140,7 +140,7 @@ contains
   subroutine vector_field_init_with_vector(this,value)
     implicit none
     class(vector_field_t), intent(inout) :: this
-    real(rp)             , intent(in)    :: value(number_space_dimensions)
+    real(rp)             , intent(in)    :: value(SPACE_DIM)
     this%value = value
   end subroutine vector_field_init_with_vector
 
@@ -248,7 +248,7 @@ contains
     real(rp)                         :: res
     integer(ip) :: k
     res=0.0_rp
-    do k=1,number_space_dimensions
+    do k=1,SPACE_DIM
        res = res + v1%value(k)*v2%value(k)
     end do
   end function single_contract_vector_vector
@@ -260,8 +260,8 @@ contains
     type(vector_field_t)             :: res
     integer(ip) :: i, k
     res%value=0.0_rp
-    do k=1,number_space_dimensions
-       do i=1,number_space_dimensions
+    do k=1,SPACE_DIM
+       do i=1,SPACE_DIM
           res%value(i) = res%value(i) + t%value(i,k) * v%value(k)
        end do
     end do
@@ -274,8 +274,8 @@ contains
     type(vector_field_t)             :: res
     integer(ip) :: i, k
     res%value=0.0_rp
-    do i=1,number_space_dimensions
-       do k=1,number_space_dimensions
+    do i=1,SPACE_DIM
+       do k=1,SPACE_DIM
           res%value(i) = res%value(i) + v%value(k) * t%value(k,i)
        end do
     end do
@@ -288,9 +288,9 @@ contains
     type(tensor_field_t)             :: res
     integer(ip) :: i, j, k
     res%value=0.0_rp
-    do i=1,number_space_dimensions
-       do k=1,number_space_dimensions
-          do j=1,number_space_dimensions
+    do i=1,SPACE_DIM
+       do k=1,SPACE_DIM
+          do j=1,SPACE_DIM
              res%value(i,k) = res%value(i,k) + t1%value(i,j) * t2%value(j,k)
           end do
        end do
@@ -336,8 +336,8 @@ contains
     real(rp)                         :: res
     integer(ip) :: i, j
     res = 0.0_rp
-    do j=1, number_space_dimensions
-       do i=1,number_space_dimensions
+    do j=1, SPACE_DIM
+       do i=1,SPACE_DIM
           res = res + t1%value(i,j)*t2%value(i,j)
        end do
     end do

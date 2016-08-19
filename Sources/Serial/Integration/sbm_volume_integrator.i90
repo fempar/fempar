@@ -361,7 +361,7 @@ function fe_map_compute_h ( this, qpoin)
   real(rp)                    :: fe_map_compute_h
 
   integer(ip) :: idime, jdime
-  real(rp)    :: inverse_h(number_space_dimensions), volumetric_h
+  real(rp)    :: inverse_h(SPACE_DIM), volumetric_h
   integer(ip) :: i,j
 
   assert( qpoin>=1 .and. qpoin <= this%number_quadrature_points)
@@ -391,7 +391,7 @@ function fe_map_compute_h_min ( this, qpoin)
   real(rp)                    :: fe_map_compute_h_min
 
   integer(ip) :: idime, jdime
-  real(rp)    :: inverse_h(number_space_dimensions), minimum_h
+  real(rp)    :: inverse_h(SPACE_DIM), minimum_h
   integer(ip) :: i,j
 
   assert( qpoin>=1 .and. qpoin <= this%number_quadrature_points)
@@ -419,7 +419,7 @@ function fe_map_compute_h_max ( this, qpoin)
   real(rp)                    :: fe_map_compute_h_max
 
   integer(ip) :: idime, jdime
-  real(rp)    :: inverse_h(number_space_dimensions), maximum_h
+  real(rp)    :: inverse_h(SPACE_DIM), maximum_h
   integer(ip) :: i,j
 
   assert( qpoin>=1 .and. qpoin <= this%number_quadrature_points)

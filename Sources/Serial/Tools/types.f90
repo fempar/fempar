@@ -88,7 +88,7 @@ module types_names
   integer (ip), parameter  :: free_clean  = 9
   
   ! Number of space dimensions for statically allocated data types (see, e.g., field.f90)
-  integer(ip), parameter :: number_space_dimensions = 3
+  integer(ip), parameter :: SPACE_DIM = 3
   
   integer(ieep), parameter :: mold(1) = [0_ieep]
   integer(ip)  , parameter :: size_of_ip = size(transfer(1_ip, mold))
