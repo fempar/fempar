@@ -326,14 +326,14 @@ contains
 
   subroutine memstatus
     implicit none
+#ifdef memcheck
     write(*,*) '====================================================='
     write(*,*) 'Current memory usage:',mecur
     write(*,*) 'Maximum memory usage:',memax
-#ifdef memcheck
     write(*,*) 'Currently allocated variables are:'
     call mem_db%print
-#endif
     write(*,*) '====================================================='
+#endif    
   end subroutine memstatus
 
 end module mem_base_names

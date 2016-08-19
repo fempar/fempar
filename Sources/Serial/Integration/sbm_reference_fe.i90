@@ -352,6 +352,22 @@ end function reference_fe_get_conformity
     reference_fe_get_node_vef = iterator%reach_from_current(i-1)
   end function reference_fe_get_node_vef
   
+  function reference_fe_get_number_dofs_on_vef ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i
+    integer(ip) :: reference_fe_get_number_dofs_on_vef
+    reference_fe_get_number_dofs_on_vef = this%nodes_vef%get_sublist_size(i)
+  end function reference_fe_get_number_dofs_on_vef
+  
+  function reference_fe_create_dofs_on_vef_iterator ( this, i )
+    implicit none
+    class(reference_fe_t), intent(in) :: this
+    integer(ip), intent(in) :: i
+    type(list_iterator_t) :: reference_fe_create_dofs_on_vef_iterator
+    reference_fe_create_dofs_on_vef_iterator = this%nodes_vef%create_iterator(i)    
+  end function reference_fe_create_dofs_on_vef_iterator  
+  
   function reference_fe_get_own_node_vef ( this, i, j )
     implicit none
     class(reference_fe_t), intent(in) :: this

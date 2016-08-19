@@ -25,24 +25,24 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_discrete_integration_names
+module poisson_cG_discrete_integration_names
   use serial_names
   
   implicit none
 # include "debug.i90"
   private
-  type, extends(discrete_integration_t) :: poisson_discrete_integration_t
+  type, extends(discrete_integration_t) :: poisson_cG_discrete_integration_t
    contains
      procedure :: integrate
-  end type poisson_discrete_integration_t
+  end type poisson_cG_discrete_integration_t
   
-  public :: poisson_discrete_integration_t
+  public :: poisson_cG_discrete_integration_t
   
 contains
    
   subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
-    class(poisson_discrete_integration_t), intent(in)    :: this
+    class(poisson_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
     class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
 
@@ -78,9 +78,9 @@ contains
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
     
-    fe_iterator = fe_space%create_fe_iterator()
     call fe_space%initialize_fe_integration()
     
+    fe_iterator = fe_space%create_fe_iterator()
     call fe_iterator%current(fe)
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
@@ -91,7 +91,6 @@ contains
     num_quad_points = quad%get_number_quadrature_points()
     fe_map          => fe%get_fe_map()
     vol_int         => fe%get_volume_integrator(1)
-    
     do while ( .not. fe_iterator%has_finished() )
        ! Get current FE
        call fe_iterator%current(fe)
@@ -117,7 +116,7 @@ contains
           end do
        end do
        
-       ! Apply boundary conditions (IMPLEMENTATION PENDING)
+       ! Apply boundary conditions
        call fe%impose_strong_dirichlet_bcs( elmat, elvec )
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        call fe_iterator%next()
@@ -128,4 +127,4 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate
   
-end module poisson_discrete_integration_names
+end module poisson_cG_discrete_integration_names

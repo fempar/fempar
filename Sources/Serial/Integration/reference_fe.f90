@@ -119,8 +119,8 @@ module reference_fe_names
      integer(ip)                           :: number_quadrature_points
      integer(ip)                           :: number_faces
      integer(ip)                           :: active_face_id
-     type(interpolation_t), allocatable :: interpolation(:)
-     type(interpolation_t)              :: interpolation_o_map
+     type(interpolation_t), allocatable    :: interpolation(:)
+     type(interpolation_t), allocatable    :: interpolation_o_map(:)
    contains
      procedure, non_overridable :: create => interpolation_face_restriction_create
      procedure, non_overridable :: free   => interpolation_face_restriction_free
@@ -357,9 +357,14 @@ module reference_fe_names
      procedure :: get_nodes_vef   =>   reference_fe_get_nodes_vef
      procedure :: get_vefs_vef   =>   reference_fe_get_vefs_vef
      procedure :: get_number_vertices_vef => reference_fe_get_number_vertices_vef
+
+     procedure :: get_number_dofs_on_vef => reference_fe_get_number_dofs_on_vef
+     procedure :: create_dofs_on_vef_iterator => reference_fe_create_dofs_on_vef_iterator
+     
      procedure :: get_number_own_nodes_vef => reference_fe_get_number_own_nodes_vef
      procedure :: create_own_dofs_on_vef_iterator => reference_fe_create_own_dofs_on_vef_iterator
      procedure :: get_own_node_vef => reference_fe_get_own_node_vef
+
      procedure :: get_face_integration_coupling_number_nodes_face => reference_fe_get_face_integration_coupling_number_nodes_face
      procedure :: get_face_integration_coupling_node_face => reference_fe_get_face_integration_coupling_node_face
      procedure :: create_face_integration_coupling_dofs_iterator => create_face_integration_coupling_dofs_iterator
@@ -557,28 +562,28 @@ module reference_fe_names
        type(tensor_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_tensor_interface     
 
-     subroutine evaluate_gradient_fe_function_scalar_interface( this, &
+     subroutine evaluate_gradient_fe_function_scalar_interface( this,             &
                                                      & actual_cell_interpolation, &
-                                                     & nodal_values, &
+                                                     & nodal_values,              &
                                                      & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp, vector_field_t
        implicit none
-       class(reference_fe_t)   , intent(in)    :: this 
+       class(reference_fe_t), intent(in)    :: this 
        type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)                , intent(in)    :: nodal_values(:)
-       type(vector_field_t)    , intent(inout) :: quadrature_points_values(:)
+       real(rp)             , intent(in)    :: nodal_values(:)
+       type(vector_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_scalar_interface
 
-     subroutine evaluate_gradient_fe_function_vector_interface( this, &
+     subroutine evaluate_gradient_fe_function_vector_interface( this,             &
                                                      & actual_cell_interpolation, &
-                                                     & nodal_values, &
+                                                     & nodal_values,              &
                                                      & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp, tensor_field_t
        implicit none
-       class(reference_fe_t)   , intent(in)    :: this 
+       class(reference_fe_t), intent(in)    :: this 
        type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)                , intent(in)    :: nodal_values(:)
-       type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
+       real(rp)             , intent(in)    :: nodal_values(:)
+       type(tensor_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_vector_interface
 
      subroutine blending_interface( this,values)
@@ -1217,6 +1222,20 @@ type face_integrator_t
    generic                    :: get_value         => get_value_scalar
    procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
    generic                    :: get_gradient => get_gradient_scalar
+   procedure, non_overridable :: get_current_qpoints_perm => face_integrator_get_current_qpoints_perm
+   
+   procedure, non_overridable, private :: face_integrator_evaluate_fe_function_scalar
+   procedure, non_overridable, private :: face_integrator_evaluate_fe_function_vector
+   procedure, non_overridable, private :: face_integrator_evaluate_fe_function_tensor
+   generic :: evaluate_fe_function => face_integrator_evaluate_fe_function_scalar, &
+                                    & face_integrator_evaluate_fe_function_vector, &
+                                    & face_integrator_evaluate_fe_function_tensor
+
+   procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_scalar
+   procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_vector
+   generic :: evaluate_gradient_fe_function => face_integrator_evaluate_gradient_fe_function_scalar, &
+                                             & face_integrator_evaluate_gradient_fe_function_vector
+
 end type face_integrator_t
 
 type p_face_integrator_t
