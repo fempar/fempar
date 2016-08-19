@@ -130,6 +130,15 @@ function geometry_tree_get_object(this, object_index)
 end function geometry_tree_get_object
 
 !=================================================================================================
+function geometry_tree_get_object_dimension(this, object_index) 
+       implicit none
+  class(geometry_tree_t), intent(in) :: this
+  integer(ip)         , intent(in) :: object_index
+  integer(ip)                          :: geometry_tree_get_object_dimension
+  geometry_tree_get_object_dimension = object_dimension( this%object_array(object_index), this%number_dimensions )     
+end function geometry_tree_get_object_dimension
+
+!=================================================================================================
 !     NODE_ARRAY_T TBPS
 !=================================================================================================
 

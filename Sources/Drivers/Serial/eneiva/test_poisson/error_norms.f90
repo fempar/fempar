@@ -197,7 +197,7 @@ subroutine l1_norm_compute_vector(this,quad,fe_map,value_in,value_out)
   do qpoin = 1, quad%get_number_quadrature_points()
      ! |J]*wg
      dvolume = fe_map%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
-     do idime = 1,number_space_dimensions
+     do idime = 1,SPACE_DIM
         ! Compute norm ( sum_{i=1}^{ndime} abs(f(u)_i) )
         value_out = value_out + dvolume*abs(value_in(qpoin)%get(idime))
      end do

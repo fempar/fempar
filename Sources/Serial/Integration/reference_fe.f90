@@ -1034,6 +1034,7 @@ module reference_fe_names
      procedure          :: create                   => geometry_tree_create
      procedure          :: create_children_iterator => geometry_tree_create_children_iterator
      procedure          :: get_object               => geometry_tree_get_object
+     procedure          :: get_object_dimension    => geometry_tree_get_object_dimension
      procedure          :: get_number_objects       => geometry_tree_get_number_objects
      procedure          :: free                     => geometry_tree_free
      procedure, private :: fill_tree 
@@ -1088,8 +1089,8 @@ module reference_fe_names
      logical                     :: own_boundary
      integer(ip)                 :: object
      integer(ip)                 :: topology
-     integer(ip)                 :: displacement(0:number_space_dimensions-1)
-     integer(ip)                 :: coordinate(0:number_space_dimensions-1)
+     integer(ip)                 :: displacement(0:SPACE_DIM-1)
+     integer(ip)                 :: coordinate(0:SPACE_DIM-1)
      logical                     :: overflow
      integer(ip)                  :: max_value ! 0 or 1
      integer(ip)                  :: min_value ! order or order-1

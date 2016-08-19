@@ -1047,7 +1047,7 @@ num_objects = object_tree%get_number_objects()
   this%number_vefs_dimension = 0
   this%number_vefs_dimension(1) = 1
   do i = 1,num_objects
-     obj_dim = object_dimension( object_tree%get_object(i), this%number_dimensions )
+     obj_dim = object_tree%get_object_dimension(i)
      this%number_vefs_dimension( obj_dim+2 ) = this%number_vefs_dimension( obj_dim+2 ) + 1
   end do  
   do i = 1,this%number_dimensions+1

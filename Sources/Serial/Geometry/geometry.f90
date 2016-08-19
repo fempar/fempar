@@ -13,7 +13,7 @@ module geometry_names
   type geometric_point_t
      private
      integer(ip) :: id
-     real(rp)    :: coord(number_space_dimensions)
+     real(rp)    :: coord(SPACE_DIM)
    contains
      procedure, non_overridable :: read => point_read
   end type geometric_point_t 
@@ -110,7 +110,7 @@ contains
     do while(tel(1:5)/='Coord')
        read(unit,'(a)') tel
     end do
-    read(tel(7:),*) (point%coord(i),i=1,number_space_dimensions)
+    read(tel(7:),*) (point%coord(i),i=1,SPACE_DIM)
    
     end subroutine point_read
 
@@ -141,12 +141,12 @@ contains
        read(unit,'(a)') tel
     end do
     read(tel(26:),*) line%n,dum,line%p
-    allocate(line%control_points(line%n*(number_space_dimensions+1)),stat=i)
+    allocate(line%control_points(line%n*(SPACE_DIM+1)),stat=i)
     !if(i/=0) check(.false.)
 
     do i=1,line%n
        read(unit,'(a)') tel
-       read(tel(16:),*) (line%control_points((number_space_dimensions+1)*(i-1)+j),j=1,number_space_dimensions)
+       read(tel(16:),*) (line%control_points((SPACE_DIM+1)*(i-1)+j),j=1,SPACE_DIM)
        !read(tel(16:),*) line%control_points((number_space_dimensions+1)*(i-1)+1), &
        !     &           line%control_points((number_space_dimensions+1)*(i-1)+2), &
        !     &           line%control_points((number_space_dimensions+1)*(i-1)+3)
@@ -179,8 +179,8 @@ contains
 
     ! Define 4D control poitns (i.e. multiply by weights)
     do i=1,line%n
-       do j=1,number_space_dimensions
-          line%control_points((number_space_dimensions+1)*(i-1)+j) = line%control_points((number_space_dimensions+1)*(i-1)+j) * line%control_points((number_space_dimensions+1)*i)
+       do j=1,SPACE_DIM
+          line%control_points((SPACE_DIM+1)*(i-1)+j) = line%control_points((SPACE_DIM+1)*(i-1)+j) * line%control_points((SPACE_DIM+1)*i)
        end do
     end do
 
@@ -203,18 +203,18 @@ contains
 
     ! The magic constants: 2 means nurbs, always in 3D and 0 means point (not copy).
     if(line%n>0) then ! It is a nurbs
-       line%sisl_ptr = new_curve(line%n,line%p+1,line%knots,line%control_points,2,number_space_dimensions,0)
+       line%sisl_ptr = new_curve(line%n,line%p+1,line%knots,line%control_points,2,SPACE_DIM,0)
     else              ! It is a STLINE, create a linear spline using extremes
        line%n = 2
        line%p = 1
-       allocate(line%control_points(line%n*number_space_dimensions),stat=i)
+       allocate(line%control_points(line%n*SPACE_DIM),stat=i)
        allocate(line%knots(line%n+line%p+1),stat=i)
        line%knots = (/0.0,0.0,1.0,1.0/)
        point => line%geometry%get_point(line%point(1))
-       line%control_points(1:number_space_dimensions) =  point%coord
+       line%control_points(1:SPACE_DIM) =  point%coord
        point => line%geometry%get_point(line%point(2))
-       line%control_points(number_space_dimensions+1:2*number_space_dimensions) = point%coord
-       line%sisl_ptr = new_curve(line%n,line%p+1,line%knots,line%control_points,1,number_space_dimensions,0)
+       line%control_points(SPACE_DIM+1:2*SPACE_DIM) = point%coord
+       line%sisl_ptr = new_curve(line%n,line%p+1,line%knots,line%control_points,1,SPACE_DIM,0)
     end if
   end subroutine line_init
 
@@ -236,7 +236,7 @@ contains
 
     !point_coords = point%get_value()
     !call point_intersection(line%sisl_ptr, point_coords, number_space_dimensions, tol, num_int, p_param, num_curves, wcurve, istat)
-    call point_intersection(line%sisl_ptr, point%get_value(), number_space_dimensions, tol, num_int, p_param, num_curves, wcurve, istat)
+    call point_intersection(line%sisl_ptr, point%get_value(), SPACE_DIM, tol, num_int, p_param, num_curves, wcurve, istat)
     !write(*,*) num_int, istat
     assert(istat==0)
     assert(num_int==1)
@@ -267,9 +267,9 @@ contains
     call curve_left_evaluation(line%sisl_ptr, number_of_derivatives_to_compute, param, leftknot, values, stat) 
 
     assert(stat==0)
-    call point%init(values(1:number_space_dimensions))
+    call point%init(values(1:SPACE_DIM))
     if(present(tangent)) then
-       call tangent%init(values(number_space_dimensions+1:2*number_space_dimensions))
+       call tangent%init(values(SPACE_DIM+1:2*SPACE_DIM))
     end if
     
     !point = values(1:3)
