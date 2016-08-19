@@ -198,7 +198,7 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   init_dof_block    = this%number_dofs_per_block(iblock)
   current_dof_block = init_dof_block
 
-  if ( this%field_type(field_id) == field_type_cg ) then
+  if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
      fe_iterator = this%create_fe_iterator()
      do while ( .not. fe_iterator%has_finished() )
         call fe_iterator%current(fe)
@@ -224,7 +224,7 @@ subroutine par_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
         end if
         call fe_iterator%next() 
      end do
-  else if ( this%field_type(field_id) == field_type_dg ) then
+  else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
   
      fe_iterator = this%create_fe_iterator()
      do while ( .not. fe_iterator%has_finished() )
@@ -317,9 +317,9 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   i = 1
   do field_id = 1, this%number_fields
      if ( this%field_blocks(field_id) == iblock ) then
-        if ( this%field_type(field_id) == field_type_cg ) then
+        if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
            ubound_num_itfc_couplings (i) = this%compute_ubound_num_itfc_couplings_by_continuity(field_id)
-        else if ( this%field_type(field_id) == field_type_dg ) then
+        else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
            ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
                 this%compute_ubound_num_itfc_couplings_by_face_integ(field_id)
         end if
@@ -338,14 +338,14 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   i = 1
   do field_id = 1, this%number_fields
      if ( this%field_blocks(field_id) == iblock ) then
-        if ( this%field_type(field_id) == field_type_cg ) then
+        if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
            total_num_itfc_couplings = total_num_itfc_couplings + & 
                 this%compute_raw_interface_data_by_continuity(field_id, &
                                                               total_num_itfc_couplings, &
                                                               ubound_num_itfc_couplings(i),&
                                                               dofs_lid,&
                                                               raw_interface_data )
-        else if ( this%field_type(field_id) == field_type_dg ) then
+        else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
            total_num_itfc_couplings = total_num_itfc_couplings + & 
                 this%compute_raw_interface_data_by_face_integ(field_id, &
                                                               total_num_itfc_couplings, &
@@ -1136,13 +1136,13 @@ end subroutine par_fe_space_update_strong_dirichlet_bcs_values
   check ( istat == 0 )
   
   do field_id=1, this%number_fields
-    if ( this%field_type(field_id) == field_type_cg ) then
+    if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
       call this%setup_dofs_objects_by_continuity(field_id, &
                                                  num_dofs_objects_per_field(field_id), &
                                                  dofs_objects_per_field(field_id), &
                                                  dofs_objects_gids_per_field(field_id), & 
                                                  vefs_lids_dofs_objects_per_field(field_id) )
-    else if ( this%field_type(field_id) == field_type_dg ) then
+    else if ( this%fe_space_type_per_field(field_id) == fe_space_type_dg ) then
       ! Not implemented yet
       check(.false.)
     end if
@@ -1168,8 +1168,8 @@ subroutine par_fe_space_setup_dofs_objects_by_continuity ( this, &
   type(allocatable_array_ip1_t) , intent(inout)  :: vefs_lids_dofs_objects
   
   type(list_iterator_t)                :: vefs_object_iterator, dofs_object_iterator
-  integer(ip)                          :: iobj_vef, iobj_dof, elem_lid, vef_lid, ivef
-  integer(ip)                          :: idof_interior, idof, dof_lid
+  integer(ip)                          :: iobj_vef, iobj_dof, ivef
+  integer(ip)                          :: idof, dof_lid
   integer(ip)                          :: number_dofs_on_vef_object
   integer(ip)                          :: offset, i
   integer(ip)                          :: istat
@@ -1191,8 +1191,10 @@ subroutine par_fe_space_setup_dofs_objects_by_continuity ( this, &
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
   
-  num_dofs_objects = 0
+  allocate ( elem2dof(this%get_number_fields()), stat=istat)
+  check (istat == 0)
   
+  num_dofs_objects = 0
   object_iterator = this%create_fe_object_iterator()
   do while ( .not. object_iterator%has_finished() )
      call object_iterator%current(object)
@@ -1200,12 +1202,25 @@ subroutine par_fe_space_setup_dofs_objects_by_continuity ( this, &
      do while ( .not. vefs_on_object_iterator%has_finished() )
        call vefs_on_object_iterator%current(vef)
        call vef%get_cell_around(1,fe)
+       call fe%get_elem2dof(elem2dof)
        ivef = fe%find_lpos_vef_lid(vef%get_lid())
+       
        own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
-       if ( own_dofs_on_vef_iterator%get_size() > 0 ) then
+       do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+         idof    = own_dofs_on_vef_iterator%get_current()
+         dof_lid = elem2dof(field_id)%p(idof)
+         if ( dof_lid > 0 ) then
+           dofs_on_vef = .true.
+           exit
+         end if
+         call own_dofs_on_vef_iterator%next()
+       end do  
+       
+       if ( dofs_on_vef ) then
          num_dofs_objects = num_dofs_objects + 1
          exit
        end if
+       
        call vefs_on_object_iterator%next()
      end do 
      call object_iterator%next()
@@ -1225,9 +1240,17 @@ subroutine par_fe_space_setup_dofs_objects_by_continuity ( this, &
      do while ( .not. vefs_on_object_iterator%has_finished() )
        call vefs_on_object_iterator%current(vef)
        call vef%get_cell_around(1,fe)
+       call fe%get_elem2dof(elem2dof)
        ivef = fe%find_lpos_vef_lid(vef%get_lid())
        own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
-       number_dofs_on_vef_object = number_dofs_on_vef_object + own_dofs_on_vef_iterator%get_size() 
+       do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+         idof    = own_dofs_on_vef_iterator%get_current()
+         dof_lid = elem2dof(field_id)%p(idof)
+         if ( dof_lid > 0 ) then
+           number_dofs_on_vef_object = number_dofs_on_vef_object + 1
+         end if
+         call own_dofs_on_vef_iterator%next()
+       end do         
        call vefs_on_object_iterator%next()
      end do 
      if ( number_dofs_on_vef_object > 0 ) then
@@ -1238,9 +1261,6 @@ subroutine par_fe_space_setup_dofs_objects_by_continuity ( this, &
      end if
      call object_iterator%next()
   end do
-  
-  allocate ( elem2dof(this%get_number_fields()), stat=istat)
-  check (istat == 0)
   
   call dofs_objects%calculate_header()
   call dofs_objects%allocate_list_from_pointer()

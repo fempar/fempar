@@ -32,6 +32,7 @@ module reference_fe_names
   use types_names
   use list_types_names
   use memor_names
+  use sort_names
   implicit none
 # include "debug.i90"
 
@@ -118,8 +119,8 @@ module reference_fe_names
      integer(ip)                           :: number_quadrature_points
      integer(ip)                           :: number_faces
      integer(ip)                           :: active_face_id
-     type(interpolation_t), allocatable :: interpolation(:)
-     type(interpolation_t)              :: interpolation_o_map
+     type(interpolation_t), allocatable    :: interpolation(:)
+     type(interpolation_t), allocatable    :: interpolation_o_map(:)
    contains
      procedure, non_overridable :: create => interpolation_face_restriction_create
      procedure, non_overridable :: free   => interpolation_face_restriction_free
@@ -561,28 +562,28 @@ module reference_fe_names
        type(tensor_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_tensor_interface     
 
-     subroutine evaluate_gradient_fe_function_scalar_interface( this, &
+     subroutine evaluate_gradient_fe_function_scalar_interface( this,             &
                                                      & actual_cell_interpolation, &
-                                                     & nodal_values, &
+                                                     & nodal_values,              &
                                                      & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp, vector_field_t
        implicit none
-       class(reference_fe_t)   , intent(in)    :: this 
+       class(reference_fe_t), intent(in)    :: this 
        type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)                , intent(in)    :: nodal_values(:)
-       type(vector_field_t)    , intent(inout) :: quadrature_points_values(:)
+       real(rp)             , intent(in)    :: nodal_values(:)
+       type(vector_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_scalar_interface
 
-     subroutine evaluate_gradient_fe_function_vector_interface( this, &
+     subroutine evaluate_gradient_fe_function_vector_interface( this,             &
                                                      & actual_cell_interpolation, &
-                                                     & nodal_values, &
+                                                     & nodal_values,              &
                                                      & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp, tensor_field_t
        implicit none
-       class(reference_fe_t)   , intent(in)    :: this 
+       class(reference_fe_t), intent(in)    :: this 
        type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)                , intent(in)    :: nodal_values(:)
-       type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
+       real(rp)             , intent(in)    :: nodal_values(:)
+       type(tensor_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_vector_interface
 
      subroutine blending_interface( this,values)
@@ -719,7 +720,7 @@ module reference_fe_names
      integer(ip), allocatable :: node_array_component(:,:)
    contains
      ! Additional deferred methods
-     procedure (fill_scalar_interface)            , private, deferred :: fill_scalar
+     !procedure (fill_scalar_interface)            , private, deferred :: fill_scalar
      procedure (fill_quadrature_interface)        , private, deferred :: fill_quadrature   
      procedure (fill_interpolation_interface)     , private, deferred :: fill_interpolation
      procedure (fill_face_interpolation_interface), private, deferred :: fill_face_interpolation
@@ -738,6 +739,7 @@ module reference_fe_names
               & get_number_interior_points_x_dim
 
      procedure :: create                    => lagrangian_reference_fe_create
+     procedure :: fill_scalar               => lagrangian_reference_fe_fill_scalar
      procedure :: fill_interior_points_permutation     & 
       & => lagrangian_reference_fe_fill_interior_points_permutation
      procedure :: create_quadrature         => lagrangian_reference_fe_create_quadrature
@@ -928,8 +930,8 @@ module reference_fe_names
      procedure :: blending                                                    &
            &   => tet_lagrangian_reference_fe_blending 
      ! Deferred TBP implementors from lagrangian_reference_fe_t
-     procedure, private :: fill_scalar                                        &
-           & => tet_lagrangian_reference_fe_fill_scalar
+     !procedure, private :: fill_scalar                                        &
+     !      & => tet_lagrangian_reference_fe_fill_scalar
      procedure, private :: fill_quadrature                                    &
            & => tet_lagrangian_reference_fe_fill_quadrature
      procedure, private :: fill_interpolation                                 &
@@ -982,7 +984,7 @@ module reference_fe_names
            &   => hex_lagrangian_reference_fe_blending
            
      ! Deferred TBP implementors from lagrangian_reference_fe_t
-     procedure, private :: fill_scalar => hex_lagrangian_reference_fe_fill_scalar
+     !procedure, private :: fill_scalar => hex_lagrangian_reference_fe_fill_scalar
      procedure, private :: fill_quadrature                                    &
            & => hex_lagrangian_reference_fe_fill_quadrature
      procedure, private :: fill_interpolation                                 &
@@ -1020,8 +1022,89 @@ module reference_fe_names
   
   public :: hex_lagrangian_reference_fe_t
 
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+  type geometry_tree_t
+     !private
+     integer(ip)              :: number_dimensions
+     integer(ip)              :: topology
+     integer(ip)              :: number_objects 
+     integer(ip), allocatable :: object_array(:)     
+     integer(ip), allocatable :: ijk_to_index(:)
+   contains
+     procedure          :: create                   => geometry_tree_create
+     procedure          :: create_children_iterator => geometry_tree_create_children_iterator
+     procedure          :: free                     => geometry_tree_free
+     procedure, private :: fill_tree 
+  end type geometry_tree_t
+  
+  public :: geometry_tree_t
+  
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type node_array_t
+     !private
+     type(geometry_tree_t), pointer :: object_tree
+     integer(ip)                  :: order
+     integer(ip)                  :: number_nodes
+     integer(ip), allocatable     :: node_array(:)
+     integer(ip), allocatable     :: ijk_to_index(:)
+   contains
+     procedure :: create               => node_array_create
+     procedure :: print                => node_array_print
+     procedure :: free                 => node_array_free
+     procedure :: create_node_iterator => node_array_create_node_iterator
+     procedure, private :: fill        => node_array_fill
+  end type node_array_t
+  
+  public :: node_array_t
+  
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type children_iterator_t
+     private 
+     type(geometry_tree_t), pointer :: object_tree
+     integer(ip)                  :: parent
+     integer(ip)                  :: component
+     integer(ip)                  :: coordinate
+   contains
+     procedure :: create        => children_iterator_create     
+     procedure :: current       => children_iterator_current
+     procedure :: init          => children_iterator_init
+     procedure :: next          => children_iterator_next
+     procedure :: has_finished  => children_iterator_has_finished
+     !     procedure :: free          => children_iterator_free
+     procedure :: print         => children_iterator_print
+     procedure, private :: current_ijk   => children_iterator_current_ijk 
+     procedure, private :: is_admissible => children_iterator_is_admissible   
+  end type children_iterator_t
+  
+  public :: children_iterator_t
+  
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type node_iterator_t
+     private 
+     type(node_array_t), pointer :: node_array
+     logical                     :: own_boundary
+     integer(ip)                 :: object
+     integer(ip)                 :: topology
+     integer(ip)                 :: displacement(0:number_space_dimensions-1)
+     integer(ip)                 :: coordinate(0:number_space_dimensions-1)
+     logical                     :: overflow
+     integer(ip)                  :: max_value ! 0 or 1
+     integer(ip)                  :: min_value ! order or order-1
+   contains
+     procedure :: create        => node_iterator_create     
+     procedure :: current       => node_iterator_current
+     procedure :: init          => node_iterator_init
+     procedure :: next          => node_iterator_next
+     procedure :: has_finished  => node_iterator_has_finished
+     !procedure :: free          => node_iterator_free
+     procedure :: print         => node_iterator_print
+     procedure, private :: current_ijk => node_iterator_current_ijk  
+     procedure, private :: in_bound    => node_iterator_in_bound 
+  end type node_iterator_t
 
+  public node_iterator_t
+  
+    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type volume_integrator_t 
   private
   integer(ip)                    :: number_shape_functions
@@ -1139,6 +1222,20 @@ type face_integrator_t
    generic                    :: get_value         => get_value_scalar
    procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
    generic                    :: get_gradient => get_gradient_scalar
+   procedure, non_overridable :: get_current_qpoints_perm => face_integrator_get_current_qpoints_perm
+   
+   procedure, non_overridable, private :: face_integrator_evaluate_fe_function_scalar
+   procedure, non_overridable, private :: face_integrator_evaluate_fe_function_vector
+   procedure, non_overridable, private :: face_integrator_evaluate_fe_function_tensor
+   generic :: evaluate_fe_function => face_integrator_evaluate_fe_function_scalar, &
+                                    & face_integrator_evaluate_fe_function_vector, &
+                                    & face_integrator_evaluate_fe_function_tensor
+
+   procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_scalar
+   procedure, non_overridable, private :: face_integrator_evaluate_gradient_fe_function_vector
+   generic :: evaluate_gradient_fe_function => face_integrator_evaluate_gradient_fe_function_scalar, &
+                                             & face_integrator_evaluate_gradient_fe_function_vector
+
 end type face_integrator_t
 
 type p_face_integrator_t
@@ -1165,6 +1262,8 @@ contains
 #include "sbm_hex_lagrangian_reference_fe.i90"
 
 #include "sbm_tet_lagrangian_reference_fe.i90"
+
+#include "sbm_geometry_tree.i90"
 
 #include "sbm_volume_integrator.i90"
 

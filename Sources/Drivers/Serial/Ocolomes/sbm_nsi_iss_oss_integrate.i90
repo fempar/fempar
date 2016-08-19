@@ -85,7 +85,7 @@ subroutine integrate(this,fe_space,matrix_array_assembler)
   type(vector_field_t)               :: source_vector
   type(vector_field_t)               :: grad_test_scalar, grad_trial_scalar
   type(tensor_field_t)               :: grad_test_vector, grad_trial_vector
-  type(fe_function_vector_t)         :: fe_velocity
+  type(cell_fe_function_vector_t)         :: fe_velocity
   type(finite_element_t)   , pointer :: fe
   type(quadrature_t)       , pointer :: quad
   type(fe_map_t)           , pointer :: fe_map
@@ -115,7 +115,7 @@ subroutine integrate(this,fe_space,matrix_array_assembler)
 
   ! Initialize integration
   call fe_space%initialize_integration()
-  call fe_space%create_fe_function(1,fe_velocity)
+  call fe_space%create_cell_fe_function(1,fe_velocity)
   call source_vector%init(0.0_rp)
   
   ! Initialize discrete integration structures
@@ -324,7 +324,7 @@ subroutine compute_stabilization_parameters(this,fe,fe_velocity,tau_m,tau_c)
   implicit none
   class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
   type(finite_element_t)                   , intent(in)    :: fe
-  type(fe_function_vector_t)               , intent(in)    :: fe_velocity
+  type(cell_fe_function_vector_t)               , intent(in)    :: fe_velocity
   real(rp)                                 , intent(inout) :: tau_m(:)
   real(rp)                                 , intent(inout) :: tau_c(:)
   ! Locals
@@ -438,7 +438,7 @@ subroutine compute_mean_elemental_velocity(this,fe,fe_velocity,mean_velocity_vec
   implicit none
   class(nsi_iss_oss_discrete_integration_t), intent(in)    :: this
   type(finite_element_t)                   , intent(in)    :: fe
-  type(fe_function_vector_t)               , intent(in)    :: fe_velocity
+  type(cell_fe_function_vector_t)               , intent(in)    :: fe_velocity
   type(vector_field_t)                     , intent(inout) :: mean_velocity_vector
   ! Locals
   real(rp)                    :: volume,alpha,dvolume

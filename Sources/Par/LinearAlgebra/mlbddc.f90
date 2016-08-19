@@ -178,7 +178,7 @@ module mlbddc_names
     procedure, non_overridable, private :: setup_dofs_objects_and_constraint_matrix        => mlbddc_setup_dofs_objects_and_constraint_matrix
     procedure, non_overridable, private :: setup_coarse_fe_space                           => mlbddc_setup_coarse_fe_space
     procedure, non_overridable, private :: transfer_number_fields                          => mlbddc_transfer_number_fields    
-    procedure, non_overridable, private :: transfer_field_type                             => mlbddc_transfer_field_type
+    procedure, non_overridable, private :: transfer_fe_space_type                             => mlbddc_transfer_fe_space_type
     procedure, non_overridable, private :: gather_ptr_dofs_per_fe_and_field                => mlbddc_gather_ptr_dofs_per_fe_and_field
     procedure, non_overridable, private :: gather_coarse_dofs_gids_rcv_counts_and_displs   => mlbddc_gather_coarse_dofs_gids_rcv_counts_and_displs
     procedure, non_overridable, private :: gather_coarse_dofs_gids                         => mlbddc_gather_coarse_dofs_gids
@@ -358,7 +358,7 @@ module mlbddc_names
    procedure, non_overridable, private :: setup_dofs_objects_and_constraint_matrix          => mlbddc_coarse_setup_dofs_objects_and_constraint_matrix
    procedure, non_overridable, private :: setup_coarse_fe_space                             => mlbddc_coarse_setup_coarse_fe_space
    procedure, non_overridable, private :: transfer_number_fields                            => mlbddc_coarse_transfer_number_fields
-   procedure, non_overridable, private :: transfer_field_type                               => mlbddc_coarse_transfer_field_type
+   procedure, non_overridable, private :: transfer_fe_space_type                               => mlbddc_coarse_transfer_fe_space_type
    procedure, non_overridable, private :: gather_ptr_dofs_per_fe_and_field                  => mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
    procedure, non_overridable, private :: gather_coarse_dofs_gids_rcv_counts_and_displs     => mlbddc_coarse_gather_coarse_dofs_gids_rcv_counts_and_displs
    procedure, non_overridable, private :: gather_coarse_dofs_gids                           => mlbddc_coarse_gather_coarse_dofs_gids
@@ -542,7 +542,7 @@ contains
   class(mlbddc_t), intent(inout) :: this
   integer(ip)                          :: istat
   integer(ip)                          :: number_fields
-  integer(ip), allocatable             :: field_type(:)
+  integer(ip), allocatable             :: fe_space_type_per_field(:)
   integer(ip), allocatable             :: ptr_dofs_per_fe_and_field(:)
   integer(ip), allocatable             :: coarse_dofs_gids_recv_counts(:)
   integer(ip), allocatable             :: coarse_dofs_gids_displs(:)
@@ -560,7 +560,7 @@ contains
    ! allocatable arrays due to the fact that non-allocated allocatable arrays cannot
    ! be passed as actual arguments of dummy arguments that do not have the allocatable attribute 
    ! Otherwise, the code crashes with a segmentation fault.
-   call memalloc (0, field_type, __FILE__, __LINE__)
+   call memalloc (0, fe_space_type_per_field, __FILE__, __LINE__)
    call memalloc (0, ptr_dofs_per_fe_and_field, __FILE__, __LINE__)
    call memalloc (0, lst_dofs_gids, __FILE__, __LINE__)
    call memalloc (0, lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
@@ -570,7 +570,7 @@ contains
   ! L2 tasks gather from L1 tasks all raw data required to set-up the coarse fe space on L2 tasks
   if ( par_environment%am_i_l1_to_l2_task() ) then
      call this%transfer_number_fields(number_fields) 
-     call this%transfer_field_type(number_fields, field_type)
+     call this%transfer_fe_space_type(number_fields, fe_space_type_per_field)
      call this%gather_ptr_dofs_per_fe_and_field(number_fields, ptr_dofs_per_fe_and_field)
      call this%gather_coarse_dofs_gids_rcv_counts_and_displs (coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs)
      call this%gather_coarse_dofs_gids(coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs, lst_dofs_gids)
@@ -584,7 +584,7 @@ contains
      triangulation => fe_space%get_par_triangulation()
      call this%coarse_fe_space%create (triangulation%get_coarse_triangulation(), &
                                        number_fields, &
-                                       field_type, &
+                                       fe_space_type_per_field, &
                                        ptr_dofs_per_fe_and_field, &
                                        lst_dofs_gids, &
                                        lst_vefs_gids_dofs_objects)
@@ -594,7 +594,7 @@ contains
   end if
 
   ! All tasks free raw data (see actual reason on the top part of this subroutine)
-  call memfree (field_type, __FILE__, __LINE__)
+  call memfree (fe_space_type_per_field, __FILE__, __LINE__)
   call memfree (ptr_dofs_per_fe_and_field, __FILE__, __LINE__)
   call memfree (lst_dofs_gids, __FILE__, __LINE__)
   call memfree (lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
@@ -624,11 +624,11 @@ subroutine mlbddc_transfer_number_fields ( this, number_fields )
 end subroutine mlbddc_transfer_number_fields
 
 
-subroutine mlbddc_transfer_field_type ( this, number_fields, field_type )
+subroutine mlbddc_transfer_fe_space_type ( this, number_fields, fe_space_type_per_field )
   implicit none
   class(mlbddc_t)         , intent(in)    :: this
   integer(ip)             , intent(in)    :: number_fields
-  integer(ip), allocatable, intent(inout) :: field_type(:)
+  integer(ip), allocatable, intent(inout) :: fe_space_type_per_field(:)
   integer(ip)                             :: dummy_integer_array_ip(0)
   type(par_environment_t)  , pointer      :: par_environment
   type(par_fe_space_t)     , pointer      :: fe_space
@@ -638,15 +638,15 @@ subroutine mlbddc_transfer_field_type ( this, number_fields, field_type )
 
   assert ( par_environment%am_i_l1_to_l2_task() )
   if ( par_environment%am_i_l1_to_l2_root() ) then
-     if ( allocated (field_type) ) call memfree ( field_type, __FILE__, __LINE__ )
-     call memalloc ( number_fields, field_type, __FILE__, __LINE__ )
+     if ( allocated (fe_space_type_per_field) ) call memfree ( fe_space_type_per_field, __FILE__, __LINE__ )
+     call memalloc ( number_fields, fe_space_type_per_field, __FILE__, __LINE__ )
      call par_environment%l1_to_l2_transfer(input_data=dummy_integer_array_ip, &
-                                            output_data=field_type)
+                                            output_data=fe_space_type_per_field)
   else
-     call par_environment%l1_to_l2_transfer(input_data=fe_space%get_field_type(), &
+     call par_environment%l1_to_l2_transfer(input_data=fe_space%get_fe_space_type_per_field(), &
                                             output_data=dummy_integer_array_ip) 
   end if
-end subroutine mlbddc_transfer_field_type
+end subroutine mlbddc_transfer_fe_space_type
 
 subroutine mlbddc_gather_ptr_dofs_per_fe_and_field( this, number_fields, ptr_dofs_per_fe_and_field )
   implicit none
@@ -2427,7 +2427,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   class(mlbddc_coarse_t), intent(inout) :: this
   integer(ip)                           :: istat
   integer(ip)                           :: number_fields
-  integer(ip), allocatable              :: field_type(:)
+  integer(ip), allocatable              :: fe_space_type_per_field(:)
   integer(ip), allocatable              :: ptr_dofs_per_fe_and_field(:)
   integer(ip), allocatable              :: coarse_dofs_gids_recv_counts(:)
   integer(ip), allocatable              :: coarse_dofs_gids_displs(:)
@@ -2445,7 +2445,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
    ! allocatable arrays due to the fact that non-allocated allocatable arrays cannot
    ! be passed as actual arguments of dummy arguments that do not have the allocatable attribute 
    ! Otherwise, the code crashes with a segmentation fault.
-   call memalloc (0, field_type, __FILE__, __LINE__)
+   call memalloc (0, fe_space_type_per_field, __FILE__, __LINE__)
    call memalloc (0, ptr_dofs_per_fe_and_field, __FILE__, __LINE__)
    call memalloc (0, lst_dofs_gids, __FILE__, __LINE__)
    call memalloc (0, lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
@@ -2456,7 +2456,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   ! L2 tasks gather from L1 tasks all raw data required to set-up the coarse triangulation on L2 tasks
   if ( par_environment%am_i_l1_to_l2_task() ) then
      call this%transfer_number_fields(number_fields) 
-     call this%transfer_field_type(number_fields, field_type)
+     call this%transfer_fe_space_type(number_fields, fe_space_type_per_field)
      call this%gather_ptr_dofs_per_fe_and_field(number_fields, ptr_dofs_per_fe_and_field)
      call this%gather_coarse_dofs_gids_rcv_counts_and_displs (coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs)
      call this%gather_coarse_dofs_gids(coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs, lst_dofs_gids)
@@ -2471,7 +2471,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
      coarse_triangulation => fe_space%get_triangulation()
      call this%coarse_fe_space%create (coarse_triangulation%get_coarse_triangulation(), &
                                        number_fields, &
-                                       field_type, &
+                                       fe_space_type_per_field, &
                                        ptr_dofs_per_fe_and_field, &
                                        lst_dofs_gids, &
                                        lst_vefs_gids_dofs_objects)
@@ -2481,7 +2481,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
   end if
 
   ! All tasks free raw data (see actual reason on the top part of this subroutine)
-  call memfree (field_type, __FILE__, __LINE__)
+  call memfree (fe_space_type_per_field, __FILE__, __LINE__)
   call memfree (ptr_dofs_per_fe_and_field, __FILE__, __LINE__)
   call memfree (lst_dofs_gids, __FILE__, __LINE__)
   call memfree (lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
@@ -2510,11 +2510,11 @@ subroutine mlbddc_coarse_transfer_number_fields ( this, number_fields )
   end if
 end subroutine mlbddc_coarse_transfer_number_fields
 
-subroutine mlbddc_coarse_transfer_field_type ( this, number_fields, field_type )
+subroutine mlbddc_coarse_transfer_fe_space_type ( this, number_fields, fe_space_type_per_field )
   implicit none
   class(mlbddc_coarse_t)   , intent(in)    :: this
   integer(ip)             , intent(in)       :: number_fields
-  integer(ip), allocatable, intent(inout)    :: field_type(:)
+  integer(ip), allocatable, intent(inout)    :: fe_space_type_per_field(:)
   integer(ip)                                :: dummy_integer_array_ip(0)
   type(par_environment_t), pointer           :: par_environment
   type(coarse_fe_space_t), pointer           :: fe_space
@@ -2523,15 +2523,15 @@ subroutine mlbddc_coarse_transfer_field_type ( this, number_fields, field_type )
   assert ( par_environment%am_i_l1_to_l2_task() )
   fe_space        => this%get_fe_space()
   if ( par_environment%am_i_l1_to_l2_root() ) then
-     if ( allocated (field_type) ) call memfree ( field_type, __FILE__, __LINE__ )
-     call memalloc ( number_fields, field_type, __FILE__, __LINE__ )
+     if ( allocated (fe_space_type_per_field) ) call memfree ( fe_space_type_per_field, __FILE__, __LINE__ )
+     call memalloc ( number_fields, fe_space_type_per_field, __FILE__, __LINE__ )
      call par_environment%l1_to_l2_transfer(input_data=dummy_integer_array_ip, &
-                                            output_data=field_type)
+                                            output_data=fe_space_type_per_field)
   else
-     call par_environment%l1_to_l2_transfer(input_data=fe_space%get_field_type(), &
+     call par_environment%l1_to_l2_transfer(input_data=fe_space%get_fe_space_type(), &
                                             output_data=dummy_integer_array_ip) 
   end if
-end subroutine mlbddc_coarse_transfer_field_type
+end subroutine mlbddc_coarse_transfer_fe_space_type
 
 subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field( this, number_fields, ptr_dofs_per_fe_and_field )
   implicit none

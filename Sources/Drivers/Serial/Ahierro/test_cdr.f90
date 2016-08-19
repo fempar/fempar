@@ -162,7 +162,7 @@ contains
     integer(ip)                :: igaus,inode,jnode,ngaus
     real(rp)                   :: factor, h_length, bcvalue, source, outflow, time, time_factor
     real(rp)                   :: u_value_previous
-    type(fe_function_scalar_t) :: fe_unknown_current, fe_unknown_previous
+    type(cell_fe_function_scalar_t) :: fe_unknown_current, fe_unknown_previous
 
     real(rp)                   :: shape_test_scalar, shape_trial_scalar
     type(vector_field_t)       :: grad_test_scalar, grad_trial_scalar
@@ -201,7 +201,7 @@ contains
     ! Fill the previous array
     call fe_space%update_bc_value_scalar(this%analytical_functions%get_solution_function(),         & 
                             bc_code=1, fe_space_component=1, time=time-this%theta_method%time_step )
-    call fe_space%update_global_fe_function_bcs(this%fe_values_previous)
+    call fe_space%update_fe_function_bcs(this%fe_values_previous)
     
     ! Initialize the finite element function for each kind of reference element
     call fe_space%create_fe_function(1,fe_unknown_previous)
@@ -209,7 +209,7 @@ contains
     ! Update the Dirichlet boundary conditions
     call fe_space%update_bc_value_scalar(this%analytical_functions%get_solution_function(),         &
          &                               bc_code=1,fe_space_component=1, time= time )
-    call fe_space%update_global_fe_function_bcs(this%fe_function)
+    call fe_space%update_fe_function_bcs(this%fe_function)
     ! ------------------------------------ LOOP OVER THE ELEMENTS -----------------------------------
     call memalloc ( number_nodes, number_nodes, elmat, __FILE__, __LINE__ )
     call memalloc ( number_nodes, elvec, __FILE__, __LINE__ )
@@ -646,7 +646,7 @@ contains
 
   ! Set the parameters for the integration in time
   dG_CDR_integration%fe_values_previous => fe_values_previous
-  call fe_space%create_global_fe_function(dG_CDR_integration%fe_values_previous) 
+  call fe_space%create_fe_function(dG_CDR_integration%fe_values_previous) 
   call dG_CDR_integration%set_initial_solution(fe_space)
   dof_values_previous => fe_values_previous%get_dof_values()
   !call dof_values_previous%init(0.0_rp)
@@ -661,7 +661,7 @@ contains
        &                          senv, fe_space, dG_CDR_integration)
 
   ! Create the unknown array
-  call fe_space%create_global_fe_function(fe_function)
+  call fe_space%create_fe_function(fe_function)
   dG_CDR_integration%fe_function => fe_function
   dof_values => fe_function%get_dof_values()
   call dof_values%init(0.0_rp)

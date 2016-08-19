@@ -155,7 +155,7 @@ contains
         integer(ip),   intent(in)    :: index
         integer(ip),   intent(in)    :: value
     !----------------------------------------------------------------- 
-        assert(this%state == LIST_STATE_CREATED)
+        !assert(this%state == LIST_STATE_CREATED)
         this%p(index+1) = this%p(index+1) + value
     end subroutine list_sum_to_pointer_index
 
@@ -167,7 +167,7 @@ contains
         class(list_t), intent(inout) :: this
         integer(ip)                  :: i
     !----------------------------------------------------------------- 
-        assert(this%state == LIST_STATE_CREATED)
+        !assert(this%state == LIST_STATE_CREATED)
         this%p(1) = 1
         do i=1, this%n
             this%p(i+1) = this%p(i+1) + this%p(i)
@@ -182,7 +182,7 @@ contains
     !----------------------------------------------------------------- 
         class(list_t), intent(inout) :: this
     !----------------------------------------------------------------- 
-        assert(this%state == LIST_STATE_HEADER_BUILT)
+        !assert(this%state == LIST_STATE_HEADER_BUILT)
         call memalloc(this%p(this%n+1)-1, this%l, __FILE__, __LINE__)
         this%l = 0
         this%state = LIST_STATE_LIST_ALLOCATED
@@ -196,7 +196,7 @@ contains
         class(list_t), target, intent(inout) :: this
         type(c_ptr)                          :: num_pointers_c_loc
     !----------------------------------------------------------------- 
-        assert(this%state >= LIST_STATE_CREATED)
+        !assert(this%state >= LIST_STATE_CREATED)
         num_pointers_c_loc = c_loc(this%n)
     end function list_get_num_pointers_c_loc
 
@@ -208,7 +208,7 @@ contains
         class(list_t), target, intent(inout) :: this
         type(c_ptr)                          :: pointers_c_loc
     !----------------------------------------------------------------- 
-        assert(this%state >= LIST_STATE_CREATED)
+        !assert(this%state >= LIST_STATE_CREATED)
         pointers_c_loc = c_loc(this%p)
     end function list_get_pointers_c_loc
 
@@ -220,7 +220,7 @@ contains
         class(list_t), target, intent(inout) :: this
         type(c_ptr)                          :: list_c_loc
     !----------------------------------------------------------------- 
-        assert(this%state >= LIST_STATE_LIST_ALLOCATED)
+        !assert(this%state >= LIST_STATE_LIST_ALLOCATED)
         list_c_loc = c_loc(this%l)
     end function list_get_list_c_loc
 
@@ -232,7 +232,7 @@ contains
         class(list_t), target, intent(in)    :: this
         type(list_iterator_t)                :: list_iterator
     !----------------------------------------------------------------- 
-        assert(this%state == LIST_STATE_LIST_ALLOCATED)
+        !assert(this%state == LIST_STATE_LIST_ALLOCATED)
         call list_iterator%init(list=this, first=this%p(1), current=this%p(1), last=this%p(this%n+1)-1)
     end function list_get_full_list_iterator
 
@@ -246,7 +246,7 @@ contains
         integer(ip),           intent(in)    :: end
         type(list_iterator_t)                :: list_iterator
     !----------------------------------------------------------------- 
-        assert(this%state == LIST_STATE_LIST_ALLOCATED)
+        !assert(this%state == LIST_STATE_LIST_ALLOCATED)
         assert( (start <= end) .and. (start>=1) .and. (end<= this%n) )
         call list_iterator%init(list=this, first=this%p(start), current=this%p(start), last=this%p(end+1)-1)
     end function list_get_list_range_iterator
@@ -260,7 +260,7 @@ contains
         integer(ip),           intent(in)    :: index
         type(list_iterator_t)                :: list_iterator
     !----------------------------------------------------------------- 
-        assert(this%state == LIST_STATE_LIST_ALLOCATED)
+        !assert(this%state == LIST_STATE_LIST_ALLOCATED)
         assert( (index>=1) .and. (index<= this%n) )
         call list_iterator%init(list=this, first=this%p(index), current=this%p(index), last=this%p(index+1)-1)
     end function list_get_list_index_iterator
@@ -273,7 +273,7 @@ contains
         class(list_t), intent(inout):: this
         type(list_t), intent(in):: list
     !----------------------------------------------------------------- 
-        assert(list%state == LIST_STATE_LIST_ALLOCATED)
+        !assert(list%state == LIST_STATE_LIST_ALLOCATED)
         call this%free()
         call this%create(n=list%n)
         this%p(:) = list%p(:)
@@ -316,7 +316,7 @@ contains
         integer(ip)                  :: index
         integer(ip)                  :: sublist_size
         !assert(this%state == LIST_STATE_LIST_ALLOCATED)
-        assert(this%state >= LIST_STATE_HEADER_BUILT)
+        !assert(this%state >= LIST_STATE_HEADER_BUILT)
         sublist_size = this%p(index+1)-this%p(index)
     end function list_get_sublist_size 
 
