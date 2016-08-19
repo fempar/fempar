@@ -73,7 +73,7 @@ subroutine fe_accessor_fill_own_dofs ( this, field_id, current_dof )
   
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within current fe
-  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
+  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
   do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
     current_dof = current_dof + 1
     this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()) = current_dof
@@ -103,7 +103,7 @@ subroutine fe_accessor_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof 
   
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within current fe
-  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
+  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
   do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
     assert ( this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current())  <= 0 )
     if ( this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()) == 0 ) then
@@ -144,10 +144,10 @@ subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   base_pos_lst_dofs_lids_source = this%fe_space%ptr_dofs_per_fe(field_id, source_fe%get_lid())-1
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within source fe
-  own_dofs_on_vef_iterator_source = reference_fe_source%create_own_dofs_on_vef_iterator(source_ivef)
+  own_dofs_on_vef_iterator_source = reference_fe_source%create_own_dofs_on_n_face_iterator(source_ivef)
   
   if ( own_dofs_on_vef_iterator_source%get_size() > 0 ) then
-       assert (reference_fe_target%check_compatibility_of_vefs(reference_fe_source,source_ivef,target_ivef))
+       assert (reference_fe_target%check_compatibility_of_n_faces(reference_fe_source,source_ivef,target_ivef))
        relative_rotation = reference_fe_target%compute_relative_rotation( reference_fe_source, &
                                                                           source_ivef, &
                                                                           target_ivef, &
@@ -160,7 +160,7 @@ subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
       own_dof_within_vef_source_fe = 1
       do while (.not. own_dofs_on_vef_iterator_source%is_upper_bound())
         idof_source = own_dofs_on_vef_iterator_source%get_current()
-        idof_target = reference_fe_target%get_permuted_own_node_vef(own_dof_within_vef_source_fe, &
+        idof_target = reference_fe_target%get_permuted_own_node_n_face(own_dof_within_vef_source_fe, &
                                                                     target_ivef, & 
                                                                     relative_orientation, &
                                                                     relative_rotation)
@@ -191,9 +191,9 @@ subroutine fe_accessor_fill_dofs_face_integration_coupling ( this, ivef, field_i
   type(list_iterator_t)          :: face_integration_coupling_dofs 
   
   reference_fe => this%get_reference_fe(field_id)
-  assert ( reference_fe%get_vef_dimension(ivef) == reference_fe%get_number_dimensions()-1 )
+  assert ( reference_fe%get_n_face_dimension(ivef) == reference_fe%get_number_dimensions()-1 )
   
-  face_integration_coupling_dofs = reference_fe%create_face_integration_coupling_dofs_iterator(ivef)
+  face_integration_coupling_dofs = reference_fe%create_facet_integration_coupling_dofs_iterator(ivef)
   base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())-1
   do while (.not. face_integration_coupling_dofs%is_upper_bound())
     idof = face_integration_coupling_dofs%get_current()
@@ -453,7 +453,7 @@ function fe_accessor_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) re
   class(reference_fe_t), pointer          :: reference_fe
   
   reference_fe => this%get_reference_fe(field_id)
-  list_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
+  list_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
 end function fe_accessor_create_own_dofs_on_vef_iterator
 
 subroutine fe_accessor_update_cell_fe_function_scalar ( this, fe_function, cell_fe_function_scalar )

@@ -248,7 +248,7 @@ subroutine face_accessor_get_coordinates (this, face_coordinates)
   
   call this%get_cell_around(1, cell)
   reference_fe_geo => cell%get_reference_fe_geo()
-  dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_vef_iterator(cell%find_lpos_vef_lid(this%get_lid()))
+  dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%find_lpos_vef_lid(this%get_lid()))
   inode_within_face = 1
   do while (.not. dofs_on_vef_iterator%is_upper_bound())     
     inode_within_cell = dofs_on_vef_iterator%get_current()

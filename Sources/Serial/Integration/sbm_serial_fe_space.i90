@@ -265,7 +265,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
               !        allocate/initialize it from the beginning.
               reference_fe => fe%get_reference_fe(field_id)
 
-              own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
+              own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
                  component_id = offset_component + reference_fe%get_component_node(local_within_ref_fe_dof_id)
@@ -416,7 +416,7 @@ subroutine serial_fe_space_update_strong_dirichlet_bcs_values (this, conditions,
                        end if
                     end do
 
-                    own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
+                    own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
                     do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                        local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
                        component_id = offset_component + reference_fe%get_component_node(local_within_ref_fe_dof_id)

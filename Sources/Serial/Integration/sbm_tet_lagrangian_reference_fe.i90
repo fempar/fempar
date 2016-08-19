@@ -31,30 +31,30 @@
 !**************************************************************************************************
 
 !==================================================================================================
-function tet_lagrangian_reference_fe_check_compatibility_of_vefs                   &
-     &                      (target_reference_fe,source_reference_fe, source_vef_id,target_vef_id)
+function tet_lagrangian_reference_fe_check_compatibility_of_n_faces                   &
+     &                      (target_reference_fe,source_reference_fe, source_n_face_id,target_n_face_id)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)  :: target_reference_fe
   class(reference_fe_t)               , intent(in)  :: source_reference_fe
-  integer(ip)                         , intent(in)  :: source_vef_id ! Local vef ID
-  integer(ip)                         , intent(in)  :: target_vef_id ! Local vef ID
-  logical :: tet_lagrangian_reference_fe_check_compatibility_of_vefs 
+  integer(ip)                         , intent(in)  :: source_n_face_id ! Local n-face ID
+  integer(ip)                         , intent(in)  :: target_n_face_id ! Local n-face ID
+  logical :: tet_lagrangian_reference_fe_check_compatibility_of_n_faces 
 
   select type(source_reference_fe)
      class is(tet_lagrangian_reference_fe_t)
         ! Get number nodes per dimension
         assert (target_reference_fe%order == source_reference_fe%order)
         assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
-        assert (target_reference_fe%get_vef_dimension(target_vef_id) ==  source_reference_fe%get_vef_dimension(source_vef_id))
-        assert (target_reference_fe%get_vef_dimension(target_vef_id) < 3)
+        assert (target_reference_fe%get_n_face_dimension(target_n_face_id) ==  source_reference_fe%get_n_face_dimension(source_n_face_id))
+        assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
         assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
-        assert (target_reference_fe%get_number_own_nodes_vef(target_vef_id) == source_reference_fe%get_number_own_nodes_vef(source_vef_id))
-        tet_lagrangian_reference_fe_check_compatibility_of_vefs = .true.
+        assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
+        tet_lagrangian_reference_fe_check_compatibility_of_n_faces = .true.
      class default
-        tet_lagrangian_reference_fe_check_compatibility_of_vefs = .false.
+        tet_lagrangian_reference_fe_check_compatibility_of_n_faces = .false.
   end select
  
-end function tet_lagrangian_reference_fe_check_compatibility_of_vefs
+end function tet_lagrangian_reference_fe_check_compatibility_of_n_faces
 
 !=================================================================================================
 function tet_lagrangian_reference_fe_get_characteristic_length ( this )
@@ -943,7 +943,7 @@ end function tet_lagrangian_reference_fe_get_number_interior_points_x_dim
 !**************************************************************************************************
 
 !==================================================================================================
-recursive subroutine tet_lagrangian_reference_fe_fill_nodes_vef(this,ntxob,c3,ini,end, &
+recursive subroutine tet_lagrangian_reference_fe_fill_nodes_n_face(this,ntxob,c3,ini,end, &
                                                               & i,idm,nd,k,p,objec,nt)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
@@ -963,7 +963,7 @@ recursive subroutine tet_lagrangian_reference_fe_fill_nodes_vef(this,ntxob,c3,in
         idm(i) = j
         if (i<k) then
            ! Assign values of the i+1-th factor
-           call this%fill_nodes_vef(ntxob,c3,ini,end-j,i+1,idm,nd,k,p,objec,nt)
+           call this%fill_nodes_n_face(ntxob,c3,ini,end-j,i+1,idm,nd,k,p,objec,nt)
         else
            ! Compute the coordinate of the c3-th node: objec(:,1)+idm*objec(:,2:k)
            ijk = p*objec(:,1)
@@ -977,49 +977,49 @@ recursive subroutine tet_lagrangian_reference_fe_fill_nodes_vef(this,ntxob,c3,in
      end do
   end if
   
-end subroutine tet_lagrangian_reference_fe_fill_nodes_vef
+end subroutine tet_lagrangian_reference_fe_fill_nodes_n_face
 
 !==================================================================================================
-recursive subroutine tet_lagrangian_reference_fe_fill_vef_dimension_and_vertices (this,       &
-                                                                        vef_dimension,        &
+recursive subroutine tet_lagrangian_reference_fe_fill_n_face_dimension_and_vertices (this,       &
+                                                                        n_face_dimension,        &
                                                                         vertex_position,      &
                                                                         number_of_dimensions, &
                                                                         initial_vertex,       &
-                                                                        number_of_vefs,       &
-                                                                        vef_id,               &
-                                                                        vertices_of_vef,      &
-                                                                        vef_dimension_and_vertices)
+                                                                        number_of_n_faces,       &
+                                                                        n_face_id,               &
+                                                                        vertices_of_n_faces,      &
+                                                                        n_face_dimension_and_vertices)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: vef_dimension
+  integer(ip)                         , intent(in)    :: n_face_dimension
   integer(ip)                         , intent(in)    :: vertex_position
   integer(ip)                         , intent(in)    :: number_of_dimensions
   integer(ip)                         , intent(in)    :: initial_vertex
-  integer(ip)                         , intent(in)    :: number_of_vefs
-  integer(ip)                         , intent(inout) :: vef_dimension_and_vertices(:,:)
-  integer(ip)                         , intent(inout) :: vertices_of_vef(:)
-  integer(ip)                         , intent(inout) :: vef_id
+  integer(ip)                         , intent(in)    :: number_of_n_faces
+  integer(ip)                         , intent(inout) :: n_face_dimension_and_vertices(:,:)
+  integer(ip)                         , intent(inout) :: vertices_of_n_faces(:)
+  integer(ip)                         , intent(inout) :: n_face_id
   integer(ip) :: vertex_id
 
   do vertex_id=initial_vertex,number_of_dimensions+1
-     vertices_of_vef(vertex_position) = vertex_id
-     if(vertex_position+1<vef_dimension+2) then
-        call this%fill_vef_dimension_and_vertices(vef_dimension,                      &
+     vertices_of_n_faces(vertex_position) = vertex_id
+     if(vertex_position+1<n_face_dimension+2) then
+        call this%fill_n_face_dimension_and_vertices(n_face_dimension,                      &
                                                   vertex_position+1,                  &
                                                   number_of_dimensions,               &
-                                                  vertices_of_vef(vertex_position)+1, &
-                                                  number_of_vefs,                     &
-                                                  vef_id,                             &
-                                                  vertices_of_vef,                    &
-                                                  vef_dimension_and_vertices)
+                                                  vertices_of_n_faces(vertex_position)+1, &
+                                                  number_of_n_faces,                     &
+                                                  n_face_id,                             &
+                                                  vertices_of_n_faces,                    &
+                                                  n_face_dimension_and_vertices)
      else
-        vef_dimension_and_vertices(1,vef_id) = vef_dimension
-        vef_dimension_and_vertices(2:vef_dimension+2,vef_id) = vertices_of_vef(1:vef_dimension+1)
-        vef_id = vef_id + 1
+        n_face_dimension_and_vertices(1,n_face_id) = n_face_dimension
+        n_face_dimension_and_vertices(2:n_face_dimension+2,n_face_id) = vertices_of_n_faces(1:n_face_dimension+1)
+        n_face_id = n_face_id + 1
      end if
   end do
 
-end subroutine tet_lagrangian_reference_fe_fill_vef_dimension_and_vertices
+end subroutine tet_lagrangian_reference_fe_fill_n_face_dimension_and_vertices
 
 !=================================================================================================
 recursive function tet_lagrangian_reference_fe_compute_number_interior_nodes(this,dimension,order)
@@ -1312,13 +1312,13 @@ subroutine tet_lagrangian_reference_fe_evaluate_interpolation(this,coord,ndime,n
 end subroutine tet_lagrangian_reference_fe_evaluate_interpolation
 
 !==================================================================================================
-subroutine tet_lagrangian_reference_fe_get_vef_orientation(this,o,od,nd,io)
+subroutine tet_lagrangian_reference_fe_get_n_face_orientation(this,o,od,nd,io)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(inout) :: o
   integer(ip)                         , intent(in)    :: od
   integer(ip)                         , intent(in)    :: nd
-  integer(ip)                         , intent(in)    :: io  ! io=numbering of the vef in the od dimension
+  integer(ip)                         , intent(in)    :: io  ! io=numbering of the n-face in the od dimension
   if (nd == 3 .and. od == 2) then
      o = modulo(io+1,2)
   elseif (nd>3) then
@@ -1326,4 +1326,4 @@ subroutine tet_lagrangian_reference_fe_get_vef_orientation(this,o,od,nd,io)
   else
      o = 0
   end if
-end subroutine tet_lagrangian_reference_fe_get_vef_orientation
+end subroutine tet_lagrangian_reference_fe_get_n_face_orientation
