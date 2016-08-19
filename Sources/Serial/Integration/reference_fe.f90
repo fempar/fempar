@@ -1021,10 +1021,10 @@ module reference_fe_names
   end type hex_lagrangian_reference_fe_t
   
   public :: hex_lagrangian_reference_fe_t
-
-  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+  
+    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
   type geometry_tree_t
-     !private
+     private
      integer(ip)              :: number_dimensions
      integer(ip)              :: topology
      integer(ip)              :: number_objects 
@@ -1033,15 +1033,17 @@ module reference_fe_names
    contains
      procedure          :: create                   => geometry_tree_create
      procedure          :: create_children_iterator => geometry_tree_create_children_iterator
+     procedure          :: get_object               => geometry_tree_get_object
+     procedure          :: get_number_objects       => geometry_tree_get_number_objects
      procedure          :: free                     => geometry_tree_free
      procedure, private :: fill_tree 
   end type geometry_tree_t
-  
+
   public :: geometry_tree_t
-  
+
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type node_array_t
-     !private
+     private
      type(geometry_tree_t), pointer :: object_tree
      integer(ip)                  :: order
      integer(ip)                  :: number_nodes
@@ -1052,11 +1054,12 @@ module reference_fe_names
      procedure :: print                => node_array_print
      procedure :: free                 => node_array_free
      procedure :: create_node_iterator => node_array_create_node_iterator
+     procedure :: get_number_nodes     => node_array_get_number_nodes
      procedure, private :: fill        => node_array_fill
   end type node_array_t
-  
+
   public :: node_array_t
-  
+
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type children_iterator_t
      private 
@@ -1075,9 +1078,9 @@ module reference_fe_names
      procedure, private :: current_ijk   => children_iterator_current_ijk 
      procedure, private :: is_admissible => children_iterator_is_admissible   
   end type children_iterator_t
-  
+
   public :: children_iterator_t
-  
+
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type node_iterator_t
      private 
@@ -1102,7 +1105,7 @@ module reference_fe_names
      procedure, private :: in_bound    => node_iterator_in_bound 
   end type node_iterator_t
 
-  public node_iterator_t
+  public :: node_iterator_t
   
     !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type volume_integrator_t 
@@ -1263,7 +1266,7 @@ contains
 
 #include "sbm_tet_lagrangian_reference_fe.i90"
 
-#include "sbm_geometry_tree.i90"
+#include "sbm_cell_topology.i90"
 
 #include "sbm_volume_integrator.i90"
 

@@ -1029,33 +1029,34 @@ type(node_array_t)    :: node_array, vertex_array
 type(node_iterator_t) :: node_iterator
 type(children_iterator_t) :: children_iterator
 type(list_iterator_t) :: list_iterator
-integer(ip) :: topology, i, obj_dim, node, children
+integer(ip) :: topology, i, obj_dim, node, children,num_objects
 ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
 if ( this%topology == topology_hex) then
- topology = 2**number_space_dimensions-1
+ topology = 2**this%number_dimensions-1
 elseif ( this%topology == topology_tet ) then
  topology = 0
 end if
 call object_tree%create( this%number_dimensions, topology )  
 call node_array%create( object_tree, this%order )
+num_objects = object_tree%get_number_objects()
   ! Number nodes
-  this%number_nodes = node_array%number_nodes
+  this%number_nodes = node_array%get_number_nodes()
   ! Number vefs ( I don¡t like it, not volume included...)
-  this%number_vefs = object_tree%number_objects-1
+  this%number_vefs = num_objects-1
   ! number_vefs_dimension
   this%number_vefs_dimension = 0
   this%number_vefs_dimension(1) = 1
-  do i = 1,object_tree%number_objects
-     obj_dim = object_dimension( object_tree%object_array(i), object_tree%number_dimensions )
+  do i = 1,num_objects
+     obj_dim = object_dimension( object_tree%get_object(i), this%number_dimensions )
      this%number_vefs_dimension( obj_dim+2 ) = this%number_vefs_dimension( obj_dim+2 ) + 1
   end do  
-  do i = 1,object_tree%number_dimensions+1
+  do i = 1,this%number_dimensions+1
      this%number_vefs_dimension(i+1) = this%number_vefs_dimension(i+1) + this%number_vefs_dimension(i)
   end do
   ! interior_nodes_vef  
-  call this%interior_nodes_vef%create(object_tree%number_objects)
-  do i = 1,object_tree%number_objects
-     node_iterator = node_array%create_node_iterator( object_tree%object_array(i), own_boundary = .false. )
+  call this%interior_nodes_vef%create( num_objects )
+  do i = 1,num_objects
+     node_iterator = node_array%create_node_iterator( object_tree%get_object(i), own_boundary = .false. )
      do while (.not. node_iterator%has_finished() )
         call this%interior_nodes_vef%sum_to_pointer_index(i,1)
         call node_iterator%next()
@@ -1064,8 +1065,8 @@ call node_array%create( object_tree, this%order )
   call this%interior_nodes_vef%calculate_header()
   call this%interior_nodes_vef%allocate_list_from_pointer()
   list_iterator = this%interior_nodes_vef%create_iterator()
-  do i = 1,object_tree%number_objects
-     node_iterator = node_array%create_node_iterator( object_tree%object_array(i), own_boundary = .false. )
+  do i = 1,num_objects
+     node_iterator = node_array%create_node_iterator( object_tree%get_object(i), own_boundary = .false. )
      do while (.not. node_iterator%has_finished() )
         node = node_iterator%current()
         call list_iterator%set_current(node)
@@ -1074,9 +1075,9 @@ call node_array%create( object_tree, this%order )
      end do
   end do
   ! nodes_vef
-  call this%nodes_vef%create(object_tree%number_objects)
-  do i = 1,object_tree%number_objects
-     node_iterator = node_array%create_node_iterator( object_tree%object_array(i), own_boundary = .true. )
+  call this%nodes_vef%create(num_objects)
+  do i = 1,num_objects
+     node_iterator = node_array%create_node_iterator( object_tree%get_object(i), own_boundary = .true. )
      do while (.not. node_iterator%has_finished() )
         call this%nodes_vef%sum_to_pointer_index(i,1)
         call node_iterator%next()
@@ -1085,8 +1086,8 @@ call node_array%create( object_tree, this%order )
   call this%nodes_vef%calculate_header()
   call this%nodes_vef%allocate_list_from_pointer()  
   list_iterator = this%nodes_vef%create_iterator()
-  do i = 1,object_tree%number_objects
-     node_iterator = node_array%create_node_iterator( object_tree%object_array(i), own_boundary = .true. )
+  do i = 1,num_objects
+     node_iterator = node_array%create_node_iterator( object_tree%get_object(i), own_boundary = .true. )
      do while (.not. node_iterator%has_finished() )
         node = node_iterator%current()
         call list_iterator%set_current(node)
@@ -1095,10 +1096,10 @@ call node_array%create( object_tree, this%order )
      end do
   end do
   ! vertices_vef
-  call this%vertices_vef%create(object_tree%number_objects)
+  call this%vertices_vef%create(num_objects)
   call vertex_array%create( object_tree, order = 1 )
-  do i = 1,object_tree%number_objects
-     node_iterator = vertex_array%create_node_iterator( object_tree%object_array(i), own_boundary = .true. )
+  do i = 1,num_objects
+     node_iterator = vertex_array%create_node_iterator( object_tree%get_object(i), own_boundary = .true. )
      do while (.not. node_iterator%has_finished() )
         call this%vertices_vef%sum_to_pointer_index(i,1)
         call node_iterator%next()
@@ -1107,8 +1108,8 @@ call node_array%create( object_tree, this%order )
   call this%vertices_vef%calculate_header()
   call this%vertices_vef%allocate_list_from_pointer()
   list_iterator = this%vertices_vef%create_iterator()
-  do i = 1,object_tree%number_objects
-     node_iterator = vertex_array%create_node_iterator( object_tree%object_array(i), own_boundary = .true. )
+  do i = 1,num_objects
+     node_iterator = vertex_array%create_node_iterator( object_tree%get_object(i), own_boundary = .true. )
      do while (.not. node_iterator%has_finished() )
         node = node_iterator%current()
         call list_iterator%set_current(node)
@@ -1117,9 +1118,9 @@ call node_array%create( object_tree, this%order )
      end do
   end do
   ! vefs_vef (NEW DEFINITION; now only objects of inferior dimension
-  call this%vefs_vef%create(object_tree%number_objects)
-  do i = 1,object_tree%number_objects
-     children_iterator = object_tree%create_children_iterator( object_tree%object_array(i) )
+  call this%vefs_vef%create(num_objects)
+  do i = 1,num_objects
+     children_iterator = object_tree%create_children_iterator( object_tree%get_object(i) )
      do while (.not. children_iterator%has_finished() )
         call this%vefs_vef%sum_to_pointer_index(i,1)
         call children_iterator%next()
@@ -1128,8 +1129,8 @@ call node_array%create( object_tree, this%order )
   call this%vefs_vef%calculate_header()
   call this%vefs_vef%allocate_list_from_pointer()
   list_iterator = this%vefs_vef%create_iterator()
-  do i = 1,object_tree%number_objects
-     children_iterator = object_tree%create_children_iterator( object_tree%object_array(i) )
+  do i = 1,num_objects
+     children_iterator = object_tree%create_children_iterator( object_tree%get_object(i) )
      do while (.not. children_iterator%has_finished() )
         children = children_iterator%current()
         call list_iterator%set_current(children)
@@ -1138,22 +1139,22 @@ call node_array%create( object_tree, this%order )
      end do
   end do
   ! orientation
-  call this%orientation%create(object_tree%number_objects)
-  do i = 1,object_tree%number_objects
-     if ( object_dimension( object_tree%object_array(i), this%number_dimensions ) == this%number_dimensions-1 ) then
-        this%orientation%a(i) = face_orientation( object_tree%object_array(i), this%number_dimensions )
+  call this%orientation%create(num_objects)
+  do i = 1,num_objects
+     if ( object_dimension( object_tree%get_object(i), this%number_dimensions ) == this%number_dimensions-1 ) then
+        this%orientation%a(i) = face_orientation( object_tree%get_object(i), this%number_dimensions )
      end if
   end do
   ! own_nodes_vef and face_integration_coupling_nodes_vef
   if ( this%continuity ) then
      this%own_nodes_vef = this%interior_nodes_vef
      ! Create a void face_integration_coupling_nodes_face type(list_t)
-     call this%face_integration_coupling_nodes_face%create(n=object_tree%number_objects)
+     call this%face_integration_coupling_nodes_face%create(n=num_objects )
      call this%face_integration_coupling_nodes_face%calculate_header()
      call this%face_integration_coupling_nodes_face%allocate_list_from_pointer()
   else
-     call this%own_nodes_vef%create(n=object_tree%number_objects)
-     call this%own_nodes_vef%sum_to_pointer_index( this%own_nodes_vef%get_num_pointers(), node_array%number_nodes)
+     call this%own_nodes_vef%create(n=num_objects )
+     call this%own_nodes_vef%sum_to_pointer_index( this%own_nodes_vef%get_num_pointers(), this%number_nodes)
      call this%own_nodes_vef%calculate_header()
      call this%own_nodes_vef%allocate_list_from_pointer()
      list_iterator = this%own_nodes_vef%create_iterator()
@@ -1165,7 +1166,7 @@ call node_array%create( object_tree, this%order )
     enddo     
      if ( this%conformity ) then
        ! Create a void face_integration_coupling_nodes_face type(list_t)
-       call this%face_integration_coupling_nodes_face%create(n=object_tree%number_objects)
+       call this%face_integration_coupling_nodes_face%create(n=num_objects)
        call this%face_integration_coupling_nodes_face%calculate_header()
        call this%face_integration_coupling_nodes_face%allocate_list_from_pointer()
      else

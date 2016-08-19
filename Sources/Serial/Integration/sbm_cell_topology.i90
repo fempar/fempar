@@ -113,6 +113,23 @@ function geometry_tree_create_children_iterator(this, parent)
 end function geometry_tree_create_children_iterator
 
 !=================================================================================================
+function geometry_tree_get_number_objects(this) 
+       implicit none
+  class(geometry_tree_t), intent(in) :: this
+  integer(ip)                          :: geometry_tree_get_number_objects
+  geometry_tree_get_number_objects = this%number_objects     
+end function geometry_tree_get_number_objects
+
+!=================================================================================================
+function geometry_tree_get_object(this, object_index) 
+       implicit none
+  class(geometry_tree_t), intent(in) :: this
+  integer(ip)         , intent(in) :: object_index
+  integer(ip)                          :: geometry_tree_get_object
+  geometry_tree_get_object = this%object_array(object_index)     
+end function geometry_tree_get_object
+
+!=================================================================================================
 !     NODE_ARRAY_T TBPS
 !=================================================================================================
 
@@ -188,6 +205,14 @@ subroutine node_array_free( this )
   if (allocated(this%node_array)) call memfree ( this%node_array, __FILE__, __LINE__ )
   if (allocated(this%ijk_to_index)) call memfree ( this%ijk_to_index, __FILE__, __LINE__ )
 end subroutine node_array_free
+
+!=================================================================================================
+function  node_array_get_number_nodes(this) 
+       implicit none
+  class(node_array_t), intent(in) :: this
+  integer(ip)                          :: node_array_get_number_nodes
+  node_array_get_number_nodes = this%number_nodes
+end function  node_array_get_number_nodes
 
 !=================================================================================================
 !     CHILDREN_ITERATOR_T TBPS
@@ -516,5 +541,3 @@ function face_orientation( object, dim )
      face_orientation = 1-face_orientation
   end if
 end function face_orientation
-
-
