@@ -685,7 +685,7 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
            call vef%set_it_at_boundary()
            vef_set_id = vef%get_set_id()
            !vef_geom_id = vef%get_geom_id()
-           vefs_of_vef => reference_fe_geo%get_vefs_vef()
+           vefs_of_vef => reference_fe_geo%get_vefs_vef() 
            ! They are also at the boundary, regardless of the number of cells they have around
            vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
            do while( .not. vefs_of_vef_iterator%is_upper_bound() )

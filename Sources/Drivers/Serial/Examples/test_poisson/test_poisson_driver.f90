@@ -30,6 +30,7 @@ module test_poisson_driver_names
   use test_poisson_params_names
   use poisson_discrete_integration_names
   use poisson_conditions_names
+  use list_types_names
 # include "debug.i90"
 
   implicit none
@@ -98,19 +99,24 @@ contains
   subroutine setup_reference_fes(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    
+        
     integer(ip) :: istat
+    type(list_t) :: list
     
     ! if (test_single_scalar_valued_reference_fe) then
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet, &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                 order = 1, &
+                                                 order = 5, &
                                                  field_type = field_type_scalar, &
                                                  continuity = .true. )
+    !call this%reference_fes(1)%p%print()
+    !call this%reference_fes(1)%p%temporary_fill_list()
+    !assert(0==1)
+    
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
