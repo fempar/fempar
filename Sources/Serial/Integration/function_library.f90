@@ -39,12 +39,17 @@ module function_library_names
      private
      real(rp)    :: function_value
    contains
-     procedure :: create                    => constant_scalar_function_create
-     procedure :: get_value_space           => constant_scalar_function_get_value_space
-     procedure :: get_value_space_time      => constant_scalar_function_get_value_space_time
-     procedure :: get_values_set_space      => constant_scalar_function_get_values_set_space
-     procedure :: get_values_set_space_time => constant_scalar_function_get_values_set_space_time
+     procedure :: create                       => constant_scalar_function_create
+     procedure :: get_value_space              => constant_scalar_function_get_value_space
+     procedure :: get_value_space_time         => constant_scalar_function_get_value_space_time
+     procedure :: get_values_set_space         => constant_scalar_function_get_values_set_space
+     procedure :: get_values_set_space_time    => constant_scalar_function_get_values_set_space_time
+     procedure :: get_gradient_space           => constant_scalar_function_get_gradient_space
+     procedure :: get_gradient_space_time      => constant_scalar_function_get_gradient_space_time
+     procedure :: get_gradients_set_space      => constant_scalar_function_get_gradients_set_space
+     procedure :: get_gradients_set_space_time => constant_scalar_function_get_gradients_set_space_time
   end type constant_scalar_function_t
+
   
   interface constant_scalar_function_t
     module procedure constant_scalar_function_constructor
@@ -104,13 +109,51 @@ contains
     result = this%function_value
   end subroutine constant_scalar_function_get_values_set_space_time
   
+  subroutine constant_scalar_function_get_gradient_space( this, point, result )
+    class(constant_scalar_function_t), intent(in)     :: this
+    type(point_t)                    , intent(in)     :: point
+    type(vector_field_t)             , intent(inout)  :: result
+    call result%init(0.0_rp) 
+  end subroutine constant_scalar_function_get_gradient_space
+
+  subroutine constant_scalar_function_get_gradient_space_time( this, point, time, result )
+    class(constant_scalar_function_t), intent(in)    :: this
+    type(point_t)                    , intent(in)    :: point
+    real(rp)                         , intent(in)    :: time
+    type(vector_field_t)             , intent(inout) :: result
+    call result%init(0.0_rp) 
+  end subroutine constant_scalar_function_get_gradient_space_time
+
+  subroutine constant_scalar_function_get_gradients_set_space( this, point, result )
+    class(constant_scalar_function_t), intent(in)     :: this
+    type(point_t)                    , intent(in)     :: point(:)
+    type(vector_field_t)             , intent(inout)  :: result(:)
+    integer(ip) :: i  
+    do i=1, size(result)
+      call result(i)%init(0.0_rp) 
+    end do
+  end subroutine constant_scalar_function_get_gradients_set_space
+
+  subroutine constant_scalar_function_get_gradients_set_space_time( this, point, time, result )
+    class(constant_scalar_function_t), intent(in)    :: this
+    type(point_t)                    , intent(in)    :: point(:)
+    real(rp)                         , intent(in)    :: time(:)
+    type(vector_field_t)             , intent(inout) :: result(:,:)
+    integer(ip) :: i, j 
+    do j = 1, size(point) 
+      do i = 1, size(time) 
+        call result(i,j)%init(0.0_rp) 
+      end do
+    end do
+  end subroutine constant_scalar_function_get_gradients_set_space_time
+
   function constant_scalar_function_constructor ( function_value ) result(new_scalar_constant_function)
     real(rp)   , intent(in) :: function_value
     type(constant_scalar_function_t) :: new_scalar_constant_function
     call new_scalar_constant_function%create(function_value)
   end function constant_scalar_function_constructor
   
-  subroutine constant_vector_function_create( this, function_value )
+ subroutine constant_vector_function_create( this, function_value )
     class(constant_vector_function_t), intent(inout)     :: this
     type(vector_field_t)             , intent(in)        :: function_value
     this%function_value = function_value
