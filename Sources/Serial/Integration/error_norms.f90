@@ -29,7 +29,6 @@ module error_norms_names
   use types_names
   use memor_names
   use fe_space_names
-  use serial_environment_names
   use environment_names
   use reference_fe_names
   use field_names
@@ -136,21 +135,21 @@ contains
     real(rp)   , optional      , intent(in)    :: time
     real(rp)                                   :: norm
 
-    type(serial_environment_t) :: environment
-    
     ! Local variables
-    real(rp)            :: exponent_
-    real(rp)            :: time_(1)
-    type(fe_iterator_t) :: fe_iterator
-    type(fe_accessor_t) :: fe
-    real(rp)            :: values_cell_contribution, values_norm
-    real(rp)            :: gradients_cell_contribution, gradients_norm
+    real(rp)                      :: exponent_
+    real(rp)                      :: time_(1)
+    type(fe_iterator_t)           :: fe_iterator
+    type(fe_accessor_t)           :: fe
+    real(rp)                      :: values_cell_contribution, values_norm
+    real(rp)                      :: gradients_cell_contribution, gradients_norm
+    class(environment_t), pointer :: environment
     
     assert ( error_norm_is_supported(norm_type) )
     assert ( trim(norm_type) /= hdiv_seminorm)
+    
+    environment => this%fe_space%get_environment()
     if ( environment%am_i_l1_task() ) then 
        exponent_ = error_norm_determine_exponent(norm_type, exponent)
-    
        values_norm    = 0.0_rp
        gradients_norm = 0.0_rp
        fe_iterator = this%fe_space%create_fe_iterator()

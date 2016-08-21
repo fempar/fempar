@@ -188,7 +188,6 @@ contains
                                           diagonal_blocks_symmetric_storage = [ .true. ], &
                                           diagonal_blocks_symmetric         = [ .true. ], &
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                          environment                       = this%par_environment, &
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%poisson_integration )
   end subroutine setup_system
@@ -202,7 +201,7 @@ contains
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
     
-    call this%iterative_linear_solver%create(this%par_environment)
+    call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
   end subroutine setup_solver

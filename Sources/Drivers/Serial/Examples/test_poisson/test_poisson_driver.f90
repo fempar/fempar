@@ -61,9 +61,6 @@ module test_poisson_driver_names
  
      ! Poisson problem solution FE function
      type(fe_function_t)                       :: solution
-     
-     ! Environment required for fe_affine_operator + vtk_handler
-     type(serial_environment_t)                :: serial_environment
    contains
      procedure                  :: run_simulation
      procedure        , private :: parse_command_line_parameters
@@ -146,7 +143,6 @@ contains
             diagonal_blocks_symmetric_storage = [ .true. ], &
             diagonal_blocks_symmetric         = [ .true. ], &
             diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-            environment                       = this%serial_environment, &
             fe_space                          = this%fe_space, &
             discrete_integration              = this%poisson_cG_integration )
 
@@ -155,7 +151,6 @@ contains
             diagonal_blocks_symmetric_storage = [ .true. ], &
             diagonal_blocks_symmetric         = [ .true. ], &
             diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-            environment                       = this%serial_environment, &
             fe_space                          = this%fe_space, &
             discrete_integration              = this%poisson_dG_integration )
     end if
@@ -180,7 +175,7 @@ contains
     !call this%direct_solver%set_parameters_from_pl(parameter_list)
     !call parameter_list%free()
     
-     call this%iterative_linear_solver%create(this%serial_environment)
+     call this%iterative_linear_solver%create(this%fe_space%get_environment())
      call this%iterative_linear_solver%set_type_from_string(cg_name)
      call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
   end subroutine setup_solver

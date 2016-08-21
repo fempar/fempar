@@ -1462,11 +1462,19 @@ subroutine serial_fe_space_create_face_fe_function_tensor ( this, field_id, face
 end subroutine serial_fe_space_create_face_fe_function_tensor
 
 function serial_fe_space_get_triangulation( this) result(triangulation)
+  implicit none
   class(serial_fe_space_t)      , intent(in)    :: this 
   class(base_static_triangulation_t), pointer       :: triangulation
   assert ( associated(this%triangulation) )
   triangulation => this%triangulation
 end function serial_fe_space_get_triangulation
+
+function serial_fe_space_get_environment(this) result(environment)
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this 
+  class(environment_t), pointer:: environment 
+  environment => the_serial_environment 
+end function serial_fe_space_get_environment
 
 function serial_fe_space_create_fe_iterator ( this )
   implicit none
