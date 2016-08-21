@@ -42,10 +42,10 @@ module field_names
      procedure, non_overridable :: vector_field_init_with_scalar
      procedure, non_overridable :: vector_field_init_with_vector
      generic :: init  => vector_field_init_with_scalar, vector_field_init_with_vector
-     procedure, non_overridable :: set   => vector_field_set
-     procedure, non_overridable :: get   => vector_field_get	
-     procedure, non_overridable :: add   => vector_field_add
-     procedure, non_overridable :: nrm2  => vector_field_nrm2
+     procedure, non_overridable :: set       => vector_field_set
+     procedure, non_overridable :: get       => vector_field_get
+     procedure, non_overridable :: add       => vector_field_add
+     procedure, non_overridable :: nrm2      => vector_field_nrm2
      procedure, non_overridable :: get_value => vector_field_get_value
   end type vector_field_t
   
