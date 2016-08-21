@@ -261,7 +261,7 @@ contains
     type(constant_scalar_function_t) :: constant_function
     type(error_norms_scalar_t) :: error_norm 
     
-    call constant_function%create(2.0_rp)
+    call constant_function%create(1.0_rp)
     call error_norm%create(this%fe_space,1)
     write(*,'(a20,e32.25)') 'mean_norm:', error_norm%compute(constant_function, this%solution, mean_norm)   
     write(*,'(a20,e32.25)') 'l1_norm:', error_norm%compute(constant_function, this%solution, l1_norm)   
