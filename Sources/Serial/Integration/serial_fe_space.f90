@@ -103,6 +103,7 @@ module fe_space_names
     procedure, non_overridable, private :: fe_accessor_get_fe_vef
     generic                             :: get_vef                                    => fe_accessor_get_fe_vef
     procedure, non_overridable          :: get_reference_fe                           => fe_accessor_get_reference_fe
+    procedure, non_overridable, private :: get_reference_fe_id                        => fe_accessor_get_reference_fe_id
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_accessor_create_own_dofs_on_vef_iterator
     
     procedure, non_overridable, private :: update_cell_fe_function_scalar             => fe_accessor_update_cell_fe_function_scalar
@@ -231,7 +232,7 @@ module fe_space_names
      type(volume_integrator_t)     , allocatable :: fe_volume_integrators(:)
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
-     integer(ip)                   , allocatable :: reference_fe_id_per_fe(:,:)      ! (number_fields+1, number_fes)
+     integer(ip)                   , allocatable :: reference_fe_id_per_fe(:,:)      ! (number_fields, number_fes)
      integer(ip)                   , allocatable :: max_order_per_fe(:)              ! Stores Key=max_order_within_fe for all FEs
      type(hash_table_ip_ip_t)                    :: fe_quadratures_and_maps_position ! Key = max_order_within_fe
      type(hash_table_ip_ip_t)                    :: fe_volume_integrators_position   ! Key = [max_order_within_fe,
@@ -320,7 +321,14 @@ module fe_space_names
      procedure, private                  :: create_face_fe_function_tensor               => serial_fe_space_create_face_fe_function_tensor
      generic                             :: create_face_fe_function                      => create_face_fe_function_scalar, &
                                                                                             create_face_fe_function_vector, &
-                                                                                            create_face_fe_function_tensor                                                                                       
+                                                                                            create_face_fe_function_tensor 
+                                                                                            
+     procedure, private                  :: interpolate_scalar_function                  => serial_fe_space_interpolate_scalar_function
+     procedure, private                  :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
+     procedure, private                  :: interpolate_tensor_function                  => serial_fe_space_interpolate_tensor_function
+     generic                             :: interpolate_function                         => interpolate_scalar_function , &
+                                                                                            interpolate_vector_function, &
+                                                                                            interpolate_tensor_function
                                                                                             
      procedure                           :: fill_dof_info                                => serial_fe_space_fill_dof_info
      procedure                 , private :: fill_elem2dof_and_count_dofs                 => serial_fe_space_fill_elem2dof_and_count_dofs
@@ -337,6 +345,7 @@ module fe_space_names
      procedure, non_overridable          :: get_number_components                        => serial_fe_space_get_number_components
      procedure, non_overridable          :: get_max_number_nodes                         => serial_fe_space_get_max_number_nodes
      procedure, non_overridable          :: get_max_number_quadrature_points             => serial_fe_space_get_max_number_quadrature_points
+     procedure, non_overridable          :: get_max_number_nodal_quadrature_points       => serial_fe_space_get_max_number_nodal_quadrature_points
      procedure, non_overridable          :: get_max_number_face_quadrature_points        => serial_fe_space_get_max_number_face_quadrature_points     
      procedure, non_overridable          :: get_number_blocks                            => serial_fe_space_get_number_blocks
      procedure, non_overridable          :: get_field_blocks                             => serial_fe_space_get_field_blocks

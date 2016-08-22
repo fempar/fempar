@@ -73,6 +73,7 @@ module test_poisson_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: print_error_norms
+     procedure        , private :: test_interpolation
      procedure        , private :: free
   end type test_poisson_driver_t
 
@@ -278,6 +279,28 @@ contains
     call error_norm%free()
   end subroutine print_error_norms 
   
+  subroutine test_interpolation(this)
+    implicit none
+    class(test_poisson_driver_t), intent(inout) :: this
+    type(fe_function_t)              :: constant_fe_function
+    type(constant_scalar_function_t) :: constant_function
+    type(error_norms_scalar_t) :: error_norm
+    
+    call constant_function%create(1.0_rp)
+    call this%fe_space%create_fe_function(constant_fe_function)
+    
+    call this%fe_space%interpolate_function(field_id    = 1, & 
+                                            function    = constant_function, &
+                                            fe_function = constant_fe_function )
+    
+     
+    call error_norm%create(this%fe_space,1)
+    write(*,'(a40,e32.25)') 'TEST INTERPOLATION l2_norm:', error_norm%compute(constant_function, constant_fe_function, l2_norm)   
+    call constant_fe_function%free()
+    call error_norm%free()
+    
+  end subroutine test_interpolation
+  
   
   subroutine run_simulation(this) 
     implicit none
@@ -294,6 +317,7 @@ contains
     call this%solve_system()
     call this%check_solution()
     call this%print_error_norms()
+    call this%test_interpolation()
     call this%free()
   end subroutine run_simulation
   
