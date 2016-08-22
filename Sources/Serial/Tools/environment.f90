@@ -38,7 +38,10 @@ module environment_names
      procedure (l1_barrier_interface)                 , deferred  :: l1_barrier
      procedure (l1_sum_scalar_rp_interface), private  , deferred  :: l1_sum_scalar_rp
      procedure (l1_sum_vector_rp_interface), private  , deferred  :: l1_sum_vector_rp
+     procedure (l1_max_scalar_rp_interface), private  , deferred  :: l1_max_scalar_rp
+     procedure (l1_max_vector_rp_interface), private  , deferred  :: l1_max_vector_rp
      generic  :: l1_sum                                           => l1_sum_scalar_rp, l1_sum_vector_rp
+     generic  :: l1_max                                           => l1_max_scalar_rp, l1_max_vector_rp
   end type environment_t
 
   ! Abstract interfaces
@@ -84,6 +87,20 @@ module environment_names
        class(environment_t) , intent(in)    :: this
        real(rp)             , intent(inout) :: alpha(:) 
      end subroutine l1_sum_vector_rp_interface
+     
+    subroutine l1_max_scalar_rp_interface (this,alpha)
+       import :: environment_t, rp
+       implicit none
+       class(environment_t) , intent(in)    :: this
+       real(rp)             , intent(inout) :: alpha
+     end subroutine l1_max_scalar_rp_interface
+     
+     subroutine l1_max_vector_rp_interface(this,alpha)
+       import :: environment_t, rp
+       implicit none
+       class(environment_t) , intent(in)    :: this
+       real(rp)             , intent(inout) :: alpha(:) 
+     end subroutine l1_max_vector_rp_interface
   end interface
 
   public :: environment_t
