@@ -46,7 +46,7 @@ subroutine interpolation_create( this, &
   this%number_shape_functions = number_shape_functions
   this%number_quadrature_points = number_quadrature_points
   this%number_entries_symmetric_tensor = number_entries_symmetric_tensor
-  call memalloc(number_shape_functions, &
+  call memalloc(number_dimensions, number_shape_functions, &
                 number_quadrature_points, &
                 this%shape_functions,__FILE__,__LINE__)
   call memalloc(number_dimensions, &
@@ -85,11 +85,11 @@ subroutine interpolation_copy(this, source_interpolation)
   this%number_shape_functions = source_interpolation%number_shape_functions
   this%number_quadrature_points = source_interpolation%number_quadrature_points
   this%number_entries_symmetric_tensor = source_interpolation%number_entries_symmetric_tensor
-  call memalloc(this%number_shape_functions,this%number_quadrature_points, &
+  call memalloc(this%number_dimensions,this%number_shape_functions,this%number_quadrature_points, &
 																this%shape_functions,__FILE__,__LINE__)
   call memalloc(this%number_dimensions,this%number_shape_functions,&
 																this%number_quadrature_points,this%shape_derivatives,   __FILE__,__LINE__)
-  this%shape_functions(:,:) = source_interpolation%shape_functions(:,:)
+  this%shape_functions(:,:,:) = source_interpolation%shape_functions(:,:,:)
   this%shape_derivatives(:,:,:) = source_interpolation%shape_derivatives(:,:,:)
   if ( allocated(source_interpolation%hessian) ) then
     call memalloc(this%number_entries_symmetric_tensor,this%number_shape_functions,&
@@ -110,7 +110,9 @@ subroutine interpolation_print ( this )
   write(*,*) '*************** SHAPE FUNCTIONS ******************'
   do i = 1, size(this%shape_functions,1)
      do j = 1, size(this%shape_functions,2)
-        write(*,*) 'shape function phi^',i,'(gp=',j,')= ',this%shape_functions(i,j)
+        do k = 1, size(this%shape_functions,3)
+           write(*,*) 'shape function phi^',j,'_(dim_',i,')','(gp=',k,')= ',this%shape_functions(i,j,k)
+        end do
      end do
   end do
 

@@ -276,7 +276,7 @@ subroutine lagrangian_reference_fe_get_value_scalar( this, actual_cell_interpola
   assert( this%field_type == field_type_scalar )
   assert( ishape >= 1 .and. ishape <= this%number_nodes )
   assert( qpoint >= 1 )
-  scalar_field = actual_cell_interpolation%shape_functions(ishape,qpoint)
+  scalar_field = actual_cell_interpolation%shape_functions(1,ishape,qpoint)
 end subroutine lagrangian_reference_fe_get_value_scalar
 
 !==================================================================================================
@@ -293,7 +293,7 @@ subroutine lagrangian_reference_fe_get_value_vector( this, actual_cell_interpola
   assert( qpoint >= 1 )
   call vector_field%init(0.0_rp)
   call vector_field%set(this%node_component_array(ishape,2), &
-   & actual_cell_interpolation%shape_functions(this%node_component_array(ishape,1),qpoint))
+   & actual_cell_interpolation%shape_functions(1,this%node_component_array(ishape,1),qpoint))
 end subroutine lagrangian_reference_fe_get_value_vector
 
 !==================================================================================================
@@ -413,7 +413,7 @@ subroutine lagrangian_reference_fe_interpolate_nodal_values( this,              
         nodal_values_destination(c_dest) = 0.0_rp
         do ishape = 1, nodal_interpolation%number_shape_functions
            nodal_values_destination(c_dest) = nodal_values_destination(c_dest) + & 
-                & nodal_interpolation%shape_functions(ishape,qpoint) *           &
+                & nodal_interpolation%shape_functions(1,ishape,qpoint) *           &
                 & nodal_values_origin(this%node_array_component(ishape,icomp))
         end do
      end do
@@ -517,7 +517,7 @@ subroutine lagrangian_reference_fe_evaluate_fe_function_scalar( this,           
      quadrature_points_values(qpoint) = 0.0_rp
      do ishape = 1, actual_cell_interpolation%number_shape_functions
         quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
-        & actual_cell_interpolation%shape_functions(ishape,qpoint)*nodal_values(ishape)
+        & actual_cell_interpolation%shape_functions(1,ishape,qpoint)*nodal_values(ishape)
      end do
   end do
 
@@ -541,7 +541,7 @@ subroutine lagrangian_reference_fe_evaluate_fe_function_vector( this,           
         inode_scalar = this%node_component_array(inode,1)
         icomp        = this%node_component_array(inode,2)
         call quadrature_points_values(qpoint)%add(icomp, &
-         & actual_cell_interpolation%shape_functions(inode_scalar,qpoint)*nodal_values(inode))
+         & actual_cell_interpolation%shape_functions(1,inode_scalar,qpoint)*nodal_values(inode))
      end do
   end do
 
@@ -892,7 +892,7 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
   ntens = ref%number_entries_symmetric_tensor
   nlocs = ref%number_quadrature_points
   !nnode = ref%number_shape_functions
-  nnode = size(ref%shape_functions,1)
+  nnode = size(ref%shape_functions,2)
 
   ! Shape functions do not change
   !phy%shape_functions = ref%shape_functions 
@@ -901,7 +901,7 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
   !if(phy%kder==1) then
   phy%shape_derivatives=0.0_rp
   do ilocs=1,phy%number_quadrature_points
-     do inode=1,size(phy%shape_functions,1)!phy%number_shape_functions
+     do inode=1,size(phy%shape_functions,2)!phy%number_shape_functions
         do idime=1,ndime
            do jdime=1,ndime
               phy%shape_derivatives(idime,inode,ilocs) = phy%shape_derivatives(idime,inode,ilocs) &

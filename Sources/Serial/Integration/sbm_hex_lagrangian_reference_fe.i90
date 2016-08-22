@@ -730,12 +730,12 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
 
   ! Compute the nd shape functions as the tensor product of 1d shape functions
   if ( allocated( interpolation%hessian ) )  then 
-     call this%evaluate_interpolation(interpolation%shape_functions,interpolation%shape_derivatives,      &
+     call this%evaluate_interpolation(interpolation%shape_functions(1,:,:),interpolation%shape_derivatives,      &
                                     & shpe1,shpd1,shph1,interpolation%number_dimensions,this%order,nlocs, &
                                     & interpolation%number_entries_symmetric_tensor,compute_hessian,      & 
                                     & interpolation%hessian)
   else
-     call this%evaluate_interpolation(interpolation%shape_functions,interpolation%shape_derivatives,      &
+     call this%evaluate_interpolation(interpolation%shape_functions(1,:,:),interpolation%shape_derivatives,      &
                                     & shpe1,shpd1,shph1,interpolation%number_dimensions,this%order,nlocs, & 
                                     & interpolation%number_entries_symmetric_tensor,compute_hessian)
   end if
@@ -776,11 +776,11 @@ subroutine hex_lagrangian_reference_fe_fill_face_interpolation (this,face_interp
 
   order_of_approximation = this%order
   ! Create the interpolation
-  call this%evaluate_face_interpolation(face_interpolation%shape_functions,          &
+  call this%evaluate_face_interpolation(face_interpolation%shape_functions(1,:,:),          &
                                       & face_interpolation%shape_derivatives,        &
-                                      & local_interpolation%shape_functions,         &  
+                                      & local_interpolation%shape_functions(1,:,:),         &  
                                       & local_interpolation%shape_derivatives,       &
-                                      & interp_1D_corners%shape_functions,           & 
+                                      & interp_1D_corners%shape_functions(1,:,:),           & 
                                       & interp_1D_corners%shape_derivatives,         &
                                       & face_interpolation%number_dimensions,        &
                                       & order_of_approximation,                      &

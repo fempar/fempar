@@ -99,7 +99,7 @@ module reference_fe_names
           number_quadrature_points, &      
           number_entries_symmetric_tensor
      real(rp), allocatable      ::  &
-          shape_functions(:,:),     &   
+          shape_functions(:,:,:),     &   
           shape_derivatives(:,:,:), &   
           hessian(:,:,:)     
    contains

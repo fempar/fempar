@@ -177,7 +177,7 @@ subroutine fe_map_update( this, quadrature)
   end if
 
   ndime = this%interpolation_geometry%number_dimensions
-  nnode = size(this%interpolation_geometry%shape_functions,1)
+  nnode = size(this%interpolation_geometry%shape_functions,2)
   nlocs = this%interpolation_geometry%number_quadrature_points
 
 
@@ -509,7 +509,8 @@ subroutine fe_map_compute_quadrature_coordinates(this)
      call this%coordinates_quadrature(qpoin)%init(0.0_rp)
      do inode=1,nnode
         this%coordinates_quadrature(qpoin) = this%coordinates_quadrature(qpoin) + &
-             & this%coordinates_nodes(inode) * this%interpolation_geometry%shape_functions(inode,qpoin)
+             & this%coordinates_nodes(inode) * this%interpolation_geometry%shape_functions(1,inode,qpoin)
+             ! BE CAREFUL (@sbadia): Here we make explicit use of shape_functions being Lagrangian-type
      end do
   end do
   
