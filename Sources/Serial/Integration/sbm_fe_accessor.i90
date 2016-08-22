@@ -480,7 +480,7 @@ subroutine fe_accessor_update_cell_fe_function_scalar ( this, fe_function, cell_
   reference_fe             => this%get_reference_fe(field_id)
   quadrature               => this%get_quadrature()
   volume_integrator        => this%get_volume_integrator(field_id)
-  number_nodes_field       =  reference_fe%get_number_nodes()
+  number_nodes_field       =  reference_fe%get_number_shape_functions()
   number_quadrature_points =  quadrature%get_number_quadrature_points()
   
   call cell_fe_function_scalar%set_current_number_quadrature_points( number_quadrature_points )
@@ -539,7 +539,7 @@ subroutine fe_accessor_update_cell_fe_function_vector ( this, fe_function, cell_
   reference_fe             => this%get_reference_fe(field_id)
   quadrature               => this%get_quadrature()
   volume_integrator        => this%get_volume_integrator(field_id)
-  number_nodes_field       =  reference_fe%get_number_nodes()
+  number_nodes_field       =  reference_fe%get_number_shape_functions()
   number_quadrature_points =  quadrature%get_number_quadrature_points()
   
   call cell_fe_function_vector%set_current_number_quadrature_points( number_quadrature_points )
@@ -597,7 +597,7 @@ subroutine fe_accessor_update_cell_fe_function_tensor ( this, fe_function, cell_
   reference_fe             => this%get_reference_fe(field_id)
   quadrature               => this%get_quadrature()
   volume_integrator        => this%get_volume_integrator(field_id)
-  number_nodes_field       =  reference_fe%get_number_nodes()
+  number_nodes_field       =  reference_fe%get_number_shape_functions()
   number_quadrature_points =  quadrature%get_number_quadrature_points()
   
   call cell_fe_function_tensor%set_current_number_quadrature_points( number_quadrature_points )
@@ -644,7 +644,7 @@ subroutine fe_accessor_impose_strong_dirichlet_bcs ( this, elmat, elvec )
  do field_id = 1, this%fe_space%get_number_fields()
    reference_fe => this%get_reference_fe(field_id)
    spos = this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())
-   do idof = 1, reference_fe%get_number_nodes()
+   do idof = 1, reference_fe%get_number_shape_functions()
        elmat_col = elmat_col + 1
        if ( this%fe_space%lst_dofs_lids(spos+idof-1) < 0 ) then
           elvec = elvec - elmat(:,elmat_col)*strong_dirichlet_values_entries(-this%fe_space%lst_dofs_lids(spos+idof-1))

@@ -62,7 +62,7 @@
     this%order = 0
     this%number_field_components = 0
     this%number_n_faces = 0
-    this%number_nodes = 0
+    this%number_shape_functions = 0
     this%number_n_faces_per_dimension  = 0
     this%continuity = .true.
 
@@ -83,7 +83,7 @@
   write(*,*) 'order: ', reference_fe%order
   write(*,*) 'continuity: ',reference_fe%continuity
   write(*,*) 'number_n_faces', reference_fe%number_n_faces
-  write(*,*) 'number_nodes', reference_fe%number_nodes
+  write(*,*) 'number_nodes', reference_fe%number_shape_functions
   write(*,*) 'number_n_faces_dimension', reference_fe%number_n_faces_per_dimension
 
   write(*,*) 'orientation', reference_fe%orientation%a
@@ -298,12 +298,12 @@ end function reference_fe_get_conformity
     reference_fe_get_first_n_face_id_of_dimension = this%number_n_faces_per_dimension(n_face_dimension+1)
   end function reference_fe_get_first_n_face_id_of_dimension
 
-  function reference_fe_get_number_nodes ( this )
+  function reference_fe_get_number_shape_functions ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    integer(ip) :: reference_fe_get_number_nodes
-    reference_fe_get_number_nodes = this%number_nodes
-  end function reference_fe_get_number_nodes
+    integer(ip) :: reference_fe_get_number_shape_functions
+    reference_fe_get_number_shape_functions = this%number_shape_functions
+  end function reference_fe_get_number_shape_functions
 
   function reference_fe_get_n_face_dimension ( this, n_face_id )
     implicit none

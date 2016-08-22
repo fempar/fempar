@@ -46,16 +46,16 @@ subroutine interpolation_create( this, &
   this%number_shape_functions = number_shape_functions
   this%number_quadrature_points = number_quadrature_points
   this%number_entries_symmetric_tensor = number_entries_symmetric_tensor
-  call memalloc(number_dimensions, number_shape_functions, &
+  call memalloc(SPACE_DIM, number_shape_functions, &
                 number_quadrature_points, &
                 this%shape_functions,__FILE__,__LINE__)
-  call memalloc(number_dimensions,number_dimensions, &
+  call memalloc(SPACE_DIM,SPACE_DIM, &
                 number_shape_functions, &
                 number_quadrature_points, &
                 this%shape_derivatives, __FILE__, __LINE__)
   if ( present(compute_hessian) ) then
      if ( compute_hessian ) then 
-        call memalloc(number_dimensions,number_entries_symmetric_tensor,&
+        call memalloc(SPACE_DIM,number_entries_symmetric_tensor,&
                       number_shape_functions,&
                       number_quadrature_points, &
                       this%hessian,__FILE__,__LINE__) 
@@ -85,9 +85,9 @@ subroutine interpolation_copy(this, source_interpolation)
   this%number_shape_functions = source_interpolation%number_shape_functions
   this%number_quadrature_points = source_interpolation%number_quadrature_points
   this%number_entries_symmetric_tensor = source_interpolation%number_entries_symmetric_tensor
-  call memalloc(this%number_dimensions,this%number_shape_functions,this%number_quadrature_points, &
+  call memalloc(SPACE_DIM,this%number_shape_functions,this%number_quadrature_points, &
 																this%shape_functions,__FILE__,__LINE__)
-  call memalloc(this%number_dimensions,this%number_dimensions,this%number_shape_functions,&
+  call memalloc(SPACE_DIM,SPACE_DIM,this%number_shape_functions,&
 																this%number_quadrature_points,this%shape_derivatives,   __FILE__,__LINE__)
   this%shape_functions(:,:,:) = source_interpolation%shape_functions(:,:,:)
   this%shape_derivatives(:,:,:,:) = source_interpolation%shape_derivatives(:,:,:,:)

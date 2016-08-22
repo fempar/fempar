@@ -228,7 +228,7 @@ module reference_fe_names
 
      integer(ip)              ::    &
           number_n_faces,              &        
-          number_nodes,             &        
+          number_shape_functions,             &        
           number_n_faces_per_dimension(5)
 
      type(allocatable_array_ip1_t)  :: orientation        ! orientation of the n-faces 
@@ -352,7 +352,7 @@ module reference_fe_names
      procedure :: get_first_face_id => reference_fe_get_first_face_id
      procedure :: get_number_n_faces_of_dimension  => reference_fe_get_number_n_faces_of_dimension
      procedure :: get_first_n_face_id_of_dimension => reference_fe_get_first_n_face_id_of_dimension 
-     procedure :: get_number_nodes => reference_fe_get_number_nodes
+     procedure :: get_number_shape_functions => reference_fe_get_number_shape_functions
      procedure :: get_n_face_dimension  => reference_fe_get_n_face_dimension
      procedure :: get_vertices_n_face  =>   reference_fe_get_vertices_n_face
      procedure :: get_nodes_n_face   =>   reference_fe_get_nodes_n_face

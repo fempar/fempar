@@ -664,29 +664,42 @@ subroutine tet_vlrfe_fill_interpolation ( this, interpolation, coord_ip )
   type(interpolation_t)               , intent(inout) :: interpolation
   real(rp)                            , intent(in)    :: coord_ip(:,:)
 
-  integer(ip) :: iquad
+  type(interpolation_t) :: scalar_interpolation
+  integer(ip) :: iquad,idime,ishape
+    
+  call scalar_interpolation%copy( interpolation )
 
   if ( allocated( interpolation%hessian ) )  then 
-     do iquad = 1,interpolation%number_quadrature_points
-        call this%vlrfe_evaluate_interpolation( coord_ip(:,iquad),                             &
-                                          interpolation%number_dimensions,               &
-                                          interpolation%number_shape_functions,          &
-                                          interpolation%number_entries_symmetric_tensor, &
-                                          interpolation%shape_functions(1,:,iquad),        &
-                                          interpolation%shape_derivatives(1,:,:,iquad),    &
-                                          interpolation%hessian(1,:,:,iquad) )
-     end do
+     write(*,*) __FILE__,__LINE__,'ERROR:: Hessian not defined for vector Lagrangian'
+     check(.false.)
   else
      do iquad = 1,interpolation%number_quadrature_points
         call this%vlrfe_evaluate_interpolation( coord_ip(:,iquad),                             &
-                                          interpolation%number_dimensions,               &
-                                          interpolation%number_shape_functions,          &
-                                          interpolation%number_entries_symmetric_tensor, &
-                                          interpolation%shape_functions(1,:,iquad),        &
-                                          interpolation%shape_derivatives(1,:,:,iquad) )
+                                          scalar_interpolation%number_dimensions,               &
+                                          scalar_interpolation%number_shape_functions,          &
+                                          scalar_interpolation%number_entries_symmetric_tensor, &
+                                          scalar_interpolation%shape_functions(1,:,iquad),        &
+                                          scalar_interpolation%shape_derivatives(1,:,:,iquad) )
      end do
   end if
   
+  interpolation%shape_functions = 0.0_rp
+  interpolation%shape_derivatives = 0.0_rp  
+  do idime = 1,this%number_dimensions
+     do ishape = 1,this%number_shape_functions
+        do iquad = 1, interpolation%number_quadrature_points
+           interpolation%shape_functions(this%node_component_array(ishape,2),ishape,iquad) &
+           & = scalar_interpolation%shape_functions(1,this%node_component_array(ishape,1),iquad)
+           interpolation%shape_derivatives(this%node_component_array(ishape,2),:,ishape,iquad) &
+           & = scalar_interpolation%shape_derivatives(1,:,this%node_component_array(ishape,1),iquad)
+        end do 
+     end do
+  end do
+  
+  if ( allocated( interpolation%hessian ) )  then 
+     write(*,*) __FILE__,__LINE__,'ERROR:: Hessian not defined for vector Lagrangian'
+     check(.false.)
+  end if
 end subroutine tet_vlrfe_fill_interpolation
 
 !==================================================================================================
