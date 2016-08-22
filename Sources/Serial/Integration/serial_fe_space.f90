@@ -324,11 +324,11 @@ module fe_space_names
                                                                                             create_face_fe_function_tensor 
                                                                                             
      procedure, private                  :: interpolate_scalar_function                  => serial_fe_space_interpolate_scalar_function
-     !procedure, private                  :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
-     !procedure, private                  :: interpolate_tensor_function                  => serial_fe_space_interpolate_tensor_function
-     generic                             :: interpolate_function                         => interpolate_scalar_function !, &
-                                                                                            !interpolate_vector_function, &
-                                                                                            !interpolate_tensor_function
+     procedure, private                  :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
+     procedure, private                  :: interpolate_tensor_function                  => serial_fe_space_interpolate_tensor_function
+     generic                             :: interpolate_function                         => interpolate_scalar_function , &
+                                                                                            interpolate_vector_function, &
+                                                                                            interpolate_tensor_function
                                                                                             
      procedure                           :: fill_dof_info                                => serial_fe_space_fill_dof_info
      procedure                 , private :: fill_elem2dof_and_count_dofs                 => serial_fe_space_fill_elem2dof_and_count_dofs
