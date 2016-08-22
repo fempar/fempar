@@ -73,7 +73,7 @@ subroutine fe_accessor_fill_own_dofs ( this, field_id, current_dof )
   
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within current fe
-  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
+  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
   do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
     current_dof = current_dof + 1
     this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()) = current_dof
@@ -103,7 +103,7 @@ subroutine fe_accessor_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof 
   
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within current fe
-  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
+  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
   do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
     assert ( this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current())  <= 0 )
     if ( this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+own_dofs_on_vef_iterator%get_current()) == 0 ) then
@@ -144,10 +144,10 @@ subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   base_pos_lst_dofs_lids_source = this%fe_space%ptr_dofs_per_fe(field_id, source_fe%get_lid())-1
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within source fe
-  own_dofs_on_vef_iterator_source = reference_fe_source%create_own_dofs_on_vef_iterator(source_ivef)
+  own_dofs_on_vef_iterator_source = reference_fe_source%create_own_dofs_on_n_face_iterator(source_ivef)
   
   if ( own_dofs_on_vef_iterator_source%get_size() > 0 ) then
-       assert (reference_fe_target%check_compatibility_of_vefs(reference_fe_source,source_ivef,target_ivef))
+       assert (reference_fe_target%check_compatibility_of_n_faces(reference_fe_source,source_ivef,target_ivef))
        relative_rotation = reference_fe_target%compute_relative_rotation( reference_fe_source, &
                                                                           source_ivef, &
                                                                           target_ivef, &
@@ -160,7 +160,7 @@ subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
       own_dof_within_vef_source_fe = 1
       do while (.not. own_dofs_on_vef_iterator_source%is_upper_bound())
         idof_source = own_dofs_on_vef_iterator_source%get_current()
-        idof_target = reference_fe_target%get_permuted_own_node_vef(own_dof_within_vef_source_fe, &
+        idof_target = reference_fe_target%get_permuted_own_node_n_face(own_dof_within_vef_source_fe, &
                                                                     target_ivef, & 
                                                                     relative_orientation, &
                                                                     relative_rotation)
@@ -191,9 +191,9 @@ subroutine fe_accessor_fill_dofs_face_integration_coupling ( this, ivef, field_i
   type(list_iterator_t)          :: face_integration_coupling_dofs 
   
   reference_fe => this%get_reference_fe(field_id)
-  assert ( reference_fe%get_vef_dimension(ivef) == reference_fe%get_number_dimensions()-1 )
+  assert ( reference_fe%get_n_face_dimension(ivef) == reference_fe%get_number_dimensions()-1 )
   
-  face_integration_coupling_dofs = reference_fe%create_face_integration_coupling_dofs_iterator(ivef)
+  face_integration_coupling_dofs = reference_fe%create_facet_integration_coupling_dofs_iterator(ivef)
   base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())-1
   do while (.not. face_integration_coupling_dofs%is_upper_bound())
     idof = face_integration_coupling_dofs%get_current()
@@ -283,21 +283,29 @@ function fe_accessor_get_number_fields(this)
   fe_accessor_get_number_fields = this%fe_space%number_fields
 end function fe_accessor_get_number_fields
 
-function fe_accessor_get_field_type(this, field_id)
+function fe_accessor_get_fe_space_type(this, field_id)
   implicit none
   class(fe_accessor_t), intent(in) :: this
   integer(ip)         , intent(in) :: field_id
-  integer(ip)                      :: fe_accessor_get_field_type
+  integer(ip)                      :: fe_accessor_get_fe_space_type
   class(reference_fe_t), pointer   :: reference_fe
   reference_fe => this%get_reference_fe(field_id)
   if ( reference_fe%get_continuity() ) then
-    fe_accessor_get_field_type = field_type_cg
+    fe_accessor_get_fe_space_type = fe_space_type_cg
   else if ( reference_fe%get_conformity() ) then
-    fe_accessor_get_field_type = field_type_dg_conforming
+    fe_accessor_get_fe_space_type = fe_space_type_dg_conforming
   else
-    fe_accessor_get_field_type = field_type_dg
+    fe_accessor_get_fe_space_type = fe_space_type_dg
   end if
-end function fe_accessor_get_field_type
+end function fe_accessor_get_fe_space_type
+
+function fe_accessor_get_field_blocks(this)
+  implicit none
+  class(fe_accessor_t), intent(in) :: this
+  integer(ip), pointer             :: fe_accessor_get_field_blocks(:)
+  fe_accessor_get_field_blocks => this%fe_space%field_blocks
+end function fe_accessor_get_field_blocks
+
 
 function fe_accessor_get_number_dofs(this)
   implicit none
@@ -321,6 +329,21 @@ subroutine fe_accessor_get_number_dofs_per_field (this, number_dofs_per_field )
                                     this%fe_space%ptr_dofs_per_fe(field_id, this%get_lid())
 end subroutine fe_accessor_get_number_dofs_per_field
 
+subroutine fe_accessor_get_field_elem2dof( this, field_id, elem2dof )
+  implicit none
+  class(fe_accessor_t), intent(in)    :: this
+  integer(ip)         , intent(in)    :: field_id
+  integer(ip), pointer, intent(inout) :: elem2dof(:)
+  integer(ip) :: spos, epos
+ 
+  spos = this%fe_space%ptr_dofs_per_fe(field_id  ,this%get_lid())
+  if ( field_id == this%fe_space%get_number_fields() ) then
+     epos = this%fe_space%ptr_dofs_per_fe(1,this%get_lid()+1)-1
+  else
+     epos = this%fe_space%ptr_dofs_per_fe(field_id+1,this%get_lid())-1
+  end if
+  elem2dof => this%fe_space%lst_dofs_lids(spos:epos)
+end subroutine fe_accessor_get_field_elem2dof
 
 subroutine fe_accessor_get_elem2dof( this, elem2dof )
   implicit none
@@ -430,8 +453,181 @@ function fe_accessor_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) re
   class(reference_fe_t), pointer          :: reference_fe
   
   reference_fe => this%get_reference_fe(field_id)
-  list_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
+  list_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
 end function fe_accessor_create_own_dofs_on_vef_iterator
+
+subroutine fe_accessor_update_cell_fe_function_scalar ( this, fe_function, cell_fe_function_scalar )
+  implicit none
+  class(fe_accessor_t)           , intent(in)    :: this
+  type(fe_function_t)            , intent(in)    :: fe_function
+  type(cell_fe_function_scalar_t), intent(inout) :: cell_fe_function_scalar
+
+  
+  integer(ip)                        :: inode, field_id, block_id
+  integer(ip)                        :: number_nodes_field, number_quadrature_points
+  integer(ip)              , pointer :: elem2dof(:)
+  integer(ip)              , pointer :: field_blocks(:)
+  class(reference_fe_t)    , pointer :: reference_fe
+  type(quadrature_t)       , pointer :: quadrature
+  type(volume_integrator_t), pointer :: volume_integrator
+  real(rp)                 , pointer :: strong_dirichlet_values_entries(:)
+  real(rp)                 , pointer :: nodal_values(:)
+  real(rp)                 , pointer :: quadrature_points_values(:)
+  type(vector_field_t)     , pointer :: quadrature_points_gradients(:)
+  
+  field_id                 =  cell_fe_function_scalar%get_field_id()
+  field_blocks             => this%get_field_blocks()
+  reference_fe             => this%get_reference_fe(field_id)
+  quadrature               => this%get_quadrature()
+  volume_integrator        => this%get_volume_integrator(field_id)
+  number_nodes_field       =  reference_fe%get_number_nodes()
+  number_quadrature_points =  quadrature%get_number_quadrature_points()
+  
+  call cell_fe_function_scalar%set_current_number_quadrature_points( number_quadrature_points )
+  call cell_fe_function_scalar%set_current_number_nodes( number_nodes_field )
+
+  block_id = field_blocks(field_id)
+  nodal_values                => cell_fe_function_scalar%get_nodal_values()
+  quadrature_points_values    => cell_fe_function_scalar%get_quadrature_points_values()
+  quadrature_points_gradients => cell_fe_function_scalar%get_quadrature_points_gradients()
+  
+  call this%get_field_elem2dof(field_id,elem2dof)
+  
+  ! Extract nodal values associated to dirichlet bcs
+  strong_dirichlet_values_entries => fe_function%strong_dirichlet_values%get_entries()
+  do inode = 1, number_nodes_field
+     if ( elem2dof(inode) < 0 ) then
+        nodal_values(inode) = strong_dirichlet_values_entries(-elem2dof(inode))
+     end if
+  end do
+  
+  ! Extract nodal values associated to dofs
+  call fe_function%dof_values%extract_subvector ( block_id, &
+                                                  number_nodes_field, &
+                                                  elem2dof, &
+                                                  nodal_values )
+  
+  ! Evaluate values and gradients at quadrature points
+  call volume_integrator%evaluate_fe_function ( nodal_values, & 
+                                                quadrature_points_values )
+  
+  call volume_integrator%evaluate_gradient_fe_function ( nodal_values, & 
+                                                         quadrature_points_gradients )
+  
+end subroutine fe_accessor_update_cell_fe_function_scalar
+
+subroutine fe_accessor_update_cell_fe_function_vector ( this, fe_function, cell_fe_function_vector )
+  implicit none
+  class(fe_accessor_t)           , intent(in)    :: this
+  type(fe_function_t)            , intent(in)    :: fe_function
+  type(cell_fe_function_vector_t), intent(inout) :: cell_fe_function_vector
+  
+  integer(ip)                        :: inode, field_id, block_id
+  integer(ip)                        :: number_nodes_field, number_quadrature_points
+  integer(ip)              , pointer :: elem2dof(:)
+  integer(ip)              , pointer :: field_blocks(:)
+  class(reference_fe_t)    , pointer :: reference_fe
+  type(quadrature_t)       , pointer :: quadrature
+  type(volume_integrator_t), pointer :: volume_integrator
+  real(rp)                 , pointer :: strong_dirichlet_values_entries(:)
+  real(rp)                 , pointer :: nodal_values(:)
+  type(vector_field_t)     , pointer :: quadrature_points_values(:)
+  type(tensor_field_t)     , pointer :: quadrature_points_gradients(:)
+  
+  field_id                 =  cell_fe_function_vector%get_field_id()
+  field_blocks             => this%get_field_blocks()
+  reference_fe             => this%get_reference_fe(field_id)
+  quadrature               => this%get_quadrature()
+  volume_integrator        => this%get_volume_integrator(field_id)
+  number_nodes_field       =  reference_fe%get_number_nodes()
+  number_quadrature_points =  quadrature%get_number_quadrature_points()
+  
+  call cell_fe_function_vector%set_current_number_quadrature_points( number_quadrature_points )
+  call cell_fe_function_vector%set_current_number_nodes( number_nodes_field )
+
+  block_id = field_blocks(field_id)
+  nodal_values                => cell_fe_function_vector%get_nodal_values()
+  quadrature_points_values    => cell_fe_function_vector%get_quadrature_points_values()
+  quadrature_points_gradients => cell_fe_function_vector%get_quadrature_points_gradients()
+  
+  call this%get_field_elem2dof(field_id,elem2dof)
+  
+  ! Extract nodal values associated to dirichlet bcs
+  strong_dirichlet_values_entries => fe_function%strong_dirichlet_values%get_entries()
+  do inode = 1, number_nodes_field
+     if ( elem2dof(inode) < 0 ) then
+        nodal_values(inode) = strong_dirichlet_values_entries(-elem2dof(inode))
+     end if
+  end do
+  
+  ! Extract nodal values associated to dofs
+  call fe_function%dof_values%extract_subvector ( block_id, &
+                                                  number_nodes_field, &
+                                                  elem2dof, &
+                                                  nodal_values )
+  
+  ! Evaluate values and gradients at quadrature points
+  call volume_integrator%evaluate_fe_function ( nodal_values, & 
+                                                quadrature_points_values )
+  
+  call volume_integrator%evaluate_gradient_fe_function ( nodal_values, & 
+                                                         quadrature_points_gradients )
+  
+end subroutine fe_accessor_update_cell_fe_function_vector
+
+subroutine fe_accessor_update_cell_fe_function_tensor ( this, fe_function, cell_fe_function_tensor )
+  implicit none
+  class(fe_accessor_t)           , intent(in)    :: this
+  type(fe_function_t)            , intent(in)    :: fe_function
+  type(cell_fe_function_tensor_t), intent(inout) :: cell_fe_function_tensor
+
+  integer(ip)                        :: inode, field_id, block_id
+  integer(ip)                        :: number_nodes_field, number_quadrature_points
+  integer(ip)              , pointer :: elem2dof(:)
+  integer(ip)              , pointer :: field_blocks(:)
+  class(reference_fe_t)    , pointer :: reference_fe
+  type(quadrature_t)       , pointer :: quadrature
+  type(volume_integrator_t), pointer :: volume_integrator
+  real(rp)                 , pointer :: strong_dirichlet_values_entries(:)
+  real(rp)                 , pointer :: nodal_values(:)
+  type(tensor_field_t)     , pointer :: quadrature_points_values(:)
+  
+  field_id                 =  cell_fe_function_tensor%get_field_id()
+  field_blocks             => this%get_field_blocks()
+  reference_fe             => this%get_reference_fe(field_id)
+  quadrature               => this%get_quadrature()
+  volume_integrator        => this%get_volume_integrator(field_id)
+  number_nodes_field       =  reference_fe%get_number_nodes()
+  number_quadrature_points =  quadrature%get_number_quadrature_points()
+  
+  call cell_fe_function_tensor%set_current_number_quadrature_points( number_quadrature_points )
+  call cell_fe_function_tensor%set_current_number_nodes( number_nodes_field )
+
+  block_id = field_blocks(field_id)
+  nodal_values             => cell_fe_function_tensor%get_nodal_values()
+  quadrature_points_values => cell_fe_function_tensor%get_quadrature_points_values()
+  
+  call this%get_field_elem2dof(field_id,elem2dof)
+  
+  ! Extract nodal values associated to dirichlet bcs
+  strong_dirichlet_values_entries => fe_function%strong_dirichlet_values%get_entries()
+  do inode = 1, number_nodes_field
+     if ( elem2dof(inode) < 0 ) then
+        nodal_values(inode) = strong_dirichlet_values_entries(-elem2dof(inode))
+     end if
+  end do
+  
+  ! Extract nodal values associated to dofs
+  call fe_function%dof_values%extract_subvector ( block_id, &
+                                                  number_nodes_field, &
+                                                  elem2dof, &
+                                                  nodal_values )
+  
+  ! Interpolate nodal values at quadrature points
+  call volume_integrator%evaluate_fe_function ( nodal_values, & 
+                                                quadrature_points_values )
+  
+end subroutine fe_accessor_update_cell_fe_function_tensor
 
 subroutine fe_accessor_impose_strong_dirichlet_bcs ( this, elmat, elvec )
  implicit none

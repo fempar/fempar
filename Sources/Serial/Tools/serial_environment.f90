@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module serial_environment_names
-use types_names
+  use types_names
   use environment_names
   implicit none
   
@@ -40,9 +40,13 @@ use types_names
      procedure :: l1_barrier                  => serial_environment_l1_barrier
      procedure :: l1_sum_scalar_rp            => serial_environment_l1_sum_scalar_rp
      procedure :: l1_sum_vector_rp            => serial_environment_l1_sum_vector_rp
+     procedure :: l1_max_scalar_rp            => serial_environment_l1_max_scalar_rp
+     procedure :: l1_max_vector_rp            => serial_environment_l1_max_vector_rp
   end type serial_environment_t
-  
-  public :: serial_environment_t
+ 
+  type(serial_environment_t), target :: the_serial_environment
+ 
+  public :: the_serial_environment
   
 contains
 
@@ -84,5 +88,17 @@ contains
     class(serial_environment_t) , intent(in)    :: this
     real(rp)                    , intent(inout) :: alpha(:) 
  end subroutine serial_environment_l1_sum_vector_rp
-  
+ 
+ subroutine serial_environment_l1_max_scalar_rp (this,alpha)
+    implicit none
+    class(serial_environment_t) , intent(in)    :: this
+    real(rp)                    , intent(inout) :: alpha
+  end subroutine serial_environment_l1_max_scalar_rp
+     
+ subroutine serial_environment_l1_max_vector_rp(this,alpha)
+    implicit none
+    class(serial_environment_t) , intent(in)    :: this
+    real(rp)                    , intent(inout) :: alpha(:) 
+ end subroutine serial_environment_l1_max_vector_rp
+ 
 end module serial_environment_names

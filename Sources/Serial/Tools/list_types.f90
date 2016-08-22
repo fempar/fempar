@@ -37,7 +37,7 @@ implicit none
     !-----------------------------------------------------------------
     !< List_t derived type
     !----------------------------------------------------------------- 
-        !private
+        private
         integer(ip), private     :: state = LIST_STATE_START
         integer(ip)              :: n
         integer(ip), allocatable :: p(:) 
@@ -304,7 +304,7 @@ contains
         integer(ip)                  :: list_size
     !----------------------------------------------------------------- 
         ! IO UNIT in WRITE statement must be an internal file in a PURE procedure
-        ! assert(this%state == LIST_STATE_LIST_ALLOCATED)
+        !assert(this%state == LIST_STATE_LIST_ALLOCATED)
         list_size = this%p(this%n+1)-this%p(1)
     end function list_get_size
     
@@ -315,7 +315,6 @@ contains
         class(list_t), intent(in)    :: this
         integer(ip)                  :: index
         integer(ip)                  :: sublist_size
-        !assert(this%state == LIST_STATE_LIST_ALLOCATED)
         assert(this%state >= LIST_STATE_HEADER_BUILT)
         sublist_size = this%p(index+1)-this%p(index)
     end function list_get_sublist_size 

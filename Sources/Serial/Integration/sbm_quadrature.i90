@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine quadrature_create ( this, number_dimensions, number_quadrature_points )
+subroutine quadrature_create ( this, number_dimensions, number_quadrature_points ) 
   implicit none       
   class(quadrature_t), intent(inout) :: this
   integer(ip)           , intent(in)    :: number_dimensions, number_quadrature_points

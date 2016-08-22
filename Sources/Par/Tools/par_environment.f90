@@ -132,6 +132,8 @@ module par_environment_names
      procedure :: l1_barrier                  => par_environment_l1_barrier
      procedure :: l1_sum_scalar_rp            => par_environment_l1_sum_scalar_rp
      procedure :: l1_sum_vector_rp            => par_environment_l1_sum_vector_rp
+     procedure :: l1_max_scalar_rp            => par_environment_l1_max_scalar_rp
+     procedure :: l1_max_vector_rp            => par_environment_l1_max_vector_rp
   end type par_environment_t
 
   ! Types
@@ -433,6 +435,22 @@ contains
     assert (this%am_i_l1_task())
     call psb_sum(this%l1_context%get_icontxt(), alpha)
  end subroutine par_environment_l1_sum_vector_rp
+  
+ subroutine par_environment_l1_max_scalar_rp (this,alpha)
+    implicit none
+    class(par_environment_t) , intent(in)    :: this
+    real(rp)                 , intent(inout) :: alpha
+    assert ( this%am_i_l1_task() )
+    call psb_max(this%l1_context%get_icontxt(), alpha)
+  end subroutine par_environment_l1_max_scalar_rp 
+     
+ subroutine par_environment_l1_max_vector_rp(this,alpha)
+    implicit none
+    class(par_environment_t) , intent(in)    :: this
+    real(rp)                 , intent(inout) :: alpha(:) 
+    assert (this%am_i_l1_task())
+    call psb_max(this%l1_context%get_icontxt(), alpha)
+ end subroutine par_environment_l1_max_vector_rp
  
  ! When packing   (gathering) ,    buffer <- alpha * x
  ! When unpacking (scattering),    x <- beta*x + buffer

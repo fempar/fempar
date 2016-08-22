@@ -49,21 +49,21 @@
        deallocate(this%own_node_permutations)
     end if
 
-    call this%interior_nodes_vef%free()
-    call this%nodes_vef%free()
-    call this%own_nodes_vef%free()
-    call this%face_integration_coupling_nodes_face%free()
-    call this%vertices_vef%free()
-    call this%vefs_vef%free()
+    call this%interior_nodes_n_face%free()
+    call this%nodes_n_face%free()
+    call this%own_nodes_n_faces%free()
+    call this%face_integration_coupling_nodes_facet%free()
+    call this%vertices_n_face%free()
+    call this%n_faces_n_face%free()
     call this%orientation%free()
     call this%nodal_quadrature%free()
 
     this%number_dimensions = 0
     this%order = 0
     this%number_field_components = 0
-    this%number_vefs = 0
+    this%number_n_faces = 0
     this%number_nodes = 0
-    this%number_vefs_dimension  = 0
+    this%number_n_faces_per_dimension  = 0
     this%continuity = .true.
 
   end subroutine reference_fe_free
@@ -82,29 +82,29 @@
   write(*,*) 'number_dimensions: ', reference_fe%number_dimensions
   write(*,*) 'order: ', reference_fe%order
   write(*,*) 'continuity: ',reference_fe%continuity
-  write(*,*) 'number_vefs', reference_fe%number_vefs
+  write(*,*) 'number_n_faces', reference_fe%number_n_faces
   write(*,*) 'number_nodes', reference_fe%number_nodes
-  write(*,*) 'number_vefs_dimension', reference_fe%number_vefs_dimension
+  write(*,*) 'number_n_faces_dimension', reference_fe%number_n_faces_per_dimension
 
   write(*,*) 'orientation', reference_fe%orientation%a
 
-  write(*,*) 'interior_nodes_vef'
-  call reference_fe%interior_nodes_vef%print(6)
+  write(*,*) 'interior_nodes_n_face'
+  call reference_fe%interior_nodes_n_face%print(6)
 
-  write(*,*) 'nodes_vef'
-  call reference_fe%nodes_vef%print(6)
+  write(*,*) 'nodes_n_face'
+  call reference_fe%nodes_n_face%print(6)
 
-  write(*,*) 'corners_vef'
-  call reference_fe%nodes_vef%print(6)
+  write(*,*) 'vertices_n_face'
+  call reference_fe%vertices_n_face%print(6)
 
-  write(*,*) 'vefs_vef'
-  call reference_fe%vefs_vef%print(6)
+  write(*,*) 'n_faces_n_face'
+  call reference_fe%n_faces_n_face%print(6)
   
-  write(*,*) 'own_nodes_vef'
-  call reference_fe%own_nodes_vef%print(6)
+  write(*,*) 'own_nodes_n_face'
+  call reference_fe%own_nodes_n_faces%print(6)
   
   write(*,*) 'face_integration_coupling_nodes_face'
-  call reference_fe%face_integration_coupling_nodes_face%print(6)
+  call reference_fe%face_integration_coupling_nodes_facet%print(6)
 
 end subroutine reference_fe_print
 
@@ -215,88 +215,88 @@ end function reference_fe_get_conformity
     reference_fe_get_number_field_components = this%number_field_components
   end function reference_fe_get_number_field_components
 
-  function reference_fe_get_number_vefs ( this )
+  function reference_fe_get_number_n_faces ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    integer(ip) :: reference_fe_get_number_vefs
-    reference_fe_get_number_vefs = this%number_vefs
-  end function reference_fe_get_number_vefs
+    integer(ip) :: reference_fe_get_number_n_faces
+    reference_fe_get_number_n_faces = this%number_n_faces
+  end function reference_fe_get_number_n_faces
   
   function reference_fe_get_number_vertices ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: reference_fe_get_number_vertices
-    reference_fe_get_number_vertices = this%number_vefs_dimension(2) -          &
-         &                             this%number_vefs_dimension(1)
+    reference_fe_get_number_vertices = this%number_n_faces_per_dimension(2) -          &
+         &                             this%number_n_faces_per_dimension(1)
   end function reference_fe_get_number_vertices
   
   function reference_fe_get_first_vertex_id ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: reference_fe_get_first_vertex_id
-    reference_fe_get_first_vertex_id = this%number_vefs_dimension(1)
+    reference_fe_get_first_vertex_id = this%number_n_faces_per_dimension(1)
   end function reference_fe_get_first_vertex_id
   
   function reference_fe_get_number_vertices_per_edge ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: reference_fe_get_number_vertices_per_edge
-    reference_fe_get_number_vertices_per_edge = this%vertices_vef%get_sublist_size(this%number_vefs_dimension(2))
+    reference_fe_get_number_vertices_per_edge = this%vertices_n_face%get_sublist_size(this%number_n_faces_per_dimension(2))
   end function reference_fe_get_number_vertices_per_edge
   
   function reference_fe_get_number_vertices_per_face ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: reference_fe_get_number_vertices_per_face
-    reference_fe_get_number_vertices_per_face = this%vertices_vef%get_sublist_size(this%number_vefs_dimension(this%number_dimensions))
+    reference_fe_get_number_vertices_per_face = this%vertices_n_face%get_sublist_size(this%number_n_faces_per_dimension(this%number_dimensions))
   end function reference_fe_get_number_vertices_per_face
   
   function reference_fe_get_number_edges ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: reference_fe_get_number_edges
-    reference_fe_get_number_edges  = this%number_vefs_dimension(3) -          &
-         &                             this%number_vefs_dimension(2)
+    reference_fe_get_number_edges  = this%number_n_faces_per_dimension(3) -          &
+         &                             this%number_n_faces_per_dimension(2)
   end function reference_fe_get_number_edges
   
  function reference_fe_get_first_edge_id ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: reference_fe_get_first_edge_id
-    reference_fe_get_first_edge_id = this%number_vefs_dimension(2)
+    reference_fe_get_first_edge_id = this%number_n_faces_per_dimension(2)
   end function reference_fe_get_first_edge_id
   
   function reference_fe_get_number_faces ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: reference_fe_get_number_faces
-    reference_fe_get_number_faces = this%number_vefs_dimension(this%number_dimensions+1) -          &
-         &                          this%number_vefs_dimension(this%number_dimensions)
+    reference_fe_get_number_faces = this%number_n_faces_per_dimension(this%number_dimensions+1) -          &
+         &                          this%number_n_faces_per_dimension(this%number_dimensions)
   end function reference_fe_get_number_faces
   
   function reference_fe_get_first_face_id ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip) :: reference_fe_get_first_face_id
-    reference_fe_get_first_face_id = this%number_vefs_dimension(this%number_dimensions)
+    reference_fe_get_first_face_id = this%number_n_faces_per_dimension(this%number_dimensions)
   end function reference_fe_get_first_face_id
   
-  function reference_fe_get_number_vefs_of_dimension ( this, vef_dimension )
+  function reference_fe_get_number_n_faces_of_dimension ( this, n_face_dimension )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    integer(ip)          , intent(in) :: vef_dimension
-    integer(ip) :: reference_fe_get_number_vefs_of_dimension
-    reference_fe_get_number_vefs_of_dimension = this%number_vefs_dimension(vef_dimension+2) -          &
-         &                                      this%number_vefs_dimension(vef_dimension+1)
-  end function reference_fe_get_number_vefs_of_dimension
+    integer(ip)          , intent(in) :: n_face_dimension
+    integer(ip) :: reference_fe_get_number_n_faces_of_dimension
+    reference_fe_get_number_n_faces_of_dimension = this%number_n_faces_per_dimension(n_face_dimension+2) -          &
+         &                                      this%number_n_faces_per_dimension(n_face_dimension+1)
+  end function reference_fe_get_number_n_faces_of_dimension
   
-  function reference_fe_get_first_vef_id_of_dimension ( this, vef_dimension )
+  function reference_fe_get_first_n_face_id_of_dimension ( this, n_face_dimension )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    integer(ip)          , intent(in) :: vef_dimension
-    integer(ip) :: reference_fe_get_first_vef_id_of_dimension
-    reference_fe_get_first_vef_id_of_dimension = this%number_vefs_dimension(vef_dimension+1)
-  end function reference_fe_get_first_vef_id_of_dimension
+    integer(ip)          , intent(in) :: n_face_dimension
+    integer(ip) :: reference_fe_get_first_n_face_id_of_dimension
+    reference_fe_get_first_n_face_id_of_dimension = this%number_n_faces_per_dimension(n_face_dimension+1)
+  end function reference_fe_get_first_n_face_id_of_dimension
 
   function reference_fe_get_number_nodes ( this )
     implicit none
@@ -305,128 +305,128 @@ end function reference_fe_get_conformity
     reference_fe_get_number_nodes = this%number_nodes
   end function reference_fe_get_number_nodes
 
-  function reference_fe_get_vef_dimension ( this, vef_id )
+  function reference_fe_get_n_face_dimension ( this, n_face_id )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    integer(ip)          , intent(in) :: vef_id
-    integer(ip) :: reference_fe_get_vef_dimension
+    integer(ip)          , intent(in) :: n_face_id
+    integer(ip) :: reference_fe_get_n_face_dimension
 
     integer(ip) :: i 
-    assert ( vef_id >= 1 .and. vef_id <= this%number_vefs ) 
+    assert ( n_face_id >= 1 .and. n_face_id <= this%number_n_faces ) 
     do i = 1, this%number_dimensions
-       if ( vef_id < this%number_vefs_dimension(i+1) ) then
-          reference_fe_get_vef_dimension = i - 1 
+       if ( n_face_id < this%number_n_faces_per_dimension(i+1) ) then
+          reference_fe_get_n_face_dimension = i - 1 
           exit
        end if
     end do
   end function
 
-  function reference_fe_get_nodes_vef ( this )
+  function reference_fe_get_nodes_n_face ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
-    type(list_t), pointer :: reference_fe_get_nodes_vef
-    reference_fe_get_nodes_vef => this%nodes_vef
-  end function reference_fe_get_nodes_vef
+    type(list_t), pointer :: reference_fe_get_nodes_n_face
+    reference_fe_get_nodes_n_face => this%nodes_n_face
+  end function reference_fe_get_nodes_n_face
 
-  function reference_fe_get_vertices_vef ( this )
+  function reference_fe_get_vertices_n_face ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
-    type(list_t), pointer :: reference_fe_get_vertices_vef
-    reference_fe_get_vertices_vef => this%vertices_vef
-  end function reference_fe_get_vertices_vef
+    type(list_t), pointer :: reference_fe_get_vertices_n_face
+    reference_fe_get_vertices_n_face => this%vertices_n_face
+  end function reference_fe_get_vertices_n_face
 
-  function reference_fe_get_vefs_vef ( this )
+  function reference_fe_get_n_faces_n_face ( this )
     implicit none
     class(reference_fe_t), target, intent(in) :: this
-    type(list_t), pointer :: reference_fe_get_vefs_vef
-    reference_fe_get_vefs_vef => this%vefs_vef
-  end function reference_fe_get_vefs_vef
+    type(list_t), pointer :: reference_fe_get_n_faces_n_face
+    reference_fe_get_n_faces_n_face => this%n_faces_n_face
+  end function reference_fe_get_n_faces_n_face
 
-  function reference_fe_get_node_vef ( this, i, j )
+  function reference_fe_get_node_n_face ( this, i, j )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip), intent(in) :: i, j
-    integer(ip) :: reference_fe_get_node_vef
+    integer(ip) :: reference_fe_get_node_n_face
     type(list_iterator_t)   :: iterator
-    iterator = this%nodes_vef%create_iterator(j)
-    reference_fe_get_node_vef = iterator%reach_from_current(i-1)
-  end function reference_fe_get_node_vef
+    iterator = this%nodes_n_face%create_iterator(j)
+    reference_fe_get_node_n_face = iterator%reach_from_current(i-1)
+  end function reference_fe_get_node_n_face
   
-  function reference_fe_get_number_dofs_on_vef ( this, i )
+  function reference_fe_get_number_dofs_on_n_face ( this, i )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip), intent(in) :: i
-    integer(ip) :: reference_fe_get_number_dofs_on_vef
-    reference_fe_get_number_dofs_on_vef = this%nodes_vef%get_sublist_size(i)
-  end function reference_fe_get_number_dofs_on_vef
+    integer(ip) :: reference_fe_get_number_dofs_on_n_face
+    reference_fe_get_number_dofs_on_n_face = this%nodes_n_face%get_sublist_size(i)
+  end function reference_fe_get_number_dofs_on_n_face
   
-  function reference_fe_create_dofs_on_vef_iterator ( this, i )
+  function reference_fe_create_dofs_on_n_face_iterator ( this, i )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip), intent(in) :: i
-    type(list_iterator_t) :: reference_fe_create_dofs_on_vef_iterator
-    reference_fe_create_dofs_on_vef_iterator = this%nodes_vef%create_iterator(i)    
-  end function reference_fe_create_dofs_on_vef_iterator  
+    type(list_iterator_t) :: reference_fe_create_dofs_on_n_face_iterator
+    reference_fe_create_dofs_on_n_face_iterator = this%nodes_n_face%create_iterator(i)    
+  end function reference_fe_create_dofs_on_n_face_iterator  
   
-  function reference_fe_get_own_node_vef ( this, i, j )
+  function reference_fe_get_own_node_n_face ( this, i, j )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip), intent(in) :: i, j
-    integer(ip) :: reference_fe_get_own_node_vef
+    integer(ip) :: reference_fe_get_own_node_n_face
     type(list_iterator_t)   :: iterator
-    iterator = this%own_nodes_vef%create_iterator(j)
-    reference_fe_get_own_node_vef = iterator%reach_from_current(i-1)
-  end function reference_fe_get_own_node_vef  
+    iterator = this%own_nodes_n_faces%create_iterator(j)
+    reference_fe_get_own_node_n_face = iterator%reach_from_current(i-1)
+  end function reference_fe_get_own_node_n_face  
 
-  function reference_fe_get_number_own_nodes_vef ( this, i )
+  function reference_fe_get_number_own_nodes_n_face ( this, i )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip), intent(in) :: i
-    integer(ip) :: reference_fe_get_number_own_nodes_vef
-    reference_fe_get_number_own_nodes_vef = this%own_nodes_vef%get_sublist_size(i)
-  end function reference_fe_get_number_own_nodes_vef
+    integer(ip) :: reference_fe_get_number_own_nodes_n_face
+    reference_fe_get_number_own_nodes_n_face = this%own_nodes_n_faces%get_sublist_size(i)
+  end function reference_fe_get_number_own_nodes_n_face
   
-  function reference_fe_create_own_dofs_on_vef_iterator ( this, i )
+  function reference_fe_create_own_dofs_on_n_face_iterator ( this, i )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip), intent(in) :: i
-    type(list_iterator_t) :: reference_fe_create_own_dofs_on_vef_iterator
-    reference_fe_create_own_dofs_on_vef_iterator = this%own_nodes_vef%create_iterator(i)    
-  end function reference_fe_create_own_dofs_on_vef_iterator  
+    type(list_iterator_t) :: reference_fe_create_own_dofs_on_n_face_iterator
+    reference_fe_create_own_dofs_on_n_face_iterator = this%own_nodes_n_faces%create_iterator(i)    
+  end function reference_fe_create_own_dofs_on_n_face_iterator  
   
-  function reference_fe_get_number_vertices_vef ( this, i )
+  function reference_fe_get_number_vertices_n_face ( this, i )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip), intent(in) :: i
-    integer(ip) :: reference_fe_get_number_vertices_vef
-    reference_fe_get_number_vertices_vef = this%vertices_vef%get_sublist_size(i)
-  end function reference_fe_get_number_vertices_vef
+    integer(ip) :: reference_fe_get_number_vertices_n_face
+    reference_fe_get_number_vertices_n_face = this%vertices_n_face%get_sublist_size(i)
+  end function reference_fe_get_number_vertices_n_face
   
-  function reference_fe_get_face_integration_coupling_number_nodes_face ( this )
+  function reference_fe_get_face_integration_coupling_number_nodes_facet ( this )
     implicit none
     class(reference_fe_t), intent(in) :: this
-    integer(ip) :: reference_fe_get_face_integration_coupling_number_nodes_face
-    reference_fe_get_face_integration_coupling_number_nodes_face = &
-    this%face_integration_coupling_nodes_face%get_sublist_size(this%number_vefs_dimension(this%number_dimensions))
-  end function reference_fe_get_face_integration_coupling_number_nodes_face
+    integer(ip) :: reference_fe_get_face_integration_coupling_number_nodes_facet
+    reference_fe_get_face_integration_coupling_number_nodes_facet = &
+    this%face_integration_coupling_nodes_facet%get_sublist_size(this%number_n_faces_per_dimension(this%number_dimensions))
+  end function reference_fe_get_face_integration_coupling_number_nodes_facet
   
-    function reference_fe_get_face_integration_coupling_node_face ( this, i, j )
+    function reference_fe_get_facet_integration_coupling_node_facet ( this, i, j )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip), intent(in) :: i, j
-    integer(ip) :: reference_fe_get_face_integration_coupling_node_face
+    integer(ip) :: reference_fe_get_facet_integration_coupling_node_facet
     type(list_iterator_t)   :: iterator
-    iterator = this%face_integration_coupling_nodes_face%create_iterator(j)
-    reference_fe_get_face_integration_coupling_node_face = iterator%reach_from_current(i-1)
-  end function reference_fe_get_face_integration_coupling_node_face 
+    iterator = this%face_integration_coupling_nodes_facet%create_iterator(j)
+    reference_fe_get_facet_integration_coupling_node_facet = iterator%reach_from_current(i-1)
+  end function reference_fe_get_facet_integration_coupling_node_facet 
   
-  function create_face_integration_coupling_dofs_iterator ( this, i )
+  function create_facet_integration_coupling_dofs_iterator ( this, i )
     implicit none
     class(reference_fe_t), intent(in) :: this
     integer(ip), intent(in) :: i
-    type(list_iterator_t) :: create_face_integration_coupling_dofs_iterator
-    create_face_integration_coupling_dofs_iterator = this%face_integration_coupling_nodes_face%create_iterator(i)    
-  end function create_face_integration_coupling_dofs_iterator  
+    type(list_iterator_t) :: create_facet_integration_coupling_dofs_iterator
+    create_facet_integration_coupling_dofs_iterator = this%face_integration_coupling_nodes_facet%create_iterator(i)    
+  end function create_facet_integration_coupling_dofs_iterator  
 
   function reference_fe_get_orientation(this)
     class(reference_fe_t), target, intent(in) :: this
@@ -443,38 +443,38 @@ end function reference_fe_get_conformity
   
   !==================================================================================================
   function reference_fe_compute_relative_orientation(target_reference_fe,                      &
-     &                       source_reference_fe,source_vef_id,target_vef_id)
+     &                       source_reference_fe,source_n_face_id,target_n_face_id)
     implicit none
     class(reference_fe_t), intent(in)  :: target_reference_fe
     class(reference_fe_t), intent(in)  :: source_reference_fe
-    integer(ip)          , intent(in)  :: source_vef_id ! Local vef ID
-    integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
+    integer(ip)          , intent(in)  :: source_n_face_id ! Local n-face ID
+    integer(ip)          , intent(in)  :: target_n_face_id ! Local n-face ID
     integer(ip)                        :: reference_fe_compute_relative_orientation 
 
-    if (target_reference_fe%get_vef_dimension(target_vef_id) < 2) then
+    if (target_reference_fe%get_n_face_dimension(target_n_face_id) < 2) then
        reference_fe_compute_relative_orientation = 0
     else
        reference_fe_compute_relative_orientation = modulo( 1 +                                    &
-            &                             source_reference_fe%orientation%a(source_vef_id) -      &
-            &                             target_reference_fe%orientation%a(target_vef_id),2)
+            &                             source_reference_fe%orientation%a(source_n_face_id) -      &
+            &                             target_reference_fe%orientation%a(target_n_face_id),2)
     end if
   end function reference_fe_compute_relative_orientation
 
   !==================================================================================================
   function reference_fe_compute_relative_rotation(target_reference_fe,source_reference_fe,          &
-       &                                          source_vef_id,target_vef_id, source_vefs,         &
-       &                                          target_vefs,source_subface)
+       &                                          source_n_face_id,target_n_face_id, source_n_faces,         &
+       &                                          target_n_faces,source_subface)
     implicit none
     class(reference_fe_t), intent(in)  :: target_reference_fe
     class(reference_fe_t), intent(in)  :: source_reference_fe
-    integer(ip)          , intent(in)  :: source_vef_id ! Local vef ID
-    integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
-    integer(ip)          , intent(in)  :: source_vefs(source_reference_fe%number_vefs)
-    integer(ip)          , intent(in)  :: target_vefs(target_reference_fe%number_vefs) 
+    integer(ip)          , intent(in)  :: source_n_face_id ! Local n-face ID
+    integer(ip)          , intent(in)  :: target_n_face_id ! Local n-face ID
+    integer(ip)          , intent(in)  :: source_n_faces(source_reference_fe%number_n_faces)
+    integer(ip)          , intent(in)  :: target_n_faces(target_reference_fe%number_n_faces) 
     integer(ip), optional, intent(in)  :: source_subface
     integer(ip)                        :: reference_fe_compute_relative_rotation 
-    type(list_iterator_t)              :: source_vefs_iterator
-    type(list_iterator_t)              :: target_vefs_iterator
+    type(list_iterator_t)              :: source_n_faces_iterator
+    type(list_iterator_t)              :: target_n_faces_iterator
 
     integer(ip) :: source_first_vertex_global_id, i, target_vertex_global_id 
     logical     :: implemented
@@ -486,15 +486,15 @@ end function reference_fe_get_conformity
 
     ! Relative Rotation
     if (implemented) then 
-       source_vefs_iterator = source_reference_fe%vertices_vef%create_iterator(source_vef_id)
-       target_vefs_iterator = target_reference_fe%vertices_vef%create_iterator(target_vef_id)
-       source_first_vertex_global_id = source_vefs(source_vefs_iterator%get_current())
+       source_n_faces_iterator = source_reference_fe%vertices_n_face%create_iterator(source_n_face_id)
+       target_n_faces_iterator = target_reference_fe%vertices_n_face%create_iterator(target_n_face_id)
+       source_first_vertex_global_id = source_n_faces(source_n_faces_iterator%get_current())
        reference_fe_compute_relative_rotation = 1
-       do while(.not. target_vefs_iterator%is_upper_bound())
-          target_vertex_global_id = target_vefs(target_vefs_iterator%get_current())
+       do while(.not. target_n_faces_iterator%is_upper_bound())
+          target_vertex_global_id = target_n_faces(target_n_faces_iterator%get_current())
           if (target_vertex_global_id ==  source_first_vertex_global_id) exit
           reference_fe_compute_relative_rotation = reference_fe_compute_relative_rotation + 1
-          call target_vefs_iterator%next()
+          call target_n_faces_iterator%next()
        end do
     else
        check (.false.)
@@ -502,33 +502,33 @@ end function reference_fe_get_conformity
   end function reference_fe_compute_relative_rotation
 
   !==================================================================================================
-  function reference_fe_get_permuted_own_node_vef(this,inode,target_vef_id,     &
+  function reference_fe_get_permuted_own_node_n_face(this,inode,target_n_face_id,     &
        &                                               relative_orientation, relative_rotation)
     implicit none
     class(reference_fe_t), intent(in)  :: this
     integer(ip)          , intent(in)  :: inode
-    integer(ip)          , intent(in)  :: target_vef_id ! Local vef ID
+    integer(ip)          , intent(in)  :: target_n_face_id ! Local n-face ID
     integer(ip)          , intent(in)  :: relative_orientation
     integer(ip)          , intent(in)  :: relative_rotation
-    integer(ip) :: reference_fe_get_permuted_own_node_vef
-    integer(ip) :: vef_dimension, permutation_key, permuted_own_node
+    integer(ip) :: reference_fe_get_permuted_own_node_n_face
+    integer(ip) :: n_face_dimension, permutation_key, permuted_own_node
     
     assert ( this%continuity  )
 
-    vef_dimension = this%get_vef_dimension(target_vef_id)
+    n_face_dimension = this%get_n_face_dimension(target_n_face_id)
     
-    if ( vef_dimension == 0 ) then
+    if ( n_face_dimension == 0 ) then
       permuted_own_node = inode
     else
       permutation_key = relative_rotation +                                                         &
-         &              this%number_rotations_per_dimension(vef_dimension)*relative_orientation
+         &              this%number_rotations_per_dimension(n_face_dimension)*relative_orientation
     
       permuted_own_node = this%own_node_permutations          &
-                              & (vef_dimension)%a(inode,permutation_key)
+                              & (n_face_dimension)%a(inode,permutation_key)
 
     end if                          
-    reference_fe_get_permuted_own_node_vef = this%get_own_node_vef(permuted_own_node, target_vef_id)
-  end function reference_fe_get_permuted_own_node_vef
+    reference_fe_get_permuted_own_node_n_face = this%get_own_node_n_face(permuted_own_node, target_n_face_id)
+  end function reference_fe_get_permuted_own_node_n_face
 
    !==================================================================================================
   subroutine p_reference_fe_free( this )

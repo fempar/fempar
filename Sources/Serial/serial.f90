@@ -82,13 +82,12 @@ module serial_names
   use fe_affine_operator_names
   use function_names
   use function_library_names
+  use error_norms_names
 
 contains
 
   subroutine FEMPAR_INIT()
-#ifdef DEBUG
     call meminit()
-#endif
     call FPL_Init()                                                       ! FPL Wrapper factory list initialization
     call the_direct_solver_creational_methods_dictionary%Init()           ! Direct solver creational methods dictionary initialization
     call the_iterative_linear_solver_creational_methods_dictionary%Init() ! Iterative linear solver creational methods dictionary initialization
@@ -99,9 +98,7 @@ contains
     call FPL_Finalize()                                                   ! Free FPL Wrapper factory list
     call the_direct_solver_creational_methods_dictionary%Free()           ! Free Direct solver creational methods dictionary
     call the_iterative_linear_solver_creational_methods_dictionary%Free() ! Free Iterative linear solver creational methods dictionary
-#ifdef DEBUG
     call memstatus()
-#endif
   end subroutine
 
 

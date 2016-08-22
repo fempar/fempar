@@ -65,20 +65,6 @@ function bst_get_num_vefs(this)
   bst_get_num_vefs = this%num_vefs
 end function bst_get_num_vefs
 
-function bst_get_num_local_vefs(this)
-  implicit none
-  class(base_static_triangulation_t), intent(in) :: this
-  integer(ip) :: bst_get_num_local_vefs
-  bst_get_num_local_vefs = this%num_local_vefs
-end function bst_get_num_local_vefs
-
-function bst_get_num_ghost_vefs(this)
-  implicit none
-  class(base_static_triangulation_t), intent(in) :: this
-  integer(ip) :: bst_get_num_ghost_vefs
-  bst_get_num_ghost_vefs = this%num_ghost_vefs
-end function bst_get_num_ghost_vefs
-
 function bst_get_num_faces(this)
   implicit none
   class(base_static_triangulation_t), intent(in) :: this
@@ -119,62 +105,6 @@ function bst_get_number_objects(this)
 ! Private methods for creating cell-related data
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine bst_compute_num_local_vefs ( this )
-  implicit none
-  class(base_static_triangulation_t), intent(inout) :: this
-  type(hash_table_ip_ip_t) :: visited_vefs
-  integer(ip) :: icell, ivef, vef_lid, istat
-
-  type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t) :: cell
-
-  call visited_vefs%init(max(5,int(real(this%num_local_cells,rp)*0.2_rp,ip))) 
-  this%num_local_vefs = 0
-
-  cell_iterator = this%create_cell_iterator()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(cell)
-     if ( cell%is_local() ) then
-        do ivef=1, cell%get_num_vefs()
-           vef_lid = cell%get_vef_lid(ivef)
-           call visited_vefs%put(key=vef_lid, val=1, stat=istat)
-           if (istat == now_stored) this%num_local_vefs = this%num_local_vefs + 1
-        end do
-     end if
-     call cell_iterator%next()
-  end do
-  call visited_vefs%free()
-end subroutine bst_compute_num_local_vefs
-
-subroutine bst_compute_num_ghost_vefs ( this )
-  implicit none
-  class(base_static_triangulation_t), intent(inout) :: this
-  type(hash_table_ip_ip_t) :: visited_vefs
-  integer(ip) :: icell, ivef, vef_lid, istat
-
-  type(cell_iterator_t) :: cell_iterator
-  type(cell_accessor_t) :: cell
-  
-  call visited_vefs%init(max(5,int(real(this%num_ghost_cells,rp)*0.2_rp,ip))) 
-  this%num_ghost_vefs = 0
-
-  cell_iterator = this%create_cell_iterator()
-  do while ( .not. cell_iterator%has_finished() )
-     call cell_iterator%current(cell)
-     if ( cell%is_ghost() ) then
-        do ivef=1, cell%get_num_vefs()
-           vef_lid = cell%get_vef_lid(ivef)
-           if ( vef_lid > this%num_local_vefs ) then
-              call visited_vefs%put(key=vef_lid, val=1, stat=istat)
-              if (istat == now_stored) this%num_ghost_vefs = this%num_ghost_vefs + 1
-           end if
-        end do
-     end if
-     call cell_iterator%next()
-  end do
-  call visited_vefs%free()
-end subroutine bst_compute_num_ghost_vefs
-
 subroutine bst_allocate_and_fill_ptr_vefs_per_cell (this, ptr_vefs_per_cell)
     implicit none
     class(base_static_triangulation_t), intent(inout) :: this
@@ -657,7 +587,7 @@ subroutine bst_find_and_list_vefs_at_interfaces (this)
   assert ( allocated(this%vefs_type))
 
   ! Find vefs at interfaces and count them
-  this%num_itfc_vefs = 0
+  this%num_itfc_vefs  = 0
   vef_iterator = this%create_vef_iterator()
   do while ( .not. vef_iterator%has_finished() )
      call vef_iterator%current(vef)
@@ -847,9 +777,9 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_neighbours, __FILE__, __LINE__ )
     
-    do ivef_itfc=1,this%num_itfc_vefs
-      write(6,'(10i10)') ivef_itfc, this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)), parts_itfc_vefs(:, ivef_itfc) 
-    end do
+    !do ivef_itfc=1,this%num_itfc_vefs
+    !  write(6,'(10i10)') ivef_itfc, this%lst_itfc_vefs(perm_itfc_vefs(ivef_itfc)), parts_itfc_vefs(:, ivef_itfc) 
+    !end do
   end subroutine bst_compute_parts_itfc_vefs
   
   subroutine bst_compute_vefs_and_parts_object(this)
@@ -1769,8 +1699,6 @@ subroutine bst_print ( this )
         call this%free_vefs_type()
         call this%free_cells_around()
         call this%free_lst_itfc_vefs()
-        this%num_local_vefs = -1
-        this%num_ghost_vefs = -1
         this%num_itfc_vefs = -1
         
         ! Free face integration-related data
@@ -1784,7 +1712,7 @@ subroutine bst_print ( this )
         this%number_global_objects = -1
         
       else ! I am lgt1_task
-       call this%coarse_triangulation%print()
+       !call this%coarse_triangulation%print()
        call this%coarse_triangulation%free()
        deallocate ( this%coarse_triangulation, stat=istat)
        check(istat == 0)

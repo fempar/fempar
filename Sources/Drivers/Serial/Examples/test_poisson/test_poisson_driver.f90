@@ -31,6 +31,7 @@ module test_poisson_driver_names
   use poisson_cG_discrete_integration_names
   use poisson_dG_discrete_integration_names
   use poisson_conditions_names
+  use list_types_names
 # include "debug.i90"
 
   implicit none
@@ -60,9 +61,6 @@ module test_poisson_driver_names
  
      ! Poisson problem solution FE function
      type(fe_function_t)                       :: solution
-     
-     ! Environment required for fe_affine_operator + vtk_handler
-     type(serial_environment_t)                :: serial_environment
    contains
      procedure                  :: run_simulation
      procedure        , private :: parse_command_line_parameters
@@ -74,6 +72,7 @@ module test_poisson_driver_names
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
      procedure        , private :: check_solution
+     procedure        , private :: print_error_norms
      procedure        , private :: free
   end type test_poisson_driver_t
 
@@ -100,9 +99,9 @@ contains
   subroutine setup_reference_fes(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    integer(ip)                                 :: istat
+    integer(ip) :: istat    
     logical                                     :: continuity
-    
+
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
@@ -132,7 +131,7 @@ contains
     call this%poisson_conditions%set_constant_function_value(1.0_rp)
     call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
     
-    call this%fe_space%print()
+    !call this%fe_space%print()
   end subroutine setup_fe_space
   
   subroutine setup_system (this)
@@ -144,7 +143,6 @@ contains
             diagonal_blocks_symmetric_storage = [ .true. ], &
             diagonal_blocks_symmetric         = [ .true. ], &
             diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-            environment                       = this%serial_environment, &
             fe_space                          = this%fe_space, &
             discrete_integration              = this%poisson_cG_integration )
 
@@ -153,7 +151,6 @@ contains
             diagonal_blocks_symmetric_storage = [ .true. ], &
             diagonal_blocks_symmetric         = [ .true. ], &
             diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-            environment                       = this%serial_environment, &
             fe_space                          = this%fe_space, &
             discrete_integration              = this%poisson_dG_integration )
     end if
@@ -178,7 +175,7 @@ contains
     !call this%direct_solver%set_parameters_from_pl(parameter_list)
     !call parameter_list%free()
     
-     call this%iterative_linear_solver%create(this%serial_environment)
+     call this%iterative_linear_solver%create(this%fe_space%get_environment())
      call this%iterative_linear_solver%set_type_from_string(cg_name)
      call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
   end subroutine setup_solver
@@ -195,14 +192,14 @@ contains
     
     select type(matrix)
     class is (sparse_matrix_t)  
-       call matrix%print_matrix_market(6) 
+       !call matrix%print_matrix_market(6) 
     class DEFAULT
        assert(.false.) 
     end select
     
     select type(rhs)
     class is (serial_scalar_array_t)  
-       call rhs%print_matrix_market(6) 
+    !call rhs%print(6) 
     class DEFAULT
        assert(.false.) 
     end select
@@ -243,7 +240,7 @@ contains
     class(test_poisson_driver_t), intent(inout) :: this
     class(vector_t), allocatable :: exact_solution_vector
     class(vector_t), pointer     :: computed_solution_vector
-    
+
     call this%fe_affine_operator%create_range_vector(exact_solution_vector)
     call exact_solution_vector%init(1.0_rp)
     
@@ -255,8 +252,31 @@ contains
      
     call exact_solution_vector%free()
     deallocate(exact_solution_vector)
-    
+   
   end subroutine check_solution
+  
+  subroutine print_error_norms(this)
+    implicit none
+    class(test_poisson_driver_t), intent(inout) :: this
+    type(constant_scalar_function_t) :: constant_function
+    type(error_norms_scalar_t) :: error_norm 
+    
+    call constant_function%create(1.0_rp)
+    call error_norm%create(this%fe_space,1)
+    write(*,'(a20,e32.25)') 'mean_norm:', error_norm%compute(constant_function, this%solution, mean_norm)   
+    write(*,'(a20,e32.25)') 'l1_norm:', error_norm%compute(constant_function, this%solution, l1_norm)   
+    write(*,'(a20,e32.25)') 'l2_norm:', error_norm%compute(constant_function, this%solution, l2_norm)   
+    write(*,'(a20,e32.25)') 'lp_norm(3):', error_norm%compute(constant_function, this%solution, lp_norm, exponent=3)   
+    write(*,'(a20,e32.25)') 'linfnty_norm:', error_norm%compute(constant_function, this%solution, linfty_norm)   
+    write(*,'(a20,e32.25)') 'h1_seminorm:', error_norm%compute(constant_function, this%solution, h1_seminorm)   
+    write(*,'(a20,e32.25)') 'h1_norm:', error_norm%compute(constant_function, this%solution, h1_norm)   
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', error_norm%compute(constant_function, this%solution, w1p_seminorm)   
+    write(*,'(a20,e32.25)') 'w1p_norm:', error_norm%compute(constant_function, this%solution, w1p_norm)   
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', error_norm%compute(constant_function, this%solution, w1infty_seminorm)   
+    write(*,'(a20,e32.25)') 'w1infty_norm:', error_norm%compute(constant_function, this%solution, w1infty_norm)   
+
+    call error_norm%free()
+  end subroutine print_error_norms 
   
   
   subroutine run_simulation(this) 
@@ -270,9 +290,10 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%fe_space%create_global_fe_function(this%solution)
+    call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
     call this%check_solution()
+    call this%print_error_norms()
     call this%free()
   end subroutine run_simulation
   

@@ -231,10 +231,10 @@ subroutine lagrangian_reference_fe_update_interpolation_face( this, local_face_i
   type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
 
   interpolation_face_restriction%active_face_id = local_face_id
-
+  
   call this%update_interpolation(fe_map_face_restriction%fe_map(local_face_id),                   &
        &                         interpolation_face_restriction%interpolation(local_face_id),     &
-       &                         interpolation_face_restriction%interpolation_o_map)
+       &                         interpolation_face_restriction%interpolation_o_map(local_face_id))
 
 end subroutine lagrangian_reference_fe_update_interpolation_face
 
@@ -276,7 +276,7 @@ subroutine lagrangian_reference_fe_get_value_scalar( this, actual_cell_interpola
   assert( this%field_type == field_type_scalar )
   assert( ishape >= 1 .and. ishape <= this%number_nodes )
   assert( qpoint >= 1 )
-  scalar_field = actual_cell_interpolation%shape_functions(ishape,qpoint)
+  scalar_field = actual_cell_interpolation%shape_functions(1,ishape,qpoint)
 end subroutine lagrangian_reference_fe_get_value_scalar
 
 !==================================================================================================
@@ -293,7 +293,7 @@ subroutine lagrangian_reference_fe_get_value_vector( this, actual_cell_interpola
   assert( qpoint >= 1 )
   call vector_field%init(0.0_rp)
   call vector_field%set(this%node_component_array(ishape,2), &
-   & actual_cell_interpolation%shape_functions(this%node_component_array(ishape,1),qpoint))
+   & actual_cell_interpolation%shape_functions(1,this%node_component_array(ishape,1),qpoint))
 end subroutine lagrangian_reference_fe_get_value_vector
 
 !==================================================================================================
@@ -311,7 +311,7 @@ subroutine lagrangian_reference_fe_get_gradient_scalar( this, actual_cell_interp
   assert( qpoint >= 1 )
   call vector_field%init(0.0_rp)
   do idime=1,this%number_dimensions
-    call vector_field%set(idime,actual_cell_interpolation%shape_derivatives(idime,ishape,qpoint))
+    call vector_field%set(idime,actual_cell_interpolation%shape_derivatives(1,idime,ishape,qpoint))
   end do
 end subroutine lagrangian_reference_fe_get_gradient_scalar
 
@@ -331,7 +331,7 @@ subroutine lagrangian_reference_fe_get_gradient_vector( this, actual_cell_interp
   call tensor_field%init(0.0_rp)
   do idime=1,this%number_dimensions
     call tensor_field%set(idime,this%node_component_array(ishape,2), &
-     & actual_cell_interpolation%shape_derivatives(idime,this%node_component_array(ishape,1),qpoint))
+     & actual_cell_interpolation%shape_derivatives(1,idime,this%node_component_array(ishape,1),qpoint))
   end do
 end subroutine lagrangian_reference_fe_get_gradient_vector
 
@@ -352,7 +352,7 @@ subroutine lagrangian_reference_fe_get_divergence_vector( this, actual_cell_inte
   assert( ishape >= 1 .and. ishape <= this%number_nodes )
   assert( qpoint >= 1 )
 
-  scalar_field = actual_cell_interpolation%shape_derivatives(this%node_component_array(ishape,2), &
+  scalar_field = actual_cell_interpolation%shape_derivatives(1,this%node_component_array(ishape,2), &
                                                            & this%node_component_array(ishape,1), &
                                                            & qpoint)  
 end subroutine lagrangian_reference_fe_get_divergence_vector 
@@ -387,7 +387,7 @@ subroutine lagrangian_reference_fe_get_curl_vector( this, actual_cell_interpolat
       if ( ( idime .ne. jdime ) .and. (idime .ne. kdime) .and. (jdime .ne. kdime) ) then 
          call vector_field%set( idime, &
               Levi_Civita(idime,jdime,kdime)* &
-              actual_cell_interpolation%shape_derivatives(jdime,this%node_component_array(ishape,1),qpoint) )
+              actual_cell_interpolation%shape_derivatives(1,jdime,this%node_component_array(ishape,1),qpoint) )
       end if
    end do
  end do
@@ -413,7 +413,7 @@ subroutine lagrangian_reference_fe_interpolate_nodal_values( this,              
         nodal_values_destination(c_dest) = 0.0_rp
         do ishape = 1, nodal_interpolation%number_shape_functions
            nodal_values_destination(c_dest) = nodal_values_destination(c_dest) + & 
-                & nodal_interpolation%shape_functions(ishape,qpoint) *           &
+                & nodal_interpolation%shape_functions(1,ishape,qpoint) *           &
                 & nodal_values_origin(this%node_array_component(ishape,icomp))
         end do
      end do
@@ -517,7 +517,7 @@ subroutine lagrangian_reference_fe_evaluate_fe_function_scalar( this,           
      quadrature_points_values(qpoint) = 0.0_rp
      do ishape = 1, actual_cell_interpolation%number_shape_functions
         quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
-        & actual_cell_interpolation%shape_functions(ishape,qpoint)*nodal_values(ishape)
+        & actual_cell_interpolation%shape_functions(1,ishape,qpoint)*nodal_values(ishape)
      end do
   end do
 
@@ -541,7 +541,7 @@ subroutine lagrangian_reference_fe_evaluate_fe_function_vector( this,           
         inode_scalar = this%node_component_array(inode,1)
         icomp        = this%node_component_array(inode,2)
         call quadrature_points_values(qpoint)%add(icomp, &
-         & actual_cell_interpolation%shape_functions(inode_scalar,qpoint)*nodal_values(inode))
+         & actual_cell_interpolation%shape_functions(1,inode_scalar,qpoint)*nodal_values(inode))
      end do
   end do
 
@@ -662,8 +662,8 @@ subroutine lagrangian_reference_fe_fill (this)
      
      if ( this%continuity ) then
        ! Compute the number of interior nodes X (edge or face)
-       j = this%get_first_vef_id_of_dimension(dimension)
-       number_interior_nodes = this%get_number_own_nodes_vef(j)
+       j = this%get_first_n_face_id_of_dimension(dimension)
+       number_interior_nodes = this%get_number_own_nodes_n_face(j)
           
        call this%fill_interior_points_permutation(dimension,             &
                                                   number_interior_nodes, &
@@ -676,8 +676,8 @@ subroutine lagrangian_reference_fe_fill (this)
      if ( this%continuity ) then
        do dimension = 1, this%number_dimensions-1
           ! Compute the number of interior nodes x edge or face
-          j = this%get_first_vef_id_of_dimension(dimension)
-          number_interior_nodes        = this%get_number_own_nodes_vef(j)
+          j = this%get_first_n_face_id_of_dimension(dimension)
+          number_interior_nodes        = this%get_number_own_nodes_n_face(j)
           number_interior_nodes_scalar = number_interior_nodes/this%number_field_components
           num_columns = this%number_rotations_per_dimension(dimension) * &
                         this%number_orientations_per_dimension(dimension) 
@@ -727,10 +727,10 @@ end subroutine lagrangian_reference_fe_fill
 subroutine lagrangian_reference_fe_fill_field_components (this)
   implicit none
   class(lagrangian_reference_fe_t), intent(inout) :: this
-  call this%extend_list_components( this%nodes_vef )
-  call this%extend_list_components( this%interior_nodes_vef )
-  call this%extend_list_components( this%own_nodes_vef )
-  call this%extend_list_components( this%face_integration_coupling_nodes_face )
+  call this%extend_list_components( this%nodes_n_face )
+  call this%extend_list_components( this%interior_nodes_n_face )
+  call this%extend_list_components( this%own_nodes_n_faces )
+  call this%extend_list_components( this%face_integration_coupling_nodes_facet )
   this%number_nodes_scalar = this%number_nodes
   this%number_nodes = this%number_nodes_scalar * this%number_field_components
 end subroutine lagrangian_reference_fe_fill_field_components
@@ -837,14 +837,14 @@ subroutine lagrangian_reference_fe_extend_list_components(this, list_1d)
   type(list_iterator_t) :: list_1d_iterator
   type(list_iterator_t) :: list_iterator
 
-  call list%create(n=this%number_vefs+1)
+  call list%create(n=this%number_n_faces+1)
 
   !list%p(1) = 1
-  !do i = 2,this%number_vefs+2
+  !do i = 2,this%number_n-faces+2
   !   list%p(i) = list%p(i-1) + ( list_1d%p(i)-list_1d%p(i-1) ) * this%number_field_components
   !end do
   
-  do i = 1,this%number_vefs+1
+  do i = 1,this%number_n_faces+1
     call list%sum_to_pointer_index(i, list_1d%get_sublist_size(i) * this%number_field_components)
   end do
 
@@ -852,7 +852,7 @@ subroutine lagrangian_reference_fe_extend_list_components(this, list_1d)
   call list%allocate_list_from_pointer()
 
   aux_1 = this%number_nodes
-  do i = 1,this%number_vefs+1
+  do i = 1,this%number_n_faces+1
      list_iterator = list%create_iterator(i)
      do k = 1,this%number_field_components
         aux_2 = aux_1*(k-1)
@@ -892,7 +892,7 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
   ntens = ref%number_entries_symmetric_tensor
   nlocs = ref%number_quadrature_points
   !nnode = ref%number_shape_functions
-  nnode = size(ref%shape_functions,1)
+  nnode = size(ref%shape_functions,2)
 
   ! Shape functions do not change
   !phy%shape_functions = ref%shape_functions 
@@ -901,11 +901,11 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
   !if(phy%kder==1) then
   phy%shape_derivatives=0.0_rp
   do ilocs=1,phy%number_quadrature_points
-     do inode=1,size(phy%shape_functions,1)!phy%number_shape_functions
+     do inode=1,size(phy%shape_functions,2)!phy%number_shape_functions
         do idime=1,ndime
            do jdime=1,ndime
-              phy%shape_derivatives(idime,inode,ilocs) = phy%shape_derivatives(idime,inode,ilocs) &
-                   + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(jdime,inode,ilocs)
+              phy%shape_derivatives(1,idime,inode,ilocs) = phy%shape_derivatives(1,idime,inode,ilocs) &
+                   + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(1,jdime,inode,ilocs)
            end do
         end do
      end do
@@ -926,7 +926,7 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
            ! Transforms the array HESSI to a symmetric matrix WMAT1
            do inode=1,nnode
               do itens = 1, ntens
-                 wvec1(itens) = ref%hessian(itens,inode,ilocs)
+                 wvec1(itens) = ref%hessian(1,itens,inode,ilocs)
               end do
               call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
            end do
@@ -944,7 +944,7 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
                  do jdime=1,ndime
                     do kdime=1,ndime
                        wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
-                            & + ref%shape_derivatives(kdime,inode,ilocs) &
+                            & + ref%shape_derivatives(1,kdime,inode,ilocs) &
                             &   * map%d2sdx(kdime,idime,jdime,ilocs)
                     end do
                  end do
@@ -955,7 +955,7 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
         ! Writes the Hessian matrix as an array
         do inode=1,nnode
            do itens = 1, ntens
-              wvec1(itens) = phy%hessian(itens,inode,ilocs)
+              wvec1(itens) = phy%hessian(1,itens,inode,ilocs)
            end do
            call store_symmetric_matrix_as_vector(wmat2(1,1,inode),wvec1,ndime,ntens)
         end do
@@ -1020,3 +1020,157 @@ subroutine store_symmetric_matrix_as_vector(xmatr,vecto,ndime,ntens)
   end if
 
 end subroutine store_symmetric_matrix_as_vector
+
+subroutine lagrangian_reference_fe_fill_scalar (this)
+implicit none
+class(lagrangian_reference_fe_t), intent(inout)    :: this 
+type(polytope_tree_t) :: polytope_tree
+type(node_array_t)    :: node_array, vertex_array
+type(node_iterator_t) :: node_iterator
+type(n_face_iterator_t) :: children_iterator
+type(list_iterator_t) :: list_iterator
+integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces
+! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
+if ( this%topology == topology_hex) then
+ topology = 2**this%number_dimensions-1
+elseif ( this%topology == topology_tet ) then
+ topology = 0
+end if
+call polytope_tree%create( this%number_dimensions, topology )  
+call node_array%create( polytope_tree, this%order )
+num_n_faces = polytope_tree%get_number_n_faces()
+  ! Number nodes
+  this%number_nodes = node_array%get_number_nodes()
+  ! Number n-faces ( I don¡t like it, not volume included...)
+  this%number_n_faces = num_n_faces-1
+  ! number_n-faces_dimension
+  this%number_n_faces_per_dimension = 0
+  this%number_n_faces_per_dimension(1) = 1
+  do i = 1,num_n_faces
+     n_face_dim = polytope_tree%get_n_face_dimension(i)
+     this%number_n_faces_per_dimension( n_face_dim+2 ) = this%number_n_faces_per_dimension( n_face_dim+2 ) + 1
+  end do  
+  do i = 1,this%number_dimensions+1
+     this%number_n_faces_per_dimension(i+1) = this%number_n_faces_per_dimension(i+1) + this%number_n_faces_per_dimension(i)
+  end do
+  ! interior_nodes_n-face  
+  call this%interior_nodes_n_face%create( num_n_faces )
+  do i = 1,num_n_faces
+     node_iterator = node_array%create_node_iterator( polytope_tree%get_n_face(i), own_boundary = .false. )
+     do while (.not. node_iterator%has_finished() )
+        call this%interior_nodes_n_face%sum_to_pointer_index(i,1)
+        call node_iterator%next()
+     end do
+  end do
+  call this%interior_nodes_n_face%calculate_header()
+  call this%interior_nodes_n_face%allocate_list_from_pointer()
+  list_iterator = this%interior_nodes_n_face%create_iterator()
+  do i = 1,num_n_faces
+     node_iterator = node_array%create_node_iterator( polytope_tree%get_n_face(i), own_boundary = .false. )
+     do while (.not. node_iterator%has_finished() )
+        node = node_iterator%current()
+        call list_iterator%set_current(node)
+        call node_iterator%next()
+        call list_iterator%next()
+     end do
+  end do
+  ! nodes_n-face
+  call this%nodes_n_face%create(num_n_faces)
+  do i = 1,num_n_faces
+     node_iterator = node_array%create_node_iterator( polytope_tree%get_n_face(i), own_boundary = .true. )
+     do while (.not. node_iterator%has_finished() )
+        call this%nodes_n_face%sum_to_pointer_index(i,1)
+        call node_iterator%next()
+     end do
+  end do
+  call this%nodes_n_face%calculate_header()
+  call this%nodes_n_face%allocate_list_from_pointer()  
+  list_iterator = this%nodes_n_face%create_iterator()
+  do i = 1,num_n_faces
+     node_iterator = node_array%create_node_iterator( polytope_tree%get_n_face(i), own_boundary = .true. )
+     do while (.not. node_iterator%has_finished() )
+        node = node_iterator%current()
+        call list_iterator%set_current(node)
+        call node_iterator%next()
+        call list_iterator%next()
+     end do
+  end do
+  ! vertices_n-face
+  call this%vertices_n_face%create(num_n_faces)
+  call vertex_array%create( polytope_tree, order = 1 )
+  do i = 1,num_n_faces
+     node_iterator = vertex_array%create_node_iterator( polytope_tree%get_n_face(i), own_boundary = .true. )
+     do while (.not. node_iterator%has_finished() )
+        call this%vertices_n_face%sum_to_pointer_index(i,1)
+        call node_iterator%next()
+     end do
+  end do
+  call this%vertices_n_face%calculate_header()
+  call this%vertices_n_face%allocate_list_from_pointer()
+  list_iterator = this%vertices_n_face%create_iterator()
+  do i = 1,num_n_faces
+     node_iterator = vertex_array%create_node_iterator( polytope_tree%get_n_face(i), own_boundary = .true. )
+     do while (.not. node_iterator%has_finished() )
+        node = node_iterator%current()
+        call list_iterator%set_current(node)
+        call node_iterator%next()
+        call list_iterator%next()
+     end do
+  end do
+  ! n-faces_n-face (NEW DEFINITION; now only n_faces of inferior dimension
+  call this%n_faces_n_face%create(num_n_faces)
+  do i = 1,num_n_faces
+     children_iterator = polytope_tree%create_children_iterator( polytope_tree%get_n_face(i) )
+     do while (.not. children_iterator%has_finished() )
+        call this%n_faces_n_face%sum_to_pointer_index(i,1)
+        call children_iterator%next()
+     end do
+  end do
+  call this%n_faces_n_face%calculate_header()
+  call this%n_faces_n_face%allocate_list_from_pointer()
+  list_iterator = this%n_faces_n_face%create_iterator()
+  do i = 1,num_n_faces
+     children_iterator = polytope_tree%create_children_iterator( polytope_tree%get_n_face(i) )
+     do while (.not. children_iterator%has_finished() )
+        children = children_iterator%current()
+        call list_iterator%set_current(children)
+        call children_iterator%next()
+        call list_iterator%next()
+     end do
+  end do
+  ! orientation
+  call this%orientation%create(num_n_faces)
+  do i = 1,num_n_faces
+     if ( n_face_dimension( polytope_tree%get_n_face(i), this%number_dimensions ) == this%number_dimensions-1 ) then
+        this%orientation%a(i) = facet_orientation( polytope_tree%get_n_face(i), this%number_dimensions )
+     end if
+  end do
+  ! own_nodes_n-face and face_integration_coupling_nodes_n-face
+  if ( this%continuity ) then
+     this%own_nodes_n_faces = this%interior_nodes_n_face
+     ! Create a void face_integration_coupling_nodes_face type(list_t)
+     call this%face_integration_coupling_nodes_facet%create(n=num_n_faces )
+     call this%face_integration_coupling_nodes_facet%calculate_header()
+     call this%face_integration_coupling_nodes_facet%allocate_list_from_pointer()
+  else
+     call this%own_nodes_n_faces%create(n=num_n_faces )
+     call this%own_nodes_n_faces%sum_to_pointer_index( this%own_nodes_n_faces%get_num_pointers(), this%number_nodes)
+     call this%own_nodes_n_faces%calculate_header()
+     call this%own_nodes_n_faces%allocate_list_from_pointer()
+     list_iterator = this%own_nodes_n_faces%create_iterator()
+     i=1
+     do while(.not. list_iterator%is_upper_bound())
+        call list_iterator%set_current(i)
+        call list_iterator%next()
+        i = i + 1 
+    enddo     
+     if ( this%conformity ) then
+       ! Create a void face_integration_coupling_nodes_face type(list_t)
+       call this%face_integration_coupling_nodes_facet%create(n=num_n_faces)
+       call this%face_integration_coupling_nodes_facet%calculate_header()
+       call this%face_integration_coupling_nodes_facet%allocate_list_from_pointer()
+     else
+        this%face_integration_coupling_nodes_facet = this%nodes_n_face
+     end if
+  end if
+end subroutine lagrangian_reference_fe_fill_scalar

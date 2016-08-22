@@ -51,7 +51,7 @@ module vector_space_names
      procedure :: equal_to      => vector_space_equal_to
      procedure :: clone         => vector_space_clone 
      procedure :: free          => vector_space_free
-					procedure :: get_number_blocks
+     procedure :: get_number_blocks
   end type vector_space_t
 
   public :: vector_space_t

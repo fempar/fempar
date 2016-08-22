@@ -31,30 +31,30 @@
 !**************************************************************************************************
 
 !==================================================================================================
-function hex_lagrangian_reference_fe_check_compatibility_of_vefs                   &
-     &                      (target_reference_fe,source_reference_fe, source_vef_id,target_vef_id)
+function hex_lagrangian_reference_fe_check_compatibility_of_n_faces                   &
+     &                      (target_reference_fe,source_reference_fe, source_n_face_id,target_n_face_id)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)  :: target_reference_fe
   class(reference_fe_t)               , intent(in)  :: source_reference_fe
-  integer(ip)                         , intent(in)  :: source_vef_id ! Local vef ID
-  integer(ip)                         , intent(in)  :: target_vef_id ! Local vef ID
-  logical :: hex_lagrangian_reference_fe_check_compatibility_of_vefs 
+  integer(ip)                         , intent(in)  :: source_n_face_id ! Local n-face ID
+  integer(ip)                         , intent(in)  :: target_n_face_id ! Local n-face ID
+  logical :: hex_lagrangian_reference_fe_check_compatibility_of_n_faces 
 
   select type(source_reference_fe)
      class is(hex_lagrangian_reference_fe_t)
         ! Get number nodes per dimension
         assert (target_reference_fe%order == source_reference_fe%order)
         assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
-        assert (target_reference_fe%get_vef_dimension(target_vef_id) == source_reference_fe%get_vef_dimension(source_vef_id))
-        assert (target_reference_fe%get_vef_dimension(target_vef_id) < 3)
+        assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
+        assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
         assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
-        assert (target_reference_fe%get_number_own_nodes_vef(target_vef_id) == source_reference_fe%get_number_own_nodes_vef(source_vef_id))
-        hex_lagrangian_reference_fe_check_compatibility_of_vefs = .true.
+        assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
+        hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .true.
      class default
-        hex_lagrangian_reference_fe_check_compatibility_of_vefs = .false.
+        hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .false.
   end select
  
-end function hex_lagrangian_reference_fe_check_compatibility_of_vefs
+end function hex_lagrangian_reference_fe_check_compatibility_of_n_faces
 
 !==================================================================================================
 function hex_lagrangian_reference_fe_get_characteristic_length ( this )
@@ -167,418 +167,6 @@ subroutine blend_2D(r,s,x1,x2,x3,x4,x5,x6,x7,x8,x)
 !**************************************************************************************************
 ! Deferred TBP implementors from lagrangian_reference_fe_t
 !**************************************************************************************************
-
-!==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_scalar (this)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(inout) :: this
-  integer(ip)               :: nd,p
-  integer(ip)               :: i,j,k,l,m
-  integer(ip)               :: aux1,aux2,aux3,aux4
-  integer(ip)               :: od,cd,kk,c
-  integer(ip)               :: c2,c3,c4,c5,c6,co
-  integer(ip)               :: no  ! #vefs in nd-quad
-  integer(ip)               :: nn  ! #nodes in the nd-quad of order p
-  integer(ip)               :: nt  ! sum of the #nodes (all, not only interior) of the vefs
-  integer(ip)               :: nt2 ! sum of the #vefs (all, not only interior) of the vefs
-  integer(ip)               :: nc  ! #corners x #{vefs delimited by each corner}
-  integer(ip)               :: nod ! #corners in the quad. nod = 2^(nd)
-  integer(ip), allocatable  :: auxt1(:,:),auxt2(:,:),auxt3(:,:),auxt4(:,:),auxt5(:,:),auxt6(:,:)
-  integer(ip), allocatable  :: obdla(:,:),node2ob(:),ob2node(:)
-  integer(ip), allocatable  :: aux(:),idm(:),fdm(:),ijk(:),ijk_g(:)
-  type(list_iterator_t)     :: own_nodes_vef_iterator
-  type(list_iterator_t)     :: vertices_vef_iterator
-  type(list_iterator_t)     :: nodes_vef_iterator
-  type(list_iterator_t)     :: vefs_vef_iterator
-  type(list_iterator_t)     :: interior_nodes_vef_iterator
-
-
-  !  ! Initilize values
-  nd = this%number_dimensions
-  p  = this%order
-
-  call memalloc( nd, aux, __FILE__, __LINE__ )
-  call memalloc( nd, idm, __FILE__, __LINE__ )
-  call memalloc( nd, fdm, __FILE__, __LINE__ )
-  call memalloc( nd, ijk, __FILE__, __LINE__ )
-  call memalloc( nd, ijk_g, __FILE__, __LINE__ )
-
-  no = 0
-  nn = 0
-  nt = 0
-  nc = 0
-  nt2 = 0
-  nod = 0
-
-  ! Initialize nvef_dim, nodes_vef
-  !call memalloc(nd+2,nvef_dim,__FILE__,__LINE__)
-  !call memalloc(nd+1,nodes_vef,__FILE__,__LINE__)
-  this%number_vefs_dimension = 0
-  this%number_vefs_dimension(1) = 1
-
-  do k = 0,nd
-     i = int(2**(nd-k)*get_binomial_coefficient(nd,k)) ! #vefs of dimension k
-     no = no + i                  ! compute #vefs
-     nn = nn + int(i*((p-1)**k))  ! #nodes inside vefs of dimension k
-     nt = nt + int(i*((p+1)**k))  ! nodes in the clousure of the vef
-     nt2 = nt2 + int(i*((3)**k))  ! vefs in the clousure of the vef
-     nc = nc + int(i*2**k)        ! corners delimiting vefs of dimension k
-     nod = nod + get_binomial_coefficient(nd,k)        ! #nodes/{displacement} (2^n = sum(bnm(n,k)), k=0,..,n)
-     ! Pointer to obj id by dim. Local obj of dim k are nvef_dim(k):nvef_dim(k+1)
-     this%number_vefs_dimension(k+2) = this%number_vefs_dimension(k+1) + i 
-     ! #nodes in vefs of dimension k 
-  end do
-
-  ! Set constant values of reference_element
-  this%number_vefs = no-1
-  this%number_nodes = int((p+1)**nd) 
-
-  ! Allocate arrays
-  call this%orientation%create(no)
-  call this%interior_nodes_vef%create(n=no)
-  call this%nodes_vef%create(n=no)
-  call this%vefs_vef%create(n=no)
-  call this%vertices_vef%create(n=no)
-
-  call memalloc(nod,nd+1,obdla,__FILE__,__LINE__)
-  call memalloc(no, node2ob,__FILE__,__LINE__)        ! Auxiliar array
-  call memalloc(no, ob2node,__FILE__,__LINE__)        ! Auxiliar array
-
-  
-  !Loop over dimensions
-  do k = 0,nd
-     aux1 = int(((p-1)**k)) ! interior nodes for an vef of dim k
-     aux3 = int(((p+1)**k)) ! Total nodes for an vef of dim k
-     if ( p == -1 ) then    ! Void fe
-        aux1 = 0
-        aux3 = 0
-     end if
-     aux2 = int(2**k)       ! Corners for an vef of dim k
-     aux4 = int((3**k)) ! Corners for an vef of dim k (idem p=2)
-
-     ! Loop over vefs of dimension k
-     do i = this%number_vefs_dimension(k+1),this%number_vefs_dimension(k+2)-1 
-       call this%interior_nodes_vef%sum_to_pointer_index(i, aux1) ! assign pointers
-       call this%nodes_vef%sum_to_pointer_index(i, aux3) ! assign pointers
-       call this%vertices_vef%sum_to_pointer_index(i, aux2) ! assign pointers
-       call this%vefs_vef%sum_to_pointer_index(i, aux4) ! assign pointers 
-     end do
-  end do
-  
-  call this%interior_nodes_vef%calculate_header()
-  call this%nodes_vef%calculate_header()
-  call this%vertices_vef%calculate_header()
-  call this%vefs_vef%calculate_header()
-
-  
-  call this%interior_nodes_vef%allocate_list_from_pointer()
-  call this%nodes_vef%allocate_list_from_pointer()
-  call this%vertices_vef%allocate_list_from_pointer()
-  call this%vefs_vef%allocate_list_from_pointer()
-
-  ! Initialize auxiliar values
-  k = 0
-  i = 0
-  idm = 0
-  j = 2
-
-  ! Construction of obdla matrix
-  ! For each vef, up to a displacement, we have an identifier id={1..nod}
-  ! obdla(id,1) = dimension of the vef
-  ! obdla(id,2:obdla(id,1)+1) = gives the directions that define the vef
-  obdla = -1
-  obdla(1,1) = 0
-  do od = 0,nd
-     if (od > 0) then
-        call this%fill_vef_dimension_and_directions(j,idm(1:od),k,i,nd,od,obdla,nod)
-     end if
-  end do
-
-  ! Initialize auxiliar values
-  idm = 0
-  fdm = 0
-  cd  = 0
-  c2  = 0 ! ndxob%p counter
-  c3  = 0 ! crxob%p counter
-  c4  = 0 ! ntxob%p counter
-  c5  = 0 ! obxob%p counter
-  c6  = 0 ! ob2node   counter
-  co  = 0 ! counter of vefs
-
-  vefs_vef_iterator = this%vefs_vef%create_iterator()
-  nodes_vef_iterator = this%nodes_vef%create_iterator()
-  vertices_vef_iterator = this%vertices_vef%create_iterator()
-  interior_nodes_vef_iterator = this%interior_nodes_vef%create_iterator()
-  
-  ! Loop over vefs dimensions
-  do od = 0,nd
-     ! Create ijk tables (od)
-     ! Compute auxt1 the local numbering of the corners of an vef of dimension nd-od
-     ! It allows to know how many translations for each paralel set of vefs
-     if (od < nd) then
-        call memalloc(nd-od,2**(nd-od),auxt1,__FILE__,__LINE__)
-        auxt1 = 0
-        kk    = 0
-        aux1  = 1
-        ijk   = 0
-        call this%fill_vef_local_coordinates_nodes(kk,aux1,ijk,nd-od,auxt1,0,1)
-     end if
-     ! Compute auxt2 the local numbering of the corners in an vef of dim od
-     if (od >0) then
-        call memalloc(od,2**(od),auxt2,__FILE__,__LINE__)
-        auxt2 = 0
-        kk    = 0
-        aux1  = 1
-        ijk   = 0
-        call this%fill_vef_local_coordinates_nodes(kk,aux1,ijk,od,auxt2,0,1)
-
-        if (p > 1) then
-           ! Compute auxt3 the local numbering of the interior nodes in an vef of dim od
-           call memalloc(od,(p-1)**(od),auxt3,__FILE__,__LINE__)
-           auxt3 = 0
-           kk    = 0
-           aux1  = 1
-           ijk   = 0
-           call this%fill_vef_local_coordinates_nodes(kk,aux1,ijk,od,auxt3,1,p-1)
-        end if
-
-        ! Compute auxt4 the local numbering of all nodes in an vef of dim od
-        call memalloc(od,(p+1)**(od),auxt4,__FILE__,__LINE__)
-        auxt4 = 0
-        kk    = 0
-        aux1  = 1
-        ijk   = 0
-        call this%fill_vef_local_coordinates_nodes(kk,aux1,ijk,od,auxt4,0,p)
-
-        ! Compute auxt5 the local numbering of all nodes in an vef of dim od
-        call memalloc(od,(2+1)**(od),auxt5,__FILE__,__LINE__)
-        auxt5 = 0
-        kk    = 0
-        aux1  = 1
-        ijk   = 0
-        call this%fill_vef_local_coordinates_nodes(kk,aux1,ijk,od,auxt5,0,2)
-
-        ! Compute auxt6 the local numbering of the interior vefs in an vef of dim od
-        call memalloc(od,(2-1)**(od),auxt6,__FILE__,__LINE__)
-        auxt6 = 0
-        kk    = 0
-        aux1  = 1
-        ijk   = 0
-        call this%fill_vef_local_coordinates_nodes(kk,aux1,ijk,od,auxt6,1,2-1)
-
-     end if
-
-
-     ! For each dimension, there are bnm(nd,od) vefs up to translation
-     do j = 1,get_binomial_coefficient(nd,od)
-        idm = -1 ! positions in which the nodes variates
-        fdm = -1 ! Positions corresponding to the translation between paralel vefs
-        aux = -1 ! auxiliar vector to construct fdm from idm
-        cd = cd+1
-
-        ! Take the position that will vary inside the vef
-        do k = 1,od
-           idm(k) = obdla(cd,k+1) 
-        end do
-
-        !Mark the positions already taken by idm
-
-        aux = 0
-        do k=1,od
-           aux(idm(k)+1) = 1
-        end do
-
-        !Construct the array of orthogonal space wrt idm. 
-        !It gives the translations for each paralel vef
-        c = 1
-        do k=1,nd
-           if (aux(k) == 0) then
-              fdm(c) = k-1
-              c = c+1
-           end if
-        end do
-
-        ! Corner numbering
-        ! Loop over the translations
-        do l = 1,2**(nd-od) 
-
-           ! Set orientation of the vef
-           co = co +1
-           call this%get_vef_orientation(this%orientation%a(co),fdm(1:nd-od),od,nd,l)
-
-           !ijk_g(jdm) will contain the translations from one vef to another
-           !ijk_g(idm) will contain the variations inside the vef
-           do k = 1,nd-od
-              ijk_g(fdm(k)+1) = auxt1(k,l)
-           end do
-
-           ! Loop over the corners inside the vef
-           do m = 1,2**od
-              do k = 1,od
-                 ijk_g(idm(k)+1) = auxt2(k,m)
-              end do
-              call vertices_vef_iterator%set_current(this%get_node_local_id(ijk_g,nd,1)) !store the vef numbering of the corner 
-              call vertices_vef_iterator%next()
-           end do
-        end do
-
-        ! Interior node numbering
-        ! Loop over the translations
-        if ( p > 0 ) then ! Do nothing for void fe
-        do l = 1,2**(nd-od)
-           !ijk_g(jdm) will contain the translations from 1 vef to another; must be scaled by p
-           !ijk_g(idm) will contain the variations inside the vef
-           do k = 1,nd-od
-              ijk_g(fdm(k)+1) = auxt1(k,l)*p
-           end do
-
-           ! Loop over the interior nodes of the vef
-           do m = 1,(p-1)**(od)
-              do k = 1,od
-                 ijk_g(idm(k)+1) = auxt3(k,m)
-              end do
-              call interior_nodes_vef_iterator%set_current(this%get_node_local_id(ijk_g,nd,p)) ! Store the local numbering in ndxob%l
-              call interior_nodes_vef_iterator%next()
-           end do
-        end do
-
-        ! All node numbering
-        !Loop over the translations
-        do l = 1,2**(nd-od)
-           !ijk_g(jdm) will contain the translations from 1 vef to another; must be scaled by p
-           !ijk_g(idm) will contain the variations inside the vef
-           do k = 1,nd-od
-              ijk_g(fdm(k)+1) = auxt1(k,l)*p
-           end do
-
-           ! Loop over the interior nodes of the vef
-           do m = 1,(p+1)**(od)
-              do k = 1,od
-                 ijk_g(idm(k)+1) = auxt4(k,m)
-              end do
-              call nodes_vef_iterator%set_current(this%get_node_local_id(ijk_g,nd,p)) ! Store the local numbering in ntxob%l
-              call nodes_vef_iterator%next()
-           end do
-        end do
-        end if
-
-        ! obxob array and auxiliar ob2node array 
-
-        ! Interior node numbering
-        ! Loop over the translations
-        do l = 1,2**(nd-od)
-           !ijk_g(jdm) will contain the translations from 1 vef to another; must be scaled by p
-           !ijk_g(idm) will contain the variations inside the vef
-           do k = 1,nd-od
-              ijk_g(fdm(k)+1) = auxt1(k,l)*2
-           end do
-
-           ! Loop over the interior nodes of the vef
-           do m = 1,(2-1)**(od)
-              do k = 1,od
-                 ijk_g(idm(k)+1) = auxt6(k,m)
-              end do
-              c6 = c6+1
-              ob2node(c6) = this%get_node_local_id(ijk_g,nd,2) ! Store the local numbering in ndxob%l
-           end do
-        end do
-
-
-        do l = 1,2**(nd-od)
-
-           ! Fixed values for the vef
-           do k = 1,nd-od
-              ijk_g(fdm(k)+1) = auxt1(k,l)*2
-           end do
-
-           ! Fill obxob (equivalent to ntxob for p=2)
-           do m = 1,3**od
-              do k = 1,od
-                 ijk_g(idm(k)+1) = auxt5(k,m)
-              end do
-              call vefs_vef_iterator%set_current(this%get_node_local_id(ijk_g,nd,2))
-              call vefs_vef_iterator%next()
-           end do
-
-           ! Define ijk_g for the node in the center of the vef
-           do k = 1,od
-              ijk_g(idm(k)+1) = 1
-           end do
-
-           ! Find the generic node numbering
-           m = this%get_node_local_id(ijk_g,nd,2)
-
-           ! Fill ob2node array
-           !ob2node(m) = co
-        end do
-
-     end do
-
-     !Deallocate auxiliar arrays
-     if (od < nd) call memfree(auxt1,__FILE__,__LINE__)
-     if (od >0) then
-        call memfree(auxt2,__FILE__,__LINE__)
-        if (p > 1) call memfree(auxt3,__FILE__,__LINE__)
-        call memfree(auxt4,__FILE__,__LINE__)
-        call memfree(auxt5,__FILE__,__LINE__)
-        call memfree(auxt6,__FILE__,__LINE__)
-     end if
-  end do
-
-  do i=1,no
-     node2ob(ob2node(i)) = i
-  end do
-
-  ! Modify the identifiers of the nodes by the ids of the vef in obxob
-  vefs_vef_iterator = this%vefs_vef%create_iterator()
-  do c5 = 1, nt2
-     call vefs_vef_iterator%set_current(node2ob(vefs_vef_iterator%get_current()))
-     call vefs_vef_iterator%next()
-  end do
-  
-  ! Create face_integration_coupling_nodes_vef
-  if ( this%continuity ) then
-     this%own_nodes_vef = this%interior_nodes_vef
-     ! Create a void face_integration_coupling_nodes_face type(list_t)
-     call this%face_integration_coupling_nodes_face%create(n=no)
-     call this%face_integration_coupling_nodes_face%calculate_header()
-     call this%face_integration_coupling_nodes_face%allocate_list_from_pointer()
-  else
-     call this%own_nodes_vef%create(n=no)
-     call this%own_nodes_vef%sum_to_pointer_index(this%own_nodes_vef%get_num_pointers(), this%number_nodes)
-     call this%own_nodes_vef%calculate_header()
-     call this%own_nodes_vef%allocate_list_from_pointer()
-     
-     own_nodes_vef_iterator = this%own_nodes_vef%create_iterator()
-     i=1
-     do while(.not. own_nodes_vef_iterator%is_upper_bound())
-        call own_nodes_vef_iterator%set_current(i)
-        call own_nodes_vef_iterator%next()
-        i = i + 1 
-    enddo
-     
-     if ( this%conformity ) then
-       ! Create a void face_integration_coupling_nodes_face type(list_t)
-       call this%face_integration_coupling_nodes_face%create(n=no)
-       call this%face_integration_coupling_nodes_face%calculate_header()
-       call this%face_integration_coupling_nodes_face%allocate_list_from_pointer()
-     else
-        this%face_integration_coupling_nodes_face = this%nodes_vef
-     end if
-  end if
-
-  call memfree(obdla,__FILE__,__LINE__)
-  call memfree(ob2node,__FILE__,__LINE__)
-  call memfree(node2ob,__FILE__,__LINE__)
-
-
-  call memfree( aux, __FILE__, __LINE__ )
-  call memfree( idm, __FILE__, __LINE__ )
-  call memfree( fdm, __FILE__, __LINE__ )
-  call memfree( ijk, __FILE__, __LINE__ )
-  call memfree( ijk_g, __FILE__, __LINE__ )
-
-end subroutine hex_lagrangian_reference_fe_fill_scalar
 
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
@@ -1142,12 +730,12 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
 
   ! Compute the nd shape functions as the tensor product of 1d shape functions
   if ( allocated( interpolation%hessian ) )  then 
-     call this%evaluate_interpolation(interpolation%shape_functions,interpolation%shape_derivatives,      &
+     call this%evaluate_interpolation(interpolation%shape_functions(1,:,:),interpolation%shape_derivatives(1,:,:,:),      &
                                     & shpe1,shpd1,shph1,interpolation%number_dimensions,this%order,nlocs, &
                                     & interpolation%number_entries_symmetric_tensor,compute_hessian,      & 
-                                    & interpolation%hessian)
+                                    & interpolation%hessian(1,:,:,:))
   else
-     call this%evaluate_interpolation(interpolation%shape_functions,interpolation%shape_derivatives,      &
+     call this%evaluate_interpolation(interpolation%shape_functions(1,:,:),interpolation%shape_derivatives(1,:,:,:),      &
                                     & shpe1,shpd1,shph1,interpolation%number_dimensions,this%order,nlocs, & 
                                     & interpolation%number_entries_symmetric_tensor,compute_hessian)
   end if
@@ -1188,12 +776,12 @@ subroutine hex_lagrangian_reference_fe_fill_face_interpolation (this,face_interp
 
   order_of_approximation = this%order
   ! Create the interpolation
-  call this%evaluate_face_interpolation(face_interpolation%shape_functions,          &
-                                      & face_interpolation%shape_derivatives,        &
-                                      & local_interpolation%shape_functions,         &  
-                                      & local_interpolation%shape_derivatives,       &
-                                      & interp_1D_corners%shape_functions,           & 
-                                      & interp_1D_corners%shape_derivatives,         &
+  call this%evaluate_face_interpolation(face_interpolation%shape_functions(1,:,:),          &
+                                      & face_interpolation%shape_derivatives(1,:,:,:),        &
+                                      & local_interpolation%shape_functions(1,:,:),         &  
+                                      & local_interpolation%shape_derivatives(1,:,:,:),       &
+                                      & interp_1D_corners%shape_functions(1,:,:),           & 
+                                      & interp_1D_corners%shape_derivatives(1,:,:,:),         &
                                       & face_interpolation%number_dimensions,        &
                                       & order_of_approximation,                      &
                                       & face_interpolation%number_quadrature_points, & 
@@ -1327,10 +915,10 @@ end function hex_lagrangian_reference_fe_get_number_interior_points_x_dim
 !**************************************************************************************************
 
 !==================================================================================================
-! For each vef, up to a displacement, we have an identifier id={1..nod}
-! obdla(id,1) = dimension of the vef
-! obdla(id,2:obdla(id,1)+1) = gives the directions that define the vef
-recursive subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directions(this,co,idm,ko, &
+! For each n-face, up to a displacement, we have an identifier id={1..nod}
+! obdla(id,1) = dimension of the n-face
+! obdla(id,2:obdla(id,1)+1) = gives the directions that define the n-face
+recursive subroutine hex_lagrangian_reference_fe_fill_n_face_dims_and_directions(this,co,idm,ko, &
                                                                                  & i,nd,od,obdla,nod)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
@@ -1339,14 +927,14 @@ recursive subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directio
   integer(ip)                         , intent(in)    :: nd,od,nod
   integer(ip)                         , intent(inout) :: obdla(:,:)
   integer(ip)                         , intent(inout) :: idm(:) 
-  integer(ip)                         , intent(inout) :: co  ! Pointer to the position of the vef
+  integer(ip)                         , intent(inout) :: co  ! Pointer to the position of the n-face
   integer(ip) :: aux,ijk_c(nd),j,cd,kn,s
 
-  !Given dimension od of the vef
+  !Given dimension od of the n-face
   do kn = ko,nd-od+i
      idm(i+1) = kn 
      if (i+1 < od) then
-        call this%fill_vef_dimension_and_directions(co,idm,kn+1,i+1,nd,od,obdla,nod)
+        call this%fill_n_face_dimension_and_directions(co,idm,kn+1,i+1,nd,od,obdla,nod)
      else
         obdla(co,1) = od
         do j = 1,od
@@ -1355,7 +943,7 @@ recursive subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directio
         co = co + 1
      end if
   end do
-end subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directions
+end subroutine hex_lagrangian_reference_fe_fill_n_face_dims_and_directions
 
 !==================================================================================================
 ! Given the dimension nd of the quad and the positions p0,...,p1 we want to consider is going
@@ -1364,7 +952,7 @@ end subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directions
 !         | p0 p0   ... p0 p0   ... p1 |
 ! auxt1 = | p0 p0   ... p0 p0+1 ... p1 |
 !         | p0 p0+1 ... p1 p0   ... p1 |
-recursive subroutine hex_lagrangian_reference_fe_fill_vef_local_coordinates_nodes(this,co,d,ijk, &
+recursive subroutine hex_lagrangian_reference_fe_fill_n_face_local_coordinates_nodes(this,co,d,ijk, &
                                                                                 & nd,auxt1,p0,p1)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
@@ -1376,7 +964,7 @@ recursive subroutine hex_lagrangian_reference_fe_fill_vef_local_coordinates_node
   do ipp = p0,p1
      if (d>nd) exit
      ijk(nd-d+1) = ipp 
-     if (d < nd) call this%fill_vef_local_coordinates_nodes(co,d+1,ijk,nd,auxt1,p0,p1)
+     if (d < nd) call this%fill_n_face_local_coordinates_nodes(co,d+1,ijk,nd,auxt1,p0,p1)
      if (d == nd) then
         co = co + 1
         do i = 1,nd
@@ -1384,7 +972,7 @@ recursive subroutine hex_lagrangian_reference_fe_fill_vef_local_coordinates_node
         end do
      end if
   end do
-end subroutine hex_lagrangian_reference_fe_fill_vef_local_coordinates_nodes
+end subroutine hex_lagrangian_reference_fe_fill_n_face_local_coordinates_nodes
 
 ! ===================================================================================================
 ! Compute the shape function and its derivative
@@ -1586,11 +1174,11 @@ subroutine hex_lagrangian_reference_fe_evaluate_face_interpolation(this,shapf,de
 end subroutine hex_lagrangian_reference_fe_evaluate_face_interpolation
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_get_vef_orientation(this,o,fdm,od,nd,l)
+subroutine hex_lagrangian_reference_fe_get_n_face_orientation(this,o,fdm,od,nd,l)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(inout) :: o
-  integer(ip)                         , intent(in)    :: fdm(:)  ! fdm gives the orthogonal directions to the vef
+  integer(ip)                         , intent(in)    :: fdm(:)  ! fdm gives the orthogonal directions to the n-face
   integer(ip)                         , intent(in)    :: od,nd,l ! l=translation ordering
 
   if (nd == 2 .and. od == 1) then
@@ -1603,4 +1191,4 @@ subroutine hex_lagrangian_reference_fe_get_vef_orientation(this,o,fdm,od,nd,l)
      o = 0
   end if
 
-end subroutine hex_lagrangian_reference_fe_get_vef_orientation
+end subroutine hex_lagrangian_reference_fe_get_n_face_orientation

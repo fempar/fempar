@@ -80,9 +80,9 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
      ! Extract data from mesh
      call mesh%get_sizes(this%num_dimensions,this%num_vertices,this%max_vefs_per_cell,this%num_local_cells)
      this%num_vefs=this%num_vertices
-     this%num_local_vefs=this%num_vertices
-     write(*,*) 'Get from mesh (sizes):',this%num_dimensions,this%num_vertices,this%num_vefs,this%max_vefs_per_cell,this%num_local_cells
-     write(*,*) 'Get from mesh num_local_cells:',this%num_local_cells
+
+     !write(*,*) 'Get from mesh (sizes):',this%num_dimensions,this%num_vertices,this%num_vefs,this%max_vefs_per_cell,this%num_local_cells
+     !write(*,*) 'Get from mesh num_local_cells:',this%num_local_cells
      call mesh%move_cells(ptr_vefs_per_cell,lst_vefs_lids)
      !write(*,*) this%ptr_vefs_per_cell
      !write(*,*) this%lst_vefs_lids
@@ -150,6 +150,8 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
      !write(*,*) 'Updating local numbering'
      !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
      call this%allocate_and_fill_lst_vefs_lids(lst_vefs_lids,lst_vefs_gids_ghost_extended)
+     this%num_vertices=this%num_vefs
+
      !write(*,*) 'Local numbering udated with ghost vefs'
      !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
 
@@ -167,7 +169,6 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
      call this%compute_vefs_dimension()
      call this%find_vefs_at_boundary()
      call this%find_and_list_vefs_at_interfaces()
-     !call this%allocate_and_fill_vef_type()
      
      call this%allocate_and_fill_face_orientation_rotation()
 
@@ -220,23 +221,24 @@ subroutine par_triangulation_allocate_and_fill_lst_vefs_lids ( this, lst_vefs_li
   end do
 
   ! Ghost cells contain vefs not locally numbered
-  this%num_ghost_vefs=0
-  current = this%num_local_vefs+1
+  !this%num_ghost_vefs=0
+  !current = this%num_vefs+1
   do icell = this%num_local_cells +1, this%num_local_cells + this%num_ghost_cells
      init_pos = this%ptr_vefs_per_cell(icell)
      end_pos  = this%ptr_vefs_per_cell(icell+1)-1
      do j=init_pos, end_pos
-        call next_vef_lid_avail%put(key=lst_vefs_gids(j), val=current, stat=istat)
+        call next_vef_lid_avail%put(key=lst_vefs_gids(j), val=this%num_vefs+1, stat=istat)
         if (istat == now_stored) then
-           current = current + 1
-           this%num_ghost_vefs = this%num_ghost_vefs + 1
+           this%num_vefs=this%num_vefs+1
+           !current = current + 1
+           !this%num_ghost_vefs = this%num_ghost_vefs + 1
         end if
         call next_vef_lid_avail%get(key=lst_vefs_gids(j), val=this%lst_vefs_lids(j), stat=istat)
      end do
      !write(*,*) icell, this%lst_vefs_lids(init_pos:end_pos)
   end do
   call next_vef_lid_avail%free()
-  this%num_vefs = this%num_local_vefs+this%num_ghost_vefs
+  !this%num_vefs = this%num_local_vefs+this%num_ghost_vefs
 
 end subroutine par_triangulation_allocate_and_fill_lst_vefs_lids
 
