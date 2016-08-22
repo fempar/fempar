@@ -673,7 +673,7 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
                                           interpolation%number_shape_functions,          &
                                           interpolation%number_entries_symmetric_tensor, &
                                           interpolation%shape_functions(1,:,iquad),        &
-                                          interpolation%shape_derivatives(:,:,iquad),    &
+                                          interpolation%shape_derivatives(1,:,:,iquad),    &
                                           interpolation%hessian(:,:,iquad) )
      end do
   else
@@ -683,7 +683,7 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
                                           interpolation%number_shape_functions,          &
                                           interpolation%number_entries_symmetric_tensor, &
                                           interpolation%shape_functions(1,:,iquad),        &
-                                          interpolation%shape_derivatives(:,:,iquad) )
+                                          interpolation%shape_derivatives(1,:,:,iquad) )
      end do
   end if
   
@@ -729,7 +729,7 @@ subroutine tet_lagrangian_reference_fe_fill_face_interpolation (this, face_inter
                                           face_interpolation%number_shape_functions,          &
                                           face_interpolation%number_entries_symmetric_tensor, &
                                           face_interpolation%shape_functions(1,:,iquad),        &
-                                          face_interpolation%shape_derivatives(:,:,iquad),    &
+                                          face_interpolation%shape_derivatives(1,:,:,iquad),    &
                                           face_interpolation%hessian(:,:,iquad) )
      end do
   else
@@ -757,7 +757,7 @@ subroutine tet_lagrangian_reference_fe_fill_face_interpolation (this, face_inter
                                           face_interpolation%number_shape_functions,          &
                                           face_interpolation%number_entries_symmetric_tensor, &
                                           face_interpolation%shape_functions(1,:,iquad),        &
-                                          face_interpolation%shape_derivatives(:,:,iquad) )
+                                          face_interpolation%shape_derivatives(1,:,:,iquad) )
      end do
   end if
   

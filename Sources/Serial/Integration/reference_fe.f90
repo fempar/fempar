@@ -100,7 +100,7 @@ module reference_fe_names
           number_entries_symmetric_tensor
      real(rp), allocatable      ::  &
           shape_functions(:,:,:),     &   
-          shape_derivatives(:,:,:), &   
+          shape_derivatives(:,:,:,:), &   
           hessian(:,:,:)     
    contains
      procedure, non_overridable :: create => interpolation_create

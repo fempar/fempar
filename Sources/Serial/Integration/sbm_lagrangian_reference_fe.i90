@@ -311,7 +311,7 @@ subroutine lagrangian_reference_fe_get_gradient_scalar( this, actual_cell_interp
   assert( qpoint >= 1 )
   call vector_field%init(0.0_rp)
   do idime=1,this%number_dimensions
-    call vector_field%set(idime,actual_cell_interpolation%shape_derivatives(idime,ishape,qpoint))
+    call vector_field%set(idime,actual_cell_interpolation%shape_derivatives(1,idime,ishape,qpoint))
   end do
 end subroutine lagrangian_reference_fe_get_gradient_scalar
 
@@ -331,7 +331,7 @@ subroutine lagrangian_reference_fe_get_gradient_vector( this, actual_cell_interp
   call tensor_field%init(0.0_rp)
   do idime=1,this%number_dimensions
     call tensor_field%set(idime,this%node_component_array(ishape,2), &
-     & actual_cell_interpolation%shape_derivatives(idime,this%node_component_array(ishape,1),qpoint))
+     & actual_cell_interpolation%shape_derivatives(1,idime,this%node_component_array(ishape,1),qpoint))
   end do
 end subroutine lagrangian_reference_fe_get_gradient_vector
 
@@ -352,7 +352,7 @@ subroutine lagrangian_reference_fe_get_divergence_vector( this, actual_cell_inte
   assert( ishape >= 1 .and. ishape <= this%number_nodes )
   assert( qpoint >= 1 )
 
-  scalar_field = actual_cell_interpolation%shape_derivatives(this%node_component_array(ishape,2), &
+  scalar_field = actual_cell_interpolation%shape_derivatives(1,this%node_component_array(ishape,2), &
                                                            & this%node_component_array(ishape,1), &
                                                            & qpoint)  
 end subroutine lagrangian_reference_fe_get_divergence_vector 
@@ -387,7 +387,7 @@ subroutine lagrangian_reference_fe_get_curl_vector( this, actual_cell_interpolat
       if ( ( idime .ne. jdime ) .and. (idime .ne. kdime) .and. (jdime .ne. kdime) ) then 
          call vector_field%set( idime, &
               Levi_Civita(idime,jdime,kdime)* &
-              actual_cell_interpolation%shape_derivatives(jdime,this%node_component_array(ishape,1),qpoint) )
+              actual_cell_interpolation%shape_derivatives(1,jdime,this%node_component_array(ishape,1),qpoint) )
       end if
    end do
  end do
@@ -904,8 +904,8 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
      do inode=1,size(phy%shape_functions,2)!phy%number_shape_functions
         do idime=1,ndime
            do jdime=1,ndime
-              phy%shape_derivatives(idime,inode,ilocs) = phy%shape_derivatives(idime,inode,ilocs) &
-                   + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(jdime,inode,ilocs)
+              phy%shape_derivatives(1,idime,inode,ilocs) = phy%shape_derivatives(1,idime,inode,ilocs) &
+                   + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(1,jdime,inode,ilocs)
            end do
         end do
      end do
@@ -944,7 +944,7 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
                  do jdime=1,ndime
                     do kdime=1,ndime
                        wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
-                            & + ref%shape_derivatives(kdime,inode,ilocs) &
+                            & + ref%shape_derivatives(1,kdime,inode,ilocs) &
                             &   * map%d2sdx(kdime,idime,jdime,ilocs)
                     end do
                  end do

@@ -189,7 +189,8 @@ subroutine fe_map_update( this, quadrature)
         aux_vector = 0.0_rp
         do inode=1,nnode
            aux_vector = aux_vector + this%coordinates_nodes(inode) * &
-                & this%interpolation_geometry%shape_derivatives(jdime,inode,ilocs)
+                & this%interpolation_geometry%shape_derivatives(1,jdime,inode,ilocs)
+           ! BE CAREFUL (@sbadia): Here we make explicit use of shape_functions being Lagrangian-type
         end do
         do idime=1,ndime
            this%jacobian(idime,jdime,ilocs) = aux_vector%get(idime)
@@ -284,8 +285,8 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
         aux_vector = 0.0_rp
         do node_id = 1, this%interpolation_geometry%number_shape_functions
            aux_vector = aux_vector + this%coordinates_nodes(node_id) * &
-                & this%interpolation_geometry%shape_derivatives(jdime,node_id,evaluation_point_id)
-
+                & this%interpolation_geometry%shape_derivatives(1,jdime,node_id,evaluation_point_id)
+             ! BE CAREFUL (@sbadia): Here we make explicit use of shape_functions being Lagrangian-type
         end do
         do idime=1,number_elem_dimensions
            this%jacobian(idime,jdime,evaluation_point_id) = aux_vector%get(idime)

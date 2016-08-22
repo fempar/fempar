@@ -49,7 +49,7 @@ subroutine interpolation_create( this, &
   call memalloc(number_dimensions, number_shape_functions, &
                 number_quadrature_points, &
                 this%shape_functions,__FILE__,__LINE__)
-  call memalloc(number_dimensions, &
+  call memalloc(number_dimensions,number_dimensions, &
                 number_shape_functions, &
                 number_quadrature_points, &
                 this%shape_derivatives, __FILE__, __LINE__)
@@ -87,10 +87,10 @@ subroutine interpolation_copy(this, source_interpolation)
   this%number_entries_symmetric_tensor = source_interpolation%number_entries_symmetric_tensor
   call memalloc(this%number_dimensions,this%number_shape_functions,this%number_quadrature_points, &
 																this%shape_functions,__FILE__,__LINE__)
-  call memalloc(this%number_dimensions,this%number_shape_functions,&
+  call memalloc(this%number_dimensions,this%number_dimensions,this%number_shape_functions,&
 																this%number_quadrature_points,this%shape_derivatives,   __FILE__,__LINE__)
   this%shape_functions(:,:,:) = source_interpolation%shape_functions(:,:,:)
-  this%shape_derivatives(:,:,:) = source_interpolation%shape_derivatives(:,:,:)
+  this%shape_derivatives(:,:,:,:) = source_interpolation%shape_derivatives(:,:,:,:)
   if ( allocated(source_interpolation%hessian) ) then
     call memalloc(this%number_entries_symmetric_tensor,this%number_shape_functions,&
 																		this%number_quadrature_points,this%hessian,   __FILE__,__LINE__) 
@@ -102,7 +102,7 @@ end subroutine interpolation_copy
 subroutine interpolation_print ( this )
   implicit none
   class(interpolation_t), intent(in) :: this
-  integer(ip) :: i,j,k
+  integer(ip) :: i,j,k,l
   write(*,*) 'number_dimensions: ', this%number_dimensions
   write(*,*) 'number_shape_functions: ', this%number_shape_functions
   write(*,*) 'number_quadrature_points: ', this%number_quadrature_points
@@ -120,8 +120,10 @@ subroutine interpolation_print ( this )
 
   do i = 1, size(this%shape_derivatives,1)                                                             
      do j = 1, size(this%shape_derivatives,2)                                                         
-        do k = 1, size(this%shape_derivatives,3)                                                        
-           write(*,*) 'shape derivative D_',i,'phi^',j,'(gp=',k,')= ',this%shape_derivatives(i,j,k)
+        do k = 1, size(this%shape_derivatives,3)                                                     
+           do l = 1, size(this%shape_derivatives,4)                                                        
+              write(*,*) 'shape derivative D_',j,'phi^',k,'_(dim_',i,')','(gp=',l,')= ',this%shape_derivatives(i,j,k,l)
+           end do
         end do
      end do
   end do
