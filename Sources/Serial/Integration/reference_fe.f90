@@ -101,7 +101,7 @@ module reference_fe_names
      real(rp), allocatable      ::  &
           shape_functions(:,:,:),     &   
           shape_derivatives(:,:,:,:), &   
-          hessian(:,:,:)     
+          hessian(:,:,:,:)     
    contains
      procedure, non_overridable :: create => interpolation_create
      procedure, non_overridable :: free   => interpolation_free

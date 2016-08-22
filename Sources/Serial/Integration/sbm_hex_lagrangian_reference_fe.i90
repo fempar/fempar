@@ -733,7 +733,7 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
      call this%evaluate_interpolation(interpolation%shape_functions(1,:,:),interpolation%shape_derivatives(1,:,:,:),      &
                                     & shpe1,shpd1,shph1,interpolation%number_dimensions,this%order,nlocs, &
                                     & interpolation%number_entries_symmetric_tensor,compute_hessian,      & 
-                                    & interpolation%hessian)
+                                    & interpolation%hessian(1,:,:,:))
   else
      call this%evaluate_interpolation(interpolation%shape_functions(1,:,:),interpolation%shape_derivatives(1,:,:,:),      &
                                     & shpe1,shpd1,shph1,interpolation%number_dimensions,this%order,nlocs, & 

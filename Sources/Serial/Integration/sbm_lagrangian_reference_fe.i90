@@ -926,7 +926,7 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
            ! Transforms the array HESSI to a symmetric matrix WMAT1
            do inode=1,nnode
               do itens = 1, ntens
-                 wvec1(itens) = ref%hessian(itens,inode,ilocs)
+                 wvec1(itens) = ref%hessian(1,itens,inode,ilocs)
               end do
               call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
            end do
@@ -955,7 +955,7 @@ subroutine lagrangian_reference_fe_apply_femap_to_interpolation(this,map,ref,phy
         ! Writes the Hessian matrix as an array
         do inode=1,nnode
            do itens = 1, ntens
-              wvec1(itens) = phy%hessian(itens,inode,ilocs)
+              wvec1(itens) = phy%hessian(1,itens,inode,ilocs)
            end do
            call store_symmetric_matrix_as_vector(wmat2(1,1,inode),wvec1,ndime,ntens)
         end do

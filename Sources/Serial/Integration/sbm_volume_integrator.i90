@@ -218,7 +218,8 @@ subroutine fe_map_update( this, quadrature)
         ! Transforms the array HESSI to a symmetric matrix WMAT1
         do inode=1,nnode
            do itens = 1, ntens
-              wvec1(itens) = this%interpolation_geometry%hessian(itens,inode,ilocs)
+              wvec1(itens) = this%interpolation_geometry%hessian(1,itens,inode,ilocs)
+             ! BE CAREFUL (@sbadia): Here we make explicit use of shape_functions being Lagrangian-type
            end do
            call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
         end do

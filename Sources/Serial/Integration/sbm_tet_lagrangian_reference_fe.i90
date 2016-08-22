@@ -674,7 +674,7 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
                                           interpolation%number_entries_symmetric_tensor, &
                                           interpolation%shape_functions(1,:,iquad),        &
                                           interpolation%shape_derivatives(1,:,:,iquad),    &
-                                          interpolation%hessian(:,:,iquad) )
+                                          interpolation%hessian(1,:,:,iquad) )
      end do
   else
      do iquad = 1,interpolation%number_quadrature_points
@@ -730,7 +730,7 @@ subroutine tet_lagrangian_reference_fe_fill_face_interpolation (this, face_inter
                                           face_interpolation%number_entries_symmetric_tensor, &
                                           face_interpolation%shape_functions(1,:,iquad),        &
                                           face_interpolation%shape_derivatives(1,:,:,iquad),    &
-                                          face_interpolation%hessian(:,:,iquad) )
+                                          face_interpolation%hessian(1,:,:,iquad) )
      end do
   else
      do iquad = 1,face_interpolation%number_quadrature_points

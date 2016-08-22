@@ -55,7 +55,7 @@ subroutine interpolation_create( this, &
                 this%shape_derivatives, __FILE__, __LINE__)
   if ( present(compute_hessian) ) then
      if ( compute_hessian ) then 
-        call memalloc(number_entries_symmetric_tensor,&
+        call memalloc(number_dimensions,number_entries_symmetric_tensor,&
                       number_shape_functions,&
                       number_quadrature_points, &
                       this%hessian,__FILE__,__LINE__) 
@@ -92,9 +92,9 @@ subroutine interpolation_copy(this, source_interpolation)
   this%shape_functions(:,:,:) = source_interpolation%shape_functions(:,:,:)
   this%shape_derivatives(:,:,:,:) = source_interpolation%shape_derivatives(:,:,:,:)
   if ( allocated(source_interpolation%hessian) ) then
-    call memalloc(this%number_entries_symmetric_tensor,this%number_shape_functions,&
+    call memalloc(this%number_dimensions,this%number_entries_symmetric_tensor,this%number_shape_functions,&
 																		this%number_quadrature_points,this%hessian,   __FILE__,__LINE__) 
-				this%hessian(:,:,:) = source_interpolation%hessian(:,:,:)
+				this%hessian(:,:,:,:) = source_interpolation%hessian(:,:,:,:)
   end if
 
 end subroutine interpolation_copy
