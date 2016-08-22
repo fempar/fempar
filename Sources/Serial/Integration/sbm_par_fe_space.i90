@@ -104,22 +104,6 @@ subroutine par_fe_space_free( this )
 end subroutine par_fe_space_free
 
 ! Required (at least) by type(mlbddc_t)
-function par_fe_space_get_par_environment(this)
-  implicit none
-  class(par_fe_space_t), intent(in) :: this
-  type(par_environment_t), pointer :: par_fe_space_get_par_environment
-  
-  assert ( associated(this%triangulation) )
-  select type ( par_triangulation => this%triangulation )
-    class is ( par_triangulation_t )
-      par_fe_space_get_par_environment => par_triangulation%get_par_environment()
-    class default
-      assert(.false.)
-  end select
-  
-end function par_fe_space_get_par_environment
-
-! Required (at least) by type(mlbddc_t)
 function par_fe_space_get_par_triangulation(this)
   implicit none
   class(par_fe_space_t), target, intent(in) :: this
@@ -132,8 +116,28 @@ function par_fe_space_get_par_triangulation(this)
     class default
       assert(.false.)
   end select
-  
 end function par_fe_space_get_par_triangulation
+
+! Required (at least) by type(mlbddc_t)
+function par_fe_space_get_par_environment(this)
+  implicit none
+  class(par_fe_space_t), intent(in) :: this
+  type(par_environment_t), pointer :: par_fe_space_get_par_environment
+  assert ( associated(this%triangulation) )
+  select type ( par_triangulation => this%triangulation )
+    class is ( par_triangulation_t )
+      par_fe_space_get_par_environment => par_triangulation%get_par_environment()
+    class default
+      assert(.false.)
+  end select
+end function par_fe_space_get_par_environment
+
+function par_fe_space_get_environment(this)
+  implicit none
+  class(par_fe_space_t), intent(in) :: this
+  class(environment_t), pointer :: par_fe_space_get_environment
+  par_fe_space_get_environment => this%get_par_environment()
+end function par_fe_space_get_environment
 
 subroutine par_fe_space_print ( this )
   class(par_fe_space_t), intent(in) :: this 
@@ -438,7 +442,7 @@ function parfespace_compute_ubound_num_itfc_couplings_by_continuity( this, field
                  touched_neighbours (local_part_id) = .true.
                  ivef = fe%find_lpos_vef_lid(vef%get_lid())
                  reference_fe => fe%get_reference_fe(field_id)
-                 result = result + reference_fe%get_number_own_nodes_vef(ivef)
+                 result = result + reference_fe%get_number_own_nodes_n_face(ivef)
               end if
            end if
            !end if
@@ -711,7 +715,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
         ivef = fe%find_lpos_vef_lid(vef%get_lid())
         call fe%get_elem2dof( elem2dof )
         reference_fe => fe%get_reference_fe(field_id)
-        own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_vef_iterator(ivef)
+        own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof =  own_dofs_on_vef_iterator%get_current()
            dof_lid = elem2dof(field_id)%p(idof)

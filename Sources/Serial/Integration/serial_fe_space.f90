@@ -26,15 +26,16 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fe_space_names
-  
- ! Serial modules
+  ! Serial modules
   use types_names
   use list_types_names
   use memor_names
   use sort_names
   use allocatable_array_names
   use hash_table_names
-  
+
+  use environment_names
+  use serial_environment_names  
   use base_static_triangulation_names
   use conditions_names
   
@@ -321,7 +322,6 @@ module fe_space_names
                                                                                             create_face_fe_function_vector, &
                                                                                             create_face_fe_function_tensor                                                                                       
                                                                                             
-     
      procedure                           :: fill_dof_info                                => serial_fe_space_fill_dof_info
      procedure                 , private :: fill_elem2dof_and_count_dofs                 => serial_fe_space_fill_elem2dof_and_count_dofs
      procedure                 , private :: renumber_dofs_block                          => serial_fe_space_renumber_dofs_block
@@ -342,6 +342,7 @@ module fe_space_names
      procedure, non_overridable          :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure, non_overridable          :: get_field_coupling                           => serial_fe_space_get_field_coupling
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
+     procedure                           :: get_environment                              => serial_fe_space_get_environment
      
      ! fes and fe_faces traversals-related TBPs
      procedure, non_overridable          :: create_fe_iterator                           => serial_fe_space_create_fe_iterator
@@ -425,8 +426,9 @@ module fe_space_names
    procedure        , non_overridable          :: get_block_number_interior_dofs                  => par_fe_space_get_block_number_interior_dofs
    procedure        , non_overridable          :: get_block_number_interface_dofs                 => par_fe_space_get_block_number_interface_dofs
    procedure        , non_overridable          :: get_number_fe_objects                           => par_fe_space_get_number_fe_objects
-   procedure                                   :: get_par_environment                             => par_fe_space_get_par_environment
    procedure                                   :: get_par_triangulation                           => par_fe_space_get_par_triangulation
+   procedure                                   :: get_par_environment                             => par_fe_space_get_par_environment
+   procedure                                   :: get_environment                                 => par_fe_space_get_environment
    
    procedure                                   :: print                                           => par_fe_space_print
    procedure                                   :: free                                            => par_fe_space_free

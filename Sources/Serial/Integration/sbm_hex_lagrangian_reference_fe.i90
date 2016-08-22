@@ -31,30 +31,30 @@
 !**************************************************************************************************
 
 !==================================================================================================
-function hex_lagrangian_reference_fe_check_compatibility_of_vefs                   &
-     &                      (target_reference_fe,source_reference_fe, source_vef_id,target_vef_id)
+function hex_lagrangian_reference_fe_check_compatibility_of_n_faces                   &
+     &                      (target_reference_fe,source_reference_fe, source_n_face_id,target_n_face_id)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)  :: target_reference_fe
   class(reference_fe_t)               , intent(in)  :: source_reference_fe
-  integer(ip)                         , intent(in)  :: source_vef_id ! Local vef ID
-  integer(ip)                         , intent(in)  :: target_vef_id ! Local vef ID
-  logical :: hex_lagrangian_reference_fe_check_compatibility_of_vefs 
+  integer(ip)                         , intent(in)  :: source_n_face_id ! Local n-face ID
+  integer(ip)                         , intent(in)  :: target_n_face_id ! Local n-face ID
+  logical :: hex_lagrangian_reference_fe_check_compatibility_of_n_faces 
 
   select type(source_reference_fe)
      class is(hex_lagrangian_reference_fe_t)
         ! Get number nodes per dimension
         assert (target_reference_fe%order == source_reference_fe%order)
         assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
-        assert (target_reference_fe%get_vef_dimension(target_vef_id) == source_reference_fe%get_vef_dimension(source_vef_id))
-        assert (target_reference_fe%get_vef_dimension(target_vef_id) < 3)
+        assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
+        assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
         assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
-        assert (target_reference_fe%get_number_own_nodes_vef(target_vef_id) == source_reference_fe%get_number_own_nodes_vef(source_vef_id))
-        hex_lagrangian_reference_fe_check_compatibility_of_vefs = .true.
+        assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
+        hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .true.
      class default
-        hex_lagrangian_reference_fe_check_compatibility_of_vefs = .false.
+        hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .false.
   end select
  
-end function hex_lagrangian_reference_fe_check_compatibility_of_vefs
+end function hex_lagrangian_reference_fe_check_compatibility_of_n_faces
 
 !==================================================================================================
 function hex_lagrangian_reference_fe_get_characteristic_length ( this )
@@ -730,12 +730,12 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation ( this, interpolation,
 
   ! Compute the nd shape functions as the tensor product of 1d shape functions
   if ( allocated( interpolation%hessian ) )  then 
-     call this%evaluate_interpolation(interpolation%shape_functions,interpolation%shape_derivatives,      &
+     call this%evaluate_interpolation(interpolation%shape_functions(1,:,:),interpolation%shape_derivatives(1,:,:,:),      &
                                     & shpe1,shpd1,shph1,interpolation%number_dimensions,this%order,nlocs, &
                                     & interpolation%number_entries_symmetric_tensor,compute_hessian,      & 
-                                    & interpolation%hessian)
+                                    & interpolation%hessian(1,:,:,:))
   else
-     call this%evaluate_interpolation(interpolation%shape_functions,interpolation%shape_derivatives,      &
+     call this%evaluate_interpolation(interpolation%shape_functions(1,:,:),interpolation%shape_derivatives(1,:,:,:),      &
                                     & shpe1,shpd1,shph1,interpolation%number_dimensions,this%order,nlocs, & 
                                     & interpolation%number_entries_symmetric_tensor,compute_hessian)
   end if
@@ -776,12 +776,12 @@ subroutine hex_lagrangian_reference_fe_fill_face_interpolation (this,face_interp
 
   order_of_approximation = this%order
   ! Create the interpolation
-  call this%evaluate_face_interpolation(face_interpolation%shape_functions,          &
-                                      & face_interpolation%shape_derivatives,        &
-                                      & local_interpolation%shape_functions,         &  
-                                      & local_interpolation%shape_derivatives,       &
-                                      & interp_1D_corners%shape_functions,           & 
-                                      & interp_1D_corners%shape_derivatives,         &
+  call this%evaluate_face_interpolation(face_interpolation%shape_functions(1,:,:),          &
+                                      & face_interpolation%shape_derivatives(1,:,:,:),        &
+                                      & local_interpolation%shape_functions(1,:,:),         &  
+                                      & local_interpolation%shape_derivatives(1,:,:,:),       &
+                                      & interp_1D_corners%shape_functions(1,:,:),           & 
+                                      & interp_1D_corners%shape_derivatives(1,:,:,:),         &
                                       & face_interpolation%number_dimensions,        &
                                       & order_of_approximation,                      &
                                       & face_interpolation%number_quadrature_points, & 
@@ -915,10 +915,10 @@ end function hex_lagrangian_reference_fe_get_number_interior_points_x_dim
 !**************************************************************************************************
 
 !==================================================================================================
-! For each vef, up to a displacement, we have an identifier id={1..nod}
-! obdla(id,1) = dimension of the vef
-! obdla(id,2:obdla(id,1)+1) = gives the directions that define the vef
-recursive subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directions(this,co,idm,ko, &
+! For each n-face, up to a displacement, we have an identifier id={1..nod}
+! obdla(id,1) = dimension of the n-face
+! obdla(id,2:obdla(id,1)+1) = gives the directions that define the n-face
+recursive subroutine hex_lagrangian_reference_fe_fill_n_face_dims_and_directions(this,co,idm,ko, &
                                                                                  & i,nd,od,obdla,nod)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
@@ -927,14 +927,14 @@ recursive subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directio
   integer(ip)                         , intent(in)    :: nd,od,nod
   integer(ip)                         , intent(inout) :: obdla(:,:)
   integer(ip)                         , intent(inout) :: idm(:) 
-  integer(ip)                         , intent(inout) :: co  ! Pointer to the position of the vef
+  integer(ip)                         , intent(inout) :: co  ! Pointer to the position of the n-face
   integer(ip) :: aux,ijk_c(nd),j,cd,kn,s
 
-  !Given dimension od of the vef
+  !Given dimension od of the n-face
   do kn = ko,nd-od+i
      idm(i+1) = kn 
      if (i+1 < od) then
-        call this%fill_vef_dimension_and_directions(co,idm,kn+1,i+1,nd,od,obdla,nod)
+        call this%fill_n_face_dimension_and_directions(co,idm,kn+1,i+1,nd,od,obdla,nod)
      else
         obdla(co,1) = od
         do j = 1,od
@@ -943,7 +943,7 @@ recursive subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directio
         co = co + 1
      end if
   end do
-end subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directions
+end subroutine hex_lagrangian_reference_fe_fill_n_face_dims_and_directions
 
 !==================================================================================================
 ! Given the dimension nd of the quad and the positions p0,...,p1 we want to consider is going
@@ -952,7 +952,7 @@ end subroutine hex_lagrangian_reference_fe_fill_vef_dimension_and_directions
 !         | p0 p0   ... p0 p0   ... p1 |
 ! auxt1 = | p0 p0   ... p0 p0+1 ... p1 |
 !         | p0 p0+1 ... p1 p0   ... p1 |
-recursive subroutine hex_lagrangian_reference_fe_fill_vef_local_coordinates_nodes(this,co,d,ijk, &
+recursive subroutine hex_lagrangian_reference_fe_fill_n_face_local_coordinates_nodes(this,co,d,ijk, &
                                                                                 & nd,auxt1,p0,p1)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
@@ -964,7 +964,7 @@ recursive subroutine hex_lagrangian_reference_fe_fill_vef_local_coordinates_node
   do ipp = p0,p1
      if (d>nd) exit
      ijk(nd-d+1) = ipp 
-     if (d < nd) call this%fill_vef_local_coordinates_nodes(co,d+1,ijk,nd,auxt1,p0,p1)
+     if (d < nd) call this%fill_n_face_local_coordinates_nodes(co,d+1,ijk,nd,auxt1,p0,p1)
      if (d == nd) then
         co = co + 1
         do i = 1,nd
@@ -972,7 +972,7 @@ recursive subroutine hex_lagrangian_reference_fe_fill_vef_local_coordinates_node
         end do
      end if
   end do
-end subroutine hex_lagrangian_reference_fe_fill_vef_local_coordinates_nodes
+end subroutine hex_lagrangian_reference_fe_fill_n_face_local_coordinates_nodes
 
 ! ===================================================================================================
 ! Compute the shape function and its derivative
@@ -1174,11 +1174,11 @@ subroutine hex_lagrangian_reference_fe_evaluate_face_interpolation(this,shapf,de
 end subroutine hex_lagrangian_reference_fe_evaluate_face_interpolation
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_get_vef_orientation(this,o,fdm,od,nd,l)
+subroutine hex_lagrangian_reference_fe_get_n_face_orientation(this,o,fdm,od,nd,l)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(inout) :: o
-  integer(ip)                         , intent(in)    :: fdm(:)  ! fdm gives the orthogonal directions to the vef
+  integer(ip)                         , intent(in)    :: fdm(:)  ! fdm gives the orthogonal directions to the n-face
   integer(ip)                         , intent(in)    :: od,nd,l ! l=translation ordering
 
   if (nd == 2 .and. od == 1) then
@@ -1191,4 +1191,4 @@ subroutine hex_lagrangian_reference_fe_get_vef_orientation(this,o,fdm,od,nd,l)
      o = 0
   end if
 
-end subroutine hex_lagrangian_reference_fe_get_vef_orientation
+end subroutine hex_lagrangian_reference_fe_get_n_face_orientation

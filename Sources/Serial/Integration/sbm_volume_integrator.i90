@@ -145,7 +145,7 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
   allocate(this%coordinates_quadrature(this%number_quadrature_points), stat=istat)
   check(istat==0)
 
-  number_dofs_on_face = reference_fe_geo%get_number_dofs_on_vef(reference_fe_geo%get_first_face_id())
+  number_dofs_on_face = reference_fe_geo%get_number_dofs_on_n_face(reference_fe_geo%get_first_face_id())
   allocate(this%coordinates_nodes(number_dofs_on_face), stat=istat)
   check(istat==0)
 
@@ -177,7 +177,7 @@ subroutine fe_map_update( this, quadrature)
   end if
 
   ndime = this%interpolation_geometry%number_dimensions
-  nnode = size(this%interpolation_geometry%shape_functions,1)
+  nnode = size(this%interpolation_geometry%shape_functions,2)
   nlocs = this%interpolation_geometry%number_quadrature_points
 
 
@@ -189,7 +189,8 @@ subroutine fe_map_update( this, quadrature)
         aux_vector = 0.0_rp
         do inode=1,nnode
            aux_vector = aux_vector + this%coordinates_nodes(inode) * &
-                & this%interpolation_geometry%shape_derivatives(jdime,inode,ilocs)
+                & this%interpolation_geometry%shape_derivatives(1,jdime,inode,ilocs)
+           ! BE CAREFUL (@sbadia): Here we make explicit use of shape_functions being Lagrangian-type
         end do
         do idime=1,ndime
            this%jacobian(idime,jdime,ilocs) = aux_vector%get(idime)
@@ -217,7 +218,8 @@ subroutine fe_map_update( this, quadrature)
         ! Transforms the array HESSI to a symmetric matrix WMAT1
         do inode=1,nnode
            do itens = 1, ntens
-              wvec1(itens) = this%interpolation_geometry%hessian(itens,inode,ilocs)
+              wvec1(itens) = this%interpolation_geometry%hessian(1,itens,inode,ilocs)
+             ! BE CAREFUL (@sbadia): Here we make explicit use of shape_functions being Lagrangian-type
            end do
            call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
         end do
@@ -269,7 +271,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
 
   number_face_dimensions = this%interpolation_geometry%number_dimensions
   number_elem_dimensions = reference_fe%number_dimensions
-  local_vef_id = reference_fe%number_vefs_dimension(number_elem_dimensions) + local_face_id - 1
+  local_vef_id = reference_fe%number_n_faces_per_dimension(number_elem_dimensions) + local_face_id - 1
   orientation_face  = reference_fe%orientation%a(local_vef_id)
   reorientation_factor = (-1)**orientation_face
 
@@ -284,8 +286,8 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
         aux_vector = 0.0_rp
         do node_id = 1, this%interpolation_geometry%number_shape_functions
            aux_vector = aux_vector + this%coordinates_nodes(node_id) * &
-                & this%interpolation_geometry%shape_derivatives(jdime,node_id,evaluation_point_id)
-
+                & this%interpolation_geometry%shape_derivatives(1,jdime,node_id,evaluation_point_id)
+             ! BE CAREFUL (@sbadia): Here we make explicit use of shape_functions being Lagrangian-type
         end do
         do idime=1,number_elem_dimensions
            this%jacobian(idime,jdime,evaluation_point_id) = aux_vector%get(idime)
@@ -509,7 +511,8 @@ subroutine fe_map_compute_quadrature_coordinates(this)
      call this%coordinates_quadrature(qpoin)%init(0.0_rp)
      do inode=1,nnode
         this%coordinates_quadrature(qpoin) = this%coordinates_quadrature(qpoin) + &
-             & this%coordinates_nodes(inode) * this%interpolation_geometry%shape_functions(inode,qpoin)
+             & this%coordinates_nodes(inode) * this%interpolation_geometry%shape_functions(1,inode,qpoin)
+             ! BE CAREFUL (@sbadia): Here we make explicit use of shape_functions being Lagrangian-type
      end do
   end do
   
