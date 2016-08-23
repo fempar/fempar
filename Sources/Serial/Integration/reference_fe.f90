@@ -711,7 +711,7 @@ module reference_fe_names
 
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-  public :: topology_hex, topology_tet, fe_type_lagrangian
+  public :: topology_hex, topology_tet, fe_type_lagrangian, fe_type_vector_lagrangian
   
   
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

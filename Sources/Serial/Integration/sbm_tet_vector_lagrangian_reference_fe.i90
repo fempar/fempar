@@ -667,7 +667,9 @@ subroutine tet_vlrfe_fill_interpolation ( this, interpolation, coord_ip )
   type(interpolation_t) :: scalar_interpolation
   integer(ip) :: iquad,idime,ishape
     
-  call scalar_interpolation%copy( interpolation )
+  ! Create an auxiliary interpolation with number_nodes_scalar shape functions (scalar one)
+  call scalar_interpolation%create( interpolation%number_dimensions, this%number_nodes_scalar, &
+                                    interpolation%number_quadrature_points, 0, .false. )
 
   if ( allocated( interpolation%hessian ) )  then 
      write(*,*) __FILE__,__LINE__,'ERROR:: Hessian not defined for vector Lagrangian'
@@ -696,6 +698,8 @@ subroutine tet_vlrfe_fill_interpolation ( this, interpolation, coord_ip )
      end do
   end do
   
+  call scalar_interpolation%free()
+  
   if ( allocated( interpolation%hessian ) )  then 
      write(*,*) __FILE__,__LINE__,'ERROR:: Hessian not defined for vector Lagrangian'
      check(.false.)
@@ -710,49 +714,29 @@ subroutine tet_vlrfe_fill_face_interpolation (this, face_interpolation, &
   type(interpolation_t)               , intent(inout) :: face_interpolation
   type(quadrature_t)                  , intent(in)    :: local_quadrature
   integer(ip)                         , intent(in)    :: local_face_id
+  
   real(rp)   , allocatable :: global_coordinates(:)
-  integer(ip)              :: idime, iquad, p_local_coordinate
-
+  integer(ip)              :: idime, iquad, ishape, p_local_coordinate
+  type(interpolation_t)    :: scalar_interpolation
+  
+  ! Create an auxiliary interpolation with number_nodes_scalar shape functions (scalar one)
+  call scalar_interpolation%create( face_interpolation%number_dimensions, this%number_nodes_scalar, &
+                                    face_interpolation%number_quadrature_points, 0, .false. )
+  
   call memalloc(face_interpolation%number_dimensions,global_coordinates,__FILE__,__LINE__)
   
   ! Evaluate shape functions and derivatives at the gauss points
-  if ( allocated( face_interpolation%hessian ) )  then 
-     do iquad = 1,face_interpolation%number_quadrature_points
-        ! Transform face local coordinates to element global coordinates
-        if (local_face_id .le. face_interpolation%number_dimensions ) then 
-           ! Orthogonal face in the reference element
-           p_local_coordinate = 1
-           do idime = 1, face_interpolation%number_dimensions
-              if (idime .eq. face_interpolation%number_dimensions + 1 - local_face_id ) then
-                 global_coordinates(idime) = 0.0_rp
-              else
-                 global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
-                 p_local_coordinate = p_local_coordinate + 1
-              end if
-           end do
-        else 
-           ! Non-orthogonal face in the reference element
-           global_coordinates(1) = 1 - local_quadrature%coordinates(1,iquad)
-           global_coordinates(2:face_interpolation%number_dimensions) = &
-              & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,iquad)
-        end if
-        ! Evaluate shape functions and derivatives at the gauss points
-        call this%vlrfe_evaluate_interpolation( global_coordinates,                                 &
-                                          face_interpolation%number_dimensions,               &
-                                          face_interpolation%number_shape_functions,          &
-                                          face_interpolation%number_entries_symmetric_tensor, &
-                                          face_interpolation%shape_functions(1,:,iquad),        &
-                                          face_interpolation%shape_derivatives(1,:,:,iquad),    &
-                                          face_interpolation%hessian(1,:,:,iquad) )
-     end do
+  if ( allocated( face_interpolation%hessian ) )  then  
+     write(*,*) 'Hessian not implemented for vector Lagrangian ref fe'
+     check(.false.)
   else
-     do iquad = 1,face_interpolation%number_quadrature_points
+     do iquad = 1,scalar_interpolation%number_quadrature_points
         ! Transform face local coordinates to element global coordinates
-        if (local_face_id .le. face_interpolation%number_dimensions ) then 
+        if (local_face_id .le. scalar_interpolation%number_dimensions ) then 
            ! Orthogonal face in the reference element
            p_local_coordinate = 1
-           do idime = 1, face_interpolation%number_dimensions
-              if (idime .eq. face_interpolation%number_dimensions + 1 - local_face_id ) then
+           do idime = 1, scalar_interpolation%number_dimensions
+              if (idime .eq. scalar_interpolation%number_dimensions + 1 - local_face_id ) then
                  global_coordinates(idime) = 0.0_rp
               else
                  global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
@@ -762,17 +746,31 @@ subroutine tet_vlrfe_fill_face_interpolation (this, face_interpolation, &
         else 
            ! Non-orthogonal face in the reference element
            global_coordinates(1) = 1 - sum(local_quadrature%coordinates(:,iquad))
-           global_coordinates(2:face_interpolation%number_dimensions) = & 
+           global_coordinates(2:scalar_interpolation%number_dimensions) = & 
                               & local_quadrature%coordinates(:,iquad)
         end if
+        ! Evaluate shape functions and derivatives at the gauss points
         call this%vlrfe_evaluate_interpolation( global_coordinates,                                 &
-                                          face_interpolation%number_dimensions,               &
-                                          face_interpolation%number_shape_functions,          &
-                                          face_interpolation%number_entries_symmetric_tensor, &
-                                          face_interpolation%shape_functions(1,:,iquad),        &
-                                          face_interpolation%shape_derivatives(1,:,:,iquad) )
+                                          scalar_interpolation%number_dimensions,               &
+                                          scalar_interpolation%number_shape_functions,          &
+                                          scalar_interpolation%number_entries_symmetric_tensor, &
+                                          scalar_interpolation%shape_functions(1,:,iquad),        &
+                                          scalar_interpolation%shape_derivatives(1,:,:,iquad) )
      end do
   end if
+  
+  face_interpolation%shape_functions = 0.0_rp
+  face_interpolation%shape_derivatives = 0.0_rp  
+  do idime = 1,this%number_dimensions
+     do ishape = 1,this%number_shape_functions
+        do iquad = 1, face_interpolation%number_quadrature_points
+           face_interpolation%shape_functions(this%node_component_array(ishape,2),ishape,iquad) &
+           & = scalar_interpolation%shape_functions(1,this%node_component_array(ishape,1),iquad)
+           face_interpolation%shape_derivatives(this%node_component_array(ishape,2),:,ishape,iquad) &
+           & = scalar_interpolation%shape_derivatives(1,:,this%node_component_array(ishape,1),iquad)
+        end do 
+     end do
+  end do
   
   call memfree(global_coordinates,__FILE__,__LINE__)
 

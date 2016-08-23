@@ -180,7 +180,7 @@ subroutine lagrangian_reference_fe_create_face_interpolation( this,local_face_id
 end subroutine lagrangian_reference_fe_create_face_interpolation
 
 !==================================================================================================
-! This subroutine constructs a interpolation of order 1 of an element of one dimension less.
+! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
 subroutine lagrangian_reference_fe_create_face_local_interpolation ( this, quadrature, &
                                                                    & interpolation)

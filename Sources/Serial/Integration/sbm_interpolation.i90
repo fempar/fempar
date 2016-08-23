@@ -48,11 +48,11 @@ subroutine interpolation_create( this, &
   this%number_entries_symmetric_tensor = number_entries_symmetric_tensor
   call memalloc(SPACE_DIM, number_shape_functions, &
                 number_quadrature_points, &
-                this%shape_functions,__FILE__,__LINE__)
+                this%shape_functions, __FILE__,__LINE__, 0.0_rp)
   call memalloc(SPACE_DIM,SPACE_DIM, &
                 number_shape_functions, &
                 number_quadrature_points, &
-                this%shape_derivatives, __FILE__, __LINE__)
+                this%shape_derivatives, __FILE__, __LINE__, 0.0_rp)
   if ( present(compute_hessian) ) then
      if ( compute_hessian ) then 
         call memalloc(SPACE_DIM,number_entries_symmetric_tensor,&

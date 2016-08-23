@@ -151,7 +151,7 @@ subroutine vlrfe_create_interpolation ( this, quadrature, &
      ntens = ntens + i
   end do
 
-  call interpolation%create( this%number_dimensions, this%number_nodes_scalar, &
+  call interpolation%create( this%number_dimensions, this%number_shape_functions, &
                              quadrature%number_quadrature_points, ntens, compute_hessian )
   
   call this%vlrfe_fill_interpolation( interpolation, quadrature%coordinates )
@@ -171,7 +171,7 @@ subroutine vlrfe_create_face_interpolation( this,local_face_id, &
   type(interpolation_t)           , intent(inout) :: face_interpolation
 
   ! Allocate the arrays of the interpolation
-  call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar, &
+  call face_interpolation%create(this%number_dimensions,this%number_shape_functions, &
                                & local_quadrature%number_quadrature_points, 0 )
 
   ! Fill the values of the shape functions
@@ -188,21 +188,9 @@ subroutine vlrfe_create_face_local_interpolation ( this, quadrature, &
   class(vector_lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
   type(interpolation_t)           , intent(inout) :: interpolation
-
-  integer(ip) :: number_nodes_face_scalar, number_dimensions_face
-
-  ! I am assuming the geometric aproximation of the face can be linear
-  ! this might need to be modified in the future
-  number_dimensions_face   = this%number_dimensions - 1
-  number_nodes_face_scalar = this%vlrfe_compute_number_nodes_scalar( this%order, &
-                                                            &  number_dimensions_face )
-
-  ! Allocate the arrays of the interpolation
-  call interpolation%create( number_dimensions_face, number_nodes_face_scalar, &
-                           & quadrature%number_quadrature_points, 0)
-
-  ! Fill the values with the common routine for filling an interpolation
-  call this%vlrfe_fill_interpolation( interpolation, quadrature%coordinates )
+  
+  write(*,*) 'Vector Laplacian cannot be used for geometry mapping'
+  check(.false.)
 
 end subroutine vlrfe_create_face_local_interpolation
 

@@ -105,8 +105,8 @@ contains
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,                                     &
-                                                 fe_type = fe_type_lagrangian,                                &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet,                                     &
+                                                 fe_type = fe_type_vector_lagrangian,                                &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = 1,                                                   &
                                                  field_type = field_type_vector,                              &
@@ -143,6 +143,7 @@ contains
     integer               :: FPLError
     type(parameterlist_t) :: parameter_list
     integer               :: iparm(64)
+    call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
   end subroutine setup_solver

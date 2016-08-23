@@ -75,7 +75,7 @@ contains
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
-    result = 2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
+    result = 0.0_rp !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -84,7 +84,7 @@ contains
     class(boundary_values_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    result = sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1)
+    result = 1.0_rp !sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1)
   end subroutine boundary_values_get_value_space
 
   !===============================================================================================
@@ -93,8 +93,8 @@ contains
     class(solution_values_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
-    call result%set(1, sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1) )
-    call result%set(2, sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1) )
+    call result%set(1, 1.0_rp ) !result%set(1, sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1) )
+    call result%set(1, 1.0_rp ) !result%set(2, sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1) )
   end subroutine solution_values_get_value_space
   
   !===============================================================================================
@@ -103,10 +103,14 @@ contains
     class(solution_gradient_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(tensor_field_t)      , intent(inout) :: result
-    call result%set( 1, 1, pi * cos ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + 1.0_rp ) 
-    call result%set( 2, 1, pi * sin ( pi * point%get(1) ) * cos ( pi * point%get(2) ) )
-    call result%set( 1, 2, pi * cos ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + 1.0_rp ) 
-    call result%set( 2, 2, pi * sin ( pi * point%get(1) ) * cos ( pi * point%get(2) ) )
+    call result%set( 1, 1, 0.0_rp ) 
+    call result%set( 2, 1, 0.0_rp )
+    call result%set( 1, 2, 0.0_rp ) 
+    call result%set( 2, 2, 0.0_rp )
+    !call result%set( 1, 1, pi * cos ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + 1.0_rp ) 
+    !call result%set( 2, 1, pi * sin ( pi * point%get(1) ) * cos ( pi * point%get(2) ) )
+    !call result%set( 1, 2, pi * cos ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + 1.0_rp ) 
+    !call result%set( 2, 2, pi * sin ( pi * point%get(1) ) * cos ( pi * point%get(2) ) )
   end subroutine solution_gradient_get_value_space
   
   !===============================================================================================
