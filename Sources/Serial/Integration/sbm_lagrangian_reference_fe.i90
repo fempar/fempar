@@ -382,7 +382,7 @@ subroutine lagrangian_reference_fe_get_curl_vector( this, actual_cell_interpolat
  call vector_field%init(0.0_rp)
  
  kdime = this%node_component_array(ishape,2)
- do idime=1,3 
+ do idime=1,SPACE_DIM 
    do jdime = 1,this%number_dimensions
       if ( ( idime .ne. jdime ) .and. (idime .ne. kdime) .and. (jdime .ne. kdime) ) then 
          call vector_field%set( idime, &

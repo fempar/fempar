@@ -875,11 +875,11 @@ subroutine tet_vlrfe_set_permutation_2D( this, permutation, number_nodes_x_dim, 
         ij_t(1) = i
         ij_t(3) = number_nodes_x_dim-i-j-1
         ! Get the global numbering of node (i,j)
-        go = this%vlrfe_get_node_local_id(ij_t(1:2),2,number_nodes_x_dim-1)
+        go = this%get_node_local_id(ij_t(1:2),2,number_nodes_x_dim-1)
         ! i,j coordinates for the o_r permutation
         ij_n(1:2) = ij_t(ij_perm_tet(1:2,o_r)) 
         ! Store the global numbering of node ij_n 
-        permutation(go) = this%vlrfe_get_node_local_id(ij_n,2,number_nodes_x_dim-1)
+        permutation(go) = this%get_node_local_id(ij_n,2,number_nodes_x_dim-1)
      end do
   end do
 
@@ -893,7 +893,7 @@ function tet_vlrfe_set_number_quadrature_points( this, order, dimension )
   integer(ip)                         , intent(in)    :: dimension
   integer(ip) :: tet_vlrfe_set_number_quadrature_points
   tet_vlrfe_set_number_quadrature_points = & 
-   & this%vlrfe_compute_number_nodes_scalar( order, dimension )
+   & this%compute_number_nodes_scalar( order, dimension )
   if( dimension .eq. 2 ) then
      if( order .eq. 3 ) then
         tet_vlrfe_set_number_quadrature_points = 13
@@ -923,11 +923,11 @@ recursive function tet_vlrfe_compute_number_nodes_scalar(this, order, dimension)
      tet_vlrfe_compute_number_nodes_scalar = int((order+1)*(order+2)/2)
   else
      tet_vlrfe_compute_number_nodes_scalar = & 
-       & this%vlrfe_compute_number_nodes_scalar(dimension-1,0)
+       & this%compute_number_nodes_scalar(dimension-1,0)
      do q=1,order
         tet_vlrfe_compute_number_nodes_scalar = & 
           & tet_vlrfe_compute_number_nodes_scalar + & 
-          & this%vlrfe_compute_number_nodes_scalar(dimension-1,q)
+          & this%compute_number_nodes_scalar(dimension-1,q)
      end do
   end if
 end function tet_vlrfe_compute_number_nodes_scalar
@@ -965,7 +965,7 @@ recursive subroutine tet_vlrfe_fill_nodes_n_face(this,ntxob,c3,ini,end, &
   if (k==0) then
      ! Dimension 0: objec gives the coordinates of the corner
      ijk = p*objec(:,1)
-     ntxob(c3) = this%vlrfe_get_node_local_id(ijk,nd,p)
+     ntxob(c3) = this%get_node_local_id(ijk,nd,p)
      c3 = c3 + 1
   else
      ! Loop over the possible values of the i-th factor
@@ -982,7 +982,7 @@ recursive subroutine tet_vlrfe_fill_nodes_n_face(this,ntxob,c3,ini,end, &
               ijk = ijk+idm(k-m+1)*objec(:,m+1)
            end do
            ! Store in ntxob the corresponding identifier of the node
-           ntxob(c3) = this%vlrfe_get_node_local_id(ijk,nd,p)
+           ntxob(c3) = this%get_node_local_id(ijk,nd,p)
            c3 = c3 + 1
         end if
      end do
@@ -1049,11 +1049,11 @@ recursive function tet_vlrfe_compute_number_interior_nodes(this,dimension,order)
      tet_vlrfe_compute_number_interior_nodes = int((order-2)*(order-1)/2)
   else
      tet_vlrfe_compute_number_interior_nodes = & 
-      & this%vlrfe_compute_number_interior_nodes(dimension-1,1)
+      & this%compute_number_interior_nodes(dimension-1,1)
      do q=2,order-1
         tet_vlrfe_compute_number_interior_nodes =    & 
          & tet_vlrfe_compute_number_interior_nodes + & 
-         & this%vlrfe_compute_number_interior_nodes(dimension-1,q)
+         & this%compute_number_interior_nodes(dimension-1,q)
      end do
   end if
 end function tet_vlrfe_compute_number_interior_nodes
@@ -1072,11 +1072,11 @@ function tet_vlrfe_compute_sum_of_nodes_in_simplices(this,dimension, &
      tet_vlrfe_compute_sum_of_nodes_in_simplices = 0
   else
      tet_vlrfe_compute_sum_of_nodes_in_simplices = & 
-       & this%vlrfe_compute_number_nodes_scalar(dimension-1,ini_order)
+       & this%compute_number_nodes_scalar(dimension-1,ini_order)
      do q = ini_order+1,end_order
         tet_vlrfe_compute_sum_of_nodes_in_simplices =   & 
         & tet_vlrfe_compute_sum_of_nodes_in_simplices + &
-        & this%vlrfe_compute_number_nodes_scalar(dimension-1,q)
+        & this%compute_number_nodes_scalar(dimension-1,q)
      end do
   end if
 end function tet_vlrfe_compute_sum_of_nodes_in_simplices
