@@ -1610,7 +1610,7 @@ subroutine serial_fe_space_interpolate_scalar_function( this, &
        end if
        
        call fe%get_elem2dof(elem2dof)
-       number_nodes = reference_fe%get_number_nodes()
+       number_nodes = reference_fe%get_number_shape_functions()
        nodal_values(1:number_nodes) = fe_function_values(1:number_nodes,1)
        
        ! Update interior DoFs
@@ -1740,7 +1740,7 @@ subroutine serial_fe_space_interpolate_vector_function( this, &
        end if
        
        call fe%get_elem2dof(elem2dof)
-       number_nodes = reference_fe%get_number_nodes()
+       number_nodes = reference_fe%get_number_shape_functions()
        
        ! Fill nodal_values from fe_function_values
        do inode=1, number_nodes
