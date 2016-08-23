@@ -97,16 +97,20 @@ contains
     class(serial_fe_space_t), target, intent(in)    :: fe_space
     integer(ip)                     , intent(in)    :: field_id
     
-    integer(ip) :: istat
+    integer(ip)                   :: istat
+    class(environment_t), pointer :: environment
     
     call this%free()
+    
     this%field_id = field_id
     this%fe_space => fe_space
-    call this%fe_space%create_cell_fe_function(field_id, this%cell_fe_function)
-    
-    call memalloc(this%fe_space%get_max_number_quadrature_points(), 1, this%work_array_values, __FILE__, __LINE__)
-    allocate(this%work_array_gradients(this%fe_space%get_max_number_quadrature_points(),1), stat=istat)
-    check(istat==0)
+    environment => this%fe_space%get_environment()
+    if ( environment%am_i_l1_task() ) then
+      call this%fe_space%create_cell_fe_function(field_id, this%cell_fe_function)    
+      call memalloc(this%fe_space%get_max_number_quadrature_points(), 1, this%work_array_values, __FILE__, __LINE__)
+      allocate(this%work_array_gradients(this%fe_space%get_max_number_quadrature_points(),1), stat=istat)
+      check(istat==0)
+    end if  
   end subroutine error_norms_scalar_create
   
   !===================================================================================================

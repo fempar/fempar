@@ -423,8 +423,8 @@ module fe_space_names
    procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
    procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner   => par_fe_space_raw_interface_data_by_continuity_decide_owner
    procedure        , non_overridable, private :: compute_raw_interface_data_by_face_integ        => par_fe_space_compute_raw_interface_data_by_face_integ
-   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => parfespace_compute_ubound_num_itfc_couplings_by_continuity
-   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => parfespace_compute_ubound_num_itfc_couplings_by_face_integ
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => pfs_compute_ubound_num_itfc_couplings_by_continuity
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => pfs_compute_ubound_num_itfc_couplings_by_face_integ
    procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_gid                => par_fe_space_generate_non_consecutive_dof_gid
    procedure        , non_overridable          :: get_block_dof_import                            => par_fe_space_get_block_dof_import
    procedure                                   :: get_total_number_dofs                           => par_fe_space_get_total_number_dofs
@@ -444,13 +444,26 @@ module fe_space_names
    procedure                                   :: create_assembler                                => par_fe_space_create_assembler
    procedure                                   :: symbolic_setup_assembler                        => par_fe_space_symbolic_setup_assembler
    procedure                                   :: update_strong_dirichlet_bcs_values              => par_fe_space_update_strong_dirichlet_bcs_values
-   procedure                                   :: create_global_fe_function                       => par_fe_space_create_global_fe_function
-   procedure                                   :: update_global_fe_function_bcs                   => par_fe_space_update_global_fe_function_bcs
+
+   procedure                                   :: create_fe_function                              => par_fe_space_create_fe_function
+   procedure                                   :: update_fe_function_bcs                          => par_fe_space_update_fe_function_bcs
    
-    procedure       , non_overridable          :: setup_dofs_objects_and_constraint_matrix        => par_fe_space_setup_dofs_objects_and_constraint_matrix
-    procedure       , non_overridable, private :: setup_dofs_objects_by_continuity                => par_fe_space_setup_dofs_objects_by_continuity
-    procedure       , non_overridable, private :: setup_constraint_matrix                         => par_fe_space_setup_constraint_matrix
+   procedure, private                          :: create_cell_fe_function_scalar                  => par_fe_space_create_cell_fe_function_scalar
+   procedure, private                          :: create_cell_fe_function_vector                  => par_fe_space_create_cell_fe_function_vector
+   procedure, private                          :: create_cell_fe_function_tensor                  => par_fe_space_create_cell_fe_function_tensor
    
+   procedure, private                          :: create_face_fe_function_scalar                  => par_fe_space_create_face_fe_function_scalar
+   procedure, private                          :: create_face_fe_function_vector                  => par_fe_space_create_face_fe_function_vector
+   procedure, private                          :: create_face_fe_function_tensor                  => par_fe_space_create_face_fe_function_tensor
+                                                                                            
+   procedure, private                          :: interpolate_scalar_function                     => par_fe_space_interpolate_scalar_function
+   procedure, private                          :: interpolate_vector_function                     => par_fe_space_interpolate_vector_function
+   procedure, private                          :: interpolate_tensor_function                     => par_fe_space_interpolate_tensor_function
+     
+   
+   procedure       , non_overridable           :: setup_dofs_objects_and_constraint_matrix        => par_fe_space_setup_dofs_objects_and_constraint_matrix
+   procedure       , non_overridable, private  :: setup_dofs_objects_by_continuity                => par_fe_space_setup_dofs_objects_by_continuity
+   procedure       , non_overridable, private  :: setup_constraint_matrix                         => par_fe_space_setup_constraint_matrix
    
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator

@@ -1477,50 +1477,6 @@ subroutine serial_fe_space_create_face_fe_function_tensor ( this, field_id, face
 
 end subroutine serial_fe_space_create_face_fe_function_tensor
 
-function serial_fe_space_get_triangulation( this) result(triangulation)
-  implicit none
-  class(serial_fe_space_t)      , intent(in)    :: this 
-  class(base_static_triangulation_t), pointer       :: triangulation
-  assert ( associated(this%triangulation) )
-  triangulation => this%triangulation
-end function serial_fe_space_get_triangulation
-
-function serial_fe_space_get_environment(this) result(environment)
-  implicit none
-  class(serial_fe_space_t), intent(in)    :: this 
-  class(environment_t), pointer:: environment 
-  environment => the_serial_environment 
-end function serial_fe_space_get_environment
-
-function serial_fe_space_create_fe_iterator ( this )
-  implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  type(fe_iterator_t) :: serial_fe_space_create_fe_iterator
-  call serial_fe_space_create_fe_iterator%create(1, this)
-end function serial_fe_space_create_fe_iterator
-
-function serial_fe_space_create_fe_vef_iterator ( this )
-  implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  type(fe_vef_iterator_t) :: serial_fe_space_create_fe_vef_iterator
-  call serial_fe_space_create_fe_vef_iterator%create(1, this)
-end function serial_fe_space_create_fe_vef_iterator
-
-function serial_fe_space_create_itfc_fe_vef_iterator ( this )
-  implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  type(itfc_fe_vef_iterator_t) :: serial_fe_space_create_itfc_fe_vef_iterator
-  call serial_fe_space_create_itfc_fe_vef_iterator%create(this)
-end function serial_fe_space_create_itfc_fe_vef_iterator
-
-
-function serial_fe_space_create_fe_face_iterator ( this )
-  implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  type(fe_face_iterator_t) :: serial_fe_space_create_fe_face_iterator
-  call serial_fe_space_create_fe_face_iterator%create(this)
-end function serial_fe_space_create_fe_face_iterator
-
 subroutine serial_fe_space_interpolate_scalar_function( this, &
                                                         field_id, &
                                                         function, &
@@ -1801,7 +1757,50 @@ subroutine serial_fe_space_interpolate_tensor_function( this, &
   ! Not implemented yet
   check(.false.)
 end subroutine serial_fe_space_interpolate_tensor_function
-  
+
+function serial_fe_space_get_triangulation( this) result(triangulation)
+  implicit none
+  class(serial_fe_space_t)      , intent(in)    :: this 
+  class(base_static_triangulation_t), pointer       :: triangulation
+  assert ( associated(this%triangulation) )
+  triangulation => this%triangulation
+end function serial_fe_space_get_triangulation
+
+function serial_fe_space_get_environment(this) result(environment)
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this 
+  class(environment_t), pointer:: environment 
+  environment => the_serial_environment 
+end function serial_fe_space_get_environment
+
+function serial_fe_space_create_fe_iterator ( this )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  type(fe_iterator_t) :: serial_fe_space_create_fe_iterator
+  call serial_fe_space_create_fe_iterator%create(1, this)
+end function serial_fe_space_create_fe_iterator
+
+function serial_fe_space_create_fe_vef_iterator ( this )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  type(fe_vef_iterator_t) :: serial_fe_space_create_fe_vef_iterator
+  call serial_fe_space_create_fe_vef_iterator%create(1, this)
+end function serial_fe_space_create_fe_vef_iterator
+
+function serial_fe_space_create_itfc_fe_vef_iterator ( this )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  type(itfc_fe_vef_iterator_t) :: serial_fe_space_create_itfc_fe_vef_iterator
+  call serial_fe_space_create_itfc_fe_vef_iterator%create(this)
+end function serial_fe_space_create_itfc_fe_vef_iterator
+
+
+function serial_fe_space_create_fe_face_iterator ( this )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  type(fe_face_iterator_t) :: serial_fe_space_create_fe_face_iterator
+  call serial_fe_space_create_fe_face_iterator%create(this)
+end function serial_fe_space_create_fe_face_iterator
 
 !subroutine serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
 !  implicit none
