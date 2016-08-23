@@ -236,7 +236,7 @@ subroutine fe_face_accessor_update_face_fe_function_scalar ( this, fe_function, 
     field_blocks => fe%get_field_blocks()
     block_id = field_blocks(field_id)
     reference_fe => fe%get_reference_fe(field_id)  
-    number_nodes_field =  reference_fe%get_number_nodes()  
+    number_nodes_field =  reference_fe%get_number_shape_functions()  
     
     call face_fe_function_scalar%set_current_number_quadrature_points( icell_around, number_quadrature_points )
     call face_fe_function_scalar%set_current_number_nodes( icell_around, number_nodes_field )  
@@ -312,7 +312,7 @@ subroutine fe_face_accessor_update_face_fe_function_vector ( this, fe_function, 
     field_blocks => fe%get_field_blocks()
     block_id = field_blocks(field_id)
     reference_fe => fe%get_reference_fe(field_id)  
-    number_nodes_field =  reference_fe%get_number_nodes()  
+    number_nodes_field =  reference_fe%get_number_shape_functions()  
     
     call face_fe_function_vector%set_current_number_quadrature_points( icell_around, number_quadrature_points )
     call face_fe_function_vector%set_current_number_nodes( icell_around, number_nodes_field )  
@@ -387,7 +387,7 @@ subroutine fe_face_accessor_update_face_fe_function_tensor ( this, fe_function, 
     field_blocks => fe%get_field_blocks()
     block_id = field_blocks(field_id)
     reference_fe => fe%get_reference_fe(field_id)  
-    number_nodes_field =  reference_fe%get_number_nodes()  
+    number_nodes_field =  reference_fe%get_number_shape_functions()  
     
     call face_fe_function_tensor%set_current_number_quadrature_points( icell_around, number_quadrature_points )
     call face_fe_function_tensor%set_current_number_nodes( icell_around, number_nodes_field )  

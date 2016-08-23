@@ -47,13 +47,21 @@ contains
     type(p_reference_fe_t)             :: make_reference_fe
     
     assert ( topology == topology_hex .or. topology == topology_tet )
-    assert ( fe_type  == fe_type_lagrangian )
+    assert ( fe_type  == fe_type_lagrangian .or. fe_type == fe_type_vector_lagrangian )
     
     if ( fe_type == fe_type_lagrangian ) then
        if ( topology == topology_hex ) then
           allocate ( hex_lagrangian_reference_fe_t :: make_reference_fe%p )
        elseif ( topology == topology_tet ) then
           allocate ( tet_lagrangian_reference_fe_t :: make_reference_fe%p )
+       end if
+    else if ( fe_type == fe_type_vector_lagrangian ) then
+       if ( topology == topology_hex ) then
+          write(*,*) 'Vector Lagrangian for Hex not implemented'
+          check(.false.)
+          !allocate ( hex_lagrangian_reference_fe_t :: make_reference_fe%p )
+       elseif ( topology == topology_tet ) then
+          allocate ( tet_vector_lagrangian_reference_fe_t :: make_reference_fe%p )
        end if
     end if
     call make_reference_fe%p%create( topology, number_dimensions, order, field_type, continuity, enable_face_integration )

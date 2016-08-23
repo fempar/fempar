@@ -163,11 +163,11 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
      do field_id=1, fe%get_number_fields()-1
         reference_fe => fe%get_reference_fe(field_id)
         this%ptr_dofs_per_fe(field_id+1,fe%get_lid()) = & 
-             this%ptr_dofs_per_fe(field_id,fe%get_lid()) + reference_fe%get_number_nodes()
+             this%ptr_dofs_per_fe(field_id,fe%get_lid()) + reference_fe%get_number_shape_functions()
      end do
      reference_fe => fe%get_reference_fe(field_id)
      this%ptr_dofs_per_fe(1,fe%get_lid()+1) = & 
-          this%ptr_dofs_per_fe(field_id,fe%get_lid()) + reference_fe%get_number_nodes()
+          this%ptr_dofs_per_fe(field_id,fe%get_lid()) + reference_fe%get_number_shape_functions()
      call fe_iterator%next()
   end do
 
@@ -1285,7 +1285,7 @@ function serial_fe_space_get_max_number_nodes( this, field_id )
   serial_fe_space_get_max_number_nodes = 0
   do irefe = 1, this%reference_fes_size
      serial_fe_space_get_max_number_nodes = max(serial_fe_space_get_max_number_nodes, &
-                                                this%reference_fes(irefe)%p%get_number_nodes())
+                                                this%reference_fes(irefe)%p%get_number_shape_functions())
   end do
 end function serial_fe_space_get_max_number_nodes
 
@@ -1566,7 +1566,7 @@ subroutine serial_fe_space_interpolate_scalar_function( this, &
        end if
        
        call fe%get_elem2dof(elem2dof)
-       number_nodes = reference_fe%get_number_nodes()
+       number_nodes = reference_fe%get_number_shape_functions()
        nodal_values(1:number_nodes) = fe_function_values(1:number_nodes,1)
        
        ! Update interior DoFs
@@ -1696,7 +1696,7 @@ subroutine serial_fe_space_interpolate_vector_function( this, &
        end if
        
        call fe%get_elem2dof(elem2dof)
-       number_nodes = reference_fe%get_number_nodes()
+       number_nodes = reference_fe%get_number_shape_functions()
        
        ! Fill nodal_values from fe_function_values
        do inode=1, number_nodes
