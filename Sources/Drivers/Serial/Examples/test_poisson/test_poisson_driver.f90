@@ -110,7 +110,7 @@ contains
       continuity = .false.
     end if
     
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = 1, &
