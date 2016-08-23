@@ -1173,4 +1173,7 @@ num_n_faces = polytope_tree%get_number_n_faces()
         this%face_integration_coupling_nodes_facet = this%nodes_n_face
      end if
   end if
+  call polytope_tree%free()
+  call node_array%free()
+  call vertex_array%free()
 end subroutine lagrangian_reference_fe_fill_scalar
