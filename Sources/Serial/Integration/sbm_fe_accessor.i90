@@ -444,6 +444,14 @@ function fe_accessor_get_reference_fe(this, field_id)
   fe_accessor_get_reference_fe => this%fe_space%reference_fes(this%fe_space%reference_fe_id_per_fe(field_id,this%get_lid()))%p
 end function fe_accessor_get_reference_fe
 
+function fe_accessor_get_reference_fe_id(this, field_id)
+  implicit none
+  class(fe_accessor_t), target   , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: field_id
+  integer(ip) :: fe_accessor_get_reference_fe_id
+  fe_accessor_get_reference_fe_id = this%fe_space%reference_fe_id_per_fe(field_id,this%get_lid())
+end function fe_accessor_get_reference_fe_id
+
 function fe_accessor_create_own_dofs_on_vef_iterator ( this, ivef, field_id ) result(list_iterator)
   implicit none
   class(fe_accessor_t), intent(in) :: this
