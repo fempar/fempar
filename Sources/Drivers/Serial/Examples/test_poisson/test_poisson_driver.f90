@@ -111,7 +111,7 @@ contains
       continuity = .false.
     end if
     
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet, &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = 1, &
@@ -267,7 +267,7 @@ contains
     write(*,'(a20,e32.25)') 'mean_norm:', error_norm%compute(constant_function, this%solution, mean_norm)   
     write(*,'(a20,e32.25)') 'l1_norm:', error_norm%compute(constant_function, this%solution, l1_norm)   
     write(*,'(a20,e32.25)') 'l2_norm:', error_norm%compute(constant_function, this%solution, l2_norm)   
-    write(*,'(a20,e32.25)') 'lp_norm(3):', error_norm%compute(constant_function, this%solution, lp_norm, exponent=3)   
+    write(*,'(a20,e32.25)') 'lp_norm:', error_norm%compute(constant_function, this%solution, lp_norm)   
     write(*,'(a20,e32.25)') 'linfnty_norm:', error_norm%compute(constant_function, this%solution, linfty_norm)   
     write(*,'(a20,e32.25)') 'h1_seminorm:', error_norm%compute(constant_function, this%solution, h1_seminorm)   
     write(*,'(a20,e32.25)') 'h1_norm:', error_norm%compute(constant_function, this%solution, h1_norm)   

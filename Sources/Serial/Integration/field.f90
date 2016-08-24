@@ -40,19 +40,20 @@ module field_names
      real(rp) :: value(SPACE_DIM) = 0.0_rp
    contains
      procedure, non_overridable :: vector_field_init_with_scalar
-     procedure, non_overridable :: vector_field_init_with_vector
-     generic :: init  => vector_field_init_with_scalar, vector_field_init_with_vector
+     procedure, non_overridable :: vector_field_init_with_array
+     generic :: init  => vector_field_init_with_scalar, vector_field_init_with_array
      procedure, non_overridable :: set       => vector_field_set
      procedure, non_overridable :: get       => vector_field_get
      procedure, non_overridable :: vector_field_add_scalar
-     procedure, non_overridable :: vector_field_add_vector
-     generic :: add  => vector_field_add_scalar, vector_field_add_vector
+     procedure, non_overridable :: vector_field_add_array
+     generic :: add  => vector_field_add_scalar, vector_field_add_array
      procedure, non_overridable :: nrm2      => vector_field_nrm2
      procedure, non_overridable :: get_value => vector_field_get_value
   end type vector_field_t
   
   interface vector_field_t
-    module procedure vector_field_constructor
+    module procedure vector_field_constructor_with_scalar, &
+                     vector_field_constructor_with_array
   end interface
 
   type :: tensor_field_t
@@ -60,8 +61,8 @@ module field_names
      real(rp)  :: value(SPACE_DIM,SPACE_DIM) = 0.0_rp
    contains
      procedure, non_overridable :: tensor_field_init_with_scalar
-     procedure, non_overridable :: tensor_field_init_with_tensor
-     generic :: init  => tensor_field_init_with_scalar, tensor_field_init_with_tensor
+     procedure, non_overridable :: tensor_field_init_with_array
+     generic :: init  => tensor_field_init_with_scalar, tensor_field_init_with_array
      procedure, non_overridable :: set   => tensor_field_set
      procedure, non_overridable :: get   => tensor_field_get
      procedure, non_overridable :: add   => tensor_field_add
@@ -80,7 +81,7 @@ module field_names
 
   interface operator(*)
      module procedure single_contract_vector_vector, single_contract_tensor_vector, &
-          single_contract_vector_tensor, single_contract_tensor_tensor
+                      single_contract_vector_tensor, single_contract_tensor_tensor
      module procedure scal_left_vector, scal_right_vector, scal_left_tensor, scal_right_tensor
   end interface operator(*)
 
@@ -141,12 +142,12 @@ contains
     this%value = value
   end subroutine vector_field_init_with_scalar
 
-  subroutine vector_field_init_with_vector(this,value)
+  subroutine vector_field_init_with_array(this,value)
     implicit none
     class(vector_field_t), intent(inout) :: this
     real(rp)             , intent(in)    :: value(SPACE_DIM)
     this%value = value
-  end subroutine vector_field_init_with_vector
+  end subroutine vector_field_init_with_array
 
   subroutine vector_field_set(this,i,value)
     implicit none
@@ -172,12 +173,12 @@ contains
     this%value(i) = this%value(i) + value
   end subroutine vector_field_add_scalar
   
-  subroutine vector_field_add_vector(this,value)
+  subroutine vector_field_add_array(this,value)
     implicit none
     class(vector_field_t), intent(inout) :: this
     real(rp)             , intent(in)    :: value(SPACE_DIM)
     this%value = this%value + value
-  end subroutine vector_field_add_vector
+  end subroutine vector_field_add_array
 
   function vector_field_nrm2(this)
     implicit none
@@ -195,13 +196,20 @@ contains
   ! code that consumes the resulting type(vector_field_t) also 
   ! accesses the third component, as e.g., happens with all operations
   ! among vectors and tensors (single_contration, double_contraction,etc.).
-  function vector_field_constructor(value) result(new_vector_field)
+  function vector_field_constructor_with_scalar(value) result(new_vector_field)
     implicit none
     real(rp), intent(in) :: value
     type(vector_field_t) :: new_vector_field
     call new_vector_field%init(value)
-  end function vector_field_constructor
-
+  end function vector_field_constructor_with_scalar
+  
+  function vector_field_constructor_with_array(value) result(new_vector_field)
+    implicit none
+    real(rp), intent(in) :: value(SPACE_DIM)
+    type(vector_field_t) :: new_vector_field
+    call new_vector_field%init(value)
+  end function vector_field_constructor_with_array
+  
   subroutine tensor_field_init_with_scalar(this,value)
     implicit none
     class(tensor_field_t), intent(inout) :: this
@@ -209,12 +217,12 @@ contains
     this%value = value
   end subroutine tensor_field_init_with_scalar
   
-  subroutine tensor_field_init_with_tensor(this,value)
+  subroutine tensor_field_init_with_array(this,value)
     implicit none
     class(tensor_field_t), intent(inout) :: this
     real(rp)             , intent(in)    :: value(SPACE_DIM,SPACE_DIM)
     this%value = value
-  end subroutine tensor_field_init_with_tensor
+  end subroutine tensor_field_init_with_array
 
   subroutine tensor_field_set(this,i,j,value)
     implicit none

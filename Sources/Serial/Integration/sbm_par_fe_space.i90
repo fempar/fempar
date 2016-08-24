@@ -50,10 +50,10 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
   par_environment    => this%get_par_environment()
   if ( par_environment%am_i_l1_task() ) then
      call this%serial_fe_space_t%create( triangulation, &
-                                             conditions, &
-                                             reference_fes, &
-                                             field_blocks, &
-                                             field_coupling )
+                                         conditions, &
+                                         reference_fes, &
+                                         field_blocks, &
+                                         field_coupling )
   else
      this%number_blocks = 1
      if (present(field_blocks)) this%number_blocks = maxval(field_blocks)
@@ -376,11 +376,11 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   call memfree ( dofs_lid, __FILE__, __LINE__ )
 end subroutine par_fe_space_compute_dof_import
 
-function parfespace_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
+function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: field_id
-  integer(ip)                          :: parfespace_compute_ubound_num_itfc_couplings_by_continuity
+  integer(ip)                          :: pfs_compute_ubound_num_itfc_couplings_by_continuity
 
   integer(ip)  :: mypart_id, part_id, local_part_id
   integer(ip)  :: ivef, ielem
@@ -451,17 +451,17 @@ function parfespace_compute_ubound_num_itfc_couplings_by_continuity( this, field
      
      call itfc_vef_iterator%next()
   end do
-  parfespace_compute_ubound_num_itfc_couplings_by_continuity = result
+  pfs_compute_ubound_num_itfc_couplings_by_continuity = result
 
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
-end function parfespace_compute_ubound_num_itfc_couplings_by_continuity
+end function pfs_compute_ubound_num_itfc_couplings_by_continuity
 
 
-function parfespace_compute_ubound_num_itfc_couplings_by_face_integ( this, field_id )
+function pfs_compute_ubound_num_itfc_couplings_by_face_integ( this, field_id )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: field_id
-  integer(ip)                          :: parfespace_compute_ubound_num_itfc_couplings_by_face_integ
+  integer(ip)                          :: pfs_compute_ubound_num_itfc_couplings_by_face_integ
 
   integer(ip)  :: elem_lid
   integer(ip)  :: ivef_itfc, ielem, vef_lid
@@ -488,7 +488,7 @@ function parfespace_compute_ubound_num_itfc_couplings_by_face_integ( this, field
   !   new_parfespace_compute_ubound_num_itfc_couplings_by_face_integ = result
   !end do
 
-end function parfespace_compute_ubound_num_itfc_couplings_by_face_integ
+end function pfs_compute_ubound_num_itfc_couplings_by_face_integ
 
 function par_fe_space_generate_non_consecutive_dof_gid (cell_gid, lpos_dof_elem2dof, field_id) result(dof_gid)
   implicit none
@@ -517,6 +517,16 @@ function par_fe_space_get_block_dof_import ( this, block_id )
   par_fe_space_get_block_dof_import => this%blocks_dof_import(block_id)
 end function par_fe_space_get_block_dof_import
 
+function par_fe_space_get_num_dimensions ( this )
+  implicit none
+  class(par_fe_space_t), intent(in) :: this
+  integer(ip)                       :: par_fe_space_get_num_dimensions
+  type(par_environment_t), pointer :: par_environment
+  par_environment => this%get_par_environment()
+  if ( par_environment%am_i_l1_task() ) then
+     par_fe_space_get_num_dimensions = this%serial_fe_space_t%get_num_dimensions()
+  end if
+end function par_fe_space_get_num_dimensions
 
 function par_fe_space_get_total_number_dofs ( this )
    implicit none
@@ -1046,7 +1056,7 @@ subroutine par_fe_space_update_strong_dirichlet_bcs_values(this, conditions, tim
 end subroutine par_fe_space_update_strong_dirichlet_bcs_values
 
  !===============================================================================================
- subroutine par_fe_space_create_global_fe_function ( this, fe_function )
+ subroutine par_fe_space_create_fe_function ( this, fe_function )
     implicit none
     class(par_fe_space_t), intent(in)    :: this
     type(fe_function_t)     , intent(inout) :: fe_function
@@ -1066,7 +1076,188 @@ end subroutine par_fe_space_update_strong_dirichlet_bcs_values
        check(.false.)
     end if
     call fe_function%create(this%strong_dirichlet_values, dof_values)
- end subroutine par_fe_space_create_global_fe_function
+ end subroutine par_fe_space_create_fe_function
+ 
+ subroutine par_fe_space_update_fe_function_bcs ( this, fe_function )
+    implicit none
+    class(par_fe_space_t), intent(in)    :: this
+    type(fe_function_t)  , intent(inout) :: fe_function
+    call fe_function%copy_bc_values(this%strong_dirichlet_values)
+ end subroutine par_fe_space_update_fe_function_bcs
+ 
+ subroutine par_fe_space_create_cell_fe_function_scalar ( this, field_id, fe_function_scalar )
+  implicit none
+  class(par_fe_space_t)          , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: field_id
+  type(cell_fe_function_scalar_t), intent(inout) :: fe_function_scalar
+  
+  type(par_environment_t), pointer :: par_environment
+  par_environment => this%get_par_environment()
+
+  if ( par_environment%am_i_l1_task() ) then
+    call fe_function_scalar%create( field_id,                            &
+                                    this%get_max_number_nodes(field_id), &
+                                    this%get_max_number_quadrature_points() )  
+  end if
+  
+end subroutine par_fe_space_create_cell_fe_function_scalar
+
+subroutine par_fe_space_create_cell_fe_function_vector ( this, field_id, fe_function_vector )
+  implicit none
+  class(par_fe_space_t)       , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: field_id
+  type(cell_fe_function_vector_t), intent(inout) :: fe_function_vector
+
+  type(par_environment_t), pointer :: par_environment
+  par_environment => this%get_par_environment()
+
+  if ( par_environment%am_i_l1_task() ) then
+    call fe_function_vector%create( field_id,                            &
+                                  this%get_max_number_nodes(field_id), &
+                                  this%get_max_number_quadrature_points() )
+  end if
+  
+end subroutine par_fe_space_create_cell_fe_function_vector
+
+subroutine par_fe_space_create_cell_fe_function_tensor ( this, field_id, fe_function_tensor )
+  implicit none
+  class(par_fe_space_t)       , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: field_id
+  type(cell_fe_function_tensor_t), intent(inout) :: fe_function_tensor
+
+  type(par_environment_t), pointer :: par_environment
+  par_environment => this%get_par_environment()
+
+  if (par_environment%am_i_l1_task() ) then
+    call fe_function_tensor%create( field_id,                            &
+                                    this%get_max_number_nodes(field_id), &
+                                    this%get_max_number_quadrature_points() )
+
+  end if
+  
+  
+end subroutine par_fe_space_create_cell_fe_function_tensor
+
+subroutine par_fe_space_create_face_fe_function_scalar ( this, field_id, face_fe_function_scalar )
+  implicit none
+  class(par_fe_space_t)       , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: field_id
+  type(face_fe_function_scalar_t), intent(inout) :: face_fe_function_scalar
+
+  type(par_environment_t), pointer :: par_environment
+  par_environment => this%get_par_environment()
+
+  if ( par_environment%am_i_l1_task() ) then
+    call face_fe_function_scalar%create( field_id,                       &
+                                       this%get_max_number_nodes(field_id), &
+                                       this%get_max_number_face_quadrature_points() )
+  end if
+  
+
+
+end subroutine par_fe_space_create_face_fe_function_scalar
+
+subroutine par_fe_space_create_face_fe_function_vector ( this, field_id, face_fe_function_vector )
+  implicit none
+  class(par_fe_space_t)       , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: field_id
+  type(face_fe_function_vector_t), intent(inout) :: face_fe_function_vector
+
+  type(par_environment_t), pointer :: par_environment
+  par_environment => this%get_par_environment()
+
+  if ( par_environment%am_i_l1_task() ) then
+    call face_fe_function_vector%create( field_id,                       &
+                                         this%get_max_number_nodes(field_id), &
+                                         this%get_max_number_face_quadrature_points() )
+  end if
+end subroutine par_fe_space_create_face_fe_function_vector
+
+subroutine par_fe_space_create_face_fe_function_tensor ( this, field_id, face_fe_function_tensor )
+  implicit none
+  class(par_fe_space_t)       , intent(in)    :: this
+  integer(ip)                    , intent(in)    :: field_id
+  type(face_fe_function_tensor_t), intent(inout) :: face_fe_function_tensor
+
+  type(par_environment_t), pointer :: par_environment
+  par_environment => this%get_par_environment()
+
+  if ( par_environment%am_i_l1_task() ) then
+    call face_fe_function_tensor%create( field_id,                       &
+                                         this%get_max_number_nodes(field_id), &
+                                         this%get_max_number_face_quadrature_points() )
+  end if
+  
+end subroutine par_fe_space_create_face_fe_function_tensor
+
+subroutine par_fe_space_interpolate_scalar_function( this, &
+                                                     field_id, &
+                                                     function, &
+                                                     fe_function, &
+                                                     time )
+                                                           
+  implicit none
+  class(par_fe_space_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: field_id
+  class(scalar_function_t), intent(in)    :: function
+  type(fe_function_t)     , intent(inout) :: fe_function
+  real(rp)   , optional   , intent(in)    :: time
+  type(par_environment_t), pointer :: par_environment
+  par_environment => this%get_par_environment()
+  
+  if ( par_environment%am_i_l1_task() ) then
+    call this%serial_fe_space_t%interpolate_function(field_id, &
+                                                     function, &
+                                                     fe_function, &
+                                                     time )
+  end if
+  
+end subroutine par_fe_space_interpolate_scalar_function
+
+subroutine par_fe_space_interpolate_vector_function( this, &
+                                                     field_id, &
+                                                     function, &
+                                                     fe_function, &
+                                                     time )
+                                                           
+  implicit none
+  class(par_fe_space_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: field_id
+  class(vector_function_t), intent(in)    :: function
+  type(fe_function_t)     , intent(inout) :: fe_function
+  real(rp)   , optional   , intent(in)    :: time
+  type(par_environment_t), pointer :: par_environment
+  par_environment => this%get_par_environment()
+  
+  if ( par_environment%am_i_l1_task() ) then
+      call this%serial_fe_space_t%interpolate_function(field_id, &
+                                                       function, &
+                                                       fe_function, &
+                                                       time )
+  end if
+end subroutine par_fe_space_interpolate_vector_function
+
+subroutine par_fe_space_interpolate_tensor_function( this, &
+                                                        field_id, &
+                                                        function, &
+                                                        fe_function, &
+                                                        time )
+                                                           
+  implicit none
+  class(par_fe_space_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: field_id
+  class(tensor_function_t), intent(in)    :: function
+  type(fe_function_t)     , intent(inout) :: fe_function
+  real(rp)   , optional   , intent(in)    :: time
+  type(par_environment_t), pointer :: par_environment
+  par_environment => this%get_par_environment()
+  if ( par_environment%am_i_l1_task() ) then
+      call this%serial_fe_space_t%interpolate_function(field_id, &
+                                                       function, &
+                                                       fe_function, &
+                                                       time )
+  end if
+end subroutine par_fe_space_interpolate_tensor_function
 
  subroutine par_fe_space_setup_dofs_objects_and_constraint_matrix ( this, &
                                                                       num_dofs_objects_per_field, &
@@ -1348,14 +1539,8 @@ subroutine par_fe_space_setup_constraint_matrix ( this, &
    end do
    call constraint_matrix%sort_and_compress()
 end subroutine par_fe_space_setup_constraint_matrix
-  
- subroutine par_fe_space_update_global_fe_function_bcs ( this, fe_function )
-    implicit none
-    class(par_fe_space_t), intent(in)    :: this
-    type(fe_function_t)  , intent(inout) :: fe_function
-    call fe_function%copy_bc_values(this%strong_dirichlet_values)
- end subroutine par_fe_space_update_global_fe_function_bcs
- 
+   
+
  function par_fe_space_create_fe_object_iterator (this)
     implicit none
     class(par_fe_space_t), intent(in) :: this

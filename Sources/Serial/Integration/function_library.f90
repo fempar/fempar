@@ -59,11 +59,16 @@ module function_library_names
      private
      type(vector_field_t) :: function_value
    contains
-     procedure :: create                    => constant_vector_function_create
-     procedure :: get_value_space           => constant_vector_function_get_value_space
-     procedure :: get_value_space_time      => constant_vector_function_get_value_space_time
-     procedure :: get_values_set_space      => constant_vector_function_get_values_set_space
-     procedure :: get_values_set_space_time => constant_vector_function_get_values_set_space_time
+     procedure :: create                       => constant_vector_function_create
+     procedure :: get_value_space              => constant_vector_function_get_value_space
+     procedure :: get_value_space_time         => constant_vector_function_get_value_space_time
+     procedure :: get_values_set_space         => constant_vector_function_get_values_set_space
+     procedure :: get_values_set_space_time    => constant_vector_function_get_values_set_space_time
+     
+     procedure :: get_gradient_space           => constant_vector_function_get_gradient_space
+     procedure :: get_gradient_space_time      => constant_vector_function_get_gradient_space_time
+     procedure :: get_gradients_set_space      => constant_vector_function_get_gradients_set_space
+     procedure :: get_gradients_set_space_time => constant_vector_function_get_gradients_set_space_time
   end type constant_vector_function_t
   
   interface constant_vector_function_t
@@ -188,6 +193,45 @@ contains
     type(vector_field_t)             , intent(inout) :: result(:,:)
     result = this%function_value
   end subroutine constant_vector_function_get_values_set_space_time
+  
+  subroutine constant_vector_function_get_gradient_space( this, point, result )
+    class(constant_vector_function_t), intent(in)     :: this
+    type(point_t)                    , intent(in)     :: point
+    type(tensor_field_t)             , intent(inout)  :: result
+    call result%init(0.0_rp) 
+  end subroutine constant_vector_function_get_gradient_space
+
+  subroutine constant_vector_function_get_gradient_space_time( this, point, time, result )
+    class(constant_vector_function_t), intent(in)    :: this
+    type(point_t)                    , intent(in)    :: point
+    real(rp)                         , intent(in)    :: time
+    type(tensor_field_t)             , intent(inout) :: result
+    call result%init(0.0_rp) 
+  end subroutine constant_vector_function_get_gradient_space_time
+
+  subroutine constant_vector_function_get_gradients_set_space( this, point, result )
+    class(constant_vector_function_t), intent(in)     :: this
+    type(point_t)                    , intent(in)     :: point(:)
+    type(tensor_field_t)             , intent(inout)  :: result(:)
+    integer(ip) :: i  
+    do i=1, size(result)
+      call result(i)%init(0.0_rp) 
+    end do
+  end subroutine constant_vector_function_get_gradients_set_space
+
+  subroutine constant_vector_function_get_gradients_set_space_time( this, point, time, result )
+    class(constant_vector_function_t), intent(in)    :: this
+    type(point_t)                    , intent(in)    :: point(:)
+    real(rp)                         , intent(in)    :: time(:)
+    type(tensor_field_t)             , intent(inout) :: result(:,:)
+    integer(ip) :: i, j 
+    do j = 1, size(point) 
+      do i = 1, size(time) 
+        call result(i,j)%init(0.0_rp) 
+      end do
+    end do
+  end subroutine constant_vector_function_get_gradients_set_space_time
+  
   
   function constant_vector_function_constructor ( function_value ) result(new_vector_constant_function)
     type(vector_field_t), intent(in) :: function_value
