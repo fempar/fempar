@@ -111,7 +111,7 @@ contains
       continuity = .false.
     end if
     
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet, &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = 1, &
@@ -305,6 +305,12 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
+    type(interpolation_t) :: interpolation_old, interpolation_new
+    type(new_lagrangian_reference_fe_t) :: lagrangian_fe
+        
+    type(fe_iterator_t) :: iterator
+    type(fe_accessor_t) :: fe
+    
     call this%free()
     call this%parse_command_line_parameters()
     call this%setup_triangulation()
@@ -312,6 +318,13 @@ contains
     call this%setup_fe_space()
     call this%setup_system()
     call this%assemble_system()
+    
+    iterator = this%fe_space%create_fe_iterator()
+    call iterator%current(fe)
+    call this%reference_fes(1)%p%create_interpolation(fe%get_quadrature(), interpolation_old)
+    call this%reference_fes(1)%p%create_interpolation(fe%get_quadrature(), interpolation_new)
+    call lagrangian_fe%fill_interpolation(fe%get_quadrature(),interpolation_new)
+    
     call this%setup_solver()
     call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
