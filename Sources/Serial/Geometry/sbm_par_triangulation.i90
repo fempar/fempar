@@ -175,7 +175,16 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
      call this%allocate_and_fill_nodes()
      call this%allocate_and_fill_coordinates(mesh%get_coordinates())
 
+     call memfree (cells_gid,                    __FILE__, __LINE__)
+     call memfree (vertx_gid,                    __FILE__, __LINE__)
+     call memfree (lst_itfc_cells,               __FILE__, __LINE__)
+     call memfree (lst_vefs_lids,                __FILE__, __LINE__)
+     call memfree (lst_vefs_gids,                __FILE__, __LINE__)
      call memfree (lst_vefs_gids_ghost_extended, __FILE__, __LINE__)
+     call memfree (lst_ext_neighs_gids,          __FILE__, __LINE__)
+     call memfree (lst_ext_neighs_part_ids,      __FILE__, __LINE__)
+     call memfree (ptr_vefs_per_cell,            __FILE__, __LINE__)
+     call memfree (ptr_ext_neighs_per_itfc_cell, __FILE__, __LINE__)
      !call memfree (lst_vefs_dimension_ghost_extended, __FILE__, __LINE__)
 
      write(*,*) 'compute_vefs_and_parts_object'
@@ -187,6 +196,8 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
      write(*,*) 'End creating par_triangulation'
   end if
   call this%setup_coarse_triangulation()
+  call mesh%free()
+  call mesh_distribution%free()
   !call this%print()
 
 end subroutine par_triangulation_create
