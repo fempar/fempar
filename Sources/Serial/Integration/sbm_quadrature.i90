@@ -32,7 +32,7 @@ subroutine quadrature_create ( this, number_dimensions, number_quadrature_points
   call this%free()
   this%number_dimensions = number_dimensions
   this%number_quadrature_points = number_quadrature_points
-  call memalloc(number_dimensions,number_quadrature_points,this%coordinates,__FILE__,__LINE__)
+  call memalloc(SPACE_DIM,number_quadrature_points,this%coordinates,__FILE__,__LINE__)
   call memalloc(number_quadrature_points,this%weight,__FILE__,__LINE__)
   this%coordinates=0.0_rp
   this%weight=0.0_rp
@@ -69,6 +69,13 @@ function quadrature_get_number_quadrature_points ( this )
   integer(ip) :: quadrature_get_number_quadrature_points
   quadrature_get_number_quadrature_points = this%number_quadrature_points
 end function quadrature_get_number_quadrature_points
+
+function quadrature_get_coordinates ( this )
+  implicit none
+  class(quadrature_t), target, intent(in) :: this
+  real(rp), pointer :: quadrature_get_coordinates(:,:)
+  quadrature_get_coordinates => this%coordinates
+end function quadrature_get_coordinates
 
 function quadrature_get_weight ( this, i )
   implicit none
