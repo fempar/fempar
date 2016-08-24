@@ -60,7 +60,7 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   allocate(this%coordinates_quadrature(this%number_quadrature_points), stat=istat)
   check(istat==0)
 
-  number_nodes = reference_fe_geometry%get_number_nodes()
+  number_nodes = reference_fe_geometry%get_number_shape_functions()
   allocate(this%coordinates_nodes(number_nodes), stat=istat)
   check(istat==0)
 
@@ -102,7 +102,7 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   allocate(this%coordinates_quadrature(this%number_quadrature_points), stat=istat)
   check(istat==0)
 
-  number_nodes = reference_fe_geometry%get_number_nodes()
+  number_nodes = reference_fe_geometry%get_number_shape_functions()
   allocate(this%coordinates_nodes(number_nodes), stat=istat)
   check(istat==0)
 
@@ -555,7 +555,7 @@ subroutine volume_integrator_create( this, quadrature, reference_fe )
   call this%free()
   
   this%number_quadrature_points = quadrature%number_quadrature_points
-  this%number_shape_functions   = reference_fe%number_nodes
+  this%number_shape_functions   = reference_fe%number_shape_functions
   this%reference_fe             => reference_fe
 
   call reference_fe%create_interpolation( quadrature, this%interpolation )

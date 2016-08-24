@@ -206,6 +206,7 @@ module reference_fe_names
   character(*), parameter :: topology_hex = "hex"
   character(*), parameter :: topology_tet = "tet"
   character(*), parameter :: fe_type_lagrangian = "Lagrangian"
+  character(*), parameter :: fe_type_vector_lagrangian = "Vector_Lagrangian"
   
   ! Abstract reference_fe
   type, abstract ::  reference_fe_t
@@ -227,7 +228,7 @@ module reference_fe_names
 
      integer(ip)              ::    &
           number_n_faces,              &        
-          number_nodes,             &        
+          number_shape_functions,             &        
           number_n_faces_per_dimension(5)
 
      type(allocatable_array_ip1_t)  :: orientation        ! orientation of the n-faces 
@@ -351,7 +352,7 @@ module reference_fe_names
      procedure :: get_first_face_id => reference_fe_get_first_face_id
      procedure :: get_number_n_faces_of_dimension  => reference_fe_get_number_n_faces_of_dimension
      procedure :: get_first_n_face_id_of_dimension => reference_fe_get_first_n_face_id_of_dimension 
-     procedure :: get_number_nodes => reference_fe_get_number_nodes
+     procedure :: get_number_shape_functions => reference_fe_get_number_shape_functions
      procedure :: get_n_face_dimension  => reference_fe_get_n_face_dimension
      procedure :: get_vertices_n_face  =>   reference_fe_get_vertices_n_face
      procedure :: get_nodes_n_face   =>   reference_fe_get_nodes_n_face
@@ -710,7 +711,7 @@ module reference_fe_names
 
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-  public :: topology_hex, topology_tet, fe_type_lagrangian
+  public :: topology_hex, topology_tet, fe_type_lagrangian, fe_type_vector_lagrangian
   
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, abstract, extends(reference_fe_t) :: lagrangian_reference_fe_t
@@ -795,7 +796,7 @@ module reference_fe_names
       & => lagrangian_reference_fe_set_permutation_1D
      procedure, private, non_overridable :: extend_list_components       & 
       & => lagrangian_reference_fe_extend_list_components
-     procedure, private, non_overridable :: apply_femap_to_interpolation & 
+     procedure, private :: apply_femap_to_interpolation & 
       & => lagrangian_reference_fe_apply_femap_to_interpolation
   end type lagrangian_reference_fe_t
 
@@ -916,6 +917,94 @@ module reference_fe_names
   
   public :: lagrangian_reference_fe_t  
   
+  
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type, abstract, extends(lagrangian_reference_fe_t) :: vector_lagrangian_reference_fe_t
+     private
+   contains
+     ! Additional deferred methods
+     !procedure (fill_scalar_interface)            , private, deferred :: fill_scalar
+!     procedure (vlrfe_fill_quadrature_interface)        , private, deferred :: vlrfe_fill_quadrature   
+!     procedure (vlrfe_fill_interpolation_interface)     , private, deferred :: vlrfe_fill_interpolation
+!     procedure (vlrfe_fill_face_interpolation_interface), private, deferred :: vlrfe_fill_face_interpolation
+!     procedure (vlrfe_get_node_local_id_interface)      , private, deferred :: vlrfe_get_node_local_id
+!     procedure (vlrfe_get_node_local_coordinates_interface)      , private, deferred :: &
+!              & vlrfe_get_node_local_coordinates
+!     procedure (vlrfe_set_coordinates_1D_interface)              , private, deferred :: &
+!              & vlrfe_set_coordinates_1D
+!     procedure (vlrfe_set_permutation_2D_interface)              , private, deferred :: &
+!              & vlrfe_set_permutation_2D
+!     procedure (vlrfe_set_number_quadrature_points_interface)    , private, deferred :: &
+!              & vlrfe_set_number_quadrature_points
+!     procedure (vlrfe_compute_number_nodes_scalar_interface)     , private, deferred :: &
+!              & vlrfe_compute_number_nodes_scalar
+!     procedure (vlrfe_get_number_interior_points_x_dim_interface), private, deferred :: &
+!              & vlrfe_get_number_interior_points_x_dim
+
+     procedure :: create                    => vlrfe_create
+     !procedure :: fill_vector               => vlrfe_fill_vector
+     !procedure :: fill_interior_points_permutation     & 
+     ! & => vlrfe_fill_interior_points_permutation
+     !procedure :: create_quadrature         => vlrfe_create_quadrature
+     !procedure :: create_face_quadrature    => vlrfe_create_face_quadrature
+     procedure :: create_interpolation      => vlrfe_create_interpolation
+     procedure :: create_face_interpolation => vlrfe_create_face_interpolation
+     procedure :: create_face_local_interpolation      & 
+      & => vlrfe_create_face_local_interpolation
+     !procedure :: update_interpolation      => vlrfe_update_interpolation
+     !procedure :: update_interpolation_face => vlrfe_update_interpolation_face
+     !procedure :: get_component_node        => vlrfe_get_component_node
+     !procedure :: get_scalar_from_vector_node          & 
+     ! & => vlrfe_get_scalar_from_vector_node
+     !procedure :: get_number_nodes_scalar   => vlrfe_get_number_nodes_scalar
+     procedure :: get_value_scalar          => vlrfe_get_value_scalar
+     procedure :: get_value_vector          => vlrfe_get_value_vector
+     procedure :: get_gradient_scalar       => vlrfe_get_gradient_scalar
+     procedure :: get_gradient_vector       => vlrfe_get_gradient_vector
+     procedure :: get_divergence_vector     => vlrfe_get_divergence_vector
+     procedure :: get_curl_vector           => vlrfe_get_curl_vector
+     !procedure :: interpolate_nodal_values  => vlrfe_interpolate_nodal_values
+     !procedure :: set_nodal_quadrature      => vlrfe_set_nodal_quadrature
+     !procedure :: set_scalar_field_to_nodal_values     & 
+     ! & => vlrfe_set_scalar_field_to_nodal_values
+     !procedure :: set_vector_field_to_nodal_values     & 
+     ! & => vlrfe_set_vector_field_to_nodal_values
+     !procedure :: set_tensor_field_to_nodal_values     & 
+     ! & => vlrfe_set_tensor_field_to_nodal_values
+     procedure :: evaluate_fe_function_scalar          &
+      & => vlrfe_evaluate_fe_function_scalar
+     procedure :: evaluate_fe_function_vector          & 
+      & => vlrfe_evaluate_fe_function_vector
+     procedure :: evaluate_fe_function_tensor          & 
+      & => vlrfe_evaluate_fe_function_tensor
+     !procedure :: evaluate_gradient_fe_function_scalar & 
+     ! & => vlrfe_eval_grad_fe_function_scalar
+     !procedure :: evaluate_gradient_fe_function_vector &
+     ! & => vlrfe_eval_grad_fe_function_vector
+     !procedure :: get_number_subelements    => vlrfe_get_number_subelements
+     !procedure :: free                      => vlrfe_free
+     ! Concrete TBPs of this derived data type
+     !procedure, private, non_overridable :: fill                         & 
+     ! & => vlrfe_fill
+     !procedure, private, non_overridable :: fill_field_components        & 
+     ! & => vlrfe_fill_field_components
+     !procedure, private, non_overridable :: fill_permutation_array       &
+     ! & => vlrfe_fill_permutation_array
+     !procedure, private, non_overridable :: fill_nodal_quadrature        &
+     ! & => vlrfe_fill_nodal_quadrature
+     !procedure, private, non_overridable :: get_node_coordinates_array   & 
+     ! & => vlrfe_get_node_coordinates_array
+     !procedure, private, non_overridable :: set_permutation_1D           & 
+     ! & => vlrfe_set_permutation_1D
+     !procedure, private, non_overridable :: extend_list_components       & 
+     ! & => vlrfe_extend_list_components
+     procedure, private :: apply_femap_to_interpolation & 
+      & => vlrfe_apply_femap_to_interpolation
+  end type vector_lagrangian_reference_fe_t 
+  
+  public :: vector_lagrangian_reference_fe_t  
+
+  
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(lagrangian_reference_fe_t) :: tet_lagrangian_reference_fe_t
      private
@@ -968,6 +1057,59 @@ module reference_fe_names
   end type tet_lagrangian_reference_fe_t
   
   public :: tet_lagrangian_reference_fe_t
+  
+    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type, extends(vector_lagrangian_reference_fe_t) :: tet_vector_lagrangian_reference_fe_t
+     private
+   contains 
+     ! Deferred TBP implementors from reference_fe_t
+     procedure :: check_compatibility_of_n_faces                                 &
+           &   => tet_vlrfe_check_compatibility_of_n_faces
+     procedure :: get_characteristic_length                                   &
+           &   => tet_vlrfe_get_characteristic_length
+     procedure :: get_subelements_connectivity                                &
+           &   => tet_vlrfe_get_subelements_connectivity
+     procedure :: blending                                                    &
+           &   => tet_vlrfe_blending 
+     ! Deferred TBP implementors from lagrangian_reference_fe_t
+     !procedure, private :: fill_scalar                                        &
+     !      & => tet_vlrfe_fill_scalar
+     procedure, private :: fill_quadrature                                    &
+           & => tet_vlrfe_fill_quadrature
+     procedure, private :: fill_interpolation                                 &
+           & => tet_vlrfe_fill_interpolation
+     procedure, private :: fill_face_interpolation                            &
+           & => tet_vlrfe_fill_face_interpolation
+     procedure, private :: get_node_local_id                                  &
+           & => tet_vlrfe_get_node_local_id
+     procedure, private :: get_node_local_coordinates                         &
+           & => tet_vlrfe_get_node_local_coordinates
+     procedure, private :: set_coordinates_1D                                 &
+           & => tet_vlrfe_set_coordinates_1D
+     procedure, private :: set_permutation_2D                                 &
+           & => tet_vlrfe_set_permutation_2D
+     procedure, private :: set_number_quadrature_points                       &
+           & => tet_vlrfe_set_number_quadrature_points
+     procedure, private :: compute_number_nodes_scalar                        &
+           & => tet_vlrfe_compute_number_nodes_scalar
+     procedure, private :: get_number_interior_points_x_dim                   &
+           & => tet_vlrfe_get_number_interior_points_x_dim
+     ! Concrete TBPs of this derived data type
+     procedure, private, non_overridable :: vlrfe_fill_nodes_n_face                    &
+           & => tet_vlrfe_fill_nodes_n_face
+     procedure, private, non_overridable :: vlrfe_fill_n_face_dimension_and_vertices   &
+           & => tet_vlrfe_fill_n_face_dimension_and_vertices
+     procedure, private, non_overridable :: compute_number_interior_nodes     &
+           & => tet_vlrfe_compute_number_interior_nodes
+     procedure, private, non_overridable :: vlrfe_compute_sum_of_nodes_in_simplices &
+           & => tet_vlrfe_compute_sum_of_nodes_in_simplices
+     procedure, private, non_overridable :: vlrfe_evaluate_interpolation            &
+           & => tet_vlrfe_evaluate_interpolation
+     procedure, private, non_overridable :: vlrfe_get_n_face_orientation               &
+           & => tet_vlrfe_get_n_face_orientation
+  end type tet_vector_lagrangian_reference_fe_t
+  
+  public :: tet_vector_lagrangian_reference_fe_t
   
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(lagrangian_reference_fe_t) :: hex_lagrangian_reference_fe_t
@@ -1262,9 +1404,13 @@ contains
 
 #include "sbm_lagrangian_reference_fe.i90"
 
+#include "sbm_vector_lagrangian_reference_fe.i90"
+
 #include "sbm_hex_lagrangian_reference_fe.i90"
 
 #include "sbm_tet_lagrangian_reference_fe.i90"
+
+#include "sbm_tet_vector_lagrangian_reference_fe.i90"
 
 #include "sbm_polytope_topology.i90"
 
