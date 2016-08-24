@@ -119,15 +119,18 @@ subroutine polynomial_generate_basis ( order, basis )
      node_coordinates(i+1) = i
   end do
   node_coordinates = (2.0_rp/order)*node_coordinates-1.0_rp
-  do i=1,order
+  do i=1,order+1
      aux_basis(i)%order = order
      call memalloc(order+1, aux_basis(i)%coefficients, __FILE__, __LINE__)
      aux_basis(i)%coefficients(1:i-1) = node_coordinates(1:i-1)
      aux_basis(i)%coefficients(i:order) = node_coordinates(i+1:order+1)
      aux_basis(i)%coefficients(order+1)  = 1.0_rp
-     do j = 1,order
-        aux_basis(i)%coefficients(order+1) = aux_basis(i)%coefficients(order+1)*(node_coordinates(i)-node_coordinates(j))
+     do j = 1,order+1
+        if ( j /= i ) then
+           aux_basis(i)%coefficients(order+1) = aux_basis(i)%coefficients(order+1)*(node_coordinates(i)-node_coordinates(j))
+        end if
      end do
+     aux_basis(i)%coefficients(order+1) = 1/aux_basis(i)%coefficients(order+1)
   end do
   call move_alloc(from=aux_basis,to=basis)
 end subroutine polynomial_generate_basis
@@ -147,6 +150,7 @@ end subroutine polynomial_generate_basis
        end do
        p_x(1) = p_x(1)*(x-this%coefficients(i))
     end do
+    p_x = p_x*this%coefficients(this%order+1)
   end subroutine polynomial_get_values
   
   subroutine polynomial_free ( this )
@@ -156,14 +160,15 @@ end subroutine polynomial_generate_basis
   
   ! tensor_product_polynomial_space_t TBPS
   !===================================================================================
-  subroutine tensor_product_polynomial_space_create( this, polynomial_1D_basis )
+  subroutine tensor_product_polynomial_space_create( this, dim, polynomial_1D_basis )
     class(tensor_product_polynomial_space_t), intent(inout) :: this
-    type(polynomial_allocatable_array_t), intent(in)        :: polynomial_1D_basis(:)
+    integer(ip)                             , intent(in)    :: dim
+    type(polynomial_allocatable_array_t)    , intent(in)        :: polynomial_1D_basis(:)
     integer(ip) :: i
     
-    this%number_dimensions = size(polynomial_1D_basis)
+    this%number_dimensions = dim
     this%number_polynomials = 1
-    do i = 1, size(polynomial_1D_basis)
+    do i = 1, dim
        this%polynomial_1D_basis(i) = polynomial_1D_basis(i)
        this%number_pols_dim(i) = size(polynomial_1D_basis(i)%polynomials)
        this%number_polynomials = this%number_polynomials * this%number_pols_dim(i)
@@ -208,21 +213,30 @@ end subroutine polynomial_generate_basis
     real(rp)                                , intent(inout) :: gradients(:,:)
     integer(ip) :: ijk(SPACE_DIM),idime,ishape,jdime
     values = 1.0_rp
+    
+    write(*,*) 'iq',q_point
     do ishape = 1, this%number_polynomials
        call index_to_ijk(ishape, this%number_dimensions, this%number_pols_dim, ijk)
+          write(*,*) 'ishape',ishape
+          write(*,*) 'ishape_ijk',ijk
        do idime = 1, this%number_dimensions
+          write(*,*) 'iq',q_point
+          write(*,*) 'dim_tensor',idime
+          write(*,*) 'value pol scalar', this%work_shape_data(idime)%a(1,ijk(idime),q_point)          
           values(ishape) = values(ishape)* &
                this%work_shape_data(idime)%a(1,ijk(idime),q_point)
+          write(*,*) 'value',values(ishape)
        end do
+       write(*,*) 'final value',values(ishape)
     end do
     do ishape = 1, this%number_polynomials
        call index_to_ijk(ishape, this%number_dimensions, this%number_pols_dim, ijk)
        do idime = 1, this%number_dimensions
-          gradients(ishape,idime) = this%work_shape_data(idime)%a(2,ijk(idime),q_point)
+          gradients(idime,ishape) = this%work_shape_data(idime)%a(2,ijk(idime),q_point)
           do jdime = 1, this%number_dimensions
              if ( jdime /= idime ) then
-                gradients(ishape,idime) = & 
-                   gradients(ishape,idime) * this%work_shape_data(jdime)%a(1,ijk(jdime),q_point)
+                gradients(idime,ishape) = & 
+                   gradients(idime,ishape) * this%work_shape_data(jdime)%a(1,ijk(jdime),q_point)
              end if
           end do
        end do
@@ -254,11 +268,12 @@ end subroutine polynomial_generate_basis
   
   ! lagrangian_reference_fe_t TBPS
   !===================================================================================
-  subroutine lagrangian_fill_interpolation( this, quadrature, interpolation )
+  subroutine lagrangian_fill_interpolation( this, dim, quadrature, interpolation )
     implicit none
     class(new_lagrangian_reference_fe_t), intent(inout) :: this
     type(quadrature_t)              , intent(in)    :: quadrature
     type(interpolation_t)           , intent(inout) :: interpolation
+    integer(ip)                     , intent(in)    :: dim
     
     type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
     type(polynomial_allocatable_array_t)    :: polynomial_1D_basis(SPACE_DIM)
@@ -270,15 +285,17 @@ end subroutine polynomial_generate_basis
     
     integer(ip) :: idime, q_point
     
+    
+    this%number_dimensions = dim
+    tensor_product_polynomial_space%number_dimensions = this%number_dimensions
     do idime=1,this%number_dimensions
-       call polynomial_1D%generate_basis( 1, polynomial_1D_basis(idime)%polynomials)
+       call polynomial_1D%generate_basis( 5, polynomial_1D_basis(idime)%polynomials)
     end do
     
-    call tensor_product_polynomial_space%create(polynomial_1D_basis)
+    call tensor_product_polynomial_space%create(this%number_dimensions,polynomial_1D_basis)
     call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
 
     this%number_shape_functions = tensor_product_polynomial_space%number_polynomials
-    this%number_dimensions = tensor_product_polynomial_space%number_dimensions
     
     call memalloc(tensor_product_polynomial_space%number_polynomials,tensor_product_values,__FILE__,__LINE__)
     call memalloc(SPACE_DIM,tensor_product_polynomial_space%number_polynomials,tensor_product_gradients,__FILE__,__LINE__)
@@ -365,12 +382,12 @@ subroutine index_to_ijk( index, ndime, n_pols_dim, ijk )
   integer(ip) :: i,aux
 
   ijk = 0
-  aux = 1
+  aux = (index-1)
   do i = 1,ndime-1
-     ijk(i) = mod((index-1)/aux, n_pols_dim(i))
+     ijk(i) = mod(aux, n_pols_dim(i))
      aux = aux/n_pols_dim(i)
   end do
-  ijk(ndime) = (index-1)/aux
+  ijk(ndime) = aux
   ijk = ijk+1
 end subroutine index_to_ijk
 

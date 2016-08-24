@@ -114,7 +114,7 @@ contains
     this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                 order = 1, &
+                                                 order = 5, &
                                                  field_type = field_type_scalar, &
                                                  continuity = continuity )
   end subroutine setup_reference_fes
@@ -323,7 +323,10 @@ contains
     call iterator%current(fe)
     call this%reference_fes(1)%p%create_interpolation(fe%get_quadrature(), interpolation_old)
     call this%reference_fes(1)%p%create_interpolation(fe%get_quadrature(), interpolation_new)
-    call lagrangian_fe%fill_interpolation(fe%get_quadrature(),interpolation_new)
+    call lagrangian_fe%fill_interpolation(2,fe%get_quadrature(),interpolation_new)
+    
+    write(*,*) 'VALUES', abs(interpolation_new%shape_functions(1,:,:)-interpolation_old%shape_functions(1,:,:))
+    write(*,*) 'GRADS', abs(interpolation_new%shape_derivatives(1,1:2,:,:)-interpolation_old%shape_derivatives(1,1:2,:,:))
     
     call this%setup_solver()
     call this%fe_space%create_fe_function(this%solution)
