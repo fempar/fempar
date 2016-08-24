@@ -1595,7 +1595,7 @@ contains
        
        ncon = 1 
        
-       write(*,*) 'k_way',present(weight)
+       !write(*,*) 'k_way',present(weight)
        if(present(weight)) then
           write(*,*) 'calling metis',options(METIS_OPTION_CTYPE)
           options(METIS_OPTION_NITER) = 100

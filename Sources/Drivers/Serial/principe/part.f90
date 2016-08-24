@@ -33,30 +33,21 @@ module partitioner_input_names
 
   type partitioner_input_t 
      private 
-     ! IO parameters
-     character(len=:), allocatable :: default_dir_path
-     character(len=:), allocatable :: default_prefix
-     character(len=:), allocatable :: default_dir_path_out
-     character(len=:), allocatable :: default_num_parts
-
      type(Command_Line_Interface)  :: cli 
 
      type(ParameterList_t)         :: list
-
-     ! IO parameters
-     character(len=256)            :: dir_path
-     character(len=256)            :: prefix
-     character(len=256)            :: dir_path_out
-     integer(ip)                   :: num_parts
+     type(ParameterList_t)         :: switches
+     type(ParameterList_t)         :: switches_ab
+     type(ParameterList_t)         :: helpers
+     type(ParameterList_t)         :: required
 
    contains
-     procedure, non_overridable             :: create       => partitioner_input_create
-     procedure, non_overridable, private    :: set_default  => partitioner_input_set_default
-     procedure, non_overridable, private    :: add_to_cli   => partitioner_input_add_to_cli
-     procedure, non_overridable             :: parse        => partitioner_input_parse
-     procedure, non_overridable             :: store_in_fpl => partitioner_input_store_in_fpl
-     procedure, non_overridable             :: get_fpl      => partitioner_input_get_fpl
-     procedure, non_overridable             :: free         => partitioner_input_free
+     procedure, non_overridable             :: create         => partitioner_input_create
+     procedure, non_overridable, private    :: set_default    => partitioner_input_set_default
+     procedure, non_overridable, private    :: add_to_cli     => partitioner_input_add_to_cli
+     procedure, non_overridable, private    :: parse          => partitioner_input_parse
+     procedure, non_overridable             :: get_parameters => partitioner_input_get_parameters
+     procedure, non_overridable             :: free           => partitioner_input_free
   end type partitioner_input_t
 
   public :: partitioner_input_t
@@ -66,9 +57,7 @@ contains
   subroutine partitioner_input_create(this)
     implicit none
     class(partitioner_input_t), intent(inout) :: this
-    
     call this%free()
-    
      ! Initialize Command Line Interface
     call this%cli%init(progname    = 'part',                                                     &
          &        version     = '',                                                                 &
@@ -76,94 +65,191 @@ contains
          &        license     = '',                                                                 &
          &        description =  'FEMPAR driver to part a GiD mesh.', &
          &        examples    = ['part -h  ', 'part -n  ' ])
-    
     call this%set_default()
     call this%add_to_cli()
+    call this%parse()
   end subroutine partitioner_input_create
-  
-  subroutine partitioner_input_set_default(this)
-    implicit none
-    class(partitioner_input_t), intent(inout) :: this
-    ! IO parameters
-    this%default_dir_path       = '.'
-    this%default_prefix         = 'square'
-    this%default_dir_path_out   = '.'
-    this%default_num_parts      = '4'
-  end subroutine partitioner_input_set_default
-  
-  subroutine partitioner_input_add_to_cli(this)
-    implicit none
-    class(partitioner_input_t) , intent(inout) :: this
-
-    ! Locals
-    integer(ip) :: error
-
-    ! IO parameters
-    call this%cli%add(switch='--dir-path',switch_ab='-d',                              &
-         &            help='Directory of the source files',required=.false., act='store', &
-         &            def=trim(this%default_dir_path),error=error)
-    check(error==0)
-    call this%cli%add(switch='--prefix',switch_ab='-p',help='Name of the GiD files',  &
-         &            required=.false.,act='store',def=trim(this%default_prefix),error=error) 
-    check(error==0)
-    call this%cli%add(switch='--dir-path-out',switch_ab='-o',help='Output Directory',&
-         &            required=.false.,act='store',def=trim(this%default_dir_path_out),error=error)
-    check(error==0)  
-    call this%cli%add(switch='--num_parts',switch_ab='-n',help='Number of parts of the mesh',&
-         &            required=.true.,act='store',def=trim(this%default_num_parts), error=error)
-    check(error==0)  
-    
-  end subroutine partitioner_input_add_to_cli
 
   !==================================================================================================
-  
-  subroutine partitioner_input_parse(this)
-    implicit none
-    class(partitioner_input_t), intent(inout) :: this
-    integer(ip) :: istat
-    
-    call this%cli%parse(error=istat); check(istat==0)
-    
-    ! IO parameters
-    call this%cli%get(switch='-d',val=this%dir_path    ,error=istat); check(istat==0)
-    call this%cli%get(switch='-p',val=this%prefix      ,error=istat); check(istat==0)
-    call this%cli%get(switch='-o',val=this%dir_path_out,error=istat); check(istat==0)
-    call this%cli%get(switch='-n',val=this%num_parts   ,error=istat); check(istat==0)
-  end subroutine partitioner_input_parse  
-
-  subroutine partitioner_input_store_in_fpl(this)
+  subroutine partitioner_input_set_default(this)
     implicit none
     class(partitioner_input_t), intent(inout) :: this
     integer(ip) :: error
 
     call this%list%init()
     error = 0
-    error = error + this%list%set(key = dir_path_key, value = this%dir_path)
-    error = error + this%list%set(key = prefix_key  , value = this%prefix)
-    error = error + this%list%set(key = dir_path_out_key, value = this%dir_path_out)
-    error = error + this%list%set(key = num_parts_key, value = this%num_parts)
-    assert(error == 0)
-  end subroutine partitioner_input_store_in_fpl 
-  
+    error = error + this%list%set(key = dir_path_key            , value = '.')
+    error = error + this%list%set(key = prefix_key              , value = 'square')
+    error = error + this%list%set(key = dir_path_out_key        , value = '.')
+    error = error + this%list%set(key = num_parts_key           , value =  4)
+    error = error + this%list%set(key = strategy_key            , value = part_kway)
+    error = error + this%list%set(key = debug_key               , value =  0)
+    error = error + this%list%set(key = metis_option_debug_key  , value =  2)
+    error = error + this%list%set(key = metis_option_ufactor_key, value = 30)
+    error = error + this%list%set(key = metis_option_minconn_key, value =  0)
+    error = error + this%list%set(key = metis_option_contig_key , value =  1)
+    error = error + this%list%set(key = metis_option_ctype_key  , value = METIS_CTYPE_SHEM) ! METIS_CTYPE_RM
+    error = error + this%list%set(key = metis_option_iptype_key , value = METIS_IPTYPE_EDGE)
+    check(error==0)
+
+    ! Only some of them are controlled from cli
+    call this%switches%init()
+    error = error + this%switches%set(key = dir_path_key    , value = '--dir-path')
+    error = error + this%switches%set(key = prefix_key      , value = '--prefix')
+    error = error + this%switches%set(key = dir_path_out_key, value = '--dir-path-out')
+    error = error + this%switches%set(key = num_parts_key   , value = '--num_parts')
+    check(error==0)
+
+    call this%switches_ab%init()
+    error = error + this%switches_ab%set(key = dir_path_key    , value = '-d')
+    error = error + this%switches_ab%set(key = prefix_key      , value = '-p')
+    error = error + this%switches_ab%set(key = dir_path_out_key, value = '-o')
+    error = error + this%switches_ab%set(key = num_parts_key   , value = '-n')
+    check(error==0)
+
+    call this%helpers%init()
+    error = error + this%helpers%set(key = dir_path_key    , value = 'Directory of the source files')
+    error = error + this%helpers%set(key = prefix_key      , value = 'Name of the GiD files')
+    error = error + this%helpers%set(key = dir_path_out_key, value = 'Output Directory')
+    error = error + this%helpers%set(key = num_parts_key   , value = 'Number of parts of the mesh')
+    check(error==0)
+
+    call this%required%init()
+    error = error + this%required%set(key = dir_path_key    , value = .false.)
+    error = error + this%required%set(key = prefix_key      , value = .false.)
+    error = error + this%required%set(key = dir_path_out_key, value = .false.)
+    error = error + this%required%set(key = num_parts_key   , value = .true.)
+    check(error==0)
+
+  end subroutine partitioner_input_set_default
+
+  !==================================================================================================
   subroutine partitioner_input_free(this)
     implicit none
     class(partitioner_input_t), intent(inout) :: this
-    if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
-    if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
-    if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
-    if(allocated(this%default_num_parts)) deallocate(this%default_num_parts)
+    call this%list%free()
+    call this%switches%free()
+    call this%switches_ab%free()
+    call this%required%free()
     call this%cli%free()
-  end subroutine partitioner_input_free
+   end subroutine partitioner_input_free
 
-  function partitioner_input_get_fpl(this)
+  !==================================================================================================
+  function partitioner_input_get_parameters(this)
     implicit none
     class(partitioner_input_t), target , intent(in) :: this
-    type(ParameterList_t), pointer  :: partitioner_input_get_fpl
-    partitioner_input_get_fpl => this%list
-  end function partitioner_input_get_fpl
+    type(ParameterList_t), pointer  :: partitioner_input_get_parameters
+    partitioner_input_get_parameters => this%list
+  end function partitioner_input_get_parameters
+
+  !==================================================================================================
+  !
+  ! The following methods can be programmed in the library looping over the entries in, e.g. switch.  
+  ! To do that we need to manage data types conversions automatically. Here I'm exploiting the knowledge
+  ! of the data type of each entry. We could ask fpl...
+  !
+  !==================================================================================================
+  subroutine partitioner_input_add_to_cli(this)
+    implicit none
+    class(partitioner_input_t) , intent(inout) :: this
+    integer(ip)        :: error
+    character(len=512) :: switch, switch_ab, help, cvalue
+    logical            :: required
+    integer(ip)        :: ivalue
+
+    ! IO parameters
+    error = 0
+    error = error + this%list%get       (key = dir_path_key , value = cvalue)
+    error = error + this%switches%get   (key = dir_path_key , value = switch)
+    error = error + this%switches_ab%get(key = dir_path_key , value = switch_ab)
+    error = error + this%helpers%get    (key = dir_path_key , value = help)
+    error = error + this%required%get   (key = dir_path_key , value = required)
+    call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
+         &            required=required,act='store',def=trim(cvalue),error=error)
+    check(error==0)
+
+    error = 0
+    error = error + this%list%get       (key = prefix_key , value = cvalue)
+    error = error + this%switches%get   (key = prefix_key , value = switch)
+    error = error + this%switches_ab%get(key = prefix_key , value = switch_ab)
+    error = error + this%helpers%get    (key = prefix_key , value = help)
+    error = error + this%required%get   (key = prefix_key , value = required)
+    check(error==0)
+    call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
+         &            required=required,act='store',def=trim(cvalue),error=error)
+    check(error==0)
+
+    error = 0
+    error = error + this%list%get       (key = dir_path_out_key , value = cvalue)
+    error = error + this%switches%get   (key = dir_path_out_key , value = switch)
+    error = error + this%switches_ab%get(key = dir_path_out_key , value = switch_ab)
+    error = error + this%helpers%get    (key = dir_path_out_key , value = help)
+    error = error + this%required%get   (key = dir_path_out_key , value = required)
+    check(error==0)
+    call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
+         &            required=required,act='store',def=trim(cvalue),error=error)
+    check(error==0)
+
+    error = 0
+    error = error + this%list%get       (key = num_parts_key , value = ivalue)
+    error = error + this%switches%get   (key = num_parts_key , value = switch)
+    error = error + this%switches_ab%get(key = num_parts_key , value = switch_ab)
+    error = error + this%helpers%get    (key = num_parts_key , value = help)
+    error = error + this%required%get   (key = num_parts_key , value = required)
+    !write(*,*) ivalue
+    write(cvalue,*) ivalue
+    check(error==0)
+    call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
+         &            required=required,act='store',def=trim(cvalue),error=error)
+    check(error==0)
+
+  end subroutine partitioner_input_add_to_cli
+
+  subroutine partitioner_input_parse(this)
+    implicit none
+    class(partitioner_input_t), intent(inout) :: this
+    integer(ip)    :: istat
+    character(512) :: switch, cvalue
+    integer(ip)    :: ivalue
+
+    call this%cli%parse(error=istat); check(istat==0)
+
+    istat = this%switches%get(key = dir_path_key , value = switch)
+    check(istat==0)
+    if (this%cli%is_passed(switch=switch)) then
+       call this%cli%get(switch=switch, val=cvalue, error=istat); check(istat==0)
+       istat = this%list%set(key = dir_path_key, value=cvalue)
+    end if
+
+    istat = this%switches%get(key = prefix_key , value = switch)
+    check(istat==0)
+    if (this%cli%is_passed(switch=switch)) then
+       call this%cli%get(switch=switch, val=cvalue, error=istat); check(istat==0)
+       istat = this%list%set(key = prefix_key, value=cvalue)
+    end if
+
+    istat = this%switches%get(key = dir_path_out_key , value = switch)
+    check(istat==0)
+    if (this%cli%is_passed(switch=switch)) then
+       call this%cli%get(switch=switch, val=cvalue, error=istat); check(istat==0)
+       istat = this%list%set(key = dir_path_out_key, value=cvalue)
+    end if
+
+    istat = this%switches%get(key = num_parts_key , value = switch)
+    check(istat==0)
+    if (this%cli%is_passed(switch=switch)) then
+       call this%cli%get(switch=switch, val=ivalue, error=istat); check(istat==0)
+       istat = this%list%set(key = num_parts_key, value=ivalue)
+    end if
+
+  end subroutine partitioner_input_parse  
 
 end module partitioner_input_names 
 
+!==================================================================================================
+!==================================================================================================
+!==================================================================================================
+!==================================================================================================
 
 program partitioner
   use serial_names
@@ -175,34 +261,14 @@ program partitioner
   type(mesh_distribution_t), allocatable :: distr(:)
   type(mesh_t)             , allocatable :: lmesh(:)
   integer(ip) :: ipart
-  integer(ip) :: error
-  logical     :: is_present
 
   call fempar_init()
   call input%create()
-  call input%parse()
-  call input%store_in_fpl()
-  parameters => input%get_fpl()
+  parameters => input%get_parameters()
 
-  is_present =  parameters%isPresent(key = num_parts_key )
-  assert(is_present)
-  error = parameters%get(key = num_parts_key , value = ipart)
-  check(error==0)
-
+  ! Read and partition gmesh into lmesh
   call gmesh%read(parameters)
   call gmesh%write_file_for_postprocess(parameters)
-
-  ! Set partition parameters
-  error = 0
-  error = error + parameters%set(key = strategy_key, value = part_kway)
-  error = error + parameters%set(key = debug_key   , value = 0)
-  error = error + parameters%set(key = metis_option_debug_key  , value =  2)
-  error = error + parameters%set(key = metis_option_ufactor_key, value = 30)
-  error = error + parameters%set(key = metis_option_minconn_key, value =  0)
-  error = error + parameters%set(key = metis_option_contig_key , value =  1)
-  error = error + parameters%set(key = metis_option_ctype_key  , value = METIS_CTYPE_SHEM) ! METIS_CTYPE_RM
-  error = error + parameters%set(key = metis_option_iptype_key , value = METIS_IPTYPE_EDGE)
-  check(error==0)
   call gmesh%create_distribution (parameters, distr, lmesh)
 
   ! Write partition info
@@ -220,9 +286,9 @@ program partitioner
   end do
   deallocate (distr)
   deallocate (lmesh)
-
   call gmesh%free()
 
+  call input%free()
   call fempar_finalize()
 
 end program partitioner
