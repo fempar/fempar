@@ -85,9 +85,9 @@ contains
     implicit none
     class(partitioner_input_t), intent(inout) :: this
     ! IO parameters
-    this%default_dir_path       = 'data/'
+    this%default_dir_path       = '.'
     this%default_prefix         = 'square'
-    this%default_dir_path_out   = 'output/'
+    this%default_dir_path_out   = '.'
     this%default_num_parts      = '4'
   end subroutine partitioner_input_set_default
   

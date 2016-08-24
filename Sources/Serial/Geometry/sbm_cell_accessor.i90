@@ -135,7 +135,7 @@ subroutine cell_accessor_get_coordinates (this, cell_coordinates)
   assert ( this%is_local() )
   
    reference_fe_geo => this%get_reference_fe_geo()
-   do inode=1, reference_fe_geo%get_number_nodes()
+   do inode=1, reference_fe_geo%get_number_shape_functions()
      cell_coordinates(inode) = this%base_static_triangulation%coordinates(this%get_node_lid(inode))
    end do
   
@@ -152,7 +152,7 @@ subroutine cell_accessor_set_coordinates (this, cell_coordinates)
   assert ( allocated ( this%base_static_triangulation%coordinates ) )
   
    reference_fe_geo => this%get_reference_fe_geo()
-   do inode=1, reference_fe_geo%get_number_nodes()
+   do inode=1, reference_fe_geo%get_number_shape_functions()
      this%base_static_triangulation%coordinates(this%get_node_lid(inode)) = cell_coordinates(inode)
    end do
   

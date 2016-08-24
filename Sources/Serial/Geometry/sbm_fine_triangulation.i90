@@ -582,7 +582,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
      call cell_iterator%current(cell)
      reference_fe_geo => cell%get_reference_fe_geo()
      ielem = cell%get_lid()
-     this%ptr_nodes_per_cell(ielem+1) = this%ptr_nodes_per_cell(ielem) + reference_fe_geo%get_number_nodes()
+     this%ptr_nodes_per_cell(ielem+1) = this%ptr_nodes_per_cell(ielem) + reference_fe_geo%get_number_shape_functions()
      call cell_iterator%next()
   end do
   call memalloc(this%ptr_nodes_per_cell(this%num_local_cells + this%num_ghost_cells+1)-1, this%lst_nodes , __FILE__, __LINE__ )

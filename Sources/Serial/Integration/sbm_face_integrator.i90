@@ -251,7 +251,7 @@ subroutine interpolation_face_restriction_create(this, local_quadrature, referen
   call this%free()
   this%active_face_id = -1
 
-  this%number_shape_functions   = reference_fe_phy%number_nodes
+  this%number_shape_functions   = reference_fe_phy%number_shape_functions
   this%number_quadrature_points = local_quadrature%number_quadrature_points
   this%number_faces             = reference_fe_phy%get_number_faces()
 

@@ -1,0 +1,385 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**************************************************************************************************
+! Deferred TBP implementors from reference_fe_t
+!**************************************************************************************************
+
+!==================================================================================================
+subroutine vlrfe_create ( this, topology, number_dimensions, order, field_type, & 
+                                          &  continuity, enable_face_integration )
+  implicit none 
+  class(vector_lagrangian_reference_fe_t), intent(inout) :: this
+  character(*)                    , intent(in)    :: topology
+  integer(ip)                     , intent(in)    :: number_dimensions
+  integer(ip)                     , intent(in)    :: order
+  character(*)                    , intent(in)    :: field_type
+  logical                         , intent(in)    :: continuity
+  logical              , optional , intent(in)    :: enable_face_integration
+
+  call this%free()
+  call this%set_common_data(number_dimensions,order,field_type,continuity,enable_face_integration)
+  call this%set_topology ( topology )
+  call this%set_fe_type( fe_type_vector_lagrangian )
+  call this%fill()
+  call this%set_nodal_quadrature()
+  
+end subroutine vlrfe_create
+
+!==================================================================================================
+subroutine vlrfe_create_interpolation ( this, quadrature, & 
+                                                        & interpolation, compute_hessian )
+  implicit none 
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation
+  logical               , optional, intent(in)    :: compute_hessian
+
+  integer(ip) :: ntens, i
+
+  ntens = 0
+  do i = 1, this%number_dimensions
+     ntens = ntens + i
+  end do
+
+  call interpolation%create( this%number_dimensions, this%number_shape_functions, &
+                             quadrature%number_quadrature_points, ntens, compute_hessian )
+  
+  call this%fill_interpolation( interpolation, quadrature%coordinates )
+  
+end subroutine vlrfe_create_interpolation
+
+!==================================================================================================
+! This routine creates the interpolation corresponding to the evaluation of the shape functions on
+! integration points given by local_quadrature either on the face 'local_face_id' of the element or
+! in all the faces of the element.
+subroutine vlrfe_create_face_interpolation( this,local_face_id, &
+                                                            & local_quadrature,face_interpolation)
+  implicit none 
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: local_face_id
+  type(quadrature_t)              , intent(in)    :: local_quadrature
+  type(interpolation_t)           , intent(inout) :: face_interpolation
+
+  ! Allocate the arrays of the interpolation
+  call face_interpolation%create(this%number_dimensions,this%number_shape_functions, &
+                               & local_quadrature%number_quadrature_points, 0 )
+
+  ! Fill the values of the shape functions
+  call this%fill_face_interpolation (face_interpolation,local_quadrature,local_face_id)
+  
+end subroutine vlrfe_create_face_interpolation
+
+!==================================================================================================
+! This subroutine constructs a interpolation of order 1 of an element of one dimension less.
+! This is used to construct the geometrical interpolation of the face
+subroutine vlrfe_create_face_local_interpolation ( this, quadrature, &
+                                                                   & interpolation)
+  implicit none
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation
+  
+  write(*,*) 'Vector Laplacian cannot be used for geometry mapping'
+  check(.false.)
+
+end subroutine vlrfe_create_face_local_interpolation
+
+!==================================================================================================
+subroutine vlrfe_get_value_scalar( this, actual_cell_interpolation, & 
+                                                   & ishape, qpoint, scalar_field )
+  implicit none
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  integer(ip)                     , intent(in)    :: ishape
+  integer(ip)                     , intent(in)    :: qpoint
+  real(rp)                        , intent(inout) :: scalar_field
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for vector-based FE spaces'
+  check( .false. )
+end subroutine vlrfe_get_value_scalar
+
+!==================================================================================================
+subroutine vlrfe_get_value_vector( this, actual_cell_interpolation, & 
+                                                   & ishape, qpoint, vector_field )
+  implicit none
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  integer(ip)                     , intent(in)    :: ishape
+  integer(ip)                     , intent(in)    :: qpoint
+  type(vector_field_t)            , intent(inout) :: vector_field
+  assert( this%field_type == field_type_vector )
+  assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
+  assert( qpoint >= 1 )
+  call vector_field%init(actual_cell_interpolation%shape_functions(:,ishape,qpoint))
+end subroutine vlrfe_get_value_vector
+
+ !!==================================================================================================
+subroutine vlrfe_get_gradient_scalar( this, actual_cell_interpolation, & 
+                                                      & ishape, qpoint, vector_field )
+  implicit none
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  integer(ip)                     , intent(in)    :: ishape
+  integer(ip)                     , intent(in)    :: qpoint
+  type(vector_field_t)            , intent(inout) :: vector_field
+  integer(ip) :: idime
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for vector-based FE spaces'
+  check( .false. )
+end subroutine vlrfe_get_gradient_scalar
+
+!==================================================================================================
+subroutine vlrfe_get_gradient_vector( this, actual_cell_interpolation, & 
+                                                      & ishape, qpoint, tensor_field )
+  implicit none
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  integer(ip)                     , intent(in)    :: ishape
+  integer(ip)                     , intent(in)    :: qpoint
+  type(tensor_field_t)            , intent(inout) :: tensor_field
+  assert( this%field_type == field_type_vector )
+  assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
+  assert( qpoint >= 1 )
+  call tensor_field%init(actual_cell_interpolation%shape_derivatives(:,:,ishape,qpoint))
+end subroutine vlrfe_get_gradient_vector
+
+!==================================================================================================
+subroutine vlrfe_get_divergence_vector( this, actual_cell_interpolation, & 
+                                                        & ishape, qpoint, scalar_field )
+  implicit none
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  integer(ip)                     , intent(in)    :: ishape
+  integer(ip)                     , intent(in)    :: qpoint
+  real(rp)                        , intent(inout) :: scalar_field
+
+  ! Locals 
+  integer(ip) :: idime
+
+  assert( this%field_type == field_type_vector )
+  assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
+  assert( qpoint >= 1 )
+
+  scalar_field = 0
+  do idime = 1, this%number_dimensions
+     scalar_field = actual_cell_interpolation%shape_derivatives(idime,idime,ishape,qpoint)
+  end do
+
+end subroutine vlrfe_get_divergence_vector 
+
+!==================================================================================================
+subroutine vlrfe_get_curl_vector( this, actual_cell_interpolation, &
+                                                  & ishape, qpoint, vector_field )
+  implicit none
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  integer(ip)                     , intent(in)    :: ishape
+  integer(ip)                     , intent(in)    :: qpoint
+  type(vector_field_t)            , intent(inout) :: vector_field
+  
+  ! Locals 
+  integer(ip) :: idime, jdime, kdime
+  ! Epsilon_{ijk} = Levi_Civita(i,j,k)
+  real(rp), parameter :: Levi_Civita(3,3,3) = reshape( (/0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, -1.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, &
+													                                            0.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, -1.0_rp, 0.0_rp, 0.0_rp, &
+													                                            0.0_rp, -1.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp/), (/3, 3, 3/) )
+
+  assert( this%field_type == field_type_vector )
+  assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
+  assert( qpoint >= 1 )
+  
+
+ call vector_field%init(0.0_rp)
+ 
+ do idime=1,SPACE_DIM 
+   do jdime = 1,this%number_dimensions
+      do kdime = 1,this%number_dimensions
+         if ( ( idime .ne. jdime ) .and. (idime .ne. kdime) .and. (jdime .ne. kdime) ) then 
+            call vector_field%set( idime, &
+                 Levi_Civita(idime,jdime,kdime)* &
+                 actual_cell_interpolation%shape_derivatives(jdime,kdime,this%node_component_array(ishape,1),qpoint) )
+                 ! @sbadia: I have to check it. 
+         end if
+      end do
+   end do
+ end do
+
+end subroutine vlrfe_get_curl_vector
+
+!==================================================================================================
+subroutine vlrfe_evaluate_fe_function_scalar( this,                      &
+                                                             &  actual_cell_interpolation, &
+                                                             &  nodal_values,              &
+                                                             &  quadrature_points_values)
+  implicit none
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  real(rp)                        , intent(in)    :: nodal_values(:)
+  real(rp)                        , intent(inout) :: quadrature_points_values(:)
+  integer(ip) :: qpoint, ishape
+
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for vector field unknowns '
+  check( .false. )
+
+end subroutine vlrfe_evaluate_fe_function_scalar
+
+!==================================================================================================
+subroutine vlrfe_evaluate_fe_function_vector( this,                      &
+                                                             &  actual_cell_interpolation, &
+                                                             &  nodal_values,              &
+                                                             &  quadrature_points_values)
+  implicit none
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  real(rp)                        , intent(in)    :: nodal_values(:)
+  type(vector_field_t)            , intent(inout) :: quadrature_points_values(:)
+  integer(ip) :: qpoint, inode, icomp, inode_scalar
+  
+  do qpoint = 1, actual_cell_interpolation%number_quadrature_points
+     call quadrature_points_values(qpoint)%init(0.0_rp)
+     do inode = 1, this%number_shape_functions
+        call quadrature_points_values(qpoint)%add( & 
+             actual_cell_interpolation%shape_functions(:,inode,qpoint)*nodal_values(inode) )
+     end do
+  end do
+
+end subroutine vlrfe_evaluate_fe_function_vector
+
+!==================================================================================================
+subroutine vlrfe_evaluate_fe_function_tensor( this,                      &
+                                                             &  actual_cell_interpolation, &
+                                                             &  nodal_values,              &
+                                                             &  quadrature_points_values)
+  implicit none
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  real(rp)                        , intent(in)    :: nodal_values(:)
+  type(tensor_field_t)            , intent(inout) :: quadrature_points_values(:)
+
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for tensor field unknowns '
+  check( .false. )
+
+end subroutine vlrfe_evaluate_fe_function_tensor
+
+!**************************************************************************************************
+! Concrete TBPs of this derived data type
+!**************************************************************************************************
+
+!==================================================================================================
+subroutine vlrfe_apply_femap_to_interpolation(this,map,ref,phy)
+  implicit none
+  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(fe_map_t)                  , intent(in)    :: map
+  type(interpolation_t)           , intent(in)    :: ref
+  type(interpolation_t)           , intent(inout) :: phy
+  real(rp), allocatable :: wmat1(:,:,:)
+  real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
+  integer(ip) :: ndime,nnode,nlocs,ntens
+  integer(ip) :: ilocs,inode,idime,jdime
+
+  ndime = ref%number_dimensions
+  ntens = ref%number_entries_symmetric_tensor
+  nlocs = ref%number_quadrature_points
+  !nnode = ref%number_shape_functions
+  nnode = size(ref%shape_functions,2)
+
+  ! Shape functions do not change
+  !phy%shape_functions = ref%shape_functions 
+
+  ! First derivatives do
+  !if(phy%kder==1) then
+  phy%shape_derivatives=0.0_rp
+  do ilocs=1,phy%number_quadrature_points
+     do inode=1,this%number_shape_functions
+        do idime=1,this%number_dimensions
+           do jdime=1,this%number_dimensions
+              phy%shape_derivatives(idime,jdime,inode,ilocs) = phy%shape_derivatives(idime,jdime,inode,ilocs) &
+                   + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(idime,jdime,inode,ilocs)
+              end do
+        end do
+     end do
+  end do
+  !end if
+
+  !! Second derivatives are
+  !!
+  !!    d^2 N / d x_i d x_j
+  !!       = (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j)
+  !!       + (d N / d s_k) (d^2 s_k / d x_i d x_j) 
+  !!
+  !if( khes ) then
+  !   call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
+  !   call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
+  !   do ilocs=1,nlocs
+  !      if( khes ) then
+  !         ! Transforms the array HESSI to a symmetric matrix WMAT1
+  !         do inode=1,nnode
+  !            do itens = 1, ntens
+  !               wvec1(itens) = ref%hessian(1,itens,inode,ilocs)
+  !            end do
+  !            call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
+  !         end do
+  !         ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
+  !         do inode=1,nnode
+  !            call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
+  !                 &        ndime,ndime)
+  !         end do
+  !      end if
+  !      if( khes ) then
+  !         ! Add second cartesian derivatives of the map times 
+  !         ! first derivatives of shape functions
+  !         do inode=1,nnode
+  !            do idime=1,ndime
+  !               do jdime=1,ndime
+  !                  do kdime=1,ndime
+  !                     wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
+  !                          & + ref%shape_derivatives(1,kdime,inode,ilocs) &
+  !                          &   * map%d2sdx(kdime,idime,jdime,ilocs)
+  !                  end do
+  !               end do
+  !            end do
+  !         end do
+  !      end if
+
+  !      ! Writes the Hessian matrix as an array
+  !      do inode=1,nnode
+  !         do itens = 1, ntens
+  !            wvec1(itens) = phy%hessian(1,itens,inode,ilocs)
+  !         end do
+  !         call store_symmetric_matrix_as_vector(wmat2(1,1,inode),wvec1,ndime,ntens)
+  !      end do
+  !   end do
+  !   call memfree(wmat1,__FILE__,__LINE__)
+  !   call memfree(wmat2,__FILE__,__LINE__)
+  !end if
+end subroutine vlrfe_apply_femap_to_interpolation
+
+

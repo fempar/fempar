@@ -364,8 +364,8 @@ subroutine node_array_fill ( this )
   call sort( c, this%node_array )    
   write(*,*) 'node_array',this%node_array
   do i =1,c
-     write(*,*) 'n-face(',i,') :'
-     write(*,'(B32)') this%node_array(i)
+     !write(*,*) 'n-face(',i,') :'
+     !write(*,'(B32)') this%node_array(i)
      this%ijk_to_index( this%node_array(i) ) = i
   end do
 end subroutine node_array_fill

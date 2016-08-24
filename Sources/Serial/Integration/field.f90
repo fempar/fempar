@@ -44,7 +44,9 @@ module field_names
      generic :: init  => vector_field_init_with_scalar, vector_field_init_with_vector
      procedure, non_overridable :: set       => vector_field_set
      procedure, non_overridable :: get       => vector_field_get
-     procedure, non_overridable :: add       => vector_field_add
+     procedure, non_overridable :: vector_field_add_scalar
+     procedure, non_overridable :: vector_field_add_vector
+     generic :: add  => vector_field_add_scalar, vector_field_add_vector
      procedure, non_overridable :: nrm2      => vector_field_nrm2
      procedure, non_overridable :: get_value => vector_field_get_value
   end type vector_field_t
@@ -57,7 +59,9 @@ module field_names
      private
      real(rp)  :: value(SPACE_DIM,SPACE_DIM) = 0.0_rp
    contains
-     procedure, non_overridable :: init  => tensor_field_init
+     procedure, non_overridable :: tensor_field_init_with_scalar
+     procedure, non_overridable :: tensor_field_init_with_tensor
+     generic :: init  => tensor_field_init_with_scalar, tensor_field_init_with_tensor
      procedure, non_overridable :: set   => tensor_field_set
      procedure, non_overridable :: get   => tensor_field_get
      procedure, non_overridable :: add   => tensor_field_add
@@ -160,13 +164,20 @@ contains
     value = this%value(i)
   end function vector_field_get
 
-  subroutine vector_field_add(this,i,value)
+  subroutine vector_field_add_scalar(this,i,value)
     implicit none
     class(vector_field_t), intent(inout) :: this
     integer(ip)          , intent(in)    :: i
     real(rp)             , intent(in)    :: value
     this%value(i) = this%value(i) + value
-  end subroutine vector_field_add
+  end subroutine vector_field_add_scalar
+  
+  subroutine vector_field_add_vector(this,value)
+    implicit none
+    class(vector_field_t), intent(inout) :: this
+    real(rp)             , intent(in)    :: value(SPACE_DIM)
+    this%value = this%value + value
+  end subroutine vector_field_add_vector
 
   function vector_field_nrm2(this)
     implicit none
@@ -191,12 +202,19 @@ contains
     call new_vector_field%init(value)
   end function vector_field_constructor
 
-  subroutine tensor_field_init(this,value)
+  subroutine tensor_field_init_with_scalar(this,value)
     implicit none
     class(tensor_field_t), intent(inout) :: this
     real(rp)             , intent(in)    :: value
     this%value = value
-  end subroutine tensor_field_init
+  end subroutine tensor_field_init_with_scalar
+  
+  subroutine tensor_field_init_with_tensor(this,value)
+    implicit none
+    class(tensor_field_t), intent(inout) :: this
+    real(rp)             , intent(in)    :: value(SPACE_DIM,SPACE_DIM)
+    this%value = value
+  end subroutine tensor_field_init_with_tensor
 
   subroutine tensor_field_set(this,i,j,value)
     implicit none
