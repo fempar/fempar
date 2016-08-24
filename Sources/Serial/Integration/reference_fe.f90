@@ -94,7 +94,7 @@ module reference_fe_names
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type interpolation_t
-     !private
+     private
      integer(ip)                ::  &
           number_dimensions,        &      
           number_shape_functions,   &      

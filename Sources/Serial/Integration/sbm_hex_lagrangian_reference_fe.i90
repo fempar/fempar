@@ -713,18 +713,17 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
     
     integer(ip) :: idime, q_point
         
-    tensor_product_polynomial_space%number_dimensions = this%number_dimensions
     do idime=1,this%number_dimensions
-       call polynomial_1D%generate_basis( this%order, polynomial_1D_basis(idime)%polynomials)
+       call polynomial_1D%generate_basis( this%order, polynomial_1D_basis(idime) )
     end do
     
     call tensor_product_polynomial_space%create(this%number_dimensions,polynomial_1D_basis)
     call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
 
-    assert ( this%number_shape_functions == tensor_product_polynomial_space%number_polynomials )
+    assert ( this%number_shape_functions == tensor_product_polynomial_space%get_number_polynomials() )
     
-    call memalloc(tensor_product_polynomial_space%number_polynomials,tensor_product_values,__FILE__,__LINE__)
-    call memalloc(SPACE_DIM,tensor_product_polynomial_space%number_polynomials,tensor_product_gradients,__FILE__,__LINE__)
+    call memalloc(tensor_product_polynomial_space%get_number_polynomials(),tensor_product_values,__FILE__,__LINE__)
+    call memalloc(SPACE_DIM,tensor_product_polynomial_space%get_number_polynomials(),tensor_product_gradients,__FILE__,__LINE__)
     
     do q_point=1, quadrature%get_number_quadrature_points()
        do idime = 1, this%number_dimensions

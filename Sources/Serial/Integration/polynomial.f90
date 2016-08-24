@@ -37,22 +37,24 @@ module polynomial_names
   integer(ip), parameter :: NUM_POLY_DERIV = 3
 
   type :: polynomial_t
-     !private
+     private
      integer(ip)           :: order
      real(rp), allocatable :: coefficients(:)
    contains
-     procedure, non_overridable :: free => polynomial_free
+     procedure, non_overridable         :: create          => polynomial_create
+     procedure, non_overridable         :: free            => polynomial_free
      procedure, non_overridable         :: get_values      => polynomial_get_values
-     procedure, nopass, non_overridable :: generate_basis => polynomial_generate_basis
+     procedure, nopass                  :: generate_basis  => polynomial_generate_basis
      ! procedure ( polynomial_assign_interface), deferred :: assign
      ! generic(=) :: assign
   end type polynomial_t
 
   type :: polynomial_allocatable_array_t
-     !private
+     private
      class(polynomial_t), allocatable :: polynomials(:)
    contains
-     procedure, non_overridable :: free => polynomial_allocatable_array_free
+     procedure, non_overridable :: create => polynomial_allocatable_array_create
+     procedure, non_overridable :: free   => polynomial_allocatable_array_free
   end type polynomial_allocatable_array_t
 
   ! type, extends(polynomial_t) :: lagrange_polynomial_t
@@ -63,7 +65,7 @@ module polynomial_names
   ! end type lagrange_polynomial_t
   
   type :: tensor_product_polynomial_space_t
-     !private
+     private
      integer(ip)                          :: number_dimensions
      integer(ip)                          :: number_polynomials
      integer(ip)                          :: number_pols_dim(SPACE_DIM)
@@ -74,6 +76,8 @@ module polynomial_names
      procedure, non_overridable :: fill     => tensor_product_polynomial_space_fill
      procedure, non_overridable :: evaluate => tensor_product_polynomial_space_evaluate
      procedure, non_overridable :: free     => tensor_product_polynomial_space_free
+     procedure, non_overridable :: get_number_polynomials => tensor_product_polynomial_space_get_number_polynomials
+     
   end type tensor_product_polynomial_space_t
   ! Note: The vector space built from tensor_product_polynomial_space_t is going to be
   ! at the reference_fe implementation of RT and Nedelec.
@@ -108,30 +112,29 @@ contains
 ! ===================================================================================================
 subroutine polynomial_generate_basis ( order, basis )
   implicit none
-  integer(ip)                     , intent(in)    :: order
-  class(polynomial_t), allocatable, intent(inout) :: basis(:)
-  type(polynomial_t) , allocatable :: aux_basis(:)
+  integer(ip)                         , intent(in)    :: order
+  type(polynomial_allocatable_array_t), intent(inout) :: basis
   integer(ip) :: i,j,istat
   real(rp) :: node_coordinates(order+1)
-  allocate( aux_basis(order+1), stat=istat)
+  type(polynomial_t) :: mold_polynomial
+  
+  call basis%create (order+1, mold_polynomial )
   do i = 0,order
      node_coordinates(i+1) = i
   end do
   node_coordinates = (2.0_rp/order)*node_coordinates-1.0_rp
   do i=1,order+1
-     aux_basis(i)%order = order
-     call memalloc(order+1, aux_basis(i)%coefficients, __FILE__, __LINE__)
-     aux_basis(i)%coefficients(1:i-1) = node_coordinates(1:i-1)
-     aux_basis(i)%coefficients(i:order) = node_coordinates(i+1:order+1)
-     aux_basis(i)%coefficients(order+1)  = 1.0_rp
+     call basis%polynomials(i)%create(order)
+     basis%polynomials(i)%coefficients(1:i-1) = node_coordinates(1:i-1)
+     basis%polynomials(i)%coefficients(i:order) = node_coordinates(i+1:order+1)
+     basis%polynomials(i)%coefficients(order+1)  = 1.0_rp
      do j = 1,order+1
         if ( j /= i ) then
-           aux_basis(i)%coefficients(order+1) = aux_basis(i)%coefficients(order+1)*(node_coordinates(i)-node_coordinates(j))
+           basis%polynomials(i)%coefficients(order+1) = basis%polynomials(i)%coefficients(order+1)*(node_coordinates(i)-node_coordinates(j))
         end if
      end do
-     aux_basis(i)%coefficients(order+1) = 1/aux_basis(i)%coefficients(order+1)
+     basis%polynomials(i)%coefficients(order+1) = 1/basis%polynomials(i)%coefficients(order+1)
   end do
-  call move_alloc(from=aux_basis,to=basis)
 end subroutine polynomial_generate_basis
 
 ! Compute the 1d shape function and n-th derivatives on ALL gauss points for ALL Lagrange polynomials
@@ -152,8 +155,17 @@ end subroutine polynomial_generate_basis
     p_x = p_x*this%coefficients(this%order+1)
   end subroutine polynomial_get_values
   
+  subroutine polynomial_create ( this, order )
+    class(polynomial_t), intent(inout) :: this
+    integer(ip)        , intent(in)    :: order 
+    call this%free()
+    this%order = order
+    call memalloc(order+1, this%coefficients, __FILE__, __LINE__)
+  end subroutine polynomial_create
+  
   subroutine polynomial_free ( this )
-    class(polynomial_t), intent(in)    :: this
+    class(polynomial_t), intent(inout)    :: this
+    this%order = -1
     if ( allocated(this%coefficients) ) call memfree( this%coefficients, __FILE__, __LINE__ )
   end subroutine polynomial_free
   
@@ -242,6 +254,15 @@ end subroutine polynomial_generate_basis
     end do    
   end subroutine tensor_product_polynomial_space_evaluate   
   
+  subroutine polynomial_allocatable_array_create ( this, number_polynomials, mold_polynomial )
+   implicit none
+   class(polynomial_allocatable_array_t), intent(inout)    :: this
+   integer(ip), intent(in)  :: number_polynomials
+   class(polynomial_t), intent(in) :: mold_polynomial
+   call this%free()
+   allocate ( this%polynomials(number_polynomials), mold=mold_polynomial )
+  end subroutine polynomial_allocatable_array_create
+  
   subroutine polynomial_allocatable_array_free( this )
     implicit none
     class(polynomial_allocatable_array_t), intent(inout)    :: this
@@ -264,6 +285,13 @@ end subroutine polynomial_generate_basis
     call this%polynomial_1D_basis(i)%free()
     end do
   end subroutine tensor_product_polynomial_space_free
+  
+  function tensor_product_polynomial_space_get_number_polynomials ( this ) result(num_poly)
+    implicit none
+    class(tensor_product_polynomial_space_t), intent(in)    :: this
+    integer(ip) :: num_poly
+    num_poly = this%number_polynomials
+  end function tensor_product_polynomial_space_get_number_polynomials 
   
   !! lagrangian_reference_fe_t TBPS
   !!===================================================================================
