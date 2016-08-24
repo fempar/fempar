@@ -1718,6 +1718,13 @@ subroutine bst_print ( this )
        check(istat == 0)
       end if
       
+      do icell=1, max_num_reference_fes_geo
+         if(associated(this%reference_fe_geo_list(icell)%p)) then
+           call this%reference_fe_geo_list(icell)%p%free()
+           nullify(this%reference_fe_geo_list(icell)%p)
+         endif
+      enddo
+      
       nullify(this%p_env)
      
    end subroutine bst_free
