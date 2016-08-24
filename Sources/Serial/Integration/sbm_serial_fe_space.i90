@@ -1201,6 +1201,15 @@ function serial_fe_space_get_block_number_dofs ( this, block_id )
   serial_fe_space_get_block_number_dofs  = this%number_dofs_per_block(block_id)
 end function serial_fe_space_get_block_number_dofs
 
+function serial_fe_space_get_num_dimensions ( this )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip)                          :: serial_fe_space_get_num_dimensions
+  class(base_static_triangulation_t), pointer :: triangulation
+  triangulation => this%get_triangulation()
+  serial_fe_space_get_num_dimensions = triangulation%get_num_dimensions()
+end function serial_fe_space_get_num_dimensions
+
 ! Returns the sum of the number of DoFs associated to all fields
 function serial_fe_space_get_total_number_dofs ( this )
   implicit none

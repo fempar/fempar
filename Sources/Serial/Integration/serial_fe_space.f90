@@ -335,6 +335,7 @@ module fe_space_names
      procedure                 , private :: renumber_dofs_block                          => serial_fe_space_renumber_dofs_block
  
      ! Getters
+     procedure                           :: get_num_dimensions                           => serial_fe_space_get_num_dimensions
      procedure                           :: get_total_number_dofs                        => serial_fe_space_get_total_number_dofs
      procedure                           :: get_field_number_dofs                        => serial_fe_space_get_field_number_dofs
      procedure                           :: get_block_number_dofs                        => serial_fe_space_get_block_number_dofs
@@ -427,6 +428,7 @@ module fe_space_names
    procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => pfs_compute_ubound_num_itfc_couplings_by_face_integ
    procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_gid                => par_fe_space_generate_non_consecutive_dof_gid
    procedure        , non_overridable          :: get_block_dof_import                            => par_fe_space_get_block_dof_import
+   procedure                                   :: get_num_dimensions                              => par_fe_space_get_num_dimensions
    procedure                                   :: get_total_number_dofs                           => par_fe_space_get_total_number_dofs
    procedure                                   :: get_field_number_dofs                           => par_fe_space_get_field_number_dofs
    procedure                                   :: get_block_number_dofs                           => par_fe_space_get_block_number_dofs

@@ -75,6 +75,7 @@ module test_poisson_driver_names
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
      procedure        , private :: check_solution
+     procedure        , private :: print_error_norms
      procedure        , private :: free
   end type test_vector_poisson_driver_t
 
@@ -105,8 +106,8 @@ contains
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet,                                     &
-                                                 fe_type = fe_type_vector_lagrangian,                                &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,                                     &
+                                                 fe_type = fe_type_lagrangian,                                &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = 1,                                                   &
                                                  field_type = field_type_vector,                              &
@@ -198,6 +199,29 @@ contains
     deallocate(exact_solution_vector)
    
   end subroutine check_solution
+  
+    subroutine print_error_norms(this)
+    implicit none
+    class(test_vector_poisson_driver_t), intent(inout) :: this
+    type(constant_vector_function_t) :: constant_function
+    type(error_norms_vector_t) :: error_norm
+    call constant_function%create(vector_field_t([1.0_rp,1.0_rp,0.0_rp]))
+    call error_norm%create(this%fe_space,1)
+    write(*,'(a20,e32.25)') 'mean_norm:', error_norm%compute(constant_function, this%solution, mean_norm)   
+    write(*,'(a20,e32.25)') 'l1_norm:', error_norm%compute(constant_function, this%solution, l1_norm)   
+    write(*,'(a20,e32.25)') 'l2_norm:', error_norm%compute(constant_function, this%solution, l2_norm)   
+    write(*,'(a20,e32.25)') 'lp_norm:', error_norm%compute(constant_function, this%solution, lp_norm)   
+    write(*,'(a20,e32.25)') 'linfnty_norm:', error_norm%compute(constant_function, this%solution, linfty_norm)   
+    write(*,'(a20,e32.25)') 'h1_seminorm:', error_norm%compute(constant_function, this%solution, h1_seminorm)   
+    write(*,'(a20,e32.25)') 'h1_norm:', error_norm%compute(constant_function, this%solution, h1_norm)   
+    write(*,'(a20,e32.25)') 'hdiv_seminorm:', error_norm%compute(constant_function, this%solution, hdiv_seminorm)   
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', error_norm%compute(constant_function, this%solution, w1p_seminorm)   
+    write(*,'(a20,e32.25)') 'w1p_norm:', error_norm%compute(constant_function, this%solution, w1p_norm)   
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', error_norm%compute(constant_function, this%solution, w1infty_seminorm)   
+    write(*,'(a20,e32.25)') 'w1infty_norm:', error_norm%compute(constant_function, this%solution, w1infty_norm)   
+    call error_norm%free()
+  end subroutine print_error_norms 
+  
 
   subroutine run_simulation(this) 
     implicit none
@@ -213,6 +237,7 @@ contains
     call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
     call this%check_solution()
+    call this%print_error_norms()
     call this%free()
   end subroutine run_simulation
 

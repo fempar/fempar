@@ -517,6 +517,16 @@ function par_fe_space_get_block_dof_import ( this, block_id )
   par_fe_space_get_block_dof_import => this%blocks_dof_import(block_id)
 end function par_fe_space_get_block_dof_import
 
+function par_fe_space_get_num_dimensions ( this )
+  implicit none
+  class(par_fe_space_t), intent(in) :: this
+  integer(ip)                       :: par_fe_space_get_num_dimensions
+  type(par_environment_t), pointer :: par_environment
+  par_environment => this%get_par_environment()
+  if ( par_environment%am_i_l1_task() ) then
+     par_fe_space_get_num_dimensions = this%serial_fe_space_t%get_num_dimensions()
+  end if
+end function par_fe_space_get_num_dimensions
 
 function par_fe_space_get_total_number_dofs ( this )
    implicit none
