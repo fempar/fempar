@@ -30,14 +30,14 @@ module mesh_names
   use memor_names
   use list_types_names
   use hash_table_names
-  !use materials_names
   use stdio_names
   use reference_fe_names
   use reference_fe_factory_names
-  !use conditions_names
   use mesh_distribution_names
   use metis_interface_names
   use rcm_renumbering_names
+  use postpro_names
+  use FPL
   implicit none
 # include "debug.i90"
   private
@@ -123,6 +123,7 @@ module mesh_names
 
   ! Functions
   public :: mesh_write_file, mesh_write_files, mesh_write_files_for_postprocess
+  public :: mesh_distribution_write_for_postprocess
 
 contains
 
@@ -613,18 +614,34 @@ contains
   end subroutine mesh_compose_post_name
 
   !=============================================================================
-  subroutine mesh_write_files ( dir_path, prefix, nparts, lmesh )
+  subroutine mesh_write_files ( parameter_list, lmesh )   ! dir_path, prefix, nparts, lmesh )
      implicit none
      ! Parameters 
-     character(*)   , intent(in)  :: dir_path 
-     character(*)   , intent(in)  :: prefix
-     integer(ip)     , intent(in)  :: nparts
-     type(mesh_t)  , intent(in)  :: lmesh (nparts)
+     type(ParameterList_t), intent(in) :: parameter_list
+     type(mesh_t)         , intent(in) :: lmesh (:)
 
-     character(len=:), allocatable :: name, rename ! Deferred-length allocatable character arrays
+     ! Locals
+     integer(ip)          :: nparts
+     integer(ip)          :: istat
+     logical              :: is_present
+     character(len=256)   :: dir_path
+     character(len=256)   :: prefix
+     character(len=:), allocatable  :: name, rename
+     integer(ip)                    :: lunio
+     integer(ip)                    :: i
 
-     ! Locals 
-     integer (ip) :: i,lunio
+     nparts = size(lmesh)
+
+     ! Mandatory parameters
+     is_present = .true.
+     is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
+     is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
+     assert(is_present)
+     
+     istat = 0
+     istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
+     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
+     check(istat==0)
 
      call mesh_compose_name ( prefix, name )
 
@@ -641,17 +658,34 @@ contains
    end subroutine mesh_write_files
 
   !=============================================================================
-  subroutine mesh_write_files_for_postprocess ( dir_path, prefix, nparts, lmesh )
+  subroutine mesh_write_files_for_postprocess ( parameter_list, lmesh ) ! dir_path, prefix, nparts, lmesh )
      implicit none
      ! Parameters 
-     character(*)    , intent(in)  :: dir_path 
-     character(*)    , intent(in)  :: prefix
-     integer(ip)     , intent(in)  :: nparts
-     type(mesh_t)    , intent(in)  :: lmesh (nparts)
-     character(len=:), allocatable :: name, rename ! Deferred-length allocatable character arrays
+     type(ParameterList_t), intent(in) :: parameter_list
+     type(mesh_t)         , intent(in) :: lmesh (:)
 
-     ! Locals 
-     integer (ip) :: i,lunio
+     ! Locals
+     integer(ip)          :: nparts
+     integer(ip)          :: istat
+     logical              :: is_present
+     character(len=256)   :: dir_path
+     character(len=256)   :: prefix
+     character(len=:), allocatable   :: name, rename
+     integer(ip)                    :: lunio
+     integer(ip)                    :: i
+
+     nparts = size(lmesh)
+
+     ! Mandatory parameters
+     is_present = .true.
+     is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
+     is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
+     assert(is_present)
+     
+     istat = 0
+     istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
+     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
+     check(istat==0)
 
      do i=nparts, 1, -1  
         name=prefix
@@ -664,19 +698,85 @@ contains
      
    end subroutine mesh_write_files_for_postprocess
 
+
   !=============================================================================
-   subroutine mesh_read_files ( dir_path, prefix, nparts, lmesh )
+  subroutine mesh_distribution_write_for_postprocess ( parameter_list, gmesh, parts )
+    implicit none
+    ! Parameters
+    type(ParameterList_t)    , intent(in) :: parameter_list
+    type(mesh_t)             , intent(in) :: gmesh
+    type(mesh_distribution_t), intent(in) :: parts(:)
+
+    ! Locals
+    integer(ip)          :: nparts
+    integer(ip)          :: istat
+    logical              :: is_present
+    character(len=256)   :: dir_path
+    character(len=256)   :: prefix
+    character(len=256)   :: name, rename
+    integer(ip)                    :: lunio
+    integer(ip)                    :: i,j
+    integer(ip), allocatable       :: ldome(:)
+    type(post_file_t)              :: lupos
+
+    nparts = size(parts)
+
+    ! Mandatory parameters
+    is_present = .true.
+    is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
+    is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
+    assert(is_present)
+     
+    istat = 0
+    istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
+    istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
+    check(istat==0)
+
+
+    ! Output domain partition to GiD file
+    call memalloc (gmesh%nelem, ldome, __FILE__,__LINE__)
+    do i=1, nparts
+       do j=1, parts(i)%num_local_cells
+          ldome(parts(i)%l2g_cells(j)) = i
+       end do
+    end do
+    name = trim(dir_path)// '/' // trim(prefix) // '.post.res'
+    call postpro_open_file(1,name,lupos)
+    call postpro_gp_init(lupos,1,gmesh%nnode,gmesh%ndime)
+    call postpro_gp(lupos,gmesh%ndime,gmesh%nnode,ldome,'EDOMS',1,1.0)
+    call postpro_close_file(lupos)
+    call memfree (ldome,__FILE__,__LINE__)
+    
+  end subroutine mesh_distribution_write_for_postprocess
+
+  !=============================================================================
+   subroutine mesh_read_files ( parameter_list, nparts, lmesh ) !    dir_path, prefix, nparts, lmesh )
      implicit none
      ! Parameters 
-     character(*), intent(in)       :: dir_path 
-     character(*), intent(in)       :: prefix
-     integer(ip)   , intent(in)     :: nparts
-     type(mesh_t), intent(out)    :: lmesh (nparts)
-     character(len=:), allocatable  :: name, rename ! Deferred-length allocatable character arrays
+     type(ParameterList_t), intent(in)  :: parameter_list
+     integer(ip)          , intent(in)  :: nparts
+     type(mesh_t)         , intent(out) :: lmesh (nparts)
+
+     ! Locals
+     integer(ip)          :: istat
+     logical              :: is_present
+     character(len=256)   :: dir_path
+     character(len=256)   :: prefix
+     character(len=:), allocatable   :: name, rename
+     integer(ip)                    :: lunio
+     integer(ip)                    :: i
+
+     ! Mandatory parameters
+     is_present = .true.
+     is_present =  is_present.and. parameter_list%isPresent(key = dir_path_key)
+     is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
+     assert(is_present)
      
-     ! Locals 
-     integer (ip)                     :: i,lunio
-     
+     istat = 0
+     istat = istat + parameter_list%get(key = dir_path_key, value = dir_path)
+     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
+     check(istat==0)
+    
      call mesh_compose_name ( prefix, name )
      do i=nparts, 1, -1  
         rename=name
@@ -689,35 +789,64 @@ contains
    end subroutine mesh_read_files
 
   !=============================================================================
-   subroutine mesh_read_from_file (f_mesh,  dir_path, prefix ) !, permute_c2z
+   subroutine mesh_read_from_file (f_mesh, parameter_list)   ! ,  dir_path, prefix ) !, permute_c2z
      implicit none 
-     ! Parameters
-     character (*)                , intent(in)  :: dir_path
-     character (*)                , intent(in)  :: prefix
-     class(mesh_t)                , intent(out) :: f_mesh
-     !logical, optional, intent(in)  :: permute_c2z
+     class(mesh_t)        , intent(out) :: f_mesh
+     type(ParameterList_t), intent(in)    :: parameter_list
      ! Locals
+     integer(ip)          :: istat
+     logical              :: is_present
+     character(len=256)   :: dir_path
+     character(len=256)   :: prefix
+     character(len=:), allocatable   :: name
      integer(ip)                    :: lunio
-     character(len=:), allocatable  :: name
+
+     ! Mandatory parameters
+     is_present = .true.
+     is_present =  is_present.and. parameter_list%isPresent(key = dir_path_key)
+     is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
+     assert(is_present)
+     
+     istat = 0
+     istat = istat + parameter_list%get(key = dir_path_key, value = dir_path)
+     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
+     check(istat==0)
 
      ! Read mesh
      call mesh_compose_name ( prefix, name )
      lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )
      call f_mesh%read(lunio)  !, permute_c2z
      call io_close(lunio)
+
    end subroutine mesh_read_from_file
 
    !=============================================================================
-   subroutine mesh_write_file_for_postprocess ( f_mesh, dir_path, prefix)
+   subroutine mesh_write_file_for_postprocess ( f_mesh, parameter_list)   !  , dir_path, prefix)
      implicit none 
      ! Parameters
-     character (*)                , intent(in)  :: dir_path
-     character (*)                , intent(in)  :: prefix
-     class(mesh_t)                , intent(in)  :: f_mesh
+     !character (*)                , intent(in)  :: dir_path
+     !character (*)                , intent(in)  :: prefix
+     class(mesh_t)        , intent(in) :: f_mesh
+     type(ParameterList_t), intent(in) :: parameter_list
 
      ! Locals
+     integer(ip)          :: istat
+     logical              :: is_present
+     character(len=256)   :: dir_path
+     character(len=256)   :: prefix
+     character(len=:), allocatable   :: name
      integer(ip)                    :: lunio
-     character(len=:), allocatable  :: name
+
+     ! Mandatory parameters
+     is_present = .true.
+     is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
+     is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
+     assert(is_present)
+     
+     istat = 0
+     istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
+     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
+     check(istat==0)
 
      call mesh_compose_post_name ( prefix, name )
      lunio = io_open( trim(dir_path)//'/'//trim(name), 'write' )
@@ -726,19 +855,22 @@ contains
 
    end subroutine mesh_write_file_for_postprocess
 
-  subroutine create_mesh_distribution( femesh, prt_pars, distr, lmesh)
+  !subroutine create_mesh_distribution( femesh, prt_pars, distr, lmesh)
+  subroutine create_mesh_distribution( femesh, parameters, distr, lmesh)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
     implicit none
 
     ! Parameters
-    class(mesh_t)                   , intent(inout)      :: femesh
-    type(mesh_distribution_params_t), intent(in)         :: prt_pars
+    class(mesh_t)             , intent(inout)      :: femesh
+    type(ParameterList_t)     , intent(in)         :: parameters
     type(mesh_distribution_t) , allocatable, intent(out) :: distr(:) ! Mesh distribution instances
     type(mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
 
     ! Local variables
+    type(mesh_distribution_params_t)                    :: prt_pars
+
     type(list_t)                 :: fe_graph    ! Dual graph (to be partitioned)
     integer(ip)   , allocatable  :: ldome(:)    ! Part of each element
     integer(ip)                  :: ipart
@@ -748,6 +880,10 @@ contains
     real(rp) :: cnorm,vnorm
     integer(ip)   , allocatable  :: weight(:)
     real(rp)      , allocatable  :: coord_i(:),coord_j(:),veloc(:)
+
+
+    ! Get parameters from fpl
+    call prt_pars%get_parameters_from_fpl(parameters)
 
     ! Generate dual mesh (i.e., list of elements around points)
     call femesh%to_dual()

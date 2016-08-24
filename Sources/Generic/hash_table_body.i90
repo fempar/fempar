@@ -139,7 +139,7 @@ recursive subroutine del_hash_node(list,key,stat)
         if(associated(list%parent)) then
            write(*,*) list%parent%key
         end if
-        stat = error
+        stat = child_not_found
         return
      end if
      list%key = list%child%key
@@ -305,7 +305,7 @@ subroutine del_hash_table(tbl,key,stat)
 !$OMP CRITICAL (hash_table_lock)
   call tbl%vec(hash)%del(key=key,stat=stat)
 !$OMP END CRITICAL (hash_table_lock)
-  if (stat == error) then
+  if (stat == child_not_found) then
      call tbl%print
      stop
   end if

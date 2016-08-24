@@ -28,14 +28,15 @@
   subroutine serial_triangulation_create ( this, dir_path, prefix, geometry_interpolation_order)
     implicit none
     class(serial_triangulation_t), intent(inout) :: this
-    character(len=256)           , intent(in)    :: dir_path
-    character(len=256)           , intent(in)    :: prefix
+    character(len=256)             , intent(in)    :: dir_path
+    character(len=256)             , intent(in)    :: prefix
     integer(ip)        , optional, intent(in)    :: geometry_interpolation_order
 
+    type(ParameterList_t) :: parameters  ! TEMPORAL
     type(mesh_t)          :: mesh
     type(list_t), pointer :: given_vefs
     integer(ip) , pointer :: lst_vefs_geo(:), lst_vefs_set(:)
-    integer(ip) :: order
+    integer(ip) :: order, error
 
     call this%free()
 
@@ -47,8 +48,12 @@
     else
        order=1
     end if
-    
-    call mesh%read(dir_path, prefix)
+
+    error = parameters%set(key = dir_path_key, value = dir_path)
+    error = parameters%set(key = prefix_key  , value = prefix)
+    assert(error == 0)
+    call mesh%read(parameters)
+    !call mesh%read(dir_path, prefix)
     !call mesh%to_dual()
     !call mesh%generate_vefs()
 

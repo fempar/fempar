@@ -30,6 +30,7 @@ module uniform_hex_mesh_generator_names
   use types_names
   use memor_names
   use hex_boundary_set_ids_descriptor_names
+  use reference_fe_names
   use FPL
   implicit none
 # include "debug.i90"
@@ -41,19 +42,24 @@ module uniform_hex_mesh_generator_names
   ! GENERATED
 
   ! FPL KEY names
-  character(len=*), parameter :: number_elements_name          = 'number_elements'          
-  character(len=*), parameter :: number_parts_name             = 'number_parts'             
-  character(len=*), parameter :: number_sockets_name           = 'number_sockets'           
-  character(len=*), parameter :: discretization_type_name      = 'discretization_type'      
-  character(len=*), parameter :: periodic_boundaries_name      = 'periodic_boundaries'      
-  character(len=*), parameter :: number_elements_boundary_name = 'number_elements_boundary' 
-  character(len=*), parameter :: material_case_name            = 'material_case'            
-  character(len=*), parameter :: domain_length_name            = 'domain_length'            
-  character(len=*), parameter :: origin_name                   = 'origin'                   
-  character(len=*), parameter :: stretching_parameter_name     = 'stretching_parameter'     
-  character(len=*), parameter :: size_boundary_name            = 'size_boundary'  
-  
-  
+  ! character(len=*), parameter :: number_elements_name          = 'number_elements'          
+  ! character(len=*), parameter :: number_parts_name             = 'number_parts'             
+  ! character(len=*), parameter :: number_sockets_name           = 'number_sockets'           
+  ! character(len=*), parameter :: discretization_type_name      = 'discretization_type'      
+  ! character(len=*), parameter :: periodic_boundaries_name      = 'periodic_boundaries'      
+  ! character(len=*), parameter :: number_elements_boundary_name = 'number_elements_boundary' 
+  ! character(len=*), parameter :: material_case_name            = 'material_case'            
+  ! character(len=*), parameter :: domain_length_name            = 'domain_length'            
+  ! character(len=*), parameter :: origin_name                   = 'origin'                   
+  ! character(len=*), parameter :: stretching_parameter_name     = 'stretching_parameter'     
+  ! character(len=*), parameter :: size_boundary_name            = 'size_boundary'  
+
+  character(len=*), parameter :: number_of_dimensions    = 'number_of_dimensions'
+  character(len=*), parameter :: number_of_cells_per_dir = 'number_of_cells_per_dir'
+  character(len=*), parameter :: number_of_parts_per_dir = 'number_of_parts_per_dir'
+  character(len=*), parameter :: is_dir_periodic         = 'is_dir_periodic'
+  character(len=*), parameter :: interpolation_order     = 'interpolation_order'
+
   ! Formely uniform_mesh_descriptor_t. Provided here for convenience (so that legacy 
   ! code can be re-used here AS IS). However, the user of FEMPAR should not be aware of this 
   ! data type. Instead, it would be better that he uses FPL to parametrize the creation of 
@@ -61,140 +67,102 @@ module uniform_hex_mesh_generator_names
   ! (e.g., one per algorithm/module), using a single one (i.e., FPL) for all of them ...
   type uniform_hex_mesh_descriptor_t 
     private 
-    integer(ip)            ::  &
-          ntdix=0,             &         ! Type of discretization in x (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
-          ntdiy=0,             &         ! Type of discretization in y (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
-          ntdiz=0,             &         ! Type of discretization in z (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
-          mater=0,             &         ! Material case
-          neblx=0,             &         ! Number of elements in the x boundary layer
-          nebly=0,             &         ! Number of elements in the y boundary layer
-          neblz=0,             &         ! Number of elements in the z boundary layer
-          ndime,               &         ! Number of dimensions
-          nparts=1,            &         ! Number of partitions
-          nedir(3),            &         ! Number of elements in each direction
-          npdir(3)=[1,1,1],    &         ! Number of parts on each direction           
-          nsckt(3)=[1,1,1],    &         ! Number of parts on each socket and direction
-          isper(3)=[0,0,0],    &         ! Flag for periodic boundary conditions on each direction
-          pdegr=1                        ! Order of interpolation
-    real(rp)               :: &
-          xleng   = 1.0_rp,    &         ! Size of the domain in x
-          yleng   = 1.0_rp,    &         ! Size of the domain in y
-          zleng   = 1.0_rp,    &         ! Size of the domain in z
-          zx1     = 0.1_rp,    &         ! size of the elements at x=0   (left)  
-          zx2     = 0.1_rp,    &         ! size of the elements at x=a/2 (center)
-          zy1     = 0.1_rp,    &         ! size of the elements at y=0   (bottom)
-          zy2     = 0.1_rp,    &         ! size of the elements at y=b/2 (center)
-          x0      = 0.0_rp,    &         ! Origin x-coordinate
-          y0      = 0.0_rp,    &         ! Origin y-coordinate
-          z0      = 0.0_rp,    &         ! Origin z-coordinate
-          xstret  = 2.75_rp,   &         ! Stretching parameter
-          ystret  = 2.75_rp,   &         ! Stretching parameter
-          zstret  = 2.75_rp,   &         ! Stretching parameter
-          xlengbl = 0.0_rp,    &         ! Size of the boundary layer in x
-          ylengbl = 0.0_rp,    &         ! Size of the boundary layer in y
-          zlengbl = 0.0_rp               ! Size of the boundary layer in z
+    integer(ip) :: number_of_dimensions
+    integer(ip) :: interpolation_order
+    integer(ip) :: number_of_cells_per_dir(SPACE_DIM)
+    integer(ip) :: number_of_parts_per_dir(SPACE_DIM)
+    logical     :: is_dir_periodic(SPACE_DIM)
+
+    ! integer(ip)            ::  &
+    !       ntdix=0,             &         ! Type of discretization in x (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
+    !       ntdiy=0,             &         ! Type of discretization in y (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
+    !       ntdiz=0,             &         ! Type of discretization in z (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
+    !       mater=0,             &         ! Material case
+    !       neblx=0,             &         ! Number of elements in the x boundary layer
+    !       nebly=0,             &         ! Number of elements in the y boundary layer
+    !       neblz=0,             &         ! Number of elements in the z boundary layer
+    !       ndime,               &         ! Number of dimensions
+    !       nparts=1,            &         ! Number of partitions
+    !       nedir(3),            &         ! Number of elements in each direction
+    !       npdir(3)=[1,1,1],    &         ! Number of parts on each direction           
+    !       nsckt(3)=[1,1,1],    &         ! Number of parts on each socket and direction
+    !       isper(3)=[0,0,0],    &         ! Flag for periodic boundary conditions on each direction
+    !       pdegr=1                        ! Order of interpolation
+    ! real(rp)               :: &
+    !       xleng   = 1.0_rp,    &         ! Size of the domain in x
+    !       yleng   = 1.0_rp,    &         ! Size of the domain in y
+    !       zleng   = 1.0_rp,    &         ! Size of the domain in z
+    !       zx1     = 0.1_rp,    &         ! size of the elements at x=0   (left)  
+    !       zx2     = 0.1_rp,    &         ! size of the elements at x=a/2 (center)
+    !       zy1     = 0.1_rp,    &         ! size of the elements at y=0   (bottom)
+    !       zy2     = 0.1_rp,    &         ! size of the elements at y=b/2 (center)
+    !       x0      = 0.0_rp,    &         ! Origin x-coordinate
+    !       y0      = 0.0_rp,    &         ! Origin y-coordinate
+    !       z0      = 0.0_rp,    &         ! Origin z-coordinate
+    !       xstret  = 2.75_rp,   &         ! Stretching parameter
+    !       ystret  = 2.75_rp,   &         ! Stretching parameter
+    !       zstret  = 2.75_rp,   &         ! Stretching parameter
+    !       xlengbl = 0.0_rp,    &         ! Size of the boundary layer in x
+    !       ylengbl = 0.0_rp,    &         ! Size of the boundary layer in y
+    !       zlengbl = 0.0_rp               ! Size of the boundary layer in z
   contains   
-    procedure, non_overridable          :: describe_mesh               => uniform_hex_mesh_descriptor_describe_mesh
-    procedure, non_overridable, private :: generate_geom_and_topo_size => uniform_hex_mesh_descriptor_generate_geom_and_topo_size
+    !procedure, non_overridable          :: describe_mesh                => uniform_hex_mesh_descriptor_describe_mesh
+    procedure, non_overridable          :: get_data_from_parameter_list => uniform_hex_mesh_descriptor_get_data_from_parameter_list
+    !procedure, non_overridable, private :: generate_geom_and_topo_size  => uniform_hex_mesh_descriptor_generate_geom_and_topo_size
   end type uniform_hex_mesh_descriptor_t
   
-  ! Private data type (required by helper legacy subroutines)
-  type geom_size_t 
-     integer(ip)            :: &
-          nnode,               &         ! Number of nodes on each element
-          nedir(3),            &         ! Number of elements in each direction
-          npdir(3),            &         ! Number of parts on each direction           
-          nsckt(3),            &         ! Number of parts on each socket and direction
-          npsoc(3),            &         ! Number of sockets on each direction
-          nedom(3),            &         ! Number of elements on each part and direction
-          npdom(3),            &         ! Number of points on each part and direction
-          ncorn(3),            &         ! Number of partition corners on each direction
-          nedge(3,3),          &         ! Number of partition edges on each direction
-          nface(3,3),          &         ! Number of partition faces on each direction
-          npdomt,              &         ! Number of points on each domain
-          nedomt,              &         ! Number of elements on each domain
-          ncornt,              &         ! Number of partition corners on each domain
-          nedget(3),           &         ! Number of edges on each direction
-          nfacet(3),           &         ! Number of faces on each direction
-          nedgett,             &         ! Number of edges on each domain
-          nfacett,             &         ! Number of faces on each domain
-          neghost                        ! Maximum of elements on each domain counting ghosts
-  end type geom_size_t
+  ! ! Private data type (required by helper legacy subroutines)
+  ! type geom_size_t 
+  !    integer(ip)            :: &
+  !         nnode,               &         ! Number of nodes on each element
+  !         nedir(3),            &         ! Number of elements in each direction
+  !         npdir(3),            &         ! Number of parts on each direction           
+  !         nsckt(3),            &         ! Number of parts on each socket and direction
+  !         npsoc(3),            &         ! Number of sockets on each direction
+  !         nedom(3),            &         ! Number of elements on each part and direction
+  !         npdom(3),            &         ! Number of points on each part and direction
+  !         ncorn(3),            &         ! Number of partition corners on each direction
+  !         nedge(3,3),          &         ! Number of partition edges on each direction
+  !         nface(3,3),          &         ! Number of partition faces on each direction
+  !         npdomt,              &         ! Number of points on each domain
+  !         nedomt,              &         ! Number of elements on each domain
+  !         ncornt,              &         ! Number of partition corners on each domain
+  !         nedget(3),           &         ! Number of edges on each direction
+  !         nfacet(3),           &         ! Number of faces on each direction
+  !         nedgett,             &         ! Number of edges on each domain
+  !         nfacett,             &         ! Number of faces on each domain
+  !         neghost                        ! Maximum of elements on each domain counting ghosts
+  ! end type geom_size_t
 
-  ! Private data type (required by helper legacy subroutines)
-  type topo_size_t
-     integer(ip)            :: &
-          notot,               &         ! Total amount of elemental objects of the partition
-          nctot,               &         ! Total amount of elemental corners of the partition
-          ncglb,               &         ! Total amount of elemental corners of the domain
-          noglb,               &         ! Total amount of elemental corners of the domain
-          neglb,               &         ! Total amount of elements of the domain
-          ndtot,               &         ! Total amount of elemental edges of the partition
-          nftot,               &         ! Total amount of elemental faces of the partition
-          nddir(3),            &         ! Total amount of elemental edges of the partition for each direction
-          nfdir(3),            &         ! Total amount of elemental faces of the partition for each direction
-          nddom(3,3),          &         ! # edges for each direction given the edge direction (local)
-          nfdom(3,3),          &         ! # faces for each direction given the face normal direction (local)
-          ndglb(3,3),          &         ! # edges for each direction given the edge direction (global)
-          nfglb(3,3),          &         ! # faces for each direction given the face normal direction (global)
-          ndsum(3),            &         ! Total amount of elemental edges of the domain for each direction
-          nfsum(3)                       ! Total amount of elemental faces of the domain for each direction
-  end type topo_size_t
+  ! ! Private data type (required by helper legacy subroutines)
+  ! type topo_size_t
+  !    integer(ip)            :: &
+  !         notot,               &         ! Total amount of elemental objects of the partition
+  !         nctot,               &         ! Total amount of elemental corners of the partition
+  !         ncglb,               &         ! Total amount of elemental corners of the domain
+  !         noglb,               &         ! Total amount of elemental corners of the domain
+  !         neglb,               &         ! Total amount of elements of the domain
+  !         ndtot,               &         ! Total amount of elemental edges of the partition
+  !         nftot,               &         ! Total amount of elemental faces of the partition
+  !         nddir(3),            &         ! Total amount of elemental edges of the partition for each direction
+  !         nfdir(3),            &         ! Total amount of elemental faces of the partition for each direction
+  !         nddom(3,3),          &         ! # edges for each direction given the edge direction (local)
+  !         nfdom(3,3),          &         ! # faces for each direction given the face normal direction (local)
+  !         ndglb(3,3),          &         ! # edges for each direction given the edge direction (global)
+  !         nfglb(3,3),          &         ! # faces for each direction given the face normal direction (global)
+  !         ndsum(3),            &         ! Total amount of elemental edges of the domain for each direction
+  !         nfsum(3)                       ! Total amount of elemental faces of the domain for each direction
+  ! end type topo_size_t
   
   !interface globalid
   !   module procedure globalid_ip, globalid_igp
   !end interface
   
-  
-  public :: uniform_hex_mesh_descriptor_t
-  public :: uniform_hex_mesh_generator_generate_fempar_triangulation_arrays
+  public :: uniform_hex_mesh_generator_generate_connectivities
   
 contains
 
-  ! Main driver subroutine of this module
-  subroutine uniform_hex_mesh_generator_generate_fempar_triangulation_arrays(part_id,                         &
-                                                                             uniform_hex_mesh_descriptor,     &
-                                                                             hex_boundary_set_ids_descriptor, &
-                                                                             num_local_cells,                 &
-                                                                             num_local_vefs,                  &
-                                                                             ptr_vefs_per_cell,               &
-                                                                             lst_vefs_lids,                   &
-                                                                             vef_lid_to_vertex_lid,           &
-                                                                             cell_gids,                       &
-                                                                             vefs_gids,                       &
-                                                                             vefs_boundary_set_ids,           &
-                                                                             vefs_geometry_ids,               &
-                                                                             vertex_coordinates,              &  
-                                                                             num_itfc_cells,                  &
-                                                                             lst_itfc_cells,                  &
-                                                                             ptr_ext_neighs_per_itfc_cell,    &
-                                                                             lst_ext_neighs_gids,             &
-                                                                             lst_ext_neighs_part_ids)
-                                                                             
-    implicit none
-    integer(ip)                            , intent(in)    :: part_id
-    type(uniform_hex_mesh_descriptor_t)    , intent(in)    :: uniform_hex_mesh_descriptor
-    type(hex_boundary_set_ids_descriptor_t), intent(in)    :: hex_boundary_set_ids_descriptor
-    integer(ip)                            , intent(out)   :: num_local_cells
-    integer(ip)                            , intent(out)   :: num_local_vefs
-    integer(ip)           , allocatable    , intent(inout) :: ptr_vefs_per_cell(:)            ! Size = num_local_cells + 1
-    integer(ip)           , allocatable    , intent(inout) :: lst_vefs_lids(:)                ! Size = ptr_vefs_per_cell(num_local_cells+1)-1
-    integer(ip)           , allocatable    , intent(inout) :: vef_lid_to_vertex_lid(:)        ! Size = num_local_vefs (-1 if vef_lid is not a vertex)
-    integer(igp)          , allocatable    , intent(inout) :: cell_gids(:)                    ! Size = num_local_cells 
-    integer(igp)          , allocatable    , intent(inout) :: vefs_gids(:)                    ! Size = num_local_vefs
-    integer(ip)           , allocatable    , intent(inout) :: vefs_boundary_set_ids(:)        ! Size = num_local_vefs
-    integer(ip)           , allocatable    , intent(inout) :: vefs_geometry_ids(:)            ! Size = num_local_vefs
-    real(rp)              , allocatable    , intent(inout) :: vertex_coordinates(:,:)         ! Size = (number_dimensions, num_local_vertices)
-    integer(ip) , optional                 , intent(out)   :: num_itfc_cells                  ! NONE or ALL OPTIONAL ARGUMENTS MUST BE PRESENT LOGIC
-    integer(ip) , optional, allocatable    , intent(inout) :: lst_itfc_cells(:)               ! Size = num_itfc_cells 
-    integer(ip) , optional, allocatable    , intent(inout) :: ptr_ext_neighs_per_itfc_cell(:) ! Size = num_itfc_cells + 1
-    integer(ip) , optional, allocatable    , intent(inout) :: lst_ext_neighs_gids(:)          ! Size = ptr_ext_neighs_per_itfc_cell(num_itfc_cells + 1)-1
-    integer(ip) , optional, allocatable    , intent(inout) :: lst_ext_neighs_part_ids(:)      ! Size = ptr_ext_neighs_per_itfc_cell(num_itfc_cells + 1)-1
-  end subroutine uniform_hex_mesh_generator_generate_fempar_triangulation_arrays
-
-  ! ********* class(uniform_hex_mesh_descriptor_t) TBPS ********
-  ! ************************************************************
-  subroutine uniform_hex_mesh_descriptor_describe_mesh(this,parameter_list)
+  subroutine uniform_hex_mesh_descriptor_get_data_from_parameter_list(this,parameter_list)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generates geometry data to construct a structured mesh                      !
     !-----------------------------------------------------------------------------------------------!
@@ -202,257 +170,508 @@ contains
     class(uniform_hex_mesh_descriptor_t), intent(inout) :: this
     type(ParameterList_t)               , intent(in)    :: parameter_list
     ! Locals
-    integer(ip)          :: istat,mc
-    integer(ip), allocatable :: ne_size(:),np_size(:),ns_size(:),disc_size(:),peri_size(:),nb_size(:)
-    integer(ip), allocatable :: dl_size(:),o_size(:),st_size(:),sb_size(:)
-    integer(ip), allocatable :: ne(:),np(:),ns(:),disc(:),peri(:),nb(:)
-    real(rp)   , allocatable :: dl(:),o(:),st(:),sb(:)
+    integer(ip)          :: istat
+    logical              :: is_present
 
-    ! Fill uniform_mesh_descriptor
+    ! Mandatory parameters
+    is_present = .true.
+    is_present =  is_present.and. parameter_list%isPresent(key = number_of_dimensions )
+    is_present =  is_present.and. parameter_list%isPresent(key = number_of_cells_per_dir )
+    is_present =  is_present.and. parameter_list%isPresent(key = is_dir_periodic )
+    is_present =  is_present.and. parameter_list%isPresent(key = interpolation_order )
+    !is_present =  is_present.and. parameter_list%isPresent(key = 
+    assert(is_present)
+
     istat = 0
-    istat = istat + parameter_list%getshape(key = number_elements_name, shape = ne_size)
-    istat = istat + parameter_list%getshape(key = number_parts_name, shape = np_size)
-    istat = istat + parameter_list%getshape(key = number_sockets_name, shape = ns_size)
-    istat = istat + parameter_list%getshape(key = discretization_type_name, shape = disc_size)
-    istat = istat + parameter_list%getshape(key = periodic_boundaries_name, shape = peri_size)
-    istat = istat + parameter_list%getshape(key = number_elements_boundary_name, shape = nb_size)
-    istat = istat + parameter_list%get(key = material_case_name, value = mc)
-    istat = istat + parameter_list%getshape(key = domain_length_name, shape = dl_size)
-    istat = istat + parameter_list%getshape(key = origin_name, shape = o_size)
-    istat = istat + parameter_list%getshape(key = stretching_parameter_name, shape = st_size)
-    istat = istat + parameter_list%getshape(key = size_boundary_name, shape = sb_size)
-    check(istat==0)      
-    call memalloc(ne_size(1),ne,__FILE__,__LINE__)
-    call memalloc(np_size(1),np,__FILE__,__LINE__)
-    call memalloc(ns_size(1),ns,__FILE__,__LINE__)
-    call memalloc(disc_size(1),disc,__FILE__,__LINE__)
-    call memalloc(peri_size(1),peri,__FILE__,__LINE__)
-    call memalloc(nb_size(1),nb,__FILE__,__LINE__)
-    call memalloc(dl_size(1),dl,__FILE__,__LINE__)
-    call memalloc(o_size(1),o,__FILE__,__LINE__)
-    call memalloc(st_size(1),st,__FILE__,__LINE__)
-    call memalloc(sb_size(1),sb,__FILE__,__LINE__)
-    istat = 0
-    istat = istat + parameter_list%get(key = 'number_elements', value = ne)
-    istat = istat + parameter_list%get(key = 'number_parts', value = np)
-    istat = istat + parameter_list%get(key = 'number_sockets', value = ns)
-    istat = istat + parameter_list%get(key = 'discretization_type', value = disc)
-    istat = istat + parameter_list%get(key = 'periodic_boundaries', value = peri)
-    istat = istat + parameter_list%get(key = 'number_elements_boundary', value = nb)
-    istat = istat + parameter_list%get(key = 'domain_length', value = dl)
-    istat = istat + parameter_list%get(key = 'origin', value = o)
-    istat = istat + parameter_list%get(key = 'stretching_parameter', value = st)
-    istat = istat + parameter_list%get(key = 'size_boundary', value = sb)
+    istat = istat + parameter_list%get(key = number_of_dimensions   , value = this%number_of_dimensions)
+    istat = istat + parameter_list%get(key = number_of_cells_per_dir, value = this%number_of_cells_per_dir)
+    istat = istat + parameter_list%get(key = is_dir_periodic        , value = this%is_dir_periodic)
+    istat = istat + parameter_list%get(key = interpolation_order    , value = this%interpolation_order)
     check(istat==0)
 
-    this%ntdix   = disc(1) ! Type of discretization in x (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
-    this%ntdiy   = disc(2) ! Type of discretization in y (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
-    this%mater   = mc      ! Material case
-    this%neblx   = nb(1)   ! Number of elements in the x boundary layer
-    this%nebly   = nb(2)   ! Number of elements in the y boundary layer
-    this%xleng   = dl(1)   ! Size of the domain in x
-    this%yleng   = dl(2)   ! Size of the domain in y
-    this%x0      = o(1)    ! Origin x-coordinate
-    this%y0      = o(2)    ! Origin y-coordinate
-    this%xstret  = st(1)   ! Stretching parameter
-    this%ystret  = st(2)   ! Stretching parameter
-    this%xlengbl = sb(1)   ! Size of the boundary layer in x
-    this%ylengbl = sb(2)   ! Size of the boundary layer in y
-    if(size(disc,1)==3) this%ntdiz   = disc(3) ! Type of discretization in z (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
-    if(size(nb,1)==3)   this%neblz   = nb(3)   ! Number of elements in the z boundary layer
-    if(size(o,1)==3)    this%z0      = o(3)    ! Origin z-coordinate
-    if(size(dl,1)==3)   this%zleng   = dl(3)   ! Size of the domain in z
-    if(size(st,1)==3)   this%zstret  = st(3)   ! Stretching parameter
-    if(size(sb,1)==3)   this%zlengbl = sb(3)   ! Size of the boundary layer in z
-  
-    ! Dimension
-    if(size(ne,1)==2) then
-       this%ndime=2     
+    ! Optional parameters
+    if( parameter_list%isPresent(key = number_of_parts_per_dir) ) then
+       istat = parameter_list%get(key = number_of_parts_per_dir , value = this%number_of_parts_per_dir)
     else
-       if(ne(3)==0) then
-          this%ndime=2
-       else
-          this%ndime=3
-       end if
-    end if 
-
-    ! Geometry order of interpolations
-    this%pdegr = 1
-
-    ! Partition info
-    this%nedir(1) = ne(1)
-    this%nedir(2) = ne(2)
-    if(size(ne,1)==3) this%nedir(3) = ne(3)
-    this%npdir(1) = np(1)
-    this%npdir(2) = np(2)
-    if(size(np,1)==3) this%npdir(3) = np(3)
-    check(ns(1)>0)
-    this%nsckt(1) = this%npdir(1)/ns(1)
-    check(ns(2)>0)
-    this%nsckt(2) = this%npdir(2)/ns(2)
-    this%nparts = this%npdir(1)*this%npdir(2)
-    if(this%ndime==3) then
-       check(size(ns,1)==3)
-       check(ns(3)>0)
-       this%nsckt(3) = this%npdir(3)/ns(3)
-       this%nparts = this%nparts*this%npdir(3)
-    else
-       this%nsckt(3) = 1
-       this%npdir(3) = 1
+       this%number_of_parts_per_dir = 1
     end if
-    this%isper(1) = peri(1)
-    this%isper(2) = peri(2)
-    if(size(peri,1)==3) this%isper(3) = peri(3)   
+  end subroutine uniform_hex_mesh_descriptor_get_data_from_parameter_list
 
-    ! Deallocate
-    deallocate(ne_size)
-    deallocate(np_size)
-    deallocate(ns_size)
-    deallocate(disc_size)
-    deallocate(peri_size)
-    deallocate(nb_size)
-    deallocate(dl_size)
-    deallocate(o_size)
-    deallocate(st_size)
-    deallocate(sb_size)
-    call memfree(ne,__FILE__,__LINE__)
-    call memfree(np,__FILE__,__LINE__)
-    call memfree(ns,__FILE__,__LINE__)
-    call memfree(disc,__FILE__,__LINE__)
-    call memfree(peri,__FILE__,__LINE__)
-    call memfree(nb,__FILE__,__LINE__)
-    call memfree(dl,__FILE__,__LINE__)
-    call memfree(o,__FILE__,__LINE__)
-    call memfree(st,__FILE__,__LINE__)
-    call memfree(sb,__FILE__,__LINE__)
-  end subroutine uniform_hex_mesh_descriptor_describe_mesh
-
-  
-  ! ********* Helper stand-alone subroutines (legacy code) *****
-  ! ************************************************************
-   !==================================================================================================
-  subroutine uniform_hex_mesh_descriptor_generate_geom_and_topo_size(this,geom_size,topo_size)
-    !-----------------------------------------------------------------------------------------------!
-    !   This subroutine generates geom_size_t type from uniform_mesh_descriptor_t and reference_element_t types            !
-    !-----------------------------------------------------------------------------------------------!
+  ! Main driver subroutine of this module
+  subroutine uniform_hex_mesh_generator_generate_connectivities(input_data,            &
+                                                                num_local_cells,       &
+                                                                num_ghost_cells,       &
+                                                                num_local_vefs,        &
+                                                                ptr_vefs_per_cell,     &
+                                                                lst_vefs_lids,         &
+                                                                vef_lid_to_vertex_lid, &
+                                                                cell_gids,             &
+                                                                vefs_gids,             &
+                                                                part_id)
+                                                                             
     implicit none
-    class(uniform_hex_mesh_descriptor_t), intent(in)  :: this
-    type(geom_size_t)                   , intent(out) :: geom_size
-    type(topo_size_t)                   , intent(out) :: topo_size
+    type(uniform_hex_mesh_descriptor_t)    , intent(in)    :: input_data
+    integer(ip)                            , intent(out)   :: num_local_cells
+    integer(ip)                            , intent(out)   :: num_ghost_cells
+    integer(ip)                            , intent(out)   :: num_local_vefs
+    integer(ip)           , allocatable    , intent(inout) :: ptr_vefs_per_cell(:)            ! Size = num_local_cells + 1
+    integer(ip)           , allocatable    , intent(inout) :: lst_vefs_lids(:)                ! Size = ptr_vefs_per_cell(num_local_cells+1)-1
+    integer(ip)           , allocatable    , intent(inout) :: vef_lid_to_vertex_lid(:)        ! Size = num_local_vefs (-1 if vef_lid is not a vertex)
+    integer(igp)          , allocatable    , intent(inout) :: cell_gids(:)                    ! Size = num_local_cells 
+    integer(igp)          , allocatable    , intent(inout) :: vefs_gids(:)                    ! Size = num_local_vefs
+    integer(ip)           , optional       , intent(in)    :: part_id
 
+    integer(ip), allocatable :: cell_is_ghost(:)
 
-    ! Local variables
-    integer(ip) :: pdegr,idime,jdime
-    
-    ! Local variables
-    integer(ip) :: pdime,i,nfaux,ndaux
-    integer(ip), allocatable :: auxv(:,:)
+    integer(ip) :: part_ijk(SPACE_DIM)
+    integer(ip) :: cell_ijk(SPACE_DIM)
+    integer(ip) :: nface_ijk(SPACE_DIM)
 
-    pdegr = this%pdegr
+    integer(ip) :: first_cell_ijk(SPACE_DIM)
+    integer(ip) :: last_cell_ijk(SPACE_DIM)
+    integer(ip) :: my_number_of_cells(SPACE_DIM)
 
-    ! Directional sizes
-    geom_size%npdir = this%npdir
-    geom_size%nedir = this%nedir
-    geom_size%nsckt = this%nsckt
-    geom_size%nnode = (pdegr+1)**this%ndime  
-    geom_size%npsoc = this%npdir/this%nsckt   
-    geom_size%nedom = this%nedir/this%npdir   
-    geom_size%npdom = pdegr*geom_size%nedom + 1  
-    geom_size%ncorn = this%npdir + (1-this%isper) 
-    do idime=1,this%ndime
-       geom_size%nedge(idime,:) = this%npdir + 1 - this%isper
-       geom_size%nface(idime,:) = this%npdir
-       if(this%isper(idime)==0) then
-          geom_size%nface(idime,idime) = geom_size%nface(idime,idime) + 1 
+    integer(ip) :: i,j, idime,jdime, icell
+
+    type(polytope_tree_t)     :: polytope_tree
+    type(node_array_t)        :: node_array
+
+    integer(igp), allocatable  :: num_i_faces(:)
+    integer(ip) , allocatable  :: my_num_i_faces(:)
+    integer(igp), allocatable  :: num_i_faces_per_dim(:,:)
+    integer(ip) , allocatable  :: my_num_i_faces_per_dim(:,:)
+
+    !type(node_iterator_t)     :: node_iterator
+    !type(children_iterator_t) :: children_iterator
+    !type(list_iterator_t)     :: list_iterator
+    integer(ip)               :: topology
+
+    topology = 2**input_data%number_of_dimensions-1  ! Hexahedral
+    call polytope_tree%create( input_data%number_of_dimensions, topology )  
+    call node_array%create ( polytope_tree, input_data%interpolation_order )
+
+    ! Get my part coordinates (make it 0-based, assuming part_id is 1-based)
+    if(present(part_id)) then
+       call spatial_to_ijk_numbering(input_data%number_of_dimensions, input_data%number_of_parts_per_dir, part_id-1, part_ijk)
+    else
+       part_ijk = 0
+    end if
+
+    ! Cells I have to manage
+    do idime = 1, input_data%number_of_dimensions
+       my_number_of_cells(idime) = input_data%number_of_cells_per_dir(i) / input_data%number_of_parts_per_dir(i) 
+       first_cell_ijk(idime) =  part_ijk(idime) * my_number_of_cells(idime)
+       last_cell_ijk(idime) =  first_cell_ijk(idime) + my_number_of_cells(idime)
+    end do
+
+    num_local_cells = 1
+    do idime = 1, input_data%number_of_dimensions
+       num_local_cells = num_local_cells * my_number_of_cells(idime)
+    end do
+
+    num_ghost_cells = 0
+    do i=1,polytope_tree%get_number_n_faces()
+       if(polytope_tree%get_n_face_dimension(i)<input_data%number_of_dimensions) then ! do not include the polytope itself
+          j=1
+          do idime = 1, input_data%number_of_dimensions
+             if(polytope_tree%n_face_dir_is_fixed(i,idime)==1) j=j*my_number_of_cells(idime)
+          end do
+          num_ghost_cells = num_ghost_cells + j
        end if
     end do
-    if(this%ndime==2) geom_size%nface = 0
 
-    ! Total sizes
-    geom_size%npdomt  = 1
-    geom_size%nedomt  = 1
-    geom_size%ncornt  = 1
-    geom_size%nedget  = 1
-    geom_size%nfacet  = 1
-    geom_size%nedgett = 0
-    geom_size%nfacett = 0
-    geom_size%neghost = 1
-    do idime=1,this%ndime
-       geom_size%npdomt = geom_size%npdomt*geom_size%npdom(idime)
-       geom_size%nedomt = geom_size%nedomt*geom_size%nedom(idime)
-       geom_size%ncornt = geom_size%ncornt*geom_size%ncorn(idime)
-       geom_size%neghost = geom_size%neghost*(geom_size%nedom(idime)+2)
-       do jdime=1,this%ndime
-          geom_size%nedget(idime) = geom_size%nedget(idime)*geom_size%nedge(idime,jdime)
-          geom_size%nfacet(idime) = geom_size%nfacet(idime)*geom_size%nface(idime,jdime) 
-       end do
-       geom_size%nedgett = geom_size%nedgett + geom_size%nedget(idime)
-       geom_size%nfacett = geom_size%nfacett + geom_size%nfacet(idime)
+    ! Allocate arrays
+    call memalloc(num_local_cells+num_ghost_cells, ptr_vefs_per_cell, __FILE__,__LINE__)
+    ptr_vefs_per_cell = polytope_tree%get_number_n_faces()
+    ptr_vefs_per_cell(1) = 1
+    do i = 1, num_local_cells+num_ghost_cells
+       ptr_vefs_per_cell(i+1) = ptr_vefs_per_cell(i+1) + ptr_vefs_per_cell(i)
     end do
+    call memalloc( ptr_vefs_per_cell(num_local_cells+num_ghost_cells+1)-1, lst_vefs_lids, __FILE__,__LINE__)
+    call memalloc( ptr_vefs_per_cell(num_local_cells+num_ghost_cells+1)-1, cell_is_ghost, __FILE__,__LINE__)
+    cell_is_ghost=0
+
+    ! Global and local number of i-faces (per direction and total)
+    call memalloc( polytope_tree%get_number_n_faces(), num_i_faces, __FILE__,__LINE__)
+    call memalloc( polytope_tree%get_number_n_faces(), my_num_i_faces, __FILE__,__LINE__)
+    call memalloc( input_data%number_of_dimensions, polytope_tree%get_number_n_faces()-1, num_i_faces_per_dim, __FILE__,__LINE__)
+    call memalloc( input_data%number_of_dimensions, polytope_tree%get_number_n_faces()-1, my_num_i_faces_per_dim, __FILE__,__LINE__)
+    do i=1,polytope_tree%get_number_n_faces()
+       if(polytope_tree%get_n_face_dimension(i)<input_data%number_of_dimensions) then ! do not include the polytope itself
+          do idime = 1, input_data%number_of_dimensions
+             num_i_faces_per_dim(idime,i) = input_data%number_of_cells_per_dir(i) + 1 - polytope_tree%n_face_dir_is_fixed(i,idime)
+             my_num_i_faces_per_dim(idime,i) =  my_number_of_cells(i) + 2  + 1 - polytope_tree%n_face_dir_is_fixed(i,idime)
+          end do
+          num_i_faces(i+1) = 1
+          my_num_i_faces(i+1) = 1
+          do idime = 1, input_data%number_of_dimensions
+             num_i_faces(i+1) = num_i_faces(i+1) * num_i_faces_per_dim(idime,i)          ! ( input_data%number_of_cells_per_dir(i) + 1 - polytope_tree%n_face_dir_is_fixed(i,idime) )
+             my_num_i_faces(i+1) = my_num_i_faces(i+1) * my_num_i_faces_per_dim(idime,i) ! ( my_number_of_cells(i) + 2  + 1 - polytope_tree%n_face_dir_is_fixed(i,idime) )
+          end do
+       end if
+    end do
+    num_i_faces(i+1) = 1
+    my_num_i_faces(i+1) = 1
+    do i=1,polytope_tree%get_number_n_faces()
+       num_i_faces(i+1) = num_i_faces(i+1) + num_i_faces(i)
+       my_num_i_faces(i+1) = my_num_i_faces(i+1) + my_num_i_faces(i)
+    end do
+
+    ! Construct local numbering
+    do icell = 1, num_local_cells+num_ghost_cells
+       call spatial_to_ijk_numbering(input_data%number_of_dimensions, my_number_of_cells, icell, cell_ijk)
+       do idime = 1, input_data%number_of_dimensions
+          if( cell_ijk(idime)==0 .or. cell_ijk(idime)==(my_number_of_cells(i)+2) ) cell_is_ghost(icell)=1
+       end do
+       do i=1,polytope_tree%get_number_n_faces()
+          if(polytope_tree%get_n_face_dimension(i)<input_data%number_of_dimensions) then ! do not include the polytope itself
+             do idime = 1, input_data%number_of_dimensions
+                nface_ijk(idime) = cell_ijk(idime) + polytope_tree%n_face_dir_coordinate(i,idime)
+             end do
+             lst_vefs_lids(ptr_vefs_per_cell(icell)+i) = my_num_i_faces(i) + &
+                  &  ijk_to_spatial_numbering(input_data%number_of_dimensions, my_num_i_faces_per_dim(:,i), nface_ijk)
+          end if
+       end do
+    end do
+
+  end subroutine uniform_hex_mesh_generator_generate_connectivities
+
+  pure function ijk_to_spatial_numbering(num_dimensions, num_per_dim, ijk)
+    implicit none
+    integer(ip)           , intent(in) :: num_dimensions
+    integer(ip)           , intent(in) :: num_per_dim(SPACE_DIM) 
+    integer(ip)           , intent(in) :: ijk(SPACE_DIM) 
+    integer(ip) :: ijk_to_spatial_numbering
+    integer(ip) :: idime, jdime, previous
+    do idime = 1, num_dimensions
+       previous = 1
+       do jdime = 1, idime - 1 
+          previous = previous * num_per_dim(jdime)
+       end do
+    end do
+    ijk_to_spatial_numbering = ijk_to_spatial_numbering + previous*ijk(idime)
+  end function ijk_to_spatial_numbering
+
+  pure subroutine spatial_to_ijk_numbering(num_dimensions, num_per_dim, spatial_numbering, ijk)
+    implicit none
+    integer(ip)           , intent(in)  :: num_dimensions
+    integer(ip)           , intent(in)  :: num_per_dim(SPACE_DIM) 
+    integer(ip)           , intent(in)  :: spatial_numbering
+    integer(ip)           , intent(out) :: ijk(SPACE_DIM) 
+    integer(ip) :: idime,j
+
+    j = spatial_numbering - 1          ! To make it 0-based (assuming spatial_numbering is 1-based)
+    do idime = 1, num_dimensions
+       ijk(idime) = mod(j,num_per_dim(idime))
+       j = j / num_per_dim(idime)
+    end do
+
+  end subroutine spatial_to_ijk_numbering
+  
+  
+  ! subroutine uniform_hex_mesh_generator_generate_fempar_triangulation_arrays(part_id,                         &
+  !                                                                            uniform_hex_mesh_descriptor,     &
+  !                                                                            hex_boundary_set_ids_descriptor, &
+  !                                                                            num_local_cells,                 &
+  !                                                                            num_local_vefs,                  &
+  !                                                                            ptr_vefs_per_cell,               &
+  !                                                                            lst_vefs_lids,                   &
+  !                                                                            vef_lid_to_vertex_lid,           &
+  !                                                                            cell_gids,                       &
+  !                                                                            vefs_gids,                       &
+  !                                                                            vefs_boundary_set_ids,           &
+  !                                                                            vefs_geometry_ids,               &
+  !                                                                            vertex_coordinates,              &  
+  !                                                                            num_itfc_cells,                  &
+  !                                                                            lst_itfc_cells,                  &
+  !                                                                            ptr_ext_neighs_per_itfc_cell,    &
+  !                                                                            lst_ext_neighs_gids,             &
+  !                                                                            lst_ext_neighs_part_ids)
+                                                                             
+  !   implicit none
+  !   integer(ip)                            , intent(in)    :: part_id
+  !   type(uniform_hex_mesh_descriptor_t)    , intent(in)    :: uniform_hex_mesh_descriptor
+  !   type(hex_boundary_set_ids_descriptor_t), intent(in)    :: hex_boundary_set_ids_descriptor
+  !   integer(ip)                            , intent(out)   :: num_local_cells
+  !   integer(ip)                            , intent(out)   :: num_local_vefs
+  !   integer(ip)           , allocatable    , intent(inout) :: ptr_vefs_per_cell(:)            ! Size = num_local_cells + 1
+  !   integer(ip)           , allocatable    , intent(inout) :: lst_vefs_lids(:)                ! Size = ptr_vefs_per_cell(num_local_cells+1)-1
+  !   integer(ip)           , allocatable    , intent(inout) :: vef_lid_to_vertex_lid(:)        ! Size = num_local_vefs (-1 if vef_lid is not a vertex)
+  !   integer(igp)          , allocatable    , intent(inout) :: cell_gids(:)                    ! Size = num_local_cells 
+  !   integer(igp)          , allocatable    , intent(inout) :: vefs_gids(:)                    ! Size = num_local_vefs
+  !   integer(ip)           , allocatable    , intent(inout) :: vefs_boundary_set_ids(:)        ! Size = num_local_vefs
+  !   integer(ip)           , allocatable    , intent(inout) :: vefs_geometry_ids(:)            ! Size = num_local_vefs
+  !   real(rp)              , allocatable    , intent(inout) :: vertex_coordinates(:,:)         ! Size = (number_dimensions, num_local_vertices)
+  !   integer(ip) , optional                 , intent(out)   :: num_itfc_cells                  ! NONE or ALL OPTIONAL ARGUMENTS MUST BE PRESENT LOGIC
+  !   integer(ip) , optional, allocatable    , intent(inout) :: lst_itfc_cells(:)               ! Size = num_itfc_cells 
+  !   integer(ip) , optional, allocatable    , intent(inout) :: ptr_ext_neighs_per_itfc_cell(:) ! Size = num_itfc_cells + 1
+  !   integer(ip) , optional, allocatable    , intent(inout) :: lst_ext_neighs_gids(:)          ! Size = ptr_ext_neighs_per_itfc_cell(num_itfc_cells + 1)-1
+  !   integer(ip) , optional, allocatable    , intent(inout) :: lst_ext_neighs_part_ids(:)      ! Size = ptr_ext_neighs_per_itfc_cell(num_itfc_cells + 1)-1
+  ! end subroutine uniform_hex_mesh_generator_generate_fempar_triangulation_arrays
+
+  ! ********* class(uniform_hex_mesh_descriptor_t) TBPS ********
+  ! ************************************************************
+  ! subroutine uniform_hex_mesh_descriptor_describe_mesh(this,parameter_list)
+  !   !-----------------------------------------------------------------------------------------------!
+  !   !   This subroutine generates geometry data to construct a structured mesh                      !
+  !   !-----------------------------------------------------------------------------------------------!
+  !   implicit none
+  !   class(uniform_hex_mesh_descriptor_t), intent(inout) :: this
+  !   type(ParameterList_t)               , intent(in)    :: parameter_list
+  !   ! Locals
+  !   integer(ip)          :: istat,mc
+  !   integer(ip), allocatable :: ne_size(:),np_size(:),ns_size(:),disc_size(:),peri_size(:),nb_size(:)
+  !   integer(ip), allocatable :: dl_size(:),o_size(:),st_size(:),sb_size(:)
+  !   integer(ip), allocatable :: ne(:),np(:),ns(:),disc(:),peri(:),nb(:)
+  !   real(rp)   , allocatable :: dl(:),o(:),st(:),sb(:)
+
+  !   ! Fill uniform_mesh_descriptor
+
+
+  !   istat = 0
+  !   istat = istat + parameter_list%getshape(key = number_elements_name, shape = ne_size)
+  !   istat = istat + parameter_list%getshape(key = number_parts_name, shape = np_size)
+  !   istat = istat + parameter_list%getshape(key = number_sockets_name, shape = ns_size)
+  !   istat = istat + parameter_list%getshape(key = discretization_type_name, shape = disc_size)
+  !   istat = istat + parameter_list%getshape(key = periodic_boundaries_name, shape = peri_size)
+  !   istat = istat + parameter_list%getshape(key = number_elements_boundary_name, shape = nb_size)
+  !   istat = istat + parameter_list%get(key = material_case_name, value = mc)
+  !   istat = istat + parameter_list%getshape(key = domain_length_name, shape = dl_size)
+  !   istat = istat + parameter_list%getshape(key = origin_name, shape = o_size)
+  !   istat = istat + parameter_list%getshape(key = stretching_parameter_name, shape = st_size)
+  !   istat = istat + parameter_list%getshape(key = size_boundary_name, shape = sb_size)
+  !   check(istat==0)      
+  !   call memalloc(ne_size(1),ne,__FILE__,__LINE__)
+  !   call memalloc(np_size(1),np,__FILE__,__LINE__)
+  !   call memalloc(ns_size(1),ns,__FILE__,__LINE__)
+  !   call memalloc(disc_size(1),disc,__FILE__,__LINE__)
+  !   call memalloc(peri_size(1),peri,__FILE__,__LINE__)
+  !   call memalloc(nb_size(1),nb,__FILE__,__LINE__)
+  !   call memalloc(dl_size(1),dl,__FILE__,__LINE__)
+  !   call memalloc(o_size(1),o,__FILE__,__LINE__)
+  !   call memalloc(st_size(1),st,__FILE__,__LINE__)
+  !   call memalloc(sb_size(1),sb,__FILE__,__LINE__)
+  !   istat = 0
+  !   istat = istat + parameter_list%get(key = 'number_elements', value = ne)
+  !   istat = istat + parameter_list%get(key = 'number_parts', value = np)
+  !   istat = istat + parameter_list%get(key = 'number_sockets', value = ns)
+  !   istat = istat + parameter_list%get(key = 'discretization_type', value = disc)
+  !   istat = istat + parameter_list%get(key = 'periodic_boundaries', value = peri)
+  !   istat = istat + parameter_list%get(key = 'number_elements_boundary', value = nb)
+  !   istat = istat + parameter_list%get(key = 'domain_length', value = dl)
+  !   istat = istat + parameter_list%get(key = 'origin', value = o)
+  !   istat = istat + parameter_list%get(key = 'stretching_parameter', value = st)
+  !   istat = istat + parameter_list%get(key = 'size_boundary', value = sb)
+  !   check(istat==0)
+
+  !   this%ntdix   = disc(1) ! Type of discretization in x (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
+  !   this%ntdiy   = disc(2) ! Type of discretization in y (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
+  !   this%mater   = mc      ! Material case
+  !   this%neblx   = nb(1)   ! Number of elements in the x boundary layer
+  !   this%nebly   = nb(2)   ! Number of elements in the y boundary layer
+  !   this%xleng   = dl(1)   ! Size of the domain in x
+  !   this%yleng   = dl(2)   ! Size of the domain in y
+  !   this%x0      = o(1)    ! Origin x-coordinate
+  !   this%y0      = o(2)    ! Origin y-coordinate
+  !   this%xstret  = st(1)   ! Stretching parameter
+  !   this%ystret  = st(2)   ! Stretching parameter
+  !   this%xlengbl = sb(1)   ! Size of the boundary layer in x
+  !   this%ylengbl = sb(2)   ! Size of the boundary layer in y
+  !   if(size(disc,1)==3) this%ntdiz   = disc(3) ! Type of discretization in z (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
+  !   if(size(nb,1)==3)   this%neblz   = nb(3)   ! Number of elements in the z boundary layer
+  !   if(size(o,1)==3)    this%z0      = o(3)    ! Origin z-coordinate
+  !   if(size(dl,1)==3)   this%zleng   = dl(3)   ! Size of the domain in z
+  !   if(size(st,1)==3)   this%zstret  = st(3)   ! Stretching parameter
+  !   if(size(sb,1)==3)   this%zlengbl = sb(3)   ! Size of the boundary layer in z
+  
+  !   ! Dimension
+  !   if(size(ne,1)==2) then
+  !      this%ndime=2     
+  !   else
+  !      if(ne(3)==0) then
+  !         this%ndime=2
+  !      else
+  !         this%ndime=3
+  !      end if
+  !   end if 
+
+  !   ! Geometry order of interpolations
+  !   this%pdegr = 1
+
+  !   ! Partition info
+  !   this%nedir(1) = ne(1)
+  !   this%nedir(2) = ne(2)
+  !   if(size(ne,1)==3) this%nedir(3) = ne(3)
+  !   this%npdir(1) = np(1)
+  !   this%npdir(2) = np(2)
+  !   if(size(np,1)==3) this%npdir(3) = np(3)
+  !   check(ns(1)>0)
+  !   this%nsckt(1) = this%npdir(1)/ns(1)
+  !   check(ns(2)>0)
+  !   this%nsckt(2) = this%npdir(2)/ns(2)
+  !   this%nparts = this%npdir(1)*this%npdir(2)
+  !   if(this%ndime==3) then
+  !      check(size(ns,1)==3)
+  !      check(ns(3)>0)
+  !      this%nsckt(3) = this%npdir(3)/ns(3)
+  !      this%nparts = this%nparts*this%npdir(3)
+  !   else
+  !      this%nsckt(3) = 1
+  !      this%npdir(3) = 1
+  !   end if
+  !   this%isper(1) = peri(1)
+  !   this%isper(2) = peri(2)
+  !   if(size(peri,1)==3) this%isper(3) = peri(3)   
+
+  !   ! Deallocate
+  !   deallocate(ne_size)
+  !   deallocate(np_size)
+  !   deallocate(ns_size)
+  !   deallocate(disc_size)
+  !   deallocate(peri_size)
+  !   deallocate(nb_size)
+  !   deallocate(dl_size)
+  !   deallocate(o_size)
+  !   deallocate(st_size)
+  !   deallocate(sb_size)
+  !   call memfree(ne,__FILE__,__LINE__)
+  !   call memfree(np,__FILE__,__LINE__)
+  !   call memfree(ns,__FILE__,__LINE__)
+  !   call memfree(disc,__FILE__,__LINE__)
+  !   call memfree(peri,__FILE__,__LINE__)
+  !   call memfree(nb,__FILE__,__LINE__)
+  !   call memfree(dl,__FILE__,__LINE__)
+  !   call memfree(o,__FILE__,__LINE__)
+  !   call memfree(st,__FILE__,__LINE__)
+  !   call memfree(sb,__FILE__,__LINE__)
+  ! end subroutine uniform_hex_mesh_descriptor_describe_mesh
+
+  
+  ! ! ********* Helper stand-alone subroutines (legacy code) *****
+  ! ! ************************************************************
+  !  !==================================================================================================
+  ! subroutine uniform_hex_mesh_descriptor_generate_geom_and_topo_size(this,geom_size,topo_size)
+  !   !-----------------------------------------------------------------------------------------------!
+  !   !   This subroutine generates geom_size_t type from uniform_mesh_descriptor_t and reference_element_t types            !
+  !   !-----------------------------------------------------------------------------------------------!
+  !   implicit none
+  !   class(uniform_hex_mesh_descriptor_t), intent(in)  :: this
+  !   type(geom_size_t)                   , intent(out) :: geom_size
+  !   type(topo_size_t)                   , intent(out) :: topo_size
+
+
+  !   ! Local variables
+  !   integer(ip) :: pdegr,idime,jdime
     
-    ! Auxiliar vector of components
-    if(this%ndime==2) then
-       call memalloc(2,1,auxv,__FILE__,__LINE__)
-       auxv(1,1) = 2
-       auxv(2,1) = 1
-    else if(this%ndime==3) then
-       call memalloc(3,2,auxv,__FILE__,__LINE__)
-       auxv(1,:) = (/2,3/)
-       auxv(2,:) = (/1,3/)
-       auxv(3,:) = (/1,2/)
-    end if
+  !   ! Local variables
+  !   integer(ip) :: pdime,i,nfaux,ndaux
+  !   integer(ip), allocatable :: auxv(:,:)
 
-    topo_size%notot = 0
-    topo_size%nctot = 1
-    topo_size%ncglb = 1
-    topo_size%neglb = 1
-    topo_size%ndtot = 0
-    topo_size%nftot = 0
-    do pdime=this%ndime,1,-1
-       nfaux = 1
-       ndaux = 1
-       do i=1,this%ndime-1
-          nfaux = nfaux*geom_size%nedom(auxv(pdime,i))
-          ndaux = ndaux*(geom_size%nedom(auxv(pdime,i))+1)
-          topo_size%nfdom(auxv(pdime,i),pdime) = geom_size%nedom(auxv(pdime,i))
-          topo_size%nfglb(auxv(pdime,i),pdime) = geom_size%nedir(auxv(pdime,i))          
-          topo_size%nddom(auxv(pdime,i),pdime) = (geom_size%nedom(auxv(pdime,i))+1)
-          topo_size%ndglb(auxv(pdime,i),pdime) = (geom_size%nedir(auxv(pdime,i))+1)        
-       end do
-       topo_size%nfdir(pdime) = (geom_size%nedom(pdime)+1)*nfaux
-       topo_size%nddir(pdime) = geom_size%nedom(pdime)*ndaux
-       topo_size%nfdom(pdime,pdime) = (geom_size%nedom(pdime)+1)
-       topo_size%nfglb(pdime,pdime) = (geom_size%nedir(pdime)+1)
-       topo_size%nddom(pdime,pdime) = geom_size%nedom(pdime)
-       topo_size%ndglb(pdime,pdime) = geom_size%nedir(pdime)
-       topo_size%ncglb = topo_size%ncglb*(geom_size%nedir(pdime)+1)
-       topo_size%neglb = topo_size%neglb*geom_size%nedir(pdime)
-       topo_size%nctot = topo_size%nctot*geom_size%npdom(pdime)
-       topo_size%ndtot = topo_size%ndtot + topo_size%nddir(pdime)
-       topo_size%nftot = topo_size%nftot + topo_size%nfdir(pdime)
-    end do 
-    do pdime=this%ndime,1,-1
-       nfaux = 1
-       ndaux = 1
-       do i=1,this%ndime-1
-          nfaux = nfaux*geom_size%nedir(auxv(pdime,i))
-          ndaux = ndaux*(geom_size%nedir(auxv(pdime,i))+1)
-       end do
-       topo_size%ndsum(pdime) = geom_size%nedir(pdime)*ndaux
-       topo_size%nfsum(pdime) = (geom_size%nedir(pdime)+1)*nfaux
-    end do
-    if(this%ndime==2) then
-       topo_size%nftot = 0
-       topo_size%nfdir = 0
-       topo_size%nfdom = 0
-       topo_size%nfglb = 0
-    end if
-    topo_size%notot = topo_size%nftot + topo_size%ndtot + topo_size%nctot
-    topo_size%noglb = topo_size%notot*this%nparts
+  !   pdegr = this%pdegr
 
-    ! Deallocate auxiliar vector of components
-    call memfree(auxv,__FILE__,__LINE__)
-  end subroutine uniform_hex_mesh_descriptor_generate_geom_and_topo_size
+  !   ! Directional sizes
+  !   geom_size%npdir = this%npdir
+  !   geom_size%nedir = this%nedir
+  !   geom_size%nsckt = this%nsckt
+  !   geom_size%nnode = (pdegr+1)**this%ndime  
+  !   geom_size%npsoc = this%npdir/this%nsckt   
+  !   geom_size%nedom = this%nedir/this%npdir   
+  !   geom_size%npdom = pdegr*geom_size%nedom + 1  
+  !   geom_size%ncorn = this%npdir + (1-this%isper) 
+  !   do idime=1,this%ndime
+  !      geom_size%nedge(idime,:) = this%npdir + 1 - this%isper
+  !      geom_size%nface(idime,:) = this%npdir
+  !      if(this%isper(idime)==0) then
+  !         geom_size%nface(idime,idime) = geom_size%nface(idime,idime) + 1 
+  !      end if
+  !   end do
+  !   if(this%ndime==2) geom_size%nface = 0
+
+  !   ! Total sizes
+  !   geom_size%npdomt  = 1
+  !   geom_size%nedomt  = 1
+  !   geom_size%ncornt  = 1
+  !   geom_size%nedget  = 1
+  !   geom_size%nfacet  = 1
+  !   geom_size%nedgett = 0
+  !   geom_size%nfacett = 0
+  !   geom_size%neghost = 1
+  !   do idime=1,this%ndime
+  !      geom_size%npdomt = geom_size%npdomt*geom_size%npdom(idime)
+  !      geom_size%nedomt = geom_size%nedomt*geom_size%nedom(idime)
+  !      geom_size%ncornt = geom_size%ncornt*geom_size%ncorn(idime)
+  !      geom_size%neghost = geom_size%neghost*(geom_size%nedom(idime)+2)
+  !      do jdime=1,this%ndime
+  !         geom_size%nedget(idime) = geom_size%nedget(idime)*geom_size%nedge(idime,jdime)
+  !         geom_size%nfacet(idime) = geom_size%nfacet(idime)*geom_size%nface(idime,jdime) 
+  !      end do
+  !      geom_size%nedgett = geom_size%nedgett + geom_size%nedget(idime)
+  !      geom_size%nfacett = geom_size%nfacett + geom_size%nfacet(idime)
+  !   end do
+    
+  !   ! Auxiliar vector of components
+  !   if(this%ndime==2) then
+  !      call memalloc(2,1,auxv,__FILE__,__LINE__)
+  !      auxv(1,1) = 2
+  !      auxv(2,1) = 1
+  !   else if(this%ndime==3) then
+  !      call memalloc(3,2,auxv,__FILE__,__LINE__)
+  !      auxv(1,:) = (/2,3/)
+  !      auxv(2,:) = (/1,3/)
+  !      auxv(3,:) = (/1,2/)
+  !   end if
+
+  !   topo_size%notot = 0
+  !   topo_size%nctot = 1
+  !   topo_size%ncglb = 1
+  !   topo_size%neglb = 1
+  !   topo_size%ndtot = 0
+  !   topo_size%nftot = 0
+  !   do pdime=this%ndime,1,-1
+  !      nfaux = 1
+  !      ndaux = 1
+  !      do i=1,this%ndime-1
+  !         nfaux = nfaux*geom_size%nedom(auxv(pdime,i))
+  !         ndaux = ndaux*(geom_size%nedom(auxv(pdime,i))+1)
+  !         topo_size%nfdom(auxv(pdime,i),pdime) = geom_size%nedom(auxv(pdime,i))
+  !         topo_size%nfglb(auxv(pdime,i),pdime) = geom_size%nedir(auxv(pdime,i))          
+  !         topo_size%nddom(auxv(pdime,i),pdime) = (geom_size%nedom(auxv(pdime,i))+1)
+  !         topo_size%ndglb(auxv(pdime,i),pdime) = (geom_size%nedir(auxv(pdime,i))+1)        
+  !      end do
+  !      topo_size%nfdir(pdime) = (geom_size%nedom(pdime)+1)*nfaux
+  !      topo_size%nddir(pdime) = geom_size%nedom(pdime)*ndaux
+  !      topo_size%nfdom(pdime,pdime) = (geom_size%nedom(pdime)+1)
+  !      topo_size%nfglb(pdime,pdime) = (geom_size%nedir(pdime)+1)
+  !      topo_size%nddom(pdime,pdime) = geom_size%nedom(pdime)
+  !      topo_size%ndglb(pdime,pdime) = geom_size%nedir(pdime)
+  !      topo_size%ncglb = topo_size%ncglb*(geom_size%nedir(pdime)+1)
+  !      topo_size%neglb = topo_size%neglb*geom_size%nedir(pdime)
+  !      topo_size%nctot = topo_size%nctot*geom_size%npdom(pdime)
+  !      topo_size%ndtot = topo_size%ndtot + topo_size%nddir(pdime)
+  !      topo_size%nftot = topo_size%nftot + topo_size%nfdir(pdime)
+  !   end do 
+  !   do pdime=this%ndime,1,-1
+  !      nfaux = 1
+  !      ndaux = 1
+  !      do i=1,this%ndime-1
+  !         nfaux = nfaux*geom_size%nedir(auxv(pdime,i))
+  !         ndaux = ndaux*(geom_size%nedir(auxv(pdime,i))+1)
+  !      end do
+  !      topo_size%ndsum(pdime) = geom_size%nedir(pdime)*ndaux
+  !      topo_size%nfsum(pdime) = (geom_size%nedir(pdime)+1)*nfaux
+  !   end do
+  !   if(this%ndime==2) then
+  !      topo_size%nftot = 0
+  !      topo_size%nfdir = 0
+  !      topo_size%nfdom = 0
+  !      topo_size%nfglb = 0
+  !   end if
+  !   topo_size%notot = topo_size%nftot + topo_size%ndtot + topo_size%nctot
+  !   topo_size%noglb = topo_size%notot*this%nparts
+
+  !   ! Deallocate auxiliar vector of components
+  !   call memfree(auxv,__FILE__,__LINE__)
+  ! end subroutine uniform_hex_mesh_descriptor_generate_geom_and_topo_size
 
 
 !  !==================================================================================================
