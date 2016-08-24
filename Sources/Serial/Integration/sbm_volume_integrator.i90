@@ -32,7 +32,7 @@ subroutine fe_map_create( this, quadrature, reference_fe_geometry )
   ! Parameters
   class(fe_map_t)      , intent(inout) :: this
   type(quadrature_t)   , intent(in)    :: quadrature
-  class(reference_fe_t), intent(in)    :: reference_fe_geometry
+  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
 
   integer(ip) :: number_nodes
   integer(ip) :: istat
@@ -74,7 +74,7 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
   class(fe_map_t)      , intent(inout) :: this
   integer(ip)          , intent(in)    :: local_face_id
   type(quadrature_t), intent(in)    :: quadrature
-  class(reference_fe_t), intent(in)    :: reference_fe_geometry
+  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
 
   integer(ip) :: number_nodes
   integer(ip) :: istat
@@ -115,7 +115,7 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
   ! Parameters
   class(fe_map_t)       , intent(inout) :: this
   type(quadrature_t) , intent(in)    :: quadrature
-  class(reference_fe_t) , intent(in)    :: reference_fe_geo
+  class(lagrangian_reference_fe_t) , intent(in)    :: reference_fe_geo
 
   integer(ip)           :: number_face_dimensions
   integer(ip)           :: number_vertices_face
@@ -262,7 +262,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
   implicit none    
   class(fe_map_t)      , intent(inout) :: this
   integer(ip)          , intent(in)    :: local_face_id
-  class(reference_fe_t), intent(in)    :: reference_fe
+  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe
   type(quadrature_t), intent(in)    :: quadrature
 
   integer(ip) :: evaluation_point_id, node_id, idime, jdime, local_vef_id,  reorientation_factor

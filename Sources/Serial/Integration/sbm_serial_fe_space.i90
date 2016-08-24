@@ -741,7 +741,7 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
   
   integer(ip)            :: max_order_fes_around_fe_face
   integer(ip)            :: reference_fes_geo_id(2)
-  type(p_reference_fe_t) :: reference_fes_geo(2)
+  type(p_lagrangian_reference_fe_t) :: reference_fes_geo(2)
   
   integer(ip)            :: reference_fes_id(2)
   type(p_reference_fe_t) :: reference_fes(2)

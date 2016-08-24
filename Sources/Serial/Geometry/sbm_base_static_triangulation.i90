@@ -642,8 +642,8 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
   
   type(cell_accessor_t)          :: first_cell
   type(cell_accessor_t)          :: second_cell
-  class(reference_fe_t), pointer :: first_reference_fe_geo
-  class(reference_fe_t), pointer :: second_reference_fe_geo
+  class(lagrangian_reference_fe_t), pointer :: first_reference_fe_geo
+  class(lagrangian_reference_fe_t), pointer :: second_reference_fe_geo
   integer(ip)                    :: face_orientation
   integer(ip)                    :: face_rotation
   

@@ -1177,3 +1177,13 @@ num_n_faces = polytope_tree%get_number_n_faces()
   call node_array%free()
   call vertex_array%free()
 end subroutine lagrangian_reference_fe_fill_scalar
+
+!==================================================================================================
+subroutine p_lagrangian_reference_fe_free( this )
+  implicit none
+  class(p_lagrangian_reference_fe_t), intent(inout) :: this
+  if (associated ( this%p )) then
+    call this%p%free()
+    deallocate ( this%p )
+  end if  
+end subroutine p_lagrangian_reference_fe_free

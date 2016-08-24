@@ -257,7 +257,6 @@ module reference_fe_names
      ! i.e., the value of the shape functions of the reference element on the quadrature points. 
      procedure(create_interpolation_interface)          , deferred :: create_interpolation 
      procedure(create_face_interpolation_interface)     , deferred :: create_face_interpolation
-     procedure(create_face_local_interpolation_interface),deferred :: create_face_local_interpolation
      procedure(update_interpolation_interface)          , deferred :: update_interpolation
      procedure(update_interpolation_face_interface)     , deferred :: update_interpolation_face
      procedure(get_component_node_interface)            , deferred :: get_component_node
@@ -419,14 +418,6 @@ module reference_fe_names
        type(interpolation_t), intent(inout) :: interpolation
        logical    , optional, intent(in)    :: compute_hessian
      end subroutine create_interpolation_interface
-
-     subroutine create_face_local_interpolation_interface ( this, quadrature, interpolation )
-       import :: reference_fe_t, quadrature_t, interpolation_t
-       implicit none
-       class(reference_fe_t), intent(in)    :: this
-       type(quadrature_t)   , intent(in)    :: quadrature
-       type(interpolation_t), intent(inout) :: interpolation
-     end subroutine create_face_local_interpolation_interface
 
      subroutine create_face_interpolation_interface ( this, local_face_id , local_quadrature,       &
           &                                           face_interpolation)
@@ -713,6 +704,12 @@ module reference_fe_names
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
   public :: topology_hex, topology_tet, fe_type_lagrangian, fe_type_vector_lagrangian
   
+  type p_lagrangian_reference_fe_t
+    class(lagrangian_reference_fe_t), pointer :: p => NULL()
+  contains
+    procedure :: free => p_lagrangian_reference_fe_free
+  end type p_lagrangian_reference_fe_t
+  
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, abstract, extends(reference_fe_t) :: lagrangian_reference_fe_t
      private
@@ -915,7 +912,7 @@ module reference_fe_names
      
   end interface
   
-  public :: lagrangian_reference_fe_t  
+  public :: lagrangian_reference_fe_t, p_lagrangian_reference_fe_t 
   
   
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
