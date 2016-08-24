@@ -323,6 +323,8 @@ subroutine fine_triangulation_generate_vefs(this,order)
         assert(istat==now_stored)
      end if
   end if
+  call memfree(ptr_vertices,__FILE__,__LINE__)
+  call memfree(lst_vertices,__FILE__,__LINE__)
 
 end subroutine fine_triangulation_generate_vefs
 
