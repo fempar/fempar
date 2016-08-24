@@ -658,14 +658,16 @@ subroutine tet_vlrfe_fill_quadrature ( this, quadrature )
 end subroutine tet_vlrfe_fill_quadrature
 
 !==================================================================================================
-subroutine tet_vlrfe_fill_interpolation ( this, interpolation, coord_ip ) 
+subroutine tet_vlrfe_fill_interpolation ( this, quadrature, interpolation ) 
   implicit none 
   class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
-  type(interpolation_t)               , intent(inout) :: interpolation
-  real(rp)                            , intent(in)    :: coord_ip(:,:)
-
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation 
+  real(rp), pointer :: coord_ip(:,:)
   type(interpolation_t) :: scalar_interpolation
   integer(ip) :: iquad,idime,ishape
+  
+  coord_ip => quadrature%get_coordinates()
     
   ! Create an auxiliary interpolation with number_nodes_scalar shape functions (scalar one)
   call scalar_interpolation%create( interpolation%number_dimensions, this%number_nodes_scalar, &

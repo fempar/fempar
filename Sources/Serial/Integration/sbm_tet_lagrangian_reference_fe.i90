@@ -658,13 +658,15 @@ subroutine tet_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
 end subroutine tet_lagrangian_reference_fe_fill_quadrature
 
 !==================================================================================================
-subroutine tet_lagrangian_reference_fe_fill_interpolation ( this, interpolation, coord_ip ) 
+subroutine tet_lagrangian_reference_fe_fill_interpolation ( this, quadrature, interpolation ) 
   implicit none 
-  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
-  type(interpolation_t)               , intent(inout) :: interpolation
-  real(rp)                            , intent(in)    :: coord_ip(:,:)
-
+  class(tet_lagrangian_reference_fe_t), intent(in) :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation 
+  real(rp), pointer :: coord_ip(:,:)
   integer(ip) :: iquad
+    
+  coord_ip => quadrature%get_coordinates()
 
   if ( allocated( interpolation%hessian ) )  then 
      do iquad = 1,interpolation%number_quadrature_points

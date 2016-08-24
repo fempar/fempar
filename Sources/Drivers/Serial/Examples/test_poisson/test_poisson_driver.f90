@@ -305,11 +305,10 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    type(interpolation_t) :: interpolation_old, interpolation_new
-    type(new_lagrangian_reference_fe_t) :: lagrangian_fe
-        
-    type(fe_iterator_t) :: iterator
-    type(fe_accessor_t) :: fe
+    !type(interpolation_t) :: interpolation_old, interpolation_new
+    !type(new_lagrangian_reference_fe_t) :: lagrangian_fe
+    !type(fe_iterator_t) :: iterator
+    !type(fe_accessor_t) :: fe
     
     call this%free()
     call this%parse_command_line_parameters()
@@ -319,14 +318,14 @@ contains
     call this%setup_system()
     call this%assemble_system()
     
-    iterator = this%fe_space%create_fe_iterator()
-    call iterator%current(fe)
-    call this%reference_fes(1)%p%create_interpolation(fe%get_quadrature(), interpolation_old)
-    call this%reference_fes(1)%p%create_interpolation(fe%get_quadrature(), interpolation_new)
-    call lagrangian_fe%fill_interpolation(2,fe%get_quadrature(),interpolation_new)
+    !iterator = this%fe_space%create_fe_iterator()
+    !call iterator%current(fe)
+    !call this%reference_fes(1)%p%create_interpolation(fe%get_quadrature(), interpolation_old)
+    !call this%reference_fes(1)%p%create_interpolation(fe%get_quadrature(), interpolation_new)
+    !call lagrangian_fe%fill_interpolation(2,fe%get_quadrature(),interpolation_new)
     
-    write(*,*) 'VALUES', abs(interpolation_new%shape_functions(1,:,:)-interpolation_old%shape_functions(1,:,:))
-    write(*,*) 'GRADS', abs(interpolation_new%shape_derivatives(1,1:2,:,:)-interpolation_old%shape_derivatives(1,1:2,:,:))
+    !write(*,*) 'VALUES', abs(interpolation_new%shape_functions(1,:,:)-interpolation_old%shape_functions(1,:,:))
+    !write(*,*) 'GRADS', abs(interpolation_new%shape_derivatives(1,1:2,:,:)-interpolation_old%shape_derivatives(1,1:2,:,:))
     
     call this%setup_solver()
     call this%fe_space%create_fe_function(this%solution)

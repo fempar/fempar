@@ -33,6 +33,7 @@ module reference_fe_names
   use list_types_names
   use memor_names
   use sort_names
+  use polynomial_names
   implicit none
 # include "debug.i90"
 
@@ -816,12 +817,12 @@ module reference_fe_names
        type(quadrature_t)              , intent(inout) :: quadrature       
      end subroutine fill_quadrature_interface
      
-     subroutine fill_interpolation_interface ( this, interpolation, coord_ip )
-     import :: lagrangian_reference_fe_t, interpolation_t, ip, rp
+     subroutine fill_interpolation_interface ( this, quadrature, interpolation )
+     import :: lagrangian_reference_fe_t, interpolation_t, ip, rp, quadrature_t
        implicit none 
        class(lagrangian_reference_fe_t), intent(in)    :: this
-       type(interpolation_t)           , intent(inout) :: interpolation  
-       real(rp)                        , intent(in)    :: coord_ip(:,:)
+       type(quadrature_t)              , intent(in) :: quadrature
+       type(interpolation_t)           , intent(inout) :: interpolation
      end subroutine fill_interpolation_interface
  
      subroutine fill_face_interpolation_interface ( this,               &

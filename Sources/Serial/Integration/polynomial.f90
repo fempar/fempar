@@ -28,7 +28,6 @@
 module polynomial_names
   use types_names
   use memor_names
-  use reference_fe_names
   use allocatable_array_names
 
   implicit none
@@ -38,7 +37,7 @@ module polynomial_names
   integer(ip), parameter :: NUM_POLY_DERIV = 3
 
   type :: polynomial_t
-     private
+     !private
      integer(ip)           :: order
      real(rp), allocatable :: coefficients(:)
    contains
@@ -50,7 +49,7 @@ module polynomial_names
   end type polynomial_t
 
   type :: polynomial_allocatable_array_t
-     private
+     !private
      class(polynomial_t), allocatable :: polynomials(:)
    contains
      procedure, non_overridable :: free => polynomial_allocatable_array_free
@@ -64,7 +63,7 @@ module polynomial_names
   ! end type lagrange_polynomial_t
   
   type :: tensor_product_polynomial_space_t
-     private
+     !private
      integer(ip)                          :: number_dimensions
      integer(ip)                          :: number_polynomials
      integer(ip)                          :: number_pols_dim(SPACE_DIM)
@@ -89,16 +88,16 @@ module polynomial_names
 !     procedure :: fill_interpolation => raviart_thomas_fill_pre_interpolation
 !  end type raviart_thomas_reference_fe_t
 
-  type :: new_lagrangian_reference_fe_t
-     private
-     integer(ip) :: number_shape_functions
-     integer(ip) :: number_dimensions
-   contains
-     procedure :: fill_interpolation => lagrangian_fill_interpolation
-  end type new_lagrangian_reference_fe_t
+  !type :: new_lagrangian_reference_fe_t
+  !   private
+  !   integer(ip) :: number_shape_functions
+  !   integer(ip) :: number_dimensions
+  ! contains
+  !   procedure :: fill_interpolation => lagrangian_fill_interpolation
+  !end type new_lagrangian_reference_fe_t
 
   public :: polynomial_t, polynomial_allocatable_array_t
-  public :: tensor_product_polynomial_space_t, new_lagrangian_reference_fe_t
+  public :: tensor_product_polynomial_space_t
 
 contains
  
@@ -266,57 +265,57 @@ end subroutine polynomial_generate_basis
     end do
   end subroutine tensor_product_polynomial_space_free
   
-  ! lagrangian_reference_fe_t TBPS
-  !===================================================================================
-  subroutine lagrangian_fill_interpolation( this, dim, quadrature, interpolation )
-    implicit none
-    class(new_lagrangian_reference_fe_t), intent(inout) :: this
-    type(quadrature_t)              , intent(in)    :: quadrature
-    type(interpolation_t)           , intent(inout) :: interpolation
-    integer(ip)                     , intent(in)    :: dim
-    
-    type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
-    type(polynomial_allocatable_array_t)    :: polynomial_1D_basis(SPACE_DIM)
-    type(polynomial_t)           :: polynomial_1D
-    
-    real(rp), allocatable :: tensor_product_values(:)
-    real(rp), allocatable :: tensor_product_gradients(:,:)
-    real(rp) :: aux_point(SPACE_DIM)
-    
-    integer(ip) :: idime, q_point
-    
-    
-    this%number_dimensions = dim
-    tensor_product_polynomial_space%number_dimensions = this%number_dimensions
-    do idime=1,this%number_dimensions
-       call polynomial_1D%generate_basis( 5, polynomial_1D_basis(idime)%polynomials)
-    end do
-    
-    call tensor_product_polynomial_space%create(this%number_dimensions,polynomial_1D_basis)
-    call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
+  !! lagrangian_reference_fe_t TBPS
+  !!===================================================================================
+  !subroutine lagrangian_fill_interpolation( this, dim, quadrature, interpolation )
+  !  implicit none
+  !  class(new_lagrangian_reference_fe_t), intent(inout) :: this
+  !  type(quadrature_t)              , intent(in)    :: quadrature
+  !  type(interpolation_t)           , intent(inout) :: interpolation
+  !  integer(ip)                     , intent(in)    :: dim
+  !  
+  !  type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
+  !  type(polynomial_allocatable_array_t)    :: polynomial_1D_basis(SPACE_DIM)
+  !  type(polynomial_t)           :: polynomial_1D
+  !  
+  !  real(rp), allocatable :: tensor_product_values(:)
+  !  real(rp), allocatable :: tensor_product_gradients(:,:)
+  !  real(rp) :: aux_point(SPACE_DIM)
+  !  
+  !  integer(ip) :: idime, q_point
+  !  
+  !  
+  !  this%number_dimensions = dim
+  !  tensor_product_polynomial_space%number_dimensions = this%number_dimensions
+  !  do idime=1,this%number_dimensions
+  !     call polynomial_1D%generate_basis( 5, polynomial_1D_basis(idime)%polynomials)
+  !  end do
+  !  
+  !  call tensor_product_polynomial_space%create(this%number_dimensions,polynomial_1D_basis)
+  !  call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
 
-    this%number_shape_functions = tensor_product_polynomial_space%number_polynomials
-    
-    call memalloc(tensor_product_polynomial_space%number_polynomials,tensor_product_values,__FILE__,__LINE__)
-    call memalloc(SPACE_DIM,tensor_product_polynomial_space%number_polynomials,tensor_product_gradients,__FILE__,__LINE__)
-    
-    do q_point=1, quadrature%get_number_quadrature_points()
-       do idime = 1, this%number_dimensions
-          call tensor_product_polynomial_space%evaluate(q_point, &
-               tensor_product_values, &
-               tensor_product_gradients)
-             interpolation%shape_functions(1,:,q_point) = tensor_product_values(:)
-             interpolation%shape_derivatives(1,:,:,q_point) = tensor_product_gradients(:,:)
-       end do
-    end do
-    
-    ! Free auxiliary memory
-    do idime=1,this%number_dimensions
-       call polynomial_1D_basis(idime)%free()
-    end do
-    call tensor_product_polynomial_space%free()
-    
-  end subroutine lagrangian_fill_interpolation
+  !  this%number_shape_functions = tensor_product_polynomial_space%number_polynomials
+  !  
+  !  call memalloc(tensor_product_polynomial_space%number_polynomials,tensor_product_values,__FILE__,__LINE__)
+  !  call memalloc(SPACE_DIM,tensor_product_polynomial_space%number_polynomials,tensor_product_gradients,__FILE__,__LINE__)
+  !  
+  !  do q_point=1, quadrature%get_number_quadrature_points()
+  !     do idime = 1, this%number_dimensions
+  !        call tensor_product_polynomial_space%evaluate(q_point, &
+  !             tensor_product_values, &
+  !             tensor_product_gradients)
+  !           interpolation%shape_functions(1,:,q_point) = tensor_product_values(:)
+  !           interpolation%shape_derivatives(1,:,:,q_point) = tensor_product_gradients(:,:)
+  !     end do
+  !  end do
+  !  
+  !  ! Free auxiliary memory
+  !  do idime=1,this%number_dimensions
+  !     call polynomial_1D_basis(idime)%free()
+  !  end do
+  !  call tensor_product_polynomial_space%free()
+  !  
+  !end subroutine lagrangian_fill_interpolation
 
   ! subroutine raviart_thomas_fill_interpolation( this, quadrature, interpolation )
   !   private

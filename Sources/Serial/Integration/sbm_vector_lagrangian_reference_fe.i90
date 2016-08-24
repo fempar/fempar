@@ -70,7 +70,7 @@ subroutine vlrfe_create_interpolation ( this, quadrature, &
   call interpolation%create( this%number_dimensions, this%number_shape_functions, &
                              quadrature%number_quadrature_points, ntens, compute_hessian )
   
-  call this%fill_interpolation( interpolation, quadrature%coordinates )
+  call this%fill_interpolation(  quadrature, interpolation )
   
 end subroutine vlrfe_create_interpolation
 

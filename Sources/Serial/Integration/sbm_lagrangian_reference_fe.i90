@@ -154,7 +154,7 @@ subroutine lagrangian_reference_fe_create_interpolation ( this, quadrature, &
   call interpolation%create( this%number_dimensions, this%number_nodes_scalar, &
                              quadrature%number_quadrature_points, ntens, compute_hessian )
   
-  call this%fill_interpolation( interpolation, quadrature%coordinates )
+  call this%fill_interpolation( quadrature, interpolation )
   
 end subroutine lagrangian_reference_fe_create_interpolation
 
@@ -202,7 +202,7 @@ subroutine lagrangian_reference_fe_create_face_local_interpolation ( this, quadr
                            & quadrature%number_quadrature_points, 0)
 
   ! Fill the values with the common routine for filling an interpolation
-  call this%fill_interpolation( interpolation, quadrature%coordinates )
+  call this%fill_interpolation( quadrature, interpolation )
 
 end subroutine lagrangian_reference_fe_create_face_local_interpolation
 

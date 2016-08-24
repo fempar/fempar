@@ -699,54 +699,99 @@ subroutine hex_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
 
 end subroutine hex_lagrangian_reference_fe_fill_quadrature
 
+subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, interpolation )
+    implicit none
+    class(hex_lagrangian_reference_fe_t), intent(in) :: this
+    type(quadrature_t)              , intent(in)    :: quadrature
+    type(interpolation_t)           , intent(inout) :: interpolation    
+    type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
+    type(polynomial_allocatable_array_t)    :: polynomial_1D_basis(SPACE_DIM)
+    type(polynomial_t)           :: polynomial_1D
+    
+    real(rp), allocatable :: tensor_product_values(:)
+    real(rp), allocatable :: tensor_product_gradients(:,:)
+    
+    integer(ip) :: idime, q_point
+        
+    tensor_product_polynomial_space%number_dimensions = this%number_dimensions
+    do idime=1,this%number_dimensions
+       call polynomial_1D%generate_basis( this%order, polynomial_1D_basis(idime)%polynomials)
+    end do
+    
+    call tensor_product_polynomial_space%create(this%number_dimensions,polynomial_1D_basis)
+    call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
+
+    assert ( this%number_shape_functions == tensor_product_polynomial_space%number_polynomials )
+    
+    call memalloc(tensor_product_polynomial_space%number_polynomials,tensor_product_values,__FILE__,__LINE__)
+    call memalloc(SPACE_DIM,tensor_product_polynomial_space%number_polynomials,tensor_product_gradients,__FILE__,__LINE__)
+    
+    do q_point=1, quadrature%get_number_quadrature_points()
+       do idime = 1, this%number_dimensions
+          call tensor_product_polynomial_space%evaluate(q_point, &
+               tensor_product_values, &
+               tensor_product_gradients)
+             interpolation%shape_functions(1,:,q_point) = tensor_product_values(:)
+             interpolation%shape_derivatives(1,:,:,q_point) = tensor_product_gradients(:,:)
+       end do
+    end do
+    
+    ! Free auxiliary memory
+    do idime=1,this%number_dimensions
+       call polynomial_1D_basis(idime)%free()
+    end do
+    call tensor_product_polynomial_space%free()
+    
+  end subroutine hex_lagrangian_reference_fe_fill_interpolation
+  
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_interpolation ( this, interpolation, coord_ip )
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this   
-  type(interpolation_t)               , intent(inout) :: interpolation
-  real(rp)                            , intent(in)    :: coord_ip(:,:)
+!subroutine hex_lagrangian_reference_fe_fill_interpolation ( this, interpolation, coord_ip )
+!  implicit none
+!  class(hex_lagrangian_reference_fe_t), intent(in)    :: this   
+!  type(interpolation_t)               , intent(inout) :: interpolation
+!  real(rp)                            , intent(in)    :: coord_ip(:,:)
 
-  logical                  :: compute_hessian
-  integer(ip)              :: nlocs
-  real(rp)   , allocatable :: coord(:),shpe1(:,:),shpd1(:,:),shph1(:,:)
+!  logical                  :: compute_hessian
+!  integer(ip)              :: nlocs
+!  real(rp)   , allocatable :: coord(:),shpe1(:,:),shpd1(:,:),shph1(:,:)
 
-  compute_hessian = .false.
-  if ( allocated( interpolation%hessian ) ) then 
-     compute_hessian = .true.
-  end if
-  
-  nlocs = int(real(interpolation%number_quadrature_points)**(1.0_rp/real(interpolation%number_dimensions)))
-  
-  ! Allocate auxiliary variables
-  call memalloc(this%order+1,coord,__FILE__,__LINE__)
-  call memalloc(this%order+1,nlocs,shpe1,__FILE__,__LINE__)
-  call memalloc(this%order+1,nlocs,shpd1,__FILE__,__LINE__)
-  call memalloc(this%order+1,nlocs,shph1,__FILE__,__LINE__)
-  
-  ! Set the coordenades of the nodal points
-  call this%set_coordinates_1D(coord,this%order+1)
-  ! Compute the 1d shape function on the gauss points
-  call this%evaluate_interpolation_1D(coord_ip(1,:),this%order,nlocs,coord,shpe1,shpd1,shph1,compute_hessian)
+!  compute_hessian = .false.
+!  if ( allocated( interpolation%hessian ) ) then 
+!     compute_hessian = .true.
+!  end if
+!  
+!  nlocs = int(real(interpolation%number_quadrature_points)**(1.0_rp/real(interpolation%number_dimensions)))
+!  
+!  ! Allocate auxiliary variables
+!  call memalloc(this%order+1,coord,__FILE__,__LINE__)
+!  call memalloc(this%order+1,nlocs,shpe1,__FILE__,__LINE__)
+!  call memalloc(this%order+1,nlocs,shpd1,__FILE__,__LINE__)
+!  call memalloc(this%order+1,nlocs,shph1,__FILE__,__LINE__)
+!  
+!  ! Set the coordenades of the nodal points
+!  call this%set_coordinates_1D(coord,this%order+1)
+!  ! Compute the 1d shape function on the gauss points
+!  call this%evaluate_interpolation_1D(coord_ip(1,:),this%order,nlocs,coord,shpe1,shpd1,shph1,compute_hessian)
 
-  ! Compute the nd shape functions as the tensor product of 1d shape functions
-  if ( allocated( interpolation%hessian ) )  then 
-     call this%evaluate_interpolation(interpolation%shape_functions(1,:,:),interpolation%shape_derivatives(1,:,:,:),      &
-                                    & shpe1,shpd1,shph1,interpolation%number_dimensions,this%order,nlocs, &
-                                    & interpolation%number_entries_symmetric_tensor,compute_hessian,      & 
-                                    & interpolation%hessian(1,:,:,:))
-  else
-     call this%evaluate_interpolation(interpolation%shape_functions(1,:,:),interpolation%shape_derivatives(1,:,:,:),      &
-                                    & shpe1,shpd1,shph1,interpolation%number_dimensions,this%order,nlocs, & 
-                                    & interpolation%number_entries_symmetric_tensor,compute_hessian)
-  end if
-  
-  ! Deallocate auxiliary variables
-  call memfree(coord,__FILE__,__LINE__)
-  call memfree(shpe1,__FILE__,__LINE__)
-  call memfree(shpd1,__FILE__,__LINE__)
-  call memfree(shph1,__FILE__,__LINE__)
-  
-end subroutine hex_lagrangian_reference_fe_fill_interpolation
+!  ! Compute the nd shape functions as the tensor product of 1d shape functions
+!  if ( allocated( interpolation%hessian ) )  then 
+!     call this%evaluate_interpolation(interpolation%shape_functions(1,:,:),interpolation%shape_derivatives(1,:,:,:),      &
+!                                    & shpe1,shpd1,shph1,interpolation%number_dimensions,this%order,nlocs, &
+!                                    & interpolation%number_entries_symmetric_tensor,compute_hessian,      & 
+!                                    & interpolation%hessian(1,:,:,:))
+!  else
+!     call this%evaluate_interpolation(interpolation%shape_functions(1,:,:),interpolation%shape_derivatives(1,:,:,:),      &
+!                                    & shpe1,shpd1,shph1,interpolation%number_dimensions,this%order,nlocs, & 
+!                                    & interpolation%number_entries_symmetric_tensor,compute_hessian)
+!  end if
+!  
+!  ! Deallocate auxiliary variables
+!  call memfree(coord,__FILE__,__LINE__)
+!  call memfree(shpe1,__FILE__,__LINE__)
+!  call memfree(shpd1,__FILE__,__LINE__)
+!  call memfree(shph1,__FILE__,__LINE__)
+!  
+!end subroutine hex_lagrangian_reference_fe_fill_interpolation
 
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_fill_face_interpolation (this,face_interpolation, & 
