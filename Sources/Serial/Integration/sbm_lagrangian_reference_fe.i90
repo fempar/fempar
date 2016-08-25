@@ -1000,7 +1000,7 @@ class(lagrangian_reference_fe_t), intent(inout)    :: this
 type(node_iterator_t) :: node_iterator
 type(n_face_iterator_t) :: children_iterator
 type(list_iterator_t) :: list_iterator
-integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces
+integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM)
 ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
 if ( this%topology == topology_hex) then
  topology = 2**this%number_dimensions-1
@@ -1008,7 +1008,7 @@ elseif ( this%topology == topology_tet ) then
  topology = 0
 end if
 call this%polytope%create( this%number_dimensions, topology )  
-call this%node_array%create( this%polytope, this%order(1) ) ! @sbadia: to be corrected
+call this%node_array%create( this%polytope, this%order ) 
 num_n_faces = this%polytope%get_number_n_faces()
   ! Number nodes
   this%number_shape_functions = this%node_array%get_number_nodes()
@@ -1068,7 +1068,8 @@ num_n_faces = this%polytope%get_number_n_faces()
   end do
   ! vertices_n-face
   call this%vertices_n_face%create(num_n_faces)
-  call this%vertex_array%create( this%polytope, order = 1 )
+  ones_dim = 1
+  call this%vertex_array%create( this%polytope, order = ones_dim )
   do i = 1,num_n_faces
      node_iterator = this%vertex_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
      do while (.not. node_iterator%has_finished() )

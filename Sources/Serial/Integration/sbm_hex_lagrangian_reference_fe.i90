@@ -789,19 +789,6 @@ subroutine hex_lagrangian_reference_fe_get_node_local_coordinates(this,         
   end do
 end subroutine hex_lagrangian_reference_fe_get_node_local_coordinates
 
-! @sbadia: To be replaced by the one in polynomial_t
-!==================================================================================================
-subroutine hex_lagrangian_reference_fe_set_coordinates_1D (this, abscissae, number_of_points)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  real(rp)                            , intent(inout) :: abscissae(:)
-  integer(ip)                         , intent(in)    :: number_of_points
-  integer(ip) :: i
-  do i = 0,number_of_points-1
-     abscissae(i+1) = 2*real(i)/(real(number_of_points)-1)-1
-  end do
-end subroutine hex_lagrangian_reference_fe_set_coordinates_1D
-
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_set_permutation_2D( this,permutation,number_nodes_x_dim, & 
                                                          & orientation,rotation )
@@ -835,7 +822,7 @@ subroutine hex_lagrangian_reference_fe_set_permutation_2D( this,permutation,numb
   
 end subroutine hex_lagrangian_reference_fe_set_permutation_2D
 
-! @sbadia: to be replaced by the value in the reference fe
+! @sbadia: It could be replaced by a anisotropic quadrature
 !==================================================================================================
 function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, dimension )
   implicit none
@@ -843,7 +830,7 @@ function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, 
   integer(ip)                         , intent(in)    :: order
   integer(ip)                         , intent(in)    :: dimension
   integer(ip) :: hex_lagrangian_reference_fe_set_number_quadrature_points
-  hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension ! @sbadia: not possible this way, it is wrong
+  hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension
 end function
 
 ! @sbadia: to be replaced by the value in the reference fe, but only being used in the face part that must be eliminated

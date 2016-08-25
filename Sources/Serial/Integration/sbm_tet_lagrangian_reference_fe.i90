@@ -836,20 +836,6 @@ subroutine tet_lagrangian_reference_fe_get_node_local_coordinates( this,        
   end do
 end subroutine tet_lagrangian_reference_fe_get_node_local_coordinates
 
-!==================================================================================================
-subroutine tet_lagrangian_reference_fe_set_coordinates_1D (this, abscissae, number_of_points)
-  implicit none
-  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
-  real(rp)                            , intent(inout) :: abscissae(:)
-  integer(ip)                         , intent(in)    :: number_of_points
-  integer(ip) :: i
-
-  do i = 0,number_of_points-1
-     abscissae(i+1) = real(i)/(real(number_of_points)-1)
-  end do
-  
-end subroutine tet_lagrangian_reference_fe_set_coordinates_1D
-
 !=================================================================================================
 subroutine tet_lagrangian_reference_fe_set_permutation_2D( this, permutation, number_nodes_x_dim, &
                                                          & orientation, rotation )

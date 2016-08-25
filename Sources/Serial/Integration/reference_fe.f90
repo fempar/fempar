@@ -271,8 +271,8 @@ module reference_fe_names
      integer(ip)                 :: displacement(0:SPACE_DIM-1)
      integer(ip)                 :: coordinate(0:SPACE_DIM-1)
      logical                     :: overflow
-     integer(ip)                  :: max_value ! 0 or 1
-     integer(ip)                  :: min_value ! order or order-1
+     integer(ip)                  :: min_value ! 0 or 1
+     integer(ip)                  :: max_value(0:SPACE_DIM-1) ! order or order-1
    contains
      procedure :: create        => node_iterator_create     
      procedure :: current       => node_iterator_current
@@ -816,8 +816,8 @@ module reference_fe_names
      procedure (get_node_local_id_interface)      , private, deferred :: get_node_local_id
      procedure (get_node_local_coordinates_interface)      , private, deferred :: &
               & get_node_local_coordinates
-     procedure (set_coordinates_1D_interface)              , private, deferred :: &
-              & set_coordinates_1D
+     !procedure (set_coordinates_1D_interface)              , private, deferred :: &
+     !         & set_coordinates_1D
      procedure (set_permutation_2D_interface)              , private, deferred :: &
               & set_permutation_2D
      procedure (set_number_quadrature_points_interface)    , private, deferred :: &
@@ -954,13 +954,13 @@ module reference_fe_names
        integer(ip)                     , intent(in)    :: order
      end subroutine get_node_local_coordinates_interface
 
-     subroutine set_coordinates_1D_interface (this, abscissae, number_of_points)
-     import :: lagrangian_reference_fe_t, ip, rp
-       implicit none
-       class(lagrangian_reference_fe_t), intent(in)    :: this
-       integer(ip)                     , intent(in)    :: number_of_points
-       real(rp)                        , intent(inout) :: abscissae(:)
-     end subroutine set_coordinates_1D_interface
+     !subroutine set_coordinates_1D_interface (this, abscissae, number_of_points)
+     !import :: lagrangian_reference_fe_t, ip, rp
+     !  implicit none
+     !  class(lagrangian_reference_fe_t), intent(in)    :: this
+     !  integer(ip)                     , intent(in)    :: number_of_points
+     !  real(rp)                        , intent(inout) :: abscissae(:)
+     !end subroutine set_coordinates_1D_interface
      
      subroutine set_permutation_2D_interface ( this,               &
                                                permutation,        &
@@ -1130,8 +1130,8 @@ module reference_fe_names
            & => tet_lagrangian_reference_fe_get_node_local_id
      procedure, private :: get_node_local_coordinates                         &
            & => tet_lagrangian_reference_fe_get_node_local_coordinates
-     procedure, private :: set_coordinates_1D                                 &
-           & => tet_lagrangian_reference_fe_set_coordinates_1D
+     !procedure, private :: set_coordinates_1D                                 &
+     !      & => tet_lagrangian_reference_fe_set_coordinates_1D
      procedure, private :: set_permutation_2D                                 &
            & => tet_lagrangian_reference_fe_set_permutation_2D
      procedure, private :: set_number_quadrature_points                       &
@@ -1183,8 +1183,8 @@ module reference_fe_names
            & => tet_vlrfe_get_node_local_id
      procedure, private :: get_node_local_coordinates                         &
            & => tet_vlrfe_get_node_local_coordinates
-     procedure, private :: set_coordinates_1D                                 &
-           & => tet_vlrfe_set_coordinates_1D
+     !procedure, private :: set_coordinates_1D                                 &
+     !      & => tet_vlrfe_set_coordinates_1D
      procedure, private :: set_permutation_2D                                 &
            & => tet_vlrfe_set_permutation_2D
      procedure, private :: set_number_quadrature_points                       &
@@ -1236,8 +1236,8 @@ module reference_fe_names
            & => hex_lagrangian_reference_fe_get_node_local_id
      procedure, private :: get_node_local_coordinates                         &
            & => hex_lagrangian_reference_fe_get_node_local_coordinates
-     procedure, private :: set_coordinates_1D                                 &
-           & => hex_lagrangian_reference_fe_set_coordinates_1D
+!     procedure, private :: set_coordinates_1D                                 &
+!           & => hex_lagrangian_reference_fe_set_coordinates_1D
      procedure, private :: set_permutation_2D                                 &
            & => hex_lagrangian_reference_fe_set_permutation_2D
      procedure, private :: set_number_quadrature_points                       &

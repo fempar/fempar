@@ -49,6 +49,7 @@
        order=1
     end if
 
+    call parameters%init()
     error = parameters%set(key = dir_path_key, value = dir_path)
     error = parameters%set(key = prefix_key  , value = prefix)
     assert(error == 0)

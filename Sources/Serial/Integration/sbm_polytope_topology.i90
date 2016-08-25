@@ -573,7 +573,7 @@ subroutine node_iterator_init ( this )
         if ( IBITS( this%n_face, i, 1 ) == 0 ) then   ! if coordinate of anchor node == 0
            this%coordinate(i) = 0                     ! fixed coordinate = min value
         else
-           this%coordinate(i) = this%node_array%order ! fixed coordinate = max value   
+           this%coordinate(i) = this%node_array%order(i+1) ! fixed coordinate = max value   
         end if
      else 
         this%displacement(c) = this%min_value
@@ -632,7 +632,7 @@ function node_iterator_in_bound( this, comp, end_comp )
   logical :: node_iterator_in_bound
   integer(ip) :: bound, i
   node_iterator_in_bound = .true.
-  bound = this%max_value
+  bound = this%max_value(comp)
   do i = comp+1,end_comp
      if ( IBITS( this%topology, i, 1 ) == 0 ) then
         bound = bound - this%displacement(i)
@@ -667,7 +667,7 @@ function node_iterator_current_ijk ( this )
   ! Next, translate fixed coordinates if needed
   do comp =0,this%node_array%polytope_tree%number_dimensions-1
      if ( IBITS ( this%n_face, comp+this%node_array%polytope_tree%number_dimensions, 1 ) == 0 .and. IBITS( this%n_face, comp, 1 ) == 1 ) then
-        this%coordinate(comp) = this%node_array%order
+        this%coordinate(comp) = this%node_array%order(comp+1)
         do j = comp+1,this%node_array%polytope_tree%number_dimensions-1
            if ( IBITS ( this%node_array%polytope_tree%topology, j, 1 ) == 0 .and. IBITS ( this%n_face, j+this%node_array%polytope_tree%number_dimensions, 1 ) == 1 ) then
               this%coordinate(comp) = this%coordinate(comp) - this%coordinate(j)
@@ -692,11 +692,15 @@ end function node_iterator_current
 
 !=================================================================================================
 function ijk_to_index( n, order, dim )
-  integer(ip), intent(in) :: n(0:dim-1), order, dim
-  integer(ip) :: ijk_to_index, i
+  integer(ip), intent(in) :: n(0:dim-1), order(1:SPACE_DIM), dim
+  integer(ip) :: ijk_to_index, i, aux_order(0:SPACE_DIM-1)
   ijk_to_index = 0
+  aux_order(0) = 1
+  do i = 1,dim-1
+     aux_order(i) = aux_order(i-1)*(order(i)+1)
+  end do
   do i = 0,dim-1
-     ijk_to_index = ijk_to_index + n(i)*((order+1)**i)
+     ijk_to_index = ijk_to_index + n(i)*aux_order(i)!((order+1)**i)
   end do
 end function ijk_to_index
 
