@@ -111,7 +111,7 @@ contains
       continuity = .false.
     end if
     
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = 1, &
@@ -132,7 +132,7 @@ contains
     call this%poisson_conditions%set_constant_function_value(1.0_rp)
     call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
     
-    !call this%fe_space%print()
+    call this%fe_space%print()
   end subroutine setup_fe_space
   
   subroutine setup_system (this)

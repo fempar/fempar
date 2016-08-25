@@ -667,7 +667,8 @@ end function node_iterator_current
 !=================================================================================================
 
 !=================================================================================================
-function ijk_to_index( n, order, dim )
+pure function ijk_to_index( n, order, dim )
+  implicit none
   integer(ip), intent(in) :: n(0:dim-1), order, dim
   integer(ip) :: ijk_to_index, i
   ijk_to_index = 0
@@ -677,7 +678,8 @@ function ijk_to_index( n, order, dim )
 end function ijk_to_index
 
 !=================================================================================================
-function n_face_dimension( n_face, dim )
+pure function n_face_dimension( n_face, dim )
+  implicit none
   integer(ip), intent(in) :: n_face, dim
   integer(ip) :: n_face_dimension, i
   n_face_dimension = 0
@@ -687,6 +689,7 @@ function n_face_dimension( n_face, dim )
 end function n_face_dimension
 
 function facet_orientation( n_face, dim )
+  implicit none
   integer(ip), intent(in) :: n_face, dim
   integer(ip) :: facet_orientation
   integer(ip) :: n_face_type, base_n_face_type, axis_swap
