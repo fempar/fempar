@@ -102,6 +102,7 @@ end subroutine hex_lagrangian_reference_fe_get_subelements_connectivity
 ! Deferred TBP implementors from lagrangian_reference_fe_t
 !**************************************************************************************************
 
+! @sbadia: Think about an automatic generation of gauss points for an arbitrary order
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
   !-----------------------------------------------------------------------
@@ -633,6 +634,8 @@ subroutine hex_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
 
 end subroutine hex_lagrangian_reference_fe_fill_quadrature
 
+! This subroutine fills the interpolation using the polynomial_names machinery
+!==================================================================================================
 subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, interpolation )
     implicit none
     class(hex_lagrangian_reference_fe_t), intent(in) :: this
@@ -676,6 +679,25 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
     call tensor_product_polynomial_space%free()
     
   end subroutine hex_lagrangian_reference_fe_fill_interpolation
+  
+! @sbadia -> TO BE DEVELOPED: Here I want to define the dim-1 quadrature and next translate the nodes
+! using the facet type to dim. Next, use the same machinary as for the volume with this new quadrature.
+!!==================================================================================================
+!  subroutine hex_lagrangian_reference_fe_fill_face_interpolation( this, local_quadrature, local_face_id, face_interpolation )
+!  implicit none
+!  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+!  type(interpolation_t)               , intent(inout) :: face_interpolation
+!  type(quadrature_t)                  , intent(in)    :: local_quadrature
+!  integer(ip)                         , intent(in)    :: local_face_id
+!  
+!  
+!  ! Create a ndime-1 interpolation on the local Gauss points in each face
+!  call face_reference_fe%create(topology_hex,this%number_dimensions-1,this%order(1),this%field_type,this%continuity)
+!  call face_reference_fe%create_interpolation(local_quadrature,local_interpolation)
+!  
+!  
+!  end subroutine hex_lagrangian_reference_fe_fill_face_interpolation
+!!==================================================================================================
   
 ! TO BE ELIMINATED
 !==================================================================================================
@@ -725,6 +747,8 @@ subroutine hex_lagrangian_reference_fe_fill_face_interpolation (this,face_interp
 
 end subroutine hex_lagrangian_reference_fe_fill_face_interpolation
 
+! @sbadia: Only being used for adaptivity and permutation purposes (ijk to index)
+! It should be used with polytope_t stuff (nodal_array_t)
 !==================================================================================================
 function hex_lagrangian_reference_fe_get_node_local_id( this, local_coordinates, &
                                                       & number_of_dimensions, order )
@@ -744,6 +768,7 @@ function hex_lagrangian_reference_fe_get_node_local_id( this, local_coordinates,
 end function hex_lagrangian_reference_fe_get_node_local_id
 
 ! Only being used for adaptivity purposes
+! It should be used with polytope_t stuff (nodal_array_t)
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_get_node_local_coordinates(this,                 &
                                                                   local_coordinates,    &
@@ -821,7 +846,7 @@ function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, 
   hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension ! @sbadia: not possible this way, it is wrong
 end function
 
-! @sbadia: to be replaced by the value in the reference fe
+! @sbadia: to be replaced by the value in the reference fe, but only being used in the face part that must be eliminated
 !=================================================================================================
 function hex_lagrangian_reference_fe_compute_number_nodes_scalar(this, order, dimension)
   implicit none
@@ -831,7 +856,8 @@ function hex_lagrangian_reference_fe_compute_number_nodes_scalar(this, order, di
   hex_lagrangian_reference_fe_compute_number_nodes_scalar = (order+1)**dimension
 end function hex_lagrangian_reference_fe_compute_number_nodes_scalar
 
-! @sbadia: this info already computed in the polytope_t
+! @sbadia: this info already computed in the polytope_t, but being used in the computation of the 
+! permutations to be re-thought
 !=================================================================================================
 function hex_lagrangian_reference_fe_get_number_interior_points_x_dim(this,                   &
                                                                     & number_interior_points, &
@@ -854,10 +880,10 @@ subroutine hex_lagrangian_reference_fe_blending(this,values)
 
   integer(ip) :: i,j, ipoin, nlocs, ndime,nnode
 
-  assert(size(values) == this%number_nodes_scalar)
+  assert(size(values) == this%node_array%number_nodes)
 
   ndime = this%number_dimensions
-  nnode = this%number_nodes_scalar
+  nnode = this%node_array%number_nodes
 
   if(ndime==1) then
      nlocs=nnode

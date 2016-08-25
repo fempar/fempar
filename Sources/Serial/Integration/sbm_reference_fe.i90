@@ -74,6 +74,7 @@
     call this%n_faces_n_face%free()
     call this%orientation%free()
     call this%nodal_quadrature%free()
+    call this%polytope%free()
 
     this%number_dimensions = 0
     this%order = 0

@@ -673,7 +673,7 @@ subroutine tet_vlrfe_fill_interpolation ( this, quadrature, interpolation )
   coord_ip => quadrature%get_coordinates()
     
   ! Create an auxiliary interpolation with number_nodes_scalar shape functions (scalar one)
-  call scalar_interpolation%create( interpolation%number_dimensions, this%number_nodes_scalar, &
+  call scalar_interpolation%create( interpolation%number_dimensions, this%node_array%number_nodes, &
                                     interpolation%number_quadrature_points, 0, .false. )
 
   if ( allocated( interpolation%hessian ) )  then 
@@ -725,7 +725,7 @@ subroutine tet_vlrfe_fill_face_interpolation (this, face_interpolation, &
   type(interpolation_t)    :: scalar_interpolation
   
   ! Create an auxiliary interpolation with number_nodes_scalar shape functions (scalar one)
-  call scalar_interpolation%create( face_interpolation%number_dimensions, this%number_nodes_scalar, &
+  call scalar_interpolation%create( face_interpolation%number_dimensions, this%node_array%number_nodes, &
                                     face_interpolation%number_quadrature_points, 0, .false. )
   
   call memalloc(face_interpolation%number_dimensions,global_coordinates,__FILE__,__LINE__)

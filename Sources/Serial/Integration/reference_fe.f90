@@ -198,6 +198,93 @@ module reference_fe_names
      procedure, non_overridable :: get_coordinates => fe_map_face_restriction_get_coordinates
   end type fe_map_face_restriction_t
 
+    
+    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+  type polytope_tree_t
+     private
+     integer(ip)              :: number_dimensions
+     integer(ip)              :: topology
+     integer(ip)              :: number_n_faces 
+     integer(ip), allocatable :: n_face_array(:)     
+     integer(ip), allocatable :: ijk_to_index(:)
+   contains
+     procedure          :: create                   => polytope_tree_create 
+     procedure          :: create_children_iterator => polytope_tree_create_children_iterator
+     procedure          :: get_n_face               => polytope_tree_get_n_face
+     procedure          :: get_n_face_dimension     => polytope_tree_get_n_face_dimension
+     procedure          :: get_number_n_faces       => polytope_tree_get_number_n_faces
+     procedure          :: free                     => polytope_tree_free
+     procedure, private :: fill_cell_tree 
+  end type polytope_tree_t
+
+  public :: polytope_tree_t
+
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type node_array_t
+     private
+     type(polytope_tree_t), pointer :: polytope_tree
+     integer(ip)                    :: order
+     integer(ip)                    :: number_nodes
+     integer(ip), allocatable       :: node_array(:)
+     integer(ip), allocatable       :: ijk_to_index(:)
+     integer(ip), allocatable       :: coordinates(:,:)
+   contains
+     procedure :: create               => node_array_create
+     procedure :: print                => node_array_print
+     procedure :: free                 => node_array_free
+     procedure :: create_node_iterator => node_array_create_node_iterator
+     procedure :: get_number_nodes     => node_array_get_number_nodes
+     procedure, private :: fill        => node_array_fill
+  end type node_array_t
+
+  public :: node_array_t
+
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type n_face_iterator_t
+     private 
+     type(polytope_tree_t), pointer :: polytope_tree
+     integer(ip)                  :: parent
+     integer(ip)                  :: component
+     integer(ip)                  :: coordinate
+   contains
+     procedure :: create        => n_face_iterator_create     
+     procedure :: current       => n_face_iterator_current
+     procedure :: init          => n_face_iterator_init
+     procedure :: next          => n_face_iterator_next
+     procedure :: has_finished  => n_face_iterator_has_finished
+     procedure :: print         => n_face_iterator_print
+     procedure, private :: current_ijk   => n_face_iterator_current_ijk 
+     procedure, private :: is_admissible => n_face_iterator_is_admissible   
+  end type n_face_iterator_t
+
+  public :: n_face_iterator_t
+
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type node_iterator_t
+     private 
+     type(node_array_t), pointer :: node_array
+     logical                     :: own_boundary
+     integer(ip)                 :: n_face
+     integer(ip)                 :: topology
+     integer(ip)                 :: displacement(0:SPACE_DIM-1)
+     integer(ip)                 :: coordinate(0:SPACE_DIM-1)
+     logical                     :: overflow
+     integer(ip)                  :: max_value ! 0 or 1
+     integer(ip)                  :: min_value ! order or order-1
+   contains
+     procedure :: create        => node_iterator_create     
+     procedure :: current       => node_iterator_current
+     procedure :: init          => node_iterator_init
+     procedure :: next          => node_iterator_next
+     procedure :: has_finished  => node_iterator_has_finished
+     !procedure :: free          => node_iterator_free
+     procedure :: print         => node_iterator_print
+     procedure, private :: current_ijk => node_iterator_current_ijk  
+     procedure, private :: in_bound    => node_iterator_in_bound 
+  end type node_iterator_t
+
+  public :: node_iterator_t
+
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
   character(*), parameter :: field_type_scalar           = 'scalar'
@@ -232,6 +319,10 @@ module reference_fe_names
           number_n_faces,              &        
           number_shape_functions,             &        
           number_n_faces_per_dimension(5)
+     
+     type(polytope_tree_t)         :: polytope
+     type(node_array_t)            :: node_array
+     type(node_array_t)            :: vertex_array
 
      type(allocatable_array_ip1_t)  :: orientation        ! orientation of the n-faces 
      type(list_t)                   :: interior_nodes_n_face ! interior nodes per n-face
@@ -712,7 +803,6 @@ module reference_fe_names
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, abstract, extends(reference_fe_t) :: lagrangian_reference_fe_t
      private
-     integer(ip)              :: number_nodes_scalar
      integer(ip), allocatable :: node_component_array(:,:)
      integer(ip), allocatable :: node_array_component(:,:)
    contains
@@ -788,14 +878,16 @@ module reference_fe_names
       & => lagrangian_reference_fe_fill_permutation_array
      procedure, private, non_overridable :: fill_nodal_quadrature        &
       & => lagrangian_reference_fe_fill_nodal_quadrature
-     procedure, private, non_overridable :: get_node_coordinates_array   & 
-      & => lagrangian_reference_fe_get_node_coordinates_array
+!     procedure, private, non_overridable :: get_node_coordinates_array   & 
+!      & => lagrangian_reference_fe_get_node_coordinates_array
      procedure, private, non_overridable :: set_permutation_1D           & 
       & => lagrangian_reference_fe_set_permutation_1D
      procedure, private, non_overridable :: extend_list_components       & 
       & => lagrangian_reference_fe_extend_list_components
      procedure, private :: apply_femap_to_interpolation & 
       & => lagrangian_reference_fe_apply_femap_to_interpolation
+     procedure, private :: get_coordinates_nodes & 
+      & => lagrangian_reference_fe_get_coordinates_nodes
   end type lagrangian_reference_fe_t
 
   abstract interface
@@ -1168,91 +1260,6 @@ module reference_fe_names
   end type hex_lagrangian_reference_fe_t
   
   public :: hex_lagrangian_reference_fe_t
-  
-    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
-  type polytope_tree_t
-     private
-     integer(ip)              :: number_dimensions
-     integer(ip)              :: topology
-     integer(ip)              :: number_n_faces 
-     integer(ip), allocatable :: n_face_array(:)     
-     integer(ip), allocatable :: ijk_to_index(:)
-   contains
-     procedure          :: create                   => polytope_tree_create 
-     procedure          :: create_children_iterator => polytope_tree_create_children_iterator
-     procedure          :: get_n_face               => polytope_tree_get_n_face
-     procedure          :: get_n_face_dimension     => polytope_tree_get_n_face_dimension
-     procedure          :: get_number_n_faces       => polytope_tree_get_number_n_faces
-     procedure          :: free                     => polytope_tree_free
-     procedure, private :: fill_cell_tree 
-  end type polytope_tree_t
-
-  public :: polytope_tree_t
-
-  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type node_array_t
-     private
-     type(polytope_tree_t), pointer :: polytope_tree
-     integer(ip)                    :: order
-     integer(ip)                    :: number_nodes
-     integer(ip), allocatable       :: node_array(:)
-     integer(ip), allocatable       :: ijk_to_index(:)
-   contains
-     procedure :: create               => node_array_create
-     procedure :: print                => node_array_print
-     procedure :: free                 => node_array_free
-     procedure :: create_node_iterator => node_array_create_node_iterator
-     procedure :: get_number_nodes     => node_array_get_number_nodes
-     procedure, private :: fill        => node_array_fill
-  end type node_array_t
-
-  public :: node_array_t
-
-  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type n_face_iterator_t
-     private 
-     type(polytope_tree_t), pointer :: polytope_tree
-     integer(ip)                  :: parent
-     integer(ip)                  :: component
-     integer(ip)                  :: coordinate
-   contains
-     procedure :: create        => n_face_iterator_create     
-     procedure :: current       => n_face_iterator_current
-     procedure :: init          => n_face_iterator_init
-     procedure :: next          => n_face_iterator_next
-     procedure :: has_finished  => n_face_iterator_has_finished
-     procedure :: print         => n_face_iterator_print
-     procedure, private :: current_ijk   => n_face_iterator_current_ijk 
-     procedure, private :: is_admissible => n_face_iterator_is_admissible   
-  end type n_face_iterator_t
-
-  public :: n_face_iterator_t
-
-  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  type node_iterator_t
-     private 
-     type(node_array_t), pointer :: node_array
-     logical                     :: own_boundary
-     integer(ip)                 :: n_face
-     integer(ip)                 :: topology
-     integer(ip)                 :: displacement(0:SPACE_DIM-1)
-     integer(ip)                 :: coordinate(0:SPACE_DIM-1)
-     logical                     :: overflow
-     integer(ip)                  :: max_value ! 0 or 1
-     integer(ip)                  :: min_value ! order or order-1
-   contains
-     procedure :: create        => node_iterator_create     
-     procedure :: current       => node_iterator_current
-     procedure :: init          => node_iterator_init
-     procedure :: next          => node_iterator_next
-     procedure :: has_finished  => node_iterator_has_finished
-     !procedure :: free          => node_iterator_free
-     procedure :: print         => node_iterator_print
-     procedure, private :: current_ijk => node_iterator_current_ijk  
-     procedure, private :: in_bound    => node_iterator_in_bound 
-  end type node_iterator_t
-
-  public :: node_iterator_t
   
     !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type volume_integrator_t 
