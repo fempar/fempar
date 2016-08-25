@@ -1158,7 +1158,6 @@ module reference_fe_names
            &   => hex_lagrangian_reference_fe_blending
            
      ! Deferred TBP implementors from lagrangian_reference_fe_t
-     !procedure, private :: fill_scalar => hex_lagrangian_reference_fe_fill_scalar
      procedure, private :: fill_quadrature                                    &
            & => hex_lagrangian_reference_fe_fill_quadrature
      procedure, private :: fill_interpolation                                 &
