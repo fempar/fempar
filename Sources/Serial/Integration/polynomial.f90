@@ -108,7 +108,7 @@ contains
   ! polynomial_t TBPS
   !===================================================================================
 
-! Generate the basis of Lagrange polynomials for a given order of interpolation
+! Generate the basis of 1D Lagrange polynomials for a given order of interpolation
 ! ===================================================================================================
 subroutine polynomial_generate_basis ( order, basis )
   implicit none
@@ -204,6 +204,7 @@ end subroutine polynomial_generate_basis
     ! Can we make it more efficient having an array of points
     do i = 1,this%number_dimensions
        do j = 1,size(this%polynomial_1D_basis(i)%polynomials)
+          ! associate NOT supported by GNUFortran Compiler, internal compiler error
           !associate (poly => this%polynomial_1D_basis(i)%polynomials(j))
           !  do q = 1,n_q_points
           !     call poly%get_values(points(:,q),this%work_shape_data(i)%a(:,j,q))
@@ -228,17 +229,17 @@ end subroutine polynomial_generate_basis
     write(*,*) 'iq',q_point
     do ishape = 1, this%number_polynomials
        call index_to_ijk(ishape, this%number_dimensions, this%number_pols_dim, ijk)
-          write(*,*) 'ishape',ishape
-          write(*,*) 'ishape_ijk',ijk
+          !write(*,*) 'ishape',ishape
+          !write(*,*) 'ishape_ijk',ijk
        do idime = 1, this%number_dimensions
-          write(*,*) 'iq',q_point
-          write(*,*) 'dim_tensor',idime
-          write(*,*) 'value pol scalar', this%work_shape_data(idime)%a(1,ijk(idime),q_point)          
+          !write(*,*) 'iq',q_point
+          !write(*,*) 'dim_tensor',idime
+          !write(*,*) 'value pol scalar', this%work_shape_data(idime)%a(1,ijk(idime),q_point)          
           values(ishape) = values(ishape)* &
                this%work_shape_data(idime)%a(1,ijk(idime),q_point)
-          write(*,*) 'value',values(ishape)
+          !write(*,*) 'value',values(ishape)
        end do
-       write(*,*) 'final value',values(ishape)
+       !write(*,*) 'final value',values(ishape)
     end do
     do ishape = 1, this%number_polynomials
        call index_to_ijk(ishape, this%number_dimensions, this%number_pols_dim, ijk)
@@ -292,7 +293,28 @@ end subroutine polynomial_generate_basis
     integer(ip) :: num_poly
     num_poly = this%number_polynomials
   end function tensor_product_polynomial_space_get_number_polynomials 
-  
+
+! Support subroutines
+!==================================================================================================
+subroutine index_to_ijk( index, ndime, n_pols_dim, ijk )
+  implicit none
+  integer(ip)                         , intent(in) :: index
+  integer(ip)                         , intent(in) :: ndime
+  integer(ip)                         , intent(in) :: n_pols_dim(SPACE_DIM)
+  integer(ip)                         , intent(inout) :: ijk(SPACE_DIM)
+  integer(ip) :: i,aux
+
+  ijk = 0
+  aux = (index-1)
+  do i = 1,ndime-1
+     ijk(i) = mod(aux, n_pols_dim(i))
+     aux = aux/n_pols_dim(i)
+  end do
+  ijk(ndime) = aux
+  ijk = ijk+1
+end subroutine index_to_ijk
+
+
   !! lagrangian_reference_fe_t TBPS
   !!===================================================================================
   !subroutine lagrangian_fill_interpolation( this, dim, quadrature, interpolation )
@@ -396,27 +418,5 @@ end subroutine polynomial_generate_basis
   !   call tensor_product_polynomial_space%free()
     
   ! end subroutine raviart_thomas_fill_interpolation
-  
-
-! Support subroutines
-!==================================================================================================
-subroutine index_to_ijk( index, ndime, n_pols_dim, ijk )
-  implicit none
-  integer(ip)                         , intent(in) :: index
-  integer(ip)                         , intent(in) :: ndime
-  integer(ip)                         , intent(in) :: n_pols_dim(SPACE_DIM)
-  integer(ip)                         , intent(inout) :: ijk(SPACE_DIM)
-  integer(ip) :: i,aux
-
-  ijk = 0
-  aux = (index-1)
-  do i = 1,ndime-1
-     ijk(i) = mod(aux, n_pols_dim(i))
-     aux = aux/n_pols_dim(i)
-  end do
-  ijk(ndime) = aux
-  ijk = ijk+1
-end subroutine index_to_ijk
-
 
 end module polynomial_names

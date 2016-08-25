@@ -300,9 +300,6 @@ module reference_fe_names
      procedure(evaluate_gradient_fe_function_vector_interface), deferred :: evaluate_gradient_fe_function_vector
      generic :: evaluate_gradient_fe_function => evaluate_gradient_fe_function_scalar, &
                                                & evaluate_gradient_fe_function_vector
-     
-     ! Blending function to generate interpolations in the interior (given values on the boundary)
-     procedure(blending_interface), deferred :: blending
 
      ! This subroutine gives the reodering (o2n) of the nodes of an n-face given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same n-face.
@@ -589,12 +586,7 @@ module reference_fe_names
        type(tensor_field_t) , intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_vector_interface
 
-     subroutine blending_interface( this,values)
-       import :: reference_fe_t, point_t
-       implicit none
-       class(reference_fe_t), intent(in)    :: this 
-       type(point_t)        , intent(inout) :: values(:)     
-     end subroutine blending_interface
+
 
      function check_compatibility_of_n_faces_interface(target_reference_fe, &
           &                       source_reference_fe, source_n_face_id,target_n_face_id)
@@ -740,6 +732,8 @@ module reference_fe_names
               & compute_number_nodes_scalar
      procedure (get_number_interior_points_x_dim_interface), private, deferred :: &
               & get_number_interior_points_x_dim
+     ! Blending function to generate interpolations in the interior (given values on the boundary)
+     procedure(blending_interface), deferred :: blending
 
      procedure :: create                    => lagrangian_reference_fe_create
      procedure :: fill_scalar               => lagrangian_reference_fe_fill_scalar
@@ -914,6 +908,13 @@ module reference_fe_names
        integer(ip)                     , intent(in)    :: dimension
        integer(ip) :: get_number_interior_points_x_dim_interface
      end function get_number_interior_points_x_dim_interface
+     
+     subroutine blending_interface( this,values)
+       import :: lagrangian_reference_fe_t, point_t
+       implicit none
+       class(lagrangian_reference_fe_t), intent(in)    :: this 
+       type(point_t)                   , intent(inout) :: values(:)     
+     end subroutine blending_interface
      
   end interface
   
@@ -1150,18 +1151,18 @@ module reference_fe_names
      procedure, private :: get_number_interior_points_x_dim                   &
            & => hex_lagrangian_reference_fe_get_number_interior_points_x_dim
      ! Concrete TBPs of this derived data type
-     procedure, private, non_overridable :: fill_n_face_dimension_and_directions &
-           & => hex_lagrangian_reference_fe_fill_n_face_dims_and_directions
-     procedure, private, non_overridable :: fill_n_face_local_coordinates_nodes  &
-           & => hex_lagrangian_reference_fe_fill_n_face_local_coordinates_nodes
-     procedure, private, non_overridable :: evaluate_interpolation_1D         &
-           & => hex_lagrangian_reference_fe_evaluate_interpolation_1D 
-     procedure, private, non_overridable :: evaluate_interpolation            &
-           & => hex_lagrangian_reference_fe_evaluate_interpolation 
+     !procedure, private, non_overridable :: fill_n_face_dimension_and_directions &
+     !      & => hex_lagrangian_reference_fe_fill_n_face_dims_and_directions
+     !procedure, private, non_overridable :: fill_n_face_local_coordinates_nodes  &
+     !      & => hex_lagrangian_reference_fe_fill_n_face_local_coordinates_nodes
+     !procedure, private, non_overridable :: evaluate_interpolation_1D         &
+     !      & => hex_lagrangian_reference_fe_evaluate_interpolation_1D 
+     !procedure, private, non_overridable :: evaluate_interpolation            &
+     !      & => hex_lagrangian_reference_fe_evaluate_interpolation 
      procedure, private, non_overridable :: evaluate_face_interpolation       &
            & => hex_lagrangian_reference_fe_evaluate_face_interpolation
-     procedure, private, non_overridable :: get_n_face_orientation               &
-           & => hex_lagrangian_reference_fe_get_n_face_orientation
+     !procedure, private, non_overridable :: get_n_face_orientation               &
+     !      & => hex_lagrangian_reference_fe_get_n_face_orientation
   end type hex_lagrangian_reference_fe_t
   
   public :: hex_lagrangian_reference_fe_t
