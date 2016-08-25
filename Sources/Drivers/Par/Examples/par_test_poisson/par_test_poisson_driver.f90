@@ -156,7 +156,7 @@ contains
     this%reference_fes(1) =  make_reference_fe ( topology = topology_tet, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = 2, &
-                                                 order = 1, &
+                                                 order = 2, &
                                                  field_type = field_type_scalar, &
                                                  continuity = .true. )
   end subroutine setup_reference_fes
