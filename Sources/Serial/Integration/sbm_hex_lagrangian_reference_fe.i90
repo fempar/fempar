@@ -39,12 +39,15 @@ function hex_lagrangian_reference_fe_check_compatibility_of_n_faces             
   integer(ip)                         , intent(in)  :: source_n_face_id ! Local n-face ID
   integer(ip)                         , intent(in)  :: target_n_face_id ! Local n-face ID
   logical :: hex_lagrangian_reference_fe_check_compatibility_of_n_faces 
+  integer(ip) :: idime
 
   select type(source_reference_fe)
      class is(hex_lagrangian_reference_fe_t)
         ! Get number nodes per dimension
-        assert (target_reference_fe%order == source_reference_fe%order)
         assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
+        do idime = 1, target_reference_fe%number_dimensions
+        assert (target_reference_fe%order(idime) == source_reference_fe%order(idime))
+        end do
         assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
         assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
         assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
@@ -85,12 +88,12 @@ subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connec
 
   do subelem = 1, num_subelems
     call this%get_node_local_coordinates(first_coord,subelem, & 
-                                          & this%number_dimensions,this%order-1)
+                                          & this%number_dimensions,this%order(1)-1)
     do local_node = 1, geo_nnodes
       call this%get_node_local_coordinates(local_coord,local_node,this%number_dimensions,1)
       global_coord = first_coord + local_coord
       connectivity(local_node, subelem) = this%get_node_local_id(global_coord, &
-                                                         & this%number_dimensions,this%order)
+                                                         & this%number_dimensions,this%order(1)) ! @sbadia: be careful
     end do
   end do
 end subroutine hex_lagrangian_reference_fe_get_subelements_connectivity
@@ -645,7 +648,7 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
     integer(ip) :: idime, q_point
         
     do idime=1,this%number_dimensions
-       call polynomial_1D%generate_basis( this%order, polynomial_1D_basis(idime) )
+       call polynomial_1D%generate_basis( this%order(idime), polynomial_1D_basis(idime) )
     end do
     
     call tensor_product_polynomial_space%create(this%number_dimensions,polynomial_1D_basis)
@@ -694,14 +697,14 @@ subroutine hex_lagrangian_reference_fe_fill_face_interpolation (this,face_interp
   call nodal_coordinates_1D%create(1,2)
   nodal_coordinates_1D%coordinates(1,1) = -1.0_rp
   nodal_coordinates_1D%coordinates(1,2) =  1.0_rp
-  call reference_fe_1D%create(topology_hex,1,this%order,this%field_type,this%continuity)
+  call reference_fe_1D%create(topology_hex,1,this%order(1),this%field_type,this%continuity) ! @sbadia: be careful
   call reference_fe_1D%create_interpolation(nodal_coordinates_1D,interp_1D_corners)
 
   ! Create a ndime-1 interpolation on the local Gauss points in each face
-  call face_reference_fe%create(topology_hex,this%number_dimensions-1,this%order,this%field_type,this%continuity)
+  call face_reference_fe%create(topology_hex,this%number_dimensions-1,this%order(1),this%field_type,this%continuity) ! @sbadia: be careful
   call face_reference_fe%create_interpolation(local_quadrature,local_interpolation)
 
-  order_of_approximation = this%order
+  order_of_approximation = this%order(1)
   ! Create the interpolation
   call this%evaluate_face_interpolation(face_interpolation%shape_functions(1,:,:),          &
                                       & face_interpolation%shape_derivatives(1,:,:,:),        &
@@ -815,7 +818,7 @@ function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, 
   integer(ip)                         , intent(in)    :: order
   integer(ip)                         , intent(in)    :: dimension
   integer(ip) :: hex_lagrangian_reference_fe_set_number_quadrature_points
-  hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension
+  hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension ! @sbadia: not possible this way, it is wrong
 end function
 
 ! @sbadia: to be replaced by the value in the reference fe

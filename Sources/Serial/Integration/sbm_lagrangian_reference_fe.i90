@@ -31,13 +31,13 @@
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_create ( this, topology, number_dimensions, order, field_type, & 
+subroutine lagrangian_reference_fe_create_anisotropic_order ( this, topology, number_dimensions, order, field_type, & 
                                           &  continuity, enable_face_integration )
   implicit none 
   class(lagrangian_reference_fe_t), intent(inout) :: this
   character(*)                    , intent(in)    :: topology
   integer(ip)                     , intent(in)    :: number_dimensions
-  integer(ip)                     , intent(in)    :: order
+  integer(ip)                     , intent(in)    :: order(SPACE_DIM)
   character(*)                    , intent(in)    :: field_type
   logical                         , intent(in)    :: continuity
   logical              , optional , intent(in)    :: enable_face_integration
@@ -49,7 +49,7 @@ subroutine lagrangian_reference_fe_create ( this, topology, number_dimensions, o
   call this%fill()
   call this%set_nodal_quadrature()
   
-end subroutine lagrangian_reference_fe_create
+end subroutine lagrangian_reference_fe_create_anisotropic_order
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_fill_interior_points_permutation(this,                   &
@@ -101,12 +101,15 @@ subroutine lagrangian_reference_fe_create_quadrature ( this, quadrature, max_ord
   type(quadrature_t)              , intent(inout) :: quadrature
   integer(ip)           , optional, intent(in)    :: max_order
   
-  integer(ip) :: ngaus, order
-  order = this%order
+  integer(ip) :: ngaus, order, idime
+  ! @sbadia: to be improved to anisotropic quadratures
   if ( present(max_order) ) then
      order = max_order
   else
-     order = this%order
+     order = 0
+     do idime = 1,this%number_dimensions
+        order = max(order,this%order(idime))
+     end do
   end if
   ngaus = this%set_number_quadrature_points(order,this%number_dimensions)
   call quadrature%create( this%number_dimensions, ngaus )
@@ -121,12 +124,15 @@ subroutine lagrangian_reference_fe_create_face_quadrature ( this, quadrature, ma
   type(quadrature_t)              , intent(inout) :: quadrature
   integer(ip)           , optional, intent(in)    :: max_order
 
-  integer(ip) :: ngaus, order, face_dimensions
-  order = this%order
+  integer(ip) :: ngaus, order, face_dimensions, idime
+  ! @sbadia: to be improved to anisotropic quadratures
   if ( present(max_order) ) then
      order = max_order
   else
-     order = this%order
+     order = 0
+     do idime = 1,this%number_dimensions
+        order = max(order,this%order(idime))
+     end do
   end if
   face_dimensions = this%number_dimensions - 1
   ngaus = this%set_number_quadrature_points(order,face_dimensions)
@@ -194,7 +200,7 @@ subroutine lagrangian_reference_fe_create_face_local_interpolation ( this, quadr
   ! I am assuming the geometric aproximation of the face can be linear
   ! this might need to be modified in the future
   number_dimensions_face   = this%number_dimensions - 1
-  number_nodes_face_scalar = this%compute_number_nodes_scalar( this%order, &
+  number_nodes_face_scalar = this%compute_number_nodes_scalar( this%order(1), &         ! @sbadia: not anisotropic geometry interpolation assumed
                                                             &  number_dimensions_face )
 
   ! Allocate the arrays of the interpolation
@@ -612,12 +618,13 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector( this,  
 
 end subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector
 
+! Adaptivity purposes
 !==================================================================================================
 function lagrangian_reference_fe_get_number_subelements(this) result(number_subelements)
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                                     :: number_subelements
-  number_subelements = this%order**this%number_dimensions
+  number_subelements = this%order(1)**this%number_dimensions ! @sbadia: It is not correct
 end function lagrangian_reference_fe_get_number_subelements
 
 !==================================================================================================
@@ -779,11 +786,12 @@ subroutine lagrangian_reference_fe_fill_nodal_quadrature ( this, quadrature )
   ndime = quadrature%number_dimensions
   nquad = quadrature%number_quadrature_points
   
-  call this%get_node_coordinates_array(quadrature%coordinates,ndime,this%order,nquad)
+  call this%get_node_coordinates_array(quadrature%coordinates,ndime,this%order(1),nquad) ! @sbadia: to be modified
   quadrature%weight = 1.0_rp
 
 end subroutine lagrangian_reference_fe_fill_nodal_quadrature
 
+! @sbadia: This subroutine should be re-written with new machinery
 !==================================================================================================
 subroutine lagrangian_reference_fe_get_node_coordinates_array (this, coordinates,    & 
                                                              & number_of_dimensions, &
@@ -795,7 +803,7 @@ subroutine lagrangian_reference_fe_get_node_coordinates_array (this, coordinates
   integer(ip) :: ijk(number_of_dimensions),i,d
   real(rp)    :: coordinates_1D(order+1)
 
-  call this%set_coordinates_1D(coordinates_1D,order+1)
+  call this%set_coordinates_1D(coordinates_1D,order+1) ! @sbadia: be careful
 
   do i=1,number_nodes
 
@@ -1037,7 +1045,7 @@ elseif ( this%topology == topology_tet ) then
  topology = 0
 end if
 call polytope_tree%create( this%number_dimensions, topology )  
-call node_array%create( polytope_tree, this%order )
+call node_array%create( polytope_tree, this%order(1) ) ! @sbadia: to be corrected
 num_n_faces = polytope_tree%get_number_n_faces()
   ! Number nodes
   this%number_shape_functions = node_array%get_number_nodes()

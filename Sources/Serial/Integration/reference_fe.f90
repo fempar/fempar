@@ -220,7 +220,7 @@ module reference_fe_names
 
      integer(ip)              ::    &        
           number_dimensions,        &
-          order,                    &
+          order(SPACE_DIM),                    &
           number_field_components
 
      logical                  ::    &
@@ -250,7 +250,10 @@ module reference_fe_names
    contains
      ! TBPs
      ! Fill topology, fe_type, number_dimensions, order, continuity 
-     procedure(create_interface)                        , deferred :: create 
+     
+     generic :: create => create_isotropic_order, create_anisotropic_order
+     procedure, non_overridable,  private                             :: create_isotropic_order
+     procedure(create_anisotropic_order_interface), private, deferred :: create_anisotropic_order 
      ! TBP to create a quadrature for a reference_fe_t
      procedure(create_quadrature_interface)             , deferred :: create_quadrature
      !procedure(create_quadrature_on_faces_interface)    , deferred :: create_quadrature_on_faces
@@ -372,6 +375,7 @@ module reference_fe_names
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
      procedure :: get_permuted_own_node_n_face  => reference_fe_get_permuted_own_node_n_face
+     
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -381,17 +385,18 @@ module reference_fe_names
   end type p_reference_fe_t
 
   abstract interface
-     subroutine create_interface ( this, topology, number_dimensions, order, field_type, continuity, enable_face_integration )
-       import :: reference_fe_t, ip
+     subroutine create_anisotropic_order_interface ( this, topology, number_dimensions, order, field_type, &
+                                                    continuity, enable_face_integration )
+       import :: reference_fe_t, ip, SPACE_DIM
        implicit none 
        class(reference_fe_t), intent(inout) :: this 
        character(*)         , intent(in)    :: topology
        integer(ip)          , intent(in)    :: number_dimensions
-       integer(ip)          , intent(in)    :: order
+       integer(ip)          , intent(in)    :: order(SPACE_DIM)
        character(*)         , intent(in)    :: field_type
        logical              , intent(in)    :: continuity
        logical, optional    , intent(in)    :: enable_face_integration
-     end subroutine create_interface
+     end subroutine create_anisotropic_order_interface
      
      subroutine create_quadrature_interface ( this, quadrature, max_order )
        import :: reference_fe_t, quadrature_t, ip
@@ -732,7 +737,7 @@ module reference_fe_names
      ! Blending function to generate interpolations in the interior (given values on the boundary)
      procedure(blending_interface), deferred :: blending
 
-     procedure :: create                    => lagrangian_reference_fe_create
+     procedure, private :: create_anisotropic_order  => lagrangian_reference_fe_create_anisotropic_order
      procedure :: fill_scalar               => lagrangian_reference_fe_fill_scalar
      procedure :: fill_interior_points_permutation     & 
       & => lagrangian_reference_fe_fill_interior_points_permutation
@@ -852,7 +857,7 @@ module reference_fe_names
        integer(ip)                     , intent(inout) :: local_coordinates(:)
        integer(ip)                     , intent(in)    :: local_id
        integer(ip)                     , intent(in)    :: number_of_dimensions
-       integer(ip)                     , intent(in)    :: order       
+       integer(ip)                     , intent(in)    :: order
      end subroutine get_node_local_coordinates_interface
 
      subroutine set_coordinates_1D_interface (this, abscissae, number_of_points)
@@ -878,10 +883,10 @@ module reference_fe_names
      end subroutine set_permutation_2D_interface
      
      function set_number_quadrature_points_interface ( this, order, dimension )
-     import :: lagrangian_reference_fe_t, ip
+     import :: lagrangian_reference_fe_t, ip, SPACE_DIM
        implicit none 
        class(lagrangian_reference_fe_t), intent(in)    :: this
-       integer(ip)                     , intent(in)    :: order    
+       integer(ip)                     , intent(in)    :: order
        integer(ip)                     , intent(in)    :: dimension
        integer(ip) :: set_number_quadrature_points_interface
      end function set_number_quadrature_points_interface
@@ -890,7 +895,7 @@ module reference_fe_names
      import :: lagrangian_reference_fe_t, ip
        implicit none 
        class(lagrangian_reference_fe_t), intent(in)    :: this
-       integer(ip)                     , intent(in)    :: order    
+       integer(ip)                     , intent(in)    :: order
        integer(ip)                     , intent(in)    :: dimension
        integer(ip) :: compute_number_nodes_scalar_interface
      end function compute_number_nodes_scalar_interface
@@ -941,7 +946,7 @@ module reference_fe_names
 !     procedure (vlrfe_get_number_interior_points_x_dim_interface), private, deferred :: &
 !              & vlrfe_get_number_interior_points_x_dim
 
-     procedure :: create                    => vlrfe_create
+     procedure, private :: create_anisotropic_order  => vlrfe_create_anisotropic_order
      !procedure :: fill_vector               => vlrfe_fill_vector
      !procedure :: fill_interior_points_permutation     & 
      ! & => vlrfe_fill_interior_points_permutation
