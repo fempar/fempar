@@ -1174,8 +1174,10 @@ module reference_fe_names
      procedure          :: create_children_iterator => polytope_tree_create_children_iterator
      procedure          :: get_n_face               => polytope_tree_get_n_face
      procedure          :: get_n_face_dimension     => polytope_tree_get_n_face_dimension
+     procedure          :: n_face_type              => polytope_tree_n_face_type
      procedure          :: n_face_dir_is_fixed      => polytope_tree_n_face_dir_is_fixed 
      procedure          :: n_face_dir_coordinate    => polytope_tree_n_face_dir_coordinate
+     procedure          :: n_face_coordinate        => polytope_tree_n_face_coordinate
      procedure          :: get_number_n_faces       => polytope_tree_get_number_n_faces
      procedure          :: free                     => polytope_tree_free
      procedure, private :: fill_cell_tree 
