@@ -118,7 +118,7 @@ contains
                end do
             end do
          end do
-       
+         
          ! Apply boundary conditions
          call fe%impose_strong_dirichlet_bcs( elmat, elvec )
          call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )

@@ -94,6 +94,7 @@ module fe_space_names
     procedure, non_overridable          :: get_elem2dof                               => fe_accessor_get_elem2dof
     procedure, non_overridable          :: get_order                                  => fe_accessor_get_order
     procedure, non_overridable          :: at_strong_dirichlet_boundary               => fe_accessor_at_strong_dirichlet_boundary
+    procedure, non_overridable          :: compute_volume                             => fe_accessor_compute_volume
     
     
     procedure, non_overridable          :: get_quadrature                             => fe_accessor_get_quadrature

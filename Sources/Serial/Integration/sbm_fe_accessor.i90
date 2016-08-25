@@ -379,6 +379,27 @@ function fe_accessor_at_strong_dirichlet_boundary ( this, field_id )
   fe_accessor_at_strong_dirichlet_boundary = this%fe_space%at_strong_dirichlet_boundary_per_fe(field_id,this%get_lid())
 end function fe_accessor_at_strong_dirichlet_boundary
 
+function fe_accessor_compute_volume ( this )
+  implicit none
+  class(fe_accessor_t), intent(in) :: this
+  real(rp) :: fe_accessor_compute_volume
+  integer(ip)                 :: q_poin, number_quadrature_points
+  
+  type(quadrature_t), pointer :: quadrature
+  type(fe_map_t)    , pointer :: fe_map
+  
+  quadrature => this%get_quadrature()
+  fe_map     => this%get_fe_map()
+  
+  number_quadrature_points = quadrature%get_number_quadrature_points()
+  fe_accessor_compute_volume = 0.0_rp
+  do q_poin = 1, number_quadrature_points
+     fe_accessor_compute_volume = fe_accessor_compute_volume + &
+          &                          fe_map%get_det_jacobian(q_poin) * &
+          &                          quadrature%get_weight(q_poin)
+  end do
+end function fe_accessor_compute_volume
+
 
 function fe_accessor_get_quadrature ( this )
   implicit none
