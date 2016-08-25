@@ -212,6 +212,8 @@ module reference_fe_names
      procedure          :: create_children_iterator => polytope_tree_create_children_iterator
      procedure          :: get_n_face               => polytope_tree_get_n_face
      procedure          :: get_n_face_dimension     => polytope_tree_get_n_face_dimension
+     procedure          :: n_face_dir_is_fixed      => polytope_tree_n_face_dir_is_fixed 
+     procedure          :: n_face_dir_coordinate    => polytope_tree_n_face_dir_coordinate
      procedure          :: get_number_n_faces       => polytope_tree_get_number_n_faces
      procedure          :: free                     => polytope_tree_free
      procedure, private :: fill_cell_tree 
@@ -223,7 +225,7 @@ module reference_fe_names
   type node_array_t
      private
      type(polytope_tree_t), pointer :: polytope_tree
-     integer(ip)                    :: order
+     integer(ip)                    :: order(SPACE_DIM)
      integer(ip)                    :: number_nodes
      integer(ip), allocatable       :: node_array(:)
      integer(ip), allocatable       :: ijk_to_index(:)
@@ -1260,7 +1262,7 @@ module reference_fe_names
   end type hex_lagrangian_reference_fe_t
   
   public :: hex_lagrangian_reference_fe_t
-  
+
     !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type volume_integrator_t 
   private

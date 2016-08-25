@@ -94,6 +94,11 @@ module types_names
   integer(ip)  , parameter :: size_of_ip = size(transfer(1_ip, mold))
   integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,mold))
 
+  
+  character(len=*), parameter :: dir_path_key     = 'dir_path'
+  character(len=*), parameter :: prefix_key       = 'prefix'
+  character(len=*), parameter :: dir_path_out_key = 'dir_path_out'
+
   interface
      subroutine runend
      end subroutine runend

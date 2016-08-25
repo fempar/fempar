@@ -1165,7 +1165,7 @@ real(rp), intent(inout)              :: coordinates(:,:)
 type(node_iterator_t) :: node_iterator
 integer(ip) :: i
 do i=1,this%number_dimensions
-  coordinates(i,:) = real(node_array%coordinates(i,:)*(2.0_rp/this%order(i))-1.0_rp) ! @sbadia: easy to correct to anisotropic order
+  coordinates(i,:) = real(node_array%coordinates(i,:)*(2.0_rp/this%order(i))-1.0_rp)
 end do
 end subroutine lagrangian_reference_fe_get_coordinates_nodes
 

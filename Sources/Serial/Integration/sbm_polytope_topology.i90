@@ -56,7 +56,7 @@
 ! In 1D, both actions lead to the line segment $[0,1]$. In 2D, using the prysm action, we get the square, whereas the pyramid action gives
 ! the triangle. Thus, a polytope that can be defined as the combination of these actions is represented in the computer by d bits.
 !
-! E.g., in 3D, we have the square 111 (or 110), the prysm 101 (or 100), the pyramid 011 (or 000), and the tetrahedrom 001 (or 000). 
+! E.g., in 3D, we have the cube 111 (or 110), the prysm 101 (or 100), the pyramid 011 (or 010), and the tetrahedrom 001 (or 000). 
 ! The non-uniqueness in 1D leads to two possible definitions of the polytope. Thus, we can just define the topology of these polytopes by
 ! an integer.
 !
@@ -125,7 +125,7 @@
 ! that belong to the polytope or any of its n-faces. It leads to the Lagrangian nodes of order O for an arbitrary polytope. Further,
 ! these queries can be for the open and closed n-face.
 !
-! We have created the node_array_t structure, that given a polytope provides the list of all nodes for a given order O, based on a lexicographical 
+! We have created the node_array_t structure, that given a polytope provides the list of all nodes for a given order, based on a lexicographical 
 ! index. Again, since this index is non consecutive for non-cube polytopes, we renumber the nodes with the permutation table node_array. Its inverse
 ! is in ijk_to_index. 
 !
@@ -299,6 +299,26 @@ function polytope_tree_get_n_face_dimension(this, n_face_index)
 end function polytope_tree_get_n_face_dimension
 
 !=================================================================================================
+function polytope_tree_n_face_dir_is_fixed(this, n_face_index, dir) 
+       implicit none
+  class(polytope_tree_t), intent(in) :: this
+  integer(ip)           , intent(in) :: n_face_index
+  integer(ip)           , intent(in) :: dir
+  integer(ip)                        :: polytope_tree_n_face_dir_is_fixed
+  polytope_tree_n_face_dir_is_fixed = IBITS( this%n_face_array(n_face_index), this%number_dimensions + dir, 1 )
+end function polytope_tree_n_face_dir_is_fixed
+
+!=================================================================================================
+function polytope_tree_n_face_dir_coordinate(this, n_face_index, dir) 
+  implicit none
+  class(polytope_tree_t), intent(in) :: this
+  integer(ip)           , intent(in) :: n_face_index
+  integer(ip)           , intent(in) :: dir
+  integer(ip)                        :: polytope_tree_n_face_dir_coordinate
+  polytope_tree_n_face_dir_coordinate = IBITS( this%n_face_array(n_face_index), dir, 1 )
+end function polytope_tree_n_face_dir_coordinate
+
+!=================================================================================================
 !     NODE_ARRAY_T TBPS
 !=================================================================================================
 
@@ -307,7 +327,7 @@ subroutine node_array_create ( this, polytope_tree, order )
   implicit none
   class(node_array_t)        , intent(inout) :: this
   type(polytope_tree_t), target, intent(in)    :: polytope_tree
-  integer(ip)                , intent(in)    :: order
+  integer(ip)                , intent(in)    :: order(SPACE_DIM)
   call this%free()
   this%polytope_tree => polytope_tree
   this%order = order
