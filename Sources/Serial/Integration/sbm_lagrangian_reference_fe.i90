@@ -181,7 +181,7 @@ subroutine lagrangian_reference_fe_create_face_interpolation( this,local_face_id
                                & local_quadrature%number_quadrature_points, 0 )
 
   ! Fill the values of the shape functions
-  call this%fill_face_interpolation (face_interpolation,local_quadrature,local_face_id)
+  call this%fill_face_interpolation(local_quadrature,local_face_id,face_interpolation)
   
 end subroutine lagrangian_reference_fe_create_face_interpolation
 
@@ -195,21 +195,20 @@ subroutine lagrangian_reference_fe_create_face_local_interpolation ( this, quadr
   type(quadrature_t)              , intent(in)    :: quadrature
   type(interpolation_t)           , intent(inout) :: interpolation
 
+  type(p_reference_fe_t) :: aux_reference_fe
+  
   integer(ip) :: number_nodes_face_scalar, number_dimensions_face
-
-  ! I am assuming the geometric aproximation of the face can be linear
-  ! this might need to be modified in the future
-  number_dimensions_face   = this%number_dimensions - 1
-  number_nodes_face_scalar = this%compute_number_nodes_scalar( this%order(1), &         ! @sbadia: not anisotropic geometry interpolation assumed
-                                                            &  number_dimensions_face )
-
-  ! Allocate the arrays of the interpolation
-  call interpolation%create( number_dimensions_face, number_nodes_face_scalar, &
-                           & quadrature%number_quadrature_points, 0)
-
-  ! Fill the values with the common routine for filling an interpolation
-  call this%fill_interpolation( quadrature, interpolation )
-
+  
+  aux_reference_fe = make_reference_fe ( this%topology, &
+                                         this%fe_type, &
+                                         this%number_dimensions-1, &
+                                         this%order(1), &
+                                         this%field_type, &
+                                         this%continuity, &
+                                         enable_face_integration=.false. )
+  
+  call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
+  call aux_reference_fe%free()
 end subroutine lagrangian_reference_fe_create_face_local_interpolation
 
 !==================================================================================================

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module test_poisson_driver_names
+module test_vector_poisson_driver_names
   use serial_names
 !  use error_norms_names
   use test_poisson_params_names
@@ -260,4 +260,4 @@ contains
     call this%test_params%free()
   end subroutine free
 
-end module test_poisson_driver_names
+end module test_vector_poisson_driver_names

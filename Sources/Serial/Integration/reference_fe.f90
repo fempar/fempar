@@ -813,11 +813,6 @@ module reference_fe_names
      procedure (fill_quadrature_interface)        , private, deferred :: fill_quadrature   
      procedure (fill_interpolation_interface)     , private, deferred :: fill_interpolation
      procedure (fill_face_interpolation_interface), private, deferred :: fill_face_interpolation
-     procedure (get_node_local_id_interface)      , private, deferred :: get_node_local_id
-     procedure (get_node_local_coordinates_interface)      , private, deferred :: &
-              & get_node_local_coordinates
-     !procedure (set_coordinates_1D_interface)              , private, deferred :: &
-     !         & set_coordinates_1D
      procedure (set_permutation_2D_interface)              , private, deferred :: &
               & set_permutation_2D
      procedure (set_number_quadrature_points_interface)    , private, deferred :: &
@@ -916,51 +911,16 @@ module reference_fe_names
      end subroutine fill_interpolation_interface
  
      subroutine fill_face_interpolation_interface ( this,               &
-                                                    face_interpolation, &
-                                                    local_quadrature,   &
-                                                    local_face_id )
+                                                    local_quadrature, &
+                                                    local_face_id,   &
+                                                    face_interpolation )
      import :: lagrangian_reference_fe_t, interpolation_t, quadrature_t, ip
        implicit none 
        class(lagrangian_reference_fe_t), intent(in)    :: this
-       type(interpolation_t)           , intent(inout) :: face_interpolation
        type(quadrature_t)              , intent(in)    :: local_quadrature
        integer(ip)                     , intent(in)    :: local_face_id
+       type(interpolation_t)           , intent(inout) :: face_interpolation
      end subroutine fill_face_interpolation_interface
-     
-     function get_node_local_id_interface ( this,                 &
-                                            local_coordinates,    &
-                                            number_of_dimensions, &
-                                            order )
-     import :: lagrangian_reference_fe_t, ip
-       implicit none
-       class(lagrangian_reference_fe_t), intent(in)    :: this
-       integer(ip)                     , intent(in)    :: local_coordinates(:)
-       integer(ip)                     , intent(in)    :: number_of_dimensions
-       integer(ip)                     , intent(in)    :: order
-       integer(ip) :: get_node_local_id_interface
-     end function get_node_local_id_interface
-     
-     subroutine get_node_local_coordinates_interface( this,                 &
-                                                      local_coordinates,    &
-                                                      local_id,             &
-                                                      number_of_dimensions, &
-                                                      order )
-     import :: lagrangian_reference_fe_t, ip
-       implicit none
-       class(lagrangian_reference_fe_t), intent(in)    :: this
-       integer(ip)                     , intent(inout) :: local_coordinates(:)
-       integer(ip)                     , intent(in)    :: local_id
-       integer(ip)                     , intent(in)    :: number_of_dimensions
-       integer(ip)                     , intent(in)    :: order
-     end subroutine get_node_local_coordinates_interface
-
-     !subroutine set_coordinates_1D_interface (this, abscissae, number_of_points)
-     !import :: lagrangian_reference_fe_t, ip, rp
-     !  implicit none
-     !  class(lagrangian_reference_fe_t), intent(in)    :: this
-     !  integer(ip)                     , intent(in)    :: number_of_points
-     !  real(rp)                        , intent(inout) :: abscissae(:)
-     !end subroutine set_coordinates_1D_interface
      
      subroutine set_permutation_2D_interface ( this,               &
                                                permutation,        &
@@ -1021,25 +981,6 @@ module reference_fe_names
   type, abstract, extends(lagrangian_reference_fe_t) :: vector_lagrangian_reference_fe_t
      private
    contains
-     ! Additional deferred methods
-     !procedure (fill_scalar_interface)            , private, deferred :: fill_scalar
-!     procedure (vlrfe_fill_quadrature_interface)        , private, deferred :: vlrfe_fill_quadrature   
-!     procedure (vlrfe_fill_interpolation_interface)     , private, deferred :: vlrfe_fill_interpolation
-!     procedure (vlrfe_fill_face_interpolation_interface), private, deferred :: vlrfe_fill_face_interpolation
-!     procedure (vlrfe_get_node_local_id_interface)      , private, deferred :: vlrfe_get_node_local_id
-!     procedure (vlrfe_get_node_local_coordinates_interface)      , private, deferred :: &
-!              & vlrfe_get_node_local_coordinates
-!     procedure (vlrfe_set_coordinates_1D_interface)              , private, deferred :: &
-!              & vlrfe_set_coordinates_1D
-!     procedure (vlrfe_set_permutation_2D_interface)              , private, deferred :: &
-!              & vlrfe_set_permutation_2D
-!     procedure (vlrfe_set_number_quadrature_points_interface)    , private, deferred :: &
-!              & vlrfe_set_number_quadrature_points
-!     procedure (vlrfe_compute_number_nodes_scalar_interface)     , private, deferred :: &
-!              & vlrfe_compute_number_nodes_scalar
-!     procedure (vlrfe_get_number_interior_points_x_dim_interface), private, deferred :: &
-!              & vlrfe_get_number_interior_points_x_dim
-
      procedure, private :: create_anisotropic_order  => vlrfe_create_anisotropic_order
      !procedure :: fill_vector               => vlrfe_fill_vector
      !procedure :: fill_interior_points_permutation     & 
@@ -1128,10 +1069,6 @@ module reference_fe_names
            & => tet_lagrangian_reference_fe_fill_face_interpolation
      procedure, private :: get_node_local_id                                  &
            & => tet_lagrangian_reference_fe_get_node_local_id
-     procedure, private :: get_node_local_coordinates                         &
-           & => tet_lagrangian_reference_fe_get_node_local_coordinates
-     !procedure, private :: set_coordinates_1D                                 &
-     !      & => tet_lagrangian_reference_fe_set_coordinates_1D
      procedure, private :: set_permutation_2D                                 &
            & => tet_lagrangian_reference_fe_set_permutation_2D
      procedure, private :: set_number_quadrature_points                       &
@@ -1179,12 +1116,6 @@ module reference_fe_names
            & => tet_vlrfe_fill_interpolation
      procedure, private :: fill_face_interpolation                            &
            & => tet_vlrfe_fill_face_interpolation
-     procedure, private :: get_node_local_id                                  &
-           & => tet_vlrfe_get_node_local_id
-     procedure, private :: get_node_local_coordinates                         &
-           & => tet_vlrfe_get_node_local_coordinates
-     !procedure, private :: set_coordinates_1D                                 &
-     !      & => tet_vlrfe_set_coordinates_1D
      procedure, private :: set_permutation_2D                                 &
            & => tet_vlrfe_set_permutation_2D
      procedure, private :: set_number_quadrature_points                       &
@@ -1193,6 +1124,8 @@ module reference_fe_names
            & => tet_vlrfe_compute_number_nodes_scalar
      procedure, private :: get_number_interior_points_x_dim                   &
            & => tet_vlrfe_get_number_interior_points_x_dim
+     procedure, private :: get_node_local_id                   &
+           & => tet_vlrfe_get_node_local_id
      ! Concrete TBPs of this derived data type
      procedure, private, non_overridable :: vlrfe_fill_nodes_n_face                    &
            & => tet_vlrfe_fill_nodes_n_face
@@ -1232,12 +1165,6 @@ module reference_fe_names
            & => hex_lagrangian_reference_fe_fill_interpolation
      procedure, private :: fill_face_interpolation                            &
            & => hex_lagrangian_reference_fe_fill_face_interpolation
-     procedure, private :: get_node_local_id                                  &
-           & => hex_lagrangian_reference_fe_get_node_local_id
-     procedure, private :: get_node_local_coordinates                         &
-           & => hex_lagrangian_reference_fe_get_node_local_coordinates
-!     procedure, private :: set_coordinates_1D                                 &
-!           & => hex_lagrangian_reference_fe_set_coordinates_1D
      procedure, private :: set_permutation_2D                                 &
            & => hex_lagrangian_reference_fe_set_permutation_2D
      procedure, private :: set_number_quadrature_points                       &
@@ -1246,19 +1173,6 @@ module reference_fe_names
            & => hex_lagrangian_reference_fe_compute_number_nodes_scalar
      procedure, private :: get_number_interior_points_x_dim                   &
            & => hex_lagrangian_reference_fe_get_number_interior_points_x_dim
-     ! Concrete TBPs of this derived data type
-     !procedure, private, non_overridable :: fill_n_face_dimension_and_directions &
-     !      & => hex_lagrangian_reference_fe_fill_n_face_dims_and_directions
-     !procedure, private, non_overridable :: fill_n_face_local_coordinates_nodes  &
-     !      & => hex_lagrangian_reference_fe_fill_n_face_local_coordinates_nodes
-     !procedure, private, non_overridable :: evaluate_interpolation_1D         &
-     !      & => hex_lagrangian_reference_fe_evaluate_interpolation_1D 
-     !procedure, private, non_overridable :: evaluate_interpolation            &
-     !      & => hex_lagrangian_reference_fe_evaluate_interpolation 
-     procedure, private, non_overridable :: evaluate_face_interpolation       &
-           & => hex_lagrangian_reference_fe_evaluate_face_interpolation
-     !procedure, private, non_overridable :: get_n_face_orientation               &
-     !      & => hex_lagrangian_reference_fe_get_n_face_orientation
   end type hex_lagrangian_reference_fe_t
   
   public :: hex_lagrangian_reference_fe_t
@@ -1403,6 +1317,8 @@ end type p_face_integrator_t
 
 public :: face_integrator_t, p_face_integrator_t
 
+public :: make_reference_fe
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 contains
@@ -1431,5 +1347,7 @@ contains
 #include "sbm_volume_integrator.i90"
 
 #include "sbm_face_integrator.i90"
+
+#include "sbm_reference_fe_factory.i90"
 
 end module reference_fe_names

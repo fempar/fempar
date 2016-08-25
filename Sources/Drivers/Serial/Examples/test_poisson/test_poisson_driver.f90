@@ -114,7 +114,7 @@ contains
     this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                 order = 5, &
+                                                 order = 2, &
                                                  field_type = field_type_scalar, &
                                                  continuity = continuity )
   end subroutine setup_reference_fes

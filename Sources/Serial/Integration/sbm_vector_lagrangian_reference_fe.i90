@@ -91,7 +91,7 @@ subroutine vlrfe_create_face_interpolation( this,local_face_id, &
                                & local_quadrature%number_quadrature_points, 0 )
 
   ! Fill the values of the shape functions
-  call this%fill_face_interpolation (face_interpolation,local_quadrature,local_face_id)
+  call this%fill_face_interpolation (local_quadrature,local_face_id,face_interpolation)
   
 end subroutine vlrfe_create_face_interpolation
 
