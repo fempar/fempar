@@ -32,7 +32,6 @@ module mesh_names
   use hash_table_names
   use stdio_names
   use reference_fe_names
-  use reference_fe_factory_names
   use mesh_distribution_names
   use metis_interface_names
   use rcm_renumbering_names

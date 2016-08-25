@@ -245,10 +245,14 @@ contains
     !type(children_iterator_t) :: children_iterator
     !type(list_iterator_t)     :: list_iterator
     integer(ip)               :: topology
+    
+    integer(ip) :: ones(SPACE_DIM)
 
+    ones = 1
+    
     topology = 2**input_data%number_of_dimensions-1  ! Hexahedral
     call polytope_tree%create( input_data%number_of_dimensions, topology )  
-    call node_array%create ( polytope_tree, input_data%interpolation_order )
+    call node_array%create ( polytope_tree, ones*input_data%interpolation_order )
 
     ! Get my part coordinates (make it 0-based, assuming part_id is 1-based)
     if(present(part_id)) then
