@@ -642,8 +642,8 @@ subroutine bst_allocate_and_fill_face_orientation_rotation ( this )
   
   type(cell_accessor_t)          :: first_cell
   type(cell_accessor_t)          :: second_cell
-  class(reference_fe_t), pointer :: first_reference_fe_geo
-  class(reference_fe_t), pointer :: second_reference_fe_geo
+  class(lagrangian_reference_fe_t), pointer :: first_reference_fe_geo
+  class(lagrangian_reference_fe_t), pointer :: second_reference_fe_geo
   integer(ip)                    :: face_orientation
   integer(ip)                    :: face_rotation
   
@@ -1717,6 +1717,13 @@ subroutine bst_print ( this )
        deallocate ( this%coarse_triangulation, stat=istat)
        check(istat == 0)
       end if
+      
+      do icell=1, max_num_reference_fes_geo
+         if(associated(this%reference_fe_geo_list(icell)%p)) then
+           call this%reference_fe_geo_list(icell)%p%free()
+           nullify(this%reference_fe_geo_list(icell)%p)
+         endif
+      enddo
       
       nullify(this%p_env)
      

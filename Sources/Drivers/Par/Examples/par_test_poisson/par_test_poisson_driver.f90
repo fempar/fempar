@@ -79,6 +79,7 @@ module par_test_poisson_driver_names
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
      procedure        , private :: check_solution
+     procedure        , private :: print_error_norms
      procedure        , private :: free
   end type par_test_poisson_fe_driver_t
 
@@ -283,6 +284,46 @@ contains
     
   end subroutine check_solution
   
+   subroutine print_error_norms(this)
+    implicit none
+    class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    type(constant_scalar_function_t) :: constant_function
+    type(error_norms_scalar_t) :: error_norm 
+    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    
+    call constant_function%create(1.0_rp)
+    call error_norm%create(this%fe_space,1)
+    
+    mean = error_norm%compute(constant_function, this%solution, mean_norm)   
+    l1 = error_norm%compute(constant_function, this%solution, l1_norm)   
+    l2 = error_norm%compute(constant_function, this%solution, l2_norm)   
+    lp = error_norm%compute(constant_function, this%solution, lp_norm)   
+    linfty = error_norm%compute(constant_function, this%solution, linfty_norm)   
+    h1_s = error_norm%compute(constant_function, this%solution, h1_seminorm) 
+    h1 = error_norm%compute(constant_function, this%solution, h1_norm) 
+    w1p_s = error_norm%compute(constant_function, this%solution, w1p_seminorm)   
+    w1p = error_norm%compute(constant_function, this%solution, w1p_norm)   
+    w1infty_s = error_norm%compute(constant_function, this%solution, w1infty_seminorm) 
+    w1infty = error_norm%compute(constant_function, this%solution, w1infty_norm)  
+    
+    if ( this%par_environment%get_l1_rank() == 0 ) then
+      write(*,'(a20,e32.25)') 'mean_norm:', mean
+      write(*,'(a20,e32.25)') 'l1_norm:', l1
+      write(*,'(a20,e32.25)') 'l2_norm:', l2
+      write(*,'(a20,e32.25)') 'lp_norm:', lp
+      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty
+      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s
+      write(*,'(a20,e32.25)') 'h1_norm:', h1
+      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s
+      write(*,'(a20,e32.25)') 'w1p_norm:', w1p
+      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s
+      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty
+    end if  
+
+    call error_norm%free()
+  end subroutine print_error_norms 
+  
+  
   
   subroutine run_simulation(this) 
     implicit none
@@ -297,9 +338,10 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%fe_space%create_global_fe_function(this%solution)
+    call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
     call this%check_solution()
+    call this%print_error_norms()
     call this%free()
   end subroutine run_simulation
   

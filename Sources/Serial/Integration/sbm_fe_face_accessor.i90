@@ -76,7 +76,7 @@ subroutine fe_face_accessor_update_integration( this )
   type(face_integrator_t), pointer :: face_integrator
   
   type(fe_accessor_t)   :: fe
-  class(reference_fe_t), pointer :: reference_fe_geo
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   
   quadrature => this%get_quadrature()
   face_map   => this%get_face_map()

@@ -161,13 +161,13 @@ contains
     ! Parameters
     class(mesh_distribution_t), intent(inout)  :: f_msh_dist
 
-    call memfree ( f_msh_dist%lebou,__FILE__,__LINE__)
-    call memfree ( f_msh_dist%lnbou,__FILE__,__LINE__)
-    call memfree ( f_msh_dist%pextn ,__FILE__,__LINE__)
-    call memfree ( f_msh_dist%lextn ,__FILE__,__LINE__)
-    call memfree ( f_msh_dist%lextp ,__FILE__,__LINE__)
-    call memfree ( f_msh_dist%l2g_vertices, __FILE__,__LINE__)
-    call memfree ( f_msh_dist%l2g_cells, __FILE__,__LINE__)
+    if(allocated(f_msh_dist%lebou)) call memfree ( f_msh_dist%lebou,__FILE__,__LINE__)
+    if(allocated(f_msh_dist%lnbou)) call memfree ( f_msh_dist%lnbou,__FILE__,__LINE__)
+    if(allocated(f_msh_dist%pextn)) call memfree ( f_msh_dist%pextn ,__FILE__,__LINE__)
+    if(allocated(f_msh_dist%lextn)) call memfree ( f_msh_dist%lextn ,__FILE__,__LINE__)
+    if(allocated(f_msh_dist%lextp)) call memfree ( f_msh_dist%lextp ,__FILE__,__LINE__)
+    if(allocated(f_msh_dist%l2g_vertices)) call memfree ( f_msh_dist%l2g_vertices, __FILE__,__LINE__)
+    if(allocated(f_msh_dist%l2g_cells)) call memfree ( f_msh_dist%l2g_cells, __FILE__,__LINE__)
   end subroutine mesh_distribution_free
 
   !=============================================================================
