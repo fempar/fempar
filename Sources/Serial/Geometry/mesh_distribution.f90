@@ -30,8 +30,20 @@ module mesh_distribution_names
   use memor_names
   use stdio_names
   use metis_interface_names
+  use FPL
   implicit none
+# include "debug.i90"
   private
+
+  character(len=*), parameter :: num_parts_key = 'num_parts'
+  character(len=*), parameter :: debug_key     = 'debug'
+  character(len=*), parameter :: strategy_key  = 'strategy'
+  character(len=*), parameter :: metis_option_debug_key   = 'metis_option_debug'
+  character(len=*), parameter :: metis_option_ufactor_key = 'metis_option_ufactor'
+  character(len=*), parameter :: metis_option_minconn_key = 'metis_option_minconn'
+  character(len=*), parameter :: metis_option_contig_key  = 'metis_option_contig'
+  character(len=*), parameter :: metis_option_ctype_key   = 'metis_option_ctype'
+  character(len=*), parameter :: metis_option_iptype_key  = 'metis_option_iptype'
 
   ! Data required to describe on each MPI task the distribution of the mesh
   type mesh_distribution_t
@@ -106,12 +118,23 @@ module mesh_distribution_names
 
      ! Applicable to both metis 4.0 and metis 5.0
      integer(ip) :: metis_option_debug  =  0 
+     contains
+       procedure, non_overridable ::get_parameters_from_fpl =>  mesh_distribution_get_parameters_from_fpl
   end type mesh_distribution_params_t
 
   ! Types
   public :: mesh_distribution_t, mesh_distribution_params_t
 
   ! Constants
+  public :: num_parts_key
+  public :: debug_key
+  public :: strategy_key
+  public :: metis_option_debug_key
+  public :: metis_option_ufactor_key
+  public :: metis_option_minconn_key
+  public :: metis_option_contig_key
+  public :: metis_option_ctype_key
+  public :: metis_option_iptype_key
   public :: part_kway,part_recursive,part_strip,part_rcm_strip
 
   ! Functions
@@ -120,6 +143,64 @@ module mesh_distribution_names
   public :: mesh_distribution_compose_name
 
 contains
+
+
+  subroutine mesh_distribution_get_parameters_from_fpl(this,parameter_list)
+    !-----------------------------------------------------------------------------------------------!
+    !   This subroutine generates geometry data to construct a structured mesh                      !
+    !-----------------------------------------------------------------------------------------------!
+    implicit none
+    class(mesh_distribution_params_t), intent(inout) :: this
+    type(ParameterList_t)            , intent(in)    :: parameter_list
+    ! Locals
+    integer(ip)          :: istat
+    logical              :: is_present
+
+    ! Mandatory parameters
+    is_present =  parameter_list%isPresent(key = num_parts_key )
+    assert(is_present)
+    istat = parameter_list%get(key = num_parts_key , value = this%nparts)
+    check(istat==0)
+
+    ! Optional parameters
+    if( parameter_list%isPresent(key = debug_key) ) then
+       istat = parameter_list%get(key = debug_key  , value = this%debug)
+       check(istat==0)
+    end if
+
+    if( parameter_list%isPresent(key = strategy_key) ) then
+       istat = parameter_list%get(key = strategy_key  , value = this%strat)
+       check(istat==0)
+       assert(this%strat==part_kway.or.this%strat==part_recursive.or.this%strat==part_strip.or.this%strat==part_rcm_strip)
+    end if
+
+    if( parameter_list%isPresent(key = metis_option_debug_key) ) then
+       istat = parameter_list%get(key = metis_option_debug_key  , value = this%metis_option_debug)
+       check(istat==0)
+    end if
+
+    if( parameter_list%isPresent(key = metis_option_ufactor_key) ) then
+       istat = parameter_list%get(key = metis_option_ufactor_key, value = this%metis_option_ufactor)
+       check(istat==0)
+    end if
+
+    if( parameter_list%isPresent(key = metis_option_minconn_key) ) then
+       istat = parameter_list%get(key = metis_option_minconn_key, value = this%metis_option_minconn)
+       check(istat==0)
+    end if
+
+    if( parameter_list%isPresent(key = metis_option_contig_key) ) then
+       istat = parameter_list%get(key = metis_option_contig_key , value = this%metis_option_contig)
+       check(istat==0)
+    end if
+
+    if( parameter_list%isPresent(key = metis_option_ctype_key) ) then
+       istat = parameter_list%get(key = metis_option_ctype_key  , value = this%metis_option_ctype)
+       check(istat==0)
+    end if
+
+  end subroutine mesh_distribution_get_parameters_from_fpl
+
 
   !=============================================================================
   subroutine mesh_distribution_get_sizes(this,ipart,nparts)
@@ -255,8 +336,8 @@ contains
    subroutine mesh_distribution_read (f_msh_dist,  dir_path, prefix)
      implicit none 
      ! Parameters
-     character (*)             , intent(in)    :: dir_path
-     character (*)             , intent(in)    :: prefix
+     character(*)         , intent(in)    :: dir_path
+     character(*)         , intent(in)    :: prefix
      class(mesh_distribution_t), intent(inout) :: f_msh_dist
      ! Locals
      integer(ip)                    :: lunio
@@ -324,25 +405,41 @@ contains
   !=============================================================================
   subroutine mesh_distribution_compose_name ( prefix, name ) 
     implicit none
-    character (len=*), intent(in)                 :: prefix 
+    character (len=*), intent(in)    :: prefix 
     character (len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.prt'
   end subroutine 
 
   !=============================================================================
-  subroutine mesh_distribution_write_files ( dir_path, prefix, nparts, parts )
+  subroutine mesh_distribution_write_files ( parameter_list, parts )
     implicit none
     ! Parameters
-    character (len=*), intent(in)   :: dir_path
-    character (len=*), intent(in)   :: prefix
-    integer(ip)  , intent(in)       :: nparts
-    type(mesh_distribution_t), intent(in)  :: parts(nparts)
+    type(ParameterList_t)    , intent(in) :: parameter_list
+    type(mesh_distribution_t), intent(in)  :: parts(:)
+
     ! Locals
-    integer (ip)                     :: i
-    character(len=:), allocatable    :: name, rename ! Deferred-length allocatable character arrays
-    
-    integer :: lunio
-    
+    integer(ip)          :: nparts
+    integer(ip)          :: istat
+    logical              :: is_present
+    character(len=256)   :: dir_path
+    character(len=256)   :: prefix
+    character(len=:), allocatable :: name, rename
+    integer(ip)          :: lunio
+    integer(ip)          :: i
+
+    nparts = size(parts)
+
+    ! Mandatory parameters
+    is_present = .true.
+    is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
+    is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
+    assert(is_present)
+     
+    istat = 0
+    istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
+    istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
+    check(istat==0)
+
     call mesh_distribution_compose_name ( prefix, name )
     
     do i=1,nparts
@@ -357,12 +454,13 @@ contains
     ! go out of scope. Should we deallocate them explicitly for safety reasons?
   end subroutine  mesh_distribution_write_files
 
+  !=============================================================================
   subroutine mesh_distribution_read_files ( dir_path, prefix, nparts, parts )
     implicit none
     ! Parameters 
-    character (*), intent(in)    :: dir_path 
-    character (*), intent(in)    :: prefix
-    integer(ip)  , intent(in)    :: nparts
+    character(*), intent(in)    :: dir_path 
+    character(*), intent(in)    :: prefix
+    integer(ip)     , intent(in)    :: nparts
     type(mesh_distribution_t), intent(inout)  :: parts(nparts)
 
     ! Locals 
