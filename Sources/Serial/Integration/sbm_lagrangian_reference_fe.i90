@@ -31,13 +31,13 @@
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_create ( this, topology, number_dimensions, order, field_type, & 
+subroutine lagrangian_reference_fe_create_anisotropic_order ( this, topology, number_dimensions, order, field_type, & 
                                           &  continuity, enable_face_integration )
   implicit none 
   class(lagrangian_reference_fe_t), intent(inout) :: this
   character(*)                    , intent(in)    :: topology
   integer(ip)                     , intent(in)    :: number_dimensions
-  integer(ip)                     , intent(in)    :: order
+  integer(ip)                     , intent(in)    :: order(SPACE_DIM)
   character(*)                    , intent(in)    :: field_type
   logical                         , intent(in)    :: continuity
   logical              , optional , intent(in)    :: enable_face_integration
@@ -49,7 +49,7 @@ subroutine lagrangian_reference_fe_create ( this, topology, number_dimensions, o
   call this%fill()
   call this%set_nodal_quadrature()
   
-end subroutine lagrangian_reference_fe_create
+end subroutine lagrangian_reference_fe_create_anisotropic_order
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_fill_interior_points_permutation(this,                   &
@@ -101,12 +101,15 @@ subroutine lagrangian_reference_fe_create_quadrature ( this, quadrature, max_ord
   type(quadrature_t)              , intent(inout) :: quadrature
   integer(ip)           , optional, intent(in)    :: max_order
   
-  integer(ip) :: ngaus, order
-  order = this%order
+  integer(ip) :: ngaus, order, idime
+  ! @sbadia: to be improved to anisotropic quadratures
   if ( present(max_order) ) then
      order = max_order
   else
-     order = this%order
+     order = 0
+     do idime = 1,this%number_dimensions
+        order = max(order,this%order(idime))
+     end do
   end if
   ngaus = this%set_number_quadrature_points(order,this%number_dimensions)
   call quadrature%create( this%number_dimensions, ngaus )
@@ -121,12 +124,15 @@ subroutine lagrangian_reference_fe_create_face_quadrature ( this, quadrature, ma
   type(quadrature_t)              , intent(inout) :: quadrature
   integer(ip)           , optional, intent(in)    :: max_order
 
-  integer(ip) :: ngaus, order, face_dimensions
-  order = this%order
+  integer(ip) :: ngaus, order, face_dimensions, idime
+  ! @sbadia: to be improved to anisotropic quadratures
   if ( present(max_order) ) then
      order = max_order
   else
-     order = this%order
+     order = 0
+     do idime = 1,this%number_dimensions
+        order = max(order,this%order(idime))
+     end do
   end if
   face_dimensions = this%number_dimensions - 1
   ngaus = this%set_number_quadrature_points(order,face_dimensions)
@@ -151,10 +157,10 @@ subroutine lagrangian_reference_fe_create_interpolation ( this, quadrature, &
      ntens = ntens + i
   end do
 
-  call interpolation%create( this%number_dimensions, this%number_nodes_scalar, &
+  call interpolation%create( this%number_dimensions, this%node_array%number_nodes, &
                              quadrature%number_quadrature_points, ntens, compute_hessian )
   
-  call this%fill_interpolation( interpolation, quadrature%coordinates )
+  call this%fill_interpolation( quadrature, interpolation )
   
 end subroutine lagrangian_reference_fe_create_interpolation
 
@@ -171,7 +177,7 @@ subroutine lagrangian_reference_fe_create_face_interpolation( this,local_face_id
   type(interpolation_t)           , intent(inout) :: face_interpolation
 
   ! Allocate the arrays of the interpolation
-  call face_interpolation%create(this%number_dimensions,this%number_nodes_scalar, &
+  call face_interpolation%create(this%number_dimensions,this%node_array%number_nodes, &
                                & local_quadrature%number_quadrature_points, 0 )
 
   ! Fill the values of the shape functions
@@ -194,7 +200,7 @@ subroutine lagrangian_reference_fe_create_face_local_interpolation ( this, quadr
   ! I am assuming the geometric aproximation of the face can be linear
   ! this might need to be modified in the future
   number_dimensions_face   = this%number_dimensions - 1
-  number_nodes_face_scalar = this%compute_number_nodes_scalar( this%order, &
+  number_nodes_face_scalar = this%compute_number_nodes_scalar( this%order(1), &         ! @sbadia: not anisotropic geometry interpolation assumed
                                                             &  number_dimensions_face )
 
   ! Allocate the arrays of the interpolation
@@ -202,7 +208,7 @@ subroutine lagrangian_reference_fe_create_face_local_interpolation ( this, quadr
                            & quadrature%number_quadrature_points, 0)
 
   ! Fill the values with the common routine for filling an interpolation
-  call this%fill_interpolation( interpolation, quadrature%coordinates )
+  call this%fill_interpolation( quadrature, interpolation )
 
 end subroutine lagrangian_reference_fe_create_face_local_interpolation
 
@@ -261,7 +267,7 @@ function lagrangian_reference_fe_get_number_nodes_scalar(this) result(number_nod
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                                     :: number_nodes_scalar
-  number_nodes_scalar = this%number_nodes_scalar
+  number_nodes_scalar = this%node_array%number_nodes
 end function lagrangian_reference_fe_get_number_nodes_scalar
 
 !==================================================================================================
@@ -425,13 +431,10 @@ end subroutine lagrangian_reference_fe_interpolate_nodal_values
 subroutine lagrangian_reference_fe_set_nodal_quadrature (this)
   implicit none
   class(lagrangian_reference_fe_t), intent(inout) :: this
-  
   ! Create nodal quadrature
-  call this%nodal_quadrature%create( this%number_dimensions, this%number_nodes_scalar )
-
+  call this%nodal_quadrature%create( this%number_dimensions, this%node_array%number_nodes )
   ! Fill nodal quadrature
-  call this%fill_nodal_quadrature ( this%nodal_quadrature )
-  
+  call this%fill_nodal_quadrature ( this%nodal_quadrature )  
 end subroutine lagrangian_reference_fe_set_nodal_quadrature
 
 !==================================================================================================
@@ -447,12 +450,12 @@ subroutine lagrangian_reference_fe_set_scalar_field_to_nodal_values (this, code,
   integer(ip) :: i, icomp
 
   assert(size(nodal_values) == this%number_shape_functions)
-  assert(size(values) == this%number_nodes_scalar)
+  assert(size(values) == this%node_array%number_nodes)
 
   icomp = 1
   if(present(unknown_component)) icomp = unknown_component
 
-  do i = 1, this%number_nodes_scalar
+  do i = 1, this%node_array%number_nodes
      if(nodal_codes(this%node_array_component(i,icomp)) == code) then
         nodal_values(this%node_array_component(i,icomp)) = values(i)
      end if
@@ -472,10 +475,10 @@ subroutine lagrangian_reference_fe_set_vector_field_to_nodal_values (this, code,
   integer(ip) :: i, icomp
 
   assert(size(nodal_values) == this%number_shape_functions)
-  assert(size(values) == this%number_nodes_scalar)
+  assert(size(values) == this%node_array%number_nodes)
 
   do icomp = 1, this%number_field_components
-     do i = 1, this%number_nodes_scalar
+     do i = 1, this%node_array%number_nodes
         if(nodal_codes(this%node_array_component(i,icomp)) == code) then
            nodal_values(this%node_array_component(i,icomp)) = values(i)%get(icomp)
         end if
@@ -612,12 +615,13 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector( this,  
 
 end subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector
 
+! Adaptivity purposes
 !==================================================================================================
 function lagrangian_reference_fe_get_number_subelements(this) result(number_subelements)
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                                     :: number_subelements
-  number_subelements = this%order**this%number_dimensions
+  number_subelements = this%order(1)**this%number_dimensions ! @sbadia: It is not correct
 end function lagrangian_reference_fe_get_number_subelements
 
 !==================================================================================================
@@ -629,7 +633,6 @@ subroutine lagrangian_reference_fe_free ( this )
        call memfree(this%node_component_array,__FILE__,__LINE__)
   if(allocated(this%node_array_component)) & 
        call memfree(this%node_array_component,__FILE__,__LINE__)
-  this%number_nodes_scalar = 0
   call reference_fe_free ( this )
 end subroutine lagrangian_reference_fe_free
 
@@ -702,18 +705,18 @@ subroutine lagrangian_reference_fe_fill (this)
        end do
      end if
   else
-     this%number_nodes_scalar = this%number_shape_functions
+     !this%number_nodes_scalar = this%number_shape_functions
   end if
   
   call memalloc( this%number_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
-  call memalloc( this%number_nodes_scalar,     & 
+  call memalloc( this%node_array%number_nodes,     & 
                & this%number_field_components, & 
                & this%node_array_component,    & 
                & __FILE__, __LINE__ )
 
   c = 1
   do i = 1, this%number_field_components
-     do j = 1, this%number_nodes_scalar
+     do j = 1, this%node_array%number_nodes
         this%node_component_array(c,1) = j
         this%node_component_array(c,2) = i   
         this%node_array_component(j,i) = c
@@ -731,8 +734,8 @@ subroutine lagrangian_reference_fe_fill_field_components (this)
   call this%extend_list_components( this%interior_nodes_n_face )
   call this%extend_list_components( this%own_nodes_n_faces )
   call this%extend_list_components( this%face_integration_coupling_nodes_facet )
-  this%number_nodes_scalar = this%number_shape_functions
-  this%number_shape_functions = this%number_nodes_scalar * this%number_field_components
+  !this%number_nodes_scalar = this%number_shape_functions
+  this%number_shape_functions = this%node_array%number_nodes * this%number_field_components
 end subroutine lagrangian_reference_fe_fill_field_components
 
 !==================================================================================================
@@ -778,35 +781,10 @@ subroutine lagrangian_reference_fe_fill_nodal_quadrature ( this, quadrature )
 
   ndime = quadrature%number_dimensions
   nquad = quadrature%number_quadrature_points
-  
-  call this%get_node_coordinates_array(quadrature%coordinates,ndime,this%order,nquad)
+  call this%get_coordinates_nodes( this%node_array, quadrature%coordinates )
   quadrature%weight = 1.0_rp
 
 end subroutine lagrangian_reference_fe_fill_nodal_quadrature
-
-!==================================================================================================
-subroutine lagrangian_reference_fe_get_node_coordinates_array (this, coordinates,    & 
-                                                             & number_of_dimensions, &
-                                                             & order, number_nodes)
-  implicit none 
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  real(rp)                        , intent(inout) :: coordinates(:,:)
-  integer(ip)                     , intent(in)    :: number_of_dimensions,order,number_nodes
-  integer(ip) :: ijk(number_of_dimensions),i,d
-  real(rp)    :: coordinates_1D(order+1)
-
-  call this%set_coordinates_1D(coordinates_1D,order+1)
-
-  do i=1,number_nodes
-
-     call this%get_node_local_coordinates(ijk,i,number_of_dimensions,order)
-     do d=1,number_of_dimensions
-        coordinates(d,i) = coordinates_1D(ijk(d)+1)
-     end do
-     
-  end do
-  
-end subroutine lagrangian_reference_fe_get_node_coordinates_array
 
 !=================================================================================================
 subroutine lagrangian_reference_fe_set_permutation_1D(this,permutation,number_nodes_x_dim,rotation)
@@ -838,11 +816,6 @@ subroutine lagrangian_reference_fe_extend_list_components(this, list_1d)
   type(list_iterator_t) :: list_iterator
 
   call list%create(n=this%number_n_faces+1)
-
-  !list%p(1) = 1
-  !do i = 2,this%number_n-faces+2
-  !   list%p(i) = list%p(i-1) + ( list_1d%p(i)-list_1d%p(i-1) ) * this%number_field_components
-  !end do
   
   do i = 1,this%number_n_faces+1
     call list%sum_to_pointer_index(i, list_1d%get_sublist_size(i) * this%number_field_components)
@@ -1024,30 +997,28 @@ end subroutine store_symmetric_matrix_as_vector
 subroutine lagrangian_reference_fe_fill_scalar (this)
 implicit none
 class(lagrangian_reference_fe_t), intent(inout)    :: this 
-type(polytope_tree_t) :: polytope_tree
-type(node_array_t)    :: node_array, vertex_array
 type(node_iterator_t) :: node_iterator
 type(n_face_iterator_t) :: children_iterator
 type(list_iterator_t) :: list_iterator
-integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces
+integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM)
 ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
 if ( this%topology == topology_hex) then
  topology = 2**this%number_dimensions-1
 elseif ( this%topology == topology_tet ) then
  topology = 0
 end if
-call polytope_tree%create( this%number_dimensions, topology )  
-call node_array%create( polytope_tree, this%order )
-num_n_faces = polytope_tree%get_number_n_faces()
+call this%polytope%create( this%number_dimensions, topology )  
+call this%node_array%create( this%polytope, this%order ) 
+num_n_faces = this%polytope%get_number_n_faces()
   ! Number nodes
-  this%number_shape_functions = node_array%get_number_nodes()
+  this%number_shape_functions = this%node_array%get_number_nodes()
   ! Number n-faces ( I don¡t like it, not volume included...)
   this%number_n_faces = num_n_faces-1
   ! number_n-faces_dimension
   this%number_n_faces_per_dimension = 0
   this%number_n_faces_per_dimension(1) = 1
   do i = 1,num_n_faces
-     n_face_dim = polytope_tree%get_n_face_dimension(i)
+     n_face_dim = this%polytope%get_n_face_dimension(i)
      this%number_n_faces_per_dimension( n_face_dim+2 ) = this%number_n_faces_per_dimension( n_face_dim+2 ) + 1
   end do  
   do i = 1,this%number_dimensions+1
@@ -1056,7 +1027,7 @@ num_n_faces = polytope_tree%get_number_n_faces()
   ! interior_nodes_n-face  
   call this%interior_nodes_n_face%create( num_n_faces )
   do i = 1,num_n_faces
-     node_iterator = node_array%create_node_iterator( polytope_tree%get_n_face(i), own_boundary = .false. )
+     node_iterator = this%node_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .false. )
      do while (.not. node_iterator%has_finished() )
         call this%interior_nodes_n_face%sum_to_pointer_index(i,1)
         call node_iterator%next()
@@ -1066,7 +1037,7 @@ num_n_faces = polytope_tree%get_number_n_faces()
   call this%interior_nodes_n_face%allocate_list_from_pointer()
   list_iterator = this%interior_nodes_n_face%create_iterator()
   do i = 1,num_n_faces
-     node_iterator = node_array%create_node_iterator( polytope_tree%get_n_face(i), own_boundary = .false. )
+     node_iterator = this%node_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .false. )
      do while (.not. node_iterator%has_finished() )
         node = node_iterator%current()
         call list_iterator%set_current(node)
@@ -1077,7 +1048,7 @@ num_n_faces = polytope_tree%get_number_n_faces()
   ! nodes_n-face
   call this%nodes_n_face%create(num_n_faces)
   do i = 1,num_n_faces
-     node_iterator = node_array%create_node_iterator( polytope_tree%get_n_face(i), own_boundary = .true. )
+     node_iterator = this%node_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
      do while (.not. node_iterator%has_finished() )
         call this%nodes_n_face%sum_to_pointer_index(i,1)
         call node_iterator%next()
@@ -1087,7 +1058,7 @@ num_n_faces = polytope_tree%get_number_n_faces()
   call this%nodes_n_face%allocate_list_from_pointer()  
   list_iterator = this%nodes_n_face%create_iterator()
   do i = 1,num_n_faces
-     node_iterator = node_array%create_node_iterator( polytope_tree%get_n_face(i), own_boundary = .true. )
+     node_iterator = this%node_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
      do while (.not. node_iterator%has_finished() )
         node = node_iterator%current()
         call list_iterator%set_current(node)
@@ -1097,9 +1068,10 @@ num_n_faces = polytope_tree%get_number_n_faces()
   end do
   ! vertices_n-face
   call this%vertices_n_face%create(num_n_faces)
-  call vertex_array%create( polytope_tree, order = 1 )
+  ones_dim = 1
+  call this%vertex_array%create( this%polytope, order = ones_dim )
   do i = 1,num_n_faces
-     node_iterator = vertex_array%create_node_iterator( polytope_tree%get_n_face(i), own_boundary = .true. )
+     node_iterator = this%vertex_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
      do while (.not. node_iterator%has_finished() )
         call this%vertices_n_face%sum_to_pointer_index(i,1)
         call node_iterator%next()
@@ -1109,7 +1081,7 @@ num_n_faces = polytope_tree%get_number_n_faces()
   call this%vertices_n_face%allocate_list_from_pointer()
   list_iterator = this%vertices_n_face%create_iterator()
   do i = 1,num_n_faces
-     node_iterator = vertex_array%create_node_iterator( polytope_tree%get_n_face(i), own_boundary = .true. )
+     node_iterator = this%vertex_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
      do while (.not. node_iterator%has_finished() )
         node = node_iterator%current()
         call list_iterator%set_current(node)
@@ -1120,7 +1092,7 @@ num_n_faces = polytope_tree%get_number_n_faces()
   ! n-faces_n-face (NEW DEFINITION; now only n_faces of inferior dimension
   call this%n_faces_n_face%create(num_n_faces)
   do i = 1,num_n_faces
-     children_iterator = polytope_tree%create_children_iterator( polytope_tree%get_n_face(i) )
+     children_iterator = this%polytope%create_children_iterator( this%polytope%get_n_face(i) )
      do while (.not. children_iterator%has_finished() )
         call this%n_faces_n_face%sum_to_pointer_index(i,1)
         call children_iterator%next()
@@ -1130,7 +1102,7 @@ num_n_faces = polytope_tree%get_number_n_faces()
   call this%n_faces_n_face%allocate_list_from_pointer()
   list_iterator = this%n_faces_n_face%create_iterator()
   do i = 1,num_n_faces
-     children_iterator = polytope_tree%create_children_iterator( polytope_tree%get_n_face(i) )
+     children_iterator = this%polytope%create_children_iterator( this%polytope%get_n_face(i) )
      do while (.not. children_iterator%has_finished() )
         children = children_iterator%current()
         call list_iterator%set_current(children)
@@ -1141,8 +1113,8 @@ num_n_faces = polytope_tree%get_number_n_faces()
   ! orientation
   call this%orientation%create(num_n_faces)
   do i = 1,num_n_faces
-     if ( n_face_dimension( polytope_tree%get_n_face(i), this%number_dimensions ) == this%number_dimensions-1 ) then
-        this%orientation%a(i) = facet_orientation( polytope_tree%get_n_face(i), this%number_dimensions )
+     if ( n_face_dimension( this%polytope%get_n_face(i), this%number_dimensions ) == this%number_dimensions-1 ) then
+        this%orientation%a(i) = facet_orientation( this%polytope%get_n_face(i), this%number_dimensions )
      end if
   end do
   ! own_nodes_n-face and face_integration_coupling_nodes_n-face
@@ -1173,9 +1145,6 @@ num_n_faces = polytope_tree%get_number_n_faces()
         this%face_integration_coupling_nodes_facet = this%nodes_n_face
      end if
   end if
-  call polytope_tree%free()
-  call node_array%free()
-  call vertex_array%free()
 end subroutine lagrangian_reference_fe_fill_scalar
 
 !==================================================================================================
@@ -1187,3 +1156,18 @@ subroutine p_lagrangian_reference_fe_free( this )
     deallocate ( this%p )
   end if  
 end subroutine p_lagrangian_reference_fe_free
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_get_coordinates_nodes( this, node_array, coordinates )
+implicit none
+class(lagrangian_reference_fe_t), intent(in)    :: this 
+type(node_array_t), intent(in) :: node_array
+real(rp), intent(inout)              :: coordinates(:,:)
+type(node_iterator_t) :: node_iterator
+integer(ip) :: i
+do i=1,this%number_dimensions
+  coordinates(i,:) = real(node_array%coordinates(i,:)*(2.0_rp/this%order(i))-1.0_rp)
+end do
+end subroutine lagrangian_reference_fe_get_coordinates_nodes
+
+

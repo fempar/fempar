@@ -31,13 +31,13 @@
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine vlrfe_create ( this, topology, number_dimensions, order, field_type, & 
+subroutine vlrfe_create_anisotropic_order ( this, topology, number_dimensions, order, field_type, & 
                                           &  continuity, enable_face_integration )
   implicit none 
   class(vector_lagrangian_reference_fe_t), intent(inout) :: this
   character(*)                    , intent(in)    :: topology
   integer(ip)                     , intent(in)    :: number_dimensions
-  integer(ip)                     , intent(in)    :: order
+  integer(ip)                     , intent(in)    :: order(SPACE_DIM)
   character(*)                    , intent(in)    :: field_type
   logical                         , intent(in)    :: continuity
   logical              , optional , intent(in)    :: enable_face_integration
@@ -49,7 +49,7 @@ subroutine vlrfe_create ( this, topology, number_dimensions, order, field_type, 
   call this%fill()
   call this%set_nodal_quadrature()
   
-end subroutine vlrfe_create
+end subroutine vlrfe_create_anisotropic_order
 
 !==================================================================================================
 subroutine vlrfe_create_interpolation ( this, quadrature, & 
@@ -70,7 +70,7 @@ subroutine vlrfe_create_interpolation ( this, quadrature, &
   call interpolation%create( this%number_dimensions, this%number_shape_functions, &
                              quadrature%number_quadrature_points, ntens, compute_hessian )
   
-  call this%fill_interpolation( interpolation, quadrature%coordinates )
+  call this%fill_interpolation(  quadrature, interpolation )
   
 end subroutine vlrfe_create_interpolation
 

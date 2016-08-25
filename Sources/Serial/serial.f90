@@ -75,6 +75,7 @@ module serial_names
   use reference_fe_names
   use reference_fe_factory_names
   use field_names
+  use polynomial_names
   use fe_space_names
   use conditions_names
   use discrete_integration_names
