@@ -866,7 +866,7 @@ module reference_fe_names
      procedure :: get_number_subelements    => lagrangian_reference_fe_get_number_subelements
      procedure :: free                      => lagrangian_reference_fe_free
      ! Concrete TBPs of this derived data type
-     procedure, private, non_overridable :: fill                         & 
+     procedure, private :: fill                         & 
       & => lagrangian_reference_fe_fill
      procedure, private, non_overridable :: fill_field_components        & 
       & => lagrangian_reference_fe_fill_field_components
@@ -979,6 +979,7 @@ module reference_fe_names
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, abstract, extends(lagrangian_reference_fe_t) :: raviart_thomas_reference_fe_t
      private
+     type(node_array_t) :: node_array_vector(SPACE_DIM)
    contains
      procedure :: create  => raviart_thomas_create
      procedure :: create_face_local_interpolation      & 
@@ -1000,6 +1001,12 @@ module reference_fe_names
       & => raviart_thomas_evaluate_fe_function_tensor
      procedure, private :: apply_femap_to_interpolation & 
       & => raviart_thomas_apply_femap_to_interpolation
+     procedure, private :: fill                         & 
+      & => raviart_thomas_fill
+     procedure, private :: fill_vector                         & 
+      & => raviart_thomas_fill_vector    
+     procedure, private :: get_coordinates_nodes & 
+      & => raviart_thomas_get_coordinates_nodes
   end type raviart_thomas_reference_fe_t 
   
   public :: raviart_thomas_reference_fe_t  
