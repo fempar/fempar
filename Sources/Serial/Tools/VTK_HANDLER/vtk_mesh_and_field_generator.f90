@@ -71,6 +71,10 @@ private
     integer(ip), parameter :: vtk_quadratic_tetra      = 24_I1P
     integer(ip), parameter :: vtk_quadratic_hexahedron = 25_I1P
 
+    
+    ! PARAMETER VALUES CONSTANTS
+    character(*), parameter :: match_geometry_order  = 'match_geometry_order' ! VTK mesh built to match triangulation order
+    character(*), parameter :: match_max_order       = 'match_max_order'      ! VTK mesh built to match max(triangulation,fe_space) order
 
 
     ! Type for storing subelements connectivity 
@@ -97,12 +101,12 @@ private
         integer(ip)                       :: number_of_nodes    = 0                 ! Number of nodes
         integer(ip)                       :: number_of_elements = 0                 ! Number of elements
         integer(ip)                       :: dimensions         = 0                 ! Dimensions of the mesh
-        logical                           :: linear_order       = .false.           ! Order 1 (.true.) or higher
+        character(len=:), allocatable     :: vtk_mesh_order                         ! match_geometry_order .or. match_max_order
         logical                           :: filled             = .false.           ! Mesh data was already filled
     contains
     private
         procedure, non_overridable, public :: set_fe_space                      => vtk_mesh_and_field_generator_set_fe_space
-        procedure, non_overridable, public :: set_linear_order                  => vtk_mesh_and_field_generator_set_linear_order
+        procedure, non_overridable, public :: set_mesh_order                    => vtk_mesh_and_field_generator_set_mesh_order
         procedure, non_overridable, public :: get_number_nodes                  => vtk_mesh_and_field_generator_get_number_nodes
         procedure, non_overridable, public :: get_number_elements               => vtk_mesh_and_field_generator_get_number_elements
         procedure, non_overridable, public :: get_number_fields                 => vtk_mesh_and_field_generator_get_number_fields
@@ -118,14 +122,15 @@ private
         procedure, non_overridable         :: allocate_nodal_arrays             => vtk_mesh_and_field_generator_allocate_nodal_arrays
         procedure, non_overridable         :: allocate_elemental_arrays         => vtk_mesh_and_field_generator_allocate_elemental_arrays
         procedure, non_overridable         :: topology_to_cell_type             => vtk_mesh_and_field_generator_topology_to_cell_type
-        procedure, non_overridable         :: generate_linear_mesh              => vtk_mesh_and_field_generator_generate_linear_mesh
-        procedure, non_overridable         :: generate_superlinear_mesh         => vtk_mesh_and_field_generator_generate_superlinear_mesh
-        procedure, non_overridable         :: generate_linear_field             => vtk_mesh_and_field_generator_generate_linear_field
-        procedure, non_overridable         :: generate_superlinear_field        => vtk_mesh_and_field_generator_generate_superlinear_field
+        procedure, non_overridable         :: generate_geometry_order_mesh      => vtk_mesh_and_field_generator_generate_geometry_order_mesh
+        procedure, non_overridable         :: generate_max_order_mesh           => vtk_mesh_and_field_generator_generate_max_order_mesh
+        procedure, non_overridable         :: generate_geometry_order_field     => vtk_mesh_and_field_generator_generate_geometry_order_field
+        procedure, non_overridable         :: generate_max_order_field          => vtk_mesh_and_field_generator_generate_max_order_field
         procedure, non_overridable, public :: free                              => vtk_mesh_and_field_generator_free
     end type vtk_mesh_and_field_generator_t
 
 public :: vtk_mesh_and_field_generator_t
+public :: match_geometry_order, match_max_order
 
 contains
 
@@ -186,16 +191,16 @@ contains
     end function vtk_mesh_and_field_generator_is_filled
 
 
-    subroutine vtk_mesh_and_field_generator_set_linear_order(this, linear_order)
+    subroutine vtk_mesh_and_field_generator_set_mesh_order(this, vtk_mesh_order)
     !-----------------------------------------------------------------
     !< Set linear order
     !-----------------------------------------------------------------
         class(vtk_mesh_and_field_generator_t), intent(INOUT) :: this
-        logical,           intent(IN)    :: linear_order
+        character(*),                          intent(IN)    :: vtk_mesh_order
     !-----------------------------------------------------------------
         assert(.not. this%filled)
-        this%linear_order = linear_order
-    end subroutine vtk_mesh_and_field_generator_set_linear_order
+        this%vtk_mesh_order = vtk_mesh_order
+    end subroutine vtk_mesh_and_field_generator_set_mesh_order
 
 
     function vtk_mesh_and_field_generator_get_number_nodes(this) result(number_nodes)
@@ -407,16 +412,16 @@ contains
         class(vtk_mesh_and_field_generator_t), intent(INOUT) :: this
     !-----------------------------------------------------------------
         if(.not. this%filled) then
-            if(this%linear_order) then
-                call this%generate_linear_mesh()
+            if(this%vtk_mesh_order == match_geometry_order) then
+                call this%generate_geometry_order_mesh()
             else
-                call this%generate_superlinear_mesh()
+                call this%generate_max_order_mesh()
             endif
         endif
     end subroutine vtk_mesh_and_field_generator_generate_mesh
 
 
-    subroutine vtk_mesh_and_field_generator_generate_linear_mesh(this)
+    subroutine vtk_mesh_and_field_generator_generate_geometry_order_mesh(this)
     !-----------------------------------------------------------------
     !< Store a linear_order mesh from a triangulation
     !-----------------------------------------------------------------
@@ -504,10 +509,10 @@ contains
         call cell_iterator%free()
         call cell%free()
         this%filled  = .true.
-    end subroutine vtk_mesh_and_field_generator_generate_linear_mesh
+    end subroutine vtk_mesh_and_field_generator_generate_geometry_order_mesh
 
 
-    subroutine vtk_mesh_and_field_generator_generate_superlinear_mesh(this)
+    subroutine vtk_mesh_and_field_generator_generate_max_order_mesh(this)
     !-----------------------------------------------------------------
     !< Store a superlinear_order mesh in a from a fe_space
     !-----------------------------------------------------------------
@@ -645,7 +650,7 @@ contains
         if(allocated(fe_maps_created)) call memfree(fe_maps_created, __FILE__, __LINE__)
         call fe_iterator%free()
         call fe%free()
-    end subroutine vtk_mesh_and_field_generator_generate_superlinear_mesh
+    end subroutine vtk_mesh_and_field_generator_generate_max_order_mesh
 
 
     function vtk_mesh_and_field_generator_generate_field(this, fe_function, field_id, field_name, field, number_components) result(E_IO)
@@ -661,15 +666,15 @@ contains
         integer(ip)                               :: E_IO             !< IO Error
     !-----------------------------------------------------------------
         assert(this%filled)
-        if(this%linear_order) then
-            E_IO = this%generate_linear_field(fe_function, field_id, field_name, field, number_components)
+        if(this%vtk_mesh_order == match_geometry_order) then
+            E_IO = this%generate_geometry_order_field(fe_function, field_id, field_name, field, number_components)
         else
-           E_IO = this%generate_superlinear_field(fe_function, field_id, field_name, field, number_components)
+           E_IO = this%generate_max_order_field(fe_function, field_id, field_name, field, number_components)
         endif
     end function vtk_mesh_and_field_generator_generate_field
 
 
-    function vtk_mesh_and_field_generator_generate_linear_field(this, fe_function, field_id, field_name, field, number_components) result(E_IO)
+    function vtk_mesh_and_field_generator_generate_geometry_order_field(this, fe_function, field_id, field_name, field, number_components) result(E_IO)
     !-----------------------------------------------------------------
     !< Generate the linear field data from fe_space and fe_function
     !-----------------------------------------------------------------
@@ -761,10 +766,10 @@ contains
         !    end do
         !enddo
         !call memfree(nodal_values, __FILE__, __LINE__)
-    end function vtk_mesh_and_field_generator_generate_linear_field
+    end function vtk_mesh_and_field_generator_generate_geometry_order_field
 
 
-    function vtk_mesh_and_field_generator_generate_superlinear_field(this, fe_function, field_id, field_name, field, number_components) result(E_IO)
+    function vtk_mesh_and_field_generator_generate_max_order_field(this, fe_function, field_id, field_name, field, number_components) result(E_IO)
     !-----------------------------------------------------------------
     !< Write superlinear field to file
     !-----------------------------------------------------------------
@@ -802,7 +807,7 @@ contains
 
         assert(associated(this%fe_space))
         assert(this%filled)
-        assert(.not. this%linear_order)
+        assert(.not. this%vtk_mesh_order == match_geometry_order )
 
         nullify(nodal_quadrature_target)
         nullify(strong_dirichlet_values)
@@ -894,7 +899,7 @@ contains
             call fe_iterator%next()
         enddo
         deallocate(elem2dof)
-      end function vtk_mesh_and_field_generator_generate_superlinear_field
+      end function vtk_mesh_and_field_generator_generate_max_order_field
 
 
     subroutine vtk_mesh_and_field_generator_free(this) 
@@ -919,7 +924,7 @@ contains
         nullify(this%fe_space)
         this%number_of_nodes    = 0
         this%number_of_elements = 0
-        this%linear_order       = .false.
+        if (allocated(this%vtk_mesh_order)) deallocate(this%vtk_mesh_order)
         this%filled             = .false.
     end subroutine
 

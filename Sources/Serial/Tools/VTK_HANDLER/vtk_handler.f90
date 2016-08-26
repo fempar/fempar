@@ -106,8 +106,9 @@ private
     integer(ip), parameter :: vtk_handler_state_write_close           = 7
 
 
+    
     ! DEFAULT PARAMETERS
-    logical,          parameter :: default_linear_order          = .false.
+    character(*),     parameter :: default_vtk_mesh_order        = match_max_order
     integer(ip),      parameter :: default_root_task             = 0
     integer(ip),      parameter :: default_number_of_tasks       = 1
     integer(ip),      parameter :: default_guess_number_of_steps = 100
@@ -134,7 +135,7 @@ private
         integer(ip)                         :: state         = vtk_handler_state_start
     contains
     private
-        procedure, public :: initialize                       => vtk_handler_initialize
+        procedure, public :: create                           => vtk_handler_create
         procedure, public :: open_vtu                         => vtk_handler_open_vtu
         procedure, public :: write_vtu_mesh                   => vtk_handler_write_vtu_mesh
         procedure, public :: write_vtu_node_field             => vtk_handler_write_vtu_node_field
@@ -154,6 +155,7 @@ private
     end type vtk_handler_t
 
 public :: vtk_handler_t
+public :: match_geometry_order, match_max_order
 
 contains
 
@@ -165,13 +167,12 @@ contains
         class(vtk_handler_t), intent(INOUT) :: this
         character(len=*),     intent(IN)    :: path
         logical, optional,    intent(IN)    :: issue_final_barrier
-        logical                             :: ft, ifb
+        logical                             :: ifb
         integer(kind=c_int)                 :: res
         integer(ip)                         :: me, np
     !-----------------------------------------------------------------
         me = default_root_task
         np = default_number_of_tasks
-        ft = default_linear_order
         ifb = .False.
         if(present(issue_final_barrier)) ifb = issue_final_barrier
         assert(associated(this%env))
@@ -316,7 +317,7 @@ contains
     end subroutine vtk_handler_set_num_parts
 
 
-    subroutine vtk_handler_initialize(this, fe_space, path, prefix, root_task, number_of_steps, linear_order)
+    subroutine vtk_handler_create(this, fe_space, path, prefix, root_task, number_of_steps, vtk_mesh_order)
     !-----------------------------------------------------------------
     !< Initialize the vtk_handler_t derived type
     !-----------------------------------------------------------------
@@ -326,20 +327,20 @@ contains
         character(len=*),                 intent(IN)    :: prefix  
         integer(ip),      optional,       intent(IN)    :: root_task
         integer(ip),      optional,       intent(IN)    :: number_of_steps
-        logical,          optional,       intent(IN)    :: linear_order
+        character(*),     optional,       intent(IN)    :: vtk_mesh_order
         class(environment_t),     pointer               :: environment
-        logical                                         :: lo
+        character(len=:), allocatable                   :: lo
         integer(ip)                                     :: me, np, st, rp
     !-----------------------------------------------------------------
         assert(this%state == vtk_handler_state_start)
 
         ! Default values
-        lo = default_linear_order
+        lo = default_vtk_mesh_order
         rp = default_root_task
         st = default_guess_number_of_steps
 
         ! Optional arguments
-        if(present(linear_order))    lo = linear_order
+        if(present(vtk_mesh_order))  lo = vtk_mesh_order
         if(present(root_task))       rp = root_task
         if(present(number_of_steps)) st = number_of_steps
 
@@ -349,7 +350,7 @@ contains
 
         if(this%env%am_i_l1_task() ) then
            
-            call this%mesh%set_linear_order(lo)
+            call this%mesh%set_mesh_order(lo)
             call this%mesh%set_fe_space(fe_space)
             allocate(this%field(this%mesh%get_number_fields()))
 
@@ -359,7 +360,7 @@ contains
             call this%set_num_steps(st)
         endif
         this%state = vtk_handler_state_initialized
-    end subroutine vtk_handler_initialize
+    end subroutine vtk_handler_create
 
 
     function vtk_handler_open_vtu(this, file_name, time_step, format) result(E_IO)
