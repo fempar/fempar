@@ -485,7 +485,7 @@ contains
     !-----------------------------------------------------------------
         class(vtk_handler_t),       intent(INOUT) :: this        !< vtk_handler_t derived type
         integer(ip)                               :: E_IO        !< IO Error
-      ! ----------------------------------------------------------------------------------
+    !-----------------------------------------------------------------
         assert(associated(this%env))
         assert(this%state == vtk_handler_state_write_pointdata_open .or. this%state == vtk_handler_state_write_geo_open .or. this%state == vtk_handler_state_write_open)
 
