@@ -316,18 +316,18 @@ contains
     end subroutine vtk_handler_set_num_parts
 
 
-    subroutine vtk_handler_initialize(this, fe_space, environment, path, prefix, root_task, number_of_steps, linear_order)
+    subroutine vtk_handler_initialize(this, fe_space, path, prefix, root_task, number_of_steps, linear_order)
     !-----------------------------------------------------------------
     !< Initialize the vtk_handler_t derived type
     !-----------------------------------------------------------------
         class(vtk_handler_t),             intent(INOUT) :: this
         class(serial_fe_space_t), target, intent(INOUT) :: fe_space
-        class(environment_t),     target, intent(IN)    :: environment
         character(len=*),                 intent(IN)    :: path
         character(len=*),                 intent(IN)    :: prefix  
         integer(ip),      optional,       intent(IN)    :: root_task
         integer(ip),      optional,       intent(IN)    :: number_of_steps
         logical,          optional,       intent(IN)    :: linear_order
+        class(environment_t),     pointer               :: environment
         logical                                         :: lo
         integer(ip)                                     :: me, np, st, rp
     !-----------------------------------------------------------------
@@ -343,7 +343,7 @@ contains
         if(present(root_task))       rp = root_task
         if(present(number_of_steps)) st = number_of_steps
 
-        this%env => environment
+        this%env => fe_space%get_environment()
         call this%env%info(me,np) 
         call this%set_root_task(rp)
 
@@ -446,13 +446,13 @@ contains
     end function vtk_handler_write_vtu_mesh
 
 
-    function vtk_handler_write_vtu_node_field(this, fe_function, fe_space_index, field_name) result(E_IO)
+    function vtk_handler_write_vtu_node_field(this, fe_function, field_id, field_name) result(E_IO)
     !-----------------------------------------------------------------
     !< Write node field to file
     !-----------------------------------------------------------------
         class(vtk_handler_t),       intent(INOUT) :: this           !< vtk_handler_t derived type
         type(fe_function_t),        intent(INOUT) :: fe_function    !< fe_function containing the field to be written
-        integer(ip),                intent(IN)    :: fe_space_index !< Fe space index
+        integer(ip),                intent(IN)    :: field_id       !< Field id
         character(len=*),           intent(IN)    :: field_name     !< name of the field
         real(rp), allocatable                     :: field(:,:)     !< Raw data of the field
         integer(ip)                               :: nc             !< number_of_components
@@ -462,16 +462,16 @@ contains
         assert(this%state == vtk_handler_state_write_geo_open .or. this%state == vtk_handler_state_write_pointdata_open)
         assert(associated(this%env))
         assert(allocated(this%field))
-        assert(fe_space_index>0 .and. fe_space_index<=size(this%field))
+        assert(field_id>0 .and. field_id<=size(this%field))
         E_IO = 0
         if(this%env%am_i_l1_task() ) then        
-            E_IO = this%mesh%generate_field(fe_function, fe_space_index, field_name, field, number_components=nc)
+            E_IO = this%mesh%generate_field(fe_function, field_id, field_name, field, number_components=nc)
             if(this%state == vtk_handler_state_write_geo_open) then
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=this%file_id)
                 this%state = vtk_handler_state_write_pointdata_open
             endif
             E_IO = VTK_VAR_XML(NC_NN=this%mesh%get_number_nodes(), N_COL=nc, varname=field_name, var=field, cf=this%file_id)
-            call this%field(fe_space_index)%set(name=field_name, data_type='Float64', number_components=nc)
+            call this%field(field_id)%set(name=field_name, data_type='Float64', number_components=nc)
             if(allocated(field)) call memfree(field, __FILE__, __LINE__)
         endif
         this%state = vtk_handler_state_write_pointdata_open
