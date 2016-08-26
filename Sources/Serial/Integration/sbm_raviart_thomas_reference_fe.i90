@@ -31,13 +31,13 @@
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine vlrfe_create_anisotropic_order ( this, topology, number_dimensions, order, field_type, & 
+subroutine raviart_thomas_create ( this, topology, number_dimensions, order, field_type, & 
                                           &  continuity, enable_face_integration )
   implicit none 
-  class(vector_lagrangian_reference_fe_t), intent(inout) :: this
+  class(raviart_thomas_reference_fe_t), intent(inout) :: this
   character(*)                    , intent(in)    :: topology
   integer(ip)                     , intent(in)    :: number_dimensions
-  integer(ip)                     , intent(in)    :: order(SPACE_DIM)
+  integer(ip)                     , intent(in)    :: order
   character(*)                    , intent(in)    :: field_type
   logical                         , intent(in)    :: continuity
   logical              , optional , intent(in)    :: enable_face_integration
@@ -45,76 +45,122 @@ subroutine vlrfe_create_anisotropic_order ( this, topology, number_dimensions, o
   call this%free()
   call this%set_common_data(number_dimensions,order,field_type,continuity,enable_face_integration)
   call this%set_topology ( topology )
-  call this%set_fe_type( fe_type_vector_lagrangian )
+  call this%set_fe_type( fe_type_raviart_thomas )
   call this%fill()
   call this%set_nodal_quadrature()
   
-end subroutine vlrfe_create_anisotropic_order
+end subroutine raviart_thomas_create
+
 
 !==================================================================================================
-subroutine vlrfe_create_interpolation ( this, quadrature, & 
-                                                        & interpolation, compute_hessian )
-  implicit none 
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
-  type(quadrature_t)              , intent(in)    :: quadrature
-  type(interpolation_t)           , intent(inout) :: interpolation
-  logical               , optional, intent(in)    :: compute_hessian
+subroutine raviart_thomas_reference_fe_fill (this)
+  implicit none
+  class(raviart_thomas_reference_fe_t), intent(inout) :: this
+  integer(ip) :: c, i, j, dimension, number_interior_nodes, number_interior_nodes_scalar
+  integer(ip) :: column, inode, idime, inode_scalar, num_columns
+  
+  this%order_vector = this%order
+  this%order_vector(1) = this%order+1
+  
+  call this%fill_scalar( )
+  
+  call memalloc (this%number_dimensions-1,this%number_rotations_per_dimension,__FILE__,__LINE__)
+  call memalloc (this%number_dimensions-1,this%number_orientations_per_dimension,__FILE__,__LINE__)
+  
+  if ( this%continuity ) allocate(this%own_node_permutations(this%number_dimensions-1))
+  
+  do dimension = 1, this%number_dimensions-1
 
-  integer(ip) :: ntens, i
-
-  ntens = 0
-  do i = 1, this%number_dimensions
-     ntens = ntens + i
+     if (dimension == 1) then
+        this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_edge()
+     elseif (dimension == 2) then 
+        this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_face()
+     end if
+     this%number_orientations_per_dimension(dimension) = dimension
+     
+     if ( this%continuity ) then
+       ! Compute the number of interior nodes X (edge or face)
+       j = this%get_first_n_face_id_of_dimension(dimension)
+       number_interior_nodes = this%get_number_own_nodes_n_face(j)
+          
+       call this%fill_interior_points_permutation(dimension,             &
+                                                  number_interior_nodes, &
+                                                  this%own_node_permutations(dimension)%a)
+     end if
   end do
-
-  call interpolation%create( this%number_dimensions, this%number_shape_functions, &
-                             quadrature%number_quadrature_points, ntens, compute_hessian )
   
-  call this%fill_interpolation(  quadrature, interpolation )
+  if ( this%number_field_components /= 1 ) then
+     call this%fill_field_components( )
+     if ( this%continuity ) then
+       do dimension = 1, this%number_dimensions-1
+          ! Compute the number of interior nodes x edge or face
+          j = this%get_first_n_face_id_of_dimension(dimension)
+          number_interior_nodes        = this%get_number_own_nodes_n_face(j)
+          number_interior_nodes_scalar = number_interior_nodes/this%number_field_components
+          num_columns = this%number_rotations_per_dimension(dimension) * &
+                        this%number_orientations_per_dimension(dimension) 
+          call memrealloc ( number_interior_nodes,                   &
+                            num_columns,                             &
+                            this%own_node_permutations(dimension)%a, &
+                            __FILE__, __LINE__ )
+          do column = 1, num_columns
+             ! Fill the rest of components
+             inode = number_interior_nodes_scalar
+             do idime = 2, this%number_field_components
+                ! This is taking advantage of the face that we know how the DoF are ordered
+                ! in case this ordering change, this will not work anymore.
+                do inode_scalar = 1, number_interior_nodes_scalar
+                   inode = inode + 1
+                   this%own_node_permutations(dimension)%a(inode,column) = & 
+                              & number_interior_nodes_scalar * (idime-1) + & 
+                              & this%own_node_permutations(dimension)%a(inode_scalar,column)
+                end do
+             end do
+          end do
+       end do
+     end if
+  else
+     !this%number_nodes_scalar = this%number_shape_functions
+  end if
   
-end subroutine vlrfe_create_interpolation
+  call memalloc( this%number_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
+  call memalloc( this%node_array%number_nodes,     & 
+               & this%number_field_components, & 
+               & this%node_array_component,    & 
+               & __FILE__, __LINE__ )
 
-!==================================================================================================
-! This routine creates the interpolation corresponding to the evaluation of the shape functions on
-! integration points given by local_quadrature either on the face 'local_face_id' of the element or
-! in all the faces of the element.
-subroutine vlrfe_create_face_interpolation( this,local_face_id, &
-                                                            & local_quadrature,face_interpolation)
-  implicit none 
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
-  integer(ip)                     , intent(in)    :: local_face_id
-  type(quadrature_t)              , intent(in)    :: local_quadrature
-  type(interpolation_t)           , intent(inout) :: face_interpolation
-
-  ! Allocate the arrays of the interpolation
-  call face_interpolation%create(this%number_dimensions,this%number_shape_functions, &
-                               & local_quadrature%number_quadrature_points, 0 )
-
-  ! Fill the values of the shape functions
-  call this%fill_face_interpolation (local_quadrature,local_face_id,face_interpolation)
+  c = 1
+  do i = 1, this%number_field_components
+     do j = 1, this%node_array%number_nodes
+        this%node_component_array(c,1) = j
+        this%node_component_array(c,2) = i   
+        this%node_array_component(j,i) = c
+        c = c+1
+     end do
+  end do
   
-end subroutine vlrfe_create_face_interpolation
+end subroutine raviart_thomas_reference_fe_fill
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of order 1 of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine vlrfe_create_face_local_interpolation ( this, quadrature, &
+subroutine raviart_thomas_create_face_local_interpolation ( this, quadrature, &
                                                                    & interpolation)
   implicit none
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
   type(interpolation_t)           , intent(inout) :: interpolation
   
   write(*,*) 'Vector Laplacian cannot be used for geometry mapping'
   check(.false.)
 
-end subroutine vlrfe_create_face_local_interpolation
+end subroutine raviart_thomas_create_face_local_interpolation
 
 !==================================================================================================
-subroutine vlrfe_get_value_scalar( this, actual_cell_interpolation, & 
+subroutine raviart_thomas_get_value_scalar( this, actual_cell_interpolation, & 
                                                    & ishape, qpoint, scalar_field )
   implicit none
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -122,13 +168,13 @@ subroutine vlrfe_get_value_scalar( this, actual_cell_interpolation, &
   write(*,*) ' ERROR in: ',__FILE__,__LINE__
   write(*,*) ' Subroutine not implemented for vector-based FE spaces'
   check( .false. )
-end subroutine vlrfe_get_value_scalar
+end subroutine raviart_thomas_get_value_scalar
 
 !==================================================================================================
-subroutine vlrfe_get_value_vector( this, actual_cell_interpolation, & 
+subroutine raviart_thomas_get_value_vector( this, actual_cell_interpolation, & 
                                                    & ishape, qpoint, vector_field )
   implicit none
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -137,13 +183,13 @@ subroutine vlrfe_get_value_vector( this, actual_cell_interpolation, &
   assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
   assert( qpoint >= 1 )
   call vector_field%init(actual_cell_interpolation%shape_functions(:,ishape,qpoint))
-end subroutine vlrfe_get_value_vector
+end subroutine raviart_thomas_get_value_vector
 
  !!==================================================================================================
-subroutine vlrfe_get_gradient_scalar( this, actual_cell_interpolation, & 
+subroutine raviart_thomas_get_gradient_scalar( this, actual_cell_interpolation, & 
                                                       & ishape, qpoint, vector_field )
   implicit none
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -152,13 +198,13 @@ subroutine vlrfe_get_gradient_scalar( this, actual_cell_interpolation, &
   write(*,*) ' ERROR in: ',__FILE__,__LINE__
   write(*,*) ' Subroutine not implemented for vector-based FE spaces'
   check( .false. )
-end subroutine vlrfe_get_gradient_scalar
+end subroutine raviart_thomas_get_gradient_scalar
 
 !==================================================================================================
-subroutine vlrfe_get_gradient_vector( this, actual_cell_interpolation, & 
+subroutine raviart_thomas_get_gradient_vector( this, actual_cell_interpolation, & 
                                                       & ishape, qpoint, tensor_field )
   implicit none
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -167,13 +213,13 @@ subroutine vlrfe_get_gradient_vector( this, actual_cell_interpolation, &
   assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
   assert( qpoint >= 1 )
   call tensor_field%init(actual_cell_interpolation%shape_derivatives(:,:,ishape,qpoint))
-end subroutine vlrfe_get_gradient_vector
+end subroutine raviart_thomas_get_gradient_vector
 
 !==================================================================================================
-subroutine vlrfe_get_divergence_vector( this, actual_cell_interpolation, & 
+subroutine raviart_thomas_get_divergence_vector( this, actual_cell_interpolation, & 
                                                         & ishape, qpoint, scalar_field )
   implicit none
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -191,13 +237,13 @@ subroutine vlrfe_get_divergence_vector( this, actual_cell_interpolation, &
      scalar_field = actual_cell_interpolation%shape_derivatives(idime,idime,ishape,qpoint)
   end do
 
-end subroutine vlrfe_get_divergence_vector 
+end subroutine raviart_thomas_get_divergence_vector 
 
 !==================================================================================================
-subroutine vlrfe_get_curl_vector( this, actual_cell_interpolation, &
+subroutine raviart_thomas_get_curl_vector( this, actual_cell_interpolation, &
                                                   & ishape, qpoint, vector_field )
   implicit none
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -230,15 +276,15 @@ subroutine vlrfe_get_curl_vector( this, actual_cell_interpolation, &
    end do
  end do
 
-end subroutine vlrfe_get_curl_vector
+end subroutine raviart_thomas_get_curl_vector
 
 !==================================================================================================
-subroutine vlrfe_evaluate_fe_function_scalar( this,                      &
+subroutine raviart_thomas_evaluate_fe_function_scalar( this,                      &
                                                              &  actual_cell_interpolation, &
                                                              &  nodal_values,              &
                                                              &  quadrature_points_values)
   implicit none
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   real(rp)                        , intent(in)    :: nodal_values(:)
   real(rp)                        , intent(inout) :: quadrature_points_values(:)
@@ -248,15 +294,15 @@ subroutine vlrfe_evaluate_fe_function_scalar( this,                      &
   write(*,*) ' Subroutine not implemented for vector field unknowns '
   check( .false. )
 
-end subroutine vlrfe_evaluate_fe_function_scalar
+end subroutine raviart_thomas_evaluate_fe_function_scalar
 
 !==================================================================================================
-subroutine vlrfe_evaluate_fe_function_vector( this,                      &
+subroutine raviart_thomas_evaluate_fe_function_vector( this,                      &
                                                              &  actual_cell_interpolation, &
                                                              &  nodal_values,              &
                                                              &  quadrature_points_values)
   implicit none
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   real(rp)                        , intent(in)    :: nodal_values(:)
   type(vector_field_t)            , intent(inout) :: quadrature_points_values(:)
@@ -270,15 +316,15 @@ subroutine vlrfe_evaluate_fe_function_vector( this,                      &
      end do
   end do
 
-end subroutine vlrfe_evaluate_fe_function_vector
+end subroutine raviart_thomas_evaluate_fe_function_vector
 
 !==================================================================================================
-subroutine vlrfe_evaluate_fe_function_tensor( this,                      &
+subroutine raviart_thomas_evaluate_fe_function_tensor( this,                      &
                                                              &  actual_cell_interpolation, &
                                                              &  nodal_values,              &
                                                              &  quadrature_points_values)
   implicit none
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   real(rp)                        , intent(in)    :: nodal_values(:)
   type(tensor_field_t)            , intent(inout) :: quadrature_points_values(:)
@@ -287,16 +333,34 @@ subroutine vlrfe_evaluate_fe_function_tensor( this,                      &
   write(*,*) ' Subroutine not implemented for tensor field unknowns '
   check( .false. )
 
-end subroutine vlrfe_evaluate_fe_function_tensor
+end subroutine raviart_thomas_evaluate_fe_function_tensor
+
+subroutine raviart_thomas_blending(this,values)
+  implicit none
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this
+  type(point_t)                       , intent(inout) :: values(:)
+  
+  write(*,*) 'Vector Laplacian cannot be used for geometry blending'
+  check(.false.)
+
+end subroutine raviart_thomas_blending
+
+subroutine raviart_thomas_get_subelements_connectivity(this, connectivity)
+  implicit none
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(inout) :: connectivity(:,:)
+  write(*,*) 'Vector Laplacian cannot be used for visualization purposes'
+end subroutine raviart_thomas_get_subelements_connectivity
+
 
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine vlrfe_apply_femap_to_interpolation(this,map,ref,phy)
+subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
   implicit none
-  class(vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(fe_map_t)                  , intent(in)    :: map
   type(interpolation_t)           , intent(in)    :: ref
   type(interpolation_t)           , intent(inout) :: phy
@@ -311,11 +375,6 @@ subroutine vlrfe_apply_femap_to_interpolation(this,map,ref,phy)
   !nnode = ref%number_shape_functions
   nnode = size(ref%shape_functions,2)
 
-  ! Shape functions do not change
-  !phy%shape_functions = ref%shape_functions 
-
-  ! First derivatives do
-  !if(phy%kder==1) then
   phy%shape_derivatives=0.0_rp
   do ilocs=1,phy%number_quadrature_points
      do inode=1,this%number_shape_functions
@@ -327,59 +386,6 @@ subroutine vlrfe_apply_femap_to_interpolation(this,map,ref,phy)
         end do
      end do
   end do
-  !end if
-
-  !! Second derivatives are
-  !!
-  !!    d^2 N / d x_i d x_j
-  !!       = (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j)
-  !!       + (d N / d s_k) (d^2 s_k / d x_i d x_j) 
-  !!
-  !if( khes ) then
-  !   call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
-  !   call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
-  !   do ilocs=1,nlocs
-  !      if( khes ) then
-  !         ! Transforms the array HESSI to a symmetric matrix WMAT1
-  !         do inode=1,nnode
-  !            do itens = 1, ntens
-  !               wvec1(itens) = ref%hessian(1,itens,inode,ilocs)
-  !            end do
-  !            call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
-  !         end do
-  !         ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
-  !         do inode=1,nnode
-  !            call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
-  !                 &        ndime,ndime)
-  !         end do
-  !      end if
-  !      if( khes ) then
-  !         ! Add second cartesian derivatives of the map times 
-  !         ! first derivatives of shape functions
-  !         do inode=1,nnode
-  !            do idime=1,ndime
-  !               do jdime=1,ndime
-  !                  do kdime=1,ndime
-  !                     wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
-  !                          & + ref%shape_derivatives(1,kdime,inode,ilocs) &
-  !                          &   * map%d2sdx(kdime,idime,jdime,ilocs)
-  !                  end do
-  !               end do
-  !            end do
-  !         end do
-  !      end if
-
-  !      ! Writes the Hessian matrix as an array
-  !      do inode=1,nnode
-  !         do itens = 1, ntens
-  !            wvec1(itens) = phy%hessian(1,itens,inode,ilocs)
-  !         end do
-  !         call store_symmetric_matrix_as_vector(wmat2(1,1,inode),wvec1,ndime,ntens)
-  !      end do
-  !   end do
-  !   call memfree(wmat1,__FILE__,__LINE__)
-  !   call memfree(wmat2,__FILE__,__LINE__)
-  !end if
-end subroutine vlrfe_apply_femap_to_interpolation
+end subroutine raviart_thomas_apply_femap_to_interpolation
 
 
