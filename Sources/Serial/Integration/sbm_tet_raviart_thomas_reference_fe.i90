@@ -46,7 +46,7 @@ function tet_raviart_thomas_check_compatibility_of_n_faces                   &
         ! Get number nodes per dimension
         assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
         do idime = 1, target_reference_fe%number_dimensions
-        assert (target_reference_fe%order(idime) == source_reference_fe%order(idime))
+        assert (target_reference_fe%order_vector(idime) == source_reference_fe%order_vector(idime))
         end do
         assert (target_reference_fe%get_n_face_dimension(target_n_face_id) ==  source_reference_fe%get_n_face_dimension(source_n_face_id))
         assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)

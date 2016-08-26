@@ -310,7 +310,7 @@ module reference_fe_names
 
      integer(ip)              ::    &        
           number_dimensions,        &
-          order(SPACE_DIM),                    &
+          order,                    &
           number_field_components
 
      logical                  ::    &
@@ -343,11 +343,8 @@ module reference_fe_names
      type(allocatable_array_ip2_t), allocatable :: own_node_permutations(:)
    contains
      ! TBPs
-     ! Fill topology, fe_type, number_dimensions, order, continuity 
-     
-     generic :: create => create_isotropic_order, create_anisotropic_order
-     procedure, non_overridable,  private                             :: create_isotropic_order
-     procedure(create_anisotropic_order_interface), private, deferred :: create_anisotropic_order 
+     ! Fill topology, fe_type, number_dimensions, order, continuity                                                              
+     procedure(create_interface), private, deferred :: create 
      ! TBP to create a quadrature for a reference_fe_t
      procedure(create_quadrature_interface)             , deferred :: create_quadrature
      !procedure(create_quadrature_on_faces_interface)    , deferred :: create_quadrature_on_faces
@@ -479,18 +476,18 @@ module reference_fe_names
   end type p_reference_fe_t
 
   abstract interface
-     subroutine create_anisotropic_order_interface ( this, topology, number_dimensions, order, field_type, &
+     subroutine create_interface ( this, topology, number_dimensions, order, field_type, &
                                                     continuity, enable_face_integration )
        import :: reference_fe_t, ip, SPACE_DIM
        implicit none 
        class(reference_fe_t), intent(inout) :: this 
        character(*)         , intent(in)    :: topology
        integer(ip)          , intent(in)    :: number_dimensions
-       integer(ip)          , intent(in)    :: order(SPACE_DIM)
+       integer(ip)          , intent(in)    :: order
        character(*)         , intent(in)    :: field_type
        logical              , intent(in)    :: continuity
        logical, optional    , intent(in)    :: enable_face_integration
-     end subroutine create_anisotropic_order_interface
+     end subroutine create_interface
      
      subroutine create_quadrature_interface ( this, quadrature, max_order )
        import :: reference_fe_t, quadrature_t, ip
@@ -806,6 +803,7 @@ module reference_fe_names
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, abstract, extends(reference_fe_t) :: lagrangian_reference_fe_t
      private
+     integer(ip)              :: order_vector(SPACE_DIM)
      integer(ip), allocatable :: node_component_array(:,:)
      integer(ip), allocatable :: node_array_component(:,:)
    contains
@@ -825,7 +823,7 @@ module reference_fe_names
      ! Blending function to generate interpolations in the interior (given values on the boundary)
      procedure(blending_interface), deferred :: blending
 
-     procedure, private :: create_anisotropic_order  => lagrangian_reference_fe_create_anisotropic_order
+     procedure :: create  => lagrangian_reference_fe_create
      procedure :: fill_scalar               => lagrangian_reference_fe_fill_scalar
      procedure :: fill_interior_points_permutation     & 
       & => lagrangian_reference_fe_fill_interior_points_permutation
@@ -982,56 +980,24 @@ module reference_fe_names
   type, abstract, extends(lagrangian_reference_fe_t) :: raviart_thomas_reference_fe_t
      private
    contains
-     procedure, private :: create_anisotropic_order  => raviart_thomas_create_anisotropic_order
+     procedure :: create  => raviart_thomas_create
      procedure :: create_face_local_interpolation      & 
       & => raviart_thomas_create_face_local_interpolation
-     !procedure :: update_interpolation      => raviart_thomas_update_interpolation
-     !procedure :: update_interpolation_face => raviart_thomas_update_interpolation_face
-     !procedure :: get_component_node        => raviart_thomas_get_component_node
-     !procedure :: get_scalar_from_vector_node          & 
-     ! & => raviart_thomas_get_scalar_from_vector_node
-     !procedure :: get_number_nodes_scalar   => raviart_thomas_get_number_nodes_scalar
+     procedure :: blending                     => raviart_thomas_blending
+     procedure :: get_subelements_connectivity                                &
+           &   => raviart_thomas_get_subelements_connectivity
      procedure :: get_value_scalar          => raviart_thomas_get_value_scalar
      procedure :: get_value_vector          => raviart_thomas_get_value_vector
      procedure :: get_gradient_scalar       => raviart_thomas_get_gradient_scalar
      procedure :: get_gradient_vector       => raviart_thomas_get_gradient_vector
      procedure :: get_divergence_vector     => raviart_thomas_get_divergence_vector
      procedure :: get_curl_vector           => raviart_thomas_get_curl_vector
-     !procedure :: interpolate_nodal_values  => raviart_thomas_interpolate_nodal_values
-     !procedure :: set_nodal_quadrature      => raviart_thomas_set_nodal_quadrature
-     !procedure :: set_scalar_field_to_nodal_values     & 
-     ! & => raviart_thomas_set_scalar_field_to_nodal_values
-     !procedure :: set_vector_field_to_nodal_values     & 
-     ! & => raviart_thomas_set_vector_field_to_nodal_values
-     !procedure :: set_tensor_field_to_nodal_values     & 
-     ! & => raviart_thomas_set_tensor_field_to_nodal_values
      procedure :: evaluate_fe_function_scalar          &
       & => raviart_thomas_evaluate_fe_function_scalar
      procedure :: evaluate_fe_function_vector          & 
       & => raviart_thomas_evaluate_fe_function_vector
      procedure :: evaluate_fe_function_tensor          & 
       & => raviart_thomas_evaluate_fe_function_tensor
-     !procedure :: evaluate_gradient_fe_function_scalar & 
-     ! & => raviart_thomas_eval_grad_fe_function_scalar
-     !procedure :: evaluate_gradient_fe_function_vector &
-     ! & => raviart_thomas_eval_grad_fe_function_vector
-     !procedure :: get_number_subelements    => raviart_thomas_get_number_subelements
-     !procedure :: free                      => raviart_thomas_free
-     ! Concrete TBPs of this derived data type
-     !procedure, private, non_overridable :: fill                         & 
-     ! & => raviart_thomas_fill
-     !procedure, private, non_overridable :: fill_field_components        & 
-     ! & => raviart_thomas_fill_field_components
-     !procedure, private, non_overridable :: fill_permutation_array       &
-     ! & => raviart_thomas_fill_permutation_array
-     !procedure, private, non_overridable :: fill_nodal_quadrature        &
-     ! & => raviart_thomas_fill_nodal_quadrature
-     !procedure, private, non_overridable :: get_node_coordinates_array   & 
-     ! & => raviart_thomas_get_node_coordinates_array
-     !procedure, private, non_overridable :: set_permutation_1D           & 
-     ! & => raviart_thomas_set_permutation_1D
-     !procedure, private, non_overridable :: extend_list_components       & 
-     ! & => raviart_thomas_extend_list_components
      procedure, private :: apply_femap_to_interpolation & 
       & => raviart_thomas_apply_femap_to_interpolation
   end type raviart_thomas_reference_fe_t 
@@ -1099,8 +1065,6 @@ module reference_fe_names
            &   => tet_raviart_thomas_get_characteristic_length
      procedure :: get_subelements_connectivity                                &
            &   => tet_raviart_thomas_get_subelements_connectivity
-     procedure :: blending                                                    &
-           &   => tet_raviart_thomas_blending 
      ! Deferred TBP implementors from lagrangian_reference_fe_t
      !procedure, private :: fill_scalar                                        &
      !      & => tet_raviart_thomas_fill_scalar
@@ -1149,8 +1113,7 @@ module reference_fe_names
      procedure :: get_subelements_connectivity                                &
            &   => hex_lagrangian_reference_fe_get_subelements_connectivity
      procedure :: blending                                                    &
-           &   => hex_lagrangian_reference_fe_blending
-           
+           &   => hex_lagrangian_reference_fe_blending           
      ! Deferred TBP implementors from lagrangian_reference_fe_t
      procedure, private :: fill_quadrature                                    &
            & => hex_lagrangian_reference_fe_fill_quadrature
@@ -1169,6 +1132,35 @@ module reference_fe_names
   end type hex_lagrangian_reference_fe_t
   
   public :: hex_lagrangian_reference_fe_t
+  
+  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  type, extends(raviart_thomas_reference_fe_t) :: hex_raviart_thomas_reference_fe_t
+     private
+   contains 
+     ! Deferred TBP implementors from reference_fe_t
+     procedure :: check_compatibility_of_n_faces                                 &
+           &   => hex_raviart_thomas_reference_fe_check_compatibility_of_n_faces
+     procedure :: get_characteristic_length                                   &
+           &   => hex_raviart_thomas_reference_fe_get_characteristic_length
+           
+     ! Deferred TBP implementors from raviart_thomas_reference_fe_t
+     procedure, private :: fill_quadrature                                    &
+           & => hex_raviart_thomas_reference_fe_fill_quadrature
+     procedure, private :: fill_interpolation                                 &
+           & => hex_raviart_thomas_reference_fe_fill_interpolation
+     procedure, private :: fill_face_interpolation                            &
+           & => hex_raviart_thomas_reference_fe_fill_face_interpolation
+     procedure, private :: set_permutation_2D                                 &
+           & => hex_raviart_thomas_reference_fe_set_permutation_2D
+     procedure, private :: set_number_quadrature_points                       &
+           & => hex_raviart_thomas_reference_fe_set_number_quadrature_points
+     procedure, private :: compute_number_nodes_scalar                        &
+           & => hex_raviart_thomas_reference_fe_compute_number_nodes_scalar
+     procedure, private :: get_number_interior_points_x_dim                   &
+           & => hex_raviart_thomas_reference_fe_get_interior_points_x_dim
+  end type hex_raviart_thomas_reference_fe_t
+  
+  public :: hex_raviart_thomas_reference_fe_t
   
     !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type volume_integrator_t 
@@ -1332,6 +1324,8 @@ contains
 #include "sbm_hex_lagrangian_reference_fe.i90"
 
 #include "sbm_tet_lagrangian_reference_fe.i90"
+
+#include "sbm_hex_raviart_thomas_reference_fe.i90"
 
 #include "sbm_tet_raviart_thomas_reference_fe.i90"
 

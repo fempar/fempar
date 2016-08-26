@@ -46,7 +46,7 @@ function hex_lagrangian_reference_fe_check_compatibility_of_n_faces             
         ! Get number nodes per dimension
         assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
         do idime = 1, target_reference_fe%number_dimensions
-        assert (target_reference_fe%order(idime) == source_reference_fe%order(idime))
+        assert (target_reference_fe%order_vector(idime) == source_reference_fe%order_vector(idime))
         end do
         assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
         assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
@@ -90,7 +90,7 @@ subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connec
   do subelem = 1, num_subelems
     !call this%get_node_local_coordinates(first_coord,subelem, & 
     !                                      & this%number_dimensions,this%order(1)-1)
-    call index_to_ijk( subelem, this%number_dimensions, this%order, first_coord )
+    call index_to_ijk( subelem, this%number_dimensions, this%order_vector, first_coord )
         
     do local_node = 1, geo_nnodes
       !call this%get_node_local_coordinates(local_coord,local_node,this%number_dimensions,1)
@@ -98,7 +98,7 @@ subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connec
       global_coord = first_coord + local_coord
       !connectivity(local_node, subelem) = this%get_node_local_id(global_coord, &
       !                                                   & this%number_dimensions,this%order(1)) ! 
-      connectivity(local_node, subelem) = ijk_to_index(global_coord,this%order,this%number_dimensions)
+      connectivity(local_node, subelem) = ijk_to_index(global_coord,this%order_vector,this%number_dimensions)
     end do
   end do
 end subroutine hex_lagrangian_reference_fe_get_subelements_connectivity
@@ -656,7 +656,7 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
     integer(ip) :: idime, q_point
         
     do idime=1,interpolation%number_dimensions
-       call polynomial_1D%generate_basis( this%order(idime), polynomial_1D_basis(idime) )
+       call polynomial_1D%generate_basis( this%order_vector(idime), polynomial_1D_basis(idime) )
     end do
     
     call tensor_product_polynomial_space%create(interpolation%number_dimensions,polynomial_1D_basis)

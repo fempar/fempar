@@ -24,25 +24,7 @@
 ! licensors of this Program grant you additional permission to convey the 
 ! resulting work. 
 !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  subroutine create_isotropic_order ( this, topology, number_dimensions, order, & 
-                                                     field_type, continuity, enable_face_integration )
-       implicit none 
-       class(reference_fe_t), intent(inout) :: this 
-       character(*)         , intent(in)    :: topology
-       integer(ip)          , intent(in)    :: number_dimensions
-       integer(ip)          , intent(in)    :: order
-       character(*)         , intent(in)    :: field_type
-       logical              , intent(in)    :: continuity
-       logical, optional    , intent(in)    :: enable_face_integration
-       integer(ip) :: order_vector(SPACE_DIM)
-       order_vector = order
-       call this%create_anisotropic_order( topology, number_dimensions, & 
-                                       order_vector, field_type, continuity, enable_face_integration )
-  end subroutine create_isotropic_order
-  
-     
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
   subroutine reference_fe_free( this )
     implicit none
     class(reference_fe_t), intent(inout) :: this
@@ -130,7 +112,7 @@ subroutine reference_fe_set_common_data( this, number_dimensions, order, field_t
   implicit none 
   class(reference_fe_t), intent(inout) :: this 
   integer(ip)          , intent(in)    :: number_dimensions
-  integer(ip)          , intent(in)    :: order(SPACE_DIM)               
+  integer(ip)          , intent(in)    :: order              
   character(*)         , intent(in)    :: field_type
   logical              , intent(in)    :: continuity
   logical    , optional, intent(in)    :: enable_face_integration
@@ -209,7 +191,7 @@ function reference_fe_get_order( this )
   implicit none
   class(reference_fe_t), intent(in) :: this
   integer(ip) :: reference_fe_get_order
-  reference_fe_get_order = this%order(1) 
+  reference_fe_get_order = this%order
   ! @sbadia: It does not work for anisotropic elements, there is no clear definition in this case
 end function reference_fe_get_order
 
