@@ -104,6 +104,7 @@ module fe_space_names
     generic                             :: get_vef                                    => fe_accessor_get_fe_vef
     procedure, non_overridable          :: get_reference_fe                           => fe_accessor_get_reference_fe
     procedure, non_overridable          :: get_max_order_reference_fe                 => fe_accessor_get_max_order_reference_fe
+    procedure, non_overridable          :: get_max_order_reference_fe_id              => fe_accessor_get_max_order_reference_fe_id
     procedure, non_overridable, private :: get_reference_fe_id                        => fe_accessor_get_reference_fe_id
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_accessor_create_own_dofs_on_vef_iterator
     
