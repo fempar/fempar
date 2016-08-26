@@ -54,11 +54,17 @@ module uniform_hex_mesh_generator_names
   ! character(len=*), parameter :: stretching_parameter_name     = 'stretching_parameter'     
   ! character(len=*), parameter :: size_boundary_name            = 'size_boundary'  
 
-  character(len=*), parameter :: number_of_dimensions    = 'number_of_dimensions'
-  character(len=*), parameter :: number_of_cells_per_dir = 'number_of_cells_per_dir'
-  character(len=*), parameter :: number_of_parts_per_dir = 'number_of_parts_per_dir'
-  character(len=*), parameter :: is_dir_periodic         = 'is_dir_periodic'
-  character(len=*), parameter :: interpolation_order     = 'interpolation_order'
+  character(len=*), parameter :: number_of_dimensions_key    = 'number_of_dimensions'
+  character(len=*), parameter :: number_of_cells_per_dir_key = 'number_of_cells_per_dir'
+  character(len=*), parameter :: number_of_parts_per_dir_key = 'number_of_parts_per_dir'
+  character(len=*), parameter :: is_dir_periodic_key         = 'is_dir_periodic'
+  character(len=*), parameter :: interpolation_order_key     = 'interpolation_order'
+
+  public :: number_of_dimensions_key
+  public :: number_of_cells_per_dir_key 
+  public :: number_of_parts_per_dir_key 
+  public :: is_dir_periodic_key         
+  public :: interpolation_order_key     
 
   ! Formely uniform_mesh_descriptor_t. Provided here for convenience (so that legacy 
   ! code can be re-used here AS IS). However, the user of FEMPAR should not be aware of this 
@@ -69,9 +75,9 @@ module uniform_hex_mesh_generator_names
     private 
     integer(ip) :: number_of_dimensions
     integer(ip) :: interpolation_order
-    integer(ip) :: number_of_cells_per_dir(SPACE_DIM)
-    integer(ip) :: number_of_parts_per_dir(SPACE_DIM)
-    logical     :: is_dir_periodic(SPACE_DIM)
+    integer(ip) :: number_of_cells_per_dir(0:SPACE_DIM-1)
+    integer(ip) :: number_of_parts_per_dir(0:SPACE_DIM-1)
+    integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
 
     ! integer(ip)            ::  &
     !       ntdix=0,             &         ! Type of discretization in x (0=uniform, 1=cubic, 2=tanh, 3=imh+unif, 4:imh+tanh)
@@ -175,30 +181,31 @@ contains
 
     ! Mandatory parameters
     is_present = .true.
-    is_present =  is_present.and. parameter_list%isPresent(key = number_of_dimensions )
-    is_present =  is_present.and. parameter_list%isPresent(key = number_of_cells_per_dir )
-    is_present =  is_present.and. parameter_list%isPresent(key = is_dir_periodic )
-    is_present =  is_present.and. parameter_list%isPresent(key = interpolation_order )
+    is_present =  is_present.and. parameter_list%isPresent(key = number_of_dimensions_key )
+    is_present =  is_present.and. parameter_list%isPresent(key = number_of_cells_per_dir_key )
+    is_present =  is_present.and. parameter_list%isPresent(key = is_dir_periodic_key )
+    is_present =  is_present.and. parameter_list%isPresent(key = interpolation_order_key )
     !is_present =  is_present.and. parameter_list%isPresent(key = 
     assert(is_present)
 
     istat = 0
-    istat = istat + parameter_list%get(key = number_of_dimensions   , value = this%number_of_dimensions)
-    istat = istat + parameter_list%get(key = number_of_cells_per_dir, value = this%number_of_cells_per_dir)
-    istat = istat + parameter_list%get(key = is_dir_periodic        , value = this%is_dir_periodic)
-    istat = istat + parameter_list%get(key = interpolation_order    , value = this%interpolation_order)
+    istat = istat + parameter_list%get(key = number_of_dimensions_key   , value = this%number_of_dimensions)
+    istat = istat + parameter_list%get(key = number_of_cells_per_dir_key, value = this%number_of_cells_per_dir)
+    istat = istat + parameter_list%get(key = is_dir_periodic_key        , value = this%is_dir_periodic)
+    istat = istat + parameter_list%get(key = interpolation_order_key    , value = this%interpolation_order)
     check(istat==0)
 
     ! Optional parameters
-    if( parameter_list%isPresent(key = number_of_parts_per_dir) ) then
-       istat = parameter_list%get(key = number_of_parts_per_dir , value = this%number_of_parts_per_dir)
+    if( parameter_list%isPresent(key = number_of_parts_per_dir_key) ) then
+       istat = parameter_list%get(key = number_of_parts_per_dir_key , value = this%number_of_parts_per_dir)
     else
        this%number_of_parts_per_dir = 1
     end if
+
   end subroutine uniform_hex_mesh_descriptor_get_data_from_parameter_list
 
   ! Main driver subroutine of this module
-  subroutine uniform_hex_mesh_generator_generate_connectivities(input_data,            &
+  subroutine uniform_hex_mesh_generator_generate_connectivities(parameter_list,        &
                                                                 num_local_cells,       &
                                                                 num_ghost_cells,       &
                                                                 num_local_vefs,        &
@@ -210,7 +217,7 @@ contains
                                                                 part_id)
                                                                              
     implicit none
-    type(uniform_hex_mesh_descriptor_t)    , intent(in)    :: input_data
+    type(ParameterList_t)                  , intent(in)    :: parameter_list
     integer(ip)                            , intent(out)   :: num_local_cells
     integer(ip)                            , intent(out)   :: num_ghost_cells
     integer(ip)                            , intent(out)   :: num_local_vefs
@@ -221,32 +228,42 @@ contains
     integer(igp)          , allocatable    , intent(inout) :: vefs_gids(:)                    ! Size = num_local_vefs
     integer(ip)           , optional       , intent(in)    :: part_id
 
+    type(uniform_hex_mesh_descriptor_t) :: input_data
     integer(ip), allocatable :: cell_is_ghost(:)
 
-    integer(ip) :: part_ijk(SPACE_DIM)
-    integer(ip) :: cell_ijk(SPACE_DIM)
-    integer(ip) :: nface_ijk(SPACE_DIM)
+    integer(ip) :: part_ijk(0:SPACE_DIM-1)
+    integer(ip) :: cell_ijk(0:SPACE_DIM-1)
+    integer(ip) :: nface_ijk(0:SPACE_DIM-1)
 
-    integer(ip) :: first_cell_ijk(SPACE_DIM)
-    integer(ip) :: last_cell_ijk(SPACE_DIM)
-    integer(ip) :: my_number_of_cells(SPACE_DIM)
+    integer(ip) :: first_cell_ijk(0:SPACE_DIM-1)
+    integer(ip) :: last_cell_ijk(0:SPACE_DIM-1)
 
-    integer(ip) :: i,j, idime,jdime, icell
+    ! Here total=local+ghost (if any) refers to the things I have,
+    ! whereas global to the whole distributed mesh.
+    integer(ip) :: num_total_cells_per_dir(0:SPACE_DIM-1)
+    integer(ip) :: num_local_cells_per_dir(0:SPACE_DIM-1)
+    integer(ip) :: num_left_parts_per_dir(0:SPACE_DIM-1)
+    integer(ip) :: num_right_parts_per_dir(0:SPACE_DIM-1)
 
-    type(polytope_tree_t)     :: polytope_tree
-    type(node_array_t)        :: node_array
-
-    integer(igp), allocatable  :: num_i_faces(:)
-    integer(ip) , allocatable  :: my_num_i_faces(:)
-    integer(igp), allocatable  :: num_i_faces_per_dim(:,:)
-    integer(ip) , allocatable  :: my_num_i_faces_per_dim(:,:)
+    integer(igp), allocatable  :: num_global_n_faces(:)
+    integer(ip) , allocatable  :: num_total_n_faces(:)
+    integer(igp), allocatable  :: num_global_nfaces_per_dir(:,:)
+    integer(ip) , allocatable  :: num_total_nfaces_per_dir(:,:)
 
     !type(node_iterator_t)     :: node_iterator
     !type(children_iterator_t) :: children_iterator
     !type(list_iterator_t)     :: list_iterator
     integer(ip)               :: topology
+
+    integer(ip) :: idime, jdime, icell, iface, itype, num_nface_types, partial_count
+
+    type(polytope_tree_t)     :: polytope_tree
+    type(node_array_t)        :: node_array
     
-    integer(ip) :: ones(SPACE_DIM)
+    integer(ip)               :: ones(SPACE_DIM)
+    logical                   :: count_it
+
+    call input_data%get_data_from_parameter_list(parameter_list)
 
     ones = 1
     
@@ -256,116 +273,170 @@ contains
 
     ! Get my part coordinates (make it 0-based, assuming part_id is 1-based)
     if(present(part_id)) then
-       call spatial_to_ijk_numbering(input_data%number_of_dimensions, input_data%number_of_parts_per_dir, part_id-1, part_ijk)
+       call spatial_to_ijk_numbering(input_data%number_of_dimensions, input_data%number_of_parts_per_dir, part_id, part_ijk)
     else
        part_ijk = 0
     end if
 
     ! Cells I have to manage
-    do idime = 1, input_data%number_of_dimensions
-       my_number_of_cells(idime) = input_data%number_of_cells_per_dir(i) / input_data%number_of_parts_per_dir(i) 
-       first_cell_ijk(idime) =  part_ijk(idime) * my_number_of_cells(idime)
-       last_cell_ijk(idime) =  first_cell_ijk(idime) + my_number_of_cells(idime)
+    ! do idime = 0, input_data%number_of_dimensions - 1 
+    !    num_local_cells_per_dir(idime) = input_data%number_of_cells_per_dir(idime) / input_data%number_of_parts_per_dir(idime) 
+    !    first_cell_ijk(idime) =  part_ijk(idime) * num_local_cells_per_dir(idime)
+    !    last_cell_ijk(idime) =  first_cell_ijk(idime) + num_local_cells_per_dir(idime)
+    ! end do
+    do idime = 0, input_data%number_of_dimensions - 1 
+       num_local_cells_per_dir(idime) = input_data%number_of_cells_per_dir(idime) / input_data%number_of_parts_per_dir(idime) 
     end do
-
     num_local_cells = 1
-    do idime = 1, input_data%number_of_dimensions
-       num_local_cells = num_local_cells * my_number_of_cells(idime)
+    do idime = 0, input_data%number_of_dimensions - 1
+       num_local_cells = num_local_cells * num_local_cells_per_dir(idime)
     end do
-
-    num_ghost_cells = 0
-    do i=1,polytope_tree%get_number_n_faces()
-       if(polytope_tree%get_n_face_dimension(i)<input_data%number_of_dimensions) then ! do not include the polytope itself
-          j=1
-          do idime = 1, input_data%number_of_dimensions
-             if(polytope_tree%n_face_dir_is_fixed(i,idime)==1) j=j*my_number_of_cells(idime)
-          end do
-          num_ghost_cells = num_ghost_cells + j
+    num_left_parts_per_dir=1
+    num_right_parts_per_dir=1
+    do idime = 0, input_data%number_of_dimensions - 1 
+       if(input_data%is_dir_periodic(idime)==0.or.input_data%number_of_parts_per_dir(idime)==1) then ! Not periodic
+          if(part_ijk(idime)==0) num_left_parts_per_dir(idime)=0 
+          if(part_ijk(idime)==input_data%number_of_parts_per_dir(idime)-1) num_right_parts_per_dir(idime)=0 
        end if
     end do
+    num_total_cells_per_dir = num_local_cells_per_dir + num_left_parts_per_dir + num_right_parts_per_dir
+
+    num_ghost_cells = 1
+    do idime = 0, input_data%number_of_dimensions - 1
+       num_ghost_cells = num_ghost_cells * num_total_cells_per_dir(idime)
+    end do
+    num_ghost_cells = num_ghost_cells - num_local_cells
+
+    ! The following paragraph is not needed but I keep it because the loop can be useful
+    ! num_ghost_cells = 0
+    ! do iface=1,polytope_tree%get_number_n_faces()
+    !    if(polytope_tree%get_n_face_dimension(iface)<input_data%number_of_dimensions) then ! do not include the polytope itself
+    !       partial_count=1
+    !       count_it = .true.
+    !       do idime = 0, input_data%number_of_dimensions - 1 
+    !          if(polytope_tree%n_face_dir_is_fixed(iface,idime)==1) then
+    !             partial_count=partial_count*num_local_cells_per_dir(idime)
+    !          else
+    !             if( (polytope_tree%n_face_dir_coordinate(iface,idime)==0.and.num_left_parts_per_dir(idime)==0) .or. &
+    !                 (polytope_tree%n_face_dir_coordinate(iface,idime)==1.and.num_right_parts_per_dir(idime)==0) ) count_it = .false.
+    !          end if
+    !       end do
+    !       if(count_it) num_ghost_cells = num_ghost_cells + partial_count
+    !    end if
+    ! end do
 
     ! Allocate arrays
-    call memalloc(num_local_cells+num_ghost_cells, ptr_vefs_per_cell, __FILE__,__LINE__)
-    ptr_vefs_per_cell = polytope_tree%get_number_n_faces()
+    call memalloc(num_local_cells+num_ghost_cells+1, ptr_vefs_per_cell, __FILE__,__LINE__)
+    ptr_vefs_per_cell = polytope_tree%get_number_n_faces() - 1 ! the cell itself does not count
     ptr_vefs_per_cell(1) = 1
-    do i = 1, num_local_cells+num_ghost_cells
-       ptr_vefs_per_cell(i+1) = ptr_vefs_per_cell(i+1) + ptr_vefs_per_cell(i)
+    do icell = 1, num_local_cells+num_ghost_cells
+       ptr_vefs_per_cell(icell+1) = ptr_vefs_per_cell(icell+1) + ptr_vefs_per_cell(icell)
     end do
     call memalloc( ptr_vefs_per_cell(num_local_cells+num_ghost_cells+1)-1, lst_vefs_lids, __FILE__,__LINE__)
     call memalloc( ptr_vefs_per_cell(num_local_cells+num_ghost_cells+1)-1, cell_is_ghost, __FILE__,__LINE__)
     cell_is_ghost=0
 
     ! Global and local number of i-faces (per direction and total)
-    call memalloc( polytope_tree%get_number_n_faces(), num_i_faces, __FILE__,__LINE__)
-    call memalloc( polytope_tree%get_number_n_faces(), my_num_i_faces, __FILE__,__LINE__)
-    call memalloc( input_data%number_of_dimensions, polytope_tree%get_number_n_faces()-1, num_i_faces_per_dim, __FILE__,__LINE__)
-    call memalloc( input_data%number_of_dimensions, polytope_tree%get_number_n_faces()-1, my_num_i_faces_per_dim, __FILE__,__LINE__)
-    do i=1,polytope_tree%get_number_n_faces()
-       if(polytope_tree%get_n_face_dimension(i)<input_data%number_of_dimensions) then ! do not include the polytope itself
-          do idime = 1, input_data%number_of_dimensions
-             num_i_faces_per_dim(idime,i) = input_data%number_of_cells_per_dir(i) + 1 - polytope_tree%n_face_dir_is_fixed(i,idime)
-             my_num_i_faces_per_dim(idime,i) =  my_number_of_cells(i) + 2  + 1 - polytope_tree%n_face_dir_is_fixed(i,idime)
+    num_nface_types = 0
+    do iface=1,polytope_tree%get_number_n_faces()
+       if(polytope_tree%get_n_face_dimension(iface)<input_data%number_of_dimensions.and. &
+            & polytope_tree%n_face_coordinate(iface)==0) num_nface_types = num_nface_types + 1
+    end do
+
+    call memalloc( num_nface_types+1, num_global_n_faces, __FILE__,__LINE__,lb1=0)
+    call memalloc( num_nface_types+1, num_total_n_faces, __FILE__,__LINE__,lb1=0)
+    call memalloc( input_data%number_of_dimensions, num_nface_types, num_global_nfaces_per_dir, __FILE__,__LINE__,lb1=0,lb2=0)
+    call memalloc( input_data%number_of_dimensions, num_nface_types, num_total_nfaces_per_dir, __FILE__,__LINE__,lb1=0,lb2=0)
+    do iface=1,polytope_tree%get_number_n_faces()
+       if(polytope_tree%get_n_face_dimension(iface)<input_data%number_of_dimensions.and. &
+            & polytope_tree%n_face_coordinate(iface)==0) then
+          itype = polytope_tree%n_face_type(iface)
+          do idime = 0, input_data%number_of_dimensions - 1
+             num_global_nfaces_per_dir(idime,itype) = &
+                  & input_data%number_of_cells_per_dir(idime)  + &
+                  & 1 - max(polytope_tree%n_face_dir_is_fixed(iface,idime),input_data%is_dir_periodic(idime))
+             num_total_nfaces_per_dir(idime,itype) =  &
+                  & num_total_cells_per_dir(idime) + &
+                  & 1 - max(polytope_tree%n_face_dir_is_fixed(iface,idime),input_data%is_dir_periodic(idime)/input_data%number_of_parts_per_dir(idime))
           end do
-          num_i_faces(i+1) = 1
-          my_num_i_faces(i+1) = 1
-          do idime = 1, input_data%number_of_dimensions
-             num_i_faces(i+1) = num_i_faces(i+1) * num_i_faces_per_dim(idime,i)          ! ( input_data%number_of_cells_per_dir(i) + 1 - polytope_tree%n_face_dir_is_fixed(i,idime) )
-             my_num_i_faces(i+1) = my_num_i_faces(i+1) * my_num_i_faces_per_dim(idime,i) ! ( my_number_of_cells(i) + 2  + 1 - polytope_tree%n_face_dir_is_fixed(i,idime) )
+          num_global_n_faces(itype+1) = 1
+          num_total_n_faces(itype+1) = 1
+          do idime = 0, input_data%number_of_dimensions - 1
+             num_global_n_faces(itype+1) = num_global_n_faces(itype+1) * num_global_nfaces_per_dir(idime,itype)
+             num_total_n_faces(itype+1) = num_total_n_faces(itype+1) * num_total_nfaces_per_dir(idime,itype)
           end do
        end if
     end do
-    num_i_faces(i+1) = 1
-    my_num_i_faces(i+1) = 1
-    do i=1,polytope_tree%get_number_n_faces()
-       num_i_faces(i+1) = num_i_faces(i+1) + num_i_faces(i)
-       my_num_i_faces(i+1) = my_num_i_faces(i+1) + my_num_i_faces(i)
+    num_global_n_faces(0) = 1
+    num_total_n_faces(0) = 1
+    do iface=1,polytope_tree%get_number_n_faces()
+       if(polytope_tree%get_n_face_dimension(iface)<input_data%number_of_dimensions.and. &
+            & polytope_tree%n_face_coordinate(iface)==0) then
+          itype = polytope_tree%n_face_type(iface)
+          num_global_n_faces(itype+1) = num_global_n_faces(itype+1) + num_global_n_faces(itype)
+          num_total_n_faces(itype+1) = num_total_n_faces(itype+1) + num_total_n_faces(itype)
+       end if
     end do
 
     ! Construct local numbering
     do icell = 1, num_local_cells+num_ghost_cells
-       call spatial_to_ijk_numbering(input_data%number_of_dimensions, my_number_of_cells, icell, cell_ijk)
-       do idime = 1, input_data%number_of_dimensions
-          if( cell_ijk(idime)==0 .or. cell_ijk(idime)==(my_number_of_cells(i)+2) ) cell_is_ghost(icell)=1
+       call spatial_to_ijk_numbering(input_data%number_of_dimensions, num_total_cells_per_dir, icell, cell_ijk)
+       do idime = 0, input_data%number_of_dimensions - 1
+          if(input_data%is_dir_periodic(idime)==0) then
+             if(    (cell_ijk(idime)==0 .and. num_left_parts_per_dir(idime)==1) .or. &
+                  & (cell_ijk(idime)==num_total_cells_per_dir(idime).and. num_right_parts_per_dir(idime)==1) ) cell_is_ghost(icell)=1
+          end if
        end do
-       do i=1,polytope_tree%get_number_n_faces()
-          if(polytope_tree%get_n_face_dimension(i)<input_data%number_of_dimensions) then ! do not include the polytope itself
-             do idime = 1, input_data%number_of_dimensions
-                nface_ijk(idime) = cell_ijk(idime) + polytope_tree%n_face_dir_coordinate(i,idime)
+       do iface=1,polytope_tree%get_number_n_faces()
+          if(polytope_tree%get_n_face_dimension(iface)<input_data%number_of_dimensions) then ! do not include the polytope itself
+             do idime = 0, input_data%number_of_dimensions - 1
+                nface_ijk(idime) = mod(cell_ijk(idime) + polytope_tree%n_face_dir_coordinate(iface,idime),num_total_nfaces_per_dir(idime,itype))
              end do
-             lst_vefs_lids(ptr_vefs_per_cell(icell)+i) = my_num_i_faces(i) + &
-                  &  ijk_to_spatial_numbering(input_data%number_of_dimensions, my_num_i_faces_per_dim(:,i), nface_ijk)
+             itype = polytope_tree%n_face_type(iface)
+             lst_vefs_lids(ptr_vefs_per_cell(icell)+iface-1) = num_total_n_faces(itype) + &
+                  &  ijk_to_spatial_numbering(input_data%number_of_dimensions, num_total_nfaces_per_dir(:,itype), nface_ijk)
           end if
        end do
     end do
+
+
+    call memfree( num_global_n_faces, __FILE__,__LINE__)
+    call memfree( num_total_n_faces, __FILE__,__LINE__)
+    call memfree( num_global_nfaces_per_dir, __FILE__,__LINE__)
+    call memfree( num_total_nfaces_per_dir, __FILE__,__LINE__)
+
+    call node_array%free()
+    call polytope_tree%free()
 
   end subroutine uniform_hex_mesh_generator_generate_connectivities
 
   pure function ijk_to_spatial_numbering(num_dimensions, num_per_dim, ijk)
     implicit none
     integer(ip)           , intent(in) :: num_dimensions
-    integer(ip)           , intent(in) :: num_per_dim(SPACE_DIM) 
-    integer(ip)           , intent(in) :: ijk(SPACE_DIM) 
+    integer(ip)           , intent(in) :: num_per_dim(0:SPACE_DIM-1) 
+    integer(ip)           , intent(in) :: ijk(0:SPACE_DIM-1) 
     integer(ip) :: ijk_to_spatial_numbering
     integer(ip) :: idime, jdime, previous
-    do idime = 1, num_dimensions
+    ijk_to_spatial_numbering = 0
+    do idime = 0, num_dimensions - 1
        previous = 1
-       do jdime = 1, idime - 1 
+       do jdime = 0, idime - 1 
           previous = previous * num_per_dim(jdime)
        end do
+       ijk_to_spatial_numbering = ijk_to_spatial_numbering + previous*ijk(idime)
     end do
-    ijk_to_spatial_numbering = ijk_to_spatial_numbering + previous*ijk(idime)
   end function ijk_to_spatial_numbering
 
   pure subroutine spatial_to_ijk_numbering(num_dimensions, num_per_dim, spatial_numbering, ijk)
     implicit none
     integer(ip)           , intent(in)  :: num_dimensions
-    integer(ip)           , intent(in)  :: num_per_dim(SPACE_DIM) 
+    integer(ip)           , intent(in)  :: num_per_dim(0:SPACE_DIM-1) 
     integer(ip)           , intent(in)  :: spatial_numbering
-    integer(ip)           , intent(out) :: ijk(SPACE_DIM) 
+    integer(ip)           , intent(out) :: ijk(0:SPACE_DIM-1) 
     integer(ip) :: idime,j
 
     j = spatial_numbering - 1          ! To make it 0-based (assuming spatial_numbering is 1-based)
-    do idime = 1, num_dimensions
+    do idime = 0, num_dimensions - 1
        ijk(idime) = mod(j,num_per_dim(idime))
        j = j / num_per_dim(idime)
     end do
