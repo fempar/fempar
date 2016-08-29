@@ -410,6 +410,7 @@ module base_static_triangulation_names
      
      ! Getters
      procedure                           :: get_number_reference_fes_geo        => bst_get_number_reference_fes_geo
+     procedure                           :: get_max_number_shape_functions      => bst_get_max_number_shape_functions
    
 
      ! Private methods for creating cell-related data
