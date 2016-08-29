@@ -1096,7 +1096,7 @@ end subroutine par_fe_space_update_strong_dirichlet_bcs_values
 
   if ( par_environment%am_i_l1_task() ) then
     call fe_function_scalar%create( field_id,                            &
-                                    this%get_max_number_nodes(field_id), &
+                                    this%get_max_number_shape_functions(), &
                                     this%get_max_number_quadrature_points() )  
   end if
   
@@ -1113,7 +1113,7 @@ subroutine par_fe_space_create_cell_fe_function_vector ( this, field_id, fe_func
 
   if ( par_environment%am_i_l1_task() ) then
     call fe_function_vector%create( field_id,                            &
-                                  this%get_max_number_nodes(field_id), &
+                                  this%get_max_number_shape_functions(), &
                                   this%get_max_number_quadrature_points() )
   end if
   
@@ -1130,7 +1130,7 @@ subroutine par_fe_space_create_cell_fe_function_tensor ( this, field_id, fe_func
 
   if (par_environment%am_i_l1_task() ) then
     call fe_function_tensor%create( field_id,                            &
-                                    this%get_max_number_nodes(field_id), &
+                                    this%get_max_number_shape_functions(), &
                                     this%get_max_number_quadrature_points() )
 
   end if
@@ -1149,7 +1149,7 @@ subroutine par_fe_space_create_face_fe_function_scalar ( this, field_id, face_fe
 
   if ( par_environment%am_i_l1_task() ) then
     call face_fe_function_scalar%create( field_id,                       &
-                                       this%get_max_number_nodes(field_id), &
+                                       this%get_max_number_shape_functions(), &
                                        this%get_max_number_face_quadrature_points() )
   end if
   
@@ -1168,7 +1168,7 @@ subroutine par_fe_space_create_face_fe_function_vector ( this, field_id, face_fe
 
   if ( par_environment%am_i_l1_task() ) then
     call face_fe_function_vector%create( field_id,                       &
-                                         this%get_max_number_nodes(field_id), &
+                                         this%get_max_number_shape_functions(), &
                                          this%get_max_number_face_quadrature_points() )
   end if
 end subroutine par_fe_space_create_face_fe_function_vector
@@ -1184,7 +1184,7 @@ subroutine par_fe_space_create_face_fe_function_tensor ( this, field_id, face_fe
 
   if ( par_environment%am_i_l1_task() ) then
     call face_fe_function_tensor%create( field_id,                       &
-                                         this%get_max_number_nodes(field_id), &
+                                         this%get_max_number_shape_functions(), &
                                          this%get_max_number_face_quadrature_points() )
   end if
   
