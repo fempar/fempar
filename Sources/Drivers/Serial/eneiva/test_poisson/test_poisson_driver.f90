@@ -74,8 +74,7 @@ module test_poisson_driver_names
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
-     !procedure        , private :: evaluate_error_l2_norm
-     !procedure        , private :: evaluate_error_h1_seminorm
+     procedure        , private :: evaluate_l2_and_h1_error_norms
      procedure        , private :: free
   end type test_poisson_driver_t
 
@@ -107,20 +106,20 @@ contains
     check(istat==0)
 
     this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,                                     &
-         fe_type = fe_type_lagrangian,                                &
-         number_dimensions = this%triangulation%get_num_dimensions(), &
-         order = 1,                                                   &
-         field_type = field_type_scalar,                              &
-         continuity = .true. )
+                                                 fe_type = fe_type_lagrangian,                                &
+                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 order = 1,                                                   &
+                                                 field_type = field_type_scalar,                              &
+                                                 continuity = .true. )
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
 
-    call this%fe_space%create( triangulation       = this%triangulation,      &
-         conditions          = this%poisson_conditions, &
-         reference_fes       = this%reference_fes)
+    call this%fe_space%create( triangulation = this%triangulation,      &
+                               conditions    = this%poisson_conditions, &
+                               reference_fes = this%reference_fes)
     call this%fe_space%fill_dof_info() 
     call this%poisson_conditions%set_boundary_function(this%problem_functions%get_dirichlet_values())
     call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
@@ -172,54 +171,26 @@ contains
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
          dof_values)
 
-    select type(dof_values)
-       class is (serial_scalar_array_t)  
-       call dof_values%print(6) 
-       class DEFAULT
-       assert(.false.) 
-    end select
+    !select type(dof_values)
+    !   class is (serial_scalar_array_t)  
+    !   call dof_values%print(6) 
+    !   class DEFAULT
+    !   assert(.false.) 
+    !end select
 
   end subroutine solve_system
 
-  !subroutine evaluate_error_l2_norm(this)
-  !  implicit none
-  !  class(test_poisson_driver_t), intent(inout) :: this
-  !  real(rp)                  :: scalar_field_error
-  !  type(error_norm_scalar_t) :: scalar_field_error_norm
-
-  !  call scalar_field_error_norm%create(this%fe_space,           & 
-  !                                      this%serial_environment, &
-  !                                      1,                       &
-  !                                      l2_norm)
-
-  !  scalar_field_error =  scalar_field_error_norm%compute(this%solution, &
-  !                        this%problem_functions%get_solution_values())
-
-  !  call scalar_field_error_norm%free()
-
-  !  write(*,*) 'scalar field error L2-norm: ', scalar_field_error
-
-  !end subroutine evaluate_error_l2_norm
-
-  !subroutine evaluate_error_h1_seminorm(this)
-  !  implicit none
-  !  class(test_poisson_driver_t), intent(inout) :: this
-  !  real(rp)                  :: scalar_field_error
-  !  type(error_norm_scalar_t) :: scalar_field_error_norm
-
-  !  call scalar_field_error_norm%create(this%fe_space,           & 
-  !                                      this%serial_environment, &
-  !                                      1,                       &
-  !                                      h1_seminorm)
-
-  !  scalar_field_error =  scalar_field_error_norm%compute(this%solution, &
-  !                        this%problem_functions%get_solution_gradient())
-
-  !  call scalar_field_error_norm%free()
-
-  !  write(*,*) 'scalar field error H1-seminorm: ', scalar_field_error
-
-  !end subroutine evaluate_error_h1_seminorm
+  subroutine evaluate_l2_and_h1_error_norms(this)
+    implicit none
+    class(test_poisson_driver_t), intent(inout) :: this
+    type(error_norms_scalar_t) :: error_norm
+    call error_norm%create(this%fe_space,1)
+    write(*,'(a20,e32.25)') 'l2_norm:', error_norm%compute(this%problem_functions%get_analytical_solution(), &
+                                                           this%solution, l2_norm)   
+    write(*,'(a20,e32.25)') 'h1_norm:', error_norm%compute(this%problem_functions%get_analytical_solution(), &
+                                                           this%solution, h1_norm)    
+    call error_norm%free()
+  end subroutine evaluate_l2_and_h1_error_norms
   
   subroutine run_simulation(this) 
     implicit none
@@ -234,8 +205,7 @@ contains
     call this%setup_solver()
     call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
-    !call this%evaluate_error_l2_norm()
-    !call this%evaluate_error_h1_seminorm()
+    call this%evaluate_l2_and_h1_error_norms()
     call this%free()
   end subroutine run_simulation
 

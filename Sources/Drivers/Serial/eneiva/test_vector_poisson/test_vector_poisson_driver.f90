@@ -73,8 +73,7 @@ module test_poisson_driver_names
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
-     !procedure        , private :: evaluate_error_l2_norm
-     !procedure        , private :: evaluate_error_h1_seminorm
+     procedure        , private :: evaluate_l2_and_h1_error_norms
      procedure        , private :: free
   end type test_vector_poisson_driver_t
 
@@ -117,9 +116,9 @@ contains
     implicit none
     class(test_vector_poisson_driver_t), intent(inout) :: this
 
-    call this%fe_space%create( triangulation       = this%triangulation,      &
-                               conditions          = this%vector_poisson_conditions, &
-                               reference_fes       = this%reference_fes)
+    call this%fe_space%create( triangulation = this%triangulation,             &
+                               conditions    = this%vector_poisson_conditions, &
+                               reference_fes = this%reference_fes)
     call this%fe_space%fill_dof_info() 
     call this%vector_poisson_conditions%set_boundary_function(this%problem_functions%get_boundary_values())
     call this%fe_space%update_strong_dirichlet_bcs_values(this%vector_poisson_conditions)
@@ -179,43 +178,17 @@ contains
 
   end subroutine solve_system
 
-  !subroutine evaluate_error_l2_norm(this)
-  !  implicit none
-  !  class(test_vector_poisson_driver_t), intent(inout) :: this
-  !  real(rp)                  :: vector_field_error
-  !  type(error_norm_vector_t) :: vector_field_error_norm
-
-  !  call vector_field_error_norm%create(this%fe_space,           & 
-  !                                      1,                       &
-  !                                      l2_norm)
-
-  !  vector_field_error =  vector_field_error_norm%compute(this%solution, &
-  !                        this%problem_functions%get_solution_values())
-
-  !  call vector_field_error_norm%free()
-
-  !  write(*,*) 'vector field error L2-norm: ', vector_field_error
-
-  !end subroutine evaluate_error_l2_norm
-
-  !subroutine evaluate_error_h1_seminorm(this)
-  !  implicit none
-  !  class(test_vector_poisson_driver_t), intent(inout) :: this
-  !  real(rp)                  :: vector_field_error
-  !  type(error_norm_vector_t) :: vector_field_error_norm
-
-  !  call vector_field_error_norm%create(this%fe_space,           & 
-  !                                      1,                       &
-  !                                      h1_seminorm)
-
-  !  vector_field_error =  vector_field_error_norm%compute(this%solution, &
-  !                        this%problem_functions%get_solution_gradient())
-
-  !  call vector_field_error_norm%free()
-
-  !  write(*,*) 'vector field error H1-seminorm: ', vector_field_error
-
-  !end subroutine evaluate_error_h1_seminorm
+  subroutine evaluate_l2_and_h1_error_norms(this)
+    implicit none
+    class(test_vector_poisson_driver_t), intent(inout) :: this
+    type(error_norms_vector_t) :: error_norm
+    call error_norm%create(this%fe_space,1)
+    write(*,'(a20,e32.25)') 'l2_norm:', error_norm%compute(this%problem_functions%get_analytical_solution(), &
+                                                           this%solution, l2_norm)   
+    write(*,'(a20,e32.25)') 'h1_norm:', error_norm%compute(this%problem_functions%get_analytical_solution(), &
+                                                           this%solution, h1_norm)    
+    call error_norm%free()
+  end subroutine evaluate_l2_and_h1_error_norms  
   
   subroutine run_simulation(this) 
     implicit none
@@ -230,8 +203,7 @@ contains
     call this%setup_solver()
     call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
-    !call this%evaluate_error_l2_norm()
-    !call this%evaluate_error_h1_seminorm()
+    call this%evaluate_l2_and_h1_error_norms()
     call this%free()
   end subroutine run_simulation
 
