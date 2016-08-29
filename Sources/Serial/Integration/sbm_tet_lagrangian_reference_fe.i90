@@ -92,6 +92,8 @@ subroutine tet_lagrangian_reference_fe_blending(this,values)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
   type(point_t)                       , intent(inout) :: values(:)
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for triangles/tetrahedra '
   check(.false.)
 end subroutine tet_lagrangian_reference_fe_blending
 

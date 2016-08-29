@@ -364,7 +364,7 @@ subroutine node_array_fill ( this )
   end do
   ! Sort nodes based on its bit-based index
   call sort( c, this%node_array )    
-  write(*,*) 'node_array',this%node_array
+  !write(*,*) 'node_array',this%node_array
   do i =1,c
      !write(*,*) 'n-face(',i,') :'
      !write(*,'(B32)') this%node_array(i)
