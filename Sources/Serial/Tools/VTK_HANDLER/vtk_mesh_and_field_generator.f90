@@ -42,40 +42,13 @@ USE fe_space_names,                  only: serial_fe_space_t, fe_iterator_t, fe_
 USE reference_fe_names,              only: reference_fe_t, hex_lagrangian_reference_fe_t, fe_map_t,   &
                                            quadrature_t, interpolation_t, topology_hex, topology_tet, &
                                            fe_type_lagrangian
+USE vtk_parameters_names
 
 implicit none
 
 #include "debug.i90"
 
 private
-
-
-    ! VTK cell type parameters
-    integer(ip), parameter :: vtk_vertex               = 1_I1P
-    integer(ip), parameter :: vtk_poly_vertex          = 2_I1P
-    integer(ip), parameter :: vtk_line                 = 3_I1P
-    integer(ip), parameter :: vtk_poly_line            = 4_I1P
-    integer(ip), parameter :: vtk_triangle             = 5_I1P
-    integer(ip), parameter :: vtk_triangle_strip       = 6_I1P
-    integer(ip), parameter :: vtk_polygon              = 7_I1P
-    integer(ip), parameter :: vtk_pixel                = 8_I1P
-    integer(ip), parameter :: vtk_quad                 = 9_I1P
-    integer(ip), parameter :: vtk_tetra                = 10_I1P
-    integer(ip), parameter :: vtk_voxel                = 11_I1P
-    integer(ip), parameter :: vtk_hexahedron           = 12_I1P
-    integer(ip), parameter :: vtk_wedge                = 13_I1P
-    integer(ip), parameter :: vtk_pyramid              = 14_I1P
-    integer(ip), parameter :: vtk_quadratic_edge       = 21_I1P
-    integer(ip), parameter :: vtk_quadratic_triangle   = 22_I1P
-    integer(ip), parameter :: vtk_quadratic_quad       = 23_I1P
-    integer(ip), parameter :: vtk_quadratic_tetra      = 24_I1P
-    integer(ip), parameter :: vtk_quadratic_hexahedron = 25_I1P
-
-    
-    ! PARAMETER VALUES CONSTANTS
-    character(*), parameter :: match_geometry_order  = 'match_geometry_order' ! VTK mesh built to match triangulation order
-    character(*), parameter :: match_max_order       = 'match_max_order'      ! VTK mesh built to match max(triangulation,fe_space) order
-
 
     ! Type for storing subelements connectivity 
     type connectivity_map_t

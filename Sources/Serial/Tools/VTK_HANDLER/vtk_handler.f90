@@ -39,6 +39,7 @@ USE iso_fortran_env,             only: error_unit
 USE ir_precision,                only: str
 USE environment_names,           only: environment_t
 USE fe_space_names,              only: serial_fe_space_t, fe_function_t
+USE vtk_parameters_names
 
 implicit none
 #include "debug.i90"
@@ -105,15 +106,6 @@ private
     integer(ip), parameter :: vtk_handler_state_write_geo_close       = 6
     integer(ip), parameter :: vtk_handler_state_write_close           = 7
 
-
-    
-    ! DEFAULT PARAMETERS
-    character(*),     parameter :: default_vtk_mesh_order        = match_max_order
-    integer(ip),      parameter :: default_root_task             = 0
-    integer(ip),      parameter :: default_number_of_tasks       = 1
-    integer(ip),      parameter :: default_guess_number_of_steps = 100
-    real(rp),         parameter :: default_step_value            = 0.0_rp
-    character(len=3), parameter :: default_vtk_format            = 'raw'
 
     ! Type for storing several mesh data with its field descriptors
     ! It also contains information about the number of parts (PVTU) and time steps (PVD)
