@@ -97,8 +97,6 @@ private
         procedure, non_overridable         :: topology_to_cell_type             => vtk_mesh_and_field_generator_topology_to_cell_type
         procedure, non_overridable         :: generate_geometry_order_mesh      => vtk_mesh_and_field_generator_generate_geometry_order_mesh
         procedure, non_overridable         :: generate_max_order_mesh           => vtk_mesh_and_field_generator_generate_max_order_mesh
-        procedure, non_overridable         :: generate_geometry_order_field     => vtk_mesh_and_field_generator_generate_geometry_order_field
-        procedure, non_overridable         :: generate_max_order_field          => vtk_mesh_and_field_generator_generate_max_order_field
         procedure, non_overridable, public :: free                              => vtk_mesh_and_field_generator_free
     end type vtk_mesh_and_field_generator_t
 
@@ -633,70 +631,52 @@ contains
     !-----------------------------------------------------------------
     !< Generate the field data from fe_space and fe_function
     !-----------------------------------------------------------------
-        class(vtk_mesh_and_field_generator_t),          intent(INOUT) :: this             !< vtk_mesh_and_field_generator_t derived type
-        type(fe_function_t),        intent(IN)    :: fe_function      !< Postprocess field structure to be written
-        integer(ip),                intent(IN)    :: field_id   !< Fe space index
-        character(len=*),           intent(IN)    :: field_name       !< name of the field
-        real(rp), allocatable,      intent(INOUT) :: field(:,:)       !< FIELD(ncomp,nnod)
-        integer(ip),                intent(OUT)   :: number_components!< number of components
-        integer(ip)                               :: E_IO             !< IO Error
-    !-----------------------------------------------------------------
-        assert(this%filled)
-        if(this%vtk_mesh_order == match_geometry_order) then
-            E_IO = this%generate_geometry_order_field(fe_function, field_id, field_name, field, number_components)
-        else if(this%vtk_mesh_order == match_max_order) then
-           E_IO = this%generate_max_order_field(fe_function, field_id, field_name, field, number_components)
-        else
-            write(error_unit,*) 'vtk_mesh_and_field_generator_generate_field: Mesh order not supported'
-            check(.false.)
-        endif
-    end function vtk_mesh_and_field_generator_generate_field
-
-
-    function vtk_mesh_and_field_generator_generate_geometry_order_field(this, fe_function, field_id, field_name, field, number_components) result(E_IO)
-    !-----------------------------------------------------------------
-    !< Generate the linear field data from fe_space and fe_function
-    !-----------------------------------------------------------------
         implicit none
         class(vtk_mesh_and_field_generator_t),  intent(INOUT) :: this         !< this raw mesh
-        type(fe_function_t),        intent(IN)    :: fe_function              !< Postprocess field structure to be written
-        integer(ip),                intent(IN)    :: field_id                 !< Fe space index
-        character(len=*),           intent(IN)    :: field_name               !< name of the field
-        real(rp),    allocatable,   intent(INOUT) :: field(:,:)               !< FIELD(ncomp,nnod)
-        integer(ip),                intent(OUT)   :: number_components        !< number of components
-        type(fe_iterator_t)                       :: fe_iterator              !< finite element iterator
-        type(fe_accessor_t)                       :: fe                       !< finite element accessor
-        type(i1p_t), allocatable                  :: elem2dof(:)              !< element 2 dof translator
-        type(interpolation_t)                     :: interpolation            !< interpolator
-        class(vector_t),             pointer      :: fe_function_dof_values   !< dof values of the fe_function
-        type(serial_scalar_array_t), pointer      :: strong_dirichlet_values  !< Strong dirichlet values
-        class(reference_fe_t),       pointer      :: reference_fe_origin      !< reference finite element
-        class(reference_fe_t),       pointer      :: reference_fe_target      !< reference finite element
-        type(quadrature_t),          pointer      :: nodal_quadrature_target  !< Nodal quadrature
-        integer(ip),                 pointer      :: field_blocks(:)          !< field blocks
-        real(rp),    allocatable                  :: nodal_values_origin(:)   !< nodal values of the origin fe_space
-        real(rp),    allocatable                  :: nodal_values_target(:)   !< nodal values for the interpolation
-        integer(ip)                               :: reference_fe_id          !< reference_fe_id
-        integer(ip)                               :: number_nodes_origin      !< number of nodes 
-        integer(ip)                               :: element_index            !< element index
-        integer(ip)                               :: component_index          !< component index
-        integer(ip)                               :: node_index               !< node index
-        integer(ip)                               :: subelement_index         !< subelement index
-        integer(ip)                               :: subnode_index            !< subelement node index
-        integer(ip)                               :: pos                      !< array position
-        integer(ip)                               :: E_IO                     !< IO Error
+        type(fe_function_t),        intent(IN)     :: fe_function              !< Postprocess field structure to be written
+        integer(ip),                intent(IN)     :: field_id                 !< Fe space index
+        character(len=*),           intent(IN)     :: field_name               !< name of the field
+        real(rp),    allocatable,   intent(INOUT)  :: field(:,:)               !< FIELD(ncomp,nnod)
+        integer(ip),                intent(OUT)    :: number_components        !< number of components
+        type(fe_iterator_t)                        :: fe_iterator              !< finite element iterator
+        type(fe_accessor_t)                        :: fe                       !< finite element accessor
+        type(i1p_t), allocatable                   :: elem2dof(:)              !< element 2 dof translator
+        type(interpolation_t)                      :: interpolation            !< interpolator
+        type(base_static_triangulation_t), pointer :: triangulation            !< triangulation
+        class(vector_t),                   pointer :: fe_function_dof_values   !< dof values of the fe_function
+        type(serial_scalar_array_t),       pointer :: strong_dirichlet_values  !< Strong dirichlet values
+        class(reference_fe_t),             pointer :: reference_fe_origin      !< reference finite element
+        class(reference_fe_t),             pointer :: reference_fe_target      !< reference finite element
+        class(reference_fe_t),             pointer :: max_order_reference_fe   !< reference finite element
+        type(quadrature_t),                pointer :: nodal_quadrature_target  !< Nodal quadrature
+        integer(ip),                       pointer :: field_blocks(:)          !< field blocks
+        real(rp),    allocatable                   :: nodal_values_origin(:)   !< nodal values of the origin fe_space
+        real(rp),    allocatable                   :: nodal_values_target(:)   !< nodal values for the interpolation
+        integer(ip)                                :: reference_fe_id          !< reference_fe_id
+        integer(ip)                                :: number_nodes_origin      !< Origin reference_fe number of nodes 
+        integer(ip)                                :: number_nodes_target      !< Target reference_fenumber of nodes 
+        integer(ip)                                :: element_index            !< element index
+        integer(ip)                                :: component_index          !< component index
+        integer(ip)                                :: node_index               !< node index
+        integer(ip)                                :: subelement_index         !< subelement index
+        integer(ip)                                :: subnode_index            !< subelement node index
+        integer(ip)                                :: pos                      !< array position
+        integer(ip)                                :: E_IO                     !< IO Error
     !-----------------------------------------------------------------
         E_IO = 0
 
+        nullify(triangulation)
         assert(associated(this%fe_space))
+        triangulation => this%fe_space%get_triangulation()
+        assert(associated(triangulation))
         assert(this%filled)
-        assert(this%vtk_mesh_order == match_geometry_order )
 
         nullify(nodal_quadrature_target)
         nullify(strong_dirichlet_values)
         nullify(fe_function_dof_values)
         nullify(reference_fe_origin)
         nullify(reference_fe_target)
+        nullify(max_order_reference_fe)
 
         ! Get field blocks and nodal values associated to dirichlet bcs and dof values
         field_blocks            => this%fe_space%get_field_blocks()
@@ -714,6 +694,9 @@ contains
         call memalloc(number_components, this%number_of_nodes , field, __FILE__, __LINE__)
         allocate(elem2dof(this%fe_space%get_number_fields()))
 
+        call memalloc(max(triangulation%get_max_number_shape_functions(), this%fe_space%get_max_number_shape_functions()), nodal_values_origin, __FILE__, __LINE__)
+        call memalloc(max(triangulation%get_max_number_shape_functions(), this%fe_space%get_max_number_shape_functions()), nodal_values_target, __FILE__, __LINE__)
+
         ! Translate fe_function to VTK field format
         ! Loop on elements
         subnode_index=1
@@ -722,25 +705,34 @@ contains
             call fe_iterator%current(fe)
 
             if ( fe%is_local() ) then
-                ! Point physical referece fe, field blocks, nodal quadrature and subelements connectivity
+
+                ! Get reference fes
                 reference_fe_target => fe%get_reference_fe_geo()
                 reference_fe_id     =  fe%get_reference_fe_geo_id()
                 reference_fe_origin => fe%get_reference_fe(field_id)
 
-                ! Calculate number nodes in origin and sumber of subelements
-                number_nodes_origin = reference_fe_origin%get_number_nodes_scalar()
+                if(this%vtk_mesh_order == match_max_order ) then
+                    ! Check if the order of max_reference_fe is bigger than the reference_fe_geo_order
+                    max_order_reference_fe => fe%get_max_order_reference_fe()
+                    if(max_order_reference_fe%get_order() > reference_fe_target%get_order()) then
+                        reference_fe_target => max_order_reference_fe
+                        reference_fe_id     =  fe%get_max_order_reference_fe_id()
+                    endif
+                endif
 
-                ! Allocate field origin, target nodal values and elem2dof
-                call memalloc(number_nodes_origin, nodal_values_origin, __FILE__, __LINE__)
-                call memalloc(reference_fe_target%get_number_shape_functions(), nodal_values_target, __FILE__, __LINE__)
+                ! Calculate number nodes in origin and target
+                number_nodes_origin = reference_fe_origin%get_number_nodes_scalar()
+                number_nodes_target = reference_fe_target%get_number_shape_functions()
+
+                ! Get elem2dof
                 call fe%get_elem2dof(elem2dof)
 
                 ! Extract nodal values associated to dofs
-                call fe_function_dof_values%extract_subvector ( field_blocks(field_id), number_nodes_origin, elem2dof(field_id)%p, nodal_values_origin )
+                call fe_function_dof_values%extract_subvector(field_blocks(field_id), number_nodes_origin, elem2dof(field_id)%p, nodal_values_origin(1:number_nodes_origin))
 
                 ! Fill nodal values with strong dirichlet values
                 elem2dof(field_id)%p = -elem2dof(field_id)%p
-                call strong_dirichlet_values%extract_subvector ( field_blocks(field_id), number_nodes_origin, elem2dof(field_id)%p, nodal_values_origin )
+                call strong_dirichlet_values%extract_subvector(field_blocks(field_id), number_nodes_origin, elem2dof(field_id)%p, nodal_values_origin(1:number_nodes_origin))
                 elem2dof(field_id)%p = -elem2dof(field_id)%p
 
                 ! Create interpolation from nodal quadrature
@@ -749,9 +741,9 @@ contains
 
                 ! interpolate nodal values if needed
                 if(reference_fe_origin%get_order() /= reference_fe_target%get_order()) then
-                    call reference_fe_origin%interpolate_nodal_values( interpolation, nodal_values_origin, nodal_values_target ) 
+                    call reference_fe_origin%interpolate_nodal_values( interpolation, nodal_values_origin(1:number_nodes_origin), nodal_values_target(1:number_nodes_target))
                 else
-                    nodal_values_target=nodal_values_origin
+                    nodal_values_target(1:number_nodes_origin)=nodal_values_origin(1:number_nodes_origin)
                 endif
 
                 ! Loop on subelements: Build field in VTK-like format
@@ -768,146 +760,13 @@ contains
                 end do
             endif
 
-            call memfree(nodal_values_origin, __FILE__, __LINE__)
-            call memfree(nodal_values_target, __FILE__, __LINE__)
             call interpolation%free()
             call fe_iterator%next()
         enddo
+        call memfree(nodal_values_origin, __FILE__, __LINE__)
+        call memfree(nodal_values_target, __FILE__, __LINE__)
         deallocate(elem2dof)
-    end function vtk_mesh_and_field_generator_generate_geometry_order_field
-
-
-    function vtk_mesh_and_field_generator_generate_max_order_field(this, fe_function, field_id, field_name, field, number_components) result(E_IO)
-    !-----------------------------------------------------------------
-    !< Write superlinear field to file
-    !-----------------------------------------------------------------
-        implicit none
-        class(vtk_mesh_and_field_generator_t),  intent(INOUT) :: this         !< this raw mesh
-        type(fe_function_t),        intent(IN)    :: fe_function              !< Postprocess field structure to be written
-        integer(ip),                intent(IN)    :: field_id                 !< Fe space index
-        character(len=*),           intent(IN)    :: field_name               !< name of the field
-        real(rp),    allocatable,   intent(INOUT) :: field(:,:)               !< FIELD(ncomp,nnod)
-        integer(ip),                intent(OUT)   :: number_components        !< number of components
-        type(fe_iterator_t)                       :: fe_iterator              !< finite element iterator
-        type(fe_accessor_t)                       :: fe                       !< finite element accessor
-        type(i1p_t), allocatable                  :: elem2dof(:)              !< element 2 dof translator
-        type(interpolation_t)                     :: interpolation            !< interpolator
-        class(vector_t),             pointer      :: fe_function_dof_values   !< dof values of the fe_function
-        type(serial_scalar_array_t), pointer      :: strong_dirichlet_values  !< Strong dirichlet values
-        class(reference_fe_t),       pointer      :: reference_fe_origin      !< reference finite element
-        class(reference_fe_t),       pointer      :: reference_fe_target      !< reference finite element
-        class(reference_fe_t),       pointer      :: reference_fe_geo         !< reference finite element
-        type(quadrature_t),          pointer      :: nodal_quadrature_target  !< Nodal quadrature
-        integer(ip),                 pointer      :: field_blocks(:)          !< field blocks
-        real(rp),    allocatable                  :: nodal_values_origin(:)   !< nodal values of the origin fe_space
-        real(rp),    allocatable                  :: nodal_values_target(:)   !< nodal values for the interpolation
-        integer(ip)                               :: reference_fe_id          !< reference_fe_id
-        integer(ip)                               :: number_nodes_origin      !< number of nodes 
-        integer(ip)                               :: element_index            !< element index
-        integer(ip)                               :: component_index          !< component index
-        integer(ip)                               :: node_index               !< node index
-        integer(ip)                               :: subelement_index         !< subelement index
-        integer(ip)                               :: subnode_index            !< subelement node index
-        integer(ip)                               :: pos                      !< array position
-        integer(ip)                               :: E_IO                     !< IO Error
-    !-----------------------------------------------------------------
-        E_IO = 0
-
-        assert(associated(this%fe_space))
-        assert(this%filled)
-        assert(this%vtk_mesh_order == match_max_order )
-
-        nullify(nodal_quadrature_target)
-        nullify(strong_dirichlet_values)
-        nullify(fe_function_dof_values)
-        nullify(reference_fe_origin)
-        nullify(reference_fe_target)
-        nullify(reference_fe_geo)
-
-        ! Get field blocks and nodal values associated to dirichlet bcs and dof values
-        field_blocks            => this%fe_space%get_field_blocks()
-        strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
-        fe_function_dof_values  => fe_function%get_dof_values()
-        
-        ! Create FE iterator and get number of components
-        fe_iterator = this%fe_space%create_fe_iterator()
-        call fe_iterator%current(fe)
-        reference_fe_origin  => fe%get_reference_fe(field_id)
-        number_components    = reference_fe_origin%get_number_field_components()
-
-        ! Get number of field components (constant in all fes for field) and allocate VTK field array
-        if(allocated(field)) call memfree(field, __FILE__, __LINE__)
-        call memalloc(number_components, this%number_of_nodes , field, __FILE__, __LINE__)
-        allocate(elem2dof(this%fe_space%get_number_fields()))
-
-        ! Translate fe_function to VTK field format
-        ! Loop on elements
-        subnode_index=1
-        do while ( .not. fe_iterator%has_finished())
-            ! Get Finite element
-            call fe_iterator%current(fe)
-
-            if ( fe%is_local() ) then
-                ! Point physical referece fe, field blocks, nodal quadrature and subelements connectivity
-                reference_fe_target => fe%get_max_order_reference_fe()
-                reference_fe_id     =  fe%get_max_order_reference_fe_id()
-                reference_fe_origin => fe%get_reference_fe(field_id)
-                reference_fe_geo    => fe%get_reference_fe_geo()
-
-                ! check if max order reference_fe_target is in fe_space or triangulation
-                if(reference_fe_geo%get_order() > reference_fe_target%get_order()) then
-                    reference_fe_target => reference_fe_geo
-                    reference_fe_id    =  fe%get_reference_fe_geo_id()
-                endif
-
-                ! Calculate number nodes in origin and sumber of subelements
-                number_nodes_origin = reference_fe_origin%get_number_nodes_scalar()
-
-                ! Allocate field origin, target nodal values and elem2dof
-                call memalloc(number_nodes_origin, nodal_values_origin, __FILE__, __LINE__)
-                call memalloc(reference_fe_target%get_number_shape_functions(), nodal_values_target, __FILE__, __LINE__)
-                call fe%get_elem2dof(elem2dof)
-
-                ! Extract nodal values associated to dofs
-                call fe_function_dof_values%extract_subvector ( field_blocks(field_id), number_nodes_origin, elem2dof(field_id)%p, nodal_values_origin )
-
-                ! Fill nodal values with strong dirichlet values
-                elem2dof(field_id)%p = -elem2dof(field_id)%p
-                call strong_dirichlet_values%extract_subvector ( field_blocks(field_id), number_nodes_origin, elem2dof(field_id)%p, nodal_values_origin )
-                elem2dof(field_id)%p = -elem2dof(field_id)%p
-
-                ! Create interpolation from nodal quadrature
-                nodal_quadrature_target  => reference_fe_target%get_nodal_quadrature()
-                call reference_fe_origin%create_interpolation(nodal_quadrature_target, interpolation)
-
-                ! interpolate nodal values if needed
-                if(reference_fe_origin%get_order() /= reference_fe_target%get_order()) then
-                    call reference_fe_origin%interpolate_nodal_values( interpolation, nodal_values_origin, nodal_values_target ) 
-                else
-                    nodal_values_target=nodal_values_origin
-                endif
-
-                ! Loop on subelements: Build field in VTK-like format
-                do subelement_index = 1, reference_fe_target%get_number_subelements()
-                    ! Loop on geometrical nodes per subelement
-                    do node_index=1, reference_fe_target%get_number_vertices()
-                        ! Loop on components
-                        do component_index=1, number_components
-                            pos = this%subelements(reference_fe_id)%connectivity(node_index,subelement_index) + (component_index-1)*number_nodes_origin
-                            field(reference_fe_target%get_component_node(pos) , subnode_index) = nodal_values_target(pos)
-                        enddo
-                        subnode_index=subnode_index+1
-                    end do
-                end do
-            endif
-
-            call memfree(nodal_values_origin, __FILE__, __LINE__)
-            call memfree(nodal_values_target, __FILE__, __LINE__)
-            call interpolation%free()
-            call fe_iterator%next()
-        enddo
-        deallocate(elem2dof)
-      end function vtk_mesh_and_field_generator_generate_max_order_field
+    end function vtk_mesh_and_field_generator_generate_field
 
 
     subroutine vtk_mesh_and_field_generator_free(this) 
@@ -915,7 +774,7 @@ contains
     !< Free the vtk_mesh_and_field_generator_t derived type
     !-----------------------------------------------------------------
         class(vtk_mesh_and_field_generator_t), intent(inout) :: this
-        integer(ip)                      :: i
+        integer(ip)                                          :: i
     !-----------------------------------------------------------------
         if(allocated(this%X))                        call memfree(this%X, __FILE__, __LINE__)
         if(allocated(this%Y))                        call memfree(this%Y, __FILE__, __LINE__)
@@ -923,6 +782,7 @@ contains
         if(allocated(this%connectivities))           call memfree(this%connectivities, __FILE__, __LINE__)
         if(allocated(this%offset))                   call memfree(this%offset, __FILE__, __LINE__)
         if(allocated(this%cell_types))               call memfree(this%cell_types, __FILE__, __LINE__)
+        if (allocated(this%vtk_mesh_order))          deallocate(this%vtk_mesh_order)
         if(allocated(this%subelements)) then
             do i=1, size(this%subelements)
                 call this%subelements(i)%free()
@@ -932,7 +792,6 @@ contains
         nullify(this%fe_space)
         this%number_of_nodes    = 0
         this%number_of_elements = 0
-        if (allocated(this%vtk_mesh_order)) deallocate(this%vtk_mesh_order)
         this%filled             = .false.
     end subroutine
 

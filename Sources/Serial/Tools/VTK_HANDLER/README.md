@@ -88,7 +88,7 @@
     !-----------------------------------------------------------------
     ! Input State         | Action                | Output State 
     !-----------------------------------------------------------------
-    ! START               | Initialize            | INITIALIZED
+    ! START               | Create                | INITIALIZED
     ! START               | Free                  | START
 
     ! INITIALIZED         | Open                  | OPEN 
@@ -133,7 +133,7 @@
     type(vtk_handler_t)                  :: vtk_handler
     integer(ip)                          :: vtk_error
 ...
-     call  vtk_handler%initialize(fe_space, senv, output_path, prefix)
+     call  vtk_handler%create(fe_space, senv, output_path, prefix)
      err = vtk_handler%open_vtu()
      err = vtk_handler%write_vtu_mesh()
      err = vtk_handler%write_vtu_node_field(fe_function, fe_space_number, 'field_name')
@@ -144,7 +144,7 @@
 ### Transient simulation 
 
 ```fortran
-     call  vtk_handler%initialize(fe_space, senv, output_path, prefix, number_of_steps=number_time_steps)
+     call  vtk_handler%create(fe_space, senv, output_path, prefix, number_of_steps=number_time_steps)
      do step=1, number_time_steps
          err = vtk_handler%open_vtu(time_step=float(step))
          err = vtk_handler%write_vtu_mesh()

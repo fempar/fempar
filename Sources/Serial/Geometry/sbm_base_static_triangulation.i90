@@ -1735,3 +1735,18 @@ subroutine bst_print ( this )
      integer(ip) :: bst_get_number_reference_fes_geo
      bst_get_number_reference_fes_geo = max_num_reference_fes_geo
    end function bst_get_number_reference_fes_geo
+   
+   function bst_get_max_number_shape_functions ( this ) 
+     implicit none
+     class(base_static_triangulation_t), intent(in) :: this
+     integer(ip) :: bst_get_max_number_shape_functions
+     integer(ip) :: reference_fe_geo_id
+     bst_get_max_number_shape_functions = -1
+     do reference_fe_geo_id=1, max_num_reference_fes_geo
+       if(associated(this%reference_fe_geo_list(reference_fe_geo_id)%p)) then
+         bst_get_max_number_shape_functions = &
+             max(bst_get_max_number_shape_functions, &
+             this%reference_fe_geo_list(reference_fe_geo_id)%p%get_number_shape_functions())
+       endif
+     enddo
+   end function bst_get_max_number_shape_functions

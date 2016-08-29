@@ -325,6 +325,7 @@ contains
         integer(ip)                                     :: me, np, st, rp
     !-----------------------------------------------------------------
         assert(this%state == vtk_handler_state_start)
+        assert(vtk_mesh_order == match_geometry_order .or. vtk_mesh_order == match_max_order )
 
         ! Default values
         lo = default_vtk_mesh_order
