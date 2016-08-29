@@ -172,6 +172,7 @@ contains
         assert(this%root_task <= np-1)
 
         res=0
+
         if(me == this%root_task) then
             res = mkdir_recursive(path//C_NULL_CHAR)
             check ( res == 0 ) 
@@ -375,12 +376,14 @@ contains
     !-----------------------------------------------------------------
         assert(this%state == vtk_handler_state_initialized .or. this%state == vtk_handler_state_write_close)
         assert(associated(this%env))
-        assert(allocated(this%path))
-        assert(allocated(this%prefix))
 
         E_IO = 0
 
         if(this%env%am_i_l1_task() ) then
+
+            assert(allocated(this%path))
+            assert(allocated(this%prefix))
+
             ts = default_step_value
             of = default_vtk_format
 
@@ -455,10 +458,12 @@ contains
     !-----------------------------------------------------------------
         assert(this%state == vtk_handler_state_write_geo_open .or. this%state == vtk_handler_state_write_pointdata_open)
         assert(associated(this%env))
-        assert(allocated(this%field))
-        assert(field_id>0 .and. field_id<=size(this%field))
+
         E_IO = 0
+
         if(this%env%am_i_l1_task() ) then        
+            assert(allocated(this%field))
+            assert(field_id>0 .and. field_id<=size(this%field))
             E_IO = this%mesh%generate_field(fe_function, field_id, field_name, field, number_components=nc)
             if(this%state == vtk_handler_state_write_geo_open) then
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='open', cf=this%file_id)
@@ -480,10 +485,11 @@ contains
         class(vtk_handler_t),       intent(INOUT) :: this        !< vtk_handler_t derived type
         integer(ip)                               :: E_IO        !< IO Error
     !-----------------------------------------------------------------
-        assert(associated(this%env))
         assert(this%state == vtk_handler_state_write_pointdata_open .or. this%state == vtk_handler_state_write_geo_open .or. this%state == vtk_handler_state_write_open)
+        assert(associated(this%env))
 
         E_IO = 0
+
         if (this%env%am_i_l1_task() ) then
             if(this%state == vtk_handler_state_write_pointdata_open) then
                 E_IO = VTK_DAT_XML(var_location='node',var_block_action='close', cf=this%file_id)
@@ -523,13 +529,14 @@ contains
     !-----------------------------------------------------------------
         assert(.not. this%state == vtk_handler_state_start)
         check(associated(this%env))
-        check(allocated(this%path))
-        check(allocated(this%prefix))
-        check(allocated(this%field))
 
         E_IO = 0
+
         call this%env%info(me,np) 
         if( this%env%am_i_l1_task() .and. me == this%root_task) then
+            check(allocated(this%path))
+            check(allocated(this%prefix))
+            check(allocated(this%field))
             if(allocated(this%steps)) then
                 if(this%steps_counter >0 .and. this%steps_counter <= size(this%steps,1)) &
                     ts = this%steps(this%steps_counter)
@@ -617,19 +624,20 @@ contains
         integer(ip)                         :: i, j 
     !-----------------------------------------------------------------
         call this%mesh%free()
-        if (allocated(this%steps)) call memfree(this%steps, __FILE__,__LINE__)
-        do i=1, size(this%field)
-            call this%field(i)%free()
-        enddo
-        deallocate(this%field)
-        if(allocated(this%path)) deallocate(this%path)
+        if(allocated(this%steps))  call memfree(this%steps, __FILE__,__LINE__)
+        if(allocated(this%path))   deallocate(this%path)
         if(allocated(this%prefix)) deallocate(this%prefix)
+        if(allocated(this%field)) then
+            do i=1, size(this%field)
+                call this%field(i)%free()
+            enddo
+            deallocate(this%field)
+        endif
         nullify(this%env)
         this%num_meshes = 0
         this%num_steps = 0
         this%num_parts = 0
         this%root_task = 0
-        this%env => NULL()
         this%state = vtk_handler_state_start
     end subroutine VTK_handler_free
 

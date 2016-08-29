@@ -429,14 +429,16 @@ contains
         cell_iterator = triangulation%create_cell_iterator()
         do while ( .not. cell_iterator%has_finished())
             call cell_iterator%current(cell)
-            reference_fe_geo => cell%get_reference_fe_geo()
-            this%number_of_nodes = this%number_of_nodes + reference_fe_geo%get_number_subelements()*reference_fe_geo%get_number_vertices()
-            this%number_of_elements = this%number_of_elements + reference_fe_geo%get_number_subelements()
-            ! Create subelements connectivity array if needed
-            if(.not. subelements_connectivity_created(cell%get_reference_fe_geo_id())) then
-                call this%subelements(cell%get_reference_fe_geo_id())%allocate(reference_fe_geo%get_number_vertices(), reference_fe_geo%get_number_subelements())
-                call reference_fe_geo%get_subelements_connectivity(this%subelements(cell%get_reference_fe_geo_id())%connectivity)
-                subelements_connectivity_created(cell%get_reference_fe_geo_id()) = .true.
+            if(cell%is_local()) then
+                reference_fe_geo => cell%get_reference_fe_geo()
+                this%number_of_nodes = this%number_of_nodes + reference_fe_geo%get_number_subelements()*reference_fe_geo%get_number_vertices()
+                this%number_of_elements = this%number_of_elements + reference_fe_geo%get_number_subelements()
+                ! Create subelements connectivity array if needed
+                if(.not. subelements_connectivity_created(cell%get_reference_fe_geo_id())) then
+                    call this%subelements(cell%get_reference_fe_geo_id())%allocate(reference_fe_geo%get_number_vertices(), reference_fe_geo%get_number_subelements())
+                    call reference_fe_geo%get_subelements_connectivity(this%subelements(cell%get_reference_fe_geo_id())%connectivity)
+                    subelements_connectivity_created(cell%get_reference_fe_geo_id()) = .true.
+                endif
             endif
             call cell_iterator%next()
         enddo
@@ -446,40 +448,42 @@ contains
         call this%allocate_nodal_arrays()
         call this%initialize_coordinates()
 
+        allocate(cell_coordinates(max(triangulation%get_max_number_shape_functions(), this%fe_space%get_max_number_shape_functions())), stat=istat)
+
         nodes_counter = 0
         elements_counter = 0
         cell_iterator = triangulation%create_cell_iterator()
         ! Translate coordinates and connectivities to VTK format for every subcells
         do while ( .not. cell_iterator%has_finished())
             call cell_iterator%current(cell)
+            if(cell%is_local()) then
+                check(istat==0)
+                call cell%get_coordinates(cell_coordinates)
 
-            allocate(cell_coordinates(cell%get_num_nodes()), stat=istat)
-            check(istat==0)
-            call cell%get_coordinates(cell_coordinates)
+                reference_fe_geo => cell%get_reference_fe_geo()
+                dimensions = reference_fe_geo%get_number_dimensions()
 
-            reference_fe_geo => cell%get_reference_fe_geo()
-            dimensions = reference_fe_geo%get_number_dimensions()
-
-            ! Fill VTK mesh
-            do subelement_index = 1, reference_fe_geo%get_number_subelements()
-                elements_counter = elements_counter + 1
-                do vertex = 1, reference_fe_geo%get_number_vertices()
-                    subelement_vertex = this%subelements(cell%get_reference_fe_geo_id())%connectivity(vertex, subelement_index)
-                    nodes_counter = nodes_counter + 1
-                    if(dimensions>=1) this%X(nodes_counter) = cell_coordinates(subelement_vertex)%get(1)
-                    if(dimensions>=2) this%Y(nodes_counter) = cell_coordinates(subelement_vertex)%get(2)
-                    if(dimensions>=3) this%Z(nodes_counter) = cell_coordinates(subelement_vertex)%get(3)
-                    this%connectivities(nodes_counter) = nodes_counter-1
-                end do
-                this%offset(elements_counter) = nodes_counter
-                this%cell_types(elements_counter) = this%topology_to_cell_type(reference_fe_geo%get_topology(), reference_fe_geo%get_number_dimensions())
-            enddo
-            deallocate(cell_coordinates)
+                ! Fill VTK mesh
+                do subelement_index = 1, reference_fe_geo%get_number_subelements()
+                    elements_counter = elements_counter + 1
+                    do vertex = 1, reference_fe_geo%get_number_vertices()
+                        subelement_vertex = this%subelements(cell%get_reference_fe_geo_id())%connectivity(vertex, subelement_index)
+                        nodes_counter = nodes_counter + 1
+                        if(dimensions>=1) this%X(nodes_counter) = cell_coordinates(subelement_vertex)%get(1)
+                        if(dimensions>=2) this%Y(nodes_counter) = cell_coordinates(subelement_vertex)%get(2)
+                        if(dimensions>=3) this%Z(nodes_counter) = cell_coordinates(subelement_vertex)%get(3)
+                        this%connectivities(nodes_counter) = nodes_counter-1
+                    end do
+                    this%offset(elements_counter) = nodes_counter
+                    this%cell_types(elements_counter) = this%topology_to_cell_type(reference_fe_geo%get_topology(), reference_fe_geo%get_number_dimensions())
+                enddo
+            endif
             call cell_iterator%next()
         enddo
 
         ! Deallocate variables
         call memfree(subelements_connectivity_created, __FILE__, __LINE__)
+        deallocate(cell_coordinates)
         call cell_iterator%free()
         call cell%free()
         this%filled  = .true.
