@@ -32,7 +32,7 @@ subroutine fe_map_face_restriction_create( this, quadrature, reference_fe_geomet
   ! Parameters
   class(fe_map_face_restriction_t), intent(inout) :: this
   type(quadrature_t)           , intent(in)    :: quadrature
-  class(reference_fe_t)           , intent(in)    :: reference_fe_geometry
+  class(lagrangian_reference_fe_t)           , intent(in)    :: reference_fe_geometry
 
   integer(ip)           :: local_face_id, istat
 
@@ -96,7 +96,7 @@ subroutine face_map_create(this, quadrature, left_geo_reference_fe, right_geo_re
   implicit none
   ! Parameters
   class(face_map_t)             , intent(inout) :: this
-  class(reference_fe_t), pointer, intent(in)    :: left_geo_reference_fe, right_geo_reference_fe
+  class(lagrangian_reference_fe_t), pointer, intent(in)    :: left_geo_reference_fe, right_geo_reference_fe
   type(quadrature_t)         , intent(in)    :: quadrature
 
   call this%free()
@@ -134,7 +134,7 @@ subroutine face_map_update(this,local_face_id,face_quadrature,left_reference_fe_
   class(face_map_t)    , intent(inout) :: this
   integer(ip)          , intent(in)    :: local_face_id(2)
   type(quadrature_t), intent(in)    :: face_quadrature
-  class(reference_fe_t), intent(in)    :: left_reference_fe_geo
+  class(lagrangian_reference_fe_t), intent(in)    :: left_reference_fe_geo
 
   call this%face_map%face_map_update(local_face_id(1),left_reference_fe_geo,face_quadrature)
   call this%fe_maps(1)%update(local_face_id(1),face_quadrature)

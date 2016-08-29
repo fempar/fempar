@@ -74,12 +74,20 @@ module function_names
   type :: vector_function_t
      private
    contains
-     procedure                  :: get_value_space           => vector_function_get_value_space
-     procedure                  :: get_value_space_time      => vector_function_get_value_space_time
-     generic                    :: get_value                 => get_value_space, get_value_space_time
-     procedure                  :: get_values_set_space      => vector_function_get_values_set_space
-     procedure                  :: get_values_set_space_time => vector_function_get_values_set_space_time
-     generic                    :: get_values_set            => get_values_set_space, get_values_set_space_time     
+     procedure                  :: get_value_space              => vector_function_get_value_space
+     procedure                  :: get_value_space_time         => vector_function_get_value_space_time
+     generic                    :: get_value                    => get_value_space, get_value_space_time
+     procedure                  :: get_values_set_space         => vector_function_get_values_set_space
+     procedure                  :: get_values_set_space_time    => vector_function_get_values_set_space_time
+     generic                    :: get_values_set               => get_values_set_space, get_values_set_space_time  
+     
+     procedure                  :: get_gradient_space           => vector_function_get_gradient_space
+     procedure                  :: get_gradient_space_time      => vector_function_get_gradient_space_time
+     generic                    :: get_gradient                 => get_gradient_space, get_gradient_space_time
+     procedure                  :: get_gradients_set_space      => vector_function_get_gradients_set_space
+     procedure                  :: get_gradients_set_space_time => vector_function_get_gradients_set_space_time
+     generic                    :: get_gradients_set            => get_gradients_set_space, get_gradients_set_space_time     
+     
   end type vector_function_t
 
   type :: tensor_function_t

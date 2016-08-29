@@ -31,7 +31,6 @@ module base_static_triangulation_names
   use memor_names
   use sort_names
   use reference_fe_names
-  use reference_fe_factory_names
   use field_names
   use cell_import_names
   use hash_table_names
@@ -41,7 +40,8 @@ module base_static_triangulation_names
   use par_io_names
   use stdio_names
   use field_names
-
+  use FPL
+  
   ! Geometry modules
   use sisl_names
   use geometry_names
@@ -367,7 +367,7 @@ module base_static_triangulation_names
 
      ! Data structures that should be defined in fine_triangulation_t (which requires extensive refactoring)     
      type(geometry_t)                        :: geometry
-     type(p_reference_fe_t)                  :: reference_fe_geo_list(max_num_reference_fes_geo)
+     type(p_lagrangian_reference_fe_t)       :: reference_fe_geo_list(max_num_reference_fes_geo)
      type(hash_table_ip_ip_t)                :: reference_fe_geo_index
      
      ! Geometry interpolation

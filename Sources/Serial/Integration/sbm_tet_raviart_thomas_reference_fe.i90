@@ -31,44 +31,47 @@
 !**************************************************************************************************
 
 !==================================================================================================
-function tet_vlrfe_check_compatibility_of_n_faces                   &
+function tet_raviart_thomas_check_compatibility_of_n_faces                   &
      &                      (target_reference_fe,source_reference_fe, source_n_face_id,target_n_face_id)
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)  :: target_reference_fe
+  class(tet_raviart_thomas_reference_fe_t), intent(in)  :: target_reference_fe
   class(reference_fe_t)               , intent(in)  :: source_reference_fe
   integer(ip)                         , intent(in)  :: source_n_face_id ! Local n-face ID
   integer(ip)                         , intent(in)  :: target_n_face_id ! Local n-face ID
-  logical :: tet_vlrfe_check_compatibility_of_n_faces 
+  logical :: tet_raviart_thomas_check_compatibility_of_n_faces 
+  integer(ip) :: idime
 
   select type(source_reference_fe)
-     class is(tet_vector_lagrangian_reference_fe_t)
+     class is(tet_raviart_thomas_reference_fe_t)
         ! Get number nodes per dimension
-        assert (target_reference_fe%order == source_reference_fe%order)
         assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
+        do idime = 1, target_reference_fe%number_dimensions
+        assert (target_reference_fe%order_vector(idime) == source_reference_fe%order_vector(idime))
+        end do
         assert (target_reference_fe%get_n_face_dimension(target_n_face_id) ==  source_reference_fe%get_n_face_dimension(source_n_face_id))
         assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
         assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
         assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
-        tet_vlrfe_check_compatibility_of_n_faces = .true.
+        tet_raviart_thomas_check_compatibility_of_n_faces = .true.
      class default
-        tet_vlrfe_check_compatibility_of_n_faces = .false.
+        tet_raviart_thomas_check_compatibility_of_n_faces = .false.
   end select
  
-end function tet_vlrfe_check_compatibility_of_n_faces
+end function tet_raviart_thomas_check_compatibility_of_n_faces
 
 !=================================================================================================
-function tet_vlrfe_get_characteristic_length ( this )
+function tet_raviart_thomas_get_characteristic_length ( this )
   implicit none 
-  class(tet_vector_lagrangian_reference_fe_t), intent(in) :: this 
-  real(rp)  :: tet_vlrfe_get_characteristic_length 
-  tet_vlrfe_get_characteristic_length =   &
+  class(tet_raviart_thomas_reference_fe_t), intent(in) :: this 
+  real(rp)  :: tet_raviart_thomas_get_characteristic_length 
+  tet_raviart_thomas_get_characteristic_length =   &
      &   real(get_factorial(this%number_dimensions),rp)**(-1.0_rp/real(this%number_dimensions,rp))
-end function tet_vlrfe_get_characteristic_length
+end function tet_raviart_thomas_get_characteristic_length
 
 !==================================================================================================
-subroutine tet_vlrfe_get_subelements_connectivity ( this, connectivity )
+subroutine tet_raviart_thomas_get_subelements_connectivity ( this, connectivity )
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip),                          intent(inout) :: connectivity(:,:)
   integer(ip) :: num_subelems
   integer(ip) :: subelem
@@ -82,22 +85,22 @@ subroutine tet_vlrfe_get_subelements_connectivity ( this, connectivity )
   write(*,*) ' Subroutine not implemented for triangles/tetrahedra '
   check( .false. )
 
-end subroutine tet_vlrfe_get_subelements_connectivity
+end subroutine tet_raviart_thomas_get_subelements_connectivity
 
 !==================================================================================================
-subroutine tet_vlrfe_blending(this,values)
+subroutine tet_raviart_thomas_blending(this,values)
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   type(point_t)                       , intent(inout) :: values(:)
   check(.false.)
-end subroutine tet_vlrfe_blending
+end subroutine tet_raviart_thomas_blending
 
 !**************************************************************************************************
 ! Deferred TBP implementors from lagrangian_reference_fe_t
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine tet_vlrfe_fill_quadrature ( this, quadrature ) 
+subroutine tet_raviart_thomas_fill_quadrature ( this, quadrature ) 
   !-----------------------------------------------------------------------
   ! 
   !     This routine sets up the integration constants of open rules for
@@ -118,7 +121,7 @@ subroutine tet_vlrfe_fill_quadrature ( this, quadrature )
   !
   !-----------------------------------------------------------------------
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                  , intent(inout) :: quadrature
   real(rp)    :: a,b,c,d,e,f,g,h,p,q,r,s,t,u,v,w,x,y,z
   real(rp)    :: w1,w2,w3,w4,w5,w6,w7,w8
@@ -655,20 +658,22 @@ subroutine tet_vlrfe_fill_quadrature ( this, quadrature )
      end if
   end if
   
-end subroutine tet_vlrfe_fill_quadrature
+end subroutine tet_raviart_thomas_fill_quadrature
 
 !==================================================================================================
-subroutine tet_vlrfe_fill_interpolation ( this, interpolation, coord_ip ) 
+subroutine tet_raviart_thomas_fill_interpolation ( this, quadrature, interpolation ) 
   implicit none 
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
-  type(interpolation_t)               , intent(inout) :: interpolation
-  real(rp)                            , intent(in)    :: coord_ip(:,:)
-
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation 
+  real(rp), pointer :: coord_ip(:,:)
   type(interpolation_t) :: scalar_interpolation
   integer(ip) :: iquad,idime,ishape
+  
+  coord_ip => quadrature%get_coordinates()
     
   ! Create an auxiliary interpolation with number_nodes_scalar shape functions (scalar one)
-  call scalar_interpolation%create( interpolation%number_dimensions, this%number_nodes_scalar, &
+  call scalar_interpolation%create( interpolation%number_dimensions, this%node_array%number_nodes, &
                                     interpolation%number_quadrature_points, 0, .false. )
 
   if ( allocated( interpolation%hessian ) )  then 
@@ -676,7 +681,7 @@ subroutine tet_vlrfe_fill_interpolation ( this, interpolation, coord_ip )
      check(.false.)
   else
      do iquad = 1,interpolation%number_quadrature_points
-        call this%vlrfe_evaluate_interpolation( coord_ip(:,iquad),                             &
+        call this%raviart_thomas_evaluate_interpolation( coord_ip(:,iquad),                             &
                                           scalar_interpolation%number_dimensions,               &
                                           scalar_interpolation%number_shape_functions,          &
                                           scalar_interpolation%number_entries_symmetric_tensor, &
@@ -704,23 +709,22 @@ subroutine tet_vlrfe_fill_interpolation ( this, interpolation, coord_ip )
      write(*,*) __FILE__,__LINE__,'ERROR:: Hessian not defined for vector Lagrangian'
      check(.false.)
   end if
-end subroutine tet_vlrfe_fill_interpolation
+end subroutine tet_raviart_thomas_fill_interpolation
 
 !==================================================================================================
-subroutine tet_vlrfe_fill_face_interpolation (this, face_interpolation, &
-                                                              & local_quadrature, local_face_id)
+subroutine tet_raviart_thomas_fill_face_interpolation (this, local_quadrature, local_face_id, face_interpolation)
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
-  type(interpolation_t)               , intent(inout) :: face_interpolation
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                  , intent(in)    :: local_quadrature
   integer(ip)                         , intent(in)    :: local_face_id
+  type(interpolation_t)               , intent(inout) :: face_interpolation
   
   real(rp)   , allocatable :: global_coordinates(:)
   integer(ip)              :: idime, iquad, ishape, p_local_coordinate
   type(interpolation_t)    :: scalar_interpolation
   
   ! Create an auxiliary interpolation with number_nodes_scalar shape functions (scalar one)
-  call scalar_interpolation%create( face_interpolation%number_dimensions, this%number_nodes_scalar, &
+  call scalar_interpolation%create( face_interpolation%number_dimensions, this%node_array%number_nodes, &
                                     face_interpolation%number_quadrature_points, 0, .false. )
   
   call memalloc(face_interpolation%number_dimensions,global_coordinates,__FILE__,__LINE__)
@@ -750,7 +754,7 @@ subroutine tet_vlrfe_fill_face_interpolation (this, face_interpolation, &
                               & local_quadrature%coordinates(:,iquad)
         end if
         ! Evaluate shape functions and derivatives at the gauss points
-        call this%vlrfe_evaluate_interpolation( global_coordinates,                                 &
+        call this%raviart_thomas_evaluate_interpolation( global_coordinates,                                 &
                                           scalar_interpolation%number_dimensions,               &
                                           scalar_interpolation%number_shape_functions,          &
                                           scalar_interpolation%number_entries_symmetric_tensor, &
@@ -774,17 +778,17 @@ subroutine tet_vlrfe_fill_face_interpolation (this, face_interpolation, &
   
   call memfree(global_coordinates,__FILE__,__LINE__)
 
-end subroutine tet_vlrfe_fill_face_interpolation
+end subroutine tet_raviart_thomas_fill_face_interpolation
 
 !==================================================================================================
-function tet_vlrfe_get_node_local_id (this, local_coordinates, & 
+function tet_raviart_thomas_get_node_local_id (this, local_coordinates, & 
                                                       & number_of_dimensions, order)
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: local_coordinates(:)
   integer(ip)                         , intent(in)    :: number_of_dimensions
   integer(ip)                         , intent(in)    :: order
-  integer(ip) :: tet_vlrfe_get_node_local_id
+  integer(ip) :: tet_raviart_thomas_get_node_local_id
   integer(ip) :: k,q
 
   if (sum(local_coordinates)>order) then
@@ -793,74 +797,24 @@ function tet_vlrfe_get_node_local_id (this, local_coordinates, &
      check(.false.)
   end if
 
-  tet_vlrfe_get_node_local_id = 1
+  tet_raviart_thomas_get_node_local_id = 1
   do k =1,number_of_dimensions-1
      q = order-local_coordinates(k+1)
-     tet_vlrfe_get_node_local_id =   & 
-     & tet_vlrfe_get_node_local_id + & 
-     & this%vlrfe_compute_sum_of_nodes_in_simplices(k,q-local_coordinates(k)+1,q)
+     tet_raviart_thomas_get_node_local_id =   & 
+     & tet_raviart_thomas_get_node_local_id + & 
+     & this%raviart_thomas_compute_sum_of_nodes_in_simplices(k,q-local_coordinates(k)+1,q)
   end do
-  tet_vlrfe_get_node_local_id =   & 
-  & tet_vlrfe_get_node_local_id + & 
-  & this%vlrfe_compute_sum_of_nodes_in_simplices(k,order-local_coordinates(number_of_dimensions)+1,order)
+  tet_raviart_thomas_get_node_local_id =   & 
+  & tet_raviart_thomas_get_node_local_id + & 
+  & this%raviart_thomas_compute_sum_of_nodes_in_simplices(k,order-local_coordinates(number_of_dimensions)+1,order)
 
-end function tet_vlrfe_get_node_local_id
-
-!==================================================================================================
-subroutine tet_vlrfe_get_node_local_coordinates( this,                 &
-                                                                   local_coordinates,    &
-                                                                   local_id,             &
-                                                                   number_of_dimensions, &
-                                                                   order )
-  implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(inout) :: local_coordinates(:)
-  integer(ip)                         , intent(in)    :: local_id
-  integer(ip)                         , intent(in)    :: number_of_dimensions
-  integer(ip)                         , intent(in)    :: order
-  integer(ip) :: k,g0,g1,g2,j,q
-
-  g0 = local_id-1
-  j  = 0 
-  do while (this%vlrfe_compute_sum_of_nodes_in_simplices(number_of_dimensions,order-j+1,order)<=g0)
-     j=j+1
-  end do
-  local_coordinates(number_of_dimensions) = j-1
-  g0 = g0 - this%vlrfe_compute_sum_of_nodes_in_simplices(number_of_dimensions, &
-                                           & order-local_coordinates(number_of_dimensions)+1,order)
-
-  do k=1,number_of_dimensions-1
-     g2 = 0
-     j  = 0
-     q = order-local_coordinates(number_of_dimensions-k+1)
-     do while (this%vlrfe_compute_sum_of_nodes_in_simplices(number_of_dimensions-k,q-j+1,q)<=g0)
-        j=j+1
-     end do
-     local_coordinates(number_of_dimensions-k) = j-1
-     g0 = g0 - this%vlrfe_compute_sum_of_nodes_in_simplices(number_of_dimensions-k, & 
-                                           & q-local_coordinates(number_of_dimensions-k)+1,q)
-  end do
-end subroutine tet_vlrfe_get_node_local_coordinates
-
-!==================================================================================================
-subroutine tet_vlrfe_set_coordinates_1D (this, abscissae, number_of_points)
-  implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
-  real(rp)                            , intent(inout) :: abscissae(:)
-  integer(ip)                         , intent(in)    :: number_of_points
-  integer(ip) :: i
-
-  do i = 0,number_of_points-1
-     abscissae(i+1) = real(i)/(real(number_of_points)-1)
-  end do
-  
-end subroutine tet_vlrfe_set_coordinates_1D
+end function tet_raviart_thomas_get_node_local_id
 
 !=================================================================================================
-subroutine tet_vlrfe_set_permutation_2D( this, permutation, number_nodes_x_dim, &
+subroutine tet_raviart_thomas_set_permutation_2D( this, permutation, number_nodes_x_dim, &
                                                          & orientation, rotation )
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(inout) :: permutation(:)
   integer(ip)                         , intent(in)    :: number_nodes_x_dim,orientation,rotation
   integer(ip) :: o_r,i,j,ij_t(3)     ! ij_t = (i,j,p-i-j)
@@ -883,81 +837,81 @@ subroutine tet_vlrfe_set_permutation_2D( this, permutation, number_nodes_x_dim, 
      end do
   end do
 
-end subroutine tet_vlrfe_set_permutation_2D
+end subroutine tet_raviart_thomas_set_permutation_2D
 
 !=================================================================================================
-function tet_vlrfe_set_number_quadrature_points( this, order, dimension )
+function tet_raviart_thomas_set_number_quadrature_points( this, order, dimension )
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: order
   integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: tet_vlrfe_set_number_quadrature_points
-  tet_vlrfe_set_number_quadrature_points = & 
+  integer(ip) :: tet_raviart_thomas_set_number_quadrature_points
+  tet_raviart_thomas_set_number_quadrature_points = & 
    & this%compute_number_nodes_scalar( order, dimension )
   if( dimension .eq. 2 ) then
      if( order .eq. 3 ) then
-        tet_vlrfe_set_number_quadrature_points = 13
+        tet_raviart_thomas_set_number_quadrature_points = 13
      end if
   elseif( dimension .eq. 3 ) then
      if( order .eq. 2) then
-        tet_vlrfe_set_number_quadrature_points = 11
+        tet_raviart_thomas_set_number_quadrature_points = 11
      end if
   end if
 end function
 
 !=================================================================================================
-recursive function tet_vlrfe_compute_number_nodes_scalar(this, order, dimension)
+recursive function tet_raviart_thomas_compute_number_nodes_scalar(this, order, dimension)
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this 
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this 
   integer(ip)                         , intent(in)    :: dimension
   integer(ip)                         , intent(in)    :: order
-  integer(ip) :: tet_vlrfe_compute_number_nodes_scalar
+  integer(ip) :: tet_raviart_thomas_compute_number_nodes_scalar
   integer(ip) :: q
   if (dimension == 0) then
-     tet_vlrfe_compute_number_nodes_scalar = 1
+     tet_raviart_thomas_compute_number_nodes_scalar = 1
   elseif (order == 0) then
-     tet_vlrfe_compute_number_nodes_scalar = 1
+     tet_raviart_thomas_compute_number_nodes_scalar = 1
   elseif (dimension == 1) then
-     tet_vlrfe_compute_number_nodes_scalar = order+1
+     tet_raviart_thomas_compute_number_nodes_scalar = order+1
   elseif (dimension == 2) then
-     tet_vlrfe_compute_number_nodes_scalar = int((order+1)*(order+2)/2)
+     tet_raviart_thomas_compute_number_nodes_scalar = int((order+1)*(order+2)/2)
   else
-     tet_vlrfe_compute_number_nodes_scalar = & 
+     tet_raviart_thomas_compute_number_nodes_scalar = & 
        & this%compute_number_nodes_scalar(dimension-1,0)
      do q=1,order
-        tet_vlrfe_compute_number_nodes_scalar = & 
-          & tet_vlrfe_compute_number_nodes_scalar + & 
+        tet_raviart_thomas_compute_number_nodes_scalar = & 
+          & tet_raviart_thomas_compute_number_nodes_scalar + & 
           & this%compute_number_nodes_scalar(dimension-1,q)
      end do
   end if
-end function tet_vlrfe_compute_number_nodes_scalar
+end function tet_raviart_thomas_compute_number_nodes_scalar
 
 !=================================================================================================
-function tet_vlrfe_get_number_interior_points_x_dim(this,                   & 
+function tet_raviart_thomas_get_number_interior_points_x_dim(this,                   & 
                                                                     & number_interior_points, & 
                                                                     & dimension)
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: number_interior_points
   integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: tet_vlrfe_get_number_interior_points_x_dim 
+  integer(ip) :: tet_raviart_thomas_get_number_interior_points_x_dim 
   if (dimension .eq. 1) then
-     tet_vlrfe_get_number_interior_points_x_dim = number_interior_points
+     tet_raviart_thomas_get_number_interior_points_x_dim = number_interior_points
   else
-     tet_vlrfe_get_number_interior_points_x_dim = & 
+     tet_raviart_thomas_get_number_interior_points_x_dim = & 
       & (-1 + int(sqrt(real(1+8*number_interior_points))))/2
   end if
-end function tet_vlrfe_get_number_interior_points_x_dim
+end function tet_raviart_thomas_get_number_interior_points_x_dim
 
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
 
 !==================================================================================================
-recursive subroutine tet_vlrfe_fill_nodes_n_face(this,ntxob,c3,ini,end, &
+recursive subroutine tet_raviart_thomas_fill_nodes_n_face(this,ntxob,c3,ini,end, &
                                                               & i,idm,nd,k,p,objec,nt)
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: ini,end,nd,k,p,objec(nd,nd+1),nt,i
   integer(ip)                         , intent(inout) :: ntxob(nt),c3,idm(nd)
   integer(ip) :: j,ijk(nd),m
@@ -974,7 +928,7 @@ recursive subroutine tet_vlrfe_fill_nodes_n_face(this,ntxob,c3,ini,end, &
         idm(i) = j
         if (i<k) then
            ! Assign values of the i+1-th factor
-           call this%vlrfe_fill_nodes_n_face(ntxob,c3,ini,end-j,i+1,idm,nd,k,p,objec,nt)
+           call this%raviart_thomas_fill_nodes_n_face(ntxob,c3,ini,end-j,i+1,idm,nd,k,p,objec,nt)
         else
            ! Compute the coordinate of the c3-th node: objec(:,1)+idm*objec(:,2:k)
            ijk = p*objec(:,1)
@@ -988,10 +942,10 @@ recursive subroutine tet_vlrfe_fill_nodes_n_face(this,ntxob,c3,ini,end, &
      end do
   end if
   
-end subroutine tet_vlrfe_fill_nodes_n_face
+end subroutine tet_raviart_thomas_fill_nodes_n_face
 
 !==================================================================================================
-recursive subroutine tet_vlrfe_fill_n_face_dimension_and_vertices (this,       &
+recursive subroutine tet_raviart_thomas_fill_n_face_dimension_and_vertices (this,       &
                                                                         n_face_dimension,        &
                                                                         vertex_position,      &
                                                                         number_of_dimensions, &
@@ -1001,7 +955,7 @@ recursive subroutine tet_vlrfe_fill_n_face_dimension_and_vertices (this,       &
                                                                         vertices_of_n_faces,      &
                                                                         n_face_dimension_and_vertices)
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: n_face_dimension
   integer(ip)                         , intent(in)    :: vertex_position
   integer(ip)                         , intent(in)    :: number_of_dimensions
@@ -1015,7 +969,7 @@ recursive subroutine tet_vlrfe_fill_n_face_dimension_and_vertices (this,       &
   do vertex_id=initial_vertex,number_of_dimensions+1
      vertices_of_n_faces(vertex_position) = vertex_id
      if(vertex_position+1<n_face_dimension+2) then
-        call this%vlrfe_fill_n_face_dimension_and_vertices(n_face_dimension,                      &
+        call this%raviart_thomas_fill_n_face_dimension_and_vertices(n_face_dimension,                      &
                                                   vertex_position+1,                  &
                                                   number_of_dimensions,               &
                                                   vertices_of_n_faces(vertex_position)+1, &
@@ -1030,59 +984,59 @@ recursive subroutine tet_vlrfe_fill_n_face_dimension_and_vertices (this,       &
      end if
   end do
 
-end subroutine tet_vlrfe_fill_n_face_dimension_and_vertices
+end subroutine tet_raviart_thomas_fill_n_face_dimension_and_vertices
 
 !=================================================================================================
-recursive function tet_vlrfe_compute_number_interior_nodes(this,dimension,order)
+recursive function tet_raviart_thomas_compute_number_interior_nodes(this,dimension,order)
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this  
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this  
   integer(ip)                         , intent(in)    :: dimension, order
-  integer(ip) :: tet_vlrfe_compute_number_interior_nodes
+  integer(ip) :: tet_raviart_thomas_compute_number_interior_nodes
   integer(ip) :: q
   if (dimension == 0) then
-     tet_vlrfe_compute_number_interior_nodes = 1
+     tet_raviart_thomas_compute_number_interior_nodes = 1
   elseif (order == 1) then
-     tet_vlrfe_compute_number_interior_nodes = 0
+     tet_raviart_thomas_compute_number_interior_nodes = 0
   elseif (dimension == 1) then
-     tet_vlrfe_compute_number_interior_nodes = order-1
+     tet_raviart_thomas_compute_number_interior_nodes = order-1
   elseif (dimension == 2) then
-     tet_vlrfe_compute_number_interior_nodes = int((order-2)*(order-1)/2)
+     tet_raviart_thomas_compute_number_interior_nodes = int((order-2)*(order-1)/2)
   else
-     tet_vlrfe_compute_number_interior_nodes = & 
+     tet_raviart_thomas_compute_number_interior_nodes = & 
       & this%compute_number_interior_nodes(dimension-1,1)
      do q=2,order-1
-        tet_vlrfe_compute_number_interior_nodes =    & 
-         & tet_vlrfe_compute_number_interior_nodes + & 
+        tet_raviart_thomas_compute_number_interior_nodes =    & 
+         & tet_raviart_thomas_compute_number_interior_nodes + & 
          & this%compute_number_interior_nodes(dimension-1,q)
      end do
   end if
-end function tet_vlrfe_compute_number_interior_nodes
+end function tet_raviart_thomas_compute_number_interior_nodes
 
 !=================================================================================================
-function tet_vlrfe_compute_sum_of_nodes_in_simplices(this,dimension, & 
+function tet_raviart_thomas_compute_sum_of_nodes_in_simplices(this,dimension, & 
                                                                      & ini_order,end_order)
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: dimension, ini_order, end_order
-  integer(ip) :: tet_vlrfe_compute_sum_of_nodes_in_simplices
+  integer(ip) :: tet_raviart_thomas_compute_sum_of_nodes_in_simplices
   integer(ip) :: q
   if (dimension == 0) then
-     tet_vlrfe_compute_sum_of_nodes_in_simplices = 1
+     tet_raviart_thomas_compute_sum_of_nodes_in_simplices = 1
   elseif (ini_order > end_order) then
-     tet_vlrfe_compute_sum_of_nodes_in_simplices = 0
+     tet_raviart_thomas_compute_sum_of_nodes_in_simplices = 0
   else
-     tet_vlrfe_compute_sum_of_nodes_in_simplices = & 
+     tet_raviart_thomas_compute_sum_of_nodes_in_simplices = & 
        & this%compute_number_nodes_scalar(dimension-1,ini_order)
      do q = ini_order+1,end_order
-        tet_vlrfe_compute_sum_of_nodes_in_simplices =   & 
-        & tet_vlrfe_compute_sum_of_nodes_in_simplices + &
+        tet_raviart_thomas_compute_sum_of_nodes_in_simplices =   & 
+        & tet_raviart_thomas_compute_sum_of_nodes_in_simplices + &
         & this%compute_number_nodes_scalar(dimension-1,q)
      end do
   end if
-end function tet_vlrfe_compute_sum_of_nodes_in_simplices
+end function tet_raviart_thomas_compute_sum_of_nodes_in_simplices
 
 !==================================================================================================
-subroutine tet_vlrfe_evaluate_interpolation(this,coord,ndime,nnode, & 
+subroutine tet_raviart_thomas_evaluate_interpolation(this,coord,ndime,nnode, & 
                                                             & ntens,shape,deriv,heslo)
   !-----------------------------------------------------------------------
   !
@@ -1095,7 +1049,7 @@ subroutine tet_vlrfe_evaluate_interpolation(this,coord,ndime,nnode, &
   !
   !-----------------------------------------------------------------------
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   real(rp)                            , intent(in)    :: coord(:)
   integer(ip)                         , intent(in)    :: ndime,nnode,ntens
   real(rp)                            , intent(inout) :: shape(:),deriv(:,:)
@@ -1320,12 +1274,12 @@ subroutine tet_vlrfe_evaluate_interpolation(this,coord,ndime,nnode, &
         end if
      end if
   end if
-end subroutine tet_vlrfe_evaluate_interpolation
+end subroutine tet_raviart_thomas_evaluate_interpolation
 
 !==================================================================================================
-subroutine tet_vlrfe_get_n_face_orientation(this,o,od,nd,io)
+subroutine tet_raviart_thomas_get_n_face_orientation(this,o,od,nd,io)
   implicit none
-  class(tet_vector_lagrangian_reference_fe_t), intent(in)    :: this
+  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(inout) :: o
   integer(ip)                         , intent(in)    :: od
   integer(ip)                         , intent(in)    :: nd
@@ -1337,4 +1291,4 @@ subroutine tet_vlrfe_get_n_face_orientation(this,o,od,nd,io)
   else
      o = 0
   end if
-end subroutine tet_vlrfe_get_n_face_orientation
+end subroutine tet_raviart_thomas_get_n_face_orientation

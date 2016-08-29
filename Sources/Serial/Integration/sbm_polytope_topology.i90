@@ -56,7 +56,7 @@
 ! In 1D, both actions lead to the line segment $[0,1]$. In 2D, using the prysm action, we get the square, whereas the pyramid action gives
 ! the triangle. Thus, a polytope that can be defined as the combination of these actions is represented in the computer by d bits.
 !
-! E.g., in 3D, we have the square 111 (or 110), the prysm 101 (or 100), the pyramid 011 (or 000), and the tetrahedrom 001 (or 000). 
+! E.g., in 3D, we have the cube 111 (or 110), the prysm 101 (or 100), the pyramid 011 (or 010), and the tetrahedrom 001 (or 000). 
 ! The non-uniqueness in 1D leads to two possible definitions of the polytope. Thus, we can just define the topology of these polytopes by
 ! an integer.
 !
@@ -125,7 +125,7 @@
 ! that belong to the polytope or any of its n-faces. It leads to the Lagrangian nodes of order O for an arbitrary polytope. Further,
 ! these queries can be for the open and closed n-face.
 !
-! We have created the node_array_t structure, that given a polytope provides the list of all nodes for a given order O, based on a lexicographical 
+! We have created the node_array_t structure, that given a polytope provides the list of all nodes for a given order, based on a lexicographical 
 ! index. Again, since this index is non consecutive for non-cube polytopes, we renumber the nodes with the permutation table node_array. Its inverse
 ! is in ijk_to_index. 
 !
@@ -299,6 +299,44 @@ function polytope_tree_get_n_face_dimension(this, n_face_index)
 end function polytope_tree_get_n_face_dimension
 
 !=================================================================================================
+function polytope_tree_n_face_dir_is_fixed(this, n_face_index, dir) 
+       implicit none
+  class(polytope_tree_t), intent(in) :: this
+  integer(ip)           , intent(in) :: n_face_index
+  integer(ip)           , intent(in) :: dir
+  integer(ip)                        :: polytope_tree_n_face_dir_is_fixed
+  polytope_tree_n_face_dir_is_fixed = IBITS( this%n_face_array(n_face_index), this%number_dimensions + dir, 1 )
+end function polytope_tree_n_face_dir_is_fixed
+
+!=================================================================================================
+function polytope_tree_n_face_dir_coordinate(this, n_face_index, dir) 
+  implicit none
+  class(polytope_tree_t), intent(in) :: this
+  integer(ip)           , intent(in) :: n_face_index
+  integer(ip)           , intent(in) :: dir
+  integer(ip)                        :: polytope_tree_n_face_dir_coordinate
+  polytope_tree_n_face_dir_coordinate = IBITS( this%n_face_array(n_face_index), dir, 1 )
+end function polytope_tree_n_face_dir_coordinate
+
+!=================================================================================================
+function polytope_tree_n_face_type(this, n_face_index) 
+  implicit none
+  class(polytope_tree_t), intent(in) :: this
+  integer(ip)           , intent(in) :: n_face_index
+  integer(ip)                        :: polytope_tree_n_face_type
+  polytope_tree_n_face_type = IBITS( this%n_face_array(n_face_index), this%number_dimensions, this%number_dimensions )
+end function polytope_tree_n_face_type
+
+!=================================================================================================
+function polytope_tree_n_face_coordinate(this, n_face_index) 
+  implicit none
+  class(polytope_tree_t), intent(in) :: this
+  integer(ip)           , intent(in) :: n_face_index
+  integer(ip)                        :: polytope_tree_n_face_coordinate
+  polytope_tree_n_face_coordinate = IBITS( this%n_face_array(n_face_index), 0, this%number_dimensions )
+end function polytope_tree_n_face_coordinate
+
+!=================================================================================================
 !     NODE_ARRAY_T TBPS
 !=================================================================================================
 
@@ -307,7 +345,7 @@ subroutine node_array_create ( this, polytope_tree, order )
   implicit none
   class(node_array_t)        , intent(inout) :: this
   type(polytope_tree_t), target, intent(in)    :: polytope_tree
-  integer(ip)                , intent(in)    :: order
+  integer(ip)                , intent(in)    :: order(SPACE_DIM)
   call this%free()
   this%polytope_tree => polytope_tree
   this%order = order
@@ -332,12 +370,14 @@ subroutine node_array_fill ( this )
   end do
   this%number_nodes = c
   call memalloc ( c, this%node_array, __FILE__, __LINE__ )
+  call memalloc ( SPACE_DIM, c, this%coordinates, __FILE__, __LINE__ )
   call memalloc ( m_ijk+1, this%ijk_to_index, __FILE__, __LINE__, lb1 = 0 )
   call node_iterator%init()
   c = 0
   do while (.not. node_iterator%has_finished() )
      c = c+1
      this%node_array(c) =  node_iterator%current_ijk()
+     this%coordinates(:,c) = node_iterator%coordinate(:)
      call node_iterator%next()         
   end do
   ! Sort nodes based on its bit-based index
@@ -363,6 +403,7 @@ subroutine node_array_print( this )
   do i = 1, this%number_nodes
      write(*,*) 'NODE: ',this%node_array(i)
      write(*,'(B32)') this%node_array(i)
+     write(*,*) 'COORDINATE: ',this%coordinates(:,i)
   end do
   write(*,*) 'ijk_to_index: ',this%ijk_to_index
 end subroutine node_array_print
@@ -372,6 +413,7 @@ subroutine node_array_free( this )
   implicit none
   class(node_array_t), intent(inout) :: this
   if (allocated(this%node_array)) call memfree ( this%node_array, __FILE__, __LINE__ )
+  if (allocated(this%coordinates)) call memfree ( this%coordinates, __FILE__, __LINE__ )
   if (allocated(this%ijk_to_index)) call memfree ( this%ijk_to_index, __FILE__, __LINE__ )
 end subroutine node_array_free
 
@@ -384,7 +426,7 @@ function  node_array_get_number_nodes(this)
 end function  node_array_get_number_nodes
 
 !=================================================================================================
-!     CHILDREN_ITERATOR_T TBPS
+!     N_FACE_ITERATOR_T TBPS
 !=================================================================================================
 
 !=================================================================================================
@@ -549,7 +591,7 @@ subroutine node_iterator_init ( this )
         if ( IBITS( this%n_face, i, 1 ) == 0 ) then   ! if coordinate of anchor node == 0
            this%coordinate(i) = 0                     ! fixed coordinate = min value
         else
-           this%coordinate(i) = this%node_array%order ! fixed coordinate = max value   
+           this%coordinate(i) = this%node_array%order(i+1) ! fixed coordinate = max value   
         end if
      else 
         this%displacement(c) = this%min_value
@@ -608,7 +650,7 @@ function node_iterator_in_bound( this, comp, end_comp )
   logical :: node_iterator_in_bound
   integer(ip) :: bound, i
   node_iterator_in_bound = .true.
-  bound = this%max_value
+  bound = this%max_value(comp)
   do i = comp+1,end_comp
      if ( IBITS( this%topology, i, 1 ) == 0 ) then
         bound = bound - this%displacement(i)
@@ -643,7 +685,7 @@ function node_iterator_current_ijk ( this )
   ! Next, translate fixed coordinates if needed
   do comp =0,this%node_array%polytope_tree%number_dimensions-1
      if ( IBITS ( this%n_face, comp+this%node_array%polytope_tree%number_dimensions, 1 ) == 0 .and. IBITS( this%n_face, comp, 1 ) == 1 ) then
-        this%coordinate(comp) = this%node_array%order
+        this%coordinate(comp) = this%node_array%order(comp+1)
         do j = comp+1,this%node_array%polytope_tree%number_dimensions-1
            if ( IBITS ( this%node_array%polytope_tree%topology, j, 1 ) == 0 .and. IBITS ( this%n_face, j+this%node_array%polytope_tree%number_dimensions, 1 ) == 1 ) then
               this%coordinate(comp) = this%coordinate(comp) - this%coordinate(j)
@@ -668,11 +710,15 @@ end function node_iterator_current
 
 !=================================================================================================
 function ijk_to_index( n, order, dim )
-  integer(ip), intent(in) :: n(0:dim-1), order, dim
-  integer(ip) :: ijk_to_index, i
+  integer(ip), intent(in) :: n(0:dim-1), order(1:SPACE_DIM), dim
+  integer(ip) :: ijk_to_index, i, aux_order(0:SPACE_DIM-1)
   ijk_to_index = 0
+  aux_order(0) = 1
+  do i = 1,dim-1
+     aux_order(i) = aux_order(i-1)*(order(i)+1)
+  end do
   do i = 0,dim-1
-     ijk_to_index = ijk_to_index + n(i)*((order+1)**i)
+     ijk_to_index = ijk_to_index + n(i)*aux_order(i)!((order+1)**i)
   end do
 end function ijk_to_index
 

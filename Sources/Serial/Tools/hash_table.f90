@@ -51,7 +51,7 @@ use types_names
   integer(ip), parameter :: key_found      = 4
   integer(ip), parameter :: key_not_found  = 5
   integer(ip), parameter :: deleted        = 6
-  integer(ip), parameter :: error          = 10
+  integer(ip), parameter :: child_not_found          = 10
   integer(ip), parameter :: new_index      = 11
   integer(ip), parameter :: old_index      = 12
 
@@ -140,7 +140,7 @@ use types_names
 
   public :: position_hash_table_t, hash_table_ip_ip_t, hash_table_igp_ip_t, hash_table_ip_igp_t
 
-  public :: was_stored, now_stored, bad_keyval, key_found, key_not_found, deleted, error, new_index, old_index
+  public :: was_stored, now_stored, bad_keyval, key_found, key_not_found, deleted, child_not_found, new_index, old_index
 
   public :: tbl_size, nod_size, stat
 

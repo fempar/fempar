@@ -33,7 +33,7 @@ module vector_poisson_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: vector_poisson_discrete_integration_t
      private
-     class(scalar_function_t), pointer :: source_term
+     class(vector_function_t), pointer :: source_term
    contains
      procedure :: set_source_term
      procedure :: integrate
@@ -43,11 +43,11 @@ module vector_poisson_discrete_integration_names
   
 contains
    
-  subroutine set_source_term (this, scalar_function)
+  subroutine set_source_term (this, vector_function)
     implicit none
     class(vector_poisson_discrete_integration_t)        , intent(inout) :: this
-    class(scalar_function_t)                    , target, intent(in)    :: scalar_function
-    this%source_term => scalar_function
+    class(vector_function_t)                    , target, intent(in)    :: vector_function
+    this%source_term => vector_function
   end subroutine set_source_term
 
   subroutine integrate ( this, fe_space, matrix_array_assembler )
@@ -137,8 +137,7 @@ contains
           end do
           
           ! Source term
-          call this%source_term%get_value(quad_coords(qpoint),source_term_value)
-          source_term = source_term_value
+          call this%source_term%get_value_space(quad_coords(qpoint),source_term)
           do idof = 1, num_dofs
              call vol_int%get_value(idof, qpoint, shape_trial)
              elvec(idof) = elvec(idof) + factor * source_term * shape_trial
