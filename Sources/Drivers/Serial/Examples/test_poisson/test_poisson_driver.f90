@@ -111,12 +111,12 @@ contains
       continuity = .false.
     end if
     
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet, &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                 order = 1, &
+                                                 order = 1, & 
                                                  field_type = field_type_scalar, &
-                                                 continuity = continuity )
+                                                 continuity = continuity ) 
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
