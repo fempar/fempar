@@ -73,8 +73,8 @@ module test_poisson_driver_names
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
-     procedure        , private :: evaluate_error_l2_norm
-     procedure        , private :: evaluate_error_h1_seminorm
+     !procedure        , private :: evaluate_error_l2_norm
+     !procedure        , private :: evaluate_error_h1_seminorm
      procedure        , private :: free
   end type test_vector_poisson_driver_t
 
@@ -143,7 +143,7 @@ contains
     integer               :: FPLError
     type(parameterlist_t) :: parameter_list
     integer               :: iparm(64)
-    call this%iterative_linear_solver%create()
+    call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
   end subroutine setup_solver
@@ -179,43 +179,43 @@ contains
 
   end subroutine solve_system
 
-  subroutine evaluate_error_l2_norm(this)
-    implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
-    real(rp)                  :: vector_field_error
-    type(error_norm_vector_t) :: vector_field_error_norm
+  !subroutine evaluate_error_l2_norm(this)
+  !  implicit none
+  !  class(test_vector_poisson_driver_t), intent(inout) :: this
+  !  real(rp)                  :: vector_field_error
+  !  type(error_norm_vector_t) :: vector_field_error_norm
 
-    call vector_field_error_norm%create(this%fe_space,           & 
-                                        1,                       &
-                                        l2_norm)
+  !  call vector_field_error_norm%create(this%fe_space,           & 
+  !                                      1,                       &
+  !                                      l2_norm)
 
-    vector_field_error =  vector_field_error_norm%compute(this%solution, &
-                          this%problem_functions%get_solution_values())
+  !  vector_field_error =  vector_field_error_norm%compute(this%solution, &
+  !                        this%problem_functions%get_solution_values())
 
-    call vector_field_error_norm%free()
+  !  call vector_field_error_norm%free()
 
-    write(*,*) 'vector field error L2-norm: ', vector_field_error
+  !  write(*,*) 'vector field error L2-norm: ', vector_field_error
 
-  end subroutine evaluate_error_l2_norm
+  !end subroutine evaluate_error_l2_norm
 
-  subroutine evaluate_error_h1_seminorm(this)
-    implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
-    real(rp)                  :: vector_field_error
-    type(error_norm_vector_t) :: vector_field_error_norm
+  !subroutine evaluate_error_h1_seminorm(this)
+  !  implicit none
+  !  class(test_vector_poisson_driver_t), intent(inout) :: this
+  !  real(rp)                  :: vector_field_error
+  !  type(error_norm_vector_t) :: vector_field_error_norm
 
-    call vector_field_error_norm%create(this%fe_space,           & 
-                                        1,                       &
-                                        h1_seminorm)
+  !  call vector_field_error_norm%create(this%fe_space,           & 
+  !                                      1,                       &
+  !                                      h1_seminorm)
 
-    vector_field_error =  vector_field_error_norm%compute(this%solution, &
-                          this%problem_functions%get_solution_gradient())
+  !  vector_field_error =  vector_field_error_norm%compute(this%solution, &
+  !                        this%problem_functions%get_solution_gradient())
 
-    call vector_field_error_norm%free()
+  !  call vector_field_error_norm%free()
 
-    write(*,*) 'vector field error H1-seminorm: ', vector_field_error
+  !  write(*,*) 'vector field error H1-seminorm: ', vector_field_error
 
-  end subroutine evaluate_error_h1_seminorm
+  !end subroutine evaluate_error_h1_seminorm
   
   subroutine run_simulation(this) 
     implicit none
@@ -230,8 +230,8 @@ contains
     call this%setup_solver()
     call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
-    call this%evaluate_error_l2_norm()
-    call this%evaluate_error_h1_seminorm()
+    !call this%evaluate_error_l2_norm()
+    !call this%evaluate_error_h1_seminorm()
     call this%free()
   end subroutine run_simulation
 

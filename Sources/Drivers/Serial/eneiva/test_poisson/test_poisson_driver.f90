@@ -64,8 +64,6 @@ module test_poisson_driver_names
      ! Poisson problem solution FE function
      type(fe_function_t)                  :: solution
 
-     ! Environment required for fe_affine_operator + vtk_handler
-     type(serial_environment_t)           :: serial_environment
    contains
      procedure                  :: run_simulation
      procedure        , private :: parse_command_line_parameters
@@ -76,8 +74,8 @@ module test_poisson_driver_names
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
-     procedure        , private :: evaluate_error_l2_norm
-     procedure        , private :: evaluate_error_h1_seminorm
+     !procedure        , private :: evaluate_error_l2_norm
+     !procedure        , private :: evaluate_error_h1_seminorm
      procedure        , private :: free
   end type test_poisson_driver_t
 
@@ -137,7 +135,6 @@ contains
          diagonal_blocks_symmetric_storage = [ .true. ], &
          diagonal_blocks_symmetric         = [ .true. ], &
          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-         environment                       = this%serial_environment, &
          fe_space                          = this%fe_space,           &
          discrete_integration              = this%poisson_integration )
   end subroutine setup_system
@@ -148,7 +145,7 @@ contains
     integer                                                 :: FPLError
     type(parameterlist_t)                                   :: parameter_list
     integer                                                 :: iparm(64)
-    call this%iterative_linear_solver%create(this%serial_environment)
+    call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
   end subroutine setup_solver
@@ -184,45 +181,45 @@ contains
 
   end subroutine solve_system
 
-  subroutine evaluate_error_l2_norm(this)
-    implicit none
-    class(test_poisson_driver_t), intent(inout) :: this
-    real(rp)                  :: scalar_field_error
-    type(error_norm_scalar_t) :: scalar_field_error_norm
+  !subroutine evaluate_error_l2_norm(this)
+  !  implicit none
+  !  class(test_poisson_driver_t), intent(inout) :: this
+  !  real(rp)                  :: scalar_field_error
+  !  type(error_norm_scalar_t) :: scalar_field_error_norm
 
-    call scalar_field_error_norm%create(this%fe_space,           & 
-                                        this%serial_environment, &
-                                        1,                       &
-                                        l2_norm)
+  !  call scalar_field_error_norm%create(this%fe_space,           & 
+  !                                      this%serial_environment, &
+  !                                      1,                       &
+  !                                      l2_norm)
 
-    scalar_field_error =  scalar_field_error_norm%compute(this%solution, &
-                          this%problem_functions%get_solution_values())
+  !  scalar_field_error =  scalar_field_error_norm%compute(this%solution, &
+  !                        this%problem_functions%get_solution_values())
 
-    call scalar_field_error_norm%free()
+  !  call scalar_field_error_norm%free()
 
-    write(*,*) 'scalar field error L2-norm: ', scalar_field_error
+  !  write(*,*) 'scalar field error L2-norm: ', scalar_field_error
 
-  end subroutine evaluate_error_l2_norm
+  !end subroutine evaluate_error_l2_norm
 
-  subroutine evaluate_error_h1_seminorm(this)
-    implicit none
-    class(test_poisson_driver_t), intent(inout) :: this
-    real(rp)                  :: scalar_field_error
-    type(error_norm_scalar_t) :: scalar_field_error_norm
+  !subroutine evaluate_error_h1_seminorm(this)
+  !  implicit none
+  !  class(test_poisson_driver_t), intent(inout) :: this
+  !  real(rp)                  :: scalar_field_error
+  !  type(error_norm_scalar_t) :: scalar_field_error_norm
 
-    call scalar_field_error_norm%create(this%fe_space,           & 
-                                        this%serial_environment, &
-                                        1,                       &
-                                        h1_seminorm)
+  !  call scalar_field_error_norm%create(this%fe_space,           & 
+  !                                      this%serial_environment, &
+  !                                      1,                       &
+  !                                      h1_seminorm)
 
-    scalar_field_error =  scalar_field_error_norm%compute(this%solution, &
-                          this%problem_functions%get_solution_gradient())
+  !  scalar_field_error =  scalar_field_error_norm%compute(this%solution, &
+  !                        this%problem_functions%get_solution_gradient())
 
-    call scalar_field_error_norm%free()
+  !  call scalar_field_error_norm%free()
 
-    write(*,*) 'scalar field error H1-seminorm: ', scalar_field_error
+  !  write(*,*) 'scalar field error H1-seminorm: ', scalar_field_error
 
-  end subroutine evaluate_error_h1_seminorm
+  !end subroutine evaluate_error_h1_seminorm
   
   subroutine run_simulation(this) 
     implicit none
@@ -237,8 +234,8 @@ contains
     call this%setup_solver()
     call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
-    call this%evaluate_error_l2_norm()
-    call this%evaluate_error_h1_seminorm()
+    !call this%evaluate_error_l2_norm()
+    !call this%evaluate_error_h1_seminorm()
     call this%free()
   end subroutine run_simulation
 
