@@ -319,6 +319,24 @@ function polytope_tree_n_face_dir_coordinate(this, n_face_index, dir)
 end function polytope_tree_n_face_dir_coordinate
 
 !=================================================================================================
+function polytope_tree_n_face_type(this, n_face_index) 
+  implicit none
+  class(polytope_tree_t), intent(in) :: this
+  integer(ip)           , intent(in) :: n_face_index
+  integer(ip)                        :: polytope_tree_n_face_type
+  polytope_tree_n_face_type = IBITS( this%n_face_array(n_face_index), this%number_dimensions, this%number_dimensions )
+end function polytope_tree_n_face_type
+
+!=================================================================================================
+function polytope_tree_n_face_coordinate(this, n_face_index) 
+  implicit none
+  class(polytope_tree_t), intent(in) :: this
+  integer(ip)           , intent(in) :: n_face_index
+  integer(ip)                        :: polytope_tree_n_face_coordinate
+  polytope_tree_n_face_coordinate = IBITS( this%n_face_array(n_face_index), 0, this%number_dimensions )
+end function polytope_tree_n_face_coordinate
+
+!=================================================================================================
 !     NODE_ARRAY_T TBPS
 !=================================================================================================
 
@@ -408,7 +426,7 @@ function  node_array_get_number_nodes(this)
 end function  node_array_get_number_nodes
 
 !=================================================================================================
-!     CHILDREN_ITERATOR_T TBPS
+!     N_FACE_ITERATOR_T TBPS
 !=================================================================================================
 
 !=================================================================================================

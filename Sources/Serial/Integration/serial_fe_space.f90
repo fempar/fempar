@@ -104,6 +104,8 @@ module fe_space_names
     procedure, non_overridable, private :: fe_accessor_get_fe_vef
     generic                             :: get_vef                                    => fe_accessor_get_fe_vef
     procedure, non_overridable          :: get_reference_fe                           => fe_accessor_get_reference_fe
+    procedure, non_overridable          :: get_max_order_reference_fe                 => fe_accessor_get_max_order_reference_fe
+    procedure, non_overridable          :: get_max_order_reference_fe_id              => fe_accessor_get_max_order_reference_fe_id
     procedure, non_overridable, private :: get_reference_fe_id                        => fe_accessor_get_reference_fe_id
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_accessor_create_own_dofs_on_vef_iterator
     
@@ -346,7 +348,7 @@ module fe_space_names
      procedure, non_overridable          :: get_field_type                               => serial_fe_space_get_field_type 
      procedure, non_overridable          :: get_fe_space_type_per_field                  => serial_fe_space_get_fe_space_type_per_field
      procedure, non_overridable          :: get_number_components                        => serial_fe_space_get_number_components
-     procedure, non_overridable          :: get_max_number_nodes                         => serial_fe_space_get_max_number_nodes
+     procedure, non_overridable          :: get_max_number_shape_functions               => serial_fe_space_get_max_number_shape_functions
      procedure, non_overridable          :: get_max_number_quadrature_points             => serial_fe_space_get_max_number_quadrature_points
      procedure, non_overridable          :: get_max_number_nodal_quadrature_points       => serial_fe_space_get_max_number_nodal_quadrature_points
      procedure, non_overridable          :: get_max_number_face_quadrature_points        => serial_fe_space_get_max_number_face_quadrature_points     

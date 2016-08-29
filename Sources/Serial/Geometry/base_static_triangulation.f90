@@ -31,7 +31,6 @@ module base_static_triangulation_names
   use memor_names
   use sort_names
   use reference_fe_names
-  use reference_fe_factory_names
   use field_names
   use cell_import_names
   use hash_table_names
@@ -411,6 +410,7 @@ module base_static_triangulation_names
      
      ! Getters
      procedure                           :: get_number_reference_fes_geo        => bst_get_number_reference_fes_geo
+     procedure                           :: get_max_number_shape_functions      => bst_get_max_number_shape_functions
    
 
      ! Private methods for creating cell-related data

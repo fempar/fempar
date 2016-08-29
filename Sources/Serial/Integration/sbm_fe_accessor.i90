@@ -465,6 +465,41 @@ function fe_accessor_get_reference_fe(this, field_id)
   fe_accessor_get_reference_fe => this%fe_space%reference_fes(this%fe_space%reference_fe_id_per_fe(field_id,this%get_lid()))%p
 end function fe_accessor_get_reference_fe
 
+function fe_accessor_get_max_order_reference_fe(this)
+  implicit none
+  class(fe_accessor_t),  intent(in)      :: this
+  class(reference_fe_t), pointer         :: fe_accessor_get_max_order_reference_fe
+  class(reference_fe_t), pointer         :: reference_fe
+  integer(ip)                            :: max_order
+  integer(ip)                            :: field_id
+  max_order = -1 -1
+  do field_id=1, this%get_number_fields()
+    reference_fe => this%get_reference_fe(field_id)
+    if ( reference_fe%get_order() > max_order ) then
+      max_order = reference_fe%get_order()
+      fe_accessor_get_max_order_reference_fe => reference_fe
+    end if
+  end do
+end function fe_accessor_get_max_order_reference_fe
+
+function fe_accessor_get_max_order_reference_fe_id(this)
+  implicit none
+  class(fe_accessor_t),  intent(in)      :: this
+  integer(ip)                            :: fe_accessor_get_max_order_reference_fe_id
+  class(reference_fe_t), pointer         :: reference_fe
+  integer(ip)                            :: max_order
+  integer(ip)                            :: field_id
+  max_order = -1
+  fe_accessor_get_max_order_reference_fe_id = -1
+  do field_id=1, this%get_number_fields()
+    reference_fe => this%get_reference_fe(field_id)
+    if ( reference_fe%get_order() > max_order ) then
+      max_order = reference_fe%get_order()
+      fe_accessor_get_max_order_reference_fe_id = this%get_reference_fe_id(field_id)
+    end if
+  end do
+end function fe_accessor_get_max_order_reference_fe_id
+
 function fe_accessor_get_reference_fe_id(this, field_id)
   implicit none
   class(fe_accessor_t), target   , intent(in)    :: this

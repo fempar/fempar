@@ -31,18 +31,18 @@
 !**************************************************************************************************
 
 !==================================================================================================
-function hex_lagrangian_reference_fe_check_compatibility_of_n_faces                   &
+function hex_raviart_thomas_reference_fe_check_compatibility_of_n_faces                   &
      &                      (target_reference_fe,source_reference_fe, source_n_face_id,target_n_face_id)
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)  :: target_reference_fe
+  class(hex_raviart_thomas_reference_fe_t), intent(in)  :: target_reference_fe
   class(reference_fe_t)               , intent(in)  :: source_reference_fe
   integer(ip)                         , intent(in)  :: source_n_face_id ! Local n-face ID
   integer(ip)                         , intent(in)  :: target_n_face_id ! Local n-face ID
-  logical :: hex_lagrangian_reference_fe_check_compatibility_of_n_faces 
+  logical :: hex_raviart_thomas_reference_fe_check_compatibility_of_n_faces 
   integer(ip) :: idime
 
   select type(source_reference_fe)
-     class is(hex_lagrangian_reference_fe_t)
+     class is(hex_raviart_thomas_reference_fe_t)
         ! Get number nodes per dimension
         assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
         do idime = 1, target_reference_fe%number_dimensions
@@ -52,70 +52,28 @@ function hex_lagrangian_reference_fe_check_compatibility_of_n_faces             
         assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
         assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
         assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
-        hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .true.
+        hex_raviart_thomas_reference_fe_check_compatibility_of_n_faces = .true.
      class default
-        hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .false.
+        hex_raviart_thomas_reference_fe_check_compatibility_of_n_faces = .false.
   end select
  
-end function hex_lagrangian_reference_fe_check_compatibility_of_n_faces
+end function hex_raviart_thomas_reference_fe_check_compatibility_of_n_faces
 
 !==================================================================================================
-function hex_lagrangian_reference_fe_get_characteristic_length ( this )
+function hex_raviart_thomas_reference_fe_get_characteristic_length ( this )
   implicit none 
-  class(hex_lagrangian_reference_fe_t), intent(in) :: this 
-  real(rp)  :: hex_lagrangian_reference_fe_get_characteristic_length 
-  hex_lagrangian_reference_fe_get_characteristic_length =  2.0_rp
-end function hex_lagrangian_reference_fe_get_characteristic_length
-
-!==================================================================================================
-subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connectivity)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(inout) :: connectivity(:,:)
-  integer(ip) :: num_subelems
-  integer(ip) :: subelem
-  integer(ip) :: geo_nnodes
-  integer(ip) :: local_node
-  integer(ip) :: first_coord(this%number_dimensions)
-  integer(ip) :: local_coord(this%number_dimensions)
-  integer(ip) :: global_coord(this%number_dimensions)
-  integer(ip) :: ones_dim(this%number_dimensions)
-  ones_dim = 1
-  num_subelems = this%get_number_subelements()
-  geo_nnodes = this%get_number_vertices()
-  assert(size(connectivity,1) == geo_nnodes)
-  assert(size(connectivity,2) == num_subelems)
-
-  do subelem = 1, num_subelems
-    !call this%get_node_local_coordinates(first_coord,subelem, & 
-    !                                      & this%number_dimensions,this%order(1)-1)
-    call index_to_ijk( subelem, this%number_dimensions, this%order_vector, first_coord )
-        
-    do local_node = 1, geo_nnodes
-      !call this%get_node_local_coordinates(local_coord,local_node,this%number_dimensions,1)
-      call index_to_ijk( local_node, this%number_dimensions, 2*ones_dim, local_coord )
-      
-      ! WARNING: index_to_ijk returns both first_coord and local_coord with (1,1) being the position
-      !          of the left-bottom corner (i.e., where the local cell reference coordinate axis is placed).
-      !          However, ijk_to_index function assumes that this position is (0,0) and returns indices starting
-      !          from 0. This is why we have to substract -2 from first_coord + local_coord, and sum +1
-      !          to the call to ijk_to_index.
-      
-      global_coord = first_coord + local_coord - 2
-      !connectivity(local_node, subelem) = this%get_node_local_id(global_coord, &
-      !                                                   & this%number_dimensions,this%order(1)) ! 
-      connectivity(local_node, subelem) = ijk_to_index(global_coord,this%order_vector,this%number_dimensions)+1
-    end do
-  end do
-end subroutine hex_lagrangian_reference_fe_get_subelements_connectivity
+  class(hex_raviart_thomas_reference_fe_t), intent(in) :: this 
+  real(rp)  :: hex_raviart_thomas_reference_fe_get_characteristic_length 
+  hex_raviart_thomas_reference_fe_get_characteristic_length =  2.0_rp
+end function hex_raviart_thomas_reference_fe_get_characteristic_length
 
 !**************************************************************************************************
-! Deferred TBP implementors from lagrangian_reference_fe_t
+! Deferred TBP implementors from raviart_thomas_reference_fe_t
 !**************************************************************************************************
 
 ! @sbadia: Think about an automatic generation of gauss points for an arbitrary order
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
+subroutine hex_raviart_thomas_reference_fe_fill_quadrature ( this, quadrature ) 
   !-----------------------------------------------------------------------
   !
   !     This routine sets up the integration constants of open
@@ -137,7 +95,7 @@ subroutine hex_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
   ! 
   !-----------------------------------------------------------------------
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                  , intent(inout) :: quadrature
   real(rp)    :: posgl(20),weigl(20)
   integer(ip) :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,ngaus
@@ -643,13 +601,13 @@ subroutine hex_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
      end do
   end if
 
-end subroutine hex_lagrangian_reference_fe_fill_quadrature
+end subroutine hex_raviart_thomas_reference_fe_fill_quadrature
 
 ! This subroutine fills the interpolation using the polynomial_names machinery
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, interpolation )
+subroutine hex_raviart_thomas_reference_fe_fill_interpolation( this, quadrature, interpolation )
     implicit none
-    class(hex_lagrangian_reference_fe_t), intent(in) :: this
+    class(hex_raviart_thomas_reference_fe_t), intent(in) :: this
     type(quadrature_t)              , intent(in)    :: quadrature
     type(interpolation_t)           , intent(inout) :: interpolation    
     type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
@@ -658,9 +616,11 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
     
     real(rp), allocatable :: tensor_product_values(:)
     real(rp), allocatable :: tensor_product_gradients(:,:)
+    real(rp) :: aux_point(SPACE_DIM)
+    integer(ip) :: perm(SPACE_DIM)
     
-    integer(ip) :: idime, q_point
-        
+    integer(ip) :: idime, q_point, i, c, jdime
+    
     do idime=1,interpolation%number_dimensions
        call polynomial_1D%generate_basis( this%order_vector(idime), polynomial_1D_basis(idime) )
     end do
@@ -668,35 +628,45 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
     call tensor_product_polynomial_space%create(interpolation%number_dimensions,polynomial_1D_basis)
     call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
 
-    assert ( interpolation%number_shape_functions == tensor_product_polynomial_space%get_number_polynomials() )
+    !assert ( interpolation%number_shape_functions == tensor_product_polynomial_space%get_number_polynomials() )
     
     call memalloc(tensor_product_polynomial_space%get_number_polynomials(),tensor_product_values,__FILE__,__LINE__)
     call memalloc(SPACE_DIM,tensor_product_polynomial_space%get_number_polynomials(),tensor_product_gradients,__FILE__,__LINE__)
     
     do q_point=1, quadrature%get_number_quadrature_points()
+       c = 0
        do idime = 1, interpolation%number_dimensions
+           
+           perm = [ (i, i=1,SPACE_DIM) ]
+           perm(idime) = 1
+           perm(1) = idime
+           aux_point = quadrature%coordinates(perm,q_point)   
           call tensor_product_polynomial_space%evaluate(q_point, &
                tensor_product_values, &
                tensor_product_gradients)
-             interpolation%shape_functions(1,:,q_point) = tensor_product_values(:)
-             interpolation%shape_derivatives(1,:,:,q_point) = tensor_product_gradients(:,:)
+               do i=1, tensor_product_polynomial_space%get_number_polynomials() ! scalar shape functions
+                 c = c+1
+                 interpolation%shape_functions(idime,c,q_point) = tensor_product_values(i)
+                 do jdime = 1,interpolation%number_dimensions
+                 interpolation%shape_derivatives(idime,jdime,c,q_point) = tensor_product_gradients(perm(jdime),i)
+                 end do
+              end do
        end do
     end do
-    
     ! Free auxiliary memory
     do idime=1,interpolation%number_dimensions
        call polynomial_1D_basis(idime)%free()
     end do
     call tensor_product_polynomial_space%free()
     
-  end subroutine hex_lagrangian_reference_fe_fill_interpolation
+  end subroutine hex_raviart_thomas_reference_fe_fill_interpolation
   
 ! Here we define the dim-1 quadrature and next translate the nodes
 ! using the facet type to dim. Next, use the same machinary as for the volume with this new quadrature.
 !!==================================================================================================
-  subroutine hex_lagrangian_reference_fe_fill_face_interpolation( this, local_quadrature, local_face_id, face_interpolation )
+  subroutine hex_raviart_thomas_reference_fe_fill_face_interpolation( this, local_quadrature, local_face_id, face_interpolation )
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                  , intent(in)    :: local_quadrature
   integer(ip)                         , intent(in)    :: local_face_id
   type(interpolation_t)               , intent(inout) :: face_interpolation
@@ -719,31 +689,13 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
   end do
   call this%fill_interpolation( aux_quadrature, face_interpolation ) 
   call aux_quadrature%free()
-  end subroutine hex_lagrangian_reference_fe_fill_face_interpolation
+  end subroutine hex_raviart_thomas_reference_fe_fill_face_interpolation
 
 !==================================================================================================
-subroutine index_to_ijk( index, ndime, n_pols_dim, ijk )
-  implicit none
-  integer(ip)                         , intent(in) :: index
-  integer(ip)                         , intent(in) :: ndime
-  integer(ip)                         , intent(in) :: n_pols_dim(SPACE_DIM)
-  integer(ip)                         , intent(inout) :: ijk(SPACE_DIM)
-  integer(ip) :: i,aux
-  ijk = 0
-  aux = (index-1)
-  do i = 1,ndime-1
-     ijk(i) = mod(aux, n_pols_dim(i))
-     aux = aux/n_pols_dim(i)
-  end do
-  ijk(ndime) = aux
-  ijk(1:ndime) = ijk(1:ndime)+1
-end subroutine index_to_ijk
-
-!==================================================================================================
-subroutine hex_lagrangian_reference_fe_set_permutation_2D( this,permutation,number_nodes_x_dim, & 
+subroutine hex_raviart_thomas_reference_fe_set_permutation_2D( this,permutation,number_nodes_x_dim, & 
                                                          & orientation,rotation )
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(inout) :: permutation(:)
   integer(ip)                         , intent(in)    :: number_nodes_x_dim
   integer(ip)                         , intent(in)    :: orientation
@@ -774,89 +726,43 @@ subroutine hex_lagrangian_reference_fe_set_permutation_2D( this,permutation,numb
      end do
   end do
   
-end subroutine hex_lagrangian_reference_fe_set_permutation_2D
+end subroutine hex_raviart_thomas_reference_fe_set_permutation_2D
 
 ! @sbadia: It could be replaced by an anisotropic quadrature
 !==================================================================================================
-function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, dimension )
+function hex_raviart_thomas_reference_fe_set_number_quadrature_points( this, order, dimension )
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: order
   integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: hex_lagrangian_reference_fe_set_number_quadrature_points
-  hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension
+  integer(ip) :: hex_raviart_thomas_reference_fe_set_number_quadrature_points
+  hex_raviart_thomas_reference_fe_set_number_quadrature_points = (order + 1)**dimension
 end function
 
 ! @sbadia: we should remove this TBP when TETS refactorized
 !=================================================================================================
-function hex_lagrangian_reference_fe_compute_number_nodes_scalar(this, order, dimension)
+function hex_raviart_thomas_reference_fe_compute_number_nodes_scalar(this, order, dimension)
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: order, dimension
-  integer(ip) :: hex_lagrangian_reference_fe_compute_number_nodes_scalar 
+  integer(ip) :: hex_raviart_thomas_reference_fe_compute_number_nodes_scalar 
   check( .false. )
-end function hex_lagrangian_reference_fe_compute_number_nodes_scalar
+end function hex_raviart_thomas_reference_fe_compute_number_nodes_scalar
 
 ! @sbadia: this info already computed in the polytope_t, but being used in the computation of the 
 ! permutations to be re-thought
 !=================================================================================================
-function hex_lagrangian_reference_fe_get_number_interior_points_x_dim(this,                   &
+function hex_raviart_thomas_reference_fe_get_interior_points_x_dim(this,                   &
                                                                     & number_interior_points, &
                                                                     & dimension)
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: number_interior_points
   integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: hex_lagrangian_reference_fe_get_number_interior_points_x_dim 
-  hex_lagrangian_reference_fe_get_number_interior_points_x_dim = & 
+  integer(ip) :: hex_raviart_thomas_reference_fe_get_interior_points_x_dim 
+  hex_raviart_thomas_reference_fe_get_interior_points_x_dim = & 
      & int(real(number_interior_points,rp)**(1.0_rp/real(dimension,rp)),ip)
-end function hex_lagrangian_reference_fe_get_number_interior_points_x_dim
-
-! Subroutine to deal with high order parametrizations of the boundary
-!==================================================================================================
-subroutine hex_lagrangian_reference_fe_blending(this,values)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  type(point_t)                       , intent(inout) :: values(:)
-
-  integer(ip) :: i,j, ipoin, nlocs, ndime,nnode
-
-  assert(size(values) == this%node_array%number_nodes)
-
-  ndime = this%number_dimensions
-  nnode = this%node_array%number_nodes
-
-  if(ndime==1) then
-     nlocs=nnode
-  else if(ndime==2) then
-     nlocs=nint(sqrt(real(nnode,rp)))
-  else
-     nlocs=nint(real(nnode,rp)**(1.0_rp/3.0_rp))
-  end if
-
-  if(ndime==2) then
-     !ipoin=0
-     do j = 2, nlocs - 1
-        do i = 2, nlocs - 1
-           ipoin = nlocs*(j-1)+i
-           !ipoin = ipoin + 1
-           call blend_2D(this%nodal_quadrature%coordinates(1,ipoin), & ! reference coordinates
-                &        this%nodal_quadrature%coordinates(2,ipoin), &
-                &        values(1), &                 ! value at vertex 1
-                &        values(nlocs), &             ! value at vertex 2
-                &        values(nlocs*(nlocs-1)+1), & ! value at vertex 3
-                &        values(nlocs*nlocs), &       ! value at vertex 4
-                &        values(i), &                 ! value at edge 5
-                &        values(nlocs*(nlocs-1)+i), & ! value at edge 6
-                &        values(nlocs*(j-1)+1), &     ! value at edge 7
-                &        values(nlocs*j), &           ! value at edge 8
-                &        values(ipoin))               ! interpolated value
-
-        end do
-     end do
-  end if
-
-end subroutine hex_lagrangian_reference_fe_blending
+end function hex_raviart_thomas_reference_fe_get_interior_points_x_dim
 
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
@@ -865,32 +771,3 @@ end subroutine hex_lagrangian_reference_fe_blending
 !**************************************************************************************************
 ! Support functions
 !**************************************************************************************************
-
-! Subroutine to deal with high order parametrizations of the boundary
-! Only implemented in 2D
-!==================================================================================================
-subroutine blend_2D(r,s,x1,x2,x3,x4,x5,x6,x7,x8,x)
-  implicit none
-  real(rp), intent(in)  :: r,s
-  type(point_t), intent(in)  :: x1,x2,x3,x4,x5,x6,x7,x8
-  type(point_t), intent(out) :: x
-
-!     3---6---------4
-!     |   .         |
-!     |   .         |
-!     |   .         |
-!     7...x........ 8
-!     |   .         |
-!     1---5---------2
-
-  x =   ( - 0.25_rp * (1-r) * (1-s)) *x1 &
-    & + ( - 0.25_rp * (1+r) * (1-s)) *x2 &
-    & + ( - 0.25_rp * (1-r) * (1+s)) *x3 &
-    & + ( - 0.25_rp * (1+r) * (1+s)) *x4 &
-    & + ( 0.5_rp * (1-s)) * x5 &
-    & + ( 0.5_rp * (1+s)) * x6 &
-    & + ( 0.5_rp * (1-r)) * x7 &
-    & + ( 0.5_rp * (1+r)) * x8
-
- end subroutine blend_2D
-
