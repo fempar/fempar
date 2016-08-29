@@ -12,11 +12,16 @@ module par_test_poisson_params_names
      character(len=:), allocatable :: default_dir_path
      character(len=:), allocatable :: default_prefix
      character(len=:), allocatable :: default_nparts
+     character(len=:), allocatable :: default_reference_fe_geo_order
+     character(len=:), allocatable :: default_reference_fe_order
 
      ! IO parameters
      character(len=256)            :: dir_path
      character(len=256)            :: prefix
      integer(ip)                   :: nparts
+     integer(ip)                   :: reference_fe_geo_order
+     integer(ip)                   :: reference_fe_order
+     
  
      type(Command_Line_Interface)  :: cli
   contains
@@ -28,6 +33,8 @@ module par_test_poisson_params_names
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_nparts
+     procedure, non_overridable             :: get_reference_fe_geo_order
+     procedure, non_overridable             :: get_reference_fe_order
   end type par_test_poisson_params_t
 
   ! Types
@@ -42,11 +49,12 @@ contains
     
     ! Initialize Command Line Interface
     call this%cli%init(progname    = 'par_test_poisson', &
-         &             version     = '', &
-         &             authors     = '', &
-         &             license     = '', &
-         &             description = "FEMPAR parallel test driver", &
-         &             examples    = ['par_test_poisson -h'] )
+                       version     = '', &
+                       authors     = '', &
+                       license     = '', &
+                       description =  'FEMPAR parallel test to solve the 2D Poisson PDE with known analytical solution. &
+                                       Boundary set ID 1 MUST BE ASSIGNED to the whole boundary.', & 
+                       examples    = ['par_test_poisson -h'] )
     call this%set_default()
     call this%add_to_cli()
   end subroutine par_test_poisson_params_create 
@@ -58,6 +66,8 @@ contains
     this%default_dir_path     = 'PARTS_4/'
     this%default_prefix       = 'square'
     this%default_nparts       = '4'
+    this%default_reference_fe_geo_order = '1'
+    this%default_reference_fe_order = '1'
   end subroutine par_test_poisson_params_set_default
 
   !==================================================================================================
@@ -67,18 +77,25 @@ contains
     integer(ip) :: error
 
     ! Set Command Line Arguments
-    call this%cli%add(switch='--dir-path',switch_ab='-dir-path',help='Absolute or relative PATH to the partitioned&
+    call this%cli%add(switch='--dir-path',switch_ab='-d',help='Absolute or relative PATH to the partitioned&
                        & problem. Must end with /',required=.false., act='store', def=trim(this%default_dir_path), error=error)
     check(error==0)
 
-    call this%cli%add(switch='--prefix',switch_ab='-prefix',help='Prefix for all input files (mesh, partition, etc.).& 
+    call this%cli%add(switch='--prefix',switch_ab='-p',help='Prefix for all input files (mesh, partition, etc.).& 
                        & E.g., if these files were generated from square.gid GiD project, then --prefix square.',& 
                        & required=.false., act='store', def=trim(this%default_prefix), error=error)
     check(error==0)
 
-    call this%cli%add(switch='--nparts',switch_ab='-nparts',help='Number of parts in which the problem was split.',& 
+    call this%cli%add(switch='--nparts',switch_ab='-n',help='Number of parts in which the problem was split.',& 
                        & required=.false., act='store', def=trim(this%default_nparts), error=error)
     check(error==0)
+    call this%cli%add(switch='--reference-fe-geo-order',switch_ab='-gorder',help='Order of the triangulation reference fe',&
+         &            required=.false.,act='store',def=trim(this%default_reference_fe_geo_order),error=error)
+    check(error==0)  
+    call this%cli%add(switch='--reference-fe-order',switch_ab='-order',help='Order of the fe space reference fe',&
+         &            required=.false.,act='store',def=trim(this%default_reference_fe_order),error=error) 
+    check(error==0) 
+    
   end subroutine par_test_poisson_params_add_to_cli
 
   !==================================================================================================
@@ -88,9 +105,11 @@ contains
     integer(ip) :: error
     call this%cli%parse(error=error)
     check(error==0)
-    call this%cli%get(switch='-dir-path',val=this%dir_path,error=error); check(error==0)
-    call this%cli%get(switch='-prefix',val=this%prefix,error=error); check(error==0)
-    call this%cli%get(switch='-nparts',val=this%nparts,error=error); check(error==0)
+    call this%cli%get(switch='-d',val=this%dir_path,error=error); check(error==0)
+    call this%cli%get(switch='-p',val=this%prefix,error=error); check(error==0)
+    call this%cli%get(switch='-n',val=this%nparts,error=error); check(error==0)
+    call this%cli%get(switch='-gorder',val=this%reference_fe_geo_order,error=error); check(error==0)
+    call this%cli%get(switch='-order',val=this%reference_fe_order,error=error); check(error==0)
   end subroutine par_test_poisson_params_parse
   
   subroutine par_test_poisson_params_free(this)
@@ -99,6 +118,8 @@ contains
     if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
     if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
     if(allocated(this%default_nparts)) deallocate(this%default_nparts)
+    if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
+    if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
     call this%cli%free()
   end subroutine par_test_poisson_params_free
   
@@ -125,5 +146,22 @@ contains
     integer(ip) :: get_nparts
     get_nparts = this%nparts
   end function get_nparts
+  
+    !==================================================================================================
+  function get_reference_fe_geo_order(this)
+    implicit none
+    class(par_test_poisson_params_t) , intent(in) :: this
+    integer(ip) :: get_reference_fe_geo_order
+    get_reference_fe_geo_order = this%reference_fe_geo_order
+  end function get_reference_fe_geo_order
+  
+  !==================================================================================================
+  function get_reference_fe_order(this)
+    implicit none
+    class(par_test_poisson_params_t) , intent(in) :: this
+    integer(ip) :: get_reference_fe_order
+    get_reference_fe_order = this%reference_fe_order
+  end function get_reference_fe_order
+  
   
 end module par_test_poisson_params_names

@@ -33,7 +33,7 @@ module poisson_conditions_names
   private
   type, extends(conditions_t) :: poisson_conditions_t
      private
-     class(scalar_function_t), pointer :: boundary_function
+     class(scalar_function_t), pointer :: boundary_function  
    contains
      procedure :: set_boundary_function       => poisson_conditions_set_boundary_function
      procedure :: get_number_components       => poisson_conditions_get_number_components  

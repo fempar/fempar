@@ -259,18 +259,31 @@ contains
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: error_norm 
+    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     call error_norm%create(this%fe_space,1)
-    check ( abs(error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm))  < 1.0e-08 ) 
-    check ( error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   < 1.0e-08 ) 
-    check ( error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   < 1.0e-08 ) 
-    check ( error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   < 1.0e-08 ) 
-    check ( error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   < 1.0e-08 ) 
-    check ( error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm)   < 1.0e-08 ) 
-    check ( error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm)   < 1.0e-08 ) 
-    check ( error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   < 1.0e-08 ) 
-    check ( error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   < 1.0e-08 ) 
-    check ( error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm)   < 1.0e-08 ) 
-    check ( error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)   < 1.0e-08 ) 
+    mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
+    l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
+    l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
+    lp = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
+    linfty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
+    h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
+    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
+    w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
+    w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
+    w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
+    w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
+    
+    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-08 )
+    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-08 )
+    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-08 )
+    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-08 )
+    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < 1.0e-08 )
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < 1.0e-08 )
+    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < 1.0e-08 )
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < 1.0e-08 )
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < 1.0e-08 )
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < 1.0e-08 )
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < 1.0e-08 )
     call error_norm%free()
   end subroutine check_solution
   

@@ -29,8 +29,9 @@ module par_test_poisson_driver_names
   use serial_names
   use par_names
   use par_test_poisson_params_names
-  use poisson_discrete_integration_names
+  use poisson_cG_discrete_integration_names
   use poisson_conditions_names
+  use poisson_analytical_functions_names
 # include "debug.i90"
 
   implicit none
@@ -46,10 +47,12 @@ module par_test_poisson_driver_names
      type(par_triangulation_t)             :: triangulation
      
      ! Discrete weak problem integration-related data type instances 
-     type(par_fe_space_t)                  :: fe_space 
+     type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(poisson_discrete_integration_t)      :: poisson_integration
+     type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
+     type(poisson_analytical_functions_t)      :: poisson_analytical_functions
+
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
@@ -79,7 +82,6 @@ module par_test_poisson_driver_names
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
      procedure        , private :: check_solution
-     procedure        , private :: print_error_norms
      procedure        , private :: free
   end type par_test_poisson_fe_driver_t
 
@@ -140,25 +142,32 @@ contains
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     call this%triangulation%create(this%par_environment, &
                                    this%test_params%get_dir_path(),&
-                                   this%test_params%get_prefix())
+                                   this%test_params%get_prefix(), &
+                                   geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
-    
     integer(ip) :: istat
+    type(cell_iterator_t)                     :: cell_iterator
+    type(cell_accessor_t)                     :: cell
+    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
     
-    ! if (test_single_scalar_valued_reference_fe) then
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet, &
-                                                 fe_type = fe_type_lagrangian, &
-                                                 number_dimensions = 2, &
-                                                 order = 2, &
-                                                 field_type = field_type_scalar, &
-                                                 continuity = .true. )
+    if ( this%par_environment%am_i_l1_task() ) then
+      cell_iterator = this%triangulation%create_cell_iterator()
+      call cell_iterator%current(cell)
+      reference_fe_geo => cell%get_reference_fe_geo()
+      this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                   fe_type = fe_type_lagrangian, &
+                                                   number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                   order = this%test_params%get_reference_fe_geo_order(), &
+                                                   field_type = field_type_scalar, &
+                                                   continuity = .true. )
+    end if  
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
@@ -173,16 +182,16 @@ contains
     
     ! Step required by the MLBDDC preconditioner
     call this%fe_space%renumber_dofs_first_interior_then_interface()
-
-    call this%poisson_conditions%set_constant_function_value(1.0_rp)
-    call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
-    
-    call this%fe_space%print()
+    call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
+    call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)    
+    !call this%fe_space%print()
   end subroutine setup_fe_space
   
   subroutine setup_system (this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    
+    call this%poisson_integration%set_analytical_functions(this%poisson_analytical_functions)
     
     ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
@@ -261,67 +270,40 @@ contains
     !   assert(.false.) 
     !end select
   end subroutine solve_system
-  
+   
   subroutine check_solution(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
-    class(vector_t), allocatable :: exact_solution_vector
-    class(vector_t), pointer     :: computed_solution_vector
-    
-    call this%fe_affine_operator%create_range_vector(exact_solution_vector)
-    call exact_solution_vector%init(1.0_rp)
-    
-    computed_solution_vector => this%solution%get_dof_values() 
-    
-    exact_solution_vector = computed_solution_vector - exact_solution_vector
-   
-    if ( this%par_environment%am_i_l1_task() ) then
-      check ( exact_solution_vector%nrm2()/computed_solution_vector%nrm2() < 1.0e-04 )
-    end if 
-      
-    call exact_solution_vector%free()
-    deallocate(exact_solution_vector)
-    
-  end subroutine check_solution
-  
-   subroutine print_error_norms(this)
-    implicit none
-    class(par_test_poisson_fe_driver_t), intent(inout) :: this
-    type(constant_scalar_function_t) :: constant_function
     type(error_norms_scalar_t) :: error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     
-    call constant_function%create(1.0_rp)
-    call error_norm%create(this%fe_space,1)
-    
-    mean = error_norm%compute(constant_function, this%solution, mean_norm)   
-    l1 = error_norm%compute(constant_function, this%solution, l1_norm)   
-    l2 = error_norm%compute(constant_function, this%solution, l2_norm)   
-    lp = error_norm%compute(constant_function, this%solution, lp_norm)   
-    linfty = error_norm%compute(constant_function, this%solution, linfty_norm)   
-    h1_s = error_norm%compute(constant_function, this%solution, h1_seminorm) 
-    h1 = error_norm%compute(constant_function, this%solution, h1_norm) 
-    w1p_s = error_norm%compute(constant_function, this%solution, w1p_seminorm)   
-    w1p = error_norm%compute(constant_function, this%solution, w1p_norm)   
-    w1infty_s = error_norm%compute(constant_function, this%solution, w1infty_seminorm) 
-    w1infty = error_norm%compute(constant_function, this%solution, w1infty_norm)  
-    
+    call error_norm%create(this%fe_space,1)    
+    mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
+    l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
+    l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
+    lp = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
+    linfty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
+    h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
+    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
+    w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
+    w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
+    w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
+    w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
     if ( this%par_environment%get_l1_rank() == 0 ) then
-      write(*,'(a20,e32.25)') 'mean_norm:', mean
-      write(*,'(a20,e32.25)') 'l1_norm:', l1
-      write(*,'(a20,e32.25)') 'l2_norm:', l2
-      write(*,'(a20,e32.25)') 'lp_norm:', lp
-      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty
-      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s
-      write(*,'(a20,e32.25)') 'h1_norm:', h1
-      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s
-      write(*,'(a20,e32.25)') 'w1p_norm:', w1p
-      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s
-      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty
+      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
+      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-04 )
+      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
+      write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-04 )
+      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < 1.0e-04 )
+      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < 1.0e-04 )
+      write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < 1.0e-04 )
+      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < 1.0e-04 )
+      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < 1.0e-04 )
+      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < 1.0e-04 )
+      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < 1.0e-04 )
     end if  
-
     call error_norm%free()
-  end subroutine print_error_norms 
+  end subroutine check_solution
   
   
   
@@ -341,7 +323,6 @@ contains
     call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
     call this%check_solution()
-    call this%print_error_norms()
     call this%free()
   end subroutine run_simulation
   
@@ -357,7 +338,7 @@ contains
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)
-        call this%reference_fes(i)%p%free()
+        call this%reference_fes(i)%free()
       end do
       deallocate(this%reference_fes, stat=istat)
       check(istat==0)
