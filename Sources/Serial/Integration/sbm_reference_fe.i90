@@ -57,6 +57,8 @@
     call this%orientation%free()
     call this%nodal_quadrature%free()
     call this%polytope%free()
+    call this%node_array%free()
+    call this%vertex_array%free()
 
     this%number_dimensions = 0
     this%order = 0

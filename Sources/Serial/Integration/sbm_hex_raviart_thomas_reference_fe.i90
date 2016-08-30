@@ -658,6 +658,7 @@ subroutine hex_raviart_thomas_reference_fe_fill_interpolation( this, quadrature,
        call polynomial_1D_basis(idime)%free()
     end do
     call tensor_product_polynomial_space%free()
+    call polynomial_1D%free()
     
   end subroutine hex_raviart_thomas_reference_fe_fill_interpolation
   
