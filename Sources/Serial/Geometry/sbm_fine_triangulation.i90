@@ -932,7 +932,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
      end if
      call cell_iterator%next()
   end do
-
+  call memfree( coordinates, __FILE__,__LINE__)
 end subroutine fine_triangulation_allocate_and_fill_coordinates
   
 subroutine fine_triangulation_free_coordinates( this )

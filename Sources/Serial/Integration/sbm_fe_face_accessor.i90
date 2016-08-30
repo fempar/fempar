@@ -429,7 +429,8 @@ subroutine fe_face_accessor_impose_strong_dirichlet_bcs ( this, facemat, facevec
  integer(ip)                              :: inode,ineigh,jneigh, elmat_col, field_id
  real(rp), pointer                        :: strong_dirichlet_values_entries(:)
  type(fe_accessor_t)                      :: fe
-
+ check(.false.)
+ 
  !do ineigh = 1,this%get_num_cells_around()
  !   do jneigh = 1,this%get_num_cells_around()
  !      call this%get_cell_around(jneigh, fe)
@@ -455,7 +456,7 @@ function fe_face_accessor_compute_surface ( this )
   class(fe_face_accessor_t), intent(in) :: this
   real(rp)                         :: fe_face_accessor_compute_surface
   integer(ip) :: qpoin,number_quadrature_points
-
+  check(.false.)
   !number_quadrature_points = this%quadrature%get_number_quadrature_points()
   !fe_face_accessor_compute_surface = 0.0_rp
   !do qpoin = 1, number_quadrature_points
