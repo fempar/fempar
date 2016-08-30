@@ -14,6 +14,7 @@ module par_test_poisson_params_names
      character(len=:), allocatable :: default_nparts
      character(len=:), allocatable :: default_reference_fe_geo_order
      character(len=:), allocatable :: default_reference_fe_order
+     character(len=:), allocatable :: default_write_solution
 
      ! IO parameters
      character(len=256)            :: dir_path
@@ -21,6 +22,7 @@ module par_test_poisson_params_names
      integer(ip)                   :: nparts
      integer(ip)                   :: reference_fe_geo_order
      integer(ip)                   :: reference_fe_order
+     logical                       :: write_solution
      
  
      type(Command_Line_Interface)  :: cli
@@ -35,6 +37,7 @@ module par_test_poisson_params_names
      procedure, non_overridable             :: get_nparts
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
+     procedure, non_overridable             :: get_write_solution
   end type par_test_poisson_params_t
 
   ! Types
@@ -68,6 +71,7 @@ contains
     this%default_nparts       = '4'
     this%default_reference_fe_geo_order = '1'
     this%default_reference_fe_order = '1'
+    this%default_write_solution = '.false.'
   end subroutine par_test_poisson_params_set_default
 
   !==================================================================================================
@@ -95,6 +99,9 @@ contains
     call this%cli%add(switch='--reference-fe-order',switch_ab='-order',help='Order of the fe space reference fe',&
          &            required=.false.,act='store',def=trim(this%default_reference_fe_order),error=error) 
     check(error==0) 
+    call this%cli%add(switch='--write-solution',switch_ab='-wsolution',help='Write solution in VTK format',&
+         &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
+    check(error==0) 
     
   end subroutine par_test_poisson_params_add_to_cli
 
@@ -110,6 +117,7 @@ contains
     call this%cli%get(switch='-n',val=this%nparts,error=error); check(error==0)
     call this%cli%get(switch='-gorder',val=this%reference_fe_geo_order,error=error); check(error==0)
     call this%cli%get(switch='-order',val=this%reference_fe_order,error=error); check(error==0)
+    call this%cli%get(switch='-wsolution',val=this%write_solution,error=error); check(error==0)
   end subroutine par_test_poisson_params_parse
   
   subroutine par_test_poisson_params_free(this)
@@ -120,6 +128,7 @@ contains
     if(allocated(this%default_nparts)) deallocate(this%default_nparts)
     if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
     if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
+    if(allocated(this%default_write_solution)) deallocate(this%default_write_solution)
     call this%cli%free()
   end subroutine par_test_poisson_params_free
   
@@ -162,6 +171,14 @@ contains
     integer(ip) :: get_reference_fe_order
     get_reference_fe_order = this%reference_fe_order
   end function get_reference_fe_order
+  
+  !==================================================================================================
+  function get_write_solution(this)
+    implicit none
+    class(par_test_poisson_params_t) , intent(in) :: this
+    logical :: get_write_solution
+    get_write_solution = this%write_solution
+  end function get_write_solution
   
   
 end module par_test_poisson_params_names

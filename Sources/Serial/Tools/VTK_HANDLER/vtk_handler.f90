@@ -315,7 +315,7 @@ contains
     !< Initialize the vtk_handler_t derived type
     !-----------------------------------------------------------------
         class(vtk_handler_t),             intent(INOUT) :: this
-        class(serial_fe_space_t), target, intent(INOUT) :: fe_space
+        class(serial_fe_space_t), target, intent(IN)    :: fe_space
         character(len=*),                 intent(IN)    :: path
         character(len=*),                 intent(IN)    :: prefix  
         integer(ip),      optional,       intent(IN)    :: root_task
@@ -326,7 +326,6 @@ contains
         integer(ip)                                     :: me, np, st, rp
     !-----------------------------------------------------------------
         assert(this%state == vtk_handler_state_start)
-        assert(vtk_mesh_order == match_geometry_order .or. vtk_mesh_order == match_max_order )
 
         ! Default values
         lo = default_vtk_mesh_order
@@ -334,7 +333,10 @@ contains
         st = default_guess_number_of_steps
 
         ! Optional arguments
-        if(present(vtk_mesh_order))  lo = vtk_mesh_order
+        if(present(vtk_mesh_order)) then
+          assert(vtk_mesh_order == match_geometry_order .or. vtk_mesh_order == match_max_order )
+          lo = vtk_mesh_order
+        endif
         if(present(root_task))       rp = root_task
         if(present(number_of_steps)) st = number_of_steps
 
@@ -448,7 +450,7 @@ contains
     !< Write node field to file
     !-----------------------------------------------------------------
         class(vtk_handler_t),       intent(INOUT) :: this           !< vtk_handler_t derived type
-        type(fe_function_t),        intent(INOUT) :: fe_function    !< fe_function containing the field to be written
+        type(fe_function_t),        intent(IN)    :: fe_function    !< fe_function containing the field to be written
         integer(ip),                intent(IN)    :: field_id       !< Field id
         character(len=*),           intent(IN)    :: field_name     !< name of the field
         real(rp), allocatable                     :: field(:,:)     !< Raw data of the field

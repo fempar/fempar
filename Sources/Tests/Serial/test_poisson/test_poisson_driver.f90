@@ -33,6 +33,7 @@ module test_poisson_driver_names
   use poisson_conditions_names
   use poisson_analytical_functions_names
   use list_types_names
+  use vtk_handler_names
 # include "debug.i90"
 
   implicit none
@@ -75,6 +76,7 @@ module test_poisson_driver_names
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
      procedure        , private :: check_solution
+     procedure        , private :: write_solution
      procedure        , private :: free
   end type test_poisson_driver_t
 
@@ -287,6 +289,27 @@ contains
     call error_norm%free()
   end subroutine check_solution
   
+    subroutine write_solution(this)
+    implicit none
+    class(test_poisson_driver_t), intent(in) :: this
+    type(vtk_handler_t)                      :: vtk_handler
+    integer(ip)                              :: err
+    print*, '----------------------------------------------------------------------'
+    print*, '----------------------------------------------------------------------'
+    print*, '----------------------------------------------------------------------'
+    print*, '----------------------------------------------------------------------'
+    print*, '----------------------------------------------------------------------'
+    print*, this%test_params%get_write_solution()
+    if(this%test_params%get_write_solution()) then
+       call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path(), this%test_params%get_prefix())
+       err = vtk_handler%open_vtu(); check(err==0)
+       err = vtk_handler%write_vtu_mesh(); check(err==0)
+       err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
+       err = vtk_handler%close_vtu(); check(err==0)
+       call  vtk_handler%free()
+    endif
+  end subroutine write_solution
+  
   subroutine run_simulation(this) 
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this    
@@ -301,6 +324,7 @@ contains
     call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
     call this%check_solution()
+    call this%write_solution()
     call this%free()
   end subroutine run_simulation
   
