@@ -993,6 +993,8 @@ module reference_fe_names
      procedure :: get_gradient_vector       => raviart_thomas_get_gradient_vector
      procedure :: get_divergence_vector     => raviart_thomas_get_divergence_vector
      procedure :: get_curl_vector           => raviart_thomas_get_curl_vector
+     procedure :: set_nodal_quadrature      => raviart_thomas_set_nodal_quadrature
+     procedure :: create_interpolation      => raviart_thomas_create_interpolation
      procedure :: evaluate_fe_function_scalar          &
       & => raviart_thomas_evaluate_fe_function_scalar
      procedure :: evaluate_fe_function_vector          & 

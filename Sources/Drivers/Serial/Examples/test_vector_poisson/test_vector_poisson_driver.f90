@@ -107,7 +107,7 @@ contains
     check(istat==0)
 
     this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,                                     &
-                                                 fe_type = fe_type_raviart_thomas,                                &
+                                                 fe_type = fe_type_lagrangian,&!fe_type_raviart_thomas,                                 &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = 5,                                                   &
                                                  field_type = field_type_vector,                              &
