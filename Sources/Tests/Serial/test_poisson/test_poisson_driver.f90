@@ -160,6 +160,7 @@ contains
 
     else
        call this%poisson_dG_integration%set_analytical_functions(this%poisson_analytical_functions)
+       call this%poisson_dG_integration%set_poisson_conditions(this%poisson_conditions)
        call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
             diagonal_blocks_symmetric_storage = [ .true. ], &
             diagonal_blocks_symmetric         = [ .true. ], &

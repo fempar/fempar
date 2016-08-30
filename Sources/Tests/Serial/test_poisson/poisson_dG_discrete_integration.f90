@@ -28,14 +28,17 @@
 module poisson_dG_discrete_integration_names
   use serial_names
   use poisson_analytical_functions_names
+  use poisson_conditions_names
   
   implicit none
 # include "debug.i90"
   private
   type, extends(discrete_integration_t) :: poisson_dG_discrete_integration_t
      type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
+     type(poisson_conditions_t)          , pointer :: poisson_conditions   => NULL()
    contains
      procedure :: set_analytical_functions
+     procedure :: set_poisson_conditions
      procedure :: integrate
   end type poisson_dG_discrete_integration_t
   
@@ -45,10 +48,17 @@ contains
 
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none
-     class(poisson_dG_discrete_integration_t)    ,intent(inout)  :: this
-     type(poisson_analytical_functions_t), target, intent(in)    :: analytical_functions
+     class(poisson_dG_discrete_integration_t)        , intent(inout) :: this
+     type(poisson_analytical_functions_t)    , target, intent(in)    :: analytical_functions
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions
+  
+  subroutine set_poisson_conditions ( this, poisson_conditions )
+     implicit none
+     class(poisson_dG_discrete_integration_t)        , intent(inout) :: this
+     class(poisson_conditions_t)             , target, intent(in)    :: poisson_conditions
+     this%poisson_conditions => poisson_conditions
+  end subroutine set_poisson_conditions
   
   
   subroutine integrate ( this, fe_space, matrix_array_assembler )
@@ -66,6 +76,7 @@ contains
     ! FE integration-related data types
     type(fe_map_t)           , pointer     :: fe_map
     type(quadrature_t)       , pointer     :: quad
+    type(point_t)            , pointer     :: quad_coords(:)
     type(volume_integrator_t), pointer     :: vol_int
     type(vector_field_t)                   :: grad_test, grad_trial
     type(i1p_t)              , allocatable :: elem2dof(:)
@@ -87,7 +98,9 @@ contains
     ! Problem and dG discretization related parameters 
     real(rp) :: viscosity
     real(rp) :: C_IP        ! Interior Penalty constant
-    real(rp) :: bcvalue
+    
+    class(scalar_function_t), pointer :: source_term, boundary_function
+    real(rp) :: source_term_value, boundary_value  
 
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
@@ -102,8 +115,12 @@ contains
 
     
     integer(ip), allocatable :: num_dofs_per_field(:)  
-
     
+    assert (associated(this%analytical_functions))
+    
+    source_term => this%analytical_functions%get_source_term()
+    call this%poisson_conditions%get_function(1,1,boundary_function)
+
     number_fields = fe_space%get_number_fields()
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     field_blocks => fe_space%get_field_blocks()
@@ -123,6 +140,9 @@ contains
     fe_map          => fe%get_fe_map()
     vol_int         => fe%get_volume_integrator(1)
     
+    viscosity = 1.0_rp
+    C_IP      = 10.0_rp * fe%get_order(1)**2
+    
     do while ( .not. fe_iterator%has_finished() )
        ! Get current FE
        call fe_iterator%current(fe)
@@ -134,6 +154,9 @@ contains
        
          ! Get DoF numbering within current FE
          call fe%get_elem2dof(elem2dof)
+         
+         ! Get quadrature coordinates to evaluate source_term
+         quad_coords => fe_map%get_quadrature_coordinates()
 
          ! Compute element matrix and vector
          elmat = 0.0_rp
@@ -148,7 +171,15 @@ contains
                   elmat(idof,jdof) = elmat(idof,jdof) + factor * grad_test * grad_trial
                end do
             end do
-         end do
+            
+            ! Source term
+            call source_term%get_value(quad_coords(qpoint),source_term_value)
+            do idof = 1, num_dofs
+               call vol_int%get_value(idof, qpoint, shape_trial)
+               elvec(idof) = elvec(idof) + factor * source_term_value * shape_trial
+            end do  
+         end do        
+         
          call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        end if
        
@@ -174,9 +205,6 @@ contains
     num_quad_points = quad%get_number_quadrature_points()
     face_map        => fe_face%get_face_map()
     face_int        => fe_face%get_face_integrator(1)
-    
-    viscosity = 1.0_rp
-    C_IP      = 10.0_rp
     
     do while ( .not. fe_face_iterator%has_finished() ) 
        facemat = 0.0_rp
@@ -248,11 +276,14 @@ contains
        call fe_face_iterator%current(fe_face)
        
        if ( fe_face%is_at_boundary() ) then
-         call fe_face%update_integration()    
+         assert( fe_face%get_set_id() == 1 )
+         call fe_face%update_integration() 
+         quad_coords => face_map%get_quadrature_coordinates()
          do qpoint = 1, num_quad_points
             call face_map%get_normals(qpoint,normals)
             h_length = face_map%compute_characteristic_length(qpoint)
             factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            call boundary_function%get_value(quad_coords(qpoint),boundary_value)
             do idof = 1, num_dofs_per_field(1)
               call face_int%get_value(idof,qpoint,1,shape_trial)
               call face_int%get_gradient(idof,qpoint,1,grad_trial)   
@@ -265,10 +296,9 @@ contains
                                       grad_trial*normals(1)*shape_test  + &
                                       c_IP / h_length * shape_test*shape_trial)     
               end do
-              bcvalue = 1.0_rp
               facevec(idof,1) = facevec(idof,1) + factor * viscosity * &
-                                      (bcvalue * grad_trial * normals(1) + &
-                                      c_IP/h_length * bcvalue * shape_trial ) 
+                                      (-boundary_value * grad_trial * normals(1) + &
+                                      c_IP/h_length * boundary_value * shape_trial ) 
             end do   
          end do
          call fe_face%get_elem2dof(1, test_elem2dof)
