@@ -159,6 +159,7 @@ contains
             discrete_integration              = this%poisson_cG_integration )
 
     else
+       call this%poisson_dG_integration%set_analytical_functions(this%poisson_analytical_functions)
        call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
             diagonal_blocks_symmetric_storage = [ .true. ], &
             diagonal_blocks_symmetric         = [ .true. ], &
