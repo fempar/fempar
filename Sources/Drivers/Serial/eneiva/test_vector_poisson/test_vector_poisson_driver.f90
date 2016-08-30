@@ -99,12 +99,19 @@ contains
   subroutine setup_reference_fes(this)
     implicit none
     class(test_vector_poisson_driver_t), intent(inout) :: this
-    integer(ip) :: istat
+    type(cell_iterator_t)                     :: cell_iterator
+    type(cell_accessor_t)                     :: cell
+    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    integer(ip)                               :: istat
 
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
-
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,                                     &
+    
+    cell_iterator = this%triangulation%create_cell_iterator()
+    call cell_iterator%current(cell)
+    reference_fe_geo => cell%get_reference_fe_geo()
+    
+    this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
                                                  fe_type = fe_type_lagrangian,                                &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = 1,                                                   &
