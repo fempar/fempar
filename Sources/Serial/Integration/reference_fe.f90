@@ -399,7 +399,7 @@ module reference_fe_names
      procedure (check_compatibility_of_n_faces_interface), deferred :: &
           &     check_compatibility_of_n_faces
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
-     procedure (set_nodal_quadrature_interface), deferred :: set_nodal_quadrature          
+     procedure (create_nodal_quadrature_interface), deferred :: create_nodal_quadrature          
      procedure (fill_interior_points_permutation_interface), deferred :: fill_interior_points_permutation
 
      procedure (set_scalar_field_to_nodal_values_interface), deferred :: set_scalar_field_to_nodal_values
@@ -713,11 +713,11 @@ module reference_fe_names
        type(interpolation_face_restriction_t), intent(inout) :: interpolation_face_restriction
      end subroutine update_interpolation_face_interface
 
-     subroutine set_nodal_quadrature_interface ( this )
+     subroutine create_nodal_quadrature_interface ( this )
        import :: reference_fe_t
        implicit none
        class(reference_fe_t), intent(inout) :: this 
-     end subroutine set_nodal_quadrature_interface
+     end subroutine create_nodal_quadrature_interface
 
      subroutine set_scalar_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
           &                                                  nodal_values, unknown_component)
@@ -809,7 +809,8 @@ module reference_fe_names
    contains
      ! Additional deferred methods
      !procedure (fill_scalar_interface)            , private, deferred :: fill_scalar
-     procedure (fill_quadrature_interface)        , private, deferred :: fill_quadrature   
+     procedure (fill_quadrature_interface)        , private, deferred :: fill_quadrature
+     procedure (fill_nodal_quadrature_interface)  , private, deferred :: fill_nodal_quadrature
      procedure (fill_interpolation_interface)     , private, deferred :: fill_interpolation
      procedure (fill_face_interpolation_interface), private, deferred :: fill_face_interpolation
      procedure (set_permutation_2D_interface)              , private, deferred :: &
@@ -846,7 +847,7 @@ module reference_fe_names
      procedure :: get_divergence_vector     => lagrangian_reference_fe_get_divergence_vector
      procedure :: get_curl_vector           => lagrangian_reference_fe_get_curl_vector
      procedure :: interpolate_nodal_values  => lagrangian_reference_fe_interpolate_nodal_values
-     procedure :: set_nodal_quadrature      => lagrangian_reference_fe_set_nodal_quadrature
+     procedure :: create_nodal_quadrature   => lagrangian_reference_fe_create_nodal_quadrature
      procedure :: set_scalar_field_to_nodal_values     & 
       & => lagrangian_reference_fe_set_scalar_field_to_nodal_values
      procedure :: set_vector_field_to_nodal_values     & 
@@ -872,8 +873,6 @@ module reference_fe_names
       & => lagrangian_reference_fe_fill_field_components
      procedure, private, non_overridable :: fill_permutation_array       &
       & => lagrangian_reference_fe_fill_permutation_array
-     procedure, private, non_overridable :: fill_nodal_quadrature        &
-      & => lagrangian_reference_fe_fill_nodal_quadrature
 !     procedure, private, non_overridable :: get_node_coordinates_array   & 
 !      & => lagrangian_reference_fe_get_node_coordinates_array
      procedure, private, non_overridable :: set_permutation_1D           & 
@@ -882,8 +881,6 @@ module reference_fe_names
       & => lagrangian_reference_fe_extend_list_components
      procedure, private :: apply_femap_to_interpolation & 
       & => lagrangian_reference_fe_apply_femap_to_interpolation
-     procedure, private :: get_coordinates_nodes & 
-      & => lagrangian_reference_fe_get_coordinates_nodes
   end type lagrangian_reference_fe_t
 
   abstract interface
@@ -900,6 +897,13 @@ module reference_fe_names
        class(lagrangian_reference_fe_t), intent(in)    :: this
        type(quadrature_t)              , intent(inout) :: quadrature       
      end subroutine fill_quadrature_interface
+     
+     subroutine fill_nodal_quadrature_interface ( this, quadrature ) 
+     import :: lagrangian_reference_fe_t, quadrature_t
+       implicit none 
+       class(lagrangian_reference_fe_t), intent(in)    :: this
+       type(quadrature_t)              , intent(inout) :: quadrature  
+     end subroutine fill_nodal_quadrature_interface
      
      subroutine fill_interpolation_interface ( this, quadrature, interpolation )
      import :: lagrangian_reference_fe_t, interpolation_t, ip, rp, quadrature_t
@@ -993,7 +997,7 @@ module reference_fe_names
      procedure :: get_gradient_vector       => raviart_thomas_get_gradient_vector
      procedure :: get_divergence_vector     => raviart_thomas_get_divergence_vector
      procedure :: get_curl_vector           => raviart_thomas_get_curl_vector
-     procedure :: set_nodal_quadrature      => raviart_thomas_set_nodal_quadrature
+     procedure :: create_nodal_quadrature   => raviart_thomas_create_nodal_quadrature
      procedure :: create_interpolation      => raviart_thomas_create_interpolation
      procedure :: evaluate_fe_function_scalar          &
       & => raviart_thomas_evaluate_fe_function_scalar
@@ -1007,8 +1011,8 @@ module reference_fe_names
       & => raviart_thomas_fill
      procedure, private :: fill_vector                         & 
       & => raviart_thomas_fill_vector    
-     procedure, private :: get_coordinates_nodes & 
-      & => raviart_thomas_get_coordinates_nodes
+     procedure, private :: fill_nodal_quadrature &
+      & => raviart_thomas_fill_nodal_quadrature
   end type raviart_thomas_reference_fe_t 
   
   public :: raviart_thomas_reference_fe_t  
@@ -1032,6 +1036,8 @@ module reference_fe_names
      !      & => tet_lagrangian_reference_fe_fill_scalar
      procedure, private :: fill_quadrature                                    &
            & => tet_lagrangian_reference_fe_fill_quadrature
+     procedure, private :: fill_nodal_quadrature                              &
+           & => tet_lagrangian_reference_fe_fill_nodal_quadrature
      procedure, private :: fill_interpolation                                 &
            & => tet_lagrangian_reference_fe_fill_interpolation
      procedure, private :: fill_face_interpolation                            &
@@ -1126,6 +1132,8 @@ module reference_fe_names
      ! Deferred TBP implementors from lagrangian_reference_fe_t
      procedure, private :: fill_quadrature                                    &
            & => hex_lagrangian_reference_fe_fill_quadrature
+     procedure, private :: fill_nodal_quadrature                              &
+           & => hex_lagrangian_reference_fe_fill_nodal_quadrature
      procedure, private :: fill_interpolation                                 &
            & => hex_lagrangian_reference_fe_fill_interpolation
      procedure, private :: fill_face_interpolation                            &

@@ -39,7 +39,7 @@ subroutine lagrangian_reference_fe_create ( this, topology, number_dimensions, o
   call this%set_topology ( topology )
   call this%set_fe_type( fe_type_lagrangian )
   call this%fill()
-  call this%set_nodal_quadrature()
+  call this%create_nodal_quadrature()
 
 end subroutine lagrangian_reference_fe_create
 
@@ -419,14 +419,14 @@ subroutine lagrangian_reference_fe_interpolate_nodal_values( this,              
 end subroutine lagrangian_reference_fe_interpolate_nodal_values
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_set_nodal_quadrature (this)
+subroutine lagrangian_reference_fe_create_nodal_quadrature (this)
   implicit none
   class(lagrangian_reference_fe_t), intent(inout) :: this
   ! Create nodal quadrature
   call this%nodal_quadrature%create( this%number_dimensions, this%node_array%number_nodes )
   ! Fill nodal quadrature
   call this%fill_nodal_quadrature ( this%nodal_quadrature )  
-end subroutine lagrangian_reference_fe_set_nodal_quadrature
+end subroutine lagrangian_reference_fe_create_nodal_quadrature
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_set_scalar_field_to_nodal_values (this, code, values, &
@@ -764,17 +764,6 @@ subroutine lagrangian_reference_fe_fill_permutation_array (this,               &
   end do
 
 end subroutine lagrangian_reference_fe_fill_permutation_array
-
-!==================================================================================================
-subroutine lagrangian_reference_fe_fill_nodal_quadrature ( this, quadrature ) 
-  implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  type(quadrature_t)              , intent(inout) :: quadrature
-
-  call this%get_coordinates_nodes( quadrature%coordinates )
-  quadrature%weight = 1.0_rp
-
-end subroutine lagrangian_reference_fe_fill_nodal_quadrature
 
 !=================================================================================================
 subroutine lagrangian_reference_fe_set_permutation_1D(this,permutation,number_nodes_x_dim,rotation)
@@ -1146,16 +1135,3 @@ subroutine p_lagrangian_reference_fe_free( this )
      deallocate ( this%p )
   end if
 end subroutine p_lagrangian_reference_fe_free
-
-!==================================================================================================
-subroutine lagrangian_reference_fe_get_coordinates_nodes( this, coordinates )
-  implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this 
-  real(rp), intent(inout)              :: coordinates(:,:)
-  integer(ip) :: i
-  do i=1,this%number_dimensions
-     coordinates(i,:) = this%node_array%coordinates(i,:)*(2.0_rp/this%order_vector(i))-1.0_rp
-  end do
-end subroutine lagrangian_reference_fe_get_coordinates_nodes
-
-
