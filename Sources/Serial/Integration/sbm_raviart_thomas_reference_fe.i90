@@ -53,32 +53,35 @@ subroutine raviart_thomas_create_interpolation ( this, quadrature, &
 end subroutine raviart_thomas_create_interpolation
 
 !==================================================================================================
-subroutine raviart_thomas_set_nodal_quadrature (this)
+subroutine raviart_thomas_create_nodal_quadrature (this)
   implicit none
   class(raviart_thomas_reference_fe_t), intent(inout) :: this
   ! Create nodal quadrature
   call this%nodal_quadrature%create( this%number_dimensions, this%number_shape_functions )
   ! Fill nodal quadrature
   call this%fill_nodal_quadrature ( this%nodal_quadrature )  
-end subroutine raviart_thomas_set_nodal_quadrature
+end subroutine raviart_thomas_create_nodal_quadrature
 
 !==================================================================================================
-subroutine raviart_thomas_get_coordinates_nodes( this, coordinates )
+subroutine raviart_thomas_fill_nodal_quadrature ( this, quadrature ) 
   implicit none
   class(raviart_thomas_reference_fe_t), intent(in)    :: this 
-  real(rp), intent(inout)              :: coordinates(:,:)
+  type(quadrature_t)                  , intent(inout) :: quadrature
   type(node_iterator_t) :: node_iterator
   integer(ip) :: i,j,init,finish
+  
   do i=1,this%number_dimensions
      init = 1
      finish = 0
      do j=1,this%number_dimensions
         finish = finish + this%node_array_vector(j)%number_nodes        
-        coordinates(i,init:finish) = (this%node_array_vector(j)%coordinates(i,:)*(2.0_rp/this%node_array_vector(j)%order(i))-1.0_rp)
+        quadrature%coordinates(i,init:finish) = (this%node_array_vector(j)%coordinates(i,:)*(2.0_rp/this%node_array_vector(j)%order(i))-1.0_rp)
         init = init + this%node_array_vector(j)%number_nodes
      end do
   end do
-end subroutine raviart_thomas_get_coordinates_nodes
+  quadrature%weight = 1.0_rp
+
+end subroutine raviart_thomas_fill_nodal_quadrature
 
 !==================================================================================================
 subroutine raviart_thomas_create ( this, topology, number_dimensions, order, field_type, & 
@@ -97,7 +100,7 @@ subroutine raviart_thomas_create ( this, topology, number_dimensions, order, fie
   call this%set_topology ( topology )
   call this%set_fe_type( fe_type_raviart_thomas )
   call this%fill()
-  call this%set_nodal_quadrature()
+  call this%create_nodal_quadrature()
   
 end subroutine raviart_thomas_create
 
