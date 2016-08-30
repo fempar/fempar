@@ -29,6 +29,38 @@
 !**************************************************************************************************
 ! Deferred TBP implementors from reference_fe_t
 !**************************************************************************************************
+!==================================================================================================
+subroutine raviart_thomas_create_interpolation ( this, quadrature, & 
+     & interpolation, compute_hessian )
+  implicit none 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation
+  logical               , optional, intent(in)    :: compute_hessian
+
+  integer(ip) :: ntens, i
+
+  ntens = 0
+  do i = 1, this%number_dimensions
+     ntens = ntens + i
+  end do
+
+  call interpolation%create( this%number_dimensions, this%number_shape_functions, &
+       quadrature%number_quadrature_points, ntens, compute_hessian )
+
+  call this%fill_interpolation( quadrature, interpolation )
+
+end subroutine raviart_thomas_create_interpolation
+
+!==================================================================================================
+subroutine raviart_thomas_set_nodal_quadrature (this)
+  implicit none
+  class(raviart_thomas_reference_fe_t), intent(inout) :: this
+  ! Create nodal quadrature
+  call this%nodal_quadrature%create( this%number_dimensions, this%number_shape_functions )
+  ! Fill nodal quadrature
+  call this%fill_nodal_quadrature ( this%nodal_quadrature )  
+end subroutine raviart_thomas_set_nodal_quadrature
 
 !==================================================================================================
 subroutine raviart_thomas_get_coordinates_nodes( this, coordinates )

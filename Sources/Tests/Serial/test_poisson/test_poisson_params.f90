@@ -39,6 +39,8 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_prefix
      character(len=:), allocatable :: default_dir_path_out
      character(len=:), allocatable :: default_fe_formulation
+     character(len=:), allocatable :: default_reference_fe_geo_order
+     character(len=:), allocatable :: default_reference_fe_order
      
      type(Command_Line_Interface):: cli 
 
@@ -47,7 +49,8 @@ module test_poisson_params_names
      character(len=256)            :: prefix
      character(len=256)            :: dir_path_out
      character(len=256)            :: fe_formulation
-
+     integer(ip)                   :: reference_fe_geo_order
+     integer(ip)                   :: reference_fe_order
      
    contains
      procedure, non_overridable             :: create       => test_poisson_create
@@ -59,6 +62,8 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
      procedure, non_overridable             :: get_fe_formulation
+     procedure, non_overridable             :: get_reference_fe_geo_order
+     procedure, non_overridable             :: get_reference_fe_order
   end type test_poisson_params_t
 
   ! Types
@@ -77,7 +82,8 @@ contains
          &        version     = '',                                                                 &
          &        authors     = '',                                                                 &
          &        license     = '',                                                                 &
-         &        description =  'FEMPAR driver to test the new serial fe space.', &
+         &        description =  'FEMPAR test to solve the 2D Poisson PDE with known analytical solution. &
+                                  Boundary set ID 1 MUST BE ASSIGNED to the whole boundary.', &
          &        examples    = ['test_poisson -h  ', 'test_poisson -h  ' ])
     
     call this%set_default()
@@ -92,6 +98,8 @@ contains
     this%default_prefix         = 'square'
     this%default_dir_path_out   = 'output/'
     this%default_fe_formulation = 'cG'
+    this%default_reference_fe_geo_order = '1'
+    this%default_reference_fe_order = '1'
   end subroutine test_poisson_set_default
   
   !==================================================================================================
@@ -116,6 +124,12 @@ contains
     call this%cli%add(switch='--fe-formulation',switch_ab='-f',help='cG or dG FE formulation for Poisson problem',&
          &            required=.false.,act='store',def=trim(this%default_fe_formulation), choices='cG,dG', error=error)
     check(error==0)  
+    call this%cli%add(switch='--reference-fe-geo-order',switch_ab='-gorder',help='Order of the triangulation reference fe',&
+         &            required=.false.,act='store',def=trim(this%default_reference_fe_geo_order),error=error)
+    check(error==0)  
+    call this%cli%add(switch='--reference-fe-order',switch_ab='-order',help='Order of the fe space reference fe',&
+         &            required=.false.,act='store',def=trim(this%default_reference_fe_order),error=error) 
+    check(error==0) 
     
   end subroutine test_poisson_add_to_cli
   
@@ -131,6 +145,8 @@ contains
     call this%cli%get(switch='-p' ,val=this%prefix      ,error=istat); check(istat==0)
     call this%cli%get(switch='-o',val=this%dir_path_out,error=istat); check(istat==0)
     call this%cli%get(switch='-f',val=this%fe_formulation,error=istat); check(istat==0)
+    call this%cli%get(switch='-gorder',val=this%reference_fe_geo_order,error=istat); check(istat==0)
+    call this%cli%get(switch='-order',val=this%reference_fe_order,error=istat); check(istat==0)
   end subroutine test_poisson_parse  
 
   subroutine test_poisson_free(this)
@@ -139,6 +155,8 @@ contains
     if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
     if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
     if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
+    if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
+    if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
     call this%cli%free()
   end subroutine test_poisson_free
 
@@ -173,5 +191,21 @@ contains
     character(len=256) :: get_fe_formulation
     get_fe_formulation = this%fe_formulation
   end function get_fe_formulation
+  
+  !==================================================================================================
+  function get_reference_fe_geo_order(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    integer(ip) :: get_reference_fe_geo_order
+    get_reference_fe_geo_order = this%reference_fe_geo_order
+  end function get_reference_fe_geo_order
+  
+  !==================================================================================================
+  function get_reference_fe_order(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    integer(ip) :: get_reference_fe_order
+    get_reference_fe_order = this%reference_fe_order
+  end function get_reference_fe_order
   
 end module test_poisson_params_names

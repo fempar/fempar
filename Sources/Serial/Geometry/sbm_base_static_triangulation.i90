@@ -33,6 +33,7 @@ function bst_get_par_environment ( this )
   implicit none
   class(base_static_triangulation_t), target, intent(in) :: this
   type(par_environment_t), pointer                           :: bst_get_par_environment
+  assert ( associated(this%p_env) )
   bst_get_par_environment => this%p_env
 end function bst_get_par_environment
 

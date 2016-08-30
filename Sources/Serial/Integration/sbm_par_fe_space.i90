@@ -1394,6 +1394,7 @@ subroutine par_fe_space_setup_dofs_objects_by_continuity ( this, &
   do while ( .not. object_iterator%has_finished() )
      call object_iterator%current(object)
      vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+     dofs_on_vef = .false.
      do while ( .not. vefs_on_object_iterator%has_finished() )
        call vefs_on_object_iterator%current(vef)
        call vef%get_cell_around(1,fe)
@@ -1472,8 +1473,10 @@ subroutine par_fe_space_setup_dofs_objects_by_continuity ( this, &
        own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
        do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
           dof_lid = elem2dof(field_id)%p(own_dofs_on_vef_iterator%get_current())
-          call dofs_object_iterator%set_current(dof_lid)
-          call dofs_object_iterator%next()
+          if ( dof_lid > 0 ) then
+            call dofs_object_iterator%set_current(dof_lid)  
+            call dofs_object_iterator%next()
+          end if  
           call own_dofs_on_vef_iterator%next()
        end do
        call vefs_on_object_iterator%next()

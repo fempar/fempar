@@ -27,12 +27,15 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module poisson_cG_discrete_integration_names
   use serial_names
+  use poisson_analytical_functions_names
   
   implicit none
 # include "debug.i90"
   private
   type, extends(discrete_integration_t) :: poisson_cG_discrete_integration_t
+     type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
    contains
+     procedure :: set_analytical_functions
      procedure :: integrate
   end type poisson_cG_discrete_integration_t
   
@@ -40,6 +43,14 @@ module poisson_cG_discrete_integration_names
   
 contains
    
+  subroutine set_analytical_functions ( this, analytical_functions )
+     implicit none
+     class(poisson_cG_discrete_integration_t)    ,intent(inout)  :: this
+     type(poisson_analytical_functions_t), target, intent(in)    :: analytical_functions
+     this%analytical_functions => analytical_functions
+  end subroutine set_analytical_functions
+
+
   subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
     class(poisson_cG_discrete_integration_t), intent(in)    :: this
@@ -49,13 +60,16 @@ contains
     ! FE space traversal-related data types
     type(fe_iterator_t) :: fe_iterator
     type(fe_accessor_t) :: fe
-    
+
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
     type(quadrature_t)       , pointer :: quad
+    type(point_t)            , pointer :: quad_coords(:)
     type(volume_integrator_t), pointer :: vol_int
     type(vector_field_t)               :: grad_test, grad_trial
-    
+    real(rp)                           :: shape_trial
+
+
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
 
@@ -63,6 +77,7 @@ contains
     integer(ip)  :: qpoint, num_quad_points
     integer(ip)  :: idof, jdof, num_dofs
     real(rp)     :: factor
+    real(rp)     :: source_term_value
 
     integer(ip)  :: number_fields
 
@@ -71,15 +86,19 @@ contains
 
     type(i1p_t), allocatable :: elem2dof(:)
     integer(ip), allocatable :: num_dofs_per_field(:)  
+    class(scalar_function_t), pointer :: source_term
 
-    
+    assert (associated(this%analytical_functions))
+
+    source_term => this%analytical_functions%get_source_term()
+
     number_fields = fe_space%get_number_fields()
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
-    
+
     call fe_space%initialize_fe_integration()
-    
+
     fe_iterator = fe_space%create_fe_iterator()
     call fe_iterator%current(fe)
     num_dofs = fe%get_number_dofs()
@@ -94,31 +113,42 @@ contains
     do while ( .not. fe_iterator%has_finished() )
        ! Get current FE
        call fe_iterator%current(fe)
+       if ( fe%is_local() ) then
+          ! Update FE-integration related data structures
+          call fe%update_integration()
        
-       ! Update FE-integration related data structures
-       call fe%update_integration()
-       
-       ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
-
-       ! Compute element matrix and vector
-       elmat = 0.0_rp
-       elvec = 0.0_rp
-       do qpoint = 1, num_quad_points
-          factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-          do idof = 1, num_dofs
-             call vol_int%get_gradient(idof, qpoint, grad_trial)
-             do jdof = 1, num_dofs
-                call vol_int%get_gradient(jdof, qpoint, grad_test)
-                ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                elmat(idof,jdof) = elmat(idof,jdof) + factor * grad_test * grad_trial
+          ! Get DoF numbering within current FE
+          call fe%get_elem2dof(elem2dof)
+          
+          ! Get quadrature coordinates to evaluate source_term
+          quad_coords => fe_map%get_quadrature_coordinates()
+          
+          ! Compute element matrix and vector
+          elmat = 0.0_rp
+          elvec = 0.0_rp
+          do qpoint = 1, num_quad_points
+             factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+             do idof = 1, num_dofs
+                call vol_int%get_gradient(idof, qpoint, grad_trial)
+                do jdof = 1, num_dofs
+                   call vol_int%get_gradient(jdof, qpoint, grad_test)
+                   ! A_K(i,j) = (grad(phi_i),grad(phi_j))
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * grad_test * grad_trial
+                end do
+             end do
+             
+             ! Source term
+             call source_term%get_value(quad_coords(qpoint),source_term_value)
+             do idof = 1, num_dofs
+                call vol_int%get_value(idof, qpoint, shape_trial)
+                elvec(idof) = elvec(idof) + factor * source_term_value * shape_trial
              end do
           end do
-       end do
-       
-       ! Apply boundary conditions
-       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+          
+          ! Apply boundary conditions
+          call fe%impose_strong_dirichlet_bcs( elmat, elvec )
+          call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+       end if
        call fe_iterator%next()
     end do
     deallocate (elem2dof, stat=istat); check(istat==0);

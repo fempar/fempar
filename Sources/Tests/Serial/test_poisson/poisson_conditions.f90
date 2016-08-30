@@ -33,9 +33,9 @@ module poisson_conditions_names
   private
   type, extends(conditions_t) :: poisson_conditions_t
      private
-     type(constant_scalar_function_t) :: constant_scalar_function
+     class(scalar_function_t), pointer :: boundary_function  
    contains
-     procedure :: set_constant_function_value => poisson_conditions_set_constant_function
+     procedure :: set_boundary_function       => poisson_conditions_set_boundary_function
      procedure :: get_number_components       => poisson_conditions_get_number_components  
      procedure :: get_components_code         => poisson_conditions_get_components_code
      procedure :: get_function                => poisson_conditions_get_function
@@ -45,12 +45,12 @@ module poisson_conditions_names
   
 contains
 
-  subroutine poisson_conditions_set_constant_function (this, value)
+  subroutine poisson_conditions_set_boundary_function (this, boundary_function)
     implicit none
-    class(poisson_conditions_t), intent(inout) :: this
-    real(rp)                   , intent(in)    :: value
-    this%constant_scalar_function = constant_scalar_function_t(value)
-  end subroutine poisson_conditions_set_constant_function
+    class(poisson_conditions_t)     , intent(inout) :: this
+    class(scalar_function_t), target, intent(in)    :: boundary_function
+    this%boundary_function => boundary_function
+  end subroutine poisson_conditions_set_boundary_function
 
   function poisson_conditions_get_number_components(this)
     implicit none
@@ -78,9 +78,10 @@ contains
     integer(ip)                        , intent(in)  :: component_id
     class(scalar_function_t), pointer  , intent(out) :: function
     assert ( component_id == 1 )
+    assert ( associated(this%boundary_function) )
     nullify(function)
     if ( boundary_id == 1 ) then
-      function => this%constant_scalar_function
+      function => this%boundary_function
     end if  
   end subroutine poisson_conditions_get_function 
 

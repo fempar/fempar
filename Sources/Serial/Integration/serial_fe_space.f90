@@ -94,6 +94,7 @@ module fe_space_names
     procedure, non_overridable          :: get_elem2dof                               => fe_accessor_get_elem2dof
     procedure, non_overridable          :: get_order                                  => fe_accessor_get_order
     procedure, non_overridable          :: at_strong_dirichlet_boundary               => fe_accessor_at_strong_dirichlet_boundary
+    procedure, non_overridable          :: compute_volume                             => fe_accessor_compute_volume
     
     
     procedure, non_overridable          :: get_quadrature                             => fe_accessor_get_quadrature
@@ -286,6 +287,7 @@ module fe_space_names
      procedure, non_overridable, private :: allocate_ref_fe_id_per_fe                    => serial_fe_space_allocate_ref_fe_id_per_fe
      procedure, non_overridable, private :: free_ref_fe_id_per_fe                        => serial_fe_space_free_ref_fe_id_per_fe
      procedure, non_overridable, private :: fill_ref_fe_id_per_fe_same_on_all_cells      => serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
+     procedure, non_overridable, private :: check_cell_vs_fe_topology_consistency        => serial_fe_space_check_cell_vs_fe_topology_consistency
      procedure, non_overridable, private :: allocate_and_fill_fe_space_type_per_field    => serial_fe_space_allocate_and_fill_fe_space_type_per_field
      procedure, non_overridable, private :: free_fe_space_type_per_field                 => serial_fe_space_free_fe_space_type_per_field
      procedure, non_overridable, private :: allocate_and_init_ptr_lst_dofs               => serial_fe_space_allocate_and_init_ptr_lst_dofs
@@ -476,219 +478,7 @@ module fe_space_names
  
  public :: par_fe_space_t
  public :: fe_object_accessor_t, fe_object_iterator_t, fe_vefs_on_object_iterator_t
-  
-  ! This module includes the physical FE and FE space structure. It includes the
-  ! following types:
-  !
-  ! * finite_element_t: It includes pointers to the unknown/geometrical reference_fe_t
-  !   and the corresponding volume integrator, the local-to-global mapping for DOFs in
-  !   elem2dof and the boundary conditions restricted to the element
-  ! * fe_space_t: The abstract fe_space_t, which only includes some deferred methods 
-  !   that must be provided by any fe_space_t concretization
-  ! * serial_fe_space_t: The serial version of the fe_space_t, which includes an array
-  !   of finite_element_t, the array of all possible reference_fe_t and volume_integrator_t
-  !   in the FE space, and the total number of DOFs.
-  ! * fe_function_scalar/vector/tensor_t: 3 different field-dependent objects that contain
-  !   two work arrays at the element level: The first stores the nodal values of the FE  
-  !   approximation from a global dof-vector. The second gives the values of the FE
-  !   approximation at the quadrature points.
-
-!  type :: finite_element_t
-!     private 
-!     integer(ip)                                 :: number_nodes
-!     integer(ip)                                 :: number_fe_spaces
-!     
-!     integer(ip)                                 :: number_blocks
-!     integer(ip), pointer                        :: field_blocks(:)         => NULL()
-!     
-!     type(elem_topology_t)         , pointer     :: cell                    => NULL()
-!     type(fe_map_t)                , pointer     :: fe_map                  => NULL()
-!     
-!     type(p_reference_fe_t)        , pointer     :: reference_fe_phy(:)     => NULL()
-!     type(quadrature_t)            , pointer     :: quadrature              => NULL()
-!     type(p_volume_integrator_t)   , pointer     :: volume_integrator(:)    => NULL()
-!     
-!     type(i1p_t)                   , allocatable :: elem2dof(:)
-!     
-!     logical                       , allocatable :: at_strong_dirichlet_boundary(:)
-!     ! The next member variable points to the counterpart one in type(serial_fe_space_t)
-!     ! We would have like to add a pointer to the whole type(serial_fe_space_t) instead
-!     ! of to a particular member variable, but we could not as this is not Fortran standard
-!     ! conforming. This member variable is required to be able to impose strongly Dirichlet
-!     ! boundary conditions in the local scope of type(finite_element_t).
-!     type(serial_scalar_array_t)   , pointer     :: strong_dirichlet_values => NULL()
-!   contains
-!     
-!     procedure, non_overridable, private :: create =>  finite_element_create
-!     procedure, non_overridable          :: update_integration => finite_element_update_integration
-!     procedure, non_overridable, private :: free => finite_element_free
-!     ! procedure :: print Pending
-!     procedure, non_overridable, private :: fill_own_dofs => finite_element_fill_own_dofs
-!     procedure, non_overridable, private :: fill_own_dofs_on_vef => finite_element_fill_own_dofs_on_vef
-!     procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_element => finite_element_fill_own_dofs_on_vef_from_source_element
-!     procedure, non_overridable, private :: fill_dofs_face_integration_coupling => finite_element_fill_dofs_face_integration_coupling
-!     procedure, non_overridable, private :: renumber_dofs_block => finite_element_renumber_dofs_block
-!     procedure, non_overridable, private :: renumber_dofs_field => finite_element_renumber_dofs_field
-!     
-!     procedure, non_overridable :: get_number_nodes => finite_element_get_number_nodes
-!     procedure, non_overridable :: get_fe_map => finite_element_get_fe_map
-!     procedure, non_overridable :: get_quadrature => finite_element_get_quadrature
-!     procedure, non_overridable :: get_volume_integrator => finite_element_get_volume_integrator
-!     procedure, non_overridable :: get_elem2dof  => finite_element_get_elem2dof
-!     procedure, non_overridable :: get_number_nodes_per_field => finite_element_get_number_nodes_per_field
-!     procedure, non_overridable :: get_subset_id => finite_element_get_subset_id
-!     procedure, non_overridable :: get_order     => finite_element_get_order     
-!     procedure, non_overridable, private :: is_at_strong_dirichlet_boundary => finite_element_is_at_strong_dirichlet_boundary
-
-!     procedure, non_overridable :: compute_volume     => finite_element_compute_volume
-!     
-!     procedure, non_overridable, private :: update_scalar_values => finite_element_update_scalar_values
-!     procedure, non_overridable, private :: update_vector_values => finite_element_update_vector_values
-!     procedure, non_overridable, private :: update_tensor_values => finite_element_update_tensor_values
-!     generic :: update_values => update_scalar_values, &
-!                               & update_vector_values, &
-!                               & update_tensor_values
-!     
-!     procedure, non_overridable, private :: update_scalar_gradients => finite_element_update_scalar_gradients
-!     procedure, non_overridable, private :: update_vector_gradients => finite_element_update_vector_gradients
-!     generic :: update_gradients => update_scalar_gradients, &
-!                                        & update_vector_gradients
-!                               
-!     procedure, non_overridable :: impose_strong_dirichlet_bcs => finite_element_impose_strong_dirichlet_bcs
-!     procedure, non_overridable :: get_cell_coordinates => finite_element_get_cell_coordinates
-!  end type finite_element_t
-
-!  type :: p_finite_element_t
-!     type(finite_element_t), pointer :: p => NULL()
-!  end type p_finite_element_t
-
-!  public :: finite_element_t, p_finite_element_t
-
-!  type :: finite_face_t
-!     private
-!     integer(ip)                            :: number_fe_spaces
-!     type(face_topology_t)    , pointer     :: face_topology    =>   NULL()
-!     type(p_finite_element_t)               :: neighbour_fe(2)
-!     type(face_map_t)         , pointer     :: map              =>   NULL()
-!     type(quadrature_t)       , pointer     :: quadrature       =>   NULL() 
-!     type(p_face_integrator_t), allocatable :: face_integrator(:)
-!   contains
-!     procedure, non_overridable :: create              => finite_face_create
-!     procedure, non_overridable :: update_integration  => finite_face_update_integration
-!     procedure, non_overridable :: free                => finite_face_free
-!     procedure, non_overridable :: is_boundary         => finite_face_is_boundary
-!     procedure, non_overridable :: number_neighbours   => finite_face_number_neighbours
-!     procedure, non_overridable :: get_elem2dof        => finite_face_get_elem2dof
-!     procedure, non_overridable :: get_map             => finite_face_get_map
-!     procedure, non_overridable :: get_quadrature      => finite_face_get_quadrature
-!     procedure, non_overridable :: get_face_integrator => finite_face_get_face_integrator
-!     procedure, non_overridable :: get_relative_orientation => finite_face_get_relative_orientation
-!     procedure, non_overridable :: get_relative_rotation => finite_face_get_relative_rotation
-!  end type finite_face_t
-
-!  public :: finite_face_t
-
-!  
-!  integer(ip), parameter :: fe_space_type_cg            = 0 ! H^1 conforming FE space
-!  integer(ip), parameter :: fe_space_type_dg            = 1 ! L^2 conforming FE space + .not. H^1 conforming (weakly imposed via face integration)
-!  integer(ip), parameter :: fe_space_type_dg_conforming = 2 ! DG approximation of L^2 spaces (does not involve coupling by face)
-!  
-!  type :: serial_fe_space_t
-!     private
-!     integer(ip)                                 :: number_fe_spaces   
-!     type(p_fe_map_t)              , allocatable :: fe_map(:)
-!     type(face_map_t)              , allocatable :: face_map(:)
-!     type(p_reference_fe_t)        , allocatable :: reference_fe_phy_list(:)
-!     type(p_quadrature_t)          , allocatable :: quadrature(:)
-!     type(quadrature_t)            , allocatable :: face_quadrature(:)
-!     type(p_volume_integrator_t)   , allocatable :: volume_integrator(:)
-!     type(p_face_integrator_t)     , allocatable :: face_integrator(:)
-!     integer(ip)                   , allocatable :: fe_space_type(:)
-!     
-!     ! Strong Dirichlet data
-!     integer(ip)                 :: number_strong_dirichlet_dofs
-!     integer(ip), allocatable    :: strong_dirichlet_codes(:)
-!     type(serial_scalar_array_t) :: strong_dirichlet_values
-!     
-!     type(triangulation_t)         , pointer     :: triangulation =>  NULL()
-!     type(finite_element_t)        , allocatable :: fe_array(:)
-!     type(finite_face_t)           , allocatable :: face_array(:)
-!     
-!     ! Data related to block structure of the FE system + size of each block
-!     integer(ip)                                 :: number_blocks
-!     integer(ip)                   , allocatable :: field_blocks(:)
-!     logical                       , allocatable :: field_coupling(:,:)
-!     logical                       , allocatable :: blocks_coupling(:,:)
-!     integer(ip)                   , allocatable :: number_dofs_per_block(:)
-!     integer(ip)                   , allocatable :: number_dofs_per_field(:)
-!   contains
-!     procedure, private         :: serial_fe_space_create
-!     generic                    :: create => serial_fe_space_create
-!     procedure, non_overridable, private :: set_up_strong_dirichlet_bcs => serial_fe_space_set_up_strong_dirichlet_bcs
-!     procedure                  :: fill_dof_info => serial_fe_space_fill_dof_info
-!     procedure                 , private :: fill_elem2dof_and_count_dofs => serial_fe_space_fill_elem2dof_and_count_dofs
-!     procedure                 , private :: renumber_dofs_block => serial_fe_space_renumber_dofs_block
-!     procedure                  :: free => serial_fe_space_free
-!     procedure                  :: print => serial_fe_space_print
-!     procedure, non_overridable :: initialize_integration => serial_fe_space_initialize_integration
-!     procedure, non_overridable, private :: initialize_quadrature => serial_fe_space_initialize_quadrature
-!     procedure, non_overridable, private :: initialize_volume_integrator => serial_fe_space_initialize_volume_integrator
-!     procedure, non_overridable, private :: initialize_fe_map => serial_fe_space_initialize_fe_map
-!     procedure                  :: create_assembler => serial_fe_space_create_assembler
-!     procedure                  :: symbolic_setup_assembler => serial_fe_space_symbolic_setup_assembler
-!     
-!     procedure                  :: get_total_number_dofs  => serial_fe_space_get_total_number_dofs
-!     procedure                  :: get_field_number_dofs  => serial_fe_space_get_field_number_dofs
-!     procedure                  :: get_block_number_dofs  => serial_fe_space_get_block_number_dofs
-!     procedure, non_overridable :: get_number_elements => serial_fe_space_get_number_elements
-!     procedure, non_overridable :: get_number_interior_faces => serial_fe_space_get_number_interior_faces
-!     procedure, non_overridable :: get_number_boundary_faces => serial_fe_space_get_number_boundary_faces
-!     procedure, non_overridable :: get_number_fe_spaces => serial_fe_space_get_number_fe_spaces
-!     procedure, non_overridable :: get_fe_space_type => serial_fe_space_get_fe_space_type
-!     procedure                  :: get_finite_element => serial_fe_space_get_finite_element
-!     procedure, non_overridable :: get_finite_face => serial_fe_space_get_finite_face
-!     procedure, non_overridable :: get_number_blocks => serial_fe_space_get_number_blocks
-!     procedure, non_overridable :: get_field_blocks => serial_fe_space_get_field_blocks
-!     procedure, non_overridable :: get_field_coupling => serial_fe_space_get_field_coupling
-!     procedure, private         :: get_max_number_nodes_field => serial_fe_space_get_max_number_nodes_field
-!     procedure, private         :: get_max_number_nodes_fe_space => serial_fe_space_get_max_number_nodes_fe_space
-!     generic :: get_max_number_nodes => get_max_number_nodes_field, & 
-!                                      & get_max_number_nodes_fe_space
-!     procedure, non_overridable :: get_max_number_quadrature_points => serial_fe_space_get_max_number_quadrature_points
-!     procedure, non_overridable :: create_face_array => serial_fe_space_create_face_array
-
-!     procedure :: update_bc_value_scalar => serial_fe_space_update_bc_value_scalar
-!     procedure :: update_bc_value_vector => serial_fe_space_update_bc_value_vector
-!     procedure :: update_bc_value_tensor => serial_fe_space_update_bc_value_tensor
-!     generic :: update_bc_value => update_bc_value_scalar, &
-!                                 & update_bc_value_vector, &
-!                                 & update_bc_value_tensor 
-!     
-!     procedure                  :: create_global_fe_function => serial_fe_space_create_global_fe_function
-!     procedure                  :: update_global_fe_function_bcs => serial_fe_space_update_global_fe_function_bcs
-!     procedure, private         :: create_fe_function_scalar => serial_fe_space_create_fe_function_scalar
-!     procedure, private         :: create_fe_function_vector => serial_fe_space_create_fe_function_vector
-!     procedure, private         :: create_fe_function_tensor => serial_fe_space_create_fe_function_tensor
-!     generic :: create_fe_function => create_fe_function_scalar, &
-!                                    & create_fe_function_vector, &
-!                                    & create_fe_function_tensor
-
-!     procedure, non_overridable :: interpolate_fe_function_scalar => serial_fe_space_interpolate_fe_function_scalar
-!     procedure, non_overridable :: interpolate_fe_function_vector => serial_fe_space_interpolate_fe_function_vector
-!     procedure, non_overridable :: interpolate_fe_function_tensor => serial_fe_space_interpolate_fe_function_tensor
-!     generic :: interpolate_fe_function => interpolate_fe_function_scalar, &
-!                                         & interpolate_fe_function_vector, &
-!                                         & interpolate_fe_function_tensor    
-
-!     procedure, non_overridable :: get_max_order => serial_fe_space_get_max_order
-!     procedure, non_overridable :: get_max_order_fe_space_component => serial_fe_space_get_max_order_fe_space_component
-!     procedure, non_overridable :: get_triangulation => serial_fe_space_get_triangulation
-!     procedure, non_overridable :: get_reference_fe_geo => serial_fe_space_get_reference_fe_geo
-!     procedure, non_overridable :: get_reference_fe_phy => serial_fe_space_get_reference_fe_phy
-!  end type serial_fe_space_t
-
-!  public :: serial_fe_space_t
-!  
+    
   type, extends(cell_accessor_t) :: coarse_fe_accessor_t
     private
     type(coarse_fe_space_t), pointer :: coarse_fe_space
@@ -885,65 +675,8 @@ module fe_space_names
  end type coarse_fe_space_t
  
  public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_accessor_t, coarse_fe_object_accessor_t
-!  
-!  ! These parameter constants are used in order to generate a unique (non-consecutive) 
-!  ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
-!  ! See type(par_fe_space_t)%generate_non_consecutive_dof_gid()
-!  integer(ip), parameter :: cell_gid_shift              = 44
-!  integer(ip), parameter :: dofs_per_reference_fe_shift = 14
-!  integer(ip), parameter :: number_fields_shift         = igp*8-(cell_gid_shift+dofs_per_reference_fe_shift)-1
-!  
-!  type, extends(serial_fe_space_t) :: par_fe_space_t
-!     private
-!     type(par_triangulation_t), pointer     :: par_triangulation => NULL()
-!     type(finite_element_t)   , allocatable :: ghost_fe_array(:)
-!     type(dof_import_t)       , allocatable :: blocks_dof_import(:)
-!  contains
-!     procedure, non_overridable        , private :: par_fe_space_create
-!     procedure, non_overridable        , private :: serial_fe_space_create                          => par_fe_space_serial_fe_space_create
-!     generic                                     :: create                                          => par_fe_space_create
-!     procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info
-!     procedure                         , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
-!     procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface
-!     procedure                         , private :: renumber_dofs_block                             => par_fe_space_renumber_dofs_block
-!     procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
-!     procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
-!     procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
-!     procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner   => par_fe_space_raw_interface_data_by_continuity_decide_owner
-!     procedure        , non_overridable, private :: compute_raw_interface_data_by_face_integ        => par_fe_space_compute_raw_interface_data_by_face_integ
-!     procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => par_fe_space_compute_ubound_num_itfc_couplings_by_continuity
-!     procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_face_integ => par_fe_space_compute_ubound_num_itfc_couplings_by_face_integ
-!     procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_gid                => par_fe_space_generate_non_consecutive_dof_gid
-!     procedure        , non_overridable          :: get_block_dof_import                            => par_fe_space_get_block_dof_import
-!     procedure                                   :: get_total_number_dofs                           => par_fe_space_get_total_number_dofs
-!     procedure                                   :: get_field_number_dofs                           => par_fe_space_get_field_number_dofs
-!     procedure                                   :: get_block_number_dofs                           => par_fe_space_get_block_number_dofs
-!     procedure        , non_overridable          :: get_total_number_interior_dofs                  => par_fe_space_get_total_number_interior_dofs
-!     procedure        , non_overridable          :: get_total_number_interface_dofs                 => par_fe_space_get_total_number_interface_dofs
-!     procedure        , non_overridable          :: get_block_number_interior_dofs                  => par_fe_space_get_block_number_interior_dofs
-!     procedure        , non_overridable          :: get_block_number_interface_dofs                 => par_fe_space_get_block_number_interface_dofs
-!     procedure                                   :: get_finite_element                              => par_fe_space_get_finite_element
-!     procedure                                   :: get_par_environment                             => par_fe_space_get_par_environment
-!     procedure                                   :: get_par_triangulation                           => par_fe_space_get_par_triangulation
-!     procedure                                   :: print                                           => par_fe_space_print
-!     procedure                                   :: free                                            => par_fe_space_free
-!     procedure                                   :: create_assembler                                => par_fe_space_create_assembler
-!     procedure                                   :: symbolic_setup_assembler                        => par_fe_space_symbolic_setup_assembler
-!     procedure                                   :: update_bc_value_scalar                          => par_fe_space_update_bc_value_scalar
-!     procedure                                   :: update_bc_value_vector                          => par_fe_space_update_bc_value_vector
-!     procedure                                   :: update_bc_value_tensor                          => par_fe_space_update_bc_value_tensor
-!     procedure                                   :: create_global_fe_function                       => par_fe_space_create_global_fe_function
-!     procedure                                   :: update_global_fe_function_bcs                   => par_fe_space_update_global_fe_function_bcs
-!     
-!     ! A method plus helper TBPs in charge of putting coarse DoFs on top of coarse VEFs 
-!     procedure        , non_overridable          :: setup_dofs_objects_and_constraint_matrix        => par_fe_space_setup_dofs_objects_and_constraint_matrix
-!     procedure        , non_overridable, private :: setup_dofs_objects_by_continuity                => par_fe_space_setup_dofs_objects_by_continuity
-!     procedure        , non_overridable, private :: setup_constraint_matrix                         => par_fe_space_setup_constraint_matrix
-!  end type
 
-!  public :: par_fe_space_t
-!  
-  type fe_function_t
+ type fe_function_t
    private
    class(vector_t), allocatable  :: dof_values
    type(serial_scalar_array_t)   :: strong_dirichlet_values
