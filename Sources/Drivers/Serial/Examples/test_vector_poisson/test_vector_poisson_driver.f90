@@ -108,8 +108,8 @@ contains
 
     this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,                                     &
                                                  fe_type = fe_type_lagrangian,&!fe_type_raviart_thomas,                                 &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                 order = 5,                                                   &
+                                                 number_dimensions = 2,&  !this%triangulation%get_num_dimensions(), &
+                                                 order = 3,                                                   &
                                                  field_type = field_type_vector,                              &
                                                  continuity = .true. )
   end subroutine setup_reference_fes
