@@ -16,7 +16,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-             echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_square_quads --prefix 'square_quads' --nparts '4'i -gorder $gorder -order $order"
+             echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_square_quads --prefix 'square_quads' --nparts '4' -gorder $gorder -order $order"
              $MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_square_quads --prefix 'square_quads' --nparts '4' -gorder $gorder -order $order
              if [ $? -ne 0 ] 
              then
@@ -26,14 +26,14 @@ then
        done
     done
 
-    # Square + Tets        
+      # Square + Tets        
       for gorder in 1 #2 3 4 5 6
       do
        for order in 1 2 3 #4 5 6
         do
           if [ $order -ge $gorder ]
           then
-             echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_square_tetrahedra --prefix 'square_tetrahedra' --nparts '4'i -gorder $gorder -order $order"
+             echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_square_tetrahedra --prefix 'square_tetrahedra' --nparts '4' -gorder $gorder -order $order"
              $MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_square_tetrahedra --prefix 'square_tetrahedra' --nparts '4' -gorder $gorder -order $order
              if [ $? -ne 0 ]
              then
@@ -42,10 +42,6 @@ then
           fi
        done
     done
-
-
-
-
 
    else
       echo "$0: input data directory not found!"

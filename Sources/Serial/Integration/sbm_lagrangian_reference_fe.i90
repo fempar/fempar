@@ -180,8 +180,7 @@ end subroutine lagrangian_reference_fe_create_face_interpolation
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine lagrangian_reference_fe_create_face_local_interpolation ( this, quadrature, &
-     & interpolation)
+subroutine lagrangian_reference_fe_create_face_local_interpolation (this, quadrature, interpolation)
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
@@ -189,15 +188,12 @@ subroutine lagrangian_reference_fe_create_face_local_interpolation ( this, quadr
 
   type(p_reference_fe_t) :: aux_reference_fe
 
-  integer(ip) :: number_nodes_face_scalar, number_dimensions_face
-
   aux_reference_fe = make_reference_fe ( this%topology, &
-       this%fe_type, &
-       this%number_dimensions-1, &
-       this%order_vector(1), &
-       this%field_type, &
-       this%continuity, &
-       enable_face_integration=.false. )
+                                         this%fe_type, &
+                                         this%number_dimensions-1, &
+                                         this%order_vector(1), &
+                                         this%field_type, &
+                                         this%continuity )
 
   call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
   call aux_reference_fe%free()
