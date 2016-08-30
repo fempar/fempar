@@ -725,7 +725,7 @@ contains
                 endif
 
                 ! Calculate number nodes in origin and target
-                number_nodes_origin = reference_fe_origin%get_number_nodes_scalar()
+                number_nodes_origin = reference_fe_origin%get_number_shape_functions()
                 number_nodes_target = reference_fe_target%get_number_shape_functions()
 
                 ! Get elem2dof

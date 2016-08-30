@@ -211,7 +211,7 @@ subroutine polytope_tree_create( this, number_dimensions, topology )
            this%n_face_array(d) = aux_array(j)
            d = d+1
         end if
-     end do    
+     end do
      call sort( d-c, this%n_face_array(c:d-1) ) 
      c = d
   end do
@@ -274,7 +274,7 @@ end function polytope_tree_create_children_iterator
 
 !=================================================================================================
 function polytope_tree_get_number_n_faces(this) 
-       implicit none
+  implicit none
   class(polytope_tree_t), intent(in) :: this
   integer(ip)                          :: polytope_tree_get_number_n_faces
   polytope_tree_get_number_n_faces = this%number_n_faces     
@@ -282,7 +282,7 @@ end function polytope_tree_get_number_n_faces
 
 !=================================================================================================
 function polytope_tree_get_n_face(this, n_face_index) 
-       implicit none
+  implicit none
   class(polytope_tree_t), intent(in) :: this
   integer(ip)         , intent(in) :: n_face_index
   integer(ip)                          :: polytope_tree_get_n_face
@@ -291,7 +291,7 @@ end function polytope_tree_get_n_face
 
 !=================================================================================================
 function polytope_tree_get_n_face_dimension(this, n_face_index) 
-       implicit none
+  implicit none
   class(polytope_tree_t), intent(in) :: this
   integer(ip)         , intent(in) :: n_face_index
   integer(ip)                          :: polytope_tree_get_n_face_dimension
@@ -300,7 +300,7 @@ end function polytope_tree_get_n_face_dimension
 
 !=================================================================================================
 function polytope_tree_n_face_dir_is_fixed(this, n_face_index, dir) 
-       implicit none
+  implicit none
   class(polytope_tree_t), intent(in) :: this
   integer(ip)           , intent(in) :: n_face_index
   integer(ip)           , intent(in) :: dir
@@ -419,7 +419,7 @@ end subroutine node_array_free
 
 !=================================================================================================
 function  node_array_get_number_nodes(this) 
-       implicit none
+  implicit none
   class(node_array_t), intent(in) :: this
   integer(ip)                          :: node_array_get_number_nodes
   node_array_get_number_nodes = this%number_nodes
@@ -510,7 +510,7 @@ end function n_face_iterator_current_ijk
 !=================================================================================================
 function n_face_iterator_current ( this )
   implicit none
-  class(n_face_iterator_t), intent(in) :: this
+  class(n_face_iterator_t), intent(inout) :: this
   integer(ip) :: n_face_iterator_current
   n_face_iterator_current = this%polytope_tree%ijk_to_index( this%current_ijk() )
 end function n_face_iterator_current
@@ -741,7 +741,7 @@ function facet_orientation( n_face, dim )
   integer(ip) :: n_face_type, base_n_face_type, axis_swap
   assert( n_face_dimension( n_face, dim) == dim-1 ) ! Only has sense for facets
   facet_orientation = 0
-  
+
   n_face_type = IBITS( n_face, dim, dim )
   base_n_face_type = IBSET(0, dim-1)-1
   axis_swap = IEOR(n_face_type,base_n_face_type)
@@ -759,3 +759,117 @@ function facet_orientation( n_face, dim )
      facet_orientation = 1-facet_orientation
   end if
 end function facet_orientation
+
+subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_permutations, num_rot, num_perm)
+  implicit none
+  class(polytope_tree_t)  , intent(in)    :: base_polytope
+  integer(ip)             , intent(in)    :: order, idime
+  type(allocatable_array_ip2_t), intent(inout) :: own_node_permutations
+  integer(ip)             , intent(inout) :: num_rot, num_perm
+  type(polytope_tree_t) :: n_face
+  type(node_array_t)    :: nodes_n_face, vertices_n_face
+  integer(ip)           :: n_face_type, topology_n_face, c, iorie, j
+  type(node_iterator_t) :: node_iterator, vertex_iterator
+  integer(ip)           :: ijk_node(SPACE_DIM), ijk_anchor_node(SPACE_DIM)
+  integer(ip)           :: ijk_rot(SPACE_DIM), ijk_perm(SPACE_DIM), order_vector(SPACE_DIM),aux, ones(SPACE_DIM)
+  order_vector = order
+  ones = 1
+  ! We fill the permutations for all dimensions
+  num_rot = 0
+  num_perm = 0
+  if ( order > 1 ) then 
+     ! We go through all the nodes of the first n-face of this dimension
+     n_face_type = 0
+     do j = 0,idime-1
+        n_face_type = IBSET(n_face_type,idime+j) 
+     end do
+     topology_n_face = IBITS(base_polytope%topology,0,idime)
+     ! It only works for isotropic order **IMPORTANT**
+     ! It is NOT a limitation of the code but a limitation of anisotropic Lagrangian spaces
+     ! based on node continuity, since they require that all n-faces will be oriented to 
+     ! have sense
+     call n_face%create( idime, topology_n_face )
+     call nodes_n_face%create( n_face, order_vector )
+     call vertices_n_face%create( n_face, order = ones )
+     node_iterator = nodes_n_face%create_node_iterator( n_face_type, own_boundary = .false. )
+     vertex_iterator = vertices_n_face%create_node_iterator( n_face_type, own_boundary = .true. )
+     c = 0
+     call node_iterator%init()
+     do while (.not. node_iterator%has_finished() )
+        c = c+1
+        call node_iterator%next() 
+     end do
+     call own_node_permutations%create(c, idime * vertices_n_face%number_nodes )
+     num_perm = idime
+     num_rot = vertices_n_face%number_nodes
+     c = 0
+     do iorie = 1,idime
+        call vertex_iterator%init()
+        do while (.not. vertex_iterator%has_finished() )
+           aux =  vertex_iterator%current_ijk()
+           ! Chapuza
+           ijk_anchor_node = vertex_iterator%coordinate
+           WRITE(*,*) 'ROTATION, ORIGINAL ANCHOR NODE:',ijk_anchor_node(1:idime)
+
+           c = c+1
+           WRITE(*,*) 'ORIENTATION:',iorie
+           call node_iterator%init()
+           do while (.not. node_iterator%has_finished() )
+              aux =  node_iterator%current_ijk()
+              ! Chapuza
+              ijk_node = node_iterator%coordinate
+              write(*,*) 'Current node IJK:',ijk_node(1:idime)
+              write(*,*) '***Current node:***',ijk_to_index(ijk_node-1, order_vector-2,idime)+1
+
+              ! Now rotate the n-face based on the anchor node
+              ! If the anchor node is in the original position (0) perm = Id
+              ijk_rot =  rotate(ijk_node,ijk_anchor_node,idime, order )
+              ! Next, consider the possible orientations
+
+              ijk_perm = change_orientation(ijk_rot,iorie,idime)
+              write(*,*) 'ROTATED node IJK:', ijk_rot(1:idime)
+              write(*,*) 'ROTATED + ORIENTED node IJK:', ijk_perm(1:idime)
+              write(*,*) '***final node:***', ijk_to_index(ijk_perm-1, order_vector-2,idime)+1
+              !write(*,*) 'ROTATED + ORIENTED node OLD ARRAY:', nodes_n_face%ijk_to_index(ijk_to_index(ijk_perm,this%order,idime))
+              !write(*,*) 'node iterator number:', ijk_to_index(ijk_node-1,this%order-2,idime)+1
+              own_node_permutations%a(ijk_to_index(ijk_node-1, order_vector-2,idime)+1,c) =  ijk_to_index(ijk_perm-1, order_vector-2,idime)+1
+              !nodes_n_face%ijk_to_index(ijk_to_index(ijk_perm,this%order,idime))
+              ! Be careful, ijk_perm is not contiguous for TETs, etc.
+              call node_iterator%next() 
+           end do
+           call vertex_iterator%next() 
+        end do
+     end do
+  end if
+end subroutine node_array_fill_permutations
+
+function rotate( ijk_node, ijk_anchor_node, face_dim, order )
+  implicit none
+  integer(ip), intent(in) :: ijk_node(SPACE_DIM), ijk_anchor_node(SPACE_DIM), face_dim, order
+  integer(ip) :: i, rotate(SPACE_DIM), aux1, aux2, rot_vertex(SPACE_DIM)
+  rot_vertex = ijk_anchor_node
+  rotate = ijk_node
+  do while ( sum(rot_vertex(1:face_dim)) /= 0 )
+     aux1 = rotate(1)
+     aux2 = rot_vertex(1)
+     do i = 1,face_dim-1
+        rotate(i) = rotate(i+1)
+        rot_vertex(i) = rot_vertex(i+1)
+     end do
+     rotate(face_dim) = order - aux1
+     rot_vertex(face_dim) = 1 - aux2
+  end do
+end function rotate
+
+pure function change_orientation( ijk_node, orientation, face_dim )
+  implicit none
+  integer(ip), intent(in) :: ijk_node(SPACE_DIM), orientation, face_dim
+  integer(ip) :: change_orientation(SPACE_DIM)
+  ! if ( dim == 1) nothing to be done
+  if ( orientation == 2 .and. face_dim == 2 ) then
+     change_orientation(1) = ijk_node(2)
+     change_orientation(2) = ijk_node(1)
+  else
+     change_orientation = ijk_node
+  end if
+end function change_orientation
