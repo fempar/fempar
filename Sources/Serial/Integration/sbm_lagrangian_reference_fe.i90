@@ -604,13 +604,13 @@ subroutine lagrangian_reference_fe_fill (this)
      
      
    end do
+   
+   do i = 1,  this%number_dimensions-1
+   write(*,*) 'aux_own_node_permutations',this%own_node_permutations(i)%nd1
+   write(*,*) 'aux_own_node_permutations',this%own_node_permutations(i)%nd2
+   if ( allocated(this%own_node_permutations(i)%a) )write(*,*) 'aux_own_node_permutations',this%own_node_permutations(i)%a
+   end do 
   end if
-  
-  do i = 1,  this%number_dimensions-1
-  write(*,*) 'aux_own_node_permutations',this%own_node_permutations(i)%nd1
-  write(*,*) 'aux_own_node_permutations',this%own_node_permutations(i)%nd2
-  if ( allocated(this%own_node_permutations(i)%a) )write(*,*) 'aux_own_node_permutations',this%own_node_permutations(i)%a
-  end do 
   
         
   if ( this%number_field_components /= 1 ) then
