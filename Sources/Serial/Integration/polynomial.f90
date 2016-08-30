@@ -46,8 +46,6 @@ module polynomial_names
      procedure, non_overridable          :: free            => polynomial_free
      procedure, non_overridable          :: get_values      => polynomial_get_values
      procedure, nopass                   :: generate_basis  => polynomial_generate_basis
-     procedure, non_overridable, private ::                    polynomial_assignment
-     generic                             :: assignment(=)   => polynomial_assignment
      ! procedure ( polynomial_assign_interface), deferred :: assign
      ! generic(=) :: assign
   end type polynomial_t
@@ -59,8 +57,6 @@ module polynomial_names
      procedure, non_overridable          :: create        => polynomial_allocatable_array_create
      procedure, non_overridable          :: copy          => polynomial_allocatable_array_copy
      procedure, non_overridable          :: free          => polynomial_allocatable_array_free
-     procedure, non_overridable, private ::                  polynomial_allocatable_array_assignment
-     generic                             :: assignment(=) => polynomial_allocatable_array_assignment
   end type polynomial_allocatable_array_t
 
   ! type, extends(polynomial_t) :: lagrange_polynomial_t
@@ -168,27 +164,16 @@ end subroutine polynomial_generate_basis
     this%order = order
     call memalloc(order+1, this%coefficients, __FILE__, __LINE__)
   end subroutine polynomial_create
-  
-  subroutine polynomial_assignment (lhs, rhs)
-  implicit none
-  class(polynomial_t), intent(out) :: lhs
-  type(polynomial_t),  intent(in)  :: rhs
-  check(.false.)
-  call lhs%free()
-  call lhs%create(rhs%order)
-  if(allocated(rhs%coefficients)) lhs%coefficients = rhs%coefficients
-  end subroutine polynomial_assignment
 
-    subroutine polynomial_copy (lhs, rhs)
-  implicit none
-  class(polynomial_t), intent(inout) :: lhs
-  type(polynomial_t),  intent(in)    :: rhs
+  subroutine polynomial_copy (lhs, rhs)
+     class(polynomial_t), intent(inout) :: lhs
+     type(polynomial_t),  intent(in)    :: rhs
 
-  call lhs%free()
-  if(allocated(rhs%coefficients)) then
-     call lhs%create(rhs%order)
-     lhs%coefficients = rhs%coefficients
-  endif
+     call lhs%free()
+     if(allocated(rhs%coefficients)) then
+        call lhs%create(rhs%order)
+        lhs%coefficients = rhs%coefficients
+     endif
   end subroutine polynomial_copy
   
   subroutine polynomial_free ( this )
@@ -305,24 +290,6 @@ end subroutine polynomial_generate_basis
       enddo
    endif
   end subroutine polynomial_allocatable_array_copy
-  
-  subroutine polynomial_allocatable_array_assignment (lhs, rhs)
-   implicit none
-   class(polynomial_allocatable_array_t), intent(out) :: lhs
-   type(polynomial_allocatable_array_t),  intent(in)  :: rhs
-   integer(ip)                                        :: idx
-   check(.false.)
-   if(allocated(rhs%polynomials)) then
-      call lhs%create(size(rhs%polynomials), rhs%polynomials(1))
-      do idx=1, size(rhs%polynomials)
-         !lhs%polynomials(idx) = rhs%polynomials(idx) ! crash with gfortran 5.4.0 20160609
-         call lhs%polynomials(idx)%create(rhs%polynomials(idx)%order)
-         if(allocated(rhs%polynomials(idx)%coefficients)) lhs%polynomials(idx)%coefficients = rhs%polynomials(idx)%coefficients
-      enddo
-   else
-      call lhs%free()
-   endif
-  end subroutine polynomial_allocatable_array_assignment
   
   subroutine polynomial_allocatable_array_free( this )
     implicit none
