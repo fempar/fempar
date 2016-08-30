@@ -41,10 +41,11 @@ module polynomial_names
      integer(ip)           :: order
      real(rp), allocatable :: coefficients(:)
    contains
-     procedure, non_overridable         :: create          => polynomial_create
-     procedure, non_overridable         :: free            => polynomial_free
-     procedure, non_overridable         :: get_values      => polynomial_get_values
-     procedure, nopass                  :: generate_basis  => polynomial_generate_basis
+     procedure, non_overridable          :: create          => polynomial_create
+     procedure, non_overridable          :: copy            => polynomial_copy
+     procedure, non_overridable          :: free            => polynomial_free
+     procedure, non_overridable          :: get_values      => polynomial_get_values
+     procedure, nopass                   :: generate_basis  => polynomial_generate_basis
      ! procedure ( polynomial_assign_interface), deferred :: assign
      ! generic(=) :: assign
   end type polynomial_t
@@ -53,8 +54,9 @@ module polynomial_names
      private
      class(polynomial_t), allocatable :: polynomials(:)
    contains
-     procedure, non_overridable :: create => polynomial_allocatable_array_create
-     procedure, non_overridable :: free   => polynomial_allocatable_array_free
+     procedure, non_overridable          :: create        => polynomial_allocatable_array_create
+     procedure, non_overridable          :: copy          => polynomial_allocatable_array_copy
+     procedure, non_overridable          :: free          => polynomial_allocatable_array_free
   end type polynomial_allocatable_array_t
 
   ! type, extends(polynomial_t) :: lagrange_polynomial_t
@@ -162,6 +164,17 @@ end subroutine polynomial_generate_basis
     this%order = order
     call memalloc(order+1, this%coefficients, __FILE__, __LINE__)
   end subroutine polynomial_create
+
+  subroutine polynomial_copy (lhs, rhs)
+     class(polynomial_t), intent(inout) :: lhs
+     type(polynomial_t),  intent(in)    :: rhs
+
+     call lhs%free()
+     if(allocated(rhs%coefficients)) then
+        call lhs%create(rhs%order)
+        lhs%coefficients = rhs%coefficients
+     endif
+  end subroutine polynomial_copy
   
   subroutine polynomial_free ( this )
     class(polynomial_t), intent(inout)    :: this
@@ -180,12 +193,12 @@ end subroutine polynomial_generate_basis
     this%number_dimensions = dim
     this%number_polynomials = 1
     do i = 1, dim
-       this%polynomial_1D_basis(i) = polynomial_1D_basis(i)
+       call this%polynomial_1D_basis(i)%copy(polynomial_1D_basis(i))
        this%number_pols_dim(i) = size(polynomial_1D_basis(i)%polynomials)
        this%number_polynomials = this%number_polynomials * this%number_pols_dim(i)
     end do
   end subroutine tensor_product_polynomial_space_create
-  
+    
   subroutine tensor_product_polynomial_space_fill( this, points )
     implicit none
     class(tensor_product_polynomial_space_t), intent(inout) :: this
@@ -263,6 +276,20 @@ end subroutine polynomial_generate_basis
    call this%free()
    allocate ( this%polynomials(number_polynomials), mold=mold_polynomial )
   end subroutine polynomial_allocatable_array_create
+  
+  subroutine polynomial_allocatable_array_copy (lhs, rhs)
+   implicit none
+   class(polynomial_allocatable_array_t), intent(inout) :: lhs
+   type(polynomial_allocatable_array_t),  intent(in)    :: rhs
+   integer(ip)                                          :: idx
+   call lhs%free()
+   if(allocated(rhs%polynomials)) then
+      call lhs%create(size(rhs%polynomials), rhs%polynomials(1))
+      do idx=1, size(rhs%polynomials)
+         call lhs%polynomials(idx)%copy(rhs%polynomials(idx))
+      enddo
+   endif
+  end subroutine polynomial_allocatable_array_copy
   
   subroutine polynomial_allocatable_array_free( this )
     implicit none
