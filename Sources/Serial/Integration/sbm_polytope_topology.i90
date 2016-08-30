@@ -382,7 +382,7 @@ subroutine node_array_fill ( this )
   end do
   ! Sort nodes based on its bit-based index
   call sort( c, this%node_array )    
-  write(*,*) 'node_array',this%node_array
+  !write(*,*) 'node_array',this%node_array
   do i =1,c
      !write(*,*) 'n-face(',i,') :'
      !write(*,'(B32)') this%node_array(i)
@@ -709,8 +709,9 @@ end function node_iterator_current
 !=================================================================================================
 
 !=================================================================================================
-function ijk_to_index( n, order, dim )
-  integer(ip), intent(in) :: n(0:dim-1), order(1:SPACE_DIM), dim
+pure function ijk_to_index( n, order, dim )
+  implicit none
+  integer(ip), intent(in) :: dim, n(0:dim-1), order(1:SPACE_DIM)
   integer(ip) :: ijk_to_index, i, aux_order(0:SPACE_DIM-1)
   ijk_to_index = 0
   aux_order(0) = 1
@@ -723,7 +724,8 @@ function ijk_to_index( n, order, dim )
 end function ijk_to_index
 
 !=================================================================================================
-function n_face_dimension( n_face, dim )
+pure function n_face_dimension( n_face, dim )
+  implicit none
   integer(ip), intent(in) :: n_face, dim
   integer(ip) :: n_face_dimension, i
   n_face_dimension = 0
@@ -733,6 +735,7 @@ function n_face_dimension( n_face, dim )
 end function n_face_dimension
 
 function facet_orientation( n_face, dim )
+  implicit none
   integer(ip), intent(in) :: n_face, dim
   integer(ip) :: facet_orientation
   integer(ip) :: n_face_type, base_n_face_type, axis_swap

@@ -149,7 +149,7 @@ subroutine lagrangian_reference_fe_create_interpolation ( this, quadrature, &
      ntens = ntens + i
   end do
 
-  call interpolation%create( this%number_dimensions, this%number_shape_functions, &
+  call interpolation%create( this%number_dimensions, this%node_array%number_nodes, &
        quadrature%number_quadrature_points, ntens, compute_hessian )
 
   call this%fill_interpolation( quadrature, interpolation )
@@ -423,7 +423,7 @@ subroutine lagrangian_reference_fe_set_nodal_quadrature (this)
   implicit none
   class(lagrangian_reference_fe_t), intent(inout) :: this
   ! Create nodal quadrature
-  call this%nodal_quadrature%create( this%number_dimensions, this%number_shape_functions )
+  call this%nodal_quadrature%create( this%number_dimensions, this%node_array%number_nodes )
   ! Fill nodal quadrature
   call this%fill_nodal_quadrature ( this%nodal_quadrature )  
 end subroutine lagrangian_reference_fe_set_nodal_quadrature

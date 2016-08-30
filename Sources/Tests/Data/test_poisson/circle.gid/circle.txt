@@ -1,0 +1,434 @@
+ENTITIES
+POINT
+Num: 1 HigherEntity: 3 conditions: 0 material: 0
+LAYER: Layer0
+Coord: 1.0 0.0 0.0
+END POINT
+POINT
+Num: 2 HigherEntity: 3 conditions: 0 material: 0
+LAYER: Layer0
+Coord: 7.656967152210967e-9 0.9999999999999999 0.0
+END POINT
+POINT
+Num: 3 HigherEntity: 3 conditions: 0 material: 0
+LAYER: Layer0
+Coord: -1.0 -1.1102230246251565e-16 0.0
+END POINT
+POINT
+Num: 4 HigherEntity: 3 conditions: 0 material: 0
+LAYER: Layer0
+Coord: 5.326497750718579e-9 -1.0 0.0
+END POINT
+POINT
+Num: 5 HigherEntity: 3 conditions: 0 material: 0
+LAYER: Layer0
+Coord: -5.551115123125783e-17 -0.565685424949238 0.0
+END POINT
+POINT
+Num: 6 HigherEntity: 3 conditions: 0 material: 0
+LAYER: Layer0
+Coord: 0.565685424949238 -5.551115123125783e-17 0.0
+END POINT
+POINT
+Num: 7 HigherEntity: 3 conditions: 0 material: 0
+LAYER: Layer0
+Coord: 5.551115123125783e-17 0.565685424949238 0.0
+END POINT
+POINT
+Num: 8 HigherEntity: 3 conditions: 0 material: 0
+LAYER: Layer0
+Coord: -0.565685424949238 5.551115123125783e-17 0.0
+END POINT
+NURBLINE
+Num: 2 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=6,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=1
+Points: 1 2
+Number of Control Points= 3 Degree= 2
+Point 1 coords:1.0,0.0,0.0
+Point 2 coords:1.0,0.9999999923430329,0.0
+Point 3 coords:7.656967152210967e-9,0.9999999999999999,0.0
+Number of knots= 6
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=0.0
+knot 4 value=1.0
+knot 5 value=1.0
+knot 6 value=1.0
+Rational weights:
+1.0
+0.7071067838936942
+1.0
+TotalLength= 1.5707963191233154
+END NURBLINE
+NURBLINE
+Num: 3 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=7,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=1
+Points: 2 3
+Number of Control Points= 5 Degree= 2
+Point 1 coords:7.656967152210965e-9,0.9999999999999998,0.0
+Point 2 coords:-0.26794918887751173,1.0000000020516782,0.0
+Point 3 coords:-0.4999999999999998,0.8660254037844387,0.0
+Point 4 coords:-1.0,0.5773502691896257,0.0
+Point 5 coords:-1.0,-1.1102230246251565e-16,0.0
+Number of knots= 8
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=0.0
+knot 4 value=0.3489152633868506
+knot 5 value=0.3489152633868506
+knot 6 value=1.0
+knot 7 value=1.0
+knot 8 value=1.0
+Rational weights:
+1.0
+0.9659258252981839
+1.0
+0.8660254037844386
+1.0
+TotalLength= 1.5707963344518476
+END NURBLINE
+NURBLINE
+Num: 4 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=8,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=1
+Points: 3 4
+Number of Control Points= 5 Degree= 2
+Point 1 coords:-1.0,-1.1102230246251565e-16,0.0
+Point 2 coords:-0.9999999999999999,-0.5773502691896255,0.0
+Point 3 coords:-0.5000000000000004,-0.8660254037844384,0.0
+Point 4 coords:-0.2679491899590868,-1.0000000014272308,0.0
+Point 5 coords:5.326497750718579e-9,-1.0,0.0
+Number of knots= 8
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=0.0
+knot 4 value=0.6510847375301324
+knot 5 value=0.6510847375301324
+knot 6 value=1.0
+knot 7 value=1.0
+knot 8 value=1.0
+Rational weights:
+1.0
+0.8660254037844387
+1.0
+0.9659258255997686
+1.0
+TotalLength= 1.570796332121378
+END NURBLINE
+NURBLINE
+Num: 5 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=5,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=1
+Points: 4 1
+Number of Control Points= 3 Degree= 2
+Point 1 coords:5.326497750718579e-9,-1.0,0.0
+Point 2 coords:0.9999999999999991,-0.9999999946735022,0.0
+Point 3 coords:1.0,-2.4492935982947064e-16,0.0
+Number of knots= 6
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=0.0
+knot 4 value=1.0
+knot 5 value=1.0
+knot 6 value=1.0
+Rational weights:
+1.0
+0.7071067830697491
+1.0
+TotalLength= 1.5707963214537846
+END NURBLINE
+STLINE
+Num: 6 HigherEntity: 2 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=64,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=1
+Points: 5 6
+END STLINE
+STLINE
+Num: 7 HigherEntity: 2 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=65,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=1
+Points: 6 7
+END STLINE
+STLINE
+Num: 8 HigherEntity: 2 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=66,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=1
+Points: 7 8
+END STLINE
+STLINE
+Num: 9 HigherEntity: 2 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=60,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=1
+Points: 8 5
+END STLINE
+STLINE
+Num: 10 HigherEntity: 2 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=67,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=1
+Points: 7 2
+END STLINE
+STLINE
+Num: 11 HigherEntity: 2 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=61,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=1
+Points: 6 1
+END STLINE
+STLINE
+Num: 12 HigherEntity: 2 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=63,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=1
+Points: 5 4
+END STLINE
+STLINE
+Num: 13 HigherEntity: 2 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=62,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=1
+Points: 8 3
+END STLINE
+NURBSURFACE
+Num: 2 HigherEntity: 0 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=55,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=0
+NumLines: 4
+Line: 6 Orientation: SAME1ST
+Line: 7 Orientation: SAME1ST
+Line: 8 Orientation: SAME1ST
+Line: 9 Orientation: SAME1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:-5.551115123125783e-17,-0.565685424949238,0.0
+Point 1,2 coords:0.565685424949238,-5.551115123125783e-17,0.0
+Point 2,1 coords:-0.565685424949238,5.551115123125783e-17,0.0
+Point 2,2 coords:5.551115123125783e-17,0.565685424949238,0.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 0
+Center: 0.0 0.0 0.0
+Normal: 0.0 -0.0 1.0
+END NURBSURFACE
+NURBSURFACE
+Num: 3 HigherEntity: 0 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=56,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=0
+NumLines: 4
+Line: 2 Orientation: SAME1ST
+Line: 10 Orientation: DIFF1ST
+Line: 7 Orientation: DIFF1ST
+Line: 11 Orientation: SAME1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:-0.1931534492156768,-0.23142398699096234,0.0
+Point 1,2 coords:1.0568168309150323,-0.23142398699096234,0.0
+Point 2,1 coords:-0.1931534492156768,1.0559452289189721,0.0
+Point 2,2 coords:1.0568168309150323,1.0559452289189721,0.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 1
+Center: 0.41815574614381157 0.4194267775755974 0.0
+Normal: 0.0 0.0 1.0
+END NURBSURFACE
+NURBSURFACE
+Num: 4 HigherEntity: 0 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=57,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=0
+NumLines: 4
+Line: 3 Orientation: SAME1ST
+Line: 13 Orientation: DIFF1ST
+Line: 8 Orientation: DIFF1ST
+Line: 10 Orientation: SAME1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:-1.0556282255767864,-0.18785158860184092,0.0
+Point 1,2 coords:0.23432102719679454,-0.18785158860184092,0.0
+Point 2,1 coords:-1.0556282255767864,1.0565643613619922,0.0
+Point 2,2 coords:0.23432102719679454,1.0565643613619922,0.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 1
+Center: -0.4195657265328593 0.41801709066446663 0.0
+Normal: 0.0 0.0 1.0
+END NURBSURFACE
+NURBSURFACE
+Num: 5 HigherEntity: 0 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=58,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=0
+NumLines: 4
+Line: 4 Orientation: SAME1ST
+Line: 12 Orientation: DIFF1ST
+Line: 9 Orientation: DIFF1ST
+Line: 13 Orientation: SAME1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:-1.0569775332409792,-1.0554696132221182,0.0
+Point 1,2 coords:0.19652819806055988,-1.0554696132221182,0.0
+Point 2,1 coords:-1.0569775332409792,0.22589897633925,0.0
+Point 2,2 coords:0.19652819806055988,0.22589897633925,0.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 1
+Center: -0.4183169867249352 -0.4192655057314818 0.0
+Normal: 0.0 0.0 1.0
+END NURBSURFACE
+NURBSURFACE
+Num: 6 HigherEntity: 0 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=59,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=0
+NumLines: 4
+Line: 5 Orientation: SAME1ST
+Line: 11 Orientation: DIFF1ST
+Line: 6 Orientation: DIFF1ST
+Line: 12 Orientation: SAME1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:-0.23142398414698984,-1.056816831109486,0.0
+Point 1,2 coords:1.0559452293519511,-1.056816831109486,0.0
+Point 2,1 coords:-0.23142398414698984,0.19315345329920552,0.0
+Point 2,2 coords:1.0559452293519511,0.19315345329920552,0.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 1
+Center: 0.41942677904465764 -0.41815574423752366 0.0
+Normal: 0.0 0.0 1.0
+END NURBSURFACE
+END ENTITIES
+MESH dimension 3 ElemType Quadrilateral Nnode 4
+Coordinates
+    1              -1 -1.11022302e-16               0
+    2    -0.565685425  5.55111512e-17               0
+    3 -5.55111512e-17    -0.565685425               0
+    4  5.55111512e-17     0.565685425               0
+    5  5.32649775e-09              -1               0
+    6  7.65696715e-09               1               0
+    7     0.565685425 -5.55111512e-17               0
+    8               1               0               0
+End Coordinates
+
+Elements
+1 7 4 2 3
+2 6 4 7 8
+3 1 2 4 6
+4 5 3 2 1
+5 8 7 3 5
+End Elements
+MESH dimension 3 ElemType Linear Nnode 2
+Coordinates
+End Coordinates
+
+Elements
+6 8 6
+7 6 1
+8 1 5
+9 5 8
+10 3 7
+11 7 4
+12 4 2
+13 2 3
+14 4 6
+15 7 8
+16 3 5
+17 2 1
+End Elements
+PROBLEM DATA
+Title:  value: name
+END PROBLEM DATA
+INTERVAL NUMBER: 1
+NUMBER: 11 CONDITION: Point_id
+CONDTYPE: over points
+CONDMESHTYPE: over nodes
+QUESTION: ID:
+VALUE: 0
+QUESTION: Point_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+End Geometry Entities
+Mesh Entities
+End Mesh Entities
+NUMBER: 21 CONDITION: Line_id
+CONDTYPE: over lines
+CONDMESHTYPE: over body elements
+QUESTION: ID:
+VALUE: 0
+QUESTION: Line_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+    2  Conds: 1 0 
+    3  Conds: 1 0 
+    4  Conds: 1 0 
+    5  Conds: 1 0 
+End Geometry Entities
+Mesh Entities
+E     6  Conds: 1 2 
+E     7  Conds: 1 3 
+E     8  Conds: 1 4 
+E     9  Conds: 1 5 
+End Mesh Entities
+NUMBER: 31 CONDITION: Surface_id
+CONDTYPE: over surfaces
+CONDMESHTYPE: over body elements
+QUESTION: ID:
+VALUE: 0
+QUESTION: Surface_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+End Geometry Entities
+Mesh Entities
+End Mesh Entities
+NUMBER: 41 CONDITION: Volume_id
+CONDTYPE: over volumes
+CONDMESHTYPE: over body elements
+QUESTION: ID:
+VALUE: 0
+QUESTION: Volume_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+End Geometry Entities
+Mesh Entities
+End Mesh Entities
+INTERVAL DATA
+END INTERVAL DATA

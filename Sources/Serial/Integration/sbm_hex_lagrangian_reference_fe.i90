@@ -67,7 +67,6 @@ function hex_lagrangian_reference_fe_get_characteristic_length ( this )
   hex_lagrangian_reference_fe_get_characteristic_length =  2.0_rp
 end function hex_lagrangian_reference_fe_get_characteristic_length
 
-! NOT BEING USED: FOR ADAPTATION PURPOSES
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connectivity)
   implicit none
@@ -80,7 +79,7 @@ subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connec
   integer(ip) :: first_coord(this%number_dimensions)
   integer(ip) :: local_coord(this%number_dimensions)
   integer(ip) :: global_coord(this%number_dimensions)
-  integer(ip) :: ones_dim(SPACE_DIM)
+  integer(ip) :: ones_dim(this%number_dimensions)
   ones_dim = 1
   num_subelems = this%get_number_subelements()
   geo_nnodes = this%get_number_vertices()
@@ -95,10 +94,11 @@ subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connec
     do local_node = 1, geo_nnodes
       !call this%get_node_local_coordinates(local_coord,local_node,this%number_dimensions,1)
       call index_to_ijk( local_node, this%number_dimensions, 2*ones_dim, local_coord )
-      global_coord = first_coord + local_coord
+       
+      global_coord = first_coord + local_coord 
       !connectivity(local_node, subelem) = this%get_node_local_id(global_coord, &
       !                                                   & this%number_dimensions,this%order(1)) ! 
-      connectivity(local_node, subelem) = ijk_to_index(global_coord,this%order_vector,this%number_dimensions)
+      connectivity(local_node, subelem) = ijk_to_index(global_coord,this%order_vector,this%number_dimensions)+1
     end do
   end do
 end subroutine hex_lagrangian_reference_fe_get_subelements_connectivity
@@ -662,7 +662,7 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
     call tensor_product_polynomial_space%create(interpolation%number_dimensions,polynomial_1D_basis)
     call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
 
-    assert ( interpolation%number_shape_functions == tensor_product_polynomial_space%get_number_polynomials() )
+    !assert ( interpolation%number_shape_functions == tensor_product_polynomial_space%get_number_polynomials() )
     
     call memalloc(tensor_product_polynomial_space%get_number_polynomials(),tensor_product_values,__FILE__,__LINE__)
     call memalloc(SPACE_DIM,tensor_product_polynomial_space%get_number_polynomials(),tensor_product_gradients,__FILE__,__LINE__)
@@ -730,7 +730,7 @@ subroutine index_to_ijk( index, ndime, n_pols_dim, ijk )
      aux = aux/n_pols_dim(i)
   end do
   ijk(ndime) = aux
-  ijk = ijk+1
+  !ijk(1:ndime) = ijk(1:ndime)
 end subroutine index_to_ijk
 
 !==================================================================================================
@@ -759,12 +759,12 @@ subroutine hex_lagrangian_reference_fe_set_permutation_2D( this,permutation,numb
         ij_q(3) = number_nodes_x_dim-1-i
         ! Get the global numbering of node (i,j)
         !go = this%get_node_local_id(ij_q(1:2),2,number_nodes_x_dim-1)
-        go = ijk_to_index(ij_q(1:2),ones*number_nodes_x_dim-1,2)
+        go = ijk_to_index(ij_q(1:2),ones*number_nodes_x_dim-1,2)+1
         ! i,j coordinates for the o_r permutation
         ij_n(1:2) = ij_q(ij_perm_quad(1:2,o_r)) 
         ! Get the global numbering of node ij_n
         !permutation(go) = this%get_node_local_id(ij_n,2,number_nodes_x_dim-1)
-        permutation(go) = ijk_to_index(ij_n,ones*number_nodes_x_dim-1,2)
+        permutation(go) = ijk_to_index(ij_n,ones*number_nodes_x_dim-1,2)+1
      end do
   end do
   

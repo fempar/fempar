@@ -226,7 +226,7 @@ end subroutine polynomial_generate_basis
     integer(ip) :: ijk(SPACE_DIM),idime,ishape,jdime
     values = 1.0_rp
     
-    write(*,*) 'iq',q_point
+    !write(*,*) 'iq',q_point
     do ishape = 1, this%number_polynomials
        call index_to_ijk(ishape, this%number_dimensions, this%number_pols_dim, ijk)
           !write(*,*) 'ishape',ishape

@@ -107,7 +107,7 @@ contains
     check(istat==0)
 
     this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,                                     &
-                                                 fe_type = fe_type_raviart_thomas,                                &
+                                                 fe_type = fe_type_lagrangian,&!fe_type_raviart_thomas,                                 &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = 5,                                                   &
                                                  field_type = field_type_vector,                              &
@@ -124,6 +124,7 @@ contains
     call this%fe_space%fill_dof_info() 
     call this%vector_poisson_conditions%set_boundary_function(this%problem_functions%get_boundary_values())
     call this%fe_space%update_strong_dirichlet_bcs_values(this%vector_poisson_conditions)
+    call this%fe_space%print()
   end subroutine setup_fe_space
 
   subroutine setup_system (this)
