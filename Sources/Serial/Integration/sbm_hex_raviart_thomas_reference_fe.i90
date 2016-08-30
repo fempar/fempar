@@ -692,43 +692,6 @@ subroutine hex_raviart_thomas_reference_fe_fill_interpolation( this, quadrature,
   call aux_quadrature%free()
   end subroutine hex_raviart_thomas_reference_fe_fill_face_interpolation
 
-!==================================================================================================
-subroutine hex_raviart_thomas_reference_fe_set_permutation_2D( this,permutation,number_nodes_x_dim, & 
-                                                         & orientation,rotation )
-  implicit none
-  class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(inout) :: permutation(:)
-  integer(ip)                         , intent(in)    :: number_nodes_x_dim
-  integer(ip)                         , intent(in)    :: orientation
-  integer(ip)                         , intent(in)    :: rotation
-  integer(ip) :: o_r,i,j,ij_q(4) ! ij_q = (i,j,p-i,p-j)
-  integer(ip) :: ij_n(2),go
-  integer(ip) :: ij_perm_quad(2,8) = reshape((/ 1, 2, 2, 3, 4, 1, 3, 4, 2, 1, 3, 2, 1, 4, 4, 3/), &
-       &                                     (/2,8/))
-  integer(ip) :: ones(SPACE_DIM)
-  ones = 1
-
-  ! Generic loop+rotation identifier
-  o_r = 4*(orientation-1)+rotation
-  do j = 0,number_nodes_x_dim-1
-     ij_q(2) = j
-     ij_q(4) = number_nodes_x_dim-1-j
-     do i = 0,number_nodes_x_dim-1
-        ij_q(1) = i
-        ij_q(3) = number_nodes_x_dim-1-i
-        ! Get the global numbering of node (i,j)
-        !go = this%get_node_local_id(ij_q(1:2),2,number_nodes_x_dim-1)
-        go = ijk_to_index(ij_q(1:2),ones*number_nodes_x_dim-1,2)
-        ! i,j coordinates for the o_r permutation
-        ij_n(1:2) = ij_q(ij_perm_quad(1:2,o_r)) 
-        ! Get the global numbering of node ij_n
-        !permutation(go) = this%get_node_local_id(ij_n,2,number_nodes_x_dim-1)
-        permutation(go) = ijk_to_index(ij_n,ones*number_nodes_x_dim-1,2)
-     end do
-  end do
-  
-end subroutine hex_raviart_thomas_reference_fe_set_permutation_2D
-
 ! @sbadia: It could be replaced by an anisotropic quadrature
 !==================================================================================================
 function hex_raviart_thomas_reference_fe_set_number_quadrature_points( this, order, dimension )
@@ -739,31 +702,6 @@ function hex_raviart_thomas_reference_fe_set_number_quadrature_points( this, ord
   integer(ip) :: hex_raviart_thomas_reference_fe_set_number_quadrature_points
   hex_raviart_thomas_reference_fe_set_number_quadrature_points = (order + 1)**dimension
 end function
-
-! @sbadia: we should remove this TBP when TETS refactorized
-!=================================================================================================
-function hex_raviart_thomas_reference_fe_compute_number_nodes_scalar(this, order, dimension)
-  implicit none
-  class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: order, dimension
-  integer(ip) :: hex_raviart_thomas_reference_fe_compute_number_nodes_scalar 
-  check( .false. )
-end function hex_raviart_thomas_reference_fe_compute_number_nodes_scalar
-
-! @sbadia: this info already computed in the polytope_t, but being used in the computation of the 
-! permutations to be re-thought
-!=================================================================================================
-function hex_raviart_thomas_reference_fe_get_interior_points_x_dim(this,                   &
-                                                                    & number_interior_points, &
-                                                                    & dimension)
-  implicit none
-  class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: number_interior_points
-  integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: hex_raviart_thomas_reference_fe_get_interior_points_x_dim 
-  hex_raviart_thomas_reference_fe_get_interior_points_x_dim = & 
-     & int(real(number_interior_points,rp)**(1.0_rp/real(dimension,rp)),ip)
-end function hex_raviart_thomas_reference_fe_get_interior_points_x_dim
 
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type

@@ -238,6 +238,7 @@ module reference_fe_names
      procedure :: create_node_iterator => node_array_create_node_iterator
      procedure :: get_number_nodes     => node_array_get_number_nodes
      procedure, private :: fill        => node_array_fill
+     procedure, nopass, private :: fill_permutations => node_array_fill_permutations
   end type node_array_t
 
   public :: node_array_t
@@ -357,7 +358,6 @@ module reference_fe_names
      procedure(update_interpolation_face_interface)     , deferred :: update_interpolation_face
      procedure(get_component_node_interface)            , deferred :: get_component_node
      procedure(get_scalar_from_vector_node_interface)   , deferred :: get_scalar_from_vector_node
-     procedure (get_number_nodes_scalar_interface),       deferred :: get_number_nodes_scalar
      
      procedure(get_value_scalar_interface)           , deferred :: get_value_scalar
      procedure(get_value_vector_interface)           , deferred :: get_value_vector
@@ -400,7 +400,6 @@ module reference_fe_names
           &     check_compatibility_of_n_faces
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
      procedure (set_nodal_quadrature_interface), deferred :: set_nodal_quadrature          
-     procedure (fill_interior_points_permutation_interface), deferred :: fill_interior_points_permutation
 
      procedure (set_scalar_field_to_nodal_values_interface), deferred :: set_scalar_field_to_nodal_values
      procedure (set_vector_field_to_nodal_values_interface), deferred :: set_vector_field_to_nodal_values
@@ -752,18 +751,6 @@ module reference_fe_names
        integer(ip)          , intent(in)    :: nodal_codes(:)
        real(rp)             , intent(inout) :: nodal_values(:)
      end subroutine set_tensor_field_to_nodal_values_interface
-               
-     subroutine fill_interior_points_permutation_interface( this,&
-                                                            dimension,&
-                                                            number_interior_points,&
-                                                            interior_points_permutation )
-       import :: reference_fe_t, ip
-       implicit none 
-       class(reference_fe_t)                 , intent(inout) :: this 
-       integer(ip)                           , intent(in)    :: dimension
-       integer(ip)                           , intent(in)    :: number_interior_points
-       integer(ip)             , allocatable , intent(inout) :: interior_points_permutation(:,:)
-     end subroutine fill_interior_points_permutation_interface
 
      subroutine interpolate_nodal_values_interface(this,nodal_interpolation,nodal_values_origin, &
           &                                        nodal_values_destination)
@@ -812,21 +799,13 @@ module reference_fe_names
      procedure (fill_quadrature_interface)        , private, deferred :: fill_quadrature   
      procedure (fill_interpolation_interface)     , private, deferred :: fill_interpolation
      procedure (fill_face_interpolation_interface), private, deferred :: fill_face_interpolation
-     procedure (set_permutation_2D_interface)              , private, deferred :: &
-              & set_permutation_2D
      procedure (set_number_quadrature_points_interface)    , private, deferred :: &
               & set_number_quadrature_points
-     procedure (compute_number_nodes_scalar_interface)     , private, deferred :: &
-              & compute_number_nodes_scalar
-     procedure (get_number_interior_points_x_dim_interface), private, deferred :: &
-              & get_number_interior_points_x_dim
      ! Blending function to generate interpolations in the interior (given values on the boundary)
      procedure(blending_interface), deferred :: blending
 
      procedure :: create  => lagrangian_reference_fe_create
      procedure :: fill_scalar               => lagrangian_reference_fe_fill_scalar
-     procedure :: fill_interior_points_permutation     & 
-      & => lagrangian_reference_fe_fill_interior_points_permutation
      procedure :: create_quadrature         => lagrangian_reference_fe_create_quadrature
      procedure :: create_face_quadrature    => lagrangian_reference_fe_create_face_quadrature
      procedure :: create_interpolation      => lagrangian_reference_fe_create_interpolation
@@ -838,7 +817,6 @@ module reference_fe_names
      procedure :: get_component_node        => lagrangian_reference_fe_get_component_node
      procedure :: get_scalar_from_vector_node          & 
       & => lagrangian_reference_fe_get_scalar_from_vector_node
-     procedure :: get_number_nodes_scalar   => lagrangian_reference_fe_get_number_nodes_scalar
      procedure :: get_value_scalar          => lagrangian_reference_fe_get_value_scalar
      procedure :: get_value_vector          => lagrangian_reference_fe_get_value_vector
      procedure :: get_gradient_scalar       => lagrangian_reference_fe_get_gradient_scalar
@@ -870,14 +848,10 @@ module reference_fe_names
       & => lagrangian_reference_fe_fill
      procedure, private, non_overridable :: fill_field_components        & 
       & => lagrangian_reference_fe_fill_field_components
-     procedure, private, non_overridable :: fill_permutation_array       &
-      & => lagrangian_reference_fe_fill_permutation_array
      procedure, private, non_overridable :: fill_nodal_quadrature        &
       & => lagrangian_reference_fe_fill_nodal_quadrature
 !     procedure, private, non_overridable :: get_node_coordinates_array   & 
 !      & => lagrangian_reference_fe_get_node_coordinates_array
-     procedure, private, non_overridable :: set_permutation_1D           & 
-      & => lagrangian_reference_fe_set_permutation_1D
      procedure, private, non_overridable :: extend_list_components       & 
       & => lagrangian_reference_fe_extend_list_components
      procedure, private :: apply_femap_to_interpolation & 
@@ -921,20 +895,6 @@ module reference_fe_names
        type(interpolation_t)           , intent(inout) :: face_interpolation
      end subroutine fill_face_interpolation_interface
      
-     subroutine set_permutation_2D_interface ( this,               &
-                                               permutation,        &
-                                               number_nodes_x_dim, &
-                                               orientation,        &
-                                               rotation )
-     import :: lagrangian_reference_fe_t, ip
-       implicit none 
-       class(lagrangian_reference_fe_t), intent(in)    :: this
-       integer(ip)                     , intent(inout) :: permutation(:)
-       integer(ip)                     , intent(in)    :: number_nodes_x_dim
-       integer(ip)                     , intent(in)    :: orientation
-       integer(ip)                     , intent(in)    :: rotation
-     end subroutine set_permutation_2D_interface
-     
      function set_number_quadrature_points_interface ( this, order, dimension )
      import :: lagrangian_reference_fe_t, ip, SPACE_DIM
        implicit none 
@@ -943,27 +903,7 @@ module reference_fe_names
        integer(ip)                     , intent(in)    :: dimension
        integer(ip) :: set_number_quadrature_points_interface
      end function set_number_quadrature_points_interface
-     
-     function compute_number_nodes_scalar_interface ( this, order, dimension )
-     import :: lagrangian_reference_fe_t, ip
-       implicit none 
-       class(lagrangian_reference_fe_t), intent(in)    :: this
-       integer(ip)                     , intent(in)    :: order
-       integer(ip)                     , intent(in)    :: dimension
-       integer(ip) :: compute_number_nodes_scalar_interface
-     end function compute_number_nodes_scalar_interface
-
-     function get_number_interior_points_x_dim_interface ( this,                   &
-                                                           number_interior_points, &
-                                                           dimension)
-     import :: lagrangian_reference_fe_t, ip
-       implicit none
-       class(lagrangian_reference_fe_t), intent(in)    :: this
-       integer(ip)                     , intent(in)    :: number_interior_points
-       integer(ip)                     , intent(in)    :: dimension
-       integer(ip) :: get_number_interior_points_x_dim_interface
-     end function get_number_interior_points_x_dim_interface
-     
+         
      subroutine blending_interface( this,values)
        import :: lagrangian_reference_fe_t, point_t
        implicit none
@@ -1039,13 +979,11 @@ module reference_fe_names
      procedure, private :: get_node_local_id                                  &
            & => tet_lagrangian_reference_fe_get_node_local_id
      procedure, private :: set_permutation_2D                                 &
-           & => tet_lagrangian_reference_fe_set_permutation_2D
-     procedure, private :: set_number_quadrature_points                       &
-           & => tet_lagrangian_reference_fe_set_number_quadrature_points
+           & => tet_lagrangian_reference_fe_set_permutation_2D     
      procedure, private :: compute_number_nodes_scalar                        &
            & => tet_lagrangian_reference_fe_compute_number_nodes_scalar
-     procedure, private :: get_number_interior_points_x_dim                   &
-           & => tet_lagrangian_reference_fe_get_number_interior_points_x_dim
+     procedure, private :: set_number_quadrature_points                       &
+           & => tet_lagrangian_reference_fe_set_number_quadrature_points
      ! Concrete TBPs of this derived data type
      procedure, private, non_overridable :: fill_nodes_n_face                    &
            & => tet_lagrangian_reference_fe_fill_nodes_n_face
@@ -1087,10 +1025,6 @@ module reference_fe_names
            & => tet_raviart_thomas_set_permutation_2D
      procedure, private :: set_number_quadrature_points                       &
            & => tet_raviart_thomas_set_number_quadrature_points
-     procedure, private :: compute_number_nodes_scalar                        &
-           & => tet_raviart_thomas_compute_number_nodes_scalar
-     procedure, private :: get_number_interior_points_x_dim                   &
-           & => tet_raviart_thomas_get_number_interior_points_x_dim
      procedure, private :: get_node_local_id                   &
            & => tet_raviart_thomas_get_node_local_id
      ! Concrete TBPs of this derived data type
@@ -1130,14 +1064,8 @@ module reference_fe_names
            & => hex_lagrangian_reference_fe_fill_interpolation
      procedure, private :: fill_face_interpolation                            &
            & => hex_lagrangian_reference_fe_fill_face_interpolation
-     procedure, private :: set_permutation_2D                                 &
-           & => hex_lagrangian_reference_fe_set_permutation_2D
      procedure, private :: set_number_quadrature_points                       &
            & => hex_lagrangian_reference_fe_set_number_quadrature_points
-     procedure, private :: compute_number_nodes_scalar                        &
-           & => hex_lagrangian_reference_fe_compute_number_nodes_scalar
-     procedure, private :: get_number_interior_points_x_dim                   &
-           & => hex_lagrangian_reference_fe_get_number_interior_points_x_dim
   end type hex_lagrangian_reference_fe_t
   
   public :: hex_lagrangian_reference_fe_t
@@ -1159,14 +1087,8 @@ module reference_fe_names
            & => hex_raviart_thomas_reference_fe_fill_interpolation
      procedure, private :: fill_face_interpolation                            &
            & => hex_raviart_thomas_reference_fe_fill_face_interpolation
-     procedure, private :: set_permutation_2D                                 &
-           & => hex_raviart_thomas_reference_fe_set_permutation_2D
      procedure, private :: set_number_quadrature_points                       &
            & => hex_raviart_thomas_reference_fe_set_number_quadrature_points
-     procedure, private :: compute_number_nodes_scalar                        &
-           & => hex_raviart_thomas_reference_fe_compute_number_nodes_scalar
-     procedure, private :: get_number_interior_points_x_dim                   &
-           & => hex_raviart_thomas_reference_fe_get_interior_points_x_dim
   end type hex_raviart_thomas_reference_fe_t
   
   public :: hex_raviart_thomas_reference_fe_t
@@ -1280,7 +1202,7 @@ type face_integrator_t
    type(interpolation_face_restriction_t) :: interpolation_face_restriction(2)
    type(p_reference_fe_t)                 :: reference_fe(2)
    integer(ip)                            :: current_qpoints_perm_cols(2)
-   integer(ip), allocatable               :: qpoints_perm(:,:)
+   type(allocatable_array_ip2_t)          :: qpoints_perm
  contains
    procedure, non_overridable :: create            => face_integrator_create
    procedure, non_overridable :: update            => face_integrator_update

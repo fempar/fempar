@@ -846,17 +846,17 @@ function tet_raviart_thomas_set_number_quadrature_points( this, order, dimension
   integer(ip)                         , intent(in)    :: order
   integer(ip)                         , intent(in)    :: dimension
   integer(ip) :: tet_raviart_thomas_set_number_quadrature_points
-  tet_raviart_thomas_set_number_quadrature_points = & 
-   & this%compute_number_nodes_scalar( order, dimension )
-  if( dimension .eq. 2 ) then
-     if( order .eq. 3 ) then
-        tet_raviart_thomas_set_number_quadrature_points = 13
-     end if
-  elseif( dimension .eq. 3 ) then
-     if( order .eq. 2) then
-        tet_raviart_thomas_set_number_quadrature_points = 11
-     end if
-  end if
+  !tet_raviart_thomas_set_number_quadrature_points = & 
+  ! & this%compute_number_nodes_scalar( order, dimension )
+  !if( dimension .eq. 2 ) then
+  !   if( order .eq. 3 ) then
+  !      tet_raviart_thomas_set_number_quadrature_points = 13
+  !   end if
+  !elseif( dimension .eq. 3 ) then
+  !   if( order .eq. 2) then
+  !      tet_raviart_thomas_set_number_quadrature_points = 11
+  !   end if
+  !end if
 end function
 
 !=================================================================================================
@@ -867,23 +867,23 @@ recursive function tet_raviart_thomas_compute_number_nodes_scalar(this, order, d
   integer(ip)                         , intent(in)    :: order
   integer(ip) :: tet_raviart_thomas_compute_number_nodes_scalar
   integer(ip) :: q
-  if (dimension == 0) then
-     tet_raviart_thomas_compute_number_nodes_scalar = 1
-  elseif (order == 0) then
-     tet_raviart_thomas_compute_number_nodes_scalar = 1
-  elseif (dimension == 1) then
-     tet_raviart_thomas_compute_number_nodes_scalar = order+1
-  elseif (dimension == 2) then
-     tet_raviart_thomas_compute_number_nodes_scalar = int((order+1)*(order+2)/2)
-  else
-     tet_raviart_thomas_compute_number_nodes_scalar = & 
-       & this%compute_number_nodes_scalar(dimension-1,0)
-     do q=1,order
-        tet_raviart_thomas_compute_number_nodes_scalar = & 
-          & tet_raviart_thomas_compute_number_nodes_scalar + & 
-          & this%compute_number_nodes_scalar(dimension-1,q)
-     end do
-  end if
+  !if (dimension == 0) then
+  !   tet_raviart_thomas_compute_number_nodes_scalar = 1
+  !elseif (order == 0) then
+  !   tet_raviart_thomas_compute_number_nodes_scalar = 1
+  !elseif (dimension == 1) then
+  !   tet_raviart_thomas_compute_number_nodes_scalar = order+1
+  !elseif (dimension == 2) then
+  !   tet_raviart_thomas_compute_number_nodes_scalar = int((order+1)*(order+2)/2)
+  !else
+  !   tet_raviart_thomas_compute_number_nodes_scalar = & 
+  !     & this%compute_number_nodes_scalar(dimension-1,0)
+  !   do q=1,order
+  !      tet_raviart_thomas_compute_number_nodes_scalar = & 
+  !        & tet_raviart_thomas_compute_number_nodes_scalar + & 
+  !        & this%compute_number_nodes_scalar(dimension-1,q)
+  !   end do
+  !end if
 end function tet_raviart_thomas_compute_number_nodes_scalar
 
 !=================================================================================================
@@ -1020,19 +1020,19 @@ function tet_raviart_thomas_compute_sum_of_nodes_in_simplices(this,dimension, &
   integer(ip)                         , intent(in)    :: dimension, ini_order, end_order
   integer(ip) :: tet_raviart_thomas_compute_sum_of_nodes_in_simplices
   integer(ip) :: q
-  if (dimension == 0) then
-     tet_raviart_thomas_compute_sum_of_nodes_in_simplices = 1
-  elseif (ini_order > end_order) then
-     tet_raviart_thomas_compute_sum_of_nodes_in_simplices = 0
-  else
-     tet_raviart_thomas_compute_sum_of_nodes_in_simplices = & 
-       & this%compute_number_nodes_scalar(dimension-1,ini_order)
-     do q = ini_order+1,end_order
-        tet_raviart_thomas_compute_sum_of_nodes_in_simplices =   & 
-        & tet_raviart_thomas_compute_sum_of_nodes_in_simplices + &
-        & this%compute_number_nodes_scalar(dimension-1,q)
-     end do
-  end if
+  !if (dimension == 0) then
+  !   tet_raviart_thomas_compute_sum_of_nodes_in_simplices = 1
+  !elseif (ini_order > end_order) then
+  !   tet_raviart_thomas_compute_sum_of_nodes_in_simplices = 0
+  !else
+  !   tet_raviart_thomas_compute_sum_of_nodes_in_simplices = & 
+  !     & this%compute_number_nodes_scalar(dimension-1,ini_order)
+  !   do q = ini_order+1,end_order
+  !      tet_raviart_thomas_compute_sum_of_nodes_in_simplices =   & 
+  !      & tet_raviart_thomas_compute_sum_of_nodes_in_simplices + &
+  !      & this%compute_number_nodes_scalar(dimension-1,q)
+  !   end do
+  !end if
 end function tet_raviart_thomas_compute_sum_of_nodes_in_simplices
 
 !==================================================================================================

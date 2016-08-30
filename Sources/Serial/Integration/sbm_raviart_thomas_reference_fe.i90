@@ -117,27 +117,27 @@ subroutine raviart_thomas_fill (this)
   call memalloc (this%number_dimensions-1,this%number_rotations_per_dimension,__FILE__,__LINE__)
   call memalloc (this%number_dimensions-1,this%number_orientations_per_dimension,__FILE__,__LINE__)
   
-  if ( this%continuity ) allocate(this%own_node_permutations(this%number_dimensions-1))
+  !if ( this%continuity ) allocate(this%own_node_permutations(this%number_dimensions-1))
   
-  do dimension = 1, this%number_dimensions-1
+  !do dimension = 1, this%number_dimensions-1
 
-     if (dimension == 1) then
-        this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_edge()
-     elseif (dimension == 2) then 
-        this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_face()
-     end if
-     this%number_orientations_per_dimension(dimension) = dimension
-     
-     if ( this%continuity ) then
-       ! Compute the number of interior nodes X (edge or face)
-       j = this%get_first_n_face_id_of_dimension(dimension)
-       number_interior_nodes = this%get_number_own_nodes_n_face(j)
-          
-       call this%fill_interior_points_permutation(dimension,             &
-                                                  number_interior_nodes, &
-                                                  this%own_node_permutations(dimension)%a)
-     end if
-  end do
+  !   if (dimension == 1) then
+  !      this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_edge()
+  !   elseif (dimension == 2) then 
+  !      this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_face()
+  !   end if
+  !   this%number_orientations_per_dimension(dimension) = dimension
+  !   
+  !   if ( this%continuity ) then
+  !     ! Compute the number of interior nodes X (edge or face)
+  !     j = this%get_first_n_face_id_of_dimension(dimension)
+  !     number_interior_nodes = this%get_number_own_nodes_n_face(j)
+  !        
+  !     call this%fill_interior_points_permutation(dimension,             &
+  !                                                number_interior_nodes, &
+  !                                                this%own_node_permutations(dimension)%a)
+  !   end if
+  !end do
   
   call memalloc( this%number_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
   call memalloc( this%number_shape_functions,     & 
