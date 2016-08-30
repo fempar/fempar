@@ -184,6 +184,7 @@ contains
     
     ! Step required by the MLBDDC preconditioner
     call this%fe_space%renumber_dofs_first_interior_then_interface()
+    call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
     call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)    
     !call this%fe_space%print()
