@@ -87,7 +87,10 @@ subroutine fine_triangulation_generate_vefs(this,order)
            end if
         else
            if(ielem_num_vertices==4) then ! Tetrahedra
-              assert(.false.)
+              reference_fe_geo_list(icell_type) = &
+                   &    make_reference_fe ( topology = topology_tet, fe_type = fe_type_lagrangian, &
+                   &                        number_dimensions = this%num_dimensions, order = order, &
+                   &                        field_type = field_type_scalar, continuity = .true. )
            else if(ielem_num_vertices==6) then ! Prism
               assert(.false.)
            else if(ielem_num_vertices==8) then ! Hexahedra
@@ -293,7 +296,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
   if(this%num_dimensions==3) then
      ! Tetrahedra
      ielem_num_vertices=4
-     ielem_num_vefs=16
+     ielem_num_vefs=14
      call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
      if(istat==old_index) then
         call this%reference_fe_geo_index%put(key=ielem_num_vefs,val=icell_type,stat=istat)
