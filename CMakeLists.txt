@@ -70,8 +70,34 @@ ENDIF(NOT CMAKE_BUILD_TYPE)
 # Add external projects
 #################################################################
 
+SET(EXT_PROJS FPL F3PHT )
+
 include(ExternalProject)
+
+
+FOREACH(EXT_PROJ ${EXT_PROJS})
+
+    SET(${EXT_PROJ}_SRC_PATH ${CMAKE_SOURCE_DIR}/ThirdParty/${EXT_PROJ})
+    SET(${EXT_PROJ}_BINARY_PATH ${THIRDPARTY_OUTPUT_PATH}/${EXT_PROJ})
+    EXTERNALPROJECT_Add(${EXT_PROJ}
+        DOWNLOAD_COMMAND ""
+        SOURCE_DIR ${${EXT_PROJ}_SRC_PATH}
+        BINARY_DIR ${${EXT_PROJ}_BINARY_PATH}
+        INSTALL_DIR ${INSTALL_PREFIX}
+        CONFIGURE_COMMAND cmake -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} ${${EXT_PROJ}_SRC_PATH}
+        BUILD_COMMAND cmake --build .
+        TEST_COMMAND ""
+        INSTALL_COMMAND ""
+    )
+    INCLUDE_DIRECTORIES(${${EXT_PROJ}_BINARY_PATH}/modules)
+    SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${EXT_PROJ}_BINARY_PATH}/lib/lib${EXT_PROJ}.a)
+
+ENDFOREACH ()
+
+#################################################################
+# SISL needs a different treatment because it's a C project not owned by us
 SET(SISL_LIB SISL)
+SET(EXT_PROJS ${EXT_PROJS} ${SISL_LIB} )
 
 SET(${SISL_LIB}_SRC_PATH ${CMAKE_SOURCE_DIR}/ThirdParty/${SISL_LIB})
 SET(${SISL_LIB}_BINARY_PATH ${THIRDPARTY_OUTPUT_PATH}/${SISL_LIB})
@@ -85,29 +111,8 @@ EXTERNALPROJECT_Add(${SISL_LIB}
     TEST_COMMAND ""
     INSTALL_COMMAND ""
 )
-
-SET(SISL_LIBS ${${SISL_LIB}_BINARY_PATH}/libsisl.a)
 INCLUDE_DIRECTORIES(${${SISL_LIB}_SRC_PATH}/include)
-
-#################################################################
-
-SET(F3PHT_LIB F3PHT)
-
-SET(${F3PHT_LIB}_SRC_PATH ${CMAKE_SOURCE_DIR}/ThirdParty/${F3PHT_LIB})
-SET(${F3PHT_LIB}_BINARY_PATH ${THIRDPARTY_OUTPUT_PATH}/${F3PHT_LIB})
-EXTERNALPROJECT_Add(${F3PHT_LIB}
-    DOWNLOAD_COMMAND ""
-    SOURCE_DIR ${${F3PHT_LIB}_SRC_PATH}
-    BINARY_DIR ${${F3PHT_LIB}_BINARY_PATH}
-    INSTALL_DIR ${INSTALL_PREFIX}
-    CONFIGURE_COMMAND cmake -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} ${${F3PHT_LIB}_SRC_PATH}
-    BUILD_COMMAND cmake --build .
-    TEST_COMMAND ""
-    INSTALL_COMMAND ""
-)
-
-SET(F3PHT_LIBS ${${F3PHT_LIB}_BINARY_PATH}/lib/lib${F3PHT_LIB}.a)
-INCLUDE_DIRECTORIES(${${F3PHT_LIB}_BINARY_PATH}/modules)
+SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${SISL_LIB}_BINARY_PATH}/libsisl.a)
 
 #################################################################
 # List of external libraries
@@ -313,6 +318,7 @@ ADD_SUBDIRECTORY(${PAR_PATH})
 #################################################################
 
 ADD_LIBRARY(${PROJECT_NAME} ${SERIAL_SRC} ${PAR_SRC})
+ADD_DEPENDENCIES(${PROJECT_NAME} ${EXT_PROJS})
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES VERSION ${${PROJECT_NAME}_VERSION} SOVERSION ${${PROJECT_NAME}_SOVERSION})
 
 #################################################################

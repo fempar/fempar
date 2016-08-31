@@ -4,9 +4,9 @@
 [submodule "Sources/Serial/Tools/FLAP"]
 	path = Sources/Serial/Tools/FLAP
 	url = https://github.com/victorsndvg/FLAP.git
-[submodule "Sources/Serial/Tools/FPL"]
-	path = Sources/Serial/Tools/FPL
-	url = https://github.com/victorsndvg/FPL.git
 [submodule "ThirdParty/SISL"]
 	path = ThirdParty/SISL
 	url = https://github.com/SINTEF-Geometry/SISL.git
+[submodule "ThirdParty/FPL"]
+	path = ThirdParty/FPL
+	url = https://github.com/victorsndvg/FPL.git
