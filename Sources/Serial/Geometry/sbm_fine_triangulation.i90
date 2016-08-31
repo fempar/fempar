@@ -940,7 +940,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   end do
 
   ! Fill internal nodes
-  write(*,*) 'Fill internal nodes'
+  ! write(*,*) 'Fill internal nodes'
   cell_iterator = this%create_cell_iterator()
   do while ( .not. cell_iterator%has_finished() )
      call cell_iterator%current(cell)

@@ -60,8 +60,11 @@ module test_poisson_driver_names
      type(fe_affine_operator_t)                :: fe_affine_operator
      
      ! Direct and Iterative linear solvers data type
+#ifdef ENABLE_MKL     
      type(direct_solver_t)                     :: direct_solver
+#else     
      type(iterative_linear_solver_t)           :: iterative_linear_solver
+#endif     
  
      ! Poisson problem solution FE function
      type(fe_function_t)                       :: solution
@@ -177,10 +180,11 @@ contains
     integer :: FPLError
     type(parameterlist_t) :: parameter_list
     integer :: iparm(64)
-    class(matrix_t)                         , pointer       :: matrix
+    class(matrix_t), pointer       :: matrix
 
     call parameter_list%init()
-    FPLError = FPLError + parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
+#ifdef ENABLE_MKL
+    FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_spd)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0
@@ -197,12 +201,15 @@ contains
     class DEFAULT
        assert(.false.) 
     end select
-    
+#else    
+    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    assert(FPLError == 0)
+    call this%iterative_linear_solver%create(this%fe_space%get_environment())
+    call this%iterative_linear_solver%set_type_from_string(cg_name)
+    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+#endif
     call parameter_list%free()
-    
-     !call this%iterative_linear_solver%create(this%fe_space%get_environment())
-     !call this%iterative_linear_solver%set_type_from_string(cg_name)
-     !call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
   end subroutine setup_solver
   
   
@@ -241,9 +248,13 @@ contains
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_dof_values()
-    !call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-    !                                        dof_values)
+    
+#ifdef ENABLE_MKL    
     call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
+#else
+    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
+                                            dof_values)
+#endif    
     !select type (dof_values)
     !class is (serial_scalar_array_t)  
     !   call dof_values%print(6)
@@ -265,6 +276,8 @@ contains
     class(test_poisson_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    real(rp) :: error_tolerance
+    
     call error_norm%create(this%fe_space,1)
     mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
     l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
@@ -277,18 +290,24 @@ contains
     w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
     w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
     w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
+
+#ifdef ENABLE_MKL    
+    error_tolerance = 1.0e-08
+#else
+    error_tolerance = 1.0e-06
+#endif    
     
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-08 )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-08 )
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-08 )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-08 )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < 1.0e-08 )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < 1.0e-08 )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < 1.0e-08 )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < 1.0e-08 )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < 1.0e-08 )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < 1.0e-08 )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < 1.0e-08 )
+    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
     call error_norm%free()
   end subroutine check_solution
   
@@ -331,8 +350,13 @@ contains
     integer(ip) :: i, istat
     
     call this%solution%free()
-    call this%iterative_linear_solver%free()
+    
+#ifdef ENABLE_MKL        
     call this%direct_solver%free()
+#else
+    call this%iterative_linear_solver%free()
+#endif
+    
     call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
