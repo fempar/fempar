@@ -168,13 +168,6 @@ function reference_fe_get_topology( this )
   reference_fe_get_topology => this%topology
 end function reference_fe_get_topology
 
-function reference_fe_get_fe_type( this )
-  implicit none
-  class(reference_fe_t), target, intent(in) :: this
-  character(:), pointer :: reference_fe_get_fe_type
-  reference_fe_get_fe_type => this%fe_type
-end function reference_fe_get_fe_type
-
 function reference_fe_get_field_type( this )
   implicit none
   class(reference_fe_t), target, intent(in) :: this
@@ -194,7 +187,6 @@ function reference_fe_get_order( this )
   class(reference_fe_t), intent(in) :: this
   integer(ip) :: reference_fe_get_order
   reference_fe_get_order = this%order
-  ! @sbadia: It does not work for anisotropic elements, there is no clear definition in this case
 end function reference_fe_get_order
 
 function reference_fe_get_continuity( this )
@@ -232,42 +224,6 @@ function reference_fe_get_number_vertices ( this )
   reference_fe_get_number_vertices = this%number_n_faces_per_dimension(2) -          &
        &                             this%number_n_faces_per_dimension(1)
 end function reference_fe_get_number_vertices
-
-function reference_fe_get_first_vertex_id ( this )
-  implicit none
-  class(reference_fe_t), intent(in) :: this
-  integer(ip) :: reference_fe_get_first_vertex_id
-  reference_fe_get_first_vertex_id = this%number_n_faces_per_dimension(1)
-end function reference_fe_get_first_vertex_id
-
-function reference_fe_get_number_vertices_per_edge ( this )
-  implicit none
-  class(reference_fe_t), intent(in) :: this
-  integer(ip) :: reference_fe_get_number_vertices_per_edge
-  reference_fe_get_number_vertices_per_edge = this%vertices_n_face%get_sublist_size(this%number_n_faces_per_dimension(2))
-end function reference_fe_get_number_vertices_per_edge
-
-function reference_fe_get_number_vertices_per_face ( this )
-  implicit none
-  class(reference_fe_t), intent(in) :: this
-  integer(ip) :: reference_fe_get_number_vertices_per_face
-  reference_fe_get_number_vertices_per_face = this%vertices_n_face%get_sublist_size(this%number_n_faces_per_dimension(this%number_dimensions))
-end function reference_fe_get_number_vertices_per_face
-
-function reference_fe_get_number_edges ( this )
-  implicit none
-  class(reference_fe_t), intent(in) :: this
-  integer(ip) :: reference_fe_get_number_edges
-  reference_fe_get_number_edges  = this%number_n_faces_per_dimension(3) -          &
-       &                             this%number_n_faces_per_dimension(2)
-end function reference_fe_get_number_edges
-
-function reference_fe_get_first_edge_id ( this )
-  implicit none
-  class(reference_fe_t), intent(in) :: this
-  integer(ip) :: reference_fe_get_first_edge_id
-  reference_fe_get_first_edge_id = this%number_n_faces_per_dimension(2)
-end function reference_fe_get_first_edge_id
 
 function reference_fe_get_number_faces ( this )
   implicit none
@@ -405,24 +361,6 @@ function reference_fe_get_number_vertices_n_face ( this, i )
   reference_fe_get_number_vertices_n_face = this%vertices_n_face%get_sublist_size(i)
 end function reference_fe_get_number_vertices_n_face
 
-function reference_fe_get_face_integration_coupling_number_nodes_facet ( this )
-  implicit none
-  class(reference_fe_t), intent(in) :: this
-  integer(ip) :: reference_fe_get_face_integration_coupling_number_nodes_facet
-  reference_fe_get_face_integration_coupling_number_nodes_facet = &
-       this%face_integration_coupling_nodes_facet%get_sublist_size(this%number_n_faces_per_dimension(this%number_dimensions))
-end function reference_fe_get_face_integration_coupling_number_nodes_facet
-
-function reference_fe_get_facet_integration_coupling_node_facet ( this, i, j )
-  implicit none
-  class(reference_fe_t), intent(in) :: this
-  integer(ip), intent(in) :: i, j
-  integer(ip) :: reference_fe_get_facet_integration_coupling_node_facet
-  type(list_iterator_t)   :: iterator
-  iterator = this%face_integration_coupling_nodes_facet%create_iterator(j)
-  reference_fe_get_facet_integration_coupling_node_facet = iterator%reach_from_current(i-1)
-end function reference_fe_get_facet_integration_coupling_node_facet
-
 function create_facet_integration_coupling_dofs_iterator ( this, i )
   implicit none
   class(reference_fe_t), intent(in) :: this
@@ -430,12 +368,6 @@ function create_facet_integration_coupling_dofs_iterator ( this, i )
   type(list_iterator_t) :: create_facet_integration_coupling_dofs_iterator
   create_facet_integration_coupling_dofs_iterator = this%face_integration_coupling_nodes_facet%create_iterator(i)    
 end function create_facet_integration_coupling_dofs_iterator
-
-function reference_fe_get_orientation(this)
-  class(reference_fe_t), target, intent(in) :: this
-  type(allocatable_array_ip1_t), pointer :: reference_fe_get_orientation
-  reference_fe_get_orientation => this%orientation
-end function reference_fe_get_orientation
 
 function reference_fe_get_nodal_quadrature ( this )
   implicit none

@@ -402,12 +402,12 @@ module reference_fe_names
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
      procedure (create_nodal_quadrature_interface), deferred :: create_nodal_quadrature          
 
-     procedure (set_scalar_field_to_nodal_values_interface), deferred :: set_scalar_field_to_nodal_values
-     procedure (set_vector_field_to_nodal_values_interface), deferred :: set_vector_field_to_nodal_values
-     procedure (set_tensor_field_to_nodal_values_interface), deferred :: set_tensor_field_to_nodal_values
-     generic :: set_field_to_nodal_values => set_scalar_field_to_nodal_values, &
-          & set_vector_field_to_nodal_values, &
-          & set_tensor_field_to_nodal_values
+     !procedure (set_scalar_field_to_nodal_values_interface), deferred :: set_scalar_field_to_nodal_values
+     !procedure (set_vector_field_to_nodal_values_interface), deferred :: set_vector_field_to_nodal_values
+     !procedure (set_tensor_field_to_nodal_values_interface), deferred :: set_tensor_field_to_nodal_values
+     !generic :: set_field_to_nodal_values => set_scalar_field_to_nodal_values, &
+     !     & set_vector_field_to_nodal_values, &
+     !     & set_tensor_field_to_nodal_values
 
      procedure (interpolate_nodal_values_interface), deferred :: interpolate_nodal_values
 
@@ -426,7 +426,7 @@ module reference_fe_names
 
      ! Getters
      procedure :: get_topology => reference_fe_get_topology
-     procedure :: get_fe_type => reference_fe_get_fe_type
+     !procedure :: get_fe_type => reference_fe_get_fe_type
      procedure :: get_field_type => reference_fe_get_field_type
      procedure :: get_number_dimensions => reference_fe_get_number_dimensions
      procedure :: get_order => reference_fe_get_order
@@ -435,11 +435,11 @@ module reference_fe_names
      procedure :: get_number_field_components => reference_fe_get_number_field_components
      procedure :: get_number_n_faces => reference_fe_get_number_n_faces
      procedure :: get_number_vertices => reference_fe_get_number_vertices
-     procedure :: get_first_vertex_id => reference_fe_get_first_vertex_id
-     procedure :: get_number_vertices_per_edge => reference_fe_get_number_vertices_per_edge
-     procedure :: get_number_vertices_per_face => reference_fe_get_number_vertices_per_face
-     procedure :: get_number_edges => reference_fe_get_number_edges
-     procedure :: get_first_edge_id => reference_fe_get_first_edge_id
+     !procedure :: get_first_vertex_id => reference_fe_get_first_vertex_id
+     !procedure :: get_number_vertices_per_edge => reference_fe_get_number_vertices_per_edge
+     !procedure :: get_number_vertices_per_face => reference_fe_get_number_vertices_per_face
+     !procedure :: get_number_edges => reference_fe_get_number_edges
+     !procedure :: get_first_edge_id => reference_fe_get_first_edge_id
      procedure :: get_number_faces => reference_fe_get_number_faces
      procedure :: get_first_face_id => reference_fe_get_first_face_id
      procedure :: get_number_n_faces_of_dimension  => reference_fe_get_number_n_faces_of_dimension
@@ -458,10 +458,10 @@ module reference_fe_names
      procedure :: create_own_dofs_on_n_face_iterator => reference_fe_create_own_dofs_on_n_face_iterator
      procedure :: get_own_node_n_face => reference_fe_get_own_node_n_face
 
-     procedure :: get_face_integration_coupling_number_nodes_face => reference_fe_get_face_integration_coupling_number_nodes_facet
-     procedure :: get_face_integration_coupling_node_face => reference_fe_get_facet_integration_coupling_node_facet
+     !procedure :: get_face_integration_coupling_number_nodes_face => reference_fe_get_face_integration_coupling_number_nodes_facet
+     !procedure :: get_face_integration_coupling_node_face => reference_fe_get_facet_integration_coupling_node_facet
      procedure :: create_facet_integration_coupling_dofs_iterator => create_facet_integration_coupling_dofs_iterator
-     procedure :: get_orientation => reference_fe_get_orientation     
+     !procedure :: get_orientation => reference_fe_get_orientation     
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
@@ -719,39 +719,39 @@ module reference_fe_names
        class(reference_fe_t), intent(inout) :: this 
      end subroutine create_nodal_quadrature_interface
 
-     subroutine set_scalar_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
-          &                                                  nodal_values, unknown_component)
-       import :: reference_fe_t, rp, ip
-       implicit none
-       class(reference_fe_t), intent(in)    :: this 
-       integer(ip)          , intent(in)    :: code
-       real(rp)             , intent(in)    :: values(:)
-       integer(ip)          , intent(in)    :: nodal_codes(:)
-       real(rp)             , intent(inout) :: nodal_values(:)
-       integer(ip), optional, intent(in)    :: unknown_component
-     end subroutine set_scalar_field_to_nodal_values_interface
+     !subroutine set_scalar_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
+     !     &                                                  nodal_values, unknown_component)
+     !  import :: reference_fe_t, rp, ip
+     !  implicit none
+     !  class(reference_fe_t), intent(in)    :: this 
+     !  integer(ip)          , intent(in)    :: code
+     !  real(rp)             , intent(in)    :: values(:)
+     !  integer(ip)          , intent(in)    :: nodal_codes(:)
+     !  real(rp)             , intent(inout) :: nodal_values(:)
+     !  integer(ip), optional, intent(in)    :: unknown_component
+     !end subroutine set_scalar_field_to_nodal_values_interface
 
-     subroutine set_vector_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
-          &                                                  nodal_values)
-       import :: reference_fe_t, vector_field_t, ip, rp
-       implicit none
-       class(reference_fe_t), intent(in)    :: this
-       integer(ip)          , intent(in)    :: code
-       type(vector_field_t) , intent(in)    :: values(:)
-       integer(ip)          , intent(in)    :: nodal_codes(:)
-       real(rp)             , intent(inout) :: nodal_values(:)
-     end subroutine set_vector_field_to_nodal_values_interface
+     !subroutine set_vector_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
+     !     &                                                  nodal_values)
+     !  import :: reference_fe_t, vector_field_t, ip, rp
+     !  implicit none
+     !  class(reference_fe_t), intent(in)    :: this
+     !  integer(ip)          , intent(in)    :: code
+     !  type(vector_field_t) , intent(in)    :: values(:)
+     !  integer(ip)          , intent(in)    :: nodal_codes(:)
+     !  real(rp)             , intent(inout) :: nodal_values(:)
+     !end subroutine set_vector_field_to_nodal_values_interface
 
-     subroutine set_tensor_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
-          &                                                  nodal_values)
-       import :: reference_fe_t, tensor_field_t, ip, rp
-       implicit none
-       class(reference_fe_t), intent(in)    :: this 
-       integer(ip)          , intent(in)    :: code
-       type(tensor_field_t) , intent(in)    :: values(:)
-       integer(ip)          , intent(in)    :: nodal_codes(:)
-       real(rp)             , intent(inout) :: nodal_values(:)
-     end subroutine set_tensor_field_to_nodal_values_interface
+     !subroutine set_tensor_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
+     !     &                                                  nodal_values)
+     !  import :: reference_fe_t, tensor_field_t, ip, rp
+     !  implicit none
+     !  class(reference_fe_t), intent(in)    :: this 
+     !  integer(ip)          , intent(in)    :: code
+     !  type(tensor_field_t) , intent(in)    :: values(:)
+     !  integer(ip)          , intent(in)    :: nodal_codes(:)
+     !  real(rp)             , intent(inout) :: nodal_values(:)
+     !end subroutine set_tensor_field_to_nodal_values_interface
 
      subroutine interpolate_nodal_values_interface(this,nodal_interpolation,nodal_values_origin, &
           &                                        nodal_values_destination)
@@ -827,12 +827,6 @@ contains
   procedure :: get_curl_vector           => lagrangian_reference_fe_get_curl_vector
   procedure :: interpolate_nodal_values  => lagrangian_reference_fe_interpolate_nodal_values
   procedure :: create_nodal_quadrature   => lagrangian_reference_fe_create_nodal_quadrature
-  procedure :: set_scalar_field_to_nodal_values     & 
-       & => lagrangian_reference_fe_set_scalar_field_to_nodal_values
-  procedure :: set_vector_field_to_nodal_values     & 
-       & => lagrangian_reference_fe_set_vector_field_to_nodal_values
-  procedure :: set_tensor_field_to_nodal_values     & 
-       & => lagrangian_reference_fe_set_tensor_field_to_nodal_values
   procedure :: evaluate_fe_function_scalar          &
        & => lagrangian_reference_fe_evaluate_fe_function_scalar
   procedure :: evaluate_fe_function_vector          & 
