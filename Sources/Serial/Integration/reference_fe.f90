@@ -232,13 +232,14 @@ module reference_fe_names
      integer(ip), allocatable       :: ijk_to_index(:)
      integer(ip), allocatable       :: coordinates(:,:)
    contains
-     procedure :: create               => node_array_create
-     procedure :: print                => node_array_print
-     procedure :: free                 => node_array_free
-     procedure :: create_node_iterator => node_array_create_node_iterator
-     procedure :: get_number_nodes     => node_array_get_number_nodes
-     procedure, private :: fill        => node_array_fill
-     procedure, nopass, private :: fill_permutations => node_array_fill_permutations
+     procedure                  :: create                   => node_array_create
+     procedure                  :: print                    => node_array_print
+     procedure                  :: free                     => node_array_free
+     procedure                  :: create_node_iterator     => node_array_create_node_iterator
+     procedure                  :: get_number_nodes         => node_array_get_number_nodes
+     procedure        , private :: fill                     => node_array_fill
+     procedure, nopass, private :: fill_permutations        => node_array_fill_permutations
+     procedure, nopass, private :: compute_num_rot_and_perm => node_array_compute_num_rot_and_perm
   end type node_array_t
 
   public :: node_array_t

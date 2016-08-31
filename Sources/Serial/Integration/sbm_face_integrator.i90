@@ -304,7 +304,6 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   type(quadrature_t)            , intent(in)    :: quadrature
   class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
 
-  integer(ip) :: i,j
   call this%free()
 
   this%is_boundary = (.not. associated(right_reference_fe))
@@ -317,10 +316,13 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   end if
 
   this%current_qpoints_perm_cols = 1
-  ! @sbadia: the order is for hex only. When the work for high order TETS with face integration will
-  ! be performed, it has to be corrected
-  call left_reference_fe%node_array%fill_permutations( left_reference_fe%order+1, quadrature%number_dimensions, &
-                                                       left_reference_fe%polytope, this%qpoints_perm, i, j ) 
+  ! @sbadia: order+2 only works for topology_hex. When the work for high order TETS with face 
+  ! integration will be performed, it has to be corrected
+  assert ( left_reference_fe%topology == topology_hex )
+  call left_reference_fe%node_array%fill_permutations( left_reference_fe%order+2, &
+                                                       quadrature%number_dimensions, &
+                                                       left_reference_fe%polytope, &
+                                                       this%qpoints_perm ) 
   
 end subroutine face_integrator_create
 
