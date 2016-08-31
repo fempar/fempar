@@ -67,7 +67,7 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
-  end type test_poisson_params_t
+  end type test_poisson_params_t 
 
   ! Types
   public :: test_poisson_params_t
