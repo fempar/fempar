@@ -760,12 +760,12 @@ function facet_orientation( n_face, dim )
   end if
 end function facet_orientation
 
-subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_permutations, num_rot, num_perm)
+subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_permutations)
   implicit none
-  class(polytope_tree_t)  , intent(in)    :: base_polytope
-  integer(ip)             , intent(in)    :: order, idime
+  integer(ip)                  , intent(in)    :: order
+  integer(ip)                  , intent(in)    :: idime
+  type(polytope_tree_t)        , intent(in)    :: base_polytope
   type(allocatable_array_ip2_t), intent(inout) :: own_node_permutations
-  integer(ip)             , intent(inout) :: num_rot, num_perm
   type(polytope_tree_t) :: n_face
   type(node_array_t)    :: nodes_n_face, vertices_n_face
   integer(ip)           :: n_face_type, topology_n_face, c, iorie, j
@@ -774,9 +774,6 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
   integer(ip)           :: ijk_rot(SPACE_DIM), ijk_perm(SPACE_DIM), order_vector(SPACE_DIM),aux, ones(SPACE_DIM)
   order_vector = order
   ones = 1
-  ! We fill the permutations for all dimensions
-  num_rot = 0
-  num_perm = 0
   if ( order > 1 ) then 
      ! We go through all the nodes of the first n-face of this dimension
      n_face_type = 0
@@ -800,8 +797,6 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
         call node_iterator%next() 
      end do
      call own_node_permutations%create(c, idime * vertices_n_face%number_nodes )
-     num_perm = idime
-     num_rot = vertices_n_face%number_nodes
      c = 0
      do iorie = 1,idime
         call vertex_iterator%init()
@@ -809,17 +804,17 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
            aux =  vertex_iterator%current_ijk()
            ! Chapuza
            ijk_anchor_node = vertex_iterator%coordinate
-           WRITE(*,*) 'ROTATION, ORIGINAL ANCHOR NODE:',ijk_anchor_node(1:idime)
+           !WRITE(*,*) 'ROTATION, ORIGINAL ANCHOR NODE:',ijk_anchor_node(1:idime)
 
            c = c+1
-           WRITE(*,*) 'ORIENTATION:',iorie
+           !WRITE(*,*) 'ORIENTATION:',iorie
            call node_iterator%init()
            do while (.not. node_iterator%has_finished() )
               aux =  node_iterator%current_ijk()
               ! Chapuza
               ijk_node = node_iterator%coordinate
-              write(*,*) 'Current node IJK:',ijk_node(1:idime)
-              write(*,*) '***Current node:***',ijk_to_index(ijk_node-1, order_vector-2,idime)+1
+              !write(*,*) 'Current node IJK:',ijk_node(1:idime)
+              !write(*,*) '***Current node:***',ijk_to_index(ijk_node-1, order_vector-2,idime)+1
 
               ! Now rotate the n-face based on the anchor node
               ! If the anchor node is in the original position (0) perm = Id
@@ -827,9 +822,9 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
               ! Next, consider the possible orientations
 
               ijk_perm = change_orientation(ijk_rot,iorie,idime)
-              write(*,*) 'ROTATED node IJK:', ijk_rot(1:idime)
-              write(*,*) 'ROTATED + ORIENTED node IJK:', ijk_perm(1:idime)
-              write(*,*) '***final node:***', ijk_to_index(ijk_perm-1, order_vector-2,idime)+1
+              !write(*,*) 'ROTATED node IJK:', ijk_rot(1:idime)
+              !write(*,*) 'ROTATED + ORIENTED node IJK:', ijk_perm(1:idime)
+              !write(*,*) '***final node:***', ijk_to_index(ijk_perm-1, order_vector-2,idime)+1
               !write(*,*) 'ROTATED + ORIENTED node OLD ARRAY:', nodes_n_face%ijk_to_index(ijk_to_index(ijk_perm,this%order,idime))
               !write(*,*) 'node iterator number:', ijk_to_index(ijk_node-1,this%order-2,idime)+1
               own_node_permutations%a(ijk_to_index(ijk_node-1, order_vector-2,idime)+1,c) =  ijk_to_index(ijk_perm-1, order_vector-2,idime)+1
@@ -840,8 +835,43 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
            call vertex_iterator%next() 
         end do
      end do
+     call n_face%free()
+     call nodes_n_face%free()
+     call vertices_n_face%free()
   end if
 end subroutine node_array_fill_permutations
+
+subroutine node_array_compute_num_rot_and_perm( idime, base_polytope, num_rot, num_perm)
+  implicit none
+  integer(ip)                  , intent(in)    :: idime
+  type(polytope_tree_t)        , intent(in)    :: base_polytope
+  integer(ip)                  , intent(inout) :: num_rot, num_perm
+  
+  type(polytope_tree_t) :: n_face
+  type(node_array_t)    :: vertices_n_face
+  integer(ip)           :: n_face_type, topology_n_face, j
+  integer(ip)           :: ones(SPACE_DIM)
+
+  ones = 1
+  
+  ! We go through all the nodes of the first n-face of this dimension
+  n_face_type = 0
+  do j = 0,idime-1
+     n_face_type = IBSET(n_face_type,idime+j) 
+  end do
+
+  topology_n_face = IBITS(base_polytope%topology,0,idime)
+
+  call n_face%create( idime, topology_n_face )
+  call vertices_n_face%create( n_face, order = ones )     
+
+  num_rot  = vertices_n_face%number_nodes
+  num_perm = idime
+
+  call n_face%free()
+  call vertices_n_face%free()
+  
+end subroutine node_array_compute_num_rot_and_perm
 
 function rotate( ijk_node, ijk_anchor_node, face_dim, order )
   implicit none

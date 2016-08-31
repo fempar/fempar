@@ -45,7 +45,7 @@ contains
    
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none
-     class(poisson_cG_discrete_integration_t)    ,intent(inout)  :: this
+     class(poisson_cG_discrete_integration_t)    , intent(inout) :: this
      type(poisson_analytical_functions_t), target, intent(in)    :: analytical_functions
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions

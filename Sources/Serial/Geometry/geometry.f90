@@ -386,7 +386,7 @@ contains
     character(256)  :: tel
     integer(ip)     :: i,istat
 
-    write(*,*) 'Read geometry:'
+    !write(*,*) 'Read geometry:'
 
     ! Count points, lines, surfaces and volumes
     read(unit,'(a)') tel
@@ -462,10 +462,10 @@ contains
     !do i=1,geometry%num_surfaces
     !end do
 
-    if(geometry%num_points>0)   write(*,*) 'Finally read points:'  , geometry%num_points
-    if(geometry%num_lines>0)    write(*,*) 'Finally read lines:'   , geometry%num_lines   
-    if(geometry%num_surfaces>0) write(*,*) 'Finally read surfaces:', geometry%num_surfaces
-    if(geometry%num_volumes>0)  write(*,*) 'Finally read volumes:' , geometry%num_volumes 
+    !if(geometry%num_points>0)   write(*,*) 'Finally read points:'  , geometry%num_points
+    !if(geometry%num_lines>0)    write(*,*) 'Finally read lines:'   , geometry%num_lines   
+    !if(geometry%num_surfaces>0) write(*,*) 'Finally read surfaces:', geometry%num_surfaces
+    !if(geometry%num_volumes>0)  write(*,*) 'Finally read volumes:' , geometry%num_volumes 
 
   end subroutine geometry_read_from_unit
 
