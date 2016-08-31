@@ -1664,6 +1664,8 @@ subroutine bst_print ( this )
        write(*,'(2(i10,2x),4(10x,l1),2(2x,i10))') vef_lid,  vef%get_dimension(),  vef%is_local(),  vef%is_at_interface(), vef%is_ghost(), vef%is_at_boundary(), vef%get_set_id(),this%vefs_geometry(vef_lid)
        call vef_iterator%next()
     end do
+    
+    call memfree(cell_coordinates,__FILE__,__LINE__)
 
   end subroutine bst_print
 
