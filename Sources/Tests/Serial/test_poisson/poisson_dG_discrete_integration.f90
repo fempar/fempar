@@ -56,7 +56,7 @@ contains
   subroutine set_poisson_conditions ( this, poisson_conditions )
      implicit none
      class(poisson_dG_discrete_integration_t)        , intent(inout) :: this
-     class(poisson_conditions_t)             , target, intent(in)    :: poisson_conditions
+     type(poisson_conditions_t)              , target, intent(in)    :: poisson_conditions
      this%poisson_conditions => poisson_conditions
   end subroutine set_poisson_conditions
   

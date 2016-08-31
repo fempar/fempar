@@ -589,25 +589,29 @@ subroutine lagrangian_reference_fe_fill (this)
 
   call memalloc (this%number_dimensions-1,this%number_rotations_per_dimension,__FILE__,__LINE__)
   call memalloc (this%number_dimensions-1,this%number_orientations_per_dimension,__FILE__,__LINE__)
-
-  if ( this%continuity ) then
-   allocate(this%own_node_permutations(this%number_dimensions-1))
-   do idime = 1, this%number_dimensions-1
-   
-      call this%node_array%fill_permutations( this%order, idime, this%polytope, &
-      this%own_node_permutations(idime), this%number_rotations_per_dimension(idime), &
-      this%number_orientations_per_dimension(idime) )
-     
-     
-   end do
-   
-   do i = 1,  this%number_dimensions-1
-   write(*,*) 'aux_own_node_permutations',this%own_node_permutations(i)%nd1
-   write(*,*) 'aux_own_node_permutations',this%own_node_permutations(i)%nd2
-   if ( allocated(this%own_node_permutations(i)%a) )write(*,*) 'aux_own_node_permutations',this%own_node_permutations(i)%a
-   end do 
-  end if
   
+  do idime = 1, this%number_dimensions-1
+     call this%node_array%compute_num_rot_and_perm( idime, &
+                                                    this%polytope, &
+                                                    this%number_rotations_per_dimension(idime), &
+                                                    this%number_orientations_per_dimension(idime))
+  end do
+  
+  if ( this%continuity ) then
+     allocate(this%own_node_permutations(this%number_dimensions-1))
+     do idime = 1, this%number_dimensions-1
+        call this%node_array%fill_permutations( this%order, &
+                                                idime, &
+                                                this%polytope, &
+                                                this%own_node_permutations(idime) )
+     end do
+     !do idime = 1,  this%number_dimensions-1
+     !  write(*,*) 'aux_own_node_permutations',this%own_node_permutations(idime)%nd1
+     !  write(*,*) 'aux_own_node_permutations',this%own_node_permutations(idime)%nd2
+     !  if ( allocated(this%own_node_permutations(idime)%a) ) & 
+     !     write(*,*) 'aux_own_node_permutations',this%own_node_permutations(idime)%a
+     !end do 
+  end if
         
   if ( this%number_field_components /= 1 ) then
      call this%fill_field_components( )
@@ -621,9 +625,9 @@ subroutine lagrangian_reference_fe_fill (this)
            num_columns = this%number_rotations_per_dimension(dimension) * &
                 this%number_orientations_per_dimension(dimension) 
            call memrealloc ( number_interior_nodes,                   &
-                num_columns,                             &
-                this%own_node_permutations(dimension)%a, &
-                __FILE__, __LINE__ )
+                             num_columns,                             &
+                             this%own_node_permutations(dimension)%a, &
+                             __FILE__, __LINE__ )
         this%own_node_permutations(dimension)%nd1 = size(this%own_node_permutations(dimension)%a,1)
         this%own_node_permutations(dimension)%nd2 = size(this%own_node_permutations(dimension)%a,2)
            do column = 1, num_columns

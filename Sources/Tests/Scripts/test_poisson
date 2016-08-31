@@ -23,6 +23,24 @@ then
         done
       done
 
+      # Square + Quads + dG 
+      for gorder in 1 2 3 4 5 6
+      do
+       for order in 1 2 3 4 5 6
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_quads.gid --prefix square_quads -order $order -gorder $gorder -f dG"
+            $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_quads.gid --prefix square_quads -order $order -gorder $gorder -f dG
+            if [ $? -ne 0 ]
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
+
       # Circle + Quads        
       for gorder in 1 2 3 4 5 6
       do
