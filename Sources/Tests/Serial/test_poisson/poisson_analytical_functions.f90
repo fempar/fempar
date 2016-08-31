@@ -32,17 +32,27 @@ module poisson_analytical_functions_names
 # include "debug.i90"
   private
 
-  type, extends(scalar_function_t) :: source_term_t
+  type, extends(scalar_function_t) :: base_scalar_function_t
+    private
+    integer(ip) :: num_dimensions = -1  
+  contains
+    procedure :: set_num_dimensions    => base_scalar_function_set_num_dimensions
+  end type base_scalar_function_t
+  
+  type, extends(base_scalar_function_t) :: source_term_t
+    private 
    contains
-     procedure :: get_value_space => source_term_get_value_space
+     procedure :: get_value_space    => source_term_get_value_space
   end type source_term_t
 
-  type, extends(scalar_function_t) :: boundary_function_t
+  type, extends(base_scalar_function_t) :: boundary_function_t
+    private
    contains
      procedure :: get_value_space => boundary_function_get_value_space
   end type boundary_function_t
 
-  type, extends(scalar_function_t) :: solution_function_t
+  type, extends(base_scalar_function_t) :: solution_function_t
+    private 
    contains
      procedure :: get_value_space    => solution_function_get_value_space
      procedure :: get_gradient_space => solution_function_get_gradient_space
@@ -54,6 +64,7 @@ module poisson_analytical_functions_names
      type(boundary_function_t) :: boundary_function
      type(solution_function_t) :: solution_function
    contains
+     procedure :: set_num_dimensions      => poisson_analytical_functions_set_num_dimensions
      procedure :: get_source_term         => poisson_analytical_functions_get_source_term
      procedure :: get_boundary_function   => poisson_analytical_functions_get_boundary_function
      procedure :: get_solution_function   => poisson_analytical_functions_get_solution_function
@@ -63,23 +74,36 @@ module poisson_analytical_functions_names
 
 contains  
 
+  subroutine base_scalar_function_set_num_dimensions ( this, num_dimensions )
+    implicit none
+    class(base_scalar_function_t), intent(inout)    :: this
+    integer(ip), intent(in) ::  num_dimensions
+    this%num_dimensions = num_dimensions
+  end subroutine base_scalar_function_set_num_dimensions
+
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
     implicit none
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
+    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     result = 0.0_rp 
   end subroutine source_term_get_value_space
 
   !===============================================================================================
   subroutine boundary_function_get_value_space ( this, point, result )
     implicit none
-    class(boundary_function_t), intent(in)    :: this
+    class(boundary_function_t), intent(in)  :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    result = point%get(1) + point%get(2) ! x+y
-  end subroutine boundary_function_get_value_space
+    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    if ( this%num_dimensions == 2 ) then
+      result = point%get(1) + point%get(2) ! x+y
+    else if ( this%num_dimensions == 3 ) then
+      result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
+    end if  
+  end subroutine boundary_function_get_value_space 
 
   !===============================================================================================
   subroutine solution_function_get_value_space ( this, point, result )
@@ -87,7 +111,13 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(inout) :: result
-    result = point%get(1) + point%get(2) ! x+y
+    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    if ( this%num_dimensions == 2 ) then
+      result = point%get(1) + point%get(2) ! x+y 
+    else if ( this%num_dimensions == 3 ) then
+      result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
+    end if  
+      
   end subroutine solution_function_get_value_space
   
   !===============================================================================================
@@ -96,9 +126,26 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
-    call result%set( 1, 1.0_rp ) 
-    call result%set( 2, 1.0_rp )
+    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    if ( this%num_dimensions == 2 ) then
+      call result%set( 1, 1.0_rp ) 
+      call result%set( 2, 1.0_rp )
+    else if ( this%num_dimensions == 3 ) then
+      call result%set( 1, 1.0_rp ) 
+      call result%set( 2, 1.0_rp )
+      call result%set( 3, 1.0_rp ) 
+    end if
   end subroutine solution_function_get_gradient_space
+  
+  !===============================================================================================
+  subroutine poisson_analytical_functions_set_num_dimensions ( this, num_dimensions )
+    implicit none
+    class(poisson_analytical_functions_t), intent(inout)    :: this
+    integer(ip), intent(in) ::  num_dimensions
+    call this%source_term%set_num_dimensions(num_dimensions)
+    call this%boundary_function%set_num_dimensions(num_dimensions)
+    call this%solution_function%set_num_dimensions(num_dimensions)
+  end subroutine poisson_analytical_functions_set_num_dimensions 
   
   !===============================================================================================
   function poisson_analytical_functions_get_source_term ( this )

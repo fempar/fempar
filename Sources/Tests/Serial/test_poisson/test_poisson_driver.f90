@@ -140,6 +140,7 @@ contains
                                conditions          = this%poisson_conditions, &
                                reference_fes       = this%reference_fes)
     call this%fe_space%fill_dof_info() 
+    call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
     call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
     !call this%fe_space%print()
@@ -291,19 +292,13 @@ contains
     call error_norm%free()
   end subroutine check_solution
   
-    subroutine write_solution(this)
+  subroutine write_solution(this)
     implicit none
     class(test_poisson_driver_t), intent(in) :: this
     type(vtk_handler_t)                      :: vtk_handler
     integer(ip)                              :: err
-    print*, '----------------------------------------------------------------------'
-    print*, '----------------------------------------------------------------------'
-    print*, '----------------------------------------------------------------------'
-    print*, '----------------------------------------------------------------------'
-    print*, '----------------------------------------------------------------------'
-    print*, this%test_params%get_write_solution()
     if(this%test_params%get_write_solution()) then
-       call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path(), this%test_params%get_prefix())
+       call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path_out(), this%test_params%get_prefix())
        err = vtk_handler%open_vtu(); check(err==0)
        err = vtk_handler%write_vtu_mesh(); check(err==0)
        err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)

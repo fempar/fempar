@@ -91,7 +91,10 @@ subroutine fine_triangulation_generate_vefs(this,order)
            else if(ielem_num_vertices==6) then ! Prism
               assert(.false.)
            else if(ielem_num_vertices==8) then ! Hexahedra
-              assert(.false.)
+              reference_fe_geo_list(icell_type) = &
+                   &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
+                   &                        number_dimensions = this%num_dimensions, order = order, &
+                   &                        field_type = field_type_scalar, continuity = .true. )
            end if
         end if
         ! Transfer allocated target from local variable to member variable of base_static_triangulation
@@ -306,7 +309,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
      end if
      ! Hexahedra
      ielem_num_vertices=8
-     ielem_num_vefs=22
+     ielem_num_vefs=26
      call pos_ref_fe%get(key=ielem_num_vertices,val=icell_type,stat=istat)
      if(istat==old_index) then
         call this%reference_fe_geo_index%put(key=ielem_num_vefs,val=icell_type,stat=istat)
@@ -414,13 +417,13 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
                  end if
               end do
            end do elems1
-        else                   ! Face
-           ivert=given_vefs_iterator%reach_from_current(0)
+        else ! Face
            vertex_of_ivef = 0
            do ivert=1,nnodb
               vertex_of_ivef(ivert)= given_vefs_iterator%get_current()
               call given_vefs_iterator%next()
            end do
+           ielem_num_vef_verts = nnodb
            call ivef_accessor%create(vertex_of_ivef(1),this)
            elems2: do jelpo = 1, ivef_accessor%get_num_cells_around()
               call ivef_accessor%get_cell_around(jelpo, jcell)
@@ -484,10 +487,13 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
   type(vef_iterator_t)  :: vef_iterator
   type(vef_accessor_t)  :: vef, vef_of_vef
   type(list_t), pointer :: vefs_of_vef
+  type(list_t), pointer :: vertices_of_line
   type(list_iterator_t) :: vefs_of_vef_iterator
+  type(list_iterator_t) :: vertices_of_line_iterator
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   
   integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell, vef_set_id, vef_geom_id
+  integer(ip) :: vertex_pos_in_cell
 
   assert ( this%num_vefs >= 0 )
   assert ( allocated(this%vefs_type))
@@ -505,6 +511,7 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
      if(vef%get_num_cells_around()==1) then ! vef is on the boundary
         if( vef%get_dimension() == this%num_dimensions-1 ) then ! It is a face
            call vef%set_it_at_boundary()
+           
            vef_set_id = vef%get_set_id()
            !vef_geom_id = vef%get_geom_id()
            vefs_of_vef => reference_fe_geo%get_n_faces_n_face() 
@@ -519,9 +526,32 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
                  call vef_of_vef%set_set_id(vef_set_id)
                  !call vef_of_vef%set_geom_id(vef_geom_id)
               end if
+              
+              ! Traverse vertices of current line
+              if ( this%num_dimensions == 3 ) then
+                vertices_of_line          => reference_fe_geo%get_vertices_n_face() 
+                vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
+                do while( .not. vertices_of_line_iterator%is_upper_bound() )
+                  vertex_pos_in_cell = vertices_of_line_iterator%get_current()
+                  call cell%get_vef(vertex_pos_in_cell, vef_of_vef)
+                  call vef_of_vef%set_it_at_boundary()
+                  !write(*,*) 'Boundary face', vef%get_lid(), vef_set_id, 'vef', vef_of_vef%get_lid(), vef_of_vef%get_set_id()
+                  if( vef_of_vef%get_set_id() == 0) then
+                    call vef_of_vef%set_set_id(vef_set_id)
+                   !call vef_of_vef%set_geom_id(vef_geom_id)
+                  end if
+                  call vertices_of_line_iterator%next()
+                end do
+              end if 
+              
               call vefs_of_vef_iterator%next()
            end do
-        end if
+           
+           
+           
+           
+           
+         end if
      end if
      call vef_iterator%next()
   end do

@@ -166,7 +166,7 @@ contains
       this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
                                                    number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                   order = this%test_params%get_reference_fe_geo_order(), &
+                                                   order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
                                                    continuity = .true. )
     end if  
@@ -184,6 +184,7 @@ contains
     
     ! Step required by the MLBDDC preconditioner
     call this%fe_space%renumber_dofs_first_interior_then_interface()
+    call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
     call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)    
     !call this%fe_space%print()
