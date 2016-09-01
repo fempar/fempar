@@ -37,6 +37,7 @@ module serial_names
   use serial_environment_names
   use flap, only : command_line_interface
   use FPL
+  use vtk_handler_names
 
   ! Geometry
   use metis_interface_names

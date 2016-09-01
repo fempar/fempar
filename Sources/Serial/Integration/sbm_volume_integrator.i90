@@ -274,8 +274,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
   local_vef_id = reference_fe%number_n_faces_per_dimension(number_elem_dimensions) + local_face_id - 1
   orientation_face  = reference_fe%orientation%a(local_vef_id)
   reorientation_factor = (-1)**orientation_face
-
-  
+  ! See comment in facet_orientation (polytope module) about the reasoning behind this
   call this%compute_quadrature_coordinates()
   ! Initialize values
   this%jacobian           = 0.0_rp
@@ -294,14 +293,18 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
         end do
 
      end do
-     
      ! Compute outside normals (using the jacobian Matrix)
      if ( number_elem_dimensions == 1) then
+        ! -1 and 1
         this%normals(1,evaluation_point_id) = -1.0_rp**(real(local_face_id))
      elseif ( number_elem_dimensions == 2) then
+        ! dx x e_z = ( dx/dX, dx/dY, 0) x (0,0,1) = ( dx/dY, -dx/dX, 0)
+        ! (normal component up to correction by orientation)
         this%normals (1,evaluation_point_id) = this%jacobian(2,1,evaluation_point_id)
-        this%normals (2,evaluation_point_id) = - this%jacobian(1,1,evaluation_point_id)
+        this%normals (2,evaluation_point_id) = -this%jacobian(1,1,evaluation_point_id)
      elseif ( number_elem_dimensions == 3) then
+        ! dx x dy = (normal component up to correction by orientation)
+        ! = (dx/dX, dx/dY, dx/dZ) x ( dy/dX, dy/dY, dy/dZ)
         call vecpro(this%jacobian(:,1,evaluation_point_id),this%jacobian(:,2,evaluation_point_id),&
              &                    this%normals(:,evaluation_point_id),3)
      end if

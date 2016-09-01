@@ -277,15 +277,17 @@ subroutine interpolation_face_restriction_free(this)
 
   integer(ip) :: i, istat
 
-  do i = 1, this%number_faces
-     call this%interpolation(i)%free()
-     call this%interpolation_o_map(i)%free()
-  end do
   if (allocated(this%interpolation)) then
+     do i = 1, this%number_faces
+       call this%interpolation(i)%free()
+     end do
      deallocate(this%interpolation, stat = istat)
      check (istat == 0)
   end if
   if (allocated(this%interpolation_o_map)) then
+     do i = 1, this%number_faces
+       call this%interpolation_o_map(i)%free()
+     end do
      deallocate(this%interpolation_o_map, stat = istat)
      check (istat == 0)
   end if
@@ -316,9 +318,14 @@ subroutine face_integrator_create(this,quadrature,left_reference_fe,right_refere
   end if
 
   this%current_qpoints_perm_cols = 1
-  call left_reference_fe%fill_interior_points_permutation(quadrature%number_dimensions,&
-                                                          quadrature%number_quadrature_points,&
-       &                                                  this%qpoints_perm)
+  ! @sbadia: order+2 only works for topology_hex. When the work for high order TETS with face 
+  ! integration will be performed, it has to be corrected
+  assert ( left_reference_fe%topology == topology_hex )
+  call left_reference_fe%node_array%fill_permutations( left_reference_fe%order+2, &
+                                                       quadrature%number_dimensions, &
+                                                       left_reference_fe%polytope, &
+                                                       this%qpoints_perm ) 
+  
 end subroutine face_integrator_create
 
 !==================================================================================================
@@ -334,9 +341,7 @@ subroutine face_integrator_free(this)
      call this%interpolation_face_restriction(i)%free()
   end do
 
-  if (allocated(this%qpoints_perm)) then
-     call memfree (this%qpoints_perm, __FILE__,__LINE__)
-  end if
+  call this%qpoints_perm%free()
 
 end subroutine face_integrator_free
 
@@ -374,7 +379,7 @@ subroutine face_integrator_get_value_scalar (this, ishape, qpoint, ineigh, scala
   assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
 
-  actual_qpoint = this%qpoints_perm(qpoint,this%current_qpoints_perm_cols(ineigh))
+  actual_qpoint = this%qpoints_perm%a(qpoint,this%current_qpoints_perm_cols(ineigh))
   active_face_id = this%interpolation_face_restriction(ineigh)%active_face_id
   call this%reference_fe(ineigh)%p%get_value(this%interpolation_face_restriction(ineigh)%interpolation_o_map(active_face_id),   &
        &                                     ishape,actual_qpoint,scalar_field)
@@ -393,7 +398,7 @@ subroutine face_integrator_get_gradient_scalar (this, ishape, qpoint, ineigh, ve
   assert( this%reference_fe(ineigh)%p%field_type == field_type_scalar )
   assert( (ineigh == 1) .or. ((ineigh == 2) .and. (.not. this%is_boundary)))
 
-  actual_qpoint = this%qpoints_perm(qpoint,this%current_qpoints_perm_cols(ineigh))
+  actual_qpoint = this%qpoints_perm%a(qpoint,this%current_qpoints_perm_cols(ineigh))
   active_face_id = this%interpolation_face_restriction(ineigh)%active_face_id
   call this%reference_fe(ineigh)%p%get_gradient(this%interpolation_face_restriction(ineigh)%interpolation_o_map(active_face_id),   &
        &                                        ishape,actual_qpoint,vector_field)
@@ -405,7 +410,7 @@ function face_integrator_get_current_qpoints_perm ( this, neighbour_id )
   class(face_integrator_t), target, intent(in)    :: this
   integer(ip)                     , intent(in)    :: neighbour_id
   integer(ip), pointer :: face_integrator_get_current_qpoints_perm(:)
-  face_integrator_get_current_qpoints_perm => this%qpoints_perm(:,this%current_qpoints_perm_cols(neighbour_id))
+  face_integrator_get_current_qpoints_perm => this%qpoints_perm%a(:,this%current_qpoints_perm_cols(neighbour_id))
 end function face_integrator_get_current_qpoints_perm
 
 !=================================================================================================

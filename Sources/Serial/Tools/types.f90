@@ -29,14 +29,15 @@ module types_names
   !-----------------------------------------------------------------------
   !    This module contains kind and type definitions.
   !-----------------------------------------------------------------------
+  use, intrinsic :: iso_fortran_env, only: INT8, INT32, INT64, REAL64
   implicit none
 
-  integer, parameter       :: ieep = 1    ! Integer precision for buffers in element exchanges
-  integer, parameter       :: ip   = 4    ! Integer precision
-  integer, parameter       :: rp   = 8    ! Real precision
-  !integer, parameter       :: lg   = 1    ! Logical precision
+  integer, parameter       :: ieep = INT8   ! Integer precision for buffers in element exchanges
+  integer, parameter       :: ip   = INT32  ! Integer precision
+  integer, parameter       :: rp   = REAL64 ! Real precision
+  !integer, parameter       :: lg   = 1     ! Logical precision
 
-  integer(ip)  , parameter :: imp = 8    ! Integer precision, 
+  integer(ip)  , parameter :: imp  = INT64  ! Integer precision, 
   ! memory consumption
 
   ! integer(ip), parameter :: igp = 8    ! Integer precision, 

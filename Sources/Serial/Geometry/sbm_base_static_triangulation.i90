@@ -33,6 +33,7 @@ function bst_get_par_environment ( this )
   implicit none
   class(base_static_triangulation_t), target, intent(in) :: this
   type(par_environment_t), pointer                           :: bst_get_par_environment
+  assert ( associated(this%p_env) )
   bst_get_par_environment => this%p_env
 end function bst_get_par_environment
 
@@ -1663,6 +1664,8 @@ subroutine bst_print ( this )
        write(*,'(2(i10,2x),4(10x,l1),2(2x,i10))') vef_lid,  vef%get_dimension(),  vef%is_local(),  vef%is_at_interface(), vef%is_ghost(), vef%is_at_boundary(), vef%get_set_id(),this%vefs_geometry(vef_lid)
        call vef_iterator%next()
     end do
+    
+    call memfree(cell_coordinates,__FILE__,__LINE__)
 
   end subroutine bst_print
 
@@ -1735,3 +1738,18 @@ subroutine bst_print ( this )
      integer(ip) :: bst_get_number_reference_fes_geo
      bst_get_number_reference_fes_geo = max_num_reference_fes_geo
    end function bst_get_number_reference_fes_geo
+   
+   function bst_get_max_number_shape_functions ( this ) 
+     implicit none
+     class(base_static_triangulation_t), intent(in) :: this
+     integer(ip) :: bst_get_max_number_shape_functions
+     integer(ip) :: reference_fe_geo_id
+     bst_get_max_number_shape_functions = -1
+     do reference_fe_geo_id=1, max_num_reference_fes_geo
+       if(associated(this%reference_fe_geo_list(reference_fe_geo_id)%p)) then
+         bst_get_max_number_shape_functions = &
+             max(bst_get_max_number_shape_functions, &
+             this%reference_fe_geo_list(reference_fe_geo_id)%p%get_number_shape_functions())
+       endif
+     enddo
+   end function bst_get_max_number_shape_functions

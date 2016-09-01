@@ -136,7 +136,7 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
           lst_ext_neighs_gids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1), &
           lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
      this%num_ghost_cells = this%cell_import%get_number_ghost_elements()
-     write(*,*) 'Get from import num_ghost_cells',this%num_ghost_cells
+     !write(*,*) 'Get from import num_ghost_cells',this%num_ghost_cells
 
      ! Allocate + fill cells-related data
      call this%allocate_and_fill_ptr_vefs_per_cell(ptr_vefs_per_cell)
@@ -187,13 +187,13 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
      call memfree (ptr_ext_neighs_per_itfc_cell, __FILE__, __LINE__)
      !call memfree (lst_vefs_dimension_ghost_extended, __FILE__, __LINE__)
 
-     write(*,*) 'compute_vefs_and_parts_object'
+     !write(*,*) 'compute_vefs_and_parts_object'
      call this%compute_vefs_and_parts_object()
-     write(*,*) 'compute_objects_dimension'
+     !write(*,*) 'compute_objects_dimension'
      call this%compute_objects_dimension()
-     write(*,*) 'compute_number_global_objects_and_their_gids'
+     !write(*,*) 'compute_number_global_objects_and_their_gids'
      call this%compute_number_global_objects_and_their_gids()
-     write(*,*) 'End creating par_triangulation'
+     !write(*,*) 'End creating par_triangulation'
   end if
   call this%setup_coarse_triangulation()
   call mesh%free()

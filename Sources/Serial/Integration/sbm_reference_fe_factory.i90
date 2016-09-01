@@ -50,9 +50,7 @@
        end if
     else if ( fe_type == fe_type_raviart_thomas ) then
        if ( topology == topology_hex ) then
-          write(*,*) 'Vector Lagrangian for Hex not implemented'
-          check(.false.)
-          !allocate ( hex_lagrangian_reference_fe_t :: make_reference_fe%p )
+          allocate ( hex_raviart_thomas_reference_fe_t :: make_reference_fe%p )
        elseif ( topology == topology_tet ) then
           allocate ( tet_raviart_thomas_reference_fe_t :: make_reference_fe%p )
        end if

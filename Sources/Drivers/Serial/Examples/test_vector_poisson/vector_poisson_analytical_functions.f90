@@ -32,7 +32,7 @@ module vector_poisson_analytical_functions_names
 # include "debug.i90"
   private
 
-  type, extends(scalar_function_t) :: source_term_t
+  type, extends(vector_function_t) :: source_term_t
    contains
      procedure :: get_value_space => source_term_get_value_space
   end type source_term_t
@@ -74,8 +74,9 @@ contains
     implicit none
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
-    real(rp)            , intent(inout) :: result
-    result = 0.0_rp !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
+    type(vector_field_t), intent(inout) :: result
+    call result%set(1,-2.0_rp)
+    call result%set(2,-2.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -84,7 +85,7 @@ contains
     class(boundary_values_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    result = 1.0_rp !sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1)
+    result = point%get(1)**2 !sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1)
   end subroutine boundary_values_get_value_space
 
   !===============================================================================================
@@ -93,8 +94,8 @@ contains
     class(solution_values_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
-    call result%set(1, 1.0_rp ) !result%set(1, sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1) )
-    call result%set(1, 1.0_rp ) !result%set(2, sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1) )
+    call result%set(1, point%get(1)**2 ) !result%set(1, sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1) )
+    call result%set(2, point%get(1)**2 ) !result%set(2, sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1) )
   end subroutine solution_values_get_value_space
   
   !===============================================================================================
@@ -117,7 +118,7 @@ contains
   function poisson_analytical_functions_get_source_term ( this )
     implicit none
     class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: poisson_analytical_functions_get_source_term
+    class(vector_function_t), pointer :: poisson_analytical_functions_get_source_term
     poisson_analytical_functions_get_source_term => this%source_term
   end function poisson_analytical_functions_get_source_term
   

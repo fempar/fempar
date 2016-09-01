@@ -44,19 +44,19 @@ function tet_lagrangian_reference_fe_check_compatibility_of_n_faces             
   select type(source_reference_fe)
      class is(tet_lagrangian_reference_fe_t)
         ! Get number nodes per dimension
-        assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
-        do idime = 1, target_reference_fe%number_dimensions
+     assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
+     do idime = 1, target_reference_fe%number_dimensions
         assert (target_reference_fe%order_vector(idime) == source_reference_fe%order_vector(idime))
-        end do
-        assert (target_reference_fe%get_n_face_dimension(target_n_face_id) ==  source_reference_fe%get_n_face_dimension(source_n_face_id))
-        assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
-        assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
-        assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
-        tet_lagrangian_reference_fe_check_compatibility_of_n_faces = .true.
+     end do
+     assert (target_reference_fe%get_n_face_dimension(target_n_face_id) ==  source_reference_fe%get_n_face_dimension(source_n_face_id))
+     assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
+     assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
+     assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
+     tet_lagrangian_reference_fe_check_compatibility_of_n_faces = .true.
      class default
-        tet_lagrangian_reference_fe_check_compatibility_of_n_faces = .false.
+     tet_lagrangian_reference_fe_check_compatibility_of_n_faces = .false.
   end select
- 
+
 end function tet_lagrangian_reference_fe_check_compatibility_of_n_faces
 
 !=================================================================================================
@@ -65,7 +65,7 @@ function tet_lagrangian_reference_fe_get_characteristic_length ( this )
   class(tet_lagrangian_reference_fe_t), intent(in) :: this 
   real(rp)  :: tet_lagrangian_reference_fe_get_characteristic_length 
   tet_lagrangian_reference_fe_get_characteristic_length =   &
-     &   real(get_factorial(this%number_dimensions),rp)**(-1.0_rp/real(this%number_dimensions,rp))
+       &   real(get_factorial(this%number_dimensions),rp)**(-1.0_rp/real(this%number_dimensions,rp))
 end function tet_lagrangian_reference_fe_get_characteristic_length
 
 !==================================================================================================
@@ -80,7 +80,7 @@ subroutine tet_lagrangian_reference_fe_get_subelements_connectivity ( this, conn
   integer(ip) :: first_coord(this%number_dimensions)
   integer(ip) :: local_coord(this%number_dimensions)
   integer(ip) :: global_coord(this%number_dimensions)
- 
+
   write(*,*) ' ERROR in: ',__FILE__,__LINE__
   write(*,*) ' Subroutine not implemented for triangles/tetrahedra '
   check( .false. )
@@ -92,6 +92,8 @@ subroutine tet_lagrangian_reference_fe_blending(this,values)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
   type(point_t)                       , intent(inout) :: values(:)
+  write(*,*) ' ERROR in: ',__FILE__,__LINE__
+  write(*,*) ' Subroutine not implemented for triangles/tetrahedra '
   check(.false.)
 end subroutine tet_lagrangian_reference_fe_blending
 
@@ -153,7 +155,7 @@ subroutine tet_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
         check(.false.)
      end if
 
-  ! Area integral (triangles)
+     ! Area integral (triangles)
   else if(ndime==2) then
      if(ngaus==1) then
         quadrature%coordinates(1,1)= 1.0_rp/3.0_rp
@@ -657,8 +659,20 @@ subroutine tet_lagrangian_reference_fe_fill_quadrature ( this, quadrature )
         check(.false.)
      end if
   end if
-  
+
 end subroutine tet_lagrangian_reference_fe_fill_quadrature
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_fill_nodal_quadrature( this, quadrature )
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this 
+  type(quadrature_t)                  , intent(inout) :: quadrature
+  integer(ip) :: i
+  do i=1,this%number_dimensions
+     quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)*(1.0_rp/this%order_vector(i))
+  end do
+  quadrature%weight = 1.0_rp
+end subroutine tet_lagrangian_reference_fe_fill_nodal_quadrature
 
 !==================================================================================================
 subroutine tet_lagrangian_reference_fe_fill_interpolation ( this, quadrature, interpolation ) 
@@ -668,30 +682,30 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation ( this, quadrature, in
   type(interpolation_t)           , intent(inout) :: interpolation 
   real(rp), pointer :: coord_ip(:,:)
   integer(ip) :: iquad
-    
+
   coord_ip => quadrature%get_coordinates()
 
   if ( allocated( interpolation%hessian ) )  then 
      do iquad = 1,interpolation%number_quadrature_points
         call this%evaluate_interpolation( coord_ip(:,iquad),                             &
-                                          interpolation%number_dimensions,               &
-                                          interpolation%number_shape_functions,          &
-                                          interpolation%number_entries_symmetric_tensor, &
-                                          interpolation%shape_functions(1,:,iquad),        &
-                                          interpolation%shape_derivatives(1,:,:,iquad),    &
-                                          interpolation%hessian(1,:,:,iquad) )
+             interpolation%number_dimensions,               &
+             interpolation%number_shape_functions,          &
+             interpolation%number_entries_symmetric_tensor, &
+             interpolation%shape_functions(1,:,iquad),        &
+             interpolation%shape_derivatives(1,:,:,iquad),    &
+             interpolation%hessian(1,:,:,iquad) )
      end do
   else
      do iquad = 1,interpolation%number_quadrature_points
         call this%evaluate_interpolation( coord_ip(:,iquad),                             &
-                                          interpolation%number_dimensions,               &
-                                          interpolation%number_shape_functions,          &
-                                          interpolation%number_entries_symmetric_tensor, &
-                                          interpolation%shape_functions(1,:,iquad),        &
-                                          interpolation%shape_derivatives(1,:,:,iquad) )
+             interpolation%number_dimensions,               &
+             interpolation%number_shape_functions,          &
+             interpolation%number_entries_symmetric_tensor, &
+             interpolation%shape_functions(1,:,iquad),        &
+             interpolation%shape_derivatives(1,:,:,iquad) )
      end do
   end if
-  
+
 end subroutine tet_lagrangian_reference_fe_fill_interpolation
 
 !==================================================================================================
@@ -705,7 +719,7 @@ subroutine tet_lagrangian_reference_fe_fill_face_interpolation (this, local_quad
   integer(ip)              :: idime, iquad, p_local_coordinate
 
   call memalloc(face_interpolation%number_dimensions,global_coordinates,__FILE__,__LINE__)
-  
+
   ! Evaluate shape functions and derivatives at the gauss points
   if ( allocated( face_interpolation%hessian ) )  then 
      do iquad = 1,face_interpolation%number_quadrature_points
@@ -725,16 +739,16 @@ subroutine tet_lagrangian_reference_fe_fill_face_interpolation (this, local_quad
            ! Non-orthogonal face in the reference element
            global_coordinates(1) = 1 - local_quadrature%coordinates(1,iquad)
            global_coordinates(2:face_interpolation%number_dimensions) = &
-              & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,iquad)
+                & local_quadrature%coordinates(1:face_interpolation%number_dimensions-1,iquad)
         end if
         ! Evaluate shape functions and derivatives at the gauss points
         call this%evaluate_interpolation( global_coordinates,                                 &
-                                          face_interpolation%number_dimensions,               &
-                                          face_interpolation%number_shape_functions,          &
-                                          face_interpolation%number_entries_symmetric_tensor, &
-                                          face_interpolation%shape_functions(1,:,iquad),        &
-                                          face_interpolation%shape_derivatives(1,:,:,iquad),    &
-                                          face_interpolation%hessian(1,:,:,iquad) )
+             face_interpolation%number_dimensions,               &
+             face_interpolation%number_shape_functions,          &
+             face_interpolation%number_entries_symmetric_tensor, &
+             face_interpolation%shape_functions(1,:,iquad),        &
+             face_interpolation%shape_derivatives(1,:,:,iquad),    &
+             face_interpolation%hessian(1,:,:,iquad) )
      end do
   else
      do iquad = 1,face_interpolation%number_quadrature_points
@@ -754,24 +768,24 @@ subroutine tet_lagrangian_reference_fe_fill_face_interpolation (this, local_quad
            ! Non-orthogonal face in the reference element
            global_coordinates(1) = 1 - sum(local_quadrature%coordinates(:,iquad))
            global_coordinates(2:face_interpolation%number_dimensions) = & 
-                              & local_quadrature%coordinates(:,iquad)
+                & local_quadrature%coordinates(:,iquad)
         end if
         call this%evaluate_interpolation( global_coordinates,                                 &
-                                          face_interpolation%number_dimensions,               &
-                                          face_interpolation%number_shape_functions,          &
-                                          face_interpolation%number_entries_symmetric_tensor, &
-                                          face_interpolation%shape_functions(1,:,iquad),        &
-                                          face_interpolation%shape_derivatives(1,:,:,iquad) )
+             face_interpolation%number_dimensions,               &
+             face_interpolation%number_shape_functions,          &
+             face_interpolation%number_entries_symmetric_tensor, &
+             face_interpolation%shape_functions(1,:,iquad),        &
+             face_interpolation%shape_derivatives(1,:,:,iquad) )
      end do
   end if
-  
+
   call memfree(global_coordinates,__FILE__,__LINE__)
 
 end subroutine tet_lagrangian_reference_fe_fill_face_interpolation
 
 !==================================================================================================
 function tet_lagrangian_reference_fe_get_node_local_id (this, local_coordinates, & 
-                                                      & number_of_dimensions, order)
+     & number_of_dimensions, order)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: local_coordinates(:)
@@ -790,18 +804,18 @@ function tet_lagrangian_reference_fe_get_node_local_id (this, local_coordinates,
   do k =1,number_of_dimensions-1
      q = order-local_coordinates(k+1)
      tet_lagrangian_reference_fe_get_node_local_id =   & 
-     & tet_lagrangian_reference_fe_get_node_local_id + & 
-     & this%compute_sum_of_nodes_in_simplices(k,q-local_coordinates(k)+1,q)
+          & tet_lagrangian_reference_fe_get_node_local_id + & 
+          & this%compute_sum_of_nodes_in_simplices(k,q-local_coordinates(k)+1,q)
   end do
   tet_lagrangian_reference_fe_get_node_local_id =   & 
-  & tet_lagrangian_reference_fe_get_node_local_id + & 
-  & this%compute_sum_of_nodes_in_simplices(k,order-local_coordinates(number_of_dimensions)+1,order)
+       & tet_lagrangian_reference_fe_get_node_local_id + & 
+       & this%compute_sum_of_nodes_in_simplices(k,order-local_coordinates(number_of_dimensions)+1,order)
 
 end function tet_lagrangian_reference_fe_get_node_local_id
 
 !=================================================================================================
 subroutine tet_lagrangian_reference_fe_set_permutation_2D( this, permutation, number_nodes_x_dim, &
-                                                         & orientation, rotation )
+     & orientation, rotation )
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(inout) :: permutation(:)
@@ -836,7 +850,7 @@ function tet_lagrangian_reference_fe_set_number_quadrature_points( this, order, 
   integer(ip)                         , intent(in)    :: dimension
   integer(ip) :: tet_lagrangian_reference_fe_set_number_quadrature_points
   tet_lagrangian_reference_fe_set_number_quadrature_points = & 
-   & this%compute_number_nodes_scalar( order, dimension )
+       & this%compute_number_nodes_scalar( order, dimension )
   if( dimension .eq. 2 ) then
      if( order .eq. 3 ) then
         tet_lagrangian_reference_fe_set_number_quadrature_points = 13
@@ -846,7 +860,7 @@ function tet_lagrangian_reference_fe_set_number_quadrature_points( this, order, 
         tet_lagrangian_reference_fe_set_number_quadrature_points = 11
      end if
   end if
-end function
+end function tet_lagrangian_reference_fe_set_number_quadrature_points
 
 !=================================================================================================
 recursive function tet_lagrangian_reference_fe_compute_number_nodes_scalar(this, order, dimension)
@@ -866,19 +880,19 @@ recursive function tet_lagrangian_reference_fe_compute_number_nodes_scalar(this,
      tet_lagrangian_reference_fe_compute_number_nodes_scalar = int((order+1)*(order+2)/2)
   else
      tet_lagrangian_reference_fe_compute_number_nodes_scalar = & 
-       & this%compute_number_nodes_scalar(dimension-1,0)
+          & this%compute_number_nodes_scalar(dimension-1,0)
      do q=1,order
         tet_lagrangian_reference_fe_compute_number_nodes_scalar = & 
-          & tet_lagrangian_reference_fe_compute_number_nodes_scalar + & 
-          & this%compute_number_nodes_scalar(dimension-1,q)
+             & tet_lagrangian_reference_fe_compute_number_nodes_scalar + & 
+             & this%compute_number_nodes_scalar(dimension-1,q)
      end do
   end if
 end function tet_lagrangian_reference_fe_compute_number_nodes_scalar
 
 !=================================================================================================
 function tet_lagrangian_reference_fe_get_number_interior_points_x_dim(this,                   & 
-                                                                    & number_interior_points, & 
-                                                                    & dimension)
+     & number_interior_points, & 
+     & dimension)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: number_interior_points
@@ -888,7 +902,7 @@ function tet_lagrangian_reference_fe_get_number_interior_points_x_dim(this,     
      tet_lagrangian_reference_fe_get_number_interior_points_x_dim = number_interior_points
   else
      tet_lagrangian_reference_fe_get_number_interior_points_x_dim = & 
-      & (-1 + int(sqrt(real(1+8*number_interior_points))))/2
+          & (-1 + int(sqrt(real(1+8*number_interior_points))))/2
   end if
 end function tet_lagrangian_reference_fe_get_number_interior_points_x_dim
 
@@ -898,7 +912,7 @@ end function tet_lagrangian_reference_fe_get_number_interior_points_x_dim
 
 !==================================================================================================
 recursive subroutine tet_lagrangian_reference_fe_fill_nodes_n_face(this,ntxob,c3,ini,end, &
-                                                              & i,idm,nd,k,p,objec,nt)
+     & i,idm,nd,k,p,objec,nt)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: ini,end,nd,k,p,objec(nd,nd+1),nt,i
@@ -930,19 +944,19 @@ recursive subroutine tet_lagrangian_reference_fe_fill_nodes_n_face(this,ntxob,c3
         end if
      end do
   end if
-  
+
 end subroutine tet_lagrangian_reference_fe_fill_nodes_n_face
 
 !==================================================================================================
 recursive subroutine tet_lagrangian_reference_fe_fill_n_face_dimension_and_vertices (this,       &
-                                                                        n_face_dimension,        &
-                                                                        vertex_position,      &
-                                                                        number_of_dimensions, &
-                                                                        initial_vertex,       &
-                                                                        number_of_n_faces,       &
-                                                                        n_face_id,               &
-                                                                        vertices_of_n_faces,      &
-                                                                        n_face_dimension_and_vertices)
+     n_face_dimension,        &
+     vertex_position,      &
+     number_of_dimensions, &
+     initial_vertex,       &
+     number_of_n_faces,       &
+     n_face_id,               &
+     vertices_of_n_faces,      &
+     n_face_dimension_and_vertices)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: n_face_dimension
@@ -959,13 +973,13 @@ recursive subroutine tet_lagrangian_reference_fe_fill_n_face_dimension_and_verti
      vertices_of_n_faces(vertex_position) = vertex_id
      if(vertex_position+1<n_face_dimension+2) then
         call this%fill_n_face_dimension_and_vertices(n_face_dimension,                      &
-                                                  vertex_position+1,                  &
-                                                  number_of_dimensions,               &
-                                                  vertices_of_n_faces(vertex_position)+1, &
-                                                  number_of_n_faces,                     &
-                                                  n_face_id,                             &
-                                                  vertices_of_n_faces,                    &
-                                                  n_face_dimension_and_vertices)
+             vertex_position+1,                  &
+             number_of_dimensions,               &
+             vertices_of_n_faces(vertex_position)+1, &
+             number_of_n_faces,                     &
+             n_face_id,                             &
+             vertices_of_n_faces,                    &
+             n_face_dimension_and_vertices)
      else
         n_face_dimension_and_vertices(1,n_face_id) = n_face_dimension
         n_face_dimension_and_vertices(2:n_face_dimension+2,n_face_id) = vertices_of_n_faces(1:n_face_dimension+1)
@@ -992,18 +1006,18 @@ recursive function tet_lagrangian_reference_fe_compute_number_interior_nodes(thi
      tet_lagrangian_reference_fe_compute_number_interior_nodes = int((order-2)*(order-1)/2)
   else
      tet_lagrangian_reference_fe_compute_number_interior_nodes = & 
-      & this%compute_number_interior_nodes(dimension-1,1)
+          & this%compute_number_interior_nodes(dimension-1,1)
      do q=2,order-1
         tet_lagrangian_reference_fe_compute_number_interior_nodes =    & 
-         & tet_lagrangian_reference_fe_compute_number_interior_nodes + & 
-         & this%compute_number_interior_nodes(dimension-1,q)
+             & tet_lagrangian_reference_fe_compute_number_interior_nodes + & 
+             & this%compute_number_interior_nodes(dimension-1,q)
      end do
   end if
 end function tet_lagrangian_reference_fe_compute_number_interior_nodes
 
 !=================================================================================================
 function tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices(this,dimension, & 
-                                                                     & ini_order,end_order)
+     & ini_order,end_order)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: dimension, ini_order, end_order
@@ -1015,18 +1029,18 @@ function tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices(this,dime
      tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices = 0
   else
      tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices = & 
-       & this%compute_number_nodes_scalar(dimension-1,ini_order)
+          & this%compute_number_nodes_scalar(dimension-1,ini_order)
      do q = ini_order+1,end_order
         tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices =   & 
-        & tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices + &
-        & this%compute_number_nodes_scalar(dimension-1,q)
+             & tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices + &
+             & this%compute_number_nodes_scalar(dimension-1,q)
      end do
   end if
 end function tet_lagrangian_reference_fe_compute_sum_of_nodes_in_simplices
 
 !==================================================================================================
 subroutine tet_lagrangian_reference_fe_evaluate_interpolation(this,coord,ndime,nnode, & 
-                                                            & ntens,shape,deriv,heslo)
+     & ntens,shape,deriv,heslo)
   !-----------------------------------------------------------------------
   !
   ! This routine evaluates shape functions and their first and second
@@ -1054,19 +1068,19 @@ subroutine tet_lagrangian_reference_fe_evaluate_interpolation(this,coord,ndime,n
      ! Hessian not computed for face interpolation
      ! Linear bar
      if(nnode==2) then
-     shape(1)=1.0_rp-coord(1)                              
-     shape(2)=coord(1)                                    
-     deriv(1,1)=-1.0_rp                                   
-     deriv(1,2)= 1.0_rp                                   
-     ! Quadratic bar
+        shape(1)=1.0_rp-coord(1)                              
+        shape(2)=coord(1)                                    
+        deriv(1,1)=-1.0_rp                                   
+        deriv(1,2)= 1.0_rp                                   
+        ! Quadratic bar
      else if(nnode==3) then
-     shape(1)=2.0_rp*(coord(1)-0.5_rp)*(coord(1)-1.0_rp)                           
-     shape(2)=-4.0_rp*coord(1)*(coord(1)-1.0_rp)  
-     shape(3)=2.0_rp*coord(1)*(coord(1)-0.5_rp)
-     deriv(1,1)=2.0_rp*(2.0_rp*coord(1)-1.5_rp)                                    
-     deriv(1,2)=-4.0_rp*(2.0_rp*coord(1)-1.0_rp)
-     deriv(1,3)=2.0_rp*(2.0_rp*coord(1)-0.5_rp)
-     ! Cubic bar
+        shape(1)=2.0_rp*(coord(1)-0.5_rp)*(coord(1)-1.0_rp)                           
+        shape(2)=-4.0_rp*coord(1)*(coord(1)-1.0_rp)  
+        shape(3)=2.0_rp*coord(1)*(coord(1)-0.5_rp)
+        deriv(1,1)=2.0_rp*(2.0_rp*coord(1)-1.5_rp)                                    
+        deriv(1,2)=-4.0_rp*(2.0_rp*coord(1)-1.0_rp)
+        deriv(1,3)=2.0_rp*(2.0_rp*coord(1)-0.5_rp)
+        ! Cubic bar
      else if(nnode==4) then
         write(*,*) __FILE__,__LINE__,'ERROR:: Interpolation not defined',ndime,nnode
         check(.false.)
@@ -1083,7 +1097,7 @@ subroutine tet_lagrangian_reference_fe_evaluate_interpolation(this,coord,ndime,n
         deriv(2,1)=-1.0_rp                                   !         
         deriv(2,2)= 0.0_rp                                   !  1       2
         deriv(2,3)= 1.0_rp
-     ! Quadratic triangle
+        ! Quadratic triangle
      else if(nnode==6) then
         a1=1.0_rp-coord(1)-coord(2)
         a2=coord(1)                                             
@@ -1118,7 +1132,7 @@ subroutine tet_lagrangian_reference_fe_evaluate_interpolation(this,coord,ndime,n
            heslo(3,5)= 4.0_rp
            heslo(3,4)=-4.0_rp
         end if
-     ! Cubic triangle
+        ! Cubic triangle
      else if(nnode==10) then
         c=9.0_rp/2.0_rp
         a1=1.0_rp-coord(1)-coord(2)
@@ -1204,7 +1218,7 @@ subroutine tet_lagrangian_reference_fe_evaluate_interpolation(this,coord,ndime,n
         deriv(3, 4) = 1.0_rp
         deriv(1, 2) = 1.0_rp
         deriv(2, 3) = 1.0_rp
-     ! Quadratic tetrahedron 
+        ! Quadratic tetrahedron 
      else if(nnode==10) then
         a1= 1.0_rp-coord(1)-coord(2)-coord(3)
         a2=coord(1)

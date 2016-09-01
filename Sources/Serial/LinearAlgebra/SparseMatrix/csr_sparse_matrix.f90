@@ -2461,7 +2461,6 @@ contains
     !-----------------------------------------------------------------
         assert(this%state_is_assembled())
         assert(to%state_is_properties_set() .or. to%state_is_assembled_symbolic())
-        if(C_T_num_cols < 1) return
 
         initial_num_rows = this%get_num_rows()
         initial_num_cols = this%get_num_cols()
@@ -2895,8 +2894,6 @@ contains
             enddo
             I_ia(I_nz+1) = I_nz+1
         endif
-        
-        if(C_T_num_cols < 1) return
 
         initial_num_rows = this%get_num_rows()
         initial_num_cols = this%get_num_cols()
@@ -3286,7 +3283,6 @@ contains
     !-----------------------------------------------------------------
         assert(this%state_is_assembled() .or. this%state_is_assembled_symbolic())
         assert(to%state_is_properties_set())
-        if(C_T_num_cols < 1) return
 
         initial_num_rows = this%get_num_rows()
         initial_num_cols = this%get_num_cols()
@@ -3675,8 +3671,6 @@ contains
             assert(I_coo%is_by_rows())
             assert(C_T_coo%get_num_cols() == I_coo%get_num_cols() .and. I_coo%get_num_rows() == I_coo%get_num_cols())
         endif
-
-        if(C_T_num_cols < 1) return
 
         C_T_num_cols =  C_T_coo%get_num_cols()
         C_T_num_rows =  C_T_coo%get_num_rows()
