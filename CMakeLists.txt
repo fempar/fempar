@@ -54,7 +54,7 @@ INCLUDE_DIRECTORIES(${CMAKE_Fortran_MODULE_DIRECTORY})
 include_directories(${GENERIC_PATH})
 
 #################################################################
-# CONFIGURATION TYPES & BUILD MODE
+# CONFIGURATION TYPES & BUILD MODE & TESTING
 #################################################################
 
 SET(CMAKE_CONFIGURATION_TYPES DEBUG RELEASE)
@@ -66,12 +66,43 @@ IF(NOT CMAKE_BUILD_TYPE)
   SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS NONE DEBUG RELEASE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 
+IF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
+    OPTION(${PROJECT_NAME}_ENABLE_TESTS "Enable/disable tests" OFF)
+ENDIF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
+
 #################################################################
 # Add external projects
 #################################################################
 
+SET(EXT_PROJS FPL F3PHT FLAP VTKIO)
 include(ExternalProject)
+
+FOREACH(EXT_PROJ ${EXT_PROJS})
+
+    SET(${EXT_PROJ}_SRC_PATH ${CMAKE_SOURCE_DIR}/ThirdParty/${EXT_PROJ})
+    SET(${EXT_PROJ}_BINARY_PATH ${THIRDPARTY_OUTPUT_PATH}/${EXT_PROJ})
+    EXTERNALPROJECT_Add(${EXT_PROJ}
+        DOWNLOAD_COMMAND ""
+        SOURCE_DIR ${${EXT_PROJ}_SRC_PATH}
+        BINARY_DIR ${${EXT_PROJ}_BINARY_PATH}
+        INSTALL_DIR ${INSTALL_PREFIX}
+        CONFIGURE_COMMAND cmake -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER} ${${EXT_PROJ}_SRC_PATH}
+        BUILD_COMMAND cmake --build .
+        TEST_COMMAND ""
+        INSTALL_COMMAND ""
+    )
+    INCLUDE_DIRECTORIES(${${EXT_PROJ}_BINARY_PATH}/modules)
+    SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${EXT_PROJ}_BINARY_PATH}/lib/lib${EXT_PROJ}.a)
+    IF(${EXT_PROJ} STREQUAL "FLAP")
+        SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${EXT_PROJ}_BINARY_PATH}/third_party/PENF/lib/libPENF.a)
+    ENDIF()
+
+ENDFOREACH ()
+
+#################################################################
+# SISL needs a different treatment because it's a C project not owned by us
 SET(SISL_LIB SISL)
+SET(EXT_PROJS ${EXT_PROJS} ${SISL_LIB} )
 
 SET(${SISL_LIB}_SRC_PATH ${CMAKE_SOURCE_DIR}/ThirdParty/${SISL_LIB})
 SET(${SISL_LIB}_BINARY_PATH ${THIRDPARTY_OUTPUT_PATH}/${SISL_LIB})
@@ -85,10 +116,8 @@ EXTERNALPROJECT_Add(${SISL_LIB}
     TEST_COMMAND ""
     INSTALL_COMMAND ""
 )
-
-SET(SISL_LIBS ${${SISL_LIB}_BINARY_PATH}/libsisl.a)
-
 INCLUDE_DIRECTORIES(${${SISL_LIB}_SRC_PATH}/include)
+SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${SISL_LIB}_BINARY_PATH}/libsisl.a)
 
 #################################################################
 # List of external libraries
@@ -271,8 +300,10 @@ SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_N
 # ENABLE TESTING
 #################################################################
 
-ENABLE_TESTING()
-INCLUDE(CTest)
+IF(${PROJECT_NAME}_ENABLE_TESTS)
+    ENABLE_TESTING()
+    INCLUDE(CTest)
+ENDIF()
 
 #################################################################
 # STATIC LIBRARIES
@@ -294,14 +325,17 @@ ADD_SUBDIRECTORY(${PAR_PATH})
 #################################################################
 
 ADD_LIBRARY(${PROJECT_NAME} ${SERIAL_SRC} ${PAR_SRC})
+ADD_DEPENDENCIES(${PROJECT_NAME} ${EXT_PROJS})
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES VERSION ${${PROJECT_NAME}_VERSION} SOVERSION ${${PROJECT_NAME}_SOVERSION})
 
 #################################################################
-# ADD TESTS AND DRIVERS SOURCE SUBDIRS
+# ADD TESTS (IF ENABLED) AND DRIVERS SOURCE SUBDIRS
 #################################################################
 
-ADD_SUBDIRECTORY(${SERIAL_TESTS_PATH})
-ADD_SUBDIRECTORY(${PAR_TESTS_PATH})
+IF(${PROJECT_NAME}_ENABLE_TESTS)
+    ADD_SUBDIRECTORY(${SERIAL_TESTS_PATH})
+    ADD_SUBDIRECTORY(${PAR_TESTS_PATH})
+ENDIF()
 
 ADD_SUBDIRECTORY(${SERIAL_DRIVERS_PATH})
 ADD_SUBDIRECTORY(${PAR_DRIVERS_PATH})
