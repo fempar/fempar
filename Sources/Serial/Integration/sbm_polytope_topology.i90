@@ -907,6 +907,13 @@ end function n_face_dimension
 ! one face, F0 in the new cube (after rotation) and F2/F4 in the new one. By construction,
 ! they share the anchor node 0. Thus, we can fill all the permutations for any face, using
 ! the 3D properties above.
+!
+! Note: Here we use another trick. In 3D, one can check that the outward normal of the face
+! (dx x dy) is outwards for orientation = 1 and inwards for orientation = 0. We use it in
+! the computation of the norm in fe_map_face_map_update based on ( dx x dy )*orientation.
+! Further, in 2D, even though there is only one orientation, using the same code with the
+! swap at the end, we end up with an orientation array that leads to (dx x e_z)*orientation
+! provides the right outward normal.
 !=================================================================================================
 function facet_orientation( n_face, dim )
   implicit none
