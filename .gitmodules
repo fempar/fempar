@@ -1,6 +1,3 @@
-[submodule "Sources/Serial/Tools/Lib_VTK_IO"]
-	path = Sources/Serial/Tools/Lib_VTK_IO
-	url = https://github.com/victorsndvg/Lib_VTK_IO.git
 [submodule "ThirdParty/SISL"]
 	path = ThirdParty/SISL
 	url = https://github.com/SINTEF-Geometry/SISL.git
@@ -10,3 +7,6 @@
 [submodule "ThirdParty/FLAP"]
 	path = ThirdParty/FLAP
 	url = https://github.com/victorsndvg/FLAP.git
+[submodule "ThirdParty/VTKIO"]
+	path = ThirdParty/VTKIO
+	url = https://github.com/victorsndvg/Lib_VTK_IO.git

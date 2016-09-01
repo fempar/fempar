@@ -146,11 +146,11 @@ subroutine lagrangian_reference_fe_create_face_local_interpolation (this, quadra
   type(p_reference_fe_t) :: aux_reference_fe
 
   aux_reference_fe = make_reference_fe ( this%topology, &
-                                         this%fe_type, &
-                                         this%number_dimensions-1, &
-                                         this%order_vector(1), &
-                                         this%field_type, &
-                                         this%continuity )
+       this%fe_type, &
+       this%number_dimensions-1, &
+       this%order_vector(1), &
+       this%field_type, &
+       this%continuity )
 
   call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
   call aux_reference_fe%free()
@@ -582,7 +582,7 @@ subroutine lagrangian_reference_fe_fill (this)
   class(lagrangian_reference_fe_t), intent(inout) :: this
   integer(ip) :: c, i, j, dimension, number_interior_nodes, number_interior_nodes_scalar
   integer(ip) :: column, inode, idime, inode_scalar, num_columns
-  
+
   this%order_vector = this%order
 
   call this%fill_scalar( )
@@ -590,56 +590,60 @@ subroutine lagrangian_reference_fe_fill (this)
   call memalloc (this%number_dimensions-1,this%number_rotations_per_dimension,__FILE__,__LINE__)
   call memalloc (this%number_dimensions-1,this%number_orientations_per_dimension,__FILE__,__LINE__)
 
+  do idime = 1, this%number_dimensions-1
+     call this%node_array%compute_num_rot_and_perm( idime, &
+          this%polytope, &
+          this%number_rotations_per_dimension(idime), &
+          this%number_orientations_per_dimension(idime))
+  end do
+
   if ( this%continuity ) then
-   allocate(this%own_node_permutations(this%number_dimensions-1))
-   do idime = 1, this%number_dimensions-1
-   
-      call this%node_array%fill_permutations( this%order, idime, this%polytope, &
-      this%own_node_permutations(idime), this%number_rotations_per_dimension(idime), &
-      this%number_orientations_per_dimension(idime) )
-     
-     
-   end do
+     allocate(this%own_node_permutations(this%number_dimensions-1))
+     do idime = 1, this%number_dimensions-1
+        call this%node_array%fill_permutations( this%order, &
+             idime, &
+             this%polytope, &
+             this%own_node_permutations(idime) )
+     end do
+     !do idime = 1,  this%number_dimensions-1
+     !  write(*,*) 'aux_own_node_permutations',this%own_node_permutations(idime)%nd1
+     !  write(*,*) 'aux_own_node_permutations',this%own_node_permutations(idime)%nd2
+     !  if ( allocated(this%own_node_permutations(idime)%a) ) & 
+     !     write(*,*) 'aux_own_node_permutations',this%own_node_permutations(idime)%a
+     !end do 
   end if
-  
-  do i = 1,  this%number_dimensions-1
-  write(*,*) 'aux_own_node_permutations',this%own_node_permutations(i)%nd1
-  write(*,*) 'aux_own_node_permutations',this%own_node_permutations(i)%nd2
-  if ( allocated(this%own_node_permutations(i)%a) )write(*,*) 'aux_own_node_permutations',this%own_node_permutations(i)%a
-  end do 
-  
-        
+
   if ( this%number_field_components /= 1 ) then
      call this%fill_field_components( )
      if ( this%continuity ) then
         do dimension = 1, this%number_dimensions-1
-        if ( this%own_node_permutations(dimension)%nd1 > 0 .and. this%own_node_permutations(dimension)%nd2 > 0 ) then
-           ! Compute the number of interior nodes x edge or face
-           j = this%get_first_n_face_id_of_dimension(dimension)
-           number_interior_nodes        = this%get_number_own_nodes_n_face(j)
-           number_interior_nodes_scalar = number_interior_nodes/this%number_field_components
-           num_columns = this%number_rotations_per_dimension(dimension) * &
-                this%number_orientations_per_dimension(dimension) 
-           call memrealloc ( number_interior_nodes,                   &
-                num_columns,                             &
-                this%own_node_permutations(dimension)%a, &
-                __FILE__, __LINE__ )
-        this%own_node_permutations(dimension)%nd1 = size(this%own_node_permutations(dimension)%a,1)
-        this%own_node_permutations(dimension)%nd2 = size(this%own_node_permutations(dimension)%a,2)
-           do column = 1, num_columns
-              ! Fill the rest of components
-              inode = number_interior_nodes_scalar
-              do idime = 2, this%number_field_components
-                 ! This is taking advantage of the face that we know how the DoF are ordered
-                 ! in case this ordering change, this will not work anymore.
-                 do inode_scalar = 1, number_interior_nodes_scalar
-                    inode = inode + 1
-                    this%own_node_permutations(dimension)%a(inode,column) = & 
-                         & number_interior_nodes_scalar * (idime-1) + & 
-                         & this%own_node_permutations(dimension)%a(inode_scalar,column)
+           if ( this%own_node_permutations(dimension)%nd1 > 0 .and. this%own_node_permutations(dimension)%nd2 > 0 ) then
+              ! Compute the number of interior nodes x edge or face
+              j = this%get_first_n_face_id_of_dimension(dimension)
+              number_interior_nodes        = this%get_number_own_nodes_n_face(j)
+              number_interior_nodes_scalar = number_interior_nodes/this%number_field_components
+              num_columns = this%number_rotations_per_dimension(dimension) * &
+                   this%number_orientations_per_dimension(dimension) 
+              call memrealloc ( number_interior_nodes,                   &
+                   num_columns,                             &
+                   this%own_node_permutations(dimension)%a, &
+                   __FILE__, __LINE__ )
+              this%own_node_permutations(dimension)%nd1 = size(this%own_node_permutations(dimension)%a,1)
+              this%own_node_permutations(dimension)%nd2 = size(this%own_node_permutations(dimension)%a,2)
+              do column = 1, num_columns
+                 ! Fill the rest of components
+                 inode = number_interior_nodes_scalar
+                 do idime = 2, this%number_field_components
+                    ! This is taking advantage of the face that we know how the DoF are ordered
+                    ! in case this ordering change, this will not work anymore.
+                    do inode_scalar = 1, number_interior_nodes_scalar
+                       inode = inode + 1
+                       this%own_node_permutations(dimension)%a(inode,column) = & 
+                            & number_interior_nodes_scalar * (idime-1) + & 
+                            & this%own_node_permutations(dimension)%a(inode_scalar,column)
+                    end do
                  end do
               end do
-           end do
            end if
         end do
      end if

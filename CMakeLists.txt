@@ -74,7 +74,7 @@ ENDIF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
 # Add external projects
 #################################################################
 
-SET(EXT_PROJS FPL F3PHT FLAP)
+SET(EXT_PROJS FPL F3PHT FLAP VTKIO)
 include(ExternalProject)
 
 FOREACH(EXT_PROJ ${EXT_PROJS})

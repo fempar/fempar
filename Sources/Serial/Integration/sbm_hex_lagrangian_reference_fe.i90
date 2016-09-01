@@ -44,19 +44,19 @@ function hex_lagrangian_reference_fe_check_compatibility_of_n_faces             
   select type(source_reference_fe)
      class is(hex_lagrangian_reference_fe_t)
         ! Get number nodes per dimension
-        assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
-        do idime = 1, target_reference_fe%number_dimensions
+     assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
+     do idime = 1, target_reference_fe%number_dimensions
         assert (target_reference_fe%order_vector(idime) == source_reference_fe%order_vector(idime))
-        end do
-        assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
-        assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
-        assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
-        assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
-        hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .true.
+     end do
+     assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
+     assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
+     assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
+     assert (target_reference_fe%get_number_own_nodes_n_face(target_n_face_id) == source_reference_fe%get_number_own_nodes_n_face(source_n_face_id))
+     hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .true.
      class default
-        hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .false.
+     hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .false.
   end select
- 
+
 end function hex_lagrangian_reference_fe_check_compatibility_of_n_faces
 
 !==================================================================================================
@@ -87,19 +87,19 @@ subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connec
   assert(size(connectivity,2) == num_subelems)
 
   do subelem = 1, num_subelems
-    !call this%get_node_local_coordinates(first_coord,subelem, & 
-    !                                      & this%number_dimensions,this%order(1)-1)
-    call index_to_ijk( subelem, this%number_dimensions, this%order_vector, first_coord )
-        
-    do local_node = 1, geo_nnodes
-      !call this%get_node_local_coordinates(local_coord,local_node,this%number_dimensions,1)
-      call index_to_ijk( local_node, this%number_dimensions, 2*ones_dim, local_coord )
-       
-      global_coord = first_coord + local_coord 
-      !connectivity(local_node, subelem) = this%get_node_local_id(global_coord, &
-      !                                                   & this%number_dimensions,this%order(1)) ! 
-      connectivity(local_node, subelem) = ijk_to_index(global_coord,this%order_vector,this%number_dimensions)+1
-    end do
+     !call this%get_node_local_coordinates(first_coord,subelem, & 
+     !                                      & this%number_dimensions,this%order(1)-1)
+     call index_to_ijk( subelem, this%number_dimensions, this%order_vector, first_coord )
+
+     do local_node = 1, geo_nnodes
+        !call this%get_node_local_coordinates(local_coord,local_node,this%number_dimensions,1)
+        call index_to_ijk( local_node, this%number_dimensions, 2*ones_dim, local_coord )
+
+        global_coord = first_coord + local_coord 
+        !connectivity(local_node, subelem) = this%get_node_local_id(global_coord, &
+        !                                                   & this%number_dimensions,this%order(1)) ! 
+        connectivity(local_node, subelem) = ijk_to_index(global_coord,this%order_vector,this%number_dimensions)+1
+     end do
   end do
 end subroutine hex_lagrangian_reference_fe_get_subelements_connectivity
 
@@ -654,56 +654,56 @@ end subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature
 ! This subroutine fills the interpolation using the polynomial_names machinery
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, interpolation )
-    implicit none
-    class(hex_lagrangian_reference_fe_t), intent(in) :: this
-    type(quadrature_t)              , intent(in)    :: quadrature
-    type(interpolation_t)           , intent(inout) :: interpolation    
-    type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
-    type(polynomial_allocatable_array_t)    :: polynomial_1D_basis(SPACE_DIM)
-    type(polynomial_t)           :: polynomial_1D
-    
-    real(rp), allocatable :: tensor_product_values(:)
-    real(rp), allocatable :: tensor_product_gradients(:,:)
-    
-    integer(ip) :: idime, q_point
-        
-    do idime=1,interpolation%number_dimensions
-       call polynomial_1D%generate_basis( this%order_vector(idime), polynomial_1D_basis(idime) )
-    end do
-    
-    call tensor_product_polynomial_space%create(interpolation%number_dimensions,polynomial_1D_basis)
-    call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in) :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation    
+  type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
+  type(polynomial_allocatable_array_t)    :: polynomial_1D_basis(SPACE_DIM)
+  type(polynomial_t)           :: polynomial_1D
 
-    !assert ( interpolation%number_shape_functions == tensor_product_polynomial_space%get_number_polynomials() )
-    
-    call memalloc(tensor_product_polynomial_space%get_number_polynomials(),tensor_product_values,__FILE__,__LINE__)
-    call memalloc(SPACE_DIM,tensor_product_polynomial_space%get_number_polynomials(),tensor_product_gradients,__FILE__,__LINE__)
-    
-    do q_point=1, quadrature%get_number_quadrature_points()
-       do idime = 1, interpolation%number_dimensions
-          call tensor_product_polynomial_space%evaluate(q_point, &
-               tensor_product_values, &
-               tensor_product_gradients)
-             interpolation%shape_functions(1,:,q_point) = tensor_product_values(:)
-             interpolation%shape_derivatives(1,:,:,q_point) = tensor_product_gradients(:,:)
-       end do
-    end do
-    
-    ! Free auxiliary memory
-    if(allocated(tensor_product_values))    call memfree(tensor_product_values,__FILE__,__LINE__)
-    if(allocated(tensor_product_gradients)) call memfree(tensor_product_gradients,__FILE__,__LINE__)
-    do idime=1,interpolation%number_dimensions
-       call polynomial_1D_basis(idime)%free()
-    end do
-    call polynomial_1D%free()
-    call tensor_product_polynomial_space%free()
-    
-  end subroutine hex_lagrangian_reference_fe_fill_interpolation
-  
+  real(rp), allocatable :: tensor_product_values(:)
+  real(rp), allocatable :: tensor_product_gradients(:,:)
+
+  integer(ip) :: idime, q_point
+
+  do idime=1,interpolation%number_dimensions
+     call polynomial_1D%generate_basis( this%order_vector(idime), polynomial_1D_basis(idime) )
+  end do
+
+  call tensor_product_polynomial_space%create(interpolation%number_dimensions,polynomial_1D_basis)
+  call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
+
+  !assert ( interpolation%number_shape_functions == tensor_product_polynomial_space%get_number_polynomials() )
+
+  call memalloc(tensor_product_polynomial_space%get_number_polynomials(),tensor_product_values,__FILE__,__LINE__)
+  call memalloc(SPACE_DIM,tensor_product_polynomial_space%get_number_polynomials(),tensor_product_gradients,__FILE__,__LINE__)
+
+  do q_point=1, quadrature%get_number_quadrature_points()
+     do idime = 1, interpolation%number_dimensions
+        call tensor_product_polynomial_space%evaluate(q_point, &
+             tensor_product_values, &
+             tensor_product_gradients)
+        interpolation%shape_functions(1,:,q_point) = tensor_product_values(:)
+        interpolation%shape_derivatives(1,:,:,q_point) = tensor_product_gradients(:,:)
+     end do
+  end do
+
+  ! Free auxiliary memory
+  if(allocated(tensor_product_values))    call memfree(tensor_product_values,__FILE__,__LINE__)
+  if(allocated(tensor_product_gradients)) call memfree(tensor_product_gradients,__FILE__,__LINE__)
+  do idime=1,interpolation%number_dimensions
+     call polynomial_1D_basis(idime)%free()
+  end do
+  call polynomial_1D%free()
+  call tensor_product_polynomial_space%free()
+
+end subroutine hex_lagrangian_reference_fe_fill_interpolation
+
 ! Here we define the dim-1 quadrature and next translate the nodes
 ! using the facet type to dim. Next, use the same machinary as for the volume with this new quadrature.
 !!==================================================================================================
-  subroutine hex_lagrangian_reference_fe_fill_face_interpolation( this, local_quadrature, local_face_id, face_interpolation )
+subroutine hex_lagrangian_reference_fe_fill_face_interpolation( this, local_quadrature, local_face_id, face_interpolation )
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                  , intent(in)    :: local_quadrature
@@ -720,15 +720,15 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
      if ( this%polytope%n_face_dir_is_fixed( n_face_index, idime ) == 1 ) then
         c = c+1
         aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(c,:)
-      else if ( this%polytope%n_face_dir_coordinate( n_face_index, idime ) == 0 ) then
-         aux_quadrature%coordinates(idime+1,:) = -1.0_rp
-      else
-         aux_quadrature%coordinates(idime+1,:) = 1.0_rp
-      end if
+     else if ( this%polytope%n_face_dir_coordinate( n_face_index, idime ) == 0 ) then
+        aux_quadrature%coordinates(idime+1,:) = -1.0_rp
+     else
+        aux_quadrature%coordinates(idime+1,:) = 1.0_rp
+     end if
   end do
   call this%fill_interpolation( aux_quadrature, face_interpolation ) 
   call aux_quadrature%free()
-  end subroutine hex_lagrangian_reference_fe_fill_face_interpolation
+end subroutine hex_lagrangian_reference_fe_fill_face_interpolation
 
 !==================================================================================================
 subroutine index_to_ijk( index, ndime, n_pols_dim, ijk )
@@ -757,7 +757,7 @@ function hex_lagrangian_reference_fe_set_number_quadrature_points( this, order, 
   integer(ip)                         , intent(in)    :: dimension
   integer(ip) :: hex_lagrangian_reference_fe_set_number_quadrature_points
   hex_lagrangian_reference_fe_set_number_quadrature_points = (order + 1)**dimension
-end function
+end function hex_lagrangian_reference_fe_set_number_quadrature_points
 
 ! Subroutine to deal with high order parametrizations of the boundary
 !==================================================================================================
@@ -822,22 +822,22 @@ subroutine blend_2D(r,s,x1,x2,x3,x4,x5,x6,x7,x8,x)
   type(point_t), intent(in)  :: x1,x2,x3,x4,x5,x6,x7,x8
   type(point_t), intent(out) :: x
 
-!     3---6---------4
-!     |   .         |
-!     |   .         |
-!     |   .         |
-!     7...x........ 8
-!     |   .         |
-!     1---5---------2
+  !     3---6---------4
+  !     |   .         |
+  !     |   .         |
+  !     |   .         |
+  !     7...x........ 8
+  !     |   .         |
+  !     1---5---------2
 
   x =   ( - 0.25_rp * (1-r) * (1-s)) *x1 &
-    & + ( - 0.25_rp * (1+r) * (1-s)) *x2 &
-    & + ( - 0.25_rp * (1-r) * (1+s)) *x3 &
-    & + ( - 0.25_rp * (1+r) * (1+s)) *x4 &
-    & + ( 0.5_rp * (1-s)) * x5 &
-    & + ( 0.5_rp * (1+s)) * x6 &
-    & + ( 0.5_rp * (1-r)) * x7 &
-    & + ( 0.5_rp * (1+r)) * x8
+       & + ( - 0.25_rp * (1+r) * (1-s)) *x2 &
+       & + ( - 0.25_rp * (1-r) * (1+s)) *x3 &
+       & + ( - 0.25_rp * (1+r) * (1+s)) *x4 &
+       & + ( 0.5_rp * (1-s)) * x5 &
+       & + ( 0.5_rp * (1+s)) * x6 &
+       & + ( 0.5_rp * (1-r)) * x7 &
+       & + ( 0.5_rp * (1+r)) * x8
 
- end subroutine blend_2D
+end subroutine blend_2D
 

@@ -47,8 +47,8 @@ contains
 
   subroutine poisson_conditions_set_boundary_function (this, boundary_function)
     implicit none
-    class(poisson_conditions_t)     , intent(inout) :: this
-    class(scalar_function_t), target, intent(in)    :: boundary_function
+    class(poisson_conditions_t)        , intent(inout) :: this
+    class(scalar_function_t)   , target, intent(in)    :: boundary_function
     this%boundary_function => boundary_function
   end subroutine poisson_conditions_set_boundary_function
 
