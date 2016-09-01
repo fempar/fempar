@@ -277,15 +277,17 @@ subroutine interpolation_face_restriction_free(this)
 
   integer(ip) :: i, istat
 
-  do i = 1, this%number_faces
-     call this%interpolation(i)%free()
-     call this%interpolation_o_map(i)%free()
-  end do
   if (allocated(this%interpolation)) then
+     do i = 1, this%number_faces
+       call this%interpolation(i)%free()
+     end do
      deallocate(this%interpolation, stat = istat)
      check (istat == 0)
   end if
   if (allocated(this%interpolation_o_map)) then
+     do i = 1, this%number_faces
+       call this%interpolation_o_map(i)%free()
+     end do
      deallocate(this%interpolation_o_map, stat = istat)
      check (istat == 0)
   end if
