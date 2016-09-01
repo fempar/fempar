@@ -605,11 +605,13 @@ end subroutine hex_raviart_thomas_reference_fe_fill_quadrature
 
 ! This subroutine fills the interpolation using the polynomial_names machinery
 !==================================================================================================
-subroutine hex_raviart_thomas_reference_fe_fill_interpolation( this, quadrature, interpolation )
+subroutine hex_raviart_thomas_reference_fe_fill_interpolation( this, quadrature, interpolation, order_vector )
   implicit none
   class(hex_raviart_thomas_reference_fe_t), intent(in) :: this
-  type(quadrature_t)              , intent(in)    :: quadrature
-  type(interpolation_t)           , intent(inout) :: interpolation    
+  type(quadrature_t)              , intent(in)         :: quadrature
+  type(interpolation_t)           , intent(inout)      :: interpolation    
+  integer(ip)        , optional   , intent(in)         :: order_vector(SPACE_DIM)
+  
   type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
   type(polynomial_allocatable_array_t)    :: polynomial_1D_basis(SPACE_DIM)
   type(polynomial_t)           :: polynomial_1D
@@ -618,11 +620,17 @@ subroutine hex_raviart_thomas_reference_fe_fill_interpolation( this, quadrature,
   real(rp), allocatable :: tensor_product_gradients(:,:)
   real(rp) :: aux_point(SPACE_DIM)
   integer(ip) :: perm(SPACE_DIM)
-
+  integer(ip) :: order_vector_(SPACE_DIM)
   integer(ip) :: idime, q_point, i, c, jdime
+  
+  if ( present(order_vector) ) then
+    order_vector_ = order_vector
+  else
+    order_vector_  = this%order_vector
+  end if
 
   do idime=1,interpolation%number_dimensions
-     call polynomial_1D%generate_basis( this%order_vector(idime), polynomial_1D_basis(idime) )
+     call polynomial_1D%generate_basis( order_vector_(idime), polynomial_1D_basis(idime) )
   end do
 
   call tensor_product_polynomial_space%create(interpolation%number_dimensions,polynomial_1D_basis)
@@ -692,21 +700,168 @@ subroutine hex_raviart_thomas_reference_fe_fill_face_interpolation( this, local_
   call aux_quadrature%free()
 end subroutine hex_raviart_thomas_reference_fe_fill_face_interpolation
 
-! @sbadia: It could be replaced by an anisotropic quadrature
-!==================================================================================================
-function hex_raviart_thomas_reference_fe_set_number_quadrature_points( this, order, dimension )
+subroutine hex_raviart_thomas_reference_fe_transform_basis(this) 
   implicit none
-  class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: order
-  integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: hex_raviart_thomas_reference_fe_set_number_quadrature_points
-  hex_raviart_thomas_reference_fe_set_number_quadrature_points = (order + 1)**dimension
-end function hex_raviart_thomas_reference_fe_set_number_quadrature_points
+  class(hex_raviart_thomas_reference_fe_t), intent(inout) ::  this
+  type(hex_lagrangian_reference_fe_t) :: d_1_fe, d_fe_geo
+  type(quadrature_t)                  :: face_quadrature   , d_1_quadrature, cell_quadrature
+  type(interpolation_t)               :: face_interpolation, d_1_interpolation
+  integer(ip)                         :: ishape, jshape, qpoint
+  real(rp)                            :: shape_test
+  type(vector_field_t)                :: shape_trial
+  type(fe_map_t)                      :: d_1_map
+  type(n_face_iterator_t)             :: facet_iterator
+  type(point_t), pointer              :: d_1_map_coordinates
 
-!**************************************************************************************************
-! Concrete TBPs of this derived data type
-!**************************************************************************************************
 
-!**************************************************************************************************
-! Support functions
-!**************************************************************************************************
+  !! Create a d-1 scalar lagrangian reference FE or order k
+  !call d_1_fe%create(topology          = this%get_topology(), &
+  !                   number_dimensions = this%number_dimensions-1, &
+  !                   order             = this%order, &
+  !                   field_type        = field_type_scalar, &
+  !                   continuity        = .true. )
+
+  !! Create a d-dim scalar lagrangian reference FE of order 1
+  !call d_fe_geo%create(topology          = this%get_topology(), &
+  !     number_dimensions = this%number_dimensions, &
+  !     order             = 1, &
+  !     field_type        = field_type_scalar, &
+  !     continuity        = .true. )
+
+  !! Create a d-1 dimension quadrature from RT reference FE and project it to d dimensions
+  !call this%face_quadrature_create( d_1_quadrature )
+  !call d_1_fe%create_interpolation( d_1_quadrature, d_1_interpolation )
+
+  !call face_quadrature%create( this%number_dimensions, d_1_quadrature%number_quadrature_points )
+
+  !call face_map%face_map_create( d_1_quadrature, d_fe_geo )
+
+  !facet_iterator = this%polytope%create_facet_iterator( this%polytope%root )
+  !d = 0
+  !do while (.not. facet_iterator%has_finished() )
+  !   n_face_index = facet_iterator%current()
+  !   
+  !   ! Get face map coordinates
+  !   d_1_map_coordinates => d_1_map%get_coordinates()
+  ! 
+  !   ! Extract coordinates of the vertices within the face
+  !   vertex_iterator = this%vertices_n_face%create_iterator(n_face_index)
+  !   do while ( .not. vertex_iterator%is_upper_bound () )
+  !      vertex_id = vertex_iterator%get_current()
+  !      call d_1_map_coordinates(:,vertex_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_id))
+  !      call vertex_iterator%next()
+  !   end do
+
+  !   ! Update face_map on current face
+  !   call face_map%face_map_update(local_face_id = n_face_index - d_fe_geo%get_first_face_id()+1, &
+  !                                 reference_fe  = d_fe_geo, &
+  !                                 quadrature    = d_1_quadrature )    
+  !   c = 0
+  !   ! Transform face_quadrature coordinates to d-dim 
+  !   do idime = 0,this%number_dimensions-1
+  !      if ( this%polytope%n_face_dir_is_fixed( n_face_index, idime ) == 1 ) then
+  !         c = c+1
+  !         face_quadrature%coordinates(idime+1,:) = d_1_quadrature%coordinates(c,:)
+  !      else if ( this%polytope%n_face_dir_coordinate( n_face_index, idime ) == 0 ) then
+  !         face_quadrature%coordinates(idime+1,:) = -1.0_rp
+  !      else
+  !         face_quadrature%coordinates(idime+1,:) = 1.0_rp
+  !      end if
+  !   end do
+  !   call this%fill_interpolation ( face_quadrature, face_interpolation )
+  !   ! Integrate boundary moments int_Face(u.n q), q \in Q_k
+  !   do qpoint = 1, d_1_quadrature%number_quadrature_points
+  !      factor = face_map%get_det_jacobian(qpoint) * face_quadrature%get_weight(qpoint)
+  !      call face_map%get_normal(qpoint, normal)
+  !      do ishape=1, d_1_interpolation%number_shape_functions
+  !         call d_1_fe%get_values(ishape, qpoint, d_1_interpolation, shape_test)
+  !         do jshape=1, face_interpolation%number_shape_functions
+  !            call this%get_values(jshape, qpoint, face_interpolation, shape_trial)
+  !            this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) + shape_test * shape_trial * normal * factor
+  !         end do
+  !      end do
+  !   end do
+  !   d = d + d_1_interpolation%number_shape_functions
+  !   call facet_iterator%next()
+  !end do
+  
+  !! number shape functions Qk-1,k,k x Qk,k-1,k x Qk,k,k-1
+  !! reduced order
+  !reduced_order_vector = this%order_vector
+  !reduced_order_vector(1) = this%order_vector(1)-2
+  !interior_moments = 1
+  !! compute number shape functions reduced element
+  !do idime = 1, this%number_dimensions
+  !   interior_moments = interior_moments*(reduced_order_vector(idime)+1)
+  !end do
+  !interior_moments = interior_moments*this%number_dimensions
+  !! create cell quadrature
+  !call this%create_quadrature(cell_quadrature)
+  !! create reduced order interpolation
+  !call interpolation%create( this%number_dimensions, 
+  !                             interior_moments, &
+  !                             cell_quadrature%number_quadrature_points, 0, .false. )
+  !call this%fill_interpolation( cell_quadrature, reduced_order_cell_interpolation, reduced_order_vector)
+  !! create RT interpolation
+  !call this%create_interpolation( cell_quadrature, cell_interpolation )
+  !! Map for the reference fe
+  !call fe_map%create(cell_quadrature, d_fe_geo )
+  !map_coordinates => fe_map%get_coordinates()
+  !do vertex_id=1,d_fe_geo%get_number_vertices()
+  !   call map_coordinates(:,vertex_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_id))
+  !end do
+  !call fe_map%update()
+  !! Integration of interior moments int_K (u.q), q \in Qk-1,k,k x Qk,k-1,k x Qk,k,k-1     
+  !do qpoint = 1, cell_quadrature%number_quadrature_points
+  !      factor = fe_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
+  !do ishape=1, reduced_order_cell_interpolation%number_shape_functions
+  !   call this%get_value(ishape, qpoint, reduced_order_cell_interpolation, v_shape_test)
+  !   do jshape=1, cell_interpolation%number_shape_functions
+  !       call this%get_value(jshape, qpoint, cell_interpolation, shape_trial)
+  !       this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) + v_shape_test * shape_trial * factor
+  !     end do
+  !   end do
+  !end do
+  !end do
+  !! Invert change_basis_matrix
+  
+  !! Apply change_basis_matrix * shape_values and shape_gradients
+  
+  !! Modify the node arrays in the element
+  !interior_nodes_n_face = 0
+  
+  !interior_nodes_n_face(face) 
+  !d = d + d_1_interpolation%number_shape_functions
+  
+  !interior_nodes_n_face(vol) = d + interior_moments
+  
+  !...
+  
+  !call face_map%free()
+  !call d_1_fe%free()
+  !call d_fe_geo%free()
+  !call d_1_quadrature%free()
+  !call d_1_interpolation%free()
+  !call face_quadrature%free()
+  !call face_interpolation%free()
+
+  end subroutine hex_raviart_thomas_reference_fe_transform_basis 
+
+   ! @sbadia: It could be replaced by an anisotropic quadrature
+   !==================================================================================================
+   function hex_raviart_thomas_reference_fe_set_number_quadrature_points( this, order, dimension )
+     implicit none
+     class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
+     integer(ip)                         , intent(in)    :: order
+     integer(ip)                         , intent(in)    :: dimension
+     integer(ip) :: hex_raviart_thomas_reference_fe_set_number_quadrature_points
+     hex_raviart_thomas_reference_fe_set_number_quadrature_points = (order + 1)**dimension
+   end function hex_raviart_thomas_reference_fe_set_number_quadrature_points
+
+   !**************************************************************************************************
+   ! Concrete TBPs of this derived data type
+   !**************************************************************************************************
+
+   !**************************************************************************************************
+   ! Support functions
+   !**************************************************************************************************

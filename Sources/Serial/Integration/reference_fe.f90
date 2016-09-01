@@ -173,6 +173,7 @@ module reference_fe_names
      procedure, non_overridable :: apply_inv_jacobian             => fe_map_apply_inv_jacobian
      procedure, non_overridable :: compute_quadrature_coordinates => fe_map_compute_quadrature_coordinates
      procedure, non_overridable :: get_quadrature_coordinates     => fe_map_get_quadrature_coordinates
+     procedure, non_overridable :: get_normal                     => fe_map_get_normal
   end type fe_map_t
 
   type p_fe_map_t
@@ -204,11 +205,12 @@ module reference_fe_names
      integer(ip)              :: number_dimensions
      integer(ip)              :: topology
      integer(ip)              :: number_n_faces 
+     integer(ip)              :: root
      integer(ip), allocatable :: n_face_array(:)     
      integer(ip), allocatable :: ijk_to_index(:)
    contains
      procedure          :: create                   => polytope_tree_create 
-     procedure          :: create_children_iterator => polytope_tree_create_children_iterator
+     procedure          :: create_facet_iterator    => polytope_tree_create_facet_iterator
      procedure          :: get_n_face               => polytope_tree_get_n_face
      procedure          :: get_n_face_dimension     => polytope_tree_get_n_face_dimension
      procedure          :: n_face_type              => polytope_tree_n_face_type
@@ -458,10 +460,7 @@ module reference_fe_names
      procedure :: create_own_dofs_on_n_face_iterator => reference_fe_create_own_dofs_on_n_face_iterator
      procedure :: get_own_node_n_face => reference_fe_get_own_node_n_face
 
-     !procedure :: get_face_integration_coupling_number_nodes_face => reference_fe_get_face_integration_coupling_number_nodes_facet
-     !procedure :: get_face_integration_coupling_node_face => reference_fe_get_facet_integration_coupling_node_facet
      procedure :: create_facet_integration_coupling_dofs_iterator => create_facet_integration_coupling_dofs_iterator
-     !procedure :: get_orientation => reference_fe_get_orientation     
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
@@ -875,12 +874,13 @@ abstract interface
     type(quadrature_t)              , intent(inout) :: quadrature  
   end subroutine fill_nodal_quadrature_interface
 
-  subroutine fill_interpolation_interface ( this, quadrature, interpolation )
-    import :: lagrangian_reference_fe_t, interpolation_t, ip, rp, quadrature_t
+  subroutine fill_interpolation_interface ( this, quadrature, interpolation, order_vector )
+    import :: lagrangian_reference_fe_t, interpolation_t, ip, rp, quadrature_t, SPACE_DIM
     implicit none 
     class(lagrangian_reference_fe_t), intent(in)    :: this
-    type(quadrature_t)              , intent(in) :: quadrature
+    type(quadrature_t)              , intent(in)    :: quadrature
     type(interpolation_t)           , intent(inout) :: interpolation
+    integer(ip)           , optional, intent(in)    :: order_vector(SPACE_DIM)
   end subroutine fill_interpolation_interface
 
   subroutine fill_face_interpolation_interface ( this,               &
@@ -1077,6 +1077,7 @@ public :: hex_lagrangian_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(raviart_thomas_reference_fe_t) :: hex_raviart_thomas_reference_fe_t
 private
+type(hex_lagrangian_reference_fe_t) :: pre_basis_fe
 contains 
   ! Deferred TBP implementors from reference_fe_t
 procedure :: check_compatibility_of_n_faces                                 &

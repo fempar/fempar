@@ -531,6 +531,18 @@ function fe_map_get_quadrature_coordinates(this)
 
 end function fe_map_get_quadrature_coordinates
 
+subroutine fe_map_get_normal(this, qpoint, normal)
+ implicit none
+ class(fe_map_t)     , intent(in)    :: this
+ integer(ip)         , intent(in)    :: qpoint
+ type(vector_field_t), intent(inout) :: normal
+ integer(ip) :: idime
+ assert ( allocated(this%normals) )
+ do idime = 1, this%number_dimensions+1
+   call normal%set(idime,this%normals(idime,qpoint))
+ end do
+end subroutine  fe_map_get_normal
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_fe_map_t type procedures
 subroutine p_fe_map_allocate( this )

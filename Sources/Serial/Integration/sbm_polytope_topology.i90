@@ -220,6 +220,7 @@ subroutine polytope_tree_create( this, number_dimensions, topology )
   do i =1,this%number_n_faces
      this%ijk_to_index( this%n_face_array(i) ) = i
   end do
+  this%root = ISHFT(ISHFT(1_ip,number_dimensions)-1, number_dimensions ) 
 end subroutine polytope_tree_create
 
 !==================================================================================================
@@ -229,8 +230,8 @@ recursive subroutine fill_cell_tree( this, root )
   implicit none
   class(polytope_tree_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: root
-  type(n_face_iterator_t) :: children_iterator
-  integer(ip)               :: children  
+  type(n_face_iterator_t) :: n_face_iterator
+  integer(ip)               :: n_face  
   ! If the n-face not already inserted (use ijk_to_index as touch table)
 
   if ( this%ijk_to_index(root) == 0 ) then 
@@ -240,17 +241,17 @@ recursive subroutine fill_cell_tree( this, root )
      this%n_face_array(this%number_n_faces) = root
      ! Mark root as touched (already inserted)
      this%ijk_to_index(root) = 1
-     ! Create iterator over children of root n-face
-     children_iterator = this%create_children_iterator(root)
-     ! Loop over children
-     do while (.not. children_iterator%has_finished() )
-        children = children_iterator%current_ijk()
-        !write(*,*) 'current children: '
-        !write(*,'(B32)') children
-        ! Put children of child (recursive call)
-        call this%fill_cell_tree( children )
+     ! Create iterator over n_face of root n-face
+     n_face_iterator = this%create_facet_iterator(root)
+     ! Loop over n_face
+     do while (.not. n_face_iterator%has_finished() )
+        n_face = n_face_iterator%current_ijk()
+        !write(*,*) 'current n_face: '
+        !write(*,'(B32)') n_face
+        ! Put n_face of child (recursive call)
+        call this%fill_cell_tree( n_face )
         ! Move to the next child
-        call children_iterator%next()
+        call n_face_iterator%next()
      end do
   end if
 end subroutine fill_cell_tree
@@ -264,13 +265,13 @@ subroutine polytope_tree_free( this )
 end subroutine polytope_tree_free
 
 !=================================================================================================
-function polytope_tree_create_children_iterator(this, parent)
+function polytope_tree_create_facet_iterator(this, parent)
   implicit none
   class(polytope_tree_t), intent(in) :: this
   integer(ip)         , intent(in) :: parent
-  type(n_face_iterator_t) :: polytope_tree_create_children_iterator
-  call polytope_tree_create_children_iterator%create(this, parent)
-end function polytope_tree_create_children_iterator
+  type(n_face_iterator_t) :: polytope_tree_create_facet_iterator
+  call polytope_tree_create_facet_iterator%create(this, parent)
+end function polytope_tree_create_facet_iterator
 
 !=================================================================================================
 function polytope_tree_get_number_n_faces(this) 
@@ -456,7 +457,7 @@ end subroutine n_face_iterator_init
 subroutine n_face_iterator_print( this )
   implicit none
   class(n_face_iterator_t), intent(inout) :: this
-  write(*,*) '***CHILDREN_ITERATOR ***'
+  write(*,*) '***N-FACE_ITERATOR ***'
   write(*,*) 'parent: '
   write(*,'(B32)') this%parent
   write(*,*) 'component: ',this%component

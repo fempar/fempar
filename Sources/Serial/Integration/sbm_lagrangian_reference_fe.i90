@@ -868,7 +868,7 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
   implicit none
   class(lagrangian_reference_fe_t), intent(inout)    :: this 
   type(node_iterator_t) :: node_iterator
-  type(n_face_iterator_t) :: children_iterator
+  type(n_face_iterator_t) :: facet_iterator
   type(list_iterator_t) :: list_iterator
   integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM)
   ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
@@ -947,6 +947,7 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         call node_iterator%next()
      end do
   end do
+  
   call this%vertices_n_face%calculate_header()
   call this%vertices_n_face%allocate_list_from_pointer()
   list_iterator = this%vertices_n_face%create_iterator()
@@ -962,21 +963,21 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
   ! n-faces_n-face (NEW DEFINITION; now only n_faces of inferior dimension
   call this%n_faces_n_face%create(num_n_faces)
   do i = 1,num_n_faces
-     children_iterator = this%polytope%create_children_iterator( this%polytope%get_n_face(i) )
-     do while (.not. children_iterator%has_finished() )
+     facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
+     do while (.not. facet_iterator%has_finished() )
         call this%n_faces_n_face%sum_to_pointer_index(i,1)
-        call children_iterator%next()
+        call facet_iterator%next()
      end do
   end do
   call this%n_faces_n_face%calculate_header()
   call this%n_faces_n_face%allocate_list_from_pointer()
   list_iterator = this%n_faces_n_face%create_iterator()
   do i = 1,num_n_faces
-     children_iterator = this%polytope%create_children_iterator( this%polytope%get_n_face(i) )
-     do while (.not. children_iterator%has_finished() )
-        children = children_iterator%current()
+     facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
+     do while (.not. facet_iterator%has_finished() )
+        children = facet_iterator%current()
         call list_iterator%set_current(children)
-        call children_iterator%next()
+        call facet_iterator%next()
         call list_iterator%next()
      end do
   end do

@@ -111,7 +111,8 @@ subroutine raviart_thomas_fill (this)
   class(raviart_thomas_reference_fe_t), intent(inout) :: this
   integer(ip) :: c, i, j, dimension, number_interior_nodes, number_interior_nodes_scalar
   integer(ip) :: column, inode, idime, inode_scalar, num_columns
-
+  ! Here we put a k+1,k,k order_vector, which is the one for the x-component.
+  ! In fill_vector, we use order_vector (and other arrays) using a permutation 
   this%order_vector = this%order
   this%order_vector(1) = this%order+1 ! @sbadia: for the moment not this complexity, just vector laplacian
 
@@ -119,29 +120,6 @@ subroutine raviart_thomas_fill (this)
 
   call memalloc (this%number_dimensions-1,this%number_rotations_per_dimension,__FILE__,__LINE__)
   call memalloc (this%number_dimensions-1,this%number_orientations_per_dimension,__FILE__,__LINE__)
-
-  !if ( this%continuity ) allocate(this%own_node_permutations(this%number_dimensions-1))
-
-  !do dimension = 1, this%number_dimensions-1
-
-  !   if (dimension == 1) then
-  !      this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_edge()
-  !   elseif (dimension == 2) then 
-  !      this%number_rotations_per_dimension(dimension) = this%get_number_vertices_per_face()
-  !   end if
-  !   this%number_orientations_per_dimension(dimension) = dimension
-  !   
-  !   if ( this%continuity ) then
-  !     ! Compute the number of interior nodes X (edge or face)
-  !     j = this%get_first_n_face_id_of_dimension(dimension)
-  !     number_interior_nodes = this%get_number_own_nodes_n_face(j)
-  !        
-  !     call this%fill_interior_points_permutation(dimension,             &
-  !                                                number_interior_nodes, &
-  !                                                this%own_node_permutations(dimension)%a)
-  !   end if
-  !end do
-
   call memalloc( this%number_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
   call memalloc( this%number_shape_functions,     & 
        & this%number_field_components, & 
@@ -165,7 +143,7 @@ subroutine raviart_thomas_fill_vector (this)
   implicit none
   class(raviart_thomas_reference_fe_t), intent(inout)    :: this 
   type(node_iterator_t) :: node_iterator
-  type(n_face_iterator_t) :: children_iterator
+  type(n_face_iterator_t) :: facet_iterator
   type(list_iterator_t) :: list_iterator
   integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM), idime, perm(SPACE_DIM), offset(SPACE_DIM)
 
@@ -280,21 +258,21 @@ subroutine raviart_thomas_fill_vector (this)
   ! n-faces_n-face (NEW DEFINITION; now only n_faces of inferior dimension
   call this%n_faces_n_face%create(num_n_faces)
   do i = 1,num_n_faces
-     children_iterator = this%polytope%create_children_iterator( this%polytope%get_n_face(i) )
-     do while (.not. children_iterator%has_finished() )
+     facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
+     do while (.not. facet_iterator%has_finished() )
         call this%n_faces_n_face%sum_to_pointer_index(i,1)
-        call children_iterator%next()
+        call facet_iterator%next()
      end do
   end do
   call this%n_faces_n_face%calculate_header()
   call this%n_faces_n_face%allocate_list_from_pointer()
   list_iterator = this%n_faces_n_face%create_iterator()
   do i = 1,num_n_faces
-     children_iterator = this%polytope%create_children_iterator( this%polytope%get_n_face(i) )
-     do while (.not. children_iterator%has_finished() )
-        children = children_iterator%current()
+     facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
+     do while (.not. facet_iterator%has_finished() )
+        children = facet_iterator%current()
         call list_iterator%set_current(children)
-        call children_iterator%next()
+        call facet_iterator%next()
         call list_iterator%next()
      end do
   end do
