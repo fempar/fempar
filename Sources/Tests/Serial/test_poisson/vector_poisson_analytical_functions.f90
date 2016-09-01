@@ -26,97 +26,102 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module poisson_analytical_functions_names
+module vector_poisson_analytical_functions_names
   use serial_names
+  use poisson_analytical_functions_names
   implicit none
 # include "debug.i90"
   private
 
-  type, extends(scalar_function_t) :: base_scalar_function_t
+  type, extends(vector_function_t) :: base_vector_function_t
     integer(ip) :: num_dimensions = -1  
   contains
-    procedure :: set_num_dimensions    => base_scalar_function_set_num_dimensions 
-  end type base_scalar_function_t
+    procedure :: set_num_dimensions    => base_vector_function_set_num_dimensions
+  end type base_vector_function_t
   
-  type, extends(base_scalar_function_t) :: source_term_t
-    private 
+  
+  type, extends(base_vector_function_t) :: source_term_t
    contains
-     procedure :: get_value_space    => source_term_get_value_space
+     procedure :: get_value_space => source_term_get_value_space
   end type source_term_t
 
   type, extends(base_scalar_function_t) :: boundary_function_t
-    private
    contains
-     procedure :: get_value_space => boundary_function_get_value_space
+     procedure :: get_value_space => boundary_function_get_value_space  
   end type boundary_function_t
 
-  type, extends(base_scalar_function_t) :: solution_function_t
-    private 
+  type, extends(base_vector_function_t) :: solution_function_t
    contains
      procedure :: get_value_space    => solution_function_get_value_space
      procedure :: get_gradient_space => solution_function_get_gradient_space
   end type solution_function_t
 
-  type poisson_analytical_functions_t
+  type vector_poisson_analytical_functions_t
      private
-     type(source_term_t)       :: source_term
-     type(boundary_function_t) :: boundary_function
-     type(solution_function_t) :: solution_function
+     type(source_term_t)         :: source_term
+     type(boundary_function_t)   :: boundary_function
+     type(solution_function_t)   :: solution_function
    contains
-     procedure :: set_num_dimensions      => poisson_analytical_functions_set_num_dimensions
-     procedure :: get_source_term         => poisson_analytical_functions_get_source_term
+     procedure :: set_num_dimensions    => poisson_analytical_functions_set_num_dimensions
+     procedure :: get_source_term       => poisson_analytical_functions_get_source_term
      procedure :: get_boundary_function   => poisson_analytical_functions_get_boundary_function
      procedure :: get_solution_function   => poisson_analytical_functions_get_solution_function
-  end type poisson_analytical_functions_t
+  end type vector_poisson_analytical_functions_t
 
-  public :: poisson_analytical_functions_t, base_scalar_function_t
+  public :: vector_poisson_analytical_functions_t, boundary_function_t
 
 contains  
 
-  subroutine base_scalar_function_set_num_dimensions ( this, num_dimensions )
+  subroutine base_vector_function_set_num_dimensions ( this, num_dimensions )
     implicit none
-    class(base_scalar_function_t), intent(inout)    :: this
+    class(base_vector_function_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dimensions
     this%num_dimensions = num_dimensions
-  end subroutine base_scalar_function_set_num_dimensions
+  end subroutine base_vector_function_set_num_dimensions
 
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
     implicit none
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
-    real(rp)            , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    result = 0.0_rp 
+    type(vector_field_t), intent(inout) :: result
+    if ( this%num_dimensions == 2 ) then
+      call result%set(1,0.0_rp)
+      call result%set(2,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
+    else
+      call result%set(1,0.0_rp)
+      call result%set(2,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
+      call result%set(3,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
+    end if  
   end subroutine source_term_get_value_space
 
   !===============================================================================================
   subroutine boundary_function_get_value_space ( this, point, result )
     implicit none
-    class(boundary_function_t), intent(in)  :: this
+    class(boundary_function_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     if ( this%num_dimensions == 2 ) then
-      result = point%get(1) + point%get(2) ! x+y
-    else if ( this%num_dimensions == 3 ) then
-      result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
+      result = point%get(1)+point%get(2) !sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1)
+    else
+      result = point%get(1)+point%get(2)+point%get(3)
     end if  
-  end subroutine boundary_function_get_value_space 
+  end subroutine boundary_function_get_value_space
 
   !===============================================================================================
   subroutine solution_function_get_value_space ( this, point, result )
     implicit none
     class(solution_function_t), intent(in)    :: this
-    type(point_t)             , intent(in)    :: point
-    real(rp)                  , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    type(point_t)           , intent(in)    :: point
+    type(vector_field_t)    , intent(inout) :: result
     if ( this%num_dimensions == 2 ) then
-      result = point%get(1) + point%get(2) ! x+y 
-    else if ( this%num_dimensions == 3 ) then
-      result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
-    end if  
-      
+      call result%set(1, point%get(1)+point%get(2) ) 
+      call result%set(2, point%get(1)+point%get(2) ) 
+    else
+      call result%set(1, point%get(1)+point%get(2)+point%get(3) ) 
+      call result%set(2, point%get(1)+point%get(2)+point%get(3) ) 
+      call result%set(3, point%get(1)+point%get(2)+point%get(3) ) 
+    end if
   end subroutine solution_function_get_value_space
   
   !===============================================================================================
@@ -124,22 +129,21 @@ contains
     implicit none
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
-    type(vector_field_t)      , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    type(tensor_field_t)      , intent(inout) :: result
     if ( this%num_dimensions == 2 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
-    else if ( this%num_dimensions == 3 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
-      call result%set( 3, 1.0_rp ) 
+      call result%set( 1, 1, 1.0_rp ) 
+      call result%set( 2, 1, 1.0_rp )
+      call result%set( 1, 2, 1.0_rp ) 
+      call result%set( 2, 2, 1.0_rp )
+    else
+      call result%init(1.0_rp)
     end if
   end subroutine solution_function_get_gradient_space
   
   !===============================================================================================
   subroutine poisson_analytical_functions_set_num_dimensions ( this, num_dimensions )
     implicit none
-    class(poisson_analytical_functions_t), intent(inout)    :: this
+    class(vector_poisson_analytical_functions_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dimensions
     call this%source_term%set_num_dimensions(num_dimensions)
     call this%boundary_function%set_num_dimensions(num_dimensions)
@@ -149,26 +153,28 @@ contains
   !===============================================================================================
   function poisson_analytical_functions_get_source_term ( this )
     implicit none
-    class(poisson_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: poisson_analytical_functions_get_source_term
+    class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
+    class(vector_function_t), pointer :: poisson_analytical_functions_get_source_term
     poisson_analytical_functions_get_source_term => this%source_term
   end function poisson_analytical_functions_get_source_term
   
   !===============================================================================================
   function poisson_analytical_functions_get_boundary_function ( this )
     implicit none
-    class(poisson_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: poisson_analytical_functions_get_boundary_function
+    class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
+    type(boundary_function_t), pointer :: poisson_analytical_functions_get_boundary_function
     poisson_analytical_functions_get_boundary_function => this%boundary_function
   end function poisson_analytical_functions_get_boundary_function
   
   !===============================================================================================
   function poisson_analytical_functions_get_solution_function ( this )
     implicit none
-    class(poisson_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: poisson_analytical_functions_get_solution_function
+    class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
+    class(vector_function_t), pointer :: poisson_analytical_functions_get_solution_function
     poisson_analytical_functions_get_solution_function => this%solution_function
   end function poisson_analytical_functions_get_solution_function
 
-end module poisson_analytical_functions_names
+end module vector_poisson_analytical_functions_names
 !***************************************************************************************************
+
+

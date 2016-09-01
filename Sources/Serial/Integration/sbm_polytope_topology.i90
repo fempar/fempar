@@ -1028,6 +1028,8 @@ subroutine node_array_fill_permutations( order, idime, base_polytope, own_node_p
      call n_face%free()
      call nodes_n_face%free()
      call vertices_n_face%free()
+  else 
+     call own_node_permutations%create(nd1=0, nd2=0)
   end if
 end subroutine node_array_fill_permutations
 

@@ -32,8 +32,11 @@ module test_poisson_driver_names
   use poisson_dG_discrete_integration_names
   use poisson_conditions_names
   use poisson_analytical_functions_names
-  use list_types_names
-  use vtk_handler_names
+  
+  use vector_poisson_discrete_integration_names
+  use vector_poisson_conditions_names
+  use vector_poisson_analytical_functions_names
+  
 # include "debug.i90"
 
   implicit none
@@ -49,15 +52,19 @@ module test_poisson_driver_names
      type(serial_triangulation_t)              :: triangulation
      
      ! Discrete weak problem integration-related data type instances 
-     type(serial_fe_space_t)                   :: fe_space 
-     type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(poisson_cG_discrete_integration_t)   :: poisson_cG_integration
-     type(poisson_dG_discrete_integration_t)   :: poisson_dG_integration
-     type(poisson_conditions_t)                :: poisson_conditions
-     type(poisson_analytical_functions_t)      :: poisson_analytical_functions
+     type(serial_fe_space_t)                      :: fe_space 
+     type(p_reference_fe_t), allocatable          :: reference_fes(:) 
+     type(poisson_cG_discrete_integration_t)      :: poisson_cG_integration
+     type(poisson_dG_discrete_integration_t)      :: poisson_dG_integration
+     type(poisson_conditions_t)                   :: poisson_conditions
+     type(poisson_analytical_functions_t)         :: poisson_analytical_functions
+     
+     type(vector_poisson_discrete_integration_t)  :: vector_poisson_integration
+     type(vector_poisson_analytical_functions_t)  :: vector_poisson_analytical_functions
+     type(vector_poisson_conditions_t)            :: vector_poisson_conditions
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
-     type(fe_affine_operator_t)                :: fe_affine_operator
+     type(fe_affine_operator_t)                   :: fe_affine_operator
      
      ! Direct and Iterative linear solvers data type
 #ifdef ENABLE_MKL     
@@ -79,6 +86,7 @@ module test_poisson_driver_names
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
      procedure        , private :: check_solution
+     procedure        , private :: check_solution_vector
      procedure        , private :: write_solution
      procedure        , private :: free
   end type test_poisson_driver_t
@@ -113,6 +121,7 @@ contains
     type(cell_iterator_t)                     :: cell_iterator
     type(cell_accessor_t)                     :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    character(:), allocatable :: field_type
     
 
     allocate(this%reference_fes(1), stat=istat)
@@ -123,6 +132,11 @@ contains
       continuity = .false.
     end if
     
+    field_type = field_type_scalar
+    if ( trim(this%test_params%get_laplacian_type()) == 'vector' ) then
+      field_type = field_type_vector
+    end if
+    
     cell_iterator = this%triangulation%create_cell_iterator()
     call cell_iterator%current(cell)
     reference_fe_geo => cell%get_reference_fe_geo()
@@ -131,7 +145,7 @@ contains
                                                  fe_type = fe_type_lagrangian, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
                                                  order = this%test_params%get_reference_fe_order(), & 
-                                                 field_type = field_type_scalar, &
+                                                 field_type = field_type, &
                                                  continuity = continuity ) 
   end subroutine setup_reference_fes
 
@@ -139,38 +153,61 @@ contains
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
     
-    call this%fe_space%create( triangulation       = this%triangulation, &
-                               conditions          = this%poisson_conditions, &
-                               reference_fes       = this%reference_fes)
+    if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
+      call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
+      call this%fe_space%create( triangulation       = this%triangulation, &
+                                 conditions          = this%poisson_conditions, &
+                                 reference_fes       = this%reference_fes)
+    else
+      call this%vector_poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function()) 
+      call this%fe_space%create( triangulation       = this%triangulation, &
+                                 conditions          = this%vector_poisson_conditions, &
+                                 reference_fes       = this%reference_fes)
+    end if
     call this%fe_space%fill_dof_info() 
-    call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
-    call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
+    
+    if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
+      call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
+    else
+      call this%fe_space%update_strong_dirichlet_bcs_values(this%vector_poisson_conditions)
+    end if
+    
+    
     !call this%fe_space%print()
   end subroutine setup_fe_space
   
   subroutine setup_system (this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    
-    if ( trim(this%test_params%get_fe_formulation()) == 'cG' ) then
-       call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
-       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-            diagonal_blocks_symmetric_storage = [ .true. ], &
-            diagonal_blocks_symmetric         = [ .true. ], &
-            diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-            fe_space                          = this%fe_space, &
-            discrete_integration              = this%poisson_cG_integration )
-
+    if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then    
+      if ( trim(this%test_params%get_fe_formulation()) == 'cG' ) then
+         call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
+         call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+                                               diagonal_blocks_symmetric_storage = [ .true. ], &
+                                               diagonal_blocks_symmetric         = [ .true. ], &
+                                               diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                               fe_space                          = this%fe_space, &
+                                               discrete_integration              = this%poisson_cG_integration )
+      else
+         call this%poisson_dG_integration%set_analytical_functions(this%poisson_analytical_functions)
+         call this%poisson_dG_integration%set_poisson_conditions(this%poisson_conditions)
+         call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+                                               diagonal_blocks_symmetric_storage = [ .true. ], &
+                                               diagonal_blocks_symmetric         = [ .true. ], &
+                                               diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                               fe_space                          = this%fe_space, &
+                                               discrete_integration              = this%poisson_dG_integration )
+      end if
     else
-       call this%poisson_dG_integration%set_analytical_functions(this%poisson_analytical_functions)
-       call this%poisson_dG_integration%set_poisson_conditions(this%poisson_conditions)
+       call this%vector_poisson_integration%set_source_term(this%vector_poisson_analytical_functions%get_source_term())
        call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-            diagonal_blocks_symmetric_storage = [ .true. ], &
-            diagonal_blocks_symmetric         = [ .true. ], &
-            diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-            fe_space                          = this%fe_space, &
-            discrete_integration              = this%poisson_dG_integration )
+                                             diagonal_blocks_symmetric_storage = [ .true. ], &
+                                             diagonal_blocks_symmetric         = [ .true. ], &
+                                             diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                             fe_space                          = this%fe_space, &
+                                             discrete_integration              = this%vector_poisson_integration )
     end if
   end subroutine setup_system
   
@@ -203,6 +240,7 @@ contains
     end select
 #else    
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
@@ -274,7 +312,7 @@ contains
   subroutine check_solution(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    type(error_norms_scalar_t) :: error_norm 
+    type(error_norms_scalar_t) :: error_norm
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: error_tolerance
     
@@ -311,6 +349,47 @@ contains
     call error_norm%free()
   end subroutine check_solution
   
+  subroutine check_solution_vector(this)
+    implicit none
+    class(test_poisson_driver_t), intent(inout) :: this
+    type(error_norms_vector_t) :: error_norm
+    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    real(rp) :: error_tolerance
+    
+    call error_norm%create(this%fe_space,1)
+    mean = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
+    l1 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
+    l2 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
+    lp = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
+    linfty = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
+    h1_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
+    h1 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
+    w1p_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
+    w1p = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
+    w1infty_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
+    w1infty = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
+
+#ifdef ENABLE_MKL    
+    error_tolerance = 1.0e-08
+#else
+    error_tolerance = 1.0e-06
+#endif    
+    
+    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+    call error_norm%free()
+  end subroutine check_solution_vector
+  
+  
   subroutine write_solution(this)
     implicit none
     class(test_poisson_driver_t), intent(in) :: this
@@ -339,8 +418,12 @@ contains
     call this%setup_solver()
     call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
-    call this%check_solution()
-    call this%write_solution()
+    if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
+      call this%check_solution()
+    else
+      call this%check_solution_vector()
+    end if  
+      call this%write_solution()
     call this%free()
   end subroutine run_simulation
   

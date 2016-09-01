@@ -601,9 +601,9 @@ subroutine lagrangian_reference_fe_fill (this)
      allocate(this%own_node_permutations(this%number_dimensions-1))
      do idime = 1, this%number_dimensions-1
         call this%node_array%fill_permutations( this%order, &
-             idime, &
-             this%polytope, &
-             this%own_node_permutations(idime) )
+                                                idime, &
+                                                this%polytope, &
+                                                this%own_node_permutations(idime) )
      end do
   end if
 
