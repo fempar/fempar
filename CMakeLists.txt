@@ -5,38 +5,28 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.11)
 SET(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS TRUE)
 
-PROJECT(FEMPAR Fortran C)
+PROJECT(FEMPAR_DRIVERS Fortran C)
 
 SET(${PROJECT_NAME}_VERSION 0.0.1)
 SET(${PROJECT_NAME}_SOVERSION 1)
 SET(${PROJECT_NAME}_USER "" CACHE STRING "")
 
-SET(CMAKE_VERBOSE_MAKEFILE TRUE)
-
 #################################################################
 # DEFINE PATHS
 #################################################################
-
-SET(ROOT_PATH ${CMAKE_SOURCE_DIR}/..)
 SET(SRC_PATH ${CMAKE_SOURCE_DIR})
 
-SET(SERIAL_PATH ${SRC_PATH}/Serial)
-SET(PAR_PATH ${SRC_PATH}/Par)
+SET(FEMPAR_PATH ${CMAKE_SOURCE_DIR}/Sources)
+SET(FEMPAR_TESTS_PATH ${FEMPAR_PATH}/Tests)
 
-SET(SERIAL_DRIVERS_PATH ${SRC_PATH}/Drivers/Serial)
-SET(PAR_DRIVERS_PATH ${SRC_PATH}/Drivers/Par)
+SET(SERIAL_DRIVERS_PATH ${FEMPAR_PATH}/Drivers/Serial)
+SET(PAR_DRIVERS_PATH ${FEMPAR_PATH}/Drivers/Par)
 
-SET(TESTS_PATH ${SRC_PATH}/Tests)
-SET(SERIAL_TESTS_PATH ${TESTS_PATH}/Serial)
-SET(PAR_TESTS_PATH ${TESTS_PATH}/Par)
-SET(SCRIPTS_TESTS_PATH ${TESTS_PATH}/Scripts)
-SET(DATA_TESTS_PATH ${TESTS_PATH}/Data)
-
-SET(GENERIC_PATH ${SRC_PATH}/Generic)
+SET(GENERIC_PATH ${FEMPAR_PATH}/Generic)
 
 SET(THIRDPARTY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/ThirdParty)
 
-SET(CMAKE_MODULE_PATH "${ROOT_PATH}/CMake/Modules/")
+SET(CMAKE_MODULE_PATH "${SRC_PATH}/CMake/Modules/")
 
 #################################################################
 # BUILD PATHS
@@ -72,55 +62,6 @@ IF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
 ENDIF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
 
 #################################################################
-# Add external projects
-#################################################################
-
-SET(EXT_PROJS FPL F3PHT FLAP VTKIO)
-include(ExternalProject)
-
-FOREACH(EXT_PROJ ${EXT_PROJS})
-
-    SET(${EXT_PROJ}_SRC_PATH ${ROOT_PATH}/ThirdParty/${EXT_PROJ})
-    SET(${EXT_PROJ}_BINARY_PATH ${THIRDPARTY_OUTPUT_PATH}/${EXT_PROJ})
-    EXTERNALPROJECT_Add(${EXT_PROJ}
-        DOWNLOAD_COMMAND ""
-        SOURCE_DIR ${${EXT_PROJ}_SRC_PATH}
-        BINARY_DIR ${${EXT_PROJ}_BINARY_PATH}
-        INSTALL_DIR ${INSTALL_PREFIX}
-        CONFIGURE_COMMAND cmake -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER} -D${EXT_PROJ}_ENABLE_TESTS=${${PROJECT_NAME}_ENABLE_TESTS} ${${EXT_PROJ}_SRC_PATH}
-        BUILD_COMMAND cmake --build .
-        TEST_COMMAND "ctest"
-        INSTALL_COMMAND ""
-    )
-    INCLUDE_DIRECTORIES(${${EXT_PROJ}_BINARY_PATH}/modules)
-    SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${EXT_PROJ}_BINARY_PATH}/lib/lib${EXT_PROJ}.a)
-    IF(${EXT_PROJ} STREQUAL "FLAP")
-        SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${EXT_PROJ}_BINARY_PATH}/third_party/PENF/lib/libPENF.a)
-    ENDIF()
-
-ENDFOREACH ()
-
-#################################################################
-# SISL needs a different treatment because it's a C project not owned by us
-SET(SISL_LIB SISL)
-SET(EXT_PROJS ${EXT_PROJS} ${SISL_LIB} )
-
-SET(${SISL_LIB}_SRC_PATH ${ROOT_PATH}/ThirdParty/${SISL_LIB})
-SET(${SISL_LIB}_BINARY_PATH ${THIRDPARTY_OUTPUT_PATH}/${SISL_LIB})
-EXTERNALPROJECT_Add(${SISL_LIB}
-    DOWNLOAD_COMMAND ""
-    SOURCE_DIR ${${SISL_LIB}_SRC_PATH}
-    BINARY_DIR ${${SISL_LIB}_BINARY_PATH}
-    INSTALL_DIR ${INSTALL_PREFIX}
-    CONFIGURE_COMMAND cmake -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} ${${SISL_LIB}_SRC_PATH}
-    BUILD_COMMAND cmake --build .
-    TEST_COMMAND ""
-    INSTALL_COMMAND ""
-)
-INCLUDE_DIRECTORIES(${${SISL_LIB}_SRC_PATH}/include)
-SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${SISL_LIB}_BINARY_PATH}/libsisl.a)
-
-#################################################################
 # List of external libraries
 #################################################################
 
@@ -146,7 +87,7 @@ IF(MPI_FOUND)
     IF(MPI_MOD_FOUND)
         TRY_COMPILE(FORTRAN_COMPILER_MATCH_MPI_MOD 
                     ${PROJECT_BINARY_DIR} 
-                    ${TESTS_PATH}/try_compile_mpi_mod.f90	
+                    ${FEMPAR_TESTS_PATH}/try_compile_mpi_mod.f90	
                     CMAKE_FLAGS
                         "-DINCLUDE_DIRECTORIES:STRING=${MPI_Fortran_INCLUDE_PATH}"
                         "-DLINK_LIBRARIES:STRING=${MPI_Fortran_LIBRARIES}")
@@ -281,6 +222,44 @@ message (STATUS "CMAKE_Fortran_FLAGS_RELEASE: " ${CMAKE_Fortran_FLAGS_RELEASE})
 message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 
 #################################################################
+# Add external projects
+#################################################################
+
+SET(EXT_PROJS FEMPAR FPL F3PHT FLAP VTKIO SISL)
+include(ExternalProject)
+
+FOREACH(EXT_PROJ ${EXT_PROJS})
+
+    IF(${EXT_PROJ} STREQUAL "FEMPAR")
+        SET(${EXT_PROJ}_SRC_PATH ${FEMPAR_PATH})
+        SET(${EXT_PROJ}_BINARY_PATH ${THIRDPARTY_OUTPUT_PATH}/${EXT_PROJ})
+        EXTERNALPROJECT_Add(${EXT_PROJ}
+            DOWNLOAD_COMMAND ""
+            SOURCE_DIR ${${EXT_PROJ}_SRC_PATH}
+            BINARY_DIR ${${EXT_PROJ}_BINARY_PATH}
+            INSTALL_DIR ${INSTALL_PREFIX}
+            CONFIGURE_COMMAND cmake -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_VERBOSE_MAKEFILE=${CMAKE_VERBOSE_MAKEFILE} -DMPI_Fortran_COMPILER=${MPI_Fortran_COMPILER} -DMPI_C_COMPILER=${MPI_C_COMPILER} -DMPIEXEC=${MPIEXEC} -DFEMPAR_ENABLE_BLAS=${${PROJECT_NAME}_ENABLE_BLAS} -DFEMPAR_ENABLE_GIDPOST=${${PROJECT_NAME}_ENABLE_GIDPOST} -DFEMPAR_ENABLE_HSL_MA87=${${PROJECT_NAME}_ENABLE_HSL_MA87} -DFEMPAR_ENABLE_HSL_MI20=${${PROJECT_NAME}_ENABLE_HSL_MI20} -DFEMPAR_ENABLE_LAPACK=${${PROJECT_NAME}_ENABLE_LAPACK} -DFEMPAR_ENABLE_METIS=${${PROJECT_NAME}_ENABLE_METIS} -DFEMPAR_ENABLE_MKL=${${PROJECT_NAME}_ENABLE_MKL} -DFEMPAR_ENABLE_P4EST=${${PROJECT_NAME}_ENABLE_P4EST} -DFEMPAR_ENABLE_UMFPACK=${${PROJECT_NAME}_ENABLE_UMFPACK} -DFEMPAR_ENABLE_WSMP=${${PROJECT_NAME}_ENABLE_WSMP} -DFEMPAR_ENABLE_ZLIB=${${PROJECT_NAME}_ENABLE_ZLIB} -DFEMPAR_ENABLE_ZOLTAN=${${PROJECT_NAME}_ENABLE_ZOLTAN} -DFEMPAR_ENABLE_TESTS=${${PROJECT_NAME}_ENABLE_TESTS} ${${EXT_PROJ}_SRC_PATH}
+            BUILD_COMMAND cmake --build .
+            TEST_COMMAND "ctest"
+            INSTALL_COMMAND ""
+        )
+    ELSE()
+        SET(${EXT_PROJ}_BINARY_PATH ${FEMPAR_BINARY_PATH}/ThirdParty/${EXT_PROJ})
+    ENDIF()
+    
+    IF(${EXT_PROJ} STREQUAL "SISL") 
+        SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${EXT_PROJ}_BINARY_PATH}/libsisl.a)
+    ELSE()
+        INCLUDE_DIRECTORIES(${${EXT_PROJ}_BINARY_PATH}/modules)
+        SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${EXT_PROJ}_BINARY_PATH}/lib/lib${EXT_PROJ}.a)
+        IF(${EXT_PROJ} STREQUAL "FLAP")
+            SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${EXT_PROJ}_BINARY_PATH}/third_party/PENF/lib/libPENF.a)
+        ENDIF()
+    ENDIF()
+
+ENDFOREACH()
+
+#################################################################
 # SET BUILD NAME
 #################################################################
 
@@ -289,7 +268,7 @@ IF(${GIT_FOUND})
     # Get the current working branch
     EXECUTE_PROCESS(
         COMMAND git rev-parse --short HEAD
-        WORKING_DIRECTORY ${ROOT_PATH}
+        WORKING_DIRECTORY ${SRC_PATH}
         OUTPUT_VARIABLE GIT_COMMIT
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
@@ -314,29 +293,10 @@ IF(NOT ${BUILD_SHARED_LIBS})
     SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a ${CMAKE_FIND_LIBRARY_SUFFIXES}")
 ENDIF()
 
-#################################################################
-# ADD LIBRARY SOURCE SUBDIRS
-#################################################################
-
-ADD_SUBDIRECTORY(${SERIAL_PATH})
-ADD_SUBDIRECTORY(${PAR_PATH})
 
 #################################################################
-# ADD FEMPAR LIBRARY TARGET
+# DRIVERS SOURCE SUBDIRS
 #################################################################
-
-ADD_LIBRARY(${PROJECT_NAME} ${SERIAL_SRC} ${PAR_SRC})
-ADD_DEPENDENCIES(${PROJECT_NAME} ${EXT_PROJS})
-SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES VERSION ${${PROJECT_NAME}_VERSION} SOVERSION ${${PROJECT_NAME}_SOVERSION})
-
-#################################################################
-# ADD TESTS (IF ENABLED) AND DRIVERS SOURCE SUBDIRS
-#################################################################
-
-IF(${PROJECT_NAME}_ENABLE_TESTS)
-    ADD_SUBDIRECTORY(${SERIAL_TESTS_PATH})
-    ADD_SUBDIRECTORY(${PAR_TESTS_PATH})
-ENDIF()
 
 ADD_SUBDIRECTORY(${SERIAL_DRIVERS_PATH})
 ADD_SUBDIRECTORY(${PAR_DRIVERS_PATH})
@@ -348,6 +308,6 @@ ADD_SUBDIRECTORY(${PAR_DRIVERS_PATH})
 
 FIND_PROGRAM(ETAGS etags)
 IF(ETAGS)
-    ADD_CUSTOM_TARGET(TAGS ALL COMMAND ${ETAGS} ${SERIAL_SRC} ${PAR_SRC} ${TESTS_SERIAL_SRC} ${TESTS_PAR_SRC})
+    ADD_CUSTOM_TARGET(TAGS ALL COMMAND ${ETAGS} ${DRIVERS_SERIAL_SRC} ${DRIVERS_PAR_SRC})
 ENDIF()
 
