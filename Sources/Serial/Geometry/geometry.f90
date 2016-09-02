@@ -6,6 +6,7 @@ module geometry_names
   use hash_table_names
   use sisl_names
   use field_names
+  use FPL
   implicit none
   private
 #include "debug.i90"
@@ -357,15 +358,36 @@ contains
     name = trim(prefix) // '.txt'
   end subroutine geometry_compose_name
   !=============================================================================
-  subroutine geometry_read_from_file (geometry,  dir_path, prefix )
+  subroutine geometry_read_from_file (geometry, parameter_list) ! dir_path, prefix )
      implicit none 
      ! Parameters
-     character (*)    , intent(in)  :: dir_path
-     character (*)    , intent(in)  :: prefix
+     !character (*)    , intent(in)  :: dir_path
+     !character (*)    , intent(in)  :: prefix
+     type(ParameterList_t), intent(in)    :: parameter_list
      class(geometry_t), intent(out) :: geometry
      ! Locals
+     !integer(ip)                    :: lunio
+     !character(len=:), allocatable  :: name
+
+     ! Locals
+     integer(ip)          :: istat
+     logical              :: is_present
+     character(len=256)   :: dir_path
+     character(len=256)   :: prefix
+     character(len=:), allocatable   :: name
      integer(ip)                    :: lunio
-     character(len=:), allocatable  :: name
+
+     ! Mandatory parameters
+     is_present = .true.
+     is_present =  is_present.and. parameter_list%isPresent(key = dir_path_key)
+     is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
+     assert(is_present)
+     
+     istat = 0
+     istat = istat + parameter_list%get(key = dir_path_key, value = dir_path)
+     istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
+     check(istat==0)
+     
      ! Read geometry
      call geometry_compose_name ( prefix, name )
      lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' )

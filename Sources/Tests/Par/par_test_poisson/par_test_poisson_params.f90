@@ -106,9 +106,11 @@ contains
   end subroutine par_test_poisson_params_add_to_cli
 
   !==================================================================================================
-  subroutine par_test_poisson_params_parse(this)
+  subroutine par_test_poisson_params_parse(this,parameter_list)
     implicit none
     class(par_test_poisson_params_t), intent(inout) :: this
+    type(ParameterList_t)       , intent(inout) :: parameter_list
+
     integer(ip) :: error
     call this%cli%parse(error=error)
     check(error==0)
@@ -118,6 +120,14 @@ contains
     call this%cli%get(switch='-gorder',val=this%reference_fe_geo_order,error=error); check(error==0)
     call this%cli%get(switch='-order',val=this%reference_fe_order,error=error); check(error==0)
     call this%cli%get(switch='-wsolution',val=this%write_solution,error=error); check(error==0)
+    
+    call parameter_list%init()
+    error = 0
+    error = error + parameter_list%set(key = dir_path_key, value = this%dir_path)
+    error = error + parameter_list%set(key = prefix_key  , value = this%prefix)
+    error = error + parameter_list%set(key = geometry_interpolation_order_key  , value = this%reference_fe_geo_order)
+    check(error==0)
+    
   end subroutine par_test_poisson_params_parse
   
   subroutine par_test_poisson_params_free(this)

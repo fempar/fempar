@@ -74,7 +74,10 @@ module base_static_triangulation_names
   integer(ip), parameter :: ghost_dim0 = 200
   integer(ip), parameter :: ghost_dim1 = 201
   integer(ip), parameter :: ghost_dim2 = 202
-
+ 
+  character(len=*), parameter :: geometry_interpolation_order_key    = 'geometry_interpolation_order'
+  public :: geometry_interpolation_order_key
+  
   type cell_accessor_t
     private
     integer(ip)                                 :: lid = -1

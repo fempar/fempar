@@ -25,16 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, geometry_interpolation_order)
+subroutine par_triangulation_create ( this, par_environment, parameters)
   implicit none
-  class(par_triangulation_t), intent(inout) :: this
+  class(par_triangulation_t)    , intent(inout) :: this
   type(par_environment_t),target, intent(in)    :: par_environment
-  character (*)                 , intent(in)    :: dir_path
-  character (*)                 , intent(in)    :: prefix
-  integer(ip)        , optional , intent(in)    :: geometry_interpolation_order
+  type(ParameterList_t)         , intent(in)    :: parameters
 
-  integer(ip)                    :: lunio
-  character(len=:), allocatable  :: name
   type(mesh_t)              :: mesh
   type(mesh_distribution_t) :: mesh_distribution
   type(list_t), pointer :: given_vefs
@@ -46,29 +42,48 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
   integer(ip) , allocatable :: lst_vefs_lids(:)
   integer(igp), allocatable :: lst_vefs_gids(:)
 
-  integer(ip)  :: i, ipart,npart, order
-  integer(ip)  :: num_local_cells, num_itfc_cells
-  integer(ip), allocatable :: lst_itfc_cells(:)
-  integer(ip), allocatable :: ptr_ext_neighs_per_itfc_cell(:)
+  integer(ip)               :: i, ipart,npart
+  integer(ip)               :: num_local_cells, num_itfc_cells
+  integer(ip) , allocatable :: lst_itfc_cells(:)
+  integer(ip) , allocatable :: ptr_ext_neighs_per_itfc_cell(:)
   integer(igp), allocatable :: lst_ext_neighs_gids(:)
-  integer(ip), allocatable :: lst_ext_neighs_part_ids(:)
+  integer(ip) , allocatable :: lst_ext_neighs_part_ids(:)
 
   integer(igp), allocatable :: lst_vefs_gids_ghost_extended(:)
   integer(ip) , allocatable :: lst_vefs_dimension_ghost_extended(:)
 
+  integer(ip)          :: istat
+  logical              :: is_present
+  character(len=256)   :: dir_path
+  character(len=256)   :: prefix
+  integer(ip)          :: geometry_interpolation_order
+  character(len=:), allocatable   :: name
+  integer(ip)                     :: lunio
+
+  ! Mandatory parameters
+  is_present = .true.
+  is_present =  is_present.and. parameters%isPresent(key = dir_path_key)
+  is_present =  is_present.and. parameters%isPresent(key = prefix_key)
+  assert(is_present)
+     
+  istat = 0
+  istat = istat + parameters%get(key = dir_path_key, value = dir_path)
+  istat = istat + parameters%get(key = prefix_key  , value = prefix)
+  check(istat==0)
+  
+   ! Optional parameters
+   if( parameters%isPresent(key = geometry_interpolation_order_key) ) then
+      istat = parameters%get(key = geometry_interpolation_order_key , value = geometry_interpolation_order)
+   else
+      geometry_interpolation_order = 1
+   end if
+  
   call this%free()
 
   this%p_env => par_environment
   if(this%p_env%am_i_l1_task()) then
 
-     if(present(geometry_interpolation_order)) then
-        order=geometry_interpolation_order
-        if(order>1) then
-           call this%geometry%read(dir_path, prefix)
-        end if
-     else
-        order=1
-     end if
+     if(geometry_interpolation_order>1) call this%geometry%read(parameters)
   
      ! Read mesh
      call mesh%compose_name ( prefix, name )
@@ -162,7 +177,7 @@ subroutine par_triangulation_create ( this, par_environment, dir_path, prefix, g
      !write(*,*) this%lst_cells_around
      !write(*,*) 'Generating vefs'
      !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
-     call this%generate_vefs(order)
+     call this%generate_vefs(geometry_interpolation_order)
      call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
 
      call this%allocate_and_fill_cells_around()

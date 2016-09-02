@@ -25,34 +25,29 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine serial_triangulation_create ( this, dir_path, prefix, geometry_interpolation_order)
+  subroutine serial_triangulation_create ( this, parameters) ! dir_path, prefix, geometry_interpolation_order)
     implicit none
     class(serial_triangulation_t), intent(inout) :: this
-    character(len=256)             , intent(in)    :: dir_path
-    character(len=256)             , intent(in)    :: prefix
-    integer(ip)        , optional, intent(in)    :: geometry_interpolation_order
+    type(ParameterList_t)        , intent(in)    :: parameters
 
-    type(ParameterList_t) :: parameters  ! TEMPORAL
     type(mesh_t)          :: mesh
     type(list_t), pointer :: given_vefs
     integer(ip) , pointer :: lst_vefs_geo(:), lst_vefs_set(:)
-    integer(ip) :: order, error
+    integer(ip)          :: istat
+    logical              :: is_present
+    integer(ip)          :: geometry_interpolation_order
 
+   ! Optional parameters
+   if( parameters%isPresent(key = geometry_interpolation_order_key) ) then
+      istat = parameters%get(key = geometry_interpolation_order_key , value = geometry_interpolation_order)
+   else
+      geometry_interpolation_order = 1
+   end if
+ 
     call this%free()
 
-    if(present(geometry_interpolation_order)) then
-       order=geometry_interpolation_order
-       if(order>1) then
-          call this%geometry%read(dir_path, prefix)
-       end if
-    else
-       order=1
-    end if
+    if(geometry_interpolation_order>1) call this%geometry%read(parameters)
 
-    call parameters%init()
-    error = parameters%set(key = dir_path_key, value = dir_path)
-    error = parameters%set(key = prefix_key  , value = prefix)
-    assert(error == 0)
     call mesh%read(parameters)
     !call mesh%read(dir_path, prefix)
     !call mesh%to_dual()
@@ -77,7 +72,7 @@
     !write(*,*) this%lst_cells_around
     !write(*,*) 'Dual mesh ready'
 
-    call this%generate_vefs(order)
+    call this%generate_vefs(geometry_interpolation_order)
     call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
     !call this%generate_vefs()
     !write(*,*) 'Generating vefs done'

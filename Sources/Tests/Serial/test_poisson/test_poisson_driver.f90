@@ -47,6 +47,7 @@ module test_poisson_driver_names
      
      ! Place-holder for parameter-value set provided through command-line interface
      type(test_poisson_params_t)   :: test_params
+     type(ParameterList_t)         :: parameter_list
      
      ! Cells and lower dimension objects container
      type(serial_triangulation_t)              :: triangulation
@@ -100,15 +101,16 @@ contains
     implicit none
     class(test_poisson_driver_t ), intent(inout) :: this
     call this%test_params%create()
-    call this%test_params%parse()
+    call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
   
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    call this%triangulation%create(this%test_params%get_dir_path(),&
-                                   this%test_params%get_prefix(),&
-                                   geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
+    !call this%triangulation%create(this%test_params%get_dir_path(),&
+    !                               this%test_params%get_prefix(),&
+    !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
+    call this%triangulation%create(this%parameter_list)
     !call this%triangulation%print()
   end subroutine setup_triangulation
   

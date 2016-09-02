@@ -147,9 +147,10 @@ contains
     
   end subroutine test_poisson_add_to_cli
   
-  subroutine test_poisson_parse(this)
+  subroutine test_poisson_parse(this,parameter_list)
     implicit none
     class(test_poisson_params_t), intent(inout) :: this
+    type(ParameterList_t)       , intent(inout) :: parameter_list
     integer(ip) :: istat
     
     call this%cli%parse(error=istat); check(istat==0)
@@ -163,6 +164,15 @@ contains
     call this%cli%get(switch='-order',val=this%reference_fe_order,error=istat); check(istat==0)
     call this%cli%get(switch='-wsolution',val=this%write_solution,error=istat); check(istat==0)
     call this%cli%get(switch='-lt',val=this%laplacian_type,error=istat); check(istat==0)
+
+    
+    call parameter_list%init()
+    istat = 0
+    istat = istat + parameter_list%set(key = dir_path_key, value = this%dir_path)
+    istat = istat + parameter_list%set(key = prefix_key  , value = this%prefix)
+    istat = istat + parameter_list%set(key = geometry_interpolation_order_key  , value = this%reference_fe_geo_order)
+    check(istat==0)
+
   end subroutine test_poisson_parse  
 
   subroutine test_poisson_free(this)

@@ -499,16 +499,6 @@ contains
                 if(polytope_tree%get_n_face_dimension(iface)<input_data%number_of_dimensions) then
                    count_it = .false.
                    do idime = 0, input_data%number_of_dimensions - 1
-                   !   if( input_data%is_dir_periodic(idime)==0) then
-                   !      neighbor_ijk(idime) = cell_ijk(idime) - 1 + &
-                   !           & 2 * polytope_tree%n_face_dir_coordinate(iface,idime) + &
-                   !           & polytope_tree%n_face_dir_is_fixed(iface,idime)
-                   !   else if(input_data%is_dir_periodic(idime)==1) then 
-                   !      neighbor_ijk(idime) = mod(cell_ijk(idime) - 1 + &
-                   !           & 2 * polytope_tree%n_face_dir_coordinate(iface,idime) + &
-                   !           & polytope_tree%n_face_dir_is_fixed(iface,idime), &
-                   !           & num_total_nfaces_per_dir(idime,itype))
-                   !   end if
                       neighbor_ijk(idime) = cell_ijk(idime) - 1 + &
                            & 2 * polytope_tree%n_face_dir_coordinate(iface,idime) + &
                            & polytope_tree%n_face_dir_is_fixed(iface,idime)
