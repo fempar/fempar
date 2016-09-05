@@ -106,12 +106,12 @@ contains
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,                                     &
-                                                 fe_type = fe_type_lagrangian,&!fe_type_raviart_thomas,                                 &
-                                                 number_dimensions = 2,&  !this%triangulation%get_num_dimensions(), &
-                                                 order = 3,                                                   &
-                                                 field_type = field_type_vector,                              &
-                                                 continuity = .true. )
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
+                                                 fe_type = fe_type_raviart_thomas, &
+                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 order = 2, &
+                                                 field_type = field_type_vector, &
+                                                 continuity = .true. ) 
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
@@ -147,7 +147,7 @@ contains
     integer               :: iparm(64)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator)  
   end subroutine setup_solver
 
   subroutine assemble_system (this)
@@ -158,6 +158,12 @@ contains
     call this%fe_affine_operator%numerical_setup()
     rhs    => this%fe_affine_operator%get_translation()
     matrix => this%fe_affine_operator%get_matrix()
+    select type(matrix)
+    class is (sparse_matrix_t)  
+       call matrix%print_matrix_market(6) 
+    class DEFAULT
+       assert(.false.) 
+    end select
   end subroutine assemble_system
 
   subroutine solve_system(this)
