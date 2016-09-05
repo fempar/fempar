@@ -234,6 +234,7 @@ FOREACH(EXT_PROJ ${EXT_PROJS})
         SET(${EXT_PROJ}_SRC_PATH ${FEMPAR_PATH})
         SET(${EXT_PROJ}_BINARY_PATH ${THIRDPARTY_OUTPUT_PATH}/${EXT_PROJ})
         EXTERNALPROJECT_Add(${EXT_PROJ}
+            PREFIX ${EXT_PROJ}
             DOWNLOAD_COMMAND ""
             SOURCE_DIR ${${EXT_PROJ}_SRC_PATH}
             BINARY_DIR ${${EXT_PROJ}_BINARY_PATH}
@@ -300,14 +301,4 @@ ENDIF()
 
 ADD_SUBDIRECTORY(${SERIAL_DRIVERS_PATH})
 ADD_SUBDIRECTORY(${PAR_DRIVERS_PATH})
-
-#################################################################
-# CREATE TAGS
-# SOUCERS LIST PICKED FROM OTHER CMAKELISTS
-#################################################################
-
-FIND_PROGRAM(ETAGS etags)
-IF(ETAGS)
-    ADD_CUSTOM_TARGET(TAGS ALL COMMAND ${ETAGS} ${DRIVERS_SERIAL_SRC} ${DRIVERS_PAR_SRC})
-ENDIF()
 
