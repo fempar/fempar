@@ -25,43 +25,43 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module vector_poisson_conditions_names
+module mixed_laplacian_rt_conditions_names
   use serial_names
   
   implicit none
 # include "debug.i90"
   private
-  type, extends(conditions_t) :: vector_poisson_conditions_t
+  type, extends(conditions_t) :: mixed_laplacian_rt_conditions_t
      private
      class(scalar_function_t), pointer :: boundary_function
    contains
-     procedure :: set_boundary_function       => vector_poisson_conditions_set_boundary_function
-     procedure :: get_number_components       => vector_poisson_conditions_get_number_components  
-     procedure :: get_components_code         => vector_poisson_conditions_get_components_code
-     procedure :: get_function                => vector_poisson_conditions_get_function
-  end type vector_poisson_conditions_t
+     procedure :: set_boundary_function       => mixed_laplacian_rt_conditions_set_boundary_function
+     procedure :: get_number_components       => mixed_laplacian_rt_conditions_get_number_components  
+     procedure :: get_components_code         => mixed_laplacian_rt_conditions_get_components_code
+     procedure :: get_function                => mixed_laplacian_rt_conditions_get_function
+  end type mixed_laplacian_rt_conditions_t
   
-  public :: vector_poisson_conditions_t
+  public :: mixed_laplacian_rt_conditions_t
   
 contains
   
-  subroutine vector_poisson_conditions_set_boundary_function (this, scalar_function)
+  subroutine mixed_laplacian_rt_conditions_set_boundary_function (this, scalar_function)
     implicit none
-    class(vector_poisson_conditions_t), intent(inout)      :: this
+    class(mixed_laplacian_rt_conditions_t), intent(inout)      :: this
     class(scalar_function_t)          , target, intent(in) :: scalar_function
     this%boundary_function => scalar_function
-  end subroutine vector_poisson_conditions_set_boundary_function
+  end subroutine mixed_laplacian_rt_conditions_set_boundary_function
 
-  function vector_poisson_conditions_get_number_components(this)
+  function mixed_laplacian_rt_conditions_get_number_components(this)
     implicit none
-    class(vector_poisson_conditions_t), intent(in) :: this
-    integer(ip) :: vector_poisson_conditions_get_number_components
-    vector_poisson_conditions_get_number_components = 2
-  end function vector_poisson_conditions_get_number_components
+    class(mixed_laplacian_rt_conditions_t), intent(in) :: this
+    integer(ip) :: mixed_laplacian_rt_conditions_get_number_components
+    mixed_laplacian_rt_conditions_get_number_components = 2
+  end function mixed_laplacian_rt_conditions_get_number_components
 
-  subroutine vector_poisson_conditions_get_components_code(this, boundary_id, components_code)
+  subroutine mixed_laplacian_rt_conditions_get_components_code(this, boundary_id, components_code)
     implicit none
-    class(vector_poisson_conditions_t), intent(in)  :: this
+    class(mixed_laplacian_rt_conditions_t), intent(in)  :: this
     integer(ip)                       , intent(in)  :: boundary_id
     logical                           , intent(out) :: components_code(:)
     assert ( size(components_code) == 2 )
@@ -69,11 +69,11 @@ contains
     if ( boundary_id == 1 ) then
       components_code(1:2) = .true.
     end if
-  end subroutine vector_poisson_conditions_get_components_code
+  end subroutine mixed_laplacian_rt_conditions_get_components_code
   
-  subroutine vector_poisson_conditions_get_function ( this, boundary_id, component_id, function )
+  subroutine mixed_laplacian_rt_conditions_get_function ( this, boundary_id, component_id, function )
     implicit none
-    class(vector_poisson_conditions_t), target     , intent(in)  :: this
+    class(mixed_laplacian_rt_conditions_t), target     , intent(in)  :: this
     integer(ip)                                    , intent(in)  :: boundary_id
     integer(ip)                                    , intent(in)  :: component_id
     class(scalar_function_t)          , pointer    , intent(out) :: function
@@ -82,6 +82,6 @@ contains
     if ( boundary_id == 1 ) then
       function => this%boundary_function
     end if  
-  end subroutine vector_poisson_conditions_get_function 
+  end subroutine mixed_laplacian_rt_conditions_get_function 
 
-end module vector_poisson_conditions_names
+end module mixed_laplacian_rt_conditions_names

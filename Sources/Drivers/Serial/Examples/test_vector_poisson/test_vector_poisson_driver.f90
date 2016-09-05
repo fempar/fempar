@@ -25,35 +25,35 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module test_vector_poisson_driver_names
+module test_mixed_laplacian_rt_driver_names
   use serial_names
 !  use error_norms_names
-  use test_poisson_params_names
-  use vector_poisson_analytical_functions_names
-  use vector_poisson_discrete_integration_names
-  use vector_poisson_conditions_names
+  use mixed_laplacian_rt_params_names
+  use mixed_laplacian_rt_analytical_functions_names
+  use mixed_laplacian_rt_discrete_integration_names
+  use mixed_laplacian_rt_conditions_names
 # include "debug.i90"
 
   implicit none
   private
 
-  type test_vector_poisson_driver_t 
+  type test_mixed_laplacian_rt_driver_t 
      private 
 
      ! Place-holder for parameter-value set provided through command-line interface
-     type(test_poisson_params_t)                 :: test_params
+     type(mixed_laplacian_rt_params_t)          :: test_params
 
      ! Cells and lower dimension objects container
      type(serial_triangulation_t)                :: triangulation
 
      ! Analytical functions of the problem
-     type(vector_poisson_analytical_functions_t) :: problem_functions
+     type(mixed_laplacian_rt_analytical_functions_t) :: problem_functions
 
      ! Discrete weak problem integration-related data type instances 
      type(serial_fe_space_t)                     :: fe_space 
      type(p_reference_fe_t) , allocatable        :: reference_fes(:) 
-     type(vector_poisson_discrete_integration_t) :: vector_poisson_integration
-     type(vector_poisson_conditions_t)           :: vector_poisson_conditions
+     type(mixed_laplacian_rt_discrete_integration_t) :: mixed_laplacian_rt_integration
+     type(mixed_laplacian_rt_conditions_t)           :: mixed_laplacian_rt_conditions
 
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)                  :: fe_affine_operator
@@ -77,30 +77,30 @@ module test_vector_poisson_driver_names
      procedure        , private :: check_solution
      procedure        , private :: print_error_norms
      procedure        , private :: free
-  end type test_vector_poisson_driver_t
+  end type test_mixed_laplacian_rt_driver_t
 
   ! Types
-  public :: test_vector_poisson_driver_t
+  public :: test_mixed_laplacian_rt_driver_t
 
 contains
 
   subroutine parse_command_line_parameters(this)
     implicit none
-    class(test_vector_poisson_driver_t ), intent(inout) :: this
+    class(test_mixed_laplacian_rt_driver_t ), intent(inout) :: this
     call this%test_params%create()
     call this%test_params%parse()
   end subroutine parse_command_line_parameters
 
   subroutine setup_triangulation(this)
     implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
+    class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     call this%triangulation%create(this%test_params%get_dir_path(),&
          this%test_params%get_prefix())
   end subroutine setup_triangulation
 
   subroutine setup_reference_fes(this)
     implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
+    class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     integer(ip) :: istat
 
     allocate(this%reference_fes(1), stat=istat)
@@ -116,32 +116,32 @@ contains
 
   subroutine setup_fe_space(this)
     implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
+    class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
 
     call this%fe_space%create( triangulation       = this%triangulation,      &
-                               conditions          = this%vector_poisson_conditions, &
+                               conditions          = this%mixed_laplacian_rt_conditions, &
                                reference_fes       = this%reference_fes)
     call this%fe_space%fill_dof_info() 
-    call this%vector_poisson_conditions%set_boundary_function(this%problem_functions%get_boundary_values())
-    call this%fe_space%update_strong_dirichlet_bcs_values(this%vector_poisson_conditions)
+    call this%mixed_laplacian_rt_conditions%set_boundary_function(this%problem_functions%get_boundary_values())
+    call this%fe_space%update_strong_dirichlet_bcs_values(this%mixed_laplacian_rt_conditions)
     call this%fe_space%print()
   end subroutine setup_fe_space
 
   subroutine setup_system (this)
     implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
-    call this%vector_poisson_integration%set_source_term(this%problem_functions%get_source_term())
+    class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
+    call this%mixed_laplacian_rt_integration%set_source_term(this%problem_functions%get_source_term())
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                           diagonal_blocks_symmetric_storage = [ .true. ], &
                                           diagonal_blocks_symmetric         = [ .true. ], &
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space,           &
-                                          discrete_integration              = this%vector_poisson_integration )
+                                          discrete_integration              = this%mixed_laplacian_rt_integration )
   end subroutine setup_system
 
   subroutine setup_solver (this)
     implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
+    class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     integer               :: FPLError
     type(parameterlist_t) :: parameter_list
     integer               :: iparm(64)
@@ -152,7 +152,7 @@ contains
 
   subroutine assemble_system (this)
     implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
+    class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     class(matrix_t), pointer       :: matrix
     class(vector_t), pointer       :: rhs
     call this%fe_affine_operator%numerical_setup()
@@ -168,7 +168,7 @@ contains
 
   subroutine solve_system(this)
     implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
+    class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     class(matrix_t), pointer       :: matrix
     class(vector_t), pointer       :: rhs
     class(vector_t), pointer       :: dof_values
@@ -189,7 +189,7 @@ contains
   
     subroutine check_solution(this)
     implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
+    class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     class(vector_t), allocatable :: exact_solution_vector
     class(vector_t), pointer     :: computed_solution_vector
 
@@ -209,7 +209,7 @@ contains
   
     subroutine print_error_norms(this)
     implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
+    class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     type(error_norms_vector_t) :: error_norm
     call error_norm%create(this%fe_space,1)
     write(*,'(a20,e32.25)') 'mean_norm:', error_norm%compute(this%problem_functions%get_solution_values(), this%solution, mean_norm)   
@@ -230,7 +230,7 @@ contains
 
   subroutine run_simulation(this) 
     implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
+    class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     call this%free()
     call this%parse_command_line_parameters()
     call this%setup_triangulation()
@@ -248,7 +248,7 @@ contains
 
   subroutine free(this)
     implicit none
-    class(test_vector_poisson_driver_t), intent(inout) :: this
+    class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     call this%solution%free()
     call this%iterative_linear_solver%free()
@@ -265,4 +265,4 @@ contains
     call this%test_params%free()
   end subroutine free
 
-end module test_vector_poisson_driver_names
+end module test_mixed_laplacian_rt_driver_names
