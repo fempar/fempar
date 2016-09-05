@@ -30,7 +30,7 @@ subroutine fine_triangulation_generate_vefs(this,order)
   ! This routine assumes a triangulation with vertices and ghost elements
   ! Parameters
   class(fine_triangulation_t), intent(inout) :: this
-  integer(ip)                                :: order
+  integer(ip)                , intent(in)    :: order
 
   integer(ip)          , allocatable :: ptr_vertices(:)
   integer(ip)          , allocatable :: lst_vertices(:)
@@ -549,10 +549,6 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
               
               call vefs_of_vef_iterator%next()
            end do
-           
-           
-           
-           
            
          end if
      end if

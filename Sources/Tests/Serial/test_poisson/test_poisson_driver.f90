@@ -107,11 +107,34 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
+    type(vef_iterator_t)  :: vef_iterator
+    type(vef_accessor_t)  :: vef
+    integer(ip) :: volume_id
+
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
     call this%triangulation%create(this%parameter_list)
     !call this%triangulation%print()
+    
+    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+       if(this%test_params%get_num_dimensions()==2) then
+          volume_id = 12
+       else if(this%test_params%get_num_dimensions()==3) then
+          volume_id = 56
+       end if
+       vef_iterator = this%triangulation%create_vef_iterator()
+       do while ( .not. vef_iterator%has_finished() )
+          call vef_iterator%current(vef)
+          if(vef%get_set_id()<volume_id) then ! It is on the boundary
+             call vef%set_set_id(1)
+          else
+             call vef%set_set_id(0)
+          end if
+          call vef_iterator%next()
+       end do
+    end if    
+    
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)

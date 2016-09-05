@@ -184,7 +184,7 @@ contains
     is_present =  is_present.and. parameter_list%isPresent(key = number_of_dimensions_key )
     is_present =  is_present.and. parameter_list%isPresent(key = number_of_cells_per_dir_key )
     is_present =  is_present.and. parameter_list%isPresent(key = is_dir_periodic_key )
-    is_present =  is_present.and. parameter_list%isPresent(key = interpolation_order_key )
+    !is_present =  is_present.and. parameter_list%isPresent(key = interpolation_order_key )
     !is_present =  is_present.and. parameter_list%isPresent(key = 
     assert(is_present)
 
@@ -192,7 +192,7 @@ contains
     istat = istat + parameter_list%get(key = number_of_dimensions_key   , value = this%number_of_dimensions)
     istat = istat + parameter_list%get(key = number_of_cells_per_dir_key, value = this%number_of_cells_per_dir)
     istat = istat + parameter_list%get(key = is_dir_periodic_key        , value = this%is_dir_periodic)
-    istat = istat + parameter_list%get(key = interpolation_order_key    , value = this%interpolation_order)
+    !istat = istat + parameter_list%get(key = interpolation_order_key    , value = this%interpolation_order)
     check(istat==0)
 
     ! Optional parameters
@@ -209,6 +209,8 @@ contains
                                                                 num_local_cells,       &
                                                                 num_local_vefs,        &
                                                                 num_vertices,          &
+                                                                num_edges,             &
+                                                                num_faces,             &
                                                                 ptr_vefs_per_cell,     &
                                                                 lst_vefs_lids,         &
                                                                 boundary_id,           &
@@ -227,10 +229,12 @@ contains
     integer(ip)               , intent(out)   :: num_local_cells
     integer(ip)               , intent(out)   :: num_local_vefs
     integer(ip)               , intent(out)   :: num_vertices
+    integer(ip)               , intent(out)   :: num_edges
+    integer(ip)               , intent(out)   :: num_faces
     integer(ip)  , allocatable, intent(inout) :: ptr_vefs_per_cell(:)            ! Size = num_local_cells + 1
     integer(ip)  , allocatable, intent(inout) :: lst_vefs_lids(:)                ! Size = ptr_vefs_per_cell(num_local_cells+1)-1
     integer(ip)  , allocatable, intent(inout) :: boundary_id(:)                  ! Size = num_local_vefs
-    real(rp)     , allocatable, intent(inout) :: coordinates(:,:)
+    real(rp)     , pointer    , intent(inout) :: coordinates(:,:)
 
     integer(ip)               , optional, intent(out)   :: num_ghost_cells
     integer(ip)               , optional, intent(out)   :: num_itfc_cells
@@ -251,7 +255,6 @@ contains
     integer(ip) :: neighbor_part_ijk(0:SPACE_DIM-1)
     integer(ip) :: nface_ijk(0:SPACE_DIM-1)
     integer(ip) :: first_cell_ijk(0:SPACE_DIM-1)
-    integer(ip) :: last_cell_ijk(0:SPACE_DIM-1)
 
     ! Here total=local+ghost (if any) refers to the things I have,
     ! whereas global to the whole distributed mesh.
@@ -271,7 +274,7 @@ contains
     integer(ip)               :: idime, jdime, icell, iface, iface_of_itype, index, itype, itfc_cells
 
     type(polytope_tree_t)     :: polytope_tree
-    type(node_array_t)        :: node_array
+    !type(node_array_t)        :: node_array
     integer(ip)               :: ones(SPACE_DIM)
     logical                   :: count_it
 
@@ -290,7 +293,7 @@ contains
     ones = 1
     topology = 2**input_data%number_of_dimensions-1  ! Hexahedral
     call polytope_tree%create( input_data%number_of_dimensions, topology )  
-    call node_array%create ( polytope_tree, ones*input_data%interpolation_order )
+    !call node_array%create ( polytope_tree, ones*input_data%interpolation_order )
 
     ! PARTS
     ! =====
@@ -299,6 +302,7 @@ contains
        call spatial_to_ijk_numbering(input_data%number_of_dimensions, input_data%number_of_parts_per_dir, part_id, part_ijk)
     else
        part_ijk = 0
+       input_data%number_of_parts_per_dir = 1
     end if
     num_left_parts_per_dir=1
     num_right_parts_per_dir=1
@@ -315,7 +319,6 @@ contains
     do idime = 0, input_data%number_of_dimensions - 1 
        num_local_cells_per_dir(idime) = input_data%number_of_cells_per_dir(idime) / input_data%number_of_parts_per_dir(idime) 
        first_cell_ijk(idime) =  part_ijk(idime) * num_local_cells_per_dir(idime)
-       !last_cell_ijk(idime) =  first_cell_ijk(idime) + num_local_cells_per_dir(idime)
     end do
     num_local_cells = 1
     do idime = 0, input_data%number_of_dimensions - 1
@@ -362,14 +365,18 @@ contains
             & polytope_tree%n_face_coordinate(iface)==0) num_nface_types = num_nface_types + 1
     end do
 
+    num_edges = 0
+    num_faces = 0
     call memalloc( num_nface_types+1, num_global_n_faces, __FILE__,__LINE__,lb1=0)
     call memalloc( num_nface_types+1, num_total_n_faces, __FILE__,__LINE__,lb1=0)
     call memalloc( input_data%number_of_dimensions, num_nface_types, num_global_nfaces_per_dir, __FILE__,__LINE__,lb1=0,lb2=0)
     call memalloc( input_data%number_of_dimensions, num_nface_types, num_total_nfaces_per_dir, __FILE__,__LINE__,lb1=0,lb2=0)
+    itype = -1
     do iface=1,polytope_tree%get_number_n_faces()
        if(polytope_tree%get_n_face_dimension(iface)<input_data%number_of_dimensions.and. &
             & polytope_tree%n_face_coordinate(iface)==0) then
-          itype = polytope_tree%n_face_type(iface)
+          itype = itype + 1 
+          !itype = polytope_tree%n_face_type(iface)
           do idime = 0, input_data%number_of_dimensions - 1
              num_global_nfaces_per_dir(idime,itype) = &
                   & input_data%number_of_cells_per_dir(idime)  + &
@@ -384,14 +391,21 @@ contains
              num_global_n_faces(itype+1) = num_global_n_faces(itype+1) * num_global_nfaces_per_dir(idime,itype)
              num_total_n_faces(itype+1) = num_total_n_faces(itype+1) * num_total_nfaces_per_dir(idime,itype)
           end do
+          if(polytope_tree%get_n_face_dimension(iface)==input_data%number_of_dimensions-1) then
+             num_faces = num_faces + num_total_n_faces(itype+1)
+          else if(polytope_tree%get_n_face_dimension(iface)>0) then
+             num_edges = num_edges + num_total_n_faces(itype+1)
+          end if
        end if
     end do
     num_global_n_faces(0) = 1
     num_total_n_faces(0) = 1
+    itype = -1
     do iface=1,polytope_tree%get_number_n_faces()
        if(polytope_tree%get_n_face_dimension(iface)<input_data%number_of_dimensions.and. &
             & polytope_tree%n_face_coordinate(iface)==0) then
-          itype = polytope_tree%n_face_type(iface)
+          !itype = polytope_tree%n_face_type(iface)
+          itype = itype + 1 
           num_global_n_faces(itype+1) = num_global_n_faces(itype+1) + num_global_n_faces(itype)
           num_total_n_faces(itype+1) = num_total_n_faces(itype+1) + num_total_n_faces(itype)
        end if
@@ -410,12 +424,14 @@ contains
     call memalloc( ptr_vefs_per_cell(num_local_cells+num_ghost_cells_+1)-1, lst_vefs_lids, __FILE__,__LINE__)
     do icell = 1, num_local_cells+num_ghost_cells_
        call spatial_to_ijk_numbering(input_data%number_of_dimensions, num_total_cells_per_dir, icell, cell_ijk)
+       itype = -1
        do iface=1,polytope_tree%get_number_n_faces()
           if(polytope_tree%get_n_face_dimension(iface)<input_data%number_of_dimensions) then ! do not include the polytope itself
+             if(polytope_tree%n_face_coordinate(iface)==0) itype = itype + 1 
              do idime = 0, input_data%number_of_dimensions - 1
                 nface_ijk(idime) = mod(cell_ijk(idime) + polytope_tree%n_face_dir_coordinate(iface,idime),num_total_nfaces_per_dir(idime,itype))
              end do
-             itype = polytope_tree%n_face_type(iface)
+             !itype = polytope_tree%n_face_type(iface)
              lst_vefs_lids(ptr_vefs_per_cell(icell)+iface-1) = num_total_n_faces(itype) + &
                   &  ijk_to_spatial_numbering(input_data%number_of_dimensions, num_total_nfaces_per_dir(:,itype), nface_ijk)
           end if
@@ -583,13 +599,15 @@ contains
 
     ! vef global numbering (if needed), coordinates and boundary ids
     if(present(num_ghost_cells)) call memalloc(num_local_vefs,vefs_gids,__FILE__,__LINE__)
-    call memalloc(SPACE_DIM,num_vertices,coordinates,__FILE__,__LINE__)
+    call memallocp(SPACE_DIM,num_vertices,coordinates,__FILE__,__LINE__)
     call memalloc(num_local_vefs,boundary_id,__FILE__,__LINE__)
     boundary_id=-1
+    itype = -1
     do iface=1,polytope_tree%get_number_n_faces()
        if(polytope_tree%get_n_face_dimension(iface)<input_data%number_of_dimensions.and. &
             & polytope_tree%n_face_coordinate(iface)==0) then
-          itype = polytope_tree%n_face_type(iface)
+          itype = itype + 1 
+          !itype = polytope_tree%n_face_type(iface)
           do iface_of_itype = num_total_n_faces(itype), num_total_n_faces(itype+1) - 1
              call spatial_to_ijk_numbering(input_data%number_of_dimensions, num_total_nfaces_per_dir(:,itype), &
                   &                        iface_of_itype + 1 - num_total_n_faces(itype), nface_ijk)
@@ -614,6 +632,8 @@ contains
                    else
                       index = ibset( index, input_data%number_of_dimensions + idime ) ! Fix this coordinate
                    end if
+                else
+                   index = ibset( index, input_data%number_of_dimensions + idime ) ! Fix this coordinate
                 end if
              end do
              boundary_id(iface_of_itype) = index
@@ -626,7 +646,7 @@ contains
     call memfree( num_global_nfaces_per_dir, __FILE__,__LINE__)
     call memfree( num_total_nfaces_per_dir, __FILE__,__LINE__)
 
-    call node_array%free()
+    !call node_array%free()
     call polytope_tree%free()
 
   end subroutine uniform_hex_mesh_generator_generate_connectivities

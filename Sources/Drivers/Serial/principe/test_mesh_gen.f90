@@ -84,7 +84,7 @@ contains
     error = error + this%list%set(key = dir_path_out_key              , value = '.')
     error = error + this%list%set(key = number_of_dimensions_key      , value =  2)
     error = error + this%list%set(key = interpolation_order_key       , value =  1)
-    tmp = [12,2,0]; error = error + this%list%set(key = number_of_cells_per_dir_key   , value = tmp)
+    tmp = [4,2,0]; error = error + this%list%set(key = number_of_cells_per_dir_key   , value = tmp)
     tmp = [3,1,1]; error = error + this%list%set(key = number_of_parts_per_dir_key   , value = tmp)
     tmp = [0,1,0]; error = error + this%list%set(key = is_dir_periodic_key           , value = tmp)
 
@@ -241,6 +241,8 @@ program partitioner
   integer(ip)                  :: num_local_cells
   integer(ip)                  :: num_local_vefs
   integer(ip)                  :: num_vertices
+  integer(ip)                  :: num_edges
+  integer(ip)                  :: num_faces
   integer(ip) , allocatable    :: ptr_vefs_per_cell(:)            ! Size = num_local_cells + 1
   integer(ip) , allocatable    :: lst_vefs_lids(:)                ! Size = ptr_vefs_per_cell(num_local_cells+1)-1
   integer(ip) , allocatable    :: boundary_id(:)                  ! Size = num_local_vefs (-1 if vef_lid is not a vertex)
@@ -253,7 +255,7 @@ program partitioner
   integer(ip) , allocatable    :: ptr_ext_neighs_per_itfc_cell(:)
   integer(igp), allocatable    :: lst_ext_neighs_gids(:)
   integer(ip) , allocatable    :: lst_ext_neighs_part_ids(:)
-  real(rp)    , allocatable    :: coordinates(:,:)
+  real(rp)    , pointer        :: coordinates(:,:)
 
   integer(ip) :: icell, ivef, error
   !integer(ip) :: n(SPACE_DIM)
@@ -265,32 +267,49 @@ program partitioner
   !error = parameters%get(key = number_of_cells_per_dir_key, value = n)
   !write(*,*) n
 
+  ! call uniform_hex_mesh_generator_generate_connectivities(parameters,        &
+  !      num_local_cells,       &
+  !      num_local_vefs,        &
+  !      num_vertices,          &
+  !      ptr_vefs_per_cell,     &
+  !      lst_vefs_lids,         &
+  !      boundary_id,           &
+  !      coordinates,           &
+  !      num_ghost_cells,       &
+  !      cell_gids,             &
+  !      vefs_gids,             &
+  !      num_itfc_cells,        &
+  !      lst_itfc_cells,        &
+  !      ptr_ext_neighs_per_itfc_cell, &
+  !      lst_ext_neighs_gids,          &
+  !      lst_ext_neighs_part_ids,      &
+  !      2)
+
   call uniform_hex_mesh_generator_generate_connectivities(parameters,        &
        num_local_cells,       &
        num_local_vefs,        &
        num_vertices,          &
+       num_edges,             &
+       num_faces,             &
        ptr_vefs_per_cell,     &
        lst_vefs_lids,         &
        boundary_id,           &
-       coordinates,           &
-       num_ghost_cells,       &
-       cell_gids,             &
-       vefs_gids,             &
-       num_itfc_cells,        &
-       lst_itfc_cells,        &
-       ptr_ext_neighs_per_itfc_cell, &
-       lst_ext_neighs_gids,          &
-       lst_ext_neighs_part_ids,      &
-       2)
+       coordinates)
+  call memalloc(num_local_cells+num_ghost_cells,cell_gids,__FILE__,__LINE__)
+  call memalloc(num_local_vefs,vefs_gids,__FILE__,__LINE__)
+  cell_gids=0
+  vefs_gids=0
+  num_itfc_cells=0
 
   write(*,*) 'CELLS'
-  write(*,*) num_local_cells, num_ghost_cells, num_local_vefs
+  write(*,*) num_local_cells, num_ghost_cells
   do icell=1,num_local_cells+num_ghost_cells
      write(*,*) icell, cell_gids(icell), lst_vefs_lids(ptr_vefs_per_cell(icell):ptr_vefs_per_cell(icell+1)-1)
   end do
 
   write(*,*) '==========================================================================='
   write(*,*) 'VEFS'
+  write(*,*) num_local_vefs, num_vertices, num_faces
   do ivef=1,num_local_vefs
      write(*,*) ivef,vefs_gids(ivef),boundary_id(ivef)
   end do

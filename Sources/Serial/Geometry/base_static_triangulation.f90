@@ -41,6 +41,7 @@ module base_static_triangulation_names
   use stdio_names
   use field_names
   use FPL
+  use uniform_hex_mesh_generator_names
   
   ! Geometry modules
   use sisl_names
@@ -74,9 +75,16 @@ module base_static_triangulation_names
   integer(ip), parameter :: ghost_dim0 = 200
   integer(ip), parameter :: ghost_dim1 = 201
   integer(ip), parameter :: ghost_dim2 = 202
- 
+  
+  integer(ip), parameter :: triangulation_generate_from_mesh  = 0
+  integer(ip), parameter :: triangulation_generate_structured = 1
+  public :: triangulation_generate_from_mesh
+  public :: triangulation_generate_structured
+  
   character(len=*), parameter :: geometry_interpolation_order_key    = 'geometry_interpolation_order'
+  character(len=*), parameter :: triangulation_generate_key          = 'triangulation_generate'
   public :: geometry_interpolation_order_key
+  public :: triangulation_generate_key
   
   type cell_accessor_t
     private
