@@ -25,34 +25,34 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module vector_poisson_discrete_integration_names
+module mixed_laplacian_rt_discrete_integration_names
   use serial_names
   
   implicit none
 # include "debug.i90"
   private
-  type, extends(discrete_integration_t) :: vector_poisson_discrete_integration_t
+  type, extends(discrete_integration_t) :: mixed_laplacian_rt_discrete_integration_t
      private
      class(vector_function_t), pointer :: source_term
    contains
      procedure :: set_source_term
      procedure :: integrate
-  end type vector_poisson_discrete_integration_t
+  end type mixed_laplacian_rt_discrete_integration_t
   
-  public :: vector_poisson_discrete_integration_t
+  public :: mixed_laplacian_rt_discrete_integration_t
   
 contains
    
   subroutine set_source_term (this, vector_function)
     implicit none
-    class(vector_poisson_discrete_integration_t)        , intent(inout) :: this
+    class(mixed_laplacian_rt_discrete_integration_t)        , intent(inout) :: this
     class(vector_function_t)                    , target, intent(in)    :: vector_function
     this%source_term => vector_function
   end subroutine set_source_term
 
   subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
-    class(vector_poisson_discrete_integration_t), intent(in)    :: this
+    class(mixed_laplacian_rt_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
     class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
 
@@ -156,4 +156,4 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate
   
-end module vector_poisson_discrete_integration_names
+end module mixed_laplacian_rt_discrete_integration_names

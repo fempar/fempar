@@ -374,73 +374,6 @@ subroutine lagrangian_reference_fe_create_nodal_quadrature (this)
 end subroutine lagrangian_reference_fe_create_nodal_quadrature
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_set_scalar_field_to_nodal_values (this, code, values, &
-     &     nodal_codes, nodal_values, unknown_component)
-  implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                     , intent(in)    :: code
-  real(rp)                        , intent(in)    :: values(:)
-  integer(ip)                     , intent(in)    :: nodal_codes(:)
-  real(rp)                        , intent(inout) :: nodal_values(:)
-  integer(ip)          , optional , intent(in)    :: unknown_component
-  integer(ip) :: i, icomp
-
-  assert(size(nodal_values) == this%number_shape_functions)
-  assert(size(values) == this%node_array%number_nodes)
-
-  icomp = 1
-  if(present(unknown_component)) icomp = unknown_component
-
-  do i = 1, this%node_array%number_nodes
-     if(nodal_codes(this%node_array_component(i,icomp)) == code) then
-        nodal_values(this%node_array_component(i,icomp)) = values(i)
-     end if
-  end do
-
-end subroutine lagrangian_reference_fe_set_scalar_field_to_nodal_values
-
-!==================================================================================================
-subroutine lagrangian_reference_fe_set_vector_field_to_nodal_values (this, code, values, &
-     &     nodal_codes, nodal_values)
-  implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                     , intent(in)    :: code
-  type(vector_field_t)            , intent(in)    :: values(:)
-  integer(ip)                     , intent(in)    :: nodal_codes(:)
-  real(rp)                        , intent(inout) :: nodal_values(:)
-  integer(ip) :: i, icomp
-
-  assert(size(nodal_values) == this%number_shape_functions)
-  assert(size(values) == this%node_array%number_nodes)
-
-  do icomp = 1, this%number_field_components
-     do i = 1, this%node_array%number_nodes
-        if(nodal_codes(this%node_array_component(i,icomp)) == code) then
-           nodal_values(this%node_array_component(i,icomp)) = values(i)%get(icomp)
-        end if
-     end do
-  end do
-
-end subroutine lagrangian_reference_fe_set_vector_field_to_nodal_values
-
-!==================================================================================================
-subroutine lagrangian_reference_fe_set_tensor_field_to_nodal_values (this, code, values, &
-     &     nodal_codes, nodal_values)
-  implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                     , intent(in)    :: code
-  type(tensor_field_t)            , intent(in)    :: values(:)
-  integer(ip)                     , intent(in)    :: nodal_codes(:)
-  real(rp)                        , intent(inout) :: nodal_values(:)
-  integer(ip) :: i, icomp, jcomp
-
-  write(*,*) ' ERROR in: ',__FILE__,__LINE__
-  write(*,*) ' Subroutine not implemented for tensor field unknowns '
-  check( .false. )
-
-end subroutine lagrangian_reference_fe_set_tensor_field_to_nodal_values
-
-!==================================================================================================
 subroutine lagrangian_reference_fe_evaluate_fe_function_scalar( this,                      &
      &  actual_cell_interpolation, &
      &  nodal_values,              &
@@ -868,7 +801,7 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
   implicit none
   class(lagrangian_reference_fe_t), intent(inout)    :: this 
   type(node_iterator_t) :: node_iterator
-  type(n_face_iterator_t) :: children_iterator
+  type(n_face_iterator_t) :: facet_iterator
   type(list_iterator_t) :: list_iterator
   integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM)
   ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
@@ -947,6 +880,7 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         call node_iterator%next()
      end do
   end do
+  
   call this%vertices_n_face%calculate_header()
   call this%vertices_n_face%allocate_list_from_pointer()
   list_iterator = this%vertices_n_face%create_iterator()
@@ -962,21 +896,21 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
   ! n-faces_n-face (NEW DEFINITION; now only n_faces of inferior dimension
   call this%n_faces_n_face%create(num_n_faces)
   do i = 1,num_n_faces
-     children_iterator = this%polytope%create_children_iterator( this%polytope%get_n_face(i) )
-     do while (.not. children_iterator%has_finished() )
+     facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
+     do while (.not. facet_iterator%has_finished() )
         call this%n_faces_n_face%sum_to_pointer_index(i,1)
-        call children_iterator%next()
+        call facet_iterator%next()
      end do
   end do
   call this%n_faces_n_face%calculate_header()
   call this%n_faces_n_face%allocate_list_from_pointer()
   list_iterator = this%n_faces_n_face%create_iterator()
   do i = 1,num_n_faces
-     children_iterator = this%polytope%create_children_iterator( this%polytope%get_n_face(i) )
-     do while (.not. children_iterator%has_finished() )
-        children = children_iterator%current()
+     facet_iterator = this%polytope%create_facet_iterator( this%polytope%get_n_face(i) )
+     do while (.not. facet_iterator%has_finished() )
+        children = facet_iterator%current()
         call list_iterator%set_current(children)
-        call children_iterator%next()
+        call facet_iterator%next()
         call list_iterator%next()
      end do
   end do

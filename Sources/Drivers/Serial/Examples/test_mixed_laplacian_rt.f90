@@ -27,13 +27,13 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !****************************************************************************************************
-program test_vector_poisson
+program test_mixed_laplacian_rt
   use serial_names
-  use test_vector_poisson_driver_names  
+  use test_mixed_laplacian_rt_driver_names  
   implicit none
-  type(test_vector_poisson_driver_t) :: test_driver
+  type(test_mixed_laplacian_rt_driver_t) :: test_driver
   call fempar_init()
   call test_driver%run_simulation()
   call fempar_finalize()
 contains
-end program test_vector_poisson
+end program test_mixed_laplacian_rt

@@ -34,6 +34,11 @@ module reference_fe_names
   use memor_names
   use sort_names
   use polynomial_names
+#ifdef ENABLE_LAPACK   
+  use lapack77_interfaces_names
+#endif  
+  
+  
   implicit none
 # include "debug.i90"
 
@@ -108,6 +113,7 @@ module reference_fe_names
      procedure, non_overridable :: create => interpolation_create
      procedure, non_overridable :: free   => interpolation_free
      procedure, non_overridable :: copy   => interpolation_copy
+     procedure, non_overridable :: clone  => interpolation_clone
      procedure, non_overridable :: print  => interpolation_print
   end type interpolation_t
 
@@ -158,9 +164,9 @@ module reference_fe_names
    contains
      procedure, non_overridable :: create                         => fe_map_create
      procedure, non_overridable :: create_on_face                 => fe_map_create_on_face
-     procedure, non_overridable :: fe_map_face_map_create         => fe_map_face_map_create
+     procedure, non_overridable :: create_face_map                => fe_map_create_face_map
      procedure, non_overridable :: update                         => fe_map_update
-     procedure, non_overridable :: face_map_update                => fe_map_face_map_update
+     procedure, non_overridable :: update_face_map                => fe_map_update_face_map
      procedure, non_overridable :: free                           => fe_map_free
      procedure, non_overridable :: print                          => fe_map_print
      procedure, non_overridable :: get_det_jacobian               => fe_map_get_det_jacobian
@@ -173,6 +179,7 @@ module reference_fe_names
      procedure, non_overridable :: apply_inv_jacobian             => fe_map_apply_inv_jacobian
      procedure, non_overridable :: compute_quadrature_coordinates => fe_map_compute_quadrature_coordinates
      procedure, non_overridable :: get_quadrature_coordinates     => fe_map_get_quadrature_coordinates
+     procedure, non_overridable :: get_normal                     => fe_map_get_normal
   end type fe_map_t
 
   type p_fe_map_t
@@ -204,11 +211,12 @@ module reference_fe_names
      integer(ip)              :: number_dimensions
      integer(ip)              :: topology
      integer(ip)              :: number_n_faces 
+     integer(ip)              :: root
      integer(ip), allocatable :: n_face_array(:)     
      integer(ip), allocatable :: ijk_to_index(:)
    contains
      procedure          :: create                   => polytope_tree_create 
-     procedure          :: create_children_iterator => polytope_tree_create_children_iterator
+     procedure          :: create_facet_iterator    => polytope_tree_create_facet_iterator
      procedure          :: get_n_face               => polytope_tree_get_n_face
      procedure          :: get_n_face_dimension     => polytope_tree_get_n_face_dimension
      procedure          :: n_face_type              => polytope_tree_n_face_type
@@ -458,10 +466,7 @@ module reference_fe_names
      procedure :: create_own_dofs_on_n_face_iterator => reference_fe_create_own_dofs_on_n_face_iterator
      procedure :: get_own_node_n_face => reference_fe_get_own_node_n_face
 
-     !procedure :: get_face_integration_coupling_number_nodes_face => reference_fe_get_face_integration_coupling_number_nodes_facet
-     !procedure :: get_face_integration_coupling_node_face => reference_fe_get_facet_integration_coupling_node_facet
      procedure :: create_facet_integration_coupling_dofs_iterator => create_facet_integration_coupling_dofs_iterator
-     !procedure :: get_orientation => reference_fe_get_orientation     
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
@@ -875,12 +880,13 @@ abstract interface
     type(quadrature_t)              , intent(inout) :: quadrature  
   end subroutine fill_nodal_quadrature_interface
 
-  subroutine fill_interpolation_interface ( this, quadrature, interpolation )
-    import :: lagrangian_reference_fe_t, interpolation_t, ip, rp, quadrature_t
+  subroutine fill_interpolation_interface ( this, quadrature, interpolation, order_vector )
+    import :: lagrangian_reference_fe_t, interpolation_t, ip, rp, quadrature_t, SPACE_DIM
     implicit none 
     class(lagrangian_reference_fe_t), intent(in)    :: this
-    type(quadrature_t)              , intent(in) :: quadrature
+    type(quadrature_t)              , intent(in)    :: quadrature
     type(interpolation_t)           , intent(inout) :: interpolation
+    integer(ip)           , optional, intent(in)    :: order_vector(SPACE_DIM)
   end subroutine fill_interpolation_interface
 
   subroutine fill_face_interpolation_interface ( this,               &
@@ -919,9 +925,15 @@ public :: lagrangian_reference_fe_t, p_lagrangian_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, abstract, extends(lagrangian_reference_fe_t) :: raviart_thomas_reference_fe_t
 private
-type(node_array_t) :: node_array_vector(SPACE_DIM)
+type(node_array_t)    :: node_array_vector(SPACE_DIM)
+real(rp), allocatable :: change_basis_matrix(:,:)
+logical               :: basis_changed
 contains
+
+procedure (change_basis_interface), private, deferred :: change_basis
+
 procedure :: create  => raviart_thomas_create
+procedure :: free    => raviart_thomas_free
 procedure :: create_face_local_interpolation      & 
     & => raviart_thomas_create_face_local_interpolation
 procedure :: blending                     => raviart_thomas_blending
@@ -949,7 +961,19 @@ procedure, private :: fill_vector                         &
     & => raviart_thomas_fill_vector    
 procedure, private :: fill_nodal_quadrature &
     & => raviart_thomas_fill_nodal_quadrature
+procedure, private :: invert_change_basis_matrix &
+    & => raviart_thomas_invert_change_basis_matrix
+    
 end type raviart_thomas_reference_fe_t 
+
+abstract interface
+  subroutine change_basis_interface ( this )
+    import :: raviart_thomas_reference_fe_t 
+    implicit none 
+    class(raviart_thomas_reference_fe_t), intent(inout) :: this 
+  end subroutine change_basis_interface
+end interface  
+
 
 public :: raviart_thomas_reference_fe_t  
 
@@ -1042,6 +1066,8 @@ procedure, private, non_overridable :: raviart_thomas_evaluate_interpolation    
 & => tet_raviart_thomas_evaluate_interpolation
 procedure, private, non_overridable :: raviart_thomas_get_n_face_orientation               &
 & => tet_raviart_thomas_get_n_face_orientation
+procedure, private :: change_basis &
+& => tet_raviart_thomas_reference_fe_change_basis
 end type tet_raviart_thomas_reference_fe_t
 
 public :: tet_raviart_thomas_reference_fe_t
@@ -1089,10 +1115,15 @@ procedure, private :: fill_quadrature                                    &
 & => hex_raviart_thomas_reference_fe_fill_quadrature
 procedure, private :: fill_interpolation                                 &
 & => hex_raviart_thomas_reference_fe_fill_interpolation
+procedure, private :: fill_interpolation_pre_basis                       &
+& => hex_raviart_thomas_reference_fe_fill_interpolation_pre_basis
 procedure, private :: fill_face_interpolation                            &
 & => hex_raviart_thomas_reference_fe_fill_face_interpolation
 procedure, private :: set_number_quadrature_points                       &
 & => hex_raviart_thomas_reference_fe_set_number_quadrature_points
+procedure, private :: change_basis &
+& => hex_raviart_thomas_reference_fe_change_basis
+
 end type hex_raviart_thomas_reference_fe_t
 
 public :: hex_raviart_thomas_reference_fe_t

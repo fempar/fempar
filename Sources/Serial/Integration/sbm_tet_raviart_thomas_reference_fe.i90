@@ -661,11 +661,12 @@ subroutine tet_raviart_thomas_fill_quadrature ( this, quadrature )
 end subroutine tet_raviart_thomas_fill_quadrature
 
 !==================================================================================================
-subroutine tet_raviart_thomas_fill_interpolation ( this, quadrature, interpolation ) 
+subroutine tet_raviart_thomas_fill_interpolation ( this, quadrature, interpolation, order_vector ) 
   implicit none 
   class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
   type(interpolation_t)           , intent(inout) :: interpolation 
+  integer(ip) , optional          , intent(in)    :: order_vector(SPACE_DIM)
   real(rp), pointer :: coord_ip(:,:)
   type(interpolation_t) :: scalar_interpolation
   integer(ip) :: iquad,idime,ishape
@@ -779,6 +780,14 @@ subroutine tet_raviart_thomas_fill_face_interpolation (this, local_quadrature, l
   call memfree(global_coordinates,__FILE__,__LINE__)
 
 end subroutine tet_raviart_thomas_fill_face_interpolation
+
+!==================================================================================================
+subroutine tet_raviart_thomas_reference_fe_change_basis(this) 
+  implicit none
+  class(tet_raviart_thomas_reference_fe_t), intent(inout) ::  this
+  check(.false.)
+end subroutine tet_raviart_thomas_reference_fe_change_basis 
+
 
 !==================================================================================================
 function tet_raviart_thomas_get_node_local_id (this, local_coordinates, & 

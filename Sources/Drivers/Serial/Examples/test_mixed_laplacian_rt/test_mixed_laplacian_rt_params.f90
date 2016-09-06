@@ -25,14 +25,14 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module test_poisson_params_names
+module mixed_laplacian_rt_params_names
   use serial_names
 # include "debug.i90"
 
   implicit none
   private
 
-  type test_poisson_params_t 
+  type mixed_laplacian_rt_params_t 
      private 
      ! IO parameters
      character(len=:), allocatable :: default_dir_path
@@ -53,46 +53,46 @@ module test_poisson_params_names
      integer(ip)                   :: reference_fe_order
      
    contains
-     procedure, non_overridable             :: create       => test_poisson_create
-     procedure, non_overridable, private    :: set_default  => test_poisson_set_default
-     procedure, non_overridable, private    :: add_to_cli   => test_poisson_add_to_cli
-     procedure, non_overridable             :: parse        => test_poisson_parse 
-     procedure, non_overridable             :: free         => test_poisson_free
+     procedure, non_overridable             :: create       => mixed_laplacian_rt_create
+     procedure, non_overridable, private    :: set_default  => mixed_laplacian_rt_set_default
+     procedure, non_overridable, private    :: add_to_cli   => mixed_laplacian_rt_add_to_cli
+     procedure, non_overridable             :: parse        => mixed_laplacian_rt_parse 
+     procedure, non_overridable             :: free         => mixed_laplacian_rt_free
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
      procedure, non_overridable             :: get_fe_formulation
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
-  end type test_poisson_params_t
+  end type mixed_laplacian_rt_params_t
 
   ! Types
-  public :: test_poisson_params_t
+  public :: mixed_laplacian_rt_params_t
 
 contains
 
-  subroutine test_poisson_create(this)
+  subroutine mixed_laplacian_rt_create(this)
     implicit none
-    class(test_poisson_params_t), intent(inout) :: this
+    class(mixed_laplacian_rt_params_t), intent(inout) :: this
     
     call this%free()
     
      ! Initialize Command Line Interface
-    call this%cli%init(progname    = 'test_poisson',                                                     &
+    call this%cli%init(progname    = 'mixed_laplacian_rt',                                                     &
          &        version     = '',                                                                 &
          &        authors     = '',                                                                 &
          &        license     = '',                                                                 &
          &        description =  'FEMPAR test to solve the 2D Poisson PDE with known analytical solution. &
                                   Boundary set ID 1 MUST BE ASSIGNED to the whole boundary.', &
-         &        examples    = ['test_poisson -h  ', 'test_poisson -h  ' ])
+         &        examples    = ['mixed_laplacian_rt -h  ', 'mixed_laplacian_rt -h  ' ])
     
     call this%set_default()
     call this%add_to_cli()
-  end subroutine test_poisson_create
+  end subroutine mixed_laplacian_rt_create
   
-  subroutine test_poisson_set_default(this)
+  subroutine mixed_laplacian_rt_set_default(this)
     implicit none
-    class(test_poisson_params_t), intent(inout) :: this
+    class(mixed_laplacian_rt_params_t), intent(inout) :: this
     ! IO parameters
     this%default_dir_path       = 'data/'
     this%default_prefix         = 'square'
@@ -100,12 +100,12 @@ contains
     this%default_fe_formulation = 'cG'
     this%default_reference_fe_geo_order = '1'
     this%default_reference_fe_order = '1'
-  end subroutine test_poisson_set_default
+  end subroutine mixed_laplacian_rt_set_default
   
   !==================================================================================================
-  subroutine test_poisson_add_to_cli(this)
+  subroutine mixed_laplacian_rt_add_to_cli(this)
     implicit none
-    class(test_poisson_params_t) , intent(inout) :: this
+    class(mixed_laplacian_rt_params_t) , intent(inout) :: this
 
     ! Locals
     integer(ip) :: error
@@ -131,11 +131,11 @@ contains
          &            required=.false.,act='store',def=trim(this%default_reference_fe_order),error=error) 
     check(error==0) 
     
-  end subroutine test_poisson_add_to_cli
+  end subroutine mixed_laplacian_rt_add_to_cli
   
-  subroutine test_poisson_parse(this,parameter_list)
+  subroutine mixed_laplacian_rt_parse(this,parameter_list)
     implicit none
-    class(test_poisson_params_t), intent(inout) :: this
+    class(mixed_laplacian_rt_params_t), intent(inout) :: this
     type(ParameterList_t)       , intent(inout) :: parameter_list
     integer(ip) :: istat
     
@@ -155,23 +155,24 @@ contains
     istat = istat + parameter_list%set(key = prefix_key  , value = this%prefix)
     istat = istat + parameter_list%set(key = geometry_interpolation_order_key  , value = this%reference_fe_geo_order)
     check(istat==0)
-  end subroutine test_poisson_parse  
 
-  subroutine test_poisson_free(this)
+  end subroutine mixed_laplacian_rt_parse  
+
+  subroutine mixed_laplacian_rt_free(this)
     implicit none
-    class(test_poisson_params_t), intent(inout) :: this
+    class(mixed_laplacian_rt_params_t), intent(inout) :: this
     if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
     if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
     if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
     if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
     if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
     call this%cli%free()
-  end subroutine test_poisson_free
+  end subroutine mixed_laplacian_rt_free
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(mixed_laplacian_rt_params_t) , intent(in) :: this
     character(len=256) :: get_dir_path
     get_dir_path = this%dir_path
   end function get_dir_path
@@ -179,7 +180,7 @@ contains
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(mixed_laplacian_rt_params_t) , intent(in) :: this
     character(len=256) :: get_prefix
     get_prefix = this%prefix
   end function get_prefix
@@ -187,7 +188,7 @@ contains
   !==================================================================================================
   function get_dir_path_out(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(mixed_laplacian_rt_params_t) , intent(in) :: this
     character(len=256) :: get_dir_path_out
     get_dir_path_out = this%dir_path_out
   end function get_dir_path_out
@@ -195,7 +196,7 @@ contains
   !==================================================================================================
   function get_fe_formulation(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(mixed_laplacian_rt_params_t) , intent(in) :: this
     character(len=256) :: get_fe_formulation
     get_fe_formulation = this%fe_formulation
   end function get_fe_formulation
@@ -203,7 +204,7 @@ contains
   !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(mixed_laplacian_rt_params_t) , intent(in) :: this
     integer(ip) :: get_reference_fe_geo_order
     get_reference_fe_geo_order = this%reference_fe_geo_order
   end function get_reference_fe_geo_order
@@ -211,9 +212,9 @@ contains
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(mixed_laplacian_rt_params_t) , intent(in) :: this
     integer(ip) :: get_reference_fe_order
     get_reference_fe_order = this%reference_fe_order
   end function get_reference_fe_order
   
-end module test_poisson_params_names
+end module mixed_laplacian_rt_params_names

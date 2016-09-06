@@ -675,11 +675,12 @@ subroutine tet_lagrangian_reference_fe_fill_nodal_quadrature( this, quadrature )
 end subroutine tet_lagrangian_reference_fe_fill_nodal_quadrature
 
 !==================================================================================================
-subroutine tet_lagrangian_reference_fe_fill_interpolation ( this, quadrature, interpolation ) 
+subroutine tet_lagrangian_reference_fe_fill_interpolation ( this, quadrature, interpolation, order_vector ) 
   implicit none 
   class(tet_lagrangian_reference_fe_t), intent(in) :: this
   type(quadrature_t)              , intent(in)    :: quadrature
-  type(interpolation_t)           , intent(inout) :: interpolation 
+  type(interpolation_t)           , intent(inout) :: interpolation
+  integer(ip) , optional          , intent(in)    :: order_vector(SPACE_DIM)
   real(rp), pointer :: coord_ip(:,:)
   integer(ip) :: iquad
 

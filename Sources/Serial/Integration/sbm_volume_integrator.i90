@@ -110,7 +110,7 @@ subroutine fe_map_create_on_face( this, local_face_id, quadrature, reference_fe_
 end subroutine fe_map_create_on_face
 
 !==================================================================================================
-subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
+subroutine fe_map_create_face_map(this,quadrature,reference_fe_geo )
   implicit none
   ! Parameters
   class(fe_map_t)       , intent(inout) :: this
@@ -150,7 +150,7 @@ subroutine fe_map_face_map_create(this,quadrature,reference_fe_geo )
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
-end subroutine fe_map_face_map_create
+end subroutine fe_map_create_face_map
 
 !==================================================================================================
 subroutine fe_map_update( this, quadrature)
@@ -258,7 +258,7 @@ subroutine fe_map_update( this, quadrature)
 end subroutine fe_map_update
 
 !==================================================================================================
-subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
+subroutine fe_map_update_face_map(this,local_face_id,reference_fe,quadrature)
   implicit none    
   class(fe_map_t)      , intent(inout) :: this
   integer(ip)          , intent(in)    :: local_face_id
@@ -318,7 +318,7 @@ subroutine fe_map_face_map_update(this,local_face_id,reference_fe,quadrature)
      this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *                &
           &                      real(reorientation_factor)/this%det_jacobian(evaluation_point_id) 
   end do
-end subroutine fe_map_face_map_update
+end subroutine fe_map_update_face_map
 
 !==================================================================================================
 subroutine fe_map_free( this )
@@ -530,6 +530,18 @@ function fe_map_get_quadrature_coordinates(this)
   fe_map_get_quadrature_coordinates => this%coordinates_quadrature
 
 end function fe_map_get_quadrature_coordinates
+
+subroutine fe_map_get_normal(this, qpoint, normal)
+ implicit none
+ class(fe_map_t)     , intent(in)    :: this
+ integer(ip)         , intent(in)    :: qpoint
+ type(vector_field_t), intent(inout) :: normal
+ integer(ip) :: idime
+ assert ( allocated(this%normals) )
+ do idime = 1, this%number_dimensions
+   call normal%set(idime,this%normals(idime,qpoint))
+ end do
+end subroutine  fe_map_get_normal
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_fe_map_t type procedures
