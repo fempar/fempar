@@ -33,9 +33,7 @@ module mixed_laplacian_rt_conditions_names
   private
   type, extends(conditions_t) :: mixed_laplacian_rt_conditions_t
      private
-     class(scalar_function_t), pointer :: boundary_function
    contains
-     procedure :: set_boundary_function       => mixed_laplacian_rt_conditions_set_boundary_function
      procedure :: get_number_components       => mixed_laplacian_rt_conditions_get_number_components  
      procedure :: get_components_code         => mixed_laplacian_rt_conditions_get_components_code
      procedure :: get_function                => mixed_laplacian_rt_conditions_get_function
@@ -45,18 +43,11 @@ module mixed_laplacian_rt_conditions_names
   
 contains
   
-  subroutine mixed_laplacian_rt_conditions_set_boundary_function (this, scalar_function)
-    implicit none
-    class(mixed_laplacian_rt_conditions_t), intent(inout)      :: this
-    class(scalar_function_t)          , target, intent(in) :: scalar_function
-    this%boundary_function => scalar_function
-  end subroutine mixed_laplacian_rt_conditions_set_boundary_function
-
   function mixed_laplacian_rt_conditions_get_number_components(this)
     implicit none
     class(mixed_laplacian_rt_conditions_t), intent(in) :: this
     integer(ip) :: mixed_laplacian_rt_conditions_get_number_components
-    mixed_laplacian_rt_conditions_get_number_components = 2
+    mixed_laplacian_rt_conditions_get_number_components = 3
   end function mixed_laplacian_rt_conditions_get_number_components
 
   subroutine mixed_laplacian_rt_conditions_get_components_code(this, boundary_id, components_code)
@@ -64,11 +55,8 @@ contains
     class(mixed_laplacian_rt_conditions_t), intent(in)  :: this
     integer(ip)                       , intent(in)  :: boundary_id
     logical                           , intent(out) :: components_code(:)
-    assert ( size(components_code) == 2 )
-    components_code(1:2) = .false.
-    if ( boundary_id == 1 ) then
-      components_code(1:2) = .true.
-    end if
+    assert ( size(components_code) == 3 )
+    components_code(1:3) = .false.
   end subroutine mixed_laplacian_rt_conditions_get_components_code
   
   subroutine mixed_laplacian_rt_conditions_get_function ( this, boundary_id, component_id, function )
@@ -77,11 +65,8 @@ contains
     integer(ip)                                    , intent(in)  :: boundary_id
     integer(ip)                                    , intent(in)  :: component_id
     class(scalar_function_t)          , pointer    , intent(out) :: function
-    assert ( component_id == 1 .or. component_id == 2 )
+    assert ( component_id == 1 .or. component_id == 2 .or. component_id == 3 )
     nullify(function)
-    if ( boundary_id == 1 ) then
-      function => this%boundary_function
-    end if  
   end subroutine mixed_laplacian_rt_conditions_get_function 
 
 end module mixed_laplacian_rt_conditions_names

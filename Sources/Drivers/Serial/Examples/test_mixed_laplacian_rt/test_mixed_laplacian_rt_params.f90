@@ -38,7 +38,6 @@ module mixed_laplacian_rt_params_names
      character(len=:), allocatable :: default_dir_path
      character(len=:), allocatable :: default_prefix
      character(len=:), allocatable :: default_dir_path_out
-     character(len=:), allocatable :: default_fe_formulation
      character(len=:), allocatable :: default_reference_fe_geo_order
      character(len=:), allocatable :: default_reference_fe_order
      
@@ -48,7 +47,6 @@ module mixed_laplacian_rt_params_names
      character(len=256)            :: dir_path
      character(len=256)            :: prefix
      character(len=256)            :: dir_path_out
-     character(len=256)            :: fe_formulation
      integer(ip)                   :: reference_fe_geo_order
      integer(ip)                   :: reference_fe_order
      
@@ -61,7 +59,6 @@ module mixed_laplacian_rt_params_names
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
-     procedure, non_overridable             :: get_fe_formulation
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
   end type mixed_laplacian_rt_params_t
@@ -82,7 +79,7 @@ contains
          &        version     = '',                                                                 &
          &        authors     = '',                                                                 &
          &        license     = '',                                                                 &
-         &        description =  'FEMPAR test to solve the 2D Poisson PDE with known analytical solution. &
+         &        description =  'FEMPAR test to solve the 2D Mixed Laplacian PDE with known analytical solution. &
                                   Boundary set ID 1 MUST BE ASSIGNED to the whole boundary.', &
          &        examples    = ['mixed_laplacian_rt -h  ', 'mixed_laplacian_rt -h  ' ])
     
@@ -97,9 +94,8 @@ contains
     this%default_dir_path       = 'data/'
     this%default_prefix         = 'square'
     this%default_dir_path_out   = 'output/'
-    this%default_fe_formulation = 'cG'
     this%default_reference_fe_geo_order = '1'
-    this%default_reference_fe_order = '1'
+    this%default_reference_fe_order = '2'
   end subroutine mixed_laplacian_rt_set_default
   
   !==================================================================================================
@@ -120,10 +116,7 @@ contains
     check(error==0)
     call this%cli%add(switch='--dir-path-out',switch_ab='-o',help='Output Directory',&
          &            required=.false.,act='store',def=trim(this%default_dir_path_out),error=error)
-    check(error==0)  
-    call this%cli%add(switch='--fe-formulation',switch_ab='-f',help='cG or dG FE formulation for Poisson problem',&
-         &            required=.false.,act='store',def=trim(this%default_fe_formulation), choices='cG,dG', error=error)
-    check(error==0)  
+    check(error==0)
     call this%cli%add(switch='--reference-fe-geo-order',switch_ab='-gorder',help='Order of the triangulation reference fe',&
          &            required=.false.,act='store',def=trim(this%default_reference_fe_geo_order),error=error)
     check(error==0)  
@@ -144,7 +137,6 @@ contains
     call this%cli%get(switch='-d'  ,val=this%dir_path    ,error=istat); check(istat==0)
     call this%cli%get(switch='-p' ,val=this%prefix      ,error=istat); check(istat==0)
     call this%cli%get(switch='-o',val=this%dir_path_out,error=istat); check(istat==0)
-    call this%cli%get(switch='-f',val=this%fe_formulation,error=istat); check(istat==0)
     call this%cli%get(switch='-gorder',val=this%reference_fe_geo_order,error=istat); check(istat==0)
     call this%cli%get(switch='-order',val=this%reference_fe_order,error=istat); check(istat==0)
   end subroutine mixed_laplacian_rt_parse  
@@ -183,14 +175,6 @@ contains
     character(len=256) :: get_dir_path_out
     get_dir_path_out = this%dir_path_out
   end function get_dir_path_out
-  
-  !==================================================================================================
-  function get_fe_formulation(this)
-    implicit none
-    class(mixed_laplacian_rt_params_t) , intent(in) :: this
-    character(len=256) :: get_fe_formulation
-    get_fe_formulation = this%fe_formulation
-  end function get_fe_formulation
   
   !==================================================================================================
   function get_reference_fe_geo_order(this)

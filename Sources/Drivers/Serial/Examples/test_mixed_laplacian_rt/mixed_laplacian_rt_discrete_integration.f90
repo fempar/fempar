@@ -33,9 +33,11 @@ module mixed_laplacian_rt_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: mixed_laplacian_rt_discrete_integration_t
      private
-     class(vector_function_t), pointer :: source_term
+     class(scalar_function_t), pointer :: pressure_source_term        => NULL()
+     class(scalar_function_t), pointer :: pressure_boundary_function  => NULL()
    contains
-     procedure :: set_source_term
+     procedure :: set_pressure_source_term
+     procedure :: set_pressure_boundary_function
      procedure :: integrate
   end type mixed_laplacian_rt_discrete_integration_t
   
@@ -43,12 +45,19 @@ module mixed_laplacian_rt_discrete_integration_names
   
 contains
    
-  subroutine set_source_term (this, vector_function)
+  subroutine set_pressure_source_term (this, scalar_function)
     implicit none
-    class(mixed_laplacian_rt_discrete_integration_t)        , intent(inout) :: this
-    class(vector_function_t)                    , target, intent(in)    :: vector_function
-    this%source_term => vector_function
-  end subroutine set_source_term
+    class(mixed_laplacian_rt_discrete_integration_t), intent(inout) :: this
+    class(scalar_function_t), target, intent(in)    :: scalar_function
+    this%pressure_source_term => scalar_function
+  end subroutine set_pressure_source_term
+  
+  subroutine set_pressure_boundary_function (this, scalar_function)
+    implicit none
+    class(mixed_laplacian_rt_discrete_integration_t), intent(inout) :: this
+    class(scalar_function_t), target, intent(in)    :: scalar_function
+    this%pressure_boundary_function => scalar_function
+  end subroutine set_pressure_boundary_function
 
   subroutine integrate ( this, fe_space, matrix_array_assembler )
     implicit none
@@ -59,14 +68,20 @@ contains
     ! FE space traversal-related data types
     type(fe_iterator_t) :: fe_iterator
     type(fe_accessor_t) :: fe
+    type(fe_face_iterator_t) :: fe_face_iterator
+    type(fe_face_accessor_t) :: fe_face
     
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
+    type(face_map_t)         , pointer :: face_map
+    type(face_integrator_t)  , pointer :: face_int_velocity
+    type(vector_field_t)               :: normals(2)
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(volume_integrator_t), pointer :: vol_int
-    type(vector_field_t)               :: shape_trial
-    type(tensor_field_t)               :: grad_test, grad_trial
+    type(volume_integrator_t), pointer :: vol_int_velocity, vol_int_pressure
+    type(vector_field_t)               :: velocity_shape_trial, velocity_shape_test
+    real(rp)                           :: div_velocity_shape_test, pressure_shape_trial
+    real(rp)                           :: div_velocity_shape_trial, pressure_shape_test
     
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
@@ -74,9 +89,9 @@ contains
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
     integer(ip)  :: idof, jdof, num_dofs
-    real(rp)     :: factor, source_term_value
-    
-    type(vector_field_t) :: source_term
+    real(rp)     :: factor
+    real(rp), allocatable :: pressure_source_term_values(:)
+    real(rp), allocatable :: pressure_boundary_function_values(:)
 
     integer(ip)  :: number_fields
 
@@ -84,8 +99,10 @@ contains
     logical    , pointer :: field_coupling(:,:)
 
     type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:)  
-
+    integer(ip), allocatable :: num_dofs_per_field(:) 
+    
+    assert ( associated(this%pressure_source_term) )
+    assert ( associated(this%pressure_boundary_function) )
     
     number_fields = fe_space%get_number_fields()
     allocate( elem2dof(number_fields), stat=istat); check(istat==0);
@@ -101,11 +118,13 @@ contains
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
     call fe%get_number_dofs_per_field(num_dofs_per_field)
-    quad            => fe%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
-    fe_map          => fe%get_fe_map()
-    vol_int         => fe%get_volume_integrator(1)
+    quad             => fe%get_quadrature()
+    num_quad_points  = quad%get_number_quadrature_points()
+    fe_map           => fe%get_fe_map()
+    vol_int_velocity => fe%get_volume_integrator(1)
+    vol_int_pressure => fe%get_volume_integrator(2)
     
+    call memalloc ( num_quad_points, pressure_source_term_values, __FILE__, __LINE__ )
     do while ( .not. fe_iterator%has_finished() )
        ! Get current FE
        call fe_iterator%current(fe)
@@ -119,30 +138,50 @@ contains
        ! Get quadrature coordinates to evaluate boundary value
        quad_coords => fe_map%get_quadrature_coordinates()
        
+       ! Evaluate pressure source term at quadrature points
+       call this%pressure_source_term%get_values_set(quad_coords, pressure_source_term_values)
+       
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
        do qpoint = 1, num_quad_points
-       
           factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
-          ! Diffusive term
-          do idof = 1, num_dofs
-             call vol_int%get_gradient(idof, qpoint, grad_trial)
-             do jdof = 1, num_dofs
-                call vol_int%get_gradient(jdof, qpoint, grad_test)
-                ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                elmat(idof,jdof) = elmat(idof,jdof) + factor * double_contract(grad_test,grad_trial)
-             end do
+          ! \int_(v.u)
+          do idof=1, num_dofs_per_field(1)
+            call vol_int_velocity%get_value(idof, qpoint, velocity_shape_test)
+            do jdof=1, num_dofs_per_field(1)
+              call vol_int_velocity%get_value(jdof, qpoint, velocity_shape_trial)
+              elmat(idof,jdof) = elmat(idof,jdof) + &
+                                 velocity_shape_trial*velocity_shape_test*factor
+            end do
           end do
           
-          ! Source term
-          call this%source_term%get_value_space(quad_coords(qpoint),source_term)
-          do idof = 1, num_dofs
-             call vol_int%get_value(idof, qpoint, shape_trial)
-             elvec(idof) = elvec(idof) + factor * source_term * shape_trial
-          end do 
+          ! \int_(div(v)*p)
+          do idof=1, num_dofs_per_field(1)
+            call vol_int_velocity%get_divergence(idof, qpoint, div_velocity_shape_test)
+            do jdof=1, num_dofs_per_field(2)
+              call vol_int_pressure%get_value(jdof, qpoint, pressure_shape_trial)
+              elmat(idof,jdof+num_dofs_per_field(2)) = elmat(idof,jdof+num_dofs_per_field(2)) &
+                                                     - div_velocity_shape_test*pressure_shape_trial*factor
+            end do
+          end do
           
+          ! \int_(q*div(u))
+          do idof=1, num_dofs_per_field(2)
+            call vol_int_pressure%get_value(idof, qpoint, pressure_shape_test)
+            do jdof=1, num_dofs_per_field(1)
+              call vol_int_velocity%get_divergence(jdof, qpoint, div_velocity_shape_trial)
+              elmat(idof+num_dofs_per_field(1),jdof) = elmat(idof+num_dofs_per_field(1),jdof) &
+                                                     - pressure_shape_test*div_velocity_shape_trial*factor
+            end do
+          end do
+
+          do idof=1, num_dofs_per_field(2)
+            call vol_int_pressure%get_value(idof, qpoint, pressure_shape_test)
+            elvec(idof+num_dofs_per_field(1)) = elvec(idof+num_dofs_per_field(1)) - &
+                                                pressure_shape_test * pressure_source_term_values(qpoint)*factor
+          end do
        end do
        
        ! Apply boundary conditions (IMPLEMENTATION PENDING)
@@ -150,6 +189,56 @@ contains
        call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
        call fe_iterator%next()
     end do
+    call memfree ( pressure_source_term_values, __FILE__, __LINE__ )
+    
+    call fe_space%initialize_fe_face_integration()
+
+    ! Search for the first boundary face
+    fe_face_iterator = fe_space%create_fe_face_iterator()
+    call fe_face_iterator%current(fe_face)
+    do while ( .not. fe_face%is_at_boundary() ) 
+       call fe_face_iterator%next()
+       call fe_face_iterator%current(fe_face)
+    end do
+    
+    quad               => fe_face%get_quadrature()
+    num_quad_points    = quad%get_number_quadrature_points()
+    face_map           => fe_face%get_face_map()
+    face_int_velocity  => fe_face%get_face_integrator(1)
+    
+    call memalloc ( num_quad_points, pressure_boundary_function_values, __FILE__, __LINE__ )
+    do while ( .not. fe_face_iterator%has_finished() )
+       elvec = 0.0_rp
+       call fe_face_iterator%current(fe_face)
+       
+       if ( fe_face%is_at_boundary() ) then
+         !assert( fe_face%get_set_id() == 1 )
+         call fe_face%update_integration() 
+         quad_coords => face_map%get_quadrature_coordinates()
+         do qpoint = 1, num_quad_points
+            factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            call face_map%get_normals(qpoint,normals)
+            do idof = 1, num_dofs_per_field(1)
+              call face_int_velocity%get_value(idof,qpoint,1,velocity_shape_test)
+              elvec(idof) = elvec(idof) + &
+                              pressure_boundary_function_values(qpoint)*velocity_shape_test*normals(1)*factor
+            end do   
+         end do
+         call fe_face%get_elem2dof(1, elem2dof)
+         call matrix_array_assembler%face_assembly(number_fields, &
+                                                   num_dofs_per_field, &
+                                                   num_dofs_per_field, &
+                                                   elem2dof, &
+                                                   elem2dof, &
+                                                   field_blocks, &
+                                                   field_coupling, &
+                                                   elmat, &
+                                                   elvec )             
+       end if
+       call fe_face_iterator%next()
+    end do
+    call memfree ( pressure_boundary_function_values, __FILE__, __LINE__ )
+    
     deallocate (elem2dof, stat=istat); check(istat==0);
     call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )

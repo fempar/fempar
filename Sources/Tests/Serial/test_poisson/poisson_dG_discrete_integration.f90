@@ -207,11 +207,11 @@ contains
     face_int        => fe_face%get_face_integrator(1)
     
     do while ( .not. fe_face_iterator%has_finished() ) 
-       facemat = 0.0_rp
-       facevec = 0.0_rp
        call fe_face_iterator%current(fe_face)
        
        if ( .not. fe_face%is_at_boundary() ) then
+         facemat = 0.0_rp
+         facevec = 0.0_rp
          call fe_face%update_integration()    
          do qpoint = 1, num_quad_points
             call face_map%get_normals(qpoint,normals)
@@ -271,11 +271,11 @@ contains
     face_int        => fe_face%get_face_integrator(1)
     
     do while ( .not. fe_face_iterator%has_finished() )
-       facemat = 0.0_rp
-       facevec = 0.0_rp
        call fe_face_iterator%current(fe_face)
        
        if ( fe_face%is_at_boundary() ) then
+         facemat = 0.0_rp
+         facevec = 0.0_rp
          assert( fe_face%get_set_id() == 1 )
          call fe_face%update_integration() 
          quad_coords => face_map%get_quadrature_coordinates()

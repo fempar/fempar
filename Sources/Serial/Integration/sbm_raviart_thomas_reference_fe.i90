@@ -31,7 +31,7 @@
 !**************************************************************************************************
 !==================================================================================================
 subroutine raviart_thomas_create_interpolation ( this, quadrature, & 
-     & interpolation, compute_hessian )
+     &                                           interpolation, compute_hessian )
   implicit none 
   class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(quadrature_t)              , intent(in)    :: quadrature
@@ -51,6 +51,30 @@ subroutine raviart_thomas_create_interpolation ( this, quadrature, &
   call this%fill_interpolation( quadrature, interpolation )
 
 end subroutine raviart_thomas_create_interpolation
+
+!==================================================================================================
+! This routine creates the interpolation corresponding to the evaluation of the shape functions on
+! integration points given by local_quadrature either on the face 'local_face_id' of the element or
+! in all the faces of the element.
+subroutine raviart_thomas_create_face_interpolation( this, local_face_id, local_quadrature, face_interpolation)
+  implicit none 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: local_face_id
+  type(quadrature_t)              , intent(in)    :: local_quadrature
+  type(interpolation_t)           , intent(inout) :: face_interpolation
+
+  ! Allocate the arrays of the interpolation
+  call face_interpolation%create(this%number_dimensions, &
+                                 this%number_shape_functions, &
+                                 local_quadrature%number_quadrature_points, &
+                                 0 )
+
+  ! Fill the values of the shape functions
+  call this%fill_face_interpolation(local_quadrature, &
+                                    local_face_id, &
+                                    face_interpolation)
+
+end subroutine raviart_thomas_create_face_interpolation
 
 !==================================================================================================
 subroutine raviart_thomas_create_nodal_quadrature (this)
@@ -111,14 +135,20 @@ end subroutine raviart_thomas_create
 subroutine raviart_thomas_free ( this )
   implicit none 
   class(raviart_thomas_reference_fe_t), intent(inout) :: this
-
-  if ( allocated(this%change_basis_matrix) ) call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )  
-  this%basis_changed = .false. 
-  call reference_fe_free( this )
+  integer(ip) :: i
   
+  ! Free member variables of raviart_thomas_reference_fe_t
+  if ( allocated(this%change_basis_matrix) ) &
+     call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )  
+  this%basis_changed = .false. 
+  do i=1, size(this%node_array_vector)
+    call this%node_array_vector(i)%free()
+  end do
+  
+  ! Free member variables of lagrangian_reference_fe_t
+  ! (and those of its ancestors)
+  call lagrangian_reference_fe_free ( this )  
 end subroutine raviart_thomas_free
-
-
 
 !==================================================================================================
 subroutine raviart_thomas_fill (this)
@@ -160,7 +190,7 @@ subroutine raviart_thomas_fill_vector (this)
   type(node_iterator_t) :: node_iterator
   type(n_face_iterator_t) :: facet_iterator
   type(list_iterator_t) :: list_iterator
-  integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM), idime, perm(SPACE_DIM), offset(SPACE_DIM)
+  integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM), idime, perm(SPACE_DIM), offset(SPACE_DIM+1)
 
   ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
   if ( this%topology == topology_hex) then
@@ -419,7 +449,7 @@ subroutine raviart_thomas_get_divergence_vector( this, actual_cell_interpolation
   assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
   assert( qpoint >= 1 )
 
-  scalar_field = 0
+  scalar_field = 0.0_rp
   do idime = 1, this%number_dimensions
      scalar_field = actual_cell_interpolation%shape_derivatives(idime,idime,ishape,qpoint)
   end do
@@ -563,13 +593,13 @@ subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
   nnode = size(ref%shape_functions,2)
 
   ! @sbadia: put Piola here
-  phy%shape_derivatives=0.0_rp
+  !phy%shape_derivatives=0.0_rp
   do ilocs=1,phy%number_quadrature_points
      do inode=1,this%number_shape_functions
         do idime=1,this%number_dimensions
            do jdime=1,this%number_dimensions
-              phy%shape_derivatives(idime,jdime,inode,ilocs) = phy%shape_derivatives(idime,jdime,inode,ilocs) &
-                   + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(idime,jdime,inode,ilocs)
+              !phy%shape_derivatives(idime,jdime,inode,ilocs) = phy%shape_derivatives(idime,jdime,inode,ilocs) &
+              !     + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(idime,jdime,inode,ilocs)
            end do
         end do
      end do
@@ -634,4 +664,41 @@ subroutine raviart_thomas_invert_change_basis_matrix(this)
 end subroutine raviart_thomas_invert_change_basis_matrix
 
 
+subroutine raviart_thomas_apply_change_basis_matrix_to_interpolation(this, interpolation_pre_basis, interpolation)
+  implicit none
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)               , intent(in)    :: interpolation_pre_basis
+  type(interpolation_t)               , intent(inout) :: interpolation
+  
+  integer(ip)           :: i, j, idime, jdime, qpoint
 
+  ! Initialize both shape functions and derivatives to zero.
+  interpolation%shape_functions   = 0.0_rp
+  interpolation%shape_derivatives = 0.0_rp
+  
+  ! Compute shape functions
+  do qpoint = 1, interpolation%number_quadrature_points
+     do i=1, this%number_shape_functions
+        do j=1, this%number_shape_functions
+           do idime=1, this%number_dimensions
+              interpolation%shape_functions(idime, i, qpoint) = interpolation%shape_functions(idime, i, qpoint) + &
+                   this%change_basis_matrix(i,j) * interpolation_pre_basis%shape_functions(idime, j, qpoint)
+           end do
+        end do
+     end do
+  end do
+  
+  ! Compute shape derivatives
+  do qpoint = 1, interpolation%number_quadrature_points
+     do i=1, this%number_shape_functions
+        do j=1, this%number_shape_functions
+           do idime=1, this%number_dimensions
+              do jdime=1, this%number_dimensions
+                 interpolation%shape_derivatives(idime, jdime, i, qpoint) = interpolation%shape_derivatives(idime, jdime, i, qpoint) + &
+                      this%change_basis_matrix(i,j) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
+              end do
+           end do
+        end do
+     end do
+  end do
+end subroutine raviart_thomas_apply_change_basis_matrix_to_interpolation
