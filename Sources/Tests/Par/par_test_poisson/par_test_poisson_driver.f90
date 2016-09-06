@@ -116,14 +116,16 @@ contains
     integer(ip)              :: num_levels
     integer(ip), allocatable :: parts_mapping(:)
     integer(ip), allocatable :: num_parts_per_level(:)
-    
+    integer(ip)              :: half_num_parts
+
     num_levels = 3
     call memalloc(num_levels, parts_mapping , __FILE__, __LINE__)
     call memalloc(num_levels, num_parts_per_level, __FILE__, __LINE__)
    
     num_parts_per_level = [ this%test_params%get_nparts(), 2, 1 ]
     if ( this%w_context%get_rank() < this%test_params%get_nparts() ) then
-      parts_mapping       = [ this%w_context%get_rank()+1, this%w_context%get_rank()/2+1, 1 ]
+      half_num_parts      = this%test_params%get_nparts()/2
+      parts_mapping       = [ this%w_context%get_rank()+1, this%w_context%get_rank()/half_num_parts+1, 1 ]
     else if ( this%w_context%get_rank() >= this%test_params%get_nparts()) then
       parts_mapping       = [ this%w_context%get_rank()+1, this%w_context%get_rank()+1-this%test_params%get_nparts(), 1 ]
     end if
@@ -145,11 +147,34 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
+    type(vef_iterator_t)  :: vef_iterator
+    type(vef_accessor_t)  :: vef
+    integer(ip) :: volume_id
+
     !call this%triangulation%create(this%par_environment, &
     !                               this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(), &
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
     call this%triangulation%create(this%par_environment, this%parameter_list)
+
+    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+       if(this%test_params%get_num_dimensions()==2) then
+          volume_id = 12
+       else if(this%test_params%get_num_dimensions()==3) then
+          volume_id = 56
+       end if
+       vef_iterator = this%triangulation%create_vef_iterator()
+       do while ( .not. vef_iterator%has_finished() )
+          call vef_iterator%current(vef)
+          if(vef%get_set_id()<volume_id) then ! It is on the boundary
+             call vef%set_set_id(1)
+          else
+             call vef%set_set_id(0)
+          end if
+          call vef_iterator%next()
+       end do
+    end if    
+    
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
