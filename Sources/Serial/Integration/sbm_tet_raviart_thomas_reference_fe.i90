@@ -782,6 +782,14 @@ subroutine tet_raviart_thomas_fill_face_interpolation (this, local_quadrature, l
 end subroutine tet_raviart_thomas_fill_face_interpolation
 
 !==================================================================================================
+subroutine tet_raviart_thomas_reference_fe_change_basis(this) 
+  implicit none
+  class(tet_raviart_thomas_reference_fe_t), intent(inout) ::  this
+  check(.false.)
+end subroutine tet_raviart_thomas_reference_fe_change_basis 
+
+
+!==================================================================================================
 function tet_raviart_thomas_get_node_local_id (this, local_coordinates, & 
      & number_of_dimensions, order)
   implicit none

@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module vector_poisson_analytical_functions_names
+module mixed_laplacian_rt_analytical_functions_names
   use serial_names
   implicit none
 # include "debug.i90"
@@ -52,20 +52,20 @@ module vector_poisson_analytical_functions_names
      procedure :: get_value_space => solution_gradient_get_value_space
   end type solution_gradient_t
 
-  type vector_poisson_analytical_functions_t
+  type mixed_laplacian_rt_analytical_functions_t
      private
      type(source_term_t)       :: source_term
      type(boundary_values_t)   :: boundary_values
      type(solution_values_t)   :: solution_values
      type(solution_gradient_t) :: solution_gradient
    contains
-     procedure :: get_source_term       => poisson_analytical_functions_get_source_term
-     procedure :: get_boundary_values   => poisson_analytical_functions_get_boundary_values
-     procedure :: get_solution_values   => poisson_analytical_functions_get_solution_values
-     procedure :: get_solution_gradient => poisson_analytical_functions_get_solution_gradient
-  end type vector_poisson_analytical_functions_t
+     procedure :: get_source_term       => mixed_laplacian_rt_analytical_functions_get_source_term
+     procedure :: get_boundary_values   => mixed_laplacian_rt_analytical_functions_get_boundary_values
+     procedure :: get_solution_values   => mixed_laplacian_rt_analytical_functions_get_solution_values
+     procedure :: get_solution_gradient => mixed_laplacian_rt_analytical_functions_get_solution_gradient
+  end type mixed_laplacian_rt_analytical_functions_t
 
-  public :: vector_poisson_analytical_functions_t
+  public :: mixed_laplacian_rt_analytical_functions_t
 
 contains  
 
@@ -115,38 +115,38 @@ contains
   end subroutine solution_gradient_get_value_space
   
   !===============================================================================================
-  function poisson_analytical_functions_get_source_term ( this )
+  function mixed_laplacian_rt_analytical_functions_get_source_term ( this )
     implicit none
-    class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
-    class(vector_function_t), pointer :: poisson_analytical_functions_get_source_term
-    poisson_analytical_functions_get_source_term => this%source_term
-  end function poisson_analytical_functions_get_source_term
+    class(mixed_laplacian_rt_analytical_functions_t), target, intent(in)    :: this
+    class(vector_function_t), pointer :: mixed_laplacian_rt_analytical_functions_get_source_term
+    mixed_laplacian_rt_analytical_functions_get_source_term => this%source_term
+  end function mixed_laplacian_rt_analytical_functions_get_source_term
   
   !===============================================================================================
-  function poisson_analytical_functions_get_boundary_values ( this )
+  function mixed_laplacian_rt_analytical_functions_get_boundary_values ( this )
     implicit none
-    class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: poisson_analytical_functions_get_boundary_values
-    poisson_analytical_functions_get_boundary_values => this%boundary_values
-  end function poisson_analytical_functions_get_boundary_values
+    class(mixed_laplacian_rt_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: mixed_laplacian_rt_analytical_functions_get_boundary_values
+    mixed_laplacian_rt_analytical_functions_get_boundary_values => this%boundary_values
+  end function mixed_laplacian_rt_analytical_functions_get_boundary_values
   
   !===============================================================================================
-  function poisson_analytical_functions_get_solution_values ( this )
+  function mixed_laplacian_rt_analytical_functions_get_solution_values ( this )
     implicit none
-    class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
-    class(vector_function_t), pointer :: poisson_analytical_functions_get_solution_values
-    poisson_analytical_functions_get_solution_values => this%solution_values
-  end function poisson_analytical_functions_get_solution_values
+    class(mixed_laplacian_rt_analytical_functions_t), target, intent(in)    :: this
+    class(vector_function_t), pointer :: mixed_laplacian_rt_analytical_functions_get_solution_values
+    mixed_laplacian_rt_analytical_functions_get_solution_values => this%solution_values
+  end function mixed_laplacian_rt_analytical_functions_get_solution_values
   
   !===============================================================================================
-  function poisson_analytical_functions_get_solution_gradient ( this )
+  function mixed_laplacian_rt_analytical_functions_get_solution_gradient ( this )
     implicit none
-    class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
-    class(tensor_function_t), pointer :: poisson_analytical_functions_get_solution_gradient
-    poisson_analytical_functions_get_solution_gradient => this%solution_gradient
-  end function poisson_analytical_functions_get_solution_gradient
+    class(mixed_laplacian_rt_analytical_functions_t), target, intent(in)    :: this
+    class(tensor_function_t), pointer :: mixed_laplacian_rt_analytical_functions_get_solution_gradient
+    mixed_laplacian_rt_analytical_functions_get_solution_gradient => this%solution_gradient
+  end function mixed_laplacian_rt_analytical_functions_get_solution_gradient
 
-end module vector_poisson_analytical_functions_names
+end module mixed_laplacian_rt_analytical_functions_names
 !***************************************************************************************************
 
 

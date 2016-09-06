@@ -103,8 +103,8 @@ subroutine face_map_create(this, quadrature, left_geo_reference_fe, right_geo_re
 
   this%is_boundary = (.not. associated(right_geo_reference_fe))
 
-  this%number_dimensions = quadrature%get_number_dimensions()
-  call this%face_map%fe_map_face_map_create(quadrature,left_geo_reference_fe)
+  this%number_dimensions = left_geo_reference_fe%get_number_dimensions()
+  call this%face_map%create_face_map(quadrature,left_geo_reference_fe)
   call this%fe_maps(1)%create(quadrature,left_geo_reference_fe)
   if (associated(right_geo_reference_fe)) then
      call this%fe_maps(2)%create(quadrature,right_geo_reference_fe)
@@ -136,7 +136,7 @@ subroutine face_map_update(this,local_face_id,face_quadrature,left_reference_fe_
   type(quadrature_t), intent(in)    :: face_quadrature
   class(lagrangian_reference_fe_t), intent(in)    :: left_reference_fe_geo
 
-  call this%face_map%face_map_update(local_face_id(1),left_reference_fe_geo,face_quadrature)
+  call this%face_map%update_face_map(local_face_id(1),left_reference_fe_geo,face_quadrature)
   call this%fe_maps(1)%update(local_face_id(1),face_quadrature)
   if (.not. this%is_boundary) then
      assert ( local_face_id(2) >= 1 )
@@ -221,7 +221,7 @@ subroutine face_map_get_normals (this, qpoint, normal)
   integer(ip) :: idime
   call normal(1)%init(0.0_rp)
   call normal(2)%init(0.0_rp)
-  do idime = 1, this%number_dimensions+1
+  do idime = 1, this%number_dimensions
      call normal(1)%set(idime,this%face_map%normals(idime,qpoint))
      call normal(2)%set(idime,- this%face_map%normals(idime,qpoint))
   end do
