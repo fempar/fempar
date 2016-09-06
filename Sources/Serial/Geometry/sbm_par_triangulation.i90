@@ -201,10 +201,6 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
         call memfree (lst_vefs_gids_ghost_extended, __FILE__, __LINE__)
         call memfree (ptr_vefs_per_cell,            __FILE__, __LINE__)
 
-        call mesh%free()
-        call mesh_distribution%free()
-        !call this%print()
-
      else if(triangulation_generate==triangulation_generate_structured) then
 
         this%num_ghost_cells=0
@@ -277,8 +273,10 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
      call this%allocate_and_fill_face_orientation_rotation()
 
      call this%allocate_and_fill_nodes()
-     call this%allocate_and_fill_coordinates(coordinates)
-     call memfreep(coordinates,__FILE__, __LINE__)
+     call this%allocate_and_fill_coordinates(coordinates)     
+     !call memfreep(coordinates,__FILE__, __LINE__)
+     call mesh%free()
+     call mesh_distribution%free()
 
      call memfree (lst_itfc_cells,               __FILE__, __LINE__)
      call memfree (ptr_ext_neighs_per_itfc_cell, __FILE__, __LINE__)
