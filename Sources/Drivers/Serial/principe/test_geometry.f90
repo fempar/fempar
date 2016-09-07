@@ -119,7 +119,7 @@ program test_geometry
   call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
 
   ! Get line 3 of geometry and test its TBPs
-  call geometry%read(dir_path,prefix)
+  !call geometry%read(dir_path,prefix)
   line => geometry%get_line(3)
 
   !point(1) = -10.0_rp
@@ -135,7 +135,7 @@ program test_geometry
   write(*,*) 'Line evaluation', point%get_value()
 
   ! Get line 1 of geometry and test its TBPs
-  call geometry%read(dir_path,prefix)
+  !call geometry%read(dir_path,prefix)
   line => geometry%get_line(1)
 
   !point(1) = 0.0_rp

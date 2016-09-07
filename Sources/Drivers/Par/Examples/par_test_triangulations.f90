@@ -122,7 +122,7 @@ program par_test_triangulations
   call cli%get(switch='-d'  ,val=dir_path    ,error=istat); check(istat==0)
   call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
   !call cli%get(switch='-out',val=dir_path_out,error=istat); check(istat==0)
-  call triangulation%create(p_env,dir_path,prefix)
+  !call triangulation%create(p_env,dir_path,prefix)
 
   call triangulation%print()
 

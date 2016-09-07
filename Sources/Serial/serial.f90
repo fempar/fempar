@@ -50,6 +50,7 @@ module serial_names
   use renumbering_names
   use mesh_names
   use geometry_names
+  use uniform_hex_mesh_generator_names
 
   ! Linear Algebra
   use iterative_linear_solver_names

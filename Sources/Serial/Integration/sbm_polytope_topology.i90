@@ -282,6 +282,15 @@ function polytope_tree_get_number_n_faces(this)
 end function polytope_tree_get_number_n_faces
 
 !=================================================================================================
+function polytope_tree_get_ijk_to_index(this,ijk) 
+  implicit none
+  class(polytope_tree_t), intent(in) :: this
+  integer(ip)           , intent(in) :: ijk
+  integer(ip)                        :: polytope_tree_get_ijk_to_index
+  polytope_tree_get_ijk_to_index = this%ijk_to_index(ijk)
+end function polytope_tree_get_ijk_to_index
+
+!=================================================================================================
 function polytope_tree_get_n_face(this, n_face_index) 
   implicit none
   class(polytope_tree_t), intent(in) :: this
