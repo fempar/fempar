@@ -41,7 +41,8 @@ module test_mixed_laplacian_rt_driver_names
      private 
 
      ! Place-holder for parameter-value set provided through command-line interface
-     type(mixed_laplacian_rt_params_t)          :: test_params
+     type(mixed_laplacian_rt_params_t)           :: test_params
+     type(ParameterList_t)                       :: parameter_list
 
      ! Cells and lower dimension objects container
      type(serial_triangulation_t)                :: triangulation
@@ -58,8 +59,8 @@ module test_mixed_laplacian_rt_driver_names
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)                  :: fe_affine_operator
 
-     ! Iterative linear solvers data type
-     type(iterative_linear_solver_t)             :: iterative_linear_solver
+     ! Direct solvers data type
+     type(direct_solver_t)                       :: direct_solver
 
      ! Poisson problem solution FE function
      type(fe_function_t)                         :: solution
@@ -74,7 +75,6 @@ module test_mixed_laplacian_rt_driver_names
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
-     procedure        , private :: check_solution
      procedure        , private :: print_error_norms
      procedure        , private :: free
   end type test_mixed_laplacian_rt_driver_t
@@ -88,14 +88,13 @@ contains
     implicit none
     class(test_mixed_laplacian_rt_driver_t ), intent(inout) :: this
     call this%test_params%create()
-    call this%test_params%parse()
+    call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
 
   subroutine setup_triangulation(this)
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
-    call this%triangulation%create(this%test_params%get_dir_path(),&
-         this%test_params%get_prefix())
+    call this%triangulation%create(this%parameter_list)
   end subroutine setup_triangulation
 
   subroutine setup_reference_fes(this)
@@ -103,15 +102,22 @@ contains
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     integer(ip) :: istat
 
-    allocate(this%reference_fes(1), stat=istat)
+    allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
 
     this%reference_fes(1) =  make_reference_fe ( topology = topology_hex, &
                                                  fe_type = fe_type_raviart_thomas, &
                                                  number_dimensions = this%triangulation%get_num_dimensions(), &
-                                                 order = 2, &
+                                                 order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type_vector, &
                                                  continuity = .true. ) 
+    
+    this%reference_fes(2) =  make_reference_fe ( topology = topology_hex, &
+                                                 fe_type = fe_type_lagrangian, &
+                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 order = this%test_params%get_reference_fe_order(), &
+                                                 field_type = field_type_scalar, &
+                                                 continuity = .false. ) 
   end subroutine setup_reference_fes
 
   subroutine setup_fe_space(this)
@@ -122,7 +128,6 @@ contains
                                conditions          = this%mixed_laplacian_rt_conditions, &
                                reference_fes       = this%reference_fes)
     call this%fe_space%fill_dof_info() 
-    call this%mixed_laplacian_rt_conditions%set_boundary_function(this%problem_functions%get_boundary_values())
     call this%fe_space%update_strong_dirichlet_bcs_values(this%mixed_laplacian_rt_conditions)
     call this%fe_space%print()
   end subroutine setup_fe_space
@@ -130,11 +135,12 @@ contains
   subroutine setup_system (this)
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
-    call this%mixed_laplacian_rt_integration%set_source_term(this%problem_functions%get_source_term())
+    call this%mixed_laplacian_rt_integration%set_pressure_source_term(this%problem_functions%get_pressure_source_term())
+    call this%mixed_laplacian_rt_integration%set_pressure_boundary_function(this%problem_functions%get_pressure_boundary_function())
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .true. ], &
-                                          diagonal_blocks_symmetric         = [ .true. ], &
-                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                          diagonal_blocks_symmetric_storage = [ .false. ], &
+                                          diagonal_blocks_symmetric         = [ .false. ], &
+                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_UNKNOWN ], &
                                           fe_space                          = this%fe_space,           &
                                           discrete_integration              = this%mixed_laplacian_rt_integration )
   end subroutine setup_system
@@ -145,9 +151,28 @@ contains
     integer               :: FPLError
     type(parameterlist_t) :: parameter_list
     integer               :: iparm(64)
-    call this%iterative_linear_solver%create(this%fe_space%get_environment())
-    call this%iterative_linear_solver%set_type_from_string(cg_name)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator)  
+    class(matrix_t), pointer       :: matrix
+    
+    call parameter_list%init()
+    FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uss)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
+    iparm = 0
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
+    assert(FPLError == 0)
+    
+    call this%direct_solver%set_type_from_pl(parameter_list)
+    call this%direct_solver%set_parameters_from_pl(parameter_list)
+    
+    matrix => this%fe_affine_operator%get_matrix()
+    select type(matrix)
+    class is (sparse_matrix_t)  
+       call this%direct_solver%set_matrix(matrix)
+    class DEFAULT
+       assert(.false.) 
+    end select
+    
+    call parameter_list%free()
   end subroutine setup_solver
 
   subroutine assemble_system (this)
@@ -156,7 +181,7 @@ contains
     class(matrix_t), pointer       :: matrix
     class(vector_t), pointer       :: rhs
     call this%fe_affine_operator%numerical_setup()
-    rhs    => this%fe_affine_operator%get_translation()
+    !rhs    => this%fe_affine_operator%get_translation()
     matrix => this%fe_affine_operator%get_matrix()
     select type(matrix)
     class is (sparse_matrix_t)  
@@ -175,56 +200,41 @@ contains
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-         dof_values)
-
-    select type(dof_values)
-       class is (serial_scalar_array_t)  
-       call dof_values%print(6) 
-       class DEFAULT
+    call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
+    
+    select type (rhs)
+    class is (serial_scalar_array_t)  
+       call rhs%print(6)
+    class DEFAULT
        assert(.false.) 
     end select
-
+    
+    select type (dof_values)
+    class is (serial_scalar_array_t)  
+       call dof_values%print(6)
+    class DEFAULT
+       assert(.false.) 
+    end select
   end subroutine solve_system
   
-    subroutine check_solution(this)
+  subroutine print_error_norms(this)
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
-    class(vector_t), allocatable :: exact_solution_vector
-    class(vector_t), pointer     :: computed_solution_vector
-
-    call this%fe_affine_operator%create_range_vector(exact_solution_vector)
-    call exact_solution_vector%init(1.0_rp)
-    
-    computed_solution_vector => this%solution%get_dof_values() 
-    
-    exact_solution_vector = computed_solution_vector - exact_solution_vector
-   
-    check ( exact_solution_vector%nrm2()/computed_solution_vector%nrm2() < 1.0e-04 )
-     
-    call exact_solution_vector%free()
-    deallocate(exact_solution_vector)
-   
-  end subroutine check_solution
-  
-    subroutine print_error_norms(this)
-    implicit none
-    class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
-    type(error_norms_vector_t) :: error_norm
-    call error_norm%create(this%fe_space,1)
-    write(*,'(a20,e32.25)') 'mean_norm:', error_norm%compute(this%problem_functions%get_solution_values(), this%solution, mean_norm)   
-    write(*,'(a20,e32.25)') 'l1_norm:', error_norm%compute(this%problem_functions%get_solution_values(), this%solution, l1_norm)   
-    write(*,'(a20,e32.25)') 'l2_norm:', error_norm%compute(this%problem_functions%get_solution_values(), this%solution, l2_norm)   
-    write(*,'(a20,e32.25)') 'lp_norm:', error_norm%compute(this%problem_functions%get_solution_values(), this%solution, lp_norm)   
-    write(*,'(a20,e32.25)') 'linfnty_norm:', error_norm%compute(this%problem_functions%get_solution_values(), this%solution, linfty_norm)   
-    !write(*,'(a20,e32.25)') 'h1_seminorm:', error_norm%compute(constant_function, this%solution, h1_seminorm)   
-    !write(*,'(a20,e32.25)') 'h1_norm:', error_norm%compute(constant_function, this%solution, h1_norm)   
-    !write(*,'(a20,e32.25)') 'hdiv_seminorm:', error_norm%compute(constant_function, this%solution, hdiv_seminorm)   
-    !write(*,'(a20,e32.25)') 'w1p_seminorm:', error_norm%compute(constant_function, this%solution, w1p_seminorm)   
-    !write(*,'(a20,e32.25)') 'w1p_norm:', error_norm%compute(constant_function, this%solution, w1p_norm)   
-    !write(*,'(a20,e32.25)') 'w1infty_seminorm:', error_norm%compute(constant_function, this%solution, w1infty_seminorm)   
-    !write(*,'(a20,e32.25)') 'w1infty_norm:', error_norm%compute(constant_function, this%solution, w1infty_norm)   
-    call error_norm%free()
+    !type(error_norms_vector_t) :: error_norm
+    !call error_norm%create(this%fe_space,1)
+    !write(*,'(a20,e32.25)') 'mean_norm:', error_norm%compute(this%problem_functions%get_solution_values(), this%solution, mean_norm)   
+    !write(*,'(a20,e32.25)') 'l1_norm:', error_norm%compute(this%problem_functions%get_solution_values(), this%solution, l1_norm)   
+    !write(*,'(a20,e32.25)') 'l2_norm:', error_norm%compute(this%problem_functions%get_solution_values(), this%solution, l2_norm)   
+    !write(*,'(a20,e32.25)') 'lp_norm:', error_norm%compute(this%problem_functions%get_solution_values(), this%solution, lp_norm)   
+    !write(*,'(a20,e32.25)') 'linfnty_norm:', error_norm%compute(this%problem_functions%get_solution_values(), this%solution, linfty_norm)   
+    !!write(*,'(a20,e32.25)') 'h1_seminorm:', error_norm%compute(constant_function, this%solution, h1_seminorm)   
+    !!write(*,'(a20,e32.25)') 'h1_norm:', error_norm%compute(constant_function, this%solution, h1_norm)   
+    !!write(*,'(a20,e32.25)') 'hdiv_seminorm:', error_norm%compute(constant_function, this%solution, hdiv_seminorm)   
+    !!write(*,'(a20,e32.25)') 'w1p_seminorm:', error_norm%compute(constant_function, this%solution, w1p_seminorm)   
+    !!write(*,'(a20,e32.25)') 'w1p_norm:', error_norm%compute(constant_function, this%solution, w1p_norm)   
+    !!write(*,'(a20,e32.25)') 'w1infty_seminorm:', error_norm%compute(constant_function, this%solution, w1infty_seminorm)   
+    !!write(*,'(a20,e32.25)') 'w1infty_norm:', error_norm%compute(constant_function, this%solution, w1infty_norm)   
+    !call error_norm%free()
   end subroutine print_error_norms 
   
 
@@ -241,7 +251,6 @@ contains
     call this%setup_solver()
     call this%fe_space%create_fe_function(this%solution)
     call this%solve_system()
-    !call this%check_solution()
     call this%print_error_norms()
     call this%free()
   end subroutine run_simulation
@@ -251,7 +260,7 @@ contains
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     call this%solution%free()
-    call this%iterative_linear_solver%free()
+    call this%direct_solver%free()
     call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then

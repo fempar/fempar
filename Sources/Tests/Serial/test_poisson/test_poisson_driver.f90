@@ -47,6 +47,7 @@ module test_poisson_driver_names
      
      ! Place-holder for parameter-value set provided through command-line interface
      type(test_poisson_params_t)   :: test_params
+     type(ParameterList_t)         :: parameter_list
      
      ! Cells and lower dimension objects container
      type(serial_triangulation_t)              :: triangulation
@@ -100,16 +101,34 @@ contains
     implicit none
     class(test_poisson_driver_t ), intent(inout) :: this
     call this%test_params%create()
-    call this%test_params%parse()
+    call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
   
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    call this%triangulation%create(this%test_params%get_dir_path(),&
-                                   this%test_params%get_prefix(),&
-                                   geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
+    type(vef_iterator_t)  :: vef_iterator
+    type(vef_accessor_t)  :: vef
+
+    !call this%triangulation%create(this%test_params%get_dir_path(),&
+    !                               this%test_params%get_prefix(),&
+    !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
+    call this%triangulation%create(this%parameter_list)
     !call this%triangulation%print()
+    
+    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+       vef_iterator = this%triangulation%create_vef_iterator()
+       do while ( .not. vef_iterator%has_finished() )
+          call vef_iterator%current(vef)
+          if(vef%is_at_boundary()) then
+             call vef%set_set_id(1)
+          else
+             call vef%set_set_id(0)
+          end if
+          call vef_iterator%next()
+       end do
+    end if    
+    
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)

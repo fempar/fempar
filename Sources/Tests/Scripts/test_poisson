@@ -11,9 +11,9 @@ then
       ###############################################################################################################################
 
       # Square + Quads        
-      for gorder in 1 2 3 4 5 6
+      for gorder in 1 2 5
       do
-       for order in 1 2 3 4 5 6
+       for order in 1 2 5
         do
           if [ $order -ge $gorder ]
           then
@@ -28,9 +28,9 @@ then
       done
 
       # Square + Quads + dG 
-      for gorder in 1 2 3 4 5 6
+      for gorder in 1 2 5
       do
-       for order in 1 2 3 4 5 6
+       for order in 1 2 5
         do
           if [ $order -ge $gorder ]
           then
@@ -46,9 +46,9 @@ then
 
 
       # Circle + Quads        
-      for gorder in 1 2 3 4 5 6
+      for gorder in 1 2 5
       do
-       for order in 1 2 3 4 5 6
+       for order in 1 2 5
         do
           if [ $order -ge $gorder ]
           then
@@ -137,9 +137,9 @@ then
 
       # Square + Quads        
 
-      for gorder in 1 2 3 4 5 6
+      for gorder in 1 2 5
       do
-       for order in 1 2 3 4 5 6
+       for order in 1 2 5
         do
           if [ $order -ge $gorder ]
           then
@@ -155,9 +155,9 @@ then
 
 
       # Circle + Quads        
-      for gorder in 1 2 3 4 5 6
+      for gorder in 1 2 5
       do
-       for order in 1 2 3 4 5 6
+       for order in 1 2 5
         do
           if [ $order -ge $gorder ]
           then

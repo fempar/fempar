@@ -82,10 +82,10 @@ subroutine interpolation_copy(this, source_interpolation)
 
   call this%clone(source_interpolation)
 
-  this%shape_functions(:,:,:) = source_interpolation%shape_functions(:,:,:)
-  this%shape_derivatives(:,:,:,:) = source_interpolation%shape_derivatives(:,:,:,:)
+  this%shape_functions = source_interpolation%shape_functions
+  this%shape_derivatives = source_interpolation%shape_derivatives
   if ( allocated(source_interpolation%hessian) ) then
-				this%hessian(:,:,:,:) = source_interpolation%hessian(:,:,:,:)
+				this%hessian = source_interpolation%hessian
   end if
 
 end subroutine interpolation_copy

@@ -124,7 +124,7 @@ program test_triangulations
   call cli%get(switch='-pr' ,val=prefix      ,error=istat); check(istat==0)
   call cli%get(switch='-o'  ,val=order       ,error=istat); check(istat==0)
 
-  call triangulation%create(dir_path,prefix,order)
+  !call triangulation%create(dir_path,prefix,order)
 
   !call cli%get(switch='-out',val=dir_path_out,error=istat); check(istat==0)
   !call mesh_read (dir_path, prefix, p_env, p_mesh)
