@@ -812,7 +812,7 @@ contains
   ! Blending function to generate interpolations in the interior (given values on the boundary)
   procedure(blending_interface), deferred :: blending
 
-  procedure :: create  => lagrangian_reference_fe_create
+  procedure :: create                    => lagrangian_reference_fe_create
   procedure :: fill_scalar               => lagrangian_reference_fe_fill_scalar
   procedure :: create_quadrature         => lagrangian_reference_fe_create_quadrature
   procedure :: create_face_quadrature    => lagrangian_reference_fe_create_face_quadrature
@@ -948,6 +948,7 @@ procedure :: get_divergence_vector     => raviart_thomas_get_divergence_vector
 procedure :: get_curl_vector           => raviart_thomas_get_curl_vector
 procedure :: create_nodal_quadrature   => raviart_thomas_create_nodal_quadrature
 procedure :: create_interpolation      => raviart_thomas_create_interpolation
+procedure :: create_face_interpolation => raviart_thomas_create_face_interpolation
 procedure :: evaluate_fe_function_scalar          &
     & => raviart_thomas_evaluate_fe_function_scalar
 procedure :: evaluate_fe_function_vector          & 
@@ -964,6 +965,8 @@ procedure, private :: fill_nodal_quadrature &
     & => raviart_thomas_fill_nodal_quadrature
 procedure, private :: invert_change_basis_matrix &
     & => raviart_thomas_invert_change_basis_matrix
+procedure, private :: apply_change_basis_matrix_to_interpolation &
+    & => raviart_thomas_apply_change_basis_matrix_to_interpolation 
     
 end type raviart_thomas_reference_fe_t 
 
@@ -1244,7 +1247,8 @@ procedure, non_overridable :: create            => face_integrator_create
 procedure, non_overridable :: update            => face_integrator_update
 procedure, non_overridable :: free              => face_integrator_free
 procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
-generic                    :: get_value         => get_value_scalar
+procedure, non_overridable :: get_value_vector  => face_integrator_get_value_vector
+generic                    :: get_value         => get_value_scalar, get_value_vector
 procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
 generic                    :: get_gradient => get_gradient_scalar
 procedure, non_overridable :: get_current_qpoints_perm => face_integrator_get_current_qpoints_perm
