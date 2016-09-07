@@ -70,7 +70,7 @@ contains
     class(pressure_boundary_function_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    result = 1.0_rp
+    result = point%get(1) + point%get(2)
   end subroutine pressure_boundary_function_get_value_space
   
   !===============================================================================================

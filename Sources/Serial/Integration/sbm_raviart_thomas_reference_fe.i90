@@ -584,7 +584,7 @@ subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
   real(rp), allocatable :: wmat1(:,:,:)
   real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
   integer(ip) :: ndime,nnode,nlocs,ntens
-  integer(ip) :: ilocs,inode,idime,jdime
+  integer(ip) :: ilocs,inode,idime,jdime,kdime
 
   ndime = ref%number_dimensions
   ntens = ref%number_entries_symmetric_tensor
@@ -593,13 +593,15 @@ subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
   nnode = size(ref%shape_functions,2)
 
   ! @sbadia: put Piola here
-  !phy%shape_derivatives=0.0_rp
+  phy%shape_derivatives=0.0_rp
   do ilocs=1,phy%number_quadrature_points
      do inode=1,this%number_shape_functions
         do idime=1,this%number_dimensions
            do jdime=1,this%number_dimensions
-              !phy%shape_derivatives(idime,jdime,inode,ilocs) = phy%shape_derivatives(idime,jdime,inode,ilocs) &
-              !     + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(idime,jdime,inode,ilocs)
+             do kdime=1,this%number_dimensions
+               phy%shape_derivatives(idime,jdime,inode,ilocs) = phy%shape_derivatives(idime,jdime,inode,ilocs) &
+                    + map%inv_jacobian(kdime,jdime,ilocs)*ref%shape_derivatives(idime,kdime,inode,ilocs)
+             end do
            end do
         end do
      end do

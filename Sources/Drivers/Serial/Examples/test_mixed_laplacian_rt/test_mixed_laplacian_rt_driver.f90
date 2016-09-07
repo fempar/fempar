@@ -58,8 +58,8 @@ module test_mixed_laplacian_rt_driver_names
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)                  :: fe_affine_operator
 
-     ! Iterative linear solvers data type
-     type(iterative_linear_solver_t)             :: iterative_linear_solver
+     ! Direct solvers data type
+     type(direct_solver_t)                       :: direct_solver
 
      ! Poisson problem solution FE function
      type(fe_function_t)                         :: solution
@@ -152,9 +152,28 @@ contains
     integer               :: FPLError
     type(parameterlist_t) :: parameter_list
     integer               :: iparm(64)
-    !call this%iterative_linear_solver%create(this%fe_space%get_environment())
-    !call this%iterative_linear_solver%set_type_from_string(cg_name)
-    !call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator)  
+    class(matrix_t), pointer       :: matrix
+    
+    call parameter_list%init()
+    FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uss)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
+    iparm = 0
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
+    assert(FPLError == 0)
+    
+    call this%direct_solver%set_type_from_pl(parameter_list)
+    call this%direct_solver%set_parameters_from_pl(parameter_list)
+    
+    matrix => this%fe_affine_operator%get_matrix()
+    select type(matrix)
+    class is (sparse_matrix_t)  
+       call this%direct_solver%set_matrix(matrix)
+    class DEFAULT
+       assert(.false.) 
+    end select
+    
+    call parameter_list%free()
   end subroutine setup_solver
 
   subroutine assemble_system (this)
@@ -179,17 +198,24 @@ contains
     class(matrix_t), pointer       :: matrix
     class(vector_t), pointer       :: rhs
     class(vector_t), pointer       :: dof_values
-    !matrix     => this%fe_affine_operator%get_matrix()
-    !rhs        => this%fe_affine_operator%get_translation()
-    !dof_values => this%solution%get_dof_values()
-    !call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-    !     dof_values)
-    !select type(dof_values)
-    !   class is (serial_scalar_array_t)  
-    !   call dof_values%print(6) 
-    !   class DEFAULT
-    !   assert(.false.) 
-    !end select
+    matrix     => this%fe_affine_operator%get_matrix()
+    rhs        => this%fe_affine_operator%get_translation()
+    dof_values => this%solution%get_dof_values()
+    call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
+    
+    select type (rhs)
+    class is (serial_scalar_array_t)  
+       call rhs%print(6)
+    class DEFAULT
+       assert(.false.) 
+    end select
+    
+    select type (dof_values)
+    class is (serial_scalar_array_t)  
+       call dof_values%print(6)
+    class DEFAULT
+       assert(.false.) 
+    end select
   end subroutine solve_system
   
   subroutine print_error_norms(this)
@@ -235,7 +261,7 @@ contains
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     call this%solution%free()
-    call this%iterative_linear_solver%free()
+    call this%direct_solver%free()
     call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then

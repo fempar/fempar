@@ -162,7 +162,7 @@ contains
             call vol_int_velocity%get_divergence(idof, qpoint, div_velocity_shape_test)
             do jdof=1, num_dofs_per_field(2)
               call vol_int_pressure%get_value(jdof, qpoint, pressure_shape_trial)
-              elmat(idof,jdof+num_dofs_per_field(2)) = elmat(idof,jdof+num_dofs_per_field(2)) &
+              elmat(idof,jdof+num_dofs_per_field(1)) = elmat(idof,jdof+num_dofs_per_field(1)) &
                                                      - div_velocity_shape_test*pressure_shape_trial*factor
             end do
           end do
@@ -206,21 +206,23 @@ contains
     face_map           => fe_face%get_face_map()
     face_int_velocity  => fe_face%get_face_integrator(1)
     
+    elmat = 0.0_rp
     call memalloc ( num_quad_points, pressure_boundary_function_values, __FILE__, __LINE__ )
     do while ( .not. fe_face_iterator%has_finished() )
-       elvec = 0.0_rp
        call fe_face_iterator%current(fe_face)
        
        if ( fe_face%is_at_boundary() ) then
          !assert( fe_face%get_set_id() == 1 )
+         elvec = 0.0_rp
          call fe_face%update_integration() 
          quad_coords => face_map%get_quadrature_coordinates()
+         call this%pressure_boundary_function%get_values_set(quad_coords, pressure_boundary_function_values)
          do qpoint = 1, num_quad_points
             factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call face_map%get_normals(qpoint,normals)
             do idof = 1, num_dofs_per_field(1)
               call face_int_velocity%get_value(idof,qpoint,1,velocity_shape_test)
-              elvec(idof) = elvec(idof) + &
+              elvec(idof) = elvec(idof) - &
                               pressure_boundary_function_values(qpoint)*velocity_shape_test*normals(1)*factor
             end do   
          end do
