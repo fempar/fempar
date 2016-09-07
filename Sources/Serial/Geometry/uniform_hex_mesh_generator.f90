@@ -662,7 +662,7 @@ contains
                    index = ibset( index, input_data%number_of_dimensions + idime ) ! Fix this coordinate
                 end if
              end do
-             boundary_id(iface_of_itype) = index
+             boundary_id(iface_of_itype) = polytope_tree%get_ijk_to_index(index)
           end do
        end if
     end do
