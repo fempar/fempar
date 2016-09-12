@@ -199,12 +199,6 @@ end subroutine polynomial_generate_basis
     ! Can we make it more efficient having an array of points
     do i = 1,this%number_dimensions
        do j = 1,size(this%polynomial_1D_basis(i)%polynomials)
-          ! associate NOT supported by GNUFortran Compiler, internal compiler error
-          !associate (poly => this%polynomial_1D_basis(i)%polynomials(j))
-          !  do q = 1,n_q_points
-          !     call poly%get_values(points(:,q),this%work_shape_data(i)%a(:,j,q))
-          !  end do
-          !end associate
             do q = 1,n_q_points
                call this%polynomial_1D_basis(i)%polynomials(j)%get_values(points(i,q),this%work_shape_data(i)%a(:,j,q))
             end do
@@ -264,12 +258,17 @@ end subroutine polynomial_generate_basis
    class(polynomial_allocatable_array_t), intent(inout) :: lhs
    type(polynomial_allocatable_array_t),  intent(in)    :: rhs
    integer(ip)                                          :: idx
+   type(polynomial_t)                                   :: mold_polynomial
    call lhs%free()
    if(allocated(rhs%polynomials)) then
-      call lhs%create(size(rhs%polynomials), rhs%polynomials(1))
-      do idx=1, size(rhs%polynomials)
-         call lhs%polynomials(idx)%copy(rhs%polynomials(idx))
-      enddo
+      if (size(rhs%polynomials) > 0) then
+         call lhs%create(size(rhs%polynomials), rhs%polynomials(1))
+         do idx=1, size(rhs%polynomials)
+           call lhs%polynomials(idx)%copy(rhs%polynomials(idx))
+         enddo   
+      else
+         call lhs%create(0, mold_polynomial)
+      end if
    endif
   end subroutine polynomial_allocatable_array_copy
   

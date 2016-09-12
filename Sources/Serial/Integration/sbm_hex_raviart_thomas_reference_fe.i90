@@ -862,6 +862,9 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
         !!                 triangulation.
         !!!!!!!!!!!
         normal = (-1.0_rp)**(this%orientation%a(facet_id)) * normal
+        do i=1, SPACE_DIM
+          call normal%set(i, abs(normal%get(i)))
+        end do
         
         do ishape=1, d_1_interpolation%number_shape_functions
            call d_1_fe%get_value(d_1_interpolation, ishape, qpoint, shape_test)

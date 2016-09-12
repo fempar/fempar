@@ -139,7 +139,8 @@ subroutine raviart_thomas_free ( this )
   
   ! Free member variables of raviart_thomas_reference_fe_t
   if ( allocated(this%change_basis_matrix) ) &
-     call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )  
+     call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
+     
   this%basis_changed = .false. 
   do i=1, size(this%node_array_vector)
     call this%node_array_vector(i)%free()
@@ -451,7 +452,7 @@ subroutine raviart_thomas_get_divergence_vector( this, actual_cell_interpolation
 
   scalar_field = 0.0_rp
   do idime = 1, this%number_dimensions
-     scalar_field = actual_cell_interpolation%shape_derivatives(idime,idime,ishape,qpoint)
+     scalar_field = scalar_field + actual_cell_interpolation%shape_derivatives(idime,idime,ishape,qpoint)
   end do
 
 end subroutine raviart_thomas_get_divergence_vector
@@ -613,7 +614,7 @@ subroutine raviart_thomas_invert_change_basis_matrix(this)
   class(raviart_thomas_reference_fe_t), intent(inout) :: this 
   integer(ip) :: error
   integer(ip), allocatable :: ipiv(:)
-  real(rp), allocatable :: inverse_change_basis_matrix(:,:)
+  real(rp), allocatable :: inverse_change_basis_matrix(:,:)  
   integer(ip) :: i
   
   assert ( allocated(this%change_basis_matrix) )
@@ -625,11 +626,11 @@ subroutine raviart_thomas_invert_change_basis_matrix(this)
 #ifdef ENABLE_LAPACK
   call memalloc ( this%number_shape_functions, ipiv, __FILE__,__LINE__ )
    
-  call memalloc ( this%number_shape_functions, &
+  call memalloc ( this%number_shape_functions, & 
                   this%number_shape_functions, &
                   inverse_change_basis_matrix, &
-                  __FILE__,__LINE__ )
-   
+                   __FILE__,__LINE__ )
+
   call DGETRF( this%number_shape_functions, & 
                this%number_shape_functions, &
                this%change_basis_matrix, &
@@ -642,7 +643,7 @@ subroutine raviart_thomas_invert_change_basis_matrix(this)
   do i=1, this%number_shape_functions
     inverse_change_basis_matrix(i,i) = 1.0_rp
   end do  
-   
+ 
   call DGETRS( 'N', & 
                this%number_shape_functions, &
                this%number_shape_functions, &
@@ -653,10 +654,13 @@ subroutine raviart_thomas_invert_change_basis_matrix(this)
                this%number_shape_functions, &
                error )
   check ( error == 0 )
-  call memfree ( ipiv, __FILE__,__LINE__ )
   
-  call memmovealloc(inverse_change_basis_matrix, &
-                    this%change_basis_matrix, __FILE__, __LINE__ )
+  
+ call memmovealloc(inverse_change_basis_matrix, &
+                   this%change_basis_matrix, __FILE__, __LINE__ )
+
+  
+  call memfree ( ipiv, __FILE__,__LINE__ )
 #else
   write (0,*) 'Error: reference_fe.f90 was not compiled with -DENABLE_LAPACK.'
   write (0,*) 'Error: You must activate this cpp macro in order to use the LAPACK'
@@ -666,7 +670,39 @@ subroutine raviart_thomas_invert_change_basis_matrix(this)
 end subroutine raviart_thomas_invert_change_basis_matrix
 
 
-subroutine raviart_thomas_apply_change_basis_matrix_to_interpolation(this, interpolation_pre_basis, interpolation)
+subroutine rt_apply_change_basis_matrix_to_nodal_values ( this, nodal_values_rt, nodal_values_pre_basis )
+  implicit none
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  real(rp)                            , intent(in)    :: nodal_values_rt(:)
+  real(rp)                            , intent(out)   :: nodal_values_pre_basis(:)
+
+  assert ( size(nodal_values_rt) == size(nodal_values_pre_basis) )
+  assert ( size(nodal_values_rt) == this%number_shape_functions )
+  
+  nodal_values_pre_basis = 0.0_rp
+  
+#ifdef ENABLE_BLAS
+  call DGEMV( 'N', & 
+              this%number_shape_functions, &
+              this%number_shape_functions, &
+              1.0_rp, &
+              this%change_basis_matrix, &
+              this%number_shape_functions, &
+              nodal_values_rt, &
+              1, &
+              0.0_rp, & 
+              nodal_values_pre_basis, & 
+              1)
+#else
+  write (0,*) 'Error: reference_fe.f90 was not compiled with -DENABLE_BLAS.'
+  write (0,*) 'Error: You must activate this cpp macro in order to use the BLAS'
+  check(.false.)
+#endif 
+  
+end subroutine  rt_apply_change_basis_matrix_to_nodal_values 
+  
+
+subroutine rt_apply_change_basis_matrix_to_interpolation(this, interpolation_pre_basis, interpolation)
   implicit none
   class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)               , intent(in)    :: interpolation_pre_basis
@@ -684,7 +720,7 @@ subroutine raviart_thomas_apply_change_basis_matrix_to_interpolation(this, inter
         do j=1, this%number_shape_functions
            do idime=1, this%number_dimensions
               interpolation%shape_functions(idime, i, qpoint) = interpolation%shape_functions(idime, i, qpoint) + &
-                   this%change_basis_matrix(i,j) * interpolation_pre_basis%shape_functions(idime, j, qpoint)
+                   this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_functions(idime, j, qpoint)
            end do
         end do
      end do
@@ -697,10 +733,10 @@ subroutine raviart_thomas_apply_change_basis_matrix_to_interpolation(this, inter
            do idime=1, this%number_dimensions
               do jdime=1, this%number_dimensions
                  interpolation%shape_derivatives(idime, jdime, i, qpoint) = interpolation%shape_derivatives(idime, jdime, i, qpoint) + &
-                      this%change_basis_matrix(i,j) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
+                      this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
               end do
            end do
         end do
      end do
   end do
-end subroutine raviart_thomas_apply_change_basis_matrix_to_interpolation
+end subroutine rt_apply_change_basis_matrix_to_interpolation

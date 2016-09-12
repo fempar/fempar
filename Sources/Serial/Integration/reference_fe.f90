@@ -34,8 +34,13 @@ module reference_fe_names
   use memor_names
   use sort_names
   use polynomial_names
+  
+#ifdef ENABLE_BLAS
+ use blas77_interfaces_names
+#endif
+  
 #ifdef ENABLE_LAPACK   
-  use lapack77_interfaces_names
+ use lapack77_interfaces_names
 #endif  
   
   
@@ -965,8 +970,9 @@ procedure, private :: fill_nodal_quadrature &
 procedure, private :: invert_change_basis_matrix &
     & => raviart_thomas_invert_change_basis_matrix
 procedure, private :: apply_change_basis_matrix_to_interpolation &
-    & => raviart_thomas_apply_change_basis_matrix_to_interpolation 
-    
+    & => rt_apply_change_basis_matrix_to_interpolation 
+procedure          :: apply_change_basis_matrix_to_nodal_values &
+    & => rt_apply_change_basis_matrix_to_nodal_values
 end type raviart_thomas_reference_fe_t 
 
 abstract interface
