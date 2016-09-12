@@ -1671,7 +1671,7 @@ contains
 
         total_rows = this%get_num_rows()
         total_cols = this%get_num_cols()
-        assert(num_row>0 .and. num_row<total_rows .and. num_col>0 .and. num_col<total_cols)
+        assert(num_row>=0 .and. num_row<total_rows .and. num_col>=0 .and. num_col<total_cols)
 
         call A_II%set_num_rows(num_row); call A_II%set_num_cols(num_col)
         call A_IG%set_num_rows(num_row); call A_IG%set_num_cols(total_cols-num_col)
