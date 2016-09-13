@@ -27,7 +27,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_mixed_laplacian_rt_driver_names
   use serial_names
-!  use error_norms_names
   use mixed_laplacian_rt_params_names
   use mixed_laplacian_rt_analytical_functions_names
   use mixed_laplacian_rt_discrete_integration_names
@@ -146,9 +145,9 @@ contains
     call this%mixed_laplacian_rt_integration%set_pressure_source_term(this%problem_functions%get_pressure_source_term())
     call this%mixed_laplacian_rt_integration%set_pressure_boundary_function(this%problem_functions%get_pressure_boundary_function())
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .true.  ], &
-                                          diagonal_blocks_symmetric         = [ .true. ], &
-                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_INDEFINITE ], &
+                                          diagonal_blocks_symmetric_storage = [ .false.  ], &
+                                          diagonal_blocks_symmetric         = [ .false. ], &
+                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_UNKNOWN ], &
                                           fe_space                          = this%fe_space,           &
                                           discrete_integration              = this%mixed_laplacian_rt_integration )
   end subroutine setup_system
@@ -164,7 +163,7 @@ contains
     call parameter_list%init()
 #ifdef ENABLE_MKL    
     FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
-    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_sin)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
@@ -181,11 +180,11 @@ contains
        assert(.false.) 
     end select
 #else
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-10_rp)
     FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
-    call this%iterative_linear_solver%set_type_from_string(cg_name)
+    call this%iterative_linear_solver%set_type_from_string(minres_name)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
 #endif    
@@ -270,7 +269,7 @@ contains
 #ifdef ENABLE_MKL    
     error_tolerance = 1.0e-04
 #else
-    error_tolerance = 1.0e-04
+    error_tolerance = 1.0e-02
 #endif    
     
     write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
