@@ -113,8 +113,8 @@ end subroutine fe_map_create_on_face
 subroutine fe_map_create_face_map(this,quadrature,reference_fe_geo )
   implicit none
   ! Parameters
-  class(fe_map_t)       , intent(inout) :: this
-  type(quadrature_t) , intent(in)    :: quadrature
+  class(fe_map_t)                  , intent(inout) :: this
+  type(quadrature_t)               , intent(in)    :: quadrature
   class(lagrangian_reference_fe_t) , intent(in)    :: reference_fe_geo
 
   integer(ip)           :: number_face_dimensions
@@ -127,7 +127,7 @@ subroutine fe_map_create_face_map(this,quadrature,reference_fe_geo )
   this%number_quadrature_points = quadrature%number_quadrature_points
   number_face_dimensions        = reference_fe_geo%number_dimensions - 1
 
-  call reference_fe_geo%create_face_local_interpolation                                      &
+  call reference_fe_geo%create_face_local_interpolation &
        &                ( quadrature, this%interpolation_geometry)
 
   call memalloc(this%number_dimensions, &
@@ -151,6 +151,49 @@ subroutine fe_map_create_face_map(this,quadrature,reference_fe_geo )
 
   this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
 end subroutine fe_map_create_face_map
+
+!==================================================================================================
+subroutine fe_map_create_edge_map(this, quadrature, reference_fe_geo)
+  implicit none
+  ! Parameters
+  class(fe_map_t)                  , intent(inout) :: this
+  type(quadrature_t)               , intent(in)    :: quadrature
+  class(lagrangian_reference_fe_t) , intent(in)    :: reference_fe_geo
+
+  integer(ip)           :: number_edge_dimensions
+  integer(ip)           :: number_vertices_face
+  integer(ip)           :: istat
+  integer(ip)           :: number_dofs_on_edge
+  
+  call this%free()
+  this%number_dimensions        = reference_fe_geo%number_dimensions
+  this%number_quadrature_points = quadrature%number_quadrature_points
+  number_edge_dimensions        = 1
+
+  call reference_fe_geo%create_edge_local_interpolation &
+       &                ( quadrature, this%interpolation_geometry)
+
+  call memalloc(this%number_dimensions, &
+                number_edge_dimensions, &
+                this%number_quadrature_points, &
+                this%jacobian,__FILE__,__LINE__)
+
+  call memalloc(this%number_quadrature_points, &
+       this%det_jacobian,__FILE__,__LINE__)
+
+  call memalloc(this%number_dimensions, &
+                this%number_quadrature_points, &
+                this%normals,__FILE__,__LINE__)
+
+  allocate(this%coordinates_quadrature(this%number_quadrature_points), stat=istat)
+  check(istat==0)
+
+  number_dofs_on_edge = reference_fe_geo%get_number_dofs_on_n_face(reference_fe_geo%get_first_n_face_id_of_dimension(1))
+  allocate(this%coordinates_nodes(number_dofs_on_edge), stat=istat)
+  check(istat==0)
+
+  this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
+end subroutine fe_map_create_edge_map
 
 !==================================================================================================
 subroutine fe_map_update( this, quadrature)
@@ -179,8 +222,6 @@ subroutine fe_map_update( this, quadrature)
   ndime = this%interpolation_geometry%number_dimensions
   nnode = size(this%interpolation_geometry%shape_functions,2)
   nlocs = this%interpolation_geometry%number_quadrature_points
-
-
 
   do ilocs=1,nlocs
      ! Matmul is not thread safe
@@ -319,6 +360,72 @@ subroutine fe_map_update_face_map(this,local_face_id,reference_fe,quadrature)
           &                      real(reorientation_factor)/this%det_jacobian(evaluation_point_id) 
   end do
 end subroutine fe_map_update_face_map
+
+!==================================================================================================
+subroutine fe_map_update_edge_map(this,local_edge_id,reference_fe,quadrature)
+  implicit none    
+  class(fe_map_t)      , intent(inout) :: this
+  integer(ip)          , intent(in)    :: local_edge_id
+  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe
+  type(quadrature_t), intent(in)    :: quadrature
+
+  integer(ip) :: evaluation_point_id, node_id, idime, jdime, local_vef_id,  reorientation_factor
+  integer(ip) :: number_edge_dimensions, number_elem_dimensions, orientation_edge
+  type(vector_field_t) :: aux_vector
+
+  number_edge_dimensions = 1
+  number_elem_dimensions = reference_fe%number_dimensions
+  local_vef_id = reference_fe%get_first_n_face_id_of_dimension(1) + local_edge_id - 1
+  orientation_edge  = reference_fe%orientation%a(local_vef_id)
+  reorientation_factor = (-1)**orientation_edge
+  ! See comment in facet_orientation (polytope module) about the reasoning behind this
+  call this%compute_quadrature_coordinates()
+  ! Initialize values
+  this%jacobian           = 0.0_rp
+  do evaluation_point_id = 1, quadrature%number_quadrature_points
+
+     ! Updating the Jacobian Matrix
+     do jdime=1, number_edge_dimensions
+        aux_vector = 0.0_rp
+        do node_id = 1, this%interpolation_geometry%number_shape_functions
+           aux_vector = aux_vector + this%coordinates_nodes(node_id) * &
+                & this%interpolation_geometry%shape_derivatives(1,jdime,node_id,evaluation_point_id)
+             ! BE CAREFUL (@sbadia): Here we make explicit use of shape_functions being Lagrangian-type
+        end do
+        do idime=1,number_elem_dimensions
+           this%jacobian(idime,jdime,evaluation_point_id) = aux_vector%get(idime)
+        end do
+
+     end do
+     ! Compute outside normals (using the jacobian Matrix)
+     if ( number_elem_dimensions == 1) then
+        ! -1 and 1
+        this%normals(1,evaluation_point_id) = -1.0_rp**(real(local_edge_id))
+     elseif ( number_elem_dimensions == 2) then
+        ! dx x e_z = ( dx/dX, dx/dY, 0) x (0,0,1) = ( dx/dY, -dx/dX, 0)
+        ! (normal component up to correction by orientation)
+        this%normals (1,evaluation_point_id) = this%jacobian(2,1,evaluation_point_id)
+        this%normals (2,evaluation_point_id) = -this%jacobian(1,1,evaluation_point_id)
+     elseif ( number_elem_dimensions == 3) then
+        ! dx x dy = (normal component up to correction by orientation)
+        ! = (dx/dX, dx/dY, dx/dZ) x ( dy/dX, dy/dY, dy/dZ)
+        call vecpro(this%jacobian(:,1,evaluation_point_id),this%jacobian(:,2,evaluation_point_id),&
+             &                    this%normals(:,evaluation_point_id),3)
+     end if
+
+     ! Compute the measure of the face (= norm of the outside normal)
+     this%det_jacobian(evaluation_point_id) =                                                     &
+          &                         sqrt(dot_product(this%normals(:,evaluation_point_id),         &
+          &                                          this%normals(:,evaluation_point_id)))
+
+     ! Normalize the normal vector and make it point in the correct direction
+     this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *                &
+          &                      real(reorientation_factor)/this%det_jacobian(evaluation_point_id) 
+  end do
+end subroutine fe_map_update_edge_map
+
+
+
 
 !==================================================================================================
 subroutine fe_map_free( this )
