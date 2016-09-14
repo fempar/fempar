@@ -34,6 +34,7 @@ module pardiso_mkl_direct_solver_names
     USE types_names
     USE memor_names
     USE sparse_matrix_names
+    USE sparse_matrix_parameters_names
     USE base_sparse_matrix_names, only: base_sparse_matrix_t
     USE csr_sparse_matrix_names, only: csr_sparse_matrix_t
     USE serial_scalar_array_names
@@ -262,7 +263,8 @@ contains
         class(base_sparse_matrix_t), pointer              :: matrix
         integer                                           :: error
         integer, target                                   :: idum(1)
-        real(dp)                                          :: ddum(1)
+        real(dp), target                                  :: ddum(1)
+        real(rp), pointer                                 :: val(:)
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
 !        print*, '(1) --> symbolic_setup'
@@ -270,8 +272,15 @@ contains
         matrix                   => this%matrix%get_pointer_to_base_matrix()
         if(.not. this%forced_matrix_type) call this%set_matrix_type_from_matrix()
 
+        assert (matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED)
         select type (matrix)
             type is (csr_sparse_matrix_t)
+                if ( matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED ) then
+                  val => matrix%val
+                else
+                  val => ddum
+                end if  
+            
                 ! Reordering and symbolic factorization, this step also allocates 
                 ! all memory that is necessary for the factorization
                 call pardiso(pt     = this%pardiso_mkl_pt,         & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
@@ -280,7 +289,7 @@ contains
                              mtype  = this%matrix_type,            & !< Defines the matrix type, which influences the pivoting method
                              phase  = this%phase,                  & !< Controls the execution of the solver (11 == Analysis)
                              n      = this%matrix%get_num_rows(),  & !< Number of equations in the sparse linear systems of equations
-                             a      = ddum,                        & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
+                             a      = val,                         & !< Contains the non-zero elements of the coefficient matrix A corresponding to the indices in ja
                              ia     = matrix%irp,                  & !< Pointers to columns in CSR format
                              ja     = matrix%ja,                   & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
@@ -323,7 +332,8 @@ contains
         ! Factorization.
         this%phase = 22 ! only numerical factorization
         matrix => this%matrix%get_pointer_to_base_matrix()
-
+        
+        assert (matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED)
         select type (matrix)
             type is (csr_sparse_matrix_t)
                 ! Reordering and symbolic factorization, this step also allocates 

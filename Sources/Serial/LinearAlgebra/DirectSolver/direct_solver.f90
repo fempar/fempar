@@ -101,7 +101,7 @@ contains
         class(direct_solver_t), intent(inout) :: this
         type(ParameterList_t),  intent(in)    :: parameter_list
         character(len=:), allocatable         :: name
-        integer(I4P)                          :: DataSizeInBytes
+        integer                               :: DataSizeInBytes
         integer                               :: FPLError
 #ifdef DEBUG
         logical                               :: is_present

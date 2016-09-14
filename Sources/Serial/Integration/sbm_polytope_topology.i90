@@ -282,6 +282,15 @@ function polytope_tree_get_number_n_faces(this)
 end function polytope_tree_get_number_n_faces
 
 !=================================================================================================
+function polytope_tree_get_ijk_to_index(this,ijk) 
+  implicit none
+  class(polytope_tree_t), intent(in) :: this
+  integer(ip)           , intent(in) :: ijk
+  integer(ip)                        :: polytope_tree_get_ijk_to_index
+  polytope_tree_get_ijk_to_index = this%ijk_to_index(ijk)
+end function polytope_tree_get_ijk_to_index
+
+!=================================================================================================
 function polytope_tree_get_n_face(this, n_face_index) 
   implicit none
   class(polytope_tree_t), intent(in) :: this
@@ -553,26 +562,29 @@ subroutine node_iterator_create ( this, node_array, n_face, own_boundary )
   type(node_array_t), target               , intent(in)    :: node_array
   integer(ip)                       , intent(in)    :: n_face
   logical                           , intent(in)    :: own_boundary
-  integer(ip) :: c, i
+  integer(ip) :: c, i, aux_order(SPACE_DIM)
   this%node_array => node_array
   this%topology = 0
   this%n_face = n_face
   this%own_boundary = own_boundary
-  if ( own_boundary) then
-     this%max_value = node_array%order
-     this%min_value = 0
-  else
-     this%max_value = node_array%order-1
-     this%min_value = 1
-  end if
   ! Restrict the topology of the polytope_tree to the current n-face
   c = 0
+  aux_order = 0
   do i = 0, node_array%polytope_tree%number_dimensions-1
      if ( IBITS( this%n_face, node_array%polytope_tree%number_dimensions+i, 1 ) == 1 ) then 
+        aux_order(c+1) = node_array%order(i+1)
         if ( IBITS( this%node_array%polytope_tree%topology, i, 1 ) == 1 ) this%topology = IBSET( this%topology, c )
         c = c+1
      end if
   end do
+  if ( own_boundary) then
+     this%max_value = aux_order
+     this%min_value = 0
+  else
+     this%max_value = aux_order-1
+     this%min_value = 1
+  end if
+
   call this%init()
 end subroutine node_iterator_create
 

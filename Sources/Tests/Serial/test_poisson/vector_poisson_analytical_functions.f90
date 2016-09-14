@@ -102,9 +102,9 @@ contains
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
     if ( this%num_dimensions == 2 ) then
-      result = point%get(1)+point%get(2) !sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1)
+      result = point%get(1) !+point%get(2) !sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1)
     else
-      result = point%get(1)+point%get(2)+point%get(3)
+      result = point%get(1) !+point%get(2)+point%get(3)
     end if  
   end subroutine boundary_function_get_value_space
 
@@ -115,12 +115,12 @@ contains
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
     if ( this%num_dimensions == 2 ) then
-      call result%set(1, point%get(1)+point%get(2) ) 
-      call result%set(2, point%get(1)+point%get(2) ) 
+      call result%set(1, point%get(1)) ! +point%get(2) ) 
+      call result%set(2, point%get(1)) ! +point%get(2) ) 
     else
-      call result%set(1, point%get(1)+point%get(2)+point%get(3) ) 
-      call result%set(2, point%get(1)+point%get(2)+point%get(3) ) 
-      call result%set(3, point%get(1)+point%get(2)+point%get(3) ) 
+      call result%set(1, point%get(1)) !+point%get(2)+point%get(3) ) 
+      call result%set(2, point%get(1)) !+point%get(2)+point%get(3) ) 
+      call result%set(3, point%get(1)) !+point%get(2)+point%get(3) ) 
     end if
   end subroutine solution_function_get_value_space
   
@@ -130,13 +130,29 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(tensor_field_t)      , intent(inout) :: result
+    !if ( this%num_dimensions == 2 ) then
+    !  call result%set( 1, 1, 1.0_rp ) 
+    !  call result%set( 2, 1, 1.0_rp )
+    !  call result%set( 1, 2, 1.0_rp ) 
+    !  call result%set( 2, 2, 1.0_rp )
+    !else
+    !  call result%init(1.0_rp)
+    !end if
     if ( this%num_dimensions == 2 ) then
       call result%set( 1, 1, 1.0_rp ) 
-      call result%set( 2, 1, 1.0_rp )
+      call result%set( 2, 1, 0.0_rp )
       call result%set( 1, 2, 1.0_rp ) 
-      call result%set( 2, 2, 1.0_rp )
+      call result%set( 2, 2, 0.0_rp )
     else
-      call result%init(1.0_rp)
+      call result%set( 1, 1, 1.0_rp ) 
+      call result%set( 2, 1, 0.0_rp )
+      call result%set( 3, 1, 0.0_rp )
+      call result%set( 1, 2, 1.0_rp ) 
+      call result%set( 2, 2, 0.0_rp )
+      call result%set( 3, 2, 0.0_rp )
+      call result%set( 1, 3, 1.0_rp ) 
+      call result%set( 2, 3, 0.0_rp )
+      call result%set( 3, 3, 0.0_rp )
     end if
   end subroutine solution_function_get_gradient_space
   

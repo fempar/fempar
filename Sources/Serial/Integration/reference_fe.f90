@@ -34,6 +34,16 @@ module reference_fe_names
   use memor_names
   use sort_names
   use polynomial_names
+  
+#ifdef ENABLE_BLAS
+ use blas77_interfaces_names
+#endif
+  
+#ifdef ENABLE_LAPACK   
+ use lapack77_interfaces_names
+#endif  
+  
+  
   implicit none
 # include "debug.i90"
 
@@ -108,6 +118,7 @@ module reference_fe_names
      procedure, non_overridable :: create => interpolation_create
      procedure, non_overridable :: free   => interpolation_free
      procedure, non_overridable :: copy   => interpolation_copy
+     procedure, non_overridable :: clone  => interpolation_clone
      procedure, non_overridable :: print  => interpolation_print
   end type interpolation_t
 
@@ -158,9 +169,11 @@ module reference_fe_names
    contains
      procedure, non_overridable :: create                         => fe_map_create
      procedure, non_overridable :: create_on_face                 => fe_map_create_on_face
-     procedure, non_overridable :: fe_map_face_map_create         => fe_map_face_map_create
+     procedure, non_overridable :: create_face_map                => fe_map_create_face_map
+     procedure, non_overridable :: create_edge_map                => fe_map_create_edge_map
      procedure, non_overridable :: update                         => fe_map_update
-     procedure, non_overridable :: face_map_update                => fe_map_face_map_update
+     procedure, non_overridable :: update_face_map                => fe_map_update_face_map
+     procedure, non_overridable :: update_edge_map                => fe_map_update_edge_map
      procedure, non_overridable :: free                           => fe_map_free
      procedure, non_overridable :: print                          => fe_map_print
      procedure, non_overridable :: get_det_jacobian               => fe_map_get_det_jacobian
@@ -218,6 +231,7 @@ module reference_fe_names
      procedure          :: n_face_dir_coordinate    => polytope_tree_n_face_dir_coordinate
      procedure          :: n_face_coordinate        => polytope_tree_n_face_coordinate
      procedure          :: get_number_n_faces       => polytope_tree_get_number_n_faces
+     procedure          :: get_ijk_to_index         => polytope_tree_get_ijk_to_index
      procedure          :: free                     => polytope_tree_free
      procedure, private :: fill_cell_tree 
   end type polytope_tree_t
@@ -303,6 +317,8 @@ module reference_fe_names
   character(*), parameter :: topology_tet = "tet"
   character(*), parameter :: fe_type_lagrangian = "Lagrangian"
   character(*), parameter :: fe_type_raviart_thomas = "Raviart_Thomas"
+  character(*), parameter :: fe_type_nedelec = "Nedelec"
+
 
   ! Abstract reference_fe
   type, abstract ::  reference_fe_t
@@ -805,14 +821,14 @@ contains
   ! Blending function to generate interpolations in the interior (given values on the boundary)
   procedure(blending_interface), deferred :: blending
 
-  procedure :: create  => lagrangian_reference_fe_create
+  procedure :: create                    => lagrangian_reference_fe_create
   procedure :: fill_scalar               => lagrangian_reference_fe_fill_scalar
   procedure :: create_quadrature         => lagrangian_reference_fe_create_quadrature
   procedure :: create_face_quadrature    => lagrangian_reference_fe_create_face_quadrature
   procedure :: create_interpolation      => lagrangian_reference_fe_create_interpolation
   procedure :: create_face_interpolation => lagrangian_reference_fe_create_face_interpolation
-  procedure :: create_face_local_interpolation      & 
-       & => lagrangian_reference_fe_create_face_local_interpolation
+  procedure :: create_face_local_interpolation  => lagrangian_reference_fe_create_face_local_interpolation
+  procedure :: create_edge_local_interpolation  => lagrangian_reference_fe_create_edge_local_interpolation
   procedure :: update_interpolation      => lagrangian_reference_fe_update_interpolation
   procedure :: update_interpolation_face => lagrangian_reference_fe_update_interpolation_face
   procedure :: get_component_node        => lagrangian_reference_fe_get_component_node
@@ -919,9 +935,15 @@ public :: lagrangian_reference_fe_t, p_lagrangian_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, abstract, extends(lagrangian_reference_fe_t) :: raviart_thomas_reference_fe_t
 private
-type(node_array_t) :: node_array_vector(SPACE_DIM)
+type(node_array_t)    :: node_array_vector(SPACE_DIM)
+real(rp), allocatable :: change_basis_matrix(:,:)
+logical               :: basis_changed
 contains
+
+procedure (change_basis_interface), private, deferred :: change_basis
+
 procedure :: create  => raviart_thomas_create
+procedure :: free    => raviart_thomas_free
 procedure :: create_face_local_interpolation      & 
     & => raviart_thomas_create_face_local_interpolation
 procedure :: blending                     => raviart_thomas_blending
@@ -935,6 +957,7 @@ procedure :: get_divergence_vector     => raviart_thomas_get_divergence_vector
 procedure :: get_curl_vector           => raviart_thomas_get_curl_vector
 procedure :: create_nodal_quadrature   => raviart_thomas_create_nodal_quadrature
 procedure :: create_interpolation      => raviart_thomas_create_interpolation
+procedure :: create_face_interpolation => raviart_thomas_create_face_interpolation
 procedure :: evaluate_fe_function_scalar          &
     & => raviart_thomas_evaluate_fe_function_scalar
 procedure :: evaluate_fe_function_vector          & 
@@ -949,9 +972,96 @@ procedure, private :: fill_vector                         &
     & => raviart_thomas_fill_vector    
 procedure, private :: fill_nodal_quadrature &
     & => raviart_thomas_fill_nodal_quadrature
+procedure, private :: invert_change_basis_matrix &
+    & => raviart_thomas_invert_change_basis_matrix
+procedure, private :: apply_change_basis_matrix_to_interpolation &
+    & => rt_apply_change_basis_matrix_to_interpolation 
+procedure          :: apply_change_basis_matrix_to_nodal_values &
+    & => rt_apply_change_basis_matrix_to_nodal_values
 end type raviart_thomas_reference_fe_t 
 
+abstract interface
+  subroutine change_basis_interface ( this )
+    import :: raviart_thomas_reference_fe_t 
+    implicit none 
+    class(raviart_thomas_reference_fe_t), intent(inout) :: this 
+  end subroutine change_basis_interface
+end interface  
+
+
 public :: raviart_thomas_reference_fe_t  
+
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+type, abstract, extends(lagrangian_reference_fe_t) :: nedelec_reference_fe_t
+private
+type(node_array_t)    :: node_array_vector(SPACE_DIM)
+real(rp), allocatable :: change_basis_matrix(:,:)
+logical               :: basis_changed
+contains
+
+procedure (nedelec_change_basis_interface) , private, deferred :: change_basis
+procedure (nedelec_fill_edge_interpolation), private, deferred :: fill_edge_interpolation
+
+procedure :: create  => nedelec_create
+procedure :: free    => nedelec_free
+procedure :: create_face_local_interpolation      & 
+    & => nedelec_create_face_local_interpolation
+procedure :: blending                     => nedelec_blending
+procedure :: get_subelements_connectivity                                &
+    &   => nedelec_get_subelements_connectivity
+procedure :: get_value_scalar          => nedelec_get_value_scalar
+procedure :: get_value_vector          => nedelec_get_value_vector
+procedure :: get_gradient_scalar       => nedelec_get_gradient_scalar
+procedure :: get_gradient_vector       => nedelec_get_gradient_vector
+procedure :: get_divergence_vector     => nedelec_get_divergence_vector
+procedure :: get_curl_vector           => nedelec_get_curl_vector
+procedure :: create_nodal_quadrature   => nedelec_create_nodal_quadrature
+procedure :: create_interpolation      => nedelec_create_interpolation
+procedure :: create_face_interpolation => nedelec_create_face_interpolation
+procedure :: create_edge_interpolation => nedelec_create_edge_interpolation
+procedure :: create_edge_quadrature    => nedelec_create_edge_quadrature
+procedure :: evaluate_fe_function_scalar          &
+    & => nedelec_evaluate_fe_function_scalar
+procedure :: evaluate_fe_function_vector          & 
+    & => nedelec_evaluate_fe_function_vector
+procedure :: evaluate_fe_function_tensor          & 
+    & => nedelec_evaluate_fe_function_tensor
+procedure, private :: apply_femap_to_interpolation & 
+    & => nedelec_apply_femap_to_interpolation
+procedure, private :: fill                         & 
+    & => nedelec_fill
+procedure, private :: fill_vector                         & 
+    & => nedelec_fill_vector    
+procedure, private :: fill_nodal_quadrature &
+    & => nedelec_fill_nodal_quadrature
+procedure, private :: invert_change_basis_matrix &
+    & => nedelec_invert_change_basis_matrix
+procedure, private :: apply_change_basis_matrix_to_interpolation &
+    & => nedelec_apply_change_basis_matrix_to_interpolation 
+procedure          :: apply_change_basis_matrix_to_nodal_values &
+    & => nedelec_apply_change_basis_matrix_to_nodal_values
+end type nedelec_reference_fe_t 
+
+abstract interface
+  subroutine nedelec_change_basis_interface ( this )
+    import :: nedelec_reference_fe_t 
+    implicit none 
+    class(nedelec_reference_fe_t), intent(inout) :: this 
+  end subroutine nedelec_change_basis_interface
+  
+  subroutine nedelec_fill_edge_interpolation ( this, & 
+                                               local_edge_id, & 
+                                               local_quadrature, & 
+                                               edge_interpolation )
+    import :: nedelec_reference_fe_t, ip, quadrature_t, interpolation_t
+    implicit none 
+    class(nedelec_reference_fe_t), intent(in)    :: this 
+    integer(ip)                  , intent(in)    :: local_edge_id
+    type(quadrature_t)           , intent(in)    :: local_quadrature
+    type(interpolation_t)        , intent(inout) :: edge_interpolation
+  end subroutine nedelec_fill_edge_interpolation
+end interface 
 
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1042,6 +1152,8 @@ procedure, private, non_overridable :: raviart_thomas_evaluate_interpolation    
 & => tet_raviart_thomas_evaluate_interpolation
 procedure, private, non_overridable :: raviart_thomas_get_n_face_orientation               &
 & => tet_raviart_thomas_get_n_face_orientation
+procedure, private :: change_basis &
+& => tet_raviart_thomas_reference_fe_change_basis
 end type tet_raviart_thomas_reference_fe_t
 
 public :: tet_raviart_thomas_reference_fe_t
@@ -1077,7 +1189,6 @@ public :: hex_lagrangian_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(raviart_thomas_reference_fe_t) :: hex_raviart_thomas_reference_fe_t
 private
-type(hex_lagrangian_reference_fe_t) :: pre_basis_fe
 contains 
   ! Deferred TBP implementors from reference_fe_t
 procedure :: check_compatibility_of_n_faces                                 &
@@ -1090,13 +1201,48 @@ procedure, private :: fill_quadrature                                    &
 & => hex_raviart_thomas_reference_fe_fill_quadrature
 procedure, private :: fill_interpolation                                 &
 & => hex_raviart_thomas_reference_fe_fill_interpolation
+procedure, private :: fill_interpolation_pre_basis                       &
+& => hex_raviart_thomas_reference_fe_fill_interpolation_pre_basis
 procedure, private :: fill_face_interpolation                            &
 & => hex_raviart_thomas_reference_fe_fill_face_interpolation
 procedure, private :: set_number_quadrature_points                       &
 & => hex_raviart_thomas_reference_fe_set_number_quadrature_points
+procedure, private :: change_basis &
+& => hex_raviart_thomas_reference_fe_change_basis
+
 end type hex_raviart_thomas_reference_fe_t
 
 public :: hex_raviart_thomas_reference_fe_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+type, extends(nedelec_reference_fe_t) :: hex_nedelec_reference_fe_t
+private
+contains 
+  ! Deferred TBP implementors from reference_fe_t
+procedure :: check_compatibility_of_n_faces                                 &
+&   => hex_nedelec_reference_fe_check_compatibility_of_n_faces
+procedure :: get_characteristic_length                                   &
+&   => hex_nedelec_reference_fe_get_characteristic_length
+
+! Deferred TBP implementors from nedelec_reference_fe_t
+procedure, private :: fill_quadrature                                    &
+& => hex_nedelec_reference_fe_fill_quadrature
+procedure, private :: fill_interpolation                                 &
+& => hex_nedelec_reference_fe_fill_interpolation
+procedure, private :: fill_interpolation_pre_basis                       &
+& => hex_nedelec_reference_fe_fill_interpolation_pre_basis
+procedure, private :: fill_face_interpolation                            &
+& => hex_nedelec_reference_fe_fill_face_interpolation
+procedure, private :: fill_edge_interpolation                            &
+& => hex_nedelec_reference_fe_fill_edge_interpolation
+procedure, private :: set_number_quadrature_points                       &
+& => hex_nedelec_reference_fe_set_number_quadrature_points
+procedure, private :: change_basis &
+& => hex_nedelec_reference_fe_change_basis
+
+end type hex_nedelec_reference_fe_t
+
+public :: hex_nedelec_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type volume_integrator_t 
@@ -1213,7 +1359,8 @@ procedure, non_overridable :: create            => face_integrator_create
 procedure, non_overridable :: update            => face_integrator_update
 procedure, non_overridable :: free              => face_integrator_free
 procedure, non_overridable :: get_value_scalar  => face_integrator_get_value_scalar
-generic                    :: get_value         => get_value_scalar
+procedure, non_overridable :: get_value_vector  => face_integrator_get_value_vector
+generic                    :: get_value         => get_value_scalar, get_value_vector
 procedure, non_overridable :: get_gradient_scalar  => face_integrator_get_gradient_scalar
 generic                    :: get_gradient => get_gradient_scalar
 procedure, non_overridable :: get_current_qpoints_perm => face_integrator_get_current_qpoints_perm
@@ -1257,6 +1404,8 @@ contains
 
 #include "sbm_raviart_thomas_reference_fe.i90"
 
+#include "sbm_nedelec_reference_fe.i90"
+
 #include "sbm_hex_lagrangian_reference_fe.i90"
 
 #include "sbm_tet_lagrangian_reference_fe.i90"
@@ -1264,6 +1413,8 @@ contains
 #include "sbm_hex_raviart_thomas_reference_fe.i90"
 
 #include "sbm_tet_raviart_thomas_reference_fe.i90"
+
+#include "sbm_hex_nedelec_reference_fe.i90"
 
 #include "sbm_polytope_topology.i90"
 

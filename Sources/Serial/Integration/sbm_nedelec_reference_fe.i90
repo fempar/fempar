@@ -30,10 +30,10 @@
 ! Deferred TBP implementors from reference_fe_t
 !**************************************************************************************************
 !==================================================================================================
-subroutine raviart_thomas_create_interpolation ( this, quadrature, & 
-     &                                           interpolation, compute_hessian )
+subroutine nedelec_create_interpolation ( this, quadrature, & 
+     &                                    interpolation, compute_hessian )
   implicit none 
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(quadrature_t)              , intent(in)    :: quadrature
   type(interpolation_t)           , intent(inout) :: interpolation
   logical               , optional, intent(in)    :: compute_hessian
@@ -46,19 +46,19 @@ subroutine raviart_thomas_create_interpolation ( this, quadrature, &
   end do
 
   call interpolation%create( this%number_dimensions, this%number_shape_functions, &
-       quadrature%number_quadrature_points, ntens, compute_hessian )
+                             quadrature%number_quadrature_points, ntens, compute_hessian )
 
   call this%fill_interpolation( quadrature, interpolation )
 
-end subroutine raviart_thomas_create_interpolation
+end subroutine nedelec_create_interpolation
 
 !==================================================================================================
 ! This routine creates the interpolation corresponding to the evaluation of the shape functions on
 ! integration points given by local_quadrature either on the face 'local_face_id' of the element or
 ! in all the faces of the element.
-subroutine raviart_thomas_create_face_interpolation( this, local_face_id, local_quadrature, face_interpolation)
+subroutine nedelec_create_face_interpolation( this, local_face_id, local_quadrature, face_interpolation)
   implicit none 
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t)   , intent(in)    :: this 
   integer(ip)                     , intent(in)    :: local_face_id
   type(quadrature_t)              , intent(in)    :: local_quadrature
   type(interpolation_t)           , intent(inout) :: face_interpolation
@@ -74,22 +74,71 @@ subroutine raviart_thomas_create_face_interpolation( this, local_face_id, local_
                                     local_face_id, &
                                     face_interpolation)
 
-end subroutine raviart_thomas_create_face_interpolation
+end subroutine nedelec_create_face_interpolation
 
 !==================================================================================================
-subroutine raviart_thomas_create_nodal_quadrature (this)
+! This routine creates the interpolation corresponding to the evaluation of the shape functions on
+! integration points given by local_quadrature on the edge 'local_edge_id' of the element
+subroutine nedelec_create_edge_interpolation( this, local_edge_id, local_quadrature, edge_interpolation)
+  implicit none 
+  class(nedelec_reference_fe_t)   , intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: local_edge_id
+  type(quadrature_t)              , intent(in)    :: local_quadrature
+  type(interpolation_t)           , intent(inout) :: edge_interpolation
+  
+  ! Allocate the arrays of the interpolation
+  call edge_interpolation%create(this%number_dimensions, &
+                                 this%number_shape_functions, &
+                                 local_quadrature%number_quadrature_points, &
+                                 0 )
+
+  ! Fill the values of the shape functions, gradients, etc.
+  call this%fill_edge_interpolation(local_edge_id, &
+                                    local_quadrature, &
+                                    edge_interpolation)
+
+end subroutine nedelec_create_edge_interpolation
+
+
+!==================================================================================================
+subroutine nedelec_create_edge_quadrature ( this, quadrature, max_order )
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(inout) :: this
+  class(nedelec_reference_fe_t)   , intent(in)    :: this
+  type(quadrature_t)              , intent(inout) :: quadrature
+  integer(ip)           , optional, intent(in)    :: max_order
+
+  integer(ip) :: ngaus, order, edge_dimensions, idime
+  
+  ! @sbadia: to be improved to anisotropic quadratures
+  if ( present(max_order) ) then
+     order = max_order
+  else
+     order = 0
+     do idime = 1,this%number_dimensions
+        order = max(order,this%order_vector(idime))
+     end do
+  end if
+  edge_dimensions = 1
+  ngaus = this%set_number_quadrature_points(order, edge_dimensions)
+  call quadrature%create( edge_dimensions, ngaus )
+  call this%fill_quadrature( quadrature )
+end subroutine nedelec_create_edge_quadrature
+
+
+!==================================================================================================
+subroutine nedelec_create_nodal_quadrature (this)
+  implicit none
+  class(nedelec_reference_fe_t), intent(inout) :: this
   ! Create nodal quadrature
   call this%nodal_quadrature%create( this%number_dimensions, this%number_shape_functions )
   ! Fill nodal quadrature
   call this%fill_nodal_quadrature ( this%nodal_quadrature )  
-end subroutine raviart_thomas_create_nodal_quadrature
+end subroutine nedelec_create_nodal_quadrature
 
 !==================================================================================================
-subroutine raviart_thomas_fill_nodal_quadrature ( this, quadrature ) 
+subroutine nedelec_fill_nodal_quadrature ( this, quadrature ) 
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(quadrature_t)                  , intent(inout) :: quadrature
   type(node_iterator_t) :: node_iterator
   integer(ip) :: i,j,init,finish
@@ -105,13 +154,13 @@ subroutine raviart_thomas_fill_nodal_quadrature ( this, quadrature )
   end do
   quadrature%weight = 1.0_rp
 
-end subroutine raviart_thomas_fill_nodal_quadrature
+end subroutine nedelec_fill_nodal_quadrature
 
 !==================================================================================================
-subroutine raviart_thomas_create ( this, topology, number_dimensions, order, field_type, & 
+subroutine nedelec_create ( this, topology, number_dimensions, order, field_type, & 
      &  continuity, enable_face_integration )
   implicit none 
-  class(raviart_thomas_reference_fe_t), intent(inout) :: this
+  class(nedelec_reference_fe_t), intent(inout) :: this
   character(*)                    , intent(in)    :: topology
   integer(ip)                     , intent(in)    :: number_dimensions
   integer(ip)                     , intent(in)    :: order
@@ -122,22 +171,22 @@ subroutine raviart_thomas_create ( this, topology, number_dimensions, order, fie
   call this%free()
   call this%set_common_data(number_dimensions,order,field_type,continuity,enable_face_integration)
   call this%set_topology ( topology )
-  call this%set_fe_type( fe_type_raviart_thomas )
+  call this%set_fe_type( fe_type_nedelec )
   call this%fill()
   call this%create_nodal_quadrature()
   if ( this%continuity ) then
     call this%change_basis()
   end if  
 
-end subroutine raviart_thomas_create
+end subroutine nedelec_create
 
 !==================================================================================================
-subroutine raviart_thomas_free ( this )
+subroutine nedelec_free ( this )
   implicit none 
-  class(raviart_thomas_reference_fe_t), intent(inout) :: this
+  class(nedelec_reference_fe_t), intent(inout) :: this
   integer(ip) :: i
   
-  ! Free member variables of raviart_thomas_reference_fe_t
+  ! Free member variables of nedelec_reference_fe_t
   if ( allocated(this%change_basis_matrix) ) &
      call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
      
@@ -149,12 +198,12 @@ subroutine raviart_thomas_free ( this )
   ! Free member variables of lagrangian_reference_fe_t
   ! (and those of its ancestors)
   call lagrangian_reference_fe_free ( this )  
-end subroutine raviart_thomas_free
+end subroutine nedelec_free
 
 !==================================================================================================
-subroutine raviart_thomas_fill (this)
+subroutine nedelec_fill (this)
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(inout) :: this
+  class(nedelec_reference_fe_t), intent(inout) :: this
   integer(ip) :: c, i, j, dimension, number_interior_nodes, number_interior_nodes_scalar
   integer(ip) :: column, inode, idime, inode_scalar, num_columns
   ! Here we put a k+1,k,k order_vector, which is the one for the x-component.
@@ -182,12 +231,12 @@ subroutine raviart_thomas_fill (this)
      end do
   end do
   
-end subroutine raviart_thomas_fill
+end subroutine nedelec_fill
 
 
-subroutine raviart_thomas_fill_vector (this)
+subroutine nedelec_fill_vector (this)
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(inout)    :: this 
+  class(nedelec_reference_fe_t), intent(inout)    :: this 
   type(node_iterator_t) :: node_iterator
   type(n_face_iterator_t) :: facet_iterator
   type(list_iterator_t) :: list_iterator
@@ -357,28 +406,28 @@ subroutine raviart_thomas_fill_vector (this)
         this%face_integration_coupling_nodes_facet = this%nodes_n_face
      end if
   end if
-end subroutine raviart_thomas_fill_vector
+end subroutine nedelec_fill_vector
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of order 1 of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine raviart_thomas_create_face_local_interpolation ( this, quadrature, &
+subroutine nedelec_create_face_local_interpolation ( this, quadrature, &
      & interpolation)
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this
+  class(nedelec_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
   type(interpolation_t)           , intent(inout) :: interpolation
 
-  write(*,*) 'Raviart-Thomas FEs cannot be used for geometry mapping'
+  write(*,*) 'Nedelec FEs cannot be used for geometry mapping'
   check(.false.)
 
-end subroutine raviart_thomas_create_face_local_interpolation
+end subroutine nedelec_create_face_local_interpolation
 
 !==================================================================================================
-subroutine raviart_thomas_get_value_scalar( this, actual_cell_interpolation, & 
+subroutine nedelec_get_value_scalar( this, actual_cell_interpolation, & 
      & ishape, qpoint, scalar_field )
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -386,13 +435,13 @@ subroutine raviart_thomas_get_value_scalar( this, actual_cell_interpolation, &
   write(*,*) ' ERROR in: ',__FILE__,__LINE__
   write(*,*) ' Subroutine not implemented for vector-based FE spaces'
   check( .false. )
-end subroutine raviart_thomas_get_value_scalar
+end subroutine nedelec_get_value_scalar
 
 !==================================================================================================
-subroutine raviart_thomas_get_value_vector( this, actual_cell_interpolation, & 
+subroutine nedelec_get_value_vector( this, actual_cell_interpolation, & 
      & ishape, qpoint, vector_field )
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -401,13 +450,13 @@ subroutine raviart_thomas_get_value_vector( this, actual_cell_interpolation, &
   assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
   assert( qpoint >= 1 )
   call vector_field%init(actual_cell_interpolation%shape_functions(:,ishape,qpoint))
-end subroutine raviart_thomas_get_value_vector
+end subroutine nedelec_get_value_vector
 
 !!==================================================================================================
-subroutine raviart_thomas_get_gradient_scalar( this, actual_cell_interpolation, & 
+subroutine nedelec_get_gradient_scalar( this, actual_cell_interpolation, & 
      & ishape, qpoint, vector_field )
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -416,13 +465,13 @@ subroutine raviart_thomas_get_gradient_scalar( this, actual_cell_interpolation, 
   write(*,*) ' ERROR in: ',__FILE__,__LINE__
   write(*,*) ' Subroutine not implemented for vector-based FE spaces'
   check( .false. )
-end subroutine raviart_thomas_get_gradient_scalar
+end subroutine nedelec_get_gradient_scalar
 
 !==================================================================================================
-subroutine raviart_thomas_get_gradient_vector( this, actual_cell_interpolation, & 
+subroutine nedelec_get_gradient_vector( this, actual_cell_interpolation, & 
      & ishape, qpoint, tensor_field )
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -431,13 +480,13 @@ subroutine raviart_thomas_get_gradient_vector( this, actual_cell_interpolation, 
   assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
   assert( qpoint >= 1 )
   call tensor_field%init(actual_cell_interpolation%shape_derivatives(:,:,ishape,qpoint))
-end subroutine raviart_thomas_get_gradient_vector
+end subroutine nedelec_get_gradient_vector
 
 !==================================================================================================
-subroutine raviart_thomas_get_divergence_vector( this, actual_cell_interpolation, & 
+subroutine nedelec_get_divergence_vector( this, actual_cell_interpolation, & 
      & ishape, qpoint, scalar_field )
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -455,13 +504,13 @@ subroutine raviart_thomas_get_divergence_vector( this, actual_cell_interpolation
      scalar_field = scalar_field + actual_cell_interpolation%shape_derivatives(idime,idime,ishape,qpoint)
   end do
 
-end subroutine raviart_thomas_get_divergence_vector
+end subroutine nedelec_get_divergence_vector
 
 !==================================================================================================
-subroutine raviart_thomas_get_curl_vector( this, actual_cell_interpolation, &
+subroutine nedelec_get_curl_vector( this, actual_cell_interpolation, &
      & ishape, qpoint, vector_field )
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
@@ -494,15 +543,15 @@ subroutine raviart_thomas_get_curl_vector( this, actual_cell_interpolation, &
      end do
   end do
 
-end subroutine raviart_thomas_get_curl_vector
+end subroutine nedelec_get_curl_vector
 
 !==================================================================================================
-subroutine raviart_thomas_evaluate_fe_function_scalar( this,                      &
+subroutine nedelec_evaluate_fe_function_scalar( this,                      &
      &  actual_cell_interpolation, &
      &  nodal_values,              &
      &  quadrature_points_values)
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   real(rp)                        , intent(in)    :: nodal_values(:)
   real(rp)                        , intent(inout) :: quadrature_points_values(:)
@@ -512,15 +561,15 @@ subroutine raviart_thomas_evaluate_fe_function_scalar( this,                    
   write(*,*) ' Subroutine not implemented for vector field unknowns '
   check( .false. )
 
-end subroutine raviart_thomas_evaluate_fe_function_scalar
+end subroutine nedelec_evaluate_fe_function_scalar
 
 !==================================================================================================
-subroutine raviart_thomas_evaluate_fe_function_vector( this,                      &
+subroutine nedelec_evaluate_fe_function_vector( this,                      &
      &  actual_cell_interpolation, &
      &  nodal_values,              &
      &  quadrature_points_values)
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   real(rp)                        , intent(in)    :: nodal_values(:)
   type(vector_field_t)            , intent(inout) :: quadrature_points_values(:)
@@ -534,15 +583,15 @@ subroutine raviart_thomas_evaluate_fe_function_vector( this,                    
      end do
   end do
 
-end subroutine raviart_thomas_evaluate_fe_function_vector
+end subroutine nedelec_evaluate_fe_function_vector
 
 !==================================================================================================
-subroutine raviart_thomas_evaluate_fe_function_tensor( this,                      &
+subroutine nedelec_evaluate_fe_function_tensor( this,                      &
      &  actual_cell_interpolation, &
      &  nodal_values,              &
      &  quadrature_points_values)
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   real(rp)                        , intent(in)    :: nodal_values(:)
   type(tensor_field_t)            , intent(inout) :: quadrature_points_values(:)
@@ -551,24 +600,24 @@ subroutine raviart_thomas_evaluate_fe_function_tensor( this,                    
   write(*,*) ' Subroutine not implemented for tensor field unknowns '
   check( .false. )
 
-end subroutine raviart_thomas_evaluate_fe_function_tensor
+end subroutine nedelec_evaluate_fe_function_tensor
 
-subroutine raviart_thomas_blending(this,values)
+subroutine nedelec_blending(this,values)
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this
+  class(nedelec_reference_fe_t), intent(in)    :: this
   type(point_t)                       , intent(inout) :: values(:)
 
   write(*,*) 'Vector Laplacian cannot be used for geometry blending'
   check(.false.)
 
-end subroutine raviart_thomas_blending
+end subroutine nedelec_blending
 
-subroutine raviart_thomas_get_subelements_connectivity(this, connectivity)
+subroutine nedelec_get_subelements_connectivity(this, connectivity)
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this
+  class(nedelec_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(inout) :: connectivity(:,:)
   write(*,*) 'Vector Laplacian cannot be used for visualization purposes'
-end subroutine raviart_thomas_get_subelements_connectivity
+end subroutine nedelec_get_subelements_connectivity
 
 
 !**************************************************************************************************
@@ -576,9 +625,9 @@ end subroutine raviart_thomas_get_subelements_connectivity
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
+subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(fe_map_t)                  , intent(in)    :: map
   type(interpolation_t)           , intent(in)    :: ref
   type(interpolation_t)           , intent(inout) :: phy
@@ -607,11 +656,11 @@ subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
         end do
      end do
   end do
-end subroutine raviart_thomas_apply_femap_to_interpolation
+end subroutine nedelec_apply_femap_to_interpolation
 
-subroutine raviart_thomas_invert_change_basis_matrix(this)
+subroutine nedelec_invert_change_basis_matrix(this)
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(inout) :: this 
+  class(nedelec_reference_fe_t), intent(inout) :: this 
   integer(ip) :: error
   integer(ip), allocatable :: ipiv(:)
   real(rp), allocatable :: inverse_change_basis_matrix(:,:)  
@@ -667,12 +716,12 @@ subroutine raviart_thomas_invert_change_basis_matrix(this)
   check(.false.)
 #endif 
    
-end subroutine raviart_thomas_invert_change_basis_matrix
+end subroutine nedelec_invert_change_basis_matrix
 
 
-subroutine rt_apply_change_basis_matrix_to_nodal_values ( this, nodal_values_rt, nodal_values_pre_basis )
+subroutine nedelec_apply_change_basis_matrix_to_nodal_values ( this, nodal_values_rt, nodal_values_pre_basis )
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   real(rp)                            , intent(in)    :: nodal_values_rt(:)
   real(rp)                            , intent(out)   :: nodal_values_pre_basis(:)
 
@@ -699,12 +748,12 @@ subroutine rt_apply_change_basis_matrix_to_nodal_values ( this, nodal_values_rt,
   check(.false.)
 #endif 
   
-end subroutine  rt_apply_change_basis_matrix_to_nodal_values 
+end subroutine  nedelec_apply_change_basis_matrix_to_nodal_values 
   
 
-subroutine rt_apply_change_basis_matrix_to_interpolation(this, interpolation_pre_basis, interpolation)
+subroutine nedelec_apply_change_basis_matrix_to_interpolation(this, interpolation_pre_basis, interpolation)
   implicit none
-  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)               , intent(in)    :: interpolation_pre_basis
   type(interpolation_t)               , intent(inout) :: interpolation
   
@@ -739,4 +788,4 @@ subroutine rt_apply_change_basis_matrix_to_interpolation(this, interpolation_pre
         end do
      end do
   end do
-end subroutine rt_apply_change_basis_matrix_to_interpolation
+end subroutine nedelec_apply_change_basis_matrix_to_interpolation

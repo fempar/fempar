@@ -29,7 +29,7 @@ subroutine reference_fe_free( this )
   implicit none
   class(reference_fe_t), intent(inout) :: this
 
-  integer(ip) :: i
+  integer(ip) :: i, istat
 
   if(allocated(this%topology)) deallocate(this%topology)
   if(allocated(this%fe_type)) deallocate(this%fe_type)
@@ -45,7 +45,8 @@ subroutine reference_fe_free( this )
      do i = 1, this%number_dimensions-1
         call this%own_node_permutations(i)%free()
      end do
-     deallocate(this%own_node_permutations)
+     deallocate(this%own_node_permutations, stat=istat)
+     check(istat==0)
   end if
 
   call this%interior_nodes_n_face%free()

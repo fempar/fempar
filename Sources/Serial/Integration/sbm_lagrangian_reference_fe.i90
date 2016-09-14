@@ -92,7 +92,7 @@ end subroutine lagrangian_reference_fe_create_face_quadrature
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_create_interpolation ( this, quadrature, & 
-     & interpolation, compute_hessian )
+     &                                                    interpolation, compute_hessian )
   implicit none 
   class(lagrangian_reference_fe_t), intent(in)    :: this 
   type(quadrature_t)              , intent(in)    :: quadrature
@@ -155,6 +155,26 @@ subroutine lagrangian_reference_fe_create_face_local_interpolation (this, quadra
   call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
   call aux_reference_fe%free()
 end subroutine lagrangian_reference_fe_create_face_local_interpolation
+
+!==================================================================================================
+! This subroutine constructs a interpolation of an element of one dimension less.
+! This is used to construct the geometrical interpolation of the face
+subroutine lagrangian_reference_fe_create_edge_local_interpolation (this, quadrature, interpolation)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation
+  type(p_reference_fe_t) :: aux_reference_fe
+  aux_reference_fe = make_reference_fe ( this%topology, &
+                                         this%fe_type, &
+                                         1, &
+                                         this%order_vector(1), &
+                                         this%field_type, &
+                                         this%continuity )
+
+  call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
+  call aux_reference_fe%free()
+end subroutine lagrangian_reference_fe_create_edge_local_interpolation
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_update_interpolation( this, fe_map,                 &
@@ -372,73 +392,6 @@ subroutine lagrangian_reference_fe_create_nodal_quadrature (this)
   ! Fill nodal quadrature
   call this%fill_nodal_quadrature ( this%nodal_quadrature )  
 end subroutine lagrangian_reference_fe_create_nodal_quadrature
-
-!==================================================================================================
-subroutine lagrangian_reference_fe_set_scalar_field_to_nodal_values (this, code, values, &
-     &     nodal_codes, nodal_values, unknown_component)
-  implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                     , intent(in)    :: code
-  real(rp)                        , intent(in)    :: values(:)
-  integer(ip)                     , intent(in)    :: nodal_codes(:)
-  real(rp)                        , intent(inout) :: nodal_values(:)
-  integer(ip)          , optional , intent(in)    :: unknown_component
-  integer(ip) :: i, icomp
-
-  assert(size(nodal_values) == this%number_shape_functions)
-  assert(size(values) == this%node_array%number_nodes)
-
-  icomp = 1
-  if(present(unknown_component)) icomp = unknown_component
-
-  do i = 1, this%node_array%number_nodes
-     if(nodal_codes(this%node_array_component(i,icomp)) == code) then
-        nodal_values(this%node_array_component(i,icomp)) = values(i)
-     end if
-  end do
-
-end subroutine lagrangian_reference_fe_set_scalar_field_to_nodal_values
-
-!==================================================================================================
-subroutine lagrangian_reference_fe_set_vector_field_to_nodal_values (this, code, values, &
-     &     nodal_codes, nodal_values)
-  implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                     , intent(in)    :: code
-  type(vector_field_t)            , intent(in)    :: values(:)
-  integer(ip)                     , intent(in)    :: nodal_codes(:)
-  real(rp)                        , intent(inout) :: nodal_values(:)
-  integer(ip) :: i, icomp
-
-  assert(size(nodal_values) == this%number_shape_functions)
-  assert(size(values) == this%node_array%number_nodes)
-
-  do icomp = 1, this%number_field_components
-     do i = 1, this%node_array%number_nodes
-        if(nodal_codes(this%node_array_component(i,icomp)) == code) then
-           nodal_values(this%node_array_component(i,icomp)) = values(i)%get(icomp)
-        end if
-     end do
-  end do
-
-end subroutine lagrangian_reference_fe_set_vector_field_to_nodal_values
-
-!==================================================================================================
-subroutine lagrangian_reference_fe_set_tensor_field_to_nodal_values (this, code, values, &
-     &     nodal_codes, nodal_values)
-  implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                     , intent(in)    :: code
-  type(tensor_field_t)            , intent(in)    :: values(:)
-  integer(ip)                     , intent(in)    :: nodal_codes(:)
-  real(rp)                        , intent(inout) :: nodal_values(:)
-  integer(ip) :: i, icomp, jcomp
-
-  write(*,*) ' ERROR in: ',__FILE__,__LINE__
-  write(*,*) ' Subroutine not implemented for tensor field unknowns '
-  check( .false. )
-
-end subroutine lagrangian_reference_fe_set_tensor_field_to_nodal_values
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_evaluate_fe_function_scalar( this,                      &

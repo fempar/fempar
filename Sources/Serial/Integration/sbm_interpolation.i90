@@ -80,6 +80,21 @@ subroutine interpolation_copy(this, source_interpolation)
   class(interpolation_t), intent(inout) :: this
 		type(interpolation_t), intent(in)     :: source_interpolation
 
+  call this%clone(source_interpolation)
+
+  this%shape_functions = source_interpolation%shape_functions
+  this%shape_derivatives = source_interpolation%shape_derivatives
+  if ( allocated(source_interpolation%hessian) ) then
+				this%hessian = source_interpolation%hessian
+  end if
+
+end subroutine interpolation_copy
+
+subroutine interpolation_clone(this, source_interpolation)
+  implicit none
+  class(interpolation_t), intent(inout) :: this
+		type(interpolation_t), intent(in)     :: source_interpolation
+
 		call this%free()
   this%number_dimensions = source_interpolation%number_dimensions
   this%number_shape_functions = source_interpolation%number_shape_functions
@@ -89,15 +104,13 @@ subroutine interpolation_copy(this, source_interpolation)
 																this%shape_functions,__FILE__,__LINE__)
   call memalloc(SPACE_DIM,SPACE_DIM,this%number_shape_functions,&
 																this%number_quadrature_points,this%shape_derivatives,   __FILE__,__LINE__)
-  this%shape_functions(:,:,:) = source_interpolation%shape_functions(:,:,:)
-  this%shape_derivatives(:,:,:,:) = source_interpolation%shape_derivatives(:,:,:,:)
   if ( allocated(source_interpolation%hessian) ) then
     call memalloc(this%number_dimensions,this%number_entries_symmetric_tensor,this%number_shape_functions,&
 																		this%number_quadrature_points,this%hessian,   __FILE__,__LINE__) 
-				this%hessian(:,:,:,:) = source_interpolation%hessian(:,:,:,:)
   end if
+end subroutine interpolation_clone
 
-end subroutine interpolation_copy
+
 
 subroutine interpolation_print ( this )
   implicit none
