@@ -1,1 +1,0 @@
-../test_poisson_eneiva/test_poisson_params.f90

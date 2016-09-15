@@ -1,4 +1,6 @@
 #!/bin/sh
+export MKL_NUM_THREADS=1
+export OMP_NUM_THREADS=1
 MPIEXEC_PATH="$1"
 MPIEXEC_NP_FLAG="$2"
 TEST_BINARY_PATH="$3"
@@ -46,7 +48,7 @@ then
     # Cube + Hexas        
     for gorder in 1 #2 3 4 5 6
       do
-       for order in 2 3 #1 2 3 4 5 6
+       for order in 1 2 3 #1 2 3 4 5 6
         do
           if [ $order -ge $gorder ]
           then
@@ -63,7 +65,7 @@ then
     # Cube + Tets        
     for gorder in 1 #2 3 4 5 6
       do
-       for order in 2 #1 2 3 4 5 6
+       for order in 1 2 #1 2 3 4 5 6
         do
           if [ $order -ge $gorder ]
           then

@@ -1,18 +1,18 @@
 #################################################################
-# Parallel drivers
+# Drivers
 #################################################################
 
 IF(MPI_FOUND)
 
-    IF(${PROJECT_NAME}_USER)
+    IF(FEMPAR_DRIVER)
 
-        FILE(GLOB DRIVERS_PAR_SRC ${PAR_DRIVERS_PATH}/${${PROJECT_NAME}_USER}/*.f90 ${PAR_DRIVERS_PATH}/${${PROJECT_NAME}_USER}/*.F90)
-        SET(DRIVERS_PAR_SRC ${DRIVERS_PAR_SRC} PARENT_SCOPE)
+        FILE(GLOB DRIVERS_SRC ${DRIVERS_PATH}/${FEMPAR_DRIVER}/*.f90 ${DRIVERS_PATH}/${FEMPAR_DRIVER}/*.F90)
+        SET(DRIVERS_SRC ${DRIVERS_SRC} PARENT_SCOPE)
 
-        FOREACH(DRIVER_SRC ${DRIVERS_PAR_SRC})
+        FOREACH(DRIVER_SRC ${DRIVERS_SRC})
             GET_FILENAME_COMPONENT(EXE_NAME ${DRIVER_SRC} NAME_WE)
             UNSET(${EXE_NAME}_MODULES_SRC CACHE)
-            SET(${EXE_NAME}_MODULES_DIR ${PAR_DRIVERS_PATH}/${${PROJECT_NAME}_USER}/${EXE_NAME})
+            SET(${EXE_NAME}_MODULES_DIR ${DRIVERS_PATH}/${FEMPAR_DRIVER}/modules)
             IF(EXISTS "${${EXE_NAME}_MODULES_DIR}" AND IS_DIRECTORY "${${EXE_NAME}_MODULES_DIR}")
                 FILE(GLOB ${EXE_NAME}_MODULES_SRC ${${EXE_NAME}_MODULES_DIR}/*.f90 ${${EXE_NAME}_MODULES_DIR}/*.F90)
             ENDIF()
@@ -29,3 +29,6 @@ IF(MPI_FOUND)
     ENDIF()
 
 ENDIF()
+
+
+
