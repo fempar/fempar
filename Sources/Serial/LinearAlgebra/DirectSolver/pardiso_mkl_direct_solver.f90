@@ -273,6 +273,8 @@ contains
         if(.not. this%forced_matrix_type) call this%set_matrix_type_from_matrix()
 
         assert (matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED_SYMBOLIC .or. matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED)
+        if(this%matrix%get_num_rows()==0 .and. this%matrix%get_num_cols()==0) return
+
         select type (matrix)
             type is (csr_sparse_matrix_t)
                 if ( matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED ) then
@@ -334,6 +336,8 @@ contains
         matrix => this%matrix%get_pointer_to_base_matrix()
         
         assert (matrix%get_state() == SPARSE_MATRIX_STATE_ASSEMBLED)
+        if(this%matrix%get_num_rows()==0 .and. this%matrix%get_num_cols()==0) return
+
         select type (matrix)
             type is (csr_sparse_matrix_t)
                 ! Reordering and symbolic factorization, this step also allocates 
@@ -392,6 +396,8 @@ contains
         x_b => x%get_entries()
         y_b => y%get_entries()
 
+        if(op%matrix%get_num_rows()==0 .and. op%matrix%get_num_cols()==0) return
+
         select type (matrix => op%matrix%get_pointer_to_base_matrix())
             type is (csr_sparse_matrix_t)
                 ! Solve, iterative refinement
@@ -444,6 +450,8 @@ contains
         op%phase    = 33 ! only Fwd/Bck substitution
         number_rows = size(x,1)
         number_rhs  = size(x,2)
+
+        if(op%matrix%get_num_rows()==0 .and. op%matrix%get_num_cols()==0) return
 
         select type (matrix => op%matrix%get_pointer_to_base_matrix())
             type is (csr_sparse_matrix_t)
