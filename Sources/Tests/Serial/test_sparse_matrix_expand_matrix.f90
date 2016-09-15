@@ -235,7 +235,6 @@ print*, '!------------------------------------------------------------------'
     call expanded_sparse_matrix%print(6)
     call expanded_sparse_matrix%free()
     call sparse_matrix%free()
-    call memstatus()
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
