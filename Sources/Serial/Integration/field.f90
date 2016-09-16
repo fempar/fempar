@@ -108,7 +108,7 @@ module field_names
 
   public :: vector_field_t, tensor_field_t, symmetric_tensor_field_t, point_t 
   public :: operator(*), operator(+), operator(-), assignment(=)
-  public :: double_contract
+  public :: double_contract, cross_product
   
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -485,6 +485,16 @@ contains
     type(tensor_field_t), intent(in)  :: tensor2
     tensor1%value = tensor2%value
   end subroutine assign_tensor_to_tensor
+  
+  function cross_product(v1,v2) result(res)
+    implicit none
+    type(vector_field_t), intent(in) :: v1
+    type(vector_field_t), intent(in) :: v2
+    type(vector_field_t) :: res
+    call res%set(1,v1%value(2)*v2%value(3)-v1%value(3)*v2%value(2))
+    call res%set(2,v1%value(3)*v2%value(1)-v1%value(1)*v2%value(3))
+    call res%set(3,v1%value(1)*v2%value(2)-v1%value(2)*v2%value(1))
+  end function cross_product
 
 end module field_names
 

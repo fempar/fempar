@@ -160,14 +160,14 @@ end subroutine nedelec_fill_nodal_quadrature
 subroutine nedelec_create ( this, topology, number_dimensions, order, field_type, & 
      &  continuity, enable_face_integration )
   implicit none 
-  class(nedelec_reference_fe_t), intent(inout) :: this
+  class(nedelec_reference_fe_t)   , intent(inout) :: this
   character(*)                    , intent(in)    :: topology
   integer(ip)                     , intent(in)    :: number_dimensions
   integer(ip)                     , intent(in)    :: order
   character(*)                    , intent(in)    :: field_type
   logical                         , intent(in)    :: continuity
   logical              , optional , intent(in)    :: enable_face_integration
-
+  
   call this%free()
   call this%set_common_data(number_dimensions,order,field_type,continuity,enable_face_integration)
   call this%set_topology ( topology )
@@ -206,10 +206,10 @@ subroutine nedelec_fill (this)
   class(nedelec_reference_fe_t), intent(inout) :: this
   integer(ip) :: c, i, j, dimension, number_interior_nodes, number_interior_nodes_scalar
   integer(ip) :: column, inode, idime, inode_scalar, num_columns
-  ! Here we put a k+1,k,k order_vector, which is the one for the x-component.
+  ! Here we put a k,k+1,k+1 order_vector, which is the one for the x-component.
   ! In fill_vector, we use order_vector (and other arrays) using a permutation 
   this%order_vector = this%order
-  this%order_vector(1) = this%order+1 ! @sbadia: for the moment not this complexity, just vector laplacian
+  this%order_vector(1) = this%order-1
   call this%fill_vector()
   
   
@@ -408,9 +408,6 @@ subroutine nedelec_fill_vector (this)
   end if
 end subroutine nedelec_fill_vector
 
-!==================================================================================================
-! This subroutine constructs a interpolation of order 1 of an element of one dimension less.
-! This is used to construct the geometrical interpolation of the face
 subroutine nedelec_create_face_local_interpolation ( this, quadrature, &
      & interpolation)
   implicit none
@@ -420,8 +417,19 @@ subroutine nedelec_create_face_local_interpolation ( this, quadrature, &
 
   write(*,*) 'Nedelec FEs cannot be used for geometry mapping'
   check(.false.)
-
 end subroutine nedelec_create_face_local_interpolation
+
+subroutine nedelec_create_edge_local_interpolation ( this, quadrature, interpolation)
+  implicit none
+  class(nedelec_reference_fe_t)   , intent(in)    :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation
+
+  write(*,*) 'Nedelec FEs cannot be used for geometry mapping'
+  check(.false.)
+
+end subroutine nedelec_create_edge_local_interpolation
+
 
 !==================================================================================================
 subroutine nedelec_get_value_scalar( this, actual_cell_interpolation, & 
@@ -476,10 +484,17 @@ subroutine nedelec_get_gradient_vector( this, actual_cell_interpolation, &
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
   type(tensor_field_t)            , intent(inout) :: tensor_field
+  integer(ip) :: i, j
+  
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
   assert( qpoint >= 1 )
-  call tensor_field%init(actual_cell_interpolation%shape_derivatives(:,:,ishape,qpoint))
+  
+  do i=1, this%number_dimensions
+    do j=1, this%number_dimensions
+     call tensor_field%set(i,j,actual_cell_interpolation%shape_derivatives(j,i,ishape,qpoint))
+    end do
+  end do
 end subroutine nedelec_get_gradient_vector
 
 !==================================================================================================
@@ -508,41 +523,37 @@ end subroutine nedelec_get_divergence_vector
 
 !==================================================================================================
 subroutine nedelec_get_curl_vector( this, actual_cell_interpolation, &
-     & ishape, qpoint, vector_field )
+     &                              ishape, qpoint, vector_field )
   implicit none
-  class(nedelec_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t)   , intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
   type(vector_field_t)            , intent(inout) :: vector_field
 
-  ! Locals 
-  integer(ip) :: idime, jdime, kdime
-  ! Epsilon_{ijk} = Levi_Civita(i,j,k)
-  real(rp), parameter :: Levi_Civita(3,3,3) = reshape( (/0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, -1.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, &
-       0.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, -1.0_rp, 0.0_rp, 0.0_rp, &
-       0.0_rp, -1.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp/), (/3, 3, 3/) )
-
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
-  assert( qpoint >= 1 )
-
-
+  assert( qpoint >= 1 )  
+  assert( SPACE_DIM == 3 )
+  
   call vector_field%init(0.0_rp)
-
-  do idime=1,SPACE_DIM 
-     do jdime = 1,this%number_dimensions
-        do kdime = 1,this%number_dimensions
-           if ( ( idime .ne. jdime ) .and. (idime .ne. kdime) .and. (jdime .ne. kdime) ) then 
-              call vector_field%set( idime, &
-                   Levi_Civita(idime,jdime,kdime)* &
-                   actual_cell_interpolation%shape_derivatives(jdime,kdime,this%node_component_array(ishape,1),qpoint) )
-              ! @sbadia: I have to check it. 
-           end if
-        end do
-     end do
-  end do
-
+  if (this%number_dimensions == 2) then 
+                             ! d_x u_y - d_y u_x
+    call vector_field%set(3, actual_cell_interpolation%shape_derivatives(2,1,ishape,qpoint)- &
+                             actual_cell_interpolation%shape_derivatives(1,2,ishape,qpoint) )
+  else if ( this%number_dimensions == 3) then
+                             ! d_y u_z - d_z u_y
+    call vector_field%set(1, actual_cell_interpolation%shape_derivatives(3,2,ishape,qpoint)- &
+                             actual_cell_interpolation%shape_derivatives(2,3,ishape,qpoint) )
+    
+                             ! d_z u_x - d_x u_z
+    call vector_field%set(2, actual_cell_interpolation%shape_derivatives(1,3,ishape,qpoint)- &
+                             actual_cell_interpolation%shape_derivatives(3,1,ishape,qpoint) )
+    
+                             ! d_x u_y - d_y u_x
+    call vector_field%set(3, actual_cell_interpolation%shape_derivatives(2,1,ishape,qpoint)- &
+                             actual_cell_interpolation%shape_derivatives(1,2,ishape,qpoint) )
+  end if
 end subroutine nedelec_get_curl_vector
 
 !==================================================================================================
