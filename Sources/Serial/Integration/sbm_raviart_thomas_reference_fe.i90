@@ -162,7 +162,7 @@ subroutine raviart_thomas_fill (this)
   ! Here we put a k+1,k,k order_vector, which is the one for the x-component.
   ! In fill_vector, we use order_vector (and other arrays) using a permutation 
   this%order_vector = this%order
-  this%order_vector(1) = this%order-1
+  this%order_vector(1) = this%order+1
   call this%fill_vector()
   
   call memalloc( this%number_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
