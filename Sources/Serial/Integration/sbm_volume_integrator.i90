@@ -420,6 +420,7 @@ subroutine fe_map_free( this )
   if(allocated(this%coordinates_quadrature)) deallocate(this%coordinates_quadrature)
   if(allocated(this%coordinates_nodes)) deallocate(this%coordinates_nodes)
   if(allocated(this%normals)) call memfree(this%normals,__FILE__,__LINE__)
+  if(allocated(this%tangents)) call memfree(this%tangents,__FILE__,__LINE__)
   call this%interpolation_geometry%free()
 end subroutine fe_map_free
 

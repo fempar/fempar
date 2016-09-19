@@ -1045,21 +1045,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      end do
    end do
    
-  write (*,'(a)') '%%MatrixMarket matrix coordinate real general' 
-  write (*,*) this%number_shape_functions,this%number_shape_functions,this%number_shape_functions**2
-  do i=1, this%number_shape_functions
-    do j=1, this%number_shape_functions
-      write(*,*) i, j, this%change_basis_matrix(i,j)
-    end do
-  end do
-
-
   ! Invert change_basis_matrix
   call this%invert_change_basis_matrix()
-  
-  
-
-
   
  ! Transform type(list_t) member variables of this to reflect change of basis
  call this%interior_nodes_n_face%create( this%number_n_faces + 1 )

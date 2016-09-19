@@ -142,7 +142,7 @@ contains
                                conditions          = this%maxwell_nedelec_conditions, &
                                reference_fes       = this%reference_fes)
     call this%fe_space%fill_dof_info() 
-    call this%fe_space%print()
+    !call this%fe_space%print()
   end subroutine setup_fe_space
 
   subroutine setup_system (this)
@@ -203,14 +203,14 @@ contains
     class(matrix_t), pointer       :: matrix
     class(vector_t), pointer       :: rhs
     call this%fe_affine_operator%numerical_setup()
-    rhs    => this%fe_affine_operator%get_translation()
-    matrix => this%fe_affine_operator%get_matrix()
-    select type(matrix)
-    class is (sparse_matrix_t)  
-       call matrix%print_matrix_market(6) 
-    class DEFAULT
-       assert(.false.) 
-    end select
+    !rhs    => this%fe_affine_operator%get_translation()
+    !matrix => this%fe_affine_operator%get_matrix()
+    !select type(matrix)
+    !class is (sparse_matrix_t)  
+    !   call matrix%print_matrix_market(6) 
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
   end subroutine assemble_system
 
   subroutine solve_system(this)
@@ -229,19 +229,19 @@ contains
                                             dof_values)
 #endif    
     
-    select type (rhs)
-    class is (serial_scalar_array_t)  
-       call rhs%print_matrix_market(6)
-    class DEFAULT
-       assert(.false.) 
-    end select
+    !select type (rhs)
+    !class is (serial_scalar_array_t)  
+    !   call rhs%print_matrix_market(6)
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
     
-    select type (dof_values)
-    class is (serial_scalar_array_t)  
-       call dof_values%print_matrix_market(6)
-    class DEFAULT
-       assert(.false.) 
-    end select
+    !select type (dof_values)
+    !class is (serial_scalar_array_t)  
+    !   call dof_values%print_matrix_market(6)
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
   end subroutine solve_system
   
   subroutine check_solution(this)
@@ -333,10 +333,7 @@ contains
        class is (nedelec_reference_fe_t)
          call rt_ref_fe%apply_change_basis_matrix_to_nodal_values(nodal_values_rt, nodal_values_pre_basis)
        end select
-       
-       write(*,*) 'ELEMENT ID', fe%get_lid()
-       write(*,*) nodal_values_pre_basis
-       
+              
        call fe_iterator%next()
     end do
     
