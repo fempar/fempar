@@ -158,6 +158,10 @@ module reference_fe_names
      type(point_t), allocatable    :: coordinates_nodes(:)  
      ! Vector normals outside the face (only allocated when using fe_map to integrate on faces) 
      real(rp), allocatable    :: normals(:,:)  
+     ! Vector tangents to edges (only allocated when using fe_map to integrate on edges)
+     ! Vector tangents to edges are required e.g. by type(hex_nedelec_reference_fe_t) on 
+     ! the reference cell.
+     real(rp), allocatable    :: tangents(:,:)  
      ! Geometry interpolation_t in the reference element domain    
      type(interpolation_t) :: interpolation_geometry   
      ! Characteristic length of the reference element
@@ -187,6 +191,8 @@ module reference_fe_names
      procedure, non_overridable :: compute_quadrature_coordinates => fe_map_compute_quadrature_coordinates
      procedure, non_overridable :: get_quadrature_coordinates     => fe_map_get_quadrature_coordinates
      procedure, non_overridable :: get_normal                     => fe_map_get_normal
+     procedure, non_overridable :: get_tangent                    => fe_map_get_tangent
+     procedure, non_overridable :: get_jacobian_normalized_column => fe_map_get_jacobian_normalized_column
   end type fe_map_t
 
   type p_fe_map_t
@@ -795,7 +801,7 @@ module reference_fe_names
 
   public :: reference_fe_t, p_reference_fe_t
   public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-  public :: topology_hex, topology_tet, fe_type_lagrangian, fe_type_raviart_thomas
+  public :: topology_hex, topology_tet, fe_type_lagrangian, fe_type_raviart_thomas, fe_type_nedelec
 
   type p_lagrangian_reference_fe_t
      class(lagrangian_reference_fe_t), pointer :: p => NULL()
@@ -1062,6 +1068,8 @@ abstract interface
     type(interpolation_t)        , intent(inout) :: edge_interpolation
   end subroutine nedelec_fill_edge_interpolation
 end interface 
+
+public :: nedelec_reference_fe_t
 
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
