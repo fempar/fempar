@@ -119,6 +119,8 @@ subroutine raviart_thomas_create ( this, topology, number_dimensions, order, fie
   logical                         , intent(in)    :: continuity
   logical              , optional , intent(in)    :: enable_face_integration
 
+  assert ( order >= 0 )
+
   call this%free()
   call this%set_common_data(number_dimensions,order,field_type,continuity,enable_face_integration)
   call this%set_topology ( topology )
@@ -160,9 +162,8 @@ subroutine raviart_thomas_fill (this)
   ! Here we put a k+1,k,k order_vector, which is the one for the x-component.
   ! In fill_vector, we use order_vector (and other arrays) using a permutation 
   this%order_vector = this%order
-  this%order_vector(1) = this%order+1 ! @sbadia: for the moment not this complexity, just vector laplacian
+  this%order_vector(1) = this%order+1
   call this%fill_vector()
-  
   
   call memalloc( this%number_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
   
@@ -427,11 +428,16 @@ subroutine raviart_thomas_get_gradient_vector( this, actual_cell_interpolation, 
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
   type(tensor_field_t)            , intent(inout) :: tensor_field
+  integer(ip) :: i,j 
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
   assert( qpoint >= 1 )
-  call tensor_field%init(actual_cell_interpolation%shape_derivatives(:,:,ishape,qpoint))
-end subroutine raviart_thomas_get_gradient_vector
+  do i=1, this%number_dimensions
+    do j=1, this%number_dimensions
+     call tensor_field%set(i,j,actual_cell_interpolation%shape_derivatives(j,i,ishape,qpoint))
+    end do
+  end do
+  end subroutine raviart_thomas_get_gradient_vector
 
 !==================================================================================================
 subroutine raviart_thomas_get_divergence_vector( this, actual_cell_interpolation, & 
@@ -462,37 +468,12 @@ subroutine raviart_thomas_get_curl_vector( this, actual_cell_interpolation, &
      & ishape, qpoint, vector_field )
   implicit none
   class(raviart_thomas_reference_fe_t), intent(in)    :: this 
-  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
-  integer(ip)                     , intent(in)    :: ishape
-  integer(ip)                     , intent(in)    :: qpoint
-  type(vector_field_t)            , intent(inout) :: vector_field
+  type(interpolation_t)               , intent(in)    :: actual_cell_interpolation 
+  integer(ip)                         , intent(in)    :: ishape
+  integer(ip)                         , intent(in)    :: qpoint
+  type(vector_field_t)                , intent(inout) :: vector_field
 
-  ! Locals 
-  integer(ip) :: idime, jdime, kdime
-  ! Epsilon_{ijk} = Levi_Civita(i,j,k)
-  real(rp), parameter :: Levi_Civita(3,3,3) = reshape( (/0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, -1.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, &
-       0.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, -1.0_rp, 0.0_rp, 0.0_rp, &
-       0.0_rp, -1.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp, 0.0_rp/), (/3, 3, 3/) )
-
-  assert( this%field_type == field_type_vector )
-  assert( ishape >= 1 .and. ishape <= this%number_shape_functions )
-  assert( qpoint >= 1 )
-
-
-  call vector_field%init(0.0_rp)
-
-  do idime=1,SPACE_DIM 
-     do jdime = 1,this%number_dimensions
-        do kdime = 1,this%number_dimensions
-           if ( ( idime .ne. jdime ) .and. (idime .ne. kdime) .and. (jdime .ne. kdime) ) then 
-              call vector_field%set( idime, &
-                   Levi_Civita(idime,jdime,kdime)* &
-                   actual_cell_interpolation%shape_derivatives(jdime,kdime,this%node_component_array(ishape,1),qpoint) )
-              ! @sbadia: I have to check it. 
-           end if
-        end do
-     end do
-  end do
+  check(.false.)
 
 end subroutine raviart_thomas_get_curl_vector
 
