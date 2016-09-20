@@ -592,6 +592,21 @@ subroutine raviart_thomas_apply_femap_to_interpolation(this,map,ref,phy)
   nlocs = ref%number_quadrature_points
   !nnode = ref%number_shape_functions
   nnode = size(ref%shape_functions,2)
+  
+  ! Piola map for shape functions
+  ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J \phi(X_g)
+  phy%shape_functions=0.0_rp
+  do ilocs=1,phy%number_quadrature_points
+     do inode=1,this%number_shape_functions
+        do idime=1,this%number_dimensions
+           do jdime=1,this%number_dimensions
+               phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) &
+                    + map%inv_jacobian(idime,jdime,ilocs)*ref%shape_functions(jdime,inode,ilocs)
+           end do
+        end do
+        phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) / map%det_jacobian(ilocs)
+     end do
+  end do
 
   ! @sbadia: put Piola here
   phy%shape_derivatives=0.0_rp
