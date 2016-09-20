@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module vector_poisson_analytical_functions_names
-  use serial_names
+  use fempar_names
   use poisson_analytical_functions_names
   implicit none
 # include "debug.i90"

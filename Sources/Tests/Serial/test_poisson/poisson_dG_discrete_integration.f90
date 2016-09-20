@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module poisson_dG_discrete_integration_names
-  use serial_names
+  use fempar_names
   use poisson_analytical_functions_names
   use poisson_conditions_names
   

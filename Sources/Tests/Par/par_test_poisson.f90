@@ -1,5 +1,5 @@
 program par_test_poisson
-  use serial_names
+  use fempar_names
   use par_test_poisson_driver_names
   implicit none
   type(par_test_poisson_fe_driver_t)     :: test_driver  

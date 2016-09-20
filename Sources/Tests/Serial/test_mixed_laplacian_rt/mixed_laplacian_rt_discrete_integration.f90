@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module mixed_laplacian_rt_discrete_integration_names
-  use serial_names
+  use fempar_names
   
   implicit none
 # include "debug.i90"

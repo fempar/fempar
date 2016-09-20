@@ -1,5 +1,5 @@
 module par_test_poisson_params_names
-  use serial_names
+  use fempar_names
   implicit none
 #include "debug.i90" 
   private

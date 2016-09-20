@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_mixed_laplacian_rt_driver_names
-  use serial_names
+  use fempar_names
   use mixed_laplacian_rt_params_names
   use mixed_laplacian_rt_analytical_functions_names
   use mixed_laplacian_rt_discrete_integration_names
