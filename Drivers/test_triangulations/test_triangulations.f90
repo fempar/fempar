@@ -52,7 +52,7 @@ module command_line_parameters_names
 contains
 
   subroutine test_triangulations_set_default_params(params)
-    use serial_names
+    use fempar_names
     implicit none
     class(test_triangulations_params_t), intent(inout) :: params
     ! IO parameters
@@ -96,7 +96,7 @@ end module command_line_parameters_names
 !****************************************************************************************************
 
 program test_triangulations
-  use serial_names
+  use fempar_names
   !use Data_Type_Command_Line_Interface
   use command_line_parameters_names
   
@@ -157,7 +157,7 @@ contains
   subroutine read_flap_cli_test_triangulations(cli,test_params)
     !use Data_Type_Command_Line_Interface
     use command_line_parameters_names
-    use serial_names
+    use fempar_names
     implicit none
     type(Command_Line_Interface), intent(out)   :: cli
     type(test_triangulations_params_t)      , intent(inout) :: test_params

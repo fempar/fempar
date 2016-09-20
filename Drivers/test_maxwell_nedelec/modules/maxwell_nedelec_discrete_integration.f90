@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module maxwell_nedelec_discrete_integration_names
-  use serial_names
+  use fempar_names
   
   implicit none
 # include "debug.i90"

@@ -51,7 +51,7 @@ module command_line_parameters_names
 contains
 
   subroutine test_geometry_set_default_params(params)
-    use serial_names
+    use fempar_names
     implicit none
     class(test_geometry_params_t), intent(inout) :: params
     ! IO parameters
@@ -94,7 +94,7 @@ program test_geometry
   use iso_c_binding
   use sisl_names
   use geometry_names
-  use serial_names
+  use fempar_names
   !use Data_Type_Command_Line_Interface
   use flap, only : command_line_interface
   use command_line_parameters_names
@@ -156,7 +156,7 @@ contains
   subroutine read_flap_cli_test_geometry(cli,test_params)
     !use Data_Type_Command_Line_Interface
     use command_line_parameters_names
-    use serial_names
+    use fempar_names
     implicit none
     type(Command_Line_Interface) , intent(out)   :: cli
     type(test_geometry_params_t), intent(inout) :: test_params

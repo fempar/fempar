@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module partitioner_input_names
-  use serial_names
+  use fempar_names
 # include "debug.i90"
   implicit none
   private
@@ -252,7 +252,7 @@ end module partitioner_input_names
 !==================================================================================================
 
 program partitioner
-  use serial_names
+  use fempar_names
   use partitioner_input_names
   implicit none
   type(partitioner_input_t)              :: input
