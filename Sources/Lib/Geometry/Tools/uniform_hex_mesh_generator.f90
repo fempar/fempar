@@ -29,7 +29,7 @@ module uniform_hex_mesh_generator_names
   ! Serial modules
   use types_names
   use memor_names
-  use hex_boundary_set_ids_descriptor_names
+  !use hex_boundary_set_ids_descriptor_names
   use reference_fe_names
   use FPL
   implicit none
