@@ -26,8 +26,8 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_test_poisson_driver_names
-  use serial_names
-  use par_names
+  use fempar_names
+  use fempar_names
   use par_test_poisson_params_names
   use poisson_cG_discrete_integration_names
   use poisson_conditions_names

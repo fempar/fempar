@@ -28,7 +28,7 @@
 
 !****************************************************************************************************
 program test_maxwell_nedelec
-  use serial_names
+  use fempar_names
   use test_maxwell_nedelec_driver_names  
   implicit none
   type(test_maxwell_nedelec_driver_t) :: test_driver

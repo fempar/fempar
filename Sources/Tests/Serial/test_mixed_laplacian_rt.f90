@@ -28,7 +28,7 @@
 
 !****************************************************************************************************
 program test_mixed_laplacian_rt
-  use serial_names
+  use fempar_names
   use test_mixed_laplacian_rt_driver_names  
   implicit none
   type(test_mixed_laplacian_rt_driver_t) :: test_driver

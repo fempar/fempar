@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module serial_names
+module fempar_names
   ! Tools
   use types_names
   use memor_names
@@ -38,6 +38,10 @@ module serial_names
   use flap, only : command_line_interface
   use FPL
   use vtk_handler_names
+  
+  use par_context_names
+  use par_timer_names
+  use par_environment_names
 
   ! Geometry
   use metis_interface_names
@@ -73,6 +77,12 @@ module serial_names
   use direct_solver_parameters_names
   use direct_solver_creational_methods_dictionary_names
   
+  
+  use par_scalar_array_names
+  use par_block_array_names
+  use par_sparse_matrix_names
+  use mlbddc_names
+  
   ! Integration 
   use reference_fe_names
   use field_names
@@ -104,4 +114,4 @@ contains
   end subroutine
 
 
-end module serial_names
+end module fempar_names

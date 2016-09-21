@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_poisson_driver_names
-  use serial_names
+  use fempar_names
   use test_poisson_params_names
   use poisson_cG_discrete_integration_names
   use poisson_dG_discrete_integration_names

@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_mesh_gen_input_names
-  use serial_names
+  use fempar_names
 # include "debug.i90"
   implicit none
   private
@@ -233,7 +233,7 @@ end module test_mesh_gen_input_names
 !==================================================================================================
 
 program partitioner
-  use serial_names
+  use fempar_names
   use test_mesh_gen_input_names
   implicit none
   type(test_mesh_gen_input_t)    :: input

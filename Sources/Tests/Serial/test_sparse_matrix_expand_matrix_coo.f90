@@ -2,7 +2,7 @@ program test_expand_matrix
 
 USE types_names
 USE memor_names
-USE serial_names
+USE fempar_names
 USE sparse_matrix_names
 USE base_sparse_matrix_names, only: coo_sparse_matrix_t
 

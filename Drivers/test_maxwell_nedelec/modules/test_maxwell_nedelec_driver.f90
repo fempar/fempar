@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_maxwell_nedelec_driver_names
-  use serial_names
+  use fempar_names
   use maxwell_nedelec_params_names
   use maxwell_nedelec_analytical_functions_names
   use maxwell_nedelec_discrete_integration_names

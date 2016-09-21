@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module vector_poisson_conditions_names
-  use serial_names
+  use fempar_names
   use vector_poisson_analytical_functions_names
   
   implicit none

@@ -28,7 +28,7 @@
 
 !****************************************************************************************************
 program test_poisson
-  use serial_names
+  use fempar_names
   use test_poisson_driver_names  
   implicit none
   type(test_poisson_driver_t) :: test_driver

@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_poisson_params_names
-  use serial_names
+  use fempar_names
 # include "debug.i90"
 
   implicit none

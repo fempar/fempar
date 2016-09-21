@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_command_line_parameters_names
-  use serial_names
+  use fempar_names
 # include "debug.i90"
 
   implicit none
@@ -88,7 +88,7 @@ end module par_command_line_parameters_names
 !****************************************************************************************************
 
 program par_test_triangulations
-  use serial_names
+  use fempar_names
   use par_names
   use par_command_line_parameters_names
   
