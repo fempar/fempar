@@ -28,7 +28,6 @@
 module postpro_names
   use types_names
   use stdio_names
-  use renumbering_names
 #ifdef ENABLE_GIDPOST
   use gidpost_names
 #endif
@@ -146,7 +145,7 @@ contains
   end subroutine postpro_close_file
 
   !==================================================================================
-  subroutine possca(pos,bridge,wopos,istep,ttime,nrenumbering)
+  subroutine possca(pos,bridge,wopos,istep,ttime)
     !-----------------------------------------------------------------------
     !
     ! Write a scalar in postprocess file
@@ -158,7 +157,6 @@ contains
     real(rp)       , intent(in)  :: bridge(:)
     integer(ip)    , intent(in)  :: istep
     real(rp)       , intent(in)  :: ttime
-    type(renumbering_t),optional,intent(in) :: nrenumbering
     integer(ip)               :: npoin,ipoin
     character(8)              :: state
 
@@ -173,15 +171,9 @@ contains
 !!$          write(pos%luou,4)ipoin,bridge(ipoin)
 !!$       end do
 !!$       write(pos%luou,1) 'End Values'
-       if ( present(nrenumbering) ) then
-          do ipoin=1,npoin
-             write(pos%luou,4) nrenumbering%lperm(ipoin),bridge(ipoin)
-          end do
-       else
-          do ipoin=1,npoin
-             write(pos%luou,4)ipoin,bridge(ipoin)
-          end do
-       end if
+       do ipoin=1,npoin
+          write(pos%luou,4)ipoin,bridge(ipoin)
+       end do
        write(pos%luou,1) 'End Values' 
        flush(pos%luou)
     else if(pos%form==2) then
@@ -363,7 +355,7 @@ contains
   end subroutine posvec
 
   !==================================================================================
-  subroutine poisca(pos,bridge,wopos,istep,ttime,nrenumbering)
+  subroutine poisca(pos,bridge,wopos,istep,ttime)
     !-----------------------------------------------------------------------
     !
     ! Write a scalar in postprocess file
@@ -375,7 +367,6 @@ contains
     integer(ip)    , intent(in)  :: bridge(:)
     integer(ip)    , intent(in)  :: istep
     real(rp)       , intent(in)  :: ttime
-    type(renumbering_t)    , intent(in), optional   :: nrenumbering
     ! Locals
     integer(ip)  :: npoin,ipoin
     character(8) :: state
@@ -387,15 +378,9 @@ contains
        write(pos%luou,2) wopos,state,ttime,'Scalar'
        write(pos%luou,3) wopos
        write(pos%luou,1) 'Values'
-       if(present(nrenumbering))then
-          do ipoin=1,npoin
-             write(pos%luou,4) nrenumbering%lperm(ipoin),bridge(ipoin)
-          end do
-       else
-          do ipoin=1,npoin
-             write(pos%luou,4) ipoin,bridge(ipoin)
-          end do
-       end if
+       do ipoin=1,npoin
+          write(pos%luou,4) ipoin,bridge(ipoin)
+       end do
        write(pos%luou,1) 'End Values'
        flush(pos%luou)
     else if(pos%form==2) then

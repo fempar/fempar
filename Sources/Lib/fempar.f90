@@ -49,9 +49,6 @@ module fempar_names
   use base_static_triangulation_names
 
   use cell_import_names
-  use materials_names
-  use materials_io_names
-  use renumbering_names
   use mesh_names
   use geometry_names
   use uniform_hex_mesh_generator_names
