@@ -645,7 +645,7 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
   real(rp), allocatable :: wmat1(:,:,:)
   real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
   integer(ip) :: ndime,nnode,nlocs,ntens
-  integer(ip) :: ilocs,inode,idime,jdime,kdime
+  integer(ip) :: ilocs,inode,idime,jdime,kdime,ldime
 
   ndime = ref%number_dimensions
   ntens = ref%number_entries_symmetric_tensor
@@ -653,20 +653,53 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
   !nnode = ref%number_shape_functions
   nnode = size(ref%shape_functions,2)
 
-  ! @sbadia: put Piola here
+  
+  ! Contra-Piola map for shape functions
+  ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J \phi(X_g)
+  phy%shape_functions=0.0_rp
+  do ilocs=1,phy%number_quadrature_points
+     do inode=1,this%number_shape_functions
+        do idime=1,this%number_dimensions
+           do jdime=1,this%number_dimensions
+               phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) &
+                    + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_functions(jdime,inode,ilocs)
+           end do
+        end do
+     end do
+  end do
+  
+  ! Contra-Piola map for shape derivatives
+  ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J grad(phi(X_g)) J^{-1}
   phy%shape_derivatives=0.0_rp
   do ilocs=1,phy%number_quadrature_points
      do inode=1,this%number_shape_functions
         do idime=1,this%number_dimensions
            do jdime=1,this%number_dimensions
-             do kdime=1,this%number_dimensions
-               phy%shape_derivatives(idime,jdime,inode,ilocs) = phy%shape_derivatives(idime,jdime,inode,ilocs) &
-                    + map%inv_jacobian(kdime,jdime,ilocs)*ref%shape_derivatives(idime,kdime,inode,ilocs)
-             end do
-           end do
+              do kdime=1,this%number_dimensions
+                 do ldime=1,this%number_dimensions
+                    phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
+                       + map%inv_jacobian(kdime,idime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(jdime,ldime,ilocs)
+                 end do
+              end do
+        end do
         end do
      end do
-  end do
+  end do 
+  
+    !! @sbadia: put Piola here
+  !phy%shape_derivatives=0.0_rp
+  !do ilocs=1,phy%number_quadrature_points
+  !   do inode=1,this%number_shape_functions
+  !      do idime=1,this%number_dimensions
+  !         do jdime=1,this%number_dimensions
+  !           do kdime=1,this%number_dimensions
+  !             phy%shape_derivatives(idime,jdime,inode,ilocs) = phy%shape_derivatives(idime,jdime,inode,ilocs) &
+  !                  + map%inv_jacobian(kdime,jdime,ilocs)*ref%shape_derivatives(idime,kdime,inode,ilocs)
+  !           end do
+  !         end do
+  !      end do
+  !   end do
+  !end do
 end subroutine nedelec_apply_femap_to_interpolation
 
 subroutine nedelec_invert_change_basis_matrix(this)
