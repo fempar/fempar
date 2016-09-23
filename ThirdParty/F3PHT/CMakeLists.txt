@@ -16,6 +16,7 @@ SET(LIB ${PROJECT_NAME})
 
 SET(SRC_PATH ${CMAKE_SOURCE_DIR}/src)
 SET(LIB_PATH ${SRC_PATH}/lib)
+SET(TESTS_PATH ${SRC_PATH}/tests)
 
 #SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake/Modules/")
 
@@ -41,6 +42,10 @@ IF(NOT CMAKE_BUILD_TYPE)
 
   SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS NONE DEBUG RELEASE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
+
+IF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
+    OPTION(${PROJECT_NAME}_ENABLE_TESTS "Enable/disable tests compilation" OFF)
+ENDIF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
 
 #################################################################
 # List of external libraries
@@ -149,6 +154,16 @@ message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 # Try to search first static libraries
 IF(NOT ${BUILD_SHARED_LIBS})
     SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a ${CMAKE_FIND_LIBRARY_SUFFIXES}")
+ENDIF()
+
+#################################################################
+# ENABLE TESTING
+#################################################################
+
+SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL} CACHE STRING "" )
+IF(${PROJECT_NAME}_ENABLE_TESTS)
+    ENABLE_TESTING()
+    INCLUDE(CTest)
 ENDIF()
 
 #################################################################
