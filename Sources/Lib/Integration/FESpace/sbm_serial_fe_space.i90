@@ -1361,10 +1361,12 @@ function serial_fe_space_get_max_number_nodal_quadrature_points( this )
   
   serial_fe_space_get_max_number_nodal_quadrature_points = 0
   do i= 1, this%reference_fes_size
-     nodal_quadrature => this%reference_fes(i)%p%get_nodal_quadrature()
-     serial_fe_space_get_max_number_nodal_quadrature_points =       & 
-        max(serial_fe_space_get_max_number_nodal_quadrature_points, &
-            nodal_quadrature%get_number_quadrature_points())
+     if (this%reference_fes(i)%p%has_nodal_quadrature()) then
+       nodal_quadrature => this%reference_fes(i)%p%get_nodal_quadrature()
+       serial_fe_space_get_max_number_nodal_quadrature_points =       & 
+         max(serial_fe_space_get_max_number_nodal_quadrature_points, &
+             nodal_quadrature%get_number_quadrature_points())
+     end if   
   end do
 end function serial_fe_space_get_max_number_nodal_quadrature_points
 

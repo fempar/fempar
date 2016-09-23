@@ -430,6 +430,19 @@ subroutine nedelec_create_edge_local_interpolation ( this, quadrature, interpola
 
 end subroutine nedelec_create_edge_local_interpolation
 
+function nedelec_has_nodal_quadrature(this)
+  implicit none
+  class(nedelec_reference_fe_t), intent(in) :: this
+  logical :: nedelec_has_nodal_quadrature
+  nedelec_has_nodal_quadrature = .false.
+end function nedelec_has_nodal_quadrature
+
+function nedelec_get_nodal_quadrature(this)
+  implicit none
+  class(nedelec_reference_fe_t), target, intent(in) :: this
+  type(quadrature_t), pointer :: nedelec_get_nodal_quadrature
+  assert ( .false. )
+end function nedelec_get_nodal_quadrature
 
 !==================================================================================================
 subroutine nedelec_get_value_scalar( this, actual_cell_interpolation, & 

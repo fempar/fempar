@@ -360,9 +360,6 @@ module reference_fe_names
      type(list_t)                   :: n_faces_n_face           ! all n-faces per n-face
      type(list_t)                   :: own_nodes_n_faces
      type(list_t)                   :: face_integration_coupling_nodes_facet
-     type(quadrature_t)             :: nodal_quadrature
-
-
 
      integer(ip), allocatable :: number_rotations_per_dimension(:)
      integer(ip), allocatable :: number_orientations_per_dimension(:)
@@ -383,11 +380,14 @@ module reference_fe_names
      procedure(update_interpolation_face_interface)     , deferred :: update_interpolation_face
      procedure(get_component_node_interface)            , deferred :: get_component_node
      procedure(get_scalar_from_vector_node_interface)   , deferred :: get_scalar_from_vector_node
+     
+     ! Returns the maximum order among the orders of the polynomial spaces associated to the components of the FE space
+     procedure(get_max_order_interface)                 , deferred :: get_max_order
 
-     procedure(get_value_scalar_interface)           , deferred :: get_value_scalar
-     procedure(get_value_vector_interface)           , deferred :: get_value_vector
-     !procedure(get_value_tensor_interface)          , deferred :: get_value_tensor           ! Pending
-     !procedure(get_value_symmetric_tensor_interface), deferred :: get_value_symmetric_tensor ! Pending
+     procedure(get_value_scalar_interface)              , deferred :: get_value_scalar
+     procedure(get_value_vector_interface)              , deferred :: get_value_vector
+     !procedure(get_value_tensor_interface)             , deferred :: get_value_tensor           ! Pending
+     !procedure(get_value_symmetric_tensor_interface)   , deferred :: get_value_symmetric_tensor ! Pending
      generic :: get_value => get_value_scalar,get_value_vector!                                      &
      !          &                !,get_value_tensor,get_value_symmetric_tensor
 
@@ -424,16 +424,6 @@ module reference_fe_names
      procedure (check_compatibility_of_n_faces_interface), deferred :: &
           &     check_compatibility_of_n_faces
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
-     procedure (create_nodal_quadrature_interface), deferred :: create_nodal_quadrature          
-
-     !procedure (set_scalar_field_to_nodal_values_interface), deferred :: set_scalar_field_to_nodal_values
-     !procedure (set_vector_field_to_nodal_values_interface), deferred :: set_vector_field_to_nodal_values
-     !procedure (set_tensor_field_to_nodal_values_interface), deferred :: set_tensor_field_to_nodal_values
-     !generic :: set_field_to_nodal_values => set_scalar_field_to_nodal_values, &
-     !     & set_vector_field_to_nodal_values, &
-     !     & set_tensor_field_to_nodal_values
-
-     procedure (interpolate_nodal_values_interface), deferred :: interpolate_nodal_values
 
      procedure (get_number_subelements_interface),       deferred :: get_number_subelements
      procedure (get_subelements_connectivity_interface), deferred :: get_subelements_connectivity
@@ -482,7 +472,8 @@ module reference_fe_names
      procedure :: create_own_dofs_on_n_face_iterator => reference_fe_create_own_dofs_on_n_face_iterator
      procedure :: get_own_node_n_face => reference_fe_get_own_node_n_face
 
-     procedure :: create_facet_integration_coupling_dofs_iterator => create_facet_integration_coupling_dofs_iterator
+     procedure :: create_facet_integration_coupling_dofs_iterator => reference_fe_create_facet_integration_coupling_dofs_iterator
+     procedure :: has_nodal_quadrature => reference_fe_has_nodal_quadrature
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
      procedure :: compute_relative_orientation => reference_fe_compute_relative_orientation
      procedure :: compute_relative_rotation => reference_fe_compute_relative_rotation
@@ -568,6 +559,13 @@ module reference_fe_names
        integer(ip)                       :: number_nodes_scalar
      end function get_number_nodes_scalar_interface
 
+     function get_max_order_interface( this )
+       import :: reference_fe_t, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       integer(ip) :: get_max_order_interface
+     end function get_max_order_interface
+     
      subroutine get_value_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,        &
           &                                 scalar_field )
        import :: reference_fe_t, interpolation_t, ip, rp
@@ -740,50 +738,6 @@ module reference_fe_names
        class(reference_fe_t), intent(inout) :: this 
      end subroutine create_nodal_quadrature_interface
 
-     !subroutine set_scalar_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
-     !     &                                                  nodal_values, unknown_component)
-     !  import :: reference_fe_t, rp, ip
-     !  implicit none
-     !  class(reference_fe_t), intent(in)    :: this 
-     !  integer(ip)          , intent(in)    :: code
-     !  real(rp)             , intent(in)    :: values(:)
-     !  integer(ip)          , intent(in)    :: nodal_codes(:)
-     !  real(rp)             , intent(inout) :: nodal_values(:)
-     !  integer(ip), optional, intent(in)    :: unknown_component
-     !end subroutine set_scalar_field_to_nodal_values_interface
-
-     !subroutine set_vector_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
-     !     &                                                  nodal_values)
-     !  import :: reference_fe_t, vector_field_t, ip, rp
-     !  implicit none
-     !  class(reference_fe_t), intent(in)    :: this
-     !  integer(ip)          , intent(in)    :: code
-     !  type(vector_field_t) , intent(in)    :: values(:)
-     !  integer(ip)          , intent(in)    :: nodal_codes(:)
-     !  real(rp)             , intent(inout) :: nodal_values(:)
-     !end subroutine set_vector_field_to_nodal_values_interface
-
-     !subroutine set_tensor_field_to_nodal_values_interface ( this, code, values, nodal_codes, &
-     !     &                                                  nodal_values)
-     !  import :: reference_fe_t, tensor_field_t, ip, rp
-     !  implicit none
-     !  class(reference_fe_t), intent(in)    :: this 
-     !  integer(ip)          , intent(in)    :: code
-     !  type(tensor_field_t) , intent(in)    :: values(:)
-     !  integer(ip)          , intent(in)    :: nodal_codes(:)
-     !  real(rp)             , intent(inout) :: nodal_values(:)
-     !end subroutine set_tensor_field_to_nodal_values_interface
-
-     subroutine interpolate_nodal_values_interface(this,nodal_interpolation,nodal_values_origin, &
-          &                                        nodal_values_destination)
-       import :: reference_fe_t, interpolation_t, rp
-       implicit none 
-       class(reference_fe_t), intent(in)    :: this 
-       type(interpolation_t), intent(in)    :: nodal_interpolation
-       real(rp)             , intent(in)    :: nodal_values_origin(:)
-       real(rp)             , intent(inout) :: nodal_values_destination(:)
-     end subroutine interpolate_nodal_values_interface
-
      function get_number_subelements_interface(this) result(number_subelements)
        import :: reference_fe_t, ip
        implicit none
@@ -815,6 +769,7 @@ module reference_fe_names
   integer(ip)              :: order_vector(SPACE_DIM)
   integer(ip), allocatable :: node_component_array(:,:)
   integer(ip), allocatable :: node_array_component(:,:)
+  type(quadrature_t)       :: nodal_quadrature
 contains
   ! Additional deferred methods
   !procedure (fill_scalar_interface)            , private, deferred :: fill_scalar
@@ -838,16 +793,17 @@ contains
   procedure :: update_interpolation      => lagrangian_reference_fe_update_interpolation
   procedure :: update_interpolation_face => lagrangian_reference_fe_update_interpolation_face
   procedure :: get_component_node        => lagrangian_reference_fe_get_component_node
-  procedure :: get_scalar_from_vector_node          & 
-       & => lagrangian_reference_fe_get_scalar_from_vector_node
+  procedure :: get_scalar_from_vector_node  => lagrangian_reference_fe_get_scalar_from_vector_node
+  procedure :: get_max_order             => lagrangian_reference_fe_get_max_order
   procedure :: get_value_scalar          => lagrangian_reference_fe_get_value_scalar
   procedure :: get_value_vector          => lagrangian_reference_fe_get_value_vector
   procedure :: get_gradient_scalar       => lagrangian_reference_fe_get_gradient_scalar
   procedure :: get_gradient_vector       => lagrangian_reference_fe_get_gradient_vector
   procedure :: get_divergence_vector     => lagrangian_reference_fe_get_divergence_vector
   procedure :: get_curl_vector           => lagrangian_reference_fe_get_curl_vector
-  procedure :: interpolate_nodal_values  => lagrangian_reference_fe_interpolate_nodal_values
   procedure :: create_nodal_quadrature   => lagrangian_reference_fe_create_nodal_quadrature
+  procedure :: has_nodal_quadrature      => lagrangian_reference_fe_has_nodal_quadrature
+  procedure :: get_nodal_quadrature      => lagrangian_reference_fe_get_nodal_quadrature
   procedure :: evaluate_fe_function_scalar          &
        & => lagrangian_reference_fe_evaluate_fe_function_scalar
   procedure :: evaluate_fe_function_vector          & 
@@ -955,6 +911,8 @@ procedure :: create_face_local_interpolation      &
 procedure :: blending                     => raviart_thomas_blending
 procedure :: get_subelements_connectivity                                &
     &   => raviart_thomas_get_subelements_connectivity
+procedure :: has_nodal_quadrature      => raviart_thomas_has_nodal_quadrature
+procedure :: get_nodal_quadrature      => raviart_thomas_get_nodal_quadrature    
 procedure :: get_value_scalar          => raviart_thomas_get_value_scalar
 procedure :: get_value_vector          => raviart_thomas_get_value_vector
 procedure :: get_gradient_scalar       => raviart_thomas_get_gradient_scalar
@@ -1016,6 +974,8 @@ procedure :: create_face_local_interpolation      &
 procedure :: blending                     => nedelec_blending
 procedure :: get_subelements_connectivity                                &
     &   => nedelec_get_subelements_connectivity
+procedure :: has_nodal_quadrature      => nedelec_has_nodal_quadrature
+procedure :: get_nodal_quadrature      => nedelec_get_nodal_quadrature 
 procedure :: get_value_scalar          => nedelec_get_value_scalar
 procedure :: get_value_vector          => nedelec_get_value_vector
 procedure :: get_gradient_scalar       => nedelec_get_gradient_scalar

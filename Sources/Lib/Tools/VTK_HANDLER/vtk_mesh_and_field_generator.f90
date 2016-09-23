@@ -744,11 +744,11 @@ contains
                 call reference_fe_origin%create_interpolation(nodal_quadrature_target, interpolation)
 
                 ! interpolate nodal values if needed
-                if(reference_fe_origin%get_order() /= reference_fe_target%get_order()) then
-                    call reference_fe_origin%interpolate_nodal_values( interpolation, nodal_values_origin(1:number_nodes_origin), nodal_values_target(1:number_nodes_target))
-                else
-                    nodal_values_target(1:number_nodes_origin)=nodal_values_origin(1:number_nodes_origin)
-                endif
+                !if(reference_fe_origin%get_order() /= reference_fe_target%get_order()) then
+                !    call reference_fe_origin%interpolate_nodal_values( interpolation, nodal_values_origin(1:number_nodes_origin), nodal_values_target(1:number_nodes_target))
+                !else
+                !    nodal_values_target(1:number_nodes_origin)=nodal_values_origin(1:number_nodes_origin)
+                !endif
 
                 ! Loop on subelements: Build field in VTK-like format
                 do subelement_index = 1, reference_fe_target%get_number_subelements()
