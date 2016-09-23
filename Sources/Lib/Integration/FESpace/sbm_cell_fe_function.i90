@@ -32,29 +32,104 @@
 !**************************************************************************************************
 
 !===============================================================================================
-subroutine cell_fe_function_scalar_create ( this, ifield, max_nnode, max_npoint )
+subroutine cell_fe_function_scalar_create ( this, fe_space, field_id )
   implicit none
   class(cell_fe_function_scalar_t), intent(inout) :: this 
-  integer(ip)                     , intent(in)    :: ifield, max_nnode, max_npoint
+  class(serial_fe_space_t)        , intent(in)    :: fe_space
+  integer(ip)                     , intent(in)    :: field_id
   integer(ip)                                     :: istat
-
+  class(environment_t)            , pointer       :: environment  
   call this%free()
+  assert ( field_id >=1 .and. field_id <= fe_space%get_number_fields() )
 
-  this%field_id = ifield
-
-  this%max_number_nodes = max_nnode
-  this%max_number_quadrature_points = max_npoint
-
-  allocate ( this%nodal_values(max_nnode), stat = istat )
-  check(istat==0)
-
-  allocate ( this%quadrature_points_values(max_npoint), stat = istat )
-  check(istat==0)
-
-  allocate ( this%quadrature_points_gradients(max_npoint), stat = istat )
-  check(istat==0)
+  this%field_id = field_id
+  environment => fe_space%get_environment()
+  if ( environment%am_i_l1_task() ) then 
+     assert ( fe_space%get_field_type(field_id) == field_type_scalar )
+     this%max_number_nodes = fe_space%get_max_number_shape_functions()
+     this%max_number_quadrature_points = fe_space%get_max_number_quadrature_points() 
+     allocate ( this%nodal_values(this%max_number_nodes), stat = istat )
+     check(istat==0)
+     allocate ( this%quadrature_points_values(this%max_number_quadrature_points), stat = istat )
+     check(istat==0)
+     allocate ( this%quadrature_points_gradients(this%max_number_quadrature_points), stat = istat )
+     check(istat==0)
+  end if
 
 end subroutine cell_fe_function_scalar_create
+
+subroutine cell_fe_function_scalar_update ( this, fe_accessor, fe_function )
+  implicit none
+  class(cell_fe_function_scalar_t), intent(inout) :: this
+  type(fe_accessor_t)             , intent(in)    :: fe_accessor
+  type(fe_function_t)             , intent(in)    :: fe_function
+
+  
+  integer(ip)                        :: inode, field_id, block_id
+  integer(ip)                        :: number_nodes_field, number_quadrature_points
+  integer(ip)                , pointer :: elem2dof(:)
+  integer(ip)                , pointer :: field_blocks(:)
+  class(reference_fe_t)      , pointer :: reference_fe
+  type(quadrature_t)         , pointer :: quadrature
+  type(volume_integrator_t)  , pointer :: volume_integrator
+  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
+  class(vector_t)            , pointer :: dof_values
+  real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
+  real(rp)                   , pointer :: nodal_values(:)
+  real(rp)                   , pointer :: quadrature_points_values(:)
+  type(vector_field_t)       , pointer :: quadrature_points_gradients(:)
+  class(environment_t)       , pointer :: environment
+  class(serial_fe_space_t)   , pointer :: serial_fe_space  
+  
+  serial_fe_space => fe_accessor%get_fe_space()
+  environment     => serial_fe_space%get_environment()
+  
+  if ( environment%am_i_l1_task() ) then
+
+     field_id                 =  this%get_field_id()
+     field_blocks             => fe_accessor%get_field_blocks()
+     reference_fe             => fe_accessor%get_reference_fe(field_id)
+     quadrature               => fe_accessor%get_quadrature()
+     volume_integrator        => fe_accessor%get_volume_integrator(field_id)
+     number_nodes_field       =  reference_fe%get_number_shape_functions()
+     number_quadrature_points =  quadrature%get_number_quadrature_points()
+
+     call this%set_current_number_quadrature_points( number_quadrature_points )
+     call this%set_current_number_nodes( number_nodes_field )
+
+     block_id = field_blocks(field_id)
+     nodal_values                => this%get_nodal_values()
+     quadrature_points_values    => this%get_quadrature_points_values()
+     quadrature_points_gradients => this%get_quadrature_points_gradients()
+
+     call fe_accessor%get_field_elem2dof(field_id,elem2dof)
+
+     ! Extract nodal values associated to dirichlet bcs
+     strong_dirichlet_values         => fe_function%get_strong_dirichlet_values()
+     strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+     do inode = 1, number_nodes_field
+        if ( elem2dof(inode) < 0 ) then
+           nodal_values(inode) = strong_dirichlet_values_entries(-elem2dof(inode))
+        end if
+     end do
+
+     ! Extract nodal values associated to dofs
+     dof_values => fe_function%get_dof_values()
+     call dof_values%extract_subvector ( block_id, &
+          number_nodes_field, &
+          elem2dof, &
+          nodal_values )
+
+     ! Evaluate values and gradients at quadrature points
+     call volume_integrator%evaluate_fe_function ( nodal_values, & 
+          quadrature_points_values )
+
+     call volume_integrator%evaluate_gradient_fe_function ( nodal_values, & 
+          quadrature_points_gradients )
+
+  end if
+end subroutine cell_fe_function_scalar_update
+
 
 !===============================================================================================
 function cell_fe_function_scalar_get_field_id ( this )
@@ -170,29 +245,110 @@ end subroutine cell_fe_function_scalar_free
 !**************************************************************************************************
 
 !===============================================================================================
-subroutine cell_fe_function_vector_create ( this, ifield, max_nnode, max_npoint )
+subroutine cell_fe_function_vector_create ( this, fe_space, field_id )
   implicit none
   class(cell_fe_function_vector_t), intent(inout) :: this 
-  integer(ip)                     , intent(in)    :: ifield, max_nnode, max_npoint
+  class(serial_fe_space_t)        , intent(in)    :: fe_space
+  integer(ip)                     , intent(in)    :: field_id
   integer(ip)                                     :: istat
+  class(environment_t)            , pointer       :: environment  
 
-  call this%free()
+  assert ( field_id >=1 .and. field_id <= fe_space%get_number_fields() )
 
-  this%field_id = ifield
+  environment => fe_space%get_environment()
+  if ( environment%am_i_l1_task() ) then 
 
-  this%max_number_nodes = max_nnode
-  this%max_number_quadrature_points = max_npoint
+     assert ( fe_space%get_field_type(field_id) == field_type_vector )
 
-  allocate ( this%nodal_values(max_nnode), stat = istat )
-  check(istat==0)
+     call this%free()
 
-  allocate ( this%quadrature_points_values(max_npoint), stat = istat )
-  check(istat==0)
+     this%field_id = field_id
 
-  allocate ( this%quadrature_points_gradients(max_npoint), stat = istat )
-  check(istat==0)
+     this%max_number_nodes = fe_space%get_max_number_shape_functions()
+     this%max_number_quadrature_points = fe_space%get_max_number_quadrature_points() 
+
+     allocate ( this%nodal_values(this%max_number_nodes), stat = istat )
+     check(istat==0)
+
+     allocate ( this%quadrature_points_values(this%max_number_quadrature_points), stat = istat )
+     check(istat==0)
+
+     allocate ( this%quadrature_points_gradients(this%max_number_quadrature_points), stat = istat )
+     check(istat==0)
+
+  end if
   
 end subroutine cell_fe_function_vector_create
+
+subroutine cell_fe_function_vector_update ( this, fe_accessor, fe_function)
+  implicit none
+  class(cell_fe_function_vector_t), intent(inout) :: this
+  type(fe_accessor_t)             , intent(in)    :: fe_accessor
+  type(fe_function_t)             , intent(in)    :: fe_function
+  
+  integer(ip)                        :: inode, field_id, block_id
+  integer(ip)                        :: number_nodes_field, number_quadrature_points
+  integer(ip)                , pointer :: elem2dof(:)
+  integer(ip)                , pointer :: field_blocks(:)
+  class(reference_fe_t)      , pointer :: reference_fe
+  type(quadrature_t)         , pointer :: quadrature
+  type(volume_integrator_t)  , pointer :: volume_integrator
+  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
+  class(vector_t)            , pointer :: dof_values
+  real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
+  real(rp)                   , pointer :: nodal_values(:)
+  type(vector_field_t)       , pointer :: quadrature_points_values(:)
+  type(tensor_field_t)       , pointer :: quadrature_points_gradients(:)
+  class(environment_t)       , pointer :: environment
+  class(serial_fe_space_t)   , pointer :: serial_fe_space  
+  
+  serial_fe_space => fe_accessor%get_fe_space()
+  environment     => serial_fe_space%get_environment()
+  if ( environment%am_i_l1_task() ) then
+     field_id                 =  this%get_field_id()
+     field_blocks             => fe_accessor%get_field_blocks()
+     reference_fe             => fe_accessor%get_reference_fe(field_id)
+     quadrature               => fe_accessor%get_quadrature()
+     volume_integrator        => fe_accessor%get_volume_integrator(field_id)
+     number_nodes_field       =  reference_fe%get_number_shape_functions()
+     number_quadrature_points =  quadrature%get_number_quadrature_points()
+
+     call this%set_current_number_quadrature_points( number_quadrature_points )
+     call this%set_current_number_nodes( number_nodes_field )
+
+     block_id = field_blocks(field_id)
+     nodal_values                => this%get_nodal_values()
+     quadrature_points_values    => this%get_quadrature_points_values()
+     quadrature_points_gradients => this%get_quadrature_points_gradients()
+
+     call fe_accessor%get_field_elem2dof(field_id,elem2dof)
+
+     ! Extract nodal values associated to dirichlet bcs
+     strong_dirichlet_values         => fe_function%get_strong_dirichlet_values()
+     strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+     do inode = 1, number_nodes_field
+        if ( elem2dof(inode) < 0 ) then
+           nodal_values(inode) = strong_dirichlet_values_entries(-elem2dof(inode))
+        end if
+     end do
+
+     ! Extract nodal values associated to dofs
+     dof_values => fe_function%get_dof_values()
+     call dof_values%extract_subvector ( block_id, &
+          number_nodes_field, &
+          elem2dof, &
+          nodal_values )
+
+     ! Evaluate values and gradients at quadrature points
+     call volume_integrator%evaluate_fe_function ( nodal_values, & 
+          quadrature_points_values )
+
+     call volume_integrator%evaluate_gradient_fe_function ( nodal_values, & 
+          quadrature_points_gradients )
+  end if
+end subroutine cell_fe_function_vector_update
+
+
 
 !===============================================================================================
 function cell_fe_function_vector_get_field_id ( this )
@@ -309,26 +465,105 @@ end subroutine cell_fe_function_vector_free
 !**************************************************************************************************
 
 !===============================================================================================
-subroutine cell_fe_function_tensor_create ( this, ifield, max_nnode, max_npoint )
+subroutine cell_fe_function_tensor_create ( this, fe_space, field_id )
   implicit none
   class(cell_fe_function_tensor_t), intent(inout) :: this 
-  integer(ip)                     , intent(in)    :: ifield, max_nnode, max_npoint
+  class(serial_fe_space_t)        , intent(in)    :: fe_space
+  integer(ip)                     , intent(in)    :: field_id
   integer(ip)                                     :: istat
+  class(environment_t)            , pointer       :: environment  
 
-  call this%free()
+  assert ( field_id >=1 .and. field_id <= fe_space%get_number_fields() )
+  
+  environment => fe_space%get_environment()
+  if ( environment%am_i_l1_task() ) then 
+     assert ( fe_space%get_field_type(field_id) == field_type_tensor )
 
-  this%field_id = ifield
+     call this%free()
 
-  this%max_number_nodes = max_nnode
-  this%max_number_quadrature_points = max_npoint
+     this%field_id = field_id
 
-  allocate ( this%nodal_values(max_nnode), stat = istat )
-  check(istat==0)
+     this%max_number_nodes = fe_space%get_max_number_shape_functions()
+     this%max_number_quadrature_points = fe_space%get_max_number_quadrature_points() 
 
-  allocate ( this%quadrature_points_values(max_npoint), stat = istat )
-  check(istat==0)
+     allocate ( this%nodal_values(this%max_number_nodes), stat = istat )
+     check(istat==0)
+
+     allocate ( this%quadrature_points_values(this%max_number_quadrature_points), stat = istat )
+     check(istat==0)
+
+  end if
 
 end subroutine cell_fe_function_tensor_create
+
+subroutine cell_fe_function_tensor_update ( this, fe_accessor, fe_function )
+  implicit none
+  class(cell_fe_function_tensor_t), intent(inout) :: this
+  type(fe_accessor_t)             , intent(in)    :: fe_accessor
+  type(fe_function_t)             , intent(in)    :: fe_function
+
+  integer(ip)                        :: inode, field_id, block_id
+  integer(ip)                        :: number_nodes_field, number_quadrature_points
+  integer(ip)              , pointer :: elem2dof(:)
+  integer(ip)              , pointer :: field_blocks(:)
+  class(reference_fe_t)    , pointer :: reference_fe
+  type(quadrature_t)       , pointer :: quadrature
+  type(volume_integrator_t), pointer :: volume_integrator
+  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
+  class(vector_t)            , pointer :: dof_values
+  real(rp)                 , pointer :: strong_dirichlet_values_entries(:)
+  real(rp)                 , pointer :: nodal_values(:)
+  type(tensor_field_t)     , pointer :: quadrature_points_values(:)
+  class(environment_t)       , pointer :: environment
+  class(serial_fe_space_t)   , pointer :: serial_fe_space  
+  
+  serial_fe_space => fe_accessor%get_fe_space()
+  environment     => serial_fe_space%get_environment()
+
+  if ( environment%am_i_l1_task() ) then
+
+
+     field_id                 =  this%get_field_id()
+     field_blocks             => fe_accessor%get_field_blocks()
+     reference_fe             => fe_accessor%get_reference_fe(field_id)
+     quadrature               => fe_accessor%get_quadrature()
+     volume_integrator        => fe_accessor%get_volume_integrator(field_id)
+     number_nodes_field       =  reference_fe%get_number_shape_functions()
+     number_quadrature_points =  quadrature%get_number_quadrature_points()
+
+     call this%set_current_number_quadrature_points( number_quadrature_points )
+     call this%set_current_number_nodes( number_nodes_field )
+
+     block_id = field_blocks(field_id)
+     nodal_values             => this%get_nodal_values()
+     quadrature_points_values => this%get_quadrature_points_values()
+
+     call fe_accessor%get_field_elem2dof(field_id,elem2dof)
+
+     ! Extract nodal values associated to dirichlet bcs
+     strong_dirichlet_values         => fe_function%get_strong_dirichlet_values()
+     strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+     do inode = 1, number_nodes_field
+        if ( elem2dof(inode) < 0 ) then
+           nodal_values(inode) = strong_dirichlet_values_entries(-elem2dof(inode))
+        end if
+     end do
+
+     ! Extract nodal values associated to dofs
+     dof_values => fe_function%get_dof_values()
+     call dof_values%extract_subvector ( block_id, &
+          number_nodes_field, &
+          elem2dof, &
+          nodal_values )
+
+     ! Interpolate nodal values at quadrature points
+     call volume_integrator%evaluate_fe_function ( nodal_values, & 
+          quadrature_points_values )
+
+  end if
+
+end subroutine cell_fe_function_tensor_update
+
 
 !===============================================================================================
 function cell_fe_function_tensor_get_field_id ( this )
@@ -414,3 +649,9 @@ subroutine cell_fe_function_tensor_free ( this )
   end if
 
 end subroutine cell_fe_function_tensor_free
+
+
+
+
+
+
