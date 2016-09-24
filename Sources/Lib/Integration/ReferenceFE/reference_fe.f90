@@ -773,12 +773,12 @@ module reference_fe_names
 contains
   ! Additional deferred methods
   !procedure (fill_scalar_interface)            , private, deferred :: fill_scalar
-  procedure (fill_quadrature_interface)        , private, deferred :: fill_quadrature
-  procedure (fill_nodal_quadrature_interface)  , private, deferred :: fill_nodal_quadrature
-  procedure (fill_interpolation_interface)     , private, deferred :: fill_interpolation
-  procedure (fill_face_interpolation_interface), private, deferred :: fill_face_interpolation
-  procedure (set_number_quadrature_points_interface)    , private, deferred :: &
-       & set_number_quadrature_points
+  procedure (create_data_out_quadrature_interface)  , private, deferred :: create_data_out_quadrature 
+  procedure (fill_quadrature_interface)             , private, deferred :: fill_quadrature
+  procedure (fill_nodal_quadrature_interface)       , private, deferred :: fill_nodal_quadrature
+  procedure (fill_interpolation_interface)          , private, deferred :: fill_interpolation
+  procedure (fill_face_interpolation_interface)     , private, deferred :: fill_face_interpolation
+  procedure (set_number_quadrature_points_interface), private, deferred :: set_number_quadrature_points
   ! Blending function to generate interpolations in the interior (given values on the boundary)
   procedure(blending_interface), deferred :: blending
 
@@ -837,6 +837,14 @@ abstract interface
     implicit none 
     class(lagrangian_reference_fe_t), intent(inout) :: this 
   end subroutine fill_scalar_interface
+  
+  subroutine create_data_out_quadrature_interface ( this, num_refinements, quadrature )
+    import :: lagrangian_reference_fe_t, ip, quadrature_t
+    implicit none 
+    class(lagrangian_reference_fe_t), intent(in)    :: this
+    integer(ip)                     , intent(in)    :: num_refinements
+    type(quadrature_t)              , intent(inout) :: quadrature
+  end subroutine create_data_out_quadrature_interface
 
   subroutine fill_quadrature_interface ( this, quadrature )
     import :: lagrangian_reference_fe_t, quadrature_t
@@ -901,27 +909,24 @@ type(node_array_t)    :: node_array_vector(SPACE_DIM)
 real(rp), allocatable :: change_basis_matrix(:,:)
 logical               :: basis_changed
 contains
-
 procedure (change_basis_interface), private, deferred :: change_basis
-
-procedure :: create  => raviart_thomas_create
-procedure :: free    => raviart_thomas_free
-procedure :: create_face_local_interpolation      & 
-    & => raviart_thomas_create_face_local_interpolation
-procedure :: blending                     => raviart_thomas_blending
-procedure :: get_subelements_connectivity                                &
-    &   => raviart_thomas_get_subelements_connectivity
-procedure :: has_nodal_quadrature      => raviart_thomas_has_nodal_quadrature
-procedure :: get_nodal_quadrature      => raviart_thomas_get_nodal_quadrature    
-procedure :: get_value_scalar          => raviart_thomas_get_value_scalar
-procedure :: get_value_vector          => raviart_thomas_get_value_vector
-procedure :: get_gradient_scalar       => raviart_thomas_get_gradient_scalar
-procedure :: get_gradient_vector       => raviart_thomas_get_gradient_vector
-procedure :: get_divergence_vector     => raviart_thomas_get_divergence_vector
-procedure :: get_curl_vector           => raviart_thomas_get_curl_vector
-procedure :: create_nodal_quadrature   => raviart_thomas_create_nodal_quadrature
-procedure :: create_interpolation      => raviart_thomas_create_interpolation
-procedure :: create_face_interpolation => raviart_thomas_create_face_interpolation
+procedure :: create                           => raviart_thomas_create
+procedure :: free                             => raviart_thomas_free
+procedure :: create_face_local_interpolation  => raviart_thomas_create_face_local_interpolation
+procedure :: blending                         => raviart_thomas_blending
+procedure :: create_data_out_quadrature       => raviart_thomas_create_data_out_quadrature
+procedure :: get_subelements_connectivity     => raviart_thomas_get_subelements_connectivity
+procedure :: has_nodal_quadrature             => raviart_thomas_has_nodal_quadrature
+procedure :: get_nodal_quadrature             => raviart_thomas_get_nodal_quadrature    
+procedure :: get_value_scalar                 => raviart_thomas_get_value_scalar
+procedure :: get_value_vector                 => raviart_thomas_get_value_vector
+procedure :: get_gradient_scalar              => raviart_thomas_get_gradient_scalar
+procedure :: get_gradient_vector              => raviart_thomas_get_gradient_vector
+procedure :: get_divergence_vector            => raviart_thomas_get_divergence_vector
+procedure :: get_curl_vector                  => raviart_thomas_get_curl_vector
+procedure :: create_nodal_quadrature          => raviart_thomas_create_nodal_quadrature
+procedure :: create_interpolation             => raviart_thomas_create_interpolation
+procedure :: create_face_interpolation        => raviart_thomas_create_face_interpolation
 procedure :: evaluate_fe_function_scalar          &
     & => raviart_thomas_evaluate_fe_function_scalar
 procedure :: evaluate_fe_function_vector          & 
@@ -967,26 +972,25 @@ contains
 procedure (nedelec_change_basis_interface) , private, deferred :: change_basis
 procedure (nedelec_fill_edge_interpolation), private, deferred :: fill_edge_interpolation
 
-procedure :: create  => nedelec_create
-procedure :: free    => nedelec_free
-procedure :: create_face_local_interpolation      & 
-    & => nedelec_create_face_local_interpolation
-procedure :: blending                     => nedelec_blending
-procedure :: get_subelements_connectivity                                &
-    &   => nedelec_get_subelements_connectivity
-procedure :: has_nodal_quadrature      => nedelec_has_nodal_quadrature
-procedure :: get_nodal_quadrature      => nedelec_get_nodal_quadrature 
-procedure :: get_value_scalar          => nedelec_get_value_scalar
-procedure :: get_value_vector          => nedelec_get_value_vector
-procedure :: get_gradient_scalar       => nedelec_get_gradient_scalar
-procedure :: get_gradient_vector       => nedelec_get_gradient_vector
-procedure :: get_divergence_vector     => nedelec_get_divergence_vector
-procedure :: get_curl_vector           => nedelec_get_curl_vector
-procedure :: create_nodal_quadrature   => nedelec_create_nodal_quadrature
-procedure :: create_interpolation      => nedelec_create_interpolation
-procedure :: create_face_interpolation => nedelec_create_face_interpolation
-procedure :: create_edge_interpolation => nedelec_create_edge_interpolation
-procedure :: create_edge_quadrature    => nedelec_create_edge_quadrature
+procedure :: create                          => nedelec_create
+procedure :: free                            => nedelec_free
+procedure :: create_face_local_interpolation => nedelec_create_face_local_interpolation
+procedure :: blending                        => nedelec_blending
+procedure :: create_data_out_quadrature      => nedelec_create_data_out_quadrature
+procedure :: get_subelements_connectivity    => nedelec_get_subelements_connectivity
+procedure :: has_nodal_quadrature            => nedelec_has_nodal_quadrature
+procedure :: get_nodal_quadrature            => nedelec_get_nodal_quadrature 
+procedure :: get_value_scalar                => nedelec_get_value_scalar
+procedure :: get_value_vector                => nedelec_get_value_vector
+procedure :: get_gradient_scalar             => nedelec_get_gradient_scalar
+procedure :: get_gradient_vector             => nedelec_get_gradient_vector
+procedure :: get_divergence_vector           => nedelec_get_divergence_vector
+procedure :: get_curl_vector                 => nedelec_get_curl_vector
+procedure :: create_nodal_quadrature         => nedelec_create_nodal_quadrature
+procedure :: create_interpolation            => nedelec_create_interpolation
+procedure :: create_face_interpolation       => nedelec_create_face_interpolation
+procedure :: create_edge_interpolation       => nedelec_create_edge_interpolation
+procedure :: create_edge_quadrature          => nedelec_create_edge_quadrature
 procedure :: evaluate_fe_function_scalar          &
     & => nedelec_evaluate_fe_function_scalar
 procedure :: evaluate_fe_function_vector          & 
@@ -1048,6 +1052,8 @@ procedure :: blending                                                    &
 ! Deferred TBP implementors from lagrangian_reference_fe_t
 !procedure, private :: fill_scalar                                        &
 !      & => tet_lagrangian_reference_fe_fill_scalar
+procedure :: create_data_out_quadrature                                  & 
+    => tet_lagrangian_create_data_out_quadrature
 procedure, private :: fill_quadrature                                    &
  & => tet_lagrangian_reference_fe_fill_quadrature
 procedure, private :: fill_nodal_quadrature                              &
@@ -1140,6 +1146,8 @@ procedure :: get_subelements_connectivity                                &
 procedure :: blending                                                    &
 &   => hex_lagrangian_reference_fe_blending           
 ! Deferred TBP implementors from lagrangian_reference_fe_t
+procedure          :: create_data_out_quadrature                         & 
+    => hex_lagrangian_create_data_out_quadrature
 procedure, private :: fill_quadrature                                    &
 & => hex_lagrangian_reference_fe_fill_quadrature
 procedure, private :: fill_nodal_quadrature                              &

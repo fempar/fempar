@@ -106,6 +106,31 @@ end subroutine hex_lagrangian_reference_fe_get_subelements_connectivity
 !**************************************************************************************************
 ! Deferred TBP implementors from lagrangian_reference_fe_t
 !**************************************************************************************************
+subroutine hex_lagrangian_create_data_out_quadrature ( this, num_refinements, quadrature )
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: num_refinements
+  type(quadrature_t)                  , intent(inout) :: quadrature
+
+  integer(ip)        :: i
+  type(node_array_t) :: node_array 
+  integer(ip)        :: order_vector(SPACE_DIM)
+  
+  assert ( num_refinements >= 0 )
+
+  call quadrature%free()
+  
+  order_vector = num_refinements+1
+  call node_array%create( this%polytope, order_vector ) 
+
+  call quadrature%create( this%number_dimensions, this%node_array%number_nodes )
+  do i=1,this%number_dimensions
+     quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)*(2.0_rp/order_vector(i))-1.0_rp
+  end do
+  quadrature%weight = 1.0_rp
+  
+  call node_array%free()
+end subroutine hex_lagrangian_create_data_out_quadrature
 
 ! @sbadia: Think about an automatic generation of gauss points for an arbitrary order
 !==================================================================================================

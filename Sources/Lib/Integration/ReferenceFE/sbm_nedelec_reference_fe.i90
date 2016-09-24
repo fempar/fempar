@@ -620,8 +620,8 @@ subroutine nedelec_evaluate_fe_function_tensor( this,                      &
   real(rp)                        , intent(in)    :: nodal_values(:)
   type(tensor_field_t)            , intent(inout) :: quadrature_points_values(:)
 
-  write(*,*) ' ERROR in: ',__FILE__,__LINE__
-  write(*,*) ' Subroutine not implemented for tensor field unknowns '
+  write(0,*) ' ERROR in: ',__FILE__,__LINE__
+  write(0,*) ' Subroutine not implemented for tensor field unknowns '
   check( .false. )
 
 end subroutine nedelec_evaluate_fe_function_tensor
@@ -629,20 +629,27 @@ end subroutine nedelec_evaluate_fe_function_tensor
 subroutine nedelec_blending(this,values)
   implicit none
   class(nedelec_reference_fe_t), intent(in)    :: this
-  type(point_t)                       , intent(inout) :: values(:)
-
-  write(*,*) 'Vector Laplacian cannot be used for geometry blending'
+  type(point_t)                , intent(inout) :: values(:)
+  write(0,*) 'Nedelec Reference FE cannot be used for geometry blending'
   check(.false.)
-
 end subroutine nedelec_blending
+
+subroutine nedelec_create_data_out_quadrature ( this, num_refinements, quadrature )
+  implicit none
+  class(nedelec_reference_fe_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: num_refinements
+  type(quadrature_t)           , intent(inout) :: quadrature
+  write(0,*) 'Nedelec Reference FE cannot create a quadrature for data_out visualization purposes'
+  check(.false.)
+end subroutine nedelec_create_data_out_quadrature 
 
 subroutine nedelec_get_subelements_connectivity(this, connectivity)
   implicit none
   class(nedelec_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(inout) :: connectivity(:,:)
-  write(*,*) 'Vector Laplacian cannot be used for visualization purposes'
+  write(0,*) 'Nedelec Reference FE cannot create a quadrature for data_out visualization purposes'
+  check(.false.)
 end subroutine nedelec_get_subelements_connectivity
-
 
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
