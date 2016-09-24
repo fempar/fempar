@@ -29,31 +29,38 @@
 !**************************************************************************************************
 ! Methods associated to fe_function_t
 !*************************************************************************************************
- subroutine fe_function_create( this, strong_dirichlet_values, dof_values )
+ 
+  ! * Create + allocate (polymorphic) dof_values member variable relying on fe_space
+  !   (NOTE: it does not initialize it)
+  ! * Create + allocate + copy strong_dirichlet_values extracted from fe_space
+  subroutine fe_function_create( this, fe_space )
     implicit none
     class(fe_function_t)            , intent(inout) :: this
-    type(serial_scalar_array_t)     , intent(in)    :: strong_dirichlet_values
-    class(vector_t)    , allocatable, intent(inout) :: dof_values
+    class(serial_fe_space_t)        , intent(in)    :: fe_space
+    type(serial_scalar_array_t), pointer :: strong_dirichlet_values
     call this%free()
-    call move_alloc(from=dof_values, to=this%dof_values)
+    call fe_space%create_dof_values(this%dof_values)
+    strong_dirichlet_values => fe_space%get_strong_dirichlet_values()
     call this%strong_dirichlet_values%clone(strong_dirichlet_values)
     call this%strong_dirichlet_values%copy(strong_dirichlet_values)
   end subroutine fe_function_create
  
  !===============================================================================================
- subroutine fe_function_copy_bc_values( this, strong_dirichlet_values )
+ subroutine fe_function_update_strong_dirichlet_values( this, fe_space )
     implicit none
     class(fe_function_t)       , intent(inout) :: this 
-    type(serial_scalar_array_t), intent(in)    :: strong_dirichlet_values
+    class(serial_fe_space_t)   , intent(in)    :: fe_space
+    type(serial_scalar_array_t), pointer       :: strong_dirichlet_values
+    strong_dirichlet_values => fe_space%get_strong_dirichlet_values()
     call this%strong_dirichlet_values%copy(strong_dirichlet_values)
-  end subroutine fe_function_copy_bc_values
+  end subroutine fe_function_update_strong_dirichlet_values
   
   subroutine fe_function_copy(this,other) 
     implicit none
     class(fe_function_t), intent(inout) :: this
     type (fe_function_t), intent(in)    :: other
     this%strong_dirichlet_values = other%strong_dirichlet_values
-    this%dof_values       = other%dof_values
+    this%dof_values = other%dof_values
   end subroutine fe_function_copy
   
  !===============================================================================================

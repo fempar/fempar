@@ -295,9 +295,7 @@ module fe_space_names
 
      procedure                           :: create_assembler                             => serial_fe_space_create_assembler
      procedure                           :: symbolic_setup_assembler                     => serial_fe_space_symbolic_setup_assembler
-          
-     procedure                           :: create_fe_function                           => serial_fe_space_create_fe_function
-     procedure                           :: update_fe_function_bcs                       => serial_fe_space_update_fe_function_bcs
+     procedure                           :: create_dof_values                            => serial_fe_space_create_dof_values
                                                                                             
      procedure, private                  :: interpolate_scalar_function                  => serial_fe_space_interpolate_scalar_function
      procedure, private                  :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
@@ -329,6 +327,7 @@ module fe_space_names
      procedure, non_overridable          :: get_field_coupling                           => serial_fe_space_get_field_coupling
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      procedure                           :: get_environment                              => serial_fe_space_get_environment
+     procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
      
      ! fes and fe_faces traversals-related TBPs
      procedure, non_overridable          :: create_fe_iterator                           => serial_fe_space_create_fe_iterator
@@ -421,10 +420,9 @@ module fe_space_names
    procedure                                   :: free                                            => par_fe_space_free
    procedure                                   :: create_assembler                                => par_fe_space_create_assembler
    procedure                                   :: symbolic_setup_assembler                        => par_fe_space_symbolic_setup_assembler
-   procedure                                   :: update_strong_dirichlet_bcs_values              => par_fe_space_update_strong_dirichlet_bcs_values
+   procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
 
-   procedure                                   :: create_fe_function                              => par_fe_space_create_fe_function
-   procedure                                   :: update_fe_function_bcs                          => par_fe_space_update_fe_function_bcs
+   procedure                                   :: update_strong_dirichlet_bcs_values              => par_fe_space_update_strong_dirichlet_bcs_values
                                                                                             
    procedure, private                          :: interpolate_scalar_function                     => par_fe_space_interpolate_scalar_function
    procedure, private                          :: interpolate_vector_function                     => par_fe_space_interpolate_vector_function
@@ -645,13 +643,13 @@ module fe_space_names
    class(vector_t), allocatable  :: dof_values
    type(serial_scalar_array_t)   :: strong_dirichlet_values
   contains
-     procedure, non_overridable, private :: create                      => fe_function_create
-     procedure, non_overridable, private :: copy_bc_values              => fe_function_copy_bc_values
-     procedure, non_overridable          :: copy                        => fe_function_copy
-     procedure, non_overridable          :: get_dof_values              => fe_function_get_dof_values
-     procedure, non_overridable          :: get_strong_dirichlet_values => fe_function_get_strong_dirichlet_values
-     procedure, non_overridable          :: free                        => fe_function_free
-     generic                             :: assignment(=)               => copy
+     procedure, non_overridable          :: create                         => fe_function_create
+     procedure, non_overridable          :: update_strong_dirichlet_values => fe_function_update_strong_dirichlet_values
+     procedure, non_overridable          :: copy                           => fe_function_copy
+     procedure, non_overridable          :: get_dof_values                 => fe_function_get_dof_values
+     procedure, non_overridable          :: get_strong_dirichlet_values    => fe_function_get_strong_dirichlet_values
+     procedure, non_overridable          :: free                           => fe_function_free
+     generic                             :: assignment(=)                  => copy
   end type fe_function_t 
   
   public :: fe_function_t

@@ -1129,6 +1129,37 @@ subroutine serial_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
   end select
 end subroutine serial_fe_space_symbolic_setup_assembler
 
+subroutine serial_fe_space_create_dof_values(this, dof_values)
+  implicit none
+  class(serial_fe_space_t)    , intent(in)    :: this
+  class(vector_t), allocatable, intent(inout) :: dof_values
+  integer(ip) :: istat
+  
+  if (allocated(dof_values)) then
+    call dof_values%free()
+    deallocate(dof_values, stat=istat); check(istat==0);
+  end if
+  
+  if (this%number_blocks == 1) then
+     allocate ( serial_scalar_array_t  :: dof_values )
+     select type(dof_values)
+        class is(serial_scalar_array_t)
+        call dof_values%create_and_allocate(this%number_dofs_per_block(1))
+        class default
+        check(.false.)
+     end select
+  else
+     allocate ( serial_block_array_t  :: dof_values )
+     select type(dof_values)
+        class is(serial_block_array_t)
+        call dof_values%create_and_allocate(this%number_blocks,this%number_dofs_per_block)
+        class default
+        check(.false.)
+     end select
+  end if
+  
+end subroutine serial_fe_space_create_dof_values
+
 
 subroutine serial_fe_space_fill_dof_info( this )
   implicit none
@@ -1403,41 +1434,6 @@ function serial_fe_space_get_field_coupling( this )
   logical, pointer :: serial_fe_space_get_field_coupling(:,:)
   serial_fe_space_get_field_coupling => this%field_coupling
 end function serial_fe_space_get_field_coupling
-
-!===============================================================================================
-subroutine serial_fe_space_create_fe_function ( this, fe_function )
-  implicit none
-  class(serial_fe_space_t), intent(in)    :: this
-  type(fe_function_t)         , intent(inout) :: fe_function
-
-  class(vector_t), allocatable :: dof_values
-
-  if (this%number_blocks == 1) then
-     allocate ( serial_scalar_array_t  :: dof_values )
-     select type(dof_values)
-        class is(serial_scalar_array_t)
-        call dof_values%create_and_allocate(this%number_dofs_per_block(1))
-        class default
-        check(.false.)
-     end select
-  else
-     allocate ( serial_block_array_t  :: dof_values )
-     select type(dof_values)
-        class is(serial_block_array_t)
-        call dof_values%create_and_allocate(this%number_blocks,this%number_dofs_per_block)
-        class default
-        check(.false.)
-     end select
-  end if
-  call fe_function%create(this%strong_dirichlet_values, dof_values)
-end subroutine serial_fe_space_create_fe_function
-
-subroutine serial_fe_space_update_fe_function_bcs ( this, fe_function )
-  implicit none
-  class(serial_fe_space_t), intent(in)    :: this
-  type(fe_function_t)         , intent(inout) :: fe_function
-  call fe_function%copy_bc_values(this%strong_dirichlet_values)
-end subroutine serial_fe_space_update_fe_function_bcs
 
 subroutine serial_fe_space_interpolate_scalar_function( this, &
                                                         field_id, &
@@ -1734,6 +1730,13 @@ function serial_fe_space_get_environment(this) result(environment)
   class(environment_t), pointer:: environment 
   environment => the_serial_environment 
 end function serial_fe_space_get_environment
+
+function serial_fe_space_get_strong_dirichlet_values(this) result(strong_dirichlet_values)
+  implicit none
+  class(serial_fe_space_t), target, intent(in)    :: this 
+  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
+  strong_dirichlet_values => this%strong_dirichlet_values
+end function serial_fe_space_get_strong_dirichlet_values
 
 function serial_fe_space_create_fe_iterator ( this )
   implicit none

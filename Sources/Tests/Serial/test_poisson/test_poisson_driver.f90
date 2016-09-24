@@ -435,7 +435,7 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%fe_space%create_fe_function(this%solution)
+    call this%solution%create(this%fe_space) 
     call this%solve_system()
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
       call this%check_solution()
