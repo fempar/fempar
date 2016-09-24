@@ -38,7 +38,8 @@ USE field_names,                     only: point_t
 USE vector_names,                    only: vector_t
 USE base_static_triangulation_names, only: base_static_triangulation_t, cell_iterator_t, cell_accessor_t
 USE serial_scalar_array_names,       only: serial_scalar_array_t
-USE fe_space_names,                  only: serial_fe_space_t, fe_iterator_t, fe_accessor_t, fe_function_t
+USE fe_space_names,                  only: serial_fe_space_t, fe_iterator_t, fe_accessor_t
+USE fe_function_names,               only: fe_function_t
 USE reference_fe_names,              only: reference_fe_t, hex_lagrangian_reference_fe_t, fe_map_t,   &
                                            quadrature_t, interpolation_t, topology_hex, topology_tet, &
                                            fe_type_lagrangian
@@ -63,7 +64,7 @@ private
     ! Type for storing mesh data
     type vtk_mesh_and_field_generator_t
     private
-        class(serial_fe_space_t), pointer :: fe_space      => NULL()                ! Poins to fe_space_t
+        class(serial_fe_space_t), pointer :: fe_space      => NULL()                ! Points to fe_space_t
         real(rp),          allocatable    :: X(:)                                   ! Mesh X coordintates
         real(rp),          allocatable    :: Y(:)                                   ! Mesh Y coordintates
         real(rp),          allocatable    :: Z(:)                                   ! Mesh Z coordintates
@@ -644,7 +645,6 @@ contains
         integer(ip),                intent(OUT)    :: number_components        !< number of components
         type(fe_iterator_t)                        :: fe_iterator              !< finite element iterator
         type(fe_accessor_t)                        :: fe                       !< finite element accessor
-        type(i1p_t), allocatable                   :: elem2dof(:)              !< element 2 dof translator
         type(interpolation_t)                      :: interpolation            !< interpolator
         type(base_static_triangulation_t), pointer :: triangulation            !< triangulation
         class(vector_t),                   pointer :: fe_function_dof_values   !< dof values of the fe_function
@@ -653,7 +653,6 @@ contains
         class(reference_fe_t),             pointer :: reference_fe_target      !< reference finite element
         class(reference_fe_t),             pointer :: max_order_reference_fe   !< reference finite element
         type(quadrature_t),                pointer :: nodal_quadrature_target  !< Nodal quadrature
-        integer(ip),                       pointer :: field_blocks(:)          !< field blocks
         real(rp),    allocatable                   :: nodal_values_origin(:)   !< nodal values of the origin fe_space
         real(rp),    allocatable                   :: nodal_values_target(:)   !< nodal values for the interpolation
         integer(ip)                                :: reference_fe_id          !< reference_fe_id
@@ -676,16 +675,9 @@ contains
         assert(this%filled)
 
         nullify(nodal_quadrature_target)
-        nullify(strong_dirichlet_values)
-        nullify(fe_function_dof_values)
         nullify(reference_fe_origin)
         nullify(reference_fe_target)
         nullify(max_order_reference_fe)
-
-        ! Get field blocks and nodal values associated to dirichlet bcs and dof values
-        field_blocks            => this%fe_space%get_field_blocks()
-        strong_dirichlet_values => fe_function%get_strong_dirichlet_values()
-        fe_function_dof_values  => fe_function%get_dof_values()
         
         ! Create FE iterator and get number of components
         fe_iterator = this%fe_space%create_fe_iterator()
@@ -696,7 +688,6 @@ contains
         ! Get number of field components (constant in all fes for field) and allocate VTK field array
         if(allocated(field)) call memfree(field, __FILE__, __LINE__)
         call memalloc(number_components, this%number_of_nodes , field, __FILE__, __LINE__)
-        allocate(elem2dof(this%fe_space%get_number_fields()))
 
         call memalloc(max(triangulation%get_max_number_shape_functions(), this%fe_space%get_max_number_shape_functions()), nodal_values_origin, __FILE__, __LINE__)
         call memalloc(max(triangulation%get_max_number_shape_functions(), this%fe_space%get_max_number_shape_functions()), nodal_values_target, __FILE__, __LINE__)
@@ -728,16 +719,8 @@ contains
                 number_nodes_origin = reference_fe_origin%get_number_shape_functions()
                 number_nodes_target = reference_fe_target%get_number_shape_functions()
 
-                ! Get elem2dof
-                call fe%get_elem2dof(elem2dof)
-
-                ! Extract nodal values associated to dofs
-                call fe_function_dof_values%extract_subvector(field_blocks(field_id), number_nodes_origin, elem2dof(field_id)%p, nodal_values_origin(1:number_nodes_origin))
-
-                ! Fill nodal values with strong dirichlet values
-                elem2dof(field_id)%p = -elem2dof(field_id)%p
-                call strong_dirichlet_values%extract_subvector(field_blocks(field_id), number_nodes_origin, elem2dof(field_id)%p, nodal_values_origin(1:number_nodes_origin))
-                elem2dof(field_id)%p = -elem2dof(field_id)%p
+                ! Gather DoFs of current cell + field_id on nodal_values 
+                call fe_function%gather_nodal_values(fe, field_id, nodal_values_origin)
 
                 ! Create interpolation from nodal quadrature
                 nodal_quadrature_target  => reference_fe_target%get_nodal_quadrature()
@@ -769,7 +752,6 @@ contains
         enddo
         call memfree(nodal_values_origin, __FILE__, __LINE__)
         call memfree(nodal_values_target, __FILE__, __LINE__)
-        deallocate(elem2dof)
     end function vtk_mesh_and_field_generator_generate_field
 
 

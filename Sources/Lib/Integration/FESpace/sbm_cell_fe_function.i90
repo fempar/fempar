@@ -65,16 +65,11 @@ subroutine cell_fe_function_scalar_update ( this, fe_accessor, fe_function )
   type(fe_function_t)             , intent(in)    :: fe_function
 
   
-  integer(ip)                        :: inode, field_id, block_id
+  integer(ip)                        :: inode, field_id
   integer(ip)                        :: number_nodes_field, number_quadrature_points
-  integer(ip)                , pointer :: elem2dof(:)
-  integer(ip)                , pointer :: field_blocks(:)
   class(reference_fe_t)      , pointer :: reference_fe
   type(quadrature_t)         , pointer :: quadrature
   type(volume_integrator_t)  , pointer :: volume_integrator
-  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
-  class(vector_t)            , pointer :: dof_values
-  real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
   real(rp)                   , pointer :: nodal_values(:)
   real(rp)                   , pointer :: quadrature_points_values(:)
   type(vector_field_t)       , pointer :: quadrature_points_gradients(:)
@@ -85,9 +80,7 @@ subroutine cell_fe_function_scalar_update ( this, fe_accessor, fe_function )
   environment     => serial_fe_space%get_environment()
   
   if ( environment%am_i_l1_task() ) then
-
      field_id                 =  this%get_field_id()
-     field_blocks             => fe_accessor%get_field_blocks()
      reference_fe             => fe_accessor%get_reference_fe(field_id)
      quadrature               => fe_accessor%get_quadrature()
      volume_integrator        => fe_accessor%get_volume_integrator(field_id)
@@ -97,35 +90,19 @@ subroutine cell_fe_function_scalar_update ( this, fe_accessor, fe_function )
      call this%set_current_number_quadrature_points( number_quadrature_points )
      call this%set_current_number_nodes( number_nodes_field )
 
-     block_id = field_blocks(field_id)
      nodal_values                => this%get_nodal_values()
      quadrature_points_values    => this%get_quadrature_points_values()
      quadrature_points_gradients => this%get_quadrature_points_gradients()
 
-     call fe_accessor%get_field_elem2dof(field_id,elem2dof)
-
-     ! Extract nodal values associated to dirichlet bcs
-     strong_dirichlet_values         => fe_function%get_strong_dirichlet_values()
-     strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
-     do inode = 1, number_nodes_field
-        if ( elem2dof(inode) < 0 ) then
-           nodal_values(inode) = strong_dirichlet_values_entries(-elem2dof(inode))
-        end if
-     end do
-
-     ! Extract nodal values associated to dofs
-     dof_values => fe_function%get_dof_values()
-     call dof_values%extract_subvector ( block_id, &
-          number_nodes_field, &
-          elem2dof, &
-          nodal_values )
-
+     ! Gather DoFs of current cell + field_id on nodal_values 
+     call fe_function%gather_nodal_values(fe_accessor, field_id, nodal_values)
+     
      ! Evaluate values and gradients at quadrature points
      call volume_integrator%evaluate_fe_function ( nodal_values, & 
-          quadrature_points_values )
+                                                   quadrature_points_values )
 
      call volume_integrator%evaluate_gradient_fe_function ( nodal_values, & 
-          quadrature_points_gradients )
+                                                            quadrature_points_gradients )
 
   end if
 end subroutine cell_fe_function_scalar_update
@@ -286,16 +263,11 @@ subroutine cell_fe_function_vector_update ( this, fe_accessor, fe_function)
   type(fe_accessor_t)             , intent(in)    :: fe_accessor
   type(fe_function_t)             , intent(in)    :: fe_function
   
-  integer(ip)                        :: inode, field_id, block_id
+  integer(ip)                        :: field_id
   integer(ip)                        :: number_nodes_field, number_quadrature_points
-  integer(ip)                , pointer :: elem2dof(:)
-  integer(ip)                , pointer :: field_blocks(:)
   class(reference_fe_t)      , pointer :: reference_fe
   type(quadrature_t)         , pointer :: quadrature
   type(volume_integrator_t)  , pointer :: volume_integrator
-  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
-  class(vector_t)            , pointer :: dof_values
-  real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
   real(rp)                   , pointer :: nodal_values(:)
   type(vector_field_t)       , pointer :: quadrature_points_values(:)
   type(tensor_field_t)       , pointer :: quadrature_points_gradients(:)
@@ -306,7 +278,6 @@ subroutine cell_fe_function_vector_update ( this, fe_accessor, fe_function)
   environment     => serial_fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then
      field_id                 =  this%get_field_id()
-     field_blocks             => fe_accessor%get_field_blocks()
      reference_fe             => fe_accessor%get_reference_fe(field_id)
      quadrature               => fe_accessor%get_quadrature()
      volume_integrator        => fe_accessor%get_volume_integrator(field_id)
@@ -316,35 +287,19 @@ subroutine cell_fe_function_vector_update ( this, fe_accessor, fe_function)
      call this%set_current_number_quadrature_points( number_quadrature_points )
      call this%set_current_number_nodes( number_nodes_field )
 
-     block_id = field_blocks(field_id)
      nodal_values                => this%get_nodal_values()
      quadrature_points_values    => this%get_quadrature_points_values()
      quadrature_points_gradients => this%get_quadrature_points_gradients()
 
-     call fe_accessor%get_field_elem2dof(field_id,elem2dof)
-
-     ! Extract nodal values associated to dirichlet bcs
-     strong_dirichlet_values         => fe_function%get_strong_dirichlet_values()
-     strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
-     do inode = 1, number_nodes_field
-        if ( elem2dof(inode) < 0 ) then
-           nodal_values(inode) = strong_dirichlet_values_entries(-elem2dof(inode))
-        end if
-     end do
-
-     ! Extract nodal values associated to dofs
-     dof_values => fe_function%get_dof_values()
-     call dof_values%extract_subvector ( block_id, &
-          number_nodes_field, &
-          elem2dof, &
-          nodal_values )
+     ! Gather DoFs of current cell + field_id on nodal_values 
+     call fe_function%gather_nodal_values(fe_accessor, field_id, nodal_values)
 
      ! Evaluate values and gradients at quadrature points
      call volume_integrator%evaluate_fe_function ( nodal_values, & 
-          quadrature_points_values )
+                                                   quadrature_points_values )
 
      call volume_integrator%evaluate_gradient_fe_function ( nodal_values, & 
-          quadrature_points_gradients )
+                                                            quadrature_points_gradients )
   end if
 end subroutine cell_fe_function_vector_update
 
@@ -502,16 +457,11 @@ subroutine cell_fe_function_tensor_update ( this, fe_accessor, fe_function )
   type(fe_accessor_t)             , intent(in)    :: fe_accessor
   type(fe_function_t)             , intent(in)    :: fe_function
 
-  integer(ip)                        :: inode, field_id, block_id
+  integer(ip)                        :: inode, field_id
   integer(ip)                        :: number_nodes_field, number_quadrature_points
-  integer(ip)              , pointer :: elem2dof(:)
-  integer(ip)              , pointer :: field_blocks(:)
   class(reference_fe_t)    , pointer :: reference_fe
   type(quadrature_t)       , pointer :: quadrature
   type(volume_integrator_t), pointer :: volume_integrator
-  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
-  class(vector_t)            , pointer :: dof_values
-  real(rp)                 , pointer :: strong_dirichlet_values_entries(:)
   real(rp)                 , pointer :: nodal_values(:)
   type(tensor_field_t)     , pointer :: quadrature_points_values(:)
   class(environment_t)       , pointer :: environment
@@ -521,10 +471,7 @@ subroutine cell_fe_function_tensor_update ( this, fe_accessor, fe_function )
   environment     => serial_fe_space%get_environment()
 
   if ( environment%am_i_l1_task() ) then
-
-
      field_id                 =  this%get_field_id()
-     field_blocks             => fe_accessor%get_field_blocks()
      reference_fe             => fe_accessor%get_reference_fe(field_id)
      quadrature               => fe_accessor%get_quadrature()
      volume_integrator        => fe_accessor%get_volume_integrator(field_id)
@@ -534,31 +481,15 @@ subroutine cell_fe_function_tensor_update ( this, fe_accessor, fe_function )
      call this%set_current_number_quadrature_points( number_quadrature_points )
      call this%set_current_number_nodes( number_nodes_field )
 
-     block_id = field_blocks(field_id)
      nodal_values             => this%get_nodal_values()
      quadrature_points_values => this%get_quadrature_points_values()
 
-     call fe_accessor%get_field_elem2dof(field_id,elem2dof)
-
-     ! Extract nodal values associated to dirichlet bcs
-     strong_dirichlet_values         => fe_function%get_strong_dirichlet_values()
-     strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
-     do inode = 1, number_nodes_field
-        if ( elem2dof(inode) < 0 ) then
-           nodal_values(inode) = strong_dirichlet_values_entries(-elem2dof(inode))
-        end if
-     end do
-
-     ! Extract nodal values associated to dofs
-     dof_values => fe_function%get_dof_values()
-     call dof_values%extract_subvector ( block_id, &
-          number_nodes_field, &
-          elem2dof, &
-          nodal_values )
-
+     ! Gather DoFs of current cell + field_id on nodal_values 
+     call fe_function%gather_nodal_values(fe_accessor, field_id, nodal_values)
+     
      ! Interpolate nodal values at quadrature points
      call volume_integrator%evaluate_fe_function ( nodal_values, & 
-          quadrature_points_values )
+                                                   quadrature_points_values )
 
   end if
 

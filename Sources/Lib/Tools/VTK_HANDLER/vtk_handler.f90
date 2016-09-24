@@ -38,7 +38,8 @@ USE vtk_mesh_and_field_generator
 USE iso_fortran_env,             only: error_unit
 USE ir_precision,                only: str
 USE environment_names,           only: environment_t
-USE fe_space_names,              only: serial_fe_space_t, fe_function_t
+USE fe_space_names,              only: serial_fe_space_t
+USE fe_function_names,           only: fe_function_t
 USE vtk_parameters_names
 
 implicit none

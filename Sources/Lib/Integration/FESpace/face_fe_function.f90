@@ -32,6 +32,7 @@ module face_fe_function_names
   
   use reference_fe_names
   use fe_space_names
+  use fe_function_names
   use cell_fe_function_names
   use field_names
   use environment_names
