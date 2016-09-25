@@ -124,36 +124,13 @@ subroutine nedelec_create_edge_quadrature ( this, quadrature, max_order )
   call this%fill_quadrature( quadrature )
 end subroutine nedelec_create_edge_quadrature
 
-
-!==================================================================================================
-subroutine nedelec_create_nodal_quadrature (this)
-  implicit none
-  class(nedelec_reference_fe_t), intent(inout) :: this
-  ! Create nodal quadrature
-  call this%nodal_quadrature%create( this%number_dimensions, this%number_shape_functions )
-  ! Fill nodal quadrature
-  call this%fill_nodal_quadrature ( this%nodal_quadrature )  
-end subroutine nedelec_create_nodal_quadrature
-
 !==================================================================================================
 subroutine nedelec_fill_nodal_quadrature ( this, quadrature ) 
   implicit none
   class(nedelec_reference_fe_t), intent(in)    :: this 
-  type(quadrature_t)                  , intent(inout) :: quadrature
-  type(node_iterator_t) :: node_iterator
-  integer(ip) :: i,j,init,finish
-
-  do i=1,this%number_dimensions
-     init = 1
-     finish = 0
-     do j=1,this%number_dimensions
-        finish = finish + this%node_array_vector(j)%number_nodes        
-        quadrature%coordinates(i,init:finish) = (this%node_array_vector(j)%coordinates(i,:)*(2.0_rp/this%node_array_vector(j)%order(i))-1.0_rp)
-        init = init + this%node_array_vector(j)%number_nodes
-     end do
-  end do
-  quadrature%weight = 1.0_rp
-
+  type(quadrature_t)           , intent(inout) :: quadrature
+  write(0,*) 'The concept of nodal_quadrature does not apply to Nedelec Ref FEs'
+  check(.false.)
 end subroutine nedelec_fill_nodal_quadrature
 
 !==================================================================================================
@@ -173,11 +150,9 @@ subroutine nedelec_create ( this, topology, number_dimensions, order, field_type
   call this%set_topology ( topology )
   call this%set_fe_type( fe_type_nedelec )
   call this%fill()
-  call this%create_nodal_quadrature()
   if ( this%continuity ) then
     call this%change_basis()
   end if  
-
 end subroutine nedelec_create
 
 !==================================================================================================
@@ -415,7 +390,7 @@ subroutine nedelec_create_face_local_interpolation ( this, quadrature, &
   type(quadrature_t)              , intent(in)    :: quadrature
   type(interpolation_t)           , intent(inout) :: interpolation
 
-  write(*,*) 'Nedelec FEs cannot be used for geometry mapping'
+  write(0,*) 'Nedelec FEs cannot be used for geometry mapping'
   check(.false.)
 end subroutine nedelec_create_face_local_interpolation
 
@@ -425,9 +400,8 @@ subroutine nedelec_create_edge_local_interpolation ( this, quadrature, interpola
   type(quadrature_t)              , intent(in)    :: quadrature
   type(interpolation_t)           , intent(inout) :: interpolation
 
-  write(*,*) 'Nedelec FEs cannot be used for geometry mapping'
+  write(0,*) 'Nedelec FEs cannot be used for geometry mapping'
   check(.false.)
-
 end subroutine nedelec_create_edge_local_interpolation
 
 function nedelec_has_nodal_quadrature(this)
@@ -575,10 +549,10 @@ subroutine nedelec_evaluate_fe_function_scalar( this,                      &
      &  nodal_values,              &
      &  quadrature_points_values)
   implicit none
-  class(nedelec_reference_fe_t), intent(in)    :: this 
+  class(nedelec_reference_fe_t)   , intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   real(rp)                        , intent(in)    :: nodal_values(:)
-  real(rp)                        , intent(inout) :: quadrature_points_values(:)
+  real(rp), allocatable           , intent(inout) :: quadrature_points_values(:)
   integer(ip) :: qpoint, ishape
 
   write(*,*) ' ERROR in: ',__FILE__,__LINE__
@@ -593,12 +567,22 @@ subroutine nedelec_evaluate_fe_function_vector( this,                      &
      &  nodal_values,              &
      &  quadrature_points_values)
   implicit none
-  class(nedelec_reference_fe_t), intent(in)    :: this 
-  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
-  real(rp)                        , intent(in)    :: nodal_values(:)
-  type(vector_field_t)            , intent(inout) :: quadrature_points_values(:)
-  integer(ip) :: qpoint, inode, icomp, inode_scalar
+  class(nedelec_reference_fe_t)    , intent(in)    :: this 
+  type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  integer(ip) :: qpoint, inode, icomp, inode_scalar, istat
 
+  if ( allocated(quadrature_points_values) ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+      deallocate(quadrature_points_values, stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+    end if
+  else
+    allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+  end if
+  
+  
   do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      call quadrature_points_values(qpoint)%init(0.0_rp)
      do inode = 1, this%number_shape_functions
@@ -615,10 +599,10 @@ subroutine nedelec_evaluate_fe_function_tensor( this,                      &
      &  nodal_values,              &
      &  quadrature_points_values)
   implicit none
-  class(nedelec_reference_fe_t), intent(in)    :: this 
-  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
-  real(rp)                        , intent(in)    :: nodal_values(:)
-  type(tensor_field_t)            , intent(inout) :: quadrature_points_values(:)
+  class(nedelec_reference_fe_t)    , intent(in)    :: this 
+  type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
 
   write(0,*) ' ERROR in: ',__FILE__,__LINE__
   write(0,*) ' Subroutine not implemented for tensor field unknowns '

@@ -94,9 +94,14 @@ module fe_space_names
     procedure, non_overridable          :: get_field_elem2dof                         => fe_accessor_get_field_elem2dof
     procedure, non_overridable          :: get_elem2dof                               => fe_accessor_get_elem2dof
     procedure, non_overridable          :: get_order                                  => fe_accessor_get_order
+    
+    procedure, non_overridable, private :: get_max_order_single_field                 => fe_accessor_get_max_order_single_field
+    procedure, non_overridable, private :: get_max_order_all_fields                   => fe_accessor_get_max_order_all_fields
+    generic                             :: get_max_order                              => get_max_order_single_field, &
+                                                                                         get_max_order_all_fields
+
     procedure, non_overridable          :: at_strong_dirichlet_boundary               => fe_accessor_at_strong_dirichlet_boundary
     procedure, non_overridable          :: compute_volume                             => fe_accessor_compute_volume
-    
     
     procedure, non_overridable          :: get_quadrature                             => fe_accessor_get_quadrature
     procedure, non_overridable          :: get_fe_map                                 => fe_accessor_get_fe_map
@@ -110,7 +115,6 @@ module fe_space_names
     procedure, non_overridable          :: get_reference_fe_id                        => fe_accessor_get_reference_fe_id
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_accessor_create_own_dofs_on_vef_iterator
     procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_accessor_impose_strong_dirichlet_bcs
-    
   end type fe_accessor_t
   
   type fe_iterator_t

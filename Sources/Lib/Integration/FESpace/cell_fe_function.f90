@@ -26,19 +26,13 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module cell_fe_function_names
-  ! Serial modules
   use types_names
   use list_types_names
-  
   use reference_fe_names
   use fe_space_names
   use fe_function_names
   use environment_names
   use field_names
-  
-  ! Linear algebra
-  use vector_names
-  use serial_scalar_array_names
   
   implicit none
 # include "debug.i90"
@@ -47,14 +41,9 @@ module cell_fe_function_names
   
   type cell_fe_function_scalar_t
    private
-   integer(ip) :: field_id
-   
-   integer(ip) :: current_number_nodes             
-   integer(ip) :: current_number_quadrature_points
-   
-   integer(ip) :: max_number_nodes  
-   integer(ip) :: max_number_quadrature_points          
-   
+   integer(ip)                       :: field_id
+   integer(ip)                       :: current_number_nodes             
+   integer(ip)                       :: current_number_quadrature_points
    real(rp)            , allocatable :: nodal_values(:)  
    real(rp)            , allocatable :: quadrature_points_values(:)
    type(vector_field_t), allocatable :: quadrature_points_gradients(:)
@@ -62,6 +51,10 @@ module cell_fe_function_names
   contains
      procedure, non_overridable :: create                                => cell_fe_function_scalar_create
      procedure, non_overridable :: update                                => cell_fe_function_scalar_update
+     procedure, non_overridable :: move_alloc_values_in                  => cell_fe_function_scalar_move_alloc_values_in
+     procedure, non_overridable :: move_alloc_values_out                 => cell_fe_function_scalar_move_alloc_values_out
+     procedure, non_overridable :: move_alloc_gradients_in               => cell_fe_function_scalar_move_alloc_gradients_in
+     procedure, non_overridable :: move_alloc_gradients_out              => cell_fe_function_scalar_move_alloc_gradients_out
      procedure, non_overridable :: get_field_id                          => cell_fe_function_scalar_get_field_id
      procedure, non_overridable :: get_nodal_values                      => cell_fe_function_scalar_get_nodal_values
      procedure, non_overridable :: get_quadrature_points_values          => cell_fe_function_scalar_get_quadrature_points_values
@@ -75,21 +68,19 @@ module cell_fe_function_names
   
   type cell_fe_function_vector_t
    private
-   integer(ip) :: field_id
-   
-   integer(ip) :: current_number_nodes             
-   integer(ip) :: current_number_quadrature_points           
-   
-   integer(ip) :: max_number_quadrature_points
-   integer(ip) :: max_number_nodes            
-   
+   integer(ip)                       :: field_id
+   integer(ip)                       :: current_number_nodes             
+   integer(ip)                       :: current_number_quadrature_points           
    real(rp)            , allocatable :: nodal_values(:)  
    type(vector_field_t), allocatable :: quadrature_points_values(:)
    type(tensor_field_t), allocatable :: quadrature_points_gradients(:)
-   
   contains
      procedure, non_overridable :: create                                => cell_fe_function_vector_create
      procedure, non_overridable :: update                                => cell_fe_function_vector_update
+     procedure, non_overridable :: move_alloc_values_in                  => cell_fe_function_vector_move_alloc_values_in
+     procedure, non_overridable :: move_alloc_values_out                 => cell_fe_function_vector_move_alloc_values_out
+     procedure, non_overridable :: move_alloc_gradients_in               => cell_fe_function_vector_move_alloc_gradients_in
+     procedure, non_overridable :: move_alloc_gradients_out              => cell_fe_function_vector_move_alloc_gradients_out
      procedure, non_overridable :: get_field_id                          => cell_fe_function_vector_get_field_id
      procedure, non_overridable :: get_nodal_values                      => cell_fe_function_vector_get_nodal_values      
      procedure, non_overridable :: get_quadrature_points_values          => cell_fe_function_vector_get_quadrature_points_values
@@ -103,20 +94,16 @@ module cell_fe_function_names
   
   type cell_fe_function_tensor_t
    private
-   integer(ip) :: field_id
-   
-   integer(ip) :: current_number_nodes            
-   integer(ip) :: current_number_quadrature_points     
-   
-   integer(ip) :: max_number_nodes    
-   integer(ip) :: max_number_quadrature_points        
-   
+   integer(ip)                       :: field_id
+   integer(ip)                       :: current_number_nodes            
+   integer(ip)                       :: current_number_quadrature_points     
    real(rp)            , allocatable :: nodal_values(:)
    type(tensor_field_t), allocatable :: quadrature_points_values(:)
-   
   contains
      procedure, non_overridable :: create                               => cell_fe_function_tensor_create
      procedure, non_overridable :: update                               => cell_fe_function_tensor_update
+     procedure, non_overridable :: move_alloc_values_in                 => cell_fe_function_tensor_move_alloc_values_in
+     procedure, non_overridable :: move_alloc_values_out                => cell_fe_function_tensor_move_alloc_values_out
      procedure, non_overridable :: get_field_id                         => cell_fe_function_tensor_get_field_id
      procedure, non_overridable :: get_nodal_values                     => cell_fe_function_tensor_get_nodal_values  
      procedure, non_overridable :: get_quadrature_points_values         => cell_fe_function_tensor_get_quadrature_points_values          

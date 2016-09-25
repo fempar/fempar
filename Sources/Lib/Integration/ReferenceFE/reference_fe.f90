@@ -633,15 +633,15 @@ module reference_fe_names
      end subroutine get_curl_vector_interface
 
      subroutine evaluate_fe_function_scalar_interface( this,                      &
-          & actual_cell_interpolation, &
-          & nodal_values,              &
-          & quadrature_points_values)
+                                                       actual_cell_interpolation, &
+                                                       nodal_values,              &
+                                                       quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp
        implicit none
        class(reference_fe_t), intent(in)    :: this 
        type(interpolation_t), intent(in)    :: actual_cell_interpolation 
        real(rp)             , intent(in)    :: nodal_values(:)
-       real(rp)             , intent(inout) :: quadrature_points_values(:)
+       real(rp), allocatable, intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_scalar_interface
 
      subroutine evaluate_fe_function_vector_interface( this,                      &
@@ -650,10 +650,10 @@ module reference_fe_names
           & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp, vector_field_t
        implicit none
-       class(reference_fe_t), intent(in)    :: this 
-       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)             , intent(in)    :: nodal_values(:)
-       type(vector_field_t) , intent(inout) :: quadrature_points_values(:)
+       class(reference_fe_t)            , intent(in)    :: this 
+       type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+       real(rp)                         , intent(in)    :: nodal_values(:)
+       type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_vector_interface
 
      subroutine evaluate_fe_function_tensor_interface( this,                      &
@@ -662,10 +662,10 @@ module reference_fe_names
           & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp, tensor_field_t
        implicit none
-       class(reference_fe_t), intent(in)    :: this 
-       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)             , intent(in)    :: nodal_values(:)
-       type(tensor_field_t) , intent(inout) :: quadrature_points_values(:)
+       class(reference_fe_t)            , intent(in)    :: this 
+       type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+       real(rp)                         , intent(in)    :: nodal_values(:)
+       type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_fe_function_tensor_interface
 
      subroutine evaluate_gradient_fe_function_scalar_interface( this,             &
@@ -674,10 +674,10 @@ module reference_fe_names
           & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp, vector_field_t
        implicit none
-       class(reference_fe_t), intent(in)    :: this 
-       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)             , intent(in)    :: nodal_values(:)
-       type(vector_field_t) , intent(inout) :: quadrature_points_values(:)
+       class(reference_fe_t)             , intent(in)    :: this 
+       type(interpolation_t)             , intent(in)    :: actual_cell_interpolation 
+       real(rp)                          , intent(in)    :: nodal_values(:)
+       type(vector_field_t) , allocatable, intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_scalar_interface
 
      subroutine evaluate_gradient_fe_function_vector_interface( this,             &
@@ -686,13 +686,11 @@ module reference_fe_names
           & quadrature_points_values)
        import :: reference_fe_t, interpolation_t, rp, tensor_field_t
        implicit none
-       class(reference_fe_t), intent(in)    :: this 
-       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
-       real(rp)             , intent(in)    :: nodal_values(:)
-       type(tensor_field_t) , intent(inout) :: quadrature_points_values(:)
+       class(reference_fe_t)             , intent(in)    :: this 
+       type(interpolation_t)             , intent(in)    :: actual_cell_interpolation 
+       real(rp)                          , intent(in)    :: nodal_values(:)
+       type(tensor_field_t) , allocatable, intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_vector_interface
-
-
 
      function check_compatibility_of_n_faces_interface(target_reference_fe, &
           &                       source_reference_fe, source_n_face_id,target_n_face_id)
@@ -773,7 +771,7 @@ module reference_fe_names
 contains
   ! Additional deferred methods
   !procedure (fill_scalar_interface)            , private, deferred :: fill_scalar
-  procedure (create_data_out_quadrature_interface)  , private, deferred :: create_data_out_quadrature 
+  procedure (create_data_out_quadrature_interface)           , deferred :: create_data_out_quadrature 
   procedure (fill_quadrature_interface)             , private, deferred :: fill_quadrature
   procedure (fill_nodal_quadrature_interface)       , private, deferred :: fill_nodal_quadrature
   procedure (fill_interpolation_interface)          , private, deferred :: fill_interpolation
@@ -924,7 +922,6 @@ procedure :: get_gradient_scalar              => raviart_thomas_get_gradient_sca
 procedure :: get_gradient_vector              => raviart_thomas_get_gradient_vector
 procedure :: get_divergence_vector            => raviart_thomas_get_divergence_vector
 procedure :: get_curl_vector                  => raviart_thomas_get_curl_vector
-procedure :: create_nodal_quadrature          => raviart_thomas_create_nodal_quadrature
 procedure :: create_interpolation             => raviart_thomas_create_interpolation
 procedure :: create_face_interpolation        => raviart_thomas_create_face_interpolation
 procedure :: evaluate_fe_function_scalar          &
@@ -986,7 +983,6 @@ procedure :: get_gradient_scalar             => nedelec_get_gradient_scalar
 procedure :: get_gradient_vector             => nedelec_get_gradient_vector
 procedure :: get_divergence_vector           => nedelec_get_divergence_vector
 procedure :: get_curl_vector                 => nedelec_get_curl_vector
-procedure :: create_nodal_quadrature         => nedelec_create_nodal_quadrature
 procedure :: create_interpolation            => nedelec_create_interpolation
 procedure :: create_face_interpolation       => nedelec_create_face_interpolation
 procedure :: create_edge_interpolation       => nedelec_create_edge_interpolation
