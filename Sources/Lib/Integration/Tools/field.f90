@@ -35,6 +35,8 @@ module field_names
 # include "debug.i90"
   private
 
+
+  
   type :: vector_field_t
      private
      real(rp) :: value(SPACE_DIM) = 0.0_rp
@@ -50,6 +52,17 @@ module field_names
      procedure, non_overridable :: nrm2      => vector_field_nrm2
      procedure, non_overridable :: get_value => vector_field_get_value
   end type vector_field_t
+  
+  type allocatable_array_vector_field_t
+    private
+    type(vector_field_t), allocatable :: a(:)
+  contains
+    procedure, non_overridable :: create         => allocatable_array_vector_field_create
+    procedure, non_overridable :: free           => allocatable_array_vector_field_free
+    procedure, non_overridable :: move_alloc_out => allocatable_array_vector_field_move_alloc_out
+    procedure, non_overridable :: move_alloc_in  => allocatable_array_vector_field_move_alloc_in
+    procedure, non_overridable :: get_array      => allocatable_array_vector_field_get_array
+  end type allocatable_array_vector_field_t
   
   interface vector_field_t
     module procedure vector_field_constructor_with_scalar, &
@@ -67,6 +80,17 @@ module field_names
      procedure, non_overridable :: get   => tensor_field_get
      procedure, non_overridable :: add   => tensor_field_add
   end type tensor_field_t
+  
+  type allocatable_array_tensor_field_t
+    private
+    type(tensor_field_t), allocatable :: a(:)
+  contains
+    procedure, non_overridable :: create         => allocatable_array_tensor_field_create
+    procedure, non_overridable :: free           => allocatable_array_tensor_field_free
+    procedure, non_overridable :: move_alloc_out => allocatable_array_tensor_field_move_alloc_out
+    procedure, non_overridable :: move_alloc_in  => allocatable_array_tensor_field_move_alloc_in
+    procedure, non_overridable :: get_array      => allocatable_array_tensor_field_get_array
+  end type allocatable_array_tensor_field_t
   
   type :: symmetric_tensor_field_t
      private
@@ -107,6 +131,7 @@ module field_names
   end interface double_contract
 
   public :: vector_field_t, tensor_field_t, symmetric_tensor_field_t, point_t 
+  public :: allocatable_array_vector_field_t, allocatable_array_tensor_field_t
   public :: operator(*), operator(+), operator(-), assignment(=)
   public :: double_contract, cross_product
   
@@ -210,6 +235,49 @@ contains
     call new_vector_field%init(value)
   end function vector_field_constructor_with_array
   
+  subroutine allocatable_array_vector_field_create ( this, size )
+    implicit none
+    class(allocatable_array_vector_field_t), intent(inout) :: this
+    integer(ip)          , intent(in)    :: size
+     integer(ip) :: istat
+    call this%free()
+    allocate(this%a(size), stat=istat); check(istat==0)
+  end subroutine allocatable_array_vector_field_create
+ 
+  subroutine allocatable_array_vector_field_free ( this )
+    implicit none
+    class(allocatable_array_vector_field_t), intent(inout) :: this
+    integer(ip) :: istat
+    if (allocated(this%a)) then
+      deallocate(this%a, stat=istat); check(istat==0);
+    end if
+  end subroutine allocatable_array_vector_field_free
+  
+  subroutine allocatable_array_vector_field_move_alloc_out(this, a)
+    implicit none
+    class(allocatable_array_vector_field_t), intent(inout) :: this
+    type(vector_field_t), allocatable      , intent(inout) :: a(:)
+    assert (.not. allocated (a))
+    assert (allocated(this%a))
+    call move_alloc(from=this%a, to=a) 
+  end subroutine allocatable_array_vector_field_move_alloc_out
+  
+  subroutine allocatable_array_vector_field_move_alloc_in(this, a)
+    implicit none
+    class(allocatable_array_vector_field_t), intent(inout) :: this
+    type(vector_field_t), allocatable      , intent(inout) :: a(:)
+    assert (allocated (a))
+    assert (.not. allocated(this%a))
+    call move_alloc(from=a, to=this%a) 
+  end subroutine allocatable_array_vector_field_move_alloc_in
+  
+  function allocatable_array_vector_field_get_array(this)
+    implicit none
+    class(allocatable_array_vector_field_t), target , intent(in) :: this
+    type(vector_field_t)                   , pointer :: allocatable_array_vector_field_get_array(:)
+    allocatable_array_vector_field_get_array => this%a
+  end function allocatable_array_vector_field_get_array
+  
   subroutine tensor_field_init_with_scalar(this,value)
     implicit none
     class(tensor_field_t), intent(inout) :: this
@@ -249,7 +317,50 @@ contains
     real(rp)             , intent(in)    :: value
     this%value(i,j) = this%value(i,j) + value
   end subroutine tensor_field_add
-
+  
+  subroutine allocatable_array_tensor_field_create ( this, size )
+    implicit none
+    class(allocatable_array_tensor_field_t), intent(inout) :: this
+    integer(ip)          , intent(in)    :: size
+     integer(ip) :: istat
+    call this%free()
+    allocate(this%a(size), stat=istat); check(istat==0)
+  end subroutine allocatable_array_tensor_field_create
+ 
+  subroutine allocatable_array_tensor_field_free ( this )
+    implicit none
+    class(allocatable_array_tensor_field_t), intent(inout) :: this
+    integer(ip) :: istat
+    if (allocated(this%a)) then
+      deallocate(this%a, stat=istat); check(istat==0);
+    end if
+  end subroutine allocatable_array_tensor_field_free
+  
+  subroutine allocatable_array_tensor_field_move_alloc_out(this, a)
+    implicit none
+    class(allocatable_array_tensor_field_t), intent(inout) :: this
+    type(tensor_field_t), allocatable      , intent(inout) :: a(:)
+    assert (.not. allocated (a))
+    assert (allocated(this%a))
+    call move_alloc(from=this%a, to=a) 
+  end subroutine allocatable_array_tensor_field_move_alloc_out
+  
+  subroutine allocatable_array_tensor_field_move_alloc_in(this, a)
+    implicit none
+    class(allocatable_array_tensor_field_t), intent(inout) :: this
+    type(tensor_field_t), allocatable      , intent(inout) :: a(:)
+    assert (allocated (a))
+    assert (.not. allocated(this%a))
+    call move_alloc(from=a, to=this%a) 
+  end subroutine allocatable_array_tensor_field_move_alloc_in
+  
+  function allocatable_array_tensor_field_get_array(this)
+    implicit none
+    class(allocatable_array_tensor_field_t), target , intent(in) :: this
+    type(tensor_field_t)                   , pointer :: allocatable_array_tensor_field_get_array(:)
+    allocatable_array_tensor_field_get_array => this%a
+  end function allocatable_array_tensor_field_get_array
+  
   subroutine symmetric_tensor_field_init(this,value)
     implicit none
     class(symmetric_tensor_field_t), intent(inout) :: this

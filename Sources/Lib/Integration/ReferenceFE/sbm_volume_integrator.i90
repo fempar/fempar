@@ -539,10 +539,15 @@ function fe_map_get_coordinates(this)
   implicit none
   class(fe_map_t)   , target, intent(in) :: this
   type(point_t), pointer :: fe_map_get_coordinates(:)
-
   fe_map_get_coordinates => this%coordinates_nodes
-
 end function fe_map_get_coordinates
+
+function fe_map_get_quadrature_points_coordinates(this)
+  implicit none
+  class(fe_map_t)   , target, intent(in) :: this
+  type(point_t), pointer :: fe_map_get_quadrature_points_coordinates(:)
+  fe_map_get_quadrature_points_coordinates => this%coordinates_quadrature
+end function fe_map_get_quadrature_points_coordinates
 
 !==================================================================================================
 subroutine fe_map_get_inv_jacobian_tensor ( this, qpoin, inv_jacobian )

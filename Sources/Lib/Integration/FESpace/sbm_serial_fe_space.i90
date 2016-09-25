@@ -1303,6 +1303,15 @@ function serial_fe_space_get_number_reference_fes ( this )
   serial_fe_space_get_number_reference_fes = size(this%reference_fes)
 end function serial_fe_space_get_number_reference_fes
 
+function serial_fe_space_get_reference_fe ( this, reference_fe_id )
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  integer(ip)                     , intent(in) :: reference_fe_id
+  class(reference_fe_t), pointer :: serial_fe_space_get_reference_fe
+  assert ( reference_fe_id >=1 .and. reference_fe_id <= this%get_number_reference_fes() )
+  serial_fe_space_get_reference_fe => this%reference_fes(reference_fe_id)%p
+end function serial_fe_space_get_reference_fe
+
 function serial_fe_space_get_number_fields ( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this

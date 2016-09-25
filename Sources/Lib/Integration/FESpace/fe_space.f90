@@ -88,6 +88,8 @@ module fe_space_names
     procedure, non_overridable          :: get_fe_space                               => fe_accessor_get_fe_space
     procedure, non_overridable          :: get_number_fields                          => fe_accessor_get_number_fields
     procedure, non_overridable, private :: get_fe_space_type                          => fe_accessor_get_fe_space_type
+    procedure, non_overridable          :: get_field_type                             => fe_accessor_get_field_type
+
     procedure, non_overridable          :: get_field_blocks                           => fe_accessor_get_field_blocks
     procedure, non_overridable          :: get_number_dofs                            => fe_accessor_get_number_dofs
     procedure, non_overridable          :: get_number_dofs_per_field                  => fe_accessor_get_number_dofs_per_field
@@ -310,6 +312,7 @@ module fe_space_names
      procedure                           :: get_field_number_dofs                        => serial_fe_space_get_field_number_dofs
      procedure                           :: get_block_number_dofs                        => serial_fe_space_get_block_number_dofs
      procedure, non_overridable          :: get_number_reference_fes                     => serial_fe_space_get_number_reference_fes
+     procedure, non_overridable          :: get_reference_fe                             => serial_fe_space_get_reference_fe
      procedure, non_overridable          :: get_number_fields                            => serial_fe_space_get_number_fields
      procedure, non_overridable          :: get_field_type                               => serial_fe_space_get_field_type 
      procedure, non_overridable          :: get_fe_space_type_per_field                  => serial_fe_space_get_fe_space_type_per_field
