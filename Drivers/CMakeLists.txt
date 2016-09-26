@@ -1,32 +1,94 @@
 #################################################################
+# HEADER
+#################################################################
+
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.11)
+SET(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS TRUE)
+
+PROJECT(FEMPAR_DRIVER Fortran C)
+
+SET(CMAKE_VERBOSE_MAKEFILE TRUE)
+
+#################################################################
+# FFLAGS depend on the compiler and the build type
+#################################################################
+
+GET_FILENAME_COMPONENT(Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
+
+IF(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+#   SET(MACROS "${MACROS} -DDEBUG -Dmemcheck")
+    ADD_DEFINITIONS(-DDEBUG)
+    ADD_DEFINITIONS(-Dmemcheck)
+ENDIF()
+
+FIND_PACKAGE( OpenMP )
+IF(${OPENMP_FOUND})
+  SET(EXTRA_FLAGS ${OpenMP_Fortran_FLAGS})
+ELSE()
+  SET(EXTRA_FLAGS "")
+ENDIF()
+
+message(STATUS "COMPILER INFO: ${CMAKE_Fortran_COMPILER_ID} - ${Fortran_COMPILER_NAME}")
+
+IF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES "gfortran*")
+  # gfortran 
+  set(FORTRAN_FLAGS "-fdefault-real-8 -ffree-line-length-0 -cpp -Wimplicit-interface ${EXTRA_FLAGS} ")
+  set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES} " CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-g -fbacktrace -fbounds-check -fprofile-arcs -ftest-coverage -Wimplicit-interface ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
+ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel" OR Fortran_COMPILER_NAME MATCHES "ifort*")
+  # ifort
+  set(FORTRAN_FLAGS "-r8 -fpp -W1 -fPIC -assume realloc-lhs ${EXTRA_FLAGS} ")
+  set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all,noarg_temp_created -ftrapuv -warn nointerfaces ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
+# A partir de CMake 3.1
+# -prof-gen:srcpos -prof-dir${PROJECT_BINARY_DIR}
+ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "XL" OR Fortran_COMPILER_NAME MATCHES "xlf*")
+  # xlf
+  set(FORTRAN_FLAGS "-q64 -qrealsize=8 -qsuffix=f=f90:cpp=f90 ${EXTRA_FLAGS} ")
+  set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_RELEASE "-O3 -qstrict ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g -qfullpath -qkeepparm ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
+ELSE ()
+  message ("No optimized Fortran compiler flags are known, we just try -O2...")
+  set (CMAKE_Fortran_FLAGS_RELEASE "-O2")
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g")
+ENDIF ()
+
+SET(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--allow-multiple-definition")
+SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--allow-multiple-definition")
+
+message (STATUS "CMAKE_Fortran_COMPILER full path: " ${CMAKE_Fortran_COMPILER})
+message (STATUS "CMAKE_Fortran_FLAGS: " ${CMAKE_Fortran_FLAGS})
+message (STATUS "CMAKE_Fortran_FLAGS_RELEASE: " ${CMAKE_Fortran_FLAGS_RELEASE})
+message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
+
+#################################################################
 # Drivers
 #################################################################
 
-IF(MPI_FOUND)
+IF(FEMPAR_DRIVER)
 
-    IF(${PROJECT_NAME}_DRIVER)
+    SET(DRIVERS_PATH ${CMAKE_SOURCE_DIR})
 
-        FILE(GLOB DRIVERS_SRC ${DRIVERS_PATH}/${${PROJECT_NAME}_DRIVER}/*.f90 ${DRIVERS_PATH}/${${PROJECT_NAME}_DRIVER}/*.F90)
-        SET(DRIVERS_SRC ${DRIVERS_SRC} PARENT_SCOPE)
+    FIND_PACKAGE(FEMPAR REQUIRED)
+    INCLUDE_DIRECTORIES(${FEMPAR_INCLUDES})
 
-        FOREACH(DRIVER_SRC ${DRIVERS_SRC})
-            GET_FILENAME_COMPONENT(EXE_NAME ${DRIVER_SRC} NAME_WE)
-            UNSET(${EXE_NAME}_MODULES_SRC CACHE)
-            SET(${EXE_NAME}_MODULES_DIR ${DRIVERS_PATH}/${${PROJECT_NAME}_DRIVER}/modules)
-            IF(EXISTS "${${EXE_NAME}_MODULES_DIR}" AND IS_DIRECTORY "${${EXE_NAME}_MODULES_DIR}")
-                FILE(GLOB ${EXE_NAME}_MODULES_SRC ${${EXE_NAME}_MODULES_DIR}/*.f90 ${${EXE_NAME}_MODULES_DIR}/*.F90)
-            ENDIF()
-            ADD_EXECUTABLE(${EXE_NAME} ${DRIVER_SRC} ${${EXE_NAME}_MODULES_SRC})
-            TARGET_LINK_LIBRARIES(${EXE_NAME} ${EXT_PROJ_LIBS})
-            TARGET_LINK_LIBRARIES(${EXE_NAME} ${MPI_Fortran_LIBRARIES})
-            FOREACH (EXT_LIB ${EXT_LIBS})
-                IF(DEFINED ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND ${EXT_LIB}_FOUND)
-                    TARGET_LINK_LIBRARIES(${EXE_NAME} ${${EXT_LIB}_LIBRARIES})
-                ENDIF()
-            ENDFOREACH()
-        ENDFOREACH()
+    FILE(GLOB DRIVERS_SRC ${DRIVERS_PATH}/${FEMPAR_DRIVER}/*.f90 ${DRIVERS_PATH}/${FEMPAR_DRIVER}/*.F90)
+    SET(DRIVERS_SRC ${DRIVERS_SRC})
 
-    ENDIF()
+    FOREACH(DRIVER_SRC ${DRIVERS_SRC})
+        GET_FILENAME_COMPONENT(EXE_NAME ${DRIVER_SRC} NAME_WE)
+        UNSET(${EXE_NAME}_MODULES_SRC CACHE)
+        SET(${EXE_NAME}_MODULES_DIR ${DRIVERS_PATH}/${FEMPAR_DRIVER}/modules)
+        IF(EXISTS "${${EXE_NAME}_MODULES_DIR}" AND IS_DIRECTORY "${${EXE_NAME}_MODULES_DIR}")
+            FILE(GLOB ${EXE_NAME}_MODULES_SRC ${${EXE_NAME}_MODULES_DIR}/*.f90 ${${EXE_NAME}_MODULES_DIR}/*.F90)
+        ENDIF()
+        ADD_EXECUTABLE(${EXE_NAME} ${DRIVER_SRC} ${${EXE_NAME}_MODULES_SRC})
+        TARGET_LINK_LIBRARIES(${EXE_NAME} ${FEMPAR_LIBS})
+        TARGET_LINK_LIBRARIES(${EXE_NAME} ${MPI_Fortran_LIBRARIES})
+    ENDFOREACH()
 
 ENDIF()
 

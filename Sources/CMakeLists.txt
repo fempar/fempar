@@ -9,7 +9,6 @@ PROJECT(FEMPAR Fortran C)
 
 SET(${PROJECT_NAME}_VERSION 0.0.1)
 SET(${PROJECT_NAME}_SOVERSION 1)
-SET(${PROJECT_NAME}_USER "" CACHE STRING "")
 
 SET(CMAKE_VERBOSE_MAKEFILE TRUE)
 
@@ -33,23 +32,33 @@ SET(GENERIC_PATH ${LIBRARY_PATH}/Generic)
 
 SET(THIRDPARTY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/ThirdParty)
 
-SET(CMAKE_MODULE_PATH "${ROOT_PATH}/CMake/Modules/")
+SET(CMAKE_PATH "${ROOT_PATH}/CMake")
+SET(CMAKE_MODULE_PATH "${CMAKE_PATH}/Modules")
 
 #################################################################
 # BUILD PATHS
 #################################################################
 
-SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
-SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
-SET(SCRIPTS_OUTPUT_PATH ${PROJECT_BINARY_DIR}/scripts)
-SET(CMAKE_Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/modules)
-INCLUDE_DIRECTORIES(${CMAKE_Fortran_MODULE_DIRECTORY})
+SET(BINARY_OUTPUT_PATH ${PROJECT_BINARY_DIR})
+SET(LIBRARY_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/lib)
+SET(EXECUTABLE_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/bin)
+SET(SCRIPTS_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/scripts)
+SET(CMAKE_Fortran_MODULE_DIRECTORY ${BINARY_OUTPUT_PATH}/modules)
 
 #################################################################
 # ADD INCLUDE DIRS
 #################################################################
 
-INCLUDE_DIRECTORIES(${INCLUDE_PATH} ${GENERIC_PATH})
+SET(${PROJECT_NAME}_INCLUDES ${INCLUDE_PATH} ${CMAKE_Fortran_MODULE_DIRECTORY})
+INCLUDE_DIRECTORIES(${${PROJECT_NAME}_INCLUDES} ${GENERIC_PATH})
+SET(${PROJECT_NAME}_INCLUDE_DIRS ${${PROJECT_NAME}_INCLUDE_DIRS} ${${PROJECT_NAME}_INCLUDES})
+UNSET(${PROJECT_NAME}_DEFINITIONS CACHE)
+
+#################################################################
+# LIBRARIES TO LINK
+#################################################################
+
+UNSET(${PROJECT_NAME}_LIBRARIES CACHE)
 
 #################################################################
 # CONFIGURATION TYPES & BUILD MODE & TESTING
@@ -69,64 +78,13 @@ IF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
 ENDIF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
 
 #################################################################
-# Add external projects
-#################################################################
-
-SET(EXT_PROJS FPL F3PHT FLAP VTKIO)
-include(ExternalProject)
-
-FOREACH(EXT_PROJ ${EXT_PROJS})
-
-    SET(${EXT_PROJ}_SRC_PATH ${ROOT_PATH}/ThirdParty/${EXT_PROJ})
-    SET(${EXT_PROJ}_BINARY_PATH ${THIRDPARTY_OUTPUT_PATH}/${EXT_PROJ})
-    EXTERNALPROJECT_Add(${EXT_PROJ}
-        PREFIX ${EXT_PROJ}
-        DOWNLOAD_COMMAND ""
-        SOURCE_DIR ${${EXT_PROJ}_SRC_PATH}
-        BINARY_DIR ${${EXT_PROJ}_BINARY_PATH}
-        INSTALL_DIR ${INSTALL_PREFIX}
-        CONFIGURE_COMMAND cmake -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER} -D${EXT_PROJ}_ENABLE_TESTS=${${PROJECT_NAME}_ENABLE_TESTS} ${${EXT_PROJ}_SRC_PATH}
-        BUILD_COMMAND cmake --build .
-        TEST_COMMAND ${CTEST_COMMAND}
-        INSTALL_COMMAND ""
-    )
-    INCLUDE_DIRECTORIES(${${EXT_PROJ}_BINARY_PATH}/modules)
-    SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${EXT_PROJ}_BINARY_PATH}/lib/lib${EXT_PROJ}.a)
-    IF(${EXT_PROJ} STREQUAL "FLAP")
-        SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${EXT_PROJ}_BINARY_PATH}/third_party/PENF/lib/libPENF.a)
-    ENDIF()
-
-ENDFOREACH ()
-
-#################################################################
-# SISL needs a different treatment because it's a C project not owned by us
-SET(SISL_LIB SISL)
-SET(EXT_PROJS ${EXT_PROJS} ${SISL_LIB} )
-
-SET(${SISL_LIB}_SRC_PATH ${ROOT_PATH}/ThirdParty/${SISL_LIB})
-SET(${SISL_LIB}_BINARY_PATH ${THIRDPARTY_OUTPUT_PATH}/${SISL_LIB})
-EXTERNALPROJECT_Add(${SISL_LIB}
-    PREFIX ${SISL_LIB}
-    DOWNLOAD_COMMAND ""
-    SOURCE_DIR ${${SISL_LIB}_SRC_PATH}
-    BINARY_DIR ${${SISL_LIB}_BINARY_PATH}
-    INSTALL_DIR ${INSTALL_PREFIX}
-    CONFIGURE_COMMAND cmake -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} ${${SISL_LIB}_SRC_PATH}
-    BUILD_COMMAND cmake --build .
-    TEST_COMMAND ""
-    INSTALL_COMMAND ""
-)
-INCLUDE_DIRECTORIES(${${SISL_LIB}_SRC_PATH}/include)
-SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${SISL_LIB}_BINARY_PATH}/libsisl.a)
-
-#################################################################
 # List of external libraries
 #################################################################
 
 # LIBRARY ORDER IS IMPORTANT IN THE CASE OF MKL, BLAS AND LAPACK
 # IF MKL WAS FOUND BLAS AND LAPACK MACRO DEFITIONS ARE ACTIVE 
 # BUT LIBRARIES ARE NOT LINKED
-SET(EXT_LIBS MKL BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZOLTAN ZLIB )
+SET(EXTERNAL_LIBRARIES MKL BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZOLTAN ZLIB)
 SET(MKL_FIND_QUIETLY TRUE) 
 
 #################################################################
@@ -159,69 +117,89 @@ IF(MPI_FOUND)
         MESSAGE(WARNING "MPI: mpi.mod file NOT FOUND! mpif.h is going to be included instead")
         ADD_DEFINITIONS(-DMPI_H)
     ENDIF()
+    SET(${PROJECT_NAME}_LIBRARIES ${${PROJECT_NAME}_LIBRARIES} ${MPI_LIBRARIES})
 ENDIF()
 
 #################################################################
 # Find external libraries
 #################################################################
 
-FOREACH(EXT_LIB ${EXT_LIBS})
+FOREACH(EXT_LIB ${EXTERNAL_LIBRARIES})
     IF(DEFINED ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND NOT ${EXT_LIB}_FOUND)
         IF(MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
 #           IF MKL WAS FOUND DO NOT LINK WITH BLAS AND LAPACK LIBRARIES
             OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" ON)
             SET(${EXT_LIB}_FOUND TRUE)
+            SET(${EXT_LIB}_INCLUDES "")
+            SET(${EXT_LIB}_LIBS "")
+            SET(${EXT_LIB}_INCLUDE_DIR "")
+            SET(${EXT_LIB}_LIBRARIES "")
             ADD_DEFINITIONS(-DENABLE_${EXT_LIB})#${${EXT_LIB}_MAJOR_VERSION})
         ELSE()
-            FIND_PACKAGE( ${EXT_LIB} )
+            IF(${EXT_LIB} STREQUAL "HDF5")
+                FIND_PACKAGE( ${EXT_LIB} COMPONENTS C Fortran HL Fortran_HL)
+            ELSE()
+                FIND_PACKAGE( ${EXT_LIB} )
+            ENDIF()
     
             IF (${EXT_LIB}_FOUND)
                 IF (DEFINED MKL_FOUND AND MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
 #                   IF MKL WAS FOUND DO NOT LINK WITH BLAS AND LAPACK LIBRARIES
                 ELSE()
-                   ADD_DEFINITIONS(-DENABLE_${EXT_LIB})
-                   IF(IS_DIRECTORY ${${EXT_LIB}_INCLUDE_DIR})
-                       INCLUDE_DIRECTORIES(${${EXT_LIB}_INCLUDE_DIR})
-                   ENDIF()
+                    ADD_DEFINITIONS(-DENABLE_${EXT_LIB})
+                    IF(IS_DIRECTORY ${${EXT_LIB}_INCLUDE_DIR})
+                        INCLUDE_DIRECTORIES(${${EXT_LIB}_INCLUDE_DIR})
+                        SET(${PROJECT_NAME}_INCLUDE_DIRS ${${PROJECT_NAME}_INCLUDE_DIRS} ${${EXT_LIB}_INCLUDE_DIR})
+                    ENDIF()
                 ENDIF()
             ENDIF()
         ENDIF()
 
 
     ELSEIF(DEFINED ${PROJECT_NAME}_ENABLE_${EXT_LIB} AND NOT ${PROJECT_NAME}_ENABLE_${EXT_LIB})
-        UNSET(${EXT_LIB}_INCLUDES CACHE)
-        UNSET(${EXT_LIB}_LIBS CACHE)
-        UNSET(${EXT_LIB}_INCLUDE_DIR CACHE)
-        UNSET(${EXT_LIB}_LIBRARIES CACHE)
+        SET(${EXT_LIB}_INCLUDES "")
+        SET(${EXT_LIB}_LIBS "")
+        SET(${EXT_LIB}_INCLUDE_DIR "")
+        SET(${EXT_LIB}_LIBRARIES "")
 
     ELSE(NOT DEFINED ${PROJECT_NAME}_ENABLE_${EXT_LIB})
         IF(MKL_FOUND AND (${EXT_LIB} STREQUAL "BLAS" OR ${EXT_LIB} STREQUAL "LAPACK"))
 #           IF MKL WAS FOUND DO NOT LINK WITH BLAS AND LAPACK LIBRARIES
             OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" ON)
             SET(${EXT_LIB}_FOUND TRUE)
+            SET(${EXT_LIB}_INCLUDES "")
+            SET(${EXT_LIB}_LIBS "")
+            SET(${EXT_LIB}_INCLUDE_DIR "")
+            SET(${EXT_LIB}_LIBRARIES "")
             ADD_DEFINITIONS(-DENABLE_${EXT_LIB})#${${EXT_LIB}_MAJOR_VERSION})
         ELSE()
-            FIND_PACKAGE( ${EXT_LIB} )
+            IF(${EXT_LIB} STREQUAL "HDF5")
+                FIND_PACKAGE( ${EXT_LIB} COMPONENTS C Fortran HL Fortran_HL)
+            ELSE()
+                FIND_PACKAGE( ${EXT_LIB} )
+            ENDIF()
 
 #            STRING( TOUPPER ${EXT_LIB}_FOUND UPPER_STRING)
 
 #            IF (${${UPPER_STRING}})
             IF (${${EXT_LIB}_FOUND})
-               SET(NO_LIBS FALSE)
-               OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" ON)
-               ADD_DEFINITIONS(-DENABLE_${EXT_LIB})
-               IF(IS_DIRECTORY ${${EXT_LIB}_INCLUDE_DIR})
-                   INCLUDE_DIRECTORIES(${${EXT_LIB}_INCLUDE_DIR})
-               ENDIF()
+                SET(NO_LIBS FALSE)
+                OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" ON)
+                ADD_DEFINITIONS(-DENABLE_${EXT_LIB})
+                IF(IS_DIRECTORY ${${EXT_LIB}_INCLUDE_DIR})
+                    INCLUDE_DIRECTORIES(${${EXT_LIB}_INCLUDE_DIR})
+                    SET(${PROJECT_NAME}_INCLUDE_DIRS ${${PROJECT_NAME}_INCLUDE_DIRS} ${${EXT_LIB}_INCLUDE_DIR})
+                ENDIF()
             ELSE()
-               OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" OFF)
-               UNSET(${EXT_LIB}_INCLUDES CACHE)
-               UNSET(${EXT_LIB}_LIBS CACHE)
-               UNSET(${EXT_LIB}_INCLUDE_DIR CACHE)
-               UNSET(${EXT_LIB}_LIBRARIES CACHE)
+                OPTION(${PROJECT_NAME}_ENABLE_${EXT_LIB} "Enable/disable ${EXT_LIB} library" OFF)
+                SET(${EXT_LIB}_INCLUDES "")
+                SET(${EXT_LIB}_LIBS "")
+                SET(${EXT_LIB}_INCLUDE_DIR "")
+                SET(${EXT_LIB}_LIBRARIES "")
             ENDIF()
         ENDIF()
     ENDIF()
+    SET(${PROJECT_NAME}_LIBRARIES ${${PROJECT_NAME}_LIBRARIES} ${${EXT_LIB}_LIBRARIES})
 ENDFOREACH ()
 
 FIND_PACKAGE( OpenMP )
@@ -230,6 +208,33 @@ IF(${OPENMP_FOUND})
 ELSE()
   SET(EXTRA_FLAGS "")
 ENDIF()
+
+#################################################################
+# ENABLE TESTING
+#################################################################
+
+IF(${PROJECT_NAME}_ENABLE_TESTS)
+    ENABLE_TESTING()
+    INCLUDE(CTest)
+    SET(CTEST_COMMAND ${CMAKE_COMMAND} --build . --target test)
+ELSE()
+    SET(BUILD_TESTING OFF)
+    UNSET(CTEST_COMMAND CACHE)
+ENDIF()
+
+#################################################################
+# Add external projects
+#################################################################
+
+UNSET(EXT_PROJ_LIBS CACHE)
+SET(EXTERNAL_PROJECTS FPL F3PHT FLAP VTKIO SISL XH5For)
+
+FOREACH(EXT_PROJ ${EXTERNAL_PROJECTS})
+    FIND_PACKAGE(${EXT_PROJ} REQUIRED)
+    SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${EXT_PROJ}_LIBS})    
+    INCLUDE_DIRECTORIES(${${EXT_PROJ}_INCLUDES})
+    SET(${PROJECT_NAME}_INCLUDE_DIRS ${${PROJECT_NAME}_INCLUDE_DIRS} ${${EXT_PROJ}_INCLUDES})
+ENDFOREACH ()
 
 #################################################################
 # FFLAGS depend on the compiler and the build type
@@ -297,19 +302,6 @@ ENDIF()
 SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL}@${GIT_COMMIT} CACHE STRING "" )
 
 #################################################################
-# ENABLE TESTING
-#################################################################
-
-IF(${PROJECT_NAME}_ENABLE_TESTS)
-    ENABLE_TESTING()
-    INCLUDE(CTest)
-    SET(CTEST_COMMAND ctest)
-ELSE()
-    SET(BUILD_TESTING OFF)
-    UNSET(CTEST_COMMAND CACHE)
-ENDIF()
-
-#################################################################
 # STATIC LIBRARIES
 #################################################################
 # Try to search first static libraries
@@ -342,3 +334,10 @@ IF(ETAGS)
     ADD_CUSTOM_TARGET(TAGS ALL COMMAND ${ETAGS} ${LIBRARY_SRC} ${TESTS_SERIAL_SRC} ${TESTS_PAR_SRC})
 ENDIF()
 
+#################################################################
+# CREATE CONFIG FILE
+#################################################################
+
+CONFIGURE_FILE(${CMAKE_PATH}/${PROJECT_NAME}Config.cmake.in 
+               ${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+               @ONLY)
