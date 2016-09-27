@@ -16,8 +16,8 @@ SET(CMAKE_VERBOSE_MAKEFILE TRUE)
 # DEFINE PATHS
 #################################################################
 
-SET(ROOT_PATH ${CMAKE_SOURCE_DIR}/..)
-SET(SRC_PATH ${CMAKE_SOURCE_DIR})
+SET(ROOT_PATH ${CMAKE_SOURCE_DIR})
+SET(SRC_PATH ${ROOT_PATH}/Sources)
 
 SET(LIBRARY_PATH ${SRC_PATH}/Lib)
 
@@ -293,6 +293,7 @@ message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 
 FIND_PACKAGE( Git )
 IF(${GIT_FOUND})
+MESSAGE(ROOT_PATH: ${ROOT_PATH})
     # Get the current working branch
     EXECUTE_PROCESS(
         COMMAND git rev-parse --short HEAD

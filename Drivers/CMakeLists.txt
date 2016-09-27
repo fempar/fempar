@@ -10,6 +10,14 @@ PROJECT(FEMPAR_DRIVER Fortran C)
 SET(CMAKE_VERBOSE_MAKEFILE TRUE)
 
 #################################################################
+# BUILD PATHS
+#################################################################
+
+SET(BINARY_OUTPUT_PATH ${PROJECT_BINARY_DIR})
+SET(EXECUTABLE_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/bin)
+SET(CMAKE_Fortran_MODULE_DIRECTORY ${BINARY_OUTPUT_PATH}/modules)
+
+#################################################################
 # FFLAGS depend on the compiler and the build type
 #################################################################
 
@@ -65,15 +73,19 @@ message (STATUS "CMAKE_Fortran_FLAGS_RELEASE: " ${CMAKE_Fortran_FLAGS_RELEASE})
 message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 
 #################################################################
+# Find Fempar
+#################################################################
+
+FIND_PACKAGE(FEMPAR REQUIRED)
+INCLUDE_DIRECTORIES(${FEMPAR_INCLUDES})
+
+#################################################################
 # Drivers
 #################################################################
 
 IF(FEMPAR_DRIVER)
 
     SET(DRIVERS_PATH ${CMAKE_SOURCE_DIR})
-
-    FIND_PACKAGE(FEMPAR REQUIRED)
-    INCLUDE_DIRECTORIES(${FEMPAR_INCLUDES})
 
     FILE(GLOB DRIVERS_SRC ${DRIVERS_PATH}/${FEMPAR_DRIVER}/*.f90 ${DRIVERS_PATH}/${FEMPAR_DRIVER}/*.F90)
     SET(DRIVERS_SRC ${DRIVERS_SRC})
