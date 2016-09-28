@@ -92,7 +92,7 @@ FOREACH(EXT_PROJ ${EXTERNAL_PROJECTS})
             INSTALL_DIR ${INSTALL_PREFIX}
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER} -DMPI_Fortran_COMPILER=${MPI_Fortran_COMPILER} -DMPI_C_COMPILER=${MPI_C_COMPILER} -DMPIEXEC=${MPIEXEC} -D${EXT_PROJ}_ENABLE_HDF5=${${PROJECT_NAME}_ENABLE_HDF5} -D${EXT_PROJ}_ENABLE_TESTS=${${PROJECT_NAME}_ENABLE_TESTS} ${${EXT_PROJ}_SRC_PATH}
             BUILD_COMMAND ${CMAKE_COMMAND} --build .
-            TEST_COMMAND ""
+            TEST_COMMAND ${CTEST_COMMAND}
             INSTALL_COMMAND ""
         )
     ELSEIF(${EXT_PROJ} STREQUAL "SISL")
@@ -116,29 +116,22 @@ FOREACH(EXT_PROJ ${EXTERNAL_PROJECTS})
             INSTALL_DIR ${INSTALL_PREFIX}
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER} -D${EXT_PROJ}_ENABLE_TESTS=${${PROJECT_NAME}_ENABLE_TESTS} ${${EXT_PROJ}_SRC_PATH}
             BUILD_COMMAND ${CMAKE_COMMAND} --build .
-            TEST_COMMAND ""
+            TEST_COMMAND ${CTEST_COMMAND}
             INSTALL_COMMAND ""
         )
     ENDIF()
 
+    SET(${EXT_PROJ}_DIR ${${EXT_PROJ}_BINARY_PATH})
 
-    EXTERNALPROJECT_Add_Step(${EXT_PROJ} preconfigure
-        COMMAND ${CMAKE_COMMAND} -E echo "Force configure of ${EXT_PROJ}"
-        DEPENDERS configure
-        ALWAYS 1
+
+#################################################################
+# Custom clean-ExternalProject target
+#################################################################
+    ADD_CUSTOM_TARGET(clean-${EXT_PROJ} 
+        COMMAND ${CMAKE_COMMAND} --build ${PROJECT_BINARY_DIR} --target clean 
+        COMMAND ${CMAKE_COMMAND} --build ${${EXT_PROJ}_BINARY_PATH} --target clean 
     )
 
-    IF(NOT ${EXT_PROJ} STREQUAL "SISL")
-        EXTERNALPROJECT_Add_Step(${EXT_PROJ} customtest
-            COMMAND ${CTEST_COMMAND}
-            DEPENDERS test
-            BYPRODUCTS ${${EXT_PROJ}_BINARY_PATH}/${EXT_PROJ}Config.cmake
-            WORKING_DIRECTORY ${${EXT_PROJ}_BINARY_PATH}
-            EXCLUDE_FROM_MAIN 1
-        )
-    ENDIF()
-
-    SET(${EXT_PROJ}_DIR ${${EXT_PROJ}_BINARY_PATH})
 
 ENDFOREACH()
 

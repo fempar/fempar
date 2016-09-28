@@ -78,8 +78,7 @@ message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 
 FIND_PACKAGE(FEMPAR REQUIRED)
 INCLUDE_DIRECTORIES(${FEMPAR_INCLUDES})
-MESSAGE(FEMPAR_INCLUDES: ${FEMPAR_INCLUDES})
-MESSAGE(FEMPAR_LIBS: ${FEMPAR_LIBS})
+
 #################################################################
 # Drivers
 #################################################################
