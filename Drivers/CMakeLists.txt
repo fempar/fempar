@@ -78,7 +78,8 @@ message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 
 FIND_PACKAGE(FEMPAR REQUIRED)
 INCLUDE_DIRECTORIES(${FEMPAR_INCLUDES})
-
+MESSAGE(FEMPAR_INCLUDES: ${FEMPAR_INCLUDES})
+MESSAGE(FEMPAR_LIBS: ${FEMPAR_LIBS})
 #################################################################
 # Drivers
 #################################################################
@@ -90,6 +91,10 @@ IF(FEMPAR_DRIVER)
     FILE(GLOB DRIVERS_SRC ${DRIVERS_PATH}/${FEMPAR_DRIVER}/*.f90 ${DRIVERS_PATH}/${FEMPAR_DRIVER}/*.F90)
     SET(DRIVERS_SRC ${DRIVERS_SRC})
 
+    IF(NOT DRIVERS_SRC)
+        MESSAGE(FATAL_ERROR "Fempar Driver '${FEMPAR_DRIVER}' not found!")
+    ENDIF()
+
     FOREACH(DRIVER_SRC ${DRIVERS_SRC})
         GET_FILENAME_COMPONENT(EXE_NAME ${DRIVER_SRC} NAME_WE)
         UNSET(${EXE_NAME}_MODULES_SRC CACHE)
@@ -99,9 +104,10 @@ IF(FEMPAR_DRIVER)
         ENDIF()
         ADD_EXECUTABLE(${EXE_NAME} ${DRIVER_SRC} ${${EXE_NAME}_MODULES_SRC})
         TARGET_LINK_LIBRARIES(${EXE_NAME} ${FEMPAR_LIBS})
-        TARGET_LINK_LIBRARIES(${EXE_NAME} ${MPI_Fortran_LIBRARIES})
     ENDFOREACH()
 
+ELSE()
+    MESSAGE(FATAL_ERROR "Fempar Driver name must be passed to cmake with '-DFEMPAR_DRIVER=fempar_driver_name'")
 ENDIF()
 
 
