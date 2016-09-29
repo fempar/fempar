@@ -133,7 +133,7 @@ contains
                                conditions          = this%mixed_laplacian_rt_conditions, &
                                reference_fes       = this%reference_fes)
     call this%fe_space%fill_dof_info() 
-    call this%fe_space%update_strong_dirichlet_bcs_values(this%mixed_laplacian_rt_conditions)
+    call this%fe_space%interpolate_dirichlet_values(this%mixed_laplacian_rt_conditions)
     ! call this%fe_space%print()
   end subroutine setup_fe_space
 

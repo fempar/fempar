@@ -33,6 +33,7 @@ module fe_space_names
   use sort_names
   use allocatable_array_names
   use hash_table_names
+  use FPL
 
   use environment_names
   use serial_environment_names  
@@ -47,7 +48,6 @@ module fe_space_names
   use vector_names
   use array_names
   use matrix_array_assembler_names
-  
   use base_sparse_matrix_names
   use sparse_matrix_names
   use block_sparse_matrix_names
@@ -55,6 +55,8 @@ module fe_space_names
   use serial_block_array_names
   use sparse_matrix_array_assembler_names
   use block_sparse_matrix_array_assembler_names
+  use direct_solver_names
+  use direct_solver_parameters_names
     
  ! Parallel modules
   use par_environment_names
@@ -281,9 +283,8 @@ module fe_space_names
      procedure, non_overridable, private :: allocate_and_init_at_strong_dirichlet_bound  => serial_fe_space_allocate_and_init_at_strong_dirichlet_bound  
      procedure, non_overridable, private :: free_at_strong_dirichlet_bound               => serial_fe_space_free_at_strong_dirichlet_bound
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs                  => serial_fe_space_set_up_strong_dirichlet_bcs
-     procedure                           :: update_strong_dirichlet_bcs_values           => serial_fe_space_update_strong_dirichlet_bcs_values 
-
-     
+     procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
+     procedure                           :: project_dirichlet_values_curl_conforming     => serial_fe_space_project_dirichlet_values_curl_conforming
      procedure, non_overridable          :: initialize_fe_integration                    => serial_fe_space_initialize_fe_integration
      procedure, non_overridable, private :: free_fe_integration                          => serial_fe_space_free_fe_integration
      procedure, non_overridable, private :: generate_fe_volume_integrators_position_key  => serial_fe_space_generate_fe_volume_integrators_position_key
@@ -421,7 +422,7 @@ module fe_space_names
    procedure                                   :: free                                            => par_fe_space_free
    procedure                                   :: create_assembler                                => par_fe_space_create_assembler
    procedure                                   :: symbolic_setup_assembler                        => par_fe_space_symbolic_setup_assembler
-   procedure                                   :: update_strong_dirichlet_bcs_values              => par_fe_space_update_strong_dirichlet_bcs_values
+   procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
 
    procedure                                   :: create_fe_function                              => par_fe_space_create_fe_function
    procedure                                   :: update_fe_function_bcs                          => par_fe_space_update_fe_function_bcs

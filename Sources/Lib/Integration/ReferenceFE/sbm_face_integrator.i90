@@ -236,6 +236,13 @@ function face_map_get_det_jacobian ( this, i )
   face_map_get_det_jacobian = this%face_map%get_det_jacobian(i)
 end function face_map_get_det_jacobian
 
+function face_map_get_face_map ( this )
+  implicit none
+  class(face_map_t), target, intent(in) :: this
+  type(fe_map_t), pointer :: face_map_get_face_map
+  face_map_get_face_map => this%face_map
+end function face_map_get_face_map
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !face_interpolation_t type procedures
 subroutine interpolation_face_restriction_create(this, local_quadrature, reference_fe_phy)

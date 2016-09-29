@@ -333,7 +333,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
   check ( istat == 0 )
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs
 
-subroutine serial_fe_space_update_strong_dirichlet_bcs_values (this, conditions, time)
+subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time)
   implicit none
   class(serial_fe_space_t), intent(inout)  :: this
   class(conditions_t)     , intent(in)     :: conditions
@@ -503,7 +503,240 @@ subroutine serial_fe_space_update_strong_dirichlet_bcs_values (this, conditions,
   deallocate(values, stat=istat)
   check(istat==0)
 
-end subroutine serial_fe_space_update_strong_dirichlet_bcs_values
+end subroutine serial_fe_space_interpolate_dirichlet_values
+
+subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, conditions, time)
+  implicit none
+  class(serial_fe_space_t), intent(inout)  :: this
+  class(conditions_t)     , intent(in)     :: conditions
+  real(rp)       , optional   , intent(in) :: time
+
+  !  Locals
+  integer(ip)                                :: field_id, istat
+  integer(ip)                                :: icomp, component_id
+  integer(ip)                                :: offset_component
+  integer(ip)                                :: number_components
+  integer(ip)                                :: ivef
+  real(rp)                                   :: time_(1)
+  logical                      , allocatable :: components_code(:)
+
+  class(reference_fe_t)        , pointer     :: reference_fe
+
+  type(fe_iterator_t)      :: fe_iterator
+  type(fe_accessor_t)      :: fe
+
+  type(fe_face_iterator_t) :: fe_face_iterator
+  type(fe_face_accessor_t) :: fe_face
+
+  type(i1p_t), allocatable :: elem2dof(:)
+
+  type(sparse_matrix_t)       :: matrix
+  type(serial_scalar_array_t) :: rhs
+  type(direct_solver_t)       :: direct_solver
+  real(rp), allocatable       :: elmat(:,:)
+  real(rp), allocatable       :: elvec(:)
+  integer(ip)                 :: qpoint, n_q_points, ishape, jshape
+  type(point_t), pointer      :: quad_coords(:)
+  real(rp)                    :: factor
+
+
+  type(p_scalar_function_t), allocatable :: function_scalar_components(:)
+  real(rp)                 , allocatable :: scalar_function_values(:,:)
+  type(vector_field_t)     , allocatable :: vector_function_values(:,:)
+  type(face_integrator_t)  , pointer     :: face_int
+  type(face_map_t)         , pointer     :: face_map 
+  type(fe_map_t)           , pointer     :: face_map_face_map
+  type(quadrature_t)       , pointer     :: quadrature
+
+  type(vector_field_t) :: tangent
+  real(rp)             :: scalar_shape_test, scalar_shape_trial
+  type(vector_field_t) :: vector_shape_test, vector_shape_trial
+  
+  type(parameterlist_t) :: parameter_list
+  integer(ip)            :: FPLError
+  integer                :: iparm(64)
+
+
+
+  number_components = this%get_number_components()
+  assert ( conditions%get_number_components() == number_components )
+  call memalloc ( number_components, components_code, __FILE__, __LINE__ )
+
+  call memalloc ( this%get_max_number_shape_functions(), &
+       this%get_max_number_shape_functions(), &
+       elmat, __FILE__, __LINE__ )
+
+  call memalloc ( this%get_max_number_shape_functions(), &
+       elvec, __FILE__, __LINE__ )
+
+  ! Create linear system data structures
+  call matrix%create(num_rows_and_cols=this%number_strong_dirichlet_dofs, &
+       symmetric_storage=.false.,       &
+       is_symmetric=.false.,            &
+       sign=SPARSE_MATRIX_SIGN_UNKNOWN )
+
+  call rhs%create_and_allocate(this%number_strong_dirichlet_dofs) 
+  call rhs%init(0.0_rp)
+
+  allocate ( vector_function_values(this%get_max_number_face_quadrature_points(),1), & 
+       stat=istat); check(istat==0);
+  
+  allocate ( scalar_function_values(this%get_max_number_face_quadrature_points(),1), & 
+       stat=istat); check(istat==0);
+  
+  allocate ( function_scalar_components(this%triangulation%get_num_dimensions()), & 
+       stat=istat); check(istat==0);
+  
+  allocate( elem2dof(this%get_number_fields()), stat=istat); check(istat==0);
+
+
+  if ( present(time) ) time_(1) = time
+  
+  ! TO-DO: right before this loop starts we should determine how many
+  !        of the DoFs on the boundary which are subject to strong Dirichlet BCS 
+  !        are going to be evaluated by projection. We also need a consecutive
+  !        numbering of this (potential) subset of DoFs, and the translation among
+  !        both numberings. 
+
+  fe_face_iterator = this%create_fe_face_iterator()
+  do while ( .not. fe_face_iterator%has_finished() )
+     call fe_face_iterator%current(fe_face)
+     if ( fe_face%is_at_boundary() ) then
+        if ( fe_face%get_set_id() /= 0 ) then
+           call fe_face%update_integration() 
+           call fe_face%get_cell_around(1,fe)
+           call fe%get_elem2dof(elem2dof)
+           call conditions%get_components_code( fe_face%get_set_id(), components_code )
+           offset_component = 0
+           do field_id = 1, fe%get_number_fields() ! Should I merge all fields within the same variational problem??
+              component_id = offset_component + 1
+              if (components_code(component_id)) then
+                 reference_fe => fe%get_reference_fe(field_id)
+                 
+                 ! Retreive the scalar functions corresponding to the components of the function to be projected
+                 do icomp=1, reference_fe%get_number_field_components()
+                   call conditions%get_function(component_id+icomp-1, &
+                                                fe_face%get_set_id(), &
+                                                function_scalar_components(icomp)%p)
+                 end do
+
+                 ! Evaluate function restricted to the boundary
+                 quadrature   => fe_face%get_quadrature()
+                 face_map     => fe_face%get_face_map()   
+                 face_map_face_map => face_map%get_face_map()
+                 n_q_points   = quadrature%get_number_quadrature_points()
+                 quad_coords  => face_map%get_quadrature_coordinates()
+                 select case(reference_fe%get_field_type())
+                 case ( field_type_scalar )
+                   ! Curl-conforming projection does not make sense with scalar-valued fields
+                   assert ( .false. )
+                 case ( field_type_vector )
+                   do icomp=1, reference_fe%get_number_field_components()
+                     if(present(time)) then
+                       call function_scalar_components(icomp)%p%get_values_set_space_time(quad_coords,time_,scalar_function_values(1:n_q_points,:))
+                     else
+                       call function_scalar_components(icomp)%p%get_values_set_space(quad_coords,scalar_function_values(1:n_q_points,1))
+                     end if
+                     do qpoint = 1, n_q_points
+                       call vector_function_values(qpoint,1)%set(icomp,scalar_function_values(qpoint,1))
+                     end do
+                 end do
+                 case ( field_type_tensor )
+                   ! Curl-conforming projection does not make sense with tensor-valued fields
+                   check(.false.)
+                 end select
+                 
+                 face_int     => fe_face%get_face_integrator(field_id)
+                 select case(reference_fe%get_field_type())
+                 case ( field_type_scalar )
+                   ! Could this piece of code be part of a (reutilizable) TBP 
+                   ! (i.e., evaluate boundary_mass matrix face contribution) of e.g., type(face_accessor_t) ??
+                   ! Anyway, I think that we should have a way to evaluate boundary_mass_matrices, volume_mass_matrices,
+                   ! in a module of recurrently reutilizable set of subroutines ...
+                   elmat = 0.0_rp
+                   elvec = 0.0_rp
+                   do qpoint = 1, n_q_points
+                    factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+                    do ishape = 1, reference_fe%get_number_shape_functions() 
+                       call face_int%get_value(ishape,qpoint,1,scalar_shape_test)
+                       do jshape = 1, reference_fe%get_number_shape_functions()
+                          call face_int%get_value(jshape,qpoint,1,scalar_shape_trial)
+                          elmat(ishape,jshape) = elmat(ishape,jshape) + scalar_shape_test*scalar_shape_trial*factor
+                       end do
+                       elvec(ishape) = elvec(ishape) + scalar_function_values(qpoint,1)*scalar_shape_test*factor
+                    end do
+                   end do
+                 case ( field_type_vector )
+                   assert ( reference_fe%get_number_dimensions() == 2 )
+                   elmat = 0.0_rp
+                   elvec = 0.0_rp
+                   do qpoint = 1, n_q_points
+                    factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+                    call face_map_face_map%get_jacobian_normalized_column(1, qpoint, tangent)
+                    do ishape = 1, reference_fe%get_number_shape_functions() 
+                       call face_int%get_value(ishape,qpoint,1,vector_shape_test)
+                       do jshape = 1, reference_fe%get_number_shape_functions()
+                          call face_int%get_value(jshape,qpoint,1,vector_shape_trial)
+                          elmat(ishape,jshape) = elmat(ishape,jshape) + (vector_shape_test*tangent)*(vector_shape_trial*tangent)*factor
+                       end do
+                       elvec(ishape) = elvec(ishape) + (vector_function_values(qpoint,1)*tangent)*(vector_shape_test*tangent)*factor
+                    end do
+                   end do
+                 case ( field_type_tensor )
+                   ! Not implemented !!!
+                   check(.false.)
+                 end select
+                 
+                 elem2dof(field_id)%p = -elem2dof(field_id)%p
+                 call matrix%insert(num_rows = reference_fe%get_number_shape_functions(),& 
+                      num_cols = reference_fe%get_number_shape_functions(),& 
+                      ia       = elem2dof(field_id)%p, &
+                      ja       = elem2dof(field_id)%p, &
+                      ioffset  = 0, &
+                      joffset  = 0, & 
+                      val      = elmat)
+                 call rhs%add(num_entries = reference_fe%get_number_shape_functions(),& 
+                      ia          = elem2dof(field_id)%p, &
+                      ioffset     = 0, &
+                      val         = elvec)
+                 elem2dof(field_id)%p = -elem2dof(field_id)%p
+
+              end if
+              offset_component = offset_component + reference_fe%get_number_field_components()
+           end do
+        end if
+     end if
+     call fe_face_iterator%next()
+  end do
+
+  call matrix%convert(csr_format)
+  call matrix%print_matrix_market(6)
+  
+  call parameter_list%init()
+  FPLError = parameter_list%set(key = direct_solver_type                  ,  value = pardiso_mkl)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type  ,  value = pardiso_mkl_uss)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level,  value = 0)
+  iparm = 0
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
+  assert(FPLError == 0)
+    
+  call direct_solver%set_type_from_pl(parameter_list)
+  call direct_solver%set_parameters_from_pl(parameter_list)
+  call direct_solver%set_matrix(matrix)
+  call direct_solver%numerical_setup()
+  call direct_solver%solve(rhs,this%strong_dirichlet_values)
+
+  call direct_solver%free()
+  call matrix%free()
+  call rhs%free()
+  call memfree (elmat, __FILE__, __LINE__)
+  call memfree (elvec, __FILE__, __LINE__)
+  deallocate ( function_scalar_components, stat=istat); check(istat==0);
+  deallocate ( vector_function_values, stat=istat); check(istat==0);
+  deallocate ( scalar_function_values, stat=istat); check(istat==0);
+  call memfree ( components_code, __FILE__, __LINE__ )
+  deallocate(elem2dof, stat=istat ); check (istat==0)
+end subroutine serial_fe_space_project_dirichlet_values_curl_conforming
 
 subroutine serial_fe_space_allocate_and_fill_field_blocks_and_coupling ( this, field_blocks, field_coupling )
   implicit none

@@ -212,9 +212,9 @@ module reference_fe_names
      integer(ip)                 :: active_face_id
      type(fe_map_t), allocatable :: fe_map(:)
    contains
-     procedure, non_overridable :: create => fe_map_face_restriction_create
-     procedure, non_overridable :: update => fe_map_face_restriction_update
-     procedure, non_overridable :: free   => fe_map_face_restriction_free
+     procedure, non_overridable :: create          => fe_map_face_restriction_create
+     procedure, non_overridable :: update          => fe_map_face_restriction_update
+     procedure, non_overridable :: free            => fe_map_face_restriction_free
      procedure, non_overridable :: get_coordinates => fe_map_face_restriction_get_coordinates
   end type fe_map_face_restriction_t
 
@@ -1349,6 +1349,7 @@ procedure, non_overridable :: get_coordinates_neighbour                         
 procedure, non_overridable :: get_neighbour_fe_map => face_map_get_neighbour_fe_map
 procedure, non_overridable :: get_normals          => face_map_get_normals
 procedure, non_overridable :: get_det_jacobian     => face_map_get_det_jacobian
+procedure, non_overridable :: get_face_map         => face_map_get_face_map
 end type face_map_t
 
 public :: face_map_t

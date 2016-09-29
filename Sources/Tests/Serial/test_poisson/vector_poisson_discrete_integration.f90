@@ -92,9 +92,7 @@ contains
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
     
-    fe_iterator = fe_space%create_fe_iterator()
-    call fe_space%initialize_fe_integration()
-    
+    fe_iterator = fe_space%create_fe_iterator()    
     call fe_iterator%current(fe)
     num_dofs = fe%get_number_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
