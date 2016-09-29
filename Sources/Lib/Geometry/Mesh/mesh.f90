@@ -870,8 +870,12 @@ contains
     ! Local variables
     type(mesh_distribution_params_t)                    :: prt_pars
 
-    type(list_t)                 :: fe_graph    ! Dual graph (to be partitioned)
-    integer(ip)   , allocatable  :: ldome(:)    ! Part of each element
+    type(list_t)                 :: fe_graph     ! Dual graph (to be partitioned)
+    type(list_t)                 :: parts_graph  ! Parts graph (to be partitioned)
+    
+    integer(ip)   , allocatable, target  :: ldome(:)    ! Part of each element
+    type(i1p_t)   , allocatable          :: ldomp(:)    ! Part of each part (recursively)
+    integer(ip)                  :: ilevel
     integer(ip)                  :: ipart
     integer                      :: istat
 
@@ -901,6 +905,26 @@ contains
     ! call memfree ( weight, __FILE__,__LINE__)
     call graph_pt_renumbering(prt_pars,fe_graph,ldome)
 
+    allocate(ldomp(prt_pars%num_levels), stat=istat); check(istat==0);
+    ldomp(1)%p => ldome
+    do ilevel=1,prt_pars%num_levels-1
+       call memallocp(prt_pars%num_parts_per_level(ilevel),ldomp(ilevel+1)%p, __FILE__,__LINE__)
+       if(prt_pars%num_parts_per_level(ilevel+1)>1) then  ! Typically in the last level there is onle one part
+          call build_parts_graph (prt_pars%num_parts_per_level(ilevel), ldomp(ilevel)%p, fe_graph, parts_graph)
+          call parts_graph%print(6)
+          call fe_graph%free()
+          fe_graph = parts_graph
+          prt_pars%nparts = prt_pars%num_parts_per_level(ilevel+1)
+          call graph_pt_renumbering(prt_pars,parts_graph,ldomp(ilevel+1)%p)
+       else
+          ldomp(ilevel+1)%p = 1
+       end if
+       write(*,*) ldomp(ilevel+1)%p
+       call parts_graph%free()
+    end do
+    prt_pars%nparts = prt_pars%num_parts_per_level(1)
+    call fe_graph%free()
+
     ! Now free fe_graph, not needed anymore?
     allocate(distr(prt_pars%nparts), stat=istat)
     check(istat==0)
@@ -909,13 +933,26 @@ contains
 
     do ipart=1, prt_pars%nparts
        distr(ipart)%ipart  = ipart
-       distr(ipart)%nparts = prt_pars%nparts
+       distr(ipart)%nparts = prt_pars%num_parts_per_level(1)
+       distr(ipart)%num_levels = prt_pars%num_levels
+       call memalloc(distr(ipart)%num_levels,distr(ipart)%num_parts_per_level,__FILE__,__LINE__)
+       distr(ipart)%num_parts_per_level = prt_pars%num_parts_per_level
+       call memalloc(distr(ipart)%num_levels,distr(ipart)%parts_mapping,__FILE__,__LINE__)
+       distr(ipart)%parts_mapping(1) = ldomp(2)%p(ipart)
+       do ilevel=2,prt_pars%num_levels-1
+          distr(ipart)%parts_mapping(ilevel) = ldomp(ilevel+1)%p(distr(ipart)%parts_mapping(ilevel-1))
+       end do
     end do
+    prt_pars%nparts = prt_pars%num_parts_per_level(1)
+    do ilevel=1,prt_pars%num_levels-1
+       call memfreep(ldomp(ilevel+1)%p, __FILE__,__LINE__)
+    end do
+    deallocate(ldomp, stat=istat); check(istat==0);
+
     call build_maps(prt_pars%nparts, ldome, femesh, distr)
 
     ! Build local meshes and their duals and generate partition adjacency
     do ipart=1,prt_pars%nparts
-
        ! Generate Local mesh
        call mesh_g2l(distr(ipart)%num_local_vertices,  &
                      distr(ipart)%l2g_vertices,        &
@@ -923,7 +960,6 @@ contains
                      distr(ipart)%l2g_cells,           &
                      femesh,                           &
                      lmesh(ipart))
-
        call build_adjacency_new (femesh, ldome,             &
             &                    ipart,                     &
             &                    lmesh(ipart),              &
@@ -937,8 +973,10 @@ contains
             &                    distr(ipart)%lextn,        &
             &                    distr(ipart)%lextp )
     end do
-    call fe_graph%free()
     call memfree(ldome,__FILE__,__LINE__)
+
+    call prt_pars%free()
+
   end subroutine create_mesh_distribution
 
   !================================================================================================
@@ -1301,7 +1339,7 @@ contains
     ! and (unlike parts_sizes, parts_maps, etc.) does not generate a new global numbering.
     implicit none
     integer(ip)                , intent(in)    :: nparts
-    type(mesh_t)             , intent(in)    :: femesh
+    type(mesh_t)               , intent(in)    :: femesh
     integer(ip)                , intent(in)    :: ldome(femesh%nelem)
     type(mesh_distribution_t), intent(inout) :: distr(nparts)
 
@@ -1796,8 +1834,8 @@ contains
              !write(*,*) '2',ivef_lmesh,node_list
              given_vefs_iterator = lmesh%given_vefs%create_iterator(ivef_lmesh)
              do inode=1,kvef_size
-			             call given_vefs_iterator%set_current(node_list(inode))
-			             call given_vefs_iterator%next()
+                call given_vefs_iterator%set_current(node_list(inode))
+                call given_vefs_iterator%next()
              enddo
              ivef_lmesh=ivef_lmesh+1
           end if
@@ -1827,6 +1865,90 @@ contains
     end do
 
   end subroutine mesh_g2l
-  
-  
+
+  subroutine build_parts_graph (nparts, ldome, fe_graph, parts_graph)
+    ! This procedure is order nparts**2 both in memory and complexity. This number could be
+    ! reduced using hash_tables but it is not easy: we need to use npart hash_tables to store
+    ! the touched parts in a sparse structure. Each table should be of size max_nparts, which
+    ! could be bounded by the maximum number of elements per node. 
+    !
+    ! However, this procedure will be executed serially, and therefore, we do not expect
+    ! nparts to be huge.
+    ! 
+    implicit none
+    integer(ip)             , intent(in)  :: nparts
+    type(list_t)            , intent(in)  :: fe_graph
+    integer(ip)             , intent(in)  :: ldome(:)
+    type(list_t)            , intent(out) :: parts_graph
+
+    integer(ip)              :: istat,ielem,jelem,ipart,jpart
+    integer(ip)              :: num_parts_around, touched
+    type(list_iterator_t)                    :: fe_graph_iterator
+    type(list_iterator_t)                    :: parts_graph_iterator
+    type(position_hash_table_t), allocatable :: visited_parts_touched(:)
+    type(hash_table_ip_ip_t)   , allocatable :: visited_parts_numbers(:)
+    !integer(ip), allocatable                 :: visited_part_list(:,:)
+
+    call parts_graph%create(nparts)
+
+    ! The maximum number of parts around a part can be estimated from the
+    ! maximum number of elements connected to an element, that is, by the 
+    ! maximum degree of elements graph. Note, however, that it can be bigger.
+    num_parts_around=0
+    do ielem=1,fe_graph%get_num_pointers()
+       fe_graph_iterator = fe_graph%create_iterator(ielem)
+       num_parts_around = max(num_parts_around,fe_graph_iterator%get_size())
+    end do
+    allocate(visited_parts_touched(nparts),stat=istat)
+    allocate(visited_parts_numbers(nparts),stat=istat)
+    !call memalloc(num_parts_around,nparts,visited_part_list,__FILE__,__LINE__)
+    !visited_part_list = -1
+    do ipart=1,nparts
+       call visited_parts_touched(ipart)%init(num_parts_around)
+       call visited_parts_numbers(ipart)%init(num_parts_around)
+    end do
+
+    ! Now compute graph pointers and fill tables
+    do ielem=1,fe_graph%get_num_pointers()
+       ipart = ldome(ielem)
+       fe_graph_iterator = fe_graph%create_iterator(ielem)
+       do while(.not.fe_graph_iterator%is_upper_bound())
+          jelem = fe_graph_iterator%get_current()
+          jpart = ldome(jelem)
+          call visited_parts_touched(ipart)%get(key=jpart,val=num_parts_around,stat=istat) ! Touch it (jpart is around ipart)
+          if(istat==new_index) then
+             call visited_parts_numbers(ipart)%put(key=num_parts_around,val=jpart,stat=istat) ! Store it
+             assert(istat==now_stored)
+          end if
+          call fe_graph_iterator%next()
+       end do
+    end do
+    do ipart=1,nparts
+       call parts_graph%sum_to_pointer_index(ipart,visited_parts_touched(ipart)%last())
+    end do
+
+    ! Fill graph from tables
+    call parts_graph%calculate_header()
+    call parts_graph%allocate_list_from_pointer()
+    do ipart=1,nparts
+       num_parts_around = 0
+       parts_graph_iterator = parts_graph%create_iterator(ipart)
+       do while(.not.parts_graph_iterator%is_upper_bound())
+          num_parts_around = num_parts_around + 1
+          call visited_parts_numbers(ipart)%get(key=num_parts_around,val=jpart,stat=istat) 
+          assert(istat==key_found)
+          call parts_graph_iterator%set_current(jpart)
+          call parts_graph_iterator%next()
+       end do
+       assert(num_parts_around==visited_parts_touched(ipart)%last())
+       call visited_parts_touched(ipart)%free() ! This could be done before eliminating the assert
+       call visited_parts_numbers(ipart)%free()
+    end do
+
+    deallocate(visited_parts_touched,stat=istat)
+    deallocate(visited_parts_numbers,stat=istat)
+    !call memfree(visited_part_list, __FILE__,__LINE__)
+
+  end subroutine build_parts_graph
+
 end module mesh_names

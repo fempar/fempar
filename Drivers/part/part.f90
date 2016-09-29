@@ -82,6 +82,8 @@ contains
     error = error + this%list%set(key = prefix_key              , value = 'square')
     error = error + this%list%set(key = dir_path_out_key        , value = '.')
     error = error + this%list%set(key = num_parts_key           , value =  4)
+    error = error + this%list%set(key = num_levels_key          , value =  3)
+    error = error + this%list%set(key = num_parts_per_level_key , value =  [4,2,1])
     error = error + this%list%set(key = strategy_key            , value = part_kway)
     error = error + this%list%set(key = debug_key               , value =  0)
     error = error + this%list%set(key = metis_option_debug_key  , value =  2)
