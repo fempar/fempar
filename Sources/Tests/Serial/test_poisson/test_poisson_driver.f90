@@ -192,9 +192,6 @@ contains
     else
       call this%fe_space%update_strong_dirichlet_bcs_values(this%vector_poisson_conditions)
     end if
-    
-    
-    !call this%fe_space%print()
   end subroutine setup_fe_space
   
   subroutine setup_system (this)

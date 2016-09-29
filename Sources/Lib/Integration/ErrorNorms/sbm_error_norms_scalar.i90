@@ -39,9 +39,9 @@ subroutine error_norms_scalar_create (this, fe_space, field_id)
 
   this%field_id = field_id
   this%fe_space => fe_space
+  call this%cell_fe_function%create(fe_space, field_id)    
   environment => this%fe_space%get_environment()
-  if ( environment%am_i_l1_task() ) then
-     call this%fe_space%create_cell_fe_function(field_id, this%cell_fe_function)    
+  if ( environment%am_i_l1_task() ) then    
      call memalloc(this%fe_space%get_max_number_quadrature_points(), 1, this%work_array_values, __FILE__, __LINE__)
      allocate(this%work_array_gradients(this%fe_space%get_max_number_quadrature_points(),1), stat=istat)
      check(istat==0)
@@ -96,7 +96,7 @@ function error_norms_scalar_compute (this, exact_solution, fe_function, norm_typ
         call fe_iterator%current(fe)
         if ( fe%is_local() ) then
            call fe%update_integration()
-           call fe%update_cell_fe_function(fe_function, this%cell_fe_function)
+           call this%cell_fe_function%update(fe, fe_function)
            call this%compute_cell_contribution( fe, &
                 exact_solution, & 
                 norm_type, &

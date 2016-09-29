@@ -85,6 +85,7 @@ module fe_space_names
     procedure, non_overridable, private :: renumber_dofs_field                        => fe_accessor_renumber_dofs_field
     procedure, non_overridable          :: update_integration                         => fe_accessor_update_integration
 
+    procedure, non_overridable          :: get_fe_space                               => fe_accessor_get_fe_space
     procedure, non_overridable          :: get_number_fields                          => fe_accessor_get_number_fields
     procedure, non_overridable, private :: get_fe_space_type                          => fe_accessor_get_fe_space_type
     procedure, non_overridable          :: get_field_blocks                           => fe_accessor_get_field_blocks
@@ -108,14 +109,6 @@ module fe_space_names
     procedure, non_overridable          :: get_max_order_reference_fe_id              => fe_accessor_get_max_order_reference_fe_id
     procedure, non_overridable, private :: get_reference_fe_id                        => fe_accessor_get_reference_fe_id
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_accessor_create_own_dofs_on_vef_iterator
-    
-    procedure, non_overridable, private :: update_cell_fe_function_scalar             => fe_accessor_update_cell_fe_function_scalar
-    procedure, non_overridable, private :: update_cell_fe_function_vector             => fe_accessor_update_cell_fe_function_vector
-    procedure, non_overridable, private :: update_cell_fe_function_tensor             => fe_accessor_update_cell_fe_function_tensor
-    generic                             :: update_cell_fe_function                    => update_cell_fe_function_scalar, &
-                                                                                         update_cell_fe_function_vector, &
-                                                                                         update_cell_fe_function_tensor
-    
     procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_accessor_impose_strong_dirichlet_bcs
     
   end type fe_accessor_t
@@ -184,18 +177,11 @@ module fe_space_names
     generic                             :: get_cell_around                            => fe_face_accessor_get_fe_around
     procedure, private, non_overridable :: fe_face_accessor_get_fe_around
     procedure         , non_overridable :: update_integration                         => fe_face_accessor_update_integration 
+    procedure         , non_overridable :: get_fe_space                               => fe_face_accessor_get_fe_space
     procedure         , non_overridable :: get_elem2dof                               => fe_face_accessor_get_elem2dof
     procedure         , non_overridable :: get_quadrature                             => fe_face_accessor_get_quadrature
     procedure         , non_overridable :: get_face_map                               => fe_face_accessor_get_face_map
     procedure         , non_overridable :: get_face_integrator                        => fe_face_accessor_get_face_integrator
-    
-    procedure, private, non_overridable :: update_face_fe_function_scalar             => fe_face_accessor_update_face_fe_function_scalar
-    procedure, private, non_overridable :: update_face_fe_function_vector             => fe_face_accessor_update_face_fe_function_vector  
-    procedure, private, non_overridable :: update_face_fe_function_tensor             => fe_face_accessor_update_face_fe_function_tensor
-    generic                             :: update_face_fe_function                    => update_face_fe_function_scalar, &
-                                                                                         update_face_fe_function_vector, &  
-                                                                                         update_face_fe_function_tensor
-
     procedure         , non_overridable :: impose_strong_dirichlet_bcs                => fe_face_accessor_impose_strong_dirichlet_bcs
     procedure         , non_overridable :: compute_surface                            => fe_face_accessor_compute_surface
   end type fe_face_accessor_t
@@ -312,20 +298,6 @@ module fe_space_names
           
      procedure                           :: create_fe_function                           => serial_fe_space_create_fe_function
      procedure                           :: update_fe_function_bcs                       => serial_fe_space_update_fe_function_bcs
-     
-     procedure, private                  :: create_cell_fe_function_scalar               => serial_fe_space_create_cell_fe_function_scalar
-     procedure, private                  :: create_cell_fe_function_vector               => serial_fe_space_create_cell_fe_function_vector
-     procedure, private                  :: create_cell_fe_function_tensor               => serial_fe_space_create_cell_fe_function_tensor
-     generic                             :: create_cell_fe_function                      => create_cell_fe_function_scalar, &
-                                                                                            create_cell_fe_function_vector, &
-                                                                                            create_cell_fe_function_tensor
-                                                                                            
-     procedure, private                  :: create_face_fe_function_scalar               => serial_fe_space_create_face_fe_function_scalar
-     procedure, private                  :: create_face_fe_function_vector               => serial_fe_space_create_face_fe_function_vector
-     procedure, private                  :: create_face_fe_function_tensor               => serial_fe_space_create_face_fe_function_tensor
-     generic                             :: create_face_fe_function                      => create_face_fe_function_scalar, &
-                                                                                            create_face_fe_function_vector, &
-                                                                                            create_face_fe_function_tensor 
                                                                                             
      procedure, private                  :: interpolate_scalar_function                  => serial_fe_space_interpolate_scalar_function
      procedure, private                  :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
@@ -453,14 +425,6 @@ module fe_space_names
 
    procedure                                   :: create_fe_function                              => par_fe_space_create_fe_function
    procedure                                   :: update_fe_function_bcs                          => par_fe_space_update_fe_function_bcs
-   
-   procedure, private                          :: create_cell_fe_function_scalar                  => par_fe_space_create_cell_fe_function_scalar
-   procedure, private                          :: create_cell_fe_function_vector                  => par_fe_space_create_cell_fe_function_vector
-   procedure, private                          :: create_cell_fe_function_tensor                  => par_fe_space_create_cell_fe_function_tensor
-   
-   procedure, private                          :: create_face_fe_function_scalar                  => par_fe_space_create_face_fe_function_scalar
-   procedure, private                          :: create_face_fe_function_vector                  => par_fe_space_create_face_fe_function_vector
-   procedure, private                          :: create_face_fe_function_tensor                  => par_fe_space_create_face_fe_function_tensor
                                                                                             
    procedure, private                          :: interpolate_scalar_function                     => par_fe_space_interpolate_scalar_function
    procedure, private                          :: interpolate_vector_function                     => par_fe_space_interpolate_vector_function
@@ -690,139 +654,7 @@ module fe_space_names
      generic                             :: assignment(=)               => copy
   end type fe_function_t 
   
-  type cell_fe_function_scalar_t
-   private
-   integer(ip) :: field_id
-   
-   integer(ip) :: current_number_nodes             
-   integer(ip) :: current_number_quadrature_points
-   
-   integer(ip) :: max_number_nodes  
-   integer(ip) :: max_number_quadrature_points          
-   
-   real(rp)            , allocatable :: nodal_values(:)  
-   real(rp)            , allocatable :: quadrature_points_values(:)
-   type(vector_field_t), allocatable :: quadrature_points_gradients(:)
-   
-  contains
-     procedure, non_overridable, private :: create                       => cell_fe_function_scalar_create
-     procedure, non_overridable :: get_field_id                          => cell_fe_function_scalar_get_field_id
-     procedure, non_overridable :: get_nodal_values                      => cell_fe_function_scalar_get_nodal_values
-     procedure, non_overridable :: get_quadrature_points_values          => cell_fe_function_scalar_get_quadrature_points_values
-     procedure, non_overridable :: get_quadrature_points_gradients       => cell_fe_function_scalar_get_quadrature_points_gradients
-     procedure, non_overridable :: get_value                             => cell_fe_function_scalar_get_value
-     procedure, non_overridable :: get_gradient                          => cell_fe_function_scalar_get_gradient
-     procedure, non_overridable :: set_current_number_nodes              => cell_fe_function_scalar_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points  => cell_fe_function_scalar_set_current_number_quadrature_points
-     procedure, non_overridable :: free                                  => cell_fe_function_scalar_free
-  end type cell_fe_function_scalar_t
-  
-  type cell_fe_function_vector_t
-   private
-   integer(ip) :: field_id
-   
-   integer(ip) :: current_number_nodes             
-   integer(ip) :: current_number_quadrature_points           
-   
-   integer(ip) :: max_number_quadrature_points
-   integer(ip) :: max_number_nodes            
-   
-   real(rp)            , allocatable :: nodal_values(:)  
-   type(vector_field_t), allocatable :: quadrature_points_values(:)
-   type(tensor_field_t), allocatable :: quadrature_points_gradients(:)
-   
-  contains
-     procedure, non_overridable, private :: create                       => cell_fe_function_vector_create
-     procedure, non_overridable :: get_field_id                          => cell_fe_function_vector_get_field_id
-     procedure, non_overridable :: get_nodal_values                      => cell_fe_function_vector_get_nodal_values      
-     procedure, non_overridable :: get_quadrature_points_values          => cell_fe_function_vector_get_quadrature_points_values
-     procedure, non_overridable :: get_quadrature_points_gradients       => cell_fe_function_vector_get_quadrature_points_gradients
-     procedure, non_overridable :: get_value                             => cell_fe_function_vector_get_value
-     procedure, non_overridable :: get_gradient                          => cell_fe_function_vector_get_gradient
-     procedure, non_overridable :: set_current_number_nodes              => cell_fe_function_vector_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points  => cell_fe_function_vector_set_current_number_quadrature_points
-     procedure, non_overridable :: free                                  => cell_fe_function_vector_free
-  end type cell_fe_function_vector_t
-  
-  type cell_fe_function_tensor_t
-   private
-   integer(ip) :: field_id
-   
-   integer(ip) :: current_number_nodes            
-   integer(ip) :: current_number_quadrature_points     
-   
-   integer(ip) :: max_number_nodes    
-   integer(ip) :: max_number_quadrature_points        
-   
-   real(rp)            , allocatable :: nodal_values(:)
-   type(tensor_field_t), allocatable :: quadrature_points_values(:)
-   
-  contains
-     procedure, non_overridable, private :: create                      => cell_fe_function_tensor_create
-     procedure, non_overridable :: get_field_id                         => cell_fe_function_tensor_get_field_id
-     procedure, non_overridable :: get_nodal_values                     => cell_fe_function_tensor_get_nodal_values  
-     procedure, non_overridable :: get_quadrature_points_values         => cell_fe_function_tensor_get_quadrature_points_values          
-     procedure, non_overridable :: get_value                            => cell_fe_function_tensor_get_value      
-     procedure, non_overridable :: set_current_number_nodes             => cell_fe_function_tensor_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points => cell_fe_function_tensor_set_current_number_quadrature_points
-     procedure, non_overridable :: free                                 => cell_fe_function_tensor_free
-  end type cell_fe_function_tensor_t
-  
-  type face_fe_function_scalar_t
-   private
-   logical                         :: is_boundary
-   type(i1p_t)                     :: quadrature_points_permutation(2)   
-   type(cell_fe_function_scalar_t) :: cell_fe_function_scalar(2)
-  contains
-     procedure, non_overridable, private :: create                       => face_fe_function_scalar_create
-     procedure, non_overridable :: get_field_id                          => face_fe_function_scalar_get_field_id
-     procedure, non_overridable :: get_nodal_values                      => face_fe_function_scalar_get_nodal_values
-     procedure, non_overridable :: get_quadrature_points_values          => face_fe_function_scalar_get_quadrature_points_values
-     procedure, non_overridable :: get_quadrature_points_gradients       => face_fe_function_scalar_get_quadrature_points_gradients
-     procedure, non_overridable :: get_value                             => face_fe_function_scalar_get_value
-     procedure, non_overridable :: get_gradient                          => face_fe_function_scalar_get_gradient
-     procedure, non_overridable :: set_current_number_nodes              => face_fe_function_scalar_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points  => face_fe_function_scalar_set_current_number_quadrature_points
-     procedure, non_overridable :: free                                  => face_fe_function_scalar_free
-  end type face_fe_function_scalar_t
-  
-  type face_fe_function_vector_t
-   private
-   logical                         :: is_boundary
-   type(i1p_t)                     :: quadrature_points_permutation(2)  
-   type(cell_fe_function_vector_t) :: cell_fe_function_vector(2)
-  contains
-     procedure, non_overridable, private :: create                       => face_fe_function_vector_create
-     procedure, non_overridable :: get_field_id                          => face_fe_function_vector_get_field_id
-     procedure, non_overridable :: get_nodal_values                      => face_fe_function_vector_get_nodal_values
-     procedure, non_overridable :: get_quadrature_points_values          => face_fe_function_vector_get_quadrature_points_values
-     procedure, non_overridable :: get_quadrature_points_gradients       => face_fe_function_vector_get_quadrature_points_gradients
-     procedure, non_overridable :: get_value                             => face_fe_function_vector_get_value
-     procedure, non_overridable :: get_gradient                          => face_fe_function_vector_get_gradient
-     procedure, non_overridable :: set_current_number_nodes              => face_fe_function_vector_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points  => face_fe_function_vector_set_current_number_quadrature_points
-     procedure, non_overridable :: free                                  => face_fe_function_vector_free
-  end type face_fe_function_vector_t
-  
-  type face_fe_function_tensor_t
-   private
-   logical                         :: is_boundary
-   type(i1p_t)                     :: quadrature_points_permutation(2)    
-   type(cell_fe_function_tensor_t) :: cell_fe_function_tensor(2)
-  contains
-     procedure, non_overridable, private :: create                       => face_fe_function_tensor_create
-     procedure, non_overridable :: get_field_id                          => face_fe_function_tensor_get_field_id
-     procedure, non_overridable :: get_nodal_values                      => face_fe_function_tensor_get_nodal_values
-     procedure, non_overridable :: get_quadrature_points_values          => face_fe_function_tensor_get_quadrature_points_values
-     procedure, non_overridable :: get_value                             => face_fe_function_tensor_get_value
-     procedure, non_overridable :: set_current_number_nodes              => face_fe_function_tensor_set_current_number_nodes
-     procedure, non_overridable :: set_current_number_quadrature_points  => face_fe_function_tensor_set_current_number_quadrature_points
-     procedure, non_overridable :: free                                  => face_fe_function_tensor_free
-  end type face_fe_function_tensor_t
-  
- public :: fe_function_t
- public :: cell_fe_function_scalar_t, cell_fe_function_vector_t, cell_fe_function_tensor_t
- public :: face_fe_function_scalar_t , face_fe_function_vector_t, face_fe_function_tensor_t
+  public :: fe_function_t
   
  
 contains
@@ -830,8 +662,6 @@ contains
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
 #include "sbm_serial_fe_space.i90"
 #include "sbm_fe_function.i90"
-#include "sbm_cell_fe_function.i90"
-#include "sbm_face_fe_function.i90"
 #include "sbm_fe_accessor.i90"
 #include "sbm_fe_iterator.i90"
 #include "sbm_fe_face_accessor.i90"

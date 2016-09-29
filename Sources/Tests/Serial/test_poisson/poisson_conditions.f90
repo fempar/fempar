@@ -65,7 +65,7 @@ contains
     integer(ip)            , intent(in)  :: boundary_id
     logical                , intent(out) :: components_code(:)
     assert ( size(components_code) == 1 )
-    components_code(1) = .true.
+    components_code(1) = .false.
     if ( boundary_id == 1 ) then
       components_code(1) = .true.
     end if
