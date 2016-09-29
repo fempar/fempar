@@ -37,6 +37,9 @@ module mesh_names
   use rcm_renumbering_names
   use postpro_names
   use FPL
+
+  use par_environment_names
+
   implicit none
 # include "debug.i90"
   private
@@ -855,7 +858,7 @@ contains
    end subroutine mesh_write_file_for_postprocess
 
   !subroutine create_mesh_distribution( femesh, prt_pars, distr, lmesh)
-  subroutine create_mesh_distribution( femesh, parameters, distr, lmesh)
+  subroutine create_mesh_distribution( femesh, parameters, distr, env, lmesh)
     !-----------------------------------------------------------------------
     ! 
     !-----------------------------------------------------------------------
@@ -865,6 +868,7 @@ contains
     class(mesh_t)             , intent(inout)      :: femesh
     type(ParameterList_t)     , intent(in)         :: parameters
     type(mesh_distribution_t) , allocatable, intent(out) :: distr(:) ! Mesh distribution instances
+    type(par_environment_t)   , allocatable, intent(out) :: env(:) ! Environments
     type(mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
 
     ! Local variables
@@ -875,8 +879,8 @@ contains
     
     integer(ip)   , allocatable, target  :: ldome(:)    ! Part of each element
     type(i1p_t)   , allocatable          :: ldomp(:)    ! Part of each part (recursively)
-    integer(ip)                  :: ilevel
-    integer(ip)                  :: ipart
+    integer(ip)                  :: ilevel, jlevel
+    integer(ip)                  :: ipart, itask, num_tasks
     integer                      :: istat
 
     integer(ip) :: ielem,jelem,iedge,inode,ipoin,jpoin
@@ -925,29 +929,48 @@ contains
     prt_pars%nparts = prt_pars%num_parts_per_level(1)
     call fe_graph%free()
 
-    ! Now free fe_graph, not needed anymore?
-    allocate(distr(prt_pars%nparts), stat=istat)
-    check(istat==0)
-    allocate(lmesh(prt_pars%nparts), stat=istat)
-    check(istat==0) 
-
-    do ipart=1, prt_pars%nparts
-       distr(ipart)%ipart  = ipart
-       distr(ipart)%nparts = prt_pars%num_parts_per_level(1)
-       distr(ipart)%num_levels = prt_pars%num_levels
-       call memalloc(distr(ipart)%num_levels,distr(ipart)%num_parts_per_level,__FILE__,__LINE__)
-       distr(ipart)%num_parts_per_level = prt_pars%num_parts_per_level
-       call memalloc(distr(ipart)%num_levels,distr(ipart)%parts_mapping,__FILE__,__LINE__)
-       distr(ipart)%parts_mapping(1) = ldomp(2)%p(ipart)
-       do ilevel=2,prt_pars%num_levels-1
-          distr(ipart)%parts_mapping(ilevel) = ldomp(ilevel+1)%p(distr(ipart)%parts_mapping(ilevel-1))
+    num_tasks = 0
+    do ilevel=1,prt_pars%num_levels
+       num_tasks = num_tasks + prt_pars%num_parts_per_level(ilevel)
+    end do
+    allocate(env(num_tasks), stat=istat); check(istat==0) 
+    itask = 0
+    do ilevel=1,prt_pars%num_levels
+       do ipart = 1, prt_pars%num_parts_per_level(ilevel)
+          itask = itask+1
+          env(itask)%task = itask
+          env(itask)%num_levels = prt_pars%num_levels + 1 - ilevel
+          call memalloc(env(itask)%num_levels, env(itask)%num_parts_per_level,__FILE__,__LINE__)
+          call memalloc(env(itask)%num_levels, env(itask)%parts_mapping,__FILE__,__LINE__)
+          env(itask)%num_parts_per_level = prt_pars%num_parts_per_level(ilevel:prt_pars%num_levels)
+          env(itask)%parts_mapping(1) = ipart
+          do jlevel = 2 , prt_pars%num_levels + 1 - ilevel
+             env(itask)%parts_mapping(jlevel) = ldomp(jlevel+ilevel-1)%p( env(itask)%parts_mapping(jlevel-1) )
+          end do
        end do
     end do
+
+    ! do ipart=1, prt_pars%nparts
+    !    distr(ipart)%ipart  = ipart
+    !    distr(ipart)%nparts = prt_pars%num_parts_per_level(1)
+    !    distr(ipart)%num_levels = prt_pars%num_levels
+    !    call memalloc(distr(ipart)%num_levels,distr(ipart)%num_parts_per_level,__FILE__,__LINE__)
+    !    distr(ipart)%num_parts_per_level = prt_pars%num_parts_per_level
+    !    call memalloc(distr(ipart)%num_levels,distr(ipart)%parts_mapping,__FILE__,__LINE__)
+    !    distr(ipart)%parts_mapping(1) = ldomp(2)%p(ipart)
+    !    do ilevel=2,prt_pars%num_levels-1
+    !       distr(ipart)%parts_mapping(ilevel) = ldomp(ilevel+1)%p(distr(ipart)%parts_mapping(ilevel-1))
+    !    end do
+    ! end do
+
     prt_pars%nparts = prt_pars%num_parts_per_level(1)
     do ilevel=1,prt_pars%num_levels-1
        call memfreep(ldomp(ilevel+1)%p, __FILE__,__LINE__)
     end do
     deallocate(ldomp, stat=istat); check(istat==0);
+
+    allocate(distr(prt_pars%nparts), stat=istat); check(istat==0)
+    allocate(lmesh(prt_pars%nparts), stat=istat); check(istat==0) 
 
     call build_maps(prt_pars%nparts, ldome, femesh, distr)
 

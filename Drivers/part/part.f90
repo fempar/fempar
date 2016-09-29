@@ -83,7 +83,7 @@ contains
     error = error + this%list%set(key = dir_path_out_key        , value = '.')
     error = error + this%list%set(key = num_parts_key           , value =  4)
     error = error + this%list%set(key = num_levels_key          , value =  3)
-    error = error + this%list%set(key = num_parts_per_level_key , value =  [4,2,1])
+    error = error + this%list%set(key = num_parts_per_level_key , value =  [4,2,1,0,0])
     error = error + this%list%set(key = strategy_key            , value = part_kway)
     error = error + this%list%set(key = debug_key               , value =  0)
     error = error + this%list%set(key = metis_option_debug_key  , value =  2)
@@ -100,6 +100,9 @@ contains
     error = error + this%switches%set(key = prefix_key      , value = '--prefix')
     error = error + this%switches%set(key = dir_path_out_key, value = '--dir-path-out')
     error = error + this%switches%set(key = num_parts_key   , value = '--num_parts')
+    error = error + this%switches%set(key = num_levels_key  , value = '--num_levels')
+    error = error + this%switches%set(key = num_parts_per_level_key, value = '--num_parts_per_level')
+
     check(error==0)
 
     call this%switches_ab%init()
@@ -107,6 +110,8 @@ contains
     error = error + this%switches_ab%set(key = prefix_key      , value = '-p')
     error = error + this%switches_ab%set(key = dir_path_out_key, value = '-o')
     error = error + this%switches_ab%set(key = num_parts_key   , value = '-n')
+    error = error + this%switches_ab%set(key = num_levels_key  , value = '-l')
+    error = error + this%switches_ab%set(key = num_parts_per_level_key   , value = '-npl')
     check(error==0)
 
     call this%helpers%init()
@@ -114,13 +119,17 @@ contains
     error = error + this%helpers%set(key = prefix_key      , value = 'Name of the GiD files')
     error = error + this%helpers%set(key = dir_path_out_key, value = 'Output Directory')
     error = error + this%helpers%set(key = num_parts_key   , value = 'Number of parts of the mesh')
+    error = error + this%helpers%set(key = num_levels_key  , value = 'Number of levels')
+    error = error + this%helpers%set(key = num_parts_per_level_key   , value = 'Number of parts per level (array of fixed size 5)')
     check(error==0)
 
     call this%required%init()
     error = error + this%required%set(key = dir_path_key    , value = .false.)
     error = error + this%required%set(key = prefix_key      , value = .false.)
     error = error + this%required%set(key = dir_path_out_key, value = .false.)
-    error = error + this%required%set(key = num_parts_key   , value = .true.)
+    error = error + this%required%set(key = num_parts_key   , value = .false.)
+    error = error + this%required%set(key = num_levels_key  , value = .false.)
+    error = error + this%required%set(key = num_parts_per_level_key  , value = .false.)
     check(error==0)
 
   end subroutine partitioner_input_set_default
@@ -155,94 +164,143 @@ contains
     implicit none
     class(partitioner_input_t) , intent(inout) :: this
     integer(ip)        :: error
-    character(len=512) :: switch, switch_ab, help, cvalue
+    character(len=512) :: switch, switch_ab, help ! , cvalue
     logical            :: required
     integer(ip)        :: ivalue
-
-    ! IO parameters
-    error = 0
-    error = error + this%list%get       (key = dir_path_key , value = cvalue)
-    error = error + this%switches%get   (key = dir_path_key , value = switch)
-    error = error + this%switches_ab%get(key = dir_path_key , value = switch_ab)
-    error = error + this%helpers%get    (key = dir_path_key , value = help)
-    error = error + this%required%get   (key = dir_path_key , value = required)
-    call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
-         &            required=required,act='store',def=trim(cvalue),error=error)
-    check(error==0)
+    character(len=:), allocatable :: key, cvalue !, switch, switch_ab, help
+    type(ParameterListIterator_t) :: Iterator
 
     error = 0
-    error = error + this%list%get       (key = prefix_key , value = cvalue)
-    error = error + this%switches%get   (key = prefix_key , value = switch)
-    error = error + this%switches_ab%get(key = prefix_key , value = switch_ab)
-    error = error + this%helpers%get    (key = prefix_key , value = help)
-    error = error + this%required%get   (key = prefix_key , value = required)
-    check(error==0)
-    call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
-         &            required=required,act='store',def=trim(cvalue),error=error)
-    check(error==0)
+    Iterator = this%switches%GetIterator()
+    do while (.not. Iterator%HasFinished())
+       key = Iterator%GetKey()
+       error = error + Iterator%Get(switch)
+       error = error + this%switches_ab%get  (key = key , value = switch_ab)
+       error = error + this%helpers%get      (key = key , value = help)
+       error = error + this%required%get     (key = key , value = required)
+       error = error + this%list%GetAsString (key = key , string = cvalue, separator=" ")
 
-    error = 0
-    error = error + this%list%get       (key = dir_path_out_key , value = cvalue)
-    error = error + this%switches%get   (key = dir_path_out_key , value = switch)
-    error = error + this%switches_ab%get(key = dir_path_out_key , value = switch_ab)
-    error = error + this%helpers%get    (key = dir_path_out_key , value = help)
-    error = error + this%required%get   (key = dir_path_out_key , value = required)
-    check(error==0)
-    call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
-         &            required=required,act='store',def=trim(cvalue),error=error)
-    check(error==0)
+       if(Iterator%GetDimensions() == 0) then 
+          call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
+            &               required=required,act='store',def=trim(cvalue),error=error)
+       else if(Iterator%GetDimensions() == 1) then 
+          call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
+            &               required=required,act='store',def=trim(cvalue),error=error,nargs='5')
+       else
+          write(*,*) 'Rank >1 arrays not supported by CLI'
+          check(.false.)
+       end if
+          check(error==0)
+       call Iterator%Next()
+    enddo
 
-    error = 0
-    error = error + this%list%get       (key = num_parts_key , value = ivalue)
-    error = error + this%switches%get   (key = num_parts_key , value = switch)
-    error = error + this%switches_ab%get(key = num_parts_key , value = switch_ab)
-    error = error + this%helpers%get    (key = num_parts_key , value = help)
-    error = error + this%required%get   (key = num_parts_key , value = required)
-    !write(*,*) ivalue
-    write(cvalue,*) ivalue
-    check(error==0)
-    call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
-         &            required=required,act='store',def=trim(cvalue),error=error)
-    check(error==0)
+    !! IO parameters
+    !error = 0
+    !error = error + this%list%get       (key = dir_path_key , value = cvalue)
+    !error = error + this%switches%get   (key = dir_path_key , value = switch)
+    !error = error + this%switches_ab%get(key = dir_path_key , value = switch_ab)
+    !error = error + this%helpers%get    (key = dir_path_key , value = help)
+    !error = error + this%required%get   (key = dir_path_key , value = required)
+    !call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
+    !     &            required=required,act='store',def=trim(cvalue),error=error)
+    !check(error==0)
+
+    !error = 0
+    !error = error + this%list%get       (key = prefix_key , value = cvalue)
+    !error = error + this%switches%get   (key = prefix_key , value = switch)
+    !error = error + this%switches_ab%get(key = prefix_key , value = switch_ab)
+    !error = error + this%helpers%get    (key = prefix_key , value = help)
+    !error = error + this%required%get   (key = prefix_key , value = required)
+    !check(error==0)
+    !call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
+    !     &            required=required,act='store',def=trim(cvalue),error=error)
+    !check(error==0)
+
+    !error = 0
+    !error = error + this%list%get       (key = dir_path_out_key , value = cvalue)
+    !error = error + this%switches%get   (key = dir_path_out_key , value = switch)
+    !error = error + this%switches_ab%get(key = dir_path_out_key , value = switch_ab)
+    !error = error + this%helpers%get    (key = dir_path_out_key , value = help)
+    !error = error + this%required%get   (key = dir_path_out_key , value = required)
+    !check(error==0)
+    !call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
+    !     &            required=required,act='store',def=trim(cvalue),error=error)
+    !check(error==0)
+
+    !error = 0
+    !error = error + this%list%get       (key = num_parts_key , value = ivalue)
+    !error = error + this%switches%get   (key = num_parts_key , value = switch)
+    !error = error + this%switches_ab%get(key = num_parts_key , value = switch_ab)
+    !error = error + this%helpers%get    (key = num_parts_key , value = help)
+    !error = error + this%required%get   (key = num_parts_key , value = required)
+    !!write(*,*) ivalue
+    !write(cvalue,*) ivalue
+    !check(error==0)
+    !call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
+    !     &            required=required,act='store',def=trim(cvalue),error=error)
+    !check(error==0)
 
   end subroutine partitioner_input_add_to_cli
 
   subroutine partitioner_input_parse(this)
     implicit none
     class(partitioner_input_t), intent(inout) :: this
-    integer(ip)    :: istat
-    character(512) :: switch, cvalue
+    integer(ip)    :: istat, error
+    character(512) :: switch ! , cvalue
     integer(ip)    :: ivalue
 
-    call this%cli%parse(error=istat); check(istat==0)
+    character(len=:), allocatable :: key
+    type(ParameterListIterator_t) :: Iterator
+    class(*), pointer :: val0
+    class(*), pointer :: val1(:)
+    
+    call this%cli%parse(error=error); check(error==0)
 
-    istat = this%switches%get(key = dir_path_key , value = switch)
-    check(istat==0)
-    if (this%cli%is_passed(switch=switch)) then
-       call this%cli%get(switch=switch, val=cvalue, error=istat); check(istat==0)
-       istat = this%list%set(key = dir_path_key, value=cvalue)
-    end if
+    error = 0
+    Iterator = this%switches%GetIterator()
+    do while (.not. Iterator%HasFinished())
+       key = Iterator%GetKey()
+       error = error + Iterator%Get(switch)
+       if (this%cli%is_passed(switch=switch)) then
+          if(this%list%GetDimensions(key = key)==0) then
+             error = error + this%list%GetPointer(key = key, value=val0)
+             call this%cli%get(switch=switch, val=val0, error=error)
+          else if(this%list%GetDimensions(key = key)==1) then
+             error = error + this%list%GetPointer(key = key, value=val1)
+             call this%cli%get(switch=switch, val=val1, error=error)
+          end if
+       end if
+       check(error==0)
+       call Iterator%Next()
+    enddo
 
-    istat = this%switches%get(key = prefix_key , value = switch)
-    check(istat==0)
-    if (this%cli%is_passed(switch=switch)) then
-       call this%cli%get(switch=switch, val=cvalue, error=istat); check(istat==0)
-       istat = this%list%set(key = prefix_key, value=cvalue)
-    end if
+    !istat = this%switches%get(key = dir_path_key , value = switch)
+    !check(istat==0)
+    !if (this%cli%is_passed(switch=switch)) then
+    !   call this%cli%get(switch=switch, val=cvalue, error=istat); check(istat==0)
+    !   istat = this%list%set(key = dir_path_key, value=cvalue)
+    !end if
 
-    istat = this%switches%get(key = dir_path_out_key , value = switch)
-    check(istat==0)
-    if (this%cli%is_passed(switch=switch)) then
-       call this%cli%get(switch=switch, val=cvalue, error=istat); check(istat==0)
-       istat = this%list%set(key = dir_path_out_key, value=cvalue)
-    end if
+    !istat = this%switches%get(key = prefix_key , value = switch)
+    !check(istat==0)
+    !if (this%cli%is_passed(switch=switch)) then
+    !   call this%cli%get(switch=switch, val=cvalue, error=istat); check(istat==0)
+    !   istat = this%list%set(key = prefix_key, value=cvalue)
+    !end if
 
-    istat = this%switches%get(key = num_parts_key , value = switch)
-    check(istat==0)
-    if (this%cli%is_passed(switch=switch)) then
-       call this%cli%get(switch=switch, val=ivalue, error=istat); check(istat==0)
-       istat = this%list%set(key = num_parts_key, value=ivalue)
-    end if
+    !istat = this%switches%get(key = dir_path_out_key , value = switch)
+    !check(istat==0)
+    !if (this%cli%is_passed(switch=switch)) then
+    !   call this%cli%get(switch=switch, val=cvalue, error=istat); check(istat==0)
+    !   istat = this%list%set(key = dir_path_out_key, value=cvalue)
+    !end if
+
+    !istat = this%switches%get(key = num_parts_key , value = switch)
+    !check(istat==0)
+    !if (this%cli%is_passed(switch=switch)) then
+    !   call this%cli%get(switch=switch, val=ivalue, error=istat); check(istat==0)
+    !   istat = this%list%set(key = num_parts_key, value=ivalue)
+    !end if
 
   end subroutine partitioner_input_parse  
 
@@ -261,8 +319,9 @@ program partitioner
   type(ParameterList_t)    , pointer     :: parameters
   type(mesh_t)                           :: gmesh
   type(mesh_distribution_t), allocatable :: distr(:)
+  type(par_environment_t)  , allocatable :: env(:)
   type(mesh_t)             , allocatable :: lmesh(:)
-  integer(ip) :: ipart
+  integer(ip) :: ipart, ienv
 
   call fempar_init()
   call input%create()
@@ -271,7 +330,10 @@ program partitioner
   ! Read and partition gmesh into lmesh
   call gmesh%read(parameters)
   call gmesh%write_file_for_postprocess(parameters)
-  call gmesh%create_distribution (parameters, distr, lmesh)
+  call gmesh%create_distribution (parameters, distr, env, lmesh)
+
+  ! Write environments
+  call par_environment_write_files             ( parameters, env )
 
   ! Write partition info
   call mesh_distribution_write_files           ( parameters, distr )
@@ -281,13 +343,19 @@ program partitioner
   call mesh_write_files                 ( parameters, lmesh )
   call mesh_write_files_for_postprocess ( parameters, lmesh )
 
-  ! Deallocate partition objects
+  ! Deallocate partition objects and envs
   do ipart=1,size(distr)
      call distr(ipart)%free()
      call lmesh(ipart)%free
   end do
   deallocate (distr)
   deallocate (lmesh)
+
+  do ienv=1,size(env)
+     call env(ienv)%free()
+  end do
+  deallocate (env)
+  
   call gmesh%free()
 
   call input%free()

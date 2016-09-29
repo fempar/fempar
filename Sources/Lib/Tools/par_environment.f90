@@ -29,7 +29,9 @@ module par_environment_names
   ! Serial modules
   use types_names
   use memor_names
-  
+  use stdio_names
+  use FPL
+
   ! Abstract modules
   use environment_names
 
@@ -48,6 +50,10 @@ module par_environment_names
 # include "debug.i90"
   private
 
+  ! This type manages the assigment of tasks to different levels as well as
+  ! the dutties assigned to each of them. The array parts_mapping gives the
+  ! part assigned to this task and the parts of coarser levels it belongs to. 
+  ! Different levels in the hierarchy are managed recursively.
   type, extends(environment_t) ::  par_environment_t
      !private 
      logical                          :: has_been_created = .false.  ! Has the parallel environment been created?
@@ -56,12 +62,15 @@ module par_environment_names
      type (par_context_t)             :: l1_lgt1_context             ! Intercommunicator among l1 and lgt1 context
      type (par_context_t)             :: l1_to_l2_context            ! Subcommunicators for l1 to/from l2 data transfers
      
-     ! Number of levels in the multilevel hierarchy of MPI tasks
+     ! Number of levels in the multilevel hierarchy of tasks
+     integer(ip)                      :: task = 0 ! A unique global ID for the current task, independent of the execution context
      integer(ip)                      :: num_levels = 0
      integer(ip), allocatable         :: parts_mapping(:), num_parts_per_level(:)
      
      type(par_environment_t), pointer :: next_level 
    contains
+     procedure :: read                                => par_environment_read_file
+     procedure :: write                               => par_environment_write_file
      procedure :: create                              => par_environment_create
      procedure :: free                                => par_environment_free
      procedure :: print                               => par_environment_print
@@ -137,9 +146,87 @@ module par_environment_names
   end type par_environment_t
 
   ! Types
-  public :: par_environment_t
+  public :: par_environment_t, par_environment_write_files
 
 contains
+
+  !=============================================================================
+  subroutine par_environment_compose_name ( prefix, name ) 
+    implicit none
+    character (len=*), intent(in)    :: prefix 
+    character (len=:), allocatable, intent(inout) :: name
+    name = trim(prefix) // '.env'
+  end subroutine par_environment_compose_name
+
+  !=============================================================================
+  subroutine par_environment_write_files ( parameter_list, envs )
+    implicit none
+    ! Parameters
+    type(ParameterList_t)  , intent(in) :: parameter_list
+    type(par_environment_t), intent(in)  :: envs(:)
+
+    ! Locals
+    integer(ip)          :: nenvs
+    integer(ip)          :: istat
+    logical              :: is_present
+    character(len=256)   :: dir_path
+    character(len=256)   :: prefix
+    character(len=:), allocatable :: name, rename
+    integer(ip)          :: lunio
+    integer(ip)          :: i
+
+    nenvs = size(envs)
+
+    ! Mandatory parameters
+    is_present = .true.
+    is_present =  is_present.and. parameter_list%isPresent(key = dir_path_out_key)
+    is_present =  is_present.and. parameter_list%isPresent(key = prefix_key)
+    assert(is_present)
+     
+    istat = 0
+    istat = istat + parameter_list%get(key = dir_path_out_key, value = dir_path)
+    istat = istat + parameter_list%get(key = prefix_key  , value = prefix)
+    check(istat==0)
+
+    call par_environment_compose_name ( prefix, name )
+    
+    do i=1,nenvs
+       rename=name
+       call numbered_filename_compose(i,nenvs,rename)
+       lunio = io_open (trim(dir_path) // '/' // trim(rename))
+       call envs(i)%write (lunio)
+       call io_close (lunio)
+    end do
+
+    ! name, and rename should be automatically deallocated by the compiler when they
+    ! go out of scope. Should we deallocate them explicitly for safety reasons?
+  end subroutine  par_environment_write_files
+  
+  !=============================================================================
+  subroutine par_environment_read_file ( this,lunio)
+    implicit none 
+    class(par_environment_t), intent(inout) :: this
+    integer(ip)             , intent(in)    :: lunio
+
+    read ( lunio, '(10i10)' ) this%task
+    read ( lunio, '(10i10)' ) this%num_levels
+    call memalloc ( this%num_levels, this%num_parts_per_level,__FILE__,__LINE__  )
+    call memalloc ( this%num_levels, this%parts_mapping,__FILE__,__LINE__  )
+    read ( lunio, '(10i10)' ) this%num_parts_per_level
+    read ( lunio, '(10i10)' ) this%parts_mapping
+    
+  end subroutine par_environment_read_file
+
+  !=============================================================================
+  subroutine par_environment_write_file ( this,lunio)
+    implicit none 
+    class(par_environment_t), intent(in) :: this
+    integer(ip)             , intent(in) :: lunio
+    write ( lunio, '(10i10)' ) this%task
+    write ( lunio, '(10i10)' ) this%num_levels
+    write ( lunio, '(10i10)' ) this%num_parts_per_level
+    write ( lunio, '(10i10)' ) this%parts_mapping    
+  end subroutine par_environment_write_file
 
   !=============================================================================
   recursive subroutine par_environment_create ( this, world_context, num_levels, num_parts_per_level, parts_mapping)

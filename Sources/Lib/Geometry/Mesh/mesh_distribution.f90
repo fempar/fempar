@@ -167,28 +167,30 @@ contains
     type(ParameterList_t)            , intent(in)    :: parameter_list
     ! Locals
     integer(ip)              :: istat
-    integer(ip), allocatable :: param_size(:)
+    integer(ip), allocatable :: param_size(:), num_parts_per_level(:)
     logical                  :: is_present
 
     ! Mandatory parameters
     is_present =  parameter_list%isPresent(key = num_parts_key )
     assert(is_present)
-    istat = parameter_list%get(key = num_parts_key , value = this%nparts)
-    check(istat==0)
+    istat = parameter_list%get(key = num_parts_key , value = this%nparts); check(istat==0)
 
     ! Optional parameters
     if( parameter_list%isPresent(key = num_levels_key) ) then
-       istat = parameter_list%get(key = num_levels_key  , value = this%num_levels)
-       check(istat==0)
+       istat = parameter_list%get(key = num_levels_key  , value = this%num_levels); check(istat==0)
        if(this%num_levels>1) then
           is_present =  parameter_list%isPresent(key = num_parts_per_level_key )
           assert(is_present)
           assert( parameter_list%GetDimensions(key = num_parts_per_level_key) == 1)
-          assert( parameter_list%GetShape(key = num_parts_per_level_key, shape = param_size ) == 0)
-          assert( param_size(1) == this%num_levels)
+
+          ! Get the array using the local variable
+          istat =  parameter_list%GetShape(key = num_parts_per_level_key, shape = param_size ); check(istat==0)
+          call memalloc(param_size(1), num_parts_per_level,__FILE__,__LINE__)
+          istat = parameter_list%get(key = num_parts_per_level_key, value = num_parts_per_level); check(istat==0)
+
           call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__)
-          istat = parameter_list%get(key = num_parts_per_level_key  , value = this%num_parts_per_level)
-          check(istat==0)
+          this%num_parts_per_level = num_parts_per_level(1:this%num_levels)
+
        end if
     else
        this%num_levels=2
@@ -312,8 +314,17 @@ contains
 
        write(lu_out,'(a)') '*** begin mesh_distribution data structure ***'
 
+       ! write(lu_out,'(a,i10)') 'Number of levels:', &
+       !    &  msh_dist%num_levels
+
+       ! write(lu_out,'(a,i10)') 'Number of parts per level:', &
+       !    &  msh_dist%num_parts_per_level
+
+       ! write(lu_out,'(a,i10)') 'Parts mapping:', &
+       !    &  msh_dist%parts_mapping
+
        write(lu_out,'(a,i10)') 'Number of parts:', &
-          &  msh_dist%nparts
+           &  msh_dist%nparts
 
        write(lu_out,'(a,i10)') 'Number of elements on the boundary:', &
           &  msh_dist%nebou
@@ -351,6 +362,10 @@ contains
     !-----------------------------------------------------------------------
 
     write ( lunio, '(10i10)' ) f_msh_dist%ipart, f_msh_dist%nparts
+    ! write ( lunio, '(10i10)' ) f_msh_dist%num_levels
+    ! write ( lunio, '(10i10)' ) f_msh_dist%num_parts_pert_level
+    ! write ( lunio, '(10i10)' ) f_msh_dist%parts_mapping
+
     write ( lunio, '(10i10)' ) f_msh_dist%nebou
     write ( lunio, '(10i10)' ) f_msh_dist%lebou
     write ( lunio, '(10i10)' ) f_msh_dist%nnbou
