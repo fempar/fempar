@@ -306,6 +306,16 @@ function fe_accessor_get_fe_space_type(this, field_id)
   end if
 end function fe_accessor_get_fe_space_type
 
+function fe_accessor_get_field_type(this, field_id)
+  implicit none
+  class(fe_accessor_t), intent(in) :: this
+  integer(ip)         , intent(in) :: field_id
+  character(:), pointer :: fe_accessor_get_field_type
+  class(reference_fe_t), pointer :: reference_fe
+  reference_fe => this%get_reference_fe(field_id)
+  fe_accessor_get_field_type => reference_fe%get_field_type()
+end function fe_accessor_get_field_type
+
 function fe_accessor_get_field_blocks(this)
   implicit none
   class(fe_accessor_t), intent(in) :: this
@@ -377,6 +387,29 @@ function fe_accessor_get_order( this, field_id )
   reference_fe => this%get_reference_fe(field_id)
   fe_accessor_get_order = reference_fe%get_order()
 end function fe_accessor_get_order
+
+function fe_accessor_get_max_order_single_field( this, field_id )
+  implicit none
+  class(fe_accessor_t), intent(in) :: this
+  integer(ip)         , intent(in) :: field_id
+  integer(ip) :: fe_accessor_get_max_order_single_field
+  class(reference_fe_t), pointer :: reference_fe
+  reference_fe => this%get_reference_fe(field_id)
+  fe_accessor_get_max_order_single_field = reference_fe%get_max_order()
+end function fe_accessor_get_max_order_single_field
+
+function fe_accessor_get_max_order_all_fields( this )
+  implicit none
+  class(fe_accessor_t), intent(in) :: this
+  integer(ip) :: fe_accessor_get_max_order_all_fields
+  integer(ip) :: field_id
+  fe_accessor_get_max_order_all_fields = -1
+  do field_id=1, this%get_number_fields()
+   if ( fe_accessor_get_max_order_all_fields < this%get_max_order_single_field(field_id) ) then
+        fe_accessor_get_max_order_all_fields = this%get_max_order_single_field(field_id)
+   end if
+  end do
+end function fe_accessor_get_max_order_all_fields
 
 function fe_accessor_at_strong_dirichlet_boundary ( this, field_id )
   implicit none

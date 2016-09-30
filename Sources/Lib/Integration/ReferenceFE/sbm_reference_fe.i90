@@ -56,7 +56,6 @@ subroutine reference_fe_free( this )
   call this%vertices_n_face%free()
   call this%n_faces_n_face%free()
   call this%orientation%free()
-  call this%nodal_quadrature%free()
   call this%polytope%free()
   call this%node_array%free()
   call this%vertex_array%free()
@@ -362,20 +361,35 @@ function reference_fe_get_number_vertices_n_face ( this, i )
   reference_fe_get_number_vertices_n_face = this%vertices_n_face%get_sublist_size(i)
 end function reference_fe_get_number_vertices_n_face
 
-function create_facet_integration_coupling_dofs_iterator ( this, i )
+function reference_fe_create_facet_integration_coupling_dofs_iterator ( this, i )
   implicit none
   class(reference_fe_t), intent(in) :: this
   integer(ip), intent(in) :: i
-  type(list_iterator_t) :: create_facet_integration_coupling_dofs_iterator
-  create_facet_integration_coupling_dofs_iterator = this%face_integration_coupling_nodes_facet%create_iterator(i)    
-end function create_facet_integration_coupling_dofs_iterator
+  type(list_iterator_t) :: reference_fe_create_facet_integration_coupling_dofs_iterator
+  reference_fe_create_facet_integration_coupling_dofs_iterator = this%face_integration_coupling_nodes_facet%create_iterator(i)    
+end function reference_fe_create_facet_integration_coupling_dofs_iterator
 
+! This query should return .true. only for interpolatory FEs.
+! By default, we assume that the reference fe is NOT interpolatory.
+! Interpolatory FEs should overwrite this function and return .true.
+function reference_fe_has_nodal_quadrature ( this )
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  logical :: reference_fe_has_nodal_quadrature
+  reference_fe_has_nodal_quadrature = .false.
+end function reference_fe_has_nodal_quadrature
+
+! This query can only be succesfully resolved by interpolatory FEs.
+! By default, we assume that the reference fe is NOT interpolatory.
+! Interpolatory FEs should overwrite this function and return the
+! coordinates of its support points
 function reference_fe_get_nodal_quadrature ( this )
   implicit none
   class(reference_fe_t), target, intent(in) :: this
   type(quadrature_t), pointer :: reference_fe_get_nodal_quadrature
-  reference_fe_get_nodal_quadrature => this%nodal_quadrature
+  assert(.false.)
 end function reference_fe_get_nodal_quadrature
+
 
 !==================================================================================================
 function reference_fe_compute_relative_orientation(target_reference_fe,                      &

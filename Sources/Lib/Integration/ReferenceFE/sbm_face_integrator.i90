@@ -458,7 +458,7 @@ subroutine face_integrator_evaluate_fe_function_scalar ( this,                  
   class(face_integrator_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: neighbour_id
   real(rp)                , intent(in)    :: nodal_values(:)
-  real(rp)                , intent(inout) :: quadrature_points_values(:)
+  real(rp), allocatable   , intent(inout) :: quadrature_points_values(:)
   integer(ip) :: active_face_id
   active_face_id = this%interpolation_face_restriction(neighbour_id)%active_face_id
   call this%reference_fe(neighbour_id)%p%evaluate_fe_function ( this%interpolation_face_restriction(neighbour_id)%interpolation_o_map(active_face_id), &
@@ -472,10 +472,10 @@ subroutine face_integrator_evaluate_fe_function_vector ( this,                  
                                                          nodal_values,             &
                                                          quadrature_points_values )
   implicit none
-  class(face_integrator_t), intent(in)    :: this
-  integer(ip)             , intent(in)    :: neighbour_id
-  real(rp)                , intent(in)    :: nodal_values(:)
-  type(vector_field_t)    , intent(inout) :: quadrature_points_values(:)
+  class(face_integrator_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: neighbour_id
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
   integer(ip) :: active_face_id
   active_face_id = this%interpolation_face_restriction(neighbour_id)%active_face_id
   call this%reference_fe(neighbour_id)%p%evaluate_fe_function ( this%interpolation_face_restriction(neighbour_id)%interpolation_o_map(active_face_id), &
@@ -489,10 +489,10 @@ subroutine face_integrator_evaluate_fe_function_tensor ( this,                  
                                                          nodal_values,             &
                                                          quadrature_points_values )
   implicit none
-  class(face_integrator_t), intent(in)    :: this
-  integer(ip)             , intent(in)    :: neighbour_id
-  real(rp)                , intent(in)    :: nodal_values(:)
-  type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
+  class(face_integrator_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: neighbour_id
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
   integer(ip) :: active_face_id
   active_face_id = this%interpolation_face_restriction(neighbour_id)%active_face_id
   call this%reference_fe(neighbour_id)%p%evaluate_fe_function ( this%interpolation_face_restriction(neighbour_id)%interpolation_o_map(active_face_id), &
@@ -506,10 +506,10 @@ subroutine face_integrator_evaluate_gradient_fe_function_scalar ( this,         
                                                                   nodal_values,             &
                                                                   quadrature_points_values )
   implicit none
-  class(face_integrator_t), intent(in)    :: this
-  integer(ip)             , intent(in)    :: neighbour_id
-  real(rp)                , intent(in)    :: nodal_values(:)
-  type(vector_field_t)    , intent(inout) :: quadrature_points_values(:)
+  class(face_integrator_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: neighbour_id
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
   integer(ip) :: active_face_id
   active_face_id = this%interpolation_face_restriction(neighbour_id)%active_face_id
   call this%reference_fe(neighbour_id)%p%evaluate_gradient_fe_function ( this%interpolation_face_restriction(neighbour_id)%interpolation_o_map(active_face_id), &
@@ -523,10 +523,10 @@ subroutine face_integrator_evaluate_gradient_fe_function_vector ( this,         
                                                                   nodal_values,             &
                                                                   quadrature_points_values )
   implicit none
-  class(face_integrator_t), intent(in)    :: this
-  integer(ip)             , intent(in)    :: neighbour_id
-  real(rp)                , intent(in)    :: nodal_values(:)
-  type(tensor_field_t)    , intent(inout) :: quadrature_points_values(:)
+  class(face_integrator_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: neighbour_id
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
   integer(ip) :: active_face_id
   active_face_id = this%interpolation_face_restriction(neighbour_id)%active_face_id
   call this%reference_fe(neighbour_id)%p%evaluate_gradient_fe_function ( this%interpolation_face_restriction(neighbour_id)%interpolation_o_map(active_face_id), &

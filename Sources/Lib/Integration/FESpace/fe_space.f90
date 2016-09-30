@@ -90,15 +90,22 @@ module fe_space_names
     procedure, non_overridable          :: get_fe_space                               => fe_accessor_get_fe_space
     procedure, non_overridable          :: get_number_fields                          => fe_accessor_get_number_fields
     procedure, non_overridable, private :: get_fe_space_type                          => fe_accessor_get_fe_space_type
+    procedure, non_overridable          :: get_field_type                             => fe_accessor_get_field_type
+
     procedure, non_overridable          :: get_field_blocks                           => fe_accessor_get_field_blocks
     procedure, non_overridable          :: get_number_dofs                            => fe_accessor_get_number_dofs
     procedure, non_overridable          :: get_number_dofs_per_field                  => fe_accessor_get_number_dofs_per_field
     procedure, non_overridable          :: get_field_elem2dof                         => fe_accessor_get_field_elem2dof
     procedure, non_overridable          :: get_elem2dof                               => fe_accessor_get_elem2dof
     procedure, non_overridable          :: get_order                                  => fe_accessor_get_order
+    
+    procedure, non_overridable, private :: get_max_order_single_field                 => fe_accessor_get_max_order_single_field
+    procedure, non_overridable, private :: get_max_order_all_fields                   => fe_accessor_get_max_order_all_fields
+    generic                             :: get_max_order                              => get_max_order_single_field, &
+                                                                                         get_max_order_all_fields
+
     procedure, non_overridable          :: at_strong_dirichlet_boundary               => fe_accessor_at_strong_dirichlet_boundary
     procedure, non_overridable          :: compute_volume                             => fe_accessor_compute_volume
-    
     
     procedure, non_overridable          :: get_quadrature                             => fe_accessor_get_quadrature
     procedure, non_overridable          :: get_fe_map                                 => fe_accessor_get_fe_map
@@ -109,10 +116,9 @@ module fe_space_names
     procedure, non_overridable          :: get_reference_fe                           => fe_accessor_get_reference_fe
     procedure, non_overridable          :: get_max_order_reference_fe                 => fe_accessor_get_max_order_reference_fe
     procedure, non_overridable          :: get_max_order_reference_fe_id              => fe_accessor_get_max_order_reference_fe_id
-    procedure, non_overridable, private :: get_reference_fe_id                        => fe_accessor_get_reference_fe_id
+    procedure, non_overridable          :: get_reference_fe_id                        => fe_accessor_get_reference_fe_id
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_accessor_create_own_dofs_on_vef_iterator
     procedure, non_overridable          :: impose_strong_dirichlet_bcs                => fe_accessor_impose_strong_dirichlet_bcs
-    
   end type fe_accessor_t
   
   type fe_iterator_t
@@ -296,17 +302,7 @@ module fe_space_names
 
      procedure                           :: create_assembler                             => serial_fe_space_create_assembler
      procedure                           :: symbolic_setup_assembler                     => serial_fe_space_symbolic_setup_assembler
-          
-     procedure                           :: create_fe_function                           => serial_fe_space_create_fe_function
-     procedure                           :: update_fe_function_bcs                       => serial_fe_space_update_fe_function_bcs
-                                                                                            
-     procedure, private                  :: interpolate_scalar_function                  => serial_fe_space_interpolate_scalar_function
-     procedure, private                  :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
-     procedure, private                  :: interpolate_tensor_function                  => serial_fe_space_interpolate_tensor_function
-     generic                             :: interpolate_function                         => interpolate_scalar_function , &
-                                                                                            interpolate_vector_function, &
-                                                                                            interpolate_tensor_function
-                                                                                            
+     procedure                           :: create_dof_values                            => serial_fe_space_create_dof_values
      procedure                           :: fill_dof_info                                => serial_fe_space_fill_dof_info
      procedure                 , private :: fill_elem2dof_and_count_dofs                 => serial_fe_space_fill_elem2dof_and_count_dofs
      procedure                 , private :: renumber_dofs_block                          => serial_fe_space_renumber_dofs_block
@@ -317,6 +313,7 @@ module fe_space_names
      procedure                           :: get_field_number_dofs                        => serial_fe_space_get_field_number_dofs
      procedure                           :: get_block_number_dofs                        => serial_fe_space_get_block_number_dofs
      procedure, non_overridable          :: get_number_reference_fes                     => serial_fe_space_get_number_reference_fes
+     procedure, non_overridable          :: get_reference_fe                             => serial_fe_space_get_reference_fe
      procedure, non_overridable          :: get_number_fields                            => serial_fe_space_get_number_fields
      procedure, non_overridable          :: get_field_type                               => serial_fe_space_get_field_type 
      procedure, non_overridable          :: get_fe_space_type_per_field                  => serial_fe_space_get_fe_space_type_per_field
@@ -330,6 +327,7 @@ module fe_space_names
      procedure, non_overridable          :: get_field_coupling                           => serial_fe_space_get_field_coupling
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      procedure                           :: get_environment                              => serial_fe_space_get_environment
+     procedure                           :: get_strong_dirichlet_values                  => serial_fe_space_get_strong_dirichlet_values
      
      ! fes and fe_faces traversals-related TBPs
      procedure, non_overridable          :: create_fe_iterator                           => serial_fe_space_create_fe_iterator
@@ -422,15 +420,8 @@ module fe_space_names
    procedure                                   :: free                                            => par_fe_space_free
    procedure                                   :: create_assembler                                => par_fe_space_create_assembler
    procedure                                   :: symbolic_setup_assembler                        => par_fe_space_symbolic_setup_assembler
+   procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
    procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
-
-   procedure                                   :: create_fe_function                              => par_fe_space_create_fe_function
-   procedure                                   :: update_fe_function_bcs                          => par_fe_space_update_fe_function_bcs
-                                                                                            
-   procedure, private                          :: interpolate_scalar_function                     => par_fe_space_interpolate_scalar_function
-   procedure, private                          :: interpolate_vector_function                     => par_fe_space_interpolate_vector_function
-   procedure, private                          :: interpolate_tensor_function                     => par_fe_space_interpolate_tensor_function
-     
    
    procedure       , non_overridable           :: setup_dofs_objects_and_constraint_matrix        => par_fe_space_setup_dofs_objects_and_constraint_matrix
    procedure       , non_overridable, private  :: setup_dofs_objects_by_continuity                => par_fe_space_setup_dofs_objects_by_continuity
@@ -640,29 +631,11 @@ module fe_space_names
  end type coarse_fe_space_t
  
  public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_accessor_t, coarse_fe_object_accessor_t
-
- type fe_function_t
-   private
-   class(vector_t), allocatable  :: dof_values
-   type(serial_scalar_array_t)   :: strong_dirichlet_values
-  contains
-     procedure, non_overridable, private :: create                      => fe_function_create
-     procedure, non_overridable, private :: copy_bc_values              => fe_function_copy_bc_values
-     procedure, non_overridable          :: copy                        => fe_function_copy
-     procedure, non_overridable          :: get_dof_values              => fe_function_get_dof_values
-     procedure, non_overridable          :: get_strong_dirichlet_values => fe_function_get_strong_dirichlet_values
-     procedure, non_overridable          :: free                        => fe_function_free
-     generic                             :: assignment(=)               => copy
-  end type fe_function_t 
-  
-  public :: fe_function_t
-  
  
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
 #include "sbm_serial_fe_space.i90"
-#include "sbm_fe_function.i90"
 #include "sbm_fe_accessor.i90"
 #include "sbm_fe_iterator.i90"
 #include "sbm_fe_face_accessor.i90"
