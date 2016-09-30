@@ -82,6 +82,7 @@ module fe_space_names
     procedure, non_overridable, private :: fill_own_dofs                              => fe_accessor_fill_own_dofs
     procedure, non_overridable, private :: fill_own_dofs_on_vef                       => fe_accessor_fill_own_dofs_on_vef
     procedure, non_overridable, private :: fill_own_dofs_on_vef_from_source_fe        => fe_accessor_fill_own_dofs_on_vef_from_source_fe
+    procedure, non_overridable, private :: fill_own_strong_dirichlet_dofs_on_vef      => fe_accessor_fill_own_strong_dirichlet_dofs_on_vef
     procedure, non_overridable, private :: fill_dofs_face_integration_coupling        => fe_accessor_fill_dofs_face_integration_coupling
     procedure, non_overridable, private :: renumber_dofs_block                        => fe_accessor_renumber_dofs_block
     procedure, non_overridable, private :: renumber_dofs_field                        => fe_accessor_renumber_dofs_field
@@ -105,6 +106,8 @@ module fe_space_names
                                                                                          get_max_order_all_fields
 
     procedure, non_overridable          :: at_strong_dirichlet_boundary               => fe_accessor_at_strong_dirichlet_boundary
+    procedure, non_overridable          :: set_at_strong_dirichlet_boundary           => fe_accessor_set_at_strong_dirichlet_boundary
+    procedure, non_overridable          :: unset_at_strong_dirichlet_boundary         => fe_accessor_unset_at_strong_dirichlet_boundary
     procedure, non_overridable          :: compute_volume                             => fe_accessor_compute_volume
     
     procedure, non_overridable          :: get_quadrature                             => fe_accessor_get_quadrature

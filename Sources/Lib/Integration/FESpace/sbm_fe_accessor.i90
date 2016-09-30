@@ -114,6 +114,28 @@ subroutine fe_accessor_fill_own_dofs_on_vef ( this, ivef, field_id, current_dof 
   end do
 end subroutine fe_accessor_fill_own_dofs_on_vef
 
+subroutine fe_accessor_fill_own_strong_dirichlet_dofs_on_vef ( this, ivef, field_id, current_dof )
+  implicit none
+  class(fe_accessor_t) , intent(inout) :: this
+  integer(ip)          , intent(in)    :: ivef
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip)          , intent(inout) :: current_dof
+  integer(ip) :: current_dof_
+  integer(ip), pointer :: elem2dof(:)
+  
+  current_dof_ = current_dof
+  call this%get_field_elem2dof(field_id, elem2dof)
+  
+  elem2dof = -elem2dof
+  call this%fill_own_dofs_on_vef (ivef, field_id, current_dof)
+  elem2dof = -elem2dof
+  
+  if (current_dof_ /= current_dof) then
+    call this%set_at_strong_dirichlet_boundary(field_id)
+  end if
+end subroutine fe_accessor_fill_own_strong_dirichlet_dofs_on_vef
+
+
 subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, source_fe, source_ivef, field_id )
   implicit none
   class(fe_accessor_t) , intent(inout) :: this
@@ -132,6 +154,7 @@ subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   integer(ip)                    :: idof_source, idof_target
   integer(ip)                    :: own_dof_within_vef_source_fe
   integer(ip)                    :: relative_orientation, relative_rotation
+  logical                        :: strong_dirichlet_dof_found
 
   assert ( target_ivef <= this%get_num_vefs() )
   assert ( source_ivef <= source_fe%get_num_vefs() )
@@ -145,7 +168,7 @@ subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within source fe
   own_dofs_on_vef_iterator_source = reference_fe_source%create_own_dofs_on_n_face_iterator(source_ivef)
-  
+  strong_dirichlet_dof_found = .false.
   if ( own_dofs_on_vef_iterator_source%get_size() > 0 ) then
        assert (reference_fe_target%check_compatibility_of_n_faces(reference_fe_source,source_ivef,target_ivef))
        relative_rotation = reference_fe_target%compute_relative_rotation( reference_fe_source, &
@@ -169,12 +192,15 @@ subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
         if (this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_target + idof_target)  == 0) then
           this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_target+idof_target) = &
             this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids_source+idof_source)
+        else
+          strong_dirichlet_dof_found = .true.
         end if
         
         call own_dofs_on_vef_iterator_source%next()
         own_dof_within_vef_source_fe = own_dof_within_vef_source_fe + 1
      end do
   end if
+  if (strong_dirichlet_dof_found) call this%set_at_strong_dirichlet_boundary(field_id)
 end subroutine fe_accessor_fill_own_dofs_on_vef_from_source_fe
 
 subroutine fe_accessor_fill_dofs_face_integration_coupling ( this, ivef, field_id, dof_count )
@@ -418,6 +444,21 @@ function fe_accessor_at_strong_dirichlet_boundary ( this, field_id )
   logical                             :: fe_accessor_at_strong_dirichlet_boundary
   fe_accessor_at_strong_dirichlet_boundary = this%fe_space%at_strong_dirichlet_boundary_per_fe(field_id,this%get_lid())
 end function fe_accessor_at_strong_dirichlet_boundary
+
+subroutine fe_accessor_set_at_strong_dirichlet_boundary ( this, field_id )
+  implicit none
+  class(fe_accessor_t)   , intent(inout) :: this
+  integer(ip)            , intent(in)    :: field_id
+  this%fe_space%at_strong_dirichlet_boundary_per_fe(field_id,this%get_lid()) = .true.
+end subroutine fe_accessor_set_at_strong_dirichlet_boundary
+
+subroutine fe_accessor_unset_at_strong_dirichlet_boundary ( this, field_id )
+  implicit none
+  class(fe_accessor_t)   , intent(inout) :: this
+  integer(ip)            , intent(in)    :: field_id
+  this%fe_space%at_strong_dirichlet_boundary_per_fe(field_id,this%get_lid()) = .false.
+end subroutine fe_accessor_unset_at_strong_dirichlet_boundary
+
 
 function fe_accessor_compute_volume ( this )
   implicit none

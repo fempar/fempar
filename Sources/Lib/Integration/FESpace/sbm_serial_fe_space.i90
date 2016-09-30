@@ -279,9 +279,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this, conditions )
                     component_id = offset_component + 1
                     if ( components_code(component_id) ) then
                       if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
-                        elem2dof(field_id)%p = -elem2dof(field_id)%p
-                        call fe%fill_own_dofs_on_vef ( ivef, field_id, this%number_strong_dirichlet_dofs  ) 
-                        elem2dof(field_id)%p = -elem2dof(field_id)%p
+                        call fe%fill_own_strong_dirichlet_dofs_on_vef ( ivef, field_id, this%number_strong_dirichlet_dofs  ) 
                       else
                         call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
                         call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
