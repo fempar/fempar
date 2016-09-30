@@ -48,6 +48,7 @@ module maxwell_nedelec_params_names
      character(len=:), allocatable :: default_is_periodic_in_x
      character(len=:), allocatable :: default_is_periodic_in_y
      character(len=:), allocatable :: default_is_periodic_in_z
+     character(len=:), allocatable :: default_write_solution
 
      
      type(Command_Line_Interface):: cli 
@@ -62,6 +63,7 @@ module maxwell_nedelec_params_names
      integer(ip)                   :: num_dimensions     
      integer(ip)                   :: number_of_cells_per_dir(0:SPACE_DIM-1)
      integer(ip)                   :: is_dir_periodic(0:SPACE_DIM-1)
+     logical                       :: write_solution
      
    contains
      procedure, non_overridable             :: create       => maxwell_nedelec_create
@@ -75,6 +77,7 @@ module maxwell_nedelec_params_names
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_triangulation_type
+     procedure, non_overridable             :: get_write_solution
   end type maxwell_nedelec_params_t
 
   ! Types
@@ -118,6 +121,7 @@ contains
     this%default_is_periodic_in_x = '0'
     this%default_is_periodic_in_y = '0'
     this%default_is_periodic_in_z = '0'
+    this%default_write_solution = '.false.'
   end subroutine maxwell_nedelec_set_default
   
   !==================================================================================================
@@ -168,7 +172,10 @@ contains
     check(error==0) 
     call this%cli%add(switch='--periodic_in_z',switch_ab='-pz',help='Is the mesh periodic in z',&
          &            required=.false.,act='store',def=trim(this%default_is_periodic_in_z),error=error) 
-    check(error==0) 
+    check(error==0)
+    call this%cli%add(switch='--write-solution',switch_ab='-wsolution',help='Write solution in VTK format',&
+         &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
+    check(error==0)  
     
   end subroutine maxwell_nedelec_add_to_cli
   
@@ -194,6 +201,7 @@ contains
     call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
     call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
+    call this%cli%get(switch='-wsolution',val=this%write_solution,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -264,6 +272,14 @@ contains
     integer(ip) :: get_reference_fe_order
     get_reference_fe_order = this%reference_fe_order
   end function get_reference_fe_order
+
+  !==================================================================================================
+  function get_write_solution(this)
+    implicit none
+    class(maxwell_nedelec_params_t) , intent(in) :: this
+    logical :: get_write_solution
+    get_write_solution = this%write_solution
+  end function get_write_solution
   
   !==================================================================================================
   function get_triangulation_type(this)

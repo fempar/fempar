@@ -414,7 +414,7 @@ contains
     if(this%test_params%get_write_solution()) then
        call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path_out(), this%test_params%get_prefix())
        err = vtk_handler%open_vtu(); check(err==0)
-       err = vtk_handler%write_vtu_mesh(); check(err==0)
+       err = vtk_handler%write_vtu_mesh(this%solution); check(err==0)
        err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
        err = vtk_handler%close_vtu(); check(err==0)
        call  vtk_handler%free()
@@ -432,7 +432,7 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%fe_space%create_fe_function(this%solution)
+    call this%solution%create(this%fe_space) 
     call this%solve_system()
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
       call this%check_solution()

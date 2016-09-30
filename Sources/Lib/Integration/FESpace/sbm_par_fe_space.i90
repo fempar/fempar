@@ -1042,29 +1042,20 @@ subroutine par_fe_space_symbolic_setup_assembler(this,matrix_array_assembler)
   class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
 end subroutine par_fe_space_symbolic_setup_assembler
 
-subroutine par_fe_space_interpolate_dirichlet_values(this, conditions, time)
+subroutine par_fe_space_create_dof_values(this, dof_values)
   implicit none
-  class(par_fe_space_t)   , intent(inout) :: this
-  class(conditions_t)     , intent(in)    :: conditions
-  real(rp)       , optional   , intent(in)    :: time
- 
+  class(par_fe_space_t)       , intent(in)    :: this
+  class(vector_t), allocatable, intent(inout) :: dof_values
+  integer(ip) :: istat
   type(par_environment_t), pointer :: par_environment
-  par_environment => this%get_par_environment()
-  if ( par_environment%am_i_l1_task() ) then
-    call this%serial_fe_space_t%interpolate_dirichlet_values(conditions,time)
+  
+  if (allocated(dof_values)) then
+    call dof_values%free()
+    deallocate(dof_values, stat=istat); check(istat==0);
   end if
-end subroutine par_fe_space_interpolate_dirichlet_values
-
- !===============================================================================================
- subroutine par_fe_space_create_fe_function ( this, fe_function )
-    implicit none
-    class(par_fe_space_t), intent(in)    :: this
-    type(fe_function_t)     , intent(inout) :: fe_function
-    class(vector_t), allocatable :: dof_values
-    type(par_environment_t), pointer :: par_environment
-    
-    par_environment => this%get_par_environment()
-    if (this%number_blocks == 1) then
+  
+  par_environment => this%get_par_environment()
+  if (this%number_blocks == 1) then
        allocate ( par_scalar_array_t  :: dof_values )
        select type(dof_values)
        class is(par_scalar_array_t)
@@ -1072,88 +1063,23 @@ end subroutine par_fe_space_interpolate_dirichlet_values
        class default
        check(.false.)
        end select
-    else
-       check(.false.)
-    end if
-    call fe_function%create(this%strong_dirichlet_values, dof_values)
- end subroutine par_fe_space_create_fe_function
- 
- subroutine par_fe_space_update_fe_function_bcs ( this, fe_function )
-    implicit none
-    class(par_fe_space_t), intent(in)    :: this
-    type(fe_function_t)  , intent(inout) :: fe_function
-    call fe_function%copy_bc_values(this%strong_dirichlet_values)
- end subroutine par_fe_space_update_fe_function_bcs
- 
- 
-subroutine par_fe_space_interpolate_scalar_function( this, &
-                                                     field_id, &
-                                                     function, &
-                                                     fe_function, &
-                                                     time )
-                                                           
-  implicit none
-  class(par_fe_space_t), intent(in)    :: this
-  integer(ip)             , intent(in)    :: field_id
-  class(scalar_function_t), intent(in)    :: function
-  type(fe_function_t)     , intent(inout) :: fe_function
-  real(rp)   , optional   , intent(in)    :: time
-  type(par_environment_t), pointer :: par_environment
-  par_environment => this%get_par_environment()
-  
-  if ( par_environment%am_i_l1_task() ) then
-    call this%serial_fe_space_t%interpolate_function(field_id, &
-                                                     function, &
-                                                     fe_function, &
-                                                     time )
+  else
+      check(.false.)
   end if
   
-end subroutine par_fe_space_interpolate_scalar_function
+end subroutine par_fe_space_create_dof_values
 
-subroutine par_fe_space_interpolate_vector_function( this, &
-                                                     field_id, &
-                                                     function, &
-                                                     fe_function, &
-                                                     time )
-                                                           
+subroutine par_fe_space_interpolate_dirichlet_values(this, conditions, time)
   implicit none
-  class(par_fe_space_t), intent(in)    :: this
-  integer(ip)             , intent(in)    :: field_id
-  class(vector_function_t), intent(in)    :: function
-  type(fe_function_t)     , intent(inout) :: fe_function
-  real(rp)   , optional   , intent(in)    :: time
-  type(par_environment_t), pointer :: par_environment
-  par_environment => this%get_par_environment()
-  
-  if ( par_environment%am_i_l1_task() ) then
-      call this%serial_fe_space_t%interpolate_function(field_id, &
-                                                       function, &
-                                                       fe_function, &
-                                                       time )
-  end if
-end subroutine par_fe_space_interpolate_vector_function
-
-subroutine par_fe_space_interpolate_tensor_function( this, &
-                                                        field_id, &
-                                                        function, &
-                                                        fe_function, &
-                                                        time )
-                                                           
-  implicit none
-  class(par_fe_space_t), intent(in)    :: this
-  integer(ip)             , intent(in)    :: field_id
-  class(tensor_function_t), intent(in)    :: function
-  type(fe_function_t)     , intent(inout) :: fe_function
-  real(rp)   , optional   , intent(in)    :: time
+  class(par_fe_space_t)     , intent(inout) :: this
+  class(conditions_t)       , intent(in)    :: conditions 
+  real(rp), optional        , intent(in)    :: time
   type(par_environment_t), pointer :: par_environment
   par_environment => this%get_par_environment()
   if ( par_environment%am_i_l1_task() ) then
-      call this%serial_fe_space_t%interpolate_function(field_id, &
-                                                       function, &
-                                                       fe_function, &
-                                                       time )
+    call this%serial_fe_space_t%interpolate_dirichlet_values(conditions,time)
   end if
-end subroutine par_fe_space_interpolate_tensor_function
+end subroutine par_fe_space_interpolate_dirichlet_values
 
  subroutine par_fe_space_setup_dofs_objects_and_constraint_matrix ( this, &
                                                                       num_dofs_objects_per_field, &

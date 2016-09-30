@@ -102,6 +102,62 @@ end subroutine tet_lagrangian_reference_fe_blending
 !**************************************************************************************************
 
 !==================================================================================================
+function tet_lagrangian_reference_fe_get_number_subcells(this, num_refinements) result(num_subcells)
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: num_refinements
+  integer(ip)                                         :: num_subcells
+  num_subcells = (num_refinements+1)**this%number_dimensions
+end function tet_lagrangian_reference_fe_get_number_subcells
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_get_subcells_connectivity(this, num_refinements, connectivity)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: num_refinements
+  integer(ip)                         , intent(inout) :: connectivity(:,:)
+  integer(ip) :: order_vector(SPACE_DIM)
+  integer(ip) :: num_subelems
+  integer(ip) :: subelem
+  integer(ip) :: geo_nnodes
+  integer(ip) :: local_node
+  integer(ip) :: first_coord(this%number_dimensions)
+  integer(ip) :: local_coord(this%number_dimensions)
+  integer(ip) :: global_coord(this%number_dimensions)
+  integer(ip) :: ones_dim(this%number_dimensions)
+  ones_dim = 1
+  num_subelems = this%get_number_subcells(num_refinements=num_refinements)
+  geo_nnodes = this%get_number_vertices()
+  assert(size(connectivity,1) == geo_nnodes)
+  assert(size(connectivity,2) == num_subelems)
+  order_vector = num_refinements+1
+
+  do subelem = 1, num_subelems
+     !call this%get_node_local_coordinates(first_coord,subelem, & 
+     !                                      & this%number_dimensions,this%order(1)-1)
+     call index_to_ijk( subelem, this%number_dimensions, order_vector, first_coord )
+
+     do local_node = 1, geo_nnodes
+        !call this%get_node_local_coordinates(local_coord,local_node,this%number_dimensions,1)
+        call index_to_ijk( local_node, this%number_dimensions, 2*ones_dim, local_coord )
+
+        global_coord = first_coord + local_coord 
+        !connectivity(local_node, subelem) = this%get_node_local_id(global_coord, &
+        !                                                   & this%number_dimensions,this%order(1)) ! 
+        connectivity(local_node, subelem) = ijk_to_index(global_coord, order_vector,this%number_dimensions)+1
+     end do
+  end do
+end subroutine tet_lagrangian_reference_fe_get_subcells_connectivity
+
+subroutine tet_lagrangian_create_data_out_quadrature ( this, num_refinements, quadrature )
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: num_refinements
+  type(quadrature_t)                  , intent(inout) :: quadrature
+  ! Not implemented yet
+  check(.false.)
+end subroutine tet_lagrangian_create_data_out_quadrature
+
+!==================================================================================================
 subroutine tet_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
   !-----------------------------------------------------------------------
   ! 
