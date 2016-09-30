@@ -246,7 +246,7 @@ contains
     class(allocatable_array_rp1_t), intent(inout) :: this
     real(rp), allocatable      , intent(inout) :: a(:)
     assert (.not. allocated (a))
-    assert (allocated(this%a))
+    !assert (allocated(this%a))
     call move_alloc(from=this%a, to=a) 
   end subroutine allocatable_array_rp1_move_alloc_out
   
@@ -254,7 +254,7 @@ contains
     implicit none
     class(allocatable_array_rp1_t), intent(inout) :: this
     real(rp), allocatable      , intent(inout) :: a(:)
-    assert (allocated (a))
+    !assert (allocated (a))
     assert (.not. allocated(this%a))
     call move_alloc(to=this%a, from=a) 
   end subroutine allocatable_array_rp1_move_alloc_in

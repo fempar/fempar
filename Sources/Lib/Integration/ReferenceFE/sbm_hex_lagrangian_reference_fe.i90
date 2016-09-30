@@ -67,11 +67,25 @@ function hex_lagrangian_reference_fe_get_characteristic_length ( this )
   hex_lagrangian_reference_fe_get_characteristic_length =  2.0_rp
 end function hex_lagrangian_reference_fe_get_characteristic_length
 
+!**************************************************************************************************
+! Deferred TBP implementors from lagrangian_reference_fe_t
+!**************************************************************************************************
+
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connectivity)
+function hex_lagrangian_reference_fe_get_number_subcells(this, num_refinements) result(num_subcells)
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: num_refinements
+  integer(ip)                                         :: num_subcells
+  num_subcells = (num_refinements+1)**this%number_dimensions
+end function hex_lagrangian_reference_fe_get_number_subcells
+
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_get_subcells_connectivity(this, num_refinements, connectivity)
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: num_refinements
   integer(ip)                         , intent(inout) :: connectivity(:,:)
+  integer(ip) :: order_vector(this%number_dimensions)
   integer(ip) :: num_subelems
   integer(ip) :: subelem
   integer(ip) :: geo_nnodes
@@ -81,15 +95,16 @@ subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connec
   integer(ip) :: global_coord(this%number_dimensions)
   integer(ip) :: ones_dim(this%number_dimensions)
   ones_dim = 1
-  num_subelems = this%get_number_subelements()
+  num_subelems = this%get_number_subcells(num_refinements=num_refinements)
   geo_nnodes = this%get_number_vertices()
   assert(size(connectivity,1) == geo_nnodes)
   assert(size(connectivity,2) == num_subelems)
+  order_vector = num_refinements+1
 
   do subelem = 1, num_subelems
      !call this%get_node_local_coordinates(first_coord,subelem, & 
      !                                      & this%number_dimensions,this%order(1)-1)
-     call index_to_ijk( subelem, this%number_dimensions, this%order_vector, first_coord )
+     call index_to_ijk( subelem, this%number_dimensions, order_vector, first_coord )
 
      do local_node = 1, geo_nnodes
         !call this%get_node_local_coordinates(local_coord,local_node,this%number_dimensions,1)
@@ -98,14 +113,12 @@ subroutine hex_lagrangian_reference_fe_get_subelements_connectivity(this, connec
         global_coord = first_coord + local_coord 
         !connectivity(local_node, subelem) = this%get_node_local_id(global_coord, &
         !                                                   & this%number_dimensions,this%order(1)) ! 
-        connectivity(local_node, subelem) = ijk_to_index(global_coord,this%order_vector,this%number_dimensions)+1
+        connectivity(local_node, subelem) = ijk_to_index(global_coord, order_vector,this%number_dimensions)+1
      end do
   end do
-end subroutine hex_lagrangian_reference_fe_get_subelements_connectivity
+end subroutine hex_lagrangian_reference_fe_get_subcells_connectivity
 
-!**************************************************************************************************
-! Deferred TBP implementors from lagrangian_reference_fe_t
-!**************************************************************************************************
+!==================================================================================================
 subroutine hex_lagrangian_create_data_out_quadrature ( this, num_refinements, quadrature )
   implicit none
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this
@@ -123,9 +136,9 @@ subroutine hex_lagrangian_create_data_out_quadrature ( this, num_refinements, qu
   order_vector = num_refinements+1
   call node_array%create( this%polytope, order_vector ) 
 
-  call quadrature%create( this%number_dimensions, this%node_array%number_nodes )
+  call quadrature%create( this%number_dimensions, node_array%number_nodes )
   do i=1,this%number_dimensions
-     quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)*(2.0_rp/order_vector(i))-1.0_rp
+     quadrature%coordinates(i,:) = node_array%coordinates(i,:)*(2.0_rp/order_vector(i))-1.0_rp
   end do
   quadrature%weight = 1.0_rp
   

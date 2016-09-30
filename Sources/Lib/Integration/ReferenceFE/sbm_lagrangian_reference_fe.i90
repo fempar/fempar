@@ -540,14 +540,6 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector( this,  
 
 end subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector
 
-! Adaptivity purposes
-!==================================================================================================
-function lagrangian_reference_fe_get_number_subelements(this) result(number_subelements)
-  implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                                     :: number_subelements
-  number_subelements = this%order_vector(1)**this%number_dimensions ! @sbadia: It is not correct
-end function lagrangian_reference_fe_get_number_subelements
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_free ( this )

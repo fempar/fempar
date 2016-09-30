@@ -414,11 +414,12 @@ contains
     end function vtk_handler_open_vtu
 
 
-    function vtk_handler_write_vtu_mesh(this) result(E_IO)
+    function vtk_handler_write_vtu_mesh(this, fe_function) result(E_IO)
     !-----------------------------------------------------------------
     !< Write VTU mesh (VTK_GEO_XML, VTK_CON_XML )
     !-----------------------------------------------------------------
         class(vtk_handler_t),       intent(INOUT) :: this        !< vtk_handler_t derived type
+        type(fe_function_t),        intent(IN)    :: fe_function
         integer(ip)                               :: E_IO        !< Error IO
       ! ----------------------------------------------------------------------------------
         assert(this%state == vtk_handler_state_write_open)
@@ -427,7 +428,7 @@ contains
         E_IO = 0
 
         if(this%env%am_i_l1_task()) then
-            call this%mesh%generate_mesh()
+            call this%mesh%generate_mesh(fe_function)
 
             E_IO = VTK_GEO_XML(NN = this%mesh%get_number_nodes(),    &
                                NC = this%mesh%get_number_elements(), &

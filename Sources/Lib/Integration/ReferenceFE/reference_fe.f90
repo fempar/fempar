@@ -426,10 +426,6 @@ module reference_fe_names
           &     check_compatibility_of_n_faces
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
 
-     procedure (get_number_subelements_interface),       deferred :: get_number_subelements
-     procedure (get_subelements_connectivity_interface), deferred :: get_subelements_connectivity
-
-
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
      procedure :: print => reference_fe_print
@@ -736,20 +732,6 @@ module reference_fe_names
        implicit none
        class(reference_fe_t), intent(inout) :: this 
      end subroutine create_nodal_quadrature_interface
-
-     function get_number_subelements_interface(this) result(number_subelements)
-       import :: reference_fe_t, ip
-       implicit none
-       class(reference_fe_t), intent(in)    :: this
-       integer(ip)                          :: number_subelements
-     end function get_number_subelements_interface
-
-     subroutine get_subelements_connectivity_interface(this, connectivity)
-       import :: reference_fe_t, ip
-       implicit none
-       class(reference_fe_t), intent(in)    :: this
-       integer(ip),           intent(inout) :: connectivity(:,:)
-     end subroutine get_subelements_connectivity_interface
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -773,6 +755,8 @@ contains
   ! Additional deferred methods
   !procedure (fill_scalar_interface)            , private, deferred :: fill_scalar
   procedure (create_data_out_quadrature_interface)           , deferred :: create_data_out_quadrature 
+  procedure (get_number_subcells_interface      )            , deferred :: get_number_subcells
+  procedure (get_subcells_connectivity_interface)            , deferred :: get_subcells_connectivity
   procedure (fill_quadrature_interface)             , private, deferred :: fill_quadrature
   procedure (fill_nodal_quadrature_interface)       , private, deferred :: fill_nodal_quadrature
   procedure (fill_interpolation_interface)          , private, deferred :: fill_interpolation
@@ -813,7 +797,6 @@ contains
        & => lagrangian_reference_fe_evaluate_gradient_fe_function_scalar
   procedure :: evaluate_gradient_fe_function_vector &
        & => lagrangian_reference_fe_evaluate_gradient_fe_function_vector
-  procedure :: get_number_subelements    => lagrangian_reference_fe_get_number_subelements
   procedure :: free                      => lagrangian_reference_fe_free
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                         & 
@@ -844,6 +827,22 @@ abstract interface
     integer(ip)                     , intent(in)    :: num_refinements
     type(quadrature_t)              , intent(inout) :: quadrature
   end subroutine create_data_out_quadrature_interface
+
+  function get_number_subcells_interface(this, num_refinements) result(num_subcells)
+    import :: lagrangian_reference_fe_t, ip
+    implicit none
+    class(lagrangian_reference_fe_t), intent(in)    :: this
+    integer(ip),                      intent(in)    :: num_refinements
+    integer(ip)                                     :: num_subcells
+  end function get_number_subcells_interface
+  
+  subroutine get_subcells_connectivity_interface(this, num_refinements, connectivity)
+    import :: lagrangian_reference_fe_t, ip
+    implicit none
+    class(lagrangian_reference_fe_t), intent(in)    :: this
+    integer(ip),                      intent(in)    :: num_refinements
+    integer(ip),                      intent(inout) :: connectivity(:,:)
+  end subroutine get_subcells_connectivity_interface
 
   subroutine fill_quadrature_interface ( this, quadrature )
     import :: lagrangian_reference_fe_t, quadrature_t
@@ -914,7 +913,8 @@ procedure :: free                             => raviart_thomas_free
 procedure :: create_face_local_interpolation  => raviart_thomas_create_face_local_interpolation
 procedure :: blending                         => raviart_thomas_blending
 procedure :: create_data_out_quadrature       => raviart_thomas_create_data_out_quadrature
-procedure :: get_subelements_connectivity     => raviart_thomas_get_subelements_connectivity
+procedure :: get_number_subcells              => raviart_thomas_get_number_subcells
+procedure :: get_subcells_connectivity        => raviart_thomas_get_subcells_connectivity
 procedure :: has_nodal_quadrature             => raviart_thomas_has_nodal_quadrature
 procedure :: get_nodal_quadrature             => raviart_thomas_get_nodal_quadrature    
 procedure :: get_value_scalar                 => raviart_thomas_get_value_scalar
@@ -975,7 +975,8 @@ procedure :: free                            => nedelec_free
 procedure :: create_face_local_interpolation => nedelec_create_face_local_interpolation
 procedure :: blending                        => nedelec_blending
 procedure :: create_data_out_quadrature      => nedelec_create_data_out_quadrature
-procedure :: get_subelements_connectivity    => nedelec_get_subelements_connectivity
+procedure :: get_number_subcells             => nedelec_get_number_subcells
+procedure :: get_subcells_connectivity       => nedelec_get_subcells_connectivity
 procedure :: has_nodal_quadrature            => nedelec_has_nodal_quadrature
 procedure :: get_nodal_quadrature            => nedelec_get_nodal_quadrature 
 procedure :: get_value_scalar                => nedelec_get_value_scalar
@@ -1042,8 +1043,10 @@ procedure :: check_compatibility_of_n_faces                                 &
  &   => tet_lagrangian_reference_fe_check_compatibility_of_n_faces
 procedure :: get_characteristic_length                                   &
  &   => tet_lagrangian_reference_fe_get_characteristic_length
-procedure :: get_subelements_connectivity                                &
- &   => tet_lagrangian_reference_fe_get_subelements_connectivity
+procedure :: get_number_subcells                                         &
+&    => tet_lagrangian_reference_fe_get_number_subcells
+procedure :: get_subcells_connectivity                                   &
+ &   => tet_lagrangian_reference_fe_get_subcells_connectivity
 procedure :: blending                                                    &
  &   => tet_lagrangian_reference_fe_blending 
 ! Deferred TBP implementors from lagrangian_reference_fe_t
@@ -1093,8 +1096,6 @@ procedure :: check_compatibility_of_n_faces                                 &
 &   => tet_raviart_thomas_check_compatibility_of_n_faces
 procedure :: get_characteristic_length                                   &
 &   => tet_raviart_thomas_get_characteristic_length
-procedure :: get_subelements_connectivity                                &
-&   => tet_raviart_thomas_get_subelements_connectivity
 ! Deferred TBP implementors from lagrangian_reference_fe_t
 !procedure, private :: fill_scalar                                        &
 !      & => tet_raviart_thomas_fill_scalar
@@ -1138,8 +1139,10 @@ procedure :: check_compatibility_of_n_faces                                 &
 &   => hex_lagrangian_reference_fe_check_compatibility_of_n_faces
 procedure :: get_characteristic_length                                   &
 &   => hex_lagrangian_reference_fe_get_characteristic_length
-procedure :: get_subelements_connectivity                                &
-&   => hex_lagrangian_reference_fe_get_subelements_connectivity
+procedure :: get_number_subcells                                         &
+&   => hex_lagrangian_reference_fe_get_number_subcells
+procedure :: get_subcells_connectivity                                   &
+&   => hex_lagrangian_reference_fe_get_subcells_connectivity
 procedure :: blending                                                    &
 &   => hex_lagrangian_reference_fe_blending           
 ! Deferred TBP implementors from lagrangian_reference_fe_t

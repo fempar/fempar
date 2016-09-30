@@ -313,6 +313,7 @@ function fe_accessor_get_field_type(this, field_id)
   character(:), pointer :: fe_accessor_get_field_type
   class(reference_fe_t), pointer :: reference_fe
   reference_fe => this%get_reference_fe(field_id)
+  fe_accessor_get_field_type => reference_fe%get_field_type()
 end function fe_accessor_get_field_type
 
 function fe_accessor_get_field_blocks(this)

@@ -65,6 +65,9 @@ module output_handler_cell_fe_function_names
     ! Values for tensor fields (gradients not supported yet)
     type(allocatable_array_tensor_field_t) , allocatable  :: tensor_function_values(:)
     
+    ! Subcells connectivity
+    type(allocatable_array_ip2_t) , allocatable           :: subcells_connectivity(:)
+    
     type(quadrature_t)            , allocatable           :: quadratures(:)
     type(fe_map_t)                , allocatable           :: fe_maps(:)
     type(volume_integrator_t)     , allocatable           :: volume_integrators(:)
@@ -76,6 +79,7 @@ module output_handler_cell_fe_function_names
     procedure, non_overridable :: update                          => ohcff_update
     procedure, non_overridable :: free                            => ohcff_free
     procedure, non_overridable :: get_subcells_vertex_coordinates => ohcff_get_subcells_vertex_coordinates
+    procedure, non_overridable :: get_subcells_connectivity       => ohcff_get_subcells_connectivity
     procedure, non_overridable :: get_values_scalar               => ohcff_get_values_scalar
     procedure, non_overridable :: get_values_vector               => ohcff_get_values_vector
     procedure, non_overridable :: get_values_tensor               => ohcff_get_values_tensor
@@ -90,6 +94,8 @@ module output_handler_cell_fe_function_names
     procedure, non_overridable, private :: get_fe_map                      => ohcff_get_fe_map
     procedure, non_overridable, private :: get_volume_integrator           => ohcff_get_volume_integrator      
   end type output_handler_cell_fe_function_t
+  
+  public :: output_handler_cell_fe_function_t
   
 contains
 
@@ -128,6 +134,8 @@ contains
        allocate ( this%vector_function_values(fe_space%get_number_reference_fes()), stat=istat); check(istat==0);
        allocate ( this%vector_function_gradients(fe_space%get_number_reference_fes()), stat=istat); check(istat==0);
        allocate ( this%tensor_function_values(fe_space%get_number_reference_fes()), stat=istat); check(istat==0);
+       allocate ( this%subcells_connectivity(fe_space%get_number_reference_fes()), stat=istat); check(istat==0);
+
 
        allocate ( this%quadratures(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
        allocate ( this%fe_maps(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
@@ -159,9 +167,16 @@ contains
           if (istat == now_stored) then
              ! Create quadrature and fe_map associated to current max_order_within_fe
              call reference_fe_geo%create_data_out_quadrature( num_refinements = max_order_within_fe-1, &
-                  quadrature      = this%quadratures(current_quadrature_and_map) )
+                                                               quadrature      = this%quadratures(current_quadrature_and_map) )
              call this%fe_maps(current_quadrature_and_map)%create(this%quadratures(current_quadrature_and_map),&
-                  reference_fe_geo)
+                                                                  reference_fe_geo)
+             
+             call this%subcells_connectivity(current_quadrature_and_map)%create ( reference_fe_geo%get_number_vertices(), &
+                   reference_fe_geo%get_number_subcells(num_refinements=max_order_within_fe-1))
+
+             call reference_fe_geo%get_subcells_connectivity ( num_refinements=max_order_within_fe-1, &
+                                                               connectivity=this%subcells_connectivity(current_quadrature_and_map)%a )
+             
              current_quadrature_and_map = current_quadrature_and_map + 1
           end if
 
@@ -177,7 +192,7 @@ contains
                 call this%quadratures_and_maps_position%get(key = max_order_within_fe, &
                      val = quadrature_and_map_pos, &
                      stat = istat)
-                assert ( istat == was_stored )
+                assert ( istat == key_found )
                 call this%volume_integrators(current_volume_integrator)%create(this%quadratures(quadrature_and_map_pos),&
                      fe%get_reference_fe(field_id))
                 current_volume_integrator = current_volume_integrator + 1
@@ -280,6 +295,20 @@ contains
     fe_map      => this%get_fe_map()
     ohcff_get_subcells_vertex_coordinates => fe_map%get_quadrature_points_coordinates()  
   end function ohcff_get_subcells_vertex_coordinates
+
+  function ohcff_get_subcells_connectivity ( this ) 
+    implicit none
+    class(output_handler_cell_fe_function_t), target , intent(in) :: this
+    integer(ip),                              pointer             :: ohcff_get_subcells_connectivity(:,:)
+    integer(ip)                                                   :: quadrature_and_map_pos
+    integer(ip)                                                   :: istat
+    assert ( associated(this%current_fe) )
+    call this%quadratures_and_maps_position%get(key = this%current_fe%get_max_order(), &
+         val = quadrature_and_map_pos, &
+         stat = istat)
+    assert ( istat == key_found )
+    ohcff_get_subcells_connectivity => this%subcells_connectivity(quadrature_and_map_pos)%a
+  end function ohcff_get_subcells_connectivity
 
   subroutine ohcff_get_values_scalar ( this, field_id, values )
     implicit none
@@ -401,6 +430,14 @@ contains
           call this%tensor_function_values(i)%free()
        end do
        deallocate(this%tensor_function_values, stat=istat)
+       check(istat==0)
+    end if
+    
+    if ( allocated(this%subcells_connectivity) ) then
+       do i=1, size(this%subcells_connectivity)
+          call this%subcells_connectivity(i)%free()
+       end do
+       deallocate(this%subcells_connectivity, stat=istat)
        check(istat==0)
     end if
 

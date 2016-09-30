@@ -40,7 +40,8 @@ USE base_static_triangulation_names, only: base_static_triangulation_t, cell_ite
 USE serial_scalar_array_names,       only: serial_scalar_array_t
 USE fe_space_names,                  only: serial_fe_space_t, fe_iterator_t, fe_accessor_t
 USE fe_function_names,               only: fe_function_t
-USE reference_fe_names,              only: reference_fe_t, hex_lagrangian_reference_fe_t, fe_map_t,   &
+USE output_handler_cell_fe_function_names
+USE reference_fe_names,              only: reference_fe_t, lagrangian_reference_fe_t, fe_map_t,   &
                                            quadrature_t, interpolation_t, topology_hex, topology_tet, &
                                            fe_type_lagrangian
 USE vtk_parameters_names
@@ -377,17 +378,18 @@ contains
     end function vtk_mesh_and_field_generator_topology_to_cell_type
 
 
-    subroutine vtk_mesh_and_field_generator_generate_mesh(this)
+    subroutine vtk_mesh_and_field_generator_generate_mesh(this, fe_function)
     !-----------------------------------------------------------------
     !< Generate the mesh data from fe_space
     !-----------------------------------------------------------------
         class(vtk_mesh_and_field_generator_t), intent(INOUT) :: this
+        type(fe_function_t),                   intent(IN)    :: fe_function
     !-----------------------------------------------------------------
         if(.not. this%filled) then
             if(this%vtk_mesh_order == match_geometry_order) then
                 call this%generate_geometry_order_mesh()
             elseif(this%vtk_mesh_order == match_max_order) then
-                call this%generate_max_order_mesh()
+                call this%generate_max_order_mesh(fe_function)
             else
                 write(error_unit,*) 'vtk_mesh_and_field_generator_generate_field: Mesh order not supported'
                 check(.false.)
@@ -404,7 +406,7 @@ contains
         type(base_static_triangulation_t), pointer           :: triangulation
         type(cell_iterator_t)                                :: cell_iterator
         type(cell_accessor_t)                                :: cell
-        class(reference_fe_t),             pointer           :: reference_fe_geo
+        class(lagrangian_reference_fe_t),  pointer           :: reference_fe_geo
         type(point_t), allocatable                           :: cell_coordinates(:)
         logical,       allocatable                           :: subelements_connectivity_created(:)
         integer(ip)                                          :: dimensions
@@ -432,12 +434,12 @@ contains
             call cell_iterator%current(cell)
             if(cell%is_local()) then
                 reference_fe_geo => cell%get_reference_fe_geo()
-                this%number_of_nodes = this%number_of_nodes + reference_fe_geo%get_number_subelements()*reference_fe_geo%get_number_vertices()
-                this%number_of_elements = this%number_of_elements + reference_fe_geo%get_number_subelements()
+                this%number_of_nodes = this%number_of_nodes + reference_fe_geo%get_number_subcells(num_refinements=0)*reference_fe_geo%get_number_vertices()
+                this%number_of_elements = this%number_of_elements + reference_fe_geo%get_number_subcells(num_refinements=0)
                 ! Create subelements connectivity array if needed
                 if(.not. subelements_connectivity_created(cell%get_reference_fe_geo_id())) then
-                    call this%subelements(cell%get_reference_fe_geo_id())%allocate(reference_fe_geo%get_number_vertices(), reference_fe_geo%get_number_subelements())
-                    call reference_fe_geo%get_subelements_connectivity(this%subelements(cell%get_reference_fe_geo_id())%connectivity)
+                    call this%subelements(cell%get_reference_fe_geo_id())%allocate(reference_fe_geo%get_number_vertices(), reference_fe_geo%get_number_subcells(num_refinements=0))
+                    call reference_fe_geo%get_subcells_connectivity(0, this%subelements(cell%get_reference_fe_geo_id())%connectivity)
                     subelements_connectivity_created(cell%get_reference_fe_geo_id()) = .true.
                 endif
             endif
@@ -465,7 +467,7 @@ contains
                 dimensions = reference_fe_geo%get_number_dimensions()
 
                 ! Fill VTK mesh
-                do subelement_index = 1, reference_fe_geo%get_number_subelements()
+                do subelement_index = 1, reference_fe_geo%get_number_subcells(num_refinements=0)
                     elements_counter = elements_counter + 1
                     do vertex = 1, reference_fe_geo%get_number_vertices()
                         subelement_vertex = this%subelements(cell%get_reference_fe_geo_id())%connectivity(vertex, subelement_index)
@@ -491,43 +493,43 @@ contains
     end subroutine vtk_mesh_and_field_generator_generate_geometry_order_mesh
 
 
-    subroutine vtk_mesh_and_field_generator_generate_max_order_mesh(this)
+    subroutine vtk_mesh_and_field_generator_generate_max_order_mesh(this, fe_function)
     !-----------------------------------------------------------------
     !< Store a superlinear_order mesh in a from a fe_space
     !-----------------------------------------------------------------
-        class(vtk_mesh_and_field_generator_t),                intent(INOUT) :: this
-        type(point_t),            pointer               :: nodal_coordinates(:)
-        type(point_t),            pointer               :: quadrature_coordinates(:)
-        type(quadrature_t),       pointer               :: nodal_quadrature
-        type(fe_iterator_t)                             :: fe_iterator
-        type(fe_accessor_t)                             :: fe
-        class(reference_fe_t),    pointer               :: reference_fe
-        class(reference_fe_t),    pointer               :: reference_fe_geo
-        type(fe_map_t), allocatable                     :: fe_maps(:)
-        logical,        allocatable                     :: fe_maps_created(:)
-        integer(ip)                                     :: num_elements
-        integer(ip)                                     :: num_nodes_per_element
-        integer(ip)                                     :: num_vertices_per_element
-        integer(ip)                                     :: num_subelements_per_element
-        integer(ip)                                     :: elements_counter
-        integer(ip)                                     :: vertex
-        integer(ip)                                     :: reference_fe_id
-        integer(ip)                                     :: dimensions
-        integer(ip)                                     :: subelement_vertex
-        integer(ip)                                     :: subelement_index
-        integer(ip)                                     :: nodes_counter
-        integer(ip)                                     :: istat
+        class(vtk_mesh_and_field_generator_t), intent(INOUT) :: this
+        type(fe_function_t),                   intent(IN)    :: fe_function
+        type(point_t),                    pointer            :: subcells_coordinates(:)
+        integer(ip),                      pointer            :: subcells_connectivity(:,:)
+        type(point_t),                    pointer            :: quadrature_coordinates(:)
+        class(reference_fe_t),            pointer            :: reference_fe
+        class(lagrangian_reference_fe_t), pointer            :: reference_fe_geo
+        type(fe_iterator_t)                                  :: fe_iterator
+        type(fe_accessor_t)                                  :: fe
+        type(output_handler_cell_fe_function_t)              :: output_cell_handler
+        logical, allocatable                                 :: fe_maps_created(:)
+        integer(ip)                                          :: num_refinements
+        integer(ip)                                          :: num_elements
+        integer(ip)                                          :: num_nodes_per_element
+        integer(ip)                                          :: num_vertices_per_element
+        integer(ip)                                          :: num_subelements_per_element
+        integer(ip)                                          :: elements_counter
+        integer(ip)                                          :: vertex
+        integer(ip)                                          :: reference_fe_id
+        integer(ip)                                          :: dimensions
+        integer(ip)                                          :: subelement_vertex
+        integer(ip)                                          :: subelement_index
+        integer(ip)                                          :: nodes_counter
+        integer(ip)                                          :: istat
     !-----------------------------------------------------------------
         assert(associated(this%fe_space))
 
         nullify(quadrature_coordinates)
-        nullify(nodal_coordinates)
-        nullify(nodal_quadrature)
         nullify(reference_fe)
 
         ! Create FE iterator 
-        fe_iterator = this%fe_space%create_fe_iterator()
-        this%number_of_nodes = 0
+        fe_iterator             = this%fe_space%create_fe_iterator()
+        this%number_of_nodes    = 0
         this%number_of_elements = 0
         ! Count number of vtk elements and nodes
         do while ( .not. fe_iterator%has_finished())
@@ -535,12 +537,11 @@ contains
             call fe_iterator%current(fe)
             if ( fe%is_local() ) then
                 ! Create FE_MAP for current cell
-                reference_fe     => fe%get_max_order_reference_fe()
-                reference_fe_geo => fe%get_reference_fe_geo()
-                ! check if max order reference_fe is in fe_space or triangulation
-                if(reference_fe_geo%get_order() > reference_fe%get_order()) reference_fe => reference_fe_geo
-                this%number_of_elements = this%number_of_elements+reference_fe%get_number_subelements()
-                this%number_of_nodes = this%number_of_nodes+(reference_fe%get_number_subelements()*reference_fe%get_number_vertices())
+                reference_fe            => fe%get_max_order_reference_fe()
+                reference_fe_geo        => fe%get_reference_fe_geo()
+                num_refinements         = reference_fe%get_order()-1
+                this%number_of_elements = this%number_of_elements+reference_fe_geo%get_number_subcells(num_refinements)
+                this%number_of_nodes    = this%number_of_nodes+(reference_fe_geo%get_number_subcells(num_refinements)*reference_fe_geo%get_number_vertices())
             endif
             call fe_iterator%next()
         enddo
@@ -550,18 +551,18 @@ contains
         call this%allocate_nodal_arrays()
         call this%initialize_coordinates()
 
-        ! Allocate FE_maps and subelements_connectivity
-        allocate(fe_maps(this%fe_space%get_number_reference_fes()), stat=istat)
-        check(istat==0)
         call memalloc(this%fe_space%get_number_reference_fes(), fe_maps_created, __FILE__, __LINE__)
         fe_maps_created = .false.
+        ! Allocate subelements_connectivity
         allocate(this%subelements(this%fe_space%get_number_reference_fes()), stat=istat)
         check(istat==0)
 
-        nodes_counter = 0
+        nodes_counter    = 0
         elements_counter = 0
         ! Create FE iterator
-        fe_iterator = this%fe_space%create_fe_iterator()
+        fe_iterator      = this%fe_space%create_fe_iterator()
+        ! Create Output Cell Handler
+        call output_cell_handler%create(this%fe_space)
         ! Translate coordinates and connectivities to VTK format for every subcell
         do while ( .not. fe_iterator%has_finished())
             ! Get Finite element
@@ -569,42 +570,25 @@ contains
 
             if ( fe%is_local() ) then
 
-                reference_fe     => fe%get_max_order_reference_fe()
-                reference_fe_id  =  fe%get_max_order_reference_fe_id()
-                reference_fe_geo => fe%get_reference_fe_geo()
+                call output_cell_handler%update(fe, fe_function)
 
-                ! check if max order reference_fe is in fe_space or triangulation
-                if(reference_fe_geo%get_order() > reference_fe%get_order()) then
-                    reference_fe    => reference_fe_geo
-                    reference_fe_id = fe%get_reference_fe_geo_id()
-                endif
+                reference_fe            => fe%get_max_order_reference_fe()
+                reference_fe_geo        => fe%get_reference_fe_geo()
+                num_refinements         = reference_fe%get_order()-1
 
-                ! Create FE_MAP and subelements connectivity for current cell if needed
-                nodal_quadrature => reference_fe%get_nodal_quadrature()
-                if ( .not. fe_maps_created(reference_fe_id) ) then
-                    call fe_maps(reference_fe_id)%create(nodal_quadrature, fe%get_reference_fe_geo())
-                    ! Get the connectivity of the subelements
-                    call this%subelements(reference_fe_id)%allocate(reference_fe%get_number_vertices(), reference_fe%get_number_subelements())
-                    call reference_fe%get_subelements_connectivity(this%subelements(reference_fe_id)%connectivity)
-                    fe_maps_created(reference_fe_id) = .true.
-                end if
-
-                ! Interpolate coordinates
-                nodal_coordinates => fe_maps(reference_fe_id)%get_coordinates()
-                call fe%get_coordinates(nodal_coordinates)
-                call fe_maps(reference_fe_id)%compute_quadrature_coordinates()
-                quadrature_coordinates => fe_maps(reference_fe_id)%get_quadrature_coordinates()
+                subcells_coordinates  => output_cell_handler%get_subcells_vertex_coordinates()
+                subcells_connectivity => output_cell_handler%get_subcells_connectivity()
 
                 ! Fill VTK mesh
-                dimensions = reference_fe%get_number_dimensions()
-                do subelement_index = 1, reference_fe%get_number_subelements()
+                dimensions = reference_fe_geo%get_number_dimensions()
+                do subelement_index = 1, reference_fe_geo%get_number_subcells(num_refinements)
                     elements_counter = elements_counter + 1
                     do vertex = 1, reference_fe%get_number_vertices()
-                        subelement_vertex = this%subelements(reference_fe_id)%connectivity(vertex, subelement_index)
+                        subelement_vertex = subcells_connectivity(vertex, subelement_index)
                         nodes_counter = nodes_counter + 1
-                        if(dimensions>=1) this%X(nodes_counter) = quadrature_coordinates(subelement_vertex)%get(1)
-                        if(dimensions>=2) this%Y(nodes_counter) = quadrature_coordinates(subelement_vertex)%get(2)
-                        if(dimensions>=3) this%Z(nodes_counter) = quadrature_coordinates(subelement_vertex)%get(3)
+                        if(dimensions>=1) this%X(nodes_counter) = subcells_coordinates(subelement_vertex)%get(1)
+                        if(dimensions>=2) this%Y(nodes_counter) = subcells_coordinates(subelement_vertex)%get(2)
+                        if(dimensions>=3) this%Z(nodes_counter) = subcells_coordinates(subelement_vertex)%get(3)
                         this%connectivities(nodes_counter) = nodes_counter-1
                     end do
 
@@ -619,14 +603,8 @@ contains
         end do
         this%filled  = .true.
 
-        ! Deallocate variables
-        if(allocated(fe_maps)) then
-            do reference_fe_id=1, this%fe_space%get_number_reference_fes()
-                if(fe_maps_created(reference_fe_id)) call fe_maps(reference_fe_id)%free()
-            enddo
-            deallocate(fe_maps)
-        endif
-        if(allocated(fe_maps_created)) call memfree(fe_maps_created, __FILE__, __LINE__)
+        call memfree(fe_maps_created, __FILE__, __LINE__)
+        call output_cell_handler%free()
         call fe_iterator%free()
         call fe%free()
     end subroutine vtk_mesh_and_field_generator_generate_max_order_mesh
@@ -649,6 +627,7 @@ contains
         type(base_static_triangulation_t), pointer :: triangulation            !< triangulation
         class(vector_t),                   pointer :: fe_function_dof_values   !< dof values of the fe_function
         type(serial_scalar_array_t),       pointer :: strong_dirichlet_values  !< Strong dirichlet values
+        class(lagrangian_reference_fe_t),  pointer :: reference_fe_geo         !< reference finite element
         class(reference_fe_t),             pointer :: reference_fe_origin      !< reference finite element
         class(reference_fe_t),             pointer :: reference_fe_target      !< reference finite element
         class(reference_fe_t),             pointer :: max_order_reference_fe   !< reference finite element
@@ -675,6 +654,7 @@ contains
         assert(this%filled)
 
         nullify(nodal_quadrature_target)
+        nullify(reference_fe_geo)
         nullify(reference_fe_origin)
         nullify(reference_fe_target)
         nullify(max_order_reference_fe)
@@ -702,6 +682,7 @@ contains
             if ( fe%is_local() ) then
 
                 ! Get reference fes
+                reference_fe_geo    => fe%get_reference_fe_geo()
                 reference_fe_target => fe%get_reference_fe_geo()
                 reference_fe_id     =  fe%get_reference_fe_geo_id()
                 reference_fe_origin => fe%get_reference_fe(field_id)
@@ -734,7 +715,7 @@ contains
                 !endif
 
                 ! Loop on subelements: Build field in VTK-like format
-                do subelement_index = 1, reference_fe_target%get_number_subelements()
+                do subelement_index = 1, reference_fe_geo%get_number_subcells(num_refinements=reference_fe_target%get_order()-1)
                     ! Loop on geometrical nodes per subelement
                     do node_index=1, reference_fe_target%get_number_vertices()
                         ! Loop on components

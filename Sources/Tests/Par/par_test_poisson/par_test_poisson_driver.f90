@@ -355,7 +355,7 @@ contains
     if(this%test_params%get_write_solution()) then
        call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path(), this%test_params%get_prefix())
        err = vtk_handler%open_vtu(); check(err==0)
-       err = vtk_handler%write_vtu_mesh(); check(err==0)
+       err = vtk_handler%write_vtu_mesh(this%solution); check(err==0)
        err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
        err = vtk_handler%close_vtu(); check(err==0)
        err = vtk_handler%write_pvtu(); check(err==0)

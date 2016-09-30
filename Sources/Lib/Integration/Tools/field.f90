@@ -258,7 +258,7 @@ contains
     class(allocatable_array_vector_field_t), intent(inout) :: this
     type(vector_field_t), allocatable      , intent(inout) :: a(:)
     assert (.not. allocated (a))
-    assert (allocated(this%a))
+    !assert (allocated(this%a))
     call move_alloc(from=this%a, to=a) 
   end subroutine allocatable_array_vector_field_move_alloc_out
   
@@ -266,7 +266,7 @@ contains
     implicit none
     class(allocatable_array_vector_field_t), intent(inout) :: this
     type(vector_field_t), allocatable      , intent(inout) :: a(:)
-    assert (allocated (a))
+    !assert (allocated (a))
     assert (.not. allocated(this%a))
     call move_alloc(from=a, to=this%a) 
   end subroutine allocatable_array_vector_field_move_alloc_in
@@ -341,7 +341,7 @@ contains
     class(allocatable_array_tensor_field_t), intent(inout) :: this
     type(tensor_field_t), allocatable      , intent(inout) :: a(:)
     assert (.not. allocated (a))
-    assert (allocated(this%a))
+    !assert (allocated(this%a))
     call move_alloc(from=this%a, to=a) 
   end subroutine allocatable_array_tensor_field_move_alloc_out
   
@@ -349,7 +349,7 @@ contains
     implicit none
     class(allocatable_array_tensor_field_t), intent(inout) :: this
     type(tensor_field_t), allocatable      , intent(inout) :: a(:)
-    assert (allocated (a))
+    !assert (allocated (a))
     assert (.not. allocated(this%a))
     call move_alloc(from=a, to=this%a) 
   end subroutine allocatable_array_tensor_field_move_alloc_in
