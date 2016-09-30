@@ -659,6 +659,7 @@ subroutine mlbddc_gather_ptr_dofs_per_fe_and_field( this, number_fields, ptr_dof
   type(par_fe_space_t)        , pointer   :: fe_space
   type(par_triangulation_t)   , pointer   :: triangulation
   type(coarse_triangulation_t), pointer   :: coarse_triangulation
+
   
   par_environment => this%get_par_environment()  
   fe_space    => this%get_fe_space()
@@ -668,18 +669,18 @@ subroutine mlbddc_gather_ptr_dofs_per_fe_and_field( this, number_fields, ptr_dof
      coarse_triangulation => triangulation%get_coarse_triangulation()
      num_local_cells = coarse_triangulation%get_num_local_cells()
      if (allocated(ptr_dofs_per_fe_and_field)) call memfree ( ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
-     call memalloc (num_local_cells*number_fields+1, ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
+     call memalloc (num_local_cells*(number_fields+1), ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
      call par_environment%l2_from_l1_gather( input_data_size = number_fields, &
-                                                          input_data      = dummy_integer_array, &
-                                                          output_data     = ptr_dofs_per_fe_and_field(2:))
+                                             input_data      = [((0), i=1,number_fields)], &
+                                             output_data     = ptr_dofs_per_fe_and_field(2:))
      ptr_dofs_per_fe_and_field(1) = 1
      do i=1, num_local_cells*number_fields
        ptr_dofs_per_fe_and_field(i+1) = ptr_dofs_per_fe_and_field(i) + ptr_dofs_per_fe_and_field(i+1)
      end do
   else
      call par_environment%l2_from_l1_gather( input_data_size = fe_space%get_number_fields(), &
-                                                          input_data      = this%num_dofs_objects_per_field, &
-                                                          output_data     = dummy_integer_array )
+                                             input_data      = this%num_dofs_objects_per_field, &
+                                             output_data     = dummy_integer_array )
   end if
 end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
 
@@ -702,7 +703,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
       call memalloc ( l1_to_l2_size, recv_counts, __FILE__, __LINE__ )
       call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
       call par_environment%l2_from_l1_gather( input_data = 0, &
-                                                           output_data = recv_counts ) 
+                                              output_data = recv_counts ) 
       displs(1) = 0
       do i=2, l1_to_l2_size
         displs(i) = displs(i-1) + recv_counts(i-1)
@@ -734,10 +735,10 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
       if (allocated(lst_gids)) call memfree ( lst_gids, __FILE__, __LINE__ )
       call memalloc ( displs(l1_to_l2_size), lst_gids, __FILE__, __LINE__ )
       call par_environment%l2_from_l1_gather( input_data_size = 0, &
-                                                           input_data      = dummy_integer_array_igp, &
-                                                           recv_counts     = recv_counts, &
-                                                           displs          = displs, &
-                                                           output_data     = lst_gids )
+                                              input_data      = dummy_integer_array_igp, &
+                                              recv_counts     = recv_counts, &
+                                              displs          = displs, &
+                                              output_data     = lst_gids )
     else
       fe_space    => this%get_fe_space()
       ! Pack dofs_objects_gids_per_field(:) into plain buffer for further data exchange
@@ -2553,9 +2554,9 @@ subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field( this, number_fields, 
      coarse_triangulation => triangulation%get_coarse_triangulation()
      num_local_cells = coarse_triangulation%get_num_local_cells()
      if (allocated(ptr_dofs_per_fe_and_field)) call memfree ( ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
-     call memalloc (num_local_cells*number_fields+1, ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
+     call memalloc (num_local_cells*(number_fields+1), ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
      call par_environment%l2_from_l1_gather( input_data_size = number_fields, &
-                                             input_data      = dummy_integer_array, &
+                                             input_data      = [((0), i=1,number_fields)], &
                                              output_data     = ptr_dofs_per_fe_and_field(2:))
      ptr_dofs_per_fe_and_field(1) = 1
      do i=1, num_local_cells*number_fields
