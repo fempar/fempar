@@ -530,7 +530,11 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
 
   type(sparse_matrix_t)       :: matrix
   type(serial_scalar_array_t) :: rhs
-  type(direct_solver_t)       :: direct_solver
+#ifdef ENABLE_MKL  
+  type(direct_solver_t)           :: direct_solver
+#else
+  type(iterative_linear_solver_t) :: iterative_linear_solver
+#endif
   real(rp), allocatable       :: elmat(:,:)
   real(rp), allocatable       :: elvec(:)
   integer(ip)                 :: qpoint, n_q_points, ishape, jshape
@@ -553,8 +557,6 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   type(parameterlist_t) :: parameter_list
   integer(ip)            :: FPLError
   integer                :: iparm(64)
-
-
 
   number_components = this%get_number_components()
   assert ( conditions%get_number_components() == number_components )
@@ -708,9 +710,10 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   end do
 
   call matrix%convert(csr_format)
-  call matrix%print_matrix_market(6)
-  
+  ! call matrix%print_matrix_market(6)
+
   call parameter_list%init()
+#ifdef ENABLE_MKL
   FPLError = parameter_list%set(key = direct_solver_type                  ,  value = pardiso_mkl)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type  ,  value = pardiso_mkl_uss)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level,  value = 0)
@@ -723,8 +726,22 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call direct_solver%set_matrix(matrix)
   call direct_solver%numerical_setup()
   call direct_solver%solve(rhs,this%strong_dirichlet_values)
-
   call direct_solver%free()
+#else
+  FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+  FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
+  assert(FPLError == 0)
+  call iterative_linear_solver%create(this%get_environment())
+  call iterative_linear_solver%set_type_from_string(cg_name)
+  call iterative_linear_solver%set_parameters_from_pl(parameter_list)
+  call iterative_linear_solver%set_operators(matrix, .identity. matrix) 
+  call iterative_linear_solver%solve(rhs,this%strong_dirichlet_values)
+  call iterative_linear_solver%free()
+#endif
+  call parameter_list%free()
+  
+  
+  
   call matrix%free()
   call rhs%free()
   call memfree (elmat, __FILE__, __LINE__)

@@ -57,7 +57,10 @@ module fe_space_names
   use block_sparse_matrix_array_assembler_names
   use direct_solver_names
   use direct_solver_parameters_names
-    
+  use iterative_linear_solver_names
+  use iterative_linear_solver_parameters_names
+  
+  
  ! Parallel modules
   use par_environment_names
   use par_context_names
