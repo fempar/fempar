@@ -180,10 +180,10 @@ contains
        error = error + this%required%get     (key = key , value = required)
        error = error + this%list%GetAsString (key = key , string = cvalue, separator=" ")
 
-       if(Iterator%GetDimensions() == 0) then 
+       if(this%list%GetDimensions(Key=Iterator%GetKey()) == 0) then 
           call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
             &               required=required,act='store',def=trim(cvalue),error=error)
-       else if(Iterator%GetDimensions() == 1) then 
+       else if(this%list%GetDimensions(Key=Iterator%GetKey()) == 1) then 
           call this%cli%add(switch=trim(switch),switch_ab=trim(switch_ab), help=trim(help), &
             &               required=required,act='store',def=trim(cvalue),error=error,nargs='5')
        else
