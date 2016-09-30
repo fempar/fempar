@@ -80,6 +80,7 @@ module test_maxwell_nedelec_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: show_H
+     procedure        , private :: write_solution
      procedure        , private :: free
   end type test_maxwell_nedelec_driver_t
 
@@ -342,6 +343,20 @@ contains
     call memfree ( nodal_values_pre_basis, __FILE__, __LINE__ )
   end subroutine  show_H
     
+  subroutine write_solution(this)
+    implicit none
+    class(test_maxwell_nedelec_driver_t), intent(in) :: this
+    type(vtk_handler_t)                              :: vtk_handler
+    integer(ip)                                      :: err
+    if(this%test_params%get_write_solution()) then
+       call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path_out(), this%test_params%get_prefix())
+       err = vtk_handler%open_vtu(format='ascii'); check(err==0)
+       err = vtk_handler%write_vtu_mesh(this%solution); check(err==0)
+       err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
+       err = vtk_handler%close_vtu(); check(err==0)
+       call  vtk_handler%free()
+    endif
+  end subroutine write_solution
 
   subroutine run_simulation(this) 
     implicit none
@@ -357,6 +372,7 @@ contains
     call this%solution%create(this%fe_space) 
     call this%solve_system()
     call this%check_solution()
+    call this%write_solution()
     !call this%show_H()
     call this%free()
   end subroutine run_simulation

@@ -52,16 +52,6 @@ implicit none
 
 private
 
-    ! Type for storing subelements connectivity 
-    type connectivity_map_t
-    private
-        integer(ip),       allocatable    :: connectivity(:,:)          
-    contains
-        procedure, non_overridable        :: allocate => connectivity_map_allocate
-        procedure, non_overridable        :: free => connectivity_map_free
-    end type
-
-
     ! Type for storing mesh data
     type vtk_mesh_and_field_generator_t
     private
@@ -72,16 +62,13 @@ private
         integer(ip),       allocatable    :: connectivities(:)                      ! Connectivity matrix
         integer(ip),       allocatable    :: offset(:)                              ! VTK element offset
         integer(I1P),      allocatable    :: cell_types(:)                          ! VTK element type
-        type(connectivity_map_t), allocatable :: subelements(:)                     ! Subelements connectivity for reference_fes
         integer(ip)                       :: number_of_nodes    = 0                 ! Number of nodes
         integer(ip)                       :: number_of_elements = 0                 ! Number of elements
         integer(ip)                       :: dimensions         = 0                 ! Dimensions of the mesh
-        character(len=:), allocatable     :: vtk_mesh_order                         ! match_geometry_order .or. match_max_order
         logical                           :: filled             = .false.           ! Mesh data was already filled
     contains
     private
         procedure, non_overridable, public :: set_fe_space                      => vtk_mesh_and_field_generator_set_fe_space
-        procedure, non_overridable, public :: set_mesh_order                    => vtk_mesh_and_field_generator_set_mesh_order
         procedure, non_overridable, public :: get_number_nodes                  => vtk_mesh_and_field_generator_get_number_nodes
         procedure, non_overridable, public :: get_number_elements               => vtk_mesh_and_field_generator_get_number_elements
         procedure, non_overridable, public :: get_number_fields                 => vtk_mesh_and_field_generator_get_number_fields
@@ -102,33 +89,8 @@ private
     end type vtk_mesh_and_field_generator_t
 
 public :: vtk_mesh_and_field_generator_t
-public :: match_geometry_order, match_max_order
 
 contains
-
-
-    subroutine connectivity_map_allocate(this, number_vertices, number_subelements)
-    !-----------------------------------------------------------------
-    !< Allocate subelements connectivity array
-    !-----------------------------------------------------------------
-        class(connectivity_map_t), intent(INOUT) :: this
-        integer(ip),               intent(IN)    :: number_vertices
-        integer(ip),               intent(IN)    :: number_subelements
-    !-----------------------------------------------------------------
-        assert(.not. allocated(this%connectivity))
-        call memalloc(number_vertices, number_subelements, this%connectivity, __FILE__, __LINE__)
-    end subroutine connectivity_map_allocate
-
-
-    subroutine connectivity_map_free(this)
-    !-----------------------------------------------------------------
-    !< Free subelements connectivity array
-    !-----------------------------------------------------------------
-        class(connectivity_map_t), intent(INOUT) :: this
-    !-----------------------------------------------------------------
-        if(allocated(this%connectivity)) call memfree(this%connectivity, __FILE__, __LINE__)
-    end subroutine connectivity_map_free
-
 
     subroutine vtk_mesh_and_field_generator_set_fe_space(this, fe_space)
     !-----------------------------------------------------------------
@@ -161,18 +123,6 @@ contains
     !-----------------------------------------------------------------
         filled = this%filled
     end function vtk_mesh_and_field_generator_is_filled
-
-
-    subroutine vtk_mesh_and_field_generator_set_mesh_order(this, vtk_mesh_order)
-    !-----------------------------------------------------------------
-    !< Set linear order
-    !-----------------------------------------------------------------
-        class(vtk_mesh_and_field_generator_t), intent(INOUT) :: this
-        character(*),                          intent(IN)    :: vtk_mesh_order
-    !-----------------------------------------------------------------
-        assert(.not. this%filled)
-        this%vtk_mesh_order = vtk_mesh_order
-    end subroutine vtk_mesh_and_field_generator_set_mesh_order
 
 
     function vtk_mesh_and_field_generator_get_number_nodes(this) result(number_nodes)
@@ -385,14 +335,10 @@ contains
         type(fe_function_t),                   intent(IN)    :: fe_function
     !-----------------------------------------------------------------
         if(.not. this%filled) then
-            if(this%vtk_mesh_order == match_max_order) then
-                call this%generate_max_order_mesh(fe_function)
-            else
-                write(error_unit,*) 'vtk_mesh_and_field_generator_generate_field: Mesh order not supported'
-                check(.false.)
-            endif
+            call this%generate_max_order_mesh(fe_function)
         endif
     end subroutine vtk_mesh_and_field_generator_generate_mesh
+
 
     subroutine vtk_mesh_and_field_generator_generate_max_order_mesh(this, fe_function)
     !-----------------------------------------------------------------
@@ -408,7 +354,6 @@ contains
         type(fe_iterator_t)                                  :: fe_iterator
         type(fe_accessor_t)                                  :: fe
         type(output_handler_cell_fe_function_t)              :: output_cell_handler
-        logical, allocatable                                 :: fe_maps_created(:)
         integer(ip)                                          :: num_refinements
         integer(ip)                                          :: num_elements
         integer(ip)                                          :: num_nodes_per_element
@@ -451,12 +396,6 @@ contains
         call this%allocate_elemental_arrays()
         call this%allocate_nodal_arrays()
         call this%initialize_coordinates()
-
-        call memalloc(this%fe_space%get_number_reference_fes(), fe_maps_created, __FILE__, __LINE__)
-        fe_maps_created = .false.
-        ! Allocate subelements_connectivity
-        allocate(this%subelements(this%fe_space%get_number_reference_fes()), stat=istat)
-        check(istat==0)
 
         nodes_counter    = 0
         elements_counter = 0
@@ -504,7 +443,6 @@ contains
         end do
         this%filled  = .true.
 
-        call memfree(fe_maps_created, __FILE__, __LINE__)
         call output_cell_handler%free()
         call fe_iterator%free()
         call fe%free()
@@ -562,7 +500,14 @@ contains
 
         ! Get number of field components (constant in all fes for field) and allocate VTK field array
         if(allocated(field)) call memfree(field, __FILE__, __LINE__)
-        call memalloc(number_components, this%number_of_nodes , field, __FILE__, __LINE__)
+!        call memalloc(number_components, this%number_of_nodes , field, __FILE__, __LINE__)
+		if (number_components > 1) then 
+            call memalloc(3, this%number_of_nodes , field, __FILE__, __LINE__)
+            number_components = 3
+    		field = 0.0_rp
+		else 
+    		call memalloc(number_components, this%number_of_nodes , field, __FILE__, __LINE__)
+		end if 
 
         ! Create Output Cell Handler
         call output_cell_handler%create(this%fe_space)
@@ -635,13 +580,6 @@ contains
         if(allocated(this%connectivities))           call memfree(this%connectivities, __FILE__, __LINE__)
         if(allocated(this%offset))                   call memfree(this%offset, __FILE__, __LINE__)
         if(allocated(this%cell_types))               call memfree(this%cell_types, __FILE__, __LINE__)
-        if (allocated(this%vtk_mesh_order))          deallocate(this%vtk_mesh_order)
-        if(allocated(this%subelements)) then
-            do i=1, size(this%subelements)
-                call this%subelements(i)%free()
-            enddo
-            deallocate(this%subelements)
-        endif
         nullify(this%fe_space)
         this%number_of_nodes    = 0
         this%number_of_elements = 0
