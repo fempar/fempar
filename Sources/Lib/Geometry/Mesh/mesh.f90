@@ -872,22 +872,18 @@ contains
     type(mesh_t)              , allocatable, intent(out) :: lmesh(:) ! Local mesh instances
 
     ! Local variables
-    type(mesh_distribution_params_t)                    :: prt_pars
+    type(mesh_distribution_params_t) :: prt_pars
+    type(list_t)                     :: fe_graph         ! Dual graph (to be partitioned)
+    type(list_t)                     :: parts_graph      ! Parts graph (to be partitioned)
+    integer(ip), allocatable, target :: ldome(:)         ! Part of each element
+    type(i1p_t), allocatable         :: ldomp(:)         ! Part of each part (recursively)
+    integer(ip), allocatable         :: parts_mapping(:) ! Part of each element
+    integer(ip) :: istat, ilevel, jlevel, ipart, itask, num_tasks
 
-    type(list_t)                 :: fe_graph     ! Dual graph (to be partitioned)
-    type(list_t)                 :: parts_graph  ! Parts graph (to be partitioned)
-    
-    integer(ip)   , allocatable, target  :: ldome(:)    ! Part of each element
-    type(i1p_t)   , allocatable          :: ldomp(:)    ! Part of each part (recursively)
-    integer(ip)                  :: ilevel, jlevel
-    integer(ip)                  :: ipart, itask, num_tasks
-    integer                      :: istat
-
-    integer(ip) :: ielem,jelem,iedge,inode,ipoin,jpoin
-    real(rp) :: cnorm,vnorm
-    integer(ip)   , allocatable  :: weight(:)
-    real(rp)      , allocatable  :: coord_i(:),coord_j(:),veloc(:)
-
+    ! integer(ip) :: ielem, jelem, iedge, inode, ipoin, jpoin
+    ! real(rp) :: cnorm,vnorm
+    ! integer(ip)   , allocatable  :: weight(:)
+    ! real(rp)      , allocatable  :: coord_i(:),coord_j(:),veloc(:)
 
     ! Get parameters from fpl
     call prt_pars%get_parameters_from_fpl(parameters)
@@ -935,20 +931,26 @@ contains
     end do
     allocate(env(num_tasks), stat=istat); check(istat==0) 
     itask = 0
+    call memalloc(prt_pars%num_levels,parts_mapping,__FILE__,__LINE__)
     do ilevel=1,prt_pars%num_levels
        do ipart = 1, prt_pars%num_parts_per_level(ilevel)
           itask = itask+1
-          env(itask)%task = itask
-          env(itask)%num_levels = prt_pars%num_levels + 1 - ilevel
-          call memalloc(env(itask)%num_levels, env(itask)%num_parts_per_level,__FILE__,__LINE__)
-          call memalloc(env(itask)%num_levels, env(itask)%parts_mapping,__FILE__,__LINE__)
-          env(itask)%num_parts_per_level = prt_pars%num_parts_per_level(ilevel:prt_pars%num_levels)
-          env(itask)%parts_mapping(1) = ipart
-          do jlevel = 2 , prt_pars%num_levels + 1 - ilevel
-             env(itask)%parts_mapping(jlevel) = ldomp(jlevel+ilevel-1)%p( env(itask)%parts_mapping(jlevel-1) )
+          ! env(itask)%task = itask
+          ! env(itask)%num_levels = prt_pars%num_levels                      ! + 1 - ilevel
+          ! call memalloc(env(itask)%num_levels, env(itask)%num_parts_per_level,__FILE__,__LINE__)
+          ! call memalloc(env(itask)%num_levels, env(itask)%parts_mapping,__FILE__,__LINE__)
+          ! env(itask)%num_parts_per_level = prt_pars%num_parts_per_level    ! (ilevel:prt_pars%num_levels)
+          do jlevel = 1 , ilevel - 1 
+             parts_mapping(jlevel) = 0
           end do
+          parts_mapping(ilevel) = ipart
+          do jlevel = ilevel+1 , prt_pars%num_levels
+             parts_mapping(jlevel) = ldomp(jlevel)%p( parts_mapping(jlevel-1) )
+          end do
+          call env(itask)%create(prt_pars%num_levels,prt_pars%num_parts_per_level,parts_mapping)
        end do
     end do
+    call memfree(parts_mapping,__FILE__,__LINE__)
 
     ! do ipart=1, prt_pars%nparts
     !    distr(ipart)%ipart  = ipart

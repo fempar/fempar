@@ -50,28 +50,34 @@ module par_environment_names
 # include "debug.i90"
   private
 
+  integer(ip) , parameter :: not_created = 0
+  integer(ip) , parameter :: created_levels_and_parts = 1
+  integer(ip) , parameter :: created_contexts = 2
+
   ! This type manages the assigment of tasks to different levels as well as
   ! the dutties assigned to each of them. The array parts_mapping gives the
   ! part assigned to this task and the parts of coarser levels it belongs to. 
   ! Different levels in the hierarchy are managed recursively.
   type, extends(environment_t) ::  par_environment_t
      !private 
-     logical                          :: has_been_created = .false.  ! Has the parallel environment been created?
-     type (par_context_t)             :: l1_context                  ! 1st lev MPI tasks context
-     type (par_context_t)             :: lgt1_context                ! > 1st lev MPI tasks context
-     type (par_context_t)             :: l1_lgt1_context             ! Intercommunicator among l1 and lgt1 context
-     type (par_context_t)             :: l1_to_l2_context            ! Subcommunicators for l1 to/from l2 data transfers
-     
-     ! Number of levels in the multilevel hierarchy of tasks
-     integer(ip)                      :: task = 0 ! A unique global ID for the current task, independent of the execution context
-     integer(ip)                      :: num_levels = 0
-     integer(ip), allocatable         :: parts_mapping(:), num_parts_per_level(:)
-     
+     integer(ip)                      :: state = not_created
+     integer(ip)                      :: num_levels = 0         ! Number of levels in the multilevel hierarchy of tasks
+     integer(ip), allocatable         :: num_parts_per_level(:)
+     integer(ip), allocatable         :: parts_mapping(:)
+     type (par_context_t)             :: l1_context             ! 1st lev MPI tasks context
+     type (par_context_t)             :: lgt1_context           ! > 1st lev MPI tasks context
+     type (par_context_t)             :: l1_lgt1_context        ! Intercommunicator among l1 and lgt1 context
+     type (par_context_t)             :: l1_to_l2_context       ! Subcommunicators for l1 to/from l2 data transfers
      type(par_environment_t), pointer :: next_level 
    contains
      procedure :: read                                => par_environment_read_file
      procedure :: write                               => par_environment_write_file
-     procedure :: create                              => par_environment_create
+     
+     procedure, private :: par_environment_create_from_interface
+     procedure, private :: par_environment_create_from_unit
+     procedure, private :: par_environment_create_without_context
+     generic :: create  => par_environment_create_from_interface, par_environment_create_from_unit, par_environment_create_without_context
+
      procedure :: free                                => par_environment_free
      procedure :: print                               => par_environment_print
      procedure :: created                             => par_environment_created
@@ -207,14 +213,13 @@ contains
     implicit none 
     class(par_environment_t), intent(inout) :: this
     integer(ip)             , intent(in)    :: lunio
-
-    read ( lunio, '(10i10)' ) this%task
+    call this%free()
     read ( lunio, '(10i10)' ) this%num_levels
     call memalloc ( this%num_levels, this%num_parts_per_level,__FILE__,__LINE__  )
     call memalloc ( this%num_levels, this%parts_mapping,__FILE__,__LINE__  )
     read ( lunio, '(10i10)' ) this%num_parts_per_level
     read ( lunio, '(10i10)' ) this%parts_mapping
-    
+    this%state = created_levels_and_parts
   end subroutine par_environment_read_file
 
   !=============================================================================
@@ -222,14 +227,71 @@ contains
     implicit none 
     class(par_environment_t), intent(in) :: this
     integer(ip)             , intent(in) :: lunio
-    write ( lunio, '(10i10)' ) this%task
+    assert( this%state == created_levels_and_parts)
     write ( lunio, '(10i10)' ) this%num_levels
     write ( lunio, '(10i10)' ) this%num_parts_per_level
     write ( lunio, '(10i10)' ) this%parts_mapping    
   end subroutine par_environment_write_file
 
   !=============================================================================
-  recursive subroutine par_environment_create ( this, world_context, num_levels, num_parts_per_level, parts_mapping)
+  subroutine par_environment_create_from_unit ( this, world_context, lunio )
+    implicit none 
+    ! Parameters
+    class(par_environment_t)   , intent(inout) :: this
+    type(par_context_t)        , intent(in)    :: world_context
+    integer(ip), optional      , intent(in)    :: lunio
+
+    !integer(ip)                , intent(in)    :: num_levels
+    !integer(ip)                , intent(in)    :: num_parts_per_level(num_levels)
+    !integer(ip)                , intent(in)    :: parts_mapping(num_levels)
+    integer                                    :: my_color
+    integer(ip)                                :: istat
+    
+    call this%free()
+    call this%read(lunio)
+    assert ( this%num_levels >= 1 )
+    assert ( world_context%get_rank() >= 0 )
+
+    ! Create this%l1_context and this%lgt1_context by splitting world_context
+    call world_context%split ( world_context%get_rank() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
+
+    ! Create l1_to_l2_context, where inter-level data transfers actually occur
+    if ( this%num_levels > 1 ) then
+     if(this%l1_context%get_rank() >= 0) then
+        my_color = this%parts_mapping(2)
+     else if( this%lgt1_context%get_rank() < this%num_parts_per_level(2)  ) then
+        my_color = this%lgt1_context%get_rank()+1
+     else
+        my_color = mpi_undefined
+     end if
+     call world_context%split ( my_color, this%l1_to_l2_context )
+    else
+     call this%l1_to_l2_context%nullify()
+    end if
+    
+    ! Create l1_lgt1_context as an intercommunicator among l1_context <=> lgt1_context 
+    if ( this%num_levels > 1 ) then
+     call this%l1_lgt1_context%create ( world_context, this%l1_context, this%lgt1_context )
+    else
+     call this%l1_lgt1_context%nullify()
+    end if
+
+    if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
+       allocate(this%next_level, stat=istat)
+       check(istat == 0)
+       call this%next_level%create( this%lgt1_context, &
+            &                       this%num_levels-1, &
+            &                       this%num_parts_per_level(2:), &
+            &                       this%parts_mapping(2:) )
+    else
+       nullify(this%next_level)
+    end if
+    this%state = created_contexts
+
+  end subroutine par_environment_create_from_unit
+  
+  !=============================================================================
+  recursive subroutine par_environment_create_from_interface ( this, world_context, num_levels, num_parts_per_level, parts_mapping)
     implicit none 
     ! Parameters
     class(par_environment_t)   , intent(inout) :: this
@@ -276,18 +338,39 @@ contains
     end if
 
     if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
-      allocate(this%next_level, stat=istat)
-      check(istat == 0)
-      call this%next_level%create( this%lgt1_context, &
-                                   this%num_levels-1, &
-                                   this%num_parts_per_level(2:), &
-                                   this%parts_mapping(2:) )
+       allocate(this%next_level, stat=istat)
+       check(istat == 0)
+       call this%next_level%create( this%lgt1_context, &
+            &                       this%num_levels-1, &
+            &                       this%num_parts_per_level(2:), &
+            &                       this%parts_mapping(2:) )
     else
-      nullify(this%next_level)
+       nullify(this%next_level)
     end if
     
-    this%has_been_created = .true. 
-  end subroutine par_environment_create
+    this%state = created_contexts
+  end subroutine par_environment_create_from_interface 
+
+  !=============================================================================
+  subroutine par_environment_create_without_context ( this, num_levels, num_parts_per_level, parts_mapping)
+    implicit none 
+    ! Parameters
+    class(par_environment_t)   , intent(inout) :: this
+    integer(ip)                , intent(in)    :: num_levels
+    integer(ip)                , intent(in)    :: num_parts_per_level(num_levels)
+    integer(ip)                , intent(in)    :: parts_mapping(num_levels)
+    integer(ip)                                :: istat
+    
+    assert ( num_levels >= 1 )
+    call this%free()
+    this%num_levels = num_levels
+    call memalloc(this%num_levels, this%parts_mapping,__FILE__,__LINE__ )
+    call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__ )
+    this%parts_mapping = parts_mapping
+    this%num_parts_per_level = num_parts_per_level
+    this%state = created_levels_and_parts
+    
+  end subroutine par_environment_create_without_context
 
   !=============================================================================
   recursive subroutine par_environment_free ( this )
@@ -296,21 +379,25 @@ contains
     class(par_environment_t), intent(inout) :: this
     integer(ip)                             :: istat
 
-    if (this%has_been_created) then
+    if(this%state == created_contexts) then
        if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
          call this%next_level%free()
          deallocate ( this%next_level, stat = istat )
          assert ( istat == 0 )
        end if       
-       this%num_levels = 0
-       call memfree(this%parts_mapping , __FILE__, __LINE__ )
-       call memfree(this%num_parts_per_level, __FILE__, __LINE__ )
        call this%l1_context%free(finalize=.false.)
        call this%lgt1_context%free(finalize=.false.)
        call this%l1_lgt1_context%free(finalize=.false.)
        call this%l1_to_l2_context%free(finalize=.false.)
-       this%has_been_created = .false.
+       this%state = created_levels_and_parts
     end if
+    if(this%state == created_levels_and_parts) then
+       this%num_levels = 0
+       call memfree(this%parts_mapping , __FILE__, __LINE__ )
+       call memfree(this%num_parts_per_level, __FILE__, __LINE__ )
+       this%state = not_created
+    end if
+
   end subroutine par_environment_free
   
   !=============================================================================
@@ -320,12 +407,11 @@ contains
     class(par_environment_t), intent(in) :: this
     integer(ip)                          :: istat
 
-    if (this%has_been_created) then
+    if (.not.this%state==not_created) then
       write(*,*) 'LEVELS: ', this%num_levels, 'l1_context      : ',this%l1_context%get_rank(), this%l1_context%get_size()
       write(*,*) 'LEVELS: ', this%num_levels, 'lgt1_context    : ',this%lgt1_context%get_rank(), this%lgt1_context%get_size()
       write(*,*) 'LEVELS: ', this%num_levels, 'l1_lgt1_context : ',this%l1_lgt1_context%get_rank(), this%l1_lgt1_context%get_size()
       write(*,*) 'LEVELS: ', this%num_levels, 'l1_to_l2_context: ',this%l1_to_l2_context%get_rank(), this%l1_to_l2_context%get_size()
-   
       if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
         call this%next_level%print()
       end if
@@ -338,7 +424,7 @@ contains
     ! Parameters
     class(par_environment_t), intent(in) :: this
     logical                              :: par_environment_created
-    par_environment_created =  this%has_been_created 
+    par_environment_created =  (.not.this%state==not_created)
   end function par_environment_created
   
   !=============================================================================
