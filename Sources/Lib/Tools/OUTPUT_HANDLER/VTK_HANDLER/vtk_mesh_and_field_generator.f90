@@ -385,7 +385,7 @@ contains
                 ! Create FE_MAP for current cell
                 reference_fe            => fe%get_max_order_reference_fe()
                 reference_fe_geo        => fe%get_reference_fe_geo()
-                num_refinements         = reference_fe%get_order()-1
+                num_refinements         = reference_fe%get_max_order()-1
                 this%number_of_elements = this%number_of_elements+reference_fe_geo%get_number_subcells(num_refinements)
                 this%number_of_nodes    = this%number_of_nodes+(reference_fe_geo%get_number_subcells(num_refinements)*reference_fe_geo%get_number_vertices())
             endif
@@ -414,7 +414,7 @@ contains
 
                 reference_fe            => fe%get_max_order_reference_fe()
                 reference_fe_geo        => fe%get_reference_fe_geo()
-                num_refinements         =  reference_fe%get_order()-1
+                num_refinements         =  reference_fe%get_max_order()-1
 
                 subcells_coordinates  => output_cell_handler%get_subcells_vertex_coordinates()
                 subcells_connectivity => output_cell_handler%get_subcells_connectivity()
@@ -539,7 +539,7 @@ contains
                 end select
 
                 ! Loop on subelements: Build field in VTK-like format
-                do subelement_index = 1, reference_fe_geo%get_number_subcells(num_refinements=reference_fe%get_order()-1)
+                do subelement_index = 1, reference_fe_geo%get_number_subcells(num_refinements=reference_fe%get_max_order()-1)
                     ! Loop on geometrical nodes per subelement
                     do node_index=1, reference_fe_geo%get_number_vertices()
                         ! Loop on components
