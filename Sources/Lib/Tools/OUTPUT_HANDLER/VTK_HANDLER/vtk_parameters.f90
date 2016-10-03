@@ -56,13 +56,7 @@ private
     integer(ip), parameter, public :: vtk_quadratic_tetra      = 24_I1P
     integer(ip), parameter, public :: vtk_quadratic_hexahedron = 25_I1P
 
-    
-    ! PARAMETER VALUES CONSTANTS
-    character(*), parameter, public :: match_geometry_order  = 'match_geometry_order' ! VTK mesh built to match triangulation order
-    character(*), parameter, public :: match_max_order       = 'match_max_order'      ! VTK mesh built to match max(triangulation,fe_space) order
-
     ! DEFAULT PARAMETERS
-    character(*),     parameter, public :: default_vtk_mesh_order        = match_max_order
     integer(ip),      parameter, public :: default_root_task             = 0
     integer(ip),      parameter, public :: default_number_of_tasks       = 1
     integer(ip),      parameter, public :: default_guess_number_of_steps = 100

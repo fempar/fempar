@@ -79,7 +79,7 @@ module test_maxwell_nedelec_driver_names
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
      procedure        , private :: check_solution
-     procedure        , private :: show_H
+     procedure        , private :: write_solution
      procedure        , private :: free
   end type test_maxwell_nedelec_driver_t
 
@@ -285,69 +285,30 @@ contains
     write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
     write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
     write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; !check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; !check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; !check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; !check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; !check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; !check ( w1infty < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
     
     call H_error_norm%free()
   end subroutine check_solution 
   
-  subroutine show_H(this)
+  subroutine write_solution(this)
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(in) :: this
-    class(vector_t), pointer :: dof_values
-    type(fe_iterator_t) :: fe_iterator
-    type(fe_accessor_t) :: fe
-    
-    real(rp), allocatable :: nodal_values_rt(:)
-    real(rp), allocatable :: nodal_values_pre_basis(:)
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip) :: number_fields, istat
-
-    
-    call memalloc ( this%reference_fes(1)%p%get_number_shape_functions(), &
-                    nodal_values_rt, &
-                    __FILE__, __LINE__ )
-    
-    call memalloc ( this%reference_fes(1)%p%get_number_shape_functions(), &
-                    nodal_values_pre_basis, &
-                    __FILE__, __LINE__ )
-    
-    dof_values => this%solution%get_dof_values()
-    
-    number_fields = this%fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    
-    fe_iterator = this%fe_space%create_fe_iterator()
-    call fe_iterator%current(fe)
-    do while ( .not. fe_iterator%has_finished() )
-       ! Get current FE
-       call fe_iterator%current(fe)
-       
-       ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
-       
-       call dof_values%extract_subvector ( 1, &
-                                           size(nodal_values_rt), &
-                                           elem2dof(1)%p, & 
-                                           nodal_values_rt)
-              
-       select type(rt_ref_fe => this%reference_fes(1)%p)
-       class is (nedelec_reference_fe_t)
-         call rt_ref_fe%apply_change_basis_matrix_to_nodal_values(nodal_values_rt, nodal_values_pre_basis)
-       end select
-              
-       call fe_iterator%next()
-    end do
-    
-    deallocate( elem2dof, stat=istat); check(istat==0);
-    call memfree ( nodal_values_rt, __FILE__, __LINE__ )
-    call memfree ( nodal_values_pre_basis, __FILE__, __LINE__ )
-  end subroutine  show_H
-    
+    type(vtk_handler_t)                              :: vtk_handler
+    integer(ip)                                      :: err
+    if(this%test_params%get_write_solution()) then
+       call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path_out(), this%test_params%get_prefix())
+       err = vtk_handler%open_vtu(format='ascii'); check(err==0)
+       err = vtk_handler%write_vtu_mesh(this%solution); check(err==0)
+       err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
+       err = vtk_handler%close_vtu(); check(err==0)
+       call  vtk_handler%free()
+    endif
+  end subroutine write_solution
 
   subroutine run_simulation(this) 
     implicit none
@@ -360,9 +321,10 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%fe_space%create_fe_function(this%solution)
+    call this%solution%create(this%fe_space) 
     call this%solve_system()
     call this%check_solution()
+    call this%write_solution()
     !call this%show_H()
     call this%free()
   end subroutine run_simulation

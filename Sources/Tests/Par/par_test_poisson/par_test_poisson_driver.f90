@@ -355,7 +355,7 @@ contains
     if(this%test_params%get_write_solution()) then
        call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path(), this%test_params%get_prefix())
        err = vtk_handler%open_vtu(); check(err==0)
-       err = vtk_handler%write_vtu_mesh(); check(err==0)
+       err = vtk_handler%write_vtu_mesh(this%solution); check(err==0)
        err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
        err = vtk_handler%close_vtu(); check(err==0)
        err = vtk_handler%write_pvtu(); check(err==0)
@@ -376,7 +376,7 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%fe_space%create_fe_function(this%solution)
+    call this%solution%create(this%fe_space) 
     call this%solve_system()
     call this%check_solution()
     call this%write_solution()
