@@ -283,6 +283,9 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
      call memfree (lst_ext_neighs_gids,          __FILE__, __LINE__)
      call memfree (lst_ext_neighs_part_ids,      __FILE__, __LINE__)
      !call memfree (lst_vefs_dimension_ghost_extended, __FILE__, __LINE__)
+     if (triangulation_generate==triangulation_generate_structured) then
+       call memfreep(coordinates, __FILE__, __LINE__ )
+     end if
 
      !write(*,*) 'compute_vefs_and_parts_object'
      call this%compute_vefs_and_parts_object()

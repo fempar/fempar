@@ -33,7 +33,7 @@ module maxwell_nedelec_conditions_names
   private
   type, extends(conditions_t) :: maxwell_nedelec_conditions_t
      private
-     integer(ip) :: num_dimensions
+     integer(ip)                       :: num_dimensions
    contains
      procedure :: set_num_dimensions          => maxwell_nedelec_conditions_set_num_dimensions
      procedure :: get_number_components       => maxwell_nedelec_conditions_get_number_components  
@@ -44,7 +44,7 @@ module maxwell_nedelec_conditions_names
   public :: maxwell_nedelec_conditions_t
   
 contains
-  
+
   subroutine maxwell_nedelec_conditions_set_num_dimensions (this, num_dimensions)
     implicit none
     class(maxwell_nedelec_conditions_t), intent(inout) :: this
@@ -79,7 +79,7 @@ contains
     integer(ip)                                    , intent(in)  :: component_id
     class(scalar_function_t)          , pointer    , intent(out) :: function
     assert ( component_id == 1 .or. component_id == 2 .or. component_id == 3  )
-    nullify(function)
+    function => unit_constant_scalar_function
   end subroutine maxwell_nedelec_conditions_get_function 
 
 end module maxwell_nedelec_conditions_names

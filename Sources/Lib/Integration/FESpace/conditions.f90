@@ -70,5 +70,5 @@ module conditions_names
        class(scalar_function_t), pointer, intent(out) :: function
      end subroutine get_function_interface 
   end interface
-  
+
 end module conditions_names

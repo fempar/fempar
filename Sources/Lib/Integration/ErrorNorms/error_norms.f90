@@ -32,6 +32,7 @@ module error_norms_names
   use environment_names
   use reference_fe_names
   use field_names
+  use fe_function_names
   use function_names
   use cell_fe_function_names
 # include "debug.i90"
