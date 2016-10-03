@@ -144,6 +144,8 @@ contains
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration() 
+	call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
+	call this%maxwell_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
     call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_nedelec_conditions)
 
     !call this%fe_space%print()

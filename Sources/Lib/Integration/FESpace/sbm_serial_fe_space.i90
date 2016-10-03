@@ -615,8 +615,8 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
                  
                  ! Retreive the scalar functions corresponding to the components of the function to be projected
                  do icomp=1, reference_fe%get_number_field_components()
-                   call conditions%get_function(component_id+icomp-1, &
-                                                fe_face%get_set_id(), &
+                   call conditions%get_function(fe_face%get_set_id(), &
+												component_id+icomp-1, &
                                                 function_scalar_components(icomp)%p)
                  end do
 
@@ -714,7 +714,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   
   call parameter_list%init()
   FPLError = parameter_list%set(key = direct_solver_type                  ,  value = pardiso_mkl)
-  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type  ,  value = pardiso_mkl_uss)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type  ,  value = pardiso_mkl_uns)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level,  value = 0)
   iparm = 0
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)

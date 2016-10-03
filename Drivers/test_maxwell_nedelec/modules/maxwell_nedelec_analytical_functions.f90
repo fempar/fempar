@@ -48,15 +48,37 @@ module maxwell_nedelec_analytical_functions_names
      procedure :: get_value_space    => solution_get_value_space
      procedure :: get_gradient_space => solution_get_gradient_space
   end type solution_t
-
+  
+    type, extends(scalar_function_t) :: base_scalar_function_t
+    integer(ip) :: num_dimensions = -1  
+  contains
+  end type base_scalar_function_t
+  
+  type, extends(base_scalar_function_t) :: boundary_function_Hx_t
+    private 
+   contains
+     procedure :: get_value_space    => boundary_function_Hx_get_value_space
+  end type boundary_function_Hx_t 
+  
+    type, extends(base_scalar_function_t) :: boundary_function_Hy_t
+    private 
+   contains
+     procedure :: get_value_space    => boundary_function_Hy_get_value_space
+  end type boundary_function_Hy_t 
+  
+  
   type maxwell_nedelec_analytical_functions_t
      private
-     type(source_term_t)                  :: source_term
-     type(solution_t)                     :: solution
+     type(source_term_t)                     :: source_term
+     type(solution_t)                        :: solution
+	 type(boundary_function_Hx_t)            :: boundary_function_Hx
+	 type(boundary_function_Hy_t)            :: boundary_function_Hy
    contains
      procedure :: set_num_dimensions               => mn_set_num_dimensions
      procedure :: get_source_term                  => mn_get_source_term
      procedure :: get_solution                     => mn_get_solution
+	 procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
+	 procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
   end type maxwell_nedelec_analytical_functions_t
 
   public :: maxwell_nedelec_analytical_functions_t
@@ -79,8 +101,8 @@ contains
     type(vector_field_t)    , intent(inout) :: result
     assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
     if ( this%num_dimensions == 2 ) then
-      call result%set(1, point%get(2) - point%get(2)**2.0_rp +2.0_rp )  ! [ y-y^2+2 ]
-      call result%set(2, 0.0_rp)                                      ! [ 0       ]
+      call result%set(1, point%get(2) - point%get(2)**2.0_rp + 2.0_rp )  ! [ y-y^2+2 ]
+      call result%set(2, 0.0_rp)                                        ! [ 0       ]
     else if ( this%num_dimensions == 3 ) then
       check(.false.)
     end if  
@@ -117,8 +139,26 @@ contains
     class(solution_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(tensor_field_t), intent(inout) :: result
-    call result%set(2, 1, 1.0_rp-2*point%get(2)) 
+    call result%set(2, 1, 1.0_rp-2*point%get(2))
   end subroutine solution_get_gradient_space 
+  
+  !===============================================================================================
+  subroutine boundary_function_Hx_get_value_space( this, point, result )
+  implicit none 
+  class(boundary_function_Hx_t)  , intent(in)    :: this 
+  type(point_t)                  , intent(in)    :: point 
+  real(rp)                       , intent(inout) :: result 
+  result = -point%get(2)**2.0_rp + point%get(2)                 ! [ -y^2+y ]
+  end subroutine 
+  
+    !===============================================================================================
+  subroutine boundary_function_Hy_get_value_space( this, point, result )
+  implicit none 
+  class(boundary_function_Hy_t)  , intent(in)    :: this 
+  type(point_t)                  , intent(in)    :: point 
+  real(rp)                       , intent(inout) :: result 
+  result = 0.0_rp          
+  end subroutine 
   
   !===============================================================================================
   subroutine mn_set_num_dimensions ( this, num_dimensions )
@@ -144,6 +184,22 @@ contains
     class(vector_function_t), pointer :: mn_get_source_term
     mn_get_source_term => this%source_term
   end function mn_get_source_term
+  
+    !===============================================================================================
+  function mn_get_boundary_function_Hx ( this )
+    implicit none
+    class(maxwell_nedelec_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: mn_get_boundary_function_Hx
+    mn_get_boundary_function_Hx => this%boundary_function_Hx 
+  end function mn_get_boundary_function_Hx
+  
+      !===============================================================================================
+  function mn_get_boundary_function_Hy ( this )
+    implicit none
+    class(maxwell_nedelec_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: mn_get_boundary_function_Hy
+    mn_get_boundary_function_Hy => this%boundary_function_Hy 
+  end function mn_get_boundary_function_Hy
   
 end module maxwell_nedelec_analytical_functions_names
 !***************************************************************************************************
