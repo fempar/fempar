@@ -152,7 +152,7 @@ module par_environment_names
   end type par_environment_t
 
   ! Types
-  public :: par_environment_t, par_environment_write_files
+  public :: par_environment_t, par_environment_compose_name, par_environment_write_files
 
 contains
 

@@ -11,7 +11,7 @@ then
  if [ -d "$TEST_INPUT_DATA_PATH" ] 
    then
 
-      # Square + Quads        
+      # Square + Quads
       for gorder in 1 2 3 4 5 6
       do
        for order in 1 2 3 4 5 6

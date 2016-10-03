@@ -1713,12 +1713,14 @@ subroutine bst_print ( this )
         call this%parts_object%free()
         this%number_objects = -1
         this%number_global_objects = -1
-        
+
       else ! I am lgt1_task
-       !call this%coarse_triangulation%print()
-       call this%coarse_triangulation%free()
-       deallocate ( this%coarse_triangulation, stat=istat)
-       check(istat == 0)
+
+         !call this%coarse_triangulation%print()
+         call this%coarse_triangulation%free()
+         deallocate ( this%coarse_triangulation, stat=istat)
+         check(istat == 0)
+
       end if
       
       do icell=1, max_num_reference_fes_geo
@@ -1728,8 +1730,9 @@ subroutine bst_print ( this )
          endif
       enddo
       
+      call this%par_environment%free()
       nullify(this%p_env)
-     
+
    end subroutine bst_free
 
    function bst_get_number_reference_fes_geo ( this ) 

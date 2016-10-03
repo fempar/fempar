@@ -72,7 +72,7 @@ module par_test_poisson_driver_names
      
      ! Environment required for fe_affine_operator + vtk_handler
      type(par_context_t)                       :: w_context
-     type(par_environment_t)                   :: par_environment
+     type(par_environment_t), pointer          :: par_environment  => NULL()
    contains
      procedure                  :: run_simulation
      procedure        , private :: setup_context
@@ -154,7 +154,11 @@ contains
     !                               this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(), &
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
-    call this%triangulation%create(this%par_environment, this%parameter_list)
+    !call this%triangulation%create(this%par_environment, this%parameter_list)
+
+    call this%triangulation%create(this%w_context, this%parameter_list)
+
+    this%par_environment => this%triangulation%get_par_environment()
 
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        vef_iterator = this%triangulation%create_vef_iterator()
@@ -369,7 +373,7 @@ contains
     !call this%free()
     call this%parse_command_line_parameters()
     call this%setup_context()
-    call this%setup_par_environment()
+    !call this%setup_par_environment()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
@@ -404,7 +408,7 @@ contains
     end if
     call this%triangulation%free()
     call this%test_params%free()
-    call this%par_environment%free() 
+    !call this%par_environment%free() 
     call this%w_context%free(.true.)
   end subroutine free  
   

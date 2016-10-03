@@ -25,19 +25,24 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine par_triangulation_create ( this, par_environment, parameters)
+! subroutine par_triangulation_create ( this, par_environment, parameters)
+!   implicit none
+!   class(par_triangulation_t)    , intent(inout) :: this
+!   type(par_environment_t),target, intent(in)    :: par_environment
+!   type(ParameterList_t)         , intent(in)    :: parameters
+subroutine par_triangulation_create ( this, w_context, parameters)
   implicit none
-  class(par_triangulation_t)    , intent(inout) :: this
-  type(par_environment_t),target, intent(in)    :: par_environment
-  type(ParameterList_t)         , intent(in)    :: parameters
+  class(par_triangulation_t), target, intent(inout) :: this
+  type(par_context_t)               , intent(in)    :: w_context
+  type(ParameterList_t)             , intent(in)    :: parameters
 
   type(mesh_t)              :: mesh
   type(mesh_distribution_t) :: mesh_distribution
   type(p_reference_fe_t)    :: reference_fe_geo_list(1)
 
-  real(rp)    , pointer  :: coordinates(:,:) => NULL()
-  type(list_t), pointer  :: given_vefs
-  integer(ip) , pointer  :: lst_vefs_geo(:), lst_vefs_set(:)
+  real(rp)    , pointer     :: coordinates(:,:) => NULL()
+  type(list_t), pointer     :: given_vefs
+  integer(ip) , pointer     :: lst_vefs_geo(:), lst_vefs_set(:)
 
   integer(igp), allocatable :: cells_gid(:)
   integer(igp), allocatable :: vertx_gid(:)
@@ -91,7 +96,12 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
 
   call this%free()
 
-  this%p_env => par_environment
+  call par_environment_compose_name(prefix, name )  
+  call par_filename( w_context, name )
+  lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
+  call this%par_environment%create(w_context,lunio)
+  this%p_env => this%par_environment
+
   if(this%p_env%am_i_l1_task()) then
 
      if(geometry_interpolation_order>1) call this%geometry%read(parameters)
@@ -310,7 +320,7 @@ subroutine par_triangulation_allocate_and_fill_lst_vefs_lids ( this, lst_vefs_li
   type(hash_table_igp_ip_t) :: next_vef_lid_avail
   integer(ip)               :: icell, istat, j, init_pos, end_pos, current              
 
-  assert ( associated ( this%p_env ) )
+  !assert ( associated ( this%p_env ) )
   assert ( this%p_env%am_i_l1_task() )
   assert ( this%num_local_cells + this%num_ghost_cells >=0 )
 
