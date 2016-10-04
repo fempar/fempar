@@ -595,26 +595,29 @@ subroutine node_iterator_init ( this )
   integer(ip) :: c, i
   this%displacement = 0
   this%coordinate = 0
-  this%overflow = .true.
-  !if ( n-face_dimension(this%n-face, this%node_array%polytope_tree%number_dimensions) > 0 .or. this%own_boundary ) 
   this%overflow = .false.
   c = 0
   do i = 0, this%node_array%polytope_tree%number_dimensions-1
      if ( IBITS( this%n_face, this%node_array%polytope_tree%number_dimensions+i, 1 ) == 0 ) then  ! if is fixed component in n-face
+	 if ( this%node_array%order(i+1) > 0) then ! order >= 1 otherwise no sense coordinate
         if ( IBITS( this%n_face, i, 1 ) == 0 ) then   ! if coordinate of anchor node == 0
            this%coordinate(i) = 0                     ! fixed coordinate = min value
         else
            this%coordinate(i) = this%node_array%order(i+1) ! fixed coordinate = max value   
         end if
+     else
+	    this%overflow = .true.
+     end if
      else 
         this%displacement(c) = this%min_value
         c = c+1
      end if
   end do
-  if ( n_face_dimension(this%n_face, this%node_array%polytope_tree%number_dimensions) > 0 ) then
+  if ( .not.this%overflow .and. n_face_dimension(this%n_face, this%node_array%polytope_tree%number_dimensions) > 0 ) then
      this%displacement(0) = this%displacement(0)-1
      call this%next()
   end if
+  
 end subroutine node_iterator_init
 
 !=================================================================================================
