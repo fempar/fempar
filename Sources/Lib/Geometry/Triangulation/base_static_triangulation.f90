@@ -367,7 +367,7 @@ module base_static_triangulation_names
      integer(ip), allocatable              :: face_orientation(:)
      integer(ip), allocatable              :: face_rotation(:)
 
-     ! Data structures to create objects
+     ! Data structures to create objects (coarse cell info)
      integer(ip)                             :: number_global_objects = -1
      integer(ip)                             :: number_objects = -1
      integer(igp), allocatable               :: objects_gids(:)

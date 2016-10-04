@@ -25,72 +25,72 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine coarse_dof_object_accessor_create ( this, &
-                                               field_id, &
-                                               coarse_dof_object_lid, &
-                                               mlbddc_coarse )
-  implicit none
-  class(coarse_dof_object_accessor_t)        , intent(inout) :: this
-  integer(ip)                                , intent(in)    :: field_id
-  integer(ip)                                , intent(in)    :: coarse_dof_object_lid
-  type(mlbddc_coarse_t), target              , intent(in)    :: mlbddc_coarse
-  call this%free()
-  assert ( field_id >= 1 .and. field_id <= mlbddc_coarse%fe_space%get_number_fields() )  
-  if ( coarse_dof_object_lid >  mlbddc_coarse%num_dofs_objects_per_field(field_id)) then
-    call this%coarse_fe_object_accessor_t%create(this%mlbddc_coarse%fe_space%get_number_coarse_fe_objects()+1, &
-                                                 mlbddc_coarse%fe_space)
-  else
-    call this%coarse_fe_object_accessor_t%create(int(mlbddc_coarse%vefs_lids_dofs_objects_per_field(field_id)%a(coarse_dof_object_lid),ip), &
-                                                 mlbddc_coarse%fe_space)
-  end if  
-  this%field_id = field_id
-  this%coarse_dof_object_lid = coarse_dof_object_lid
-  this%mlbddc_coarse => mlbddc_coarse
-end subroutine coarse_dof_object_accessor_create
+!subroutine coarse_dof_object_accessor_create ( this, &
+!                                               field_id, &
+!                                               coarse_dof_object_lid, &
+!                                               mlbddc_coarse )
+!  implicit none
+!  class(coarse_dof_object_accessor_t)        , intent(inout) :: this
+!  integer(ip)                                , intent(in)    :: field_id
+!  integer(ip)                                , intent(in)    :: coarse_dof_object_lid
+!  type(mlbddc_coarse_t), target              , intent(in)    :: mlbddc_coarse
+!  call this%free()
+!  assert ( field_id >= 1 .and. field_id <= mlbddc_coarse%fe_space%get_number_fields() )  
+!  if ( coarse_dof_object_lid >  mlbddc_coarse%num_coarse_dofs_per_field(field_id)) then
+!    call this%coarse_fe_object_accessor_t%create(this%mlbddc_coarse%fe_space%get_number_coarse_fe_objects()+1, &
+!                                                 mlbddc_coarse%fe_space)
+!  else
+!    call this%coarse_fe_object_accessor_t%create(int(mlbddc_coarse%coarse_n_face_lids_coarse_dofs_per_field(field_id)%a(coarse_dof_object_lid),ip), &
+!                                                 mlbddc_coarse%fe_space)
+!  end if  
+!  this%field_id = field_id
+!  this%coarse_dof_object_lid = coarse_dof_object_lid
+!  this%mlbddc_coarse => mlbddc_coarse
+!end subroutine coarse_dof_object_accessor_create
 
-subroutine coarse_dof_object_accessor_free ( this)
-  implicit none
-  class(coarse_dof_object_accessor_t), intent(inout) :: this
-  call this%coarse_fe_object_accessor_t%free()
-  this%field_id = -1
-  this%coarse_dof_object_lid = -1
-  nullify ( this%mlbddc_coarse )
-end subroutine coarse_dof_object_accessor_free
+!subroutine coarse_dof_object_accessor_free ( this)
+!  implicit none
+!  class(coarse_dof_object_accessor_t), intent(inout) :: this
+!  call this%coarse_fe_object_accessor_t%free()
+!  this%field_id = -1
+!  this%coarse_dof_object_lid = -1
+!  nullify ( this%mlbddc_coarse )
+!end subroutine coarse_dof_object_accessor_free
 
-subroutine coarse_dof_object_accessor_next(this)
-  implicit none
-  class(coarse_dof_object_accessor_t), intent(inout) :: this
-  this%coarse_dof_object_lid = this%coarse_dof_object_lid + 1
-  call this%set_lid(this%coarse_dof_object_lid)
-end subroutine coarse_dof_object_accessor_next
+!subroutine coarse_dof_object_accessor_next(this)
+!  implicit none
+!  class(coarse_dof_object_accessor_t), intent(inout) :: this
+!  this%coarse_dof_object_lid = this%coarse_dof_object_lid + 1
+!  call this%set_lid(this%coarse_dof_object_lid)
+!end subroutine coarse_dof_object_accessor_next
 
-subroutine coarse_dof_object_accessor_set_lid(this, lid)
-  implicit none
-  class(coarse_dof_object_accessor_t), intent(inout) :: this
-  integer(ip)                        , intent(in)    :: lid
-  this%coarse_dof_object_lid = lid
-  if ( lid >  this%mlbddc_coarse%num_dofs_objects_per_field(this%field_id) ) then
-    call this%coarse_fe_object_accessor_t%set_lid(this%mlbddc_coarse%fe_space%get_number_coarse_fe_objects()+1)
-  else
-    call this%coarse_fe_object_accessor_t%set_lid(int(this%mlbddc_coarse%vefs_lids_dofs_objects_per_field(this%field_id)%a(lid),ip))
-  end if 
-end subroutine coarse_dof_object_accessor_set_lid
+!subroutine coarse_dof_object_accessor_set_lid(this, lid)
+!  implicit none
+!  class(coarse_dof_object_accessor_t), intent(inout) :: this
+!  integer(ip)                        , intent(in)    :: lid
+!  this%coarse_dof_object_lid = lid
+!  if ( lid >  this%mlbddc_coarse%num_coarse_dofs_per_field(this%field_id) ) then
+!    call this%coarse_fe_object_accessor_t%set_lid(this%mlbddc_coarse%fe_space%get_number_coarse_fe_objects()+1)
+!  else
+!    call this%coarse_fe_object_accessor_t%set_lid(int(this%mlbddc_coarse%coarse_n_face_lids_coarse_dofs_per_field(this%field_id)%a(lid),ip))
+!  end if 
+!end subroutine coarse_dof_object_accessor_set_lid
 
-function coarse_dof_object_accessor_get_number_dofs_on_object(this)
-  implicit none
-  class(coarse_dof_object_accessor_t), intent(inout) :: this
-  integer(ip) :: coarse_dof_object_accessor_get_number_dofs_on_object
-  type(list_iterator_t) :: dofs_on_object_iterator
-  dofs_on_object_iterator = this%get_dofs_on_object_iterator()
-  coarse_dof_object_accessor_get_number_dofs_on_object = &
-    this%mlbddc_coarse%dofs_objects_per_field(this%field_id)%get_sublist_size(this%coarse_dof_object_lid)
-end function coarse_dof_object_accessor_get_number_dofs_on_object
+!function coarse_dof_object_accessor_get_number_dofs_on_object(this)
+!  implicit none
+!  class(coarse_dof_object_accessor_t), intent(inout) :: this
+!  integer(ip) :: coarse_dof_object_accessor_get_number_dofs_on_object
+!  type(list_iterator_t) :: dofs_on_object_iterator
+!  dofs_on_object_iterator = this%get_dofs_on_object_iterator()
+!  coarse_dof_object_accessor_get_number_dofs_on_object = &
+!    this%mlbddc_coarse%fine_dofs_coarse_dofs_per_field(this%field_id)%get_sublist_size(this%coarse_dof_object_lid)
+!end function coarse_dof_object_accessor_get_number_dofs_on_object
 
-function coarse_dof_object_accessor_get_dofs_on_object_iterator(this)
-  implicit none
-  class(coarse_dof_object_accessor_t), intent(inout) :: this
-  type(list_iterator_t) :: coarse_dof_object_accessor_get_dofs_on_object_iterator
-  coarse_dof_object_accessor_get_dofs_on_object_iterator = &
-    this%mlbddc_coarse%dofs_objects_per_field(this%field_id)%create_iterator(this%coarse_dof_object_lid)
-end function coarse_dof_object_accessor_get_dofs_on_object_iterator
+!function coarse_dof_object_accessor_get_dofs_on_object_iterator(this)
+!  implicit none
+!  class(coarse_dof_object_accessor_t), intent(inout) :: this
+!  type(list_iterator_t) :: coarse_dof_object_accessor_get_dofs_on_object_iterator
+!  coarse_dof_object_accessor_get_dofs_on_object_iterator = &
+!    this%mlbddc_coarse%fine_dofs_coarse_dofs_per_field(this%field_id)%create_iterator(this%coarse_dof_object_lid)
+!end function coarse_dof_object_accessor_get_dofs_on_object_iterator
 

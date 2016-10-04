@@ -393,7 +393,26 @@ module fe_space_names
  
  
  type, extends(serial_fe_space_t) :: par_fe_space_t
-   type(dof_import_t)       , allocatable :: blocks_dof_import(:)
+   type(dof_import_t)               , allocatable :: blocks_dof_import(:)
+   
+   ! Multilevel fe space   
+   integer(ip)                   , allocatable :: num_coarse_dofs_per_field(:)	
+   
+   ! Aggregation of fine DoFs into coarse DoFs
+   type(list_t)                  , allocatable :: fine_dofs_coarse_dofs_per_field(:) 
+   
+   ! GIDs of the coarse DoFs. For their generation, we though to be a good idea 
+   ! to take as basis the GIDs of the VEFs objects they are built from (instead of
+   ! generating them from scratch, which in turn would imply further communication).
+   type(allocatable_array_igp1_t), allocatable :: coarse_dof_gids_per_field(:)
+   
+   ! LIDs of the VEFs objects the coarse DoFs are put on top of
+   type(allocatable_array_ip1_t) , allocatable :: coarse_n_face_lids_coarse_dofs_per_field(:)  
+	  
+   ! Pointer to data structure which is in charge of coarse DoF handling.
+   ! It will be a nullified pointer on L1 tasks, and associated via target 
+   ! allocation in the case of L2-Ln tasks.
+   type(coarse_fe_space_t)       , pointer     :: coarse_fe_space => NULL()
  contains
    procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_create_same_reference_fes_on_all_cells 
    procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info
@@ -417,8 +436,11 @@ module fe_space_names
    procedure        , non_overridable          :: get_total_number_interface_dofs                 => par_fe_space_get_total_number_interface_dofs
    procedure        , non_overridable          :: get_block_number_interior_dofs                  => par_fe_space_get_block_number_interior_dofs
    procedure        , non_overridable          :: get_block_number_interface_dofs                 => par_fe_space_get_block_number_interface_dofs
+   procedure        , non_overridable          :: get_fe_space_type                               => par_fe_space_get_fe_space_type
+
    procedure        , non_overridable          :: get_number_fe_objects                           => par_fe_space_get_number_fe_objects
    procedure                                   :: get_par_triangulation                           => par_fe_space_get_par_triangulation
+   procedure, non_overridable                 :: get_coarse_fe_space                              => par_fe_space_get_coarse_fe_space
    procedure                                   :: get_par_environment                             => par_fe_space_get_par_environment
    procedure                                   :: get_environment                                 => par_fe_space_get_environment
    
@@ -429,10 +451,19 @@ module fe_space_names
    procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
    procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
    
-   procedure       , non_overridable           :: setup_dofs_objects_and_constraint_matrix        => par_fe_space_setup_dofs_objects_and_constraint_matrix
+   procedure       , non_overridable           :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
+   procedure       , non_overridable, private  :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
    procedure       , non_overridable, private  :: setup_dofs_objects_by_continuity                => par_fe_space_setup_dofs_objects_by_continuity
-   procedure       , non_overridable, private  :: setup_constraint_matrix                         => par_fe_space_setup_constraint_matrix
+   procedure       , non_overridable           :: setup_constraint_matrix                         => par_fe_space_setup_constraint_matrix
+   procedure       , non_overridable, private  :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
+   procedure       , non_overridable, private  :: transfer_number_fields                          => par_fe_space_transfer_number_fields
+   procedure       , non_overridable, private  :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
+   procedure       , non_overridable, private  :: gather_ptr_dofs_per_fe_and_field                => par_fe_space_gather_ptr_dofs_per_fe_and_field
+   procedure       , non_overridable, private  :: gather_coarse_dofs_gids_rcv_counts_and_displs   => par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
+   procedure       , non_overridable, private  :: gather_coarse_dofs_gids                         => par_fe_space_gather_coarse_dofs_gids
+   procedure       , non_overridable, private  :: gather_vefs_gids_dofs_objects                   => par_fe_space_gather_vefs_gids_dofs_objects
    
+
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                  :: create_fe_vefs_on_object_iterator               => par_fe_space_create_fe_vefs_on_object_iterator
@@ -566,17 +597,35 @@ module fe_space_names
     type(list_t), allocatable                   :: own_dofs_vef_per_fe(:)
     
     type(dof_import_t)            , allocatable :: blocks_dof_import(:)
-       
-    ! Pointer to coarse triangulation this coarse_fe_space has been built from
+	
+	! Pointer to coarse triangulation this coarse_fe_space has been built from
     type(coarse_triangulation_t), pointer       :: coarse_triangulation => NULL()
+	
+	! Multilevel fe space   
+    integer(ip)                   , allocatable :: num_coarse_dofs_per_field(:)
+	! Aggregation of fine DoFs into coarse DoFs
+    type(list_t)                  , allocatable :: fine_dofs_coarse_dofs_per_field(:) 
+    ! GIDs of the coarse DoFs. For their generation, we though to be a good idea 
+    ! to take as basis the GIDs of the VEFs objects they are built from (instead of
+    ! generating them from scratch, which in turn would imply further communication).
+    type(allocatable_array_igp1_t), allocatable :: coarse_dof_gids_per_field(:)
+    ! LIDs of the VEFs objects the coarse DoFs are put on top of
+    type(allocatable_array_ip1_t) , allocatable :: coarse_n_face_lids_coarse_dofs_per_field(:)   
+       
+    ! Pointer to data structure which is in charge of coarse DoF handling.
+    ! It will be a nullified pointer on L1 tasks, and associated via target 
+    ! allocation in the case of L2-Ln tasks.
+    type(coarse_fe_space_t)       , pointer     :: coarse_fe_space => NULL()
+	
+	
   contains
     procedure                                   :: create                                          => coarse_fe_space_create
     procedure                                   :: free                                            => coarse_fe_space_free
     procedure, non_overridable                  :: print                                           => coarse_fe_space_print
     procedure, non_overridable, private         :: allocate_and_fill_field_blocks_and_coupling     => coarse_fe_space_allocate_and_fill_field_blocks_and_coupling
     procedure, non_overridable, private         :: free_field_blocks_and_coupling                  => coarse_fe_space_free_field_blocks_and_coupling
-    procedure, non_overridable, private         :: allocate_and_fill_fe_space_type_per_field                    => coarse_fe_space_allocate_and_fill_fe_space_type
-    procedure, non_overridable, private         :: free_fe_space_type_per_field                                 => coarse_fe_space_free_fe_space_type
+    procedure, non_overridable, private         :: allocate_and_fill_fe_space_type_per_field       => coarse_fe_space_allocate_and_fill_fe_space_type
+    procedure, non_overridable, private         :: free_fe_space_type_per_field                    => coarse_fe_space_free_fe_space_type
     procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_per_fe_and_field     => coarse_fe_space_allocate_and_fill_ptr_dofs_per_fe_and_field
     procedure, non_overridable, private         :: free_ptr_dofs_per_fe_and_field                  => coarse_fe_space_free_ptr_dofs_per_fe_and_field
     procedure, non_overridable, private         :: fetch_ghost_fes_data                            => coarse_fe_space_fetch_ghost_fes_data
@@ -597,9 +646,17 @@ module fe_space_names
     procedure, non_overridable, private         :: compute_ubound_num_itfc_couplings_by_continuity => coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity
     procedure, non_overridable, private         :: compute_raw_interface_data_by_continuity        => coarse_fe_space_compute_raw_interface_data_by_continuity
     procedure, non_overridable, private         :: raw_interface_data_by_continuity_decide_owner   => coarse_fe_space_raw_interface_data_by_continuity_decide_owner
-    procedure, non_overridable                  :: setup_dofs_objects_and_constraint_matrix        => coarse_fe_space_setup_dofs_objects_and_constraint_matrix
+    procedure, non_overridable                  :: setup_coarse_dofs                               => coarse_fe_space_setup_coarse_dofs
     procedure, non_overridable, private         :: setup_dofs_objects_by_continuity                => coarse_fe_space_setup_dofs_objects_by_continuity
-    procedure, non_overridable, private         :: setup_constraint_matrix                         => coarse_fe_space_setup_constraint_matrix
+    procedure, non_overridable                  :: setup_constraint_matrix                         => coarse_fe_space_setup_constraint_matrix
+    procedure, non_overridable, private         :: setup_coarse_fe_space                           => coarse_fe_space_setup_coarse_fe_space
+    procedure, non_overridable, private         :: transfer_number_fields                          => coarse_fe_space_transfer_number_fields
+    procedure, non_overridable, private         :: transfer_fe_space_type                          => coarse_fe_space_transfer_fe_space_type
+    procedure, non_overridable, private         :: gather_ptr_dofs_per_fe_and_field                => coarse_fe_space_gather_ptr_dofs_per_fe_and_field
+    procedure, non_overridable, private         :: gather_coarse_dofs_gids_rcv_counts_and_displs   => coarse_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
+    procedure, non_overridable, private         :: gather_coarse_dofs_gids                         => coarse_fe_space_gather_coarse_dofs_gids
+    procedure, non_overridable, private         :: gather_vefs_gids_dofs_objects                   => coarse_fe_space_gather_vefs_gids_dofs_objects
+	procedure, non_overridable, private         :: free_coarse_dofs                                => coarse_fe_space_free_coarse_dofs
     
     procedure                                   :: renumber_dofs_first_interior_then_interface     => coarse_fe_space_renumber_dofs_first_interior_then_interface
     procedure                         , private :: renumber_dofs_block                             => coarse_fe_space_renumber_dofs_block
@@ -622,7 +679,7 @@ module fe_space_names
      procedure, non_overridable                 :: get_number_blocks                               => coarse_fe_space_get_number_blocks
      procedure, non_overridable                 :: get_field_coupling                              => coarse_fe_space_get_field_coupling
      procedure, non_overridable                 :: get_field_blocks                                => coarse_fe_space_get_field_blocks
-     procedure, non_overridable                 :: get_fe_space_type                                  => coarse_fe_space_get_fe_space_type
+     procedure, non_overridable                 :: get_fe_space_type                               => coarse_fe_space_get_fe_space_type
      procedure, non_overridable                 :: get_total_number_dofs                           => coarse_fe_space_get_total_number_dofs
      procedure, non_overridable                 :: get_field_number_dofs                           => coarse_fe_space_get_field_number_dofs
      procedure, non_overridable                 :: get_block_number_dofs                           => coarse_fe_space_get_block_number_dofs
@@ -633,6 +690,7 @@ module fe_space_names
      procedure, non_overridable                 :: get_number_coarse_fe_objects                    => coarse_fe_space_get_number_coarse_fe_objects
      procedure, non_overridable                 :: get_block_dof_import                            => coarse_fe_space_get_block_dof_import
      procedure, non_overridable                 :: get_triangulation                               => coarse_fe_space_get_triangulation
+	 procedure, non_overridable                 :: get_coarse_fe_space                             => coarse_fe_space_get_coarse_fe_space
      procedure, non_overridable                 :: get_par_environment                             => coarse_fe_space_get_par_environment
  end type coarse_fe_space_t
  

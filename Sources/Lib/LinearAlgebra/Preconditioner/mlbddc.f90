@@ -67,74 +67,40 @@ module mlbddc_names
 # include "debug.i90"
  private
 
- type, extends(fe_object_accessor_t) :: dof_object_accessor_t
-   private
-   type(mlbddc_t), pointer :: mlbddc
-   integer(ip)             :: field_id
-   integer(ip)             :: dof_object_lid
- contains
-    procedure  :: dof_object_accessor_create
-    generic    :: create                      => dof_object_accessor_create
-    procedure  :: free                        => dof_object_accessor_free
-    procedure  :: next                        => dof_object_accessor_next
-    procedure  :: set_lid                     => dof_object_accessor_set_lid
-    procedure  :: get_number_dofs_on_object   => dof_object_accessor_get_number_dofs_on_object
-    procedure  :: get_dofs_on_object_iterator => dof_object_accessor_get_dofs_on_object_iterator
- end type dof_object_accessor_t
+ !type, extends(fe_object_accessor_t) :: dof_object_accessor_t
+ !  private
+ !  type(mlbddc_t), pointer :: mlbddc
+ !  integer(ip)             :: field_id
+ !  integer(ip)             :: dof_object_lid
+ !contains
+ !   procedure  :: dof_object_accessor_create
+ !   generic    :: create                      => dof_object_accessor_create
+ !   procedure  :: free                        => dof_object_accessor_free
+ !   procedure  :: next                        => dof_object_accessor_next
+ !   procedure  :: set_lid                     => dof_object_accessor_set_lid
+ !   procedure  :: get_number_dofs_on_object   => dof_object_accessor_get_number_dofs_on_object
+ !   procedure  :: get_dofs_on_object_iterator => dof_object_accessor_get_dofs_on_object_iterator
+ !end type dof_object_accessor_t
  
- type dof_object_iterator_t
-    private
-    type(dof_object_accessor_t) :: current_dof_object_accessor
-  contains
-     procedure, non_overridable          :: create       => dof_object_iterator_create
-     procedure, non_overridable          :: free         => dof_object_iterator_free
-     procedure, non_overridable          :: init         => dof_object_iterator_init
-     procedure, non_overridable          :: next         => dof_object_iterator_next
-     procedure, non_overridable          :: has_finished => dof_object_iterator_has_finished
-     procedure, non_overridable          :: current      => dof_object_iterator_current
-  end type dof_object_iterator_t
+ !type dof_object_iterator_t
+ !   private
+ !   type(dof_object_accessor_t) :: current_dof_object_accessor
+ ! contains
+ !    procedure, non_overridable          :: create       => dof_object_iterator_create
+ !    procedure, non_overridable          :: free         => dof_object_iterator_free
+ !    procedure, non_overridable          :: init         => dof_object_iterator_init
+ !    procedure, non_overridable          :: next         => dof_object_iterator_next
+ !    procedure, non_overridable          :: has_finished => dof_object_iterator_has_finished
+ !    procedure, non_overridable          :: current      => dof_object_iterator_current
+ ! end type dof_object_iterator_t
  
  type, extends(operator_t) :: mlbddc_t
    private
  
    ! Pointer to the fe_affine_operator_t this mlbddc_t instance has been created from
    type(fe_affine_operator_t)    , pointer :: fe_affine_operator => NULL()
+   type(coo_sparse_matrix_t)               :: constraint_matrix
    
-   !**** BEGIN member variables which control coarse DoFs on top of coarse VEFs ****!
-   !********************************************************************************!
-   
-   ! IMPORTANT NOTE: The member variables encompassed within this commented region 
-   !                 were originally member variables of type(par_fe_space_t). I 
-   !                 think that having these out of type(par_fe_space_t) leads to a
-   !                 much more extensible sw design. Recall that these member variables 
-   !                 are created/filled as a result of a process that is to be customized 
-   !                 by the user. Besides, we might have different type(mlbddc_t) instances 
-   !                 living together within the same program s.t. each of these instances 
-   !                 need a different configuration for these member variables. Having these 
-   !                 within type(par_fe_space_t) clearly prevents such use cases. Other 
-   !                 issues that have to be addressed and for which I currently do not have a 
-   !                 clear answer are: (1) who is in charge of filling these member variables? 
-   !                 (2) Are these member variables in their current state sufficient/general 
-   !                 enough to represent in the computer the result of any coarse DoF 
-   !                 identification process? (3) Is this the most appropriate place to place 
-   !                 them?
-   
-   ! Aggregation of fine DoFs into DoF objects
-   integer(ip)                   , allocatable :: num_dofs_objects_per_field(:)
-   type(list_t)                  , allocatable :: dofs_objects_per_field(:) 
-   
-   ! GIDs of the DoFs objects. For their generation, we though to be a good idea 
-   ! to take as basis the GIDs of the VEFs objects they are built from (instead of
-   ! generating them from scratch, which in turn would imply further communication).
-   type(allocatable_array_igp1_t), allocatable :: dofs_objects_gids_per_field(:)
-     
-   ! GIDs of the VEFs objects the DoFs objects are put on top of
-   type(allocatable_array_ip1_t) , allocatable :: vefs_lids_dofs_objects_per_field(:)
-   
-   type(coo_sparse_matrix_t)                   :: constraint_matrix
-   !********************************************************************************!
-   !**** END member variables which control coarse DoFs on top of coarse VEFs ****!
- 
    ! Constrained Neumann problem-related member variables
    ! B = [ A C^T ]
    !     [ C   0 ]
@@ -152,12 +118,7 @@ module mlbddc_names
    
    ! Coarse-grid problem related member variables
    real(rp), allocatable                       :: phi(:,:)
-   
-   ! Pointer to data structure which is in charge of coarse DoF handling.
-   ! It will be a nullified pointer on L1 tasks, and associated via target 
-   ! allocation in the case of L2-Ln tasks.
-   type(coarse_fe_space_t)       , pointer     :: coarse_fe_space => NULL()
-   
+  
    ! Coarse-grid matrix. It is temporarily stored in a type(par_sparse_matrix_t)
    ! data structure, although, in my opinion, in the seek of extensibility, 
    ! some sort of operator is required here that plays the same role as
@@ -175,14 +136,7 @@ module mlbddc_names
     
     ! Symbolic setup-related TBPs
     procedure, non_overridable          :: symbolic_setup                                  => mlbddc_symbolic_setup
-    procedure, non_overridable, private :: setup_dofs_objects_and_constraint_matrix        => mlbddc_setup_dofs_objects_and_constraint_matrix
-    procedure, non_overridable, private :: setup_coarse_fe_space                           => mlbddc_setup_coarse_fe_space
-    procedure, non_overridable, private :: transfer_number_fields                          => mlbddc_transfer_number_fields    
-    procedure, non_overridable, private :: transfer_fe_space_type                             => mlbddc_transfer_fe_space_type
-    procedure, non_overridable, private :: gather_ptr_dofs_per_fe_and_field                => mlbddc_gather_ptr_dofs_per_fe_and_field
-    procedure, non_overridable, private :: gather_coarse_dofs_gids_rcv_counts_and_displs   => mlbddc_gather_coarse_dofs_gids_rcv_counts_and_displs
-    procedure, non_overridable, private :: gather_coarse_dofs_gids                         => mlbddc_gather_coarse_dofs_gids
-    procedure, non_overridable, private :: gather_vefs_gids_dofs_objects                   => mlbddc_gather_vefs_gids_dofs_objects
+    procedure, non_overridable, private :: setup_constraint_matrix                         => mlbddc_setup_constraint_matrix
     procedure, non_overridable, private :: symbolic_setup_dirichlet_problem                => mlbddc_symbolic_setup_dirichlet_problem
     procedure, non_overridable, private :: symbolic_setup_dirichlet_solver                 => mlbddc_symbolic_setup_dirichlet_solver
     procedure, non_overridable, private :: symbolic_setup_constrained_neumann_problem      => mlbddc_symbolic_setup_constrained_neumann_problem
@@ -252,7 +206,7 @@ module mlbddc_names
     ! Miscellaneous 
     procedure, non_overridable, private :: get_total_number_coarse_dofs                     => mlbddc_get_total_number_coarse_dofs
     procedure, non_overridable, private :: get_block_number_coarse_dofs                     => mlbddc_get_block_number_coarse_dofs
-    procedure, non_overridable          :: create_field_dofs_object_iterator                => mlbddc_create_field_dofs_object_iterator
+    !procedure, non_overridable          :: create_field_dofs_object_iterator                => mlbddc_create_field_dofs_object_iterator
     procedure, non_overridable, private :: get_par_sparse_matrix                            => mlbddc_get_par_sparse_matrix
     procedure, non_overridable, private :: get_fe_space                                     => mlbddc_get_fe_space
     procedure, non_overridable, private :: get_par_environment                              => mlbddc_get_par_environment
@@ -260,34 +214,32 @@ module mlbddc_names
     procedure                           :: is_linear                                        => mlbddc_is_linear
  end type mlbddc_t
  
- type, extends(coarse_fe_object_accessor_t) :: coarse_dof_object_accessor_t
-   private
-   type(mlbddc_coarse_t), pointer :: mlbddc_coarse
-   integer(ip)                    :: field_id
-   integer(ip)                    :: coarse_dof_object_lid
- contains
-    procedure  :: coarse_dof_object_accessor_create
-    generic    :: create                      => coarse_dof_object_accessor_create
-    procedure  :: free                        => coarse_dof_object_accessor_free
-    procedure  :: next                        => coarse_dof_object_accessor_next
-    procedure  :: set_lid                     => coarse_dof_object_accessor_set_lid
-    procedure  :: get_number_dofs_on_object   => coarse_dof_object_accessor_get_number_dofs_on_object
-    procedure  :: get_dofs_on_object_iterator => coarse_dof_object_accessor_get_dofs_on_object_iterator
- end type coarse_dof_object_accessor_t
+ !type, extends(coarse_fe_object_accessor_t) :: coarse_dof_object_accessor_t
+ !  private
+ !  type(mlbddc_coarse_t), pointer :: mlbddc_coarse
+ !  integer(ip)                    :: field_id
+ !  integer(ip)                    :: coarse_dof_object_lid
+ !contains
+ !   procedure  :: coarse_dof_object_accessor_create
+ !   generic    :: create                      => coarse_dof_object_accessor_create
+ !   procedure  :: free                        => coarse_dof_object_accessor_free
+ !   procedure  :: next                        => coarse_dof_object_accessor_next
+ !   procedure  :: set_lid                     => coarse_dof_object_accessor_set_lid
+ !   procedure  :: get_number_dofs_on_object   => coarse_dof_object_accessor_get_number_dofs_on_object
+ !   procedure  :: get_dofs_on_object_iterator => coarse_dof_object_accessor_get_dofs_on_object_iterator
+ !end type coarse_dof_object_accessor_t
  
- type coarse_dof_object_iterator_t
-    private
-    type(coarse_dof_object_accessor_t) :: current_coarse_dof_object_accessor
-  contains
-     procedure, non_overridable          :: create       => coarse_dof_object_iterator_create
-     procedure, non_overridable          :: free         => coarse_dof_object_iterator_free
-     procedure, non_overridable          :: init         => coarse_dof_object_iterator_init
-     procedure, non_overridable          :: next         => coarse_dof_object_iterator_next
-     procedure, non_overridable          :: has_finished => coarse_dof_object_iterator_has_finished
-     procedure, non_overridable          :: current      => coarse_dof_object_iterator_current
-  end type coarse_dof_object_iterator_t
- 
- 
+ !type coarse_dof_object_iterator_t
+ !   private
+ !   type(coarse_dof_object_accessor_t) :: current_coarse_dof_object_accessor
+ ! contains
+ !    procedure, non_overridable          :: create       => coarse_dof_object_iterator_create
+ !    procedure, non_overridable          :: free         => coarse_dof_object_iterator_free
+ !    procedure, non_overridable          :: init         => coarse_dof_object_iterator_init
+ !    procedure, non_overridable          :: next         => coarse_dof_object_iterator_next
+ !    procedure, non_overridable          :: has_finished => coarse_dof_object_iterator_has_finished
+ !    procedure, non_overridable          :: current      => coarse_dof_object_iterator_current
+ ! end type coarse_dof_object_iterator_t
  
  type :: mlbddc_coarse_t 
    private
@@ -295,25 +247,8 @@ module mlbddc_names
    ! This operator should be built on the previous level and passed here. Let us use the 
    ! coarse_fe_space built on the previous level in the mean time.
    type(coarse_fe_space_t)       , pointer     :: fe_space          => NULL()
-   type(par_sparse_matrix_t)     , pointer     :: par_sparse_matrix => NULL()
-   
-   !**** BEGIN member variables which control coarse DoFs on top of coarse VEFs ****!
-   !********************************************************************************!
-   ! IMPORTANT NOTE: The member variables encompassed within this commented region 
-   !                 were originally member variables of type(coarse_fe_space_t).
-   ! Aggregation of fine DoFs into DoF objects
-   integer(ip)                   , allocatable :: num_dofs_objects_per_field(:)
-   type(list_t)                  , allocatable :: dofs_objects_per_field(:) 
-   ! GIDs of the DoFs objects. For their generation, we though to be a good idea 
-   ! to take as basis the GIDs of the VEFs objects they are built from (instead of
-   ! generating them from scratch, which in turn would imply further communication).
-   type(allocatable_array_igp1_t), allocatable :: dofs_objects_gids_per_field(:)
-   ! GIDs of the VEFs objects the DoFs objects are put on top of
-   type(allocatable_array_ip1_t) , allocatable :: vefs_lids_dofs_objects_per_field(:)
-   type(coo_sparse_matrix_t)                   :: constraint_matrix
-   !********************************************************************************!
-   !**** END member variables which control coarse DoFs on top of coarse VEFs ****!
-   
+   type(par_sparse_matrix_t)     , pointer     :: par_sparse_matrix => NULL()   
+   type(coo_sparse_matrix_t)                   :: constraint_matrix   
    
    ! Constrained Neumann problem-related member variables
    ! B = [ A C^T ]
@@ -333,11 +268,6 @@ module mlbddc_names
    ! Coarse-grid problem related member variables
    real(rp), allocatable                       :: phi(:,:)
    
-   ! Pointer to data structure which is in charge of coarse DoF handling.
-   ! It will be a nullified pointer on L1 tasks, and associated via target 
-   ! allocation in the case of L2-Ln tasks.
-   type(coarse_fe_space_t)       , pointer     :: coarse_fe_space => NULL()
-   
    ! Coarse-grid matrix. It is temporarily stored in a type(par_sparse_matrix_t)
    ! data structure, although, in my opinion, in the seek of extensibility, 
    ! some sort of operator is required here that plays the same role as
@@ -355,14 +285,7 @@ module mlbddc_names
    !
    ! Symbolic setup-related TBPs
    procedure, non_overridable          :: symbolic_setup                                    => mlbddc_coarse_symbolic_setup
-   procedure, non_overridable, private :: setup_dofs_objects_and_constraint_matrix          => mlbddc_coarse_setup_dofs_objects_and_constraint_matrix
-   procedure, non_overridable, private :: setup_coarse_fe_space                             => mlbddc_coarse_setup_coarse_fe_space
-   procedure, non_overridable, private :: transfer_number_fields                            => mlbddc_coarse_transfer_number_fields
-   procedure, non_overridable, private :: transfer_fe_space_type                               => mlbddc_coarse_transfer_fe_space_type
-   procedure, non_overridable, private :: gather_ptr_dofs_per_fe_and_field                  => mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
-   procedure, non_overridable, private :: gather_coarse_dofs_gids_rcv_counts_and_displs     => mlbddc_coarse_gather_coarse_dofs_gids_rcv_counts_and_displs
-   procedure, non_overridable, private :: gather_coarse_dofs_gids                           => mlbddc_coarse_gather_coarse_dofs_gids
-   procedure, non_overridable, private :: gather_vefs_gids_dofs_objects                     => mlbddc_coarse_gather_vefs_gids_dofs_objects
+   procedure, non_overridable, private :: setup_constraint_matrix                           => mlbddc_coarse_setup_constraint_matrix
    procedure, non_overridable, private :: symbolic_setup_dirichlet_problem                  => mlbddc_coarse_symbolic_setup_dirichlet_problem
    procedure, non_overridable, private :: symbolic_setup_dirichlet_solver                   => mlbddc_coarse_symbolic_setup_dirichlet_solver
    procedure, non_overridable, private :: symbolic_setup_constrained_neumann_problem        => mlbddc_coarse_symbolic_setup_constrained_neumann_problem
@@ -432,7 +355,7 @@ module mlbddc_names
    
    procedure, non_overridable           :: get_total_number_coarse_dofs                     => mlbddc_coarse_get_total_number_coarse_dofs
    procedure, non_overridable           :: get_block_number_coarse_dofs                     => mlbddc_coarse_get_block_number_coarse_dofs
-   procedure, non_overridable           :: create_field_dofs_object_iterator                => mlbddc_coarse_create_field_dofs_object_iterator
+   !procedure, non_overridable           :: create_field_dofs_object_iterator                => mlbddc_coarse_create_field_dofs_object_iterator
    
    procedure, non_overridable, private  :: get_par_sparse_matrix                            => mlbddc_coarse_get_par_sparse_matrix
    procedure, non_overridable, private  :: get_fe_space                                     => mlbddc_coarse_get_fe_space
@@ -491,11 +414,10 @@ contains
     
     if( par_environment%am_i_l1_task() ) then
        if ( par_environment%get_l1_size() > 1 ) then
-         call this%setup_dofs_objects_and_constraint_matrix()
+         call this%setup_constraint_matrix()
        end if
     end if
        
-    call this%setup_coarse_fe_space()
     call this%symbolic_setup_coarse_grid_matrix()
     call this%symbolic_setup_mlbddc_coarse()
     
@@ -511,309 +433,15 @@ contains
     end if
   end subroutine mlbddc_symbolic_setup
   
-  subroutine mlbddc_setup_dofs_objects_and_constraint_matrix (this)
+  subroutine mlbddc_setup_constraint_matrix (this)
     implicit none
     class(mlbddc_t)                   , intent(inout) :: this
-    type(par_environment_t), pointer :: par_environment
     type(par_fe_space_t)   , pointer :: fe_space
-    integer(ip)                      :: i 
-    
     assert ( this%am_i_l1_task() )
     fe_space => this%get_fe_space()
-    call fe_space%setup_dofs_objects_and_constraint_matrix(this%num_dofs_objects_per_field, &
-                                                           this%dofs_objects_per_field, &
-                                                           this%dofs_objects_gids_per_field, &
-                                                           this%vefs_lids_dofs_objects_per_field, &
-                                                           this%constraint_matrix)
+    call fe_space%setup_constraint_matrix(block_id=1, constraint_matrix=this%constraint_matrix)
+  end subroutine mlbddc_setup_constraint_matrix
     
-    !write (*,'(a)') '****print mlbddc_setup_dofs_objects_and_constraint_matrix****'
-    !write (*,'(a,i10)'  ) 'num_dofs_objects_per_field:', this%num_dofs_objects_per_field 
-    !do i=1, fe_space%get_number_fields()
-    !  write (*,'(a,i5)') '****FIELD ', i, '****'
-    !  write (*,'(a)') 'dofs_objects_per_field'
-    !  call this%dofs_objects_per_field(i)%print(6)
-    !  call this%constraint_matrix%print(6)
-    !end do
-    !write (*,'(a)') '****print mlbddc_setup_dofs_objects_and_constraint_matrix****'
-  end subroutine mlbddc_setup_dofs_objects_and_constraint_matrix
-  
-  subroutine mlbddc_setup_coarse_fe_space(this)
-  implicit none
-  class(mlbddc_t), intent(inout) :: this
-  integer(ip)                          :: istat
-  integer(ip)                          :: number_fields
-  integer(ip), allocatable             :: fe_space_type_per_field(:)
-  integer(ip), allocatable             :: ptr_dofs_per_fe_and_field(:)
-  integer(ip), allocatable             :: coarse_dofs_gids_recv_counts(:)
-  integer(ip), allocatable             :: coarse_dofs_gids_displs(:)
-  integer(igp), allocatable            :: lst_dofs_gids(:)
-  integer(igp), allocatable            :: lst_vefs_gids_dofs_objects(:)
-  
-  type(par_environment_t)  , pointer     :: par_environment
-  type(par_fe_space_t)     , pointer     :: fe_space
-  type(par_triangulation_t), pointer     :: triangulation
-  
-  par_environment => this%get_par_environment()
-  fe_space        => this%get_fe_space()
-
-   ! All MPI tasks (even if they are not involved in the L2 from L1 gather) should also allocate the
-   ! allocatable arrays due to the fact that non-allocated allocatable arrays cannot
-   ! be passed as actual arguments of dummy arguments that do not have the allocatable attribute 
-   ! Otherwise, the code crashes with a segmentation fault.
-   call memalloc (0, fe_space_type_per_field, __FILE__, __LINE__)
-   call memalloc (0, ptr_dofs_per_fe_and_field, __FILE__, __LINE__)
-   call memalloc (0, lst_dofs_gids, __FILE__, __LINE__)
-   call memalloc (0, lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
-   call memalloc (0, coarse_dofs_gids_recv_counts, __FILE__, __LINE__)
-   call memalloc (0, coarse_dofs_gids_displs, __FILE__, __LINE__)
-
-  ! L2 tasks gather from L1 tasks all raw data required to set-up the coarse fe space on L2 tasks
-  if ( par_environment%am_i_l1_to_l2_task() ) then
-     call this%transfer_number_fields(number_fields) 
-     call this%transfer_fe_space_type(number_fields, fe_space_type_per_field)
-     call this%gather_ptr_dofs_per_fe_and_field(number_fields, ptr_dofs_per_fe_and_field)
-     call this%gather_coarse_dofs_gids_rcv_counts_and_displs (coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs)
-     call this%gather_coarse_dofs_gids(coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs, lst_dofs_gids)
-     call this%gather_vefs_gids_dofs_objects(coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs, lst_vefs_gids_dofs_objects)
-  end if
-
-  if ( par_environment%am_i_lgt1_task() ) then
-     ! lgt1 MPI tasks (recursively) build coarse triangulation
-     allocate  ( this%coarse_fe_space, stat = istat )
-     check( istat == 0 )
-     triangulation => fe_space%get_par_triangulation()
-     call this%coarse_fe_space%create (triangulation%get_coarse_triangulation(), &
-                                       number_fields, &
-                                       fe_space_type_per_field, &
-                                       ptr_dofs_per_fe_and_field, &
-                                       lst_dofs_gids, &
-                                       lst_vefs_gids_dofs_objects)
-  else
-     ! L1 tasks do not hold any piece of the coarse triangulation
-     nullify(this%coarse_fe_space)
-  end if
-
-  ! All tasks free raw data (see actual reason on the top part of this subroutine)
-  call memfree (fe_space_type_per_field, __FILE__, __LINE__)
-  call memfree (ptr_dofs_per_fe_and_field, __FILE__, __LINE__)
-  call memfree (lst_dofs_gids, __FILE__, __LINE__)
-  call memfree (lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
-  call memfree (coarse_dofs_gids_recv_counts, __FILE__, __LINE__)
-  call memfree (coarse_dofs_gids_displs, __FILE__, __LINE__)
-end subroutine mlbddc_setup_coarse_fe_space
-
-subroutine mlbddc_transfer_number_fields ( this, number_fields )
-  implicit none
-  class(mlbddc_t)   , intent(in)             :: this
-  integer(ip)       , intent(out)            :: number_fields
-  integer(ip)                                :: dummy_integer_ip
-  type(par_environment_t), pointer           :: par_environment
-  type(par_fe_space_t), pointer              :: fe_space
-
-  par_environment => this%get_par_environment()
-  assert ( par_environment%am_i_l1_to_l2_task() )
-  fe_space        => this%get_fe_space()
-  if ( par_environment%am_i_l1_to_l2_root() ) then
-     call par_environment%l1_to_l2_transfer(input_data=dummy_integer_ip, &
-                                            output_data=number_fields)
-  else
-     number_fields = fe_space%get_number_fields()
-     call par_environment%l1_to_l2_transfer(input_data=number_fields, &
-                                            output_data=dummy_integer_ip) 
-  end if
-end subroutine mlbddc_transfer_number_fields
-
-
-subroutine mlbddc_transfer_fe_space_type ( this, number_fields, fe_space_type_per_field )
-  implicit none
-  class(mlbddc_t)         , intent(in)    :: this
-  integer(ip)             , intent(in)    :: number_fields
-  integer(ip), allocatable, intent(inout) :: fe_space_type_per_field(:)
-  integer(ip)                             :: dummy_integer_array_ip(0)
-  type(par_environment_t)  , pointer      :: par_environment
-  type(par_fe_space_t)     , pointer      :: fe_space
-  
-  par_environment => this%get_par_environment()
-  fe_space        => this%get_fe_space()
-
-  assert ( par_environment%am_i_l1_to_l2_task() )
-  if ( par_environment%am_i_l1_to_l2_root() ) then
-     if ( allocated (fe_space_type_per_field) ) call memfree ( fe_space_type_per_field, __FILE__, __LINE__ )
-     call memalloc ( number_fields, fe_space_type_per_field, __FILE__, __LINE__ )
-     call par_environment%l1_to_l2_transfer(input_data=dummy_integer_array_ip, &
-                                            output_data=fe_space_type_per_field)
-  else
-     call par_environment%l1_to_l2_transfer(input_data=fe_space%get_fe_space_type_per_field(), &
-                                            output_data=dummy_integer_array_ip) 
-  end if
-end subroutine mlbddc_transfer_fe_space_type
-
-subroutine mlbddc_gather_ptr_dofs_per_fe_and_field( this, number_fields, ptr_dofs_per_fe_and_field )
-  implicit none
-  class(mlbddc_t)   , intent(in)    :: this
-  integer(ip)             , intent(in)    :: number_fields
-  integer(ip), allocatable, intent(inout) :: ptr_dofs_per_fe_and_field(:)
-  integer(ip)                             :: i, num_local_cells
-  integer(ip)                             :: dummy_integer_array(0)
-  type(par_environment_t)     , pointer   :: par_environment
-  type(par_fe_space_t)        , pointer   :: fe_space
-  type(par_triangulation_t)   , pointer   :: triangulation
-  type(coarse_triangulation_t), pointer   :: coarse_triangulation
-
-  
-  par_environment => this%get_par_environment()  
-  fe_space    => this%get_fe_space()
-  assert ( par_environment%am_i_l1_to_l2_task() )
-  if ( par_environment%am_i_l1_to_l2_root() ) then
-     triangulation    => fe_space%get_par_triangulation()
-     coarse_triangulation => triangulation%get_coarse_triangulation()
-     num_local_cells = coarse_triangulation%get_num_local_cells()
-     if (allocated(ptr_dofs_per_fe_and_field)) call memfree ( ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
-     call memalloc (num_local_cells*(number_fields+1), ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
-     call par_environment%l2_from_l1_gather( input_data_size = number_fields, &
-                                             input_data      = [((0), i=1,number_fields)], &
-                                             output_data     = ptr_dofs_per_fe_and_field(2:))
-     ptr_dofs_per_fe_and_field(1) = 1
-     do i=1, num_local_cells*number_fields
-       ptr_dofs_per_fe_and_field(i+1) = ptr_dofs_per_fe_and_field(i) + ptr_dofs_per_fe_and_field(i+1)
-     end do
-  else
-     call par_environment%l2_from_l1_gather( input_data_size = fe_space%get_number_fields(), &
-                                             input_data      = this%num_dofs_objects_per_field, &
-                                             output_data     = dummy_integer_array )
-  end if
-end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
-
-  subroutine mlbddc_gather_coarse_dofs_gids_rcv_counts_and_displs( this, recv_counts, displs )
-    implicit none
-    class(mlbddc_t)     , intent(in)    :: this
-    integer(ip) , allocatable , intent(inout) :: recv_counts(:) 
-    integer(ip) , allocatable , intent(inout) :: displs(:)
-    integer(ip)                               :: i
-    integer(ip)                               :: l1_to_l2_size
-    integer(ip)                               :: dummy_integer_array(0)
-    type(par_environment_t)  , pointer        :: par_environment
-    
-    par_environment => this%get_par_environment()
-    assert ( par_environment%am_i_l1_to_l2_task() )
-    if ( par_environment%am_i_l1_to_l2_root() ) then
-      l1_to_l2_size = par_environment%get_l1_to_l2_size()
-      if ( allocated (recv_counts) ) call memfree ( recv_counts, __FILE__, __LINE__ )
-      if ( allocated (displs) ) call memfree ( displs, __FILE__, __LINE__ )
-      call memalloc ( l1_to_l2_size, recv_counts, __FILE__, __LINE__ )
-      call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
-      call par_environment%l2_from_l1_gather( input_data = 0, &
-                                              output_data = recv_counts ) 
-      displs(1) = 0
-      do i=2, l1_to_l2_size
-        displs(i) = displs(i-1) + recv_counts(i-1)
-      end do
-    else
-      call par_environment%l2_from_l1_gather( input_data  = sum(this%num_dofs_objects_per_field), &
-                                                           output_data = dummy_integer_array ) 
-    end if
-  end subroutine mlbddc_gather_coarse_dofs_gids_rcv_counts_and_displs
-  
-  subroutine mlbddc_gather_coarse_dofs_gids ( this, recv_counts, displs, lst_gids )
-    implicit none
-    class(mlbddc_t)     , intent(in)    :: this
-    integer(ip)               , intent(in)    :: recv_counts(:)
-    integer(ip)               , intent(in)    :: displs(:)
-    integer(igp), allocatable , intent(inout) :: lst_gids(:)
-    integer(ip)                               :: l1_to_l2_size
-    integer(igp)                              :: dummy_integer_array_igp(0)
-    integer(ip)                               :: dummy_integer_array_ip(0)
-    integer(ip)                               :: i, spos, epos
-    integer(igp), allocatable                 :: buffer(:)
-    type(par_environment_t)  , pointer        :: par_environment
-    type(par_fe_space_t)     , pointer        :: fe_space
-    
-    par_environment => this%get_par_environment()
-    assert ( par_environment%am_i_l1_to_l2_task() )
-    if ( par_environment%am_i_l1_to_l2_root() ) then
-      l1_to_l2_size = par_environment%get_l1_to_l2_size()
-      if (allocated(lst_gids)) call memfree ( lst_gids, __FILE__, __LINE__ )
-      call memalloc ( displs(l1_to_l2_size), lst_gids, __FILE__, __LINE__ )
-      call par_environment%l2_from_l1_gather( input_data_size = 0, &
-                                              input_data      = dummy_integer_array_igp, &
-                                              recv_counts     = recv_counts, &
-                                              displs          = displs, &
-                                              output_data     = lst_gids )
-    else
-      fe_space    => this%get_fe_space()
-      ! Pack dofs_objects_gids_per_field(:) into plain buffer for further data exchange
-      call memalloc ( sum(this%num_dofs_objects_per_field), buffer, __FILE__, __LINE__ ) 
-      spos = 1
-      do i=1, fe_space%get_number_fields()
-        epos = spos + this%num_dofs_objects_per_field(i)-1
-        buffer(spos:epos) = this%dofs_objects_gids_per_field(i)%a
-        spos = epos +1 
-      end do
-      
-      call par_environment%l2_from_l1_gather( input_data_size = size(buffer), &
-                                                           input_data      = buffer, &
-                                                           recv_counts     = dummy_integer_array_ip, &
-                                                           displs          = dummy_integer_array_ip, &
-                                                           output_data     = dummy_integer_array_igp )
-      call memfree ( buffer, __FILE__, __LINE__ )
-    end if    
-  end subroutine mlbddc_gather_coarse_dofs_gids
-
-  
-  subroutine mlbddc_gather_vefs_gids_dofs_objects ( this, recv_counts, displs, vef_gids )
-    implicit none
-    class(mlbddc_t)     , intent(in)    :: this
-    integer(ip)               , intent(in)    :: recv_counts(:)
-    integer(ip)               , intent(in)    :: displs(:)
-    integer(igp), allocatable , intent(inout) :: vef_gids(:)
-    integer(ip)                               :: l1_to_l2_size
-    integer(igp)                              :: dummy_integer_array_igp(0)
-    integer(ip)                               :: dummy_integer_array_ip(0)
-    integer(ip)                               :: i, j, spos, epos
-    integer(igp), allocatable                 :: buffer(:)
-    type(par_environment_t)  , pointer        :: par_environment
-    type(par_fe_space_t)     , pointer    :: fe_space
-    type(par_triangulation_t), pointer    :: triangulation 
-    
-    type(dof_object_iterator_t)        :: dofs_object_iterator
-    type(dof_object_accessor_t)        :: dof_object
-    
-    par_environment => this%get_par_environment()
-    assert ( par_environment%am_i_l1_to_l2_task() )
-    if ( par_environment%am_i_l1_to_l2_root() ) then
-      l1_to_l2_size = par_environment%get_l1_to_l2_size()
-      if (allocated(vef_gids)) call memfree ( vef_gids, __FILE__, __LINE__ )
-      call memalloc ( displs(l1_to_l2_size), vef_gids, __FILE__, __LINE__ )
-      call par_environment%l2_from_l1_gather( input_data_size = 0, &
-                                              input_data      = dummy_integer_array_igp, &
-                                              recv_counts     = recv_counts, &
-                                              displs          = displs, &
-                                              output_data     = vef_gids )
-    else
-      fe_space      => this%get_fe_space()
-      triangulation => fe_space%get_par_triangulation()
-      ! Pack vefs_lids_dofs_objects_per_field(:) into plain buffer for further data exchange
-      call memalloc ( sum(this%num_dofs_objects_per_field), buffer, __FILE__, __LINE__ ) 
-      spos = 1
-      do i=1, fe_space%get_number_fields()
-        epos = spos + this%num_dofs_objects_per_field(i)-1
-        dofs_object_iterator = this%create_field_dofs_object_iterator(i)
-        do j=spos, epos
-          call dofs_object_iterator%current(dof_object)
-          buffer(j) = dof_object%get_gid()
-          call dofs_object_iterator%next()
-        end do  
-        spos = epos +1 
-      end do
-      call par_environment%l2_from_l1_gather( input_data_size = size(buffer), &
-                                              input_data      = buffer, &
-                                              recv_counts     = dummy_integer_array_ip, &
-                                              displs          = dummy_integer_array_ip, &
-                                              output_data     = dummy_integer_array_igp )
-      call memfree ( buffer, __FILE__, __LINE__ )
-    end if    
-  end subroutine mlbddc_gather_vefs_gids_dofs_objects
-  
   subroutine mlbddc_symbolic_setup_dirichlet_problem ( this) 
     implicit none
     class(mlbddc_t)           , intent(inout) :: this
@@ -884,6 +512,8 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     type(par_environment_t)   , pointer       :: L1_environment
     type(par_environment_t)   , pointer       :: L2_environment
     integer(ip)                               :: istat
+	type(par_fe_space_t), pointer :: par_fe_space
+	type(coarse_fe_space_t), pointer :: coarse_fe_space
     
     L1_environment => this%get_par_environment()
     if ( L1_environment%am_i_lgt1_task() ) then
@@ -891,9 +521,11 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
        allocate  ( this%coarse_grid_matrix, stat = istat )
        check( istat == 0 )
 
-       L2_environment => L1_environment%get_next_level()
+	   par_fe_space    => this%get_fe_space()
+	   coarse_fe_space => par_fe_space%get_coarse_fe_space()
+       L2_environment  => L1_environment%get_next_level()
        call this%coarse_grid_matrix%create( p_env             = L2_environment, &
-                                            dof_import        = this%coarse_fe_space%get_block_dof_import(1), &
+                                            dof_import        = coarse_fe_space%get_block_dof_import(1), &
                                             symmetric_storage = .true., &
                                             is_symmetric      = .true., &
                                             sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
@@ -917,23 +549,28 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     type(i1p_t), allocatable :: elem2dof(:)
     logical, pointer :: field_coupling(:,:)
     integer(ip) :: ifield, jfield, i, j, istat
+    type(par_fe_space_t), pointer :: par_fe_space
+	type(coarse_fe_space_t), pointer :: coarse_fe_space
     
     L1_environment => this%get_par_environment()
     L2_environment => L1_environment%get_next_level()
     assert ( associated (L2_environment) )
     assert ( L2_environment%am_i_l1_task() )
+	
+    par_fe_space    => this%get_fe_space()
+	coarse_fe_space => par_fe_space%get_coarse_fe_space()
     
-    allocate ( elem2dof(this%coarse_fe_space%get_number_fields()), stat=istat)
+    allocate ( elem2dof(coarse_fe_space%get_number_fields()), stat=istat)
     check(istat==0)     
     
-    field_coupling => this%coarse_fe_space%get_field_coupling()
+    field_coupling => coarse_fe_space%get_field_coupling()
     
-    iterator  = this%coarse_fe_space%create_coarse_fe_iterator()
+    iterator  = coarse_fe_space%create_coarse_fe_iterator()
     do while ( .not. iterator%has_finished() )
        coarse_fe = iterator%current()
        call coarse_fe%get_elem2dof(elem2dof)
-       do ifield=1, this%coarse_fe_space%get_number_fields()
-          do jfield=1, this%coarse_fe_space%get_number_fields()
+       do ifield=1, coarse_fe_space%get_number_fields()
+          do jfield=1, coarse_fe_space%get_number_fields()
              if ((field_coupling(ifield,jfield))) then
                do j=1, size(elem2dof(jfield)%p)
                  do i=1, size(elem2dof(ifield)%p)
@@ -960,14 +597,19 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     implicit none
     class(mlbddc_t), intent(inout)     :: this
     type(par_environment_t)  , pointer :: par_environment
-    integer(ip)                        :: istat
-    
+    integer(ip)                        :: istat 
+    type(par_fe_space_t)   , pointer   :: par_fe_space
+	type(coarse_fe_space_t), pointer   :: coarse_fe_space
+	
     par_environment => this%get_par_environment()
     if ( par_environment%am_i_lgt1_task() ) then
+	 par_fe_space    => this%get_fe_space()
+	 coarse_fe_space => par_fe_space%get_coarse_fe_space()
+	
      ! lgt1 MPI tasks symbolically setup mlbddc coarse
      allocate  ( this%mlbddc_coarse, stat = istat )
      check( istat == 0 )
-     call this%mlbddc_coarse%create(this%coarse_fe_space, &
+     call this%mlbddc_coarse%create(coarse_fe_space, &
                                     this%coarse_grid_matrix)
      call this%mlbddc_coarse%symbolic_setup()
     else
@@ -1210,6 +852,9 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     integer(ip) :: i, l1_to_l2_size
     type(coarse_fe_iterator_t) :: iterator
     type(coarse_fe_accessor_t) :: coarse_fe
+	
+    type(par_fe_space_t)   , pointer :: par_fe_space
+	type(coarse_fe_space_t), pointer :: coarse_fe_space
     
     par_environment => this%get_par_environment()
     assert (par_environment%am_i_l1_to_l2_root())
@@ -1218,10 +863,13 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     if ( allocated(displs) ) call memfree ( displs, __FILE__, __LINE__ )
     call memalloc ( l1_to_l2_size, counts, __FILE__, __LINE__ )
     call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
+	
+	par_fe_space    => this%get_fe_space()
+	coarse_fe_space => par_fe_space%get_coarse_fe_space()
     
     i = 1
     counts(l1_to_l2_size) = 0
-    iterator = this%coarse_fe_space%create_coarse_fe_iterator()
+    iterator = coarse_fe_space%create_coarse_fe_iterator()
     do while ( .not. iterator%has_finished() )
       coarse_fe = iterator%current()
       if ( coarse_fe%is_local() ) then
@@ -1314,22 +962,28 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     type(i1p_t), allocatable :: elem2dof(:)
     logical, pointer :: field_coupling(:,:)
     integer(ip) :: ifield, jfield, i, j, istat, current
+	type(par_fe_space_t)   , pointer :: par_fe_space
+	type(coarse_fe_space_t), pointer :: coarse_fe_space
     
     L1_environment => this%get_par_environment()
     L2_environment => L1_environment%get_next_level()
     assert ( associated (L2_environment) )
     assert ( L2_environment%am_i_l1_task() )
-    allocate ( elem2dof(this%coarse_fe_space%get_number_fields()), stat=istat)
+	
+    par_fe_space    => this%get_fe_space()
+	coarse_fe_space => par_fe_space%get_coarse_fe_space()	
+	
+    allocate ( elem2dof(coarse_fe_space%get_number_fields()), stat=istat)
     check(istat==0)     
-    field_coupling => this%coarse_fe_space%get_field_coupling()
+    field_coupling => coarse_fe_space%get_field_coupling()
     current = 1
-    iterator  = this%coarse_fe_space%create_coarse_fe_iterator()
+    iterator  = coarse_fe_space%create_coarse_fe_iterator()
     do while ( .not. iterator%has_finished() )
        coarse_fe = iterator%current()
        call coarse_fe%get_elem2dof(elem2dof)
        if ( coarse_fe%is_local() ) then
-          do ifield=1, this%coarse_fe_space%get_number_fields()
-             do jfield=1, this%coarse_fe_space%get_number_fields()
+          do ifield=1, coarse_fe_space%get_number_fields()
+             do jfield=1, coarse_fe_space%get_number_fields()
                 if ((field_coupling(ifield,jfield))) then
                    do j=1, size(elem2dof(jfield)%p)
                       do i=1, size(elem2dof(ifield)%p)
@@ -1522,12 +1176,17 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     type(par_scalar_array_t) :: coarse_coarse_correction
     type(par_environment_t), pointer :: L1_environment
     type(par_environment_t), pointer :: L2_environment
+    type(par_fe_space_t)   , pointer :: par_fe_space
+	type(coarse_fe_space_t), pointer :: coarse_fe_space
     
+	par_fe_space    => this%get_fe_space()
+	coarse_fe_space => par_fe_space%get_coarse_fe_space()	
+	
     L1_environment => this%get_par_environment()
     if ( L1_environment%am_i_lgt1_task() ) then
        L2_environment => L1_environment%get_next_level()
        call coarse_residual%create_and_allocate( p_env      = L2_environment, &
-                                                 dof_import = this%coarse_fe_space%get_block_dof_import(1) )
+                                                 dof_import = coarse_fe_space%get_block_dof_import(1) )
        call coarse_coarse_correction%clone(coarse_residual)
     end if   
     
@@ -1622,6 +1281,8 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     integer(ip) :: i, l1_to_l2_size
     type(coarse_fe_iterator_t) :: iterator
     type(coarse_fe_accessor_t) :: coarse_fe
+	type(par_fe_space_t)   , pointer :: par_fe_space
+	type(coarse_fe_space_t), pointer :: coarse_fe_space
     
     par_environment => this%get_par_environment()
     assert (par_environment%am_i_l1_to_l2_root())
@@ -1631,6 +1292,9 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     call memalloc ( l1_to_l2_size, counts, __FILE__, __LINE__ )
     call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
     
+	type(par_fe_space_t)   , pointer :: par_fe_space
+	type(coarse_fe_space_t), pointer :: coarse_fe_space
+	
     i=1
     counts(l1_to_l2_size) = 0
     iterator = this%coarse_fe_space%create_coarse_fe_iterator()
@@ -2102,31 +1766,31 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     
     assert ( this%am_i_l1_task() )
     
-    if (allocated(this%num_dofs_objects_per_field)) then 
-      call memfree ( this%num_dofs_objects_per_field, __FILE__, __LINE__ )
+    if (allocated(this%num_coarse_dofs_per_field)) then 
+      call memfree ( this%num_coarse_dofs_per_field, __FILE__, __LINE__ )
     end if
   
-    if (allocated(this%dofs_objects_per_field)) then
-      do i=1, size(this%dofs_objects_per_field)
-        call this%dofs_objects_per_field(i)%free()
+    if (allocated(this%fine_dofs_coarse_dofs_per_field)) then
+      do i=1, size(this%fine_dofs_coarse_dofs_per_field)
+        call this%fine_dofs_coarse_dofs_per_field(i)%free()
       end do  
-      deallocate ( this%dofs_objects_per_field, stat=istat )
+      deallocate ( this%fine_dofs_coarse_dofs_per_field, stat=istat )
       check (istat == 0)
     end if
   
-    if (allocated(this%dofs_objects_gids_per_field)) then
-      do i=1, size(this%dofs_objects_gids_per_field)
-        call this%dofs_objects_gids_per_field(i)%free()
+    if (allocated(this%coarse_dof_gids_per_field)) then
+      do i=1, size(this%coarse_dof_gids_per_field)
+        call this%coarse_dof_gids_per_field(i)%free()
       end do  
-      deallocate ( this%dofs_objects_gids_per_field, stat=istat )
+      deallocate ( this%coarse_dof_gids_per_field, stat=istat )
       check (istat == 0)  
     end if
   
-    if (allocated(this%vefs_lids_dofs_objects_per_field)) then
-      do i=1, size(this%vefs_lids_dofs_objects_per_field)
-        call this%vefs_lids_dofs_objects_per_field(i)%free()
+    if (allocated(this%coarse_n_face_lids_coarse_dofs_per_field)) then
+      do i=1, size(this%coarse_n_face_lids_coarse_dofs_per_field)
+        call this%coarse_n_face_lids_coarse_dofs_per_field(i)%free()
       end do  
-      deallocate ( this%vefs_lids_dofs_objects_per_field, stat=istat )
+      deallocate ( this%coarse_n_face_lids_coarse_dofs_per_field, stat=istat )
       check (istat == 0)  
     end if
     
@@ -2258,7 +1922,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     fe_space => this%get_fe_space()
     do field_id = 1, fe_space%get_number_fields()
        mlbddc_get_total_number_coarse_dofs = mlbddc_get_total_number_coarse_dofs + & 
-                                             this%num_dofs_objects_per_field(field_id)
+                                             this%num_coarse_dofs_per_field(field_id)
     end do
   end function mlbddc_get_total_number_coarse_dofs
   
@@ -2280,18 +1944,18 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     do field_id = 1, fe_space%get_number_fields()
        if ( field_blocks(field_id) == block_id ) then
          mlbddc_get_block_number_coarse_dofs = mlbddc_get_block_number_coarse_dofs + & 
-                                               this%num_dofs_objects_per_field(field_id)
+                                               this%num_coarse_dofs_per_field(field_id)
        end if                                      
     end do
   end function mlbddc_get_block_number_coarse_dofs
   
-  function mlbddc_create_field_dofs_object_iterator(this, field_id)
-    implicit none
-    class(mlbddc_t), intent(in) :: this
-    integer(ip)    , intent(in) :: field_id
-    type(dof_object_iterator_t) :: mlbddc_create_field_dofs_object_iterator
-    call mlbddc_create_field_dofs_object_iterator%create(1, field_id, this)
-  end function mlbddc_create_field_dofs_object_iterator
+  !function mlbddc_create_field_dofs_object_iterator(this, field_id)
+  !  implicit none
+  !  class(mlbddc_t), intent(in) :: this
+  !  integer(ip)    , intent(in) :: field_id
+  !  type(dof_object_iterator_t) :: mlbddc_create_field_dofs_object_iterator
+  !  call mlbddc_create_field_dofs_object_iterator%create(1, field_id, this)
+  !end function mlbddc_create_field_dofs_object_iterator
   
   
   
@@ -2377,7 +2041,7 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     
     if( par_environment%am_i_l1_task() ) then
        if ( par_environment%get_l1_size() > 1 ) then
-         call this%setup_dofs_objects_and_constraint_matrix()
+         call this%setup_constraint_matrix()
        end if
     end if
        
@@ -2397,307 +2061,14 @@ end subroutine mlbddc_gather_ptr_dofs_per_fe_and_field
     end if
   end subroutine mlbddc_coarse_symbolic_setup
   
-  subroutine mlbddc_coarse_setup_dofs_objects_and_constraint_matrix (this)
+  subroutine mlbddc_coarse_setup_constraint_matrix (this)
     implicit none
     class(mlbddc_coarse_t), intent(inout) :: this
-    type(par_environment_t), pointer :: par_environment
     type(coarse_fe_space_t)   , pointer :: fe_space
-    integer(ip)                      :: i 
-    
     assert ( this%am_i_l1_task() )
     fe_space => this%get_fe_space()
-    call fe_space%setup_dofs_objects_and_constraint_matrix(this%num_dofs_objects_per_field, &
-                                                           this%dofs_objects_per_field, &
-                                                           this%dofs_objects_gids_per_field, &
-                                                           this%vefs_lids_dofs_objects_per_field, &
-                                                           this%constraint_matrix)
-    
-    !write (*,'(a)') '****print mlbddc_coarse_setup_dofs_objects_and_constraint_matrix****'
-    !write (*,'(a,i10)'  ) 'num_dofs_objects_per_field:', this%num_dofs_objects_per_field 
-    !do i=1, fe_space%get_number_fields()
-    !  write (*,'(a,i5)') '****FIELD ', i, '****'
-    !  write (*,'(a)') 'dofs_objects_per_field'
-    !  call this%dofs_objects_per_field(i)%print(6)
-    !  call this%constraint_matrix%print(6)
-    !end do
-    !write (*,'(a)') '****print mlbddc_coarse_setup_dofs_objects_and_constraint_matrix****'
-  end subroutine mlbddc_coarse_setup_dofs_objects_and_constraint_matrix
-  
-  subroutine mlbddc_coarse_setup_coarse_fe_space(this)
-  implicit none
-  class(mlbddc_coarse_t), intent(inout) :: this
-  integer(ip)                           :: istat
-  integer(ip)                           :: number_fields
-  integer(ip), allocatable              :: fe_space_type_per_field(:)
-  integer(ip), allocatable              :: ptr_dofs_per_fe_and_field(:)
-  integer(ip), allocatable              :: coarse_dofs_gids_recv_counts(:)
-  integer(ip), allocatable              :: coarse_dofs_gids_displs(:)
-  integer(igp), allocatable             :: lst_dofs_gids(:)
-  integer(igp), allocatable             :: lst_vefs_gids_dofs_objects(:)
-  type(par_environment_t), pointer      :: par_environment
-  type(coarse_fe_space_t), pointer      :: fe_space
-  type(coarse_triangulation_t), pointer :: coarse_triangulation
-  
-  
-  par_environment => this%get_par_environment()
-  fe_space        => this%get_fe_space()
-  
-   ! All MPI tasks (even if they are not involved in the L2 from L1 gather) should also allocate the
-   ! allocatable arrays due to the fact that non-allocated allocatable arrays cannot
-   ! be passed as actual arguments of dummy arguments that do not have the allocatable attribute 
-   ! Otherwise, the code crashes with a segmentation fault.
-   call memalloc (0, fe_space_type_per_field, __FILE__, __LINE__)
-   call memalloc (0, ptr_dofs_per_fe_and_field, __FILE__, __LINE__)
-   call memalloc (0, lst_dofs_gids, __FILE__, __LINE__)
-   call memalloc (0, lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
-   call memalloc (0, coarse_dofs_gids_recv_counts, __FILE__, __LINE__)
-   call memalloc (0, coarse_dofs_gids_displs, __FILE__, __LINE__)
-
-   
-  ! L2 tasks gather from L1 tasks all raw data required to set-up the coarse triangulation on L2 tasks
-  if ( par_environment%am_i_l1_to_l2_task() ) then
-     call this%transfer_number_fields(number_fields) 
-     call this%transfer_fe_space_type(number_fields, fe_space_type_per_field)
-     call this%gather_ptr_dofs_per_fe_and_field(number_fields, ptr_dofs_per_fe_and_field)
-     call this%gather_coarse_dofs_gids_rcv_counts_and_displs (coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs)
-     call this%gather_coarse_dofs_gids(coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs, lst_dofs_gids)
-     call this%gather_vefs_gids_dofs_objects(coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs, lst_vefs_gids_dofs_objects)
-  end if
-  
-
-  if ( par_environment%am_i_lgt1_task() ) then
-     ! lgt1 MPI tasks (recursively) build coarse triangulation
-     allocate  ( this%coarse_fe_space, stat = istat )
-     check( istat == 0 )
-     coarse_triangulation => fe_space%get_triangulation()
-     call this%coarse_fe_space%create (coarse_triangulation%get_coarse_triangulation(), &
-                                       number_fields, &
-                                       fe_space_type_per_field, &
-                                       ptr_dofs_per_fe_and_field, &
-                                       lst_dofs_gids, &
-                                       lst_vefs_gids_dofs_objects)
-  else
-     ! L1 tasks do not hold any piece of the coarse triangulation
-     nullify(this%coarse_fe_space)
-  end if
-
-  ! All tasks free raw data (see actual reason on the top part of this subroutine)
-  call memfree (fe_space_type_per_field, __FILE__, __LINE__)
-  call memfree (ptr_dofs_per_fe_and_field, __FILE__, __LINE__)
-  call memfree (lst_dofs_gids, __FILE__, __LINE__)
-  call memfree (lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
-  call memfree (coarse_dofs_gids_recv_counts, __FILE__, __LINE__)
-  call memfree (coarse_dofs_gids_displs, __FILE__, __LINE__)
-end subroutine mlbddc_coarse_setup_coarse_fe_space
-
-subroutine mlbddc_coarse_transfer_number_fields ( this, number_fields )
-  implicit none
-  class(mlbddc_coarse_t)   , intent(in)      :: this
-  integer(ip)              , intent(out)     :: number_fields
-  integer(ip)                                :: dummy_integer_ip
-  type(par_environment_t), pointer           :: par_environment
-  type(coarse_fe_space_t), pointer           :: fe_space
-
-  par_environment => this%get_par_environment()
-  assert ( par_environment%am_i_l1_to_l2_task() )
-  fe_space        => this%get_fe_space()
-  if ( par_environment%am_i_l1_to_l2_root() ) then
-     call par_environment%l1_to_l2_transfer(input_data=dummy_integer_ip, &
-                                            output_data=number_fields)
-  else
-     number_fields = fe_space%get_number_fields()
-     call par_environment%l1_to_l2_transfer(input_data=number_fields, &
-                                            output_data=dummy_integer_ip) 
-  end if
-end subroutine mlbddc_coarse_transfer_number_fields
-
-subroutine mlbddc_coarse_transfer_fe_space_type ( this, number_fields, fe_space_type_per_field )
-  implicit none
-  class(mlbddc_coarse_t)   , intent(in)    :: this
-  integer(ip)             , intent(in)       :: number_fields
-  integer(ip), allocatable, intent(inout)    :: fe_space_type_per_field(:)
-  integer(ip)                                :: dummy_integer_array_ip(0)
-  type(par_environment_t), pointer           :: par_environment
-  type(coarse_fe_space_t), pointer           :: fe_space
-
-  par_environment => this%get_par_environment()
-  assert ( par_environment%am_i_l1_to_l2_task() )
-  fe_space        => this%get_fe_space()
-  if ( par_environment%am_i_l1_to_l2_root() ) then
-     if ( allocated (fe_space_type_per_field) ) call memfree ( fe_space_type_per_field, __FILE__, __LINE__ )
-     call memalloc ( number_fields, fe_space_type_per_field, __FILE__, __LINE__ )
-     call par_environment%l1_to_l2_transfer(input_data=dummy_integer_array_ip, &
-                                            output_data=fe_space_type_per_field)
-  else
-     call par_environment%l1_to_l2_transfer(input_data=fe_space%get_fe_space_type(), &
-                                            output_data=dummy_integer_array_ip) 
-  end if
-end subroutine mlbddc_coarse_transfer_fe_space_type
-
-subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field( this, number_fields, ptr_dofs_per_fe_and_field )
-  implicit none
-  class(mlbddc_coarse_t)   , intent(in)      :: this
-  integer(ip)             , intent(in)       :: number_fields
-  integer(ip), allocatable, intent(inout)    :: ptr_dofs_per_fe_and_field(:)
-  integer(ip)                                :: i, num_local_cells
-  integer(ip)                                :: dummy_integer_array(0)
-  type(par_environment_t), pointer           :: par_environment
-  type(coarse_fe_space_t), pointer           :: fe_space
-  type(coarse_triangulation_t), pointer      :: triangulation
-  type(coarse_triangulation_t), pointer      :: coarse_triangulation
-  
-  par_environment => this%get_par_environment()
-  assert ( par_environment%am_i_l1_to_l2_task() )
-  fe_space => this%get_fe_space()
-  if ( par_environment%am_i_l1_to_l2_root() ) then
-     triangulation => fe_space%get_triangulation()
-     coarse_triangulation => triangulation%get_coarse_triangulation()
-     num_local_cells = coarse_triangulation%get_num_local_cells()
-     if (allocated(ptr_dofs_per_fe_and_field)) call memfree ( ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
-     call memalloc (num_local_cells*(number_fields+1), ptr_dofs_per_fe_and_field, __FILE__, __LINE__ )
-     call par_environment%l2_from_l1_gather( input_data_size = number_fields, &
-                                             input_data      = [((0), i=1,number_fields)], &
-                                             output_data     = ptr_dofs_per_fe_and_field(2:))
-     ptr_dofs_per_fe_and_field(1) = 1
-     do i=1, num_local_cells*number_fields
-       ptr_dofs_per_fe_and_field(i+1) = ptr_dofs_per_fe_and_field(i) + ptr_dofs_per_fe_and_field(i+1)
-     end do
-  else
-     call par_environment%l2_from_l1_gather( input_data_size = fe_space%get_number_fields(), &
-                                             input_data      = this%num_dofs_objects_per_field, &
-                                             output_data     = dummy_integer_array )
-  end if
-end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
-
-  subroutine mlbddc_coarse_gather_coarse_dofs_gids_rcv_counts_and_displs( this, recv_counts, displs )
-    implicit none
-    class(mlbddc_coarse_t)     , intent(in)    :: this
-    integer(ip) , allocatable , intent(inout) :: recv_counts(:) 
-    integer(ip) , allocatable , intent(inout) :: displs(:)
-    integer(ip)                               :: i
-    integer(ip)                               :: l1_to_l2_size
-    integer(ip)                               :: dummy_integer_array(0)
-    type(par_environment_t), pointer          :: par_environment
-    type(coarse_fe_space_t), pointer          :: fe_space
-
-    par_environment => this%get_par_environment()
-    assert ( par_environment%am_i_l1_to_l2_task() )
-    fe_space => this%get_fe_space()
-    if ( par_environment%am_i_l1_to_l2_root() ) then
-      l1_to_l2_size = par_environment%get_l1_to_l2_size()
-      if ( allocated (recv_counts) ) call memfree ( recv_counts, __FILE__, __LINE__ )
-      if ( allocated (displs) ) call memfree ( displs, __FILE__, __LINE__ )
-      call memalloc ( l1_to_l2_size, recv_counts, __FILE__, __LINE__ )
-      call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
-      call par_environment%l2_from_l1_gather( input_data = 0, &
-                                                           output_data = recv_counts ) 
-      displs(1) = 0
-      do i=2, l1_to_l2_size
-        displs(i) = displs(i-1) + recv_counts(i-1)
-      end do
-    else
-      call par_environment%l2_from_l1_gather( input_data  = sum(this%num_dofs_objects_per_field), &
-                                                           output_data = dummy_integer_array ) 
-    end if
-  end subroutine mlbddc_coarse_gather_coarse_dofs_gids_rcv_counts_and_displs
-  
-  subroutine mlbddc_coarse_gather_coarse_dofs_gids ( this, recv_counts, displs, lst_gids )
-    implicit none
-    class(mlbddc_coarse_t)     , intent(in)    :: this
-    integer(ip)               , intent(in)    :: recv_counts(:)
-    integer(ip)               , intent(in)    :: displs(:)
-    integer(igp), allocatable , intent(inout) :: lst_gids(:)
-    integer(ip)                               :: l1_to_l2_size
-    integer(igp)                              :: dummy_integer_array_igp(0)
-    integer(ip)                               :: dummy_integer_array_ip(0)
-    type(par_environment_t), pointer          :: par_environment
-    type(coarse_fe_space_t), pointer          :: fe_space
-    integer(ip)                               :: i, spos, epos
-    integer(igp), allocatable                 :: buffer(:)
-    
-    par_environment => this%get_par_environment()
-    assert ( par_environment%am_i_l1_to_l2_task() )
-    fe_space => this%get_fe_space()
-    if ( par_environment%am_i_l1_to_l2_root() ) then
-      l1_to_l2_size = par_environment%get_l1_to_l2_size()
-      if (allocated(lst_gids)) call memfree ( lst_gids, __FILE__, __LINE__ )
-      call memalloc ( displs(l1_to_l2_size), lst_gids, __FILE__, __LINE__ )
-      call par_environment%l2_from_l1_gather( input_data_size = 0, &
-                                              input_data      = dummy_integer_array_igp, &
-                                              recv_counts     = recv_counts, &
-                                              displs          = displs, &
-                                              output_data     = lst_gids )
-    else
-      ! Pack dofs_objects_gids_per_field(:) into plain buffer for further data exchange
-      call memalloc ( sum(this%num_dofs_objects_per_field), buffer, __FILE__, __LINE__ ) 
-      spos = 1
-      do i=1, fe_space%get_number_fields()
-        epos = spos + this%num_dofs_objects_per_field(i)-1
-        buffer(spos:epos) = this%dofs_objects_gids_per_field(i)%a
-        spos = epos +1 
-      end do
-    
-      call par_environment%l2_from_l1_gather( input_data_size = size(buffer), &
-                                              input_data      = buffer, &
-                                              recv_counts     = dummy_integer_array_ip, &
-                                              displs          = dummy_integer_array_ip, &
-                                              output_data     = dummy_integer_array_igp )
-      call memfree ( buffer, __FILE__, __LINE__ )
-    end if    
-  end subroutine mlbddc_coarse_gather_coarse_dofs_gids
-
-  subroutine mlbddc_coarse_gather_vefs_gids_dofs_objects ( this, recv_counts, displs, vef_gids )
-    implicit none
-    class(mlbddc_coarse_t)     , intent(in)   :: this
-    integer(ip)               , intent(in)    :: recv_counts(:)
-    integer(ip)               , intent(in)    :: displs(:)
-    integer(igp), allocatable , intent(inout) :: vef_gids(:)
-    integer(ip)                               :: l1_to_l2_size
-    integer(igp)                              :: dummy_integer_array_igp(0)
-    integer(ip)                               :: dummy_integer_array_ip(0)
-    type(par_environment_t), pointer          :: par_environment
-    type(coarse_fe_space_t), pointer          :: fe_space
-    integer(ip)                               :: i, j, spos, epos
-    integer(igp), allocatable                 :: buffer(:)
-    type(coarse_dof_object_iterator_t)        :: coarse_dofs_object_iterator
-    type(coarse_dof_object_accessor_t)        :: coarse_dof_object
-    
-    par_environment => this%get_par_environment()
-    assert ( par_environment%am_i_l1_to_l2_task() )
-    fe_space => this%get_fe_space()
-    if ( par_environment%am_i_l1_to_l2_root() ) then
-      l1_to_l2_size = par_environment%get_l1_to_l2_size()
-      if (allocated(vef_gids)) call memfree ( vef_gids, __FILE__, __LINE__ )
-      call memalloc ( displs(l1_to_l2_size), vef_gids, __FILE__, __LINE__ )
-      call par_environment%l2_from_l1_gather( input_data_size = 0, &
-                                                           input_data      = dummy_integer_array_igp, &
-                                                           recv_counts     = recv_counts, &
-                                                           displs          = displs, &
-                                                           output_data     = vef_gids )
-    else
-      ! Pack vefs_lids_dofs_objects_per_field(:) into plain buffer for further data exchange
-      call memalloc ( sum(this%num_dofs_objects_per_field), buffer, __FILE__, __LINE__ ) 
-      spos = 1
-      do i=1, fe_space%get_number_fields()
-        epos = spos + this%num_dofs_objects_per_field(i)-1
-        coarse_dofs_object_iterator = this%create_field_dofs_object_iterator(i)
-        do j=spos, epos
-          coarse_dof_object = coarse_dofs_object_iterator%current()
-          buffer(j) = coarse_dof_object%get_gid()
-          call coarse_dofs_object_iterator%next()
-        end do  
-        spos = epos +1 
-      end do
-    
-      call par_environment%l2_from_l1_gather( input_data_size = size(buffer), &
-                                              input_data      = buffer, &
-                                              recv_counts     = dummy_integer_array_ip, &
-                                              displs          = dummy_integer_array_ip, &
-                                              output_data     = dummy_integer_array_igp )
-      
-      call memfree ( buffer, __FILE__, __LINE__ )
-    end if    
-  end subroutine mlbddc_coarse_gather_vefs_gids_dofs_objects
+    call fe_space%setup_constraint_matrix(block_id=1, constraint_matrix=this%constraint_matrix)
+  end subroutine mlbddc_coarse_setup_constraint_matrix
   
   subroutine mlbddc_coarse_symbolic_setup_dirichlet_problem ( this) 
     implicit none
@@ -3991,31 +3362,31 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     
     assert ( this%am_i_l1_task() )
     
-    if (allocated(this%num_dofs_objects_per_field)) then 
-      call memfree ( this%num_dofs_objects_per_field, __FILE__, __LINE__ )
+    if (allocated(this%num_coarse_dofs_per_field)) then 
+      call memfree ( this%num_coarse_dofs_per_field, __FILE__, __LINE__ )
     end if
   
-    if (allocated(this%dofs_objects_per_field)) then
-      do i=1, size(this%dofs_objects_per_field)
-        call this%dofs_objects_per_field(i)%free()
+    if (allocated(this%fine_dofs_coarse_dofs_per_field)) then
+      do i=1, size(this%fine_dofs_coarse_dofs_per_field)
+        call this%fine_dofs_coarse_dofs_per_field(i)%free()
       end do  
-      deallocate ( this%dofs_objects_per_field, stat=istat )
+      deallocate ( this%fine_dofs_coarse_dofs_per_field, stat=istat )
       check (istat == 0)
     end if
   
-    if (allocated(this%dofs_objects_gids_per_field)) then
-      do i=1, size(this%dofs_objects_gids_per_field)
-        call this%dofs_objects_gids_per_field(i)%free()
+    if (allocated(this%coarse_dof_gids_per_field)) then
+      do i=1, size(this%coarse_dof_gids_per_field)
+        call this%coarse_dof_gids_per_field(i)%free()
       end do  
-      deallocate ( this%dofs_objects_gids_per_field, stat=istat )
+      deallocate ( this%coarse_dof_gids_per_field, stat=istat )
       check (istat == 0)  
     end if
   
-    if (allocated(this%vefs_lids_dofs_objects_per_field)) then
-      do i=1, size(this%vefs_lids_dofs_objects_per_field)
-        call this%vefs_lids_dofs_objects_per_field(i)%free()
+    if (allocated(this%coarse_n_face_lids_coarse_dofs_per_field)) then
+      do i=1, size(this%coarse_n_face_lids_coarse_dofs_per_field)
+        call this%coarse_n_face_lids_coarse_dofs_per_field(i)%free()
       end do  
-      deallocate ( this%vefs_lids_dofs_objects_per_field, stat=istat )
+      deallocate ( this%coarse_n_face_lids_coarse_dofs_per_field, stat=istat )
       check (istat == 0)  
     end if
     
@@ -4150,7 +3521,7 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     fe_space => this%get_fe_space()
     do field_id = 1, fe_space%get_number_fields()
        mlbddc_coarse_get_total_number_coarse_dofs = mlbddc_coarse_get_total_number_coarse_dofs + & 
-                                             this%num_dofs_objects_per_field(field_id)
+                                             this%num_coarse_dofs_per_field(field_id)
     end do
   end function mlbddc_coarse_get_total_number_coarse_dofs
   
@@ -4172,19 +3543,19 @@ end subroutine mlbddc_coarse_gather_ptr_dofs_per_fe_and_field
     do field_id = 1, fe_space%get_number_fields()
        if ( field_blocks(field_id) == block_id ) then
          mlbddc_coarse_get_block_number_coarse_dofs = mlbddc_coarse_get_block_number_coarse_dofs + & 
-                                               this%num_dofs_objects_per_field(field_id)
+                                               this%num_coarse_dofs_per_field(field_id)
        end if                                      
     end do
   end function mlbddc_coarse_get_block_number_coarse_dofs
   
-  function mlbddc_coarse_create_field_dofs_object_iterator(this, field_id)
-    implicit none
-    class(mlbddc_coarse_t)   , intent(in) :: this
-    integer(ip)              , intent(in) :: field_id
-    type(coarse_dof_object_iterator_t) :: mlbddc_coarse_create_field_dofs_object_iterator
-    assert ( field_id >=1 .and. field_id <= this%fe_space%get_number_fields() )
-    call mlbddc_coarse_create_field_dofs_object_iterator%create(1, field_id, this)
-  end function mlbddc_coarse_create_field_dofs_object_iterator
+  !function mlbddc_coarse_create_field_dofs_object_iterator(this, field_id)
+  !  implicit none
+  !  class(mlbddc_coarse_t)   , intent(in) :: this
+  !  integer(ip)              , intent(in) :: field_id
+  !  type(coarse_dof_object_iterator_t) :: mlbddc_coarse_create_field_dofs_object_iterator
+  !  assert ( field_id >=1 .and. field_id <= this%fe_space%get_number_fields() )
+  !  call mlbddc_coarse_create_field_dofs_object_iterator%create(1, field_id, this)
+  !end function mlbddc_coarse_create_field_dofs_object_iterator
   
   ! Helper function that extracts a run-time polymorphic class(matrix_t)
   ! from XXX, and dynamically casts it into  
