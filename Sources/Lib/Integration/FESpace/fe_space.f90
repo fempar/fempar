@@ -440,7 +440,7 @@ module fe_space_names
 
    procedure        , non_overridable          :: get_number_fe_objects                           => par_fe_space_get_number_fe_objects
    procedure                                   :: get_par_triangulation                           => par_fe_space_get_par_triangulation
-   procedure, non_overridable                 :: get_coarse_fe_space                              => par_fe_space_get_coarse_fe_space
+   procedure        , non_overridable          :: get_coarse_fe_space                             => par_fe_space_get_coarse_fe_space
    procedure                                   :: get_par_environment                             => par_fe_space_get_par_environment
    procedure                                   :: get_environment                                 => par_fe_space_get_environment
    
@@ -462,8 +462,9 @@ module fe_space_names
    procedure       , non_overridable, private  :: gather_coarse_dofs_gids_rcv_counts_and_displs   => par_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
    procedure       , non_overridable, private  :: gather_coarse_dofs_gids                         => par_fe_space_gather_coarse_dofs_gids
    procedure       , non_overridable, private  :: gather_vefs_gids_dofs_objects                   => par_fe_space_gather_vefs_gids_dofs_objects
+   procedure       , non_overridable           :: get_total_number_coarse_dofs                    => par_fe_space_get_total_number_coarse_dofs
+   procedure       , non_overridable           :: get_block_number_coarse_dofs                    => par_fe_space_get_block_number_coarse_dofs
    
-
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                  :: create_fe_vefs_on_object_iterator               => par_fe_space_create_fe_vefs_on_object_iterator
@@ -616,8 +617,6 @@ module fe_space_names
     ! It will be a nullified pointer on L1 tasks, and associated via target 
     ! allocation in the case of L2-Ln tasks.
     type(coarse_fe_space_t)       , pointer     :: coarse_fe_space => NULL()
-	
-	
   contains
     procedure                                   :: create                                          => coarse_fe_space_create
     procedure                                   :: free                                            => coarse_fe_space_free
@@ -646,6 +645,7 @@ module fe_space_names
     procedure, non_overridable, private         :: compute_ubound_num_itfc_couplings_by_continuity => coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity
     procedure, non_overridable, private         :: compute_raw_interface_data_by_continuity        => coarse_fe_space_compute_raw_interface_data_by_continuity
     procedure, non_overridable, private         :: raw_interface_data_by_continuity_decide_owner   => coarse_fe_space_raw_interface_data_by_continuity_decide_owner
+    
     procedure, non_overridable                  :: setup_coarse_dofs                               => coarse_fe_space_setup_coarse_dofs
     procedure, non_overridable, private         :: setup_dofs_objects_by_continuity                => coarse_fe_space_setup_dofs_objects_by_continuity
     procedure, non_overridable                  :: setup_constraint_matrix                         => coarse_fe_space_setup_constraint_matrix
@@ -656,7 +656,9 @@ module fe_space_names
     procedure, non_overridable, private         :: gather_coarse_dofs_gids_rcv_counts_and_displs   => coarse_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
     procedure, non_overridable, private         :: gather_coarse_dofs_gids                         => coarse_fe_space_gather_coarse_dofs_gids
     procedure, non_overridable, private         :: gather_vefs_gids_dofs_objects                   => coarse_fe_space_gather_vefs_gids_dofs_objects
-	procedure, non_overridable, private         :: free_coarse_dofs                                => coarse_fe_space_free_coarse_dofs
+    procedure, non_overridable                  :: get_total_number_coarse_dofs                    => coarse_fe_space_get_total_number_coarse_dofs
+    procedure, non_overridable                  :: get_block_number_coarse_dofs                    => coarse_fe_space_get_block_number_coarse_dofs
+	   procedure, non_overridable, private         :: free_coarse_dofs                                => coarse_fe_space_free_coarse_dofs
     
     procedure                                   :: renumber_dofs_first_interior_then_interface     => coarse_fe_space_renumber_dofs_first_interior_then_interface
     procedure                         , private :: renumber_dofs_block                             => coarse_fe_space_renumber_dofs_block
@@ -690,7 +692,7 @@ module fe_space_names
      procedure, non_overridable                 :: get_number_coarse_fe_objects                    => coarse_fe_space_get_number_coarse_fe_objects
      procedure, non_overridable                 :: get_block_dof_import                            => coarse_fe_space_get_block_dof_import
      procedure, non_overridable                 :: get_triangulation                               => coarse_fe_space_get_triangulation
-	 procedure, non_overridable                 :: get_coarse_fe_space                             => coarse_fe_space_get_coarse_fe_space
+	    procedure, non_overridable                 :: get_coarse_fe_space                             => coarse_fe_space_get_coarse_fe_space
      procedure, non_overridable                 :: get_par_environment                             => coarse_fe_space_get_par_environment
  end type coarse_fe_space_t
  

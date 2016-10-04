@@ -117,6 +117,8 @@ subroutine coarse_fe_space_free (this)
         call this%free_blocks_dof_import()
         this%number_fields = -1 
         this%number_blocks = -1
+        call this%free_coarse_dofs()
+        nullify(this%coarse_fe_space)
       else
         this%number_fields = -1 
         this%number_blocks = -1
@@ -124,6 +126,10 @@ subroutine coarse_fe_space_free (this)
         ! allocated on >L1 MPI tasks. Once we have the actual value for this%number_blocks, I think
         ! that, although still dirty, we could live with this.
         deallocate ( this%blocks_dof_import )
+        
+        call this%coarse_fe_space%free()
+        deallocate (this%coarse_fe_space, stat=istat)
+        check (istat==0)
       end if
       nullify(this%coarse_triangulation)
    end if   
@@ -1726,6 +1732,40 @@ end subroutine coarse_fe_space_gather_ptr_dofs_per_fe_and_field
     !  call memfree ( buffer, __FILE__, __LINE__ )
     !end if    
   end subroutine coarse_fe_space_gather_vefs_gids_dofs_objects
+  
+  function coarse_fe_space_get_total_number_coarse_dofs ( this )
+    implicit none
+    class(coarse_fe_space_t)           , intent(in) :: this
+    integer(ip)                               :: coarse_fe_space_get_total_number_coarse_dofs
+    integer(ip)                               :: field_id
+    
+    assert ( this%am_i_l1_task() )
+    
+    coarse_fe_space_get_total_number_coarse_dofs = 0
+    do field_id = 1, this%get_number_fields()
+       coarse_fe_space_get_total_number_coarse_dofs = coarse_fe_space_get_total_number_coarse_dofs + & 
+                                                      this%num_coarse_dofs_per_field(field_id)
+    end do
+  end function coarse_fe_space_get_total_number_coarse_dofs
+  
+  function coarse_fe_space_get_block_number_coarse_dofs ( this, block_id )
+    implicit none
+    class(coarse_fe_space_t)           , intent(in)    :: this
+    integer(ip)               , intent(in)    :: block_id
+    integer(ip)                               :: coarse_fe_space_get_block_number_coarse_dofs 
+    integer(ip)                               :: field_id
+    assert ( this%am_i_l1_task() )
+    assert ( block_id == 1 )
+    
+    coarse_fe_space_get_block_number_coarse_dofs = 0
+    do field_id = 1, this%get_number_fields()
+       if ( this%field_blocks(field_id) == block_id ) then
+         coarse_fe_space_get_block_number_coarse_dofs = coarse_fe_space_get_block_number_coarse_dofs + & 
+                                                        this%num_coarse_dofs_per_field(field_id)
+       end if                                      
+    end do
+  end function coarse_fe_space_get_block_number_coarse_dofs
+  
 
 subroutine coarse_fe_space_renumber_dofs_first_interior_then_interface( this )
   implicit none

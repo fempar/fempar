@@ -85,6 +85,8 @@ subroutine par_fe_space_free( this )
         end do
         deallocate(this%blocks_dof_import) 
         call this%serial_fe_space_t%free()
+        call this%free_coarse_dofs()
+        nullify(this%coarse_fe_space)
      else
         ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
         ! requires that this%blocks_dof_import is allocated 
@@ -98,6 +100,10 @@ subroutine par_fe_space_free( this )
         ! This is a little bit DIRTY. par_fe_space_t%create_global_fe_function()
         ! requires that strong_dirichlet_values is created and allocated
         call this%serial_fe_space_t%strong_dirichlet_values%free()
+        
+        call this%coarse_fe_space%free()
+        deallocate (this%coarse_fe_space, stat=istat)
+        check (istat==0)
      end if
      nullify(this%triangulation)
   end if
@@ -1668,6 +1674,40 @@ end subroutine par_fe_space_gather_ptr_dofs_per_fe_and_field
     !  call memfree ( buffer, __FILE__, __LINE__ )
     !end if    
   end subroutine par_fe_space_gather_vefs_gids_dofs_objects
+  
+  function par_fe_space_get_total_number_coarse_dofs ( this )
+    implicit none
+    class(par_fe_space_t)           , intent(in) :: this
+    integer(ip)                               :: par_fe_space_get_total_number_coarse_dofs
+    integer(ip)                               :: field_id
+    
+    assert ( this%am_i_l1_task() )
+    
+    par_fe_space_get_total_number_coarse_dofs = 0
+    do field_id = 1, this%get_number_fields()
+       par_fe_space_get_total_number_coarse_dofs = par_fe_space_get_total_number_coarse_dofs + & 
+                                                   this%num_coarse_dofs_per_field(field_id)
+    end do
+  end function par_fe_space_get_total_number_coarse_dofs
+  
+  function par_fe_space_get_block_number_coarse_dofs ( this, block_id )
+    implicit none
+    class(par_fe_space_t)           , intent(in)    :: this
+    integer(ip)               , intent(in)    :: block_id
+    integer(ip)                               :: par_fe_space_get_block_number_coarse_dofs 
+    integer(ip)                               :: field_id
+    assert ( this%am_i_l1_task() )
+    assert ( block_id == 1 )
+    
+    par_fe_space_get_block_number_coarse_dofs = 0
+    do field_id = 1, this%get_number_fields()
+       if ( this%field_blocks(field_id) == block_id ) then
+         par_fe_space_get_block_number_coarse_dofs = par_fe_space_get_block_number_coarse_dofs + & 
+                                                     this%num_coarse_dofs_per_field(field_id)
+       end if                                      
+    end do
+  end function par_fe_space_get_block_number_coarse_dofs
+  
   
  function par_fe_space_create_fe_object_iterator (this)
     implicit none
