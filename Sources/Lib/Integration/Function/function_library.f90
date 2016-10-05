@@ -77,7 +77,7 @@ module function_library_names
   
   type(constant_scalar_function_t), target :: & 
      unit_constant_scalar_function = constant_scalar_function_t(1.0_rp)
-  
+
   public :: constant_scalar_function_t, constant_vector_function_t
   public :: unit_constant_scalar_function
   

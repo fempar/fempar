@@ -1118,7 +1118,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
     end if   
   
    call this%own_node_permutations(idime)%create(num_rows_own_node_permutations, &
-                                                                    num_cols_own_node_permutations)
+                                                 num_cols_own_node_permutations)
+
    
    ! Warning: temporarily initializing this%own_node_permutations(number_dimensions-1)%a(:)
    !          to the identity. This only will work provided that for all faces F within the 

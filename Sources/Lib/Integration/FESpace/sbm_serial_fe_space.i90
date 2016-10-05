@@ -550,7 +550,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   type(fe_map_t)           , pointer     :: face_map_face_map
   type(quadrature_t)       , pointer     :: quadrature
 
-  type(vector_field_t) :: tangent
+  type(vector_field_t) :: normal 
   real(rp)             :: scalar_shape_test, scalar_shape_trial
   type(vector_field_t) :: vector_shape_test, vector_shape_trial
   
@@ -615,8 +615,8 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
                  
                  ! Retreive the scalar functions corresponding to the components of the function to be projected
                  do icomp=1, reference_fe%get_number_field_components()
-                   call conditions%get_function(component_id+icomp-1, &
-                                                fe_face%get_set_id(), &
+                   call conditions%get_function(fe_face%get_set_id(), &
+												component_id+icomp-1, &
                                                 function_scalar_components(icomp)%p)
                  end do
 
@@ -667,19 +667,18 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
                     end do
                    end do
                  case ( field_type_vector )
-                   assert ( reference_fe%get_number_dimensions() == 2 )
                    elmat = 0.0_rp
                    elvec = 0.0_rp
                    do qpoint = 1, n_q_points
                     factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-                    call face_map_face_map%get_jacobian_normalized_column(1, qpoint, tangent)
+					call face_map_face_map%get_normal(qpoint, normal)
                     do ishape = 1, reference_fe%get_number_shape_functions() 
                        call face_int%get_value(ishape,qpoint,1,vector_shape_test)
                        do jshape = 1, reference_fe%get_number_shape_functions()
                           call face_int%get_value(jshape,qpoint,1,vector_shape_trial)
-                          elmat(ishape,jshape) = elmat(ishape,jshape) + (vector_shape_test*tangent)*(vector_shape_trial*tangent)*factor
+			elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(vector_shape_test,normal)*cross_product(vector_shape_trial,normal)*factor
                        end do
-                       elvec(ishape) = elvec(ishape) + (vector_function_values(qpoint,1)*tangent)*(vector_shape_test*tangent)*factor
+		        elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normal)*cross_product(vector_shape_test,normal)*factor
                     end do
                    end do
                  case ( field_type_tensor )
@@ -715,7 +714,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call parameter_list%init()
 #ifdef ENABLE_MKL
   FPLError = parameter_list%set(key = direct_solver_type                  ,  value = pardiso_mkl)
-  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type  ,  value = pardiso_mkl_uss)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type  ,  value = pardiso_mkl_uns)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level,  value = 0)
   iparm = 0
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
@@ -724,7 +723,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call direct_solver%set_type_from_pl(parameter_list)
   call direct_solver%set_parameters_from_pl(parameter_list)
   call direct_solver%set_matrix(matrix)
-  call direct_solver%numerical_setup()
+  call direct_solver%numerical_setup()!
   call direct_solver%solve(rhs,this%strong_dirichlet_values)
   call direct_solver%free()
 #else
@@ -739,8 +738,6 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call iterative_linear_solver%free()
 #endif
   call parameter_list%free()
-  
-  
   
   call matrix%free()
   call rhs%free()
