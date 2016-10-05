@@ -36,10 +36,12 @@ module maxwell_nedelec_conditions_names
      integer(ip)                       :: num_dimensions
 	 class(scalar_function_t), pointer :: boundary_function_Hx
 	 class(scalar_function_t), pointer :: boundary_function_Hy 
+	 class(scalar_function_t), pointer :: boundary_function_Hz 
    contains
      procedure :: set_num_dimensions          => maxwell_nedelec_conditions_set_num_dimensions
 	 procedure :: set_boundary_function_Hx    => maxwell_nedelec_conditions_set_boundary_function_Hx
 	 procedure :: set_boundary_function_Hy    => maxwell_nedelec_conditions_set_boundary_function_Hy
+	 procedure :: set_boundary_function_Hz    => maxwell_nedelec_conditions_set_boundary_function_Hz
      procedure :: get_number_components       => maxwell_nedelec_conditions_get_number_components  
      procedure :: get_components_code         => maxwell_nedelec_conditions_get_components_code
      procedure :: get_function                => maxwell_nedelec_conditions_get_function
@@ -69,6 +71,13 @@ contains
     class(scalar_function_t)           , target, intent(in) :: scalar_function
     this%boundary_function_Hy => scalar_function
   end subroutine maxwell_nedelec_conditions_set_boundary_function_Hy
+  
+    subroutine maxwell_nedelec_conditions_set_boundary_function_Hz (this, scalar_function)
+    implicit none
+    class(maxwell_nedelec_conditions_t), intent(inout)      :: this
+    class(scalar_function_t)           , target, intent(in) :: scalar_function
+    this%boundary_function_Hz => scalar_function
+  end subroutine maxwell_nedelec_conditions_set_boundary_function_Hz
 
   function maxwell_nedelec_conditions_get_number_components(this)
     implicit none
@@ -102,6 +111,8 @@ contains
 	function => this%boundary_function_Hx
  	else if ( component_id == 2 ) then 
 	function => this%boundary_function_Hy
+	else if ( component_id == 3 ) then 
+	function => this%boundary_function_Hz
 	end if 
 
   end subroutine maxwell_nedelec_conditions_get_function 

@@ -118,6 +118,7 @@ contains
 	z = point%get(3) 
 	  call result%set(3, cos(pi*z)) 
     end if  
+
   end subroutine source_term_get_value_space
   
   !===============================================================================================
@@ -147,6 +148,7 @@ contains
 	   z = point%get(3)
        call result%set(3, cos(pi*z) ) 
     end if  
+
   end subroutine solution_get_value_space
   
   !===============================================================================================
@@ -166,6 +168,7 @@ contains
 	z = point%get(3) 
 	call result%set(3, 3,  -pi*sin(pi*z) )
 	end if 
+
   end subroutine solution_get_gradient_space 
   
   !===============================================================================================
@@ -175,12 +178,12 @@ contains
   type(point_t)                  , intent(in)    :: point 
   real(rp)                       , intent(inout) :: result 
   	! Locals 
-	real(rp)  :: x, y
+	real(rp)  :: x, y, z
 	x = point%get(1)
 	y = point%get(2) 
-
+	z = point%get(3) 
     result = -sin(pi*y)
-
+  
   end subroutine 
   
     !===============================================================================================
@@ -190,12 +193,13 @@ contains
   type(point_t)                  , intent(in)    :: point 
   real(rp)                       , intent(inout) :: result    
   	! Locals 
-	real(rp)  :: x, y 
+	real(rp)  :: x, y, z 
     x = point%get(1)
 	y = point%get(2) 
-
+    z = point%get(3)
     result = cos(pi*x)	
-	end subroutine 
+
+	 end subroutine 
 	
 	! ============================================================================================
 	  subroutine boundary_function_Hz_get_value_space( this, point, result )
@@ -204,10 +208,12 @@ contains
   type(point_t)                  , intent(in)    :: point 
   real(rp)                       , intent(inout) :: result    
   	! Locals 
-	real(rp)  :: z 
-
+	real(rp)  :: x,y,z 
+    x = point%get(1) 
+	y = point%get(2) 
 	z = point%get(3) 
-    result = cos(pi*z) 	
+    result=cos(pi*z)
+	
 	end subroutine 
   
   !===============================================================================================

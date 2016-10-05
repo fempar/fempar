@@ -101,7 +101,7 @@ contains
   
   subroutine hts_nedelec_conditions_get_function ( this, boundary_id, component_id, function )
     implicit none
-    class(hts_nedelec_conditions_t), target     , intent(in) :: this
+    class(hts_nedelec_conditions_t), target        , intent(in)  :: this
     integer(ip)                                    , intent(in)  :: boundary_id
     integer(ip)                                    , intent(in)  :: component_id
     class(scalar_function_t)          , pointer    , intent(out) :: function
