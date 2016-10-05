@@ -67,38 +67,15 @@ module mlbddc_names
 # include "debug.i90"
  private
 
- !type, extends(fe_object_accessor_t) :: dof_object_accessor_t
- !  private
- !  type(mlbddc_t), pointer :: mlbddc
- !  integer(ip)             :: field_id
- !  integer(ip)             :: dof_object_lid
- !contains
- !   procedure  :: dof_object_accessor_create
- !   generic    :: create                      => dof_object_accessor_create
- !   procedure  :: free                        => dof_object_accessor_free
- !   procedure  :: next                        => dof_object_accessor_next
- !   procedure  :: set_lid                     => dof_object_accessor_set_lid
- !   procedure  :: get_number_dofs_on_object   => dof_object_accessor_get_number_dofs_on_object
- !   procedure  :: get_dofs_on_object_iterator => dof_object_accessor_get_dofs_on_object_iterator
- !end type dof_object_accessor_t
- 
- !type dof_object_iterator_t
- !   private
- !   type(dof_object_accessor_t) :: current_dof_object_accessor
- ! contains
- !    procedure, non_overridable          :: create       => dof_object_iterator_create
- !    procedure, non_overridable          :: free         => dof_object_iterator_free
- !    procedure, non_overridable          :: init         => dof_object_iterator_init
- !    procedure, non_overridable          :: next         => dof_object_iterator_next
- !    procedure, non_overridable          :: has_finished => dof_object_iterator_has_finished
- !    procedure, non_overridable          :: current      => dof_object_iterator_current
- ! end type dof_object_iterator_t
+
  
  type, extends(operator_t) :: mlbddc_t
    private
  
    ! Pointer to the fe_affine_operator_t this mlbddc_t instance has been created from
    type(fe_affine_operator_t)    , pointer :: fe_affine_operator => NULL()
+   
+   ! Constraint matrix (to be filled by a process to be customized by the user)
    type(coo_sparse_matrix_t)               :: constraint_matrix
    
    ! Constrained Neumann problem-related member variables
@@ -203,48 +180,22 @@ module mlbddc_names
     procedure, non_overridable          :: free_numerical_setup_coarse_solver               => mlbddc_free_numerical_setup_coarse_solver
     
     ! Miscellaneous 
-    !procedure, non_overridable          :: create_field_dofs_object_iterator                => mlbddc_create_field_dofs_object_iterator
     procedure, non_overridable, private :: get_par_sparse_matrix                            => mlbddc_get_par_sparse_matrix
     procedure, non_overridable, private :: get_fe_space                                     => mlbddc_get_fe_space
     procedure, non_overridable, private :: get_par_environment                              => mlbddc_get_par_environment
     procedure, non_overridable, private :: am_i_l1_task                                     => mlbddc_am_i_l1_task
     procedure                           :: is_linear                                        => mlbddc_is_linear
  end type mlbddc_t
- 
- !type, extends(coarse_fe_object_accessor_t) :: coarse_dof_object_accessor_t
- !  private
- !  type(mlbddc_coarse_t), pointer :: mlbddc_coarse
- !  integer(ip)                    :: field_id
- !  integer(ip)                    :: coarse_dof_object_lid
- !contains
- !   procedure  :: coarse_dof_object_accessor_create
- !   generic    :: create                      => coarse_dof_object_accessor_create
- !   procedure  :: free                        => coarse_dof_object_accessor_free
- !   procedure  :: next                        => coarse_dof_object_accessor_next
- !   procedure  :: set_lid                     => coarse_dof_object_accessor_set_lid
- !   procedure  :: get_number_dofs_on_object   => coarse_dof_object_accessor_get_number_dofs_on_object
- !   procedure  :: get_dofs_on_object_iterator => coarse_dof_object_accessor_get_dofs_on_object_iterator
- !end type coarse_dof_object_accessor_t
- 
- !type coarse_dof_object_iterator_t
- !   private
- !   type(coarse_dof_object_accessor_t) :: current_coarse_dof_object_accessor
- ! contains
- !    procedure, non_overridable          :: create       => coarse_dof_object_iterator_create
- !    procedure, non_overridable          :: free         => coarse_dof_object_iterator_free
- !    procedure, non_overridable          :: init         => coarse_dof_object_iterator_init
- !    procedure, non_overridable          :: next         => coarse_dof_object_iterator_next
- !    procedure, non_overridable          :: has_finished => coarse_dof_object_iterator_has_finished
- !    procedure, non_overridable          :: current      => coarse_dof_object_iterator_current
- ! end type coarse_dof_object_iterator_t
- 
+  
  type :: mlbddc_coarse_t 
    private
    ! Some sort of operator is required here that plays the role of type(mlbddc_t)%fe_affine_operator.
    ! This operator should be built on the previous level and passed here. Let us use the 
    ! coarse_fe_space built on the previous level in the mean time.
    type(coarse_fe_space_t)       , pointer     :: fe_space          => NULL()
-   type(par_sparse_matrix_t)     , pointer     :: par_sparse_matrix => NULL()   
+   type(par_sparse_matrix_t)     , pointer     :: par_sparse_matrix => NULL()
+   
+   ! Constraint matrix (to be filled by a process to be customized by the user)
    type(coo_sparse_matrix_t)                   :: constraint_matrix   
    
    ! Constrained Neumann problem-related member variables
@@ -331,14 +282,14 @@ module mlbddc_names
     procedure, non_overridable, private :: create_interior_interface_views                  => mlbddc_coarse_create_interior_interface_views
    
    
-   procedure, non_overridable          :: free                                              => mlbddc_coarse_free
-   procedure, non_overridable          :: free_clean                                        => mlbddc_coarse_free_clean
-   procedure, non_overridable          :: free_symbolic_setup                               => mlbddc_coarse_free_symbolic_setup
-   procedure, non_overridable, private :: free_symbolic_setup_dirichlet_problem             => mlbddc_coarse_free_symbolic_setup_dirichlet_problem
-   procedure, non_overridable, private :: free_symbolic_setup_dirichlet_solver              => mlbddc_coarse_free_symbolic_setup_dirichlet_solver
-   procedure, non_overridable, private :: free_symbolic_setup_constrained_neumann_problem   => mlbddc_coarse_free_symbolic_setup_constrained_neumann_problem
-   procedure, non_overridable, private :: free_symbolic_setup_constrained_neumann_solver    => mlbddc_coarse_free_symbolic_setup_constrained_neumann_solver
-   procedure, non_overridable, private :: free_symbolic_setup_coarse_solver                 => mlbddc_coarse_free_symbolic_setup_coarse_solver
+    procedure, non_overridable          :: free                                              => mlbddc_coarse_free
+    procedure, non_overridable          :: free_clean                                        => mlbddc_coarse_free_clean
+    procedure, non_overridable          :: free_symbolic_setup                               => mlbddc_coarse_free_symbolic_setup
+    procedure, non_overridable, private :: free_symbolic_setup_dirichlet_problem             => mlbddc_coarse_free_symbolic_setup_dirichlet_problem
+    procedure, non_overridable, private :: free_symbolic_setup_dirichlet_solver              => mlbddc_coarse_free_symbolic_setup_dirichlet_solver
+    procedure, non_overridable, private :: free_symbolic_setup_constrained_neumann_problem   => mlbddc_coarse_free_symbolic_setup_constrained_neumann_problem
+    procedure, non_overridable, private :: free_symbolic_setup_constrained_neumann_solver    => mlbddc_coarse_free_symbolic_setup_constrained_neumann_solver
+    procedure, non_overridable, private :: free_symbolic_setup_coarse_solver                 => mlbddc_coarse_free_symbolic_setup_coarse_solver
 
     procedure, non_overridable          :: free_numerical_setup                             => mlbddc_coarse_free_numerical_setup
     procedure, non_overridable, private :: free_numerical_setup_dirichlet_problem           => mlbddc_coarse_free_numerical_setup_dirichlet_problem
@@ -347,25 +298,16 @@ module mlbddc_names
     procedure, non_overridable, private :: free_numerical_setup_constrained_neumann_solver  => mlbddc_coarse_free_numerical_setup_constrained_neumann_solver
     procedure, non_overridable, private :: free_coarse_grid_basis                           => mlbddc_coarse_free_coarse_grid_basis
     procedure, non_overridable, private :: free_numerical_setup_coarse_solver               => mlbddc_coarse_free_numerical_setup_coarse_solver
-    
-   !procedure, non_overridable           :: create_field_dofs_object_iterator                => mlbddc_coarse_create_field_dofs_object_iterator
-   
-   procedure, non_overridable, private  :: get_par_sparse_matrix                            => mlbddc_coarse_get_par_sparse_matrix
-   procedure, non_overridable, private  :: get_fe_space                                     => mlbddc_coarse_get_fe_space
-   procedure, non_overridable, private  :: get_par_environment                              => mlbddc_coarse_get_par_environment
-   procedure, non_overridable, private  :: am_i_l1_task                                     => mlbddc_coarse_am_i_l1_task
+       
+    procedure, non_overridable, private  :: get_par_sparse_matrix                            => mlbddc_coarse_get_par_sparse_matrix
+    procedure, non_overridable, private  :: get_fe_space                                     => mlbddc_coarse_get_fe_space
+    procedure, non_overridable, private  :: get_par_environment                              => mlbddc_coarse_get_par_environment
+    procedure, non_overridable, private  :: am_i_l1_task                                     => mlbddc_coarse_am_i_l1_task
    end type mlbddc_coarse_t
  
  public :: mlbddc_t
 
 contains
-
-#include "sbm_dof_object_accessor.i90"
-#include "sbm_dof_object_iterator.i90"
-#include "sbm_coarse_dof_object_accessor.i90"
-#include "sbm_coarse_dof_object_iterator.i90"
-
-
   subroutine mlbddc_create ( this, fe_affine_operator )
     implicit none
     class(mlbddc_t)                       , intent(inout) :: this
@@ -505,8 +447,8 @@ contains
     type(par_environment_t)   , pointer       :: L1_environment
     type(par_environment_t)   , pointer       :: L2_environment
     integer(ip)                               :: istat
-	type(par_fe_space_t), pointer :: par_fe_space
-	type(coarse_fe_space_t), pointer :: coarse_fe_space
+    type(par_fe_space_t), pointer :: par_fe_space
+    type(coarse_fe_space_t), pointer :: coarse_fe_space
     
     L1_environment => this%get_par_environment()
     if ( L1_environment%am_i_lgt1_task() ) then
@@ -514,8 +456,8 @@ contains
        allocate  ( this%coarse_grid_matrix, stat = istat )
        check( istat == 0 )
 
-	   par_fe_space    => this%get_fe_space()
-	   coarse_fe_space => par_fe_space%get_coarse_fe_space()
+       par_fe_space    => this%get_fe_space()
+       coarse_fe_space => par_fe_space%get_coarse_fe_space()
        L2_environment  => L1_environment%get_next_level()
        call this%coarse_grid_matrix%create( p_env             = L2_environment, &
                                             dof_import        = coarse_fe_space%get_block_dof_import(1), &
@@ -592,12 +534,12 @@ contains
     type(par_environment_t)  , pointer :: par_environment
     integer(ip)                        :: istat 
     type(par_fe_space_t)   , pointer   :: par_fe_space
-	type(coarse_fe_space_t), pointer   :: coarse_fe_space
+    type(coarse_fe_space_t), pointer   :: coarse_fe_space
 	
     par_environment => this%get_par_environment()
     if ( par_environment%am_i_lgt1_task() ) then
-	 par_fe_space    => this%get_fe_space()
-	 coarse_fe_space => par_fe_space%get_coarse_fe_space()
+     par_fe_space    => this%get_fe_space()
+     coarse_fe_space => par_fe_space%get_coarse_fe_space()
 	
      ! lgt1 MPI tasks symbolically setup mlbddc coarse
      allocate  ( this%mlbddc_coarse, stat = istat )
@@ -1172,14 +1114,13 @@ contains
     type(par_environment_t), pointer :: L1_environment
     type(par_environment_t), pointer :: L2_environment
     type(par_fe_space_t)   , pointer :: par_fe_space
-	type(coarse_fe_space_t), pointer :: coarse_fe_space
+	   type(coarse_fe_space_t), pointer :: coarse_fe_space
     
-	par_fe_space    => this%get_fe_space()
-	coarse_fe_space => par_fe_space%get_coarse_fe_space()	
-	
     L1_environment => this%get_par_environment()
+    par_fe_space    => this%get_fe_space()
     if ( L1_environment%am_i_lgt1_task() ) then
        L2_environment => L1_environment%get_next_level()
+       coarse_fe_space => par_fe_space%get_coarse_fe_space()	
        call coarse_residual%create_and_allocate( p_env      = L2_environment, &
                                                  dof_import = coarse_fe_space%get_block_dof_import(1) )
        call coarse_coarse_correction%clone(coarse_residual)
@@ -1674,31 +1615,33 @@ contains
     class(mlbddc_t)    , intent(in)    :: this
     type(par_scalar_array_t)  , intent(in)    :: x
     type(par_scalar_array_t)  , intent(inout) :: y
-    !type(serial_scalar_array_t), pointer :: x_local
-    !type(serial_scalar_array_t), pointer :: y_local
-    !real(rp), pointer :: x_local_entries(:)
-    !real(rp), pointer :: y_local_entries(:)
-    !type(dof_object_iterator_t) :: dofs_object_iterator
-    !type(dof_object_accessor_t) :: dof_object
-    !type(list_iterator_t) :: dofs_on_object
+    type(serial_scalar_array_t), pointer :: x_local
+    type(serial_scalar_array_t), pointer :: y_local
+    real(rp), pointer :: x_local_entries(:)
+    real(rp), pointer :: y_local_entries(:)
+    type(dof_object_iterator_t) :: dofs_object_iterator
+    type(dof_object_accessor_t) :: dof_object
+    type(list_iterator_t) :: dofs_on_object
+    type(par_fe_space_t), pointer :: par_fe_space
  
-    !if ( this%am_i_l1_task() ) then
-    !  x_local         => x%get_serial_scalar_array()
-    !  x_local_entries => x_local%get_entries()
-    !  y_local         => y%get_serial_scalar_array()
-    !  y_local_entries => y_local%get_entries()
-    !  dofs_object_iterator = this%create_field_dofs_object_iterator(1)
-    !  do while ( .not. dofs_object_iterator%has_finished() ) 
-    !     call dofs_object_iterator%current(dof_object)
-    !     dofs_on_object = dof_object%get_dofs_on_object_iterator()
-    !     do while ( .not. dofs_on_object%is_upper_bound() )
-    !       y_local_entries(dofs_on_object%get_current()) = &
-    !         x_local_entries(dofs_on_object%get_current())/dof_object%get_number_parts_around()
-    !       call dofs_on_object%next()
-    !     end do
-    !     call dofs_object_iterator%next()
-    !  end do
-    !end if
+    par_fe_space => this%get_fe_space()
+    if ( this%am_i_l1_task() ) then
+      x_local         => x%get_serial_scalar_array()
+      x_local_entries => x_local%get_entries()
+      y_local         => y%get_serial_scalar_array()
+      y_local_entries => y_local%get_entries()
+      dofs_object_iterator = par_fe_space%create_field_dofs_object_iterator(1)
+      do while ( .not. dofs_object_iterator%has_finished() ) 
+         call dofs_object_iterator%current(dof_object)
+         dofs_on_object = dof_object%get_dofs_on_object_iterator()
+         do while ( .not. dofs_on_object%is_upper_bound() )
+           y_local_entries(dofs_on_object%get_current()) = &
+             x_local_entries(dofs_on_object%get_current())/dof_object%get_number_parts_around()
+           call dofs_on_object%next()
+         end do
+         call dofs_object_iterator%next()
+      end do
+    end if
   end subroutine mlbddc_apply_weight_operator
 
   subroutine mlbddc_create_interior_interface_views ( this, x, x_I, X_G )
@@ -1750,6 +1693,7 @@ contains
           call this%free_symbolic_setup_constrained_neumann_problem()
           nullify (this%mlbddc_coarse)
           nullify (this%coarse_grid_matrix)
+          call this%constraint_matrix%free()
         else
           call this%free_symbolic_setup_coarse_solver()
         end if    
@@ -1878,19 +1822,7 @@ contains
     assert ( par_environment%am_i_l1_task() )
     call this%coarse_solver%free_in_stages(free_numerical_setup)
   end subroutine mlbddc_free_numerical_setup_coarse_solver
-  
-
-  
-  !function mlbddc_create_field_dofs_object_iterator(this, field_id)
-  !  implicit none
-  !  class(mlbddc_t), intent(in) :: this
-  !  integer(ip)    , intent(in) :: field_id
-  !  type(dof_object_iterator_t) :: mlbddc_create_field_dofs_object_iterator
-  !  call mlbddc_create_field_dofs_object_iterator%create(1, field_id, this)
-  !end function mlbddc_create_field_dofs_object_iterator
-  
-  
-  
+   
   ! Helper function that extracts a run-time polymorphic class(matrix_t)
   ! from the fe_affine_operator, and dynamically casts it into  
   ! type(par_sparse_matrix_t). If the dynamic cast cannot be performed 
@@ -2109,25 +2041,27 @@ contains
     logical, pointer :: field_coupling(:,:)
     integer(ip) :: ifield, jfield, i, j, istat
     type(coarse_fe_space_t)   , pointer  :: fe_space
+    type(coarse_fe_space_t)   , pointer  :: coarse_fe_space
     
     L1_environment => this%get_par_environment()
     L2_environment => L1_environment%get_next_level()
     assert ( associated (L2_environment) )
     assert ( L2_environment%am_i_l1_task() )
     
-    fe_space => this%get_fe_space()
+    fe_space        => this%get_fe_space()
+    coarse_fe_space => fe_space%get_coarse_fe_space()
     
-    allocate ( elem2dof(fe_space%get_number_fields()), stat=istat)
+    allocate ( elem2dof(coarse_fe_space%get_number_fields()), stat=istat)
     check(istat==0)     
     
-    field_coupling => fe_space%get_field_coupling()
+    field_coupling => coarse_fe_space%get_field_coupling()
     
-    iterator  = fe_space%create_coarse_fe_iterator()
+    iterator  = coarse_fe_space%create_coarse_fe_iterator()
     do while ( .not. iterator%has_finished() )
        coarse_fe = iterator%current()
        call coarse_fe%get_elem2dof(elem2dof)
-       do ifield=1, fe_space%get_number_fields()
-          do jfield=1, fe_space%get_number_fields()
+       do ifield=1, coarse_fe_space%get_number_fields()
+          do jfield=1, coarse_fe_space%get_number_fields()
              if ((field_coupling(ifield,jfield))) then
                do j=1, size(elem2dof(jfield)%p)
                  do i=1, size(elem2dof(ifield)%p)
@@ -3238,31 +3172,32 @@ contains
     class(mlbddc_coarse_t)    , intent(in)    :: this
     type(par_scalar_array_t)  , intent(in)    :: x
     type(par_scalar_array_t)  , intent(inout) :: y
-    !type(serial_scalar_array_t), pointer :: x_local
-    !type(serial_scalar_array_t), pointer :: y_local
-    !real(rp), pointer :: x_local_entries(:)
-    !real(rp), pointer :: y_local_entries(:)
-    !type(coarse_dof_object_iterator_t) :: coarse_dofs_object_iterator
-    !type(coarse_dof_object_accessor_t) :: coarse_dof_object
-    !type(list_iterator_t) :: dofs_on_object
- 
-    !if ( this%am_i_l1_task() ) then
-    !  x_local         => x%get_serial_scalar_array()
-    !  x_local_entries => x_local%get_entries()
-    !  y_local         => y%get_serial_scalar_array()
-    !  y_local_entries => y_local%get_entries()
-    !  coarse_dofs_object_iterator = this%create_field_dofs_object_iterator(1)
-    !  do while ( .not. coarse_dofs_object_iterator%has_finished() ) 
-    !     coarse_dof_object = coarse_dofs_object_iterator%current()
-    !     dofs_on_object = coarse_dof_object%get_dofs_on_object_iterator()
-    !     do while ( .not. dofs_on_object%is_upper_bound() )
-    !       y_local_entries(dofs_on_object%get_current()) = &
-    !         x_local_entries(dofs_on_object%get_current())/coarse_dof_object%get_number_parts_around()
-    !       call dofs_on_object%next()
-    !     end do
-    !     call coarse_dofs_object_iterator%next()
-    !  end do
-    !end if
+    type(serial_scalar_array_t), pointer :: x_local
+    type(serial_scalar_array_t), pointer :: y_local
+    real(rp), pointer :: x_local_entries(:)
+    real(rp), pointer :: y_local_entries(:)
+    type(coarse_dof_object_iterator_t) :: coarse_dofs_object_iterator
+    type(coarse_dof_object_accessor_t) :: coarse_dof_object
+    type(list_iterator_t) :: dofs_on_object
+    type(coarse_fe_space_t), pointer :: fe_space
+    fe_space => this%get_fe_space()
+    if ( this%am_i_l1_task() ) then
+      x_local         => x%get_serial_scalar_array()
+      x_local_entries => x_local%get_entries()
+      y_local         => y%get_serial_scalar_array()
+      y_local_entries => y_local%get_entries()
+      coarse_dofs_object_iterator = fe_space%create_field_dofs_object_iterator(1)
+      do while ( .not. coarse_dofs_object_iterator%has_finished() ) 
+         call coarse_dofs_object_iterator%current(coarse_dof_object)
+         dofs_on_object = coarse_dof_object%get_dofs_on_object_iterator()
+         do while ( .not. dofs_on_object%is_upper_bound() )
+           y_local_entries(dofs_on_object%get_current()) = &
+             x_local_entries(dofs_on_object%get_current())/coarse_dof_object%get_number_parts_around()
+           call dofs_on_object%next()
+         end do
+         call coarse_dofs_object_iterator%next()
+      end do
+    end if
   end subroutine mlbddc_coarse_apply_weight_operator
 
   subroutine mlbddc_coarse_create_interior_interface_views ( this, x, x_I, X_G )
@@ -3313,6 +3248,7 @@ contains
           call this%free_symbolic_setup_constrained_neumann_problem()
           nullify (this%mlbddc_coarse)
           nullify (this%coarse_grid_matrix)
+          call this%constraint_matrix%free()
         else
           call this%free_symbolic_setup_coarse_solver()
         end if    
@@ -3443,15 +3379,6 @@ contains
     assert ( par_environment%am_i_l1_task() )
     call this%coarse_solver%free_in_stages(free_numerical_setup)
   end subroutine mlbddc_coarse_free_numerical_setup_coarse_solver
-      
-  !function mlbddc_coarse_create_field_dofs_object_iterator(this, field_id)
-  !  implicit none
-  !  class(mlbddc_coarse_t)   , intent(in) :: this
-  !  integer(ip)              , intent(in) :: field_id
-  !  type(coarse_dof_object_iterator_t) :: mlbddc_coarse_create_field_dofs_object_iterator
-  !  assert ( field_id >=1 .and. field_id <= this%fe_space%get_number_fields() )
-  !  call mlbddc_coarse_create_field_dofs_object_iterator%create(1, field_id, this)
-  !end function mlbddc_coarse_create_field_dofs_object_iterator
   
   ! Helper function that extracts a run-time polymorphic class(matrix_t)
   ! from XXX, and dynamically casts it into  

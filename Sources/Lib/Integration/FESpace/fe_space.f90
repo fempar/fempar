@@ -214,8 +214,7 @@ module fe_space_names
     procedure, non_overridable, private :: fe_face_iterator_current
     generic                             :: current      => fe_face_iterator_current
   end type fe_face_iterator_t
-  
-  
+    
   integer(ip), parameter :: fe_space_type_cg            = 0 ! H^1 conforming FE space
   integer(ip), parameter :: fe_space_type_dg            = 1 ! L^2 conforming FE space + .not. H^1 conforming (weakly imposed via face integration)
   integer(ip), parameter :: fe_space_type_dg_conforming = 2 ! DG approximation of L^2 spaces (does not involve coupling by face)
@@ -383,6 +382,33 @@ module fe_space_names
     procedure, non_overridable          :: current      => fe_vefs_on_object_iterator_current
   end type fe_vefs_on_object_iterator_t
   
+  type, extends(fe_object_accessor_t) :: dof_object_accessor_t
+   private
+   integer(ip)             :: field_id
+   integer(ip)             :: dof_object_lid
+ contains
+    procedure  :: dof_object_accessor_create
+    generic    :: create                      => dof_object_accessor_create
+    procedure  :: free                        => dof_object_accessor_free
+    procedure  :: next                        => dof_object_accessor_next
+    procedure  :: set_lid                     => dof_object_accessor_set_lid
+    procedure  :: get_number_dofs_on_object   => dof_object_accessor_get_number_dofs_on_object
+    procedure  :: get_dofs_on_object_iterator => dof_object_accessor_get_dofs_on_object_iterator
+ end type dof_object_accessor_t
+ 
+ type dof_object_iterator_t
+    private
+    type(dof_object_accessor_t) :: current_dof_object_accessor
+  contains
+     procedure, non_overridable          :: create       => dof_object_iterator_create
+     procedure, non_overridable          :: free         => dof_object_iterator_free
+     procedure, non_overridable          :: init         => dof_object_iterator_init
+     procedure, non_overridable          :: next         => dof_object_iterator_next
+     procedure, non_overridable          :: has_finished => dof_object_iterator_has_finished
+     procedure, non_overridable          :: current      => dof_object_iterator_current
+  end type dof_object_iterator_t
+  
+  
  
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
@@ -393,7 +419,8 @@ module fe_space_names
  
  
  type, extends(serial_fe_space_t) :: par_fe_space_t
-   type(dof_import_t)               , allocatable :: blocks_dof_import(:)
+   private
+   type(dof_import_t)            , allocatable :: blocks_dof_import(:)
    
    ! Multilevel fe space   
    integer(ip)                   , allocatable :: num_coarse_dofs_per_field(:)	
@@ -468,10 +495,13 @@ module fe_space_names
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                  :: create_fe_vefs_on_object_iterator               => par_fe_space_create_fe_vefs_on_object_iterator
+   procedure, non_overridable                  :: create_field_dofs_object_iterator               => par_fe_space_create_field_dofs_object_iterator
+
  end type par_fe_space_t
  
  public :: par_fe_space_t
  public :: fe_object_accessor_t, fe_object_iterator_t, fe_vefs_on_object_iterator_t
+ public :: dof_object_accessor_t, dof_object_iterator_t
     
   type, extends(cell_accessor_t) :: coarse_fe_accessor_t
     private
@@ -580,7 +610,32 @@ module fe_space_names
     procedure, non_overridable          :: current      => coarse_fe_vefs_on_object_iterator_current
   end type coarse_fe_vefs_on_object_iterator_t
   
+ type, extends(coarse_fe_object_accessor_t) :: coarse_dof_object_accessor_t
+   private
+   integer(ip)                      :: field_id
+   integer(ip)                      :: coarse_dof_object_lid
+ contains
+    procedure  :: coarse_dof_object_accessor_create
+    generic    :: create                      => coarse_dof_object_accessor_create
+    procedure  :: free                        => coarse_dof_object_accessor_free
+    procedure  :: next                        => coarse_dof_object_accessor_next
+    procedure  :: set_lid                     => coarse_dof_object_accessor_set_lid
+    procedure  :: get_number_dofs_on_object   => coarse_dof_object_accessor_get_number_dofs_on_object
+    procedure  :: get_dofs_on_object_iterator => coarse_dof_object_accessor_get_dofs_on_object_iterator
+ end type coarse_dof_object_accessor_t
  
+ type coarse_dof_object_iterator_t
+    private
+    type(coarse_dof_object_accessor_t) :: current_coarse_dof_object_accessor
+  contains
+     procedure, non_overridable          :: create       => coarse_dof_object_iterator_create
+     procedure, non_overridable          :: free         => coarse_dof_object_iterator_free
+     procedure, non_overridable          :: init         => coarse_dof_object_iterator_init
+     procedure, non_overridable          :: next         => coarse_dof_object_iterator_next
+     procedure, non_overridable          :: has_finished => coarse_dof_object_iterator_has_finished
+     procedure, non_overridable          :: current      => coarse_dof_object_iterator_current
+  end type coarse_dof_object_iterator_t
+  
   type :: coarse_fe_space_t
     private
     integer(ip)                                 :: number_fields
@@ -599,12 +654,13 @@ module fe_space_names
     
     type(dof_import_t)            , allocatable :: blocks_dof_import(:)
 	
-	! Pointer to coarse triangulation this coarse_fe_space has been built from
+	   ! Pointer to coarse triangulation this coarse_fe_space has been built from
     type(coarse_triangulation_t), pointer       :: coarse_triangulation => NULL()
 	
-	! Multilevel fe space   
+	   ! Multilevel fe space   
     integer(ip)                   , allocatable :: num_coarse_dofs_per_field(:)
-	! Aggregation of fine DoFs into coarse DoFs
+   	
+    ! Aggregation of fine DoFs into coarse DoFs
     type(list_t)                  , allocatable :: fine_dofs_coarse_dofs_per_field(:) 
     ! GIDs of the coarse DoFs. For their generation, we though to be a good idea 
     ! to take as basis the GIDs of the VEFs objects they are built from (instead of
@@ -673,6 +729,8 @@ module fe_space_names
      ! Objects-related traversals
      procedure, non_overridable                 :: create_coarse_fe_object_iterator                => coarse_fe_space_create_coarse_fe_object_iterator
      procedure, non_overridable                 :: create_coarse_fe_vefs_on_object_iterator        => coarse_fe_space_create_coarse_fe_vefs_on_object_iterator
+     procedure, non_overridable                 :: create_field_dofs_object_iterator               => coarse_fe_space_create_field_dofs_object_iterator
+
      
      ! Getters
      procedure, non_overridable                 :: get_number_local_coarse_fes                     => coarse_fe_space_get_number_local_coarse_fes
@@ -696,7 +754,8 @@ module fe_space_names
      procedure, non_overridable                 :: get_par_environment                             => coarse_fe_space_get_par_environment
  end type coarse_fe_space_t
  
- public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_accessor_t, coarse_fe_object_accessor_t
+ public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_accessor_t
+ public :: coarse_fe_object_accessor_t, coarse_dof_object_accessor_t, coarse_dof_object_iterator_t
  
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
@@ -712,6 +771,8 @@ contains
 #include "sbm_fe_object_accessor.i90"
 #include "sbm_fe_object_iterator.i90"
 #include "sbm_fe_vefs_on_object_iterator.i90"
+#include "sbm_dof_object_accessor.i90"
+#include "sbm_dof_object_iterator.i90"
 
 #include "sbm_coarse_fe_space.i90"
 #include "sbm_coarse_fe_object_accessor.i90"
@@ -721,5 +782,7 @@ contains
 #include "sbm_coarse_fe_iterator.i90"
 #include "sbm_coarse_fe_vef_accessor.i90"
 #include "sbm_coarse_fe_vef_iterator.i90"
+#include "sbm_coarse_dof_object_accessor.i90"
+#include "sbm_coarse_dof_object_iterator.i90"
 
 end module fe_space_names
