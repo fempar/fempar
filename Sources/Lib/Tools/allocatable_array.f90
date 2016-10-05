@@ -56,8 +56,8 @@ module allocatable_array_ip1_names
      integer(ip)               :: nd1
      integer(ip), allocatable  :: a(:)
    contains
-     procedure :: create => allocatable_array_ip1_create
-     procedure :: free   => allocatable_array_ip1_free
+     procedure, non_overridable :: create         => allocatable_array_ip1_create
+     procedure, non_overridable :: free           => allocatable_array_ip1_free
   end type allocatable_array_ip1_t
 
   public :: allocatable_array_ip1_t
@@ -84,7 +84,7 @@ contains
     this%nd1 = 0
     if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_ip1_free
-
+  
 # include "mem_body.i90"
 
 end module allocatable_array_ip1_names
@@ -207,11 +207,15 @@ module allocatable_array_rp1_names
 
   type allocatable_array_rp1_t
      integer(ip)               :: nd1
-     real(rp)    , allocatable :: a(:) ! Simple real 2D array
+     real(rp)    , allocatable :: a(:)
    contains
-     procedure :: create => allocatable_array_rp1_create
-     procedure :: free   => allocatable_array_rp1_free
+     procedure, non_overridable :: create         => allocatable_array_rp1_create
+     procedure, non_overridable :: free           => allocatable_array_rp1_free
+     procedure, non_overridable :: move_alloc_out => allocatable_array_rp1_move_alloc_out
+     procedure, non_overridable :: move_alloc_in  => allocatable_array_rp1_move_alloc_in
+     procedure, non_overridable :: get_array      => allocatable_array_rp1_get_array
   end type allocatable_array_rp1_t
+  
   public :: allocatable_array_rp1_t
 # define var_type type(allocatable_array_rp1_t)
 # define var_size 52
@@ -236,6 +240,32 @@ contains
     this%nd1 = 0
     if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_rp1_free
+  
+  subroutine allocatable_array_rp1_move_alloc_out(this, a)
+    implicit none
+    class(allocatable_array_rp1_t), intent(inout) :: this
+    real(rp), allocatable      , intent(inout) :: a(:)
+    assert (.not. allocated (a))
+    !assert (allocated(this%a))
+    call move_alloc(from=this%a, to=a) 
+  end subroutine allocatable_array_rp1_move_alloc_out
+  
+  subroutine allocatable_array_rp1_move_alloc_in(this, a)
+    implicit none
+    class(allocatable_array_rp1_t), intent(inout) :: this
+    real(rp), allocatable      , intent(inout) :: a(:)
+    !assert (allocated (a))
+    assert (.not. allocated(this%a))
+    call move_alloc(to=this%a, from=a) 
+  end subroutine allocatable_array_rp1_move_alloc_in
+  
+  function allocatable_array_rp1_get_array(this)
+    implicit none
+    class(allocatable_array_rp1_t), target , intent(in) :: this
+    real(rp), pointer :: allocatable_array_rp1_get_array(:)
+    allocatable_array_rp1_get_array => this%a
+  end function allocatable_array_rp1_get_array
+  
 
 # include "mem_body.i90"
 

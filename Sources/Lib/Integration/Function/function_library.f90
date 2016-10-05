@@ -75,7 +75,12 @@ module function_library_names
     module procedure constant_vector_function_constructor
   end interface constant_vector_function_t
   
+  type(constant_scalar_function_t), target :: & 
+     unit_constant_scalar_function = constant_scalar_function_t(1.0_rp)
+
   public :: constant_scalar_function_t, constant_vector_function_t
+  public :: unit_constant_scalar_function
+  
 
 contains
   subroutine constant_scalar_function_create( this, function_value )

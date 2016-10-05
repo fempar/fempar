@@ -186,11 +186,11 @@ contains
                                  reference_fes       = this%reference_fes)
     end if
     call this%fe_space%fill_dof_info() 
-    
+    call this%fe_space%initialize_fe_integration()    
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
-      call this%fe_space%update_strong_dirichlet_bcs_values(this%poisson_conditions)
+      call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)
     else
-      call this%fe_space%update_strong_dirichlet_bcs_values(this%vector_poisson_conditions)
+      call this%fe_space%interpolate_dirichlet_values(this%vector_poisson_conditions)
     end if
   end subroutine setup_fe_space
   
@@ -414,7 +414,7 @@ contains
     if(this%test_params%get_write_solution()) then
        call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path_out(), this%test_params%get_prefix())
        err = vtk_handler%open_vtu(); check(err==0)
-       err = vtk_handler%write_vtu_mesh(); check(err==0)
+       err = vtk_handler%write_vtu_mesh(this%solution); check(err==0)
        err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
        err = vtk_handler%close_vtu(); check(err==0)
        call  vtk_handler%free()
@@ -432,7 +432,7 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%fe_space%create_fe_function(this%solution)
+    call this%solution%create(this%fe_space) 
     call this%solve_system()
     if ( trim(this%test_params%get_laplacian_type()) == 'scalar' ) then
       call this%check_solution()

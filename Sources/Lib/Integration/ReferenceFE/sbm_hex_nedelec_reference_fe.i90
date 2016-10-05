@@ -908,7 +908,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      d = d + interpolation_1D%number_shape_functions
  end do
 
- if ( this%number_dimensions == 3 ) then
+ if ( this%number_dimensions == 3 .and. this%order > 1 ) then
     ! Create a 2D nedelec reference FE of order k-1.
     ! Not that continuity = .false. as we are interested into 
     ! pre_basis_interpolation. Also because of computational reasons,
@@ -1117,8 +1117,9 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
       num_rows_own_node_permutations = interpolation_2D%number_shape_functions
     end if   
   
-   call this%own_node_permutations(this%number_dimensions-1)%create(num_rows_own_node_permutations, &
-                                                                    num_cols_own_node_permutations)
+   call this%own_node_permutations(idime)%create(num_rows_own_node_permutations, &
+                                                 num_cols_own_node_permutations)
+
    
    ! Warning: temporarily initializing this%own_node_permutations(number_dimensions-1)%a(:)
    !          to the identity. This only will work provided that for all faces F within the 
@@ -1126,7 +1127,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
    if (num_rows_own_node_permutations > 0) then
      do j=1, num_cols_own_node_permutations
        do i=1, num_rows_own_node_permutations
-         this%own_node_permutations(this%number_dimensions-1)%a(i,j) = i
+         this%own_node_permutations(idime)%a(i,j) = i
        end do
      end do
    end if

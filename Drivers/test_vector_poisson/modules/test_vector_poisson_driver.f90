@@ -128,7 +128,7 @@ contains
                                reference_fes = this%reference_fes)
     call this%fe_space%fill_dof_info() 
     call this%vector_poisson_conditions%set_boundary_function(this%problem_functions%get_boundary_values())
-    call this%fe_space%update_strong_dirichlet_bcs_values(this%vector_poisson_conditions)
+    call this%fe_space%interpolate_dirichlet_values(this%vector_poisson_conditions)
   end subroutine setup_fe_space 
 
   subroutine setup_system (this)

@@ -25,14 +25,14 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module maxwell_nedelec_params_names
+module hts_nedelec_params_names
   use fempar_names
 # include "debug.i90"
 
   implicit none
   private
 
-  type maxwell_nedelec_params_t 
+  type hts_nedelec_params_t 
      private 
      ! IO parameters
      character(len=:), allocatable :: default_dir_path
@@ -48,6 +48,7 @@ module maxwell_nedelec_params_names
      character(len=:), allocatable :: default_is_periodic_in_x
      character(len=:), allocatable :: default_is_periodic_in_y
      character(len=:), allocatable :: default_is_periodic_in_z
+     character(len=:), allocatable :: default_write_solution
 
      
      type(Command_Line_Interface):: cli 
@@ -62,55 +63,57 @@ module maxwell_nedelec_params_names
      integer(ip)                   :: num_dimensions     
      integer(ip)                   :: number_of_cells_per_dir(0:SPACE_DIM-1)
      integer(ip)                   :: is_dir_periodic(0:SPACE_DIM-1)
+     logical                       :: write_solution
      
    contains
-     procedure, non_overridable             :: create       => maxwell_nedelec_create
-     procedure, non_overridable, private    :: set_default  => maxwell_nedelec_set_default
-     procedure, non_overridable, private    :: add_to_cli   => maxwell_nedelec_add_to_cli
-     procedure, non_overridable             :: parse        => maxwell_nedelec_parse 
-     procedure, non_overridable             :: free         => maxwell_nedelec_free
+     procedure, non_overridable             :: create       => hts_nedelec_create
+     procedure, non_overridable, private    :: set_default  => hts_nedelec_set_default
+     procedure, non_overridable, private    :: add_to_cli   => hts_nedelec_add_to_cli
+     procedure, non_overridable             :: parse        => hts_nedelec_parse 
+     procedure, non_overridable             :: free         => hts_nedelec_free
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_triangulation_type
-  end type maxwell_nedelec_params_t
+     procedure, non_overridable             :: get_write_solution
+  end type hts_nedelec_params_t
 
   ! Types
-  public :: maxwell_nedelec_params_t
+  public :: hts_nedelec_params_t
 
 contains
 
-  subroutine maxwell_nedelec_create(this)
+  subroutine hts_nedelec_create(this)
     implicit none
-    class(maxwell_nedelec_params_t), intent(inout) :: this
+    class(hts_nedelec_params_t), intent(inout) :: this
     
     call this%free()
     
      ! Initialize Command Line Interface
-    call this%cli%init(progname    = 'maxwell_nedelec',                                                     &
-         &        version     = '',                                                                 &
-         &        authors     = '',                                                                 &
-         &        license     = '',                                                                 &
-         &        description =  'FEMPAR test to solve the 2D Mixed Laplacian PDE with known analytical solution. &
-                                  Boundary set ID 1 MUST BE ASSIGNED to the whole boundary.', &
-         &        examples    = ['maxwell_nedelec -h  ', 'maxwell_nedelec -h  ' ])
+    call this%cli%init(progname    = 'HTS_nedelec',                                                   &
+         &        version     = '',                                                                   &
+         &        authors     = '',                                                                   &
+         &        license     = '',                                                                   &
+         &        description =  'FEMPAR test to solve the High Temperature Superconductivity problem &
+                                  proposed in the FORTISSIMO EXPERIMENT.',                            &
+         &        examples    = ['test_hts_nedelec -h  ', 'test_hts_nedelec -h  ' ])
     
     call this%set_default()
     call this%add_to_cli()
-  end subroutine maxwell_nedelec_create
+  end subroutine hts_nedelec_create
   
-  subroutine maxwell_nedelec_set_default(this)
+  subroutine hts_nedelec_set_default(this)
     implicit none
-    class(maxwell_nedelec_params_t), intent(inout) :: this
+    class(hts_nedelec_params_t), intent(inout) :: this
     ! IO parameters
     this%default_dir_path       = 'data/'
     this%default_prefix         = 'square'
     this%default_dir_path_out   = 'output/'
     this%default_reference_fe_geo_order = '1'
     this%default_reference_fe_order = '1'
-    this%default_triangulation_type = 'unstructured'
+    this%default_triangulation_type = 'structured'
     this%default_num_dimensions = '2'
     this%default_nx = '1'
     this%default_ny = '1'
@@ -118,12 +121,13 @@ contains
     this%default_is_periodic_in_x = '0'
     this%default_is_periodic_in_y = '0'
     this%default_is_periodic_in_z = '0'
-  end subroutine maxwell_nedelec_set_default
+    this%default_write_solution = '.false.'
+  end subroutine hts_nedelec_set_default
   
   !==================================================================================================
-  subroutine maxwell_nedelec_add_to_cli(this)
+  subroutine hts_nedelec_add_to_cli(this)
     implicit none
-    class(maxwell_nedelec_params_t) , intent(inout) :: this
+    class(hts_nedelec_params_t) , intent(inout) :: this
 
     ! Locals
     integer(ip) :: error
@@ -168,13 +172,16 @@ contains
     check(error==0) 
     call this%cli%add(switch='--periodic_in_z',switch_ab='-pz',help='Is the mesh periodic in z',&
          &            required=.false.,act='store',def=trim(this%default_is_periodic_in_z),error=error) 
-    check(error==0) 
+    check(error==0)
+    call this%cli%add(switch='--write-solution',switch_ab='-wsolution',help='Write solution in VTK format',&
+         &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
+    check(error==0)  
     
-  end subroutine maxwell_nedelec_add_to_cli
+  end subroutine hts_nedelec_add_to_cli
   
-  subroutine maxwell_nedelec_parse(this,parameter_list)
+  subroutine hts_nedelec_parse(this,parameter_list)
     implicit none
-    class(maxwell_nedelec_params_t), intent(inout) :: this
+    class(hts_nedelec_params_t), intent(inout) :: this
     type(ParameterList_t)       , intent(inout) :: parameter_list
     integer(ip) :: istat
     
@@ -194,6 +201,7 @@ contains
     call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
     call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
+    call this%cli%get(switch='-wsolution',val=this%write_solution,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -212,23 +220,23 @@ contains
     end if
     check(istat==0)
     
-  end subroutine maxwell_nedelec_parse  
+  end subroutine hts_nedelec_parse  
 
-  subroutine maxwell_nedelec_free(this)
+  subroutine hts_nedelec_free(this)
     implicit none
-    class(maxwell_nedelec_params_t), intent(inout) :: this
+    class(hts_nedelec_params_t), intent(inout) :: this
     if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
     if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
     if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
     if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
     if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
     call this%cli%free()
-  end subroutine maxwell_nedelec_free
+  end subroutine hts_nedelec_free
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
     implicit none
-    class(maxwell_nedelec_params_t) , intent(in) :: this
+    class(hts_nedelec_params_t) , intent(in) :: this
     character(len=256) :: get_dir_path
     get_dir_path = this%dir_path
   end function get_dir_path
@@ -236,7 +244,7 @@ contains
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(maxwell_nedelec_params_t) , intent(in) :: this
+    class(hts_nedelec_params_t) , intent(in) :: this
     character(len=256) :: get_prefix
     get_prefix = this%prefix
   end function get_prefix
@@ -244,7 +252,7 @@ contains
   !==================================================================================================
   function get_dir_path_out(this)
     implicit none
-    class(maxwell_nedelec_params_t) , intent(in) :: this
+    class(hts_nedelec_params_t) , intent(in) :: this
     character(len=256) :: get_dir_path_out
     get_dir_path_out = this%dir_path_out
   end function get_dir_path_out
@@ -252,7 +260,7 @@ contains
   !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
-    class(maxwell_nedelec_params_t) , intent(in) :: this
+    class(hts_nedelec_params_t) , intent(in) :: this
     integer(ip) :: get_reference_fe_geo_order
     get_reference_fe_geo_order = this%reference_fe_geo_order
   end function get_reference_fe_geo_order
@@ -260,18 +268,26 @@ contains
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
-    class(maxwell_nedelec_params_t) , intent(in) :: this
+    class(hts_nedelec_params_t) , intent(in) :: this
     integer(ip) :: get_reference_fe_order
     get_reference_fe_order = this%reference_fe_order
   end function get_reference_fe_order
+
+  !==================================================================================================
+  function get_write_solution(this)
+    implicit none
+    class(hts_nedelec_params_t) , intent(in) :: this
+    logical :: get_write_solution
+    get_write_solution = this%write_solution
+  end function get_write_solution
   
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
-    class(maxwell_nedelec_params_t) , target, intent(in) :: this
+    class(hts_nedelec_params_t) , target, intent(in) :: this
     character(:), pointer :: get_triangulation_type
     get_triangulation_type => this%triangulation_type
   end function get_triangulation_type
   
   
-end module maxwell_nedelec_params_names
+end module hts_nedelec_params_names

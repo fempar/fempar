@@ -70,6 +70,10 @@ module function_names
      procedure                  :: get_gradients_set_space_time => scalar_function_get_gradients_set_space_time
      generic                    :: get_gradients_set            => get_gradients_set_space, get_gradients_set_space_time     
   end type scalar_function_t
+  
+  type :: p_scalar_function_t
+    class(scalar_function_t), pointer :: p => NULL()
+  end type p_scalar_function_t
 
   type :: vector_function_t
      private
@@ -101,7 +105,11 @@ module function_names
      generic                    :: get_values_set            => get_values_set_space, get_values_set_space_time     
   end type tensor_function_t
 
+  ! Functions
   public :: array_function_t, scalar_function_t, vector_function_t, tensor_function_t
+  
+  ! Pointer to functions
+  public :: p_scalar_function_t
 
 contains
 ! One only needs to fill array_get_component_value_space or array_get_component_value_space_time

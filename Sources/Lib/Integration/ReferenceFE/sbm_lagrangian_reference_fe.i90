@@ -226,6 +226,13 @@ function lagrangian_reference_fe_get_scalar_from_vector_node( this, node )
   lagrangian_reference_fe_get_scalar_from_vector_node = this%node_component_array(node,1)
 end function lagrangian_reference_fe_get_scalar_from_vector_node
 
+function lagrangian_reference_fe_get_max_order( this )
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this 
+  integer(ip) :: lagrangian_reference_fe_get_max_order
+  lagrangian_reference_fe_get_max_order = maxval(this%order_vector(1:this%number_dimensions))
+end function lagrangian_reference_fe_get_max_order
+
 !==================================================================================================
 subroutine lagrangian_reference_fe_get_value_scalar( this, actual_cell_interpolation, & 
      & ishape, qpoint, scalar_field )
@@ -357,33 +364,6 @@ subroutine lagrangian_reference_fe_get_curl_vector( this, actual_cell_interpolat
 end subroutine lagrangian_reference_fe_get_curl_vector
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_interpolate_nodal_values( this,                &
-     &  nodal_interpolation, &
-     &  nodal_values_origin, &
-     &  nodal_values_destination)
-  implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this 
-  type(interpolation_t)           , intent(in)    :: nodal_interpolation
-  real(rp)                        , intent(in)    :: nodal_values_origin(:)
-  real(rp)                        , intent(inout) :: nodal_values_destination(:)
-  integer(ip) :: qpoint, ishape, icomp, c_dest
-
-  c_dest = 0
-  do icomp = 1, this%number_field_components
-     do qpoint = 1, nodal_interpolation%number_quadrature_points
-        c_dest = c_dest + 1
-        nodal_values_destination(c_dest) = 0.0_rp
-        do ishape = 1, nodal_interpolation%number_shape_functions
-           nodal_values_destination(c_dest) = nodal_values_destination(c_dest) + & 
-                & nodal_interpolation%shape_functions(1,ishape,qpoint) *           &
-                & nodal_values_origin(this%node_array_component(ishape,icomp))
-        end do
-     end do
-  end do
-
-end subroutine lagrangian_reference_fe_interpolate_nodal_values
-
-!==================================================================================================
 subroutine lagrangian_reference_fe_create_nodal_quadrature (this)
   implicit none
   class(lagrangian_reference_fe_t), intent(inout) :: this
@@ -392,6 +372,20 @@ subroutine lagrangian_reference_fe_create_nodal_quadrature (this)
   ! Fill nodal quadrature
   call this%fill_nodal_quadrature ( this%nodal_quadrature )  
 end subroutine lagrangian_reference_fe_create_nodal_quadrature
+
+function lagrangian_reference_fe_has_nodal_quadrature(this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in) :: this
+  logical :: lagrangian_reference_fe_has_nodal_quadrature
+  lagrangian_reference_fe_has_nodal_quadrature = .true.
+end function lagrangian_reference_fe_has_nodal_quadrature
+
+function lagrangian_reference_fe_get_nodal_quadrature(this)
+  implicit none
+  class(lagrangian_reference_fe_t), target, intent(in) :: this
+  type(quadrature_t), pointer :: lagrangian_reference_fe_get_nodal_quadrature
+  lagrangian_reference_fe_get_nodal_quadrature => this%nodal_quadrature
+end function lagrangian_reference_fe_get_nodal_quadrature
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_evaluate_fe_function_scalar( this,                      &
@@ -402,9 +396,20 @@ subroutine lagrangian_reference_fe_evaluate_fe_function_scalar( this,           
   class(lagrangian_reference_fe_t), intent(in)    :: this 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   real(rp)                        , intent(in)    :: nodal_values(:)
-  real(rp)                        , intent(inout) :: quadrature_points_values(:)
+  real(rp), allocatable           , intent(inout) :: quadrature_points_values(:)
   integer(ip) :: qpoint, ishape
 
+  if ( allocated(quadrature_points_values) ) then
+      if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+         call memrealloc (actual_cell_interpolation%number_quadrature_points, & 
+                          quadrature_points_values, __FILE__, __LINE__)
+      end if
+  else
+    call memalloc (actual_cell_interpolation%number_quadrature_points, & 
+                   quadrature_points_values, __FILE__, __LINE__)
+  end if
+  
+  
   do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      quadrature_points_values(qpoint) = 0.0_rp
      do ishape = 1, actual_cell_interpolation%number_shape_functions
@@ -421,12 +426,21 @@ subroutine lagrangian_reference_fe_evaluate_fe_function_vector( this,           
      &  nodal_values,              &
      &  quadrature_points_values)
   implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this 
-  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
-  real(rp)                        , intent(in)    :: nodal_values(:)
-  type(vector_field_t)            , intent(inout) :: quadrature_points_values(:)
-  integer(ip) :: qpoint, inode, icomp, inode_scalar
+  class(lagrangian_reference_fe_t) , intent(in)    :: this 
+  type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  integer(ip) :: qpoint, inode, icomp, inode_scalar, istat
 
+  if ( allocated(quadrature_points_values) ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+      deallocate(quadrature_points_values, stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+    end if
+  else
+    allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+  end if
+  
   do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      call quadrature_points_values(qpoint)%init(0.0_rp)
      do inode = 1, this%number_shape_functions
@@ -445,13 +459,13 @@ subroutine lagrangian_reference_fe_evaluate_fe_function_tensor( this,           
      &  nodal_values,              &
      &  quadrature_points_values)
   implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this 
-  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
-  real(rp)                        , intent(in)    :: nodal_values(:)
-  type(tensor_field_t)            , intent(inout) :: quadrature_points_values(:)
+  class(lagrangian_reference_fe_t) , intent(in)    :: this 
+  type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
 
-  write(*,*) ' ERROR in: ',__FILE__,__LINE__
-  write(*,*) ' Subroutine not implemented for tensor field unknowns '
+  write(0,*) ' ERROR in: ',__FILE__,__LINE__
+  write(0,*) ' Subroutine not implemented for tensor field unknowns '
   check( .false. )
 
 end subroutine lagrangian_reference_fe_evaluate_fe_function_tensor
@@ -462,13 +476,24 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_scalar( this,  
      &  nodal_values,              &
      &  quadrature_points_values)
   implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this 
-  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
-  real(rp)                        , intent(in)    :: nodal_values(:)
-  type(vector_field_t)            , intent(inout) :: quadrature_points_values(:)
-  integer(ip)                                     :: qpoint,ishape
-  type(vector_field_t)                            :: gradient_shape
+  class(lagrangian_reference_fe_t) , intent(in)    :: this 
+  type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  integer(ip)                                      :: qpoint,ishape
+  type(vector_field_t)                             :: gradient_shape
+  integer(ip)                                      :: istat
 
+  if ( allocated(quadrature_points_values) ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+      deallocate(quadrature_points_values, stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+    end if
+  else
+    allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+  end if
+  
+  
   do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      call quadrature_points_values(qpoint)%init(0.0_rp)
      do ishape = 1, actual_cell_interpolation%number_shape_functions
@@ -486,13 +511,24 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector( this,  
      &  nodal_values,              &
      &  quadrature_points_values)
   implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this 
-  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
-  real(rp)                        , intent(in)    :: nodal_values(:)
-  type(tensor_field_t)            , intent(inout) :: quadrature_points_values(:)
-  integer(ip)                                     :: qpoint, inode
-  type(tensor_field_t)                            :: gradient_shape
+  class(lagrangian_reference_fe_t) , intent(in)    :: this 
+  type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  integer(ip)                                      :: qpoint, inode
+  type(tensor_field_t)                             :: gradient_shape
+  integer(ip)                                      :: istat
 
+  if ( allocated(quadrature_points_values) ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%number_quadrature_points ) then
+      deallocate(quadrature_points_values, stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+    end if
+  else
+    allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
+  end if
+  
+  
   do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      call quadrature_points_values(qpoint)%init(0.0_rp)
      do inode = 1, this%number_shape_functions
@@ -504,14 +540,6 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector( this,  
 
 end subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector
 
-! Adaptivity purposes
-!==================================================================================================
-function lagrangian_reference_fe_get_number_subelements(this) result(number_subelements)
-  implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                                     :: number_subelements
-  number_subelements = this%order_vector(1)**this%number_dimensions ! @sbadia: It is not correct
-end function lagrangian_reference_fe_get_number_subelements
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_free ( this )
@@ -522,6 +550,7 @@ subroutine lagrangian_reference_fe_free ( this )
        call memfree(this%node_component_array,__FILE__,__LINE__)
   if(allocated(this%node_array_component)) & 
        call memfree(this%node_array_component,__FILE__,__LINE__)
+   call this%nodal_quadrature%free()    
   call reference_fe_free ( this )
 end subroutine lagrangian_reference_fe_free
 
