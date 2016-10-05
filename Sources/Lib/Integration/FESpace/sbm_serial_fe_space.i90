@@ -910,8 +910,8 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
      call fe_iterator%current(fe)
      max_order_within_fe = -1
      do field_id=1, this%get_number_fields()
-        if ( max_order_within_fe < fe%get_order(field_id) ) then
-           max_order_within_fe = fe%get_order(field_id)
+        if ( max_order_within_fe < fe%get_max_order(field_id) ) then
+           max_order_within_fe = fe%get_max_order(field_id)
         end if
      end do
      this%max_order_per_fe(fe%get_lid()) = max_order_within_fe
@@ -958,8 +958,8 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
      max_order_within_fe = -1
      max_order_field_id  = -1
      do field_id=1, this%get_number_fields()
-        if ( max_order_within_fe < fe%get_order(field_id) ) then
-           max_order_within_fe = fe%get_order(field_id)
+        if ( max_order_within_fe < fe%get_max_order(field_id) ) then
+           max_order_within_fe = fe%get_max_order(field_id)
            max_order_field_id = field_id
         end if
      end do
@@ -1093,8 +1093,8 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
      call fe_face%get_cell_around(icell_around, fe)
      reference_fes_geo_id(icell_around) = fe%get_reference_fe_geo_id()
      do field_id=1, fe%get_number_fields()
-       if ( max_order_fes_around_fe_face < fe%get_order(field_id) ) then
-         max_order_fes_around_fe_face = fe%get_order(field_id)
+       if ( max_order_fes_around_fe_face < fe%get_max_order(field_id) ) then
+         max_order_fes_around_fe_face = fe%get_max_order(field_id)
        end if
      end do      
     end do
@@ -1170,8 +1170,8 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
      reference_fes_geo_id(icell_around) =  fe%get_reference_fe_geo_id()
      reference_fes_geo(icell_around)%p  => fe%get_reference_fe_geo()
      do field_id=1, fe%get_number_fields()
-       if ( max_order_fes_around_fe_face < fe%get_order(field_id) ) then
-         max_order_fes_around_fe_face = fe%get_order(field_id)
+       if ( max_order_fes_around_fe_face < fe%get_max_order(field_id) ) then
+         max_order_fes_around_fe_face = fe%get_max_order(field_id)
          reference_fe => fe%get_reference_fe(field_id)
        end if
      end do      
