@@ -18,6 +18,19 @@ SET(EXECUTABLE_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/bin)
 SET(CMAKE_Fortran_MODULE_DIRECTORY ${BINARY_OUTPUT_PATH}/modules)
 
 #################################################################
+# CONFIGURATION TYPES & BUILD MODE
+#################################################################
+
+SET(CMAKE_CONFIGURATION_TYPES DEBUG RELEASE)
+IF(NOT CMAKE_BUILD_TYPE)
+  SET(CMAKE_BUILD_TYPE DEBUG CACHE STRING
+      "Choose the type of build, options are: NONE DEBUG RELEASE"
+      FORCE)
+
+  SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS NONE DEBUG RELEASE)
+ENDIF(NOT CMAKE_BUILD_TYPE)
+
+#################################################################
 # FFLAGS depend on the compiler and the build type
 #################################################################
 
@@ -76,6 +89,7 @@ message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 # Find Fempar
 #################################################################
 
+GET_FILENAME_COMPONENT(FEMPAR_DIR ${FEMPAR_DIR} ABSOLUTE BASE_DIR ${CMAKE_BINARY_DIR})
 FIND_PACKAGE(FEMPAR REQUIRED)
 INCLUDE_DIRECTORIES(${FEMPAR_INCLUDES})
 
