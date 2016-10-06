@@ -144,8 +144,12 @@ contains
     call this%fe_space%fill_dof_info() 
     call this%fe_space%initialize_fe_integration()
     call this%fe_space%initialize_fe_face_integration() 
+	call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
+	call this%maxwell_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
+	if ( this%triangulation%get_num_dimensions() == 3) then 
+	call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
+	end if 
     call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_nedelec_conditions)
-
     !call this%fe_space%print()
   end subroutine setup_fe_space
 
@@ -321,8 +325,8 @@ contains
     call this%setup_solver()
     call this%solution%create(this%fe_space) 
     call this%solve_system()
+	call this%write_solution()
     call this%check_solution()
-    call this%write_solution()
     !call this%show_H()
     call this%free()
   end subroutine run_simulation
