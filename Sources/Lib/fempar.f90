@@ -37,6 +37,7 @@ module fempar_names
   use serial_environment_names
   use flap, only : command_line_interface
   use FPL
+  use input_names
   use vtk_handler_names
   
   use par_context_names

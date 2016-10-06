@@ -81,6 +81,7 @@ module par_environment_names
      procedure :: free                                => par_environment_free
      procedure :: print                               => par_environment_print
      procedure :: created                             => par_environment_created
+     procedure :: get_num_tasks                       => par_environment_get_num_tasks
      procedure :: get_next_level                      => par_environment_get_next_level
      procedure :: get_l1_rank                         => par_environment_get_l1_rank
      procedure :: get_l1_size                         => par_environment_get_l1_size
@@ -421,11 +422,23 @@ contains
   !=============================================================================
   function par_environment_created ( this )
     implicit none 
-    ! Parameters
     class(par_environment_t), intent(in) :: this
     logical                              :: par_environment_created
     par_environment_created =  (.not.this%state==not_created)
   end function par_environment_created
+  
+  !=============================================================================
+
+  function par_environment_get_num_tasks (this)
+    implicit none 
+    class(par_environment_t), intent(in) :: this
+    integer(ip) :: ilevel, par_environment_get_num_tasks
+    assert(this%state>=created_levels_and_parts)
+    par_environment_get_num_tasks = 0
+    do ilevel=1,this%num_levels
+       par_environment_get_num_tasks = par_environment_get_num_tasks + this%num_parts_per_level(ilevel)
+    end do
+  end function par_environment_get_num_tasks
   
   !=============================================================================
   function par_environment_get_next_level( this )

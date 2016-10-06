@@ -36,6 +36,11 @@ subroutine par_triangulation_create ( this, w_context, parameters)
   type(par_context_t)               , intent(in)    :: w_context
   type(ParameterList_t)             , intent(in)    :: parameters
 
+  type(uniform_hex_mesh_t) :: uniform_hex_mesh
+  integer(ip)               :: num_levels
+  integer(ip) , allocatable :: num_parts_per_level(:)
+  integer(ip) , allocatable :: parts_mapping(:)
+
   type(mesh_t)              :: mesh
   type(mesh_distribution_t) :: mesh_distribution
   type(p_reference_fe_t)    :: reference_fe_geo_list(1)
@@ -96,17 +101,21 @@ subroutine par_triangulation_create ( this, w_context, parameters)
 
   call this%free()
 
-  call par_environment_compose_name(prefix, name )  
-  call par_filename( w_context, name )
-  lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-  call this%par_environment%create(w_context,lunio)
-  this%p_env => this%par_environment
+  if(triangulation_generate==triangulation_generate_from_mesh) then
 
-  if(this%p_env%am_i_l1_task()) then
+     call par_environment_compose_name(prefix, name )  
+     call par_filename( w_context, name )
+     lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
+     call this%par_environment%create(w_context,lunio)
+     this%p_env => this%par_environment
+     ! Verify that the multilevel environment matches execution context
+     ! (long-lasting Alberto's concern)
+     check(this%p_env%get_num_tasks() == w_context%get_size())
 
-     if(geometry_interpolation_order>1) call this%geometry%read(parameters)
+     if(this%p_env%am_i_l1_task()) then
 
-     if(triangulation_generate==triangulation_generate_from_mesh) then
+        if(geometry_interpolation_order>1) call this%geometry%read(parameters)
+
         ! Read mesh
         call mesh%compose_name ( prefix, name )
         call par_filename( this%p_env%get_l1_context(), name )
@@ -211,36 +220,54 @@ subroutine par_triangulation_create ( this, w_context, parameters)
         call memfree (lst_vefs_gids_ghost_extended, __FILE__, __LINE__)
         call memfree (ptr_vefs_per_cell,            __FILE__, __LINE__)
 
-     else if(triangulation_generate==triangulation_generate_structured) then
+     end if
 
-        this%num_ghost_cells=0
+  else if(triangulation_generate==triangulation_generate_structured) then
 
-        ! Get num_dimensions from FPL
-        is_present = parameters%isPresent(key = number_of_dimensions_key ) 
-        assert(is_present)
-        istat = parameters%get(key = number_of_dimensions_key   , value = this%num_dimensions)
-        check(istat==0)
+     ! Get num_dimensions from FPL
+     is_present = parameters%isPresent(key = number_of_dimensions_key ) 
+     assert(is_present)
+     istat = parameters%get(key = number_of_dimensions_key   , value = this%num_dimensions)
+     check(istat==0)
 
-        call uniform_hex_mesh_generator_generate_connectivities(parameters,             &
-             &                                                  this%num_local_cells,   &
-             &                                                  this%num_vefs,          & ! All n_faces
-             &                                                  this%num_vertices,      & ! All dim 0 n_faces
-             &                                                  this%num_edges,         & ! All faces with 0<dim<n-1
-             &                                                  this%num_faces,         & ! All dim n-1 n_faces
-             &                                                  this%ptr_vefs_per_cell, &
-             &                                                  this%lst_vefs_lids,     &
-             &                                                  this%vefs_set,          &
-             &                                                  coordinates,            &
-             &                                                  this%num_ghost_cells,   &
-             &                                                  this%cells_gid,         &
-             &                                                  this%cells_mypart,      &
-             &                                                  this%vefs_gid,          &
-             &                                                  num_itfc_cells,         &
-             &                                                  lst_itfc_cells,         &
-             &                                                  ptr_ext_neighs_per_itfc_cell, &
-             &                                                  lst_ext_neighs_gids,          &
-             &                                                  lst_ext_neighs_part_ids,      &
-             &                                                  this%p_env%get_l1_rank()+1)
+     call uniform_hex_mesh%get_data_from_parameter_list(parameters)
+
+     call uniform_hex_mesh%generate_levels_and_parts(w_context%get_rank(), num_levels, num_parts_per_level, parts_mapping)
+     ! Verify that the multilevel environment matches execution context
+     ! (long-lasting Alberto's concern). Here we are temporarily using
+     ! the environment creation without context.
+     call this%par_environment%create(num_levels, num_parts_per_level, parts_mapping)
+     check(this%par_environment%get_num_tasks() == w_context%get_size())
+
+     ! Recursively create multilevel environment
+     call this%par_environment%create(w_context, num_levels, num_parts_per_level, parts_mapping)
+     this%p_env => this%par_environment
+    call memfree(num_parts_per_level,__FILE__,__LINE__)
+    call memfree(parts_mapping,__FILE__,__LINE__)
+
+     if(this%p_env%am_i_l1_task()) then ! Generate only first level (so far we reuse coarse mesh generation for unstructured meshes)
+
+        if(geometry_interpolation_order>1) call this%geometry%read(parameters)
+
+        call uniform_hex_mesh%generate_connectivities(this%num_local_cells,   &
+             &                                        this%num_vefs,          & ! All n_faces
+             &                                        this%num_vertices,      & ! All dim 0 n_faces
+             &                                        this%num_edges,         & ! All faces with 0<dim<n-1
+             &                                        this%num_faces,         & ! All dim n-1 n_faces
+             &                                        this%ptr_vefs_per_cell, &
+             &                                        this%lst_vefs_lids,     &
+             &                                        this%vefs_set,          &
+             &                                        coordinates,            &
+             &                                        this%num_ghost_cells,   &
+             &                                        this%cells_gid,         &
+             &                                        this%cells_mypart,      &
+             &                                        this%vefs_gid,          &
+             &                                        num_itfc_cells,         &
+             &                                        lst_itfc_cells,         &
+             &                                        ptr_ext_neighs_per_itfc_cell, &
+             &                                        lst_ext_neighs_gids,          &
+             &                                        lst_ext_neighs_part_ids,      &
+             &                                        this%p_env%get_l1_rank()+1)
 
         ! Generate import
         call this%cell_import%create  ( this%p_env%get_l1_rank()+1, &
@@ -275,6 +302,12 @@ subroutine par_triangulation_create ( this, w_context, parameters)
 
      end if
 
+     call uniform_hex_mesh%free()
+
+  end if
+
+  if(this%p_env%am_i_l1_task()) then
+
      call this%allocate_and_fill_cells_around()
      call this%compute_vefs_dimension()
      call this%find_vefs_at_boundary()
@@ -294,7 +327,7 @@ subroutine par_triangulation_create ( this, w_context, parameters)
      call memfree (lst_ext_neighs_part_ids,      __FILE__, __LINE__)
      !call memfree (lst_vefs_dimension_ghost_extended, __FILE__, __LINE__)
      if (triangulation_generate==triangulation_generate_structured) then
-       call memfreep(coordinates, __FILE__, __LINE__ )
+        call memfreep(coordinates, __FILE__, __LINE__ )
      end if
 
      !write(*,*) 'compute_vefs_and_parts_object'
@@ -304,7 +337,6 @@ subroutine par_triangulation_create ( this, w_context, parameters)
      !write(*,*) 'compute_number_global_objects_and_their_gids'
      call this%compute_number_global_objects_and_their_gids()
      !write(*,*) 'End creating par_triangulation'
-
   end if
 
   call this%setup_coarse_triangulation()
