@@ -93,6 +93,9 @@ module mlbddc_names
    type(sparse_matrix_t)                       :: A_GI
    type(sparse_matrix_t)                       :: A_GG
    
+   ! Weighting operator
+   class(operator_t), allocatable              :: W
+   
    ! Coarse-grid problem related member variables
    real(rp), allocatable                       :: phi(:,:)
   
@@ -350,6 +353,7 @@ contains
     if( par_environment%am_i_l1_task() ) then
        if ( par_environment%get_l1_size() > 1 ) then
          call this%setup_constraint_matrix()
+		 call this%setup_weighting_operator()
        end if
     end if
        
@@ -372,10 +376,25 @@ contains
     implicit none
     class(mlbddc_t)                   , intent(inout) :: this
     type(par_fe_space_t)   , pointer :: fe_space
+	class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
     assert ( this%am_i_l1_task() )
-    fe_space => this%get_fe_space()
-    call fe_space%setup_constraint_matrix(block_id=1, constraint_matrix=this%constraint_matrix)
+    fe_space          => this%get_fe_space()
+	coarse_fe_handler => fe_space%get_coarse_fe_handler(field_id=1)
+    call coarse_fe_handler%setup_constraint_matrix(par_fe_space      = fe_space, &
+												   constraint_matrix = this%constraint_matrix)
   end subroutine mlbddc_setup_constraint_matrix
+  
+  subroutine mlbddc_setup_weighting_operator (this)
+    implicit none
+    class(mlbddc_t)                   , intent(inout) :: this
+    type(par_fe_space_t)   , pointer :: fe_space
+	class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+    assert ( this%am_i_l1_task() )
+    fe_space          => this%get_fe_space()
+	coarse_fe_handler => fe_space%get_coarse_fe_handler(field_id=1)
+    call coarse_fe_handler%setup_constraint_matrix(par_fe_space       = fe_space, &
+												   weighting_operator = this%W )
+  end subroutine mlbddc_setup_weighting_operator
     
   subroutine mlbddc_symbolic_setup_dirichlet_problem ( this) 
     implicit none

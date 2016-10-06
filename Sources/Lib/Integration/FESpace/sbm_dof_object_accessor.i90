@@ -81,14 +81,14 @@ function dof_object_accessor_get_number_dofs_on_object(this)
   integer(ip) :: dof_object_accessor_get_number_dofs_on_object
   type(list_iterator_t) :: dofs_on_object_iterator
   dofs_on_object_iterator = this%get_dofs_on_object_iterator()
-  dof_object_accessor_get_number_dofs_on_object = &
-    this%fe_space%fine_dofs_coarse_dofs_per_field(this%field_id)%get_sublist_size(this%dof_object_lid)
+  !dof_object_accessor_get_number_dofs_on_object = &
+  !  this%fe_space%fine_dofs_coarse_dofs_per_field(this%field_id)%get_sublist_size(this%dof_object_lid)
 end function dof_object_accessor_get_number_dofs_on_object
 
 function dof_object_accessor_get_dofs_on_object_iterator(this)
   implicit none
   class(dof_object_accessor_t), intent(inout) :: this
   type(list_iterator_t) :: dof_object_accessor_get_dofs_on_object_iterator
-  dof_object_accessor_get_dofs_on_object_iterator = &
-    this%fe_space%fine_dofs_coarse_dofs_per_field(this%field_id)%create_iterator(this%dof_object_lid)
+  !dof_object_accessor_get_dofs_on_object_iterator = &
+  !  this%fe_space%fine_dofs_coarse_dofs_per_field(this%field_id)%create_iterator(this%dof_object_lid)
 end function dof_object_accessor_get_dofs_on_object_iterator

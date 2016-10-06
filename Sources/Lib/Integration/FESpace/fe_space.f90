@@ -44,6 +44,7 @@ module fe_space_names
   use field_names
   use function_names
   
+  use operator_names
   use matrix_names
   use vector_names
   use array_names
@@ -408,8 +409,6 @@ module fe_space_names
      procedure, non_overridable          :: current      => dof_object_iterator_current
   end type dof_object_iterator_t
   
-  
- 
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
   ! See type(par_fe_space_t)%generate_non_consecutive_dof_gid()
@@ -435,6 +434,10 @@ module fe_space_names
    
    ! LIDs of the VEFs objects the coarse DoFs are put on top of
    type(allocatable_array_ip1_t) , allocatable :: coarse_n_face_lids_coarse_dofs_per_field(:)  
+   
+   ! Polymorphic data type in charge of filling some of the member variables above
+   ! (so far, num_coarse_dofs + coarse_n_face_lids_coarse_dofs)
+   class(l1_coarse_fe_handler_t), pointer      :: coarse_fe_handler => NULL()
 	  
    ! Pointer to data structure which is in charge of coarse DoF handling.
    ! It will be a nullified pointer on L1 tasks, and associated via target 
@@ -480,7 +483,7 @@ module fe_space_names
    
    procedure       , non_overridable           :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
    procedure       , non_overridable, private  :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
-   procedure       , non_overridable, private  :: setup_dofs_objects_by_continuity                => par_fe_space_setup_dofs_objects_by_continuity
+   procedure       , non_overridable, private  :: setup_coarse_dofs_field                         => par_fe_space_setup_coarse_dofs_field
    procedure       , non_overridable           :: setup_constraint_matrix                         => par_fe_space_setup_constraint_matrix
    procedure       , non_overridable, private  :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
    procedure       , non_overridable, private  :: transfer_number_fields                          => par_fe_space_transfer_number_fields
@@ -491,7 +494,8 @@ module fe_space_names
    procedure       , non_overridable, private  :: gather_vefs_gids_dofs_objects                   => par_fe_space_gather_vefs_gids_dofs_objects
    procedure       , non_overridable           :: get_total_number_coarse_dofs                    => par_fe_space_get_total_number_coarse_dofs
    procedure       , non_overridable           :: get_block_number_coarse_dofs                    => par_fe_space_get_block_number_coarse_dofs
-   
+   procedure       , non_overridable           :: get_coarse_fe_handler                           => par_fe_space_get_coarse_fe_handler
+
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                  :: create_fe_vefs_on_object_iterator               => par_fe_space_create_fe_vefs_on_object_iterator
@@ -502,6 +506,47 @@ module fe_space_names
  public :: par_fe_space_t
  public :: fe_object_accessor_t, fe_object_iterator_t, fe_vefs_on_object_iterator_t
  public :: dof_object_accessor_t, dof_object_iterator_t
+ 
+  type, abstract :: l1_coarse_fe_handler_t
+  contains
+    ! Deferred methods
+    procedure (l1_setup_coarse_dofs_interface), deferred :: setup_coarse_dofs
+	procedure (l1_setup_constraint_matrix)    , deferred :: setup_constraint_matrix
+	procedure (l1_setup_weighting_operator)   , deferred :: setup_weighting_operator
+  end type l1_coarse_fe_handler_t
+ 
+  abstract interface
+    subroutine l1_setup_coarse_dofs_interface(this, par_fe_space) 
+      import :: l1_coarse_fe_handler_t, par_fe_space_t
+      implicit none
+      class(l1_coarse_fe_handler_t), intent(in)    :: this
+      type(par_fe_space_t)         , intent(inout) :: par_fe_space 
+    end subroutine l1_setup_coarse_dofs_interface
+	
+    subroutine l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix) 
+      import :: l1_coarse_fe_handler_t, par_fe_space_t, coo_sparse_matrix_t
+	  implicit none
+      class(l1_coarse_fe_handler_t), intent(in)    :: this
+      type(par_fe_space_t)         , intent(in)    :: par_fe_space
+	  type(coo_sparse_matrix_t)    , intent(inout) :: constraint_matrix
+    end subroutine l1_setup_constraint_matrix
+  
+    subroutine l1_setup_weighting_operator(this, par_fe_space, weighting_operator) 
+	  import :: l1_coarse_fe_handler_t, par_fe_space_t, operator_t
+      implicit none
+      class(l1_coarse_fe_handler_t) , intent(in)    :: this
+      type(par_fe_space_t)          , intent(in)    :: par_fe_space
+	  class(operator_t), allocatable, intent(inout) :: weighting_operator
+    end subroutine l1_setup_weighting_operator
+  end interface
+  
+  type, extends(l1_coarse_fe_handler_t) :: standard_l1_coarse_fe_handler_t
+    private
+  contains
+    procedure :: setup_coarse_dofs        => standard_l1_setup_coarse_dofs
+	procedure :: setup_constraint_matrix  => standard_l1_setup_constraint_matrix
+	procedure :: setup_weighting_operator => standard_l1_setup_weighting_operator
+ end type standard_l1_coarse_fe_handler_t
     
   type, extends(cell_accessor_t) :: coarse_fe_accessor_t
     private
@@ -636,6 +681,7 @@ module fe_space_names
      procedure, non_overridable          :: current      => coarse_dof_object_iterator_current
   end type coarse_dof_object_iterator_t
   
+  
   type :: coarse_fe_space_t
     private
     integer(ip)                                 :: number_fields
@@ -757,6 +803,27 @@ module fe_space_names
  public :: coarse_fe_space_t, coarse_fe_iterator_t, coarse_fe_accessor_t
  public :: coarse_fe_object_accessor_t, coarse_dof_object_accessor_t, coarse_dof_object_iterator_t
  
+ type, abstract :: lgt1_coarse_fe_handler_t
+  contains
+    ! Deferred methods
+    procedure (lgt1_setup_coarse_dofs_interface), deferred :: setup_coarse_dofs
+  end type lgt1_coarse_fe_handler_t
+
+  abstract interface
+    subroutine lgt1_setup_coarse_dofs_interface(this, coarse_fe_space) 
+      import :: lgt1_coarse_fe_handler_t, coarse_fe_space_t
+      implicit none
+      class(lgt1_coarse_fe_handler_t), intent(in)    :: this
+      type(coarse_fe_space_t)        , intent(inout) :: coarse_fe_space 
+    end subroutine lgt1_setup_coarse_dofs_interface
+  end interface
+  
+  type, extends(lgt1_coarse_fe_handler_t) :: standard_lgt1_coarse_fe_handler_t
+    private
+  contains
+    procedure :: setup_coarse_dofs       => standard_lgt1_setup_coarse_dofs
+ end type standard_lgt1_coarse_fe_handler_t
+ 
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
@@ -773,6 +840,7 @@ contains
 #include "sbm_fe_vefs_on_object_iterator.i90"
 #include "sbm_dof_object_accessor.i90"
 #include "sbm_dof_object_iterator.i90"
+#include "sbm_standard_coarse_fe_handler.i90"
 
 #include "sbm_coarse_fe_space.i90"
 #include "sbm_coarse_fe_object_accessor.i90"
