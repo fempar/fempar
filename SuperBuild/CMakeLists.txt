@@ -172,7 +172,6 @@ FOREACH(EXT_PROJ ${EXT_PROJS})
             WORKING_DIRECTORY ${${EXT_PROJ}_BINARY_PATH}
             DEPENDES ${PROJECT_BINARY_DIR}
         )
-
         ADD_CUSTOM_TARGET(clean-${EXT_PROJ}Tests
             COMMAND ${CMAKE_COMMAND} --build ${${EXT_PROJ}_BINARY_PATH} --target clean-Tests
         )
