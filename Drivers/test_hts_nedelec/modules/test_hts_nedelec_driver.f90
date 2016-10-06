@@ -328,7 +328,7 @@ contains
     call this%solve_system()
 	call this%write_solution()
     call this%check_solution()
-    !call this%show_H()
+
     call this%free()
   end subroutine run_simulation
 
