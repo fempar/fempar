@@ -258,7 +258,7 @@ contains
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     class(vector_function_t), pointer :: H_exact_function
     type(error_norms_vector_t) :: H_error_norm
-    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, hcurl, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: error_tolerance
     
     H_exact_function => this%problem_functions%get_solution()
@@ -272,6 +272,7 @@ contains
     linfty = H_error_norm%compute(H_exact_function, this%solution, linfty_norm)   
     h1_s = H_error_norm%compute(H_exact_function, this%solution, h1_seminorm) 
     h1 = H_error_norm%compute(H_exact_function, this%solution, h1_norm) 
+	hcurl = H_error_norm%compute(H_exact_function, this%solution, hcurl_norm) 
     w1p_s = H_error_norm%compute(H_exact_function, this%solution, w1p_seminorm)   
     w1p = H_error_norm%compute(H_exact_function, this%solution, w1p_norm)   
     w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 
@@ -290,6 +291,7 @@ contains
     write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; !check ( linfty < error_tolerance )
     write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; !check ( h1_s < error_tolerance )
     write(*,'(a20,e32.25)') 'h1_norm:', h1; !check ( h1 < error_tolerance )
+	write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; !check ( h1 < error_tolerance )
     write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; !check ( w1p_s < error_tolerance )
     write(*,'(a20,e32.25)') 'w1p_norm:', w1p; !check ( w1p < error_tolerance )
     write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; !check ( w1infty_s < error_tolerance )

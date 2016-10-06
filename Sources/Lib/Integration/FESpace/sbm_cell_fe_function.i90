@@ -277,12 +277,15 @@ subroutine cell_fe_function_vector_update ( this, fe_accessor, fe_function)
      ! Gather DoFs of current cell + field_id on nodal_values 
      call fe_function%gather_nodal_values(fe_accessor, field_id, this%nodal_values)
 
-     ! Evaluate values and gradients at quadrature points
+     ! Evaluate values, gradients and curl at quadrature points
      call volume_integrator%evaluate_fe_function ( this%nodal_values, & 
                                                    this%quadrature_points_values )
 
      call volume_integrator%evaluate_gradient_fe_function ( this%nodal_values, & 
                                                             this%quadrature_points_gradients )
+	 
+	 call volume_integrator%evaluate_curl_fe_function ( this%nodal_values, & 
+                                                        this%quadrature_points_curl_values )
   end if
 end subroutine cell_fe_function_vector_update
 
@@ -355,6 +358,14 @@ function cell_fe_function_vector_get_quadrature_points_gradients ( this )
 end function cell_fe_function_vector_get_quadrature_points_gradients
 
 !===============================================================================================
+function cell_fe_function_vector_get_quadrature_points_curl_values( this )
+  implicit none
+  class(cell_fe_function_vector_t), target, intent(in) :: this 
+  type(vector_field_t), pointer :: cell_fe_function_vector_get_quadrature_points_curl_values(:)
+  cell_fe_function_vector_get_quadrature_points_curl_values => this%quadrature_points_curl_values
+end function cell_fe_function_vector_get_quadrature_points_curl_values 
+
+!===============================================================================================
 subroutine cell_fe_function_vector_get_value ( this, point, value )
   implicit none
   class(cell_fe_function_vector_t), intent(in)    :: this 
@@ -373,6 +384,16 @@ subroutine cell_fe_function_vector_get_gradient ( this, point, value )
   assert ( point <= this%current_number_quadrature_points )
   value = this%quadrature_points_gradients(point)
 end subroutine cell_fe_function_vector_get_gradient
+
+!===============================================================================================
+subroutine cell_fe_function_vector_get_curl ( this, point, value )
+  implicit none
+  class(cell_fe_function_vector_t), intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: point
+  type(vector_field_t)            , intent(inout) :: value
+  assert ( point <= this%current_number_quadrature_points )
+  value = this%quadrature_points_curl_values(point)
+end subroutine cell_fe_function_vector_get_curl
 
 !===============================================================================================
 subroutine cell_fe_function_vector_set_current_number_nodes ( this, value )

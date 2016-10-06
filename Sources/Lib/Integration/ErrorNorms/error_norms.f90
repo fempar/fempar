@@ -46,6 +46,7 @@ module error_norms_names
   character(len=*), parameter :: linfty_norm       = 'linfty_norm'      ! The maximum absolute value of the function is computed on each cell, the maximum over all cells is taken
   character(len=*), parameter :: h1_seminorm       = 'h1_seminorm'      ! L2_norm of the gradient. 
   character(len=*), parameter :: hdiv_seminorm     = 'hdiv_seminorm'    ! L2_norm of the divergence of a vector field 
+  character(len=*), parameter :: hcurl_norm        = 'hcurl_norm'       ! L2_norm of the curl of a vector field 
   character(len=*), parameter :: h1_norm           = 'h1_norm'          ! The square of this norm is the square of the L2_norm plus the square of the H1_seminorm
   character(len=*), parameter :: w1p_seminorm      = 'w1p_seminorm'     ! Lp_norm of the gradient
   character(len=*), parameter :: w1p_norm          = 'w1p_norm'         ! same as H1_norm for Lp
@@ -107,6 +108,7 @@ module error_norms_names
      ! is required provided the current interface of tensor-valued function_t data types
      type(vector_field_t)    , allocatable :: work_array_values(:,:)
      type(tensor_field_t)    , allocatable :: work_array_gradients(:,:)
+	 type(vector_field_t)    , allocatable :: work_array_curl_values(:,:)
    contains
      procedure, non_overridable          :: create                    => error_norms_vector_create
      procedure, non_overridable          :: free                      => error_norms_vector_free
@@ -117,7 +119,7 @@ module error_norms_names
 
   ! Parameters
   public :: mean_norm, l1_norm, l2_norm, lp_norm, linfty_norm, h1_seminorm
-  public :: hdiv_seminorm, h1_norm, w1p_seminorm, w1p_norm, w1infty_seminorm, w1infty_norm
+  public :: hdiv_seminorm, hcurl_norm, h1_norm, w1p_seminorm, w1p_norm, w1infty_seminorm, w1infty_norm
 
   ! Data types
   public :: error_norms_scalar_t, error_norms_vector_t !, error_norms_tensor_t
@@ -133,19 +135,20 @@ contains
     select case ( trim(norm_type) )
     case (linfty_norm,W1infty_norm,w1infty_seminorm)
        norm = max(cell_contribution,norm)
-    case (mean_norm, l1_norm, l2_norm, lp_norm, h1_norm, h1_seminorm, hdiv_seminorm, w1p_norm, w1p_seminorm) 
+    case (mean_norm, l1_norm, l2_norm, lp_norm, h1_norm, h1_seminorm, hdiv_seminorm, hcurl_norm, w1p_norm, w1p_seminorm) 
        norm = norm + cell_contribution
     end select 
   end subroutine update_norm
   
-  subroutine finalize_norm (environment, norm_type, exponent, values_norm, gradients_norm, norm)
+  subroutine finalize_norm (environment, norm_type, exponent, values_norm, gradients_norm, norm, curl_values_norm)
     implicit none
     class(environment_t), intent(in)  :: environment
     character(*)        , intent(in)  :: norm_type
     real(rp)            , intent(in)  :: exponent
     real(rp)            , intent(in)  :: values_norm 
     real(rp)            , intent(in)  :: gradients_norm 
-    real(rp)            , intent(out) :: norm 
+	real(rp)            , intent(out) :: norm 
+    real(rp) ,optional  , intent(in)  :: curl_values_norm 
 
     real(rp) :: aux
 
@@ -169,15 +172,23 @@ contains
        call environment%l1_max(aux)
        norm = norm + aux
     end select
+	
+	if ( present(curl_values_norm) ) then 
+	  select case ( trim(norm_type) )
+    case(hcurl_norm) 
+       aux = curl_values_norm
+       call environment%l1_sum(aux)
+       norm = norm + aux
+    end select
+	end if 
 
     select case( trim(norm_type) )
-    case (l2_norm,h1_seminorm,hdiv_seminorm,h1_norm)
+    case (l2_norm,h1_seminorm,hdiv_seminorm,hcurl_norm,h1_norm)
       norm = sqrt(norm)
     case (lp_norm,w1p_norm,w1p_seminorm)
       norm = norm**exponent
     end select
   end subroutine finalize_norm
-
 
   function error_norm_is_supported(norm_type) result(is_supported)
     implicit none
@@ -193,6 +204,7 @@ contains
                      (trim(norm_type) == w1infty_norm) .or. &
                      (trim(norm_type) == h1_seminorm) .or. &
                      (trim(norm_type) == hdiv_seminorm) .or. &
+					 (trim(norm_type) == hcurl_norm)    .or. &
                      (trim(norm_type) == w1p_seminorm) .or. &
                      (trim(norm_type) == w1infty_seminorm) )
   end function error_norm_is_supported
@@ -228,6 +240,15 @@ contains
                  (trim(norm_type) == w1infty_norm) )
   end function error_norm_requires_gradients
   
+   ! Private helper function
+  function error_norm_requires_curl_values(norm_type) result(requires)
+    implicit none
+    character(*), intent(in) :: norm_type
+    logical                  :: requires 
+    assert ( error_norm_is_supported(norm_type) )
+    requires = ( (trim(norm_type) == hcurl_norm) ) 
+  end function error_norm_requires_curl_values
+  
   ! Private helper function
   function error_norm_determine_exponent(norm_type, exponent) result(exponent_)
     implicit none
@@ -246,7 +267,7 @@ contains
     ! Determine "exponent_" for those norms where it 
     ! is inherently defined by the norm itself 
     select case ( trim(norm_type) )
-    case (l2_norm,h1_seminorm,h1_norm,hdiv_seminorm)
+    case (l2_norm,h1_seminorm,h1_norm,hdiv_seminorm,hcurl_norm)
       exponent_ = 2.0_rp
     case (l1_norm)   
       exponent_ = 1.0_rp

@@ -42,11 +42,12 @@ module hts_nedelec_analytical_functions_names
    contains
      procedure :: get_value_space => source_term_get_value_space
   end type source_term_t
-  
+   
   type, extends(base_vector_function_t) :: solution_t
    contains
      procedure :: get_value_space    => solution_get_value_space
      procedure :: get_gradient_space => solution_get_gradient_space
+	 procedure :: get_curl_space     => solution_get_curl_space
   end type solution_t
   
     type, extends(scalar_function_t) :: base_scalar_function_t
@@ -112,11 +113,11 @@ contains
 	x = point%get(1)
 	y = point%get(2) 
 	assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-	  call result%set(1,   -(pi*pi+1.0_rp)*sin(pi*y) )
-	  call result%set(2,    (pi*pi+1.0_rp)*cos(pi*x) )
+	 call result%set(1,   -(pi*pi+1.0_rp)*sin(pi*y) )
+	 call result%set(2,    (pi*pi+1.0_rp)*cos(pi*x) )
     if ( this%num_dimensions == 3 ) then
 	z = point%get(3) 
-	  call result%set(3, cos(pi*z)) 
+	  call result%set(3, 1.0_rp) 
     end if  
 
   end subroutine source_term_get_value_space
@@ -146,9 +147,9 @@ contains
 	   call result%set(2,  cos(pi*x)  ) 
     if ( this%num_dimensions == 3 ) then
 	   z = point%get(3)
-       call result%set(3, cos(pi*z) ) 
+       call result%set(3, 1.0_rp ) 
     end if  
-
+	
   end subroutine solution_get_value_space
   
   !===============================================================================================
@@ -166,10 +167,26 @@ contains
 	call result%set(2, 1,  -pi*cos(pi*y) ) 
 	if ( this%num_dimensions == 3) then 
 	z = point%get(3) 
-	call result%set(3, 3,  -pi*sin(pi*z) )
+	call result%set(3, 3,  0.0_rp )
 	end if 
-
+	
   end subroutine solution_get_gradient_space 
+  
+    !===============================================================================================
+  subroutine solution_get_curl_space ( this, point, result )
+    implicit none
+    class(solution_t)       , intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+    type(vector_field_t)    , intent(inout) :: result
+		! Locals 
+	real(rp)  :: x, y, z  
+	x = point%get(1)
+	y = point%get(2) 
+	z = point%get(3) 
+
+	call result%set(3,  pi*(-sin(pi*x) + cos(pi*y) )) 
+     
+  end subroutine solution_get_curl_space 
   
   !===============================================================================================
   subroutine boundary_function_Hx_get_value_space( this, point, result )
@@ -183,7 +200,7 @@ contains
 	y = point%get(2) 
 	z = point%get(3) 
     result = -sin(pi*y)
-  
+
   end subroutine 
   
     !===============================================================================================
@@ -198,7 +215,7 @@ contains
 	y = point%get(2) 
     z = point%get(3)
     result = cos(pi*x)	
-
+    
 	 end subroutine 
 	
 	! ============================================================================================
@@ -212,8 +229,8 @@ contains
     x = point%get(1) 
 	y = point%get(2) 
 	z = point%get(3) 
-    result=cos(pi*z)
-	
+     result=1.0_rp 
+	 
 	end subroutine 
   
   !===============================================================================================
