@@ -1,83 +1,252 @@
-  !
-  ! By now, this guy has two different responsibilities:
-  ! 1. Determine how many coarse DoFs there are?
-  ! 2. Generate a local numbering of coarse DoFs and its association to coarse n_faces
-  !
-  subroutine standard_l1_setup_coarse_dofs(this, par_fe_space) 
-    implicit none
-    class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
-    type(par_fe_space_t)                  , intent(inout) :: par_fe_space
-    integer(ip)                            :: field_id
-    integer(ip)                            :: num_coarse_dofs
-    integer(ip)                            :: iobj_vef, iobj_dof, ivef
-    integer(ip)                            :: idof, dof_lid
-    integer(ip)                            :: offset, i
-    integer(ip)                            :: istat
-    logical                                :: dofs_on_vef
-    integer(ip)                            :: current_coarse_dof
-    integer(ip)                            :: base_pos_lst_dofs
-    type(par_environment_t), pointer       :: par_environment
-    type(fe_object_iterator_t)             :: object_iterator
-    type(fe_object_accessor_t)             :: object
-    type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
-    type(fe_vef_accessor_t)                :: vef
-    type(fe_accessor_t)                    :: fe
-    type(list_iterator_t)                  :: own_dofs_on_vef_iterator
-    integer(ip), pointer                   :: elem2dof(:)
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+function standard_l1_get_num_coarse_dofs(this, par_fe_space)
+  implicit none
+  class(standard_l1_coarse_fe_handler_t), intent(in) :: this
+  type(par_fe_space_t)                  , intent(in) :: par_fe_space
+  integer(ip) :: standard_l1_get_num_coarse_dofs
+  
+  integer(ip)                            :: field_id
+  integer(ip)                            :: num_coarse_dofs
+  integer(ip)                            :: ivef
+  integer(ip)                            :: idof, dof_lid
+  logical                                :: dofs_on_vef
+  type(par_environment_t), pointer       :: par_environment
+  type(fe_object_iterator_t)             :: object_iterator
+  type(fe_object_accessor_t)             :: object
+  type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
+  type(fe_vef_accessor_t)                :: vef
+  type(fe_accessor_t)                    :: fe
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator
+  integer(ip), pointer                   :: elem2dof(:)
+ 
 
-    par_environment => par_fe_space%get_par_environment()
-    assert ( associated ( par_environment ) )
-    assert ( par_environment%am_i_l1_task() )
+  par_environment => par_fe_space%get_par_environment()
+  assert ( associated ( par_environment ) )
+  assert ( par_environment%am_i_l1_task() )
 
-    ! To think where field_id should come from? Temporarily let us assume that we have
-    ! a single-field PDE problem
-    field_id = 1
+  ! To think where field_id should come from? Temporarily let us assume that we have
+  ! a single-field PDE problem
+  field_id = 1
 
-    ! First, count how many coarse_dofs there are on the interface of my subdomain
-    num_coarse_dofs = 0
-    object_iterator = par_fe_space%create_fe_object_iterator()
-    do while ( .not. object_iterator%has_finished() )
-       call object_iterator%current(object)
+  ! First, count how many coarse_dofs there are on the interface of my subdomain
+  num_coarse_dofs = 0
+  object_iterator = par_fe_space%create_fe_object_iterator()
+  do while ( .not. object_iterator%has_finished() )
+     call object_iterator%current(object)
+     vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+     dofs_on_vef = .false.
+     do while ( .not. vefs_on_object_iterator%has_finished() )
+        call vefs_on_object_iterator%current(vef)
+        call vef%get_cell_around(1,fe)
+        call fe%get_field_elem2dof(field_id, elem2dof)
+        ivef = fe%find_lpos_vef_lid(vef%get_lid())
+
+        own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
+        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+           idof    = own_dofs_on_vef_iterator%get_current()
+           dof_lid = elem2dof(idof)
+           if ( dof_lid > 0 ) then
+              dofs_on_vef = .true.
+              exit
+           end if
+           call own_dofs_on_vef_iterator%next()
+        end do
+
+        if ( dofs_on_vef ) then
+           ! It must be thought for more general cases (vectors, tensor product...)
+           num_coarse_dofs = num_coarse_dofs + 1
+           exit
+        end if
+
+        call vefs_on_object_iterator%next()
+     end do
+     call object_iterator%next()
+  end do
+  standard_l1_get_num_coarse_dofs = num_coarse_dofs
+end function standard_l1_get_num_coarse_dofs
+
+subroutine standard_l1_setup_coarse_dofs(this, par_fe_space) 
+  implicit none
+  class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
+  type(par_fe_space_t)                  , intent(inout) :: par_fe_space
+  integer(ip)                            :: field_id
+  integer(ip)                            :: num_coarse_dofs
+  integer(ip)                            :: ivef
+  integer(ip)                            :: idof, dof_lid
+  integer(ip)                            :: coarse_n_face_lid
+  integer(ip)                            :: coarse_dof_lid
+  logical                                :: dofs_on_vef
+  integer(ip)                            :: current_coarse_dof
+  type(par_environment_t), pointer       :: par_environment
+  type(fe_object_iterator_t)             :: object_iterator
+  type(fe_object_accessor_t)             :: object
+  type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
+  type(fe_vef_accessor_t)                :: vef
+  type(fe_accessor_t)                    :: fe
+  type(list_iterator_t)                  :: own_coarse_dofs_iterator
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
+  integer(ip), pointer                   :: elem2dof(:)
+  integer(ip)                            :: off
+
+  par_environment => par_fe_space%get_par_environment()
+  assert ( associated ( par_environment ) )
+  assert ( par_environment%am_i_l1_task() )
+  
+  ! To-think where field_id should come from? Temporarily let us assume that we have
+  ! a single-field PDE problem
+  field_id = 1
+  
+  off = par_fe_space%ptr_coarse_dofs_per_field(field_id)-1
+  num_coarse_dofs = par_fe_space%ptr_coarse_dofs_per_field(field_id+1) - &
+                    par_fe_space%ptr_coarse_dofs_per_field(field_id)
+                    
+  call par_fe_space%own_coarse_dofs_per_field(field_id)%create(par_fe_space%get_number_fe_objects())
+  
+  ! Enumerate coarse DoFs and define coarse n_faces ownership
+  current_coarse_dof = 1
+  call object_iterator%init()
+  do while ( .not. object_iterator%has_finished() )
+     call object_iterator%current(object)
+     dofs_on_vef = .false.
+     vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+     do while ( .not. vefs_on_object_iterator%has_finished() )
+        call vefs_on_object_iterator%current(vef)
+        call vef%get_cell_around(1,fe)
+        call fe%get_field_elem2dof(field_id, elem2dof)
+        ivef = fe%find_lpos_vef_lid(vef%get_lid())
+        own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
+        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+           idof    = own_dofs_on_vef_iterator%get_current()
+           dof_lid = elem2dof(idof)
+           if ( dof_lid > 0 ) then
+              dofs_on_vef = .true.
+              exit
+           end if
+           call own_dofs_on_vef_iterator%next()
+        end do
+        if (dofs_on_vef) then
+           par_fe_space%lst_coarse_dofs(off + current_coarse_dof) = current_coarse_dof
+           call par_fe_space%own_coarse_dofs_per_field(field_id)%sum_to_pointer_index(object%get_lid(),1)
+           current_coarse_dof = current_coarse_dof + 1
+           exit
+        end if
+        call vefs_on_object_iterator%next()
+     end do
+     call object_iterator%next()
+  end do
+  call par_fe_space%own_coarse_dofs_per_field(field_id)%calculate_header()
+  call par_fe_space%own_coarse_dofs_per_field(field_id)%allocate_list_from_pointer()
+  
+  coarse_dof_lid = 1
+  do coarse_n_face_lid=1, par_fe_space%own_coarse_dofs_per_field(field_id)%get_num_pointers()
+    own_coarse_dofs_iterator = par_fe_space%own_coarse_dofs_per_field(field_id)%create_iterator(coarse_n_face_lid)
+    do while ( .not. own_coarse_dofs_iterator%is_upper_bound() )
+      call own_coarse_dofs_iterator%set_current(coarse_dof_lid)
+      call own_coarse_dofs_iterator%next()
+      coarse_dof_lid = coarse_dof_lid + 1
+    end do         
+  end do
+  
+  
+end subroutine standard_l1_setup_coarse_dofs
+
+subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix) 
+  implicit none
+  class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
+  type(par_environment_t), pointer :: par_environment
+  type(fe_object_iterator_t) :: object_iterator
+  type(fe_object_accessor_t) :: object
+  type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
+  type(fe_vef_accessor_t)                :: vef
+  type(fe_accessor_t)                    :: fe
+  type(list_iterator_t)                  :: own_coarse_dofs_iterator
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
+  integer(ip), pointer                   :: elem2dof(:)
+  integer(ip)                            :: off
+  integer(ip) :: field_id
+  integer(ip) :: num_rows, num_cols
+  integer(ip) :: num_fine_dofs_on_coarse_dof
+  integer(ip) :: ivef, idof, dof_lid, coarse_dof_lid
+  
+  
+  par_environment => par_fe_space%get_par_environment()
+  assert (associated(par_environment))
+  assert (par_environment%am_i_l1_task())
+  
+  ! To-think where field_id should come from? Temporarily let us assume that we have
+  ! a single-field PDE problem
+  field_id = 1
+  
+  ! Free any dynamic memory that constraint_matrix may have inside
+  call constraint_matrix%free()
+   
+  num_cols = par_fe_space%number_dofs_per_field(field_id)
+  num_rows = par_fe_space%ptr_coarse_dofs_per_field(field_id+1)- &
+             par_fe_space%ptr_coarse_dofs_per_field(field_id)    
+ 
+  ! Create constraint matrix (transposed)
+  call constraint_matrix%create ( num_cols, num_rows )
+   
+  ! Fill constraint matrix entries (transposed)
+  call object_iterator%init()
+  do while ( .not. object_iterator%has_finished() )
+     call object_iterator%current(object)
+     
+     if ( object%get_number_coarse_dofs(field_id) > 0 ) then
+       
+       own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
+       assert ( own_coarse_dofs_iterator%get_size() == 1 )
+       
+       coarse_dof_lid = own_coarse_dofs_iterator%get_current()
+     
+       num_fine_dofs_on_coarse_dof = 0 
+       ! Count how many fine DoFs current coarse DoF aggregates
        vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
-       dofs_on_vef = .false.
        do while ( .not. vefs_on_object_iterator%has_finished() )
           call vefs_on_object_iterator%current(vef)
           call vef%get_cell_around(1,fe)
           call fe%get_field_elem2dof(field_id, elem2dof)
           ivef = fe%find_lpos_vef_lid(vef%get_lid())
-
           own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
              idof    = own_dofs_on_vef_iterator%get_current()
              dof_lid = elem2dof(idof)
              if ( dof_lid > 0 ) then
-                dofs_on_vef = .true.
-                exit
+               num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + 1
              end if
              call own_dofs_on_vef_iterator%next()
           end do
-
-          if ( dofs_on_vef ) then
-             ! It must be thought for more general cases (vectors, tensor product...)
-             num_coarse_dofs = num_coarse_dofs + 1
-             exit
-          end if
-
           call vefs_on_object_iterator%next()
        end do
-       call object_iterator%next()
-    end do
-
-    ! Set-up number of coarse dofs
-    par_fe_space%num_coarse_dofs_per_field(field_id) = num_coarse_dofs
-    call par_fe_space%coarse_n_face_lids_coarse_dofs_per_field(field_id)%create(num_coarse_dofs)
-
-    current_coarse_dof = 1
-    call object_iterator%init()
-    do while ( .not. object_iterator%has_finished() )
-       call object_iterator%current(object)
-       dofs_on_vef = .false.
-       vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+       
        do while ( .not. vefs_on_object_iterator%has_finished() )
           call vefs_on_object_iterator%current(vef)
           call vef%get_cell_around(1,fe)
@@ -88,38 +257,80 @@
              idof    = own_dofs_on_vef_iterator%get_current()
              dof_lid = elem2dof(idof)
              if ( dof_lid > 0 ) then
-                dofs_on_vef = .true.
-                exit
+               call constraint_matrix%insert(coarse_dof_lid, dof_lid, 1.0_rp/real(num_fine_dofs_on_coarse_dof,rp))
              end if
              call own_dofs_on_vef_iterator%next()
           end do
           call vefs_on_object_iterator%next()
-          
-          if (dofs_on_vef) then
-             par_fe_space%coarse_n_face_lids_coarse_dofs_per_field(field_id)%a(current_coarse_dof) = object%get_lid()
-             current_coarse_dof = current_coarse_dof + 1
-          end if
        end do
-       call object_iterator%next()
-    end do	
-  end subroutine standard_l1_setup_coarse_dofs
+     end if
+     call object_iterator%next()
+  end do
+  call constraint_matrix%sort_and_compress()
+end subroutine standard_l1_setup_constraint_matrix
+
+subroutine standard_l1_setup_weighting_operator(this, par_fe_space, weighting_operator) 
+  implicit none
+  class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
+  integer(ip) :: field_id
+  type(par_environment_t), pointer :: par_environment
+  type(fe_object_iterator_t) :: object_iterator
+  type(fe_object_accessor_t) :: object
+  type(fe_vefs_on_object_iterator_t)     :: vefs_on_object_iterator
+  type(fe_vef_accessor_t)                :: vef
+  type(fe_accessor_t)                    :: fe
+  type(list_iterator_t)                  :: own_coarse_dofs_iterator
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
+  integer(ip), pointer                   :: elem2dof(:)
+  integer(ip)                            :: off
+  integer(ip) :: num_rows, num_cols
+  integer(ip) :: num_fine_dofs_on_coarse_dof
+  integer(ip) :: ivef, idof, dof_lid, coarse_dof_lid
   
-  subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix) 
-    implicit none
-    class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
-    type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-	type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
-  end subroutine standard_l1_setup_constraint_matrix
+  if (allocated(weighting_operator) ) then
+    call memfree ( weighting_operator, __FILE__, __LINE__ )
+  end if
   
-  subroutine standard_l1_setup_weighting_operator(this, par_fe_space, weighting_operator) 
-    implicit none
-    class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
-    type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-	class(operator_t), allocatable        , intent(inout) :: weighting_operator
-  end subroutine standard_l1_setup_weighting_operator
+  ! To-think where field_id should come from? Temporarily let us assume that we have
+  ! a single-field PDE problem
+  field_id = 1
   
-  subroutine standard_lgt1_setup_coarse_dofs(this, coarse_fe_space) 
-    implicit none
-    class(standard_lgt1_coarse_fe_handler_t), intent(in)    :: this
-    type(coarse_fe_space_t)                 , intent(inout) :: coarse_fe_space
-  end subroutine standard_lgt1_setup_coarse_dofs
+  call memalloc ( par_fe_space%number_dofs_per_field(field_id), &
+                  weighting_operator, __FILE__, __LINE__ )
+  
+  weighting_operator = 1.0_rp
+  
+  ! Fill constraint matrix entries (transposed)
+  call object_iterator%init()
+  do while ( .not. object_iterator%has_finished() )
+     call object_iterator%current(object)
+     
+     ! Count how many fine DoFs current coarse DoF aggregates
+     vefs_on_object_iterator = object%create_fe_vefs_on_object_iterator()
+     do while ( .not. vefs_on_object_iterator%has_finished() )
+        call vefs_on_object_iterator%current(vef)
+        call vef%get_cell_around(1,fe)
+        call fe%get_field_elem2dof(field_id, elem2dof)
+        ivef = fe%find_lpos_vef_lid(vef%get_lid())
+        own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
+        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+           idof    = own_dofs_on_vef_iterator%get_current()
+           dof_lid = elem2dof(idof)
+           if ( dof_lid > 0 ) then
+             weighting_operator(dof_lid) = weighting_operator(dof_lid)/real(object%get_number_parts_around(),rp)
+           end if
+           call own_dofs_on_vef_iterator%next()
+        end do
+        call vefs_on_object_iterator%next()
+     end do
+     call object_iterator%next()
+  end do
+end subroutine standard_l1_setup_weighting_operator
+
+subroutine standard_lgt1_setup_coarse_dofs(this, coarse_fe_space) 
+  implicit none
+  class(standard_lgt1_coarse_fe_handler_t), intent(in)    :: this
+  type(coarse_fe_space_t)                 , intent(inout) :: coarse_fe_space
+end subroutine standard_lgt1_setup_coarse_dofs

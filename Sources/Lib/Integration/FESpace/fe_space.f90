@@ -352,10 +352,12 @@ module fe_space_names
     type(par_fe_space_t), pointer :: fe_space
   contains
     procedure                            :: fe_object_accessor_create
-    generic                              :: create                            => fe_object_accessor_create
-    procedure                            :: free                              => fe_object_accessor_free
-    procedure, non_overridable           :: get_number_fe_vefs_on_object      => fe_object_accessor_get_number_fe_vefs_on_object
-    procedure, non_overridable           :: create_fe_vefs_on_object_iterator => fe_object_accessor_get_fe_vefs_on_object_iterator
+    generic                              :: create                                => fe_object_accessor_create
+    procedure                            :: free                                  => fe_object_accessor_free
+    procedure, non_overridable           :: get_number_fe_vefs_on_object          => fe_object_accessor_get_number_fe_vefs_on_object
+    procedure, non_overridable           :: create_fe_vefs_on_object_iterator     => fe_object_accessor_create_fe_vefs_on_object_iterator
+    procedure, non_overridable           :: get_number_coarse_dofs                => fe_object_accessor_get_number_coarse_dofs
+    procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_accessor_create_own_coarse_dofs_iterator
   end type fe_object_accessor_t
   
   type fe_object_iterator_t
@@ -383,32 +385,7 @@ module fe_space_names
     procedure, non_overridable          :: current      => fe_vefs_on_object_iterator_current
   end type fe_vefs_on_object_iterator_t
   
-  type, extends(fe_object_accessor_t) :: dof_object_accessor_t
-   private
-   integer(ip)             :: field_id
-   integer(ip)             :: dof_object_lid
- contains
-    procedure  :: dof_object_accessor_create
-    generic    :: create                      => dof_object_accessor_create
-    procedure  :: free                        => dof_object_accessor_free
-    procedure  :: next                        => dof_object_accessor_next
-    procedure  :: set_lid                     => dof_object_accessor_set_lid
-    procedure  :: get_number_dofs_on_object   => dof_object_accessor_get_number_dofs_on_object
-    procedure  :: get_dofs_on_object_iterator => dof_object_accessor_get_dofs_on_object_iterator
- end type dof_object_accessor_t
- 
- type dof_object_iterator_t
-    private
-    type(dof_object_accessor_t) :: current_dof_object_accessor
-  contains
-     procedure, non_overridable          :: create       => dof_object_iterator_create
-     procedure, non_overridable          :: free         => dof_object_iterator_free
-     procedure, non_overridable          :: init         => dof_object_iterator_init
-     procedure, non_overridable          :: next         => dof_object_iterator_next
-     procedure, non_overridable          :: has_finished => dof_object_iterator_has_finished
-     procedure, non_overridable          :: current      => dof_object_iterator_current
-  end type dof_object_iterator_t
-  
+
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
   ! See type(par_fe_space_t)%generate_non_consecutive_dof_gid()
@@ -422,18 +399,18 @@ module fe_space_names
    type(dof_import_t)            , allocatable :: blocks_dof_import(:)
    
    ! Multilevel fe space   
-   integer(ip)                   , allocatable :: num_coarse_dofs_per_field(:)	
+   ! Pointers to the start/end of coarse DoFs LIDs of each field (lst_coarse_dofs)
+   integer(ip)                   , allocatable :: ptr_coarse_dofs_per_field(:)	
+   ! List of coarse DoFs LIDs
+   integer(ip)                   , allocatable :: lst_coarse_dofs(:)	
    
-   ! Aggregation of fine DoFs into coarse DoFs
-   type(list_t)                  , allocatable :: fine_dofs_coarse_dofs_per_field(:) 
+   ! Coarse DoFs LIDs on top of coarse n_faces per field
+   type(list_t), allocatable                   :: own_coarse_dofs_per_field(:)
    
    ! GIDs of the coarse DoFs. For their generation, we though to be a good idea 
    ! to take as basis the GIDs of the VEFs objects they are built from (instead of
    ! generating them from scratch, which in turn would imply further communication).
    type(allocatable_array_igp1_t), allocatable :: coarse_dof_gids_per_field(:)
-   
-   ! LIDs of the VEFs objects the coarse DoFs are put on top of
-   type(allocatable_array_ip1_t) , allocatable :: coarse_n_face_lids_coarse_dofs_per_field(:)  
    
    ! Polymorphic data type in charge of filling some of the member variables above
    ! (so far, num_coarse_dofs + coarse_n_face_lids_coarse_dofs)
@@ -483,7 +460,6 @@ module fe_space_names
    
    procedure       , non_overridable           :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
    procedure       , non_overridable, private  :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
-   procedure       , non_overridable, private  :: setup_coarse_dofs_field                         => par_fe_space_setup_coarse_dofs_field
    procedure       , non_overridable           :: setup_constraint_matrix                         => par_fe_space_setup_constraint_matrix
    procedure       , non_overridable, private  :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
    procedure       , non_overridable, private  :: transfer_number_fields                          => par_fe_space_transfer_number_fields
@@ -499,23 +475,34 @@ module fe_space_names
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                  :: create_fe_vefs_on_object_iterator               => par_fe_space_create_fe_vefs_on_object_iterator
-   procedure, non_overridable                  :: create_field_dofs_object_iterator               => par_fe_space_create_field_dofs_object_iterator
-
  end type par_fe_space_t
  
  public :: par_fe_space_t
  public :: fe_object_accessor_t, fe_object_iterator_t, fe_vefs_on_object_iterator_t
- public :: dof_object_accessor_t, dof_object_iterator_t
  
   type, abstract :: l1_coarse_fe_handler_t
   contains
     ! Deferred methods
-    procedure (l1_setup_coarse_dofs_interface), deferred :: setup_coarse_dofs
-	procedure (l1_setup_constraint_matrix)    , deferred :: setup_constraint_matrix
-	procedure (l1_setup_weighting_operator)   , deferred :: setup_weighting_operator
+    procedure (l1_get_num_coarse_dofs_interface), deferred :: get_num_coarse_dofs
+    procedure (l1_setup_coarse_dofs_interface)  , deferred :: setup_coarse_dofs
+	   procedure (l1_setup_constraint_matrix)      , deferred :: setup_constraint_matrix
+	   procedure (l1_setup_weighting_operator)     , deferred :: setup_weighting_operator
   end type l1_coarse_fe_handler_t
  
   abstract interface
+    ! Returns the number of coarse DoFs that the object customizing
+    ! l1_coarse_fe_handler_t requires to introduce on the subdomain 
+    ! interface
+    function l1_get_num_coarse_dofs_interface(this, par_fe_space) 
+      import :: l1_coarse_fe_handler_t, par_fe_space_t, ip
+      implicit none
+      class(l1_coarse_fe_handler_t), intent(in)    :: this
+      type(par_fe_space_t)         , intent(in)    :: par_fe_space 
+      integer(ip) :: l1_get_num_coarse_dofs_interface
+    end function l1_get_num_coarse_dofs_interface
+    
+    ! Enumerates coarse DoFs, and determines the mapping among coarse 
+    ! n_faces and coarse DoFs (ownership relationship)
     subroutine l1_setup_coarse_dofs_interface(this, par_fe_space) 
       import :: l1_coarse_fe_handler_t, par_fe_space_t
       implicit none
@@ -525,28 +512,31 @@ module fe_space_names
 	
     subroutine l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix) 
       import :: l1_coarse_fe_handler_t, par_fe_space_t, coo_sparse_matrix_t
-	  implicit none
+	     implicit none
       class(l1_coarse_fe_handler_t), intent(in)    :: this
       type(par_fe_space_t)         , intent(in)    :: par_fe_space
-	  type(coo_sparse_matrix_t)    , intent(inout) :: constraint_matrix
+	     type(coo_sparse_matrix_t)    , intent(inout) :: constraint_matrix
     end subroutine l1_setup_constraint_matrix
   
     subroutine l1_setup_weighting_operator(this, par_fe_space, weighting_operator) 
-	  import :: l1_coarse_fe_handler_t, par_fe_space_t, operator_t
+	     import :: l1_coarse_fe_handler_t, par_fe_space_t, operator_t, rp
       implicit none
       class(l1_coarse_fe_handler_t) , intent(in)    :: this
       type(par_fe_space_t)          , intent(in)    :: par_fe_space
-	  class(operator_t), allocatable, intent(inout) :: weighting_operator
+	     real(rp)         , allocatable, intent(inout) :: weighting_operator(:)
     end subroutine l1_setup_weighting_operator
   end interface
   
   type, extends(l1_coarse_fe_handler_t) :: standard_l1_coarse_fe_handler_t
     private
   contains
+    procedure :: get_num_coarse_dofs      => standard_l1_get_num_coarse_dofs
     procedure :: setup_coarse_dofs        => standard_l1_setup_coarse_dofs
-	procedure :: setup_constraint_matrix  => standard_l1_setup_constraint_matrix
-	procedure :: setup_weighting_operator => standard_l1_setup_weighting_operator
- end type standard_l1_coarse_fe_handler_t
+	   procedure :: setup_constraint_matrix  => standard_l1_setup_constraint_matrix
+	   procedure :: setup_weighting_operator => standard_l1_setup_weighting_operator
+  end type standard_l1_coarse_fe_handler_t
+  
+  public :: l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t
     
   type, extends(cell_accessor_t) :: coarse_fe_accessor_t
     private
@@ -838,8 +828,6 @@ contains
 #include "sbm_fe_object_accessor.i90"
 #include "sbm_fe_object_iterator.i90"
 #include "sbm_fe_vefs_on_object_iterator.i90"
-#include "sbm_dof_object_accessor.i90"
-#include "sbm_dof_object_iterator.i90"
 #include "sbm_standard_coarse_fe_handler.i90"
 
 #include "sbm_coarse_fe_space.i90"

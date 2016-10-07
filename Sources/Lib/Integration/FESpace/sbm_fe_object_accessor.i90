@@ -49,9 +49,25 @@ function fe_object_accessor_get_number_fe_vefs_on_object(this)
   fe_object_accessor_get_number_fe_vefs_on_object = this%object_accessor_t%get_number_vefs_on_object()
 end function fe_object_accessor_get_number_fe_vefs_on_object
 
-function fe_object_accessor_get_fe_vefs_on_object_iterator(this)
+function fe_object_accessor_create_fe_vefs_on_object_iterator(this)
   implicit none
   class(fe_object_accessor_t), intent(in) :: this
-  type(fe_vefs_on_object_iterator_t) :: fe_object_accessor_get_fe_vefs_on_object_iterator
-  call fe_object_accessor_get_fe_vefs_on_object_iterator%create(this%get_lid(), this%fe_space)
-end function fe_object_accessor_get_fe_vefs_on_object_iterator
+  type(fe_vefs_on_object_iterator_t) :: fe_object_accessor_create_fe_vefs_on_object_iterator
+  call fe_object_accessor_create_fe_vefs_on_object_iterator%create(this%get_lid(), this%fe_space)
+end function fe_object_accessor_create_fe_vefs_on_object_iterator
+
+function fe_object_accessor_get_number_coarse_dofs(this, field_id)
+  implicit none
+  class(fe_object_accessor_t), intent(in) :: this
+  integer(ip)                , intent(in) :: field_id
+  integer(ip) :: fe_object_accessor_get_number_coarse_dofs
+  fe_object_accessor_get_number_coarse_dofs = this%fe_space%own_coarse_dofs_per_field(field_id)%get_sublist_size(this%get_lid())
+end function fe_object_accessor_get_number_coarse_dofs
+
+function fe_object_accessor_create_own_coarse_dofs_iterator(this, field_id) 
+  implicit none
+  class(fe_object_accessor_t), intent(in) :: this
+  integer(ip)                , intent(in) :: field_id
+  type(list_iterator_t) :: fe_object_accessor_create_own_coarse_dofs_iterator
+  fe_object_accessor_create_own_coarse_dofs_iterator = this%fe_space%own_coarse_dofs_per_field(field_id)%create_iterator(this%get_lid())
+end function fe_object_accessor_create_own_coarse_dofs_iterator

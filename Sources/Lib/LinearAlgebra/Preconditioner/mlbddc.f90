@@ -94,7 +94,7 @@ module mlbddc_names
    type(sparse_matrix_t)                       :: A_GG
    
    ! Weighting operator
-   class(operator_t), allocatable              :: W
+   real(rp), allocatable                       :: W(:)
    
    ! Coarse-grid problem related member variables
    real(rp), allocatable                       :: phi(:,:)
@@ -117,6 +117,7 @@ module mlbddc_names
     ! Symbolic setup-related TBPs
     procedure, non_overridable          :: symbolic_setup                                  => mlbddc_symbolic_setup
     procedure, non_overridable, private :: setup_constraint_matrix                         => mlbddc_setup_constraint_matrix
+    procedure, non_overridable, private :: setup_weighting_operator                        => mlbddc_setup_weighting_operator
     procedure, non_overridable, private :: symbolic_setup_dirichlet_problem                => mlbddc_symbolic_setup_dirichlet_problem
     procedure, non_overridable, private :: symbolic_setup_dirichlet_solver                 => mlbddc_symbolic_setup_dirichlet_solver
     procedure, non_overridable, private :: symbolic_setup_constrained_neumann_problem      => mlbddc_symbolic_setup_constrained_neumann_problem
@@ -353,7 +354,7 @@ contains
     if( par_environment%am_i_l1_task() ) then
        if ( par_environment%get_l1_size() > 1 ) then
          call this%setup_constraint_matrix()
-		 call this%setup_weighting_operator()
+		       call this%setup_weighting_operator()
        end if
     end if
        
@@ -374,26 +375,26 @@ contains
   
   subroutine mlbddc_setup_constraint_matrix (this)
     implicit none
-    class(mlbddc_t)                   , intent(inout) :: this
-    type(par_fe_space_t)   , pointer :: fe_space
-	class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+    class(mlbddc_t), intent(inout) :: this
+    type(par_fe_space_t)         , pointer :: fe_space
+	   class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
     assert ( this%am_i_l1_task() )
     fe_space          => this%get_fe_space()
-	coarse_fe_handler => fe_space%get_coarse_fe_handler(field_id=1)
+	   coarse_fe_handler => fe_space%get_coarse_fe_handler(field_id=1)
     call coarse_fe_handler%setup_constraint_matrix(par_fe_space      = fe_space, &
-												   constraint_matrix = this%constraint_matrix)
+												                                       constraint_matrix = this%constraint_matrix)
   end subroutine mlbddc_setup_constraint_matrix
   
   subroutine mlbddc_setup_weighting_operator (this)
     implicit none
     class(mlbddc_t)                   , intent(inout) :: this
     type(par_fe_space_t)   , pointer :: fe_space
-	class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+	   class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
     assert ( this%am_i_l1_task() )
     fe_space          => this%get_fe_space()
-	coarse_fe_handler => fe_space%get_coarse_fe_handler(field_id=1)
-    call coarse_fe_handler%setup_constraint_matrix(par_fe_space       = fe_space, &
-												   weighting_operator = this%W )
+	   coarse_fe_handler => fe_space%get_coarse_fe_handler(field_id=1)
+    call coarse_fe_handler%setup_weighting_operator(par_fe_space       = fe_space, &
+												                                        weighting_operator = this%W )
   end subroutine mlbddc_setup_weighting_operator
     
   subroutine mlbddc_symbolic_setup_dirichlet_problem ( this) 
@@ -1638,29 +1639,25 @@ contains
     type(serial_scalar_array_t), pointer :: y_local
     real(rp), pointer :: x_local_entries(:)
     real(rp), pointer :: y_local_entries(:)
-    type(dof_object_iterator_t) :: dofs_object_iterator
-    type(dof_object_accessor_t) :: dof_object
-    type(list_iterator_t) :: dofs_on_object
-    type(par_fe_space_t), pointer :: par_fe_space
  
-    par_fe_space => this%get_fe_space()
-    if ( this%am_i_l1_task() ) then
-      x_local         => x%get_serial_scalar_array()
-      x_local_entries => x_local%get_entries()
-      y_local         => y%get_serial_scalar_array()
-      y_local_entries => y_local%get_entries()
-      dofs_object_iterator = par_fe_space%create_field_dofs_object_iterator(1)
-      do while ( .not. dofs_object_iterator%has_finished() ) 
-         call dofs_object_iterator%current(dof_object)
-         dofs_on_object = dof_object%get_dofs_on_object_iterator()
-         do while ( .not. dofs_on_object%is_upper_bound() )
-           y_local_entries(dofs_on_object%get_current()) = &
-             x_local_entries(dofs_on_object%get_current())/dof_object%get_number_parts_around()
-           call dofs_on_object%next()
-         end do
-         call dofs_object_iterator%next()
-      end do
-    end if
+    !par_fe_space => this%get_fe_space()
+    !if ( this%am_i_l1_task() ) then
+    !  x_local         => x%get_serial_scalar_array()
+    !  x_local_entries => x_local%get_entries()
+    !  y_local         => y%get_serial_scalar_array()
+    !  y_local_entries => y_local%get_entries()
+    !  dofs_object_iterator = par_fe_space%create_field_dofs_object_iterator(1)
+    !  do while ( .not. dofs_object_iterator%has_finished() ) 
+    !     call dofs_object_iterator%current(dof_object)
+    !     dofs_on_object = dof_object%get_dofs_on_object_iterator()
+    !     do while ( .not. dofs_on_object%is_upper_bound() )
+    !       y_local_entries(dofs_on_object%get_current()) = &
+    !         x_local_entries(dofs_on_object%get_current())/dof_object%get_number_parts_around()
+    !       call dofs_on_object%next()
+    !     end do
+    !     call dofs_object_iterator%next()
+    !  end do
+    !end if
   end subroutine mlbddc_apply_weight_operator
 
   subroutine mlbddc_create_interior_interface_views ( this, x, x_I, X_G )
