@@ -14,8 +14,10 @@ SET(LIB ${PROJECT_NAME})
 # DEFINE PATHS
 #################################################################
 
+SET(CMAKE_PATH ${CMAKE_SOURCE_DIR}/CMake)
 SET(SRC_PATH ${CMAKE_SOURCE_DIR}/src)
 SET(LIB_PATH ${SRC_PATH}/lib)
+SET(TESTS_PATH ${SRC_PATH}/tests)
 
 #SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake/Modules/")
 
@@ -27,6 +29,7 @@ SET(LIB_PATH ${SRC_PATH}/lib)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 SET(CMAKE_Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/modules)
+SET(MODULE_OUTPUT_PATH ${CMAKE_Fortran_MODULE_DIRECTORY})
 INCLUDE_DIRECTORIES(${CMAKE_Fortran_MODULE_DIRECTORY})
 
 #################################################################
@@ -41,6 +44,10 @@ IF(NOT CMAKE_BUILD_TYPE)
 
   SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS NONE DEBUG RELEASE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
+
+IF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
+    OPTION(${PROJECT_NAME}_ENABLE_TESTS "Enable/disable tests compilation" OFF)
+ENDIF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
 
 #################################################################
 # List of external libraries
@@ -152,8 +159,26 @@ IF(NOT ${BUILD_SHARED_LIBS})
 ENDIF()
 
 #################################################################
+# ENABLE TESTING
+#################################################################
+
+SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL} CACHE STRING "" )
+IF(${PROJECT_NAME}_ENABLE_TESTS)
+    ENABLE_TESTING()
+    INCLUDE(CTest)
+ENDIF()
+
+#################################################################
 # ADD SOURCE SUBDIRS
 #################################################################
 
 ADD_SUBDIRECTORY(${LIB_PATH})
+
+#################################################################
+# CREATE CONFIG FILE
+#################################################################
+
+CONFIGURE_FILE(${CMAKE_PATH}/${PROJECT_NAME}Config.cmake.in 
+               ${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+               @ONLY)
 
