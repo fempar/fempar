@@ -59,7 +59,7 @@ UNSET(${PROJECT_NAME}_DEFINITIONS CACHE)
 # LIBRARIES TO LINK
 #################################################################
 
-UNSET(${PROJECT_NAME}_LIBRARIES CACHE)
+UNSET(${PROJECT_NAME}_EXTERNAL_LIBRARIES CACHE)
 
 #################################################################
 # CONFIGURATION TYPES & BUILD MODE & TESTING
@@ -201,7 +201,7 @@ FOREACH(EXT_LIB ${EXTERNAL_LIBRARIES})
             ENDIF()
         ENDIF()
     ENDIF()
-    SET(${PROJECT_NAME}_LIBRARIES ${${PROJECT_NAME}_LIBRARIES} ${${EXT_LIB}_LIBRARIES})
+    SET(${PROJECT_NAME}_EXTERNAL_LIBRARIES ${${PROJECT_NAME}_EXTERNAL_LIBRARIES} ${${EXT_LIB}_LIBRARIES})
 ENDFOREACH ()
 
 FIND_PACKAGE( OpenMP )
@@ -210,6 +210,23 @@ IF(${OPENMP_FOUND})
 ELSE()
   SET(EXTRA_FLAGS "")
 ENDIF()
+
+#################################################################
+# SET BUILD NAME (Before enable testing)
+#################################################################
+
+FIND_PACKAGE( Git )
+IF(${GIT_FOUND})
+    # Get the current working branch
+    EXECUTE_PROCESS(
+        COMMAND git rev-parse --short HEAD
+        WORKING_DIRECTORY ${ROOT_PATH}
+        OUTPUT_VARIABLE GIT_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+ENDIF()
+
+SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL}@${GIT_COMMIT} CACHE STRING "" )
 
 #################################################################
 # ENABLE TESTING
@@ -228,7 +245,7 @@ ENDIF()
 # Add external projects
 #################################################################
 
-UNSET(EXT_PROJ_LIBS CACHE)
+UNSET(${PROJECT_NAME}_EXTERNAL_PROJECTS CACHE)
 SET(EXTERNAL_PROJECTS FPL F3PHT FLAP VTKIO SISL XH5For)
 
 FOREACH(EXT_PROJ ${EXTERNAL_PROJECTS})
@@ -240,7 +257,7 @@ FOREACH(EXT_PROJ ${EXTERNAL_PROJECTS})
     ENDIF() 
     SET(${EXT_PROJ}_DIR ${${EXT_PROJ}_DIR} CACHE STRING "${EXT_PROJ} root directory")
     FIND_PACKAGE(${EXT_PROJ} REQUIRED)
-    SET(EXT_PROJ_LIBS ${EXT_PROJ_LIBS} ${${EXT_PROJ}_LIBS})    
+    SET(${PROJECT_NAME}_EXTERNAL_PROJECTS ${${PROJECT_NAME}_EXTERNAL_PROJECTS} ${${EXT_PROJ}_LIBS})    
     INCLUDE_DIRECTORIES(${${EXT_PROJ}_INCLUDES})
     SET(${PROJECT_NAME}_INCLUDE_DIRS ${${PROJECT_NAME}_INCLUDE_DIRS} ${${EXT_PROJ}_INCLUDES})
 ENDFOREACH ()
@@ -292,23 +309,6 @@ message (STATUS "CMAKE_Fortran_COMPILER full path: " ${CMAKE_Fortran_COMPILER})
 message (STATUS "CMAKE_Fortran_FLAGS: " ${CMAKE_Fortran_FLAGS})
 message (STATUS "CMAKE_Fortran_FLAGS_RELEASE: " ${CMAKE_Fortran_FLAGS_RELEASE})
 message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
-
-#################################################################
-# SET BUILD NAME
-#################################################################
-
-FIND_PACKAGE( Git )
-IF(${GIT_FOUND})
-    # Get the current working branch
-    EXECUTE_PROCESS(
-        COMMAND git rev-parse --short HEAD
-        WORKING_DIRECTORY ${ROOT_PATH}
-        OUTPUT_VARIABLE GIT_COMMIT
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-ENDIF()
-
-SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL}@${GIT_COMMIT} CACHE STRING "" )
 
 #################################################################
 # STATIC LIBRARIES
