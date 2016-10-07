@@ -119,11 +119,11 @@ function error_norms_vector_compute (this, exact_solution, fe_function, norm_typ
                                                 exponent_, &
                                                 values_cell_contribution, &
                                                 gradients_cell_contribution, & 
-												curl_values_cell_contribution, &
+                                                curl_values_cell_contribution, &
                                                 time)
            call update_norm(norm_type, values_cell_contribution   , values_norm)
            call update_norm(norm_type, gradients_cell_contribution, gradients_norm)
-		   call update_norm(norm_type, curl_values_cell_contribution, curl_values_norm)
+           call update_norm(norm_type, curl_values_cell_contribution, curl_values_norm)
         end if
         call fe_iterator%next() 
      end do

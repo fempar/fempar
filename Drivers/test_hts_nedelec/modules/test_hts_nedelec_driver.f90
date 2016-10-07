@@ -265,37 +265,39 @@ contains
     
     call H_error_norm%create(this%fe_space,1)
     write(*,*) 'H ERROR NORMS'
-    mean = H_error_norm%compute(H_exact_function, this%solution, mean_norm)   
-    l1 = H_error_norm%compute(H_exact_function, this%solution, l1_norm)   
+    ! mean = H_error_norm%compute(H_exact_function, this%solution, mean_norm)   
+    ! l1 = H_error_norm%compute(H_exact_function, this%solution, l1_norm)   
     l2 = H_error_norm%compute(H_exact_function, this%solution, l2_norm)   
-    lp = H_error_norm%compute(H_exact_function, this%solution, lp_norm)   
-    linfty = H_error_norm%compute(H_exact_function, this%solution, linfty_norm)   
-    h1_s = H_error_norm%compute(H_exact_function, this%solution, h1_seminorm) 
-    h1 = H_error_norm%compute(H_exact_function, this%solution, h1_norm) 
-	hcurl = H_error_norm%compute(H_exact_function, this%solution, hcurl_norm) 
-    w1p_s = H_error_norm%compute(H_exact_function, this%solution, w1p_seminorm)   
-    w1p = H_error_norm%compute(H_exact_function, this%solution, w1p_norm)   
-    w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 
-    w1infty = H_error_norm%compute(H_exact_function, this%solution, w1infty_norm)
-    
+    ! lp = H_error_norm%compute(H_exact_function, this%solution, lp_norm)   
+    ! linfty = H_error_norm%compute(H_exact_function, this%solution, linfty_norm)   
+    ! h1_s = H_error_norm%compute(H_exact_function, this%solution, h1_seminorm) 
+    ! h1 = H_error_norm%compute(H_exact_function, this%solution, h1_norm) 
+    hcurl = H_error_norm%compute(H_exact_function, this%solution, hcurl_norm) 
+    ! w1p_s = H_error_norm%compute(H_exact_function, this%solution, w1p_seminorm)   
+    ! w1p = H_error_norm%compute(H_exact_function, this%solution, w1p_norm)   
+    ! w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 
+    ! w1infty = H_error_norm%compute(H_exact_function, this%solution, w1infty_norm)
+
 #ifdef ENABLE_MKL    
     error_tolerance = 1.0e-04
 #else
     error_tolerance = 1.0e-02
 #endif    
-    
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; !check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; !check ( l1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; !check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; !check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; !check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; !check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; !check ( h1 < error_tolerance )
-	write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; !check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; !check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; !check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; !check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; !check ( w1infty < error_tolerance )
+
+    ! write(*,'(a20,e32.25)') 'mean_norm:', mean; !check ( abs(mean) < error_tolerance )
+    ! write(*,'(a20,e32.25)') 'l1_norm:', l1; !check ( l1 < error_tolerance )
+    !write(*,'(a20,e32.25)') 'l2_norm:', l2; !check ( l2 < error_tolerance )
+    write(*,'(a20,f20.16)') 'l2_norm:', l2; !check ( l2 < error_tolerance )
+    ! write(*,'(a20,e32.25)') 'lp_norm:', lp; !check ( lp < error_tolerance )
+    ! write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; !check ( linfty < error_tolerance )
+    ! write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; !check ( h1_s < error_tolerance )
+    ! write(*,'(a20,e32.25)') 'h1_norm:', h1; !check ( h1 < error_tolerance )
+    ! write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; !check ( h1 < error_tolerance )
+    write(*,'(a20,f20.16)') 'hcurl_norm:', hcurl; !check ( h1 < error_tolerance )
+    ! write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; !check ( w1p_s < error_tolerance )
+    ! write(*,'(a20,e32.25)') 'w1p_norm:', w1p; !check ( w1p < error_tolerance )
+    ! write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; !check ( w1infty_s < error_tolerance )
+    ! write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; !check ( w1infty < error_tolerance )
     
     call H_error_norm%free()
   end subroutine check_solution 
@@ -328,9 +330,8 @@ contains
     call this%setup_solver()
     call this%solution%create(this%fe_space) 
     call this%solve_system()
-	call this%write_solution()
+    call this%write_solution()
     call this%check_solution()
-
     call this%free()
   end subroutine run_simulation
 

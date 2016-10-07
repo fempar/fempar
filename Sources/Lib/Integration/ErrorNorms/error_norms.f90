@@ -173,14 +173,13 @@ contains
        norm = norm + aux
     end select
 	
-	if ( present(curl_values_norm) ) then 
-	  select case ( trim(norm_type) )
-    case(hcurl_norm) 
+	select case ( trim(norm_type) )
+	case(hcurl_norm) 
+	assert( present(curl_values_norm) )
        aux = curl_values_norm
        call environment%l1_sum(aux)
        norm = norm + aux
     end select
-	end if 
 
     select case( trim(norm_type) )
     case (l2_norm,h1_seminorm,hdiv_seminorm,hcurl_norm,h1_norm)
@@ -204,7 +203,7 @@ contains
                      (trim(norm_type) == w1infty_norm) .or. &
                      (trim(norm_type) == h1_seminorm) .or. &
                      (trim(norm_type) == hdiv_seminorm) .or. &
-					 (trim(norm_type) == hcurl_norm)    .or. &
+					                (trim(norm_type) == hcurl_norm)    .or. &
                      (trim(norm_type) == w1p_seminorm) .or. &
                      (trim(norm_type) == w1infty_seminorm) )
   end function error_norm_is_supported

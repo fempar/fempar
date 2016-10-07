@@ -948,6 +948,10 @@ procedure :: evaluate_fe_function_vector          &
     & => raviart_thomas_evaluate_fe_function_vector
 procedure :: evaluate_fe_function_tensor          & 
     & => raviart_thomas_evaluate_fe_function_tensor
+procedure :: evaluate_gradient_fe_function_vector          & 
+    & => raviart_thomas_evaluate_gradient_fe_function_vector
+procedure :: evaluate_curl_fe_function_vector          & 
+    & => raviart_thomas_evaluate_curl_fe_function_vector
 procedure, private :: apply_femap_to_interpolation & 
     & => raviart_thomas_apply_femap_to_interpolation
 procedure, private :: fill                         & 
@@ -1012,6 +1016,10 @@ procedure :: evaluate_fe_function_vector          &
     & => nedelec_evaluate_fe_function_vector
 procedure :: evaluate_fe_function_tensor          & 
     & => nedelec_evaluate_fe_function_tensor
+procedure :: evaluate_gradient_fe_function_vector &
+    & => nedelec_evaluate_gradient_fe_function_vector 
+procedure :: evaluate_curl_fe_function_vector &
+    & => nedelec_evaluate_curl_fe_function_vector	
 procedure, private :: apply_femap_to_interpolation & 
     & => nedelec_apply_femap_to_interpolation
 procedure, private :: fill                         & 
