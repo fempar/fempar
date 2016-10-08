@@ -130,7 +130,7 @@ subroutine standard_l1_setup_coarse_dofs(this, par_fe_space)
   
   ! Enumerate coarse DoFs and define coarse n_faces ownership
   current_coarse_dof = 1
-  call object_iterator%init()
+  object_iterator = par_fe_space%create_fe_object_iterator()
   do while ( .not. object_iterator%has_finished() )
      call object_iterator%current(object)
      dofs_on_vef = .false.
@@ -172,8 +172,6 @@ subroutine standard_l1_setup_coarse_dofs(this, par_fe_space)
       coarse_dof_lid = coarse_dof_lid + 1
     end do         
   end do
-  
-  
 end subroutine standard_l1_setup_coarse_dofs
 
 subroutine standard_l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix) 

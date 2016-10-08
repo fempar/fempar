@@ -51,6 +51,7 @@ module par_test_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
+     type(standard_l1_coarse_fe_handler_t)     :: l1_coarse_fe_handler
      type(poisson_CG_discrete_integration_t)   :: poisson_integration
      type(poisson_conditions_t)                :: poisson_conditions
      type(poisson_analytical_functions_t)      :: poisson_analytical_functions
@@ -201,7 +202,8 @@ contains
     
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%poisson_conditions, &
-                               reference_fes       = this%reference_fes)
+                               reference_fes       = this%reference_fes, &
+                               coarse_fe_handler   = this%l1_coarse_fe_handler)
     
     call this%fe_space%fill_dof_info() 
     call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())

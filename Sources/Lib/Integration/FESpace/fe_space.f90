@@ -392,8 +392,8 @@ module fe_space_names
   integer(ip), parameter :: cell_gid_shift              = 44
   integer(ip), parameter :: dofs_per_reference_fe_shift = 14
   integer(ip), parameter :: number_fields_shift         = igp*8-(cell_gid_shift+dofs_per_reference_fe_shift)-1
- 
- 
+
+  
  type, extends(serial_fe_space_t) :: par_fe_space_t
    private
    type(dof_import_t)            , allocatable :: blocks_dof_import(:)
@@ -413,7 +413,7 @@ module fe_space_names
    type(allocatable_array_igp1_t), allocatable :: coarse_dof_gids_per_field(:)
    
    ! Polymorphic data type in charge of filling some of the member variables above
-   ! (so far, num_coarse_dofs + coarse_n_face_lids_coarse_dofs)
+   ! (so far, lst_coarse_dofs + own_coarse_dofs_per_field)
    class(l1_coarse_fe_handler_t), pointer      :: coarse_fe_handler => NULL()
 	  
    ! Pointer to data structure which is in charge of coarse DoF handling.
@@ -421,7 +421,9 @@ module fe_space_names
    ! allocation in the case of L2-Ln tasks.
    type(coarse_fe_space_t)       , pointer     :: coarse_fe_space => NULL()
  contains
-   procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_create_same_reference_fes_on_all_cells 
+   procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_serial_create_same_reference_fes_on_all_cells 
+   procedure, private :: par_fe_space_create_same_reference_fes_on_all_cells 
+   generic                                     :: create                                          => par_fe_space_create_same_reference_fes_on_all_cells   
    procedure                                   :: fill_dof_info                                   => par_fe_space_fill_dof_info
    procedure                         , private :: fill_elem2dof_and_count_dofs                    => par_fe_space_fill_elem2dof_and_count_dofs
    procedure                                   :: renumber_dofs_first_interior_then_interface     => par_fe_space_renumber_dofs_first_interior_then_interface
@@ -460,7 +462,6 @@ module fe_space_names
    
    procedure       , non_overridable           :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
    procedure       , non_overridable, private  :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
-   procedure       , non_overridable           :: setup_constraint_matrix                         => par_fe_space_setup_constraint_matrix
    procedure       , non_overridable, private  :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
    procedure       , non_overridable, private  :: transfer_number_fields                          => par_fe_space_transfer_number_fields
    procedure       , non_overridable, private  :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
