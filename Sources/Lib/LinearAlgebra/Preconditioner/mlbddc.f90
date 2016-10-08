@@ -354,7 +354,7 @@ contains
     if( par_environment%am_i_l1_task() ) then
        if ( par_environment%get_l1_size() > 1 ) then
          call this%setup_constraint_matrix()
-		       call this%setup_weighting_operator()
+         call this%setup_weighting_operator()
        end if
     end if
        
@@ -377,24 +377,24 @@ contains
     implicit none
     class(mlbddc_t), intent(inout) :: this
     type(par_fe_space_t)         , pointer :: fe_space
-	   class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+    class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
     assert ( this%am_i_l1_task() )
     fe_space          => this%get_fe_space()
-	   coarse_fe_handler => fe_space%get_coarse_fe_handler(field_id=1)
+    coarse_fe_handler => fe_space%get_coarse_fe_handler(field_id=1)
     call coarse_fe_handler%setup_constraint_matrix(par_fe_space      = fe_space, &
-												                                       constraint_matrix = this%constraint_matrix)
+                                                   constraint_matrix = this%constraint_matrix)
   end subroutine mlbddc_setup_constraint_matrix
   
   subroutine mlbddc_setup_weighting_operator (this)
     implicit none
     class(mlbddc_t)                   , intent(inout) :: this
     type(par_fe_space_t)   , pointer :: fe_space
-	   class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+    class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
     assert ( this%am_i_l1_task() )
     fe_space          => this%get_fe_space()
-	   coarse_fe_handler => fe_space%get_coarse_fe_handler(field_id=1)
+    coarse_fe_handler => fe_space%get_coarse_fe_handler(field_id=1)
     call coarse_fe_handler%setup_weighting_operator(par_fe_space       = fe_space, &
-												                                        weighting_operator = this%W )
+                                                    weighting_operator = this%W )
   end subroutine mlbddc_setup_weighting_operator
     
   subroutine mlbddc_symbolic_setup_dirichlet_problem ( this) 
@@ -1134,13 +1134,13 @@ contains
     type(par_environment_t), pointer :: L1_environment
     type(par_environment_t), pointer :: L2_environment
     type(par_fe_space_t)   , pointer :: par_fe_space
-	   type(coarse_fe_space_t), pointer :: coarse_fe_space
+    type(coarse_fe_space_t), pointer :: coarse_fe_space
     
     L1_environment => this%get_par_environment()
     par_fe_space    => this%get_fe_space()
     if ( L1_environment%am_i_lgt1_task() ) then
        L2_environment => L1_environment%get_next_level()
-       coarse_fe_space => par_fe_space%get_coarse_fe_space()	
+       coarse_fe_space => par_fe_space%get_coarse_fe_space()
        call coarse_residual%create_and_allocate( p_env      = L2_environment, &
                                                  dof_import = coarse_fe_space%get_block_dof_import(1) )
        call coarse_coarse_correction%clone(coarse_residual)
@@ -1240,8 +1240,8 @@ contains
     integer(ip) :: i, l1_to_l2_size
     type(coarse_fe_iterator_t) :: iterator
     type(coarse_fe_accessor_t) :: coarse_fe
-	   type(par_fe_space_t)   , pointer :: par_fe_space
-	   type(coarse_fe_space_t), pointer :: coarse_fe_space
+    type(par_fe_space_t)   , pointer :: par_fe_space
+    type(coarse_fe_space_t), pointer :: coarse_fe_space
     
     par_environment => this%get_par_environment()
     assert (par_environment%am_i_l1_to_l2_root())
@@ -1254,7 +1254,7 @@ contains
     call memalloc ( l1_to_l2_size, counts, __FILE__, __LINE__ )
     call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
     
-	
+
     i=1
     counts(l1_to_l2_size) = 0
     iterator = coarse_fe_space%create_coarse_fe_iterator()
@@ -1330,7 +1330,7 @@ contains
     type(coarse_fe_iterator_t)                :: iterator
     type(coarse_fe_accessor_t)                :: coarse_fe
     type(par_fe_space_t)   , pointer :: par_fe_space
-	   type(coarse_fe_space_t), pointer :: coarse_fe_space
+    type(coarse_fe_space_t), pointer :: coarse_fe_space
     
     type(i1p_t), allocatable :: elem2dof(:)
     integer(ip) :: ifield, i, istat, current
@@ -1451,7 +1451,7 @@ contains
     type(coarse_fe_accessor_t)          :: coarse_fe
     integer(ip)                         :: istat, current, ifield
     type(par_fe_space_t)   , pointer :: par_fe_space
-	   type(coarse_fe_space_t), pointer :: coarse_fe_space
+    type(coarse_fe_space_t), pointer :: coarse_fe_space
     
     par_environment => this%get_par_environment()
     assert (par_environment%am_i_l1_to_l2_root())
@@ -1639,25 +1639,16 @@ contains
     type(serial_scalar_array_t), pointer :: y_local
     real(rp), pointer :: x_local_entries(:)
     real(rp), pointer :: y_local_entries(:)
+    type(par_fe_space_t), pointer :: par_fe_space
  
-    !par_fe_space => this%get_fe_space()
-    !if ( this%am_i_l1_task() ) then
-    !  x_local         => x%get_serial_scalar_array()
-    !  x_local_entries => x_local%get_entries()
-    !  y_local         => y%get_serial_scalar_array()
-    !  y_local_entries => y_local%get_entries()
-    !  dofs_object_iterator = par_fe_space%create_field_dofs_object_iterator(1)
-    !  do while ( .not. dofs_object_iterator%has_finished() ) 
-    !     call dofs_object_iterator%current(dof_object)
-    !     dofs_on_object = dof_object%get_dofs_on_object_iterator()
-    !     do while ( .not. dofs_on_object%is_upper_bound() )
-    !       y_local_entries(dofs_on_object%get_current()) = &
-    !         x_local_entries(dofs_on_object%get_current())/dof_object%get_number_parts_around()
-    !       call dofs_on_object%next()
-    !     end do
-    !     call dofs_object_iterator%next()
-    !  end do
-    !end if
+    par_fe_space => this%get_fe_space()
+    if ( this%am_i_l1_task() ) then
+      x_local         => x%get_serial_scalar_array()
+      x_local_entries => x_local%get_entries()
+      y_local         => y%get_serial_scalar_array()
+      y_local_entries => y_local%get_entries()
+      y_local_entries = x_local_entries*this%W
+    end if
   end subroutine mlbddc_apply_weight_operator
 
   subroutine mlbddc_create_interior_interface_views ( this, x, x_I, X_G )
@@ -1710,6 +1701,7 @@ contains
           nullify (this%mlbddc_coarse)
           nullify (this%coarse_grid_matrix)
           call this%constraint_matrix%free()
+          call memfree(this%W, __FILE__, __LINE__)
         else
           call this%free_symbolic_setup_coarse_solver()
         end if    
