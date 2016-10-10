@@ -97,7 +97,7 @@ module face_fe_function_names
      procedure, non_overridable :: free                                  => face_fe_function_tensor_free
   end type face_fe_function_tensor_t
   
- public :: fe_function_t
+ public :: face_fe_function_scalar_t, face_fe_function_vector_t, face_fe_function_tensor_t
   
  
 contains

@@ -1,6 +1,6 @@
 [submodule "ThirdParty/SISL"]
 	path = ThirdParty/SISL
-	url = https://github.com/SINTEF-Geometry/SISL.git
+	url = https://github.com/victorsndvg/SISL.git
 [submodule "ThirdParty/FPL"]
 	path = ThirdParty/FPL
 	url = https://github.com/victorsndvg/FPL.git
@@ -10,3 +10,6 @@
 [submodule "ThirdParty/VTKIO"]
 	path = ThirdParty/VTKIO
 	url = https://github.com/victorsndvg/Lib_VTK_IO.git
+[submodule "ThirdParty/XH5For"]
+	path = ThirdParty/XH5For
+	url = https://github.com/victorsndvg/XH5For.git
