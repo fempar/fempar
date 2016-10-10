@@ -107,3 +107,43 @@ subroutine vector_function_get_gradients_set_space_time( this, point, time, resu
   end do
 end subroutine vector_function_get_gradients_set_space_time
 
+subroutine vector_function_get_curl_space( this, point, result )
+  class(vector_function_t), intent(in) :: this
+  type(point_t), intent(in)            :: point
+  type(vector_field_t), intent(inout)  :: result
+  assert( .false. )
+end subroutine vector_function_get_curl_space
+
+subroutine vector_function_get_curl_space_time( this, point, time, result )
+  class(vector_function_t), intent(in) :: this
+  type(point_t), intent(in)            :: point
+  real(rp), intent(in)                 :: time
+  type(vector_field_t), intent(inout)  :: result
+  assert( .false. )
+end subroutine vector_function_get_curl_space_time
+
+subroutine vector_function_get_curl_set_space( this, point, result )
+  class(vector_function_t), intent(in) :: this
+  type(point_t), intent(in)            :: point(:)
+  type(vector_field_t), intent(inout)  :: result(:)
+  integer(ip) :: i, num_points
+  num_points = size(point)
+  do i = 1, num_points
+     call this%get_curl_space( point(i), result(i) )
+  end do
+end subroutine vector_function_get_curl_set_space
+
+subroutine vector_function_get_curl_set_space_time( this, point, time, result )
+  class(vector_function_t), intent(in) :: this
+  type(point_t), intent(in)            :: point(:)
+  real(rp), intent(in)                 :: time(:)
+  type(vector_field_t), intent(inout)  :: result(:,:)
+  integer(ip) :: i, j, num_points, num_time_steps
+  num_points = size(point)
+  num_time_steps = size(time)
+  do j = 1, num_time_steps
+     do i = 1, num_points
+        call this%get_curl_space_time( point(i), time(j), result(i,j) )
+     end do
+  end do
+end subroutine vector_function_get_curl_set_space_time
