@@ -71,12 +71,12 @@ module par_test_poisson_driver_names
      type(fe_function_t)                   :: solution
      
      ! Environment required for fe_affine_operator + vtk_handler
-     type(par_context_t)                       :: w_context
-     type(par_environment_t), pointer          :: par_environment  => NULL()
+     !type(par_context_t)                       :: w_context
+     type(par_environment_t)                   :: par_environment
    contains
      procedure                  :: run_simulation
-     procedure        , private :: setup_context
-     !procedure        , private :: setup_par_environment
+     !procedure        , private :: setup_context
+     procedure        , private :: setup_par_environment
      procedure        , private :: parse_command_line_parameters
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
@@ -103,12 +103,18 @@ contains
     this%parameter_list => this%test_params%get_parameters()
   end subroutine parse_command_line_parameters
   
-  subroutine setup_context(this)
+  !subroutine setup_context(this)
+  !  implicit none
+  !  class(par_test_poisson_fe_driver_t), intent(inout) :: this
+  !  ! Initialize MPI environment
+  !  call this%w_context%create()
+  !end subroutine setup_context
+  
+  subroutine setup_par_environment(this)
     implicit none
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
-    ! Initialize MPI environment
-    call this%w_context%create()
-  end subroutine setup_context
+    call this%par_environment%create (this%parameter_list)
+  end subroutine setup_par_environment
   
   !subroutine setup_par_environment(this)
   !  implicit none
@@ -157,9 +163,9 @@ contains
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
     !call this%triangulation%create(this%par_environment, this%parameter_list)
 
-    call this%triangulation%create(this%w_context, this%parameter_list)
+    call this%triangulation%create(this%par_environment, this%parameter_list)
 
-    this%par_environment => this%triangulation%get_par_environment()
+    !this%par_environment => this%triangulation%get_par_environment()
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        vef_iterator = this%triangulation%create_vef_iterator()
@@ -373,8 +379,8 @@ contains
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     !call this%free()
     call this%parse_command_line_parameters()
-    call this%setup_context()
-    !call this%setup_par_environment()
+    !call this%setup_context()
+    call this%setup_par_environment()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
@@ -409,8 +415,8 @@ contains
     end if
     call this%triangulation%free()
     call this%test_params%free()
-    !call this%par_environment%free() 
-    call this%w_context%free(.true.)
+    call this%par_environment%free() 
+    !call this%w_context%free(.true.)
   end subroutine free  
   
 end module par_test_poisson_driver_names

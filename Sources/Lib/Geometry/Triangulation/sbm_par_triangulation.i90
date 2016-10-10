@@ -25,21 +25,21 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! subroutine par_triangulation_create ( this, par_environment, parameters)
-!   implicit none
-!   class(par_triangulation_t)    , intent(inout) :: this
-!   type(par_environment_t),target, intent(in)    :: par_environment
-!   type(ParameterList_t)         , intent(in)    :: parameters
-subroutine par_triangulation_create ( this, w_context, parameters)
+subroutine par_triangulation_create ( this, par_environment, parameters)
   implicit none
-  class(par_triangulation_t), target, intent(inout) :: this
-  type(par_context_t)               , intent(in)    :: w_context
-  type(ParameterList_t)             , intent(in)    :: parameters
+  class(par_triangulation_t)    , intent(inout) :: this
+  type(par_environment_t),target, intent(in)    :: par_environment
+  type(ParameterList_t)         , intent(in)    :: parameters
+! subroutine par_triangulation_create ( this, w_context, parameters)
+!   implicit none
+!   class(par_triangulation_t), target, intent(inout) :: this
+!   type(par_context_t)               , intent(in)    :: w_context
+!   type(ParameterList_t)             , intent(in)    :: parameters
 
   type(uniform_hex_mesh_t) :: uniform_hex_mesh
-  integer(ip)               :: num_levels
-  integer(ip) , allocatable :: num_parts_per_level(:)
-  integer(ip) , allocatable :: parts_mapping(:)
+  !integer(ip)               :: num_levels
+  !integer(ip) , allocatable :: num_parts_per_level(:)
+  !integer(ip) , allocatable :: parts_mapping(:)
 
   type(mesh_t)              :: mesh
   type(mesh_distribution_t) :: mesh_distribution
@@ -100,17 +100,18 @@ subroutine par_triangulation_create ( this, w_context, parameters)
   end if
 
   call this%free()
+  this%p_env => par_environment
 
   if(triangulation_generate==triangulation_generate_from_mesh) then
 
-     call par_environment_compose_name(prefix, name )  
-     call par_filename( w_context, name )
-     lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-     call this%par_environment%create(w_context,lunio)
-     this%p_env => this%par_environment
-     ! Verify that the multilevel environment matches execution context
-     ! (long-lasting Alberto's concern)
-     check(this%p_env%get_num_tasks() == w_context%get_size())
+     ! call par_environment_compose_name(prefix, name )  
+     ! call par_filename( w_context, name )
+     ! lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
+     ! call this%par_environment%create(w_context,lunio)
+     ! this%p_env => this%par_environment
+     ! ! Verify that the multilevel environment matches execution context
+     ! ! (long-lasting Alberto's concern)
+     ! check(this%p_env%get_num_tasks() == w_context%get_size())
 
      if(this%p_env%am_i_l1_task()) then
 
@@ -232,18 +233,18 @@ subroutine par_triangulation_create ( this, w_context, parameters)
 
      call uniform_hex_mesh%get_data_from_parameter_list(parameters)
 
-     call uniform_hex_mesh%generate_levels_and_parts(w_context%get_rank(), num_levels, num_parts_per_level, parts_mapping)
-     ! Verify that the multilevel environment matches execution context
-     ! (long-lasting Alberto's concern). Here we are temporarily using
-     ! the environment creation without context.
-     call this%par_environment%create(num_levels, num_parts_per_level, parts_mapping)
-     check(this%par_environment%get_num_tasks() == w_context%get_size())
+    !  call uniform_hex_mesh%generate_levels_and_parts(w_context%get_rank(), num_levels, num_parts_per_level, parts_mapping)
+    !  ! Verify that the multilevel environment matches execution context
+    !  ! (long-lasting Alberto's concern). Here we are temporarily using
+    !  ! the environment creation without context.
+    !  call this%par_environment%create(num_levels, num_parts_per_level, parts_mapping)
+    !  check(this%par_environment%get_num_tasks() == w_context%get_size())
 
-     ! Recursively create multilevel environment
-     call this%par_environment%create(w_context, num_levels, num_parts_per_level, parts_mapping)
-     this%p_env => this%par_environment
-    call memfree(num_parts_per_level,__FILE__,__LINE__)
-    call memfree(parts_mapping,__FILE__,__LINE__)
+    !  ! Recursively create multilevel environment
+    !  call this%par_environment%create(w_context, num_levels, num_parts_per_level, parts_mapping)
+    !  this%p_env => this%par_environment
+    ! call memfree(num_parts_per_level,__FILE__,__LINE__)
+    ! call memfree(parts_mapping,__FILE__,__LINE__)
 
      if(this%p_env%am_i_l1_task()) then ! Generate only first level (so far we reuse coarse mesh generation for unstructured meshes)
 

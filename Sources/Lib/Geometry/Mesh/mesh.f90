@@ -947,7 +947,7 @@ contains
           do jlevel = ilevel+1 , prt_pars%num_levels
              parts_mapping(jlevel) = ldomp(jlevel)%p( parts_mapping(jlevel-1) )
           end do
-          call env(itask)%create(prt_pars%num_levels,prt_pars%num_parts_per_level,parts_mapping)
+          call env(itask)%assign_parts_to_tasks(prt_pars%num_levels,prt_pars%num_parts_per_level,parts_mapping)
        end do
     end do
     call memfree(parts_mapping,__FILE__,__LINE__)
