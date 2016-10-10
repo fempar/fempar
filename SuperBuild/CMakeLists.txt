@@ -145,6 +145,10 @@ FOREACH(EXT_PROJ ${EXT_PROJS})
             DEPENDERS configure
             ALWAYS 1
         )
+        ADD_CUSTOM_TARGET(clean-${FEMPAR_DRIVER} 
+            COMMAND ${CMAKE_COMMAND} --build ${PROJECT_BINARY_DIR} --target clean 
+            COMMAND ${CMAKE_COMMAND} --build ${${EXT_PROJ}_BINARY_PATH} --target clean 
+        )
     ELSEIF(${EXT_PROJ} STREQUAL "FEMPAR")
         SET(${EXT_PROJ}_SRC_PATH ${FEMPAR_ROOT_PATH})
         EXTERNALPROJECT_Add(${EXT_PROJ}
@@ -175,6 +179,10 @@ FOREACH(EXT_PROJ ${EXT_PROJS})
         ADD_CUSTOM_TARGET(clean-${EXT_PROJ}Tests
             COMMAND ${CMAKE_COMMAND} --build ${${EXT_PROJ}_BINARY_PATH} --target clean-Tests
         )
+        ADD_CUSTOM_TARGET(clean-${EXT_PROJ} 
+            COMMAND ${CMAKE_COMMAND} --build ${PROJECT_BINARY_DIR} --target clean 
+            COMMAND ${CMAKE_COMMAND} --build ${${EXT_PROJ}_BINARY_PATH} --target clean 
+        )
     ELSEIF(${EXT_PROJ} STREQUAL "THIRDPARTY")
         SET(${EXT_PROJ}_SRC_PATH ${FEMPAR_THIRDPARTY_PATH})
         EXTERNALPROJECT_Add(${EXT_PROJ}
@@ -188,14 +196,13 @@ FOREACH(EXT_PROJ ${EXT_PROJS})
             TEST_COMMAND ""
             INSTALL_COMMAND ""
         )
+        ADD_CUSTOM_TARGET(clean-${EXT_PROJ} 
+            COMMAND ${CMAKE_COMMAND} --build ${PROJECT_BINARY_DIR} --target clean 
+            COMMAND ${CMAKE_COMMAND} --build ${${EXT_PROJ}_BINARY_PATH} --target clean 
+        )
     ENDIF()
 
     SET(${EXT_PROJ}_DIR ${${EXT_PROJ}_BINARY_PATH})
-
-    ADD_CUSTOM_TARGET(clean-${EXT_PROJ} 
-        COMMAND ${CMAKE_COMMAND} --build ${PROJECT_BINARY_DIR} --target clean 
-        COMMAND ${CMAKE_COMMAND} --build ${${EXT_PROJ}_BINARY_PATH} --target clean 
-    )
 
 ENDFOREACH()
 
