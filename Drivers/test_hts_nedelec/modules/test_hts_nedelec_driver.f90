@@ -256,7 +256,7 @@ contains
     ! linfty = H_error_norm%compute(H_exact_function, this%solution, linfty_norm)   
     ! h1_s = H_error_norm%compute(H_exact_function, this%solution, h1_seminorm) 
     ! h1 = H_error_norm%compute(H_exact_function, this%solution, h1_norm) 
-    hcurl = H_error_norm%compute(H_exact_function, this%solution, hcurl_norm) 
+    hcurl = H_error_norm%compute(H_exact_function, this%solution, hcurl_seminorm) 
     ! w1p_s = H_error_norm%compute(H_exact_function, this%solution, w1p_seminorm)   
     ! w1p = H_error_norm%compute(H_exact_function, this%solution, w1p_norm)   
     ! w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 

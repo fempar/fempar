@@ -421,7 +421,7 @@ module reference_fe_names
           & evaluate_gradient_fe_function_vector
 		  
      procedure(evaluate_curl_fe_function_vector_interface), deferred :: evaluate_curl_fe_function_vector
-	 generic :: evaluate_curl_fe_function => evaluate_curl_fe_function_vector
+   	 generic :: evaluate_curl_fe_function => evaluate_curl_fe_function_vector
 
      ! This subroutine gives the reodering (o2n) of the nodes of an n-face given an orientation 'o'
      ! and a delay 'r' wrt to a refence element sharing the same n-face.
@@ -948,10 +948,6 @@ procedure :: evaluate_fe_function_vector          &
     & => raviart_thomas_evaluate_fe_function_vector
 procedure :: evaluate_fe_function_tensor          & 
     & => raviart_thomas_evaluate_fe_function_tensor
-procedure :: evaluate_gradient_fe_function_vector          & 
-    & => raviart_thomas_evaluate_gradient_fe_function_vector
-procedure :: evaluate_curl_fe_function_vector          & 
-    & => raviart_thomas_evaluate_curl_fe_function_vector
 procedure, private :: apply_femap_to_interpolation & 
     & => raviart_thomas_apply_femap_to_interpolation
 procedure, private :: fill                         & 
@@ -1016,10 +1012,6 @@ procedure :: evaluate_fe_function_vector          &
     & => nedelec_evaluate_fe_function_vector
 procedure :: evaluate_fe_function_tensor          & 
     & => nedelec_evaluate_fe_function_tensor
-procedure :: evaluate_gradient_fe_function_vector &
-    & => nedelec_evaluate_gradient_fe_function_vector 
-procedure :: evaluate_curl_fe_function_vector &
-    & => nedelec_evaluate_curl_fe_function_vector	
 procedure, private :: apply_femap_to_interpolation & 
     & => nedelec_apply_femap_to_interpolation
 procedure, private :: fill                         & 

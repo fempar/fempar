@@ -487,7 +487,7 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_scalar( this,  
   type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  integer(ip)                                      :: qpoint,ishape,idime 
+  integer(ip)                                      :: qpoint,inode
   type(vector_field_t)                             :: gradient_shape
   integer(ip)                                      :: istat
 
@@ -502,15 +502,10 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_scalar( this,  
   
   do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      call quadrature_points_values(qpoint)%init(0.0_rp)
-     do ishape = 1, actual_cell_interpolation%number_shape_functions
-        ! Get gradient shape for scalar functions from shape_derivatives info 
-        call gradient_shape%init(0.0_rp)
-        do idime=1,this%number_dimensions
-           call gradient_shape%set(idime,actual_cell_interpolation%shape_derivatives(1,idime,ishape,qpoint))
-        end do
-
+     do inode = 1, actual_cell_interpolation%number_shape_functions
+        call this%get_gradient(actual_cell_interpolation,inode,qpoint,gradient_shape)
         quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
-             &                             gradient_shape * nodal_values(ishape)
+             &                             gradient_shape * nodal_values(inode)
      end do
   end do
 
@@ -526,7 +521,7 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector( this,  
   type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  integer(ip)                                      :: qpoint, inode, idime 
+  integer(ip)                                      :: qpoint, inode
   type(tensor_field_t)                             :: gradient_shape
   integer(ip)                                      :: istat
 
@@ -542,13 +537,7 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector( this,  
   do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      call quadrature_points_values(qpoint)%init(0.0_rp)
      do inode = 1, this%number_shape_functions
-        ! Get gradient shape from shape_derivatives info
-        call gradient_shape%init(0.0_rp)
-        do idime=1,this%number_dimensions
-           call gradient_shape%set(idime,this%node_component_array(inode,2), &
-                & actual_cell_interpolation%shape_derivatives(1,idime,this%node_component_array(inode,1),qpoint))
-        end do
-
+        call this%get_gradient(actual_cell_interpolation,inode,qpoint,gradient_shape)
         quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
              &                             gradient_shape * nodal_values(inode)
      end do
@@ -566,7 +555,7 @@ subroutine lagrangian_reference_fe_evaluate_curl_fe_function_vector( this,      
   type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  integer(ip)                                      :: qpoint, inode, icomp, inode_scalar 
+  integer(ip)                                      :: qpoint, inode
   type(vector_field_t)                             :: curl_shape
   integer(ip)                                      :: istat
 
@@ -582,30 +571,7 @@ subroutine lagrangian_reference_fe_evaluate_curl_fe_function_vector( this,      
   do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      call quadrature_points_values(qpoint)%init(0.0_rp)
      do inode = 1, this%number_shape_functions
-
-     ! Get curl shape function from shape_derivatives info 
-        call curl_shape%init(0.0_rp)
-        inode_scalar = this%node_component_array(inode,1) 
-        icomp        = this%node_component_array(inode,2) 
-        if (this%number_dimensions == 2) then 
-           if  (icomp == 1) then  ! [0,0,- d_y u_x]
-              call curl_shape%set(3, -1.0_rp*actual_cell_interpolation%shape_derivatives(1,2,inode_scalar,qpoint))
-           elseif (icomp == 2) then  ! [0,0,d_x u_y] 
-              call curl_shape%set(3, actual_cell_interpolation%shape_derivatives(1,1,inode_scalar,qpoint))
-           end if
-        elseif (this%number_dimensions == 3) then  
-           if   (icomp == 1) then ! [0, d_z u_x, - d_y u_x]
-              call curl_shape%set(2, actual_cell_interpolation%shape_derivatives(1,3,inode_scalar,qpoint))
-              call curl_shape%set(3, -1.0_rp*actual_cell_interpolation%shape_derivatives(1,2,inode_scalar,qpoint))
-           elseif (icomp == 2) then ! [-d_z u_y, 0, d_x u_y]
-              call curl_shape%set(1, -1.0_rp*actual_cell_interpolation%shape_derivatives(1,3,inode_scalar,qpoint))
-              call curl_shape%set(3, actual_cell_interpolation%shape_derivatives(1,1,inode_scalar,qpoint))
-           elseif (icomp == 3) then ! [d_y u_z, -d_x u_z, 0]
-              call curl_shape%set(1, actual_cell_interpolation%shape_derivatives(1,2,inode_scalar,qpoint))
-              call curl_shape%set(2, -1.0_rp*actual_cell_interpolation%shape_derivatives(1,1,inode_scalar,qpoint))
-           end if
-        end if
- 
+        call this%get_curl(actual_cell_interpolation,inode,qpoint,curl_shape)
         quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
              &                             curl_shape * nodal_values(inode)
      end do

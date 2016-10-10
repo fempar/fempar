@@ -284,7 +284,7 @@ subroutine cell_fe_function_vector_update ( this, fe_accessor, fe_function)
      call volume_integrator%evaluate_gradient_fe_function ( this%nodal_values, & 
                                                             this%quadrature_points_gradients )
 	 
-	 call volume_integrator%evaluate_curl_fe_function ( this%nodal_values, & 
+     call volume_integrator%evaluate_curl_fe_function ( this%nodal_values, & 
                                                         this%quadrature_points_curl_values )
   end if
 end subroutine cell_fe_function_vector_update
