@@ -257,8 +257,13 @@ contains
     ! Parameters
     class(par_context_t)            , intent(inout) :: p_context
     logical                         , intent(in)    :: finalize
-    
-    call psb_exit ( p_context%icontxt, finalize )
+
+    if(p_context%icontxt/=mpi_comm_null) call psb_exit ( p_context%icontxt, finalize )
+
+    p_context%icontxt=mpi_comm_null
+    p_context%rank=-1
+    p_context%size=-1
+
   end subroutine par_context_free
 
   !=============================================================================

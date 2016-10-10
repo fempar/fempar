@@ -278,7 +278,7 @@ contains
     integer(ip) , allocatable :: parts_mapping(:)
 
     call this%free()
-    call this%world_context%create()
+    call world_context%create()
 
     ! Mandatory parameters
     is_present =  parameters%isPresent(key = dir_path_key); assert(is_present)
@@ -298,26 +298,26 @@ contains
     if(environment_type==unstructured) then
 
        call par_environment_compose_name(prefix, name )  
-       call par_filename( this%world_context, name )
+       call par_filename( world_context, name )
        lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-       call this%create(this%world_context,lunio)
+       call this%create(world_context,lunio)
        ! Verify that the multilevel environment matches execution context
        ! (long-lasting Alberto's concern)
-       check(this%get_num_tasks() == this%world_context%get_size())
+       check(this%get_num_tasks() == world_context%get_size())
 
     else if(environment_type==structured) then
 
        call uniform_hex_mesh%get_data_from_parameter_list(parameters)
        
-       call uniform_hex_mesh%generate_levels_and_parts(this%world_context%get_rank(), num_levels, num_parts_per_level, parts_mapping)
+       call uniform_hex_mesh%generate_levels_and_parts(world_context%get_rank(), num_levels, num_parts_per_level, parts_mapping)
 
        ! Verify that the multilevel environment matches execution context
        ! (long-lasting Alberto's concern). 
        call this%assign_parts_to_tasks(num_levels, num_parts_per_level, parts_mapping)
-       check(this%get_num_tasks() == this%world_context%get_size())
+       check(this%get_num_tasks() == world_context%get_size())
 
        ! Recursively create multilevel environment
-       call this%create(this%world_context, num_levels, num_parts_per_level, parts_mapping)
+       call this%create(world_context, num_levels, num_parts_per_level, parts_mapping)
        call memfree(num_parts_per_level,__FILE__,__LINE__)
        call memfree(parts_mapping,__FILE__,__LINE__)
 
@@ -344,7 +344,7 @@ contains
     call this%read(lunio)
     assert ( this%num_levels >= 1 )
     assert ( world_context%get_rank() >= 0 )
-    !this%world_context = world_context
+    this%world_context = world_context
 
     ! Create this%l1_context and this%lgt1_context by splitting world_context
     call world_context%split ( world_context%get_rank() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
@@ -398,7 +398,7 @@ contains
     
     assert ( num_levels >= 1 )
     assert ( world_context%get_rank() >= 0 )
-    !this%world_context = world_context
+    this%world_context = world_context
 
     call this%free()
     
@@ -483,7 +483,9 @@ contains
        call this%lgt1_context%free(finalize=.false.)
        ! call this%l1_lgt1_context%free(finalize=.false.)
        call this%l1_to_l2_context%free(finalize=.false.)
-       if(this%state == created_from_fpl) call this%world_context%free(finalize=.true.)
+       if(this%state == created_from_fpl) then
+          call this%world_context%free(finalize=.true.)
+       end if
        this%state = not_created
     end if
     if(this%num_levels > 0) then
