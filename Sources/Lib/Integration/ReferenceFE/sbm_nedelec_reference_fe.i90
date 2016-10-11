@@ -600,7 +600,6 @@ subroutine nedelec_evaluate_fe_function_vector( this,                      &
     allocate(quadrature_points_values(actual_cell_interpolation%number_quadrature_points), stat=istat); check(istat==0);
   end if
   
-  
   do qpoint = 1, actual_cell_interpolation%number_quadrature_points
      call quadrature_points_values(qpoint)%init(0.0_rp)
      do inode = 1, this%number_shape_functions
@@ -628,6 +627,7 @@ subroutine nedelec_evaluate_fe_function_tensor( this,                      &
 
 end subroutine nedelec_evaluate_fe_function_tensor
 
+! ===========================================================================================================
 subroutine nedelec_blending(this,values)
   implicit none
   class(nedelec_reference_fe_t), intent(in)    :: this
