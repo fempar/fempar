@@ -26,9 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_io_names
-use types_names
-use stdio_names
-  use par_context_names
+  use types_names
+  use stdio_names
+  !use par_context_names
   implicit none
   private
 
@@ -36,16 +36,17 @@ use stdio_names
 
 contains
 
-  subroutine par_filename( p_context, file )
+  !subroutine par_filename( p_context, file )
+  subroutine par_filename( iam, num_procs, file )
     implicit none 
-    type(par_context_t),intent(in)                 :: p_context
+    !type(par_context_t),intent(in)                 :: p_context
     character(len=:), allocatable, intent(inout) :: file
-    integer         :: iam, num_procs
+    integer, intent(in) :: iam, num_procs
 
     ! Get context info
-    call p_context%info( iam, num_procs )
+    !call p_context%info( iam, num_procs )
 
-    iam = iam + 1 ! File-name subdomain identifiers start from 1
+    !iam = iam + 1 ! File-name subdomain identifiers start from 1
 
     call numbered_filename_compose ( iam, num_procs, file)
 

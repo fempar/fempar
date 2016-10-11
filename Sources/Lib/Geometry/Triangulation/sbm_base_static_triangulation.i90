@@ -164,9 +164,15 @@ subroutine bst_fill_local_cells_gid (this, cells_gid)
   integer(ip) :: icell
   assert ( associated ( this%p_env ) )
   assert ( this%p_env%am_i_l1_task() )
-  do icell=1, this%num_local_cells
-    this%cells_gid(icell) = cells_gid(icell)
-  end do
+  if(this%p_env%get_l1_size()>1) then
+     do icell=1, this%num_local_cells
+       this%cells_gid(icell) = cells_gid(icell)
+     end do
+  else
+     do icell=1, this%num_local_cells
+       this%cells_gid(icell) = icell
+     end do  
+  end if
 end subroutine bst_fill_local_cells_gid
  
 subroutine bst_allocate_cells_mypart (this)

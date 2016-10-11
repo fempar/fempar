@@ -52,7 +52,7 @@ module mesh_distribution_names
      integer(ip) ::                &
         ipart  = 1,                &    ! Part identifier
         nparts = 1,                &    ! Number of parts
-        num_levels = 2     
+        num_levels = 1     
 
      integer(ip), allocatable ::   &
         num_parts_per_level(:),    &
@@ -65,8 +65,9 @@ module mesh_distribution_names
      integer(igp), allocatable ::  &
         lextn(:)                        ! List of (GIDs of) external neighbors
 
-     integer(ip) ::  nebou,        &    ! Number of boundary elements
-                     nnbou              ! Number of boundary nodes 
+     integer(ip) ::                &
+        nebou=0,                   &    ! Number of boundary elements
+        nnbou=0                         ! Number of boundary nodes 
 
      integer(ip), allocatable  ::  & 
         lebou(:),                  &  ! List of boundary elements 
@@ -91,9 +92,10 @@ module mesh_distribution_names
      procedure, non_overridable :: print => mesh_distribution_print
      procedure, non_overridable :: read  => mesh_distribution_read
      procedure, non_overridable :: write => mesh_distribution_write
-     procedure, non_overridable :: read_file => mesh_distribution_read_file
-     procedure, non_overridable :: get_sizes => mesh_distribution_get_sizes
-     procedure, non_overridable :: move_gids => mesh_distribution_move_gids
+     procedure, non_overridable :: read_file    => mesh_distribution_read_file
+     procedure, non_overridable :: create_empty => mesh_distribution_create_empty
+     procedure, non_overridable :: get_sizes    => mesh_distribution_get_sizes
+     procedure, non_overridable :: move_gids    => mesh_distribution_move_gids
      procedure, non_overridable :: move_external_elements_info => mesh_distribution_move_external_elements_info
   end type mesh_distribution_t
 
@@ -237,6 +239,7 @@ contains
 
   end subroutine mesh_distribution_get_parameters_from_fpl
 
+  !=============================================================================
   subroutine mesh_distribution_parameters_free(this)
     implicit none
     class(mesh_distribution_params_t), intent(inout) :: this
@@ -272,7 +275,12 @@ contains
     call memmovealloc(this%lextn,lextn,__FILE__,__LINE__)
     call memmovealloc(this%lextp,lextp,__FILE__,__LINE__)
   end subroutine mesh_distribution_move_external_elements_info
-
+  !=============================================================================
+  subroutine mesh_distribution_create_empty(this)
+    class(mesh_distribution_t), intent(inout) :: this
+    call memalloc ( 1, this%pextn ,__FILE__,__LINE__  )
+    this%pextn(1) = 1
+  end subroutine mesh_distribution_create_empty
   !=============================================================================
   subroutine mesh_distribution_free (f_msh_dist)
     !-----------------------------------------------------------------------
@@ -353,6 +361,7 @@ contains
  
   end subroutine mesh_distribution_print
 
+  !=============================================================================
   subroutine mesh_distribution_write (f_msh_dist, lunio)
     ! Parameters
     integer                  , intent(in) :: lunio

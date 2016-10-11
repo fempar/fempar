@@ -271,7 +271,7 @@ contains
     call memalloc(msh_new%nelem+1,msh_new%pnods,__FILE__,__LINE__)
     msh_new%pnods = msh_old%pnods
 
-    call memalloc(msh_new%pnods(msh_new%nelem+1),msh_new%lnods,__FILE__,__LINE__)
+    call memalloc(msh_new%pnods(msh_new%nelem+1)-1,msh_new%lnods,__FILE__,__LINE__)
     msh_new%lnods = msh_old%lnods
 
     if (allocated(msh_old%coord)) then
@@ -343,7 +343,7 @@ contains
     end do
 
     ! Read elements
-    call memalloc(msh%pnods(msh%nelem+1),msh%lnods,__FILE__,__LINE__)
+    call memalloc(msh%pnods(msh%nelem+1)-1,msh%lnods,__FILE__,__LINE__)
     call memalloc(msh%nelem,msh%legeo,__FILE__,__LINE__)
     call memalloc(msh%nelem,msh%leset,__FILE__,__LINE__)
     call io_rewind(lunio)

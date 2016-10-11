@@ -84,12 +84,12 @@ module par_environment_names
      procedure :: read                                => par_environment_read_file
      procedure :: write                               => par_environment_write_file
      
-     procedure, private :: par_environment_create_from_interface
-     procedure, private :: par_environment_create_from_unit
-     procedure, private :: par_environment_create_
-     generic :: create  => par_environment_create_from_interface, &
-          &                par_environment_create_from_unit, &
-          &                par_environment_create_
+     procedure, private :: create_from_interface => par_environment_create_from_interface
+     procedure, private :: create_from_unit      => par_environment_create_from_unit
+     procedure          :: create                => par_environment_create
+     ! generic :: create  => par_environment_create_from_interface, &
+     !      &                par_environment_create_from_unit, &
+     !      &                par_environment_create_
 
      procedure :: assign_parts_to_tasks => par_environment_assign_parts_to_tasks
 
@@ -106,8 +106,8 @@ module par_environment_names
      procedure :: get_l1_to_l2_size                   => par_environment_get_l1_to_l2_size
      procedure :: get_lgt1_rank                       => par_environment_get_lgt1_rank
 
-     procedure :: get_l1_context                      => par_environment_get_l1_context
-     procedure :: get_lgt1_context                    => par_environment_get_lgt1_context
+     !procedure :: get_l1_context                      => par_environment_get_l1_context
+     !procedure :: get_lgt1_context                    => par_environment_get_lgt1_context
 
      ! Who am I?
      procedure :: am_i_lgt1_task                      => par_environment_am_i_lgt1_task
@@ -256,7 +256,7 @@ contains
   end subroutine par_environment_write_file
 
   !=============================================================================
-  subroutine par_environment_create_ ( this, parameters)
+  subroutine par_environment_create ( this, parameters)
     implicit none 
     class(par_environment_t), intent(inout) :: this
     type(ParameterList_t)   , intent(in)    :: parameters
@@ -297,13 +297,18 @@ contains
 
     if(environment_type==unstructured) then
 
-       call par_environment_compose_name(prefix, name )  
-       call par_filename( world_context, name )
-       lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
-       call this%create(world_context,lunio)
-       ! Verify that the multilevel environment matches execution context
-       ! (long-lasting Alberto's concern)
-       check(this%get_num_tasks() == world_context%get_size())
+       this%world_context = world_context
+       if(world_context%get_size()>1) then
+          call par_environment_compose_name(prefix, name )  
+          call par_filename( world_context%get_rank(), world_context%get_size() , name )
+          lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
+          call this%create_from_unit(lunio)
+          ! Verify that the multilevel environment matches execution context
+          ! (long-lasting Alberto's concern)
+          check(this%get_num_tasks() == world_context%get_size())
+       else
+          this%l1_context = this%world_context ! All the rest are empty
+       end if
 
     else if(environment_type==structured) then
 
@@ -317,21 +322,20 @@ contains
        check(this%get_num_tasks() == world_context%get_size())
 
        ! Recursively create multilevel environment
-       call this%create(world_context, num_levels, num_parts_per_level, parts_mapping)
+       call this%create_from_interface(world_context, num_levels, num_parts_per_level, parts_mapping)
        call memfree(num_parts_per_level,__FILE__,__LINE__)
        call memfree(parts_mapping,__FILE__,__LINE__)
 
     end if
     this%state = created_from_fpl
 
-  end subroutine par_environment_create_
+  end subroutine par_environment_create
   
   !=============================================================================
-  subroutine par_environment_create_from_unit ( this, world_context, lunio )
+  subroutine par_environment_create_from_unit ( this, lunio )
     implicit none 
     ! Parameters
     class(par_environment_t)   , intent(inout) :: this
-    type(par_context_t)        , intent(in)    :: world_context
     integer(ip), optional      , intent(in)    :: lunio
 
     !integer(ip)                , intent(in)    :: num_levels
@@ -343,11 +347,10 @@ contains
     call this%free()
     call this%read(lunio)
     assert ( this%num_levels >= 1 )
-    assert ( world_context%get_rank() >= 0 )
-    this%world_context = world_context
+    assert ( this%world_context%get_rank() >= 0 )
 
     ! Create this%l1_context and this%lgt1_context by splitting world_context
-    call world_context%split ( world_context%get_rank() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
+    call this%world_context%split ( this%world_context%get_rank() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
 
     ! Create l1_to_l2_context, where inter-level data transfers actually occur
     if ( this%num_levels > 1 ) then
@@ -358,7 +361,7 @@ contains
      else
         my_color = undefined_color ! mpi_undefined
      end if
-     call world_context%split ( my_color, this%l1_to_l2_context )
+     call this%world_context%split ( my_color, this%l1_to_l2_context )
     else
      call this%l1_to_l2_context%nullify()
     end if
@@ -373,10 +376,10 @@ contains
     if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
        allocate(this%next_level, stat=istat)
        check(istat == 0)
-       call this%next_level%create( this%lgt1_context, &
-            &                       this%num_levels-1, &
-            &                       this%num_parts_per_level(2:), &
-            &                       this%parts_mapping(2:) )
+       call this%next_level%create_from_interface( this%lgt1_context, &
+            &                                      this%num_levels-1, &
+            &                                      this%num_parts_per_level(2:), &
+            &                                      this%parts_mapping(2:) )
     else
        nullify(this%next_level)
     end if
@@ -435,10 +438,10 @@ contains
     if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
        allocate(this%next_level, stat=istat)
        check(istat == 0)
-       call this%next_level%create( this%lgt1_context, &
-            &                       this%num_levels-1, &
-            &                       this%num_parts_per_level(2:), &
-            &                       this%parts_mapping(2:) )
+       call this%next_level%create_from_interface ( this%lgt1_context, &
+            &                                       this%num_levels-1, &
+            &                                       this%num_parts_per_level(2:), &
+            &                                       this%parts_mapping(2:) )
     else
        nullify(this%next_level)
     end if
@@ -479,12 +482,14 @@ contains
          deallocate ( this%next_level, stat = istat )
          assert ( istat == 0 )
        end if       
-       call this%l1_context%free(finalize=.false.)
        call this%lgt1_context%free(finalize=.false.)
        ! call this%l1_lgt1_context%free(finalize=.false.)
        call this%l1_to_l2_context%free(finalize=.false.)
        if(this%state == created_from_fpl) then
+          if(this%world_context%get_size() > 1) call this%l1_context%free(finalize=.false.)
           call this%world_context%free(finalize=.true.)
+       else
+          call this%l1_context%free(finalize=.false.)
        end if
        this%state = not_created
     end if

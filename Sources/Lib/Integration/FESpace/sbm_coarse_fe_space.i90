@@ -818,7 +818,6 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
   integer(ip), allocatable     :: ubound_num_itfc_couplings(:)
   integer(ip)                  :: num_fields_in_iblock
   integer(ip)                  :: i, field_id
-  type(par_context_t), pointer :: l1_context
 
   type(par_environment_t), pointer        :: par_environment
   
@@ -886,9 +885,8 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
      end if
   end do
 
-  l1_context => par_environment%get_l1_context()
-  call this%blocks_dof_import(iblock)%create(l1_context%get_rank()+1, &
-                                             l1_context%get_size(), &
+  call this%blocks_dof_import(iblock)%create(par_environment%get_l1_rank()+1, &
+                                             par_environment%get_l1_size(), &
                                              this%number_dofs_per_block(iblock), &
                                              total_num_itfc_couplings, &
                                              dofs_lid, &
@@ -910,7 +908,6 @@ function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, 
  
   integer(ip)                         :: result
   logical, allocatable                :: touched_neighbours(:)
-  type(par_context_t)    , pointer    :: l1_context
   type(par_environment_t), pointer    :: par_environment
   type(cell_import_t)    , pointer    :: cell_import
   type(itfc_coarse_fe_vef_iterator_t) :: itfc_coarse_fe_vef_iterator
@@ -924,8 +921,8 @@ function coarse_fe_space_compute_ubound_num_itfc_couplings_by_continuity( this, 
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )   
   
-  l1_context => par_environment%get_l1_context()
-  mypart_id = l1_context%get_rank() + 1 
+  mypart_id = par_environment%get_l1_rank() + 1 
+
   cell_import => this%coarse_triangulation%get_cell_import()
   
   call memalloc ( cell_import%get_number_neighbours(), &
@@ -988,7 +985,6 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
   integer(ip), allocatable  :: parts_visited(:)
   integer(ip), allocatable  :: dofs_max_part_id(:)
   integer(ip)               :: base_pos_lst_dofs
-  type(par_context_t)    , pointer :: l1_context
   type(par_environment_t), pointer :: par_environment
   type(cell_import_t) , pointer :: cell_import
   type(itfc_coarse_fe_vef_iterator_t) :: itfc_coarse_fe_vef_iterator
@@ -1004,8 +1000,7 @@ function coarse_fe_space_compute_raw_interface_data_by_continuity (  this, &
   assert ( par_environment%am_i_l1_task() )  
   
   cell_import => this%coarse_triangulation%get_cell_import()
-  l1_context => par_environment%get_l1_context()
-  mypart_id = l1_context%get_rank() + 1
+  mypart_id = par_environment%get_l1_rank() + 1 
 
   call memalloc ( ubound_num_itfc_couplings, dofs_max_part_id, __FILE__, __LINE__ )
   call memalloc ( cell_import%get_number_neighbours(), &
@@ -1095,7 +1090,6 @@ subroutine coarse_fe_space_raw_interface_data_by_continuity_decide_owner ( this,
   integer(ip) , allocatable        :: perm(:)
   integer(ip) , allocatable        :: aux(:)
   integer(ip)                      :: start_col, end_col, col, mypart_id, ipart_max, j, size
-  type(par_context_t)    , pointer :: l1_context
   type(par_environment_t), pointer :: par_environment
 
 
@@ -1136,8 +1130,7 @@ subroutine coarse_fe_space_raw_interface_data_by_continuity_decide_owner ( this,
   call memfree ( aux, __FILE__, __LINE__ )
 
   par_environment => this%get_par_environment()
-  l1_context      => par_environment%get_l1_context()
-  mypart_id       = l1_context%get_rank() + 1
+  mypart_id = par_environment%get_l1_rank() + 1 
 
   col = offset + 1
   do while ( col <= num_cols ) 
