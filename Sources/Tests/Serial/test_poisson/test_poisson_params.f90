@@ -122,7 +122,7 @@ contains
     this%default_fe_formulation = 'cG'
     this%default_reference_fe_geo_order = '1'
     this%default_reference_fe_order = '1'
-    this%default_write_solution = '.false.'
+    this%default_write_solution = '.true.'
     this%default_laplacian_type = 'scalar'
     
     this%default_triangulation_type = 'unstructured'

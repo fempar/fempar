@@ -52,7 +52,7 @@ contains
     error = list%set(key = number_of_parts_per_dir_key       , value =  [4,4,0,2,2,0,1,1,0]) ; check(error==0)
     error = list%set(key = reference_fe_geo_order_key        , value =  1)                   ; check(error==0)
     error = list%set(key = reference_fe_order_key            , value =  1)                   ; check(error==0)
-    error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
+    error = list%set(key = write_solution_key                , value =  .true.)             ; check(error==0)
     error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
 
     ! Only some of them are controlled from cli

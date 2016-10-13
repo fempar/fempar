@@ -260,6 +260,7 @@ contains
 #else
     call parameter_list%init()
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 

@@ -32,8 +32,11 @@ program test_poisson
   use test_poisson_driver_names  
   implicit none
   type(test_poisson_driver_t) :: test_driver
+  type(par_context_t) :: w_context
+  call w_context%create()
   call fempar_init()
   call test_driver%run_simulation()
   call fempar_finalize()
+  call w_context%free(.true.)
 contains
 end program test_poisson
