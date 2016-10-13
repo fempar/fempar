@@ -31,6 +31,8 @@ module test_hts_nedelec_driver_names
   use hts_nedelec_analytical_functions_names
   use hts_nedelec_discrete_integration_names
   use hts_nedelec_conditions_names
+  use hts_nonlinear_solver_names
+  use hts_theta_method_names 
 # include "debug.i90"
 
   implicit none
@@ -47,7 +49,7 @@ module test_hts_nedelec_driver_names
      type(serial_triangulation_t)             :: triangulation
 
      ! Analytical functions of the problem
-     type(hts_nedelec_analytical_functions_t) :: problem_functions
+     type(hts_nedelec_analytical_functions_t) :: problem_functions 
 
      ! Discrete weak problem integration-related data type instances 
      type(serial_fe_space_t)                  :: fe_space 
@@ -57,12 +59,17 @@ module test_hts_nedelec_driver_names
 
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)                  :: fe_affine_operator
-
-     ! Direct and Iterative linear solvers data type   
-     type(direct_solver_t)                     :: direct_solver
+     
+     ! Temporal and Nonlinear solver data type 
+     type(hts_nonlinear_solver_t)              :: nonlinear_solver 
+     type(theta_method_t)                      :: theta_method 
   
-     ! Poisson problem solution FE function
-     type(fe_function_t)                         :: solution
+     ! HTS problem solution FE function
+     type(fe_function_t)            :: H_current 
+     type(fe_function_t)            :: H_previous 
+     
+     ! Writing solution 
+     type(vtk_handler_t)            :: vtk_handler
 
    contains
      procedure                  :: run_simulation
@@ -71,11 +78,15 @@ module test_hts_nedelec_driver_names
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
-     procedure        , private :: setup_solver
+     procedure        , private :: setup_nonlinear_solver
+     procedure        , private :: setup_theta_method 
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
+     procedure        , private :: solve_nonlinear_system 
      procedure        , private :: check_solution
-     procedure        , private :: write_solution
+     procedure        , private :: initialize_output  
+     procedure        , private :: write_time_step_solution
+     procedure        , private :: finalize_output 
      procedure        , private :: free
   end type test_hts_nedelec_driver_t
 
@@ -91,12 +102,14 @@ contains
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
 
+  ! -----------------------------------------------------------------------------------------------
   subroutine setup_triangulation(this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     call this%triangulation%create(this%parameter_list)
   end subroutine setup_triangulation
 
+  ! -----------------------------------------------------------------------------------------------
   subroutine setup_reference_fes(this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
@@ -129,6 +142,7 @@ contains
     
   end subroutine setup_reference_fes
 
+  ! -----------------------------------------------------------------------------------------------
   subroutine setup_fe_space(this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
@@ -145,55 +159,70 @@ contains
 	if ( this%triangulation%get_num_dimensions() == 3) then 
 	call this%hts_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
 	end if 
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions)
-
+    ! Create H_previous with initial time (t0) boundary conditions 
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_initial_time() )
+    call this%H_previous%create(this%fe_space) 
+    ! Update fe_space to the current time (t1) boundary conditions, create H_current 
+    call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_current_time() )
+    call this%H_current%create(this%fe_space)
+    
     !call this%fe_space%print()
   end subroutine setup_fe_space
 
+  ! -----------------------------------------------------------------------------------------------
   subroutine setup_system (this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this 
+    ! Need to initialize dof_values, no interpolation available in Nedelec
+    class(vector_t) , pointer :: dof_values_current 
+    class(vector_t) , pointer :: dof_values_previous
+    
+    dof_values_current => this%H_current%get_dof_values() 
+    dof_values_previous => this%H_previous%get_dof_values()
+    call dof_values_current%init(0.0_rp) 
+    call dof_values_previous%init(0.0_rp) 
+    
     call this%problem_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%hts_nedelec_integration%set_source_term(this%problem_functions%get_source_term())
+    call this%hts_nedelec_integration%create( this%theta_method, this%H_current, this%H_previous, &
+                                             this%test_params, this%problem_functions%get_source_term() )
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                           diagonal_blocks_symmetric_storage = [ .false.  ], &
                                           diagonal_blocks_symmetric         = [ .false. ], &
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_UNKNOWN ], &
                                           fe_space                          = this%fe_space,           &
                                           discrete_integration              = this%hts_nedelec_integration )
+    
+    nullify(dof_values_current) 
+    nullify(dof_values_previous) 
   end subroutine setup_system
-
-  subroutine setup_solver (this)
+  
+  ! -----------------------------------------------------------------------------------------------
+  subroutine setup_nonlinear_solver (this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
-    integer               :: FPLError
-    type(parameterlist_t) :: parameter_list
-    integer               :: iparm(64)
-    class(matrix_t), pointer       :: matrix
     
-    call parameter_list%init()
-   
-    FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
-    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
-    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
-    iparm = 0
-    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
-    assert(FPLError == 0)
+    call this%nonlinear_solver%create( abs_tol = this%test_params%get_absolute_nonlinear_tolerance(),  &
+                                       rel_tol = this%test_params%get_relative_nonlinear_tolerance(),  &
+                                       max_iters = this%test_params%get_max_nonlinear_iterations(),    &
+                                       fe_affine_operator = this%fe_affine_operator,                   &
+                                       current_dof_values = this%H_current%get_dof_values()            )
     
-    call this%direct_solver%set_type_from_pl(parameter_list)
-    call this%direct_solver%set_parameters_from_pl(parameter_list)
-    
-    matrix => this%fe_affine_operator%get_matrix()
-    select type(matrix)
-    class is (sparse_matrix_t)  
-       call this%direct_solver%set_matrix(matrix)
-    class DEFAULT
-       assert(.false.) 
-    end select
+  end subroutine setup_nonlinear_solver
   
-    call parameter_list%free()
-  end subroutine setup_solver
+  ! -----------------------------------------------------------------------------------------------
+  subroutine setup_theta_method(this) 
+  implicit none 
+  class(test_hts_nedelec_driver_t), intent(inout) :: this
+  
+    call this%theta_method%create( this%test_params%get_theta_value(),          &               
+                                   this%test_params%get_initial_time(),         &
+                                   this%test_params%get_final_time(),           & 
+                                   this%test_params%get_number_time_steps() )
+  
+  
+  end subroutine setup_theta_method 
 
+  ! -----------------------------------------------------------------------------------------------
   subroutine assemble_system (this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
@@ -209,94 +238,126 @@ contains
     !   assert(.false.) 
     !end select
   end subroutine assemble_system
+  
+  ! -----------------------------------------------------------------------------------------------
+  subroutine solve_system(this) 
+  implicit none 
+  class(test_hts_nedelec_driver_t), intent(inout) :: this
+    
+  temporal: do while ( .not. this%theta_method%finished() ) 
+     call this%theta_method%print(6) 
+     
+     call this%solve_nonlinear_system()
 
-  subroutine solve_system(this)
+     if (this%nonlinear_solver%converged() ) then  ! Theta method goes forward 
+        call this%theta_method%update_solutions(this%H_current, this%H_previous)
+        call this%write_time_step_solution() 
+        call this%theta_method%move_time_forward() 
+     elseif (.not. this%nonlinear_solver%converged()) then ! Theta method goes backwards  
+        call this%theta_method%move_time_backwards()
+     end if
+
+     if (.not. this%theta_method%finished() ) then 
+        call this%fe_space%project_dirichlet_values_curl_conforming(this%hts_nedelec_conditions, this%theta_method%get_current_time() )
+        call this%H_current%update_strong_dirichlet_values(this%fe_space) 
+        call this%hts_nedelec_integration%assign_solutions(this%H_current, this%H_previous)
+        call this%assemble_system() 
+     end if
+
+  end do temporal
+ 
+  end subroutine solve_system 
+ 
+  ! -----------------------------------------------------------------------------------------------
+   subroutine solve_nonlinear_system(this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
-    class(matrix_t), pointer       :: matrix
-    class(vector_t), pointer       :: rhs
-    class(vector_t), pointer       :: dof_values
-    matrix     => this%fe_affine_operator%get_matrix()
-    rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_dof_values()
- 
-    call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
-   
-    !select type (rhs)
-    !class is (serial_scalar_array_t)  
-    !   call rhs%print_matrix_market(6)
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    
-    !select type (dof_values)
-    !class is (serial_scalar_array_t)  
-    !   call dof_values%print_matrix_market(6)
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-  end subroutine solve_system
   
+    call this%nonlinear_solver%initialize() 
+    nonlinear: do while ( .not. this%nonlinear_solver%finished() )
+   
+    ! 0 - Update counter
+    call this%nonlinear_solver%start_new_iteration() 
+    ! 1 - Evaluate initial residual 
+    call this%nonlinear_solver%compute_residual(this%fe_affine_operator, this%H_current%get_dof_values() )
+    ! 2 - Integrate Jacobian
+    call this%nonlinear_solver%compute_jacobian(this%hts_nedelec_integration, this%fe_affine_operator)
+    ! 3 - Solve tangent system 
+    call this%nonlinear_solver%solve_tangent_system(this%fe_affine_operator) 
+    ! 4 - Update solution 
+    call this%nonlinear_solver%update_solution(this%H_current) 
+    ! 5 - New picard iterate with updated solution 
+    call this%hts_nedelec_integration%assign_solutions(this%H_current, this%H_previous) ! TO WORK-ON! REGULAR SCHEME DOES NOT UPDATE CURRENT VALUES IN DISCRETE INTEGRATION!!!
+    call this%assemble_system() 
+    ! 6 - Evaluate new residual 
+    call this%nonlinear_solver%compute_residual(this%fe_affine_operator, this%H_current%get_dof_values() )
+    ! 7 - Print current output 
+    call this%nonlinear_solver%print_current_iteration_output() 
+    
+    end do nonlinear 
+    
+  end subroutine solve_nonlinear_system
+  
+  ! -----------------------------------------------------------------------------------------------
   subroutine check_solution(this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     class(vector_function_t), pointer :: H_exact_function
     type(error_norms_vector_t) :: H_error_norm
-    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, hcurl, w1p_s, w1p, w1infty_s, w1infty
+    real(rp) :: l2, hcurl
     real(rp) :: error_tolerance
     
     H_exact_function => this%problem_functions%get_solution()
     
     call H_error_norm%create(this%fe_space,1)
-    write(*,*) 'H ERROR NORMS'
-    ! mean = H_error_norm%compute(H_exact_function, this%solution, mean_norm)   
-    ! l1 = H_error_norm%compute(H_exact_function, this%solution, l1_norm)   
-    l2 = H_error_norm%compute(H_exact_function, this%solution, l2_norm)   
-    ! lp = H_error_norm%compute(H_exact_function, this%solution, lp_norm)   
-    ! linfty = H_error_norm%compute(H_exact_function, this%solution, linfty_norm)   
-    ! h1_s = H_error_norm%compute(H_exact_function, this%solution, h1_seminorm) 
-    ! h1 = H_error_norm%compute(H_exact_function, this%solution, h1_norm) 
-    hcurl = H_error_norm%compute(H_exact_function, this%solution, hcurl_norm) 
-    ! w1p_s = H_error_norm%compute(H_exact_function, this%solution, w1p_seminorm)   
-    ! w1p = H_error_norm%compute(H_exact_function, this%solution, w1p_norm)   
-    ! w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 
-    ! w1infty = H_error_norm%compute(H_exact_function, this%solution, w1infty_norm)
-  
+    write(*,*) 'H ERROR NORMS'  
+    l2 = H_error_norm%compute(H_exact_function, this%H_current, l2_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )   
+    hcurl = H_error_norm%compute(H_exact_function, this%H_current, hcurl_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() ) 
+    
     error_tolerance = 1.0e-04
-   
-    ! write(*,'(a20,e32.25)') 'mean_norm:', mean; !check ( abs(mean) < error_tolerance )
-    ! write(*,'(a20,e32.25)') 'l1_norm:', l1; !check ( l1 < error_tolerance )
-    !write(*,'(a20,e32.25)') 'l2_norm:', l2; !check ( l2 < error_tolerance )
+
     write(*,'(a20,f20.16)') 'l2_norm:', l2; !check ( l2 < error_tolerance )
-    ! write(*,'(a20,e32.25)') 'lp_norm:', lp; !check ( lp < error_tolerance )
-    ! write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; !check ( linfty < error_tolerance )
-    ! write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; !check ( h1_s < error_tolerance )
-    ! write(*,'(a20,e32.25)') 'h1_norm:', h1; !check ( h1 < error_tolerance )
-    ! write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; !check ( h1 < error_tolerance )
     write(*,'(a20,f20.16)') 'hcurl_norm:', hcurl; !check ( h1 < error_tolerance )
-    ! write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; !check ( w1p_s < error_tolerance )
-    ! write(*,'(a20,e32.25)') 'w1p_norm:', w1p; !check ( w1p < error_tolerance )
-    ! write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; !check ( w1infty_s < error_tolerance )
-    ! write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; !check ( w1infty < error_tolerance )
     
     call H_error_norm%free()
   end subroutine check_solution 
   
-  subroutine write_solution(this)
+    ! -----------------------------------------------------------------------------------------------
+  subroutine initialize_output(this)
     implicit none
-    class(test_hts_nedelec_driver_t), intent(in) :: this
-    type(vtk_handler_t)                              :: vtk_handler
+    class(test_hts_nedelec_driver_t), intent(inout) :: this
     integer(ip)                                      :: err
     if(this%test_params%get_write_solution()) then
-       call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path_out(), this%test_params%get_prefix())
-       err = vtk_handler%open_vtu(format='ascii'); check(err==0)
-       err = vtk_handler%write_vtu_mesh(this%solution); check(err==0)
-       err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
-       err = vtk_handler%close_vtu(); check(err==0)
-       call  vtk_handler%free()
+       call  this%vtk_handler%create(this%fe_space, this%test_params%get_dir_path_out(), this%test_params%get_prefix())
     endif
-  end subroutine write_solution
+  end subroutine initialize_output
+  
+  ! -----------------------------------------------------------------------------------------------
+  subroutine write_time_step_solution(this)
+    implicit none
+    class(test_hts_nedelec_driver_t), intent(inout) :: this
+    integer(ip)                                      :: err
+    if(this%test_params%get_write_solution()) then
+       err = this%vtk_handler%open_vtu(time_step=this%theta_method%get_current_time() ,format='ascii'); check(err==0)
+       err = this%vtk_handler%write_vtu_mesh(this%H_current); check(err==0)
+       err = this%vtk_handler%write_vtu_node_field(this%H_current, 1, 'H'); check(err==0)
+       err = this%vtk_handler%close_vtu(); check(err==0)
+       err = this%vtk_handler%write_pvtu(time_step=this%theta_method%get_current_time() ); check(err==0)
+       err = this%vtk_handler%write_pvd(); check(err==0)
+    endif
+  end subroutine write_time_step_solution
+  
+      ! -----------------------------------------------------------------------------------------------
+  subroutine finalize_output(this)
+    implicit none
+    class(test_hts_nedelec_driver_t), intent(inout) :: this
+    integer(ip)                                      :: err
+    if(this%test_params%get_write_solution()) then
+    call  this%vtk_handler%free()
+    endif
+  end subroutine finalize_output
 
+  ! -----------------------------------------------------------------------------------------------
   subroutine run_simulation(this) 
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
@@ -304,23 +365,26 @@ contains
     call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
+    call this%setup_theta_method() 
     call this%setup_fe_space()
     call this%setup_system()
-    call this%assemble_system()
-    call this%setup_solver()
-    call this%solution%create(this%fe_space) 
+    call this%hts_nedelec_integration%assign_solutions(this%H_current, this%H_previous) ! TO-WORK
+    call this%assemble_system()   
+    call this%setup_nonlinear_solver()
+    call this%initialize_output() 
     call this%solve_system()
-    call this%write_solution()
-    call this%check_solution()
+    call this%finalize_output()
+    !call this%check_solution() 
     call this%free()
   end subroutine run_simulation
 
+  ! -----------------------------------------------------------------------------------------------
   subroutine free(this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
-    call this%solution%free()     
-    call this%direct_solver%free()  
+    call this%H_previous%free()
+    call this%H_current%free() 
     call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
@@ -332,6 +396,7 @@ contains
     end if
     call this%triangulation%free()
     call this%test_params%free()
+    call this%nonlinear_solver%free()
   end subroutine free
 
 end module test_hts_nedelec_driver_names
