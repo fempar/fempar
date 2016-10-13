@@ -670,16 +670,16 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
                    elmat = 0.0_rp
                    elvec = 0.0_rp
                    do qpoint = 1, n_q_points
-                    factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-					              call face_map_face_map%get_normal(qpoint, normal)
-                    do ishape = 1, reference_fe%get_number_shape_functions() 
-                       call face_int%get_value(ishape,qpoint,1,vector_shape_test)
-                       do jshape = 1, reference_fe%get_number_shape_functions()
-                          call face_int%get_value(jshape,qpoint,1,vector_shape_trial)
-			                 elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(vector_shape_test,normal)*cross_product(vector_shape_trial,normal)*factor
-                       end do
-		                  elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normal)*cross_product(vector_shape_test,normal)*factor
-                    end do
+                      factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+                      call face_map_face_map%get_normal(qpoint, normal)
+                      do ishape = 1, reference_fe%get_number_shape_functions() 
+                         call face_int%get_value(ishape,qpoint,1,vector_shape_test)
+                         do jshape = 1, reference_fe%get_number_shape_functions()
+                            call face_int%get_value(jshape,qpoint,1,vector_shape_trial)
+                            elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(vector_shape_test,normal)*cross_product(vector_shape_trial,normal)*factor
+                         end do
+                         elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normal)*cross_product(vector_shape_test,normal)*factor
+                      end do
                    end do
                  case ( field_type_tensor )
                    ! Not implemented !!!
@@ -709,7 +709,6 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   end do
 
   call matrix%convert(csr_format)
-  !call matrix%print_matrix_market(6)
 
   call parameter_list%init()
 #ifdef ENABLE_MKL

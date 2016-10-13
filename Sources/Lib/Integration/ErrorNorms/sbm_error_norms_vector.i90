@@ -47,8 +47,8 @@ subroutine error_norms_vector_create (this, fe_space, field_id)
      check(istat==0)
      allocate(this%work_array_gradients(this%fe_space%get_max_number_quadrature_points(),1), stat=istat)
      check(istat==0)
-	 allocate(this%work_array_curl_values(this%fe_space%get_max_number_quadrature_points(),1), stat=istat)
-	 check(istat==0) 
+     allocate(this%work_array_curl_values(this%fe_space%get_max_number_quadrature_points(),1), stat=istat)
+     check(istat==0) 
   end if
 end subroutine error_norms_vector_create
 
@@ -71,7 +71,7 @@ subroutine error_norms_vector_free (this)
      check(istat==0)
   end if
   
-    if (allocated(this%work_array_curl_values)) then
+  if (allocated(this%work_array_curl_values)) then
      deallocate(this%work_array_curl_values, stat=istat)
      check(istat==0)
   end if
@@ -106,7 +106,7 @@ function error_norms_vector_compute (this, exact_solution, fe_function, norm_typ
      exponent_ = error_norm_determine_exponent(norm_type, exponent)
      values_norm      = 0.0_rp
      gradients_norm   = 0.0_rp
-	 curl_values_norm = 0.0_rp 
+     curl_values_norm = 0.0_rp 
      fe_iterator = this%fe_space%create_fe_iterator()
      do while ( .not. fe_iterator%has_finished() ) 
         call fe_iterator%current(fe)
@@ -138,7 +138,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
                                                          exponent, &
                                                          values_cell_contribution, & 
                                                          gradients_cell_contribution, &
-														 curl_values_cell_contribution, &
+                                                         curl_values_cell_contribution, &
                                                          time )
   implicit none
   class(error_norms_vector_t), intent(inout) :: this
@@ -214,11 +214,11 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
   if (norm_requires_curl_values) then  
      if(present(time)) then
         call exact_solution%get_curl_set_space_time(coordinates, &
-                                                           time_, &
-                                                           this%work_array_curl_values(1:n_q_points,1:1))
+                                                    time_, &
+                                                    this%work_array_curl_values(1:n_q_points,1:1))
      else
         call exact_solution%get_curl_set_space(coordinates, &
-                                                      this%work_array_curl_values(1:n_q_points,1))
+                                               this%work_array_curl_values(1:n_q_points,1))
      end if
      fe_function_curl_values => this%cell_fe_function%get_quadrature_points_curl_values()
      do q_point=1, n_q_points
@@ -301,9 +301,9 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
 
   end select
   
-   curl_values_cell_contribution = 0.0_rp 
+  curl_values_cell_contribution = 0.0_rp 
   select case ( trim(norm_type) )
-  case (hcurl_norm)
+  case (hcurl_seminorm)
      do q_point=1, n_q_points
         curl_values_cell_contribution = curl_values_cell_contribution + & 
              this%work_array_curl_values(q_point,1)*this%work_array_curl_values(q_point,1)*&

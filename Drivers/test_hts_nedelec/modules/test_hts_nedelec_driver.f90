@@ -310,10 +310,10 @@ contains
     H_exact_function => this%problem_functions%get_solution()
     
     call H_error_norm%create(this%fe_space,1)
+
     write(*,*) 'H ERROR NORMS'  
     l2 = H_error_norm%compute(H_exact_function, this%H_current, l2_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )   
-    hcurl = H_error_norm%compute(H_exact_function, this%H_current, hcurl_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() ) 
-    
+    hcurl = H_error_norm%compute(H_exact_function, this%H_current, hcurl_seminorm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )    
     error_tolerance = 1.0e-04
 
     write(*,'(a20,f20.16)') 'l2_norm:', l2; !check ( l2 < error_tolerance )
