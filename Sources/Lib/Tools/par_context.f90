@@ -61,25 +61,26 @@ module par_context_names
      integer :: rank    = -1
      integer :: size    = -1
    contains
-     procedure, non_overridable, private :: par_context_create_by_comm_world_dup
-     procedure, non_overridable, private :: par_context_create_from_base_context_and_task_ids
-     procedure, non_overridable, private :: par_context_create_intercomm
-     generic                             :: create => par_context_create_by_comm_world_dup, &
-          &                                           par_context_create_from_base_context_and_task_ids, &
-          &                                           par_context_create_intercomm
+     procedure, non_overridable :: create => par_context_create_by_comm_world_dup
+     !procedure, non_overridable, private :: par_context_create_from_base_context_and_task_ids
+     !procedure, non_overridable, private :: par_context_create_intercomm
+     !generic                             :: create => par_context_create_by_comm_world_dup, &
+     !     &                                           par_context_create_from_base_context_and_task_ids, &
+     !     &                                           par_context_create_intercomm
 
      procedure, non_overridable, private :: par_context_assign
      generic                             :: assignment(=)  => par_context_assign
 
-     procedure, non_overridable, private :: par_context_split
-     procedure, non_overridable, private :: par_context_split_into_partition_with_two_subcontexts
-     generic                             :: split => par_context_split, &
-          par_context_split_into_partition_with_two_subcontexts
+     procedure, non_overridable :: split_by_condition => par_context_split_by_condition
+     procedure, non_overridable :: split_by_color     => par_context_split_by_color
+     
+     !procedure, non_overridable, private :: par_context_split_into_partition_with_two_subcontexts
+     !generic                             :: split => par_context_split, par_context_split_into_partition_with_two_subcontexts
 
      procedure, non_overridable :: free        => par_context_free
      procedure, non_overridable :: nullify     => par_context_nullify
-     procedure, non_overridable :: info        => par_context_info
-     procedure, non_overridable :: get_icontxt => par_context_get_icontxt
+     !procedure, non_overridable :: info        => par_context_info
+     !procedure, non_overridable :: get_icontxt => par_context_get_icontxt
      procedure, non_overridable :: get_rank    => par_context_get_rank
      procedure, non_overridable :: get_size    => par_context_get_size
      procedure, non_overridable :: am_i_member => par_context_am_i_member
@@ -172,38 +173,7 @@ contains
   end subroutine par_context_create_from_base_context_and_task_ids
 
   !=============================================================================
-  subroutine par_context_create_intercomm ( this, world_context, sub_context_1, sub_context_2)
-    implicit none 
-    class(par_context_t)          , intent(inout) :: this
-    type(par_context_t)           , intent(in)    :: world_context
-    type(par_context_t)           , intent(in)    :: sub_context_1
-    type(par_context_t)           , intent(in)    :: sub_context_2
-    integer                                       :: info
-
-    call this%free(finalize=.false.)
-
-    ! {{sub_context_1} U {sub_context_2}} MUST be a partition of world_context (precondition). 
-    ! Further we assume that the ranks ids' (in world_context) of tasks in sub_context_1 go from 
-    ! 0 to size(sub_context_1)-1 and ranks ids' of tasks in sub_context_2 from that number onwards
-    assert (world_context%rank >= 0)
-
-    ! Create intracomm
-    if(sub_context_1%rank>=0) then
-       assert(sub_context_2%rank<0)
-       !    mpi_intercomm_create (local_comm, local_leader, peer_comm, remote_leader, tag, newintercomm, info)
-       call mpi_intercomm_create(sub_context_1%icontxt, 0, world_context%icontxt, sub_context_1%size, 0, this%icontxt, info)
-    else 
-       assert(sub_context_2%rank>=0)
-       call mpi_intercomm_create(sub_context_2%icontxt, 0, world_context%icontxt, 0 , 0, this%icontxt, info)
-    end if
-    assert(info==mpi_success)
-
-    ! and store current info (who am I and how many we are in these contexts).
-    call psb_info ( this%icontxt, this%rank, this%size )
-  end subroutine par_context_create_intercomm
-
-  !=============================================================================
-  subroutine par_context_split ( this, color, new_subcontext )
+  subroutine par_context_split_by_color ( this, color, new_subcontext )
     implicit none 
     class(par_context_t), intent(in)    :: this
     integer             , intent(in)    :: color
@@ -221,10 +191,10 @@ contains
     call mpi_comm_split(this%icontxt, my_color, key, new_subcontext%icontxt, info)
     assert ( info == mpi_success )
     call psb_info ( new_subcontext%icontxt, new_subcontext%rank, new_subcontext%size )
-  end subroutine par_context_split
+  end subroutine par_context_split_by_color
 
   !=============================================================================
-  subroutine par_context_split_into_partition_with_two_subcontexts ( this, in_subcontext1, subcontext1, subcontext2 )
+  subroutine par_context_split_by_condition ( this, in_subcontext1, subcontext1, subcontext2 )
     implicit none 
     class(par_context_t)          , intent(in)    :: this
     logical                       , intent(in)    :: in_subcontext1
@@ -246,7 +216,8 @@ contains
     assert ( info == mpi_success )
     call psb_info ( subcontext1%icontxt, subcontext1%rank, subcontext1%size )
     call psb_info ( subcontext2%icontxt, subcontext2%rank, subcontext2%size )
-  end subroutine par_context_split_into_partition_with_two_subcontexts
+
+  end subroutine par_context_split_by_condition
 
   !=============================================================================
   ! Frees the memory related to the communication object underlying "this"

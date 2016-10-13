@@ -350,8 +350,8 @@ contains
     assert ( this%world_context%get_rank() >= 0 )
 
     ! Create this%l1_context and this%lgt1_context by splitting world_context
-    call this%world_context%split ( this%world_context%get_rank() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
-
+    call this%world_context%split_by_condition ( this%world_context%get_rank() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
+    
     ! Create l1_to_l2_context, where inter-level data transfers actually occur
     if ( this%num_levels > 1 ) then
      if(this%l1_context%get_rank() >= 0) then
@@ -361,7 +361,7 @@ contains
      else
         my_color = undefined_color ! mpi_undefined
      end if
-     call this%world_context%split ( my_color, this%l1_to_l2_context )
+     call this%world_context%split_by_color ( my_color, this%l1_to_l2_context )
     else
      call this%l1_to_l2_context%nullify()
     end if
@@ -412,7 +412,7 @@ contains
     this%num_parts_per_level = num_parts_per_level
     
     ! Create this%l1_context and this%lgt1_context by splitting world_context
-    call world_context%split ( world_context%get_rank() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
+    call world_context%split_by_condition ( world_context%get_rank() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
 
     ! Create l1_to_l2_context, where inter-level data transfers actually occur
     if ( this%num_levels > 1 ) then
@@ -423,7 +423,7 @@ contains
       else
          my_color = undefined_color ! mpi_undefined
       end if
-      call world_context%split ( my_color, this%l1_to_l2_context )
+      call world_context%split_by_color ( my_color, this%l1_to_l2_context )
     else
       call this%l1_to_l2_context%nullify()
     end if
