@@ -63,7 +63,7 @@ module fe_space_names
   
  ! Parallel modules
   use par_environment_names
-  use par_context_names
+  !use par_context_names
   use dof_import_names
   use cell_import_names
   use par_sparse_matrix_names

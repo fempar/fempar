@@ -1049,14 +1049,11 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     type(list_iterator_t)     :: parts_object_iterator
     integer(ip)               :: my_part_id, number_parts
     integer(ip)               :: i, iobj
-    integer                   :: my_rank
     
-    integer       , parameter :: root_pid = 0
     integer(ip)               :: dummy_integer_array(1)
 
     assert ( this%p_env%am_i_l1_task() )
-    my_rank      = this%p_env%get_l1_rank() 
-    my_part_id   = my_rank + 1 
+    my_part_id   = this%p_env%get_l1_rank()  + 1 
     number_parts = this%p_env%get_l1_size()
     
     ! 1. Count/list how many local objects I am responsible to assign a global ID
@@ -1071,10 +1068,9 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     end do
     
     ! 2. Gather + Scatter
-    if ( my_rank == root_pid ) then
+    if ( this%p_env%am_i_l1_root() ) then
       call memalloc( number_parts+1, per_rank_objects_with_gid, __FILE__,__LINE__ )
-      call this%p_env%l1_gather (root=root_pid, &
-                                 input_data=number_local_objects_with_gid, &
+      call this%p_env%l1_gather (input_data=number_local_objects_with_gid, &
                                  output_data=per_rank_objects_with_gid(2:) ) 
        ! Transform length to header
        per_rank_objects_with_gid(1)=1 
@@ -1083,21 +1079,18 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
        end do
        this%number_global_objects = per_rank_objects_with_gid(number_parts+1)-1 
     else
-      call this%p_env%l1_gather (root=root_pid, &
-                                 input_data=number_local_objects_with_gid, &
+      call this%p_env%l1_gather (input_data=number_local_objects_with_gid, &
                                  output_data=dummy_integer_array ) 
     end if
     
-    call this%p_env%l1_bcast (root=root_pid, data = this%number_global_objects )
+    call this%p_env%l1_bcast (data = this%number_global_objects )
     
-    if ( my_rank == root_pid ) then
-      call this%p_env%l1_scatter (root=root_pid, &
-                                  input_data=per_rank_objects_with_gid, &
+    if ( this%p_env%am_i_l1_root() ) then
+      call this%p_env%l1_scatter (input_data=per_rank_objects_with_gid, &
                                   output_data=start_object_gid) 
       call memfree( per_rank_objects_with_gid, __FILE__,__LINE__ )
     else
-      call this%p_env%l1_scatter (root=root_pid, &
-                                  input_data=dummy_integer_array, &
+      call this%p_env%l1_scatter (input_data=dummy_integer_array, &
                                   output_data=start_object_gid) 
     end if
     

@@ -34,6 +34,9 @@ module environment_names
    contains
      procedure (info_interface)                       , deferred  :: info
      procedure (am_i_l1_task_interface)               , deferred  :: am_i_l1_task
+     procedure (am_i_l1_root_interface)               , deferred  :: am_i_l1_root
+     procedure (get_l1_rank_interface)                , deferred  :: get_l1_rank
+     procedure (get_l1_size_interface)                , deferred  :: get_l1_size
      procedure (bcast_interface)                      , deferred  :: l1_lgt1_bcast
      procedure (l1_barrier_interface)                 , deferred  :: l1_barrier
      procedure (l1_sum_scalar_rp_interface), private  , deferred  :: l1_sum_scalar_rp
@@ -61,6 +64,32 @@ module environment_names
        logical                           :: am_i_l1_task_interface 
      end function am_i_l1_task_interface
 
+     function am_i_l1_root_interface(this)
+       import :: environment_t
+       implicit none
+       class(environment_t), intent(in) :: this
+       logical                              :: am_i_l1_root_interface
+     end function am_i_l1_root_interface
+
+     !=============================================================================
+     function get_l1_rank_interface ( this )
+       import :: environment_t
+       implicit none 
+       ! Parameters
+       class(environment_t), intent(in) :: this
+       integer                          :: get_l1_rank_interface
+     end function get_l1_rank_interface
+
+     !=============================================================================
+     function get_l1_size_interface ( this )
+       import :: environment_t
+       implicit none 
+       ! Parameters
+       class(environment_t), intent(in) :: this
+       integer                          :: get_l1_size_interface
+     end function get_l1_size_interface
+     
+     !=============================================================================
      subroutine bcast_interface (this, condition)
        import :: environment_t
        implicit none
@@ -73,28 +102,28 @@ module environment_names
        implicit none
        class(environment_t) ,intent(in)    :: this
      end subroutine l1_barrier_interface
-     
+
      subroutine l1_sum_scalar_rp_interface (this,alpha)
        import :: environment_t, rp
        implicit none
        class(environment_t) , intent(in)    :: this
        real(rp)             , intent(inout) :: alpha
      end subroutine l1_sum_scalar_rp_interface
-     
+
      subroutine l1_sum_vector_rp_interface(this,alpha)
        import :: environment_t, rp
        implicit none
        class(environment_t) , intent(in)    :: this
        real(rp)             , intent(inout) :: alpha(:) 
      end subroutine l1_sum_vector_rp_interface
-     
-    subroutine l1_max_scalar_rp_interface (this,alpha)
+
+     subroutine l1_max_scalar_rp_interface (this,alpha)
        import :: environment_t, rp
        implicit none
        class(environment_t) , intent(in)    :: this
        real(rp)             , intent(inout) :: alpha
      end subroutine l1_max_scalar_rp_interface
-     
+
      subroutine l1_max_vector_rp_interface(this,alpha)
        import :: environment_t, rp
        implicit none

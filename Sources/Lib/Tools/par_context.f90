@@ -46,7 +46,7 @@ module par_context_names
 
   integer(ip), parameter :: undefined_color=-1
   public :: undefined_color
-
+  
   ! Parallel context
   type par_context_t
      private 
@@ -1016,38 +1016,35 @@ contains
 
   !=============================================================================
   !=============================================================================
-  subroutine par_context_gather_scalar_ip ( this, root, input_data, output_data )
+  subroutine par_context_gather_scalar_ip ( this, input_data, output_data )
     implicit none
     class(par_context_t), intent(in)   :: this
-    integer             , intent(in)   :: root
     integer(ip)         , intent(in)   :: input_data
     integer(ip)         , intent(out)  :: output_data(this%size)
     integer     :: the_mpi_comm, iret
     call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-    call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, the_mpi_comm, iret)
+    call mpi_gather( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, psb_root_, the_mpi_comm, iret)
     check( iret == mpi_success )
   end subroutine par_context_gather_scalar_ip
 
   !=============================================================================
-  subroutine par_context_scatter_scalar_ip ( this, root, input_data, output_data )
+  subroutine par_context_scatter_scalar_ip ( this, input_data, output_data )
     implicit none
     class(par_context_t), intent(in)   :: this
-    integer                 , intent(in)   :: root
     integer(ip)             , intent(in)   :: input_data(this%size)
     integer(ip)             , intent(out)  :: output_data
     integer     :: the_mpi_comm, iret
     call psb_get_mpicomm (this%icontxt, the_mpi_comm)
-    call mpi_scatter( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, root, the_mpi_comm, iret)
+    call mpi_scatter( input_data, 1, psb_mpi_integer, output_data, 1, psb_mpi_integer, psb_root_, the_mpi_comm, iret)
     check( iret == mpi_success )
   end subroutine par_context_scatter_scalar_ip
 
   !=============================================================================
-  subroutine par_context_bcast_scalar_ip ( this, root, data )
+  subroutine par_context_bcast_scalar_ip ( this, data )
     implicit none
     class(par_context_t), intent(in)    :: this
-    integer                 , intent(in)    :: root
     integer(ip)             , intent(inout) :: data
-    call psb_bcast ( this%icontxt, data, root=root)
+    call psb_bcast ( this%icontxt, data, root=psb_root_)
   end subroutine par_context_bcast_scalar_ip
 
   !=============================================================================
@@ -1218,7 +1215,7 @@ contains
     integer(ip)         , intent(inout)   :: output_data
     integer(ip) :: recv_rank
     integer(ip) :: send_rank
-    send_rank = 0
+    send_rank = psb_root_
     recv_rank = this%size-1
     if ( this%rank == send_rank ) then
        call psb_snd(this%icontxt, input_data, recv_rank)
@@ -1235,7 +1232,7 @@ contains
     integer(ip)         , intent(inout)   :: output_data(:)
     integer(ip) :: recv_rank
     integer(ip) :: send_rank
-    send_rank = 0
+    send_rank = psb_root_
     recv_rank = this%size-1 
     if ( this%rank == send_rank ) then
        call psb_snd(this%icontxt, input_data, recv_rank)

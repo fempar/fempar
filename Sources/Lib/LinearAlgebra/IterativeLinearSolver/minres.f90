@@ -394,7 +394,7 @@ contains
   logical     :: beta1_lt_zero, beta1_eq_zero, beta_lt_zero, istop_neq_zero
 
   real(rp) ::   Anorm, Acond, rnorm, ynorm
-  integer  ::   me, np
+  !integer  ::   me, np
 
 
   ! Local constants
@@ -738,8 +738,9 @@ contains
     call environment%l1_lgt1_bcast(did_converge)
     call this%print_convergence_history_footer(luout)
 
-    call environment%info(me,np)
-    if ( me == 0 ) then
+    !call environment%info(me,np)
+    !if ( me == 0 ) then
+    if( environment%am_i_l1_root()) then
         write(luout, 2000) istop, num_iterations,   &
             Anorm, Acond, &
             rnorm, ynorm

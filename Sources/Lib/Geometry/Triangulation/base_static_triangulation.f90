@@ -49,7 +49,7 @@ module base_static_triangulation_names
 
   ! Par modules
   use par_environment_names
-  use par_context_names
+  !use par_context_names
 
   implicit none
 # include "debug.i90"

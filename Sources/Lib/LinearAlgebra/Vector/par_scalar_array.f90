@@ -42,7 +42,7 @@ module par_scalar_array_names
 
   ! Parallel modules
   use par_environment_names
-  use par_context_names
+  !use par_context_names
   use dof_import_names
 
   ! Abstract types

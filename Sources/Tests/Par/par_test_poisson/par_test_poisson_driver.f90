@@ -342,7 +342,7 @@ contains
     w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
     w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
     w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
-    if ( this%par_environment%get_l1_rank() == 0 ) then
+    if ( this%par_environment%am_i_l1_root() ) then
       write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
       write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-04 )
       write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )

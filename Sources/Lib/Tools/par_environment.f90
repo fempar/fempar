@@ -887,34 +887,31 @@ contains
   end subroutine par_environment_l1_neighbours_exchange_wo_pack_unpack_ieep
    
   !=============================================================================
-  subroutine par_environment_l1_gather_scalar_ip ( this, root, input_data, output_data )
+  subroutine par_environment_l1_gather_scalar_ip ( this, input_data, output_data )
       implicit none
       class(par_environment_t), intent(in)   :: this
-      integer                 , intent(in)   :: root
       integer(ip)             , intent(in)   :: input_data
       integer(ip)             , intent(out)  :: output_data(this%l1_context%get_size())
       assert ( this%am_i_l1_task() )
-      call this%l1_context%gather ( root, input_data, output_data )
+      call this%l1_context%gather ( input_data, output_data )
    end subroutine par_environment_l1_gather_scalar_ip
    
-   subroutine par_environment_l1_scatter_scalar_ip ( this, root, input_data, output_data )
+   subroutine par_environment_l1_scatter_scalar_ip ( this, input_data, output_data )
       implicit none
       class(par_environment_t), intent(in)   :: this
-      integer                 , intent(in)   :: root
       integer(ip)             , intent(in)   :: input_data(this%l1_context%get_size())
       integer(ip)             , intent(out)  :: output_data
       assert( this%am_i_l1_task() )
-      call this%l1_context%scatter ( root, input_data, output_data )
+      call this%l1_context%scatter ( input_data, output_data )
    end subroutine par_environment_l1_scatter_scalar_ip
    
-   subroutine par_environment_l1_bcast_scalar_ip ( this, root, data )
+   subroutine par_environment_l1_bcast_scalar_ip ( this, data )
       implicit none
       class(par_environment_t), intent(in)    :: this
-      integer                 , intent(in)    :: root
       integer(ip)             , intent(inout) :: data
       integer(ip) :: icontxt
       assert ( this%am_i_l1_task() )
-      call this%l1_context%bcast ( root, data )
+      call this%l1_context%bcast ( data )
    end subroutine par_environment_l1_bcast_scalar_ip
    
   !=============================================================================

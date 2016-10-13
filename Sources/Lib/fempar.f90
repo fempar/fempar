@@ -40,7 +40,7 @@ module fempar_names
   use input_names
   use vtk_handler_names
   
-  use par_context_names
+  !use par_context_names
   use par_timer_names
   use par_environment_names
 

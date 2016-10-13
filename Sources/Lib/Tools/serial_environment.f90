@@ -36,6 +36,10 @@ module serial_environment_names
    contains
      procedure :: info                        => serial_environment_info
      procedure :: am_i_l1_task                => serial_environment_am_i_l1_task
+     procedure :: am_i_l1_root                => serial_environment_am_i_l1_root
+     procedure :: get_l1_rank                 => serial_environment_get_l1_rank
+     procedure :: get_l1_size                 => serial_environment_get_l1_size
+
      procedure :: l1_lgt1_bcast               => serial_environment_l1_lgt1_bcast
      procedure :: l1_barrier                  => serial_environment_l1_barrier
      procedure :: l1_sum_scalar_rp            => serial_environment_l1_sum_scalar_rp
@@ -70,6 +74,31 @@ contains
     logical                                  :: serial_environment_am_i_l1_task 
     serial_environment_am_i_l1_task = .true.
   end function serial_environment_am_i_l1_task
+
+  function serial_environment_am_i_l1_root(this)
+    implicit none
+    class(serial_environment_t), intent(in) :: this
+    logical                              :: serial_environment_am_i_l1_root
+    serial_environment_am_i_l1_root = .true.
+  end function serial_environment_am_i_l1_root
+
+
+  function serial_environment_get_l1_rank ( this )
+    implicit none 
+    class(serial_environment_t), intent(in) :: this
+    integer                              :: serial_environment_get_l1_rank
+    serial_environment_get_l1_rank = 1
+  end function serial_environment_get_l1_rank
+  
+  !=============================================================================
+  function serial_environment_get_l1_size ( this )
+    implicit none 
+    class(serial_environment_t), intent(in) :: this
+    integer                              :: serial_environment_get_l1_size
+    serial_environment_get_l1_size = 1
+  end function serial_environment_get_l1_size
+  
+    !=============================================================================
   
   subroutine serial_environment_l1_lgt1_bcast (this, condition)
     implicit none

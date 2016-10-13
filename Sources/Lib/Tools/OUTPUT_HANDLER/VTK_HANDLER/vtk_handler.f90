@@ -161,19 +161,20 @@ contains
         logical, optional,    intent(IN)    :: issue_final_barrier
         logical                             :: ifb
         integer(kind=c_int)                 :: res
-        integer(ip)                         :: me, np
+        !integer(ip)                         :: me, np
     !-----------------------------------------------------------------
-        me = default_root_task
-        np = default_number_of_tasks
+        !me = default_root_task
+        !np = default_number_of_tasks
         ifb = .False.
         if(present(issue_final_barrier)) ifb = issue_final_barrier
         assert(associated(this%env))
-        call this%env%info(me,np) 
-        assert(this%root_task <= np-1)
+        !call this%env%info(me,np) 
+        !assert(this%root_task <= np-1)
 
         res=0
 
-        if(me == this%root_task) then
+        !if(me == this%root_task) then
+        if(this%env%am_i_l1_root()) then
             res = mkdir_recursive(path//C_NULL_CHAR)
             check ( res == 0 ) 
         end if
@@ -223,11 +224,12 @@ contains
         integer(ip), optional,      intent(IN)    :: part_number
         character(len=:), allocatable             :: fn
         character(len=:), allocatable             :: fp
-        integer(ip)                               :: me, np
+        integer(ip)                               :: me !, np
     !-----------------------------------------------------------------
-        me = default_root_task
-        np = default_number_of_tasks
-        call this%env%info(me, np)
+        !me = default_root_task
+        !np = default_number_of_tasks
+        !call this%env%info(me, np)
+        me = this%env%get_l1_rank()
 
         if(present(part_number)) me = part_number
         fn = trim(adjustl(this%prefix))//'_'//trim(adjustl(str(no_sign=.true., n=me)))//vtk_ext
@@ -334,7 +336,7 @@ contains
         if(present(number_of_steps)) st = number_of_steps
 
         this%env => fe_space%get_environment()
-        call this%env%info(me,np) 
+        !call this%env%info(me,np) 
         call this%set_root_task(rp)
 
         if(this%env%am_i_l1_task() ) then
@@ -344,7 +346,7 @@ contains
 
             this%path = path
             this%prefix = prefix
-            call this%set_num_parts(np)
+            call this%set_num_parts(this%env%get_l1_size())
             call this%set_num_steps(st)
         endif
         this%state = vtk_handler_state_initialized
@@ -365,7 +367,7 @@ contains
         character(len=:), allocatable             :: of          !< Real Output Format
         real(rp)                                  :: ts          !< Real Time Step
         integer(ip)                               :: me          !< Task identifier
-        integer(ip)                               :: np          !< Number of processors
+        !integer(ip)                               :: np          !< Number of processors
         integer(ip)                               :: E_IO        !< Error IO
     !-----------------------------------------------------------------
         assert(this%state == vtk_handler_state_initialized .or. this%state == vtk_handler_state_write_close)
@@ -386,12 +388,12 @@ contains
             if(present(file_name)) fn = file_name
             if(present(format)) of = trim(adjustl(format))
 
-            call this%env%info(me,np) 
+            !call this%env%info(me,np) 
             call this%append_step(ts)
 
             ! Build path
             dp = this%get_VTK_time_output_path(time_step=ts)
-            fn = this%get_VTK_filename(part_number=me)
+            fn = this%get_VTK_filename(part_number=this%env%get_l1_rank()+1)
             fn = dp//fn
 
             if( this%create_directory(dp,issue_final_barrier=.True.) == 0) then    
@@ -519,7 +521,7 @@ contains
         character(len=:),allocatable              :: fn ,dp
         real(rp)                                  :: ts
         integer(ip)                               :: i, fid, E_IO
-        integer(ip)                               :: me, np
+        !integer(ip)                               :: me, np
         logical                                   :: isDir
     !-----------------------------------------------------------------
         assert(.not. this%state == vtk_handler_state_start)
@@ -527,8 +529,9 @@ contains
 
         E_IO = 0
 
-        call this%env%info(me,np) 
-        if( this%env%am_i_l1_task() .and. me == this%root_task) then
+        !call this%env%info(me,np) 
+        !if( this%env%am_i_l1_task() .and. me == this%root_task) then
+        if( this%env%am_i_l1_root()) then
             check(allocated(this%path))
             check(allocated(this%prefix))
             check(allocated(this%field))
@@ -578,18 +581,19 @@ contains
         integer(ip)                               :: rf
         character(len=:),allocatable              :: pvdfn, pvtufn ,dp
         integer(ip)                               :: ts, E_IO
-        integer(ip)                               :: me, np
+        !integer(ip)                               :: me, np
         logical                                   :: isDir
     !-----------------------------------------------------------------
         assert(.not. this%state == vtk_handler_state_start)
-        me = default_root_task
-        np = default_number_of_tasks
+        !me = default_root_task
+        !np = default_number_of_tasks
         check(associated(this%env))
-        call this%env%info(me,np) 
+        !call this%env%info(me,np) 
 
         E_IO = 0
 
-        if(this%env%am_i_l1_task() .and. me == this%root_task) then
+        !if(this%env%am_i_l1_task() .and. me == this%root_task) then
+        if( this%env%am_i_l1_root()) then
             pvdfn = trim(adjustl(this%path))//'/'//trim(adjustl(this%prefix))//pvd_ext
             if(present(file_name)) pvdfn = file_name
 
