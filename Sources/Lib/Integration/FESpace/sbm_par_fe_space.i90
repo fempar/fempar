@@ -1132,21 +1132,23 @@ end subroutine par_fe_space_interpolate_dirichlet_values
  subroutine par_fe_space_setup_coarse_dofs ( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
-  integer(ip)                       :: istat, field_id
+  integer(ip)                       :: i, istat, field_id
   type(par_environment_t), pointer  :: par_environment
   integer(ip)                       :: coarse_dof_lid
   integer(ip)                       :: coarse_n_face_lid
   type(fe_object_iterator_t)        :: object_iterator
   type(fe_object_accessor_t)        :: object
   type(list_iterator_t)             :: own_coarse_dofs_iterator
+  integer(ip), allocatable          :: num_coarse_dofs(:,:)
+  integer(ip)                       :: current_coarse_dof
 
-  
-  
   assert ( this%number_fields == 1 )
   par_environment => this%get_par_environment()
   assert ( par_environment%am_i_l1_task() )   
   
   call this%free_coarse_dofs()
+    
+  call memalloc ( this%get_number_fe_objects(), this%number_fields, num_coarse_dofs, __FILE__, __LINE__ )
   
   call memalloc ( this%number_fields+1, this%ptr_coarse_dofs_per_field, __FILE__, __LINE__ )
     
@@ -1156,19 +1158,41 @@ end subroutine par_fe_space_interpolate_dirichlet_values
   allocate ( this%own_coarse_dofs_per_field(this%number_fields), stat=istat )
   check ( istat == 0 )
   
-  ! Count how many coarse DoFs there are per field
   this%ptr_coarse_dofs_per_field(1) = 1
   do field_id=1, this%number_fields
-    this%ptr_coarse_dofs_per_field(field_id+1) = this%ptr_coarse_dofs_per_field(field_id) + &
-                                                 this%coarse_fe_handler%get_num_coarse_dofs(this)
+    call this%coarse_fe_handler%get_num_coarse_dofs(this, num_coarse_dofs(:,field_id))
+    this%ptr_coarse_dofs_per_field(field_id+1) = this%ptr_coarse_dofs_per_field(field_id)
+    do i=1, this%get_number_fe_objects()
+      this%ptr_coarse_dofs_per_field(field_id+1) = this%ptr_coarse_dofs_per_field(field_id+1) + &
+                                                   num_coarse_dofs(i, field_id)
+    end do                                             
   end do
   
   call memalloc ( this%ptr_coarse_dofs_per_field(this%number_fields+1)-1, &
                   this%lst_coarse_dofs, __FILE__, __LINE__ )
   
   ! Enumerate coarse DoFs and map them to coarse n_faces
+  current_coarse_dof = 1 
   do field_id=1, this%number_fields
-      call this%coarse_fe_handler%setup_coarse_dofs(this)
+     call this%own_coarse_dofs_per_field(field_id)%create(this%get_number_fe_objects())
+     do i=1, this%get_number_fe_objects()
+       call this%own_coarse_dofs_per_field(field_id)%sum_to_pointer_index(i,num_coarse_dofs(i,field_id))
+     end do     
+     call this%own_coarse_dofs_per_field(field_id)%calculate_header()
+     call this%own_coarse_dofs_per_field(field_id)%allocate_list_from_pointer()
+     
+     coarse_dof_lid = 1
+     do coarse_n_face_lid=1, this%own_coarse_dofs_per_field(field_id)%get_num_pointers()
+       own_coarse_dofs_iterator = this%own_coarse_dofs_per_field(field_id)%create_iterator(coarse_n_face_lid)
+       do while ( .not. own_coarse_dofs_iterator%is_upper_bound() )
+         call own_coarse_dofs_iterator%set_current(coarse_dof_lid)
+         call own_coarse_dofs_iterator%next()
+         coarse_dof_lid = coarse_dof_lid + 1
+         this%lst_coarse_dofs(current_coarse_dof) = current_coarse_dof
+         current_coarse_dof = current_coarse_dof + 1
+       end do         
+     end do
+     
   end do
   
   ! Generate a global numbering for the coarse DoFs
@@ -1187,6 +1211,8 @@ end subroutine par_fe_space_interpolate_dirichlet_values
        call object_iterator%next()
      end do
   end do
+  
+  call memfree ( num_coarse_dofs, __FILE__, __LINE__ )
 end subroutine par_fe_space_setup_coarse_dofs
 
 subroutine par_fe_space_free_coarse_dofs(this)

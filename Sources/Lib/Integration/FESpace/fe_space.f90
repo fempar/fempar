@@ -399,12 +399,15 @@ module fe_space_names
    type(dof_import_t)            , allocatable :: blocks_dof_import(:)
    
    ! Multilevel fe space   
+   ! It is the equivalent to the "element_to_dof" at the finer level
    ! Pointers to the start/end of coarse DoFs LIDs of each field (lst_coarse_dofs)
    integer(ip)                   , allocatable :: ptr_coarse_dofs_per_field(:)	
    ! List of coarse DoFs LIDs
    integer(ip)                   , allocatable :: lst_coarse_dofs(:)	
    
    ! Coarse DoFs LIDs on top of coarse n_faces per field
+   ! It provides (for every field) what we get from the reference_fe_t at the
+   ! finer level
    type(list_t), allocatable                   :: own_coarse_dofs_per_field(:)
    
    ! GIDs of the coarse DoFs. For their generation, we though to be a good idea 
@@ -485,7 +488,6 @@ module fe_space_names
   contains
     ! Deferred methods
     procedure (l1_get_num_coarse_dofs_interface), deferred :: get_num_coarse_dofs
-    procedure (l1_setup_coarse_dofs_interface)  , deferred :: setup_coarse_dofs
 	   procedure (l1_setup_constraint_matrix)      , deferred :: setup_constraint_matrix
 	   procedure (l1_setup_weighting_operator)     , deferred :: setup_weighting_operator
   end type l1_coarse_fe_handler_t
@@ -494,23 +496,14 @@ module fe_space_names
     ! Returns the number of coarse DoFs that the object customizing
     ! l1_coarse_fe_handler_t requires to introduce on the subdomain 
     ! interface
-    function l1_get_num_coarse_dofs_interface(this, par_fe_space) 
+    subroutine l1_get_num_coarse_dofs_interface(this, par_fe_space, num_coarse_dofs) 
       import :: l1_coarse_fe_handler_t, par_fe_space_t, ip
       implicit none
       class(l1_coarse_fe_handler_t), intent(in)    :: this
       type(par_fe_space_t)         , intent(in)    :: par_fe_space 
-      integer(ip) :: l1_get_num_coarse_dofs_interface
-    end function l1_get_num_coarse_dofs_interface
-    
-    ! Enumerates coarse DoFs, and determines the mapping among coarse 
-    ! n_faces and coarse DoFs (ownership relationship)
-    subroutine l1_setup_coarse_dofs_interface(this, par_fe_space) 
-      import :: l1_coarse_fe_handler_t, par_fe_space_t
-      implicit none
-      class(l1_coarse_fe_handler_t), intent(in)    :: this
-      type(par_fe_space_t)         , intent(inout) :: par_fe_space 
-    end subroutine l1_setup_coarse_dofs_interface
-	
+      integer(ip)                  , intent(inout) :: num_coarse_dofs(:)
+    end subroutine l1_get_num_coarse_dofs_interface
+   
     subroutine l1_setup_constraint_matrix(this, par_fe_space, constraint_matrix) 
       import :: l1_coarse_fe_handler_t, par_fe_space_t, coo_sparse_matrix_t
 	     implicit none
@@ -532,7 +525,6 @@ module fe_space_names
     private
   contains
     procedure :: get_num_coarse_dofs      => standard_l1_get_num_coarse_dofs
-    procedure :: setup_coarse_dofs        => standard_l1_setup_coarse_dofs
 	   procedure :: setup_constraint_matrix  => standard_l1_setup_constraint_matrix
 	   procedure :: setup_weighting_operator => standard_l1_setup_weighting_operator
   end type standard_l1_coarse_fe_handler_t
