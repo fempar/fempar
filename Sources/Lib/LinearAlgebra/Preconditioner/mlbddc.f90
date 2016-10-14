@@ -513,7 +513,7 @@ contains
     assert ( L2_environment%am_i_l1_task() )
 	
     par_fe_space    => this%get_fe_space()
-	coarse_fe_space => par_fe_space%get_coarse_fe_space()
+    coarse_fe_space => par_fe_space%get_coarse_fe_space()
     
     allocate ( elem2dof(coarse_fe_space%get_number_fields()), stat=istat)
     check(istat==0)     
@@ -658,12 +658,10 @@ contains
   subroutine mlbddc_numerical_constrained_neumann_problem(this)
    implicit none
    class(mlbddc_t)           , intent(inout) :: this
-   type(par_fe_space_t)      , pointer       :: fe_space
    type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
    type(sparse_matrix_t)     , pointer       :: A
     
     assert ( this%am_i_l1_task() )
-    fe_space => this%get_fe_space()
     par_sparse_matrix => this%get_par_sparse_matrix()
     A => par_sparse_matrix%get_sparse_matrix()
     call A%expand_matrix_numeric(C_T = this%constraint_matrix, &
@@ -727,12 +725,6 @@ contains
      call this%allocate_coarse_grid_basis()
      this%Phi = work2 (1:fe_space%get_block_number_dofs(1),:) 
      
-     !do, i=1,this%constrained_neumann_matrix%get_num_rows()
-     !  write(*,"(100g15.5)") ( work1(i,j), j=1,this%get_block_number_coarse_dofs(1) )
-     !enddo
-     !do, i=1,this%constrained_neumann_matrix%get_num_rows()
-     !  write(*,"(100g15.5)") ( work2(i,j), j=1,this%get_block_number_coarse_dofs(1) )
-     !enddo
      call memfree ( work1, __FILE__,__LINE__ )
      call memfree ( work2, __FILE__,__LINE__ )
   end subroutine mlbddc_setup_coarse_grid_basis 
@@ -811,7 +803,7 @@ contains
     type(coarse_fe_accessor_t) :: coarse_fe
 	
     type(par_fe_space_t)   , pointer :: par_fe_space
-	type(coarse_fe_space_t), pointer :: coarse_fe_space
+    type(coarse_fe_space_t), pointer :: coarse_fe_space
     
     par_environment => this%get_par_environment()
     assert (par_environment%am_i_l1_to_l2_root())
@@ -821,8 +813,8 @@ contains
     call memalloc ( l1_to_l2_size, counts, __FILE__, __LINE__ )
     call memalloc ( l1_to_l2_size, displs, __FILE__, __LINE__ )
 	
-	par_fe_space    => this%get_fe_space()
-	coarse_fe_space => par_fe_space%get_coarse_fe_space()
+    par_fe_space    => this%get_fe_space()
+	   coarse_fe_space => par_fe_space%get_coarse_fe_space()
     
     i = 1
     counts(l1_to_l2_size) = 0
@@ -919,8 +911,8 @@ contains
     type(i1p_t), allocatable :: elem2dof(:)
     logical, pointer :: field_coupling(:,:)
     integer(ip) :: ifield, jfield, i, j, istat, current
-	type(par_fe_space_t)   , pointer :: par_fe_space
-	type(coarse_fe_space_t), pointer :: coarse_fe_space
+    type(par_fe_space_t)   , pointer :: par_fe_space
+	   type(coarse_fe_space_t), pointer :: coarse_fe_space
     
     L1_environment => this%get_par_environment()
     L2_environment => L1_environment%get_next_level()
@@ -928,7 +920,7 @@ contains
     assert ( L2_environment%am_i_l1_task() )
 	
     par_fe_space    => this%get_fe_space()
-	coarse_fe_space => par_fe_space%get_coarse_fe_space()	
+	   coarse_fe_space => par_fe_space%get_coarse_fe_space()	
 	
     allocate ( elem2dof(coarse_fe_space%get_number_fields()), stat=istat)
     check(istat==0)     
@@ -1584,7 +1576,6 @@ contains
     class(mlbddc_t)            , intent(in)    :: this
     type(par_scalar_array_t)   , intent(in)    :: x
     type(par_scalar_array_t)   , intent(inout) :: y
-    type(par_fe_space_t)       , pointer :: par_fe_space
     type(serial_scalar_array_t), pointer :: x_serial
     type(serial_scalar_array_t), pointer :: y_serial
     real(rp)                   , pointer :: y_serial_entries(:)
@@ -1598,7 +1589,6 @@ contains
     
     fe_space => this%get_fe_space()
     if ( this%am_i_l1_task() ) then
-      par_fe_space => this%get_fe_space()
       block_number_dofs        = fe_space%get_block_number_dofs(1)
       block_number_coarse_dofs = fe_space%get_block_number_coarse_dofs(1)
       
@@ -1639,9 +1629,7 @@ contains
     type(serial_scalar_array_t), pointer :: y_local
     real(rp), pointer :: x_local_entries(:)
     real(rp), pointer :: y_local_entries(:)
-    type(par_fe_space_t), pointer :: par_fe_space
  
-    par_fe_space => this%get_fe_space()
     if ( this%am_i_l1_task() ) then
       x_local         => x%get_serial_scalar_array()
       x_local_entries => x_local%get_entries()
