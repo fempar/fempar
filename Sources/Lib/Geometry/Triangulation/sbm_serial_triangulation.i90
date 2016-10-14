@@ -30,16 +30,17 @@
     class(serial_triangulation_t), intent(inout) :: this
     type(ParameterList_t)        , intent(in)    :: parameters
 
-    type(mesh_t)           :: mesh
-    type(list_t), pointer  :: given_vefs
-    integer(ip) , pointer  :: lst_vefs_geo(:), lst_vefs_set(:)
-    real(rp)    , pointer  :: coordinates(:,:) => NULL()
-    integer(ip)            :: triangulation_generate
-    integer(ip)            :: istat
-    logical                :: is_present
-    integer(ip)            :: geometry_interpolation_order
-    type(p_reference_fe_t) :: reference_fe_geo_list(1)
-    integer(ip) :: ivef ! Temporal
+    type(mesh_t)              :: mesh
+    type(list_t), pointer     :: given_vefs
+    integer(ip) , pointer     :: lst_vefs_geo(:), lst_vefs_set(:)
+    real(rp)    , allocatable :: coordinates(:,:)
+    integer(ip)               :: triangulation_generate
+    integer(ip)               :: istat
+    logical                   :: is_present
+    integer(ip)               :: geometry_interpolation_order
+    type(p_reference_fe_t)    :: reference_fe_geo_list(1)
+    integer(ip)               :: ivef 
+    integer(ip), allocatable  :: cells_set(:)
     
     ! Optional parameters
     if( parameters%isPresent(key = triangulation_generate_key) ) then
@@ -62,36 +63,21 @@
 
     if(triangulation_generate==triangulation_generate_from_mesh) then
        call mesh%read(parameters)
-       !call mesh%read(dir_path, prefix)
-       !call mesh%to_dual()
-       !call mesh%generate_vefs()
        
        ! Extract data from mesh
        call mesh%get_sizes(this%num_dimensions,this%num_vertices,this%max_vefs_per_cell,this%num_local_cells)
        this%num_vefs=this%num_vertices
        this%num_ghost_cells=0
-       !write(*,*) this%num_dimensions,this%num_vertices,this%num_vefs,this%max_vefs_per_cell,this%num_local_cells
-       call mesh%move_cells(this%ptr_vefs_per_cell,this%lst_vefs_lids)
-       !write(*,*) this%ptr_vefs_per_cell
-       !write(*,*) this%lst_vefs_lids
-       !call mesh%move_coordinates(this%coordinates)
-       !write(*,*) this%coordinates
+       call mesh%move_cells(this%ptr_vefs_per_cell,this%lst_vefs_lids, cells_set)
        call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
-       !write(*,*) boundary%p,boundary%l
 
-       coordinates => mesh%get_coordinates()
-
+       call mesh%move_coordinates(coordinates)
+       
        ! Generate dual mesh (at this point around vertices only)
        call this%allocate_and_fill_cells_around()
-       !write(*,*) this%ptrs_cells_around
-       !write(*,*) this%lst_cells_around
-       !write(*,*) 'Dual mesh ready'
-
        call this%generate_vefs(geometry_interpolation_order)
        call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
-       !call this%generate_vefs()
-       !write(*,*) 'Generating vefs done'
-
+       
     else if(triangulation_generate==triangulation_generate_structured) then
 
        this%num_ghost_cells=0
@@ -112,7 +98,11 @@
             &                                                  this%lst_vefs_lids,     &
             &                                                  this%vefs_set,          &
             &                                                  coordinates)
-
+       
+       ! Allocate and fill to default values cells_set==1 local variable
+       call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
+       cells_set = 1
+       
        call this%reference_fe_geo_index%init(1)
        if(this%num_dimensions==2) then
           call this%reference_fe_geo_index%put(key=8,val=1,stat=istat)
@@ -132,30 +122,21 @@
        class is(lagrangian_reference_fe_t)
           this%reference_fe_geo_list(1)%p => reference_fe
        end select
-
     end if
+    
+    ! Allocate and fill this%cells_set from cells_set member variable
+    call this%allocate_cells_set()
+    call this%fill_cells_set(cells_set)
     
     ! Generate dual mesh (around all vefs now)
     call this%allocate_and_fill_cells_around()
-    !write(*,*) this%ptrs_cells_around
-    !write(*,*) this%lst_cells_around
-    !write(*,*) 'Dual mesh ready'
-
     call this%compute_vefs_dimension()
     call this%find_vefs_at_boundary()
-    call this%find_and_list_vefs_at_interfaces() ! Is this needed?
-    !call this%allocate_and_fill_vef_type()
-    
+    call this%find_and_list_vefs_at_interfaces()
     call this%allocate_and_fill_face_orientation_rotation()
-
-    !write(*,*) 'Numbering nodes and filling coordinates'
     call this%allocate_and_fill_nodes()
-    !write(*,*) 'List of nodes (ptr):'
-    !write(*,*) this%ptr_nodes_per_cell
-    !write(*,*) 'List of nodes (lst):'
-    !write(*,*) this%lst_nodes
     call this%allocate_and_fill_coordinates(coordinates)
-
     call mesh%free()
+    call memfree(cells_set, __FILE__, __LINE__)
+    call memfree(coordinates, __FILE__, __LINE__)
   end subroutine serial_triangulation_create
-  

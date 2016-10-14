@@ -136,11 +136,14 @@ contains
     nnode=this%nnode  ! Maximum number of nodes per element
   end subroutine mesh_get_sizes
   !=============================================================================
-  subroutine mesh_move_cells(this,pvefs,lvefs)
+  subroutine mesh_move_cells(this,pvefs,lvefs,cells_set)
     class(mesh_t)           , intent(inout) :: this
-    integer(ip), allocatable, intent(inout) :: pvefs(:), lvefs(:)
+    integer(ip), allocatable, intent(inout) :: pvefs(:)
+    integer(ip), allocatable, intent(inout) :: lvefs(:)
+    integer(ip), allocatable, intent(inout) :: cells_set(:)
     call memmovealloc(this%pnods,pvefs,__FILE__,__LINE__)
     call memmovealloc(this%lnods,lvefs,__FILE__,__LINE__)
+    call memmovealloc(this%leset,cells_set,__FILE__,__LINE__)
   end subroutine mesh_move_cells
   !=============================================================================
   subroutine mesh_move_coordinates(this,coord)

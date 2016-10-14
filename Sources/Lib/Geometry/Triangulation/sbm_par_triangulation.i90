@@ -35,11 +35,12 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
   type(mesh_distribution_t) :: mesh_distribution
   type(p_reference_fe_t)    :: reference_fe_geo_list(1)
 
-  real(rp)    , pointer  :: coordinates(:,:) => NULL()
-  type(list_t), pointer  :: given_vefs
-  integer(ip) , pointer  :: lst_vefs_geo(:), lst_vefs_set(:)
+  real(rp)    , allocatable :: coordinates(:,:)
+  type(list_t), pointer     :: given_vefs
+  integer(ip) , pointer     :: lst_vefs_geo(:), lst_vefs_set(:)
 
   integer(igp), allocatable :: cells_gid(:)
+  integer(ip) , allocatable :: cells_set(:)
   integer(igp), allocatable :: vertx_gid(:)
   integer(ip) , allocatable :: ptr_vefs_per_cell(:)
   integer(ip) , allocatable :: lst_vefs_lids(:)
@@ -108,15 +109,8 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
         call mesh%get_sizes(this%num_dimensions,this%num_vertices,this%max_vefs_per_cell,this%num_local_cells)
         this%num_vefs=this%num_vertices
 
-        !write(*,*) 'Get from mesh (sizes):',this%num_dimensions,this%num_vertices,this%num_vefs,this%max_vefs_per_cell,this%num_local_cells
-        !write(*,*) 'Get from mesh num_local_cells:',this%num_local_cells
-        call mesh%move_cells(ptr_vefs_per_cell,lst_vefs_lids)
-        !write(*,*) this%ptr_vefs_per_cell
-        !write(*,*) this%lst_vefs_lids
-        !call mesh%move_coordinates(this%coordinates)
-        !write(*,*) this%coordinates
+        call mesh%move_cells(ptr_vefs_per_cell,lst_vefs_lids, cells_set)
         call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
-        !write(*,*) boundary%p,boundary%l
 
         ! Read mesh distribution 
         call mesh_distribution_compose_name ( prefix, name )
@@ -126,7 +120,6 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
         call io_close(lunio)
 
         call mesh_distribution%get_sizes(ipart,npart)
-        !write(*,*) 'Get from mesh_distribution (sizes):',ipart,npart
 
         ! Extract data from mesh_distribution
         call mesh_distribution%move_gids(cells_gid,vertx_gid)
@@ -135,14 +128,6 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
              &                                              ptr_ext_neighs_per_itfc_cell, &
              &                                              lst_ext_neighs_gids, &
              &                                              lst_ext_neighs_part_ids)
-        !write(*,*) 'List of itfc cells:',num_itfc_cells
-        !write(*,'(10i10)') lst_itfc_cells
-        !write(*,*) 'pextn:'
-        !write(*,'(10i10)') ptr_ext_neighs_per_itfc_cell
-        !write(*,*) 'lextn:'
-        !write(*,'(10i10)') lst_ext_neighs_gids
-        !write(*,*) 'lextp:'
-        !write(*,'(10i10)') lst_ext_neighs_part_ids
 
         ! Build elementwise vefs_gid and vefs_dim
         call memalloc(ptr_vefs_per_cell(this%num_local_cells+1)-1,lst_vefs_gids,__FILE__,__LINE__)
@@ -163,7 +148,6 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
              lst_ext_neighs_gids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1), &
              lst_ext_neighs_part_ids(1:ptr_ext_neighs_per_itfc_cell(num_itfc_cells+1)-1))
         this%num_ghost_cells = this%cell_import%get_number_ghost_elements()
-        !write(*,*) 'Get from import num_ghost_cells',this%num_ghost_cells
 
         ! Allocate + fill cells-related data
         call this%allocate_and_fill_ptr_vefs_per_cell(ptr_vefs_per_cell)
@@ -174,25 +158,15 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
         call this%fetch_ghost_cells_data(lst_vefs_gids, lst_vefs_gids_ghost_extended)
 
         ! Extend lids to ghost vefs and update number of vefs (=vertices at this point)
-        !write(*,*) 'Updating local numbering'
-        !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
         call this%allocate_and_fill_lst_vefs_lids(lst_vefs_lids,lst_vefs_gids_ghost_extended)
         this%num_vertices=this%num_vefs
 
-        !write(*,*) 'Local numbering udated with ghost vefs'
-        !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
-
         ! Generate edges and faces
         call this%allocate_and_fill_cells_around()
-        !write(*,*) 'Dual mesh ready'
-        !write(*,*) this%ptrs_cells_around
-        !write(*,*) this%lst_cells_around
-        !write(*,*) 'Generating vefs'
-        !write(*,*) 'Local and ghost vefs:',this%num_vefs, this%num_vertices, this%num_local_vefs, this%num_ghost_vefs
         call this%generate_vefs(geometry_interpolation_order)
         call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
 
-        coordinates => mesh%get_coordinates()
+        call mesh%move_coordinates(coordinates)
 
         call memfree (cells_gid,                    __FILE__, __LINE__)
         call memfree (vertx_gid,                    __FILE__, __LINE__)
@@ -232,6 +206,10 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
              &                                                  lst_ext_neighs_part_ids,      &
              &                                                  this%p_env%get_l1_rank()+1)
 
+        ! Allocate and fill to default values cells_set==1 local variable
+        call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
+        cells_set = 1
+        
         ! Generate import
         call this%cell_import%create  ( this%p_env%get_l1_rank()+1, &
              this%p_env%get_l1_size(), &
@@ -262,9 +240,12 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
            class is(lagrangian_reference_fe_t)
            this%reference_fe_geo_list(1)%p => reference_fe
         end select
-
      end if
 
+     ! Allocate and fill this%cells_set from cells_set member variable
+     call this%allocate_cells_set()
+     call this%fill_cells_set(cells_set)
+     
      call this%allocate_and_fill_cells_around()
      call this%compute_vefs_dimension()
      call this%find_vefs_at_boundary()
@@ -274,27 +255,19 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
 
      call this%allocate_and_fill_nodes()
      call this%allocate_and_fill_coordinates(coordinates)     
-     !call memfreep(coordinates,__FILE__, __LINE__)
+     
+     call this%compute_vefs_and_parts_object()
+     call this%compute_objects_dimension()
+     call this%compute_number_global_objects_and_their_gids()
+     
      call mesh%free()
      call mesh_distribution%free()
-
      call memfree (lst_itfc_cells,               __FILE__, __LINE__)
      call memfree (ptr_ext_neighs_per_itfc_cell, __FILE__, __LINE__)
      call memfree (lst_ext_neighs_gids,          __FILE__, __LINE__)
      call memfree (lst_ext_neighs_part_ids,      __FILE__, __LINE__)
-     !call memfree (lst_vefs_dimension_ghost_extended, __FILE__, __LINE__)
-     if (triangulation_generate==triangulation_generate_structured) then
-       call memfreep(coordinates, __FILE__, __LINE__ )
-     end if
-
-     !write(*,*) 'compute_vefs_and_parts_object'
-     call this%compute_vefs_and_parts_object()
-     !write(*,*) 'compute_objects_dimension'
-     call this%compute_objects_dimension()
-     !write(*,*) 'compute_number_global_objects_and_their_gids'
-     call this%compute_number_global_objects_and_their_gids()
-     !write(*,*) 'End creating par_triangulation'
-
+     call memfree(coordinates, __FILE__, __LINE__ )
+     call memfree(cells_set, __FILE__, __LINE__)
   end if
 
   call this%setup_coarse_triangulation()
