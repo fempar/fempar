@@ -189,6 +189,41 @@ subroutine bst_fill_local_cells_mypart (this)
   end do
 end subroutine bst_fill_local_cells_mypart
 
+subroutine bst_allocate_cells_set (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  call this%free_cells_set()
+  call memalloc ( this%num_local_cells + this%num_ghost_cells, this%cells_set, __FILE__, __LINE__ )
+end subroutine bst_allocate_cells_set
+
+subroutine bst_fill_cells_set (this, cells_set)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(ip)                       , intent(in)    :: cells_set(:)
+  
+  if ( associated(this%p_env)) then
+    ! Distributed-memory triangulation
+    assert ( this%p_env%am_i_l1_task() )   
+    assert ( size(cells_set) == this%num_local_cells )
+    this%cells_set(1:this%num_local_cells) = cells_set
+    call this%p_env%l1_neighbours_exchange ( this%cell_import%get_number_neighbours(), &
+                                             this%cell_import%get_neighbours_ids(),    &
+                                             this%cell_import%get_rcv_ptrs(),          &
+                                             this%cell_import%get_rcv_leids(),         &
+                                             this%cell_import%get_number_neighbours(), &
+                                             this%cell_import%get_neighbours_ids(),    &
+                                             this%cell_import%get_snd_ptrs(),          &
+                                             this%cell_import%get_snd_leids(),         &
+                                             this%cells_set )
+  else
+    ! Serial(centralized) triangulation
+    assert ( size(cells_set) == this%num_local_cells )
+    this%cells_set = cells_set
+  end if
+  
+  
+end subroutine bst_fill_cells_set
+
 subroutine bst_free_ptr_vefs_per_cell (this)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
@@ -212,6 +247,12 @@ subroutine bst_free_cells_mypart (this)
   class(base_static_triangulation_t), intent(inout) :: this
   if (allocated (this%cells_mypart)) call memfree ( this%cells_mypart, __FILE__, __LINE__ )
 end subroutine bst_free_cells_mypart
+
+subroutine bst_free_cells_set (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  if (allocated (this%cells_set)) call memfree ( this%cells_set, __FILE__, __LINE__ )
+end subroutine bst_free_cells_set
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !

@@ -47,6 +47,8 @@ subroutine error_norms_vector_create (this, fe_space, field_id)
      check(istat==0)
      allocate(this%work_array_gradients(this%fe_space%get_max_number_quadrature_points(),1), stat=istat)
      check(istat==0)
+     allocate(this%work_array_curl_values(this%fe_space%get_max_number_quadrature_points(),1), stat=istat)
+     check(istat==0) 
   end if
 end subroutine error_norms_vector_create
 
@@ -68,6 +70,12 @@ subroutine error_norms_vector_free (this)
      deallocate(this%work_array_values, stat=istat)
      check(istat==0)
   end if
+  
+  if (allocated(this%work_array_curl_values)) then
+     deallocate(this%work_array_curl_values, stat=istat)
+     check(istat==0)
+  end if
+  
 end subroutine error_norms_vector_free
 
 !===================================================================================================
@@ -88,6 +96,7 @@ function error_norms_vector_compute (this, exact_solution, fe_function, norm_typ
   type(fe_accessor_t)           :: fe
   real(rp)                      :: values_cell_contribution, values_norm
   real(rp)                      :: gradients_cell_contribution, gradients_norm
+  real(rp)                      :: curl_values_cell_contribution, curl_values_norm 
   class(environment_t), pointer :: environment
 
   assert ( error_norm_is_supported(norm_type) )
@@ -95,8 +104,9 @@ function error_norms_vector_compute (this, exact_solution, fe_function, norm_typ
   environment => this%fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then 
      exponent_ = error_norm_determine_exponent(norm_type, exponent)
-     values_norm    = 0.0_rp
-     gradients_norm = 0.0_rp
+     values_norm      = 0.0_rp
+     gradients_norm   = 0.0_rp
+     curl_values_norm = 0.0_rp 
      fe_iterator = this%fe_space%create_fe_iterator()
      do while ( .not. fe_iterator%has_finished() ) 
         call fe_iterator%current(fe)
@@ -109,13 +119,15 @@ function error_norms_vector_compute (this, exact_solution, fe_function, norm_typ
                                                 exponent_, &
                                                 values_cell_contribution, &
                                                 gradients_cell_contribution, & 
+                                                curl_values_cell_contribution, &
                                                 time)
            call update_norm(norm_type, values_cell_contribution   , values_norm)
            call update_norm(norm_type, gradients_cell_contribution, gradients_norm)
+           call update_norm(norm_type, curl_values_cell_contribution, curl_values_norm)
         end if
         call fe_iterator%next() 
      end do
-     call finalize_norm(environment, norm_type, exponent_, values_norm, gradients_norm, norm)
+     call finalize_norm(environment, norm_type, exponent_, values_norm, gradients_norm, norm, curl_values_norm)
   end if
 end function error_norms_vector_compute
 
@@ -126,6 +138,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
                                                          exponent, &
                                                          values_cell_contribution, & 
                                                          gradients_cell_contribution, &
+                                                         curl_values_cell_contribution, &
                                                          time )
   implicit none
   class(error_norms_vector_t), intent(inout) :: this
@@ -135,11 +148,13 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
   real(rp)                   , intent(in)    :: exponent
   real(rp)                   , intent(out)   :: values_cell_contribution
   real(rp)                   , intent(out)   :: gradients_cell_contribution
+  real(rp)                   , intent(out)   :: curl_values_cell_contribution
   real(rp)   , optional      , intent(in)    :: time 
 
   !! Locals 
   logical                       :: norm_requires_values
   logical                       :: norm_requires_gradients
+  logical                       :: norm_requires_curl_values 
   type(fe_map_t)    , pointer   :: fe_map 
   type(quadrature_t), pointer   :: quadrature 
   type(point_t)     , pointer   :: coordinates(:)
@@ -150,12 +165,13 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
   
   type(vector_field_t), pointer :: fe_function_values(:)
   type(tensor_field_t), pointer :: fe_function_gradients(:)
-  
+  type(vector_field_t), pointer :: fe_function_curl_values(:)
 
   if ( present(time) ) time_ = time
 
-  norm_requires_values    = error_norm_requires_values(norm_type)
-  norm_requires_gradients = error_norm_requires_gradients(norm_type) 
+  norm_requires_values      = error_norm_requires_values(norm_type)
+  norm_requires_gradients   = error_norm_requires_gradients(norm_type) 
+  norm_requires_curl_values = error_norm_requires_curl_values(norm_type) 
   fe_map                  => fe%get_fe_map()
   quadrature              => fe%get_quadrature()
   coordinates             => fe_map%get_quadrature_coordinates()
@@ -194,6 +210,22 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
      end do
   end if
 
+    ! Do the same for curl values, if required by norm type 
+  if (norm_requires_curl_values) then  
+     if(present(time)) then
+        call exact_solution%get_curl_set_space_time(coordinates, &
+                                                    time_, &
+                                                    this%work_array_curl_values(1:n_q_points,1:1))
+     else
+        call exact_solution%get_curl_set_space(coordinates, &
+                                               this%work_array_curl_values(1:n_q_points,1))
+     end if
+     fe_function_curl_values => this%cell_fe_function%get_quadrature_points_curl_values()
+     do q_point=1, n_q_points
+        this%work_array_curl_values(q_point,1) = this%work_array_curl_values(q_point,1) - fe_function_curl_values(q_point) 
+     end do
+  end if
+  
   values_cell_contribution = 0.0_rp 
   select case ( trim(norm_type) )
   case (mean_norm)
@@ -265,6 +297,17 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
            gradients_cell_contribution = max(gradients_cell_contribution, abs(gradient_component))
         end do
        end do 
+     end do
+
+  end select
+  
+  curl_values_cell_contribution = 0.0_rp 
+  select case ( trim(norm_type) )
+  case (hcurl_seminorm)
+     do q_point=1, n_q_points
+        curl_values_cell_contribution = curl_values_cell_contribution + & 
+             this%work_array_curl_values(q_point,1)*this%work_array_curl_values(q_point,1)*&
+             fe_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
      end do
   end select
 

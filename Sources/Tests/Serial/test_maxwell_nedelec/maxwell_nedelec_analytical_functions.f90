@@ -47,6 +47,7 @@ module maxwell_nedelec_analytical_functions_names
    contains
      procedure :: get_value_space    => solution_get_value_space
      procedure :: get_gradient_space => solution_get_gradient_space
+	 procedure :: get_curl_space     => solution_get_curl_space
   end type solution_t
   
     type, extends(scalar_function_t) :: base_scalar_function_t
@@ -148,6 +149,15 @@ contains
     type(tensor_field_t), intent(inout) :: result
     call result%set(2, 1, 1.0_rp)
   end subroutine solution_get_gradient_space
+  
+   !===============================================================================================
+  subroutine solution_get_curl_space ( this, point, result )
+    implicit none
+    class(solution_t), intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+    type(vector_field_t)    , intent(inout) :: result
+    call result%set(3, -1.0_rp)
+  end subroutine solution_get_curl_space
 
   !===============================================================================================
   subroutine boundary_function_Hx_get_value_space( this, point, result )

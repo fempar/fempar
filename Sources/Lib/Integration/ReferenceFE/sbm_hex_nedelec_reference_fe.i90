@@ -1057,7 +1057,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
     call this%interior_nodes_n_face%sum_to_pointer_index(edge_id, interpolation_1D%number_shape_functions )           
  end do
  
- if (this%number_dimensions == 3 ) then
+ if (this%number_dimensions == 3 .and. this%order > 1) then
     do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
       call this%interior_nodes_n_face%sum_to_pointer_index(facet_id, interpolation_2D%number_shape_functions )
     end do
