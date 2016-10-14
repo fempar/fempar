@@ -166,6 +166,11 @@ pure function cell_accessor_get_mypart (this)
   cell_accessor_get_mypart = this%base_static_triangulation%cells_mypart(this%lid)
 end function cell_accessor_get_mypart
 
+
+! get_set_id() let's the user to get the cell set ID assigned to
+! a cell. Note that the counterpart, set_set_id(), does not exist, as we do not let 
+! the user to set "set cell IDs" on a individual basis (but instead all in one shot via the 
+! fill_cells_set member TBP of class(base_static_triangulation_t)).
 function cell_accessor_get_set_id(this)
   implicit none
   class(cell_accessor_t), intent(in) :: this
