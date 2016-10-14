@@ -1853,6 +1853,13 @@ end function coarse_fe_space_create_itfc_coarse_fe_vef_iterator
     coarse_fe_space_get_par_environment => this%coarse_triangulation%get_par_environment()
   end function coarse_fe_space_get_par_environment
   
+  function coarse_fe_space_get_environment(this)
+    implicit none
+    class(coarse_fe_space_t), intent(in) :: this
+    class(environment_t)  , pointer  :: coarse_fe_space_get_environment
+    coarse_fe_space_get_environment => this%coarse_triangulation%get_par_environment()
+  end function coarse_fe_space_get_environment
+  
   function coarse_fe_space_get_number_local_coarse_fes (this)
     implicit none
     class(coarse_fe_space_t), intent(in) :: this 
@@ -1969,17 +1976,6 @@ function coarse_fe_space_get_block_number_interior_dofs ( this, block_id )
      coarse_fe_space_get_block_number_interior_dofs = this%blocks_dof_import(block_id)%get_number_interior_dofs()
    end if
 end function coarse_fe_space_get_block_number_interior_dofs
-
-! TBP temporarily required by type(coarse_fe_space_t) in order to create
-! the type(par_sparse_matrix_t) data structure holding the coarse-grid
-! matrix.
-function coarse_fe_space_get_block_dof_import ( this, block_id )
-  implicit none
-  class(coarse_fe_space_t), target, intent(in) :: this
-  integer(ip)                     , intent(in) :: block_id
-  type(dof_import_t), pointer                  :: coarse_fe_space_get_block_dof_import
-  coarse_fe_space_get_block_dof_import => this%blocks_dof_import(block_id)
-end function coarse_fe_space_get_block_dof_import
 
 function coarse_fe_space_get_block_number_interface_dofs ( this, block_id )
    implicit none

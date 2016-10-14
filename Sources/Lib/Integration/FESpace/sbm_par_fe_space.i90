@@ -87,7 +87,6 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this, &
   end if
 end subroutine par_fe_space_create_same_reference_fes_on_all_cells
 
-
 subroutine par_fe_space_free( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
@@ -142,13 +141,6 @@ function par_fe_space_get_par_triangulation(this)
       assert(.false.)
   end select
 end function par_fe_space_get_par_triangulation
-
-function par_fe_space_get_coarse_fe_space(this)
-  implicit none
-  class(par_fe_space_t), target, intent(in) :: this
-  type(coarse_fe_space_t), pointer :: par_fe_space_get_coarse_fe_space
-  par_fe_space_get_coarse_fe_space => this%coarse_fe_space
-end function par_fe_space_get_coarse_fe_space
 
 ! Required (at least) by type(mlbddc_t)
 function par_fe_space_get_par_environment(this)
@@ -542,16 +534,6 @@ function par_fe_space_generate_non_consecutive_dof_gid (cell_gid, lpos_dof_elem2
             ISHFT(int(field_id-1,igp),int(cell_gid_shift+dofs_per_reference_fe_shift,igp))
 end function par_fe_space_generate_non_consecutive_dof_gid
 
-! TBP temporarily required by type(mlbddc_t) in order to create
-! distributed-memory linear algebra data structures
-function par_fe_space_get_block_dof_import ( this, block_id )
-  implicit none
-  class(par_fe_space_t), target, intent(in) :: this
-  integer(ip)                      , intent(in) :: block_id
-  type(dof_import_t), pointer                   :: par_fe_space_get_block_dof_import
-  par_fe_space_get_block_dof_import => this%blocks_dof_import(block_id)
-end function par_fe_space_get_block_dof_import
-
 function par_fe_space_get_num_dimensions ( this )
   implicit none
   class(par_fe_space_t), intent(in) :: this
@@ -563,122 +545,12 @@ function par_fe_space_get_num_dimensions ( this )
   end if
 end function par_fe_space_get_num_dimensions
 
-function par_fe_space_get_total_number_dofs ( this )
-   implicit none
-   class(par_fe_space_t), intent(in) :: this
-   integer(ip) :: par_fe_space_get_total_number_dofs
-   type(par_environment_t), pointer :: par_environment
-   par_environment => this%get_par_environment()
-   par_fe_space_get_total_number_dofs = 0
-   if ( par_environment%am_i_l1_task() ) then
-     par_fe_space_get_total_number_dofs = this%serial_fe_space_t%get_total_number_dofs()
-   end if
-end function par_fe_space_get_total_number_dofs
-
-function par_fe_space_get_field_number_dofs( this, field_id )
-   implicit none
-   class(par_fe_space_t), intent(in) :: this
-   integer(ip)          , intent(in) :: field_id
-   integer(ip)                       :: par_fe_space_get_field_number_dofs
-   type(par_environment_t), pointer  :: par_environment
-   par_environment => this%get_par_environment()
-   par_fe_space_get_field_number_dofs = 0
-   if ( par_environment%am_i_l1_task() ) then
-     par_fe_space_get_field_number_dofs = this%serial_fe_space_t%get_field_number_dofs(field_id)
-   end if
-end function par_fe_space_get_field_number_dofs
-
-function par_fe_space_get_block_number_dofs ( this, block_id )
-   implicit none
-   class(par_fe_space_t), intent(in) :: this
-   integer(ip)          , intent(in) :: block_id
-   integer(ip)                       :: par_fe_space_get_block_number_dofs
-   type(par_environment_t), pointer  :: par_environment
-   par_environment => this%get_par_environment()
-   par_fe_space_get_block_number_dofs = 0
-   if ( par_environment%am_i_l1_task() ) then
-     par_fe_space_get_block_number_dofs = this%serial_fe_space_t%get_block_number_dofs(block_id)
-   end if
-end function par_fe_space_get_block_number_dofs
-
-function par_fe_space_get_total_number_interior_dofs ( this )
-   implicit none
-   class(par_fe_space_t), intent(in) :: this
-   integer(ip)                       :: par_fe_space_get_total_number_interior_dofs
-   type(par_environment_t), pointer  :: par_environment
-   integer(ip) :: block_id
-   par_environment => this%get_par_environment()
-   par_fe_space_get_total_number_interior_dofs = 0
-   if ( par_environment%am_i_l1_task() ) then
-    do block_id = 1, this%get_number_blocks()
-      par_fe_space_get_total_number_interior_dofs = par_fe_space_get_total_number_interior_dofs + &
-                                                     this%get_block_number_interior_dofs(block_id)
-    end do 
-   end if
-end function par_fe_space_get_total_number_interior_dofs 
-
-function par_fe_space_get_total_number_interface_dofs ( this )
-   implicit none
-   class(par_fe_space_t), intent(in) :: this
-   integer(ip)                       :: par_fe_space_get_total_number_interface_dofs
-   type(par_environment_t), pointer  :: par_environment
-   integer(ip) :: block_id
-   par_environment => this%get_par_environment()
-   par_fe_space_get_total_number_interface_dofs = 0
-   if ( par_environment%am_i_l1_task() ) then
-      do block_id = 1, this%get_number_blocks()
-        par_fe_space_get_total_number_interface_dofs = par_fe_space_get_total_number_interface_dofs + &
-                                                       this%get_block_number_interface_dofs(block_id)
-      end do
-   end if
-end function par_fe_space_get_total_number_interface_dofs
-
-function par_fe_space_get_block_number_interior_dofs ( this, block_id )
-   implicit none
-   class(par_fe_space_t), intent(in) :: this
-   integer(ip)          , intent(in) :: block_id
-   integer(ip)                       :: par_fe_space_get_block_number_interior_dofs
-      type(par_environment_t), pointer  :: par_environment
-   par_environment => this%get_par_environment()
-   par_fe_space_get_block_number_interior_dofs = 0
-   if ( par_environment%am_i_l1_task() ) then
-     par_fe_space_get_block_number_interior_dofs = this%blocks_dof_import(block_id)%get_number_interior_dofs()
-   end if
-end function par_fe_space_get_block_number_interior_dofs
-
-function par_fe_space_get_block_number_interface_dofs ( this, block_id )
-   implicit none
-   class(par_fe_space_t), intent(in) :: this
-   integer(ip)          , intent(in) :: block_id
-   integer(ip)                       :: par_fe_space_get_block_number_interface_dofs
-   type(par_environment_t), pointer  :: par_environment
-   par_environment => this%get_par_environment()
-   par_fe_space_get_block_number_interface_dofs = 0
-   if ( par_environment%am_i_l1_task() ) then
-        par_fe_space_get_block_number_interface_dofs = this%blocks_dof_import(block_id)%get_number_interface_dofs()
-   end if
-end function par_fe_space_get_block_number_interface_dofs
-
-  ! Although in principle this%fe_space_type_per_field(:) was though to be
-  ! private member variable, I had to make it visible to the exterior
-  ! via a raw pointer it as type(mlbddc_coarse_t) requires it in order to construct 
-  ! the type(par_fe_space_t) instance that it aggregrates. Perhaps there is a 
-  ! better/cleaner solution, but at the present moment, this is the only solution 
-  ! that comes into my mind and lets me advance
-  function par_fe_space_get_fe_space_type (this)
-    implicit none
-    class(par_fe_space_t), target, intent(in) :: this
-    integer(ip), pointer :: par_fe_space_get_fe_space_type(:)
-    par_fe_space_get_fe_space_type => this%fe_space_type_per_field
-  end function par_fe_space_get_fe_space_type
-
 function par_fe_space_get_number_fe_objects ( this )
   implicit none
   class(par_fe_space_t), intent(in) :: this
   integer(ip) :: par_fe_space_get_number_fe_objects
   par_fe_space_get_number_fe_objects = this%triangulation%get_number_objects()
 end function par_fe_space_get_number_fe_objects 
-
 
 function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
                                                                       field_id, &

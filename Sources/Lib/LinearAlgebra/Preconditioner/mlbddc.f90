@@ -324,7 +324,6 @@ contains
     fe_space                => this%get_fe_space()
     call this%create_vector_spaces()
     
-    
     assert ( fe_space%get_number_blocks() == 1 )
     assert ( fe_space%get_number_fields() == 1 )
   end subroutine mlbddc_create

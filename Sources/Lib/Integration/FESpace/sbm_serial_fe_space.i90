@@ -1429,7 +1429,6 @@ subroutine serial_fe_space_create_dof_values(this, dof_values)
   
 end subroutine serial_fe_space_create_dof_values
 
-
 subroutine serial_fe_space_fill_dof_info( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this 
@@ -1522,27 +1521,6 @@ subroutine serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
 
 end subroutine serial_fe_space_renumber_dofs_block
 
-
-! Returns the number of DoFs associated to field with identifier field_id
-function serial_fe_space_get_field_number_dofs ( this, field_id )
-  implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  integer(ip)                 , intent(in) :: field_id
-  integer(ip)                              :: serial_fe_space_get_field_number_dofs
-  assert ( field_id >=1 .and. field_id <= this%number_fields ) 
-  serial_fe_space_get_field_number_dofs = this%number_dofs_per_field(field_id)
-end function serial_fe_space_get_field_number_dofs
-
-! Returns the number of DoFs associated to block with identifier block_id
-function serial_fe_space_get_block_number_dofs ( this, block_id )
-  implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  integer(ip)             , intent(in) :: block_id
-  integer(ip)                          :: serial_fe_space_get_block_number_dofs
-  assert ( block_id >=1 .and. block_id <= this%number_blocks ) 
-  serial_fe_space_get_block_number_dofs  = this%number_dofs_per_block(block_id)
-end function serial_fe_space_get_block_number_dofs
-
 function serial_fe_space_get_num_dimensions ( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this
@@ -1551,19 +1529,6 @@ function serial_fe_space_get_num_dimensions ( this )
   triangulation => this%get_triangulation()
   serial_fe_space_get_num_dimensions = triangulation%get_num_dimensions()
 end function serial_fe_space_get_num_dimensions
-
-! Returns the sum of the number of DoFs associated to all fields
-function serial_fe_space_get_total_number_dofs ( this )
-  implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  integer(ip)                          :: serial_fe_space_get_total_number_dofs 
-  integer(ip) :: field_id
-  serial_fe_space_get_total_number_dofs = 0 
-  do field_id = 1, this%number_fields
-     serial_fe_space_get_total_number_dofs = serial_fe_space_get_total_number_dofs  + &
-          this%number_dofs_per_field(field_id)
-  end do
-end function serial_fe_space_get_total_number_dofs
 
 function serial_fe_space_get_number_reference_fes ( this )
   implicit none
@@ -1581,13 +1546,6 @@ function serial_fe_space_get_reference_fe ( this, reference_fe_id )
   serial_fe_space_get_reference_fe => this%reference_fes(reference_fe_id)%p
 end function serial_fe_space_get_reference_fe
 
-function serial_fe_space_get_number_fields ( this )
-  implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  integer(ip) :: serial_fe_space_get_number_fields
-  serial_fe_space_get_number_fields = this%number_fields
-end function serial_fe_space_get_number_fields
-
 function serial_fe_space_get_field_type ( this, field_id )
   implicit none
   class(serial_fe_space_t), target, intent(in) :: this
@@ -1602,20 +1560,6 @@ function serial_fe_space_get_field_type ( this, field_id )
   reference_fe => fe%get_reference_fe(field_id)
   serial_fe_space_get_field_type => reference_fe%get_field_type()
 end function serial_fe_space_get_field_type
-
-! Although in principle this%fe_space_type_per_field(:) was though to be
-! private member variable, I had to make it visible to the exterior
-! via a raw pointer as type(mlbddc_t) requires it in order to construct 
-! the type(coarse_fe_space_t) instance that it aggregrates. Perhaps there is a 
-! better/cleaner solution, but at the present moment, this is the only solution 
-! that comes into my mind and lets me advance
-function serial_fe_space_get_fe_space_type_per_field (this)
-  implicit none
-  class(serial_fe_space_t), target, intent(in) :: this
-  integer(ip), pointer :: serial_fe_space_get_fe_space_type_per_field(:)
-  serial_fe_space_get_fe_space_type_per_field => this%fe_space_type_per_field
-end function serial_fe_space_get_fe_space_type_per_field
-
 
 function serial_fe_space_get_number_components ( this )
   implicit none
@@ -1691,27 +1635,6 @@ function serial_fe_space_get_max_number_face_quadrature_points( this )
             this%fe_face_quadratures(iquad)%get_number_quadrature_points())
   end do
 end function serial_fe_space_get_max_number_face_quadrature_points
-
-function serial_fe_space_get_number_blocks( this)
-  implicit none
-  class(serial_fe_space_t), intent(in) :: this 
-  integer(ip) :: serial_fe_space_get_number_blocks
-  serial_fe_space_get_number_blocks = this%number_blocks ! SB.alert 
-end function serial_fe_space_get_number_blocks
-
-function serial_fe_space_get_field_blocks( this )
-  implicit none
-  class(serial_fe_space_t), target, intent(in) :: this
-  integer(ip), pointer :: serial_fe_space_get_field_blocks(:)
-  serial_fe_space_get_field_blocks => this%field_blocks
-end function serial_fe_space_get_field_blocks
-
-function serial_fe_space_get_field_coupling( this )
-  implicit none
-  class(serial_fe_space_t), target, intent(in) :: this
-  logical, pointer :: serial_fe_space_get_field_coupling(:,:)
-  serial_fe_space_get_field_coupling => this%field_coupling
-end function serial_fe_space_get_field_coupling
 
 function serial_fe_space_get_triangulation( this) result(triangulation)
   implicit none
