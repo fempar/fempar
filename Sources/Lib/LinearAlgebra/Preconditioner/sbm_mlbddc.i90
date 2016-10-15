@@ -1,0 +1,164 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine mlbddc_create ( this, fe_affine_operator )
+  implicit none
+  class(mlbddc_t)                       , intent(inout) :: this
+  type(fe_affine_operator_t), target, intent(in)    :: fe_affine_operator
+  type(par_fe_space_t), pointer :: fe_space
+
+  call this%free()
+
+  this%fe_affine_operator => fe_affine_operator
+  fe_space                => this%get_par_fe_space()
+  call this%create_vector_spaces()
+
+  assert ( fe_space%get_number_blocks() == 1 )
+  assert ( fe_space%get_number_fields() == 1 )
+end subroutine mlbddc_create
+
+subroutine mlbddc_create_vector_spaces (this)
+  implicit none
+  class(mlbddc_t), intent(inout)  :: this
+  type(vector_space_t), pointer :: fe_affine_operator_domain_vector_space
+  type(vector_space_t), pointer :: fe_affine_operator_range_vector_space
+  type(vector_space_t), pointer :: mlbddc_domain_vector_space
+  type(vector_space_t), pointer :: mlbddc_range_vector_space
+  fe_affine_operator_domain_vector_space => this%fe_affine_operator%get_domain_vector_space()
+  fe_affine_operator_range_vector_space => this%fe_affine_operator%get_range_vector_space()
+  mlbddc_domain_vector_space => this%get_domain_vector_space()
+  mlbddc_range_vector_space => this%get_range_vector_space()
+  call fe_affine_operator_domain_vector_space%clone(mlbddc_domain_vector_space)
+  call fe_affine_operator_range_vector_space%clone(mlbddc_range_vector_space)
+end subroutine mlbddc_create_vector_spaces
+
+subroutine mlbddc_setup_constraint_matrix (this)
+  implicit none
+  class(mlbddc_t), intent(inout) :: this
+  type(par_fe_space_t)         , pointer :: par_fe_space
+  class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+  assert ( this%am_i_l1_task() )
+  par_fe_space      => this%get_par_fe_space()
+  coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=1)
+  call coarse_fe_handler%setup_constraint_matrix(par_fe_space      = par_fe_space, &
+                                                 constraint_matrix = this%constraint_matrix)
+end subroutine mlbddc_setup_constraint_matrix
+  
+subroutine mlbddc_setup_weighting_operator (this)
+ implicit none
+ class(mlbddc_t), intent(inout) :: this
+ type(par_fe_space_t), pointer :: par_fe_space
+ class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+ assert ( this%am_i_l1_task() )
+ par_fe_space      => this%get_par_fe_space()
+ coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=1)
+ call coarse_fe_handler%setup_weighting_operator(par_fe_space       = par_fe_space, &
+                                                 weighting_operator = this%W )
+end subroutine mlbddc_setup_weighting_operator
+
+! Helper function that extracts a run-time polymorphic class(matrix_t)
+! from the fe_affine_operator, and dynamically casts it into  
+! type(par_sparse_matrix_t). If the dynamic cast cannot be performed 
+! [because class(matrix_t) is NOT of type(par_sparse_matrix_t)], then it 
+! aborts the execution of the program.
+function mlbddc_get_par_sparse_matrix(this)
+  implicit none
+  class(mlbddc_t)          , intent(in) :: this
+  type(par_sparse_matrix_t), pointer    :: mlbddc_get_par_sparse_matrix
+  class(matrix_t)          , pointer    :: matrix
+  matrix => this%fe_affine_operator%get_matrix()
+  select type(matrix)
+  type is (par_sparse_matrix_t)
+     mlbddc_get_par_sparse_matrix => matrix
+     class default
+     check(.false.)
+  end select
+end function mlbddc_get_par_sparse_matrix
+
+function mlbddc_get_fe_space(this)
+  implicit none
+  class(mlbddc_t), intent(in) :: this
+  class(base_fe_space_t), pointer :: mlbddc_get_fe_space
+  mlbddc_get_fe_space => this%get_par_fe_space()
+end function mlbddc_get_fe_space
+
+! Helper function that extracts a run-time polymorphic class(serial_fe_space_t)
+! from the fe_affine_operator, and dynamically casts it into  
+! type(par_fe_space_t). If the dynamic cast cannot be performed 
+! [because class(serial_fe_space_t) is NOT of type(par_fe_space_t)], then it 
+! aborts the execution of the program.
+function mlbddc_get_par_fe_space(this)
+  implicit none
+  class(mlbddc_t)          , intent(in) :: this
+  type(par_fe_space_t)     , pointer    :: mlbddc_get_par_fe_space
+  class(serial_fe_space_t) , pointer    :: fe_space
+  fe_space => this%fe_affine_operator%get_fe_space()
+  select type(fe_space)
+  type is (par_fe_space_t)
+     mlbddc_get_par_fe_space => fe_space
+     class default
+     check(.false.)
+  end select
+end function mlbddc_get_par_fe_space
+
+function mlbddc_get_par_environment(this)
+  implicit none
+  class(mlbddc_t)          , intent(in) :: this
+  type(par_environment_t)  , pointer    :: mlbddc_get_par_environment
+  type(par_fe_space_t)     , pointer    :: coarse_fe_space
+  coarse_fe_space => this%get_par_fe_space()
+  mlbddc_get_par_environment => coarse_fe_space%get_par_environment()
+end function mlbddc_get_par_environment
+
+function mlbddc_am_i_l1_task(this)
+  implicit none
+  class(mlbddc_t)          , intent(in) :: this
+  logical                               :: mlbddc_am_i_l1_task
+  type(par_environment_t)   , pointer   :: par_environment
+  par_environment => this%get_par_environment()
+  mlbddc_am_i_l1_task = par_environment%am_i_l1_task()
+end function mlbddc_am_i_l1_task
+
+function mlbddc_is_linear( op )
+  implicit none
+  class(mlbddc_t)          , intent(in) :: op
+  logical :: mlbddc_is_linear
+  mlbddc_is_linear = .true.
+end function mlbddc_is_linear
+
+function mlbddc_is_operator_associated( this )
+  implicit none
+  class(mlbddc_t)          , intent(in) :: this
+  logical :: mlbddc_is_operator_associated
+  mlbddc_is_operator_associated = associated(this%fe_affine_operator)
+end function mlbddc_is_operator_associated
+
+subroutine mlbddc_nullify_operator ( this )
+  implicit none
+  class(mlbddc_t), intent(inout) :: this
+  nullify(this%fe_affine_operator)
+end subroutine mlbddc_nullify_operator 

@@ -125,6 +125,8 @@ module fe_space_names
     procedure                                  :: get_block_number_coarse_dofs                    => base_fe_space_get_block_number_coarse_dofs
   end type base_fe_space_t
   
+  public :: base_fe_space_t
+  
   type, extends(cell_accessor_t) :: fe_accessor_t
     private
     class(serial_fe_space_t), pointer :: fe_space
