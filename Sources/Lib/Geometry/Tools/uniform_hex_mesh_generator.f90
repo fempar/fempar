@@ -235,7 +235,7 @@ contains
     integer(ip)  , allocatable, intent(inout) :: ptr_vefs_per_cell(:)            ! Size = num_local_cells + 1
     integer(ip)  , allocatable, intent(inout) :: lst_vefs_lids(:)                ! Size = ptr_vefs_per_cell(num_local_cells+1)-1
     integer(ip)  , allocatable, intent(inout) :: boundary_id(:)                  ! Size = num_local_vefs
-    real(rp)     , pointer    , intent(inout) :: coordinates(:,:)
+    real(rp)     , allocatable, intent(inout) :: coordinates(:,:)
 
     integer(ip)               , optional, intent(out)   :: num_ghost_cells
     integer(ip)               , optional, intent(out)   :: num_itfc_cells
@@ -625,7 +625,7 @@ contains
 
     ! vef global numbering (if needed), coordinates and boundary ids
     if(present(num_ghost_cells)) call memalloc(num_local_vefs,vefs_gids,__FILE__,__LINE__)
-    call memallocp(SPACE_DIM,num_vertices,coordinates,__FILE__,__LINE__)
+    call memalloc(SPACE_DIM,num_vertices,coordinates,__FILE__,__LINE__)
     call memalloc(num_local_vefs,boundary_id,__FILE__,__LINE__)
     boundary_id=-1
     itype = -1
