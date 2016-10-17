@@ -41,13 +41,13 @@ private
         integer(ip)                    :: field_id = 0
         type(fe_function_t), pointer   :: fe_function => NULL()
     contains
-        procedure         ::                    output_handler_fe_function_assign
-        procedure, public :: set             => output_handler_fe_function_set
-        procedure, public :: get_name        => output_handler_fe_function_get_name
-        procedure, public :: get_field_id    => output_handler_fe_function_get_field_id
-        procedure, public :: get_fe_function => output_handler_fe_function_get_fe_function
-        procedure, public :: free            => output_handler_fe_function_free
-        generic,   public :: assignment(=)   => output_handler_fe_function_assign
+        procedure         ::                    output_handler_fe_field_assign
+        procedure, public :: set             => output_handler_fe_field_set
+        procedure, public :: get_name        => output_handler_fe_field_get_name
+        procedure, public :: get_field_id    => output_handler_fe_field_get_field_id
+        procedure, public :: get_fe_function => output_handler_fe_field_get_fe_function
+        procedure, public :: free            => output_handler_fe_field_free
+        generic,   public :: assignment(=)   => output_handler_fe_field_assign
     end type
 
 public :: output_handler_fe_field_t
@@ -58,7 +58,7 @@ contains
 !< output_handler_fe_field_t PROCEDURES
 !---------------------------------------------------------------------
 
-    subroutine output_handler_fe_function_free(this)
+    subroutine output_handler_fe_field_free(this)
     !-----------------------------------------------------------------
     !< Free output_handler_fe_field_t derived type
     !-----------------------------------------------------------------
@@ -67,22 +67,28 @@ contains
         if(allocated(this%name)) deallocate(this%name)
         nullify(this%fe_function)
         this%field_id = 0
-    end subroutine output_handler_fe_function_free
+    end subroutine output_handler_fe_field_free
 
 
-    subroutine output_handler_fe_function_assign(this, output_handler_fe_function)
+    subroutine output_handler_fe_field_assign(this, output_handler_fe_field)
     !----------------------------------------------------------------- 
     !< Assign operator overloading for output_handler_fe_field_t
     !----------------------------------------------------------------- 
         class(output_handler_fe_field_t), intent(inout) :: this
-        type(output_handler_fe_field_t),  intent(in)    :: output_handler_fe_function
+        type(output_handler_fe_field_t),  intent(in)    :: output_handler_fe_field
+        type(fe_function_t), pointer                    :: fe_function
+        integer(ip),                                    :: field_id
+        character(len=:), allocatable                   :: name
     !----------------------------------------------------------------- 
         call this%free()
-        call this%set(output_handler_fe_function%get_fe_function(), output_handler_fe_function%get_field_id(), output_handler_fe_function%get_name())
-    end subroutine output_handler_fe_function_assign
+        fe_function => output_handler_fe_field%get_fe_function() 
+        field_id    =  output_handler_fe_field%get_field_id()
+        name        =  output_handler_fe_field%get_name()
+        call this%set(fe_function, field_id, name)
+    end subroutine output_handler_fe_field_assign
 
 
-    subroutine output_handler_fe_function_set(this, fe_function, field_id, name)
+    subroutine output_handler_fe_field_set(this, fe_function, field_id, name)
     !-----------------------------------------------------------------
     !< Associate a fe_function with a field name
     !-----------------------------------------------------------------
@@ -95,10 +101,10 @@ contains
         this%fe_function => fe_function
         this%field_id    = field_id
         this%name        = name
-    end subroutine output_handler_fe_function_set
+    end subroutine output_handler_fe_field_set
 
 
-    function output_handler_fe_function_get_name(this) result(name)
+    function output_handler_fe_field_get_name(this) result(name)
     !-----------------------------------------------------------------
     !< Return the name of a field associated with a fe_function
     !-----------------------------------------------------------------
@@ -107,10 +113,10 @@ contains
     !-----------------------------------------------------------------
         assert(allocated(this%name))
         name = this%name
-    end function output_handler_fe_function_get_name
+    end function output_handler_fe_field_get_name
 
 
-    function output_handler_fe_function_get_field_id(this) result(field_id)
+    function output_handler_fe_field_get_field_id(this) result(field_id)
     !-----------------------------------------------------------------
     !< Return the field_id of a field associated with a fe_function
     !-----------------------------------------------------------------
@@ -119,10 +125,10 @@ contains
     !-----------------------------------------------------------------
         assert(this%field_id /= 0)
         field_id = this%field_id
-    end function output_handler_fe_function_get_field_id
+    end function output_handler_fe_field_get_field_id
 
 
-    function output_handler_fe_function_get_fe_function(this) result(fe_function)
+    function output_handler_fe_field_get_fe_function(this) result(fe_function)
     !-----------------------------------------------------------------
     !< Return a fe_function pointer
     !-----------------------------------------------------------------
@@ -131,6 +137,6 @@ contains
     !-----------------------------------------------------------------
         assert(associated(this%fe_function))
         fe_function => this%fe_function
-    end function output_handler_fe_function_get_fe_function
+    end function output_handler_fe_field_get_fe_function
 
 end module output_handler_fe_field_names
