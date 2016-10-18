@@ -173,6 +173,7 @@ contains
         assert(associated(mpi_environment))
         call mpi_environment%info(me, np)
 
+        prefix   = 'output'
         path     = get_vtk_output_directory('.', 0._rp)
         E_IO     = if_iam_root_create_directory(path, me)
         check(E_IO == 0)
