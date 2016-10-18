@@ -51,6 +51,8 @@ private
   
     type :: output_handler_cell_fe_function_t
     private
+        integer(ip)                            :: number_nodes = 0
+        integer(ip)                            :: number_cells = 0
         type(fe_accessor_t), pointer           :: current_fe => NULL()
         type(quadrature_t),        allocatable :: quadratures(:)
         type(fe_map_t),            allocatable :: fe_maps(:)
@@ -60,6 +62,8 @@ private
                                                                                 !       reference_fe_id]
         contains
             procedure, non_overridable :: create                              => output_handler_cell_fe_function_create
+            procedure, non_overridable :: get_number_nodes                    => output_handler_cell_fe_function_get_number_nodes
+            procedure, non_overridable :: get_number_cells                    => output_handler_cell_fe_function_get_number_cells
             procedure, non_overridable :: fill_patch                          => output_handler_cell_fe_function_fill_patch
             procedure, non_overridable :: free                                => output_handler_cell_fe_function_free
             
@@ -100,6 +104,8 @@ contains
         environment => fe_space%get_environment()
         if (environment%am_i_l1_task()) then
 
+            this%number_cells = 0
+            this%number_nodes = 0
             allocate ( this%quadratures(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
             allocate ( this%fe_maps(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
             allocate ( this%volume_integrators(fe_space%get_number_reference_fes()), stat=istat); check (istat==0)
@@ -110,12 +116,11 @@ contains
             current_quadrature_and_map = 1
             current_volume_integrator  = 1
             fe_iterator = fe_space%create_fe_iterator()
+
             do while ( .not. fe_iterator%has_finished() ) 
                 call fe_iterator%current(fe)
                 reference_fe_geo => fe%get_reference_fe_geo()
-
                 max_order_within_fe = fe%get_max_order()
-
                 call this%quadratures_and_maps_position%put(key = max_order_within_fe, &
                                                             val = current_quadrature_and_map, &
                                                             stat = istat)
@@ -144,10 +149,36 @@ contains
                         current_volume_integrator = current_volume_integrator + 1
                     end if
                 end do
+                if ( fe%is_local() ) then
+                    this%number_cells = this%number_cells+reference_fe_geo%get_number_subcells(max_order_within_fe-1)
+                    this%number_nodes = this%number_nodes+(reference_fe_geo%get_number_subcells(max_order_within_fe-1)*reference_fe_geo%get_number_vertices())
+                endif
                 call fe_iterator%next()
             end do
         end if
     end subroutine output_handler_cell_fe_function_create
+
+
+    function output_handler_cell_fe_function_get_number_nodes(this) result(number_nodes)
+    !-----------------------------------------------------------------
+    !< Return number of nodes
+    !-----------------------------------------------------------------
+        class(output_handler_cell_fe_function_t),  intent(in) :: this
+        integer(ip)                                           :: number_nodes
+    !-----------------------------------------------------------------
+        number_nodes = this%number_nodes
+    end function output_handler_cell_fe_function_get_number_nodes
+
+
+    function output_handler_cell_fe_function_get_number_cells(this) result(number_cells)
+    !-----------------------------------------------------------------
+    !< Return number of cells
+    !-----------------------------------------------------------------
+        class(output_handler_cell_fe_function_t),  intent(in) :: this
+        integer(ip)                                           :: number_cells
+    !-----------------------------------------------------------------
+        number_cells = this%number_cells
+    end function output_handler_cell_fe_function_get_number_cells
 
 
     subroutine output_handler_cell_fe_function_fill_patch(this, fe_accessor, number_fields, fe_fields, patch)
@@ -184,6 +215,7 @@ contains
             quadrature => this%get_quadrature()
             call fe_map%update(quadrature)
 
+            call patch%set_cell_type(reference_fe_geo%get_topology())
             call patch%set_number_dimensions(reference_fe_geo%get_number_dimensions())
             call patch%set_number_vertices_per_subcell(quadrature%get_number_quadrature_points())
             call patch%set_number_subcells(reference_fe_geo%get_number_subcells(num_refinements=max_order_within_fe-1))
@@ -319,6 +351,8 @@ contains
             check(istat==0)
         end if
 
+        this%number_cells = 0
+        this%number_nodes = 0
     end subroutine output_handler_cell_fe_function_free
 
 

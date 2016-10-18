@@ -36,6 +36,7 @@ module test_poisson_driver_names
   use vector_poisson_discrete_integration_names
   use vector_poisson_conditions_names
   use vector_poisson_analytical_functions_names
+  use vtk_output_handler_names
   
 # include "debug.i90"
 
@@ -409,16 +410,16 @@ contains
   subroutine write_solution(this)
     implicit none
     class(test_poisson_driver_t), intent(in) :: this
-    type(vtk_handler_t)                      :: vtk_handler
-    integer(ip)                              :: err
-    if(this%test_params%get_write_solution()) then
-       call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path_out(), this%test_params%get_prefix())
-       err = vtk_handler%open_vtu(); check(err==0)
-       err = vtk_handler%write_vtu_mesh(this%solution); check(err==0)
-       err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
-       err = vtk_handler%close_vtu(); check(err==0)
-       call  vtk_handler%free()
-    endif
+!    type(vtk_handler_t)                      :: vtk_handler
+!    integer(ip)                              :: err
+!    if(this%test_params%get_write_solution()) then
+!       call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path_out(), this%test_params%get_prefix())
+!       err = vtk_handler%open_vtu(); check(err==0)
+!       err = vtk_handler%write_vtu_mesh(this%solution); check(err==0)
+!       err = vtk_handler%write_vtu_node_field(this%solution, 1, 'solution'); check(err==0)
+!       err = vtk_handler%close_vtu(); check(err==0)
+!       call  vtk_handler%free()
+!    endif
   end subroutine write_solution
   
   subroutine run_simulation(this) 

@@ -29,6 +29,7 @@
 module output_handler_fe_field_names
 
 USE types_names
+USE memor_names
 USE fe_function_names,           only: fe_function_t
 
 implicit none
@@ -40,14 +41,18 @@ private
         character(len=:),  allocatable :: name
         integer(ip)                    :: field_id = 0
         type(fe_function_t), pointer   :: fe_function => NULL()
+        real(rp), allocatable          :: value(:,:)
     contains
-        procedure         ::                    output_handler_fe_field_assign
-        procedure, public :: set             => output_handler_fe_field_set
-        procedure, public :: get_name        => output_handler_fe_field_get_name
-        procedure, public :: get_field_id    => output_handler_fe_field_get_field_id
-        procedure, public :: get_fe_function => output_handler_fe_field_get_fe_function
-        procedure, public :: free            => output_handler_fe_field_free
-        generic,   public :: assignment(=)   => output_handler_fe_field_assign
+        procedure, non_overridable         ::                        output_handler_fe_field_assign
+        procedure, non_overridable, public :: set                 => output_handler_fe_field_set
+        procedure, non_overridable, public :: get_name            => output_handler_fe_field_get_name
+        procedure, non_overridable, public :: get_field_id        => output_handler_fe_field_get_field_id
+        procedure, non_overridable, public :: get_fe_function     => output_handler_fe_field_get_fe_function
+        procedure, non_overridable, public :: value_is_allocated  => output_handler_fe_field_value_is_allocated
+        procedure, non_overridable, public :: allocate_value      => output_handler_fe_field_allocate_value
+        procedure, non_overridable, public :: get_value           => output_handler_fe_field_get_value
+        procedure, non_overridable, public :: free                => output_handler_fe_field_free
+        generic,                    public :: assignment(=)       => output_handler_fe_field_assign
     end type
 
 public :: output_handler_fe_field_t
@@ -65,6 +70,7 @@ contains
         class(output_handler_fe_field_t), intent(inout) :: this
     !-----------------------------------------------------------------
         if(allocated(this%name)) deallocate(this%name)
+        if(allocated(this%value)) call memfree(this%value, __FILE__, __LINE__)
         nullify(this%fe_function)
         this%field_id = 0
     end subroutine output_handler_fe_field_free
@@ -77,7 +83,7 @@ contains
         class(output_handler_fe_field_t), intent(inout) :: this
         type(output_handler_fe_field_t),  intent(in)    :: output_handler_fe_field
         type(fe_function_t), pointer                    :: fe_function
-        integer(ip),                                    :: field_id
+        integer(ip)                                     :: field_id
         character(len=:), allocatable                   :: name
     !----------------------------------------------------------------- 
         call this%free()
@@ -138,5 +144,40 @@ contains
         assert(associated(this%fe_function))
         fe_function => this%fe_function
     end function output_handler_fe_field_get_fe_function
+
+
+    function output_handler_fe_field_value_is_allocated(this) result(value_is_allocated)
+    !-----------------------------------------------------------------
+    !< Check if value is allocated
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_t), intent(in) :: this
+        logical                                      :: value_is_allocated
+    !-----------------------------------------------------------------
+        value_is_allocated =  allocated(this%value)
+    end function output_handler_fe_field_value_is_allocated
+
+
+    subroutine output_handler_fe_field_allocate_value(this, number_components, number_nodes) 
+    !-----------------------------------------------------------------
+    !< Allocate value
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_t), intent(in) :: this
+        integer(ip)                                  :: number_components
+        integer(ip)                                  :: number_nodes
+    !-----------------------------------------------------------------
+        assert(.not. allocated(this%value))
+        call memalloc(number_components, number_nodes, this%value, __FILE__, __LINE__)
+    end subroutine output_handler_fe_field_allocate_value
+
+
+    function output_handler_fe_field_get_value(this) result(value)
+    !-----------------------------------------------------------------
+    !< Return a fe_function pointer
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_t), target, intent(in) :: this
+        real(rp),                         pointer            :: value(:,:)
+    !-----------------------------------------------------------------
+        value => this%value
+    end function output_handler_fe_field_get_value
 
 end module output_handler_fe_field_names
