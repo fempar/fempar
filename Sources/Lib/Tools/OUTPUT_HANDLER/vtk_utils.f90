@@ -29,6 +29,7 @@
 module vtk_utils
 
 USE IR_Precision, only: str
+USE types_names
 
 implicit none
 #include "debug.i90"
@@ -47,7 +48,7 @@ contains
     !-----------------------------------------------------------------
     !< Build time output dir path for the vtk files in each timestep
     !-----------------------------------------------------------------
-        character(len)*),  intent(in)    :: dir_path
+        character(len=*),  intent(in)    :: dir_path
         real(rp),          intent(in)    :: time_step
         character(len=:), allocatable    :: path
         character(len=:), allocatable    :: fp
@@ -88,7 +89,7 @@ contains
         real(rp),           intent(in) :: time_step
         character(len=:), allocatable  :: filename
     !-----------------------------------------------------------------
-        fn = trim(adjustl(prefix))//'_'//trim(adjustl(str(no_sign=.true., n=time_step)))//pvtu_ext
+        filename = trim(adjustl(prefix))//'_'//trim(adjustl(str(no_sign=.true., n=time_step)))//pvtu_ext
     end function get_pvtu_filename
 
 end module vtk_utils

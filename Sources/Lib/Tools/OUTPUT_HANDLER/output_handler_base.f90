@@ -166,7 +166,7 @@ contains
     end subroutine output_handler_base_attach_fe_space
 
 
-    function output_handler_base_attach_fe_space(this) result(fe_space)
+    function output_handler_base_get_fe_space(this) result(fe_space)
     !-----------------------------------------------------------------
     !< Return a fe_space pointer
     !-----------------------------------------------------------------

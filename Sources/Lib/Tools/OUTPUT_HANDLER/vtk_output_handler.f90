@@ -225,21 +225,23 @@ contains
     end subroutine vtk_output_handler_write
 
 
-    function vtk_output_handler_create_directory(this, path, task, issue_final_barrier) result(error)
+    function vtk_output_handler_create_directory(this, path, issue_final_barrier) result(error)
     !-----------------------------------------------------------------
     !< The root process create a hierarchy of directories
     !-----------------------------------------------------------------
-        class(vtk_handler_t), intent(inout) :: this
-        character(len=*),     intent(in)    :: path
-        class(serial_fe_space_t), pointer   :: fe_space
-        logical                             :: ifb
-        integer(kind=c_int)                 :: error
-        integer(ip)                         :: default_root_task
+        class(vtk_output_handler_t), intent(inout) :: this
+        character(len=*),            intent(in)    :: path
+        logical,                     intent(in)    :: issue_final_barrier
+        integer(kind=c_int)                        :: error
+        class(serial_fe_space_t), pointer          :: fe_space
+        class(environment_t),     pointer          :: mpi_environment
+        integer(ip)                                :: default_root_task
+        integer(ip)                                :: me, np
     !-----------------------------------------------------------------
         default_root_task =  0
         fe_space          => this%get_fe_space()
-        mpi_environment   => fe_space%get_fe_space()
-        ifb = .False.; if(present(issue_final_barrier)) ifb = issue_final_barrier
+        mpi_environment   => fe_space%get_environment()
+        call mpi_environment%info(me, np)
 
         error = 0
         if(me == default_root_task) then
@@ -247,7 +249,7 @@ contains
             check ( error == 0 ) 
         end if
 
-        if(ifb) call mpi_environment%l1_barrier()
+        if(issue_final_barrier) call mpi_environment%l1_barrier()
     end function vtk_output_handler_create_directory
 
 end module vtk_output_handler_names
