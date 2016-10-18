@@ -113,7 +113,10 @@ private
         procedure, non_overridable, public :: get_connectivity            => patch_subcell_iterator_get_connectivity
         procedure, non_overridable, public :: get_number_fields           => patch_subcell_iterator_get_number_fields
         procedure, non_overridable, public :: get_number_field_components => patch_subcell_iterator_get_number_field_components
-        procedure, non_overridable, public :: get_field         => patch_subcell_iterator_get_field
+        procedure, non_overridable         ::                                patch_subcell_iterator_get_field_1D
+        procedure, non_overridable         ::                                patch_subcell_iterator_get_field_2D
+        generic,                    public :: get_field                   => patch_subcell_iterator_get_field_1D, &
+                                                                             patch_subcell_iterator_get_field_2D
     end type
 
 public :: output_handler_patch_t
@@ -623,9 +626,68 @@ contains
     end function patch_subcell_iterator_get_number_field_components
 
 
-    subroutine patch_subcell_iterator_get_field(this, field_id, LDA, field)
+    subroutine patch_subcell_iterator_get_field_1D(this, field_id, field)
     !-----------------------------------------------------------------
-    !< Return subcell field corresponding to the field_id
+    !< Return subcell field corresponding to the field_id as a vector
+    !-----------------------------------------------------------------
+        class(patch_subcell_iterator_t),             intent(in)    :: this
+        integer(ip),                                 intent(in)    :: field_id
+        real(rp),                                    intent(inout) :: field(:)
+        type(output_handler_patch_field_t),     pointer            :: patch_field
+        type(allocatable_array_ip2_t),          pointer            :: subcells_connectivity
+        type(allocatable_array_rp1_t),          pointer            :: scalar_function_values
+        type(allocatable_array_vector_field_t), pointer            :: vector_function_values
+        type(allocatable_array_tensor_field_t), pointer            :: tensor_function_values
+        type(vector_field_t),                   pointer            :: vector_field(:)
+        type(tensor_field_t),                   pointer            :: tensor_field(:)
+        integer(ip)                                                :: number_components
+        integer(ip)                                                :: number_vertices
+        integer(ip)                                                :: vertex
+        integer(ip)                                                :: i_comp, j_comp, counter
+    !-----------------------------------------------------------------
+        patch_field       => this%patch%get_field(field_id)
+        number_vertices   =  this%get_number_vertices()
+        number_components =  patch_field%get_number_components()
+        subcells_connectivity => this%patch%get_subcells_connectivity()
+
+        assert(size(field) == number_vertices*number_components)
+
+        counter = 1
+        select case(patch_field%get_field_type())
+            case (field_type_scalar)
+                scalar_function_values => patch_field%get_scalar_function_values()
+                do vertex=1, number_vertices
+                    field(vertex) = scalar_function_values%a(subcells_connectivity%a(vertex, this%current_subcell))
+                enddo
+            case (field_type_vector)
+                vector_function_values => patch_field%get_vector_function_values()
+                vector_field => patch_field%vector_function_values%get_array()
+                do vertex=1, number_vertices
+                    do i_comp=1, SPACE_DIM
+                        field(counter) = vector_field(subcells_connectivity%a(vertex, this%current_subcell))%get(i_comp)
+                        counter = counter+1
+                    enddo
+                enddo
+            case (field_type_tensor, field_type_symmetric_tensor)
+                tensor_function_values => patch_field%get_tensor_function_values()
+                tensor_field => patch_field%tensor_function_values%get_array()
+                do vertex=1, number_vertices
+                    do i_comp=1, SPACE_DIM
+                        do j_comp=1, SPACE_DIM
+                            field(counter) = tensor_field(subcells_connectivity%a(vertex, this%current_subcell))%get(i_comp,j_comp)
+                            counter = counter+1
+                        enddo
+                    enddo
+                enddo
+            case DEFAULT
+                check(.false.)
+        end select
+    end subroutine patch_subcell_iterator_get_field_1D
+
+
+    subroutine patch_subcell_iterator_get_field_2D(this, field_id, LDA, field)
+    !-----------------------------------------------------------------
+    !< Return subcell field corresponding to the field_id as a 2D matrix
     !-----------------------------------------------------------------
         class(patch_subcell_iterator_t),             intent(in)    :: this
         integer(ip),                                 intent(in)    :: field_id
@@ -659,7 +721,7 @@ contains
                 vector_field => patch_field%vector_function_values%get_array()
                 do vertex=1, number_vertices
                     do i_comp=1, SPACE_DIM
-                        field(i_comp,vertex) = vector_field(subcells_connectivity%a(vertex, this%current_subcell))%get(j_comp)
+                        field(i_comp,vertex) = vector_field(subcells_connectivity%a(vertex, this%current_subcell))%get(i_comp)
                     enddo
                 enddo
             case (field_type_tensor, field_type_symmetric_tensor)
@@ -675,6 +737,6 @@ contains
             case DEFAULT
                 check(.false.)
         end select
-    end subroutine patch_subcell_iterator_get_field
+    end subroutine patch_subcell_iterator_get_field_2D
 
 end module output_handler_patch_names

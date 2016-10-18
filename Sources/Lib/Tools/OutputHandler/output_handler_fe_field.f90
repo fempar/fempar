@@ -41,23 +41,43 @@ private
         character(len=:),  allocatable :: name
         integer(ip)                    :: field_id = 0
         type(fe_function_t), pointer   :: fe_function => NULL()
-        integer(ip)                    :: number_components = 0
-        real(rp), allocatable          :: value(:,:)
     contains
         procedure, non_overridable         ::                          output_handler_fe_field_assign
         procedure, non_overridable, public :: set                   => output_handler_fe_field_set
         procedure, non_overridable, public :: get_name              => output_handler_fe_field_get_name
         procedure, non_overridable, public :: get_field_id          => output_handler_fe_field_get_field_id
         procedure, non_overridable, public :: get_fe_function       => output_handler_fe_field_get_fe_function
-        procedure, non_overridable, public :: value_is_allocated    => output_handler_fe_field_value_is_allocated
-        procedure, non_overridable, public :: allocate_value        => output_handler_fe_field_allocate_value
-        procedure, non_overridable, public :: get_value             => output_handler_fe_field_get_value
-        procedure, non_overridable, public :: get_number_components => output_handler_fe_field_get_number_components
         procedure, non_overridable, public :: free                  => output_handler_fe_field_free
         generic,                    public :: assignment(=)         => output_handler_fe_field_assign
     end type
 
+    type :: output_handler_fe_field_1D_value_t
+    private
+        integer(ip)                    :: number_components = 0
+        real(rp), allocatable          :: value(:)
+    contains
+        procedure, non_overridable, public :: value_is_allocated    => output_handler_fe_field_1D_value_value_is_allocated
+        procedure, non_overridable, public :: allocate_value        => output_handler_fe_field_1D_value_allocate_value
+        procedure, non_overridable, public :: get_value             => output_handler_fe_field_1D_value_get_value
+        procedure, non_overridable, public :: get_number_components => output_handler_fe_field_1D_value_get_number_components
+        procedure, non_overridable, public :: free                  => output_handler_fe_field_1D_value_free
+    end type
+
+    type :: output_handler_fe_field_2D_value_t
+    private
+        integer(ip)                    :: number_components = 0
+        real(rp), allocatable          :: value(:,:)
+    contains
+        procedure, non_overridable, public :: value_is_allocated    => output_handler_fe_field_2D_value_value_is_allocated
+        procedure, non_overridable, public :: allocate_value        => output_handler_fe_field_2D_value_allocate_value
+        procedure, non_overridable, public :: get_value             => output_handler_fe_field_2D_value_get_value
+        procedure, non_overridable, public :: get_number_components => output_handler_fe_field_2D_value_get_number_components
+        procedure, non_overridable, public :: free                  => output_handler_fe_field_2D_value_free
+    end type
+
 public :: output_handler_fe_field_t
+public :: output_handler_fe_field_1D_value_t
+public :: output_handler_fe_field_2D_value_t
 
 contains
 
@@ -72,10 +92,8 @@ contains
         class(output_handler_fe_field_t), intent(inout) :: this
     !-----------------------------------------------------------------
         if(allocated(this%name)) deallocate(this%name)
-        if(allocated(this%value)) call memfree(this%value, __FILE__, __LINE__)
         nullify(this%fe_function)
         this%field_id          = 0
-        this%number_components = 0
     end subroutine output_handler_fe_field_free
 
 
@@ -95,11 +113,6 @@ contains
         field_id    =  output_handler_fe_field%get_field_id()
         name        =  output_handler_fe_field%get_name()
         call this%set(fe_function, field_id, name)
-        if(output_handler_fe_field%value_is_allocated()) then
-            value => output_handler_fe_field%get_value()
-            call this%allocate_value(size(value,1), size(value,2))
-            this%value(:,:) = value(:,:)
-        endif
     end subroutine output_handler_fe_field_assign
 
 
@@ -155,50 +168,131 @@ contains
     end function output_handler_fe_field_get_fe_function
 
 
-    function output_handler_fe_field_value_is_allocated(this) result(value_is_allocated)
+!---------------------------------------------------------------------
+!< output_handler_fe_field_1D_value_t PROCEDURES
+!---------------------------------------------------------------------
+
+
+    subroutine output_handler_fe_field_1D_value_free(this)
     !-----------------------------------------------------------------
     !< Check if value is allocated
     !-----------------------------------------------------------------
-        class(output_handler_fe_field_t), intent(in) :: this
-        logical                                      :: value_is_allocated
+        class(output_handler_fe_field_1D_value_t), intent(inout) :: this
+        logical                                                  :: value_is_allocated
+    !-----------------------------------------------------------------
+        if(allocated(this%value)) call memfree(this%value, __FILE__, __LINE__)
+        this%number_components = 0
+    end subroutine output_handler_fe_field_1D_value_free
+
+
+    function output_handler_fe_field_1D_value_value_is_allocated(this) result(value_is_allocated)
+    !-----------------------------------------------------------------
+    !< Check if value is allocated
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_1D_value_t), intent(in) :: this
+        logical                                               :: value_is_allocated
     !-----------------------------------------------------------------
         value_is_allocated =  allocated(this%value)
-    end function output_handler_fe_field_value_is_allocated
+    end function output_handler_fe_field_1D_value_value_is_allocated
 
 
-    subroutine output_handler_fe_field_allocate_value(this, number_components, number_nodes) 
+    subroutine output_handler_fe_field_1D_value_allocate_value(this, number_components, number_nodes) 
     !-----------------------------------------------------------------
     !< Allocate value
     !-----------------------------------------------------------------
-        class(output_handler_fe_field_t), intent(inout) :: this
-        integer(ip)                                     :: number_components
-        integer(ip)                                     :: number_nodes
+        class(output_handler_fe_field_1D_value_t), intent(inout) :: this
+        integer(ip)                                              :: number_components
+        integer(ip)                                              :: number_nodes
+    !-----------------------------------------------------------------
+        assert(.not. allocated(this%value))
+        call memalloc(number_components*number_nodes, this%value, __FILE__, __LINE__)
+        this%number_components = number_components
+    end subroutine output_handler_fe_field_1D_value_allocate_value
+
+
+    function output_handler_fe_field_1D_value_get_value(this) result(value)
+    !-----------------------------------------------------------------
+    !< Return a pointer to the raw values
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_1D_value_t), target, intent(in) :: this
+        real(rp),                                  pointer            :: value(:)
+    !-----------------------------------------------------------------
+        value => this%value
+    end function output_handler_fe_field_1D_value_get_value
+
+
+    function output_handler_fe_field_1D_value_get_number_components(this) result(number_components)
+    !-----------------------------------------------------------------
+    !< Return the number of components
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_1D_value_t), target, intent(in) :: this
+        integer(ip)                                                   :: number_components
+    !-----------------------------------------------------------------
+        number_components = this%number_components
+    end function output_handler_fe_field_1D_value_get_number_components
+
+
+!---------------------------------------------------------------------
+!< output_handler_fe_field_2D_value_t PROCEDURES
+!---------------------------------------------------------------------
+
+
+    subroutine output_handler_fe_field_2D_value_free(this)
+    !-----------------------------------------------------------------
+    !< Check if value is allocated
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_2D_value_t), intent(inout) :: this
+        logical                                                  :: value_is_allocated
+    !-----------------------------------------------------------------
+        if(allocated(this%value)) call memfree(this%value, __FILE__, __LINE__)
+        this%number_components = 0
+    end subroutine output_handler_fe_field_2D_value_free
+
+
+    function output_handler_fe_field_2D_value_value_is_allocated(this) result(value_is_allocated)
+    !-----------------------------------------------------------------
+    !< Check if value is allocated
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_2D_value_t), intent(in) :: this
+        logical                                               :: value_is_allocated
+    !-----------------------------------------------------------------
+        value_is_allocated =  allocated(this%value)
+    end function output_handler_fe_field_2D_value_value_is_allocated
+
+
+    subroutine output_handler_fe_field_2D_value_allocate_value(this, number_components, number_nodes) 
+    !-----------------------------------------------------------------
+    !< Allocate value
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_2D_value_t), intent(inout) :: this
+        integer(ip)                                              :: number_components
+        integer(ip)                                              :: number_nodes
     !-----------------------------------------------------------------
         assert(.not. allocated(this%value))
         call memalloc(number_components, number_nodes, this%value, __FILE__, __LINE__)
         this%number_components = number_components
-    end subroutine output_handler_fe_field_allocate_value
+    end subroutine output_handler_fe_field_2D_value_allocate_value
 
 
-    function output_handler_fe_field_get_value(this) result(value)
+    function output_handler_fe_field_2D_value_get_value(this) result(value)
     !-----------------------------------------------------------------
     !< Return a pointer to the raw values
     !-----------------------------------------------------------------
-        class(output_handler_fe_field_t), target, intent(in) :: this
-        real(rp),                         pointer            :: value(:,:)
+        class(output_handler_fe_field_2D_value_t), target, intent(in) :: this
+        real(rp),                                  pointer            :: value(:,:)
     !-----------------------------------------------------------------
         value => this%value
-    end function output_handler_fe_field_get_value
+    end function output_handler_fe_field_2D_value_get_value
 
 
-    function output_handler_fe_field_get_number_components(this) result(number_components)
+    function output_handler_fe_field_2D_value_get_number_components(this) result(number_components)
     !-----------------------------------------------------------------
     !< Return the number of components
     !-----------------------------------------------------------------
-        class(output_handler_fe_field_t), target, intent(in) :: this
-        integer(ip)                                          :: number_components
+        class(output_handler_fe_field_2D_value_t), target, intent(in) :: this
+        integer(ip)                                                   :: number_components
     !-----------------------------------------------------------------
         number_components = this%number_components
-    end function output_handler_fe_field_get_number_components
+    end function output_handler_fe_field_2D_value_get_number_components
 
 end module output_handler_fe_field_names

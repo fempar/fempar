@@ -47,14 +47,15 @@ private
 
     type, extends(output_handler_base_t) :: vtk_output_handler_t
     private 
-        real(rp),     allocatable :: X(:)
-        real(rp),     allocatable :: Y(:)
-        real(rp),     allocatable :: Z(:)
-        integer(ip),  allocatable :: Offset(:)
-        integer(I1P), allocatable :: CellTypes(:)
-        integer(ip),  allocatable :: Connectivities(:)
-        integer(ip)               :: node_offset = 0
-        integer(ip)               :: cell_offset = 0
+        real(rp),                                 allocatable :: X(:)
+        real(rp),                                 allocatable :: Y(:)
+        real(rp),                                 allocatable :: Z(:)
+        integer(ip),                              allocatable :: Offset(:)
+        integer(I1P),                             allocatable :: CellTypes(:)
+        integer(ip),                              allocatable :: Connectivities(:)
+        type(output_handler_fe_field_2D_value_t), allocatable :: FieldValues(:)
+        integer(ip)                                           :: node_offset = 0
+        integer(ip)                                           :: cell_offset = 0
     contains
         procedure, non_overridable        :: write_vtu                      => vtk_output_handler_write_vtu
         procedure, non_overridable        :: write_pvtu                     => vtk_output_handler_write_pvtu
@@ -74,6 +75,7 @@ contains
     !< Free procedure
     !-----------------------------------------------------------------
         class(vtk_output_handler_t), intent(inout) :: this
+        integer(ip)                                :: i
     !-----------------------------------------------------------------
         if(allocated(this%X))              call memfree(this%X,              __FILE__, __LINE__)
         if(allocated(this%Y))              call memfree(this%Y,              __FILE__, __LINE__)
@@ -81,6 +83,12 @@ contains
         if(allocated(this%Offset))         call memfree(this%Offset,         __FILE__, __LINE__)
         if(allocated(this%CellTypes))      call memfree(this%CellTypes,      __FILE__, __LINE__)
         if(allocated(this%Connectivities)) call memfree(this%Connectivities, __FILE__, __LINE__)
+        if(allocated(this%FieldValues)) then
+            do i=1, size(this%Fieldvalues)
+                call this%FieldValues(i)%Free()
+            enddo
+            deallocate(this%FieldValues)
+        endif
     end subroutine vtk_output_handler_free
 
 
@@ -118,7 +126,6 @@ contains
         type(patch_subcell_iterator_t), intent(in) :: subcell_iterator
         real(rp),    allocatable                   :: Coordinates(:,:)
         integer(ip), allocatable                   :: Connectivity(:)
-        type(output_handler_fe_field_t), pointer   :: field
         real(rp),                        pointer   :: Value(:,:)
         integer(ip)                                :: number_vertices
         integer(ip)                                :: number_dimensions
@@ -139,9 +146,8 @@ contains
 
         do i=1, number_fields
             number_components = subcell_iterator%get_number_field_components(i)
-            field => this%get_field(i)
-            if(.not. field%value_is_allocated()) call field%allocate_value(number_components, this%get_number_nodes())
-            Value => field%get_value()
+            if(.not. this%FieldValues(i)%value_is_allocated()) call this%FieldValues(i)%allocate_value(number_components, this%get_number_nodes())
+            Value => this%FieldValues(i)%get_value()
             call subcell_iterator%get_field(i, number_components, Value(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
         enddo
         this%node_offset = this%node_offset + number_vertices
@@ -165,6 +171,8 @@ contains
         integer(ip)                                :: E_IO, i
         integer(ip)                                :: me, np
     !-----------------------------------------------------------------
+        allocate(this%FieldValues(this%get_number_fields()))
+
         call this%fill_data()
 
         fe_space          => this%get_fe_space()
@@ -231,7 +239,7 @@ contains
         number_fields     = this%get_number_fields()
         do i=1, number_fields
             field => this%get_field(i)
-            Value => field%get_value()
+            Value => this%FieldValues(i)%get_value()
             number_components = size(Value,1)
             E_IO = VTK_VAR_XML(NC_NN=this%get_number_nodes(), N_COL=number_components, varname=field%get_name(), var=Value, cf=file_id)
             assert(E_IO == 0)
@@ -279,9 +287,9 @@ contains
         ! Write point data fields
         do i=1, this%get_number_fields()
             field => this%get_field(i)
-            E_IO = PVTK_VAR_XML(varname = trim(adjustl(field%get_name())), &
-                                tp      = 'Float64',                       &
-                                Nc      = field%get_number_components(),   &
+            E_IO = PVTK_VAR_XML(varname = trim(adjustl(field%get_name())),             &
+                                tp      = 'Float64',                                   &
+                                Nc      = this%FieldValues(i)%get_number_components(), &
                                 cf      = file_id )
             assert(E_IO == 0)
         enddo

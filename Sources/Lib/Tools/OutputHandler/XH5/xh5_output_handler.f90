@@ -36,6 +36,7 @@ USE output_handler_base_names
 USE output_handler_fe_field_names
 USE fe_space_names,             only: serial_fe_space_t
 USE output_handler_patch_names, only: patch_subcell_iterator_t
+USE reference_fe_names,         only: topology_hex, topology_tet
 
 
 implicit none
@@ -44,12 +45,13 @@ private
 
     type, extends(output_handler_base_t) :: xh5_output_handler_t
     private 
-        type(xh5for_t)            :: xh5
-        real(rp),     allocatable :: X(:)
-        real(rp),     allocatable :: Y(:)
-        real(rp),     allocatable :: Z(:)
-        integer(ip),  allocatable :: Connectivities(:)
-        integer(ip)               :: node_offset = 0
+        type(xh5for_t)                                        :: xh5
+        real(rp),                                 allocatable :: X(:)
+        real(rp),                                 allocatable :: Y(:)
+        real(rp),                                 allocatable :: Z(:)
+        integer(ip),                              allocatable :: Connectivities(:)
+        type(output_handler_fe_field_1D_value_t), allocatable :: FieldValues(:)
+        integer(ip)                                           :: node_offset = 0
     contains
         procedure,                 public :: write                          => xh5_output_handler_write
         procedure,                 public :: allocate_cell_and_nodal_arrays => xh5_output_handler_allocate_cell_and_nodal_arrays
@@ -67,12 +69,19 @@ contains
     !< Free procedure
     !-----------------------------------------------------------------
         class(xh5_output_handler_t), intent(inout) :: this
+        integer(ip)                                :: i
     !-----------------------------------------------------------------
         call this%xh5%free()
         if(allocated(this%X))              call memfree(this%X,              __FILE__, __LINE__)
         if(allocated(this%Y))              call memfree(this%Y,              __FILE__, __LINE__)
         if(allocated(this%Z))              call memfree(this%Z,              __FILE__, __LINE__)
         if(allocated(this%Connectivities)) call memfree(this%Connectivities, __FILE__, __LINE__)
+        if(allocated(this%FieldValues)) then
+            do i=1, size(this%Fieldvalues)
+                call this%FieldValues(i)%Free()
+            enddo
+            deallocate(this%FieldValues)
+        endif
     end subroutine xh5_output_handler_free
 
 
@@ -106,8 +115,7 @@ contains
         type(patch_subcell_iterator_t), intent(in) :: subcell_iterator
         real(rp),    allocatable                   :: Coordinates(:,:)
         integer(ip), allocatable                   :: Connectivity(:)
-        type(output_handler_fe_field_t), pointer   :: field
-        real(rp),                        pointer   :: Value(:,:)
+        real(rp),                        pointer   :: Value(:)
         integer(ip)                                :: number_vertices
         integer(ip)                                :: number_dimensions
         integer(ip)                                :: number_fields
@@ -122,15 +130,27 @@ contains
                                               this%Y(this%node_offset+1:this%node_offset+number_vertices), &
                                               this%Z(this%node_offset+1:this%node_offset+number_vertices))
 
-        this%Connectivities(this%node_offset+1:this%node_offset+number_vertices) = &
-                            (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
+        select case (subcell_iterator%get_cell_type())
+            case (topology_hex) 
+                select case (number_dimensions)
+                    case (2)
+                        this%Connectivities(this%node_offset+1:this%node_offset+number_vertices) = (/0,1,3,2/)+this%node_offset
+                    case (3)
+                        this%Connectivities(this%node_offset+1:this%node_offset+number_vertices) = (/0,1,3,2,4,5,7,6/)+this%node_offset
+                    case DEFAULT
+                        check(.false.)
+                end select
+            case (topology_tet) 
+                this%Connectivities(this%node_offset+1:this%node_offset+number_vertices) = (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
+            case DEFAULT
+                check(.false.)    
+        end select
 
         do i=1, number_fields
             number_components = subcell_iterator%get_number_field_components(i)
-            field => this%get_field(i)
-            if(.not. field%value_is_allocated()) call field%allocate_value(number_components, this%get_number_nodes())
-            Value => field%get_value()
-            call subcell_iterator%get_field(i, number_components, Value(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
+            if(.not. this%FieldValues(i)%value_is_allocated()) call this%FieldValues(i)%allocate_value(number_components, this%get_number_nodes())
+            Value => this%FieldValues(i)%get_value()
+            call subcell_iterator%get_field(i, Value((number_components*this%node_offset)+1:number_components*(this%node_offset+number_vertices)))
         enddo
         this%node_offset = this%node_offset + number_vertices
 
@@ -147,11 +167,13 @@ contains
         type(output_handler_fe_field_t), pointer   :: field
         character(len=:), allocatable              :: path
         character(len=:), allocatable              :: prefix
-        real(rp), pointer                          :: Value(:,:)
+        real(rp), pointer                          :: Value(:)
         integer(ip)                                :: number_fields
         integer(ip)                                :: E_IO, i
         integer(ip)                                :: me, np
     !-----------------------------------------------------------------
+        allocate(this%FieldValues(this%get_number_fields()))
+
         call this%fill_data()
 
         fe_space          => this%get_fe_space()
@@ -174,11 +196,11 @@ contains
 
         do i=1, this%get_number_fields()
             field => this%get_field(i)
-            Value => field%get_value()
-!            call this%xh5%WriteAttribute(Name=varname=field%get_name(), &
-!                                    Type=XDMF_ATTRIBUTE_TYPE_SCALAR, &
-!                                    Center=XDMF_ATTRIBUTE_CENTER_NODE , &
-!                                    Values=Value)
+            Value => this%FieldValues(i)%get_value()
+            call this%xh5%WriteAttribute(Name=field%get_name(), &
+                                         Type=XDMF_ATTRIBUTE_TYPE_SCALAR, &
+                                         Center=XDMF_ATTRIBUTE_CENTER_NODE , &
+                                         Values=Value)
         enddo
 
         call this%xh5%Close()
