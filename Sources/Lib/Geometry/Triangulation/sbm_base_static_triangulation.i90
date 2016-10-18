@@ -1733,6 +1733,7 @@ subroutine bst_print ( this )
         call this%free_lst_vefs_lids()
         call this%free_cells_gid()
         call this%free_cells_mypart() 
+        call this%free_cells_set()
         
         call this%cell_import%free()
         this%num_local_cells = -1

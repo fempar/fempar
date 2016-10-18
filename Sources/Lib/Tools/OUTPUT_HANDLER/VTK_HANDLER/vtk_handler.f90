@@ -601,7 +601,7 @@ contains
                             dp = this%get_PVD_time_output_path(path=this%path, time_step=this%steps(ts))
                             pvtufn = this%get_pvtu_filename(time_step=this%steps(ts))
                             pvtufn = dp//pvtufn
-                            E_IO = PVD_DAT_XML(filename=trim(adjustl(pvtufn)),timestep=ts, cf=rf)
+                            E_IO = PVD_DAT_XML(filename=trim(adjustl(pvtufn)),timestep=this%steps(ts), cf=rf)
                         enddo
                         E_IO = PVD_END_XML(cf=rf)
                     endif
