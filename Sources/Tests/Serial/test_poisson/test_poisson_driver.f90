@@ -36,8 +36,6 @@ module test_poisson_driver_names
   use vector_poisson_discrete_integration_names
   use vector_poisson_conditions_names
   use vector_poisson_analytical_functions_names
-  use vtk_output_handler_names
-  use xh5_output_handler_names
   
 # include "debug.i90"
 
@@ -412,13 +410,7 @@ contains
     implicit none
     class(test_poisson_driver_t), intent(in) :: this
 !    type(vtk_handler_t)                      :: vtk_handler
-    type(xh5_output_handler_t)                    :: vtk
     integer(ip)                              :: err
-
-    call vtk%attach_fe_space(this%fe_space)
-    call vtk%add_fe_function(this%solution, 1, 'solution')
-    call vtk%write()
-    call vtk%free()
 !    if(this%test_params%get_write_solution()) then
 !       call  vtk_handler%create(this%fe_space, this%test_params%get_dir_path_out(), this%test_params%get_prefix())
 !       err = vtk_handler%open_vtu(); check(err==0)
