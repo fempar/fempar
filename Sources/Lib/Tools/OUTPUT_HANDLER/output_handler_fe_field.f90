@@ -41,18 +41,20 @@ private
         character(len=:),  allocatable :: name
         integer(ip)                    :: field_id = 0
         type(fe_function_t), pointer   :: fe_function => NULL()
+        integer(ip)                    :: number_components = 0
         real(rp), allocatable          :: value(:,:)
     contains
-        procedure, non_overridable         ::                        output_handler_fe_field_assign
-        procedure, non_overridable, public :: set                 => output_handler_fe_field_set
-        procedure, non_overridable, public :: get_name            => output_handler_fe_field_get_name
-        procedure, non_overridable, public :: get_field_id        => output_handler_fe_field_get_field_id
-        procedure, non_overridable, public :: get_fe_function     => output_handler_fe_field_get_fe_function
-        procedure, non_overridable, public :: value_is_allocated  => output_handler_fe_field_value_is_allocated
-        procedure, non_overridable, public :: allocate_value      => output_handler_fe_field_allocate_value
-        procedure, non_overridable, public :: get_value           => output_handler_fe_field_get_value
-        procedure, non_overridable, public :: free                => output_handler_fe_field_free
-        generic,                    public :: assignment(=)       => output_handler_fe_field_assign
+        procedure, non_overridable         ::                          output_handler_fe_field_assign
+        procedure, non_overridable, public :: set                   => output_handler_fe_field_set
+        procedure, non_overridable, public :: get_name              => output_handler_fe_field_get_name
+        procedure, non_overridable, public :: get_field_id          => output_handler_fe_field_get_field_id
+        procedure, non_overridable, public :: get_fe_function       => output_handler_fe_field_get_fe_function
+        procedure, non_overridable, public :: value_is_allocated    => output_handler_fe_field_value_is_allocated
+        procedure, non_overridable, public :: allocate_value        => output_handler_fe_field_allocate_value
+        procedure, non_overridable, public :: get_value             => output_handler_fe_field_get_value
+        procedure, non_overridable, public :: get_number_components => output_handler_fe_field_get_number_components
+        procedure, non_overridable, public :: free                  => output_handler_fe_field_free
+        generic,                    public :: assignment(=)         => output_handler_fe_field_assign
     end type
 
 public :: output_handler_fe_field_t
@@ -72,7 +74,8 @@ contains
         if(allocated(this%name)) deallocate(this%name)
         if(allocated(this%value)) call memfree(this%value, __FILE__, __LINE__)
         nullify(this%fe_function)
-        this%field_id = 0
+        this%field_id          = 0
+        this%number_components = 0
     end subroutine output_handler_fe_field_free
 
 
@@ -83,6 +86,7 @@ contains
         class(output_handler_fe_field_t), intent(inout) :: this
         type(output_handler_fe_field_t),  intent(in)    :: output_handler_fe_field
         type(fe_function_t), pointer                    :: fe_function
+        real(rp),            pointer                    :: value(:,:)
         integer(ip)                                     :: field_id
         character(len=:), allocatable                   :: name
     !----------------------------------------------------------------- 
@@ -91,6 +95,11 @@ contains
         field_id    =  output_handler_fe_field%get_field_id()
         name        =  output_handler_fe_field%get_name()
         call this%set(fe_function, field_id, name)
+        if(output_handler_fe_field%value_is_allocated()) then
+            value => output_handler_fe_field%get_value()
+            call this%allocate_value(size(value,1), size(value,2))
+            this%value(:,:) = value(:,:)
+        endif
     end subroutine output_handler_fe_field_assign
 
 
@@ -161,23 +170,35 @@ contains
     !-----------------------------------------------------------------
     !< Allocate value
     !-----------------------------------------------------------------
-        class(output_handler_fe_field_t), intent(in) :: this
-        integer(ip)                                  :: number_components
-        integer(ip)                                  :: number_nodes
+        class(output_handler_fe_field_t), intent(inout) :: this
+        integer(ip)                                     :: number_components
+        integer(ip)                                     :: number_nodes
     !-----------------------------------------------------------------
         assert(.not. allocated(this%value))
         call memalloc(number_components, number_nodes, this%value, __FILE__, __LINE__)
+        this%number_components = number_components
     end subroutine output_handler_fe_field_allocate_value
 
 
     function output_handler_fe_field_get_value(this) result(value)
     !-----------------------------------------------------------------
-    !< Return a fe_function pointer
+    !< Return a pointer to the raw values
     !-----------------------------------------------------------------
         class(output_handler_fe_field_t), target, intent(in) :: this
         real(rp),                         pointer            :: value(:,:)
     !-----------------------------------------------------------------
         value => this%value
     end function output_handler_fe_field_get_value
+
+
+    function output_handler_fe_field_get_number_components(this) result(number_components)
+    !-----------------------------------------------------------------
+    !< Return the number of components
+    !-----------------------------------------------------------------
+        class(output_handler_fe_field_t), target, intent(in) :: this
+        integer(ip)                                          :: number_components
+    !-----------------------------------------------------------------
+        number_components = this%number_components
+    end function output_handler_fe_field_get_number_components
 
 end module output_handler_fe_field_names

@@ -113,8 +113,8 @@ contains
     !-----------------------------------------------------------------
     !< Return the number of nodes
     !-----------------------------------------------------------------
-        class(output_handler_base_t), intent(inout) :: this
-        integer(ip)                                 :: number_nodes
+        class(output_handler_base_t), intent(in) :: this
+        integer(ip)                              :: number_nodes
     !-----------------------------------------------------------------
         number_nodes = this%number_nodes
     end function output_handler_base_get_number_nodes
@@ -124,8 +124,8 @@ contains
     !-----------------------------------------------------------------
     !< Return the number of cells
     !-----------------------------------------------------------------
-        class(output_handler_base_t), intent(inout) :: this
-        integer(ip)                                 :: number_cells
+        class(output_handler_base_t), intent(in) :: this
+        integer(ip)                              :: number_cells
     !-----------------------------------------------------------------
         number_cells = this%number_cells
     end function output_handler_base_get_number_cells
@@ -135,8 +135,8 @@ contains
     !-----------------------------------------------------------------
     !< Return the number of fields
     !-----------------------------------------------------------------
-        class(output_handler_base_t), intent(inout) :: this
-        integer(ip)                                 :: number_fields
+        class(output_handler_base_t), intent(in) :: this
+        integer(ip)                              :: number_fields
     !-----------------------------------------------------------------
         number_fields = this%number_fields
     end function output_handler_base_get_number_fields
@@ -146,9 +146,9 @@ contains
     !-----------------------------------------------------------------
     !< Return the number of fields
     !-----------------------------------------------------------------
-        class(output_handler_base_t),    target, intent(inout) :: this
-        integer(ip),                             intent(in)    :: field_id
-        type(output_handler_fe_field_t), pointer               :: field
+        class(output_handler_base_t),    target, intent(in) :: this
+        integer(ip),                             intent(in) :: field_id
+        type(output_handler_fe_field_t), pointer            :: field
     !-----------------------------------------------------------------
         assert(field_id <= this%number_fields)
         field => this%fields(field_id)
@@ -170,8 +170,8 @@ contains
     !-----------------------------------------------------------------
     !< Return a fe_space pointer
     !-----------------------------------------------------------------
-        class(output_handler_base_t), intent(inout) :: this
-        class(serial_fe_space_t), pointer           :: fe_space
+        class(output_handler_base_t), intent(in) :: this
+        class(serial_fe_space_t), pointer        :: fe_space
     !-----------------------------------------------------------------
         fe_space => this%fe_space
     end function output_handler_base_get_fe_space

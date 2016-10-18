@@ -26,14 +26,26 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module vtk_utils
+module vtk_utils_names
 
-USE IR_Precision, only: str
 USE types_names
+USE IR_Precision,       only: str, I1P
+USE iso_fortran_env,    only: error_unit
+USE iso_c_binding,      only: c_int, c_null_char
+USE reference_fe_names, only: topology_hex, topology_tet
+USE vtk_parameters_names
 
 implicit none
 #include "debug.i90"
 private
+
+    interface
+        function mkdir_recursive(path) bind(c,name="mkdir_recursive")
+            use iso_c_binding
+            integer(kind=c_int) :: mkdir_recursive
+            character(kind=c_char,len=1), intent(IN) :: path(*)
+        end function mkdir_recursive
+    end interface
 
     ! File extensions and time prefix
     character(len=5), parameter :: time_prefix = 'time_'
@@ -41,8 +53,59 @@ private
     character(len=4), parameter :: pvd_ext     = '.pvd'
     character(len=5), parameter :: pvtu_ext    = '.pvtu'
 
+public :: if_iam_root_create_directory
+public :: topology_to_vtk_celltype
+public :: get_vtk_output_directory
+public :: get_pvd_output_directory
+public :: get_vtk_filename
+public :: get_pvtu_filename
+public :: get_pvd_filename
 
 contains
+
+    function if_iam_root_create_directory(path, task_id) result(error)
+    !-----------------------------------------------------------------
+    !< The root process create a hierarchy of directories
+    !-----------------------------------------------------------------
+        character(len=*),            intent(in)    :: path
+        integer(ip),                 intent(in)    :: task_id
+        integer(kind=c_int)                        :: error
+    !-----------------------------------------------------------------
+        error = 0
+
+        if(task_id == default_root_task) then
+            error = mkdir_recursive(path//C_NULL_CHAR)
+            check ( error == 0 ) 
+        end if
+    end function if_iam_root_create_directory
+
+
+    function topology_to_vtk_celltype(topology, dimension) result(cell_type)
+    !-----------------------------------------------------------------
+    !< Translate the topology type of the reference_fe_geo into VTK cell type
+    !-----------------------------------------------------------------
+        character(len=*),            intent(in)    :: topology
+        integer(ip),                 intent(in)    :: dimension
+        integer(I1P)                               :: cell_type
+    !-----------------------------------------------------------------
+        if(topology == topology_hex) then 
+            if(dimension == 2) then
+                cell_type = vtk_pixel
+            elseif(dimension == 3) then
+                cell_type = vtk_voxel
+            endif
+        elseif(topology == topology_tet) then
+            if(dimension == 2) then
+                cell_type = vtk_triangle
+            elseif(dimension == 3) then
+                cell_type = vtk_tetra
+            endif
+        else
+            write(error_unit,*) 'Topology_to_vtk_CellType: Topology not supported ('//trim(adjustl(topology))//')'
+            check(.false.)    
+        endif
+    end function topology_to_vtk_celltype
+
 
     function get_vtk_output_directory(dir_path, time_step) result(path)
     !-----------------------------------------------------------------
@@ -53,6 +116,7 @@ contains
         character(len=:), allocatable    :: path
         character(len=:), allocatable    :: fp
     !-----------------------------------------------------------------
+        assert(len_trim(dir_path)>0)
         path = trim(adjustl(dir_path))//'/'//time_prefix//trim(adjustl(str(no_sign=.true., n=time_step)))//'/'
     end function get_vtk_output_directory
 
@@ -65,6 +129,7 @@ contains
         real(RP),         intent(in)    :: time_step
         character(len=:), allocatable   :: path
     !-----------------------------------------------------------------
+        assert(len_trim(dir_path)>0)
         path = time_prefix//trim(adjustl(str(no_sign=.true., n=time_step)))//'/'
     end function get_pvd_output_directory
 
@@ -77,20 +142,33 @@ contains
         integer(ip),       intent(in) :: part
         character(len=:), allocatable :: filename
     !-----------------------------------------------------------------
+        assert(len_trim(prefix)>0)
         filename = trim(adjustl(prefix))//'_'//trim(adjustl(str(no_sign=.true., n=part)))//vtk_ext
     end function get_vtk_filename
 
 
-    function get_pvtu_filename(prefix, time_step) result(filename)
+    function get_pvtu_filename(prefix) result(filename)
     !-----------------------------------------------------------------
     !< Build pvtu filename
     !-----------------------------------------------------------------
         character(len=*),   intent(in) :: prefix
-        real(rp),           intent(in) :: time_step
         character(len=:), allocatable  :: filename
     !-----------------------------------------------------------------
-        filename = trim(adjustl(prefix))//'_'//trim(adjustl(str(no_sign=.true., n=time_step)))//pvtu_ext
+        assert(len_trim(prefix)>0)
+        filename = trim(adjustl(prefix))//pvtu_ext
     end function get_pvtu_filename
 
-end module vtk_utils
+
+    function get_pvd_filename(prefix) result(filename)
+    !-----------------------------------------------------------------
+    !< Build pvtu filename
+    !-----------------------------------------------------------------
+        character(len=*),   intent(in) :: prefix
+        character(len=:), allocatable  :: filename
+    !-----------------------------------------------------------------
+        assert(len_trim(prefix)>0)
+        filename = trim(adjustl(prefix))//pvd_ext
+    end function get_pvd_filename
+
+end module vtk_utils_names
 
