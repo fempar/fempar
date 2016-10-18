@@ -77,6 +77,14 @@ function object_accessor_get_gid (this)
   object_accessor_get_gid = this%base_static_triangulation%objects_gids(this%lid)
 end function object_accessor_get_gid
 
+function object_accessor_get_dimension (this)
+  implicit none
+  class(object_accessor_t), intent(in) :: this
+  integer(igp) :: object_accessor_get_dimension
+  assert ( this%lid >= 1 .and. .not. this%past_the_end() )
+  object_accessor_get_dimension = this%base_static_triangulation%objects_dimension(this%lid)
+end function object_accessor_get_dimension
+
 function object_accessor_get_number_parts_around(this)
   implicit none
   class(object_accessor_t), intent(in) :: this

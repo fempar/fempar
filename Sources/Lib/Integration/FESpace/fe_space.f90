@@ -389,6 +389,7 @@ module fe_space_names
     procedure                            :: free                                  => fe_object_accessor_free
     procedure, non_overridable           :: get_number_fe_vefs_on_object          => fe_object_accessor_get_number_fe_vefs_on_object
     procedure, non_overridable           :: create_fe_vefs_on_object_iterator     => fe_object_accessor_create_fe_vefs_on_object_iterator
+    procedure, non_overridable           :: create_fe_faces_on_object_iterator    => fe_object_accessor_create_fe_faces_on_object_iterator
     procedure, non_overridable           :: get_number_coarse_dofs                => fe_object_accessor_get_number_coarse_dofs
     procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_accessor_create_own_coarse_dofs_iterator
   end type fe_object_accessor_t
@@ -418,6 +419,18 @@ module fe_space_names
     procedure, non_overridable          :: current      => fe_vefs_on_object_iterator_current
   end type fe_vefs_on_object_iterator_t
   
+  type :: fe_faces_on_object_iterator_t
+    private
+    type(vefs_on_object_iterator_t) :: vefs_on_object_iterator
+    type(fe_face_accessor_t)        :: current_fe_face_accessor
+  contains
+    procedure, non_overridable          :: create       => fe_faces_on_object_iterator_create
+    procedure, non_overridable          :: free         => fe_faces_on_object_iterator_free
+    procedure, non_overridable          :: init         => fe_faces_on_object_iterator_init
+    procedure, non_overridable          :: next         => fe_faces_on_object_iterator_next
+    procedure, non_overridable          :: has_finished => fe_faces_on_object_iterator_has_finished
+    procedure, non_overridable          :: current      => fe_faces_on_object_iterator_current
+  end type fe_faces_on_object_iterator_t
 
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
@@ -497,7 +510,7 @@ module fe_space_names
  end type par_fe_space_t
  
  public :: par_fe_space_t
- public :: fe_object_accessor_t, fe_object_iterator_t, fe_vefs_on_object_iterator_t
+ public :: fe_object_accessor_t, fe_object_iterator_t, fe_vefs_on_object_iterator_t, fe_faces_on_object_iterator_t
  
   type, abstract :: l1_coarse_fe_handler_t
   contains
@@ -544,7 +557,14 @@ module fe_space_names
 	   procedure :: setup_weighting_operator => standard_l1_setup_weighting_operator
   end type standard_l1_coarse_fe_handler_t
   
-  public :: l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t
+  type, extends(standard_l1_coarse_fe_handler_t) :: H1_l1_coarse_fe_handler_t
+    private
+  contains
+	   procedure :: setup_constraint_matrix  => H1_l1_setup_constraint_matrix
+	   procedure :: setup_weighting_operator => H1_l1_setup_weighting_operator
+  end type H1_l1_coarse_fe_handler_t
+  
+  public :: l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t
     
   type, extends(cell_accessor_t) :: coarse_fe_accessor_t
     private
@@ -807,7 +827,9 @@ contains
 #include "sbm_fe_object_accessor.i90"
 #include "sbm_fe_object_iterator.i90"
 #include "sbm_fe_vefs_on_object_iterator.i90"
+#include "sbm_fe_faces_on_object_iterator.i90"
 #include "sbm_standard_coarse_fe_handler.i90"
+#include "sbm_H1_coarse_fe_handler.i90"
 
 #include "sbm_coarse_fe_space.i90"
 #include "sbm_coarse_fe_object_accessor.i90"

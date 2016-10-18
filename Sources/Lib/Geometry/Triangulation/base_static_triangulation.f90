@@ -267,6 +267,7 @@ module base_static_triangulation_names
     procedure                   :: past_the_end                   => object_accessor_past_the_end
     procedure, non_overridable  :: get_lid                        => object_accessor_get_lid
     procedure, non_overridable  :: get_gid                        => object_accessor_get_gid
+    procedure, non_overridable  :: get_dimension                  => object_accessor_get_dimension
     procedure, non_overridable  :: get_number_parts_around        => object_accessor_get_number_parts_around
     procedure, non_overridable  :: create_parts_around_iterator   => object_accessor_create_parts_around_iterator
     procedure, non_overridable  :: get_number_vefs_on_object      => object_accessor_get_number_vefs_on_object
@@ -356,7 +357,6 @@ module base_static_triangulation_names
      integer(igp), allocatable             :: vefs_gid(:)          ! num_vefs
      integer(ip) , allocatable             :: vefs_set(:)          ! num_vefs
      integer(ip) , allocatable             :: vefs_geometry(:)     ! num_vefs
-     integer(ip) , allocatable             :: vefs_dimension(:)    ! num_vefs
      integer(ip) , allocatable             :: vefs_type(:)         ! num_vefs, will replace vefs_dimension
                                                                    ! above and vef_itfc_lid below (which is currently only accessed
                                                                    ! to check whether a vef is interface or not).

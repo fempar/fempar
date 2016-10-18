@@ -56,6 +56,13 @@ function fe_object_accessor_create_fe_vefs_on_object_iterator(this)
   call fe_object_accessor_create_fe_vefs_on_object_iterator%create(this%get_lid(), this%fe_space)
 end function fe_object_accessor_create_fe_vefs_on_object_iterator
 
+function fe_object_accessor_create_fe_faces_on_object_iterator(this)
+  implicit none
+  class(fe_object_accessor_t), intent(in) :: this
+  type(fe_faces_on_object_iterator_t) :: fe_object_accessor_create_fe_faces_on_object_iterator
+  call fe_object_accessor_create_fe_faces_on_object_iterator%create(this%get_lid(), this%fe_space)
+end function fe_object_accessor_create_fe_faces_on_object_iterator
+
 function fe_object_accessor_get_number_coarse_dofs(this, field_id)
   implicit none
   class(fe_object_accessor_t), intent(in) :: this

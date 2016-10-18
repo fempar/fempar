@@ -28,22 +28,22 @@ then
        done
     done
 
-      # Square + Tets        
-      for gorder in 1 #2 3 4 5 6
-      do
-       for order in 1 2 3 #4 5 6
-        do
-          if [ $order -ge $gorder ]
-          then
-             echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_square_tetrahedra --prefix 'square_tetrahedra' --nparts '4' -gorder $gorder -order $order"
-             $MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_square_tetrahedra --prefix 'square_tetrahedra' --nparts '4' -gorder $gorder -order $order
-             if [ $? -ne 0 ]
-             then
-               final_exit_code=1
-             fi
-          fi
-       done
-    done
+    #   # Square + Tets        
+    #   for gorder in 1 #2 3 4 5 6
+    #   do
+    #    for order in 1 2 3 #4 5 6
+    #     do
+    #       if [ $order -ge $gorder ]
+    #       then
+    #          echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_square_tetrahedra --prefix 'square_tetrahedra' --nparts '4' -gorder $gorder -order $order"
+    #          $MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_square_tetrahedra --prefix 'square_tetrahedra' --nparts '4' -gorder $gorder -order $order
+    #          if [ $? -ne 0 ]
+    #          then
+    #            final_exit_code=1
+    #          fi
+    #       fi
+    #    done
+    # done
 
     # Cube + Hexas        
     for gorder in 1 #2 3 4 5 6
@@ -62,22 +62,22 @@ then
        done
     done
 
-    # Cube + Tets        
-    for gorder in 1 #2 3 4 5 6
-      do
-       for order in 1 2 #1 2 3 4 5 6
-        do
-          if [ $order -ge $gorder ]
-          then
-             echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_cube_tetrahedra --prefix 'cube_tetrahedra' --nparts '4' -gorder $gorder -order $order"
-             $MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_cube_tetrahedra --prefix 'cube_tetrahedra' --nparts '4' -gorder $gorder -order $order
-             if [ $? -ne 0 ] 
-             then
-               final_exit_code=1
-             fi
-          fi
-       done
-    done
+    # # Cube + Tets        
+    # for gorder in 1 #2 3 4 5 6
+    #   do
+    #    for order in 1 2 #1 2 3 4 5 6
+    #     do
+    #       if [ $order -ge $gorder ]
+    #       then
+    #          echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_cube_tetrahedra --prefix 'cube_tetrahedra' --nparts '4' -gorder $gorder -order $order"
+    #          $MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/PARTS4_cube_tetrahedra --prefix 'cube_tetrahedra' --nparts '4' -gorder $gorder -order $order
+    #          if [ $? -ne 0 ] 
+    #          then
+    #            final_exit_code=1
+    #          fi
+    #       fi
+    #    done
+    # done
 
 
 
