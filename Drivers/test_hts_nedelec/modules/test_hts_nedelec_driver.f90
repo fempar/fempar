@@ -142,7 +142,7 @@ contains
        if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (21e-3_rp<cy) .and. (cy<27e-3_rp) ) ) then 
           cells_set( cell%get_lid() ) = 1 ! HTS material 
        else 
-          cells_set( cell%get_lid() ) = 2 ! Air material 
+          cells_set( cell%get_lid() ) = 1 ! Air material 
        end if
        call cell_iterator%next() 
     end do

@@ -182,7 +182,7 @@ contains
        call this%source_term%get_values_set( quad_coords, current_time, source_term_values)
        
        ! Evaluate current curl values  
-       call cell_fe_function_current%get_quadrature_points_curl_values(H_current_curl_values)
+       call cell_fe_function_current%compute_quadrature_points_curl_values(H_current_curl_values)
        
        ! Compute element matrix and vector
        elmat = 0.0_rp

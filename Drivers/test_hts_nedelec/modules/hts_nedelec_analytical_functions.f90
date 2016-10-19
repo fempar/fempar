@@ -46,11 +46,12 @@ module hts_nedelec_analytical_functions_names
 
   type, extends(base_vector_function_t) :: solution_t
    contains
-     procedure :: get_value_space      => solution_get_value_space 
-     procedure :: get_value_space_time => solution_get_value_space_time 
-     procedure :: get_gradient_space   => solution_get_gradient_space
-     procedure :: get_curl_space       => solution_get_curl_space
-     procedure :: get_curl_space_time  => solution_get_curl_space_time 
+     procedure :: get_value_space         => solution_get_value_space 
+     procedure :: get_value_space_time    => solution_get_value_space_time 
+     procedure :: get_gradient_space      => solution_get_gradient_space
+     procedure :: get_gradient_space_time => solution_get_gradient_space_time 
+     procedure :: get_curl_space          => solution_get_curl_space
+     procedure :: get_curl_space_time     => solution_get_curl_space_time 
   end type solution_t
 
   type, extends(scalar_function_t) :: base_scalar_function_t
@@ -118,12 +119,12 @@ contains
     real(rp)  :: x, y, z, n  
     x = point%get(1)
     y = point%get(2) 
-    !n = 3.0_rp 
+    n = 3.0_rp 
     
-    !assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    !call result%set(1, 0.0_rp) 
-    !call result%set(2, -(n+1.0_rp)*((3.0_rp*x*x)**n)*6.0_rp*x + x*x*x )
-    !call result%set(3, 0.0_rp) 
+    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    call result%set(1, 0.0_rp) 
+    call result%set(2, -(n+1.0_rp)*((3.0_rp*x*x)**n)*6.0_rp*x + x*x*x )
+    call result%set(3, 0.0_rp) 
   end subroutine source_term_get_value_space
   
     !===============================================================================================
@@ -139,10 +140,10 @@ contains
     y = point%get(2) 
     n = 3.0_rp 
     
-    !assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    !call result%set(1, 0.0_rp) 
-    !call result%set(2, -(n+1.0_rp)*((time*3.0_rp*x*x)**n)*(time*6.0_rp*x) + x*x*x )
-    !call result%set(3, 0.0_rp) 
+    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    call result%set(1, 0.0_rp) 
+    call result%set(2, -(n+1.0_rp)*((time*3.0_rp*x*x)**n)*(time*6.0_rp*x) + x*x*x )
+    call result%set(3, 0.0_rp) 
   end subroutine source_term_get_value_space_time 
 
   !===============================================================================================
@@ -164,10 +165,10 @@ contains
     real(rp)  :: x, y, z
     x = point%get(1)
     y = point%get(2) 
-    !assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    !call result%set(1, 0.0_rp) 
-    !call result%set(2,  x*x*x  ) 
-    !call result%set(3, 0.0_rp) 
+    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    call result%set(1, 0.0_rp) 
+    call result%set(2,  x*x*x  ) 
+    call result%set(3, 0.0_rp) 
  
   end subroutine solution_get_value_space
   
@@ -182,10 +183,10 @@ contains
     real(rp)  :: x, y, z
     x = point%get(1)
     y = point%get(2) 
-    !assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    !call result%set(1, 0.0_rp) 
-    !call result%set(2,  time*x*x*x  ) 
-    !call result%set(3, 0.0_rp) 
+    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    call result%set(1, 0.0_rp) 
+    call result%set(2,  time*x*x*x  ) 
+    call result%set(3, 0.0_rp) 
  
   end subroutine solution_get_value_space_time
     
@@ -200,8 +201,27 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3) 
+    
+    call result%set(1,2, 3.0_rp*x*x )
 
   end subroutine solution_get_gradient_space
+  
+   !===============================================================================================
+  subroutine solution_get_gradient_space_time ( this, point, time, result )
+    implicit none
+    class(solution_t)       , intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+    real(rp)                , intent(in)    :: time
+    type(tensor_field_t)    , intent(inout) :: result
+    ! Locals 
+    real(rp)  :: x, y, z  
+    x = point%get(1)
+    y = point%get(2) 
+    z = point%get(3) 
+    
+    call result%set(1,2, time*3.0_rp*x*x) 
+
+  end subroutine solution_get_gradient_space_time
 
   !===============================================================================================
   subroutine solution_get_curl_space ( this, point, result )
@@ -214,9 +234,9 @@ contains
     x = point%get(1)
     y = point%get(2) 
 
-    !call result%set(1, 0.0_rp) 
-    !call result%set(2, 0.0_rp) 
-    !call result%set(3, 3*x*x ) 
+    call result%set(1, 0.0_rp) 
+    call result%set(2, 0.0_rp) 
+    call result%set(3, 3.0_rp*x*x ) 
     
   end subroutine solution_get_curl_space
   
@@ -231,9 +251,9 @@ contains
     x = point%get(1)
     y = point%get(2) 
 
-    !call result%set(1, 0.0_rp) 
-    !call result%set(2, 0.0_rp) 
-    !call result%set(3, time*3*x*x ) 
+    call result%set(1, 0.0_rp) 
+    call result%set(2, 0.0_rp) 
+    call result%set(3, time*3.0_rp*x*x ) 
     
   end subroutine solution_get_curl_space_time
     
@@ -280,8 +300,8 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3)
-    !result = x*x*x 
-     result = 0.0_rp 
+    result = x*x*x 
+    ! result = 0.0_rp 
 
   end subroutine boundary_function_Hy_get_value_space
   
@@ -298,8 +318,8 @@ contains
     x = point%get(1)
     y = point%get(2) 
     z = point%get(3)
-    !result = time*x*x*x 
-    result = 1e6_rp*sin(100.0_rp*pi*time) 
+    result = time*x*x*x 
+    !result = 1e6_rp*sin(100.0_rp*pi*time) 
     
   end subroutine boundary_function_Hy_get_value_space_time
 
