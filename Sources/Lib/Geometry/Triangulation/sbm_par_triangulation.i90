@@ -30,16 +30,8 @@ subroutine par_triangulation_create ( this, par_environment, parameters)
   class(par_triangulation_t)    , intent(inout) :: this
   type(par_environment_t),target, intent(in)    :: par_environment
   type(ParameterList_t)         , intent(in)    :: parameters
-! subroutine par_triangulation_create ( this, w_context, parameters)
-!   implicit none
-!   class(par_triangulation_t), target, intent(inout) :: this
-!   type(par_context_t)               , intent(in)    :: w_context
-!   type(ParameterList_t)             , intent(in)    :: parameters
 
   type(uniform_hex_mesh_t) :: uniform_hex_mesh
-  !integer(ip)               :: num_levels
-  !integer(ip) , allocatable :: num_parts_per_level(:)
-  !integer(ip) , allocatable :: parts_mapping(:)
 
   type(mesh_t)              :: mesh
   type(mesh_distribution_t) :: mesh_distribution

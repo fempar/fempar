@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine serial_triangulation_create ( this, parameters) ! dir_path, prefix, geometry_interpolation_order)
     implicit none
-    class(serial_triangulation_t), intent(inout) :: this
-    type(ParameterList_t)        , intent(in)    :: parameters
+    class(serial_triangulation_t), target, intent(inout) :: this
+    type(ParameterList_t)        , intent(inout)    :: parameters
 
     type(uniform_hex_mesh_t) :: uniform_hex_mesh
     type(mesh_t)           :: mesh
@@ -36,6 +36,7 @@
     integer(ip) , pointer  :: lst_vefs_geo(:), lst_vefs_set(:)
     real(rp)    , pointer  :: coordinates(:,:) => NULL()
     integer(ip)            :: triangulation_generate
+    integer(ip)            :: execution_context
     integer(ip)            :: istat
     logical                :: is_present
     integer(ip)            :: geometry_interpolation_order
@@ -58,6 +59,17 @@
     end if
  
     call this%free()
+
+    ! Verify (and eventually set) execution type and create serial environment
+    if( parameters%isPresent(key = execution_context_key) ) then
+       istat = parameters%get(key = execution_context_key, value = execution_context); check(istat==0)
+       check(execution_context==serial_context)
+    else
+       istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
+       !istat = parameters%set(key = execution_context_key, value = 1) ; check(istat==0)
+    end if
+    call this%par_environment%create (parameters)
+    this%p_env => this%par_environment
 
     if(geometry_interpolation_order>1) call this%geometry%read(parameters)
 

@@ -39,17 +39,10 @@ module par_environment_names
   use environment_names
 
   ! Parallel modules
-  !use psb_penv_mod_names
   use par_context_names
-  
-! #ifdef MPI_MOD
-!   use mpi
-! #endif
-!   implicit none
-! #ifdef MPI_H
-!   include 'mpif.h'
-! #endif
-  
+  use mpi_context_names
+  use serial_context_names
+
 # include "debug.i90"
   private
 
@@ -57,11 +50,18 @@ module par_environment_names
   integer(ip) , parameter :: created = 1
   integer(ip) , parameter :: created_from_fpl = 2
 
-  integer(ip), parameter :: structured   = 0
-  integer(ip), parameter :: unstructured = 1
+  integer(ip)     , parameter :: mpi_context    = 0
+  integer(ip)     , parameter :: serial_context = 1
+  character(len=*), parameter :: execution_context_key  = 'execution_context'
+  public :: mpi_context
+  public :: serial_context
+  public :: execution_context_key
+
+  integer(ip)     , parameter :: structured   = 0
+  integer(ip)     , parameter :: unstructured = 1
+  character(len=*), parameter :: environment_type_key = 'environment_type'
   public :: structured
   public :: unstructured
-  character(len=*), parameter :: environment_type_key          = 'environment_type'
   public :: environment_type_key
 
   ! This type manages the assigment of tasks to different levels as well as
@@ -70,15 +70,15 @@ module par_environment_names
   ! Different levels in the hierarchy are managed recursively.
   type, extends(environment_t) ::  par_environment_t
      !private 
-     integer(ip)                      :: state = not_created
-     integer(ip)                      :: num_levels = 0         ! =0 when parts are not assigned to tasks
-     integer(ip), allocatable         :: num_parts_per_level(:)
-     integer(ip), allocatable         :: parts_mapping(:)
-     type (par_context_t)             :: world_context          ! All MPI tasks context (=l1+lgt1 tasks)
-     type (par_context_t)             :: l1_context             ! 1st lev MPI tasks context
-     type (par_context_t)             :: lgt1_context           ! > 1st lev MPI tasks context
-     !type (par_context_t)             :: l1_lgt1_context        ! Intercommunicator among l1 and lgt1 context
-     type (par_context_t)             :: l1_to_l2_context       ! Subcommunicators for l1 to/from l2 data transfers
+     integer(ip)                       :: state = not_created
+     integer(ip)                       :: num_levels = 0         ! =0 when parts are not assigned to tasks
+     integer(ip)         , allocatable :: num_parts_per_level(:)
+     integer(ip)         , allocatable :: parts_mapping(:)
+     class(par_context_t), allocatable :: world_context          ! All tasks context (=l1+lgt1 tasks)
+     class(par_context_t), allocatable :: l1_context             ! 1st lev tasks context
+     class(par_context_t), allocatable :: lgt1_context           ! > 1st lev tasks context
+     class(par_context_t), allocatable :: l1_to_l2_context       ! Mixed l1 and l2 tasks context 
+                                                                 ! to exchange data between levels
      type(par_environment_t), pointer :: next_level 
    contains
      procedure :: read                                => par_environment_read_file
@@ -87,9 +87,6 @@ module par_environment_names
      procedure, private :: create_from_interface => par_environment_create_from_interface
      procedure, private :: create_from_unit      => par_environment_create_from_unit
      procedure          :: create                => par_environment_create
-     ! generic :: create  => par_environment_create_from_interface, &
-     !      &                par_environment_create_from_unit, &
-     !      &                par_environment_create_
 
      procedure :: assign_parts_to_tasks => par_environment_assign_parts_to_tasks
 
@@ -105,9 +102,6 @@ module par_environment_names
      procedure :: get_l1_to_l2_rank                   => par_environment_get_l1_to_l2_rank
      procedure :: get_l1_to_l2_size                   => par_environment_get_l1_to_l2_size
      procedure :: get_lgt1_rank                       => par_environment_get_lgt1_rank
-
-     !procedure :: get_l1_context                      => par_environment_get_l1_context
-     !procedure :: get_lgt1_context                    => par_environment_get_lgt1_context
 
      ! Who am I?
      procedure :: am_i_lgt1_task                      => par_environment_am_i_lgt1_task
@@ -260,7 +254,7 @@ contains
     implicit none 
     class(par_environment_t), intent(inout) :: this
     type(ParameterList_t)   , intent(in)    :: parameters
-    type(par_context_t)  :: world_context
+    class(par_context_t)    , allocatable   :: world_context
 
     ! Some refactoring is needed here separating number_of_parts_per_level (and dir)
     ! from the rest of the mesh information.
@@ -269,6 +263,7 @@ contains
     integer(ip)          :: istat
     logical              :: is_present
     integer(ip)          :: environment_type
+    integer(ip)          :: execution_context
     character(len=256)   :: dir_path
     character(len=256)   :: prefix
     character(len=:), allocatable   :: name
@@ -278,48 +273,59 @@ contains
     integer(ip) , allocatable :: parts_mapping(:)
 
     call this%free()
-    call world_context%create()
 
-    ! Mandatory parameters
-    is_present =  parameters%isPresent(key = dir_path_key); assert(is_present)
-    is_present =  parameters%isPresent(key = prefix_key)  ; assert(is_present)
-
-    istat = parameters%get(key = dir_path_key, value = dir_path); check(istat==0)
-    istat = parameters%get(key = prefix_key  , value = prefix)  ; check(istat==0)
-  
     ! Optional parameters
+    if(parameters%isPresent(key = execution_context_key)) then
+       istat = parameters%get(key = execution_context_key, value = execution_context); check(istat==0)
+    else
+       execution_context = serial_context
+    end if
     if( parameters%isPresent(key = environment_type_key) ) then
-       istat = parameters%get(key = environment_type_key, value = environment_type)
-       check(istat==0)
+       istat = parameters%get(key = environment_type_key, value = environment_type); check(istat==0)
     else
        environment_type = unstructured
     end if
 
+    if(execution_context==serial_context) then
+       allocate(serial_context_t :: this%world_context,stat=istat); check(istat==0)
+    else if(execution_context==mpi_context) then
+       allocate(mpi_context_t :: world_context,stat=istat); check(istat==0)
+       call world_context%create()
+    end if
+
     if(environment_type==unstructured) then
 
+       allocate(this%world_context,mold=world_context,stat=istat);check(istat==0)
        this%world_context = world_context
-       if(world_context%get_size()>1) then
+
+       if(world_context%get_num_tasks()>1) then
+          ! Mandatory parameters
+          is_present =  parameters%isPresent(key = dir_path_key)      ; assert(is_present)
+          is_present =  parameters%isPresent(key = prefix_key)        ; assert(is_present)
+          istat = parameters%get(key = dir_path_key, value = dir_path); check(istat==0)
+          istat = parameters%get(key = prefix_key  , value = prefix)  ; check(istat==0)
+
           call par_environment_compose_name(prefix, name )  
-          call par_filename( world_context%get_rank(), world_context%get_size() , name )
+          call par_filename( world_context%get_current_task(), world_context%get_num_tasks() , name )
           lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' )
+
           call this%create_from_unit(lunio)
-          ! Verify that the multilevel environment matches execution context
-          ! (long-lasting Alberto's concern)
-          check(this%get_num_tasks() == world_context%get_size())
+          ! Verify that the multilevel environment can be executed in current context (long-lasting Alberto's concern). 
+          check(this%get_num_tasks() <= world_context%get_num_tasks())
        else
+          allocate(this%l1_context,mold=this%world_context,stat=istat);check(istat==0)
           this%l1_context = this%world_context ! All the rest are empty
        end if
 
     else if(environment_type==structured) then
 
        call uniform_hex_mesh%get_data_from_parameter_list(parameters)
-       
-       call uniform_hex_mesh%generate_levels_and_parts(world_context%get_rank(), num_levels, num_parts_per_level, parts_mapping)
 
-       ! Verify that the multilevel environment matches execution context
-       ! (long-lasting Alberto's concern). 
+       call uniform_hex_mesh%generate_levels_and_parts(world_context%get_current_task(), num_levels, num_parts_per_level, parts_mapping)
+
+       ! Verify that the multilevel environment can be executed in current context (long-lasting Alberto's concern). 
        call this%assign_parts_to_tasks(num_levels, num_parts_per_level, parts_mapping)
-       check(this%get_num_tasks() == world_context%get_size())
+       check(this%get_num_tasks() <= world_context%get_num_tasks())
 
        ! Recursively create multilevel environment
        call this%create_from_interface(world_context, num_levels, num_parts_per_level, parts_mapping)
@@ -329,7 +335,8 @@ contains
     end if
     this%state = created_from_fpl
 
-  end subroutine par_environment_create
+
+end subroutine par_environment_create
   
   !=============================================================================
   subroutine par_environment_create_from_unit ( this, lunio )
@@ -347,17 +354,17 @@ contains
     call this%free()
     call this%read(lunio)
     assert ( this%num_levels >= 1 )
-    assert ( this%world_context%get_rank() >= 0 )
+    assert ( this%world_context%get_current_task() >= 0 )
 
     ! Create this%l1_context and this%lgt1_context by splitting world_context
-    call this%world_context%split_by_condition ( this%world_context%get_rank() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
+    call this%world_context%split_by_condition ( this%world_context%get_current_task() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
     
     ! Create l1_to_l2_context, where inter-level data transfers actually occur
     if ( this%num_levels > 1 ) then
-     if(this%l1_context%get_rank() >= 0) then
+     if(this%l1_context%get_current_task() >= 0) then
         my_color = this%parts_mapping(2)
-     else if( this%lgt1_context%get_rank() < this%num_parts_per_level(2)  ) then
-        my_color = this%lgt1_context%get_rank()+1
+     else if( this%lgt1_context%get_current_task() < this%num_parts_per_level(2)  ) then
+        my_color = this%lgt1_context%get_current_task()+1
      else
         my_color = undefined_color ! mpi_undefined
      end if
@@ -373,7 +380,7 @@ contains
     !  call this%l1_lgt1_context%nullify()
     ! end if
 
-    if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
+    if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
        allocate(this%next_level, stat=istat)
        check(istat == 0)
        call this%next_level%create_from_interface( this%lgt1_context, &
@@ -392,7 +399,7 @@ contains
     implicit none 
     ! Parameters
     class(par_environment_t)   , intent(inout) :: this
-    type(par_context_t)        , intent(in)    :: world_context
+    class(par_context_t)       , intent(in)    :: world_context
     integer(ip)                , intent(in)    :: num_levels
     integer(ip)                , intent(in)    :: num_parts_per_level(num_levels)
     integer(ip)                , intent(in)    :: parts_mapping(num_levels)
@@ -400,7 +407,8 @@ contains
     integer(ip)                                :: istat
     
     assert ( num_levels >= 1 )
-    assert ( world_context%get_rank() >= 0 )
+    assert ( world_context%get_current_task() >= 0 )
+    allocate(this%world_context,mold=this%l1_context,stat=istat);check(istat==0)
     this%world_context = world_context
 
     call this%free()
@@ -412,14 +420,14 @@ contains
     this%num_parts_per_level = num_parts_per_level
     
     ! Create this%l1_context and this%lgt1_context by splitting world_context
-    call world_context%split_by_condition ( world_context%get_rank() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
+    call world_context%split_by_condition ( world_context%get_current_task() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
 
     ! Create l1_to_l2_context, where inter-level data transfers actually occur
     if ( this%num_levels > 1 ) then
-      if(this%l1_context%get_rank() >= 0) then
+      if(this%l1_context%get_current_task() >= 0) then
          my_color = this%parts_mapping(2)
-      else if( this%lgt1_context%get_rank() < this%num_parts_per_level(2)  ) then
-         my_color = this%lgt1_context%get_rank()+1
+      else if( this%lgt1_context%get_current_task() < this%num_parts_per_level(2)  ) then
+         my_color = this%lgt1_context%get_current_task()+1
       else
          my_color = undefined_color ! mpi_undefined
       end if
@@ -435,7 +443,7 @@ contains
     !   call this%l1_lgt1_context%nullify()
     ! end if
 
-    if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
+    if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
        allocate(this%next_level, stat=istat)
        check(istat == 0)
        call this%next_level%create_from_interface ( this%lgt1_context, &
@@ -477,7 +485,7 @@ contains
     integer(ip)                             :: istat
 
    if(this%state >= created) then
-       if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
+       if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
          call this%next_level%free()
          deallocate ( this%next_level, stat = istat )
          assert ( istat == 0 )
@@ -486,7 +494,7 @@ contains
        ! call this%l1_lgt1_context%free(finalize=.false.)
        call this%l1_to_l2_context%free(finalize=.false.)
        if(this%state == created_from_fpl) then
-          if(this%world_context%get_size() > 1) call this%l1_context%free(finalize=.false.)
+          if(this%world_context%get_num_tasks() > 1) call this%l1_context%free(finalize=.false.)
           call this%world_context%free(finalize=.true.)
        else
           call this%l1_context%free(finalize=.false.)
@@ -509,11 +517,11 @@ contains
     integer(ip)                          :: istat
 
     if (this%state>=created) then
-      write(*,*) 'LEVELS: ', this%num_levels, 'l1_context      : ',this%l1_context%get_rank(), this%l1_context%get_size()
-      write(*,*) 'LEVELS: ', this%num_levels, 'lgt1_context    : ',this%lgt1_context%get_rank(), this%lgt1_context%get_size()
+      write(*,*) 'LEVELS: ', this%num_levels, 'l1_context      : ',this%l1_context%get_current_task(), this%l1_context%get_num_tasks()
+      write(*,*) 'LEVELS: ', this%num_levels, 'lgt1_context    : ',this%lgt1_context%get_current_task(), this%lgt1_context%get_num_tasks()
       !write(*,*) 'LEVELS: ', this%num_levels, 'l1_lgt1_context : ',this%l1_lgt1_context%get_rank(), this%l1_lgt1_context%get_size()
-      write(*,*) 'LEVELS: ', this%num_levels, 'l1_to_l2_context: ',this%l1_to_l2_context%get_rank(), this%l1_to_l2_context%get_size()
-      if ( this%num_levels > 1 .and. this%lgt1_context%get_rank() >= 0 ) then
+      write(*,*) 'LEVELS: ', this%num_levels, 'l1_to_l2_context: ',this%l1_to_l2_context%get_current_task(), this%l1_to_l2_context%get_num_tasks()
+      if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
         call this%next_level%print()
       end if
     end if
@@ -556,7 +564,7 @@ contains
     ! Parameters
     class(par_environment_t), intent(in) :: this
     integer                              :: par_environment_get_l1_rank
-    par_environment_get_l1_rank = this%l1_context%get_rank()
+    par_environment_get_l1_rank = this%l1_context%get_current_task()
   end function par_environment_get_l1_rank
   
   !=============================================================================
@@ -565,7 +573,7 @@ contains
     ! Parameters
     class(par_environment_t), intent(in) :: this
     integer                              :: par_environment_get_l1_size
-    par_environment_get_l1_size = this%l1_context%get_size()
+    par_environment_get_l1_size = this%l1_context%get_num_tasks()
   end function par_environment_get_l1_size
   
     !=============================================================================
@@ -574,7 +582,7 @@ contains
     ! Parameters
     class(par_environment_t), intent(in) :: this
     integer                              :: par_environment_get_l1_to_l2_rank
-    par_environment_get_l1_to_l2_rank = this%l1_to_l2_context%get_rank()
+    par_environment_get_l1_to_l2_rank = this%l1_to_l2_context%get_current_task()
   end function par_environment_get_l1_to_l2_rank
   
   !=============================================================================
@@ -583,7 +591,7 @@ contains
     ! Parameters
     class(par_environment_t), intent(in) :: this
     integer                              :: par_environment_get_l1_to_l2_size
-    par_environment_get_l1_to_l2_size = this%l1_to_l2_context%get_size()
+    par_environment_get_l1_to_l2_size = this%l1_to_l2_context%get_num_tasks()
   end function par_environment_get_l1_to_l2_size
   
   !=============================================================================
@@ -592,33 +600,15 @@ contains
     ! Parameters
     class(par_environment_t), intent(in) :: this
     integer                              :: par_environment_get_lgt1_rank
-    par_environment_get_lgt1_rank = this%lgt1_context%get_rank()
+    par_environment_get_lgt1_rank = this%lgt1_context%get_current_task()
   end function par_environment_get_lgt1_rank
-  
-  !=============================================================================
-  function par_environment_get_l1_context ( this )
-    implicit none 
-    ! Parameters
-    class(par_environment_t), target,  intent(in) :: this
-    type(par_context_t)     , pointer             :: par_environment_get_l1_context
-    par_environment_get_l1_context => this%l1_context
-  end function par_environment_get_l1_context
-  
-  !=============================================================================
-  function par_environment_get_lgt1_context ( this )
-    implicit none 
-    ! Parameters
-    class(par_environment_t), target,  intent(in) :: this
-    type(par_context_t)     , pointer             :: par_environment_get_lgt1_context
-    par_environment_get_lgt1_context => this%lgt1_context
-  end function par_environment_get_lgt1_context
   
   !=============================================================================
   function par_environment_am_i_lgt1_task(this) 
     implicit none
     class(par_environment_t) ,intent(in)  :: this
     logical                               :: par_environment_am_i_lgt1_task
-    par_environment_am_i_lgt1_task = (this%lgt1_context%get_rank() >= 0)
+    par_environment_am_i_lgt1_task = (this%lgt1_context%get_current_task() >= 0)
   end function par_environment_am_i_lgt1_task
   
   !=============================================================================
@@ -626,7 +616,7 @@ contains
     implicit none
     class(par_environment_t), intent(in) :: this
     logical                              :: par_environment_am_i_l1_to_l2_task 
-    par_environment_am_i_l1_to_l2_task = (this%l1_to_l2_context%get_rank() >= 0)
+    par_environment_am_i_l1_to_l2_task = (this%l1_to_l2_context%get_current_task() >= 0)
   end function par_environment_am_i_l1_to_l2_task
   
   !=============================================================================
@@ -634,7 +624,7 @@ contains
     implicit none
     class(par_environment_t), intent(in) :: this
     logical                              :: par_environment_am_i_l1_to_l2_root
-    par_environment_am_i_l1_to_l2_root = (this%l1_to_l2_context%get_rank() == this%l1_to_l2_context%get_size()-1)
+    par_environment_am_i_l1_to_l2_root = (this%l1_to_l2_context%get_current_task() == this%l1_to_l2_context%get_num_tasks()-1)
   end function par_environment_am_i_l1_to_l2_root
 
   !=============================================================================
@@ -642,7 +632,7 @@ contains
     implicit none
     class(par_environment_t), intent(in) :: this
     logical                              :: par_environment_am_i_l1_root
-    par_environment_am_i_l1_root = (this%l1_context%get_rank() == 0)
+    par_environment_am_i_l1_root = (this%l1_context%get_current_task() == 0)
   end function par_environment_am_i_l1_root
   
   !=============================================================================
@@ -671,8 +661,8 @@ contains
     class(par_environment_t),intent(in)  :: this
     integer(ip)           ,intent(out) :: me
     integer(ip)           ,intent(out) :: np
-    me = this%l1_context%get_rank()
-    np = this%l1_context%get_size()
+    me = this%l1_context%get_current_task()
+    np = this%l1_context%get_num_tasks()
   end subroutine par_environment_info
   
   !=============================================================================
@@ -680,7 +670,7 @@ contains
     implicit none
     class(par_environment_t) ,intent(in)  :: this
     logical                             :: par_environment_am_i_l1_task 
-    par_environment_am_i_l1_task = (this%l1_context%get_rank() >= 0)
+    par_environment_am_i_l1_task = (this%l1_context%get_current_task() >= 0)
   end function par_environment_am_i_l1_task
 
   !=============================================================================
@@ -891,7 +881,7 @@ contains
       implicit none
       class(par_environment_t), intent(in)   :: this
       integer(ip)             , intent(in)   :: input_data
-      integer(ip)             , intent(out)  :: output_data(this%l1_context%get_size())
+      integer(ip)             , intent(out)  :: output_data(:) ! ( this%l1_context%get_num_tasks())
       assert ( this%am_i_l1_task() )
       call this%l1_context%gather ( input_data, output_data )
    end subroutine par_environment_l1_gather_scalar_ip
@@ -899,7 +889,7 @@ contains
    subroutine par_environment_l1_scatter_scalar_ip ( this, input_data, output_data )
       implicit none
       class(par_environment_t), intent(in)   :: this
-      integer(ip)             , intent(in)   :: input_data(this%l1_context%get_size())
+      integer(ip)             , intent(in)   :: input_data(:) ! ( this%l1_context%get_num_tasks())
       integer(ip)             , intent(out)  :: output_data
       assert( this%am_i_l1_task() )
       call this%l1_context%scatter ( input_data, output_data )
@@ -922,7 +912,7 @@ contains
       integer(ip)             , intent(in)      :: input_data
       integer(ip)             , intent(inout)   :: output_data
       assert ( this%am_i_l1_to_l2_task() )
-      call this%l1_to_l2_context%transfer_to_master(input_data, output_data )
+      call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
    end subroutine par_environment_l1_to_l2_transfer_ip
    
   !=============================================================================
@@ -932,7 +922,7 @@ contains
       integer(ip)             , intent(in)      :: input_data(:)
       integer(ip)             , intent(inout)   :: output_data(:)
       assert ( this%am_i_l1_to_l2_task() )
-      call this%l1_to_l2_context%transfer_to_master(input_data, output_data )
+      call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
    end subroutine par_environment_l1_to_l2_transfer_ip_1D_array
   
   !=============================================================================
@@ -940,7 +930,7 @@ contains
       implicit none
       class(par_environment_t), intent(in)   :: this
       integer(ip)             , intent(in)   :: input_data
-      integer(ip)             , intent(out)  :: output_data(this%l1_to_l2_context%get_size())
+      integer(ip)             , intent(out)  :: output_data(:) ! ( this%l1_to_l2_context%get_num_tasks())
       assert ( this%am_i_l1_to_l2_task() )
       call this%l1_to_l2_context%gather_to_master(input_data,output_data )
   end subroutine par_environment_l2_from_l1_gather_ip
@@ -950,7 +940,7 @@ contains
       implicit none
       class(par_environment_t), intent(in)   :: this
       integer(igp)            , intent(in)   :: input_data
-      integer(igp)            , intent(out)  :: output_data(this%l1_to_l2_context%get_size())
+      integer(igp)            , intent(out)  :: output_data(:) ! ( this%l1_to_l2_context%get_num_tasks())
       assert ( this%am_i_l1_to_l2_task() )
       call this%l1_to_l2_context%gather_to_master(input_data,output_data )
    end subroutine par_environment_l2_from_l1_gather_igp
@@ -972,8 +962,8 @@ contains
       class(par_environment_t), intent(in)   :: this
       integer(ip)             , intent(in)   :: input_data_size
       integer(ip)             , intent(in)   :: input_data(input_data_size)
-      integer(ip)             , intent(in)   :: recv_counts(this%l1_to_l2_context%get_size())
-      integer(ip)             , intent(in)   :: displs(this%l1_to_l2_context%get_size())
+      integer(ip)             , intent(in)   :: recv_counts(:) ! ( this%l1_to_l2_context%get_num_tasks())
+      integer(ip)             , intent(in)   :: displs(:) ! ( this%l1_to_l2_context%get_num_tasks())
       integer(ip)             , intent(out)  :: output_data(:)
       assert ( this%am_i_l1_to_l2_task() )
       call this%l1_to_l2_context%gather_to_master(input_data_size, input_data, recv_counts, displs, output_data )
@@ -985,8 +975,8 @@ contains
       class(par_environment_t), intent(in)   :: this
       integer(ip)             , intent(in)   :: input_data_size
       integer(igp)            , intent(in)   :: input_data(input_data_size)
-      integer(ip)             , intent(in)   :: recv_counts(this%l1_to_l2_context%get_size())
-      integer(ip)             , intent(in)   :: displs(this%l1_to_l2_context%get_size())
+      integer(ip)             , intent(in)   :: recv_counts(:) ! ( this%l1_to_l2_context%get_num_tasks())
+      integer(ip)             , intent(in)   :: displs(:) ! ( this%l1_to_l2_context%get_num_tasks())
       integer(igp)            , intent(out)  :: output_data(:)
       assert ( this%am_i_l1_to_l2_task() )
       call this%l1_to_l2_context%gather_to_master(input_data_size, input_data, recv_counts, displs, output_data )
@@ -998,8 +988,8 @@ contains
       class(par_environment_t), intent(in)   :: this
       integer(ip)             , intent(in)   :: input_data_size
       real(rp)                , intent(in)   :: input_data(input_data_size)
-      integer(ip)             , intent(in)   :: recv_counts(this%l1_to_l2_context%get_size())
-      integer(ip)             , intent(in)   :: displs(this%l1_to_l2_context%get_size())
+      integer(ip)             , intent(in)   :: recv_counts(:) ! ( this%l1_to_l2_context%get_num_tasks())
+      integer(ip)             , intent(in)   :: displs(:) ! ( this%l1_to_l2_context%get_num_tasks())
       real(rp)                , intent(out)  :: output_data(:)
       assert ( this%am_i_l1_to_l2_task() )
       call this%l1_to_l2_context%gather_to_master(input_data_size, input_data, recv_counts, displs, output_data )
@@ -1010,8 +1000,8 @@ contains
       implicit none
       class(par_environment_t), intent(in)   :: this
       real(rp)                , intent(in)   :: input_data(:,:)
-      integer(ip)             , intent(in)   :: recv_counts(this%l1_to_l2_context%get_size())
-      integer(ip)             , intent(in)   :: displs(this%l1_to_l2_context%get_size())
+      integer(ip)             , intent(in)   :: recv_counts(:) ! ( this%l1_to_l2_context%get_num_tasks())
+      integer(ip)             , intent(in)   :: displs(:) ! ( this%l1_to_l2_context%get_num_tasks())
       real(rp)                , intent(out)  :: output_data(:)
       assert ( this%am_i_l1_to_l2_task() )
       call this%l1_to_l2_context%gather_to_master(input_data, recv_counts, displs, output_data )
@@ -1022,8 +1012,8 @@ contains
      implicit none
      class(par_environment_t), intent(in)   :: this
      real(rp)                , intent(in)   :: input_data(:)
-     integer(ip)             , intent(in)   :: send_counts(this%l1_to_l2_context%get_size())
-     integer(ip)             , intent(in)   :: displs(this%l1_to_l2_context%get_size())
+     integer(ip)             , intent(in)   :: send_counts(:) ! ( this%l1_to_l2_context%get_num_tasks())
+     integer(ip)             , intent(in)   :: displs(:) ! ( this%l1_to_l2_context%get_num_tasks())
      integer(ip)             , intent(in)   :: output_data_size
      real(rp)                , intent(out)  :: output_data(output_data_size)
      assert( this%am_i_l1_to_l2_task() )
